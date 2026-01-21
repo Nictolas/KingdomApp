@@ -146,7 +146,7 @@ export default function GridGame() {
   // Generazione alberi/miniere/personaggi (nomi sempre random)
   const generateTrees = () => {
     const treeList: Placed[] = [];
-    const numTrees = 22;
+    const numTrees = 45;
     for (let i = 0; i < numTrees; i++) {
       let x = 0;
       let y = 0;
@@ -651,18 +651,32 @@ export default function GridGame() {
 
   const buildBridge = async () => {
     if (!selectedRiver) return;
-    setBridges((prev) => [...prev, { x: selectedRiver.x, y: selectedRiver.y }]);
+    // Il fiume è largo 2 colonne (RIVER_XS). Un “ponte” deve coprire tutte le colonne del fiume
+    // alla stessa y, altrimenti i personaggi restano bloccati sulla seconda colonna.
+    setBridges((prev) => {
+      const next = [...prev];
+      for (const rx of RIVER_XS) {
+        if (!next.some((b) => b.x === rx && b.y === selectedRiver.y)) next.push({ x: rx, y: selectedRiver.y });
+      }
+      return next;
+    });
     setSelectedRiver(null);
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
   const buildBridgeAt = async (x: number, y: number) => {
     if (wasRecentlyDragging()) return;
-    if (!isRiver(x, y) || isBridge(x, y)) {
+    if (!isRiver(x, y)) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
-    setBridges((prev) => [...prev, { x, y }]);
+    setBridges((prev) => {
+      const next = [...prev];
+      for (const rx of RIVER_XS) {
+        if (!next.some((b) => b.x === rx && b.y === y)) next.push({ x: rx, y });
+      }
+      return next;
+    });
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
