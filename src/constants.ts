@@ -1,6 +1,7 @@
 import type { Building } from "./types";
 
-export const GRID_SIZE = 40;
+// Aumentiamo la mappa di ~10 caselle per lato (totale +20)
+export const GRID_SIZE = 60;
 export const NUM_CHARACTERS = 6;
 export const CELL_SIZE = 36;
 export const CELL_GAP = 3;
@@ -35,8 +36,9 @@ export const lastNames = ["Rossi", "Bianchi", "Verdi", "Romano", "Ricci", "Marin
 
 export const castleData: Building = {
   id: "castle",
-  x: 23,
-  y: 11,
+  // shift +10/+10 per mantenere la scena “centrata” nella nuova griglia
+  x: 33,
+  y: 21,
   width: 3,
   height: 3,
   name: "Castello",
@@ -47,8 +49,9 @@ export const castleData: Building = {
 
 export const farmData: Building = {
   id: "farm",
-  x: 4,
-  y: 22,
+  // shift +10/+10
+  x: 14,
+  y: 32,
   width: 3,
   height: 3,
   name: "Campo",
@@ -58,8 +61,9 @@ export const farmData: Building = {
 };
 
 export const houseData: Building[] = [
-  { id: "house-1", x: 7, y: 6, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una piccola casa accogliente", type: "house" },
-  { id: "house-2", x: 14, y: 6, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una casa vicino al fiume", type: "house" },
-  { id: "house-3", x: 3, y: 12, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una casa immersa nel verde", type: "house" },
-  { id: "house-4", x: 22, y: 18, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una casa non lontana dal campo", type: "house" }
+  // shift +10/+10
+  { id: "house-1", x: 17, y: 16, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una piccola casa accogliente", type: "house" },
+  { id: "house-2", x: 24, y: 16, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una casa vicino al fiume", type: "house" },
+  { id: "house-3", x: 13, y: 22, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una casa immersa nel verde", type: "house" },
+  { id: "house-4", x: 32, y: 28, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una casa non lontana dal campo", type: "house" }
 ];
