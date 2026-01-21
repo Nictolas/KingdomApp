@@ -18,7 +18,8 @@ import {
   farmData,
   houseData
 } from "../constants";
-import { clamp, isInsideBuilding, buildingCenter } from "../utils";
+import { clamp, isInsideBuilding, buildingCenter, isTree, isMine } from "../utils";
+import { generateTrees, generateMines, generateCharacters } from "../game/generation";
 import { isRiver, isSea, isBeach, makeTerrainColor } from "../game/terrain";
 import { isLightAt, isIlluminatedByAnyLight } from "../game/lights";
 import { computeNightOpacity } from "../game/night";
@@ -90,8 +91,6 @@ export default function GridGame() {
   // Terreni (importati da game/terrain.ts)
 
   const isBridge = (x: number, y: number) => bridges.some((b) => b.x === x && b.y === y);
-  const isTree = (x: number, y: number) => trees.some((t) => t.x === x && t.y === y);
-  const isMine = (x: number, y: number) => mines.some((m) => m.x === x && m.y === y);
   // Luci (importate da game/lights.ts)
 
   const formatGameTime = (h: number, m: number) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
@@ -112,8 +111,8 @@ export default function GridGame() {
     // Spiaggia non attraversabile (salvo fiume/ponte che la attraversa)
     if (isBeach(p.x, p.y) && !isRiver(p.x, p.y)) return true;
     if (isRiver(p.x, p.y) && !isBridge(p.x, p.y)) return true;
-    if (isTree(p.x, p.y)) return true;
-    if (isMine(p.x, p.y)) return true;
+    if (isTree(p.x, p.y, trees)) return true;
+    if (isMine(p.x, p.y, mines)) return true;
     if (isInsideBuilding(castleData, p.x, p.y)) return true;
     if (isInsideBuilding(farmData, p.x, p.y)) return true;
     for (const h of houseData) if (isInsideBuilding(h, p.x, p.y)) return true;
@@ -152,93 +151,6 @@ export default function GridGame() {
     return null;
   };
 
-  // Generazione alberi/miniere/personaggi (nomi sempre random)
-  const generateTrees = () => {
-    const treeList: Placed[] = [];
-    const numTrees = 45;
-    for (let i = 0; i < numTrees; i++) {
-      let x = 0;
-      let y = 0;
-      let attempts = 0;
-      do {
-        x = Math.floor(Math.random() * GRID_SIZE);
-        y = Math.floor(Math.random() * LAND_ROWS);
-        attempts++;
-      } while (
-        attempts < 400 &&
-        (isRiver(x, y) ||
-          isInsideBuilding(castleData, x, y) ||
-          isInsideBuilding(farmData, x, y) ||
-          houseData.some((h) => isInsideBuilding(h, x, y)) ||
-          treeList.some((t) => t.x === x && t.y === y))
-      );
-      if (attempts < 400) treeList.push({ x, y, id: i });
-    }
-    return treeList;
-  };
-
-  const generateMines = () => {
-    const mineList: Placed[] = [];
-    const numMines = 10;
-    for (let i = 0; i < numMines; i++) {
-      let x = 0;
-      let y = 0;
-      let attempts = 0;
-      do {
-        x = Math.floor(Math.random() * GRID_SIZE);
-        y = Math.floor(Math.random() * LAND_ROWS);
-        attempts++;
-      } while (
-        attempts < 400 &&
-        (isRiver(x, y) ||
-          isInsideBuilding(castleData, x, y) ||
-          isInsideBuilding(farmData, x, y) ||
-          houseData.some((h) => isInsideBuilding(h, x, y)) ||
-          mineList.some((m) => m.x === x && m.y === y))
-      );
-      if (attempts < 400) mineList.push({ x, y, id: i });
-    }
-    return mineList;
-  };
-
-  const generateCharacters = (newTrees: Placed[], newMines: Placed[]) => {
-    const list: Character[] = [];
-    for (let i = 0; i < NUM_CHARACTERS; i++) {
-      const profession = professions[i];
-      const firstName = firstNames[Math.floor(Math.random() * firstNames.length)];
-      const lastName = lastNames[Math.floor(Math.random() * lastNames.length)];
-      let x = 0;
-      let y = 0;
-      let attempts = 0;
-      do {
-        x = Math.floor(Math.random() * GRID_SIZE);
-        y = Math.floor(Math.random() * LAND_ROWS);
-        attempts++;
-      } while (
-        attempts < 400 &&
-        (isRiver(x, y) ||
-          isInsideBuilding(castleData, x, y) ||
-          isInsideBuilding(farmData, x, y) ||
-          houseData.some((h) => isInsideBuilding(h, x, y)) ||
-          newTrees.some((t) => t.x === x && t.y === y) ||
-          newMines.some((m) => m.x === x && m.y === y))
-      );
-      list.push({
-        id: i,
-        x,
-        y,
-        targetX: x,
-        targetY: y,
-        emoji: profession.emoji,
-        profession: profession.name,
-        name: `${firstName} ${lastName}`,
-        age: Math.floor(Math.random() * 50) + 18, // Età tra 18 e 67
-        lastMove: Date.now(),
-        isInHouse: false
-      });
-    }
-    return list;
-  };
 
   const reset = () => {
     setSelectedCharacter(null);
@@ -600,7 +512,7 @@ export default function GridGame() {
     
     // Solo su erba (non fiume, non edifici, non alberi, non miniere, non già luce)
     if (isRiver(x, y) || isInsideBuilding(castleData, x, y) || isInsideBuilding(farmData, x, y) || 
-        houseData.some((h) => isInsideBuilding(h, x, y)) || isTree(x, y) || isMine(x, y) || 
+        houseData.some((h) => isInsideBuilding(h, x, y)) || isTree(x, y, trees) || isMine(x, y, mines) || 
         isLightAt(lights, x, y) || isSea(x, y) || isBeach(x, y)) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
@@ -630,8 +542,8 @@ export default function GridGame() {
         const house = houseData.some((h) => isInsideBuilding(h, x, y));
         const sea = isSea(x, y);
         const beach = isBeach(x, y);
-        const tree = isTree(x, y);
-        const mine = isMine(x, y);
+        const tree = isTree(x, y, trees);
+        const mine = isMine(x, y, mines);
         const light = isLightAt(lights, x, y);
         const illuminated = isIlluminatedByAnyLight(lights, x, y);
 
