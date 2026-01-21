@@ -6,8 +6,15 @@ import { CharacterRenderer } from "../components/CharacterRenderer";
 import { BuildingRenderer } from "../components/BuildingRenderer";
 import { GRID_SIZE, CELL_SIZE, castleData, farmData, houseData } from "../constants";
 import type { Character, Building } from "../types";
+import { generateRiver } from "../game/terrain";
 
 export default function GridGame() {
+  // Genera seed casuale all'avvio
+  const [seed] = useState(() => Math.floor(Math.random() * 1000000));
+  
+  // Genera il fiume basato sul seed
+  const riverCells = useMemo(() => generateRiver(seed), [seed]);
+
   const gridPixelSize = useMemo(() => {
     const size = GRID_SIZE * CELL_SIZE;
     return { w: size, h: size };
@@ -58,7 +65,7 @@ export default function GridGame() {
           }
         ]}
       >
-        <GridRenderer offset={{ x: 0, y: 0 }} />
+        <GridRenderer offset={{ x: 0, y: 0 }} seed={seed} riverCells={riverCells} />
         <CharacterRenderer characters={characters} />
         <BuildingRenderer buildings={buildings} />
       </View>
