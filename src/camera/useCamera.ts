@@ -85,22 +85,23 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     // Limita l'offset per mantenere la griglia dentro i bordi dello schermo
     // offset è la posizione dell'angolo in alto a sinistra della griglia
     // La griglia va da offset.x a offset.x + scaledGridW
-    // Per non vedere oltre a sinistra: offset.x <= 0
-    // Per non vedere oltre a destra: offset.x + scaledGridW >= width, quindi offset.x >= width - scaledGridW
-    const minX = Math.min(0, width - scaledGridW);
-    const maxX = 0;
-    const minY = Math.min(0, height - scaledGridH);
-    const maxY = 0;
-
-    // Assicuriamoci che minX <= maxX e minY <= maxY
-    const finalMinX = Math.min(minX, maxX);
-    const finalMaxX = Math.max(minX, maxX);
-    const finalMinY = Math.min(minY, maxY);
-    const finalMaxY = Math.max(minY, maxY);
+    // 
+    // Se la griglia è più grande dello schermo:
+    // - Non vedere oltre a sinistra: offset.x <= 0
+    // - Non vedere oltre a destra: offset.x + scaledGridW >= width, quindi offset.x >= width - scaledGridW
+    // - Non vedere oltre in alto: offset.y <= 0
+    // - Non vedere oltre in basso: offset.y + scaledGridH >= height, quindi offset.y >= height - scaledGridH
+    //
+    // Se la griglia è più piccola dello schermo, centrarla (ma questo non dovrebbe mai succedere con lo zoom minimo dinamico)
+    
+    const minX = width - scaledGridW; // offset minimo per non vedere oltre a destra
+    const maxX = 0; // offset massimo per non vedere oltre a sinistra
+    const minY = height - scaledGridH; // offset minimo per non vedere oltre in basso
+    const maxY = 0; // offset massimo per non vedere oltre in alto
 
     return {
-      x: clamp(o.x, finalMinX, finalMaxX),
-      y: clamp(o.y, finalMinY, finalMaxY)
+      x: clamp(o.x, minX, maxX),
+      y: clamp(o.y, minY, maxY)
     };
   };
 
@@ -208,14 +209,14 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
 
   // Imposta la scala fissa al mount e quando cambiano le dimensioni della griglia o finestra
   // LO ZOOM È COMPLETAMENTE RIMOSSO - solo scala fissa per coprire lo schermo
-  // L'offset è sempre (0, 0) per garantire che la griglia copra tutto lo schermo
   useEffect(() => {
     const fixedScale = getDynamicMinZoom();
     setZoom(fixedScale);
     zoomRef.current = fixedScale;
-    // Offset sempre (0, 0) per coprire tutto lo schermo
-    setOffset({ x: 0, y: 0 });
-    offsetRef.current = { x: 0, y: 0 };
+    // Offset iniziale (0, 0) - può essere spostato con pan/freccette
+    const initialOffset = clampOffset({ x: 0, y: 0 }, fixedScale);
+    setOffset(initialOffset);
+    offsetRef.current = initialOffset;
   }, [gridWidth, gridHeight]);
   
   // Ricalcola la scala fissa quando cambiano le dimensioni della finestra
@@ -224,12 +225,13 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
       const fixedScale = getDynamicMinZoom();
       setZoom(fixedScale);
       zoomRef.current = fixedScale;
-      // Offset sempre (0, 0) per coprire tutto lo schermo
-      setOffset({ x: 0, y: 0 });
-      offsetRef.current = { x: 0, y: 0 };
+      // Mantieni l'offset corrente ma clampalo ai nuovi limiti
+      const clampedOffset = clampOffset(offset, fixedScale);
+      setOffset(clampedOffset);
+      offsetRef.current = clampedOffset;
     });
     return () => subscription?.remove();
-  }, [gridWidth, gridHeight]);
+  }, [gridWidth, gridHeight, offset]);
 
   // APPROCCIO: il contenitore world mantiene dimensioni scalate e posizione
   // Le dimensioni devono corrispondere alla griglia scalata per limitare correttamente il contenuto
@@ -244,7 +246,6 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
       height: scaledHeight,
       overflow: "hidden" as const
     };
-    console.log("worldStyle recalculated:", { zoom, gridWidth, gridHeight, scaledWidth, scaledHeight, offset });
     return style;
   }, [offset.x, offset.y, zoom, gridWidth, gridHeight]);
   
