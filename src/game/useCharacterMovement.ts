@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import type { Character, Point, Building, Placed } from "../types";
-import { GRID_SIZE, CELL_SIZE, castleData, farmData, houseData } from "../constants";
-import { isRiver, isBeach, isSea } from "./terrain";
+import { GRID_SIZE } from "../constants";
+import { isRiver, isSea } from "./terrain";
 
 type UseCharacterMovementOptions = {
   characters: Character[];

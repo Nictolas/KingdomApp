@@ -32,25 +32,6 @@ export default function GridGame() {
     gridHeight: gridPixelSize.h
   });
 
-  // Personaggi iniziali
-  const [characters, setCharacters] = useState<Character[]>([
-    { id: 1, x: 32, y: 22, targetX: 32, targetY: 22, emoji: "🤴", profession: "Re", name: "Re Artù", age: 35, lastMove: 0 },
-    { id: 2, x: 15, y: 33, targetX: 15, targetY: 33, emoji: "👨‍🌾", profession: "Contadino", name: "Marco", age: 28, lastMove: 0 },
-    { id: 3, x: 18, y: 17, targetX: 18, targetY: 17, emoji: "👨‍🍳", profession: "Cuoco", name: "Luca", age: 32, lastMove: 0 },
-    { id: 4, x: 25, y: 17, targetX: 25, targetY: 17, emoji: "👨‍🔬", profession: "Scienziato", name: "Giovanni", age: 40, lastMove: 0 },
-    { id: 5, x: 14, y: 23, targetX: 14, targetY: 23, emoji: "👨‍🎨", profession: "Artista", name: "Paolo", age: 26, lastMove: 0 },
-    { id: 6, x: 33, y: 29, targetX: 33, targetY: 29, emoji: "🪓", profession: "Boscaiolo", name: "Andrea", age: 30, lastMove: 0 }
-  ]);
-  
-  // Hook per il movimento dei personaggi
-  const { moveCharacter } = useCharacterMovement({
-    characters,
-    setCharacters,
-    buildings,
-    trees,
-    riverCells
-  });
-
   // Edifici - filtra quelli che non sono su fiume o mare
   const buildings: Building[] = useMemo(() => {
     const allBuildings = [castleData, farmData, ...houseData];
@@ -69,6 +50,25 @@ export default function GridGame() {
       return true;
     });
   }, [riverCells]);
+
+  // Personaggi iniziali
+  const [characters, setCharacters] = useState<Character[]>([
+    { id: 1, x: 32, y: 22, targetX: 32, targetY: 22, emoji: "🤴", profession: "Re", name: "Re Artù", age: 35, lastMove: 0 },
+    { id: 2, x: 15, y: 33, targetX: 15, targetY: 33, emoji: "👨‍🌾", profession: "Contadino", name: "Marco", age: 28, lastMove: 0 },
+    { id: 3, x: 18, y: 17, targetX: 18, targetY: 17, emoji: "👨‍🍳", profession: "Cuoco", name: "Luca", age: 32, lastMove: 0 },
+    { id: 4, x: 25, y: 17, targetX: 25, targetY: 17, emoji: "👨‍🔬", profession: "Scienziato", name: "Giovanni", age: 40, lastMove: 0 },
+    { id: 5, x: 14, y: 23, targetX: 14, targetY: 23, emoji: "👨‍🎨", profession: "Artista", name: "Paolo", age: 26, lastMove: 0 },
+    { id: 6, x: 33, y: 29, targetX: 33, targetY: 29, emoji: "🪓", profession: "Boscaiolo", name: "Andrea", age: 30, lastMove: 0 }
+  ]);
+  
+  // Hook per il movimento dei personaggi
+  const { moveCharacter } = useCharacterMovement({
+    characters,
+    setCharacters,
+    buildings,
+    trees,
+    riverCells
+  });
 
   // Stato per i dialog
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
