@@ -120,23 +120,24 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
 
   // Zoom incrementale verso un punto
   const zoomIncrement = (screenX: number, screenY: number, delta: number) => {
-    setZoom((currentZoom) => {
-      const dynamicMinZoom = getDynamicMinZoom();
-      const newZoom = clamp(currentZoom + delta, dynamicMinZoom, maxZoom);
-      // Usa zoomToPoint con il nuovo zoom calcolato
-      // Calcoliamo quale punto del mondo è sotto il cursore PRIMA dello zoom
-      const worldX = (screenX - offset.x) / currentZoom;
-      const worldY = (screenY - offset.y) / currentZoom;
-      
-      // Calcoliamo il nuovo offset per mantenere lo stesso punto del mondo sotto il cursore
-      const newOffsetX = screenX - worldX * newZoom;
-      const newOffsetY = screenY - worldY * newZoom;
-      
-      const clampedOffset = clampOffset({ x: newOffsetX, y: newOffsetY }, newZoom);
-      setOffset(clampedOffset);
-      
-      return newZoom;
-    });
+    const dynamicMinZoom = getDynamicMinZoom();
+    const currentZoom = zoomRef.current;
+    const currentOffset = offsetRef.current;
+    const newZoom = clamp(currentZoom + delta, dynamicMinZoom, maxZoom);
+    // Se lo zoom non cambia (clamp lo ha bloccato), non fare nulla
+    if (Math.abs(newZoom - currentZoom) < 0.001) return;
+    
+    // Calcoliamo quale punto del mondo è sotto il cursore PRIMA dello zoom
+    const worldX = (screenX - currentOffset.x) / currentZoom;
+    const worldY = (screenY - currentOffset.y) / currentZoom;
+    
+    // Calcoliamo il nuovo offset per mantenere lo stesso punto del mondo sotto il cursore
+    const newOffsetX = screenX - worldX * newZoom;
+    const newOffsetY = screenY - worldY * newZoom;
+    
+    const clampedOffset = clampOffset({ x: newOffsetX, y: newOffsetY }, newZoom);
+    setZoom(newZoom);
+    setOffset(clampedOffset);
   };
 
   // Zoom con rotellina del mouse
