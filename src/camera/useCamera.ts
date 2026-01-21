@@ -31,15 +31,26 @@ export type Camera = {
 
 export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 }: UseCameraOptions): Camera {
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
-  // Zoom fisso al minimo (zoom indietro massima)
-  const [zoom, setZoom] = useState(minZoom);
+  // Calcola lo zoom iniziale dinamico - inizializza con un valore temporaneo
+  const getInitialZoom = () => {
+    try {
+      const { width, height } = Dimensions.get("window");
+      const minZoomForWidth = width / gridWidth;
+      const minZoomForHeight = height / gridHeight;
+      return Math.max(minZoomForWidth, minZoomForHeight);
+    } catch {
+      // Fallback se Dimensions non è disponibile
+      return minZoom;
+    }
+  };
+  const [zoom, setZoom] = useState(() => getInitialZoom());
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<Point>({ x: 0, y: 0 });
   const lastTouchDistanceRef = useRef<number | null>(null);
   
   // Ref per accedere ai valori più recenti - inizializzati con i valori iniziali
   const offsetRef = useRef<Point>({ x: 0, y: 0 });
-  const zoomRef = useRef<number>(1);
+  const zoomRef = useRef<number>(getInitialZoom());
   
   // Sincronizza i ref con lo stato
   useEffect(() => {
@@ -52,14 +63,16 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
 
   // Calcola il minZoom dinamico: impedisce di vedere oltre la griglia
   // Il minZoom deve essere tale che la griglia scalata copra almeno tutta la finestra
+  // Usa sempre il valore calcolato per garantire che la griglia riempia completamente lo schermo
   const getDynamicMinZoom = () => {
     const { width, height } = Dimensions.get("window");
     const minZoomForWidth = width / gridWidth;
     const minZoomForHeight = height / gridHeight;
     // Usa il massimo tra i due per coprire tutta la finestra
+    // Aggiungi un piccolo margine per evitare problemi di arrotondamento
     const calculatedMinZoom = Math.max(minZoomForWidth, minZoomForHeight);
-    // Non scendere sotto il minZoom base, ma permettere zoom indietro se necessario
-    return Math.max(minZoom, calculatedMinZoom);
+    // Usa sempre il valore calcolato per garantire che la griglia copra completamente lo schermo
+    return calculatedMinZoom;
   };
 
   // APPROCCIO DIRETTO: offset è la posizione dell'angolo in alto a sinistra della griglia nello schermo
@@ -70,21 +83,14 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     const scaledGridW = gridWidth * z;
     const scaledGridH = gridHeight * z;
 
-    // Se la griglia scalata è più piccola della finestra: CENTRA e BLOCCA
-    if (scaledGridW <= width && scaledGridH <= height) {
-      return {
-        x: (width - scaledGridW) / 2,
-        y: (height - scaledGridH) / 2
-      };
-    }
-
-    // Se la griglia è più grande: limita l'offset per mantenerla dentro
+    // Con lo zoom minimo dinamico, la griglia dovrebbe sempre essere grande abbastanza
+    // da coprire completamente lo schermo. Quindi non dovremmo mai avere il caso
+    // in cui la griglia è più piccola della finestra.
+    // Limita l'offset per mantenere la griglia dentro i bordi dello schermo
     // offset è la posizione dell'angolo in alto a sinistra della griglia
     // La griglia va da offset.x a offset.x + scaledGridW
     // Per non vedere oltre a sinistra: offset.x <= 0
     // Per non vedere oltre a destra: offset.x + scaledGridW >= width, quindi offset.x >= width - scaledGridW
-    // IMPORTANTE: minX e maxX devono essere nell'ordine corretto per clamp()
-    // clamp(value, min, max) richiede min <= max
     const minX = Math.min(0, width - scaledGridW); // Il più piccolo tra 0 e width - scaledGridW
     const maxX = 0; // La griglia inizia a sinistra quando offset = 0
     const minY = Math.min(0, height - scaledGridH); // Il più piccolo tra 0 e height - scaledGridH
@@ -102,9 +108,9 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     };
   };
 
-  // Zoom verso un punto specifico dello schermo - DISABILITATO
-  const zoomToPoint = (screenX: number, screenY: number, newZoom: number) => {
-    // Zoom disabilitato - non fare nulla
+  // Zoom verso un punto specifico - RIMOSSO COMPLETAMENTE
+  const zoomToPoint = () => {
+    // Zoom completamente rimosso
     return;
   };
 
@@ -118,33 +124,19 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     setOffset(clamped);
   };
 
-  // Zoom incrementale verso un punto
-  const zoomIncrement = (screenX: number, screenY: number, delta: number) => {
-    const dynamicMinZoom = getDynamicMinZoom();
-    const currentZoom = zoomRef.current;
-    const newZoom = clamp(currentZoom + delta, dynamicMinZoom, maxZoom);
-    // Se lo zoom non cambia (clamp lo ha bloccato), non fare nulla
-    if (Math.abs(newZoom - currentZoom) < 0.001) {
-      console.log("Zoom blocked:", { currentZoom, newZoom, delta, dynamicMinZoom, maxZoom });
-      return;
-    }
-    console.log("Zooming:", { currentZoom, newZoom, delta });
-    // Usa zoomToPoint che gestisce correttamente tutto
-    zoomToPoint(screenX, screenY, newZoom);
-  };
-
-  // Zoom con rotellina del mouse - DISABILITATO
-  const handleWheel = (e: any) => {
-    // Zoom disabilitato - non fare nulla
+  // Zoom incrementale - RIMOSSO COMPLETAMENTE
+  const zoomIncrement = () => {
+    // Zoom completamente rimosso
     return;
   };
 
-  // Touch handlers
-  const getTouchDistance = (touches: any) => {
-    const dx = touches[0].pageX - touches[1].pageX;
-    const dy = touches[0].pageY - touches[1].pageY;
-    return Math.sqrt(dx * dx + dy * dy);
+  // Zoom con rotellina del mouse - RIMOSSO COMPLETAMENTE
+  const handleWheel = () => {
+    // Zoom completamente rimosso
+    return;
   };
+
+  // Touch handlers - getTouchDistance rimosso (non serve più senza pinch-to-zoom)
 
   const onTouchStart = (e: any) => {
     const t = e.nativeEvent.touches;
@@ -184,9 +176,6 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     if (!t || t.length === 0) {
       isDraggingRef.current = false;
     }
-    if (!t || t.length < 2) {
-      lastTouchDistanceRef.current = null;
-    }
   };
 
   // Mouse handlers
@@ -224,24 +213,26 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     isDraggingRef.current = false;
   };
 
-  // Clamp offset quando cambiano le dimensioni della griglia
+
+  // Imposta la scala fissa al mount e quando cambiano le dimensioni della griglia o finestra
+  // LO ZOOM È COMPLETAMENTE RIMOSSO - solo scala fissa per coprire lo schermo
   useEffect(() => {
-    setOffset((o) => clampOffset(o, zoom));
+    const fixedScale = getDynamicMinZoom();
+    setZoom(fixedScale);
+    zoomRef.current = fixedScale;
+    // Ricalcola anche l'offset per posizionare correttamente la griglia
+    setOffset((o) => clampOffset(o, fixedScale));
   }, [gridWidth, gridHeight]);
   
-  // Clamp anche quando cambiano le dimensioni della finestra
+  // Ricalcola la scala fissa quando cambiano le dimensioni della finestra
   useEffect(() => {
     const subscription = Dimensions.addEventListener("change", () => {
-      setOffset((o) => clampOffset(o, zoom));
+      const fixedScale = getDynamicMinZoom();
+      setZoom(fixedScale);
+      zoomRef.current = fixedScale;
+      setOffset((o) => clampOffset(o, fixedScale));
     });
     return () => subscription?.remove();
-  }, [zoom, gridWidth, gridHeight]);
-
-  // Imposta lo zoom iniziale al minZoom quando cambiano le dimensioni della griglia
-  useEffect(() => {
-    const dynamicMinZoom = getDynamicMinZoom();
-    setZoom(dynamicMinZoom);
-    zoomRef.current = dynamicMinZoom;
   }, [gridWidth, gridHeight]);
 
   // APPROCCIO: il contenitore world mantiene dimensioni fisse e posizione
