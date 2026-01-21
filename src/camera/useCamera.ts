@@ -19,14 +19,22 @@ export type Camera = {
 
 export function useCamera({ gridWidth, gridHeight }: UseCameraOptions): Camera {
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
+  const offsetRef = useRef<Point>({ x: 0, y: 0 });
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<Point>({ x: 0, y: 0 });
 
+  // Sincronizza il ref con lo stato
+  const updateOffset = (newOffset: Point) => {
+    offsetRef.current = newOffset;
+    setOffset(newOffset);
+  };
+
   const pan = (dx: number, dy: number) => {
-    setOffset((prev) => ({
-      x: prev.x + dx,
-      y: prev.y + dy
-    }));
+    const newOffset = {
+      x: offsetRef.current.x + dx,
+      y: offsetRef.current.y + dy
+    };
+    updateOffset(newOffset);
   };
 
   // Touch handlers
@@ -35,8 +43,8 @@ export function useCamera({ gridWidth, gridHeight }: UseCameraOptions): Camera {
     if (t.length === 1) {
       isDraggingRef.current = true;
       dragStartRef.current = {
-        x: t[0].pageX - offset.x,
-        y: t[0].pageY - offset.y
+        x: t[0].pageX,
+        y: t[0].pageY
       };
     }
   };
@@ -44,9 +52,21 @@ export function useCamera({ gridWidth, gridHeight }: UseCameraOptions): Camera {
   const onTouchMove = (e: any) => {
     const t = e.nativeEvent.touches;
     if (t.length === 1 && isDraggingRef.current) {
-      const dx = t[0].pageX - dragStartRef.current.x - offset.x;
-      const dy = t[0].pageY - dragStartRef.current.y - offset.y;
-      pan(dx, dy);
+      e.preventDefault?.();
+      const currentX = t[0].pageX;
+      const currentY = t[0].pageY;
+      const dx = currentX - dragStartRef.current.x;
+      const dy = currentY - dragStartRef.current.y;
+      
+      // Aggiorna l'offset usando il ref per evitare problemi di closure
+      const newOffset = {
+        x: offsetRef.current.x + dx,
+        y: offsetRef.current.y + dy
+      };
+      updateOffset(newOffset);
+      
+      // Aggiorna il punto di partenza per il prossimo movimento
+      dragStartRef.current = { x: currentX, y: currentY };
     }
   };
 
@@ -62,19 +82,29 @@ export function useCamera({ gridWidth, gridHeight }: UseCameraOptions): Camera {
     const y = ne?.clientY ?? 0;
     isDraggingRef.current = true;
     dragStartRef.current = {
-      x: x - offset.x,
-      y: y - offset.y
+      x: x,
+      y: y
     };
   };
 
   const handleMouseMove = (e: any) => {
     if (typeof window === "undefined" || !isDraggingRef.current) return;
+    e.preventDefault?.();
     const ne = e?.nativeEvent;
-    const x = ne?.clientX ?? 0;
-    const y = ne?.clientY ?? 0;
-    const dx = x - dragStartRef.current.x - offset.x;
-    const dy = y - dragStartRef.current.y - offset.y;
-    pan(dx, dy);
+    const currentX = ne?.clientX ?? 0;
+    const currentY = ne?.clientY ?? 0;
+    const dx = currentX - dragStartRef.current.x;
+    const dy = currentY - dragStartRef.current.y;
+    
+    // Aggiorna l'offset usando il ref per evitare problemi di closure
+    const newOffset = {
+      x: offsetRef.current.x + dx,
+      y: offsetRef.current.y + dy
+    };
+    updateOffset(newOffset);
+    
+    // Aggiorna il punto di partenza per il prossimo movimento
+    dragStartRef.current = { x: currentX, y: currentY };
   };
 
   const handleMouseUp = () => {
