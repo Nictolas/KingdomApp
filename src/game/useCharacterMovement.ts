@@ -186,12 +186,28 @@ export function useCharacterMovement({
     };
   }, [buildings, trees, riverCells]);
 
-  // Genera una posizione casuale valida (non sul fiume)
-  const getRandomValidPosition = (): Point | null => {
+  // Genera una posizione casuale valida (non sul fiume) - percorsi più brevi
+  const getRandomValidPosition = (currentX?: number, currentY?: number, maxDistance: number = 5): Point | null => {
     const maxAttempts = 50;
     for (let i = 0; i < maxAttempts; i++) {
-      const x = Math.floor(Math.random() * GRID_SIZE);
-      const y = Math.floor(Math.random() * GRID_SIZE);
+      let x: number;
+      let y: number;
+      
+      // Se abbiamo una posizione corrente, genera una posizione vicina (percorso breve)
+      if (currentX !== undefined && currentY !== undefined) {
+        const angle = Math.random() * Math.PI * 2;
+        const distance = Math.random() * maxDistance + 1; // Distanza tra 1 e maxDistance+1
+        x = Math.round(currentX + Math.cos(angle) * distance);
+        y = Math.round(currentY + Math.sin(angle) * distance);
+        
+        // Clamp dentro la griglia
+        x = Math.max(0, Math.min(GRID_SIZE - 1, x));
+        y = Math.max(0, Math.min(GRID_SIZE - 1, y));
+      } else {
+        // Altrimenti posizione completamente casuale
+        x = Math.floor(Math.random() * GRID_SIZE);
+        y = Math.floor(Math.random() * GRID_SIZE);
+      }
       
       if (!isBlocked(x, y, buildings, trees, riverCells) && !isRiver(x, y, riverCells)) {
         return { x, y };
@@ -299,11 +315,11 @@ export function useCharacterMovement({
             }
           }
           
-          // Se tutte le posizioni di fuga sono bloccate o sul fiume, prova una posizione casuale
-          const randomEscape = getRandomValidPosition();
-          if (randomEscape) {
-            return randomEscape;
-          }
+            // Se tutte le posizioni di fuga sono bloccate o sul fiume, prova una posizione casuale (vicina)
+            const randomEscape = getRandomValidPosition(Math.round(char.x), Math.round(char.y), 3);
+            if (randomEscape) {
+              return randomEscape;
+            }
         }
       }
     }
@@ -338,11 +354,11 @@ export function useCharacterMovement({
       }
     }
     
-    // Altrimenti posizione casuale (ma non sul fiume)
-    const randomPos = getRandomValidPosition();
-    if (randomPos && !isRiver(randomPos.x, randomPos.y, riverCells)) {
-      return randomPos;
-    }
+      // Altrimenti posizione casuale (ma non sul fiume) - percorsi brevi
+      const randomPos = getRandomValidPosition(Math.round(char.x), Math.round(char.y), 5);
+      if (randomPos && !isRiver(randomPos.x, randomPos.y, riverCells)) {
+        return randomPos;
+      }
     return null;
   });
   
@@ -446,8 +462,8 @@ export function useCharacterMovement({
               }
             }
             
-            // Se tutte le posizioni di fuga sono bloccate o sul fiume, prova una posizione casuale
-            const randomEscape = getRandomValidPosition();
+            // Se tutte le posizioni di fuga sono bloccate o sul fiume, prova una posizione casuale (vicina)
+            const randomEscape = getRandomValidPosition(Math.round(char.x), Math.round(char.y), 3);
             if (randomEscape) {
               return randomEscape;
             }
@@ -485,8 +501,42 @@ export function useCharacterMovement({
         }
       }
       
-      // Altrimenti posizione casuale (ma non sul fiume)
-      const randomPos = getRandomValidPosition();
+      // Se gli Abitanti non sanno cosa fare (nessun Orco vicino, non è l'ora del Bar), vanno comunque al Bar
+      if (isInhabitant && barBuilding) {
+        // Controlla se c'è un Orco vicino
+        const orc = findNearestInRange(char, allChars, (c) => c.profession === "Orco");
+        if (!orc) {
+          // Nessun Orco vicino, vai al Bar
+          const barCenterX = barBuilding.x + Math.floor(barBuilding.width / 2);
+          const barCenterY = barBuilding.y + Math.floor(barBuilding.height / 2);
+          
+          // Prova posizioni vicine al Bar
+          const nearbyPositions = [
+            { x: barCenterX - 1, y: barCenterY },
+            { x: barCenterX + 1, y: barCenterY },
+            { x: barCenterX, y: barCenterY - 1 },
+            { x: barCenterX, y: barCenterY + 1 },
+            { x: barCenterX - 1, y: barCenterY - 1 },
+            { x: barCenterX + 1, y: barCenterY + 1 },
+            { x: barCenterX - 1, y: barCenterY + 1 },
+            { x: barCenterX + 1, y: barCenterY - 1 }
+          ];
+          
+          for (const pos of nearbyPositions) {
+            if (!isBlocked(pos.x, pos.y, buildings, trees, riverCells) && !isRiver(pos.x, pos.y, riverCells)) {
+              return pos;
+            }
+          }
+          
+          // Se non trova posizioni vicine, prova il centro
+          if (!isBlocked(barCenterX, barCenterY, buildings, trees, riverCells) && !isRiver(barCenterX, barCenterY, riverCells)) {
+            return { x: barCenterX, y: barCenterY };
+          }
+        }
+      }
+      
+      // Altrimenti posizione casuale (ma non sul fiume) - percorsi brevi
+      const randomPos = getRandomValidPosition(Math.round(char.x), Math.round(char.y), 5);
       if (randomPos && !isRiver(randomPos.x, randomPos.y, riverCells)) {
         return randomPos;
       }

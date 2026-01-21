@@ -193,6 +193,7 @@ export default function GridGame() {
       <BuildingInfoModal
         visible={selectedBuilding !== null}
         building={selectedBuilding}
+        characters={characters}
         onClose={() => setSelectedBuilding(null)}
         onCallKing={handleCallKing}
       />

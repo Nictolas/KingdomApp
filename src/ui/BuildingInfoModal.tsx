@@ -1,16 +1,30 @@
 import React from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
-import type { Building } from "../types";
+import type { Building, Character } from "../types";
 
 type BuildingInfoModalProps = {
   visible: boolean;
   building: Building | null;
+  characters: Character[];
   onClose: () => void;
   onCallKing?: () => void;
 };
 
-export function BuildingInfoModal({ visible, building, onClose, onCallKing }: BuildingInfoModalProps) {
+export function BuildingInfoModal({ visible, building, characters, onClose, onCallKing }: BuildingInfoModalProps) {
   if (!building) return null;
+
+  // Conta quanti abitanti sono dentro l'edificio
+  const inhabitantsInside = characters.filter(char => {
+    if (char.profession === "Orco" || char.emoji === "🪦") return false; // Escludi Orco e lapidi
+    const charX = Math.round(char.x);
+    const charY = Math.round(char.y);
+    return (
+      charX >= building.x &&
+      charX < building.x + building.width &&
+      charY >= building.y &&
+      charY < building.y + building.height
+    );
+  }).length;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -36,6 +50,13 @@ export function BuildingInfoModal({ visible, building, onClose, onCallKing }: Bu
             <Text style={styles.infoLabel}>Dimensioni:</Text>
             <Text style={styles.infoValue}>
               {building.width} x {building.height} celle
+            </Text>
+          </View>
+          
+          <View style={styles.infoSection}>
+            <Text style={styles.infoLabel}>Abitanti dentro:</Text>
+            <Text style={styles.infoValue}>
+              {inhabitantsInside}
             </Text>
           </View>
 
