@@ -623,10 +623,9 @@ export default function GridGame() {
         else if (castle) bg = "#495057";
         else if (farm) bg = "#b08900";
 
-        const emoji =
-          sea ? "🌊" : beach ? "🏖️" : river && !bridge ? "💧" : bridge ? "🌉" : tree ? "🌲" : mine ? "⛏️" : "🌱";
-
-        const emojiOpacity = sea || beach || river || bridge || tree || mine ? 1 : 0.25;
+        // Emoji solo per elementi interattivi (no fiumi, erba, spiaggia, mare)
+        const emoji = bridge ? "🌉" : tree ? "🌲" : mine ? "⛏️" : null;
+        const emojiOpacity = emoji ? 1 : 0;
         const emojiSize = tree || mine ? 22 : 16;
 
         cells.push(
@@ -645,7 +644,7 @@ export default function GridGame() {
               }
             ]}
           >
-            <Text style={{ fontSize: emojiSize, opacity: emojiOpacity }}>{emoji}</Text>
+            {emoji && <Text style={{ fontSize: emojiSize, opacity: emojiOpacity }}>{emoji}</Text>}
           </Pressable>
         );
       }
@@ -781,17 +780,6 @@ export default function GridGame() {
           <Pressable style={styles.btn} onPress={handleZoomIn}>
             <Text style={styles.btnText}>＋ Zoom</Text>
           </Pressable>
-          <Pressable style={styles.btnPrimary} onPress={handleCallKing}>
-            <Text style={styles.btnTextPrimary}>Chiama Re</Text>
-          </Pressable>
-          <Pressable style={styles.btnPrimary} onPress={handleCallFarmer}>
-            <Text style={styles.btnTextPrimary}>Chiama Contadino</Text>
-          </Pressable>
-          {selectedRiver && (
-            <Pressable style={styles.btnWarn} onPress={buildBridge}>
-              <Text style={styles.btnTextPrimary}>Costruisci ponte</Text>
-            </Pressable>
-          )}
         </ScrollView>
       </View>
 
@@ -858,10 +846,20 @@ export default function GridGame() {
                 </Text>
                 <Text style={styles.modalSub}>{selectedBuilding.description}</Text>
                 {selectedBuilding.type === "castle" && (
-                  <Text style={styles.modalHint}>Suggerimento: premi “Chiama Re” per farlo entrare nel castello.</Text>
+                  <>
+                    <Text style={styles.modalHint}>Puoi chiamare il Re per farlo entrare nel castello.</Text>
+                    <Pressable style={[styles.btnPrimary, { marginTop: 12 }]} onPress={handleCallKing}>
+                      <Text style={styles.btnTextPrimary}>Chiama Re</Text>
+                    </Pressable>
+                  </>
                 )}
                 {selectedBuilding.type === "farm" && (
-                  <Text style={styles.modalHint}>Suggerimento: premi “Chiama Contadino” per farlo andare al campo.</Text>
+                  <>
+                    <Text style={styles.modalHint}>Puoi chiamare il Contadino per farlo andare al campo.</Text>
+                    <Pressable style={[styles.btnPrimary, { marginTop: 12 }]} onPress={handleCallFarmer}>
+                      <Text style={styles.btnTextPrimary}>Chiama Contadino</Text>
+                    </Pressable>
+                  </>
                 )}
                 {selectedBuilding.type === "house" && (
                   <Text style={styles.modalHint}>Una casa può ospitare personaggi e risorse (in futuro).</Text>
@@ -875,6 +873,9 @@ export default function GridGame() {
                   Casella: ({selectedRiver.x}, {selectedRiver.y})
                 </Text>
                 <Text style={styles.modalHint}>Puoi costruire un ponte per far attraversare i personaggi.</Text>
+                <Pressable style={[styles.btnWarn, { marginTop: 12 }]} onPress={buildBridge}>
+                  <Text style={styles.btnTextPrimary}>Costruisci ponte</Text>
+                </Pressable>
               </>
             )}
             <Pressable style={[styles.btnPrimary, { marginTop: 12 }]} onPress={closeModal}>
@@ -912,7 +913,10 @@ const styles = StyleSheet.create({
   },
   stage: {
     flex: 1,
-    backgroundColor: "#1b5e20"
+    backgroundColor: "#1b5e20",
+    // @ts-ignore - userSelect per web
+    userSelect: "none",
+    WebkitUserSelect: "none"
   },
   world: {
     position: "absolute",
@@ -922,7 +926,10 @@ const styles = StyleSheet.create({
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    padding: CELL_GAP / 2
+    padding: CELL_GAP / 2,
+    // @ts-ignore - userSelect per web
+    userSelect: "none",
+    WebkitUserSelect: "none"
   },
   cell: {
     borderRadius: 10,
