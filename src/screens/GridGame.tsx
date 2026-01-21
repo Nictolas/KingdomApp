@@ -26,6 +26,7 @@ import { blendHex } from "../game/color";
 import { TopHud } from "../ui/TopHud";
 import { BuildMenuModal } from "../ui/BuildMenuModal";
 import { UnreachableModal } from "../ui/UnreachableModal";
+import { useCamera } from "../camera/useCamera";
 
 export default function GridGame() {
   // Stato mondo
@@ -44,12 +45,17 @@ export default function GridGame() {
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
   const [selectedRiver, setSelectedRiver] = useState<Point | null>(null);
 
-  // Camera
-  const [viewOffset, setViewOffset] = useState<Point>({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
-  const [isDragging, setIsDragging] = useState(false);
-  const dragStart = useRef<Point>({ x: 0, y: 0 });
-  const lastTouchDistance = useRef<number | null>(null);
+  // Camera (gestita da hook dedicato)
+  
+  const camera = useCamera({
+    gridWidth: gridPixelSize.w,
+    gridHeight: gridPixelSize.h
+  });
+  
+  const viewOffset = camera.offset;
+  const zoom = camera.zoom;
+  const isDragging = camera.isDragging;
+  
   const dragInfoRef = useRef<{ startX: number; startY: number; didDrag: boolean }>({ startX: 0, startY: 0, didDrag: false });
   const lastDragAtRef = useRef<number>(0);
 
@@ -279,147 +285,62 @@ export default function GridGame() {
   }, [gameTimeBaseMinutes]);
 
   const wasRecentlyDragging = () => {
-    if (isDragging) return true;
+    if (camera.isDragging) return true;
     if (dragInfoRef.current.didDrag) return true;
     return Date.now() - lastDragAtRef.current < 180;
   };
-
-  // Camera clamp: NON si può andare oltre la griglia
-  // IMPORTANTE: con scale -> translate, il translate è nel sistema NON scalato
-  // Quindi viewOffset è nel sistema NON scalato, ma i limiti devono impedire
-  // che la griglia scalata esca dalla finestra
-  const clampOffsetToBounds = (o: Point, z: number) => {
-    const { width, height } = Dimensions.get("window");
-    const gridW = gridPixelSize.w;
-    const gridH = gridPixelSize.h;
-    const scaledGridW = gridW * z;
-    const scaledGridH = gridH * z;
-    
-    // Se la griglia scalata è più piccola della finestra: centra.
-    // Se è più grande: limita l'offset perché la griglia resti dentro.
-    const minLeft = scaledGridW <= width ? (width - scaledGridW) / 2 : width - scaledGridW;
-    const maxLeft = scaledGridW <= width ? (width - scaledGridW) / 2 : 0;
-    const minTop = scaledGridH <= height ? (height - scaledGridH) / 2 : height - scaledGridH;
-    const maxTop = scaledGridH <= height ? (height - scaledGridH) / 2 : 0;
-    
-    return { x: clamp(o.x, minLeft, maxLeft), y: clamp(o.y, minTop, maxTop) };
-  };
-
-  // Zoom minimo dinamico: impedisce di vedere “oltre la griglia”
-  const getMinZoom = () => {
-    const { width, height } = Dimensions.get("window");
-    const gridW = gridPixelSize.w;
-    const gridH = gridPixelSize.h;
-    return Math.max(0.6, width / gridW, height / gridH);
-  };
-
-  useEffect(() => {
-    setViewOffset((o) => clampOffsetToBounds(o, zoom));
-  }, [zoom, gridPixelSize.h, gridPixelSize.w]);
-
-  // Touch pan/pinch
-  const getTouchDistance = (touches: any) => {
-    const dx = touches[0].pageX - touches[1].pageX;
-    const dy = touches[0].pageY - touches[1].pageY;
-    return Math.sqrt(dx * dx + dy * dy);
-  };
-
-  const onTouchStart = (e: any) => {
+  
+  // Wrapper per gestire dragInfoRef insieme alla camera
+  const handleTouchStart = (e: any) => {
     const t = e.nativeEvent.touches;
-    if (t.length === 2) {
-      lastTouchDistance.current = getTouchDistance(t);
-      setIsDragging(false);
-      return;
-    }
     if (t.length === 1) {
-      setIsDragging(true);
       dragInfoRef.current = { startX: t[0].pageX, startY: t[0].pageY, didDrag: false };
-      dragStart.current = { x: t[0].pageX - viewOffset.x, y: t[0].pageY - viewOffset.y };
     }
+    camera.onTouchStart(e);
   };
-
-  const onTouchMove = (e: any) => {
+  
+  const handleTouchMove = (e: any) => {
     const t = e.nativeEvent.touches;
-    if (t.length === 2 && lastTouchDistance.current) {
-      const dist = getTouchDistance(t);
-      const delta = (dist - lastTouchDistance.current) * 0.004;
-      const newZoom = clamp(zoom + delta, getMinZoom(), 2.2);
-      setZoom(newZoom);
-      lastTouchDistance.current = dist;
-      return;
-    }
-    if (t.length === 1 && isDragging) {
+    if (t.length === 1 && camera.isDragging) {
       const dx = t[0].pageX - dragInfoRef.current.startX;
       const dy = t[0].pageY - dragInfoRef.current.startY;
       if (!dragInfoRef.current.didDrag && Math.hypot(dx, dy) > 6) dragInfoRef.current.didDrag = true;
-      const nextOffset = { x: t[0].pageX - dragStart.current.x, y: t[0].pageY - dragStart.current.y };
-      setViewOffset(clampOffsetToBounds(nextOffset, zoom));
     }
+    camera.onTouchMove(e);
   };
-
-  const onTouchEnd = (e: any) => {
-    const t = e.nativeEvent.touches;
-    if (!t || t.length === 0) {
-      setIsDragging(false);
-      if (dragInfoRef.current.didDrag) lastDragAtRef.current = Date.now();
-    }
-    if (!t || t.length < 2) lastTouchDistance.current = null;
-  };
-
-  // Mouse wheel zoom (web) - zoom verso il punto del mouse
-  const handleWheel = (e: any) => {
-    if (typeof window === "undefined") return;
-    const ne = e.nativeEvent;
-    if (!ne || typeof ne.deltaY === "undefined") return;
-    e.preventDefault();
-    
-    const delta = ne.deltaY > 0 ? -0.1 : 0.1;
-    const newZoom = clamp(zoom + delta, getMinZoom(), 2.2);
-    
-    // Zoom verso il punto del mouse
-    const { width, height } = Dimensions.get("window");
-    const mouseX = ne.clientX || width / 2;
-    const mouseY = ne.clientY || height / 2;
-    
-    // Calcola il punto nel mondo della griglia prima dello zoom
-    const worldX = (mouseX - viewOffset.x) / zoom;
-    const worldY = (mouseY - viewOffset.y) / zoom;
-    
-    // Calcola il nuovo offset per mantenere lo stesso punto del mondo sotto il mouse
-    const newOffsetX = mouseX - worldX * newZoom;
-    const newOffsetY = mouseY - worldY * newZoom;
-    
-    setZoom(newZoom);
-    setViewOffset(clampOffsetToBounds({ x: newOffsetX, y: newOffsetY }, newZoom));
-  };
-
-  // Mouse pan (web)
-  const handleMouseDown = (e: any) => {
-    if (typeof window === "undefined") return;
-    const ne = e?.nativeEvent;
-    const x = ne?.clientX ?? 0;
-    const y = ne?.clientY ?? 0;
-    setIsDragging(true);
-    dragInfoRef.current = { startX: x, startY: y, didDrag: false };
-    dragStart.current = { x: x - viewOffset.x, y: y - viewOffset.y };
-  };
-  const handleMouseMove = (e: any) => {
-    if (typeof window === "undefined") return;
-    if (!isDragging) return;
-    const ne = e?.nativeEvent;
-    const x = ne?.clientX ?? 0;
-    const y = ne?.clientY ?? 0;
-    const dx = x - dragInfoRef.current.startX;
-    const dy = y - dragInfoRef.current.startY;
-    if (!dragInfoRef.current.didDrag && Math.hypot(dx, dy) > 6) dragInfoRef.current.didDrag = true;
-    const nextOffset = { x: x - dragStart.current.x, y: y - dragStart.current.y };
-    setViewOffset(clampOffsetToBounds(nextOffset, zoom));
-  };
-  const handleMouseUp = () => {
-    if (typeof window === "undefined") return;
+  
+  const handleTouchEnd = (e: any) => {
+    camera.onTouchEnd(e);
     if (dragInfoRef.current.didDrag) lastDragAtRef.current = Date.now();
-    setIsDragging(false);
   };
+  
+  const handleMouseDownWrapper = (e: any) => {
+    if (typeof window === "undefined") return;
+    const ne = e?.nativeEvent;
+    if (ne) {
+      dragInfoRef.current = { startX: ne.clientX ?? 0, startY: ne.clientY ?? 0, didDrag: false };
+    }
+    camera.handleMouseDown(e);
+  };
+  
+  const handleMouseMoveWrapper = (e: any) => {
+    if (camera.isDragging) {
+      const ne = e?.nativeEvent;
+      if (ne) {
+        const dx = ne.clientX - dragInfoRef.current.startX;
+        const dy = ne.clientY - dragInfoRef.current.startY;
+        if (!dragInfoRef.current.didDrag && Math.hypot(dx, dy) > 6) dragInfoRef.current.didDrag = true;
+      }
+    }
+    camera.handleMouseMove(e);
+  };
+  
+  const handleMouseUpWrapper = () => {
+    camera.handleMouseUp();
+    if (dragInfoRef.current.didDrag) lastDragAtRef.current = Date.now();
+  };
+
+  // Camera gestita da hook useCamera (vedi sopra)
 
   // Animazione verso target (smooth)
   useEffect(() => {
@@ -606,25 +527,14 @@ export default function GridGame() {
     await Haptics.selectionAsync();
   };
 
-  const zoomAroundScreenPoint = (screenX: number, screenY: number, newZoom: number) => {
-    // Modello camera: screen = world * zoom + offset
-    const worldX = (screenX - viewOffset.x) / zoom;
-    const worldY = (screenY - viewOffset.y) / zoom;
-    const newOffset = { x: screenX - worldX * newZoom, y: screenY - worldY * newZoom };
-    setZoom(newZoom);
-    setViewOffset(clampOffsetToBounds(newOffset, newZoom));
-  };
-
   const handleZoomIn = async () => {
     const { width, height } = Dimensions.get("window");
-    const newZoom = clamp(zoom + 0.2, getMinZoom(), 2.2);
-    zoomAroundScreenPoint(width / 2, height / 2, newZoom);
+    camera.zoomIncrement(width / 2, height / 2, 0.2);
     await Haptics.selectionAsync();
   };
   const handleZoomOut = async () => {
     const { width, height } = Dimensions.get("window");
-    const newZoom = clamp(zoom - 0.2, getMinZoom(), 2.2);
-    zoomAroundScreenPoint(width / 2, height / 2, newZoom);
+    camera.zoomIncrement(width / 2, height / 2, -0.2);
     await Haptics.selectionAsync();
   };
 
@@ -817,13 +727,8 @@ export default function GridGame() {
     return nodes;
   }, [isDragging]);
 
-  // IMPORTANT: ordine transform = scale -> translate
-  // Con questo ordine, il translate è nel sistema NON scalato
-  // Quindi viewOffset è nel sistema NON scalato
-  const transformStyle = useMemo(
-    () => ({ transform: [{ scale: zoom }, { translateX: viewOffset.x }, { translateY: viewOffset.y }] }),
-    [viewOffset.x, viewOffset.y, zoom]
-  );
+  // Transform style gestito dal hook camera
+  const transformStyle = camera.transformStyle;
 
   const assignedCharactersForHouse = (houseId: string) => houseAssignments[houseId] ?? [];
   const assignToHouse = (houseId: string, charId: number | null) => {
@@ -865,20 +770,44 @@ export default function GridGame() {
         style={styles.stage}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
-        onResponderGrant={onTouchStart}
-        onResponderMove={onTouchMove}
-        onResponderRelease={onTouchEnd}
-        onResponderTerminate={onTouchEnd}
+        onResponderGrant={camera.onTouchStart}
+        onResponderMove={(e) => camera.onTouchMove(e, (didDrag) => { if (didDrag) dragInfoRef.current.didDrag = true; })}
+        onResponderRelease={(e) => {
+          camera.onTouchEnd(e, () => {
+            if (dragInfoRef.current.didDrag) lastDragAtRef.current = Date.now();
+          });
+        }}
+        onResponderTerminate={(e) => {
+          camera.onTouchEnd(e, () => {
+            if (dragInfoRef.current.didDrag) lastDragAtRef.current = Date.now();
+          });
+        }}
         // @ts-ignore
-        onMouseDown={handleMouseDown}
+        onMouseDown={camera.handleMouseDown}
         // @ts-ignore
-        onMouseMove={handleMouseMove}
+        onMouseMove={(e) => {
+          camera.handleMouseMove(e);
+          if (camera.isDragging) {
+            const ne = e?.nativeEvent;
+            if (ne) {
+              const dx = ne.clientX - dragInfoRef.current.startX;
+              const dy = ne.clientY - dragInfoRef.current.startY;
+              if (!dragInfoRef.current.didDrag && Math.hypot(dx, dy) > 6) dragInfoRef.current.didDrag = true;
+            }
+          }
+        }}
         // @ts-ignore
-        onMouseUp={handleMouseUp}
+        onMouseUp={() => {
+          camera.handleMouseUp();
+          if (dragInfoRef.current.didDrag) lastDragAtRef.current = Date.now();
+        }}
         // @ts-ignore
-        onMouseLeave={handleMouseUp}
+        onMouseLeave={() => {
+          camera.handleMouseUp();
+          if (dragInfoRef.current.didDrag) lastDragAtRef.current = Date.now();
+        }}
         // @ts-ignore
-        onWheel={handleWheel}
+        onWheel={camera.handleWheel}
       >
         <View style={[styles.world, transformStyle]}>
           <View style={[styles.grid, { width: gridPixelSize.w, height: gridPixelSize.h }]}>{gridCells}</View>
