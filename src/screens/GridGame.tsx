@@ -282,7 +282,8 @@ export default function GridGame() {
 
   // Camera clamp: NON si può andare oltre la griglia
   // IMPORTANTE: con scale -> translate, il translate è nel sistema NON scalato
-  // Quindi i limiti devono essere calcolati nel sistema NON scalato
+  // Quindi viewOffset è nel sistema NON scalato, ma i limiti devono impedire
+  // che la griglia scalata esca dalla finestra
   const clampOffsetToBounds = (o: Point, z: number) => {
     const { width, height } = Dimensions.get("window");
     const gridW = gridPixelSize.w;
@@ -290,10 +291,18 @@ export default function GridGame() {
     const scaledGridW = gridW * z;
     const scaledGridH = gridH * z;
     
-    // Se la griglia scalata è più piccola della finestra, centriamo (offset = 0)
-    // Se la griglia scalata è più grande, limitiamo l'offset
-    const minLeft = scaledGridW < width ? 0 : width - scaledGridW;
-    const minTop = scaledGridH < height ? 0 : height - scaledGridH;
+    // I limiti nel sistema NON scalato:
+    // - Se la griglia scalata è più piccola della finestra, l'offset può essere 0 (centrato)
+    // - Se la griglia scalata è più grande, l'offset deve essere limitato in modo che
+    //   la griglia scalata non esca dalla finestra
+    // Con scale -> translate, il translate viene applicato DOPO lo scale,
+    // quindi se viewOffset.x = 100 e zoom = 0.6, la griglia viene spostata di 100px
+    // nel sistema NON scalato, ma visualmente di 60px (100 * 0.6)
+    
+    // Limiti: l'offset può essere negativo (sposta a sinistra) fino a quando
+    // la griglia scalata non esce dalla finestra a destra
+    const minLeft = scaledGridW <= width ? 0 : (width - scaledGridW) / z;
+    const minTop = scaledGridH <= height ? 0 : (height - scaledGridH) / z;
     const maxLeft = 0;
     const maxTop = 0;
     
