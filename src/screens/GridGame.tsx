@@ -46,6 +46,10 @@ export default function GridGame() {
   const [selectedRiver, setSelectedRiver] = useState<Point | null>(null);
 
   // Camera (gestita da hook dedicato)
+  const gridPixelSize = useMemo(() => {
+    const size = GRID_SIZE * (CELL_SIZE + CELL_GAP);
+    return { w: size, h: size };
+  }, []);
   
   const camera = useCamera({
     gridWidth: gridPixelSize.w,
@@ -54,7 +58,6 @@ export default function GridGame() {
   
   const viewOffset = camera.offset;
   const zoom = camera.zoom;
-  const isDragging = camera.isDragging;
   
   const dragInfoRef = useRef<{ startX: number; startY: number; didDrag: boolean }>({ startX: 0, startY: 0, didDrag: false });
   const lastDragAtRef = useRef<number>(0);
@@ -246,8 +249,9 @@ export default function GridGame() {
     setSelectedBuilding(null);
     setSelectedRiver(null);
     setUnreachable({ open: false, message: "" });
-    setViewOffset({ x: 0, y: 0 });
-    setZoom(1);
+    // Reset camera: zoom e offset vengono resettati automaticamente dal hook quando cambiano le dimensioni
+    const { width, height } = Dimensions.get("window");
+    camera.zoomToPoint(width / 2, height / 2, 1);
     setKingGoingToCastle(false);
     setFarmerGoingToFarm(false);
     setKingPath([]);
@@ -783,29 +787,13 @@ export default function GridGame() {
           });
         }}
         // @ts-ignore
-        onMouseDown={camera.handleMouseDown}
+        onMouseDown={handleMouseDownWrapper}
         // @ts-ignore
-        onMouseMove={(e) => {
-          camera.handleMouseMove(e);
-          if (camera.isDragging) {
-            const ne = e?.nativeEvent;
-            if (ne) {
-              const dx = ne.clientX - dragInfoRef.current.startX;
-              const dy = ne.clientY - dragInfoRef.current.startY;
-              if (!dragInfoRef.current.didDrag && Math.hypot(dx, dy) > 6) dragInfoRef.current.didDrag = true;
-            }
-          }
-        }}
+        onMouseMove={handleMouseMoveWrapper}
         // @ts-ignore
-        onMouseUp={() => {
-          camera.handleMouseUp();
-          if (dragInfoRef.current.didDrag) lastDragAtRef.current = Date.now();
-        }}
+        onMouseUp={handleMouseUpWrapper}
         // @ts-ignore
-        onMouseLeave={() => {
-          camera.handleMouseUp();
-          if (dragInfoRef.current.didDrag) lastDragAtRef.current = Date.now();
-        }}
+        onMouseLeave={handleMouseUpWrapper}
         // @ts-ignore
         onWheel={camera.handleWheel}
       >
