@@ -43,6 +43,9 @@ const GRID_SIZE = 20;
 const NUM_CHARACTERS = 6;
 const CELL_SIZE = 42;
 const CELL_GAP = 3;
+const SEA_ROWS = 2;
+const BEACH_ROWS = 2;
+const LAND_ROWS = GRID_SIZE - SEA_ROWS - BEACH_ROWS;
 
 const professions = [
   { emoji: "👨‍🌾", name: "Contadino" },
@@ -144,9 +147,9 @@ export default function GridGame() {
     return { w: size, h: size };
   }, []);
 
-  const isRiver = (x: number, y: number) => (x === 9 || x === 10) && y < GRID_SIZE - 2;
-  const isSea = (_x: number, y: number) => y === GRID_SIZE - 1;
-  const isBeach = (_x: number, y: number) => y === GRID_SIZE - 2;
+  const isRiver = (x: number, y: number) => (x === 9 || x === 10) && y < LAND_ROWS;
+  const isSea = (_x: number, y: number) => y >= GRID_SIZE - SEA_ROWS;
+  const isBeach = (_x: number, y: number) => y >= GRID_SIZE - SEA_ROWS - BEACH_ROWS && y < GRID_SIZE - SEA_ROWS;
 
   const isBridge = (x: number, y: number) => bridges.some((b) => b.x === x && b.y === y);
   const isTree = (x: number, y: number) => trees.some((t) => t.x === x && t.y === y);
@@ -161,7 +164,7 @@ export default function GridGame() {
       let attempts = 0;
       do {
         x = Math.floor(Math.random() * GRID_SIZE);
-        y = Math.floor(Math.random() * (GRID_SIZE - 2));
+        y = Math.floor(Math.random() * LAND_ROWS);
         attempts++;
       } while (
         attempts < 200 &&
@@ -184,7 +187,7 @@ export default function GridGame() {
       let attempts = 0;
       do {
         x = Math.floor(Math.random() * GRID_SIZE);
-        y = Math.floor(Math.random() * (GRID_SIZE - 2));
+        y = Math.floor(Math.random() * LAND_ROWS);
         attempts++;
       } while (
         attempts < 200 &&
@@ -210,7 +213,7 @@ export default function GridGame() {
       let attempts = 0;
       do {
         x = Math.floor(Math.random() * GRID_SIZE);
-        y = Math.floor(Math.random() * (GRID_SIZE - 2));
+        y = Math.floor(Math.random() * LAND_ROWS);
         attempts++;
       } while (
         attempts < 200 &&
@@ -268,7 +271,7 @@ export default function GridGame() {
       setCharacters((prev) =>
         prev.map((char) => {
           const atNonWalkable = (nx: number, ny: number) =>
-            !(nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE - 2) ||
+            !(nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < LAND_ROWS) ||
             (isRiver(nx, ny) && !isBridge(nx, ny)) ||
             isInsideBuilding(castleData, nx, ny) ||
             isInsideBuilding(farmData, nx, ny) ||
@@ -291,7 +294,11 @@ export default function GridGame() {
             if (Math.abs(dx) > 0) nx += Math.sign(dx);
             else if (Math.abs(dy) > 0) ny += Math.sign(dy);
 
-            if (!atNonWalkable(nx, ny)) return { ...char, targetX: nx, targetY: ny, lastMove: Date.now() };
+            const blocked =
+              // consenti la casella target del castello
+              !(nx === tx && ny === ty) &&
+              atNonWalkable(nx, ny);
+            if (!blocked) return { ...char, targetX: nx, targetY: ny, lastMove: Date.now() };
             return char;
           }
 
@@ -311,7 +318,11 @@ export default function GridGame() {
             
             if (nextIndex >= 0 && nextIndex < farmerPath.length - 1) {
               const next = farmerPath[nextIndex + 1];
-              if (!atNonWalkable(next.x, next.y)) {
+              const blocked =
+                // consenti la casella target del campo
+                !(next.x === tx && next.y === ty) &&
+                atNonWalkable(next.x, next.y);
+              if (!blocked) {
                 return { ...char, targetX: next.x, targetY: next.y, lastMove: Date.now() };
               }
             }
@@ -384,16 +395,16 @@ export default function GridGame() {
     const totalMinutes = hours * 60 + minutes;
     
     if (totalMinutes >= 18 * 60 || totalMinutes < 6 * 60) {
-      // Notte: transizione graduale
+      // Notte: MOLTO più scura (18:00-6:00)
       if (totalMinutes >= 18 * 60) {
-        // Dalle 18:00 alle 24:00: aumenta gradualmente da 0 a 0.7
+        // Dalle 18:00 alle 19:00: passa da 0.75 a 0.92, poi resta 0.92
         const minutesFrom18 = totalMinutes - 18 * 60;
-        const progress = minutesFrom18 / (6 * 60); // 0-1 in 6 ore
-        return Math.min(0.7, progress * 0.7);
+        const progress = Math.min(1, minutesFrom18 / 60); // 0-1 in 1 ora
+        return 0.75 + progress * 0.17;
       } else {
-        // Dalle 0:00 alle 6:00: diminuisce gradualmente da 0.7 a 0
+        // Dalle 0:00 alle 6:00: diminuisce gradualmente da 0.92 a 0
         const progress = totalMinutes / (6 * 60); // 0-1 in 6 ore
-        return 0.7 * (1 - progress);
+        return 0.92 * (1 - progress);
       }
     }
     return 0;
@@ -547,13 +558,18 @@ export default function GridGame() {
 
   // Pathfinding semplice (BFS) per trovare percorso
   const findPath = (startX: number, startY: number, targetX: number, targetY: number): Point[] | null => {
-    const atNonWalkable = (nx: number, ny: number) =>
-      !(nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE - 2) ||
-      (isRiver(nx, ny) && !isBridge(nx, ny)) ||
-      isInsideBuilding(castleData, nx, ny) ||
-      isInsideBuilding(farmData, nx, ny) ||
-      isTree(nx, ny) ||
-      isMine(nx, ny);
+    const atNonWalkable = (nx: number, ny: number) => {
+      // Permetti sempre di entrare nella casella target (anche se è dentro un edificio)
+      if (nx === targetX && ny === targetY) return false;
+      return (
+        !(nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < LAND_ROWS) ||
+        (isRiver(nx, ny) && !isBridge(nx, ny)) ||
+        isInsideBuilding(castleData, nx, ny) ||
+        isInsideBuilding(farmData, nx, ny) ||
+        isTree(nx, ny) ||
+        isMine(nx, ny)
+      );
+    };
 
     const queue: Array<{ x: number; y: number; path: Point[] }> = [{ x: startX, y: startY, path: [] }];
     const visited = new Set<string>();
@@ -613,6 +629,29 @@ export default function GridGame() {
     setSelectedCharacter(null);
     await Haptics.selectionAsync();
   };
+
+  // Ricalcola il percorso del contadino quando cambiano i ponti (o la posizione)
+  useEffect(() => {
+    if (!farmerGoingToFarm) return;
+    const farmer = characters.find((c) => c.profession === "Contadino");
+    if (!farmer) return;
+    if (farmer.isInFarm) return;
+
+    const targetX = farmData.x + 1;
+    const targetY = farmData.y + 1;
+    const startX = Math.round(farmer.targetX);
+    const startY = Math.round(farmer.targetY);
+
+    const path = findPath(startX, startY, targetX, targetY);
+    if (!path) {
+      setFarmerGoingToFarm(false);
+      setFarmerPath([]);
+      setUnreachableDialog(true);
+      return;
+    }
+    setFarmerPath(path);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [farmerGoingToFarm, bridges, trees, mines, characters]);
 
   const handleZoomIn = async () => {
     setZoom((z) => clamp(z + 0.2, 0.6, 2.2));
