@@ -132,6 +132,10 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
       worldX, 
       worldY 
     });
+    // Aggiorna il ref IMMEDIATAMENTE prima di chiamare setZoom
+    // Questo evita che chiamate rapide successive usino valori obsoleti
+    zoomRef.current = clampedZoom;
+    offsetRef.current = clampedOffset;
     setZoom(clampedZoom);
     setOffset(clampedOffset);
   };
@@ -140,7 +144,10 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   // dx, dy sono in pixel schermo
   const pan = (dx: number, dy: number) => {
     const newOffset = { x: offset.x + dx, y: offset.y + dy };
-    setOffset(clampOffset(newOffset, zoom));
+    const clamped = clampOffset(newOffset, zoom);
+    // Aggiorna il ref immediatamente
+    offsetRef.current = clamped;
+    setOffset(clamped);
   };
 
   // Zoom incrementale verso un punto
