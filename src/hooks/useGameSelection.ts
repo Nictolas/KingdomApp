@@ -1,6 +1,6 @@
 import { useState } from "react";
-import * as Haptics from "expo-haptics";
 import type { Character, Building, Point } from "../types";
+import { safeHapticSelection } from "../utils/haptics";
 
 type UseGameSelectionReturn = {
   selectedCharacter: Character | null;
@@ -25,7 +25,7 @@ export function useGameSelection(): UseGameSelectionReturn {
     setSelectedCharacter(char);
     setSelectedBuilding(null);
     setSelectedRiver(null);
-    await Haptics.selectionAsync();
+    await safeHapticSelection();
   };
 
   const openBuilding = async (building: Building, wasRecentlyDragging: () => boolean) => {
@@ -33,7 +33,7 @@ export function useGameSelection(): UseGameSelectionReturn {
     setSelectedBuilding(building);
     setSelectedCharacter(null);
     setSelectedRiver(null);
-    await Haptics.selectionAsync();
+    await safeHapticSelection();
   };
 
   const selectRiver = async (
@@ -48,7 +48,7 @@ export function useGameSelection(): UseGameSelectionReturn {
     setSelectedRiver({ x, y });
     setSelectedBuilding(null);
     setSelectedCharacter(null);
-    await Haptics.selectionAsync();
+    await safeHapticSelection();
   };
 
   const closeModal = () => {

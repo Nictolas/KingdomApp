@@ -1,4 +1,3 @@
-import * as Haptics from "expo-haptics";
 import type { Character, Point, Bridge, Light, Placed } from "../types";
 import { buildingCenter, findPath, isInsideBuilding } from "../utils";
 import { castleData, farmData, houseData, RIVER_XS } from "../constants";
@@ -6,6 +5,7 @@ import { isRiver, isSea, isBeach } from "./terrain";
 import { isTree, isMine } from "../utils";
 import { isLightAt } from "./lights";
 import { createIsBlocked } from "./pathfinding";
+import { safeHapticSelection, safeHapticNotification } from "../utils/haptics";
 
 export function handleCallKing(
   characters: Character[],
@@ -28,7 +28,7 @@ export function handleCallKing(
     const path = findPath(start, target, isBlocked);
     if (!path) {
       setUnreachable({ open: true, message: "Il Re non può raggiungere il castello." });
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      await safeHapticNotification(Haptics.NotificationFeedbackType.Error);
       return;
     }
     setKingPath(path);
@@ -36,7 +36,7 @@ export function handleCallKing(
     setSelectedBuilding(null);
     setSelectedRiver(null);
     setSelectedCharacter(null);
-    await Haptics.selectionAsync();
+    await safeHapticSelection();
   };
 }
 
@@ -61,7 +61,7 @@ export function handleCallFarmer(
     const path = findPath(start, target, isBlocked);
     if (!path) {
       setUnreachable({ open: true, message: "Postazione irraggiungibile: il Contadino non può raggiungere il campo." });
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      await safeHapticNotification(Haptics.NotificationFeedbackType.Error);
       return;
     }
     setFarmerPath(path);
@@ -69,7 +69,7 @@ export function handleCallFarmer(
     setSelectedBuilding(null);
     setSelectedRiver(null);
     setSelectedCharacter(null);
-    await Haptics.selectionAsync();
+    await safeHapticSelection();
   };
 }
 
@@ -88,7 +88,7 @@ export function buildBridge(
       return next;
     });
     setSelectedRiver(null);
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await safeHapticNotification(Haptics.NotificationFeedbackType.Success);
   };
 }
 
@@ -109,7 +109,7 @@ export function buildBridgeAt(
       }
       return next;
     });
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await safeHapticNotification(Haptics.NotificationFeedbackType.Success);
   };
 }
 
@@ -136,12 +136,12 @@ export function buildLight(
       isSea(x, y) ||
       isBeach(x, y)
     ) {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      await safeHapticNotification(Haptics.NotificationFeedbackType.Error);
       return;
     }
     
     const newLight: Light = { x, y, id: lights.length };
     setLights((prev) => [...prev, newLight]);
-    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+      await safeHapticNotification(Haptics.NotificationFeedbackType.Success);
   };
 }
