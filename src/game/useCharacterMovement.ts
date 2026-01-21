@@ -3,6 +3,14 @@ import type { Character, Point, Building, Placed } from "../types";
 import { GRID_SIZE } from "../constants";
 import { isRiver, isSea } from "./terrain";
 import type { GameTime } from "./gameClock";
+import {
+  isInRange,
+  findNearestInRange,
+  isInsideBuilding,
+  findNearestBuildingInRange,
+  getBuildingEntryPoint,
+  canOrcEnter
+} from "./orcLogic";
 
 type UseCharacterMovementOptions = {
   characters: Character[];
@@ -129,9 +137,16 @@ export function useCharacterMovement({
   };
 
   // Helper per controllare se una posizione è bloccata (per uso nelle funzioni dell'Orco)
-  const checkIsBlocked = (x: number, y: number): boolean => {
+  const checkIsBlocked = useRef((x: number, y: number): boolean => {
     return isBlocked(x, y, buildings, trees, riverCells);
-  };
+  });
+  
+  // Aggiorna il ref quando cambiano le dipendenze
+  useEffect(() => {
+    checkIsBlocked.current = (x: number, y: number): boolean => {
+      return isBlocked(x, y, buildings, trees, riverCells);
+    };
+  }, [buildings, trees, riverCells]);
 
   // Genera una posizione casuale valida (non sul fiume)
   const getRandomValidPosition = (): Point | null => {
@@ -148,7 +163,7 @@ export function useCharacterMovement({
   };
 
   // Ottiene una destinazione per il personaggio (Bar se è l'ora giusta, altrimenti casuale)
-  const getDestination = (char: Character, allChars: Character[]): Point | null => {
+  const getDestination = useRef((char: Character, allChars: Character[]): Point | null => {
     const isOrc = char.profession === "Orco";
     const isInhabitant = char.profession !== "Orco";
 
@@ -211,9 +226,9 @@ export function useCharacterMovement({
         }
 
         // Prima priorità: cerca un edificio nel raggio 5x5 per rifugiarsi
-        const nearestBuilding = findNearestBuildingInRange(char, buildings, riverCells, checkIsBlocked);
+        const nearestBuilding = findNearestBuildingInRange(char, buildings, riverCells, checkIsBlocked.current);
         if (nearestBuilding) {
-          const entryPoint = getBuildingEntryPoint(nearestBuilding, char, riverCells, checkIsBlocked);
+          const entryPoint = getBuildingEntryPoint(nearestBuilding, char, riverCells, checkIsBlocked.current);
           if (entryPoint) {
             return entryPoint; // Entra nell'edificio
           }
@@ -291,7 +306,155 @@ export function useCharacterMovement({
       return randomPos;
     }
     return null;
-  };
+  });
+  
+  // Aggiorna getDestination quando cambiano le dipendenze
+  useEffect(() => {
+    getDestination.current = (char: Character, allChars: Character[]): Point | null => {
+      const isOrc = char.profession === "Orco";
+      const isInhabitant = char.profession !== "Orco";
+
+      // Logica per l'Orco: insegue gli Abitanti (ma non quelli dentro gli edifici)
+      if (isOrc) {
+        const target = findNearestInRange(
+          char,
+          allChars,
+          (c) => c.profession !== "Orco" && !isInsideBuilding(c, buildings) // Non inseguire quelli dentro gli edifici
+        );
+        if (target) {
+          // Insegue il target
+          const targetX = Math.round(target.x);
+          const targetY = Math.round(target.y);
+          
+          // Prova posizioni vicine al target per catturarlo (MA NON SUL FIUME)
+          const nearbyPositions = [
+            { x: targetX - 1, y: targetY },
+            { x: targetX + 1, y: targetY },
+            { x: targetX, y: targetY - 1 },
+            { x: targetX, y: targetY + 1 },
+            { x: targetX - 1, y: targetY - 1 },
+            { x: targetX + 1, y: targetY + 1 },
+            { x: targetX - 1, y: targetY + 1 },
+            { x: targetX + 1, y: targetY - 1 }
+          ];
+
+          for (const pos of nearbyPositions) {
+            // CONTROLLO RIGOROSO: non può essere bloccato, non può essere sul fiume, E l'Orco non può entrare negli edifici
+            if (
+              !isBlocked(pos.x, pos.y, buildings, trees, riverCells) &&
+              !isRiver(pos.x, pos.y, riverCells) &&
+              canOrcEnter(pos.x, pos.y, buildings)
+            ) {
+              return pos;
+            }
+          }
+
+          // Se non trova posizioni vicine, prova il target stesso (se non è bloccato, non è sul fiume, e l'Orco può entrarci)
+          if (
+            !isBlocked(targetX, targetY, buildings, trees, riverCells) &&
+            !isRiver(targetX, targetY, riverCells) &&
+            canOrcEnter(targetX, targetY, buildings)
+          ) {
+            return { x: targetX, y: targetY };
+          }
+          
+          // Se tutte le posizioni sono bloccate, sul fiume, o dentro edifici, non inseguire
+          return null;
+        }
+      }
+
+      // Logica per gli Abitanti: scappano dall'Orco
+      if (isInhabitant) {
+        const orc = findNearestInRange(char, allChars, (c) => c.profession === "Orco");
+        if (orc) {
+          // Se l'Abitante è già dentro un edificio, resta lì (è al sicuro)
+          if (isInsideBuilding(char, buildings)) {
+            return null; // Non muoversi, è già al sicuro
+          }
+
+          // Prima priorità: cerca un edificio nel raggio 5x5 per rifugiarsi
+          const nearestBuilding = findNearestBuildingInRange(char, buildings, riverCells, checkIsBlocked.current);
+          if (nearestBuilding) {
+            const entryPoint = getBuildingEntryPoint(nearestBuilding, char, riverCells, checkIsBlocked.current);
+            if (entryPoint) {
+              return entryPoint; // Entra nell'edificio
+            }
+          }
+
+          // Se non c'è un edificio vicino, scappa nella direzione opposta all'Orco
+          const dx = char.x - orc.x;
+          const dy = char.y - orc.y;
+          const distance = Math.sqrt(dx * dx + dy * dy);
+          
+          if (distance > 0.1) {
+            // Calcola direzione di fuga (opposta all'Orco)
+            const escapeX = Math.round(char.x + (dx / distance) * 3);
+            const escapeY = Math.round(char.y + (dy / distance) * 3);
+            
+            // Prova posizioni nella direzione di fuga
+            const escapePositions = [
+              { x: escapeX, y: escapeY },
+              { x: escapeX - 1, y: escapeY },
+              { x: escapeX + 1, y: escapeY },
+              { x: escapeX, y: escapeY - 1 },
+              { x: escapeX, y: escapeY + 1 },
+              { x: Math.round(char.x + dx / distance), y: Math.round(char.y + dy / distance) }
+            ];
+
+            for (const pos of escapePositions) {
+              // CONTROLLO RIGOROSO: non può essere bloccato E non può essere sul fiume
+              if (!isBlocked(pos.x, pos.y, buildings, trees, riverCells) && !isRiver(pos.x, pos.y, riverCells)) {
+                return pos;
+              }
+            }
+            
+            // Se tutte le posizioni di fuga sono bloccate o sul fiume, prova una posizione casuale
+            const randomEscape = getRandomValidPosition();
+            if (randomEscape) {
+              return randomEscape;
+            }
+          }
+        }
+      }
+
+      // Se è l'ora del Bar e il Bar esiste, vai al Bar (solo per Abitanti)
+      if (isInhabitant && isBarTime() && barBuilding) {
+        // Restituisci una posizione vicina al Bar (centro dell'edificio)
+        const barCenterX = barBuilding.x + Math.floor(barBuilding.width / 2);
+        const barCenterY = barBuilding.y + Math.floor(barBuilding.height / 2);
+        
+        // Prova posizioni vicine al Bar
+        const nearbyPositions = [
+          { x: barCenterX - 1, y: barCenterY },
+          { x: barCenterX + 1, y: barCenterY },
+          { x: barCenterX, y: barCenterY - 1 },
+          { x: barCenterX, y: barCenterY + 1 },
+          { x: barCenterX - 1, y: barCenterY - 1 },
+          { x: barCenterX + 1, y: barCenterY + 1 },
+          { x: barCenterX - 1, y: barCenterY + 1 },
+          { x: barCenterX + 1, y: barCenterY - 1 }
+        ];
+        
+        for (const pos of nearbyPositions) {
+          if (!isBlocked(pos.x, pos.y, buildings, trees, riverCells) && !isRiver(pos.x, pos.y, riverCells)) {
+            return pos;
+          }
+        }
+        
+        // Se non trova posizioni vicine, prova il centro
+        if (!isBlocked(barCenterX, barCenterY, buildings, trees, riverCells) && !isRiver(barCenterX, barCenterY, riverCells)) {
+          return { x: barCenterX, y: barCenterY };
+        }
+      }
+      
+      // Altrimenti posizione casuale (ma non sul fiume)
+      const randomPos = getRandomValidPosition();
+      if (randomPos && !isRiver(randomPos.x, randomPos.y, riverCells)) {
+        return randomPos;
+      }
+      return null;
+    };
+  }, [buildings, trees, riverCells, gameTime, barBuilding]);
 
   // Movimento casuale automatico
   useEffect(() => {
@@ -300,7 +463,7 @@ export function useCharacterMovement({
       return prevChars.map((char) => {
         // Se il personaggio è già alla destinazione iniziale, dargli una nuova destinazione
         if (char.x === char.targetX && char.y === char.targetY) {
-          const destination = getDestination(char, prevChars);
+          const destination = getDestination.current(char, prevChars);
           if (destination) {
             lastRandomMoveRef.current.set(char.id, Date.now());
             return {
@@ -354,13 +517,13 @@ export function useCharacterMovement({
           
           // Controlla se c'è un target nel raggio (per inseguimento/fuga immediato)
           const hasTarget = isOrc 
-            ? findNearestInRange(char, updatedChars, (c) => c.profession !== "Orco") !== null
+            ? findNearestInRange(char, updatedChars, (c) => c.profession !== "Orco" && !isInsideBuilding(c, buildings)) !== null
             : findNearestInRange(char, updatedChars, (c) => c.profession === "Orco") !== null;
           
           const shouldMove = hasTarget || (isAtDestination && timeSinceLastMove > (1000 + Math.random() * 2000));
           
           if (shouldMove) {
-            const destination = getDestination(char, updatedChars);
+            const destination = getDestination.current(char, updatedChars);
             if (destination) {
               lastRandomMoveRef.current.set(char.id, now);
               return {
@@ -377,7 +540,7 @@ export function useCharacterMovement({
     }, 500); // Controlla ogni 500ms per reattività migliore
 
     return () => clearInterval(randomMoveInterval);
-  }, [buildings, trees, riverCells, gameTime, setCharacters]);
+  }, [buildings, trees, riverCells, gameTime, setCharacters, getDestination]);
 
   useEffect(() => {
     const animate = () => {
