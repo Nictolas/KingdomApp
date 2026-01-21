@@ -73,8 +73,8 @@ export function GridRenderer({
         const emoji = bridge ? "🌉" : tree ? "🌲" : mine ? "⛰️" : light ? "💡" : null;
         const emojiSize = tree || mine ? 20 : light ? 22 : 18;
 
-        const left = x * (CELL_SIZE + CELL_GAP);
-        const top = y * (CELL_SIZE + CELL_GAP);
+        const left = x * CELL_SIZE;
+        const top = y * CELL_SIZE;
         
         cells.push(
           <Pressable
@@ -123,12 +123,12 @@ export function CharacterRenderer({ characters, isDragging, onPress }: Character
         // Clamp le coordinate per assicurarsi che siano dentro la griglia
         const clampedX = Math.max(0, Math.min(GRID_SIZE - 1, c.x));
         const clampedY = Math.max(0, Math.min(GRID_SIZE - 1, c.y));
-        const left = clampedX * (CELL_SIZE + CELL_GAP) + CELL_SIZE * 0.1;
-        const top = clampedY * (CELL_SIZE + CELL_GAP) + CELL_SIZE * 0.05;
+        const left = clampedX * CELL_SIZE + CELL_SIZE * 0.1;
+        const top = clampedY * CELL_SIZE + CELL_SIZE * 0.05;
         
         // Controllo finale: assicurati che left e top siano dentro i limiti della griglia
-        const maxLeft = (GRID_SIZE - 1) * (CELL_SIZE + CELL_GAP) + CELL_SIZE;
-        const maxTop = (GRID_SIZE - 1) * (CELL_SIZE + CELL_GAP) + CELL_SIZE;
+        const maxLeft = (GRID_SIZE - 1) * CELL_SIZE + CELL_SIZE;
+        const maxTop = (GRID_SIZE - 1) * CELL_SIZE + CELL_SIZE;
         
         if (left < 0 || left > maxLeft || top < 0 || top > maxTop) {
           return null;
@@ -166,12 +166,12 @@ export function BuildingRenderer({ isDragging, onPress }: BuildingRendererProps)
         b.y >= 0 &&
         b.y + b.height <= GRID_SIZE
       ) {
-        const centerX = (b.x + b.width / 2) * (CELL_SIZE + CELL_GAP) - (CELL_SIZE + CELL_GAP) / 2;
-        const centerY = (b.y + b.height / 2) * (CELL_SIZE + CELL_GAP) - (CELL_SIZE + CELL_GAP) / 2;
+        const centerX = (b.x + b.width / 2) * CELL_SIZE - CELL_SIZE / 2;
+        const centerY = (b.y + b.height / 2) * CELL_SIZE - CELL_SIZE / 2;
         
         // Controllo finale: assicurati che centerX e centerY siano dentro i limiti della griglia
-        const maxX = GRID_SIZE * (CELL_SIZE + CELL_GAP);
-        const maxY = GRID_SIZE * (CELL_SIZE + CELL_GAP);
+        const maxX = GRID_SIZE * CELL_SIZE;
+        const maxY = GRID_SIZE * CELL_SIZE;
         
         if (centerX < -50 || centerX > maxX + 50 || centerY < -50 || centerY > maxY + 50) {
           return; // Non renderizzare se fuori dai limiti
@@ -194,7 +194,7 @@ export function BuildingRenderer({ isDragging, onPress }: BuildingRendererProps)
 }
 
 const styles = StyleSheet.create({
-  cell: { borderRadius: 10, alignItems: "center", justifyContent: "center" },
+  cell: { borderRadius: 0, alignItems: "center", justifyContent: "center" },
   char: { position: "absolute", alignItems: "center", justifyContent: "center" },
   building: { position: "absolute", alignItems: "center", justifyContent: "center" }
 });

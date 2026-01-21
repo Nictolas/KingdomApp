@@ -37,7 +37,7 @@ export default function GridGame() {
 
   // Camera (gestita da hook dedicato)
   const gridPixelSize = useMemo(() => {
-    const size = GRID_SIZE * (CELL_SIZE + CELL_GAP);
+    const size = GRID_SIZE * CELL_SIZE;
     return { w: size, h: size };
   }, []);
   

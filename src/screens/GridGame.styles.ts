@@ -26,7 +26,7 @@ export const styles = StyleSheet.create({
   clockText: { color: "#ffffff", fontSize: 16, fontWeight: "700", fontFamily: "monospace" },
   stage: {
     flex: 1,
-    backgroundColor: "#1b5e20",
+    backgroundColor: "transparent",
     overflow: "hidden",
     // @ts-ignore
     userSelect: "none",
