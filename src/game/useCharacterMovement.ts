@@ -19,6 +19,7 @@ type UseCharacterMovementOptions = {
   trees: Placed[];
   riverCells: number[];
   gameTime: GameTime;
+  onKingCaptured?: () => void;
 };
 
 // Controlla se una posizione è bloccata
@@ -63,11 +64,30 @@ function findPath(
   target: Point,
   buildings: Building[],
   trees: Placed[],
-  riverCells: number[]
+  riverCells: number[],
+  allowBuildingEntry: boolean = false
 ): Point[] | null {
   // Controlla che la destinazione non sia bloccata o sul fiume
-  if (isBlocked(target.x, target.y, buildings, trees, riverCells) || isRiver(target.x, target.y, riverCells)) {
+  if (isRiver(target.x, target.y, riverCells)) {
     return null;
+  }
+  
+  if (!allowBuildingEntry && isBlocked(target.x, target.y, buildings, trees, riverCells)) {
+    return null;
+  }
+  
+  // Se allowBuildingEntry è true, controlla solo fiume, mare, alberi (non edifici)
+  if (allowBuildingEntry) {
+    if (target.x < 0 || target.x >= GRID_SIZE || target.y < 0 || target.y >= GRID_SIZE) {
+      return null;
+    }
+    if (isSea(target.x, target.y)) {
+      return null;
+    }
+    if (trees.some(t => t.x === target.x && t.y === target.y)) {
+      return null;
+    }
+    // Permette l'ingresso negli edifici
   }
 
   // Controlla che la partenza non sia sul fiume
@@ -106,7 +126,24 @@ function findPath(
       // CONTROLLO CRITICO: Non può passare attraverso il fiume
       if (isRiver(next.x, next.y, riverCells)) continue;
       
-      if (isBlocked(next.x, next.y, buildings, trees, riverCells)) continue;
+      // Se allowBuildingEntry è true, permette il passaggio attraverso gli edifici
+      if (!allowBuildingEntry && isBlocked(next.x, next.y, buildings, trees, riverCells)) {
+        continue;
+      }
+      
+      // Se allowBuildingEntry è true, controlla solo fiume, mare, alberi
+      if (allowBuildingEntry) {
+        if (next.x < 0 || next.x >= GRID_SIZE || next.y < 0 || next.y >= GRID_SIZE) {
+          continue;
+        }
+        if (isSea(next.x, next.y)) {
+          continue;
+        }
+        if (trees.some(t => t.x === next.x && t.y === next.y)) {
+          continue;
+        }
+        // Permette il passaggio attraverso gli edifici
+      }
 
       queue.push({ p: next, path: [...current.path, current.p] });
     }
@@ -121,7 +158,8 @@ export function useCharacterMovement({
   buildings,
   trees,
   riverCells,
-  gameTime
+  gameTime,
+  onKingCaptured
 }: UseCharacterMovementOptions) {
   const animationFrameRef = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(Date.now());
@@ -481,27 +519,44 @@ export function useCharacterMovement({
       const now = Date.now();
       
       setCharacters((prevChars) => {
-        // Prima controlla se l'Orco ha catturato qualcuno
-        const updatedChars = prevChars.filter((char) => {
-          if (char.profession === "Orco") {
-            // Controlla se l'Orco è vicino a un Abitante (cattura)
-            for (const other of prevChars) {
-              if (other.profession !== "Orco" && other.id !== char.id) {
-                // L'Abitante è al sicuro se è dentro un edificio
-                if (isInsideBuilding(other, buildings)) {
-                  continue; // Non può essere catturato se è dentro un edificio
-                }
+        // Prima controlla se l'Orco ha catturato qualcuno (trasforma in lapide)
+        const updatedChars = prevChars.map((char) => {
+          // Se è già una lapide, mantienila
+          if (char.emoji === "🪦") {
+            return char;
+          }
 
+          // Se è un Abitante (non Orco), controlla se l'Orco è vicino
+          if (char.profession !== "Orco") {
+            // L'Abitante è al sicuro se è dentro un edificio
+            if (isInsideBuilding(char, buildings)) {
+              return char; // Non può essere catturato se è dentro un edificio
+            }
+
+            // Cerca l'Orco tra i personaggi
+            for (const other of prevChars) {
+              if (other.profession === "Orco" && other.id !== char.id) {
                 const dx = Math.abs(char.x - other.x);
                 const dy = Math.abs(char.y - other.y);
-                // Se l'Orco è molto vicino (meno di 0.5 celle), cattura l'Abitante
+                // Se l'Orco è molto vicino (meno di 0.5 celle), trasforma l'Abitante in lapide
                 if (dx < 0.5 && dy < 0.5) {
-                  return false; // Rimuovi l'Abitante catturato
+                  // Se è il Re, attiva il game over
+                  if (char.profession === "Re" && onKingCaptured) {
+                    onKingCaptured();
+                  }
+                  
+                  // Trasforma l'Abitante in lapide
+                  return {
+                    ...char,
+                    emoji: "🪦",
+                    profession: "Lapide",
+                    name: `Lapide di ${char.name}`
+                  };
                 }
               }
             }
           }
-          return true; // Mantieni il personaggio
+          return char; // Mantieni il personaggio
         });
 
         // Poi aggiorna le destinazioni
@@ -685,7 +740,8 @@ export function useCharacterMovement({
           { x: targetX, y: targetY },
           buildings,
           trees,
-          riverCells
+          riverCells,
+          allowBuildingEntry
         );
 
         if (!path || path.length === 0) {

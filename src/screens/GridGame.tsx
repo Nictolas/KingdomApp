@@ -8,19 +8,24 @@ import { BuildingInfoModal } from "../ui/BuildingInfoModal";
 import { CharacterInfoModal } from "../ui/CharacterInfoModal";
 import { GRID_SIZE, CELL_SIZE, castleData, farmData, houseData, barData } from "../constants";
 import type { Character, Building, Placed } from "../types";
-import { generateRiver, isRiver, isSea } from "../game/terrain";
+import { generateRiver, extendRiverToSea } from "../game/riverGeneration";
+import { isRiver, isSea } from "../game/terrain";
 import { generateTrees } from "../game/generation";
 import { useCharacterMovement } from "../game/useCharacterMovement";
 import { useCharacterMovementControl } from "../hooks/useCharacterMovementControl";
 import { useGameClock } from "../game/gameClock";
-import { GameClock } from "../ui/GameClock";
+import { TopHud } from "../ui/TopHud";
+import { GameOverModal } from "../ui/GameOverModal";
 
 export default function GridGame() {
   // Genera seed casuale all'avvio
   const [seed] = useState(() => Math.floor(Math.random() * 1000000));
   
-  // Genera il fiume basato sul seed
-  const riverCells = useMemo(() => generateRiver(seed), [seed]);
+  // Genera il fiume basato sul seed e lo estende fino al mare
+  const riverCells = useMemo(() => {
+    const baseRiver = generateRiver(seed);
+    return extendRiverToSea(baseRiver);
+  }, [seed]);
   
   // Genera gli alberi basati sul seed (dopo aver generato il fiume)
   const trees = useMemo(() => generateTrees(seed, riverCells), [seed, riverCells]);
@@ -75,7 +80,8 @@ export default function GridGame() {
     buildings,
     trees,
     riverCells,
-    gameTime
+    gameTime,
+    onKingCaptured: () => setGameOver(true)
   });
 
   // Hook per il controllo del movimento (selezione personaggio e click su cella)
@@ -84,6 +90,7 @@ export default function GridGame() {
   // Stato per i dialog
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
+  const [gameOver, setGameOver] = useState(false);
 
   const handleBuildingPress = (building: Building) => {
     setSelectedBuilding(building);
@@ -178,7 +185,10 @@ export default function GridGame() {
         <BuildingRenderer buildings={buildings} onPress={handleBuildingPress} />
       </View>
       
-      <GameClock gameTime={gameTime} />
+      <TopHud gameTime={gameTime} onBuildPress={() => {
+        // TODO: Implementare menu costruzione
+        console.log("Costruisci premuto");
+      }} />
       
       <BuildingInfoModal
         visible={selectedBuilding !== null}
@@ -191,6 +201,16 @@ export default function GridGame() {
         visible={selectedCharacter !== null}
         character={selectedCharacter}
         onClose={() => setSelectedCharacter(null)}
+      />
+      
+      <GameOverModal
+        visible={gameOver}
+        onRestart={() => {
+          // Ricarica la pagina per riavviare il gioco
+          if (typeof window !== "undefined" && window.location) {
+            window.location.reload();
+          }
+        }}
       />
     </View>
   );
