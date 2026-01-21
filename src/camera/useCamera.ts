@@ -34,6 +34,18 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<Point>({ x: 0, y: 0 });
   const lastTouchDistanceRef = useRef<number | null>(null);
+  // Usa ref per accedere ai valori più recenti di offset e zoom nelle callback
+  const offsetRef = useRef(offset);
+  const zoomRef = useRef(zoom);
+  
+  // Mantieni i ref sincronizzati con lo stato
+  useEffect(() => {
+    offsetRef.current = offset;
+  }, [offset]);
+  
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
 
   // Calcola il minZoom dinamico: impedisce di vedere oltre la griglia
   // Il minZoom deve essere tale che la griglia scalata copra almeno tutta la finestra
