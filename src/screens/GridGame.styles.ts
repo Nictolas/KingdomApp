@@ -31,7 +31,7 @@ export const styles = StyleSheet.create({
     userSelect: "none",
     WebkitUserSelect: "none"
   },
-  world: { position: "absolute", left: 0, top: 0 },
+  world: { position: "absolute" },
   grid: {
     position: "relative",
     // @ts-ignore
