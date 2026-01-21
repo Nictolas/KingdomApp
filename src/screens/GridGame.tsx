@@ -69,7 +69,7 @@ export default function GridGame() {
   const [clockDraftMinutes, setClockDraftMinutes] = useState(6 * 60);
 
 
-  const isBridge = (x: number, y: number) => bridges.some((b) => b.x === x && b.y === y);
+  const isBridge = (x: number, y: number) => bridges.some((b: Bridge) => b.x === x && b.y === y);
 
   const formatGameTime = (h: number, m: number) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
   const isNight = useMemo(() => {
@@ -253,10 +253,10 @@ export default function GridGame() {
         style={styles.stage}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
-        onResponderGrant={(e) => dragDetection.handleTouchStart(e, camera.onTouchStart)}
-        onResponderMove={(e) => dragDetection.handleTouchMove(e, camera.isDragging, camera.onTouchMove)}
-        onResponderRelease={(e) => dragDetection.handleTouchEnd(e, camera.onTouchEnd)}
-        onResponderTerminate={(e) => dragDetection.handleTouchEnd(e, camera.onTouchEnd)}
+        onResponderGrant={(e: any) => dragDetection.handleTouchStart(e, camera.onTouchStart)}
+        onResponderMove={(e: any) => dragDetection.handleTouchMove(e, camera.isDragging, camera.onTouchMove)}
+        onResponderRelease={(e: any) => dragDetection.handleTouchEnd(e, camera.onTouchEnd)}
+        onResponderTerminate={(e: any) => dragDetection.handleTouchEnd(e, camera.onTouchEnd)}
         // @ts-ignore
         onMouseDown={(e) => dragDetection.handleMouseDown(e, camera.handleMouseDown)}
         // @ts-ignore
