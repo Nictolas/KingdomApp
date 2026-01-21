@@ -61,12 +61,12 @@ export default function GridGame() {
   const [isClockModalOpen, setIsClockModalOpen] = useState(false);
   const [clockDraftMinutes, setClockDraftMinutes] = useState(6 * 60);
 
-  // Case: assegnazione abitanti
-  const [houseAssignments, setHouseAssignments] = useState<Record<string, number | null>>({
-    "house-1": null,
-    "house-2": null,
-    "house-3": null,
-    "house-4": null
+  // Case: assegnazione abitanti (ogni casa può ospitare 2 persone)
+  const [houseAssignments, setHouseAssignments] = useState<Record<string, number[]>>({
+    "house-1": [],
+    "house-2": [],
+    "house-3": [],
+    "house-4": []
   });
 
   const gridPixelSize = useMemo(() => {
@@ -84,12 +84,14 @@ export default function GridGame() {
   const isMine = (x: number, y: number) => mines.some((m) => m.x === x && m.y === y);
   const isLight = (x: number, y: number) => lights.some((l) => l.x === x && l.y === y);
   
-  // Calcola se una casella è illuminata (3x3 intorno a una luce)
+  // Calcola se una casella è illuminata (3x3 intorno a una luce: 3 sopra, 3 al centro, 3 sotto)
   const isIlluminated = (x: number, y: number) => {
     for (const light of lights) {
-      const dx = Math.abs(x - light.x);
-      const dy = Math.abs(y - light.y);
-      if (dx <= 1 && dy <= 1) return true;
+      // Pattern 3x3: riga sopra (y-1), riga centrale (y), riga sotto (y+1)
+      // Ogni riga ha 3 colonne: x-1, x, x+1
+      if (y >= light.y - 1 && y <= light.y + 1 && x >= light.x - 1 && x <= light.x + 1) {
+        return true;
+      }
     }
     return false;
   };
@@ -264,7 +266,7 @@ export default function GridGame() {
     setIsClockModalOpen(false);
     setGameTimeBaseMinutes(6 * 60);
     gameTimeStartRef.current = Date.now();
-    setHouseAssignments({ "house-1": null, "house-2": null, "house-3": null, "house-4": null });
+    setHouseAssignments({ "house-1": [], "house-2": [], "house-3": [], "house-4": [] });
 
     const newTrees = generateTrees();
     const newMines = generateMines();
@@ -422,7 +424,7 @@ export default function GridGame() {
       setCharacters((prev) => {
         const byId = new Map(prev.map((c) => [c.id, c]));
         const getAssignedHouse = (charId: number): Building | null => {
-          const houseId = Object.entries(houseAssignments).find(([, v]) => v === charId)?.[0];
+          const houseId = Object.entries(houseAssignments).find(([, v]) => Array.isArray(v) && v.includes(charId))?.[0];
           if (!houseId) return null;
           return houseData.find((h) => h.id === houseId) ?? null;
         };
@@ -681,7 +683,7 @@ export default function GridGame() {
           bg = "#4ade80"; // verde più chiaro per erba illuminata
         }
 
-        const emoji = bridge ? "🌉" : tree ? "🌲" : mine ? "⛏️" : light ? "💡" : null;
+        const emoji = bridge ? "🌉" : tree ? "🌲" : mine ? "🪨" : light ? "💡" : null;
         const emojiSize = tree || mine ? 20 : light ? 22 : 18;
 
         cells.push(
@@ -753,9 +755,25 @@ export default function GridGame() {
     [viewOffset.x, viewOffset.y, zoom]
   );
 
-  const assignedCharacterIdForHouse = (houseId: string) => houseAssignments[houseId] ?? null;
+  const assignedCharactersForHouse = (houseId: string) => houseAssignments[houseId] ?? [];
   const assignToHouse = (houseId: string, charId: number | null) => {
-    setHouseAssignments((prev) => ({ ...prev, [houseId]: charId }));
+    setHouseAssignments((prev) => {
+      const current = prev[houseId] ?? [];
+      if (charId === null) {
+        // Rimuovi tutte le assegnazioni per questa casa
+        return { ...prev, [houseId]: [] };
+      }
+      // Aggiungi se non c'è già e se c'è spazio (max 2)
+      if (current.includes(charId)) {
+        // Rimuovi se già presente
+        return { ...prev, [houseId]: current.filter((id) => id !== charId) };
+      }
+      if (current.length >= 2) {
+        // Casa piena
+        return prev;
+      }
+      return { ...prev, [houseId]: [...current, charId] };
+    });
   };
 
   return (
@@ -917,24 +935,42 @@ export default function GridGame() {
                   <>
                     <Text style={styles.modalHint}>Assegna un abitante: dalle 18:00 alle 6:00 rientra in casa.</Text>
                     <Text style={styles.modalSub}>
-                      Attuale:{" "}
-                      {(() => {
-                        const id = assignedCharacterIdForHouse(selectedBuilding.id);
-                        const c = characters.find((x) => x.id === id);
-                        return c ? `${c.emoji} ${c.name}` : "Nessuno";
-                      })()}
+                      Abitanti attuali ({assignedCharactersForHouse(selectedBuilding.id).length}/2):{" "}
+                      {assignedCharactersForHouse(selectedBuilding.id).length === 0
+                        ? "Nessuno"
+                        : assignedCharactersForHouse(selectedBuilding.id)
+                            .map((id) => {
+                              const c = characters.find((x) => x.id === id);
+                              return c ? `${c.emoji} ${c.name}` : "";
+                            })
+                            .filter(Boolean)
+                            .join(", ")}
                     </Text>
                     <View style={{ marginTop: 8, gap: 8 }}>
-                      <Pressable style={styles.btn} onPress={() => assignToHouse(selectedBuilding.id, null)}>
-                        <Text style={styles.btnText}>Rimuovi abitante</Text>
-                      </Pressable>
-                      {characters.map((c) => (
-                        <Pressable key={`assign-${selectedBuilding.id}-${c.id}`} style={styles.btn} onPress={() => assignToHouse(selectedBuilding.id, c.id)}>
-                          <Text style={styles.btnText}>
-                            Assegna: {c.emoji} {c.name}
-                          </Text>
+                      {assignedCharactersForHouse(selectedBuilding.id).length > 0 && (
+                        <Pressable style={styles.btn} onPress={() => assignToHouse(selectedBuilding.id, null)}>
+                          <Text style={styles.btnText}>Rimuovi tutti</Text>
                         </Pressable>
-                      ))}
+                      )}
+                      {characters.map((c) => {
+                        const assigned = assignedCharactersForHouse(selectedBuilding.id);
+                        const isAssigned = assigned.includes(c.id);
+                        const canAssign = assigned.length < 2;
+                        return (
+                          <Pressable
+                            key={`assign-${selectedBuilding.id}-${c.id}`}
+                            style={[styles.btn, isAssigned && styles.btnActive]}
+                            onPress={() => assignToHouse(selectedBuilding.id, isAssigned ? null : c.id)}
+                            disabled={!isAssigned && !canAssign}
+                          >
+                            <Text style={styles.btnText}>
+                              {isAssigned ? "✓ " : ""}
+                              {c.emoji} {c.name} {c.profession}
+                              {!isAssigned && !canAssign ? " (Casa piena)" : ""}
+                            </Text>
+                          </Pressable>
+                        );
+                      })}
                     </View>
                     <Text style={styles.modalHint}>Stato notte: {isNight ? "NOTTE (rientrano)" : "GIORNO (escono)"}</Text>
                   </>
