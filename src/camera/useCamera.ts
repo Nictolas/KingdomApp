@@ -35,9 +35,9 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   const dragStartRef = useRef<Point>({ x: 0, y: 0 });
   const lastTouchDistanceRef = useRef<number | null>(null);
   
-  // Ref per accedere ai valori più recenti
-  const offsetRef = useRef(offset);
-  const zoomRef = useRef(zoom);
+  // Ref per accedere ai valori più recenti - inizializzati con i valori iniziali
+  const offsetRef = useRef<Point>({ x: 0, y: 0 });
+  const zoomRef = useRef<number>(1);
   
   // Sincronizza i ref con lo stato
   useEffect(() => {
