@@ -19,6 +19,10 @@ import {
   houseData
 } from "../constants";
 import { clamp, isInsideBuilding, buildingCenter } from "../utils";
+import { isRiver, isSea, isBeach, makeTerrainColor } from "../game/terrain";
+import { isLightAt, isIlluminatedByAnyLight } from "../game/lights";
+import { computeNightOpacity } from "../game/night";
+import { blendHex } from "../game/color";
 
 export default function GridGame() {
   // Stato mondo
@@ -75,28 +79,12 @@ export default function GridGame() {
     return { w: size, h: size };
   }, [GRID_SIZE, CELL_SIZE, CELL_GAP]);
 
-  // Terreni
-  // Il fiume deve arrivare fino al mare: attraversa anche la fascia spiaggia (ma NON entra nel mare)
-  const isRiver = (x: number, y: number) => RIVER_XS.includes(x) && y >= 0 && y < GRID_SIZE - SEA_ROWS;
-  const isSea = (_x: number, y: number) => y >= GRID_SIZE - SEA_ROWS;
-  const isBeach = (_x: number, y: number) => y >= GRID_SIZE - SEA_ROWS - BEACH_ROWS && y < GRID_SIZE - SEA_ROWS;
+  // Terreni (importati da game/terrain.ts)
 
   const isBridge = (x: number, y: number) => bridges.some((b) => b.x === x && b.y === y);
   const isTree = (x: number, y: number) => trees.some((t) => t.x === x && t.y === y);
   const isMine = (x: number, y: number) => mines.some((m) => m.x === x && m.y === y);
-  const isLight = (x: number, y: number) => lights.some((l) => l.x === x && l.y === y);
-  
-  // Calcola se una casella è illuminata (3x3 intorno a una luce: 3 sopra, 3 al centro, 3 sotto)
-  const isIlluminated = (x: number, y: number) => {
-    for (const light of lights) {
-      // Pattern 3x3: riga sopra (y-1), riga centrale (y), riga sotto (y+1)
-      // Ogni riga ha 3 colonne: x-1, x, x+1
-      if (y >= light.y - 1 && y <= light.y + 1 && x >= light.x - 1 && x <= light.x + 1) {
-        return true;
-      }
-    }
-    return false;
-  };
+  // Luci (importate da game/lights.ts)
 
   const formatGameTime = (h: number, m: number) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
   const isNight = useMemo(() => {
@@ -104,34 +92,8 @@ export default function GridGame() {
     return t >= 18 * 60 || t < 6 * 60;
   }, [gameTime]);
 
-  // Notte “blu/viola”: overlay più scuro, ma con tinta (non nero)
-  const nightOpacity = useMemo(() => {
-    const t = gameTime.hours * 60 + gameTime.minutes;
-    if (t >= 18 * 60 || t < 6 * 60) {
-      if (t >= 18 * 60) {
-        const minutesFrom18 = t - 18 * 60;
-        const progress = Math.min(1, minutesFrom18 / 60);
-        return 0.75 + progress * 0.20; // 0.75 -> 0.95
-      }
-      const progress = t / (6 * 60);
-      return 0.95 * (1 - progress);
-    }
-    return 0;
-  }, [gameTime]);
-
-  // Blend colori (hex) per applicare tinta notturna per-cella (così le luci restano “immuni”)
-  const hexToRgb = (hex: string) => {
-    const h = hex.replace("#", "");
-    const n = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
-    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
-  };
-  const rgbToHex = (r: number, g: number, b: number) =>
-    `#${[r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("")}`;
-  const blendHex = (base: string, tint: string, t: number) => {
-    const a = hexToRgb(base);
-    const b = hexToRgb(tint);
-    return rgbToHex(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t);
-  };
+  // Notte (importata da game/night.ts)
+  const nightOpacity = useMemo(() => computeNightOpacity(gameTime.hours, gameTime.minutes), [gameTime]);
 
   // Regole blocchi (celle intere)
   const isBlocked = (p: Point, allowTarget?: Point) => {
@@ -691,7 +653,7 @@ export default function GridGame() {
     // Solo su erba (non fiume, non edifici, non alberi, non miniere, non già luce)
     if (isRiver(x, y) || isInsideBuilding(castleData, x, y) || isInsideBuilding(farmData, x, y) || 
         houseData.some((h) => isInsideBuilding(h, x, y)) || isTree(x, y) || isMine(x, y) || 
-        isLight(x, y) || isSea(x, y) || isBeach(x, y)) {
+        isLightAt(lights, x, y) || isSea(x, y) || isBeach(x, y)) {
       await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
       return;
     }
@@ -722,30 +684,24 @@ export default function GridGame() {
         const beach = isBeach(x, y);
         const tree = isTree(x, y);
         const mine = isMine(x, y);
-        const light = isLight(x, y);
-        const illuminated = isIlluminated(x, y);
+        const light = isLightAt(lights, x, y);
+        const illuminated = isIlluminatedByAnyLight(lights, x, y);
 
-        let bg = "#2f9e44";
-        if (sea) bg = "#1c7ed6";
-        // Il fiume deve prevalere sulla spiaggia quando attraversa la fascia “beach”
-        else if (river && !bridge) bg = "#4dabf7";
-        else if (beach) bg = "#ffd43b";
-        else if (bridge) bg = "#8d5a2b";
-        else if (castle) bg = "#495057";
-        else if (farm) bg = "#b08900";
-        else if (house) bg = "#6c757d";
-        
-        // Illuminazione: rende le caselle più chiare
-        if (illuminated && !sea && !beach && !river && !castle && !farm && !house) {
-          bg = "#4ade80"; // verde più chiaro per erba illuminata
-        }
-
-        // Notte per-cella: le luci NON perdono luminosità (illuminated o light sono “immuni”)
-        if (nightOpacity > 0 && !(illuminated || light)) {
-          // prima tinta blu profonda, poi un tocco viola
-          bg = blendHex(bg, "#0b1026", nightOpacity);
-          bg = blendHex(bg, "#2b1140", nightOpacity * 0.18);
-        }
+        const bg = makeTerrainColor({
+          x,
+          y,
+          isRiver: river,
+          isSea: sea,
+          isBeach: beach,
+          isBridge: bridge,
+          isCastle: castle,
+          isFarm: farm,
+          isHouse: house,
+          isIlluminated: illuminated,
+          isLight: light,
+          nightOpacity,
+          blendHex
+        });
 
         const emoji = bridge ? "🌉" : tree ? "🌲" : mine ? "⛰️" : light ? "💡" : null;
         const emojiSize = tree || mine ? 20 : light ? 22 : 18;
