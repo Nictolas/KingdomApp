@@ -73,7 +73,7 @@ export default function GridGame() {
   const gridPixelSize = useMemo(() => {
     const size = GRID_SIZE * (CELL_SIZE + CELL_GAP);
     return { w: size, h: size };
-  }, []);
+  }, [GRID_SIZE, CELL_SIZE, CELL_GAP]);
 
   // Terreni
   // Il fiume deve arrivare fino al mare: attraversa anche la fascia spiaggia (ma NON entra nel mare)
@@ -404,7 +404,7 @@ export default function GridGame() {
     const newOffsetY = mouseY - worldY * newZoom;
     
     setZoom(newZoom);
-    setViewOffset({ x: newOffsetX, y: newOffsetY });
+    setViewOffset(clampOffsetToBounds({ x: newOffsetX, y: newOffsetY }, newZoom));
   };
 
   // Mouse pan (web)
@@ -620,12 +620,25 @@ export default function GridGame() {
     await Haptics.selectionAsync();
   };
 
+  const zoomAroundScreenPoint = (screenX: number, screenY: number, newZoom: number) => {
+    // Modello camera: screen = world * zoom + offset
+    const worldX = (screenX - viewOffset.x) / zoom;
+    const worldY = (screenY - viewOffset.y) / zoom;
+    const newOffset = { x: screenX - worldX * newZoom, y: screenY - worldY * newZoom };
+    setZoom(newZoom);
+    setViewOffset(clampOffsetToBounds(newOffset, newZoom));
+  };
+
   const handleZoomIn = async () => {
-    setZoom((z) => clamp(z + 0.2, 0.6, 2.2));
+    const { width, height } = Dimensions.get("window");
+    const newZoom = clamp(zoom + 0.2, 0.6, 2.2);
+    zoomAroundScreenPoint(width / 2, height / 2, newZoom);
     await Haptics.selectionAsync();
   };
   const handleZoomOut = async () => {
-    setZoom((z) => clamp(z - 0.2, 0.6, 2.2));
+    const { width, height } = Dimensions.get("window");
+    const newZoom = clamp(zoom - 0.2, 0.6, 2.2);
+    zoomAroundScreenPoint(width / 2, height / 2, newZoom);
     await Haptics.selectionAsync();
   };
 
@@ -810,8 +823,10 @@ export default function GridGame() {
     return nodes;
   }, [isDragging]);
 
+  // IMPORTANT: ordine transform = scale -> translate
+  // così i limiti (clamp) e lo zoom verso un punto funzionano correttamente e non “si vede oltre”
   const transformStyle = useMemo(
-    () => ({ transform: [{ translateX: viewOffset.x }, { translateY: viewOffset.y }, { scale: zoom }] }),
+    () => ({ transform: [{ scale: zoom }, { translateX: viewOffset.x }, { translateY: viewOffset.y }] }),
     [viewOffset.x, viewOffset.y, zoom]
   );
 
