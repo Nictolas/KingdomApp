@@ -91,7 +91,10 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   // Zoom incrementale verso un punto
   const zoomIncrement = (screenX: number, screenY: number, delta: number) => {
     const dynamicMinZoom = getDynamicMinZoom();
+    // Clamp il nuovo zoom PRIMA di calcolare il nuovo offset
     const newZoom = clamp(zoom + delta, dynamicMinZoom, maxZoom);
+    // Se il nuovo zoom è uguale al vecchio (perché è stato clampato), non fare nulla
+    if (Math.abs(newZoom - zoom) < 0.001) return;
     zoomToPoint(screenX, screenY, newZoom);
   };
 
