@@ -5,14 +5,15 @@ import { formatGameTime, type GameTime } from "../game/gameClock";
 type TopHudProps = {
   gameTime: GameTime;
   onBuildPress: () => void;
+  onClockPress: () => void;
 };
 
-export function TopHud({ gameTime, onBuildPress }: TopHudProps) {
+export function TopHud({ gameTime, onBuildPress, onClockPress }: TopHudProps) {
   return (
     <View style={styles.container}>
-      <View style={styles.clockContainer}>
+      <Pressable style={styles.clockContainer} onPress={onClockPress}>
         <Text style={styles.clockText}>🕐 {formatGameTime(gameTime)}</Text>
-      </View>
+      </Pressable>
       
       <Pressable style={styles.buildButton} onPress={onBuildPress}>
         <Text style={styles.buildButtonText}>Costruisci</Text>

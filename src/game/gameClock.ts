@@ -18,14 +18,13 @@ export function useGameClock(initialHours: number = 6, initialMinutes: number = 
     hours: initialHours,
     minutes: initialMinutes
   });
+  const [startTimeRef, setStartTimeRef] = useState<number>(Date.now());
+  const [initialTotalMinutesRef, setInitialTotalMinutesRef] = useState<number>(initialHours * 60 + initialMinutes);
 
   useEffect(() => {
-    const startTime = Date.now();
-    const initialTotalMinutes = initialHours * 60 + initialMinutes;
-
     const interval = setInterval(() => {
-      const elapsedSeconds = Math.floor((Date.now() - startTime) / 1000);
-      const totalMinutes = initialTotalMinutes + elapsedSeconds;
+      const elapsedSeconds = Math.floor((Date.now() - startTimeRef) / 1000);
+      const totalMinutes = initialTotalMinutesRef + elapsedSeconds;
       
       const hours = Math.floor(totalMinutes / 60) % 24;
       const minutes = totalMinutes % 60;
@@ -34,9 +33,15 @@ export function useGameClock(initialHours: number = 6, initialMinutes: number = 
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [initialHours, initialMinutes]);
+  }, [startTimeRef, initialTotalMinutesRef]);
 
-  return { gameTime };
+  const setTime = (hours: number, minutes: number) => {
+    setGameTime({ hours, minutes });
+    setStartTimeRef(Date.now());
+    setInitialTotalMinutesRef(hours * 60 + minutes);
+  };
+
+  return { gameTime, setTime };
 }
 
 /**

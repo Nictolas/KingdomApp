@@ -16,6 +16,8 @@ import { useCharacterMovementControl } from "../hooks/useCharacterMovementContro
 import { useGameClock } from "../game/gameClock";
 import { TopHud } from "../ui/TopHud";
 import { GameOverModal } from "../ui/GameOverModal";
+import { TimeEditorModal } from "../ui/TimeEditorModal";
+import { BuildMenuModal } from "../ui/BuildMenuModal";
 
 export default function GridGame() {
   // Genera seed casuale all'avvio
@@ -60,7 +62,7 @@ export default function GridGame() {
   }, [riverCells]);
 
   // Hook per l'orologio del gioco (1 secondo reale = 1 minuto di gioco)
-  const { gameTime } = useGameClock(6, 0);
+  const { gameTime, setTime } = useGameClock(6, 0);
 
   // Personaggi iniziali
   const [characters, setCharacters] = useState<Character[]>([
@@ -91,6 +93,8 @@ export default function GridGame() {
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
   const [gameOver, setGameOver] = useState(false);
+  const [timeEditorVisible, setTimeEditorVisible] = useState(false);
+  const [buildMenuVisible, setBuildMenuVisible] = useState(false);
 
   const handleBuildingPress = (building: Building) => {
     setSelectedBuilding(building);
@@ -185,10 +189,11 @@ export default function GridGame() {
         <BuildingRenderer buildings={buildings} onPress={handleBuildingPress} />
       </View>
       
-      <TopHud gameTime={gameTime} onBuildPress={() => {
-        // TODO: Implementare menu costruzione
-        console.log("Costruisci premuto");
-      }} />
+      <TopHud
+        gameTime={gameTime}
+        onBuildPress={() => setBuildMenuVisible(true)}
+        onClockPress={() => setTimeEditorVisible(true)}
+      />
       
       <BuildingInfoModal
         visible={selectedBuilding !== null}
@@ -211,6 +216,22 @@ export default function GridGame() {
           if (typeof window !== "undefined" && window.location) {
             window.location.reload();
           }
+        }}
+      />
+      
+      <TimeEditorModal
+        visible={timeEditorVisible}
+        gameTime={gameTime}
+        onClose={() => setTimeEditorVisible(false)}
+        onTimeChange={(hours, minutes) => setTime(hours, minutes)}
+      />
+      
+      <BuildMenuModal
+        visible={buildMenuVisible}
+        onClose={() => setBuildMenuVisible(false)}
+        onSelectBuildType={(buildType) => {
+          console.log(`Costruisci: ${buildType}`);
+          // TODO: Implementare logica di costruzione
         }}
       />
     </View>

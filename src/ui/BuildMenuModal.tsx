@@ -4,29 +4,44 @@ import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 type BuildMenuModalProps = {
   visible: boolean;
   onClose: () => void;
-  onSelectLight: () => void;
-  onSelectBridge: () => void;
-  onCancel: () => void;
+  onSelectBuildType: (buildType: "bridge" | "light") => void;
 };
 
-export function BuildMenuModal({ visible, onClose, onSelectLight, onSelectBridge, onCancel }: BuildMenuModalProps) {
+export function BuildMenuModal({ visible, onClose, onSelectBuildType }: BuildMenuModalProps) {
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={styles.modalBackdrop} onPress={onClose}>
         <Pressable style={styles.modalCard} onPress={() => undefined}>
-          <Text style={styles.modalTitle}>💡 Costruisci</Text>
-          <Text style={styles.modalHint}>Seleziona cosa vuoi costruire:</Text>
-          <View style={{ marginTop: 12, gap: 8 }}>
-            <Pressable style={[styles.btnPrimary, { marginTop: 0 }]} onPress={onSelectLight}>
-              <Text style={styles.btnTextPrimary}>💡 Luce (sull'erba)</Text>
+          <Text style={styles.title}>Costruisci</Text>
+          <Text style={styles.subtitle}>Scegli cosa costruire:</Text>
+          
+          <View style={styles.optionsContainer}>
+            <Pressable
+              style={styles.option}
+              onPress={() => {
+                onSelectBuildType("bridge");
+                onClose();
+              }}
+            >
+              <Text style={styles.optionEmoji}>🌉</Text>
+              <Text style={styles.optionText}>Ponte</Text>
             </Pressable>
-            <Pressable style={[styles.btnPrimary, { marginTop: 0 }]} onPress={onSelectBridge}>
-              <Text style={styles.btnTextPrimary}>🌉 Ponte (sul fiume)</Text>
-            </Pressable>
-            <Pressable style={[styles.btn, { marginTop: 8 }]} onPress={onCancel}>
-              <Text style={styles.btnText}>Annulla</Text>
+            
+            <Pressable
+              style={styles.option}
+              onPress={() => {
+                onSelectBuildType("light");
+                onClose();
+              }}
+            >
+              <Text style={styles.optionEmoji}>💡</Text>
+              <Text style={styles.optionText}>Luce</Text>
             </Pressable>
           </View>
+          
+          <Pressable style={styles.closeButton} onPress={onClose}>
+            <Text style={styles.closeButtonText}>Chiudi</Text>
+          </Pressable>
         </Pressable>
       </Pressable>
     </Modal>
@@ -34,27 +49,66 @@ export function BuildMenuModal({ visible, onClose, onSelectLight, onSelectBridge
 }
 
 const styles = StyleSheet.create({
-  modalBackdrop: { flex: 1, backgroundColor: "rgba(0,0,0,0.55)", alignItems: "center", justifyContent: "center", padding: 18 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(0, 0, 0, 0.7)",
+    justifyContent: "center",
+    alignItems: "center"
+  },
   modalCard: {
+    backgroundColor: "#fff",
+    borderRadius: 16,
+    padding: 24,
+    minWidth: 300,
+    maxWidth: 400,
+    alignItems: "center"
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: "bold",
+    marginBottom: 8,
+    color: "#333"
+  },
+  subtitle: {
+    fontSize: 16,
+    color: "#666",
+    marginBottom: 20
+  },
+  optionsContainer: {
     width: "100%",
-    maxWidth: 460,
-    borderRadius: 18,
-    backgroundColor: "#0f2b18",
+    gap: 12,
+    marginBottom: 20
+  },
+  option: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "#f5f5f5",
     padding: 16,
-    borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.12)"
-  },
-  modalTitle: { color: "white", fontSize: 18, fontWeight: "900", marginBottom: 8 },
-  modalHint: { color: "rgba(255,255,255,0.75)", fontSize: 13, marginTop: 8 },
-  btnPrimary: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: "#2f9e44" },
-  btn: {
-    paddingVertical: 10,
-    paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: "rgba(255,255,255,0.12)",
     borderWidth: 1,
-    borderColor: "rgba(255,255,255,0.16)"
+    borderColor: "#ddd"
   },
-  btnText: { color: "white", fontWeight: "700" },
-  btnTextPrimary: { color: "#08210f", fontWeight: "900" }
+  optionEmoji: {
+    fontSize: 32,
+    marginRight: 12
+  },
+  optionText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "#333"
+  },
+  closeButton: {
+    marginTop: 12,
+    backgroundColor: "#1976d2",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8,
+    width: "100%",
+    alignItems: "center"
+  },
+  closeButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600"
+  }
 });

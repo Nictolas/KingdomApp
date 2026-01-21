@@ -501,16 +501,24 @@ export function useCharacterMovement({
         }
       }
       
-      // Se gli Abitanti non sanno cosa fare (nessun Orco vicino, non è l'ora del Bar), vanno comunque al Bar
+      // Se gli Abitanti non sanno cosa fare (nessun Orco vicino), vanno comunque al Bar
       if (isInhabitant && barBuilding) {
         // Controlla se c'è un Orco vicino
         const orc = findNearestInRange(char, allChars, (c) => c.profession === "Orco");
-        if (!orc) {
-          // Nessun Orco vicino, vai al Bar
+        
+        // Se non c'è un Orco vicino O se l'Abitante è già dentro un edificio e non c'è un Orco vicino, vai al Bar
+        if (!orc || (isInsideBuilding(char, buildings) && !orc)) {
+          // Vai al Bar - prova prima di entrare dentro l'edificio
+          const barEntryPoint = getBuildingEntryPoint(barBuilding, char, riverCells, checkIsBlocked.current);
+          if (barEntryPoint) {
+            return barEntryPoint; // Entra nel Bar
+          }
+          
+          // Se non può entrare, va vicino al Bar
           const barCenterX = barBuilding.x + Math.floor(barBuilding.width / 2);
           const barCenterY = barBuilding.y + Math.floor(barBuilding.height / 2);
           
-          // Prova posizioni vicine al Bar
+          // Prova posizioni vicine al Bar (più opzioni)
           const nearbyPositions = [
             { x: barCenterX - 1, y: barCenterY },
             { x: barCenterX + 1, y: barCenterY },
@@ -519,7 +527,11 @@ export function useCharacterMovement({
             { x: barCenterX - 1, y: barCenterY - 1 },
             { x: barCenterX + 1, y: barCenterY + 1 },
             { x: barCenterX - 1, y: barCenterY + 1 },
-            { x: barCenterX + 1, y: barCenterY - 1 }
+            { x: barCenterX + 1, y: barCenterY - 1 },
+            { x: barCenterX - 2, y: barCenterY },
+            { x: barCenterX + 2, y: barCenterY },
+            { x: barCenterX, y: barCenterY - 2 },
+            { x: barCenterX, y: barCenterY + 2 }
           ];
           
           for (const pos of nearbyPositions) {
