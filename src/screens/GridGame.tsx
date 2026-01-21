@@ -86,10 +86,6 @@ export default function GridGame() {
     "house-4": []
   });
 
-  const gridPixelSize = useMemo(() => {
-    const size = GRID_SIZE * (CELL_SIZE + CELL_GAP);
-    return { w: size, h: size };
-  }, [GRID_SIZE, CELL_SIZE, CELL_GAP]);
 
   // Terreni (importati da game/terrain.ts)
 
@@ -696,7 +692,7 @@ export default function GridGame() {
     }
     return cells;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bridges, trees, mines, lights, selectedRiver, isDragging, buildMode]);
+  }, [bridges, trees, mines, lights, selectedRiver, camera.isDragging, buildMode]);
 
   const characterNodes = useMemo(() => {
     return characters.map((c) => {
@@ -712,7 +708,7 @@ export default function GridGame() {
         </Pressable>
       );
     });
-  }, [characters, isDragging]);
+  }, [characters, camera.isDragging]);
 
   const buildingNodes = useMemo(() => {
     const nodes: React.ReactNode[] = [];
@@ -729,7 +725,7 @@ export default function GridGame() {
     add(farmData);
     houseData.forEach(add);
     return nodes;
-  }, [isDragging]);
+  }, [camera.isDragging]);
 
   // Transform style gestito dal hook camera
   const transformStyle = camera.transformStyle;
