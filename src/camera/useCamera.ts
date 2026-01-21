@@ -34,6 +34,19 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<Point>({ x: 0, y: 0 });
   const lastTouchDistanceRef = useRef<number | null>(null);
+  
+  // Ref per accedere ai valori più recenti
+  const offsetRef = useRef(offset);
+  const zoomRef = useRef(zoom);
+  
+  // Sincronizza i ref con lo stato
+  useEffect(() => {
+    offsetRef.current = offset;
+  }, [offset]);
+  
+  useEffect(() => {
+    zoomRef.current = zoom;
+  }, [zoom]);
 
   // Calcola il minZoom dinamico: impedisce di vedere oltre la griglia
   // Il minZoom deve essere tale che la griglia scalata copra almeno tutta la finestra
@@ -93,12 +106,16 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   const zoomToPoint = (screenX: number, screenY: number, newZoom: number) => {
     const dynamicMinZoom = getDynamicMinZoom();
     const clampedZoom = clamp(newZoom, dynamicMinZoom, maxZoom);
+    
+    // Usa i ref per avere i valori più recenti
+    const currentZoom = zoomRef.current;
+    const currentOffset = offsetRef.current;
 
     // Calcoliamo quale punto del mondo è sotto il cursore PRIMA dello zoom
     // screenX = worldX * zoom + offset.x
     // worldX = (screenX - offset.x) / zoom
-    const worldX = (screenX - offset.x) / zoom;
-    const worldY = (screenY - offset.y) / zoom;
+    const worldX = (screenX - currentOffset.x) / currentZoom;
+    const worldY = (screenY - currentOffset.y) / currentZoom;
 
     // Calcoliamo il nuovo offset per mantenere lo stesso punto del mondo sotto il cursore
     // screenX = worldX * newZoom + newOffset.x
@@ -121,9 +138,10 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   // Zoom incrementale verso un punto
   const zoomIncrement = (screenX: number, screenY: number, delta: number) => {
     const dynamicMinZoom = getDynamicMinZoom();
-    const newZoom = clamp(zoom + delta, dynamicMinZoom, maxZoom);
+    const currentZoom = zoomRef.current;
+    const newZoom = clamp(currentZoom + delta, dynamicMinZoom, maxZoom);
     // Se lo zoom non cambia (clamp lo ha bloccato), non fare nulla
-    if (Math.abs(newZoom - zoom) < 0.001) return;
+    if (Math.abs(newZoom - currentZoom) < 0.001) return;
     // Usa zoomToPoint che gestisce correttamente tutto
     zoomToPoint(screenX, screenY, newZoom);
   };
