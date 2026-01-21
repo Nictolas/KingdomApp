@@ -176,7 +176,7 @@ export default function GridGame() {
         // @ts-ignore
         onWheel={camera.handleWheel}
       >
-        <View style={[styles.world, camera.worldStyle]}>
+        <View key={`world-${camera.zoom.toFixed(2)}`} style={[styles.world, camera.worldStyle]}>
           <View style={[styles.grid, { width: gridPixelSize.w, height: gridPixelSize.h }]}>
             <GridRenderer
               bridges={gameState.bridges}

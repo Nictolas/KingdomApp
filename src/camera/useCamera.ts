@@ -124,6 +124,14 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     const newOffsetY = screenY - worldY * clampedZoom;
 
     const clampedOffset = clampOffset({ x: newOffsetX, y: newOffsetY }, clampedZoom);
+    console.log("zoomToPoint:", { 
+      currentZoom, 
+      clampedZoom, 
+      currentOffset, 
+      clampedOffset,
+      worldX, 
+      worldY 
+    });
     setZoom(clampedZoom);
     setOffset(clampedOffset);
   };
@@ -270,16 +278,20 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     return () => subscription?.remove();
   }, [zoom, gridWidth, gridHeight]);
 
-  // APPROCCIO DIRETTO: invece di transform, calcoliamo direttamente left/top/width/height
-  // Questo evita problemi con l'ordine delle trasformazioni
+  // APPROCCIO DIRETTO: calcoliamo direttamente width/height scalati
+  // Questo dovrebbe funzionare meglio con React Native Web
   const worldStyle = useMemo(() => {
-    return {
+    const scaledWidth = gridWidth * zoom;
+    const scaledHeight = gridHeight * zoom;
+    const style = {
       position: "absolute" as const,
       left: offset.x,
       top: offset.y,
-      width: gridWidth * zoom,
-      height: gridHeight * zoom
+      width: scaledWidth,
+      height: scaledHeight
     };
+    console.log("worldStyle recalculated:", { zoom, scaledWidth, scaledHeight, offset });
+    return style;
   }, [offset.x, offset.y, zoom, gridWidth, gridHeight]);
   
   // Manteniamo transformStyle per compatibilità, ma non lo usiamo più
