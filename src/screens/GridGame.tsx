@@ -17,6 +17,8 @@ import { useCamera } from "../camera/useCamera";
 import { useCharacterMovement } from "../game/useCharacterMovement";
 import { handleCallKing, handleCallFarmer, buildBridge, buildBridgeAt, buildLight } from "../game/actions";
 import { GridRenderer, CharacterRenderer, BuildingRenderer } from "../components/GridRenderer";
+import { useDragDetection } from "../hooks/useDragDetection";
+import { useHouseAssignments } from "../hooks/useHouseAssignments";
 import { styles } from "./GridGame.styles";
 
 export default function GridGame() {
@@ -47,8 +49,8 @@ export default function GridGame() {
     gridHeight: gridPixelSize.h
   });
   
-  const dragInfoRef = useRef<{ startX: number; startY: number; didDrag: boolean }>({ startX: 0, startY: 0, didDrag: false });
-  const lastDragAtRef = useRef<number>(0);
+  const dragDetection = useDragDetection();
+  const houseAssignments = useHouseAssignments();
 
   // Azioni "story"
   const [kingGoingToCastle, setKingGoingToCastle] = useState(false);
@@ -66,13 +68,6 @@ export default function GridGame() {
   const [isClockModalOpen, setIsClockModalOpen] = useState(false);
   const [clockDraftMinutes, setClockDraftMinutes] = useState(6 * 60);
 
-  // Case: assegnazione abitanti (ogni casa può ospitare 2 persone)
-  const [houseAssignments, setHouseAssignments] = useState<Record<string, number[]>>({
-    "house-1": [],
-    "house-2": [],
-    "house-3": [],
-    "house-4": []
-  });
 
   const isBridge = (x: number, y: number) => bridges.some((b) => b.x === x && b.y === y);
 
@@ -99,7 +94,7 @@ export default function GridGame() {
     setIsClockModalOpen(false);
     setGameTimeBaseMinutes(6 * 60);
     gameTimeStartRef.current = Date.now();
-    setHouseAssignments({ "house-1": [], "house-2": [], "house-3": [], "house-4": [] });
+    houseAssignments.reset();
 
     const newTrees = generateTrees();
     const newMines = generateMines();
@@ -125,61 +120,6 @@ export default function GridGame() {
     return () => clearInterval(interval);
   }, [gameTimeBaseMinutes]);
 
-  const wasRecentlyDragging = () => {
-    if (camera.isDragging) return true;
-    if (dragInfoRef.current.didDrag) return true;
-    return Date.now() - lastDragAtRef.current < 180;
-  };
-  
-  // Wrapper per gestire dragInfoRef insieme alla camera
-  const handleTouchStart = (e: any) => {
-    const t = e.nativeEvent.touches;
-    if (t.length === 1) {
-      dragInfoRef.current = { startX: t[0].pageX, startY: t[0].pageY, didDrag: false };
-    }
-    camera.onTouchStart(e);
-  };
-  
-  const handleTouchMove = (e: any) => {
-    const t = e.nativeEvent.touches;
-    if (t.length === 1 && camera.isDragging) {
-      const dx = t[0].pageX - dragInfoRef.current.startX;
-      const dy = t[0].pageY - dragInfoRef.current.startY;
-      if (!dragInfoRef.current.didDrag && Math.hypot(dx, dy) > 6) dragInfoRef.current.didDrag = true;
-    }
-    camera.onTouchMove(e);
-  };
-  
-  const handleTouchEnd = (e: any) => {
-    camera.onTouchEnd(e);
-    if (dragInfoRef.current.didDrag) lastDragAtRef.current = Date.now();
-  };
-
-  const handleMouseDownWrapper = (e: any) => {
-    if (typeof window === "undefined") return;
-    const ne = e?.nativeEvent;
-    if (ne) {
-      dragInfoRef.current = { startX: ne.clientX ?? 0, startY: ne.clientY ?? 0, didDrag: false };
-    }
-    camera.handleMouseDown(e);
-  };
-  
-  const handleMouseMoveWrapper = (e: any) => {
-    if (camera.isDragging) {
-      const ne = e?.nativeEvent;
-      if (ne) {
-        const dx = ne.clientX - dragInfoRef.current.startX;
-        const dy = ne.clientY - dragInfoRef.current.startY;
-        if (!dragInfoRef.current.didDrag && Math.hypot(dx, dy) > 6) dragInfoRef.current.didDrag = true;
-      }
-    }
-    camera.handleMouseMove(e);
-  };
-  
-  const handleMouseUpWrapper = () => {
-    camera.handleMouseUp();
-    if (dragInfoRef.current.didDrag) lastDragAtRef.current = Date.now();
-  };
 
   // Usa hook per movimento personaggi
   useCharacterMovement({
@@ -198,7 +138,7 @@ export default function GridGame() {
     setFarmerPath,
     setUnreachable,
     isNight,
-    houseAssignments
+    houseAssignments: houseAssignments.houseAssignments
   });
 
   // UI actions
@@ -240,7 +180,7 @@ export default function GridGame() {
   };
 
   const openCharacter = async (char: Character) => {
-    if (wasRecentlyDragging()) return;
+    if (dragDetection.wasRecentlyDragging(camera.isDragging)) return;
     setSelectedCharacter(char);
     setSelectedBuilding(null);
     setSelectedRiver(null);
@@ -248,7 +188,7 @@ export default function GridGame() {
   };
 
   const openBuilding = async (b: Building) => {
-    if (wasRecentlyDragging()) return;
+    if (dragDetection.wasRecentlyDragging(camera.isDragging)) return;
     setSelectedBuilding(b);
     setSelectedCharacter(null);
     setSelectedRiver(null);
@@ -256,7 +196,7 @@ export default function GridGame() {
   };
 
   const selectRiver = async (x: number, y: number) => {
-    if (wasRecentlyDragging()) return;
+    if (dragDetection.wasRecentlyDragging(camera.isDragging)) return;
     if (!isRiver(x, y) || isBridge(x, y)) return;
     setSelectedRiver({ x, y });
     setSelectedBuilding(null);
@@ -293,22 +233,6 @@ export default function GridGame() {
     }
   };
 
-  const assignedCharactersForHouse = (houseId: string) => houseAssignments[houseId] ?? [];
-  const assignToHouse = (houseId: string, charId: number | null) => {
-    setHouseAssignments((prev) => {
-      const current = prev[houseId] ?? [];
-      if (charId === null) {
-        return { ...prev, [houseId]: [] };
-      }
-      if (current.includes(charId)) {
-        return { ...prev, [houseId]: current.filter((id) => id !== charId) };
-      }
-      if (current.length >= 2) {
-        return prev;
-      }
-      return { ...prev, [houseId]: [...current, charId] };
-    });
-  };
 
   return (
     <View style={styles.root}>
@@ -329,18 +253,18 @@ export default function GridGame() {
         style={styles.stage}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
-        onResponderGrant={handleTouchStart}
-        onResponderMove={handleTouchMove}
-        onResponderRelease={handleTouchEnd}
-        onResponderTerminate={handleTouchEnd}
+        onResponderGrant={(e) => dragDetection.handleTouchStart(e, camera.onTouchStart)}
+        onResponderMove={(e) => dragDetection.handleTouchMove(e, camera.isDragging, camera.onTouchMove)}
+        onResponderRelease={(e) => dragDetection.handleTouchEnd(e, camera.onTouchEnd)}
+        onResponderTerminate={(e) => dragDetection.handleTouchEnd(e, camera.onTouchEnd)}
         // @ts-ignore
-        onMouseDown={handleMouseDownWrapper}
+        onMouseDown={(e) => dragDetection.handleMouseDown(e, camera.handleMouseDown)}
         // @ts-ignore
-        onMouseMove={handleMouseMoveWrapper}
+        onMouseMove={(e) => dragDetection.handleMouseMove(e, camera.isDragging, camera.handleMouseMove)}
         // @ts-ignore
-        onMouseUp={handleMouseUpWrapper}
+        onMouseUp={() => dragDetection.handleMouseUp(camera.handleMouseUp)}
         // @ts-ignore
-        onMouseLeave={handleMouseUpWrapper}
+        onMouseLeave={() => dragDetection.handleMouseUp(camera.handleMouseUp)}
         // @ts-ignore
         onWheel={camera.handleWheel}
       >
@@ -356,8 +280,6 @@ export default function GridGame() {
               gameTime={gameTime}
               isDragging={camera.isDragging}
               onCellPress={handleCellPress}
-              onCharacterPress={openCharacter}
-              onBuildingPress={openBuilding}
             />
           </View>
           <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
@@ -403,9 +325,9 @@ export default function GridGame() {
         gameTimeStartRef={gameTimeStartRef}
         setIsClockModalOpen={setIsClockModalOpen}
         characters={characters}
-        houseAssignments={houseAssignments}
-        assignedCharactersForHouse={assignedCharactersForHouse}
-        assignToHouse={assignToHouse}
+        houseAssignments={houseAssignments.houseAssignments}
+        assignedCharactersForHouse={houseAssignments.assignedCharactersForHouse}
+        assignToHouse={houseAssignments.assignToHouse}
         isNight={isNight}
         onCallKing={handleCallKingFn}
         onCallFarmer={handleCallFarmerFn}
