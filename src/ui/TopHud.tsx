@@ -8,11 +8,9 @@ type TopHudProps = {
   onClockPress: () => void;
   onReset: () => void;
   onBuildPress: () => void;
-  onZoomOut: () => void;
-  onZoomIn: () => void;
 };
 
-export function TopHud({ gameTime, buildMode, onClockPress, onReset, onBuildPress, onZoomOut, onZoomIn }: TopHudProps) {
+export function TopHud({ gameTime, buildMode, onClockPress, onReset, onBuildPress }: TopHudProps) {
   return (
     <View style={styles.topHud}>
       <Pressable style={styles.clockContainer} onPress={onClockPress}>
@@ -24,12 +22,6 @@ export function TopHud({ gameTime, buildMode, onClockPress, onReset, onBuildPres
         </Pressable>
         <Pressable style={[styles.btn, buildMode !== null && styles.btnActive]} onPress={onBuildPress}>
           <Text style={styles.btnText}>💡 Costruisci</Text>
-        </Pressable>
-        <Pressable style={styles.btn} onPress={onZoomOut}>
-          <Text style={styles.btnText}>− Zoom</Text>
-        </Pressable>
-        <Pressable style={styles.btn} onPress={onZoomIn}>
-          <Text style={styles.btnText}>＋ Zoom</Text>
         </Pressable>
       </View>
     </View>

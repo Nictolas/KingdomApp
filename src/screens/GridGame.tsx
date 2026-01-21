@@ -49,7 +49,6 @@ export default function GridGame() {
   const dragDetection = useDragDetection();
   const houseAssignments = useHouseAssignments();
   const gameClock = useGameClock();
-  const zoom = useZoom(camera);
 
   const reset = () => {
     resetGame({
@@ -153,8 +152,6 @@ export default function GridGame() {
         }}
         onReset={reset}
         onBuildPress={() => gameState.setBuildMenuOpen(true)}
-        onZoomOut={zoom.handleZoomOut}
-        onZoomIn={zoom.handleZoomIn}
       />
 
       <View
@@ -177,7 +174,7 @@ export default function GridGame() {
         onWheel={camera.handleWheel}
       >
         <View style={[styles.world, camera.worldStyle]}>
-          <View style={[styles.grid, { width: gridPixelSize.w, height: gridPixelSize.h }]}>
+          <View style={[styles.grid, { width: gridPixelSize.w, height: gridPixelSize.h }, camera.gridStyle]}>
             <GridRenderer
               bridges={gameState.bridges}
               trees={gameState.trees}

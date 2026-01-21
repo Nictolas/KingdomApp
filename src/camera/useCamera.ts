@@ -15,6 +15,7 @@ export type Camera = {
   zoom: number;
   transformStyle: any;
   worldStyle: { left: number; top: number; width: number; height: number };
+  gridStyle: { transform: any[] };
   isDragging: boolean;
   handleWheel: (e: any) => void;
   onTouchStart: (e: any) => void;
@@ -30,7 +31,8 @@ export type Camera = {
 
 export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 }: UseCameraOptions): Camera {
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(1);
+  // Zoom fisso al minimo (zoom indietro massima)
+  const [zoom, setZoom] = useState(minZoom);
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<Point>({ x: 0, y: 0 });
   const lastTouchDistanceRef = useRef<number | null>(null);
@@ -100,44 +102,10 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     };
   };
 
-  // Zoom verso un punto specifico dello schermo
-  // Con left/top/width/height: screenX = worldX * zoom + offset.x
-  // Quindi: worldX = (screenX - offset.x) / zoom
+  // Zoom verso un punto specifico dello schermo - DISABILITATO
   const zoomToPoint = (screenX: number, screenY: number, newZoom: number) => {
-    const dynamicMinZoom = getDynamicMinZoom();
-    const clampedZoom = clamp(newZoom, dynamicMinZoom, maxZoom);
-    
-    // Usa i ref per avere i valori più recenti
-    const currentZoom = zoomRef.current;
-    const currentOffset = offsetRef.current;
-
-    // Calcoliamo quale punto del mondo è sotto il cursore PRIMA dello zoom
-    // screenX = worldX * zoom + offset.x
-    // worldX = (screenX - offset.x) / zoom
-    const worldX = (screenX - currentOffset.x) / currentZoom;
-    const worldY = (screenY - currentOffset.y) / currentZoom;
-
-    // Calcoliamo il nuovo offset per mantenere lo stesso punto del mondo sotto il cursore
-    // screenX = worldX * newZoom + newOffset.x
-    // newOffset.x = screenX - worldX * newZoom
-    const newOffsetX = screenX - worldX * clampedZoom;
-    const newOffsetY = screenY - worldY * clampedZoom;
-
-    const clampedOffset = clampOffset({ x: newOffsetX, y: newOffsetY }, clampedZoom);
-    console.log("zoomToPoint:", { 
-      currentZoom, 
-      clampedZoom, 
-      currentOffset, 
-      clampedOffset,
-      worldX, 
-      worldY 
-    });
-    // Aggiorna il ref IMMEDIATAMENTE prima di chiamare setZoom
-    // Questo evita che chiamate rapide successive usino valori obsoleti
-    zoomRef.current = clampedZoom;
-    offsetRef.current = clampedOffset;
-    setZoom(clampedZoom);
-    setOffset(clampedOffset);
+    // Zoom disabilitato - non fare nulla
+    return;
   };
 
   // Pan (sposta la camera)
@@ -165,18 +133,10 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     zoomToPoint(screenX, screenY, newZoom);
   };
 
-  // Zoom con rotellina del mouse
+  // Zoom con rotellina del mouse - DISABILITATO
   const handleWheel = (e: any) => {
-    if (typeof window === "undefined") return;
-    const ne = e.nativeEvent;
-    if (!ne || typeof ne.deltaY === "undefined") return;
-    // Non possiamo usare preventDefault() su event listeners passivi
-    // Lo scroll della pagina verrà comunque prevenuto dal fatto che gestiamo l'evento
-    
-    const delta = ne.deltaY > 0 ? -0.1 : 0.1;
-    const mouseX = ne.clientX ?? 0;
-    const mouseY = ne.clientY ?? 0;
-    zoomIncrement(mouseX, mouseY, delta);
+    // Zoom disabilitato - non fare nulla
+    return;
   };
 
   // Touch handlers
@@ -206,15 +166,7 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
 
   const onTouchMove = (e: any) => {
     const t = e.nativeEvent.touches;
-    if (t.length === 2 && lastTouchDistanceRef.current) {
-      const dist = getTouchDistance(t);
-      const delta = (dist - lastTouchDistanceRef.current) * 0.004;
-      const centerX = (t[0].pageX + t[1].pageX) / 2;
-      const centerY = (t[0].pageY + t[1].pageY) / 2;
-      zoomIncrement(centerX, centerY, delta);
-      lastTouchDistanceRef.current = dist;
-      return;
-    }
+    // Pinch-to-zoom disabilitato - ignora 2 dita
     if (t.length === 1 && isDraggingRef.current) {
       // Calcoliamo dove è ora il punto del mondo nello schermo
       // screenX = worldX * zoom + offset.x
@@ -272,7 +224,7 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     isDraggingRef.current = false;
   };
 
-  // Clamp offset quando cambiano le dimensioni della griglia (ma NON quando cambia zoom, perché zoomToPoint lo gestisce già)
+  // Clamp offset quando cambiano le dimensioni della griglia
   useEffect(() => {
     setOffset((o) => clampOffset(o, zoom));
   }, [gridWidth, gridHeight]);
@@ -285,21 +237,33 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     return () => subscription?.remove();
   }, [zoom, gridWidth, gridHeight]);
 
-  // APPROCCIO DIRETTO: calcoliamo direttamente width/height scalati
-  // Questo dovrebbe funzionare meglio con React Native Web
+  // Imposta lo zoom iniziale al minZoom quando cambiano le dimensioni della griglia
+  useEffect(() => {
+    const dynamicMinZoom = getDynamicMinZoom();
+    setZoom(dynamicMinZoom);
+    zoomRef.current = dynamicMinZoom;
+  }, [gridWidth, gridHeight]);
+
+  // APPROCCIO: il contenitore world mantiene dimensioni fisse e posizione
+  // Il contenuto interno viene scalato con gridStyle
   const worldStyle = useMemo(() => {
-    const scaledWidth = gridWidth * zoom;
-    const scaledHeight = gridHeight * zoom;
     const style = {
       position: "absolute" as const,
       left: offset.x,
       top: offset.y,
-      width: scaledWidth,
-      height: scaledHeight
+      width: gridWidth,
+      height: gridHeight
     };
-    console.log("worldStyle recalculated:", { zoom, scaledWidth, scaledHeight, offset });
+    console.log("worldStyle recalculated:", { zoom, gridWidth, gridHeight, offset });
     return style;
   }, [offset.x, offset.y, zoom, gridWidth, gridHeight]);
+  
+  // Scaliamo il contenuto interno invece del contenitore
+  const gridStyle = useMemo(() => {
+    return {
+      transform: [{ scale: zoom }]
+    };
+  }, [zoom]);
   
   // Manteniamo transformStyle per compatibilità, ma non lo usiamo più
   const transformStyle = useMemo(() => {
@@ -317,6 +281,7 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     zoom,
     transformStyle,
     worldStyle,
+    gridStyle,
     isDragging: isDraggingRef.current,
     handleWheel,
     onTouchStart,
