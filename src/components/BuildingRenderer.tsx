@@ -16,7 +16,30 @@ export function BuildingRenderer({ buildings, onPress }: BuildingRendererProps) 
         const centerX = (building.x + building.width / 2) * CELL_SIZE - CELL_SIZE / 2;
         const centerY = (building.y + building.height / 2) * CELL_SIZE - CELL_SIZE / 2;
 
-        const fontSize = building.type === "house" ? 30 : building.type === "castle" ? 48 : 36;
+        const fontSize = building.type === "house" ? 30 : building.type === "castle" ? 144 : 36;
+        
+        // Per il Bar, mostra 2 emoji (Casa e Birra)
+        if (building.type === "bar") {
+          return (
+            <Pressable
+              key={`building-${building.id}`}
+              onPress={() => onPress(building)}
+              style={[
+                styles.building,
+                {
+                  left: centerX,
+                  top: centerY
+                }
+              ]}
+              onStartShouldSetResponder={() => false}
+            >
+              <View style={styles.barContainer}>
+                <Text style={[styles.emoji, { fontSize: 28 }]} selectable={false}>🏠</Text>
+                <Text style={[styles.emoji, { fontSize: 28 }]} selectable={false}>🍺</Text>
+              </View>
+            </Pressable>
+          );
+        }
         
         return (
           <Pressable
@@ -55,5 +78,11 @@ const styles = StyleSheet.create({
     fontSize: 36,
     userSelect: "none",
     WebkitUserSelect: "none"
+  },
+  barContainer: {
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 2
   }
 });
