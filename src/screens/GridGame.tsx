@@ -23,6 +23,9 @@ import { isRiver, isSea, isBeach, makeTerrainColor } from "../game/terrain";
 import { isLightAt, isIlluminatedByAnyLight } from "../game/lights";
 import { computeNightOpacity } from "../game/night";
 import { blendHex } from "../game/color";
+import { TopHud } from "../ui/TopHud";
+import { BuildMenuModal } from "../ui/BuildMenuModal";
+import { UnreachableModal } from "../ui/UnreachableModal";
 
 export default function GridGame() {
   // Stato mondo
@@ -809,35 +812,18 @@ export default function GridGame() {
 
   return (
     <View style={styles.root}>
-      {/* HUD in alto con orologio + reset/zoom */}
-      <View style={styles.topHud}>
-        <Pressable
-          style={styles.clockContainer}
-          onPress={() => {
-            setClockDraftMinutes((gameTime.hours * 60 + gameTime.minutes) % (24 * 60));
-            setIsClockModalOpen(true);
-          }}
-        >
-          <Text style={styles.clockText}>🕐 {formatGameTime(gameTime.hours, gameTime.minutes)}</Text>
-        </Pressable>
-        <View style={styles.topHudButtons}>
-          <Pressable style={styles.btn} onPress={reset}>
-            <Text style={styles.btnText}>↻ Reset</Text>
-          </Pressable>
-          <Pressable 
-            style={[styles.btn, buildMode !== null && styles.btnActive]} 
-            onPress={() => setBuildMenuOpen(true)}
-          >
-            <Text style={styles.btnText}>💡 Costruisci</Text>
-          </Pressable>
-          <Pressable style={styles.btn} onPress={handleZoomOut}>
-            <Text style={styles.btnText}>− Zoom</Text>
-          </Pressable>
-          <Pressable style={styles.btn} onPress={handleZoomIn}>
-            <Text style={styles.btnText}>＋ Zoom</Text>
-          </Pressable>
-        </View>
-      </View>
+      <TopHud
+        gameTime={gameTime}
+        buildMode={buildMode}
+        onClockPress={() => {
+          setClockDraftMinutes((gameTime.hours * 60 + gameTime.minutes) % (24 * 60));
+          setIsClockModalOpen(true);
+        }}
+        onReset={reset}
+        onBuildPress={() => setBuildMenuOpen(true)}
+        onZoomOut={handleZoomOut}
+        onZoomIn={handleZoomIn}
+      />
 
       <View
         style={styles.stage}
@@ -869,58 +855,28 @@ export default function GridGame() {
         {/* Notte: applicata per-cella nella griglia (così le luci restano luminose) */}
       </View>
 
-      {/* Dialog irraggiungibile */}
-      <Modal visible={unreachable.open} transparent animationType="fade" onRequestClose={() => setUnreachable({ open: false, message: "" })}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setUnreachable({ open: false, message: "" })}>
-          <Pressable style={styles.modalCard} onPress={() => undefined}>
-            <Text style={styles.modalTitle}>⚠️ Postazione irraggiungibile</Text>
-            <Text style={styles.modalSub}>{unreachable.message}</Text>
-            <Text style={styles.modalHint}>Suggerimento: costruisci ponti e libera il percorso da ostacoli.</Text>
-            <Pressable style={[styles.btnPrimary, { marginTop: 12 }]} onPress={() => setUnreachable({ open: false, message: "" })}>
-              <Text style={styles.btnTextPrimary}>Chiudi</Text>
-            </Pressable>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <UnreachableModal
+        visible={unreachable.open}
+        message={unreachable.message}
+        onClose={() => setUnreachable({ open: false, message: "" })}
+      />
 
-      {/* Menu costruzione */}
-      <Modal visible={buildMenuOpen} transparent animationType="fade" onRequestClose={() => setBuildMenuOpen(false)}>
-        <Pressable style={styles.modalBackdrop} onPress={() => setBuildMenuOpen(false)}>
-          <Pressable style={styles.modalCard} onPress={() => undefined}>
-            <Text style={styles.modalTitle}>💡 Costruisci</Text>
-            <Text style={styles.modalHint}>Seleziona cosa vuoi costruire:</Text>
-            <View style={{ marginTop: 12, gap: 8 }}>
-              <Pressable
-                style={[styles.btnPrimary, { marginTop: 0 }]}
-                onPress={() => {
-                  setBuildMode("light");
-                  setBuildMenuOpen(false);
-                }}
-              >
-                <Text style={styles.btnTextPrimary}>💡 Luce (sull'erba)</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.btnPrimary, { marginTop: 0 }]}
-                onPress={() => {
-                  setBuildMode("bridge");
-                  setBuildMenuOpen(false);
-                }}
-              >
-                <Text style={styles.btnTextPrimary}>🌉 Ponte (sul fiume)</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.btn, { marginTop: 8 }]}
-                onPress={() => {
-                  setBuildMode(null);
-                  setBuildMenuOpen(false);
-                }}
-              >
-                <Text style={styles.btnText}>Annulla</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
+      <BuildMenuModal
+        visible={buildMenuOpen}
+        onClose={() => setBuildMenuOpen(false)}
+        onSelectLight={() => {
+          setBuildMode("light");
+          setBuildMenuOpen(false);
+        }}
+        onSelectBridge={() => {
+          setBuildMode("bridge");
+          setBuildMenuOpen(false);
+        }}
+        onCancel={() => {
+          setBuildMode(null);
+          setBuildMenuOpen(false);
+        }}
+      />
 
       {/* Modale info */}
       <Modal visible={!!(selectedCharacter || selectedBuilding || selectedRiver) || isClockModalOpen} transparent animationType="fade" onRequestClose={closeModal}>
