@@ -5,6 +5,7 @@ import * as Haptics from "expo-haptics";
 type Point = { x: number; y: number };
 type Placed = { x: number; y: number; id: number };
 type Bridge = { x: number; y: number };
+type Light = { x: number; y: number; id: number };
 
 type BuildingType = "castle" | "farm" | "house";
 type Building = {
@@ -114,7 +115,11 @@ export default function GridGame() {
   const [bridges, setBridges] = useState<Bridge[]>([]);
   const [trees, setTrees] = useState<Placed[]>([]);
   const [mines, setMines] = useState<Placed[]>([]);
+  const [lights, setLights] = useState<Light[]>([]);
   const [characters, setCharacters] = useState<Character[]>([]);
+  
+  // Modalità costruzione
+  const [buildMode, setBuildMode] = useState<"light" | null>(null);
 
   // Selezioni
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
@@ -167,6 +172,17 @@ export default function GridGame() {
   const isBridge = (x: number, y: number) => bridges.some((b) => b.x === x && b.y === y);
   const isTree = (x: number, y: number) => trees.some((t) => t.x === x && t.y === y);
   const isMine = (x: number, y: number) => mines.some((m) => m.x === x && m.y === y);
+  const isLight = (x: number, y: number) => lights.some((l) => l.x === x && l.y === y);
+  
+  // Calcola se una casella è illuminata (3x3 intorno a una luce)
+  const isIlluminated = (x: number, y: number) => {
+    for (const light of lights) {
+      const dx = Math.abs(x - light.x);
+      const dy = Math.abs(y - light.y);
+      if (dx <= 1 && dy <= 1) return true;
+    }
+    return false;
+  };
 
   const formatGameTime = (h: number, m: number) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
   const isNight = useMemo(() => {
@@ -333,6 +349,8 @@ export default function GridGame() {
     setKingPath([]);
     setFarmerPath([]);
     setBridges([]);
+    setLights([]);
+    setBuildMode(null);
     setIsClockModalOpen(false);
     setGameTimeBaseMinutes(6 * 60);
     gameTimeStartRef.current = Date.now();
@@ -698,6 +716,23 @@ export default function GridGame() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
+  const buildLight = async (x: number, y: number) => {
+    if (wasRecentlyDragging()) return;
+    if (buildMode !== "light") return;
+    
+    // Solo su erba (non fiume, non edifici, non alberi, non miniere, non già luce)
+    if (isRiver(x, y) || isInsideBuilding(castleData, x, y) || isInsideBuilding(farmData, x, y) || 
+        houseData.some((h) => isInsideBuilding(h, x, y)) || isTree(x, y) || isMine(x, y) || 
+        isLight(x, y) || isSea(x, y) || isBeach(x, y)) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+    
+    const newLight: Light = { x, y, id: lights.length };
+    setLights((prev) => [...prev, newLight]);
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
   const closeModal = () => {
     setSelectedCharacter(null);
     setSelectedBuilding(null);
@@ -719,6 +754,8 @@ export default function GridGame() {
         const beach = isBeach(x, y);
         const tree = isTree(x, y);
         const mine = isMine(x, y);
+        const light = isLight(x, y);
+        const illuminated = isIlluminated(x, y);
 
         let bg = "#2f9e44";
         if (sea) bg = "#1c7ed6";
@@ -728,14 +765,25 @@ export default function GridGame() {
         else if (castle) bg = "#495057";
         else if (farm) bg = "#b08900";
         else if (house) bg = "#6c757d";
+        
+        // Illuminazione: rende le caselle più chiare
+        if (illuminated && !sea && !beach && !river && !castle && !farm && !house) {
+          bg = "#4ade80"; // verde più chiaro per erba illuminata
+        }
 
-        const emoji = bridge ? "🌉" : tree ? "🌲" : mine ? "⛏️" : null;
-        const emojiSize = tree || mine ? 20 : 18;
+        const emoji = bridge ? "🌉" : tree ? "🌲" : mine ? "⛏️" : light ? "💡" : null;
+        const emojiSize = tree || mine ? 20 : light ? 22 : 18;
 
         cells.push(
           <Pressable
             key={`${x}-${y}`}
-            onPress={() => (river && !bridge ? selectRiver(x, y) : undefined)}
+            onPress={() => {
+              if (buildMode === "light") {
+                buildLight(x, y);
+              } else if (river && !bridge) {
+                selectRiver(x, y);
+              }
+            }}
             style={[
               styles.cell,
               {
@@ -755,7 +803,7 @@ export default function GridGame() {
     }
     return cells;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bridges, trees, mines, selectedRiver, isDragging]);
+  }, [bridges, trees, mines, lights, selectedRiver, isDragging, buildMode]);
 
   const characterNodes = useMemo(() => {
     return characters.map((c) => {
@@ -816,6 +864,12 @@ export default function GridGame() {
         <View style={styles.topHudButtons}>
           <Pressable style={styles.btn} onPress={reset}>
             <Text style={styles.btnText}>↻ Reset</Text>
+          </Pressable>
+          <Pressable 
+            style={[styles.btn, buildMode === "light" && styles.btnActive]} 
+            onPress={() => setBuildMode(buildMode === "light" ? null : "light")}
+          >
+            <Text style={styles.btnText}>💡 Costruisci</Text>
           </Pressable>
           <Pressable style={styles.btn} onPress={handleZoomOut}>
             <Text style={styles.btnText}>− Zoom</Text>
@@ -1052,6 +1106,10 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.16)"
   },
+  btnActive: {
+    backgroundColor: "rgba(255,255,255,0.25)",
+    borderColor: "rgba(255,255,255,0.4)"
+  },
   btnPrimary: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: "#2f9e44" },
   btnWarn: { paddingVertical: 10, paddingHorizontal: 12, borderRadius: 12, backgroundColor: "#f59f00" },
   btnText: { color: "white", fontWeight: "700" },
@@ -1069,4 +1127,4 @@ const styles = StyleSheet.create({
   modalTitle: { color: "white", fontSize: 18, fontWeight: "900", marginBottom: 8 },
   modalSub: { color: "rgba(255,255,255,0.85)", fontSize: 14, marginBottom: 6 },
   modalHint: { color: "rgba(255,255,255,0.75)", fontSize: 13, marginTop: 8 }
-});
+});
