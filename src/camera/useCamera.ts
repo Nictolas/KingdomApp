@@ -141,7 +141,11 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     const currentZoom = zoomRef.current;
     const newZoom = clamp(currentZoom + delta, dynamicMinZoom, maxZoom);
     // Se lo zoom non cambia (clamp lo ha bloccato), non fare nulla
-    if (Math.abs(newZoom - currentZoom) < 0.001) return;
+    if (Math.abs(newZoom - currentZoom) < 0.001) {
+      console.log("Zoom blocked:", { currentZoom, newZoom, delta, dynamicMinZoom, maxZoom });
+      return;
+    }
+    console.log("Zooming:", { currentZoom, newZoom, delta });
     // Usa zoomToPoint che gestisce correttamente tutto
     zoomToPoint(screenX, screenY, newZoom);
   };
