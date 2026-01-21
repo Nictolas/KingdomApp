@@ -3,11 +3,6 @@ import { Dimensions } from "react-native";
 import type { Point } from "../types";
 import { clamp } from "../utils";
 
-type CameraState = {
-  offset: Point;
-  zoom: number;
-};
-
 type UseCameraOptions = {
   gridWidth: number;
   gridHeight: number;
@@ -31,6 +26,9 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   };
 
   // Clamp dell'offset per impedire di vedere oltre la griglia
+  // IMPORTANTE: con scale -> translate, il translate è nel sistema NON scalato
+  // Modello: screen = world * zoom + offset
+  // Quindi offset è nel sistema NON scalato
   const clampOffset = (o: Point, z: number): Point => {
     const { width, height } = Dimensions.get("window");
     const scaledGridW = gridWidth * z;
@@ -38,16 +36,22 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
 
     // Se la griglia scalata è più piccola della finestra: centra e blocca
     if (scaledGridW <= width && scaledGridH <= height) {
-      return {
-        x: (width - scaledGridW) / 2,
-        y: (height - scaledGridH) / 2
-      };
+      const centerX = (width - scaledGridW) / 2;
+      const centerY = (height - scaledGridH) / 2;
+      return { x: centerX, y: centerY };
     }
 
     // Se la griglia è più grande: limita l'offset per mantenerla dentro
-    const minX = Math.min(0, width - scaledGridW);
-    const maxX = 0;
-    const minY = Math.min(0, height - scaledGridH);
+    // offset è nel sistema NON scalato, quindi i limiti devono essere nel sistema NON scalato
+    // Limiti nel sistema NON scalato:
+    // - offset.x può essere negativo fino a quando la griglia scalata non esce a destra
+    // - offset.x può essere positivo fino a quando la griglia scalata non esce a sinistra
+    // Con screen = world * zoom + offset:
+    // - Se offset.x = 0, la griglia inizia a screen = 0
+    // - Se offset.x = width - scaledGridW, la griglia finisce a screen = width
+    const minX = width - scaledGridW; // La griglia finisce a destra quando offset = width - scaledGridW
+    const maxX = 0; // La griglia inizia a sinistra quando offset = 0
+    const minY = height - scaledGridH;
     const maxY = 0;
 
     return {
@@ -68,6 +72,8 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     const worldY = (screenY - offset.y) / zoom;
 
     // Nuovo offset per mantenere lo stesso punto del mondo sotto il cursore
+    // screen = world * newZoom + newOffset
+    // newOffset = screen - world * newZoom
     const newOffsetX = screenX - worldX * clampedZoom;
     const newOffsetY = screenY - worldY * clampedZoom;
 
@@ -97,9 +103,8 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     e.preventDefault();
 
     const delta = ne.deltaY > 0 ? -0.1 : 0.1;
-    const { width, height } = Dimensions.get("window");
-    const mouseX = ne.clientX ?? width / 2;
-    const mouseY = ne.clientY ?? height / 2;
+    const mouseX = ne.clientX ?? 0;
+    const mouseY = ne.clientY ?? 0;
     zoomIncrement(mouseX, mouseY, delta);
   };
 
@@ -128,7 +133,6 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     if (t.length === 2 && lastTouchDistanceRef.current) {
       const dist = getTouchDistance(t);
       const delta = (dist - lastTouchDistanceRef.current) * 0.004;
-      const { width, height } = Dimensions.get("window");
       const centerX = (t[0].pageX + t[1].pageX) / 2;
       const centerY = (t[0].pageY + t[1].pageY) / 2;
       zoomIncrement(centerX, centerY, delta);
@@ -183,6 +187,8 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   }, [zoom, gridWidth, gridHeight]);
 
   // Transform style per React Native
+  // IMPORTANTE: ordine = scale -> translate
+  // Con questo ordine, il translate è nel sistema NON scalato
   const transformStyle = useMemo(
     () => ({ transform: [{ scale: zoom }, { translateX: offset.x }, { translateY: offset.y }] }),
     [offset.x, offset.y, zoom]
