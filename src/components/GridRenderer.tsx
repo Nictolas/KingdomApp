@@ -19,8 +19,6 @@ type GridRendererProps = {
   gameTime: { hours: number; minutes: number };
   isDragging: boolean;
   onCellPress: (x: number, y: number) => void;
-  onCharacterPress: (char: Character) => void;
-  onBuildingPress: (building: Building) => void;
 };
 
 export function GridRenderer({
