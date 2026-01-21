@@ -295,21 +295,12 @@ export default function GridGame() {
     const scaledGridW = gridW * z;
     const scaledGridH = gridH * z;
     
-    // I limiti nel sistema NON scalato:
-    // - Se la griglia scalata è più piccola della finestra, l'offset può essere 0 (centrato)
-    // - Se la griglia scalata è più grande, l'offset deve essere limitato in modo che
-    //   la griglia scalata non esca dalla finestra
-    // Con scale -> translate, il translate viene applicato DOPO lo scale,
-    // quindi se viewOffset.x = 100 e zoom = 0.6, la griglia viene spostata di 100px
-    // nel sistema NON scalato, ma visualmente di 60px (100 * 0.6)
-    
-    // Limiti: l'offset può essere negativo (sposta a sinistra) fino a quando
-    // la griglia scalata non esce dalla finestra a destra
-    // viewOffset è in pixel schermo (screen = world*zoom + offset), quindi NON va diviso per z.
-    const minLeft = Math.min(0, width - scaledGridW);
-    const minTop = Math.min(0, height - scaledGridH);
-    const maxLeft = 0;
-    const maxTop = 0;
+    // Se la griglia scalata è più piccola della finestra: centra.
+    // Se è più grande: limita l'offset perché la griglia resti dentro.
+    const minLeft = scaledGridW <= width ? (width - scaledGridW) / 2 : width - scaledGridW;
+    const maxLeft = scaledGridW <= width ? (width - scaledGridW) / 2 : 0;
+    const minTop = scaledGridH <= height ? (height - scaledGridH) / 2 : height - scaledGridH;
+    const maxTop = scaledGridH <= height ? (height - scaledGridH) / 2 : 0;
     
     return { x: clamp(o.x, minLeft, maxLeft), y: clamp(o.y, minTop, maxTop) };
   };
