@@ -113,8 +113,9 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     if (typeof window === "undefined") return;
     const ne = e.nativeEvent;
     if (!ne || typeof ne.deltaY === "undefined") return;
-    e.preventDefault();
-
+    // Non possiamo usare preventDefault() su event listeners passivi
+    // Lo scroll della pagina verrà comunque prevenuto dal fatto che gestiamo l'evento
+    
     const delta = ne.deltaY > 0 ? -0.1 : 0.1;
     const mouseX = ne.clientX ?? 0;
     const mouseY = ne.clientY ?? 0;
