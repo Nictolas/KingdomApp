@@ -36,8 +36,9 @@ export const lastNames = ["Rossi", "Bianchi", "Verdi", "Romano", "Ricci", "Marin
 
 export const castleData: Building = {
   id: "castle",
-  // shift +10/+10 per mantenere la scena “centrata” nella nuova griglia
-  x: 33,
+  // shift +10/+10 per mantenere la scena "centrata" nella nuova griglia
+  // x: 30 per evitare il fiume (RIVER_XS = [34, 35]), il castello occupa x: 30-32
+  x: 30,
   y: 21,
   width: 3,
   height: 3,
