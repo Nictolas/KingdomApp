@@ -1,0 +1,25 @@
+{
+  "expo": {
+    "name": "MyKingdom",
+    "slug": "mykingdom",
+    "scheme": "mykingdom",
+    "version": "0.1.0",
+    "orientation": "portrait",
+    "platforms": ["ios", "android", "web"],
+    "userInterfaceStyle": "automatic",
+    "assetBundlePatterns": ["**/*"],
+    "ios": {
+      "supportsTablet": true
+    },
+    "android": {
+      "adaptiveIcon": {
+        "backgroundColor": "#0b3d1f"
+      }
+    },
+    "plugins": [
+      "expo-router",
+      "react-native-reanimated"
+    ]
+  }
+}
+
