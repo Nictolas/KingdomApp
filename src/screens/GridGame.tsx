@@ -772,16 +772,8 @@ export default function GridGame() {
         onMoveShouldSetResponder={() => true}
         onResponderGrant={camera.onTouchStart}
         onResponderMove={(e) => camera.onTouchMove(e, (didDrag) => { if (didDrag) dragInfoRef.current.didDrag = true; })}
-        onResponderRelease={(e) => {
-          camera.onTouchEnd(e, () => {
-            if (dragInfoRef.current.didDrag) lastDragAtRef.current = Date.now();
-          });
-        }}
-        onResponderTerminate={(e) => {
-          camera.onTouchEnd(e, () => {
-            if (dragInfoRef.current.didDrag) lastDragAtRef.current = Date.now();
-          });
-        }}
+        onResponderRelease={handleTouchEnd}
+        onResponderTerminate={handleTouchEnd}
         // @ts-ignore
         onMouseDown={handleMouseDownWrapper}
         // @ts-ignore
