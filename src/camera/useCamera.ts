@@ -50,14 +50,22 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     // La griglia va da offset.x a offset.x + scaledGridW
     // Per non vedere oltre a sinistra: offset.x <= 0
     // Per non vedere oltre a destra: offset.x + scaledGridW >= width, quindi offset.x >= width - scaledGridW
-    const minX = width - scaledGridW; // La griglia finisce a destra quando offset = width - scaledGridW
+    // IMPORTANTE: minX e maxX devono essere nell'ordine corretto per clamp()
+    // clamp(value, min, max) richiede min <= max
+    const minX = Math.min(0, width - scaledGridW); // Il più piccolo tra 0 e width - scaledGridW
     const maxX = 0; // La griglia inizia a sinistra quando offset = 0
-    const minY = height - scaledGridH; // La griglia finisce in basso quando offset = height - scaledGridH
+    const minY = Math.min(0, height - scaledGridH); // Il più piccolo tra 0 e height - scaledGridH
     const maxY = 0; // La griglia inizia in alto quando offset = 0
 
+    // Assicuriamoci che minX <= maxX e minY <= maxY
+    const finalMinX = Math.min(minX, maxX);
+    const finalMaxX = Math.max(minX, maxX);
+    const finalMinY = Math.min(minY, maxY);
+    const finalMaxY = Math.max(minY, maxY);
+
     return {
-      x: clamp(o.x, minX, maxX),
-      y: clamp(o.y, minY, maxY)
+      x: clamp(o.x, finalMinX, finalMaxX),
+      y: clamp(o.y, finalMinY, finalMaxY)
     };
   };
 
