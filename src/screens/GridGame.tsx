@@ -76,7 +76,8 @@ export default function GridGame() {
   }, []);
 
   // Terreni
-  const isRiver = (x: number, y: number) => RIVER_XS.includes(x) && y >= 0 && y < LAND_ROWS;
+  // Il fiume deve arrivare fino al mare: attraversa anche la fascia spiaggia (ma NON entra nel mare)
+  const isRiver = (x: number, y: number) => RIVER_XS.includes(x) && y >= 0 && y < GRID_SIZE - SEA_ROWS;
   const isSea = (_x: number, y: number) => y >= GRID_SIZE - SEA_ROWS;
   const isBeach = (_x: number, y: number) => y >= GRID_SIZE - SEA_ROWS - BEACH_ROWS && y < GRID_SIZE - SEA_ROWS;
 
@@ -117,6 +118,20 @@ export default function GridGame() {
     }
     return 0;
   }, [gameTime]);
+
+  // Blend colori (hex) per applicare tinta notturna per-cella (così le luci restano “immuni”)
+  const hexToRgb = (hex: string) => {
+    const h = hex.replace("#", "");
+    const n = parseInt(h.length === 3 ? h.split("").map((c) => c + c).join("") : h, 16);
+    return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+  };
+  const rgbToHex = (r: number, g: number, b: number) =>
+    `#${[r, g, b].map((v) => Math.max(0, Math.min(255, Math.round(v))).toString(16).padStart(2, "0")).join("")}`;
+  const blendHex = (base: string, tint: string, t: number) => {
+    const a = hexToRgb(base);
+    const b = hexToRgb(tint);
+    return rgbToHex(a.r + (b.r - a.r) * t, a.g + (b.g - a.g) * t, a.b + (b.b - a.b) * t);
+  };
 
   // Regole blocchi (celle intere)
   const isBlocked = (p: Point, allowTarget?: Point) => {
@@ -699,8 +714,9 @@ export default function GridGame() {
 
         let bg = "#2f9e44";
         if (sea) bg = "#1c7ed6";
-        else if (beach) bg = "#ffd43b";
+        // Il fiume deve prevalere sulla spiaggia quando attraversa la fascia “beach”
         else if (river && !bridge) bg = "#4dabf7";
+        else if (beach) bg = "#ffd43b";
         else if (bridge) bg = "#8d5a2b";
         else if (castle) bg = "#495057";
         else if (farm) bg = "#b08900";
@@ -709,6 +725,13 @@ export default function GridGame() {
         // Illuminazione: rende le caselle più chiare
         if (illuminated && !sea && !beach && !river && !castle && !farm && !house) {
           bg = "#4ade80"; // verde più chiaro per erba illuminata
+        }
+
+        // Notte per-cella: le luci NON perdono luminosità (illuminated o light sono “immuni”)
+        if (nightOpacity > 0 && !(illuminated || light)) {
+          // prima tinta blu profonda, poi un tocco viola
+          bg = blendHex(bg, "#0b1026", nightOpacity);
+          bg = blendHex(bg, "#2b1140", nightOpacity * 0.18);
         }
 
         const emoji = bridge ? "🌉" : tree ? "🌲" : mine ? "⛰️" : light ? "💡" : null;
@@ -872,13 +895,7 @@ export default function GridGame() {
           </View>
         </View>
 
-        {/* Overlay notte tinta blu/viola */}
-        {nightOpacity > 0 && (
-          <>
-            <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: "#0b1026", opacity: nightOpacity }]} />
-            <View pointerEvents="none" style={[StyleSheet.absoluteFill, { backgroundColor: "#2b1140", opacity: nightOpacity * 0.18 }]} />
-          </>
-        )}
+        {/* Notte: applicata per-cella nella griglia (così le luci restano luminose) */}
       </View>
 
       {/* Dialog irraggiungibile */}
