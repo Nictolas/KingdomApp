@@ -22,8 +22,8 @@ export function resetGame(options: ResetOptions) {
   resetClock();
   resetHouseAssignments();
 
-  const { width, height } = Dimensions.get("window");
-  camera.zoomToPoint(width / 2, height / 2, 1);
+  // Reset offset a (0,0) - la camera si resetta automaticamente
+  camera.pan(-camera.offset.x, -camera.offset.y);
 
   const newTrees = generateTrees();
   const newMines = generateMines();

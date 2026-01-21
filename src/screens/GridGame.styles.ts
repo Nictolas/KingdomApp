@@ -1,7 +1,7 @@
 import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#000000" },
+  root: { flex: 1, backgroundColor: "#000000", overflow: "hidden" },
   topHud: {
     position: "absolute",
     top: 10,
@@ -34,6 +34,10 @@ export const styles = StyleSheet.create({
   },
   world: { 
     position: "absolute",
+    left: 0,
+    top: 0,
+    right: 0,
+    bottom: 0,
     overflow: "hidden"
   },
   grid: {

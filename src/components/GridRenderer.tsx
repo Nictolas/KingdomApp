@@ -18,7 +18,6 @@ type GridRendererProps = {
   isDragging: boolean;
   onCellPress: (x: number, y: number) => void;
   offset: Point;
-  zoom: number;
 };
 
 export function GridRenderer({
@@ -32,7 +31,6 @@ export function GridRenderer({
   isDragging,
   onCellPress,
   offset,
-  zoom,
   onCharacterPress,
   onBuildingPress
 }: GridRendererProps) {
@@ -64,19 +62,27 @@ export function GridRenderer({
     // VIEWPORT CULLING: renderizza solo le celle visibili nello schermo
     const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
     
-    // Calcola quali celle sono visibili basandosi su offset e zoom
-    // offset è la posizione dell'angolo in alto a sinistra della griglia nello schermo (dopo lo scaling)
-    // La griglia è scalata con zoom, quindi le celle hanno dimensioni CELL_SIZE * zoom
-    const scaledCellSize = CELL_SIZE * zoom;
+    // REGOLA 1: Lo zoom non deve esserci
+    // REGOLA 2: La griglia e il mondo sono la stessa cosa
+    // REGOLA 3: Non deve esistere nulla oltre il mondo griglia
+    // Calcola il fattore di scala necessario per coprire lo schermo (stesso calcolo di useCamera)
+    const gridPixelWidth = GRID_SIZE * CELL_SIZE;
+    const gridPixelHeight = GRID_SIZE * CELL_SIZE;
+    const scaleX = screenWidth / gridPixelWidth;
+    const scaleY = screenHeight / gridPixelHeight;
+    const scale = Math.max(scaleX, scaleY) * 1.05; // Stesso calcolo di useCamera (5% margine)
+    
+    // Le celle vengono scalate con questo fattore
+    const scaledCellSize = CELL_SIZE * scale;
     const margin = 3; // Margine per evitare flickering durante il movimento
     
-    // Calcola il range di celle visibili nello spazio della griglia (non scalato)
-    // offset.x è la posizione della griglia scalata nello schermo
-    // Per trovare quale cella è visibile: (screenX - offset.x) / zoom / CELL_SIZE
-    const startX = Math.max(0, Math.floor((-offset.x / zoom - margin * CELL_SIZE) / CELL_SIZE));
-    const endX = Math.min(GRID_SIZE - 1, Math.ceil((-offset.x / zoom + screenWidth / zoom + margin * CELL_SIZE) / CELL_SIZE));
-    const startY = Math.max(0, Math.floor((-offset.y / zoom - margin * CELL_SIZE) / CELL_SIZE));
-    const endY = Math.min(GRID_SIZE - 1, Math.ceil((-offset.y / zoom + screenHeight / zoom + margin * CELL_SIZE) / CELL_SIZE));
+    // Calcola il range di celle visibili nello spazio della griglia
+    // offset è la posizione della griglia nello schermo dopo lo scaling
+    // Per trovare quale cella è visibile: (screenX - offset.x) / scale / CELL_SIZE
+    const startX = Math.max(0, Math.floor((-offset.x / scale - margin * CELL_SIZE) / CELL_SIZE));
+    const endX = Math.min(GRID_SIZE - 1, Math.ceil((-offset.x / scale + screenWidth / scale + margin * CELL_SIZE) / CELL_SIZE));
+    const startY = Math.max(0, Math.floor((-offset.y / scale - margin * CELL_SIZE) / CELL_SIZE));
+    const endY = Math.min(GRID_SIZE - 1, Math.ceil((-offset.y / scale + screenHeight / scale + margin * CELL_SIZE) / CELL_SIZE));
     
     for (let y = startY; y <= endY; y++) {
       for (let x = startX; x <= endX; x++) {
@@ -111,8 +117,10 @@ export function GridRenderer({
         const emoji = bridge ? "🌉" : tree ? "🌲" : mine ? "⛰️" : light ? "💡" : null;
         const emojiSize = tree || mine ? 20 : light ? 22 : 18;
 
-        const left = x * CELL_SIZE;
-        const top = y * CELL_SIZE;
+        // REGOLA 1: Lo zoom non deve esserci - scala le celle direttamente
+        // Le celle vengono posizionate e dimensionate con lo scale
+        const left = x * scaledCellSize; // Posizione scalata
+        const top = y * scaledCellSize; // Posizione scalata
         
         cells.push(
           <Pressable
@@ -125,19 +133,19 @@ export function GridRenderer({
                 left,
                 top,
                 backgroundColor: bg,
-                width: CELL_SIZE,
-                height: CELL_SIZE,
+                width: scaledCellSize,
+                height: scaledCellSize,
                 borderWidth: 0
               }
             ]}
           >
-            {emoji && <Text style={{ fontSize: emojiSize }}>{emoji}</Text>}
+            {emoji && <Text style={{ fontSize: emojiSize * scale }}>{emoji}</Text>}
           </Pressable>
         );
       }
     }
     return cells;
-  }, [bridges, trees, mines, lights, selectedRiver, buildMode, nightOpacity, onCellPress, offset.x, offset.y, zoom]);
+  }, [bridges, trees, mines, lights, selectedRiver, buildMode, nightOpacity, onCellPress, offset.x, offset.y]);
 
   return <>{gridCells}</>;
 }
