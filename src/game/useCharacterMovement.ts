@@ -1,7 +1,7 @@
 import { useEffect } from "react";
 import type { Character, Point, Placed, Bridge, Building } from "../types";
 import { buildingCenter, findPath, stepAlongPath } from "../utils";
-import { castleData, farmData, houseData } from "../constants";
+import { castleData, farmData, houseData, GRID_SIZE } from "../constants";
 import { createIsBlocked } from "./pathfinding";
 
 type UseCharacterMovementOptions = {
@@ -46,11 +46,26 @@ export function useCharacterMovement({
     const anim = setInterval(() => {
       setCharacters((prev) =>
         prev.map((c) => {
-          const dx = c.targetX - c.x;
-          const dy = c.targetY - c.y;
+          // Clamp targetX e targetY dentro la griglia
+          const clampedTargetX = Math.max(0, Math.min(GRID_SIZE - 1, c.targetX));
+          const clampedTargetY = Math.max(0, Math.min(GRID_SIZE - 1, c.targetY));
+          
+          const dx = clampedTargetX - c.x;
+          const dy = clampedTargetY - c.y;
           const speed = 0.08;
-          if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) return { ...c, x: c.targetX, y: c.targetY };
-          return { ...c, x: c.x + dx * speed, y: c.y + dy * speed };
+          if (Math.abs(dx) < 0.01 && Math.abs(dy) < 0.01) {
+            return { ...c, x: clampedTargetX, y: clampedTargetY, targetX: clampedTargetX, targetY: clampedTargetY };
+          }
+          const newX = c.x + dx * speed;
+          const newY = c.y + dy * speed;
+          // Clamp anche le coordinate animate dentro la griglia
+          return { 
+            ...c, 
+            x: Math.max(0, Math.min(GRID_SIZE - 1, newX)), 
+            y: Math.max(0, Math.min(GRID_SIZE - 1, newY)),
+            targetX: clampedTargetX,
+            targetY: clampedTargetY
+          };
         })
       );
     }, 16);

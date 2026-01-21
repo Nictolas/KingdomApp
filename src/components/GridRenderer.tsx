@@ -113,19 +113,29 @@ type CharacterRendererProps = {
 
 export function CharacterRenderer({ characters, isDragging, onPress }: CharacterRendererProps) {
   const characterNodes = useMemo(() => {
-    return characters.map((c) => {
-      const left = c.x * (CELL_SIZE + CELL_GAP) + CELL_SIZE * 0.1;
-      const top = c.y * (CELL_SIZE + CELL_GAP) + CELL_SIZE * 0.05;
-      return (
-        <Pressable
-          key={`char-${c.id}`}
-          onPress={() => onPress(c)}
-          style={[styles.char, { left, top, width: CELL_SIZE, height: CELL_SIZE }]}
-        >
-          <Text style={{ fontSize: 22 }}>{c.emoji}</Text>
-        </Pressable>
-      );
-    });
+    return characters
+      .filter((c) => {
+        // Filtra i personaggi per assicurarsi che siano dentro la griglia
+        const gridX = Math.round(c.x);
+        const gridY = Math.round(c.y);
+        return gridX >= 0 && gridX < GRID_SIZE && gridY >= 0 && gridY < GRID_SIZE;
+      })
+      .map((c) => {
+        // Clamp le coordinate per assicurarsi che siano dentro la griglia
+        const clampedX = Math.max(0, Math.min(GRID_SIZE - 1, c.x));
+        const clampedY = Math.max(0, Math.min(GRID_SIZE - 1, c.y));
+        const left = clampedX * (CELL_SIZE + CELL_GAP) + CELL_SIZE * 0.1;
+        const top = clampedY * (CELL_SIZE + CELL_GAP) + CELL_SIZE * 0.05;
+        return (
+          <Pressable
+            key={`char-${c.id}`}
+            onPress={() => onPress(c)}
+            style={[styles.char, { left, top, width: CELL_SIZE, height: CELL_SIZE }]}
+          >
+            <Text style={{ fontSize: 22 }}>{c.emoji}</Text>
+          </Pressable>
+        );
+      });
   }, [characters, isDragging, onPress]);
 
   return <>{characterNodes}</>;
@@ -140,13 +150,21 @@ export function BuildingRenderer({ isDragging, onPress }: BuildingRendererProps)
   const buildingNodes = useMemo(() => {
     const nodes: React.ReactNode[] = [];
     const add = (b: Building) => {
-      const centerX = (b.x + b.width / 2) * (CELL_SIZE + CELL_GAP) - (CELL_SIZE + CELL_GAP) / 2;
-      const centerY = (b.y + b.height / 2) * (CELL_SIZE + CELL_GAP) - (CELL_SIZE + CELL_GAP) / 2;
-      nodes.push(
-        <Pressable key={`building-${b.id}`} onPress={() => onPress(b)} style={[styles.building, { left: centerX, top: centerY }]}>
-          <Text style={{ fontSize: b.type === "house" ? 30 : 36 }}>{b.emoji}</Text>
-        </Pressable>
-      );
+      // Filtra gli edifici per assicurarsi che siano completamente dentro la griglia
+      if (
+        b.x >= 0 &&
+        b.x + b.width <= GRID_SIZE &&
+        b.y >= 0 &&
+        b.y + b.height <= GRID_SIZE
+      ) {
+        const centerX = (b.x + b.width / 2) * (CELL_SIZE + CELL_GAP) - (CELL_SIZE + CELL_GAP) / 2;
+        const centerY = (b.y + b.height / 2) * (CELL_SIZE + CELL_GAP) - (CELL_SIZE + CELL_GAP) / 2;
+        nodes.push(
+          <Pressable key={`building-${b.id}`} onPress={() => onPress(b)} style={[styles.building, { left: centerX, top: centerY }]}>
+            <Text style={{ fontSize: b.type === "house" ? 30 : 36 }}>{b.emoji}</Text>
+          </Pressable>
+        );
+      }
     };
     add(castleData);
     add(farmData);
