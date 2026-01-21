@@ -12,6 +12,8 @@ import { generateRiver, isRiver, isSea } from "../game/terrain";
 import { generateTrees } from "../game/generation";
 import { useCharacterMovement } from "../game/useCharacterMovement";
 import { useCharacterMovementControl } from "../hooks/useCharacterMovementControl";
+import { useGameClock } from "../game/gameClock";
+import { GameClock } from "../ui/GameClock";
 
 export default function GridGame() {
   // Genera seed casuale all'avvio
@@ -75,6 +77,9 @@ export default function GridGame() {
   // Hook per il controllo del movimento (selezione personaggio e click su cella)
   const movementControl = useCharacterMovementControl();
 
+  // Hook per l'orologio del gioco (1 secondo reale = 1 minuto di gioco)
+  const { gameTime } = useGameClock(6, 0);
+
   // Stato per i dialog
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
@@ -134,6 +139,8 @@ export default function GridGame() {
         <CharacterRenderer characters={characters} onPress={handleCharacterPress} selectedCharacterId={movementControl.selectedCharacterId} />
         <BuildingRenderer buildings={buildings} onPress={handleBuildingPress} />
       </View>
+      
+      <GameClock gameTime={gameTime} />
       
       <BuildingInfoModal
         visible={selectedBuilding !== null}

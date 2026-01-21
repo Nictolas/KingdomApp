@@ -104,6 +104,74 @@ export function useCharacterMovement({
 }: UseCharacterMovementOptions) {
   const animationFrameRef = useRef<number | null>(null);
   const lastUpdateRef = useRef<number>(Date.now());
+  const lastRandomMoveRef = useRef<Map<number, number>>(new Map());
+
+  // Genera una posizione casuale valida
+  const getRandomValidPosition = (): Point | null => {
+    const maxAttempts = 50;
+    for (let i = 0; i < maxAttempts; i++) {
+      const x = Math.floor(Math.random() * GRID_SIZE);
+      const y = Math.floor(Math.random() * GRID_SIZE);
+      
+      if (!isBlocked(x, y, buildings, trees, riverCells)) {
+        return { x, y };
+      }
+    }
+    return null;
+  };
+
+  // Movimento casuale automatico
+  useEffect(() => {
+    // Inizializza i personaggi con destinazioni casuali all'avvio
+    setCharacters((prevChars) => {
+      return prevChars.map((char) => {
+        // Se il personaggio è già alla destinazione iniziale, dargli una nuova destinazione casuale
+        if (char.x === char.targetX && char.y === char.targetY) {
+          const randomPos = getRandomValidPosition();
+          if (randomPos) {
+            lastRandomMoveRef.current.set(char.id, Date.now());
+            return {
+              ...char,
+              targetX: randomPos.x,
+              targetY: randomPos.y
+            };
+          }
+        }
+        return char;
+      });
+    });
+
+    const randomMoveInterval = setInterval(() => {
+      const now = Date.now();
+      
+      setCharacters((prevChars) => {
+        return prevChars.map((char) => {
+          const lastMove = lastRandomMoveRef.current.get(char.id) || 0;
+          const timeSinceLastMove = now - lastMove;
+          
+          // Se il personaggio è arrivato alla destinazione e sono passati almeno 3-8 secondi
+          const isAtDestination = Math.abs(char.x - char.targetX) < 0.5 && Math.abs(char.y - char.targetY) < 0.5;
+          const shouldMove = isAtDestination && timeSinceLastMove > (3000 + Math.random() * 5000);
+          
+          if (shouldMove) {
+            const randomPos = getRandomValidPosition();
+            if (randomPos) {
+              lastRandomMoveRef.current.set(char.id, now);
+              return {
+                ...char,
+                targetX: randomPos.x,
+                targetY: randomPos.y
+              };
+            }
+          }
+          
+          return char;
+        });
+      });
+    }, 1000); // Controlla ogni secondo
+
+    return () => clearInterval(randomMoveInterval);
+  }, [buildings, trees, riverCells, setCharacters]);
 
   useEffect(() => {
     const animate = () => {
