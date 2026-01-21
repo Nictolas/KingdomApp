@@ -1,13 +1,11 @@
 import React, { useMemo } from "react";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View, Dimensions } from "react-native";
 import type { Point, Placed, Bridge, Light, Building, Character } from "../types";
 import { CELL_SIZE, CELL_GAP, GRID_SIZE, castleData, farmData, houseData } from "../constants";
 import { isInsideBuilding } from "../utils";
 import { isRiver, isSea, isBeach, makeTerrainColor } from "../game/terrain";
-import { isLightAt, isIlluminatedByAnyLight } from "../game/lights";
 import { computeNightOpacity } from "../game/night";
 import { blendHex } from "../game/color";
-import { isTree, isMine } from "../utils";
 
 type GridRendererProps = {
   bridges: Bridge[];
@@ -19,6 +17,8 @@ type GridRendererProps = {
   gameTime: { hours: number; minutes: number };
   isDragging: boolean;
   onCellPress: (x: number, y: number) => void;
+  offset: Point;
+  zoom: number;
 };
 
 export function GridRenderer({
@@ -31,17 +31,55 @@ export function GridRenderer({
   gameTime,
   isDragging,
   onCellPress,
+  offset,
+  zoom,
   onCharacterPress,
   onBuildingPress
 }: GridRendererProps) {
   const nightOpacity = useMemo(() => computeNightOpacity(gameTime.hours, gameTime.minutes), [gameTime]);
 
-  const isBridge = (x: number, y: number) => bridges.some((b) => b.x === x && b.y === y);
+  // Memoizza i set per lookup veloce O(1) invece di O(n)
+  const bridgeSet = useMemo(() => new Set(bridges.map(b => `${b.x},${b.y}`)), [bridges]);
+  const treeSet = useMemo(() => new Set(trees.map(t => `${t.x},${t.y}`)), [trees]);
+  const mineSet = useMemo(() => new Set(mines.map(m => `${m.x},${m.y}`)), [mines]);
+  const lightSet = useMemo(() => new Set(lights.map(l => `${l.x},${l.y}`)), [lights]);
+  
+  // Memoizza anche il set delle luci illuminate per lookup veloce
+  const illuminatedSet = useMemo(() => {
+    const set = new Set<string>();
+    for (const light of lights) {
+      for (let dy = -1; dy <= 1; dy++) {
+        for (let dx = -1; dx <= 1; dx++) {
+          set.add(`${light.x + dx},${light.y + dy}`);
+        }
+      }
+    }
+    return set;
+  }, [lights]);
+  
+  const isBridge = (x: number, y: number) => bridgeSet.has(`${x},${y}`);
 
   const gridCells = useMemo(() => {
     const cells: React.ReactNode[] = [];
-    for (let y = 0; y < GRID_SIZE; y++) {
-      for (let x = 0; x < GRID_SIZE; x++) {
+    // VIEWPORT CULLING: renderizza solo le celle visibili nello schermo
+    const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+    
+    // Calcola quali celle sono visibili basandosi su offset e zoom
+    // offset è la posizione dell'angolo in alto a sinistra della griglia nello schermo (dopo lo scaling)
+    // La griglia è scalata con zoom, quindi le celle hanno dimensioni CELL_SIZE * zoom
+    const scaledCellSize = CELL_SIZE * zoom;
+    const margin = 3; // Margine per evitare flickering durante il movimento
+    
+    // Calcola il range di celle visibili nello spazio della griglia (non scalato)
+    // offset.x è la posizione della griglia scalata nello schermo
+    // Per trovare quale cella è visibile: (screenX - offset.x) / zoom / CELL_SIZE
+    const startX = Math.max(0, Math.floor((-offset.x / zoom - margin * CELL_SIZE) / CELL_SIZE));
+    const endX = Math.min(GRID_SIZE - 1, Math.ceil((-offset.x / zoom + screenWidth / zoom + margin * CELL_SIZE) / CELL_SIZE));
+    const startY = Math.max(0, Math.floor((-offset.y / zoom - margin * CELL_SIZE) / CELL_SIZE));
+    const endY = Math.min(GRID_SIZE - 1, Math.ceil((-offset.y / zoom + screenHeight / zoom + margin * CELL_SIZE) / CELL_SIZE));
+    
+    for (let y = startY; y <= endY; y++) {
+      for (let x = startX; x <= endX; x++) {
         const river = isRiver(x, y);
         const bridge = isBridge(x, y);
         const castle = isInsideBuilding(castleData, x, y);
@@ -49,10 +87,10 @@ export function GridRenderer({
         const house = houseData.some((h) => isInsideBuilding(h, x, y));
         const sea = isSea(x, y);
         const beach = isBeach(x, y);
-        const tree = isTree(x, y, trees);
-        const mine = isMine(x, y, mines);
-        const light = isLightAt(lights, x, y);
-        const illuminated = isIlluminatedByAnyLight(lights, x, y);
+        const tree = treeSet.has(`${x},${y}`);
+        const mine = mineSet.has(`${x},${y}`);
+        const light = lightSet.has(`${x},${y}`);
+        const illuminated = illuminatedSet.has(`${x},${y}`);
 
         const bg = makeTerrainColor({
           x,
@@ -99,7 +137,7 @@ export function GridRenderer({
       }
     }
     return cells;
-  }, [bridges, trees, mines, lights, selectedRiver, isDragging, buildMode, nightOpacity, onCellPress]);
+  }, [bridges, trees, mines, lights, selectedRiver, buildMode, nightOpacity, onCellPress, offset.x, offset.y, zoom]);
 
   return <>{gridCells}</>;
 }
