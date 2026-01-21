@@ -25,7 +25,7 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     const minZoomForHeight = height / gridHeight;
     // Usa il massimo tra i due per coprire tutta la finestra
     const calculatedMinZoom = Math.max(minZoomForWidth, minZoomForHeight);
-    // Ma non scendere sotto il minZoom base
+    // Non scendere sotto il minZoom base, ma permettere zoom indietro se necessario
     return Math.max(minZoom, calculatedMinZoom);
   };
 
