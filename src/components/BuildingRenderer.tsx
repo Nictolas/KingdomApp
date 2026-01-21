@@ -16,7 +16,7 @@ export function BuildingRenderer({ buildings, onPress }: BuildingRendererProps) 
         const centerX = (building.x + building.width / 2) * CELL_SIZE - CELL_SIZE / 2;
         const centerY = (building.y + building.height / 2) * CELL_SIZE - CELL_SIZE / 2;
 
-        const fontSize = building.type === "house" ? 30 : 36;
+        const fontSize = building.type === "house" ? 30 : building.type === "castle" ? 48 : 36;
         
         return (
           <Pressable

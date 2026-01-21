@@ -6,9 +6,10 @@ type BuildingInfoModalProps = {
   visible: boolean;
   building: Building | null;
   onClose: () => void;
+  onCallKing?: () => void;
 };
 
-export function BuildingInfoModal({ visible, building, onClose }: BuildingInfoModalProps) {
+export function BuildingInfoModal({ visible, building, onClose, onCallKing }: BuildingInfoModalProps) {
   if (!building) return null;
 
   return (
@@ -37,6 +38,12 @@ export function BuildingInfoModal({ visible, building, onClose }: BuildingInfoMo
               {building.width} x {building.height} celle
             </Text>
           </View>
+
+          {building.type === "castle" && onCallKing && (
+            <Pressable style={styles.callKingButton} onPress={onCallKing}>
+              <Text style={styles.callKingButtonText}>Chiama Re</Text>
+            </Pressable>
+          )}
 
           <Pressable style={styles.closeButton} onPress={onClose}>
             <Text style={styles.closeButtonText}>Chiudi</Text>
@@ -95,8 +102,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: "#333"
   },
-  closeButton: {
+  callKingButton: {
     marginTop: 20,
+    backgroundColor: "#ff9800",
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    borderRadius: 8
+  },
+  callKingButtonText: {
+    color: "#fff",
+    fontSize: 16,
+    fontWeight: "600"
+  },
+  closeButton: {
+    marginTop: 12,
     backgroundColor: "#1976d2",
     paddingHorizontal: 24,
     paddingVertical: 12,

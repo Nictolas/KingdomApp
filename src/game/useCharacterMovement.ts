@@ -622,7 +622,7 @@ export function useCharacterMovement({
     };
   }, [setCharacters]);
 
-  const moveCharacter = (characterId: number, targetX: number, targetY: number) => {
+  const moveCharacter = (characterId: number, targetX: number, targetY: number, allowBuildingEntry: boolean = false) => {
     setCharacters((prevChars) => {
       return prevChars.map((char) => {
         if (char.id !== characterId) return char;
@@ -633,8 +633,23 @@ export function useCharacterMovement({
         }
 
         // Controlla se la destinazione è valida
-        if (isBlocked(targetX, targetY, buildings, trees, riverCells)) {
+        // Se allowBuildingEntry è true, permette l'ingresso negli edifici
+        if (!allowBuildingEntry && isBlocked(targetX, targetY, buildings, trees, riverCells)) {
           return char; // Non muovere se bloccato
+        }
+        
+        // Se allowBuildingEntry è true, controlla solo fiume, mare, alberi (non edifici)
+        if (allowBuildingEntry) {
+          if (targetX < 0 || targetX >= GRID_SIZE || targetY < 0 || targetY >= GRID_SIZE) {
+            return char; // Fuori dalla griglia
+          }
+          if (isSea(targetX, targetY)) {
+            return char; // Nel mare
+          }
+          if (trees.some(t => t.x === targetX && t.y === targetY)) {
+            return char; // Su un albero
+          }
+          // Permette l'ingresso negli edifici
         }
 
         // Controlla che anche la posizione corrente non sia sul fiume

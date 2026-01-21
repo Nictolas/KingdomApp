@@ -100,6 +100,43 @@ export default function GridGame() {
     movementControl.handleCellClick(x, y, moveCharacter);
   };
 
+  const handleCallKing = () => {
+    // Trova il Re tra i personaggi
+    const king = characters.find((c: Character) => c.profession === "Re");
+    if (!king || !selectedBuilding || selectedBuilding.type !== "castle") return;
+
+    // Trova una posizione dentro il castello per il Re
+    const castle = selectedBuilding;
+    
+    // Prova posizioni dentro il castello (centro e angoli interni)
+    const entryPositions = [
+      { x: castle.x + Math.floor(castle.width / 2), y: castle.y + Math.floor(castle.height / 2) }, // Centro
+      { x: castle.x + 1, y: castle.y + 1 }, // Angolo superiore sinistro interno
+      { x: castle.x + castle.width - 2, y: castle.y + 1 }, // Angolo superiore destro interno
+      { x: castle.x + 1, y: castle.y + castle.height - 2 }, // Angolo inferiore sinistro interno
+      { x: castle.x + castle.width - 2, y: castle.y + castle.height - 2 }, // Angolo inferiore destro interno
+      { x: castle.x, y: castle.y }, // Angolo superiore sinistro
+      { x: castle.x + castle.width - 1, y: castle.y }, // Angolo superiore destro
+      { x: castle.x, y: castle.y + castle.height - 1 }, // Angolo inferiore sinistro
+      { x: castle.x + castle.width - 1, y: castle.y + castle.height - 1 } // Angolo inferiore destro
+    ];
+
+    for (const pos of entryPositions) {
+      // Controlla che la posizione sia dentro il castello e non sul fiume
+      if (
+        pos.x >= castle.x &&
+        pos.x < castle.x + castle.width &&
+        pos.y >= castle.y &&
+        pos.y < castle.y + castle.height &&
+        !isRiver(pos.x, pos.y, riverCells)
+      ) {
+        moveCharacter(king.id, pos.x, pos.y, true); // true = permette ingresso negli edifici
+        setSelectedBuilding(null); // Chiudi il dialog
+        return;
+      }
+    }
+  };
+
   const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
 
   return (
@@ -147,6 +184,7 @@ export default function GridGame() {
         visible={selectedBuilding !== null}
         building={selectedBuilding}
         onClose={() => setSelectedBuilding(null)}
+        onCallKing={handleCallKing}
       />
       
       <CharacterInfoModal
