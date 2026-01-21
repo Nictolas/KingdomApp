@@ -1,10 +1,9 @@
 import { useEffect } from "react";
 import type { Character, Point, Placed, Bridge, Building } from "../types";
 import { buildingCenter, findPath } from "../utils";
-import { castleData, farmData, houseData } from "../constants";
+import { GRID_SIZE, SEA_ROWS, castleData, farmData, houseData } from "../constants";
 import { isRiver, isBeach } from "./terrain";
 import { isTree, isMine, isInsideBuilding } from "../utils";
-import { GRID_SIZE, SEA_ROWS, castleData, farmData, houseData } from "../constants";
 
 type UseCharacterMovementOptions = {
   characters: Character[];
