@@ -714,6 +714,9 @@ export default function GridGame() {
         const emoji = bridge ? "🌉" : tree ? "🌲" : mine ? "⛰️" : light ? "💡" : null;
         const emojiSize = tree || mine ? 20 : light ? 22 : 18;
 
+        const left = x * (CELL_SIZE + CELL_GAP);
+        const top = y * (CELL_SIZE + CELL_GAP);
+        
         cells.push(
           <Pressable
             key={`${x}-${y}`}
@@ -731,10 +734,12 @@ export default function GridGame() {
             style={[
               styles.cell,
               {
+                position: "absolute",
+                left,
+                top,
                 backgroundColor: bg,
                 width: CELL_SIZE,
                 height: CELL_SIZE,
-                margin: CELL_GAP / 2,
                 borderColor: selectedRiver && selectedRiver.x === x && selectedRiver.y === y ? "#ffe066" : "rgba(0,0,0,0.10)",
                 borderWidth: selectedRiver && selectedRiver.x === x && selectedRiver.y === y ? 2 : 1
               }
@@ -1106,9 +1111,7 @@ const styles = StyleSheet.create({
   },
   world: { position: "absolute", left: 0, top: 0 },
   grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    padding: CELL_GAP / 2,
+    position: "relative",
     // @ts-ignore
     userSelect: "none",
     WebkitUserSelect: "none"
