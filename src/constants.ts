@@ -1,7 +1,7 @@
 import type { Building } from "./types";
 
 // Aumentiamo la mappa di ~10 caselle per lato (totale +20)
-export const GRID_SIZE = 60;
+export const GRID_SIZE = 70;
 export const NUM_CHARACTERS = 6;
 export const CELL_SIZE = 36;
 export const CELL_GAP = 3;
