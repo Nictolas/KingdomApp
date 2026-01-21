@@ -186,7 +186,7 @@ export default function GridGame() {
               isDragging={camera.isDragging}
               onCellPress={cellInteraction.handleCellPress}
             />
-            <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+            <View pointerEvents="box-none" style={{ position: "absolute", left: 0, top: 0, width: gridPixelSize.w, height: gridPixelSize.h, overflow: "hidden" }}>
               <BuildingRenderer isDragging={camera.isDragging} onPress={(b) => selection.openBuilding(b, () => dragDetection.wasRecentlyDragging(camera.isDragging))} />
               <CharacterRenderer characters={characters} isDragging={camera.isDragging} onPress={(c) => selection.openCharacter(c, () => dragDetection.wasRecentlyDragging(camera.isDragging))} />
             </View>

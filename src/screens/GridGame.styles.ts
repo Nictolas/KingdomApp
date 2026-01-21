@@ -27,6 +27,7 @@ export const styles = StyleSheet.create({
   stage: {
     flex: 1,
     backgroundColor: "#1b5e20",
+    overflow: "hidden",
     // @ts-ignore
     userSelect: "none",
     WebkitUserSelect: "none"

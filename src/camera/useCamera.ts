@@ -235,17 +235,20 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     return () => subscription?.remove();
   }, [gridWidth, gridHeight]);
 
-  // APPROCCIO: il contenitore world mantiene dimensioni fisse e posizione
-  // Il contenuto interno viene scalato con gridStyle
+  // APPROCCIO: il contenitore world mantiene dimensioni scalate e posizione
+  // Le dimensioni devono corrispondere alla griglia scalata per limitare correttamente il contenuto
   const worldStyle = useMemo(() => {
+    const scaledWidth = gridWidth * zoom;
+    const scaledHeight = gridHeight * zoom;
     const style = {
       position: "absolute" as const,
       left: offset.x,
       top: offset.y,
-      width: gridWidth,
-      height: gridHeight
+      width: scaledWidth,
+      height: scaledHeight,
+      overflow: "hidden" as const
     };
-    console.log("worldStyle recalculated:", { zoom, gridWidth, gridHeight, offset });
+    console.log("worldStyle recalculated:", { zoom, gridWidth, gridHeight, scaledWidth, scaledHeight, offset });
     return style;
   }, [offset.x, offset.y, zoom, gridWidth, gridHeight]);
   

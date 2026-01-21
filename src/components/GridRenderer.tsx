@@ -89,8 +89,7 @@ export function GridRenderer({
                 backgroundColor: bg,
                 width: CELL_SIZE,
                 height: CELL_SIZE,
-                borderColor: selectedRiver && selectedRiver.x === x && selectedRiver.y === y ? "#ffe066" : "rgba(0,0,0,0.10)",
-                borderWidth: selectedRiver && selectedRiver.x === x && selectedRiver.y === y ? 2 : 1
+                borderWidth: 0
               }
             ]}
           >
