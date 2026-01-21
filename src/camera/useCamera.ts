@@ -103,9 +103,20 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     e.preventDefault();
 
     const delta = ne.deltaY > 0 ? -0.1 : 0.1;
-    const mouseX = ne.clientX ?? 0;
-    const mouseY = ne.clientY ?? 0;
-    zoomIncrement(mouseX, mouseY, delta);
+    // Le coordinate sono relative al container stage, non alla finestra
+    // Per React Native Web, usiamo le coordinate dell'evento
+    const target = ne.target;
+    if (target && typeof target.getBoundingClientRect === "function") {
+      const rect = target.getBoundingClientRect();
+      const mouseX = (ne.clientX ?? 0) - rect.left;
+      const mouseY = (ne.clientY ?? 0) - rect.top;
+      zoomIncrement(mouseX, mouseY, delta);
+    } else {
+      // Fallback: usa le coordinate della finestra
+      const mouseX = ne.clientX ?? 0;
+      const mouseY = ne.clientY ?? 0;
+      zoomIncrement(mouseX, mouseY, delta);
+    }
   };
 
   // Touch handlers
