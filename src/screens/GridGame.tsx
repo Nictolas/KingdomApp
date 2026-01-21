@@ -281,14 +281,22 @@ export default function GridGame() {
   };
 
   // Camera clamp: NON si può andare oltre la griglia
+  // IMPORTANTE: con scale -> translate, il translate è nel sistema NON scalato
+  // Quindi i limiti devono essere calcolati nel sistema NON scalato
   const clampOffsetToBounds = (o: Point, z: number) => {
     const { width, height } = Dimensions.get("window");
-    const gridW = gridPixelSize.w * z;
-    const gridH = gridPixelSize.h * z;
-    const minLeft = Math.min(0, width - gridW);
-    const minTop = Math.min(0, height - gridH);
+    const gridW = gridPixelSize.w;
+    const gridH = gridPixelSize.h;
+    const scaledGridW = gridW * z;
+    const scaledGridH = gridH * z;
+    
+    // Se la griglia scalata è più piccola della finestra, centriamo (offset = 0)
+    // Se la griglia scalata è più grande, limitiamo l'offset
+    const minLeft = scaledGridW < width ? 0 : width - scaledGridW;
+    const minTop = scaledGridH < height ? 0 : height - scaledGridH;
     const maxLeft = 0;
     const maxTop = 0;
+    
     return { x: clamp(o.x, minLeft, maxLeft), y: clamp(o.y, minTop, maxTop) };
   };
 
@@ -783,7 +791,8 @@ export default function GridGame() {
   }, [isDragging]);
 
   // IMPORTANT: ordine transform = scale -> translate
-  // così i limiti (clamp) e lo zoom verso un punto funzionano correttamente e non “si vede oltre”
+  // Con questo ordine, il translate è nel sistema NON scalato
+  // Quindi viewOffset è nel sistema NON scalato
   const transformStyle = useMemo(
     () => ({ transform: [{ scale: zoom }, { translateX: viewOffset.x }, { translateY: viewOffset.y }] }),
     [viewOffset.x, viewOffset.y, zoom]
