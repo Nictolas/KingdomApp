@@ -5,7 +5,7 @@ import { CELL_SIZE } from "../constants";
 
 type CharacterRendererProps = {
   characters: Character[];
-  onPress?: (character: Character) => void;
+  onPress: (character: Character) => void;
 };
 
 export function CharacterRenderer({ characters, onPress }: CharacterRendererProps) {
@@ -15,8 +15,10 @@ export function CharacterRenderer({ characters, onPress }: CharacterRendererProp
         const left = char.x * CELL_SIZE;
         const top = char.y * CELL_SIZE;
 
-        const content = (
-          <View
+        return (
+          <Pressable
+            key={`char-${char.id}`}
+            onPress={() => onPress(char)}
             style={[
               styles.character,
               {
@@ -26,18 +28,8 @@ export function CharacterRenderer({ characters, onPress }: CharacterRendererProp
             ]}
           >
             <Text style={styles.emoji}>{char.emoji}</Text>
-          </View>
+          </Pressable>
         );
-
-        if (onPress) {
-          return (
-            <Pressable key={`char-${char.id}`} onPress={() => onPress(char)}>
-              {content}
-            </Pressable>
-          );
-        }
-
-        return <React.Fragment key={`char-${char.id}`}>{content}</React.Fragment>;
       })}
     </>
   );

@@ -5,7 +5,7 @@ import { CELL_SIZE } from "../constants";
 
 type BuildingRendererProps = {
   buildings: Building[];
-  onPress?: (building: Building) => void;
+  onPress: (building: Building) => void;
 };
 
 export function BuildingRenderer({ buildings, onPress }: BuildingRendererProps) {
@@ -18,8 +18,10 @@ export function BuildingRenderer({ buildings, onPress }: BuildingRendererProps) 
 
         const fontSize = building.type === "house" ? 30 : 36;
         
-        const content = (
-          <View
+        return (
+          <Pressable
+            key={`building-${building.id}`}
+            onPress={() => onPress(building)}
             style={[
               styles.building,
               {
@@ -29,18 +31,8 @@ export function BuildingRenderer({ buildings, onPress }: BuildingRendererProps) 
             ]}
           >
             <Text style={[styles.emoji, { fontSize }]}>{building.emoji}</Text>
-          </View>
+          </Pressable>
         );
-
-        if (onPress) {
-          return (
-            <Pressable key={`building-${building.id}`} onPress={() => onPress(building)}>
-              {content}
-            </Pressable>
-          );
-        }
-
-        return <React.Fragment key={`building-${building.id}`}>{content}</React.Fragment>;
       })}
     </>
   );

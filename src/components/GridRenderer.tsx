@@ -1,22 +1,25 @@
 import React from "react";
-import { View, StyleSheet } from "react-native";
+import { View, StyleSheet, Text } from "react-native";
 import { GRID_SIZE, CELL_SIZE } from "../constants";
-import type { Point } from "../types";
+import type { Point, Placed } from "../types";
 import { isRiver, isSea, isBeach } from "../game/terrain";
 
 type GridRendererProps = {
   offset: Point;
   seed: number;
   riverCells: number[];
+  trees: Placed[];
 };
 
-export function GridRenderer({ offset, seed, riverCells }: GridRendererProps) {
+export function GridRenderer({ offset, seed, riverCells, trees }: GridRendererProps) {
   const cells: React.ReactNode[] = [];
+  const treeSet = new Set(trees.map(t => `${t.x},${t.y}`));
 
   for (let y = 0; y < GRID_SIZE; y++) {
     for (let x = 0; x < GRID_SIZE; x++) {
       const left = x * CELL_SIZE + offset.x;
       const top = y * CELL_SIZE + offset.y;
+      const hasTree = treeSet.has(`${x},${y}`);
       
       let bgColor: string;
       
@@ -28,16 +31,8 @@ export function GridRenderer({ offset, seed, riverCells }: GridRendererProps) {
       } else if (isRiver(x, y, riverCells)) {
         bgColor = "#42a5f5"; // Blu fiume
       } else {
-        // Colore erba con variazioni naturali
-        const grassVariation = (x * 7 + y * 11 + seed) % 5;
-        const grassColors = [
-          "#7cb342", // verde erba medio
-          "#8bc34a", // verde erba chiaro
-          "#9ccc65", // verde erba più chiaro
-          "#689f38", // verde erba scuro
-          "#558b2f"  // verde erba molto scuro
-        ];
-        bgColor = grassColors[grassVariation];
+        // Colore erba uniforme
+        bgColor = "#7cb342"; // verde erba medio
       }
 
       cells.push(
@@ -51,7 +46,9 @@ export function GridRenderer({ offset, seed, riverCells }: GridRendererProps) {
               backgroundColor: bgColor
             }
           ]}
-        />
+        >
+          {hasTree && <Text style={styles.treeEmoji}>🌲</Text>}
+        </View>
       );
     }
   }
@@ -64,6 +61,11 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: CELL_SIZE,
     height: CELL_SIZE,
-    borderWidth: 0
+    borderWidth: 0,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  treeEmoji: {
+    fontSize: 24
   }
 });

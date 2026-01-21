@@ -23,11 +23,12 @@ export function generateRiver(seed: number): number[] {
   const rng = new SeededRandom(seed);
   const riverCells: number[] = [];
   
-  // Il fiume parte da nord e va verso sud
+  // Il fiume parte da nord e va verso sud fino al mare
   // Genera un percorso sinuoso
   let currentX = rng.nextInt(GRID_SIZE * 0.3, GRID_SIZE * 0.7); // Parte dal centro-nord
   
-  for (let y = 0; y < GRID_SIZE - SEA_ROWS - BEACH_ROWS; y++) {
+  // Il fiume attraversa tutta la terra e la spiaggia fino al mare
+  for (let y = 0; y < GRID_SIZE - SEA_ROWS; y++) {
     // Aggiungi la cella corrente
     riverCells.push(currentX);
     
