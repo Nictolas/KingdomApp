@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useMemo } from "react";
 import { Dimensions, StyleSheet, View } from "react-native";
 import * as Haptics from "expo-haptics";
 import type { Character } from "../types";

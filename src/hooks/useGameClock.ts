@@ -12,7 +12,7 @@ type UseGameClockReturn = {
   isClockModalOpen: boolean;
   setIsClockModalOpen: (open: boolean) => void;
   clockDraftMinutes: number;
-  setClockDraftMinutes: (fn: (m: number) => number) => void;
+  setClockDraftMinutes: React.Dispatch<React.SetStateAction<number>>;
   isNight: boolean;
   formatGameTime: (h: number, m: number) => string;
 };
