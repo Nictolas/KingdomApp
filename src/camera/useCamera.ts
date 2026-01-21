@@ -39,6 +39,7 @@ export function useCamera({ gridWidth, gridHeight }: UseCameraOptions): Camera {
 
   // Touch handlers
   const onTouchStart = (e: any) => {
+    e.preventDefault?.();
     const t = e.nativeEvent.touches;
     if (t.length === 1) {
       isDraggingRef.current = true;
@@ -77,6 +78,8 @@ export function useCamera({ gridWidth, gridHeight }: UseCameraOptions): Camera {
   // Mouse handlers
   const handleMouseDown = (e: any) => {
     if (typeof window === "undefined") return;
+    e.preventDefault?.();
+    e.stopPropagation?.();
     const ne = e?.nativeEvent;
     const x = ne?.clientX ?? 0;
     const y = ne?.clientY ?? 0;

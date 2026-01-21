@@ -29,8 +29,9 @@ export function BuildingRenderer({ buildings, onPress }: BuildingRendererProps) 
                 top: centerY
               }
             ]}
+            onStartShouldSetResponder={() => false}
           >
-            <Text style={[styles.emoji, { fontSize }]}>{building.emoji}</Text>
+            <Text style={[styles.emoji, { fontSize }]} selectable={false}>{building.emoji}</Text>
           </Pressable>
         );
       })}
@@ -44,9 +45,15 @@ const styles = StyleSheet.create({
     width: CELL_SIZE,
     height: CELL_SIZE,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    MozUserSelect: "none",
+    msUserSelect: "none"
   },
   emoji: {
-    fontSize: 36
+    fontSize: 36,
+    userSelect: "none",
+    WebkitUserSelect: "none"
   }
 });

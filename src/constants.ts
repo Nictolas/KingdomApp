@@ -16,7 +16,8 @@ export const professions = [
   { emoji: "👨‍🍳", name: "Cuoco" },
   { emoji: "👨‍🔬", name: "Scienziato" },
   { emoji: "👨‍🎨", name: "Artista" },
-  { emoji: "🪓", name: "Boscaiolo" }
+  { emoji: "🪓", name: "Boscaiolo" },
+  { emoji: "👹", name: "Orco" }
 ];
 
 export const firstNames = [

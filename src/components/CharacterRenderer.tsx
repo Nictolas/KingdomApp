@@ -6,14 +6,16 @@ import { CELL_SIZE } from "../constants";
 type CharacterRendererProps = {
   characters: Character[];
   onPress: (character: Character) => void;
+  selectedCharacterId?: number | null;
 };
 
-export function CharacterRenderer({ characters, onPress }: CharacterRendererProps) {
+export function CharacterRenderer({ characters, onPress, selectedCharacterId }: CharacterRendererProps) {
   return (
     <>
       {characters.map((char) => {
         const left = char.x * CELL_SIZE;
         const top = char.y * CELL_SIZE;
+        const isSelected = selectedCharacterId === char.id;
 
         return (
           <Pressable
@@ -23,11 +25,14 @@ export function CharacterRenderer({ characters, onPress }: CharacterRendererProp
               styles.character,
               {
                 left,
-                top
+                top,
+                borderWidth: isSelected ? 2 : 0,
+                borderColor: "#ffeb3b"
               }
             ]}
+            onStartShouldSetResponder={() => false}
           >
-            <Text style={styles.emoji}>{char.emoji}</Text>
+            <Text style={styles.emoji} selectable={false}>{char.emoji}</Text>
           </Pressable>
         );
       })}
@@ -41,9 +46,15 @@ const styles = StyleSheet.create({
     width: CELL_SIZE,
     height: CELL_SIZE,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    MozUserSelect: "none",
+    msUserSelect: "none"
   },
   emoji: {
-    fontSize: 24
+    fontSize: 24,
+    userSelect: "none",
+    WebkitUserSelect: "none"
   }
 });

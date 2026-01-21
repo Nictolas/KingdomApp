@@ -11,6 +11,7 @@ import type { Character, Building, Placed } from "../types";
 import { generateRiver, isRiver, isSea } from "../game/terrain";
 import { generateTrees } from "../game/generation";
 import { useCharacterMovement } from "../game/useCharacterMovement";
+import { useCharacterMovementControl } from "../hooks/useCharacterMovementControl";
 
 export default function GridGame() {
   // Genera seed casuale all'avvio
@@ -58,7 +59,8 @@ export default function GridGame() {
     { id: 3, x: 18, y: 17, targetX: 18, targetY: 17, emoji: "👨‍🍳", profession: "Cuoco", name: "Luca", age: 32, lastMove: 0 },
     { id: 4, x: 25, y: 17, targetX: 25, targetY: 17, emoji: "👨‍🔬", profession: "Scienziato", name: "Giovanni", age: 40, lastMove: 0 },
     { id: 5, x: 14, y: 23, targetX: 14, targetY: 23, emoji: "👨‍🎨", profession: "Artista", name: "Paolo", age: 26, lastMove: 0 },
-    { id: 6, x: 33, y: 29, targetX: 33, targetY: 29, emoji: "🪓", profession: "Boscaiolo", name: "Andrea", age: 30, lastMove: 0 }
+    { id: 6, x: 33, y: 29, targetX: 33, targetY: 29, emoji: "🪓", profession: "Boscaiolo", name: "Andrea", age: 30, lastMove: 0 },
+    { id: 7, x: 20, y: 20, targetX: 20, targetY: 20, emoji: "👹", profession: "Orco", name: "Grug", age: 45, lastMove: 0 }
   ]);
   
   // Hook per il movimento dei personaggi
@@ -70,16 +72,26 @@ export default function GridGame() {
     riverCells
   });
 
+  // Hook per il controllo del movimento (selezione personaggio e click su cella)
+  const movementControl = useCharacterMovementControl();
+
   // Stato per i dialog
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
 
   const handleBuildingPress = (building: Building) => {
     setSelectedBuilding(building);
+    movementControl.selectCharacter(null); // Deseleziona personaggio se selezioni un edificio
   };
 
   const handleCharacterPress = (character: Character) => {
     setSelectedCharacter(character);
+    movementControl.selectCharacter(character.id); // Seleziona il personaggio per il movimento
+  };
+
+  const handleCellPress = (x: number, y: number) => {
+    // Se c'è un personaggio selezionato, fallo muovere
+    movementControl.handleCellClick(x, y, moveCharacter);
   };
 
   const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
@@ -93,6 +105,17 @@ export default function GridGame() {
       onMouseDown={camera.handleMouseDown}
       onMouseMove={camera.handleMouseMove}
       onMouseUp={camera.handleMouseUp}
+      onStartShouldSetResponder={() => true}
+      onMoveShouldSetResponder={() => true}
+      onResponderGrant={(e) => {
+        camera.onTouchStart(e);
+      }}
+      onResponderMove={(e) => {
+        camera.onTouchMove(e);
+      }}
+      onResponderRelease={(e) => {
+        camera.onTouchEnd();
+      }}
     >
       <View
         style={[
@@ -107,8 +130,8 @@ export default function GridGame() {
           }
         ]}
       >
-        <GridRenderer offset={{ x: 0, y: 0 }} seed={seed} riverCells={riverCells} trees={trees} />
-        <CharacterRenderer characters={characters} onPress={handleCharacterPress} />
+        <GridRenderer offset={{ x: 0, y: 0 }} seed={seed} riverCells={riverCells} trees={trees} onCellPress={handleCellPress} />
+        <CharacterRenderer characters={characters} onPress={handleCharacterPress} selectedCharacterId={movementControl.selectedCharacterId} />
         <BuildingRenderer buildings={buildings} onPress={handleBuildingPress} />
       </View>
       
@@ -131,9 +154,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: "#000",
-    overflow: "hidden"
+    overflow: "hidden",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    MozUserSelect: "none",
+    msUserSelect: "none"
   },
   gridContainer: {
-    position: "absolute"
+    position: "absolute",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    MozUserSelect: "none",
+    msUserSelect: "none"
   }
 });

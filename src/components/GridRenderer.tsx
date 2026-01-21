@@ -1,5 +1,5 @@
 import React from "react";
-import { View, StyleSheet, Text } from "react-native";
+import { View, StyleSheet, Text, Pressable } from "react-native";
 import { GRID_SIZE, CELL_SIZE } from "../constants";
 import type { Point, Placed } from "../types";
 import { isRiver, isSea, isBeach } from "../game/terrain";
@@ -9,9 +9,10 @@ type GridRendererProps = {
   seed: number;
   riverCells: number[];
   trees: Placed[];
+  onCellPress?: (x: number, y: number) => void;
 };
 
-export function GridRenderer({ offset, seed, riverCells, trees }: GridRendererProps) {
+export function GridRenderer({ offset, seed, riverCells, trees, onCellPress }: GridRendererProps) {
   const cells: React.ReactNode[] = [];
   const treeSet = new Set(trees.map(t => `${t.x},${t.y}`));
 
@@ -46,8 +47,9 @@ export function GridRenderer({ offset, seed, riverCells, trees }: GridRendererPr
               backgroundColor: bgColor
             }
           ]}
+          onStartShouldSetResponder={() => false}
         >
-          {hasTree && <Text style={styles.treeEmoji}>🌲</Text>}
+          {hasTree && <Text style={styles.treeEmoji} selectable={false}>🌲</Text>}
         </View>
       );
     }
@@ -63,9 +65,15 @@ const styles = StyleSheet.create({
     height: CELL_SIZE,
     borderWidth: 0,
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    userSelect: "none",
+    WebkitUserSelect: "none",
+    MozUserSelect: "none",
+    msUserSelect: "none"
   },
   treeEmoji: {
-    fontSize: 24
+    fontSize: 24,
+    userSelect: "none",
+    WebkitUserSelect: "none"
   }
 });
