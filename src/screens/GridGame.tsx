@@ -117,9 +117,13 @@ export default function GridGame() {
   const lastTouchDistance = useRef<number | null>(null);
   const pinchStart = useRef<{ zoom: number; center: Point; offset: Point } | null>(null);
 
-  // Azioni “story”
+  // Azioni "story"
   const [kingGoingToCastle, setKingGoingToCastle] = useState(false);
   const [farmerGoingToFarm, setFarmerGoingToFarm] = useState(false);
+
+  // Orologio di gioco (1 secondo reale = 1 minuto di gioco)
+  const [gameTime, setGameTime] = useState({ hours: 6, minutes: 0 }); // Inizia alle 6:00
+  const gameTimeStartRef = useRef<number>(Date.now());
 
   const gridPixelSize = useMemo(() => {
     const size = GRID_SIZE * (CELL_SIZE + CELL_GAP);
@@ -338,6 +342,43 @@ export default function GridGame() {
     return () => clearInterval(anim);
   }, []);
 
+  // Orologio di gioco: 1 secondo reale = 1 minuto di gioco
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const elapsedSeconds = Math.floor((Date.now() - gameTimeStartRef.current) / 1000);
+      const totalMinutes = 6 * 60 + elapsedSeconds; // Inizia alle 6:00
+      const hours = Math.floor(totalMinutes / 60) % 24;
+      const minutes = totalMinutes % 60;
+      setGameTime({ hours, minutes });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Calcola opacità notte (18:00-6:00)
+  const nightOpacity = useMemo(() => {
+    const { hours } = gameTime;
+    if (hours >= 18 || hours < 6) {
+      // Notte: transizione graduale
+      if (hours >= 18) {
+        // Dalle 18:00 alle 24:00: aumenta gradualmente da 0 a 0.7
+        const progress = (hours - 18) / 6; // 0-1
+        return Math.min(0.7, progress * 0.7);
+      } else {
+        // Dalle 0:00 alle 6:00: diminuisce gradualmente da 0.7 a 0
+        const progress = hours / 6; // 0-1
+        return 0.7 * (1 - progress);
+      }
+    }
+    return 0;
+  }, [gameTime]);
+
+  // Formatta orario per display
+  const formatGameTime = (h: number, m: number) => {
+    const hStr = String(h).padStart(2, "0");
+    const mStr = String(m).padStart(2, "0");
+    return `${hStr}:${mStr}`;
+  };
+
   // Gesture base (drag + pinch)
   const getTouchDistance = (touches: any) => {
     const dx = touches[0].pageX - touches[1].pageX;
@@ -395,6 +436,32 @@ export default function GridGame() {
       lastTouchDistance.current = null;
       pinchStart.current = null;
     }
+  };
+
+  // Zoom con rotellina del mouse (web)
+  const stageRef = useRef<View>(null);
+  const handleWheel = (e: any) => {
+    // Solo su web
+    if (typeof window === "undefined") return;
+    
+    const nativeEvent = e.nativeEvent;
+    if (!nativeEvent || typeof nativeEvent.deltaY === "undefined") return;
+
+    e.preventDefault();
+    const delta = nativeEvent.deltaY > 0 ? -0.1 : 0.1;
+    const newZoom = clamp(zoom + delta, 0.6, 2.2);
+
+    // Zoom centrato sul punto del mouse
+    const { width, height } = Dimensions.get("window");
+    const mouseX = nativeEvent.clientX || width / 2;
+    const mouseY = nativeEvent.clientY || height / 2;
+
+    const zoomRatio = newZoom / zoom;
+    const newOffsetX = mouseX - (mouseX - viewOffset.x) * zoomRatio;
+    const newOffsetY = mouseY - (mouseY - viewOffset.y) * zoomRatio;
+
+    setZoom(newZoom);
+    setViewOffset({ x: newOffsetX, y: newOffsetY });
   };
 
   // UI actions
@@ -585,7 +652,13 @@ export default function GridGame() {
 
   return (
     <View style={styles.root}>
+      {/* Orologio di gioco */}
+      <View style={styles.clockContainer}>
+        <Text style={styles.clockText}>🕐 {formatGameTime(gameTime.hours, gameTime.minutes)}</Text>
+      </View>
+
       <View
+        ref={stageRef}
         style={styles.stage}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
@@ -593,6 +666,8 @@ export default function GridGame() {
         onResponderMove={onTouchMove}
         onResponderRelease={onTouchEnd}
         onResponderTerminate={onTouchEnd}
+        // @ts-ignore - onWheel per web
+        onWheel={handleWheel}
       >
         <View style={[styles.world, transformStyle]}>
           <View style={[styles.grid, { width: gridPixelSize.w, height: gridPixelSize.h }]}>{gridCells}</View>
@@ -602,6 +677,20 @@ export default function GridGame() {
             {characterNodes}
           </View>
         </View>
+        
+        {/* Overlay notte */}
+        {nightOpacity > 0 && (
+          <View
+            pointerEvents="none"
+            style={[
+              StyleSheet.absoluteFill,
+              {
+                backgroundColor: "#000000",
+                opacity: nightOpacity
+              }
+            ]}
+          />
+        )}
       </View>
 
       {/* HUD */}
@@ -682,6 +771,24 @@ const styles = StyleSheet.create({
   root: {
     flex: 1,
     backgroundColor: "#0b3d1f"
+  },
+  clockContainer: {
+    position: "absolute",
+    top: 10,
+    right: 10,
+    zIndex: 1000,
+    backgroundColor: "rgba(0,0,0,0.6)",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(255,255,255,0.2)"
+  },
+  clockText: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "700",
+    fontFamily: "monospace"
   },
   stage: {
     flex: 1,
