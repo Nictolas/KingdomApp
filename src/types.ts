@@ -26,6 +26,7 @@ export type Character = {
   emoji: string;
   profession: string;
   name: string;
+  age: number;
   lastMove: number;
   isInCastle?: boolean;
   isInFarm?: boolean;

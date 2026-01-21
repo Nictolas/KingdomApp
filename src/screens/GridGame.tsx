@@ -29,7 +29,8 @@ export default function GridGame() {
   const [characters, setCharacters] = useState<Character[]>([]);
   
   // Modalità costruzione
-  const [buildMode, setBuildMode] = useState<"light" | null>(null);
+  const [buildMode, setBuildMode] = useState<"light" | "bridge" | null>(null);
+  const [buildMenuOpen, setBuildMenuOpen] = useState(false);
 
   // Selezioni
   const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
@@ -242,6 +243,7 @@ export default function GridGame() {
         emoji: profession.emoji,
         profession: profession.name,
         name: `${firstName} ${lastName}`,
+        age: Math.floor(Math.random() * 50) + 18, // Età tra 18 e 67
         lastMove: Date.now(),
         isInHouse: false
       });
@@ -363,15 +365,31 @@ export default function GridGame() {
     if (!t || t.length < 2) lastTouchDistance.current = null;
   };
 
-  // Mouse wheel zoom (web)
+  // Mouse wheel zoom (web) - zoom verso il punto del mouse
   const handleWheel = (e: any) => {
     if (typeof window === "undefined") return;
     const ne = e.nativeEvent;
     if (!ne || typeof ne.deltaY === "undefined") return;
     e.preventDefault();
+    
     const delta = ne.deltaY > 0 ? -0.1 : 0.1;
     const newZoom = clamp(zoom + delta, 0.6, 2.2);
+    
+    // Zoom verso il punto del mouse
+    const { width, height } = Dimensions.get("window");
+    const mouseX = ne.clientX || width / 2;
+    const mouseY = ne.clientY || height / 2;
+    
+    // Calcola il punto nel mondo della griglia prima dello zoom
+    const worldX = (mouseX - viewOffset.x) / zoom;
+    const worldY = (mouseY - viewOffset.y) / zoom;
+    
+    // Calcola il nuovo offset per mantenere lo stesso punto del mondo sotto il mouse
+    const newOffsetX = mouseX - worldX * newZoom;
+    const newOffsetY = mouseY - worldY * newZoom;
+    
     setZoom(newZoom);
+    setViewOffset({ x: newOffsetX, y: newOffsetY });
   };
 
   // Mouse pan (web)
@@ -628,6 +646,16 @@ export default function GridGame() {
     await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
   };
 
+  const buildBridgeAt = async (x: number, y: number) => {
+    if (wasRecentlyDragging()) return;
+    if (!isRiver(x, y) || isBridge(x, y)) {
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+    setBridges((prev) => [...prev, { x, y }]);
+    await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  };
+
   const buildLight = async (x: number, y: number) => {
     if (wasRecentlyDragging()) return;
     if (buildMode !== "light") return;
@@ -683,7 +711,7 @@ export default function GridGame() {
           bg = "#4ade80"; // verde più chiaro per erba illuminata
         }
 
-        const emoji = bridge ? "🌉" : tree ? "🌲" : mine ? "🪨" : light ? "💡" : null;
+        const emoji = bridge ? "🌉" : tree ? "🌲" : mine ? "⛰️" : light ? "💡" : null;
         const emojiSize = tree || mine ? 20 : light ? 22 : 18;
 
         cells.push(
@@ -692,6 +720,10 @@ export default function GridGame() {
             onPress={() => {
               if (buildMode === "light") {
                 buildLight(x, y);
+              } else if (buildMode === "bridge") {
+                if (river && !bridge) {
+                  buildBridgeAt(x, y);
+                }
               } else if (river && !bridge) {
                 selectRiver(x, y);
               }
@@ -794,8 +826,8 @@ export default function GridGame() {
             <Text style={styles.btnText}>↻ Reset</Text>
           </Pressable>
           <Pressable 
-            style={[styles.btn, buildMode === "light" && styles.btnActive]} 
-            onPress={() => setBuildMode(buildMode === "light" ? null : "light")}
+            style={[styles.btn, buildMode !== null && styles.btnActive]} 
+            onPress={() => setBuildMenuOpen(true)}
           >
             <Text style={styles.btnText}>💡 Costruisci</Text>
           </Pressable>
@@ -858,6 +890,45 @@ export default function GridGame() {
         </Pressable>
       </Modal>
 
+      {/* Menu costruzione */}
+      <Modal visible={buildMenuOpen} transparent animationType="fade" onRequestClose={() => setBuildMenuOpen(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setBuildMenuOpen(false)}>
+          <Pressable style={styles.modalCard} onPress={() => undefined}>
+            <Text style={styles.modalTitle}>💡 Costruisci</Text>
+            <Text style={styles.modalHint}>Seleziona cosa vuoi costruire:</Text>
+            <View style={{ marginTop: 12, gap: 8 }}>
+              <Pressable
+                style={[styles.btnPrimary, { marginTop: 0 }]}
+                onPress={() => {
+                  setBuildMode("light");
+                  setBuildMenuOpen(false);
+                }}
+              >
+                <Text style={styles.btnTextPrimary}>💡 Luce (sull'erba)</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.btnPrimary, { marginTop: 0 }]}
+                onPress={() => {
+                  setBuildMode("bridge");
+                  setBuildMenuOpen(false);
+                }}
+              >
+                <Text style={styles.btnTextPrimary}>🌉 Ponte (sul fiume)</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.btn, { marginTop: 8 }]}
+                onPress={() => {
+                  setBuildMode(null);
+                  setBuildMenuOpen(false);
+                }}
+              >
+                <Text style={styles.btnText}>Annulla</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
       {/* Modale info */}
       <Modal visible={!!(selectedCharacter || selectedBuilding || selectedRiver) || isClockModalOpen} transparent animationType="fade" onRequestClose={closeModal}>
         <Pressable style={styles.modalBackdrop} onPress={closeModal}>
@@ -902,6 +973,7 @@ export default function GridGame() {
                   {selectedCharacter.emoji} {selectedCharacter.name}
                 </Text>
                 <Text style={styles.modalSub}>Professione: {selectedCharacter.profession}</Text>
+                <Text style={styles.modalSub}>Età: {selectedCharacter.age} anni</Text>
                 <Text style={styles.modalSub}>
                   Posizione: ({Math.round(selectedCharacter.x)}, {Math.round(selectedCharacter.y)})
                 </Text>
