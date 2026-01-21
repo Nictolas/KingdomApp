@@ -22,7 +22,7 @@ type Building = {
   name: string;
   emoji: string;
   description: string;
-  type: "castle" | "farm";
+  type: "castle" | "farm" | "house";
 };
 
 type Character = {
@@ -89,6 +89,13 @@ const farmData: Building = {
   type: "farm"
 };
 
+const houseData: Building[] = [
+  { x: 6, y: 4, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una piccola casa accogliente", type: "house" },
+  { x: 12, y: 3, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una casa vicino al fiume", type: "house" },
+  { x: 2, y: 9, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una casa immersa nel verde", type: "house" },
+  { x: 16, y: 14, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una casa non lontana dal campo", type: "house" }
+];
+
 function clamp(n: number, min: number, max: number) {
   return Math.max(min, Math.min(max, n));
 }
@@ -116,14 +123,19 @@ export default function GridGame() {
   const dragStart = useRef<Point>({ x: 0, y: 0 });
   const lastTouchDistance = useRef<number | null>(null);
   const pinchStart = useRef<{ zoom: number; center: Point; offset: Point } | null>(null);
+  const dragInfoRef = useRef<{ startX: number; startY: number; didDrag: boolean }>({ startX: 0, startY: 0, didDrag: false });
+  const lastDragAtRef = useRef<number>(0);
 
   // Azioni "story"
   const [kingGoingToCastle, setKingGoingToCastle] = useState(false);
   const [farmerGoingToFarm, setFarmerGoingToFarm] = useState(false);
 
   // Orologio di gioco (1 secondo reale = 1 minuto di gioco)
-  const [gameTime, setGameTime] = useState({ hours: 6, minutes: 0 }); // Inizia alle 6:00
+  const [gameTime, setGameTime] = useState({ hours: 6, minutes: 0 }); // display
   const gameTimeStartRef = useRef<number>(Date.now());
+  const [gameTimeBaseMinutes, setGameTimeBaseMinutes] = useState(6 * 60); // base in minuti (inizio 6:00)
+  const [isClockModalOpen, setIsClockModalOpen] = useState(false);
+  const [clockDraftMinutes, setClockDraftMinutes] = useState(6 * 60);
 
   const gridPixelSize = useMemo(() => {
     const size = GRID_SIZE * (CELL_SIZE + CELL_GAP);
@@ -231,6 +243,9 @@ export default function GridGame() {
     setKingGoingToCastle(false);
     setFarmerGoingToFarm(false);
     setBridges([]);
+    setIsClockModalOpen(false);
+    setGameTimeBaseMinutes(6 * 60);
+    gameTimeStartRef.current = Date.now();
 
     const newTrees = generateTrees();
     const newMines = generateMines();
@@ -346,13 +361,13 @@ export default function GridGame() {
   useEffect(() => {
     const interval = setInterval(() => {
       const elapsedSeconds = Math.floor((Date.now() - gameTimeStartRef.current) / 1000);
-      const totalMinutes = 6 * 60 + elapsedSeconds; // Inizia alle 6:00
+      const totalMinutes = gameTimeBaseMinutes + elapsedSeconds;
       const hours = Math.floor(totalMinutes / 60) % 24;
       const minutes = totalMinutes % 60;
       setGameTime({ hours, minutes });
     }, 1000);
     return () => clearInterval(interval);
-  }, []);
+  }, [gameTimeBaseMinutes]);
 
   // Calcola opacità notte (18:00-6:00)
   const nightOpacity = useMemo(() => {
@@ -379,6 +394,13 @@ export default function GridGame() {
     return `${hStr}:${mStr}`;
   };
 
+  const wasRecentlyDragging = () => {
+    // Evita click “fantasma” subito dopo un pan
+    if (isDragging) return true;
+    if (dragInfoRef.current.didDrag) return true;
+    return Date.now() - lastDragAtRef.current < 180;
+  };
+
   // Gesture base (drag + pinch)
   const getTouchDistance = (touches: any) => {
     const dx = touches[0].pageX - touches[1].pageX;
@@ -399,6 +421,7 @@ export default function GridGame() {
     }
     if (t.length === 1) {
       setIsDragging(true);
+      dragInfoRef.current = { startX: t[0].pageX, startY: t[0].pageY, didDrag: false };
       dragStart.current = { x: t[0].pageX - viewOffset.x, y: t[0].pageY - viewOffset.y };
     }
   };
@@ -425,13 +448,21 @@ export default function GridGame() {
     }
 
     if (t.length === 1 && isDragging) {
+      const dx = t[0].pageX - dragInfoRef.current.startX;
+      const dy = t[0].pageY - dragInfoRef.current.startY;
+      if (!dragInfoRef.current.didDrag && Math.hypot(dx, dy) > 6) {
+        dragInfoRef.current.didDrag = true;
+      }
       setViewOffset({ x: t[0].pageX - dragStart.current.x, y: t[0].pageY - dragStart.current.y });
     }
   };
 
   const onTouchEnd = (e: any) => {
     const t = e.nativeEvent.touches;
-    if (!t || t.length === 0) setIsDragging(false);
+    if (!t || t.length === 0) {
+      setIsDragging(false);
+      if (dragInfoRef.current.didDrag) lastDragAtRef.current = Date.now();
+    }
     if (!t || t.length < 2) {
       lastTouchDistance.current = null;
       pinchStart.current = null;
@@ -462,6 +493,35 @@ export default function GridGame() {
 
     setZoom(newZoom);
     setViewOffset({ x: newOffsetX, y: newOffsetY });
+  };
+
+  // Pan con mouse (web/desktop) - evita selezioni delle celle durante trascinamento
+  const handleMouseDown = (e: any) => {
+    if (typeof window === "undefined") return;
+    const native = e?.nativeEvent;
+    const x = native?.clientX ?? 0;
+    const y = native?.clientY ?? 0;
+    setIsDragging(true);
+    dragInfoRef.current = { startX: x, startY: y, didDrag: false };
+    dragStart.current = { x: x - viewOffset.x, y: y - viewOffset.y };
+  };
+  const handleMouseMove = (e: any) => {
+    if (typeof window === "undefined") return;
+    if (!isDragging) return;
+    const native = e?.nativeEvent;
+    const x = native?.clientX ?? 0;
+    const y = native?.clientY ?? 0;
+    const dx = x - dragInfoRef.current.startX;
+    const dy = y - dragInfoRef.current.startY;
+    if (!dragInfoRef.current.didDrag && Math.hypot(dx, dy) > 6) {
+      dragInfoRef.current.didDrag = true;
+    }
+    setViewOffset({ x: x - dragStart.current.x, y: y - dragStart.current.y });
+  };
+  const handleMouseUp = () => {
+    if (typeof window === "undefined") return;
+    if (dragInfoRef.current.didDrag) lastDragAtRef.current = Date.now();
+    setIsDragging(false);
   };
 
   // UI actions
@@ -503,7 +563,7 @@ export default function GridGame() {
   }, [zoom, gridPixelSize.h, gridPixelSize.w]);
 
   const openCharacter = async (char: Character) => {
-    if (isDragging) return;
+    if (wasRecentlyDragging()) return;
     setSelectedCharacter(char);
     setSelectedBuilding(null);
     setSelectedRiver(null);
@@ -511,7 +571,7 @@ export default function GridGame() {
   };
 
   const openBuilding = async (b: Building) => {
-    if (isDragging) return;
+    if (wasRecentlyDragging()) return;
     setSelectedBuilding(b);
     setSelectedCharacter(null);
     setSelectedRiver(null);
@@ -519,7 +579,7 @@ export default function GridGame() {
   };
 
   const selectRiver = async (x: number, y: number) => {
-    if (isDragging) return;
+    if (wasRecentlyDragging()) return;
     if (!isRiver(x, y) || isBridge(x, y)) return;
     setSelectedRiver({ x, y });
     setSelectedBuilding(null);
@@ -538,6 +598,7 @@ export default function GridGame() {
     setSelectedCharacter(null);
     setSelectedBuilding(null);
     setSelectedRiver(null);
+    setIsClockModalOpen(false);
   };
 
   // Render
@@ -640,6 +701,7 @@ export default function GridGame() {
     };
     add(castleData);
     add(farmData);
+    houseData.forEach(add);
     return nodes;
   }, [isDragging]);
 
@@ -653,9 +715,15 @@ export default function GridGame() {
   return (
     <View style={styles.root}>
       {/* Orologio di gioco */}
-      <View style={styles.clockContainer}>
+      <Pressable
+        style={styles.clockContainer}
+        onPress={() => {
+          setClockDraftMinutes((gameTime.hours * 60 + gameTime.minutes) % (24 * 60));
+          setIsClockModalOpen(true);
+        }}
+      >
         <Text style={styles.clockText}>🕐 {formatGameTime(gameTime.hours, gameTime.minutes)}</Text>
-      </View>
+      </Pressable>
 
       <View
         ref={stageRef}
@@ -666,6 +734,14 @@ export default function GridGame() {
         onResponderMove={onTouchMove}
         onResponderRelease={onTouchEnd}
         onResponderTerminate={onTouchEnd}
+        // @ts-ignore - mouse per web/desktop
+        onMouseDown={handleMouseDown}
+        // @ts-ignore - mouse per web/desktop
+        onMouseMove={handleMouseMove}
+        // @ts-ignore - mouse per web/desktop
+        onMouseUp={handleMouseUp}
+        // @ts-ignore - mouse per web/desktop
+        onMouseLeave={handleMouseUp}
         // @ts-ignore - onWheel per web
         onWheel={handleWheel}
       >
@@ -720,9 +796,50 @@ export default function GridGame() {
       </View>
 
       {/* Modale info */}
-      <Modal visible={!!(selectedCharacter || selectedBuilding || selectedRiver)} transparent animationType="fade" onRequestClose={closeModal}>
+      <Modal
+        visible={!!(selectedCharacter || selectedBuilding || selectedRiver) || isClockModalOpen}
+        transparent
+        animationType="fade"
+        onRequestClose={closeModal}
+      >
         <Pressable style={styles.modalBackdrop} onPress={closeModal}>
           <Pressable style={styles.modalCard} onPress={() => undefined}>
+            {isClockModalOpen && (
+              <>
+                <Text style={styles.modalTitle}>🕐 Imposta orario</Text>
+                <Text style={styles.modalSub}>Ora attuale: {formatGameTime(gameTime.hours, gameTime.minutes)}</Text>
+                <Text style={styles.modalSub}>
+                  Nuova ora: {formatGameTime(Math.floor(clockDraftMinutes / 60) % 24, clockDraftMinutes % 60)}
+                </Text>
+
+                <View style={{ flexDirection: "row", gap: 10, marginTop: 10, flexWrap: "wrap" }}>
+                  <Pressable style={styles.btn} onPress={() => setClockDraftMinutes((m) => (m + 24 * 60 - 60) % (24 * 60))}>
+                    <Text style={styles.btnText}>−1h</Text>
+                  </Pressable>
+                  <Pressable style={styles.btn} onPress={() => setClockDraftMinutes((m) => (m + 60) % (24 * 60))}>
+                    <Text style={styles.btnText}>＋1h</Text>
+                  </Pressable>
+                  <Pressable style={styles.btn} onPress={() => setClockDraftMinutes((m) => (m + 24 * 60 - 15) % (24 * 60))}>
+                    <Text style={styles.btnText}>−15m</Text>
+                  </Pressable>
+                  <Pressable style={styles.btn} onPress={() => setClockDraftMinutes((m) => (m + 15) % (24 * 60))}>
+                    <Text style={styles.btnText}>＋15m</Text>
+                  </Pressable>
+                </View>
+
+                <Pressable
+                  style={[styles.btnPrimary, { marginTop: 12 }]}
+                  onPress={() => {
+                    setGameTimeBaseMinutes(clockDraftMinutes);
+                    gameTimeStartRef.current = Date.now();
+                    setIsClockModalOpen(false);
+                  }}
+                >
+                  <Text style={styles.btnTextPrimary}>Applica</Text>
+                </Pressable>
+              </>
+            )}
+
             {selectedCharacter && (
               <>
                 <Text style={styles.modalTitle}>
@@ -745,6 +862,9 @@ export default function GridGame() {
                 )}
                 {selectedBuilding.type === "farm" && (
                   <Text style={styles.modalHint}>Suggerimento: premi “Chiama Contadino” per farlo andare al campo.</Text>
+                )}
+                {selectedBuilding.type === "house" && (
+                  <Text style={styles.modalHint}>Una casa può ospitare personaggi e risorse (in futuro).</Text>
                 )}
               </>
             )}
