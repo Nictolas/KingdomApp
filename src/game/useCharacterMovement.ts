@@ -473,7 +473,32 @@ export function useCharacterMovement({
 
       // Se è l'ora del Bar e il Bar esiste, vai al Bar (solo per Abitanti)
       if (isInhabitant && isBarTime() && barBuilding) {
-        // Restituisci una posizione vicina al Bar (centro dell'edificio)
+        // Se il personaggio è già dentro un edificio (diverso dal Bar), non muoversi
+        if (isInsideBuilding(char, buildings)) {
+          // Controlla se è dentro il Bar
+          const charX = Math.round(char.x);
+          const charY = Math.round(char.y);
+          const isInBar = (
+            charX >= barBuilding.x &&
+            charX < barBuilding.x + barBuilding.width &&
+            charY >= barBuilding.y &&
+            charY < barBuilding.y + barBuilding.height
+          );
+          // Se è già dentro il Bar, resta lì
+          if (isInBar) {
+            return null;
+          }
+          // Se è dentro un altro edificio, non muoversi
+          return null;
+        }
+        
+        // Prova prima di entrare dentro il Bar
+        const barEntryPoint = getBuildingEntryPoint(barBuilding, char, riverCells, checkIsBlocked.current);
+        if (barEntryPoint) {
+          return barEntryPoint; // Entra nel Bar
+        }
+        
+        // Se non può entrare, va vicino al Bar
         const barCenterX = barBuilding.x + Math.floor(barBuilding.width / 2);
         const barCenterY = barBuilding.y + Math.floor(barBuilding.height / 2);
         
@@ -503,11 +528,30 @@ export function useCharacterMovement({
       
       // Se gli Abitanti non sanno cosa fare (nessun Orco vicino), vanno comunque al Bar
       if (isInhabitant && barBuilding) {
+        // Se il personaggio è già dentro un edificio (diverso dal Bar), non muoversi
+        if (isInsideBuilding(char, buildings)) {
+          // Controlla se è dentro il Bar
+          const charX = Math.round(char.x);
+          const charY = Math.round(char.y);
+          const isInBar = (
+            charX >= barBuilding.x &&
+            charX < barBuilding.x + barBuilding.width &&
+            charY >= barBuilding.y &&
+            charY < barBuilding.y + barBuilding.height
+          );
+          // Se è già dentro il Bar, resta lì
+          if (isInBar) {
+            return null;
+          }
+          // Se è dentro un altro edificio, non muoversi
+          return null;
+        }
+        
         // Controlla se c'è un Orco vicino
         const orc = findNearestInRange(char, allChars, (c) => c.profession === "Orco");
         
-        // Se non c'è un Orco vicino O se l'Abitante è già dentro un edificio e non c'è un Orco vicino, vai al Bar
-        if (!orc || (isInsideBuilding(char, buildings) && !orc)) {
+        // Se non c'è un Orco vicino, vai al Bar
+        if (!orc) {
           // Vai al Bar - prova prima di entrare dentro l'edificio
           const barEntryPoint = getBuildingEntryPoint(barBuilding, char, riverCells, checkIsBlocked.current);
           if (barEntryPoint) {
