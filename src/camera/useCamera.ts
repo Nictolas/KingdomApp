@@ -18,11 +18,15 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   const lastTouchDistanceRef = useRef<number | null>(null);
 
   // Calcola il minZoom dinamico: impedisce di vedere oltre la griglia
+  // Il minZoom deve essere tale che la griglia scalata copra almeno tutta la finestra
   const getDynamicMinZoom = () => {
     const { width, height } = Dimensions.get("window");
     const minZoomForWidth = width / gridWidth;
     const minZoomForHeight = height / gridHeight;
-    return Math.max(minZoom, minZoomForWidth, minZoomForHeight);
+    // Usa il massimo tra i due per coprire tutta la finestra
+    const calculatedMinZoom = Math.max(minZoomForWidth, minZoomForHeight);
+    // Ma non scendere sotto il minZoom base
+    return Math.max(minZoom, calculatedMinZoom);
   };
 
   // APPROCCIO DIRETTO: offset è la posizione dell'angolo in alto a sinistra della griglia nello schermo
@@ -41,13 +45,14 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     }
 
     // Se la griglia è più grande: limita l'offset per mantenerla dentro
-    // offset.x è la posizione X dell'angolo in alto a sinistra della griglia
-    // Se offset.x = 0, la griglia inizia a sinistra (angolo in alto a sinistra a x=0)
-    // Se offset.x = width - scaledGridW, la griglia finisce a destra (angolo in alto a sinistra spostato a sinistra)
-    const minX = width - scaledGridW; // La griglia finisce a destra
-    const maxX = 0; // La griglia inizia a sinistra
-    const minY = height - scaledGridH; // La griglia finisce in basso
-    const maxY = 0; // La griglia inizia in alto
+    // offset è la posizione dell'angolo in alto a sinistra della griglia
+    // Se offset.x = 0, la griglia inizia a sinistra
+    // Se offset.x = width - scaledGridW, la griglia finisce a destra (l'angolo in alto a sinistra è spostato a sinistra)
+    // Quindi offset.x deve essere tra width - scaledGridW (negativo o zero) e 0
+    const minX = Math.min(0, width - scaledGridW); // La griglia finisce a destra quando offset = width - scaledGridW
+    const maxX = 0; // La griglia inizia a sinistra quando offset = 0
+    const minY = Math.min(0, height - scaledGridH); // La griglia finisce in basso quando offset = height - scaledGridH
+    const maxY = 0; // La griglia inizia in alto quando offset = 0
 
     return {
       x: clamp(o.x, minX, maxX),
