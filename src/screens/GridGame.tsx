@@ -770,8 +770,8 @@ export default function GridGame() {
         style={styles.stage}
         onStartShouldSetResponder={() => true}
         onMoveShouldSetResponder={() => true}
-        onResponderGrant={camera.onTouchStart}
-        onResponderMove={(e) => camera.onTouchMove(e, (didDrag) => { if (didDrag) dragInfoRef.current.didDrag = true; })}
+        onResponderGrant={handleTouchStart}
+        onResponderMove={handleTouchMove}
         onResponderRelease={handleTouchEnd}
         onResponderTerminate={handleTouchEnd}
         // @ts-ignore
