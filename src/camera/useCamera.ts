@@ -220,26 +220,20 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     return () => subscription?.remove();
   }, [zoom, gridWidth, gridHeight, offset.x, offset.y]);
 
-  // Transform style per React Native
-  // Con scale -> translate: prima scala, poi trasla
-  // Il translate viene applicato DOPO lo scale, quindi è nel sistema SCALATO
-  // Ma noi vogliamo che offset sia la posizione assoluta nello schermo
-  // Quindi: offset è già la posizione finale nello schermo
+  // APPROCCIO DIRETTO: invece di transform, calcoliamo direttamente left/top/width/height
+  // Questo evita problemi con l'ordine delle trasformazioni
+  const worldStyle = useMemo(() => {
+    return {
+      position: "absolute" as const,
+      left: offset.x,
+      top: offset.y,
+      width: gridWidth * zoom,
+      height: gridHeight * zoom
+    };
+  }, [offset.x, offset.y, zoom, gridWidth, gridHeight]);
+  
+  // Manteniamo transformStyle per compatibilità, ma non lo usiamo più
   const transformStyle = useMemo(() => {
-    // Con scale -> translate, se voglio che l'angolo in alto a sinistra sia a offset.x:
-    // - Prima scala la griglia di zoom (l'origine resta a 0,0)
-    // - Poi trasla di offset.x
-    // Ma questo non funziona perché il translate è nel sistema scalato
-    
-    // Proviamo un approccio diverso: usiamo solo scale e calcoliamo left/top direttamente
-    // Ma React Native non supporta left/top con transform scale facilmente
-    
-    // SOLUZIONE: usiamo scale -> translate, ma calcoliamo il translate corretto
-    // Se voglio che l'angolo in alto a sinistra della griglia sia a offset.x dopo lo scale:
-    // - Dopo lo scale, la griglia è gridWidth*zoom x gridHeight*zoom
-    // - L'origine è ancora a (0,0)
-    // - Per spostare l'angolo a offset.x, devo traslare di offset.x
-    
     return {
       transform: [
         { scale: zoom },
@@ -253,6 +247,7 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     offset,
     zoom,
     transformStyle,
+    worldStyle,
     isDragging: isDraggingRef.current,
     handleWheel,
     onTouchStart,

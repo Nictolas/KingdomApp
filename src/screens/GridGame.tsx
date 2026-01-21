@@ -785,7 +785,7 @@ export default function GridGame() {
         // @ts-ignore
         onWheel={camera.handleWheel}
       >
-        <View style={[styles.world, transformStyle]}>
+        <View style={[styles.world, camera.worldStyle]}>
           <View style={[styles.grid, { width: gridPixelSize.w, height: gridPixelSize.h }]}>{gridCells}</View>
           <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
             {buildingNodes}
