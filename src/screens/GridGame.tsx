@@ -185,7 +185,7 @@ export default function GridGame() {
         ]}
       >
         <GridRenderer offset={{ x: 0, y: 0 }} seed={seed} riverCells={riverCells} trees={trees} onCellPress={handleCellPress} />
-        <CharacterRenderer characters={characters} onPress={handleCharacterPress} selectedCharacterId={movementControl.selectedCharacterId} />
+        <CharacterRenderer characters={characters} buildings={buildings} onPress={handleCharacterPress} selectedCharacterId={movementControl.selectedCharacterId} />
         <BuildingRenderer buildings={buildings} onPress={handleBuildingPress} />
       </View>
       
