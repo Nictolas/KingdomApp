@@ -1,10 +1,11 @@
 import * as Haptics from "expo-haptics";
 import type { Character, Point, Bridge, Light, Placed } from "../types";
 import { buildingCenter, findPath, isInsideBuilding } from "../utils";
-import { castleData, farmData, houseData, RIVER_XS, GRID_SIZE, SEA_ROWS } from "../constants";
+import { castleData, farmData, houseData, RIVER_XS } from "../constants";
 import { isRiver, isSea, isBeach } from "./terrain";
 import { isTree, isMine } from "../utils";
 import { isLightAt } from "./lights";
+import { createIsBlocked } from "./pathfinding";
 
 export function handleCallKing(
   characters: Character[],
@@ -23,19 +24,7 @@ export function handleCallKing(
     if (!king) return;
     const start = { x: Math.round(king.targetX), y: Math.round(king.targetY) };
     const target = buildingCenter(castleData);
-    const isBlocked = (p: Point, allowTarget?: Point) => {
-      if (allowTarget && p.x === allowTarget.x && p.y === allowTarget.y) return false;
-      if (!(p.x >= 0 && p.x < GRID_SIZE && p.y >= 0 && p.y < GRID_SIZE - SEA_ROWS)) return true;
-      const isBeachCell = p.y >= GRID_SIZE - SEA_ROWS - 4 && p.y < GRID_SIZE - SEA_ROWS;
-      if (isBeachCell && !isRiver(p.x, p.y)) return true;
-      if (isRiver(p.x, p.y) && !bridges.some((b) => b.x === p.x && b.y === p.y)) return true;
-      if (isTree(p.x, p.y, trees)) return true;
-      if (isMine(p.x, p.y, mines)) return true;
-      if (isInsideBuilding(castleData, p.x, p.y)) return true;
-      if (isInsideBuilding(farmData, p.x, p.y)) return true;
-      for (const h of houseData) if (isInsideBuilding(h, p.x, p.y)) return true;
-      return false;
-    };
+    const isBlocked = createIsBlocked(bridges, trees, mines, target);
     const path = findPath(start, target, isBlocked);
     if (!path) {
       setUnreachable({ open: true, message: "Il Re non può raggiungere il castello." });
@@ -68,19 +57,7 @@ export function handleCallFarmer(
     if (!farmer) return;
     const start = { x: Math.round(farmer.targetX), y: Math.round(farmer.targetY) };
     const target = buildingCenter(farmData);
-    const isBlocked = (p: Point, allowTarget?: Point) => {
-      if (allowTarget && p.x === allowTarget.x && p.y === allowTarget.y) return false;
-      if (!(p.x >= 0 && p.x < GRID_SIZE && p.y >= 0 && p.y < GRID_SIZE - SEA_ROWS)) return true;
-      const isBeachCell = p.y >= GRID_SIZE - SEA_ROWS - 4 && p.y < GRID_SIZE - SEA_ROWS;
-      if (isBeachCell && !isRiver(p.x, p.y)) return true;
-      if (isRiver(p.x, p.y) && !bridges.some((b) => b.x === p.x && b.y === p.y)) return true;
-      if (trees.some((t) => t.x === p.x && t.y === p.y)) return true;
-      if (mines.some((m) => m.x === p.x && m.y === p.y)) return true;
-      if (isInsideBuilding(castleData, p.x, p.y)) return true;
-      if (isInsideBuilding(farmData, p.x, p.y)) return true;
-      for (const h of houseData) if (isInsideBuilding(h, p.x, p.y)) return true;
-      return false;
-    };
+    const isBlocked = createIsBlocked(bridges, trees, mines, target);
     const path = findPath(start, target, isBlocked);
     if (!path) {
       setUnreachable({ open: true, message: "Postazione irraggiungibile: il Contadino non può raggiungere il campo." });

@@ -1,6 +1,5 @@
 import React, { useEffect, useMemo } from "react";
-import { Dimensions, StyleSheet, View } from "react-native";
-import * as Haptics from "expo-haptics";
+import { StyleSheet, View } from "react-native";
 import type { Character } from "../types";
 import {
   GRID_SIZE,
@@ -21,6 +20,10 @@ import { useHouseAssignments } from "../hooks/useHouseAssignments";
 import { useGameClock } from "../hooks/useGameClock";
 import { useGameSelection } from "../hooks/useGameSelection";
 import { useGameState } from "../hooks/useGameState";
+import { useZoom } from "../hooks/useZoom";
+import { useBuildActions } from "../hooks/useBuildActions";
+import { useCellInteraction } from "../hooks/useCellInteraction";
+import { useCharacterActions } from "../hooks/useCharacterActions";
 import { resetGame } from "../game/reset";
 import { styles } from "./GridGame.styles";
 
@@ -46,6 +49,7 @@ export default function GridGame() {
   const dragDetection = useDragDetection();
   const houseAssignments = useHouseAssignments();
   const gameClock = useGameClock();
+  const zoom = useZoom(camera);
 
   const reset = () => {
     resetGame({
@@ -96,69 +100,46 @@ export default function GridGame() {
   });
 
   // UI actions
-  const handleCallKingFn = handleCallKing(
+  const characterActions = useCharacterActions({
     characters,
-    gameState.bridges,
-    gameState.trees,
-    gameState.mines,
-    gameState.setKingPath,
-    gameState.setKingGoingToCastle,
-    selection.setSelectedBuilding,
-    selection.setSelectedRiver,
-    selection.setSelectedCharacter,
-    gameState.setUnreachable
-  );
+    bridges: gameState.bridges,
+    trees: gameState.trees,
+    mines: gameState.mines,
+    setKingPath: gameState.setKingPath,
+    setKingGoingToCastle: gameState.setKingGoingToCastle,
+    setFarmerPath: gameState.setFarmerPath,
+    setFarmerGoingToFarm: gameState.setFarmerGoingToFarm,
+    setSelectedBuilding: selection.setSelectedBuilding,
+    setSelectedRiver: selection.setSelectedRiver,
+    setSelectedCharacter: selection.setSelectedCharacter,
+    setUnreachable: gameState.setUnreachable
+  });
 
-  const handleCallFarmerFn = handleCallFarmer(
-    characters,
-    gameState.bridges,
-    gameState.trees,
-    gameState.mines,
-    gameState.setFarmerPath,
-    gameState.setFarmerGoingToFarm,
-    selection.setSelectedBuilding,
-    selection.setSelectedRiver,
-    selection.setSelectedCharacter,
-    gameState.setUnreachable
-  );
-
-  const handleZoomIn = async () => {
-    const { width, height } = Dimensions.get("window");
-    camera.zoomIncrement(width / 2, height / 2, 0.2);
-    await Haptics.selectionAsync();
-  };
-  const handleZoomOut = async () => {
-    const { width, height } = Dimensions.get("window");
-    camera.zoomIncrement(width / 2, height / 2, -0.2);
-    await Haptics.selectionAsync();
-  };
-
-  const buildBridgeFn = buildBridge(selection.selectedRiver, gameState.setBridges, selection.setSelectedRiver);
-  const buildBridgeAtFn = (x: number, y: number) => buildBridgeAt(x, y, gameState.setBridges)();
-  const buildLightFn = (x: number, y: number) => buildLight(x, y, gameState.buildMode, gameState.trees, gameState.mines, gameState.lights, gameState.setLights)();
+  const buildActions = useBuildActions({
+    selectedRiver: selection.selectedRiver,
+    buildMode: gameState.buildMode,
+    bridges: gameState.bridges,
+    trees: gameState.trees,
+    mines: gameState.mines,
+    lights: gameState.lights,
+    setBridges: gameState.setBridges,
+    setLights: gameState.setLights,
+    setSelectedRiver: selection.setSelectedRiver
+  });
 
   const closeModal = () => {
     selection.closeModal();
     gameClock.setIsClockModalOpen(false);
   };
 
-  const handleCellPress = (x: number, y: number) => {
-    if (gameState.buildMode === "light") {
-      buildLightFn(x, y);
-    } else if (gameState.buildMode === "bridge") {
-      const river = isRiver(x, y);
-      const bridge = gameState.isBridge(x, y);
-      if (river && !bridge) {
-        buildBridgeAtFn(x, y);
-      }
-    } else {
-      const river = isRiver(x, y);
-      const bridge = gameState.isBridge(x, y);
-      if (river && !bridge) {
-        selection.selectRiver(x, y, () => dragDetection.wasRecentlyDragging(camera.isDragging), isRiver, gameState.isBridge);
-      }
-    }
-  };
+  const cellInteraction = useCellInteraction({
+    buildMode: gameState.buildMode,
+    isBridge: gameState.isBridge,
+    buildLightFn: buildActions.buildLightFn,
+    buildBridgeAtFn: buildActions.buildBridgeAtFn,
+    selectRiver: selection.selectRiver,
+    wasRecentlyDragging: () => dragDetection.wasRecentlyDragging(camera.isDragging)
+  });
 
 
   return (
@@ -172,8 +153,8 @@ export default function GridGame() {
         }}
         onReset={reset}
         onBuildPress={() => gameState.setBuildMenuOpen(true)}
-        onZoomOut={handleZoomOut}
-        onZoomIn={handleZoomIn}
+        onZoomOut={zoom.handleZoomOut}
+        onZoomIn={zoom.handleZoomIn}
       />
 
       <View
@@ -206,7 +187,7 @@ export default function GridGame() {
               buildMode={gameState.buildMode}
               gameTime={gameClock.gameTime}
               isDragging={camera.isDragging}
-              onCellPress={handleCellPress}
+              onCellPress={cellInteraction.handleCellPress}
             />
           </View>
           <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
@@ -256,9 +237,9 @@ export default function GridGame() {
         assignedCharactersForHouse={houseAssignments.assignedCharactersForHouse}
         assignToHouse={houseAssignments.assignToHouse}
         isNight={gameClock.isNight}
-        onCallKing={handleCallKingFn}
-        onCallFarmer={handleCallFarmerFn}
-        onBuildBridge={buildBridgeFn}
+        onCallKing={characterActions.handleCallKingFn}
+        onCallFarmer={characterActions.handleCallFarmerFn}
+        onBuildBridge={buildActions.buildBridgeFn}
         onClose={closeModal}
       />
     </View>

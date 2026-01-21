@@ -1,6 +1,7 @@
 import React from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import type { Character, Building, Point } from "../types";
+import { formatGameTime } from "../hooks/useGameClock";
 import { styles } from "./InfoModal.styles";
 
 type InfoModalProps = {
@@ -25,8 +26,6 @@ type InfoModalProps = {
   onBuildBridge: () => void;
   onClose: () => void;
 };
-
-const formatGameTime = (h: number, m: number) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 
 export function InfoModal({
   visible,

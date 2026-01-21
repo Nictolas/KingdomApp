@@ -1,5 +1,6 @@
 import React from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import { formatGameTime } from "../hooks/useGameClock";
 
 type TopHudProps = {
   gameTime: { hours: number; minutes: number };

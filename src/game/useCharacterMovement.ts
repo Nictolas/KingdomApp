@@ -1,9 +1,8 @@
 import { useEffect } from "react";
 import type { Character, Point, Placed, Bridge, Building } from "../types";
-import { buildingCenter, findPath } from "../utils";
-import { GRID_SIZE, SEA_ROWS, castleData, farmData, houseData } from "../constants";
-import { isRiver, isBeach } from "./terrain";
-import { isTree, isMine, isInsideBuilding } from "../utils";
+import { buildingCenter, findPath, stepAlongPath } from "../utils";
+import { castleData, farmData, houseData } from "../constants";
+import { createIsBlocked } from "./pathfinding";
 
 type UseCharacterMovementOptions = {
   characters: Character[];
@@ -60,19 +59,7 @@ export function useCharacterMovement({
 
   // Movimento "a scatti" (sempre su interi) + script Re/Contadino + notte in casa
   useEffect(() => {
-    const isBlocked = (p: Point, allowTarget?: Point) => {
-      if (allowTarget && p.x === allowTarget.x && p.y === allowTarget.y) return false;
-      if (!(p.x >= 0 && p.x < GRID_SIZE && p.y >= 0 && p.y < GRID_SIZE - SEA_ROWS)) return true;
-      const isBeachCell = p.y >= GRID_SIZE - SEA_ROWS - 4 && p.y < GRID_SIZE - SEA_ROWS;
-      if (isBeachCell && !isRiver(p.x, p.y)) return true;
-      if (isRiver(p.x, p.y) && !bridges.some((b) => b.x === p.x && b.y === p.y)) return true;
-      if (isTree(p.x, p.y, trees)) return true;
-      if (isMine(p.x, p.y, mines)) return true;
-      if (isInsideBuilding(castleData, p.x, p.y)) return true;
-      if (isInsideBuilding(farmData, p.x, p.y)) return true;
-      for (const h of houseData) if (isInsideBuilding(h, p.x, p.y)) return true;
-      return false;
-    };
+    const isBlocked = createIsBlocked(bridges, trees, mines);
 
     const stepAlongPath = (from: Point, path: Point[]) => {
       const idx = path.findIndex((p) => p.x === from.x && p.y === from.y);
