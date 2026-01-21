@@ -196,8 +196,17 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   };
 
   // Clamp offset quando cambia zoom o dimensioni griglia
+  // IMPORTANTE: questo useEffect garantisce che l'offset sia sempre clampato
   useEffect(() => {
     setOffset((o) => clampOffset(o, zoom));
+  }, [zoom, gridWidth, gridHeight]);
+  
+  // Clamp anche quando cambiano le dimensioni della finestra
+  useEffect(() => {
+    const subscription = Dimensions.addEventListener("change", () => {
+      setOffset((o) => clampOffset(o, zoom));
+    });
+    return () => subscription?.remove();
   }, [zoom, gridWidth, gridHeight]);
 
   // Transform style per React Native
