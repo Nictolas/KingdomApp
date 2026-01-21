@@ -31,9 +31,13 @@ export const styles = StyleSheet.create({
     userSelect: "none",
     WebkitUserSelect: "none"
   },
-  world: { position: "absolute" },
+  world: { 
+    position: "absolute",
+    overflow: "hidden"
+  },
   grid: {
     position: "relative",
+    overflow: "hidden",
     // @ts-ignore
     userSelect: "none",
     WebkitUserSelect: "none"

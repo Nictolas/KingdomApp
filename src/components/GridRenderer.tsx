@@ -126,6 +126,15 @@ export function CharacterRenderer({ characters, isDragging, onPress }: Character
         const clampedY = Math.max(0, Math.min(GRID_SIZE - 1, c.y));
         const left = clampedX * (CELL_SIZE + CELL_GAP) + CELL_SIZE * 0.1;
         const top = clampedY * (CELL_SIZE + CELL_GAP) + CELL_SIZE * 0.05;
+        
+        // Controllo finale: assicurati che left e top siano dentro i limiti della griglia
+        const maxLeft = (GRID_SIZE - 1) * (CELL_SIZE + CELL_GAP) + CELL_SIZE;
+        const maxTop = (GRID_SIZE - 1) * (CELL_SIZE + CELL_GAP) + CELL_SIZE;
+        
+        if (left < 0 || left > maxLeft || top < 0 || top > maxTop) {
+          return null;
+        }
+        
         return (
           <Pressable
             key={`char-${c.id}`}
@@ -135,7 +144,8 @@ export function CharacterRenderer({ characters, isDragging, onPress }: Character
             <Text style={{ fontSize: 22 }}>{c.emoji}</Text>
           </Pressable>
         );
-      });
+      })
+      .filter((node) => node !== null);
   }, [characters, isDragging, onPress]);
 
   return <>{characterNodes}</>;
@@ -159,6 +169,15 @@ export function BuildingRenderer({ isDragging, onPress }: BuildingRendererProps)
       ) {
         const centerX = (b.x + b.width / 2) * (CELL_SIZE + CELL_GAP) - (CELL_SIZE + CELL_GAP) / 2;
         const centerY = (b.y + b.height / 2) * (CELL_SIZE + CELL_GAP) - (CELL_SIZE + CELL_GAP) / 2;
+        
+        // Controllo finale: assicurati che centerX e centerY siano dentro i limiti della griglia
+        const maxX = GRID_SIZE * (CELL_SIZE + CELL_GAP);
+        const maxY = GRID_SIZE * (CELL_SIZE + CELL_GAP);
+        
+        if (centerX < -50 || centerX > maxX + 50 || centerY < -50 || centerY > maxY + 50) {
+          return; // Non renderizzare se fuori dai limiti
+        }
+        
         nodes.push(
           <Pressable key={`building-${b.id}`} onPress={() => onPress(b)} style={[styles.building, { left: centerX, top: centerY }]}>
             <Text style={{ fontSize: b.type === "house" ? 30 : 36 }}>{b.emoji}</Text>
