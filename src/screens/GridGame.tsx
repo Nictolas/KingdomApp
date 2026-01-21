@@ -129,6 +129,8 @@ export default function GridGame() {
   // Azioni "story"
   const [kingGoingToCastle, setKingGoingToCastle] = useState(false);
   const [farmerGoingToFarm, setFarmerGoingToFarm] = useState(false);
+  const [farmerPath, setFarmerPath] = useState<Point[]>([]);
+  const [unreachableDialog, setUnreachableDialog] = useState(false);
 
   // Orologio di gioco (1 secondo reale = 1 minuto di gioco)
   const [gameTime, setGameTime] = useState({ hours: 6, minutes: 0 }); // display
@@ -293,23 +295,30 @@ export default function GridGame() {
             return char;
           }
 
-          // “script” Contadino -> campo
-          if (char.profession === "Contadino" && farmerGoingToFarm) {
+          // “script” Contadino -> campo (con pathfinding)
+          if (char.profession === "Contadino" && farmerGoingToFarm && farmerPath.length > 0) {
             const tx = farmData.x + 1;
             const ty = farmData.y + 1;
             if (Math.abs(char.x - tx) < 0.1 && Math.abs(char.y - ty) < 0.1) {
               setFarmerGoingToFarm(false);
+              setFarmerPath([]);
               return { ...char, x: tx, y: ty, targetX: tx, targetY: ty, isInFarm: true };
             }
 
-            const dx = tx - char.targetX;
-            const dy = ty - char.targetY;
-            let nx = char.targetX;
-            let ny = char.targetY;
-            if (Math.abs(dx) > 0) nx += Math.sign(dx);
-            else if (Math.abs(dy) > 0) ny += Math.sign(dy);
-
-            if (!atNonWalkable(nx, ny)) return { ...char, targetX: nx, targetY: ny, lastMove: Date.now() };
+            // Usa il pathfinding: prendi il prossimo punto del percorso
+            const currentPos = { x: Math.round(char.targetX), y: Math.round(char.targetY) };
+            const nextIndex = farmerPath.findIndex((p) => p.x === currentPos.x && p.y === currentPos.y);
+            
+            if (nextIndex >= 0 && nextIndex < farmerPath.length - 1) {
+              const next = farmerPath[nextIndex + 1];
+              if (!atNonWalkable(next.x, next.y)) {
+                return { ...char, targetX: next.x, targetY: next.y, lastMove: Date.now() };
+              }
+            }
+            
+            // Se il percorso non è più valido, ferma
+            setFarmerGoingToFarm(false);
+            setFarmerPath([]);
             return char;
           }
 
@@ -339,7 +348,7 @@ export default function GridGame() {
 
     return () => clearInterval(interval);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [kingGoingToCastle, farmerGoingToFarm, bridges, trees, mines]);
+  }, [kingGoingToCastle, farmerGoingToFarm, farmerPath, bridges, trees, mines]);
 
   // animazione morbida verso target
   useEffect(() => {
@@ -371,16 +380,19 @@ export default function GridGame() {
 
   // Calcola opacità notte (18:00-6:00)
   const nightOpacity = useMemo(() => {
-    const { hours } = gameTime;
-    if (hours >= 18 || hours < 6) {
+    const { hours, minutes } = gameTime;
+    const totalMinutes = hours * 60 + minutes;
+    
+    if (totalMinutes >= 18 * 60 || totalMinutes < 6 * 60) {
       // Notte: transizione graduale
-      if (hours >= 18) {
+      if (totalMinutes >= 18 * 60) {
         // Dalle 18:00 alle 24:00: aumenta gradualmente da 0 a 0.7
-        const progress = (hours - 18) / 6; // 0-1
+        const minutesFrom18 = totalMinutes - 18 * 60;
+        const progress = minutesFrom18 / (6 * 60); // 0-1 in 6 ore
         return Math.min(0.7, progress * 0.7);
       } else {
         // Dalle 0:00 alle 6:00: diminuisce gradualmente da 0.7 a 0
-        const progress = hours / 6; // 0-1
+        const progress = totalMinutes / (6 * 60); // 0-1 in 6 ore
         return 0.7 * (1 - progress);
       }
     }
@@ -533,7 +545,68 @@ export default function GridGame() {
     await Haptics.selectionAsync();
   };
 
+  // Pathfinding semplice (BFS) per trovare percorso
+  const findPath = (startX: number, startY: number, targetX: number, targetY: number): Point[] | null => {
+    const atNonWalkable = (nx: number, ny: number) =>
+      !(nx >= 0 && nx < GRID_SIZE && ny >= 0 && ny < GRID_SIZE - 2) ||
+      (isRiver(nx, ny) && !isBridge(nx, ny)) ||
+      isInsideBuilding(castleData, nx, ny) ||
+      isInsideBuilding(farmData, nx, ny) ||
+      isTree(nx, ny) ||
+      isMine(nx, ny);
+
+    const queue: Array<{ x: number; y: number; path: Point[] }> = [{ x: startX, y: startY, path: [] }];
+    const visited = new Set<string>();
+    const dirs = [
+      { x: 0, y: -1 },
+      { x: 0, y: 1 },
+      { x: -1, y: 0 },
+      { x: 1, y: 0 }
+    ];
+
+    while (queue.length > 0) {
+      const current = queue.shift()!;
+      const key = `${current.x},${current.y}`;
+
+      if (visited.has(key)) continue;
+      visited.add(key);
+
+      if (current.x === targetX && current.y === targetY) {
+        return [...current.path, { x: current.x, y: current.y }];
+      }
+
+      for (const d of dirs) {
+        const nx = current.x + d.x;
+        const ny = current.y + d.y;
+        const nKey = `${nx},${ny}`;
+
+        if (!visited.has(nKey) && !atNonWalkable(nx, ny)) {
+          queue.push({ x: nx, y: ny, path: [...current.path, { x: current.x, y: current.y }] });
+        }
+      }
+    }
+
+    return null;
+  };
+
   const handleCallFarmer = async () => {
+    const farmer = characters.find((c) => c.profession === "Contadino");
+    if (!farmer) return;
+
+    const targetX = farmData.x + 1;
+    const targetY = farmData.y + 1;
+    const path = findPath(Math.round(farmer.targetX), Math.round(farmer.targetY), targetX, targetY);
+
+    if (!path) {
+      setUnreachableDialog(true);
+      setSelectedBuilding(null);
+      setSelectedRiver(null);
+      setSelectedCharacter(null);
+      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      return;
+    }
+
+    setFarmerPath(path);
     setFarmerGoingToFarm(true);
     setSelectedBuilding(null);
     setSelectedRiver(null);
@@ -713,16 +786,29 @@ export default function GridGame() {
 
   return (
     <View style={styles.root}>
-      {/* Orologio di gioco */}
-      <Pressable
-        style={styles.clockContainer}
-        onPress={() => {
-          setClockDraftMinutes((gameTime.hours * 60 + gameTime.minutes) % (24 * 60));
-          setIsClockModalOpen(true);
-        }}
-      >
-        <Text style={styles.clockText}>🕐 {formatGameTime(gameTime.hours, gameTime.minutes)}</Text>
-      </Pressable>
+      {/* HUD in alto con orologio, reset e zoom */}
+      <View style={styles.topHud}>
+        <Pressable
+          style={styles.clockContainer}
+          onPress={() => {
+            setClockDraftMinutes((gameTime.hours * 60 + gameTime.minutes) % (24 * 60));
+            setIsClockModalOpen(true);
+          }}
+        >
+          <Text style={styles.clockText}>🕐 {formatGameTime(gameTime.hours, gameTime.minutes)}</Text>
+        </Pressable>
+        <View style={styles.topHudButtons}>
+          <Pressable style={styles.btn} onPress={reset}>
+            <Text style={styles.btnText}>↻ Reset</Text>
+          </Pressable>
+          <Pressable style={styles.btn} onPress={handleZoomOut}>
+            <Text style={styles.btnText}>− Zoom</Text>
+          </Pressable>
+          <Pressable style={styles.btn} onPress={handleZoomIn}>
+            <Text style={styles.btnText}>＋ Zoom</Text>
+          </Pressable>
+        </View>
+      </View>
 
       <View
         ref={stageRef}
@@ -768,20 +854,20 @@ export default function GridGame() {
         )}
       </View>
 
-      {/* HUD */}
-      <View style={styles.hud}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.hudRow}>
-          <Pressable style={styles.btn} onPress={reset}>
-            <Text style={styles.btnText}>↻ Reset</Text>
+
+      {/* Dialog "Postazione irraggiungibile" */}
+      <Modal visible={unreachableDialog} transparent animationType="fade" onRequestClose={() => setUnreachableDialog(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setUnreachableDialog(false)}>
+          <Pressable style={styles.modalCard} onPress={() => undefined}>
+            <Text style={styles.modalTitle}>⚠️ Postazione irraggiungibile</Text>
+            <Text style={styles.modalSub}>Il Contadino non può raggiungere il campo.</Text>
+            <Text style={styles.modalHint}>Costruisci ponti sul fiume per permettere il passaggio.</Text>
+            <Pressable style={[styles.btnPrimary, { marginTop: 12 }]} onPress={() => setUnreachableDialog(false)}>
+              <Text style={styles.btnTextPrimary}>Chiudi</Text>
+            </Pressable>
           </Pressable>
-          <Pressable style={styles.btn} onPress={handleZoomOut}>
-            <Text style={styles.btnText}>− Zoom</Text>
-          </Pressable>
-          <Pressable style={styles.btn} onPress={handleZoomIn}>
-            <Text style={styles.btnText}>＋ Zoom</Text>
-          </Pressable>
-        </ScrollView>
-      </View>
+        </Pressable>
+      </Modal>
 
       {/* Modale info */}
       <Modal
@@ -893,17 +979,30 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#0b3d1f"
   },
-  clockContainer: {
+  topHud: {
     position: "absolute",
     top: 10,
+    left: 10,
     right: 10,
     zIndex: 1000,
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 10
+  },
+  clockContainer: {
     backgroundColor: "rgba(0,0,0,0.6)",
     paddingVertical: 8,
     paddingHorizontal: 12,
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "rgba(255,255,255,0.2)"
+  },
+  topHudButtons: {
+    flexDirection: "row",
+    gap: 10,
+    flexWrap: "wrap"
   },
   clockText: {
     color: "#ffffff",
