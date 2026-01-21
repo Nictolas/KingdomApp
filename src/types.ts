@@ -3,7 +3,7 @@ export type Placed = { x: number; y: number; id: number };
 export type Bridge = { x: number; y: number };
 export type Light = { x: number; y: number; id: number };
 
-export type BuildingType = "castle" | "farm" | "house";
+export type BuildingType = "castle" | "farm" | "house" | "bar";
 
 export type Building = {
   id: string;

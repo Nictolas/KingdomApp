@@ -69,3 +69,15 @@ export const houseData: Building[] = [
   { id: "house-3", x: 13, y: 22, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una casa immersa nel verde", type: "house" },
   { id: "house-4", x: 32, y: 28, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una casa non lontana dal campo", type: "house" }
 ];
+
+export const barData: Building = {
+  id: "bar",
+  x: 20,
+  y: 25,
+  width: 3,
+  height: 3,
+  name: "Bar",
+  emoji: "🍺",
+  description: "Un bar dove i personaggi si rilassano",
+  type: "bar"
+};

@@ -6,7 +6,7 @@ import { CharacterRenderer } from "../components/CharacterRenderer";
 import { BuildingRenderer } from "../components/BuildingRenderer";
 import { BuildingInfoModal } from "../ui/BuildingInfoModal";
 import { CharacterInfoModal } from "../ui/CharacterInfoModal";
-import { GRID_SIZE, CELL_SIZE, castleData, farmData, houseData } from "../constants";
+import { GRID_SIZE, CELL_SIZE, castleData, farmData, houseData, barData } from "../constants";
 import type { Character, Building, Placed } from "../types";
 import { generateRiver, isRiver, isSea } from "../game/terrain";
 import { generateTrees } from "../game/generation";
@@ -37,7 +37,7 @@ export default function GridGame() {
 
   // Edifici - filtra quelli che non sono su fiume o mare
   const buildings: Building[] = useMemo(() => {
-    const allBuildings = [castleData, farmData, ...houseData];
+    const allBuildings = [castleData, farmData, barData, ...houseData];
     
     // Filtra gli edifici che non sono su fiume o mare
     return allBuildings.filter(building => {
@@ -53,6 +53,9 @@ export default function GridGame() {
       return true;
     });
   }, [riverCells]);
+
+  // Hook per l'orologio del gioco (1 secondo reale = 1 minuto di gioco)
+  const { gameTime } = useGameClock(6, 0);
 
   // Personaggi iniziali
   const [characters, setCharacters] = useState<Character[]>([
@@ -71,14 +74,12 @@ export default function GridGame() {
     setCharacters,
     buildings,
     trees,
-    riverCells
+    riverCells,
+    gameTime
   });
 
   // Hook per il controllo del movimento (selezione personaggio e click su cella)
   const movementControl = useCharacterMovementControl();
-
-  // Hook per l'orologio del gioco (1 secondo reale = 1 minuto di gioco)
-  const { gameTime } = useGameClock(6, 0);
 
   // Stato per i dialog
   const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
