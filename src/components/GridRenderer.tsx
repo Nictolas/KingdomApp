@@ -43,7 +43,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     width: CELL_SIZE,
     height: CELL_SIZE,
-    borderWidth: 1,
-    borderColor: "#81c784"
+    borderWidth: 0
   }
 });
