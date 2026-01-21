@@ -253,11 +253,10 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     isDraggingRef.current = false;
   };
 
-  // Clamp offset quando cambia zoom o dimensioni griglia
-  // IMPORTANTE: questo deve essere chiamato SEMPRE dopo ogni modifica
+  // Clamp offset quando cambiano le dimensioni della griglia (ma NON quando cambia zoom, perché zoomToPoint lo gestisce già)
   useEffect(() => {
     setOffset((o) => clampOffset(o, zoom));
-  }, [zoom, gridWidth, gridHeight]);
+  }, [gridWidth, gridHeight]);
   
   // Clamp anche quando cambiano le dimensioni della finestra
   useEffect(() => {
