@@ -11,6 +11,7 @@ import { TopHud } from "../ui/TopHud";
 import { BuildMenuModal } from "../ui/BuildMenuModal";
 import { UnreachableModal } from "../ui/UnreachableModal";
 import { InfoModal } from "../ui/InfoModal";
+import { NavigationArrows } from "../ui/NavigationArrows";
 import { useCamera } from "../camera/useCamera";
 import { useCharacterMovement } from "../game/useCharacterMovement";
 import { handleCallKing, handleCallFarmer, buildBridge, buildBridgeAt, buildLight } from "../game/actions";
@@ -20,7 +21,6 @@ import { useHouseAssignments } from "../hooks/useHouseAssignments";
 import { useGameClock } from "../hooks/useGameClock";
 import { useGameSelection } from "../hooks/useGameSelection";
 import { useGameState } from "../hooks/useGameState";
-import { useZoom } from "../hooks/useZoom";
 import { useBuildActions } from "../hooks/useBuildActions";
 import { useCellInteraction } from "../hooks/useCellInteraction";
 import { useCharacterActions } from "../hooks/useCharacterActions";
@@ -238,6 +238,13 @@ export default function GridGame() {
         onCallFarmer={characterActions.handleCallFarmerFn}
         onBuildBridge={buildActions.buildBridgeFn}
         onClose={closeModal}
+      />
+
+      <NavigationArrows
+        onUp={() => camera.pan(0, 50)}
+        onDown={() => camera.pan(0, -50)}
+        onLeft={() => camera.pan(50, 0)}
+        onRight={() => camera.pan(-50, 0)}
       />
     </View>
   );

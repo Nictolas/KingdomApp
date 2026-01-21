@@ -46,7 +46,6 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   const [zoom, setZoom] = useState(() => getInitialZoom());
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef<Point>({ x: 0, y: 0 });
-  const lastTouchDistanceRef = useRef<number | null>(null);
   
   // Ref per accedere ai valori più recenti - inizializzati con i valori iniziali
   const offsetRef = useRef<Point>({ x: 0, y: 0 });
@@ -79,10 +78,30 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   // Le dimensioni scalate sono gridWidth*zoom x gridHeight*zoom
   // Con left/top/width/height: left=offset.x, top=offset.y, width=gridWidth*zoom, height=gridHeight*zoom
   const clampOffset = (o: Point, z: number): Point => {
-    // La griglia DEVE sempre coprire tutto lo schermo senza spazi
-    // L'offset deve essere sempre (0, 0) per iniziare dall'angolo in alto a sinistra
-    // Lo zoom è già calcolato per coprire tutto lo schermo
-    return { x: 0, y: 0 };
+    const { width, height } = Dimensions.get("window");
+    const scaledGridW = gridWidth * z;
+    const scaledGridH = gridHeight * z;
+
+    // Limita l'offset per mantenere la griglia dentro i bordi dello schermo
+    // offset è la posizione dell'angolo in alto a sinistra della griglia
+    // La griglia va da offset.x a offset.x + scaledGridW
+    // Per non vedere oltre a sinistra: offset.x <= 0
+    // Per non vedere oltre a destra: offset.x + scaledGridW >= width, quindi offset.x >= width - scaledGridW
+    const minX = Math.min(0, width - scaledGridW);
+    const maxX = 0;
+    const minY = Math.min(0, height - scaledGridH);
+    const maxY = 0;
+
+    // Assicuriamoci che minX <= maxX e minY <= maxY
+    const finalMinX = Math.min(minX, maxX);
+    const finalMaxX = Math.max(minX, maxX);
+    const finalMinY = Math.min(minY, maxY);
+    const finalMaxY = Math.max(minY, maxY);
+
+    return {
+      x: clamp(o.x, finalMinX, finalMaxX),
+      y: clamp(o.y, finalMinY, finalMaxY)
+    };
   };
 
   // Zoom verso un punto specifico - RIMOSSO COMPLETAMENTE
@@ -91,10 +110,14 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     return;
   };
 
-  // Pan (sposta la camera) - DISABILITATO: la griglia deve sempre coprire tutto lo schermo
-  const pan = () => {
-    // Pan disabilitato - la griglia deve sempre coprire tutto lo schermo
-    return;
+  // Pan (sposta la camera)
+  // dx, dy sono in pixel schermo
+  const pan = (dx: number, dy: number) => {
+    const newOffset = { x: offset.x + dx, y: offset.y + dy };
+    const clamped = clampOffset(newOffset, zoom);
+    // Aggiorna il ref immediatamente
+    offsetRef.current = clamped;
+    setOffset(clamped);
   };
 
   // Zoom incrementale - RIMOSSO COMPLETAMENTE
@@ -113,11 +136,7 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
 
   const onTouchStart = (e: any) => {
     const t = e.nativeEvent.touches;
-    if (t.length === 2) {
-      lastTouchDistanceRef.current = getTouchDistance(t);
-      isDraggingRef.current = false;
-      return;
-    }
+    // Pinch-to-zoom completamente rimosso - ignora 2 dita
     if (t.length === 1) {
       isDraggingRef.current = true;
       // Calcoliamo il punto del mondo sotto il dito

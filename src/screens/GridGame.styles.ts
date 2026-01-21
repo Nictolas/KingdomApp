@@ -1,7 +1,7 @@
 import { StyleSheet } from "react-native";
 
 export const styles = StyleSheet.create({
-  root: { flex: 1, backgroundColor: "#0b3d1f" },
+  root: { flex: 1, backgroundColor: "#000000" },
   topHud: {
     position: "absolute",
     top: 10,
