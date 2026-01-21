@@ -12,8 +12,6 @@ type TopHudProps = {
   onZoomIn: () => void;
 };
 
-const formatGameTime = (h: number, m: number) => `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
-
 export function TopHud({ gameTime, buildMode, onClockPress, onReset, onBuildPress, onZoomOut, onZoomIn }: TopHudProps) {
   return (
     <View style={styles.topHud}>
