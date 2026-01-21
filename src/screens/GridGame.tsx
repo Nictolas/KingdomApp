@@ -101,7 +101,11 @@ export default function GridGame() {
   // Regole blocchi (celle intere)
   const isBlocked = (p: Point, allowTarget?: Point) => {
     if (allowTarget && p.x === allowTarget.x && p.y === allowTarget.y) return false;
-    if (!(p.x >= 0 && p.x < GRID_SIZE && p.y >= 0 && p.y < LAND_ROWS)) return true;
+    // Consentiamo movimento anche sulla fascia spiaggia, perché il fiume arriva fino al mare
+    // e i ponti possono essere costruiti anche lì. Vietiamo invece il mare.
+    if (!(p.x >= 0 && p.x < GRID_SIZE && p.y >= 0 && p.y < GRID_SIZE - SEA_ROWS)) return true;
+    // Spiaggia non attraversabile (salvo fiume/ponte che la attraversa)
+    if (isBeach(p.x, p.y) && !isRiver(p.x, p.y)) return true;
     if (isRiver(p.x, p.y) && !isBridge(p.x, p.y)) return true;
     if (isTree(p.x, p.y)) return true;
     if (isMine(p.x, p.y)) return true;
@@ -301,12 +305,21 @@ export default function GridGame() {
     
     // Limiti: l'offset può essere negativo (sposta a sinistra) fino a quando
     // la griglia scalata non esce dalla finestra a destra
-    const minLeft = scaledGridW <= width ? 0 : (width - scaledGridW) / z;
-    const minTop = scaledGridH <= height ? 0 : (height - scaledGridH) / z;
+    // viewOffset è in pixel schermo (screen = world*zoom + offset), quindi NON va diviso per z.
+    const minLeft = Math.min(0, width - scaledGridW);
+    const minTop = Math.min(0, height - scaledGridH);
     const maxLeft = 0;
     const maxTop = 0;
     
     return { x: clamp(o.x, minLeft, maxLeft), y: clamp(o.y, minTop, maxTop) };
+  };
+
+  // Zoom minimo dinamico: impedisce di vedere “oltre la griglia”
+  const getMinZoom = () => {
+    const { width, height } = Dimensions.get("window");
+    const gridW = gridPixelSize.w;
+    const gridH = gridPixelSize.h;
+    return Math.max(0.6, width / gridW, height / gridH);
   };
 
   useEffect(() => {
@@ -339,7 +352,7 @@ export default function GridGame() {
     if (t.length === 2 && lastTouchDistance.current) {
       const dist = getTouchDistance(t);
       const delta = (dist - lastTouchDistance.current) * 0.004;
-      const newZoom = clamp(zoom + delta, 0.6, 2.2);
+      const newZoom = clamp(zoom + delta, getMinZoom(), 2.2);
       setZoom(newZoom);
       lastTouchDistance.current = dist;
       return;
@@ -370,7 +383,7 @@ export default function GridGame() {
     e.preventDefault();
     
     const delta = ne.deltaY > 0 ? -0.1 : 0.1;
-    const newZoom = clamp(zoom + delta, 0.6, 2.2);
+    const newZoom = clamp(zoom + delta, getMinZoom(), 2.2);
     
     // Zoom verso il punto del mouse
     const { width, height } = Dimensions.get("window");
@@ -613,13 +626,13 @@ export default function GridGame() {
 
   const handleZoomIn = async () => {
     const { width, height } = Dimensions.get("window");
-    const newZoom = clamp(zoom + 0.2, 0.6, 2.2);
+    const newZoom = clamp(zoom + 0.2, getMinZoom(), 2.2);
     zoomAroundScreenPoint(width / 2, height / 2, newZoom);
     await Haptics.selectionAsync();
   };
   const handleZoomOut = async () => {
     const { width, height } = Dimensions.get("window");
-    const newZoom = clamp(zoom - 0.2, 0.6, 2.2);
+    const newZoom = clamp(zoom - 0.2, getMinZoom(), 2.2);
     zoomAroundScreenPoint(width / 2, height / 2, newZoom);
     await Haptics.selectionAsync();
   };
