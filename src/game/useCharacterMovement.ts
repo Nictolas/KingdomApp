@@ -641,23 +641,33 @@ export function useCharacterMovement({
           newY = Math.max(0, Math.min(GRID_SIZE - 1, newY));
 
           // CONTROLLO CRITICO: Non permettere movimento sul fiume
-          // Controlla sia la posizione arrotondata che quella intermedia
+          // Controlla SOLO la posizione arrotondata finale (dove il personaggio si trova effettivamente)
+          // Non controllare le celle intermedie perché il personaggio potrebbe passarci sopra senza fermarsi
           const roundedX = Math.round(newX);
           const roundedY = Math.round(newY);
-          const floorX = Math.floor(newX);
-          const floorY = Math.floor(newY);
-          const ceilX = Math.ceil(newX);
-          const ceilY = Math.ceil(newY);
           
-          // Controlla tutte le celle che il personaggio potrebbe attraversare
-          if (
-            isRiver(roundedX, roundedY, riverCells) ||
-            isRiver(floorX, floorY, riverCells) ||
-            isRiver(ceilX, ceilY, riverCells) ||
-            isRiver(floorX, ceilY, riverCells) ||
-            isRiver(ceilX, floorY, riverCells)
-          ) {
-            // Se la nuova posizione è sul fiume, ferma il personaggio e trova una nuova destinazione
+          // Se la posizione finale è sul fiume, ferma il personaggio
+          if (isRiver(roundedX, roundedY, riverCells)) {
+            // Se il personaggio è già sul fiume, trova una posizione sicura vicina
+            if (isRiver(Math.round(char.x), Math.round(char.y), riverCells)) {
+              // Il personaggio è bloccato sul fiume, trova una posizione sicura
+              const safePositions = [
+                { x: roundedX - 1, y: roundedY },
+                { x: roundedX + 1, y: roundedY },
+                { x: roundedX, y: roundedY - 1 },
+                { x: roundedX, y: roundedY + 1 }
+              ];
+              
+              for (const pos of safePositions) {
+                if (pos.x >= 0 && pos.x < GRID_SIZE && pos.y >= 0 && pos.y < GRID_SIZE) {
+                  if (!isRiver(pos.x, pos.y, riverCells) && !isBlocked(pos.x, pos.y, buildings, trees, riverCells)) {
+                    // Sposta il personaggio in una posizione sicura
+                    return { ...char, x: pos.x, y: pos.y, targetX: pos.x, targetY: pos.y };
+                  }
+                }
+              }
+            }
+            // Se non può muoversi, mantieni la posizione corrente
             return char;
           }
 

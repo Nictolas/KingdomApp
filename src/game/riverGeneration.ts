@@ -64,14 +64,15 @@ export function extendRiverToSea(riverCells: number[]): number[] {
   const lastRiverX = riverCells[riverCells.length - 1];
   
   // Estendi il fiume attraverso la spiaggia (mantieni la stessa X)
+  // La spiaggia va da landEndY a GRID_SIZE - SEA_ROWS
   for (let y = landEndY; y < GRID_SIZE - SEA_ROWS; y++) {
     extendedRiver.push(lastRiverX);
   }
   
-  // Estendi il fiume nel mare (prima riga del mare)
-  // Il fiume continua nel mare per alcune righe
+  // Estendi il fiume nel mare - continua fino alla fine della griglia
+  // Il fiume deve arrivare fino al fondo del mare
   const seaStartY = GRID_SIZE - SEA_ROWS;
-  for (let y = seaStartY; y < seaStartY + 3; y++) {
+  for (let y = seaStartY; y < GRID_SIZE; y++) {
     extendedRiver.push(lastRiverX);
   }
   
