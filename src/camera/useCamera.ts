@@ -83,8 +83,10 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   };
 
   // Pan (sposta la camera)
+  // dx, dy sono in pixel schermo
+  // Con translate -> scale: screen = (world + offset) * zoom
+  // Se sposto di dx pixel schermo, devo cambiare offset di dx/zoom
   const pan = (dx: number, dy: number) => {
-    // Con translate -> scale, il pan è nel sistema NON scalato
     const newOffset = { x: offset.x + dx / zoom, y: offset.y + dy / zoom };
     setOffset(clampOffset(newOffset, zoom));
   };
@@ -174,9 +176,9 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     const ne = e?.nativeEvent;
     const x = ne?.clientX ?? 0;
     const y = ne?.clientY ?? 0;
-    const dx = x / zoom - dragStartRef.current.x - offset.x;
-    const dy = y / zoom - dragStartRef.current.y - offset.y;
-    pan(dx * zoom, dy * zoom);
+    const dx = x - (dragStartRef.current.x + offset.x) * zoom;
+    const dy = y - (dragStartRef.current.y + offset.y) * zoom;
+    pan(dx, dy);
   };
 
   const handleMouseUp = () => {
