@@ -11,7 +11,8 @@ import {
   farmData,
   houseData
 } from "../constants";
-import { isRiver, isInsideBuilding } from "./terrain";
+import { isRiver } from "./terrain";
+import { isInsideBuilding } from "../utils";
 
 export function generateTrees(): Placed[] {
   const treeList: Placed[] = [];
