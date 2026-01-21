@@ -17,7 +17,7 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   const dragStartRef = useRef<Point>({ x: 0, y: 0 });
   const lastTouchDistanceRef = useRef<number | null>(null);
 
-  // Calcola il minZoom dinamico per impedire di vedere oltre la griglia
+  // Calcola il minZoom dinamico: impedisce di vedere oltre la griglia
   const getDynamicMinZoom = () => {
     const { width, height } = Dimensions.get("window");
     const minZoomForWidth = width / gridWidth;
@@ -26,32 +26,33 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   };
 
   // Clamp dell'offset per impedire di vedere oltre la griglia
-  // IMPORTANTE: con scale -> translate, il translate è nel sistema NON scalato
-  // Modello: screen = world * zoom + offset
-  // Quindi offset è nel sistema NON scalato
+  // APPROCCIO SEMPLIFICATO: calcoliamo direttamente dove deve essere la griglia
   const clampOffset = (o: Point, z: number): Point => {
     const { width, height } = Dimensions.get("window");
     const scaledGridW = gridWidth * z;
     const scaledGridH = gridHeight * z;
 
-    // Se la griglia scalata è più piccola della finestra: centra e blocca
+    // Se la griglia scalata è più piccola della finestra: CENTRA e BLOCCA
     if (scaledGridW <= width && scaledGridH <= height) {
-      const centerX = (width - scaledGridW) / 2;
-      const centerY = (height - scaledGridH) / 2;
-      return { x: centerX, y: centerY };
+      return {
+        x: (width - scaledGridW) / 2,
+        y: (height - scaledGridH) / 2
+      };
     }
 
     // Se la griglia è più grande: limita l'offset per mantenerla dentro
-    // offset è nel sistema NON scalato, quindi i limiti devono essere nel sistema NON scalato
-    // Limiti nel sistema NON scalato:
-    // - offset.x può essere negativo fino a quando la griglia scalata non esce a destra
-    // - offset.x può essere positivo fino a quando la griglia scalata non esce a sinistra
-    // Con screen = world * zoom + offset:
-    // - Se offset.x = 0, la griglia inizia a screen = 0
-    // - Se offset.x = width - scaledGridW, la griglia finisce a screen = width
-    const minX = width - scaledGridW; // La griglia finisce a destra quando offset = width - scaledGridW
-    const maxX = 0; // La griglia inizia a sinistra quando offset = 0
-    const minY = height - scaledGridH;
+    // Con translate -> scale, il translate è nel sistema NON scalato
+    // Con scale -> translate, il translate è nel sistema SCALATO
+    // Proviamo con translate -> scale per semplicità
+    // In questo caso: screen = (world + offset) * zoom
+    // Quindi: offset = screen/zoom - world
+    
+    // Limiti: la griglia non deve uscire dai bordi
+    // Se offset.x = 0, la griglia inizia a screen = 0
+    // Se offset.x = (width/zoom - gridWidth), la griglia finisce a screen = width
+    const minX = (width / z) - gridWidth;
+    const maxX = 0;
+    const minY = (height / z) - gridHeight;
     const maxY = 0;
 
     return {
@@ -65,17 +66,16 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     const dynamicMinZoom = getDynamicMinZoom();
     const clampedZoom = clamp(newZoom, dynamicMinZoom, maxZoom);
 
-    // Modello camera: screen = world * zoom + offset
-    // Con scale -> translate, il translate è nel sistema NON scalato
-    // Quindi: world = (screen - offset) / zoom
-    const worldX = (screenX - offset.x) / zoom;
-    const worldY = (screenY - offset.y) / zoom;
+    // Con translate -> scale: screen = (world + offset) * zoom
+    // Quindi: world = screen/zoom - offset
+    const worldX = screenX / zoom - offset.x;
+    const worldY = screenY / zoom - offset.y;
 
     // Nuovo offset per mantenere lo stesso punto del mondo sotto il cursore
-    // screen = world * newZoom + newOffset
-    // newOffset = screen - world * newZoom
-    const newOffsetX = screenX - worldX * clampedZoom;
-    const newOffsetY = screenY - worldY * clampedZoom;
+    // screen = (world + newOffset) * newZoom
+    // newOffset = screen/newZoom - world
+    const newOffsetX = screenX / clampedZoom - worldX;
+    const newOffsetY = screenY / clampedZoom - worldY;
 
     const clampedOffset = clampOffset({ x: newOffsetX, y: newOffsetY }, clampedZoom);
     setZoom(clampedZoom);
@@ -84,16 +84,15 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
 
   // Pan (sposta la camera)
   const pan = (dx: number, dy: number) => {
-    const newOffset = { x: offset.x + dx, y: offset.y + dy };
+    // Con translate -> scale, il pan è nel sistema NON scalato
+    const newOffset = { x: offset.x + dx / zoom, y: offset.y + dy / zoom };
     setOffset(clampOffset(newOffset, zoom));
   };
 
   // Zoom incrementale verso un punto
   const zoomIncrement = (screenX: number, screenY: number, delta: number) => {
     const dynamicMinZoom = getDynamicMinZoom();
-    // Clamp il nuovo zoom PRIMA di calcolare il nuovo offset
     const newZoom = clamp(zoom + delta, dynamicMinZoom, maxZoom);
-    // Se il nuovo zoom è uguale al vecchio (perché è stato clampato), non fare nulla
     if (Math.abs(newZoom - zoom) < 0.001) return;
     zoomToPoint(screenX, screenY, newZoom);
   };
@@ -106,11 +105,6 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     e.preventDefault();
 
     const delta = ne.deltaY > 0 ? -0.1 : 0.1;
-    // Le coordinate sono relative al container stage
-    // Su React Native Web, clientX/clientY sono relativi alla finestra
-    // Ma il container stage riempie tutto lo schermo (flex: 1), quindi possiamo usare direttamente clientX/clientY
-    // Tuttavia, dobbiamo considerare che il container potrebbe avere padding/margin
-    // Per sicurezza, usiamo le coordinate della finestra direttamente
     const mouseX = ne.clientX ?? 0;
     const mouseY = ne.clientY ?? 0;
     zoomIncrement(mouseX, mouseY, delta);
@@ -132,7 +126,7 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     }
     if (t.length === 1) {
       isDraggingRef.current = true;
-      dragStartRef.current = { x: t[0].pageX - offset.x, y: t[0].pageY - offset.y };
+      dragStartRef.current = { x: t[0].pageX / zoom - offset.x, y: t[0].pageY / zoom - offset.y };
     }
   };
 
@@ -148,9 +142,9 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
       return;
     }
     if (t.length === 1 && isDraggingRef.current) {
-      const dx = t[0].pageX - dragStartRef.current.x - offset.x;
-      const dy = t[0].pageY - dragStartRef.current.y - offset.y;
-      pan(dx, dy);
+      const dx = t[0].pageX / zoom - dragStartRef.current.x - offset.x;
+      const dy = t[0].pageY / zoom - dragStartRef.current.y - offset.y;
+      pan(dx * zoom, dy * zoom);
     }
   };
 
@@ -171,7 +165,7 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     const x = ne?.clientX ?? 0;
     const y = ne?.clientY ?? 0;
     isDraggingRef.current = true;
-    dragStartRef.current = { x: x - offset.x, y: y - offset.y };
+    dragStartRef.current = { x: x / zoom - offset.x, y: y / zoom - offset.y };
   };
 
   const handleMouseMove = (e: any) => {
@@ -180,9 +174,9 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     const ne = e?.nativeEvent;
     const x = ne?.clientX ?? 0;
     const y = ne?.clientY ?? 0;
-    const dx = x - dragStartRef.current.x - offset.x;
-    const dy = y - dragStartRef.current.y - offset.y;
-    pan(dx, dy);
+    const dx = x / zoom - dragStartRef.current.x - offset.x;
+    const dy = y / zoom - dragStartRef.current.y - offset.y;
+    pan(dx * zoom, dy * zoom);
   };
 
   const handleMouseUp = () => {
@@ -190,7 +184,6 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   };
 
   // Clamp offset quando cambia zoom o dimensioni griglia
-  // IMPORTANTE: questo useEffect garantisce che l'offset sia sempre clampato
   useEffect(() => {
     setOffset((o) => clampOffset(o, zoom));
   }, [zoom, gridWidth, gridHeight]);
@@ -204,10 +197,10 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   }, [zoom, gridWidth, gridHeight]);
 
   // Transform style per React Native
-  // IMPORTANTE: ordine = scale -> translate
+  // CAMBIATO: ordine = translate -> scale
   // Con questo ordine, il translate è nel sistema NON scalato
   const transformStyle = useMemo(
-    () => ({ transform: [{ scale: zoom }, { translateX: offset.x }, { translateY: offset.y }] }),
+    () => ({ transform: [{ translateX: offset.x }, { translateY: offset.y }, { scale: zoom }] }),
     [offset.x, offset.y, zoom]
   );
 
