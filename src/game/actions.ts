@@ -6,6 +6,7 @@ import { isTree, isMine } from "../utils";
 import { isLightAt } from "./lights";
 import { createIsBlocked } from "./pathfinding";
 import { safeHapticSelection, safeHapticNotification } from "../utils/haptics";
+import * as Haptics from "expo-haptics";
 
 export function handleCallKing(
   characters: Character[],
@@ -99,7 +100,7 @@ export function buildBridgeAt(
 ) {
   return async () => {
     if (!isRiver(x, y)) {
-      await Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      await safeHapticNotification(Haptics.NotificationFeedbackType.Error);
       return;
     }
     setBridges((prev) => {
