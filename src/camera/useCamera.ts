@@ -10,7 +10,25 @@ type UseCameraOptions = {
   maxZoom?: number;
 };
 
-export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 }: UseCameraOptions) {
+export type Camera = {
+  offset: Point;
+  zoom: number;
+  transformStyle: any;
+  worldStyle: { left: number; top: number; width: number; height: number };
+  isDragging: boolean;
+  handleWheel: (e: any) => void;
+  onTouchStart: (e: any) => void;
+  onTouchMove: (e: any) => void;
+  onTouchEnd: (e: any) => void;
+  handleMouseDown: (e: any) => void;
+  handleMouseMove: (e: any) => void;
+  handleMouseUp: () => void;
+  zoomToPoint: (screenX: number, screenY: number, newZoom: number) => void;
+  zoomIncrement: (screenX: number, screenY: number, delta: number) => void;
+  pan: (dx: number, dy: number) => void;
+};
+
+export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 }: UseCameraOptions): Camera {
   const [offset, setOffset] = useState<Point>({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(1);
   const isDraggingRef = useRef(false);
