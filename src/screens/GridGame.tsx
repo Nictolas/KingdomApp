@@ -1,114 +1,24 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import * as Haptics from "expo-haptics";
-
-type Point = { x: number; y: number };
-type Placed = { x: number; y: number; id: number };
-type Bridge = { x: number; y: number };
-type Light = { x: number; y: number; id: number };
-
-type BuildingType = "castle" | "farm" | "house";
-type Building = {
-  id: string;
-  x: number;
-  y: number;
-  width: number;
-  height: number;
-  name: string;
-  emoji: string;
-  description: string;
-  type: BuildingType;
-};
-
-type Character = {
-  id: number;
-  x: number; // float per animazione
-  y: number; // float per animazione
-  targetX: number; // intero (griglia)
-  targetY: number; // intero (griglia)
-  emoji: string;
-  profession: string;
-  name: string;
-  lastMove: number;
-  isInCastle?: boolean;
-  isInFarm?: boolean;
-  isInHouse?: boolean;
-};
-
-const GRID_SIZE = 30;
-const NUM_CHARACTERS = 6;
-const CELL_SIZE = 36;
-const CELL_GAP = 3;
-const SEA_ROWS = 3;
-const BEACH_ROWS = 2;
-const LAND_ROWS = GRID_SIZE - SEA_ROWS - BEACH_ROWS;
-const RIVER_XS = [Math.floor(GRID_SIZE / 2) - 1, Math.floor(GRID_SIZE / 2)];
-
-const professions = [
-  { emoji: "👨‍🌾", name: "Contadino" },
-  { emoji: "🤴", name: "Re" },
-  { emoji: "👨‍🍳", name: "Cuoco" },
-  { emoji: "👨‍🔬", name: "Scienziato" },
-  { emoji: "👨‍🎨", name: "Artista" },
-  { emoji: "🪓", name: "Boscaiolo" }
-];
-
-const firstNames = [
-  "Marco",
-  "Luca",
-  "Giovanni",
-  "Paolo",
-  "Andrea",
-  "Francesco",
-  "Alessandro",
-  "Matteo",
-  "Lorenzo",
-  "Giuseppe"
-];
-const lastNames = ["Rossi", "Bianchi", "Verdi", "Romano", "Ricci", "Marino", "Greco", "Bruno", "Gallo", "Conti"];
-
-const castleData: Building = {
-  id: "castle",
-  x: 23,
-  y: 11,
-  width: 3,
-  height: 3,
-  name: "Castello",
-  emoji: "🏰",
-  description: "Un maestoso castello medievale",
-  type: "castle"
-};
-
-const farmData: Building = {
-  id: "farm",
-  x: 4,
-  y: 22,
-  width: 3,
-  height: 3,
-  name: "Campo",
-  emoji: "🌾",
-  description: "Un campo coltivato per l'agricoltura",
-  type: "farm"
-};
-
-const houseData: Building[] = [
-  { id: "house-1", x: 7, y: 6, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una piccola casa accogliente", type: "house" },
-  { id: "house-2", x: 14, y: 6, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una casa vicino al fiume", type: "house" },
-  { id: "house-3", x: 3, y: 12, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una casa immersa nel verde", type: "house" },
-  { id: "house-4", x: 22, y: 18, width: 2, height: 2, name: "Casa", emoji: "🏠", description: "Una casa non lontana dal campo", type: "house" }
-];
-
-function clamp(n: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, n));
-}
-
-function isInsideBuilding(b: Building, x: number, y: number) {
-  return x >= b.x && x < b.x + b.width && y >= b.y && y < b.y + b.height;
-}
-
-function buildingCenter(b: Building): Point {
-  return { x: b.x + Math.floor(b.width / 2), y: b.y + Math.floor(b.height / 2) };
-}
+import type { Point, Placed, Bridge, Light, Building, Character } from "../types";
+import {
+  GRID_SIZE,
+  NUM_CHARACTERS,
+  CELL_SIZE,
+  CELL_GAP,
+  SEA_ROWS,
+  BEACH_ROWS,
+  LAND_ROWS,
+  RIVER_XS,
+  professions,
+  firstNames,
+  lastNames,
+  castleData,
+  farmData,
+  houseData
+} from "../constants";
+import { clamp, isInsideBuilding, buildingCenter } from "../utils";
 
 export default function GridGame() {
   // Stato mondo
