@@ -1,11 +1,11 @@
 import type { Building } from "./types";
 
-export const GRID_SIZE = 30;
+export const GRID_SIZE = 40;
 export const NUM_CHARACTERS = 6;
 export const CELL_SIZE = 36;
 export const CELL_GAP = 3;
-export const SEA_ROWS = 3;
-export const BEACH_ROWS = 2;
+export const SEA_ROWS = 5;
+export const BEACH_ROWS = 4;
 export const LAND_ROWS = GRID_SIZE - SEA_ROWS - BEACH_ROWS;
 export const RIVER_XS = [Math.floor(GRID_SIZE / 2) - 1, Math.floor(GRID_SIZE / 2)];
 
