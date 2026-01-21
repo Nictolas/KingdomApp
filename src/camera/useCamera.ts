@@ -25,10 +25,8 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     return Math.max(minZoom, minZoomForWidth, minZoomForHeight);
   };
 
-  // APPROCCIO DIRETTO: calcoliamo dove deve essere la griglia nello schermo
-  // La griglia ha dimensioni gridWidth x gridHeight nel sistema mondo
-  // Con zoom z, le dimensioni visuali sono gridWidth*z x gridHeight*z
-  // offset è la posizione dell'angolo in alto a sinistra della griglia nello schermo
+  // APPROCCIO DIRETTO: offset è la posizione dell'angolo in alto a sinistra della griglia nello schermo
+  // Le dimensioni scalate sono gridWidth*zoom x gridHeight*zoom
   const clampOffset = (o: Point, z: number): Point => {
     const { width, height } = Dimensions.get("window");
     const scaledGridW = gridWidth * z;
@@ -36,15 +34,16 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
 
     // Se la griglia scalata è più piccola della finestra: CENTRA e BLOCCA
     if (scaledGridW <= width && scaledGridH <= height) {
-      const centerX = (width - scaledGridW) / 2;
-      const centerY = (height - scaledGridH) / 2;
-      return { x: centerX, y: centerY };
+      return {
+        x: (width - scaledGridW) / 2,
+        y: (height - scaledGridH) / 2
+      };
     }
 
     // Se la griglia è più grande: limita l'offset per mantenerla dentro
     // offset.x è la posizione X dell'angolo in alto a sinistra della griglia
-    // Se offset.x = 0, la griglia inizia a sinistra
-    // Se offset.x = width - scaledGridW, la griglia finisce a destra
+    // Se offset.x = 0, la griglia inizia a sinistra (angolo in alto a sinistra a x=0)
+    // Se offset.x = width - scaledGridW, la griglia finisce a destra (angolo in alto a sinistra spostato a sinistra)
     const minX = width - scaledGridW; // La griglia finisce a destra
     const maxX = 0; // La griglia inizia a sinistra
     const minY = height - scaledGridH; // La griglia finisce in basso
@@ -57,21 +56,24 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   };
 
   // Zoom verso un punto specifico dello schermo
+  // Con scale -> translate in React Native, il modello è:
+  // screen = world * zoom + offset
+  // Dove offset è applicato DOPO lo scale
   const zoomToPoint = (screenX: number, screenY: number, newZoom: number) => {
     const dynamicMinZoom = getDynamicMinZoom();
     const clampedZoom = clamp(newZoom, dynamicMinZoom, maxZoom);
 
     // Calcoliamo quale punto del mondo è sotto il cursore PRIMA dello zoom
-    // Con translate -> scale: screen = (world + offset) * zoom
-    // Quindi: world = screen/zoom - offset
-    const worldX = (screenX / zoom) - offset.x;
-    const worldY = (screenY / zoom) - offset.y;
+    // screen = world * zoom + offset
+    // world = (screen - offset) / zoom
+    const worldX = (screenX - offset.x) / zoom;
+    const worldY = (screenY - offset.y) / zoom;
 
     // Calcoliamo il nuovo offset per mantenere lo stesso punto del mondo sotto il cursore
-    // screen = (world + newOffset) * newZoom
-    // newOffset = screen/newZoom - world
-    const newOffsetX = (screenX / clampedZoom) - worldX;
-    const newOffsetY = (screenY / clampedZoom) - worldY;
+    // screen = world * newZoom + newOffset
+    // newOffset = screen - world * newZoom
+    const newOffsetX = screenX - worldX * clampedZoom;
+    const newOffsetY = screenY - worldY * clampedZoom;
 
     const clampedOffset = clampOffset({ x: newOffsetX, y: newOffsetY }, clampedZoom);
     setZoom(clampedZoom);
@@ -200,44 +202,40 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   };
 
   // Clamp offset quando cambia zoom o dimensioni griglia
+  // IMPORTANTE: questo deve essere chiamato SEMPRE dopo ogni modifica
   useEffect(() => {
-    setOffset((o) => clampOffset(o, zoom));
+    const clamped = clampOffset(offset, zoom);
+    // Solo aggiorna se è cambiato (evita loop infiniti)
+    if (Math.abs(clamped.x - offset.x) > 0.01 || Math.abs(clamped.y - offset.y) > 0.01) {
+      setOffset(clamped);
+    }
   }, [zoom, gridWidth, gridHeight]);
   
   // Clamp anche quando cambiano le dimensioni della finestra
   useEffect(() => {
     const subscription = Dimensions.addEventListener("change", () => {
-      setOffset((o) => clampOffset(o, zoom));
+      const clamped = clampOffset(offset, zoom);
+      setOffset(clamped);
     });
     return () => subscription?.remove();
-  }, [zoom, gridWidth, gridHeight]);
+  }, [zoom, gridWidth, gridHeight, offset.x, offset.y]);
 
   // Transform style per React Native
-  // APPROCCIO SEMPLIFICATO: usiamo solo translate, lo scale lo facciamo con width/height
-  // Ma React Native non supporta scale su width/height facilmente, quindi usiamo transform
-  // Con translate -> scale: screen = (world + offset) * zoom
-  // Ma questo non funziona bene. Proviamo un approccio diverso:
-  // Usiamo scale -> translate, ma calcoliamo offset come posizione assoluta nello schermo
+  // Con scale -> translate: prima scala, poi trasla
+  // Il translate viene applicato DOPO lo scale, quindi è nel sistema SCALATO
+  // Ma noi vogliamo che offset sia la posizione assoluta nello schermo
+  // Quindi: offset è già la posizione finale nello schermo
   const transformStyle = useMemo(() => {
-    // offset è la posizione dell'angolo in alto a sinistra della griglia nello schermo
-    // Con scale -> translate, il translate viene applicato DOPO lo scale
-    // Quindi se voglio che la griglia sia a offset.x, devo calcolare il translate corretto
-    // Se la griglia scalata è a offset.x, allora il translate deve essere offset.x - (gridWidth * zoom - gridWidth) / 2
-    // Aspetta, questo è complicato. Proviamo un approccio ancora più semplice:
-    // Usiamo solo translate, senza scale, e scaliamo la griglia manualmente con width/height
-    // Ma questo richiede cambiare GridGame.tsx
+    // Con scale -> translate, se voglio che l'angolo in alto a sinistra sia a offset.x:
+    // - Prima scala la griglia di zoom (l'origine resta a 0,0)
+    // - Poi trasla di offset.x
+    // Ma questo non funziona perché il translate è nel sistema scalato
     
-    // Per ora, proviamo con scale -> translate ma calcoliamo offset come posizione assoluta
-    // Con scale -> translate: la griglia viene scalata, poi traslata
-    // Se voglio che l'angolo in alto a sinistra sia a offset.x, devo:
-    // - Scalare la griglia di zoom
-    // - Traslare di offset.x - (gridWidth * zoom - gridWidth) / 2
-    // No, questo è ancora sbagliato.
+    // Proviamo un approccio diverso: usiamo solo scale e calcoliamo left/top direttamente
+    // Ma React Native non supporta left/top con transform scale facilmente
     
-    // APPROCCIO CORRETTO: con scale -> translate in React Native:
-    // 1. Prima scala tutto di zoom (l'origine resta al centro)
-    // 2. Poi trasla di translateX, translateY
-    // Quindi se voglio che l'angolo in alto a sinistra della griglia sia a offset.x:
+    // SOLUZIONE: usiamo scale -> translate, ma calcoliamo il translate corretto
+    // Se voglio che l'angolo in alto a sinistra della griglia sia a offset.x dopo lo scale:
     // - Dopo lo scale, la griglia è gridWidth*zoom x gridHeight*zoom
     // - L'origine è ancora a (0,0)
     // - Per spostare l'angolo a offset.x, devo traslare di offset.x
