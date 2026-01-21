@@ -174,7 +174,7 @@ export default function GridGame() {
         onWheel={camera.handleWheel}
       >
         <View style={[styles.world, camera.worldStyle]}>
-          <View style={[styles.grid, { width: gridPixelSize.w, height: gridPixelSize.h }, camera.gridStyle]}>
+          <View style={[styles.grid, camera.gridStyle]}>
             <GridRenderer
               bridges={gameState.bridges}
               trees={gameState.trees}
@@ -188,7 +188,7 @@ export default function GridGame() {
               offset={camera.offset}
               zoom={camera.zoom}
             />
-            <View pointerEvents="box-none" style={{ position: "absolute", left: 0, top: 0, width: gridPixelSize.w, height: gridPixelSize.h, overflow: "hidden" }}>
+            <View pointerEvents="box-none" style={{ position: "absolute", left: 0, top: 0, width: camera.gridStyle.width, height: camera.gridStyle.height, overflow: "hidden" }}>
               <BuildingRenderer isDragging={camera.isDragging} onPress={(b) => selection.openBuilding(b, () => dragDetection.wasRecentlyDragging(camera.isDragging))} />
               <CharacterRenderer characters={characters} isDragging={camera.isDragging} onPress={(c) => selection.openCharacter(c, () => dragDetection.wasRecentlyDragging(camera.isDragging))} />
             </View>

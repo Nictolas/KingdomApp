@@ -15,7 +15,7 @@ export type Camera = {
   zoom: number;
   transformStyle: any;
   worldStyle: { left: number; top: number; width: number; height: number };
-  gridStyle: { transform: any[] };
+  gridStyle: { width: number; height: number; transform: any[] };
   isDragging: boolean;
   handleWheel: (e: any) => void;
   onTouchStart: (e: any) => void;
@@ -60,23 +60,18 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     zoomRef.current = zoom;
   }, [zoom]);
 
-  // Calcola il minZoom dinamico: impedisce di vedere oltre la griglia
-  // Il minZoom deve essere tale che la griglia scalata copra almeno tutta la finestra
-  // La griglia deve SEMPRE riempire completamente lo schermo, senza spazi neri
-  // Il mondo E la griglia sono la stessa cosa - tutto lo schermo deve essere la griglia
-  const getDynamicMinZoom = () => {
+  // REGOLA 1: Lo zoom non deve esserci
+  // Calcola il fattore di scala necessario per coprire lo schermo
+  // Questo NON è zoom - è solo un calcolo per dimensionare la griglia
+  const getScaleFactor = () => {
     const { width, height } = Dimensions.get("window");
-    // Calcola lo zoom necessario per coprire lo schermo in larghezza e altezza
-    // La griglia viene scalata con transform: scale(zoom), quindi:
-    // - gridWidth * zoom deve essere >= width per coprire la larghezza
-    // - gridHeight * zoom deve essere >= height per coprire l'altezza
-    const minZoomForWidth = width / gridWidth;
-    const minZoomForHeight = height / gridHeight;
+    // Calcola il fattore necessario per coprire lo schermo in larghezza e altezza
+    const scaleForWidth = width / gridWidth;
+    const scaleForHeight = height / gridHeight;
     // Usa il massimo tra i due per coprire tutta la finestra
     // Aggiungi un margine (5%) per garantire che copra completamente senza spazi neri
-    const calculatedMinZoom = Math.max(minZoomForWidth, minZoomForHeight) * 1.05;
-    // La griglia deve sempre coprire tutto lo schermo
-    return calculatedMinZoom;
+    const calculatedScale = Math.max(scaleForWidth, scaleForHeight) * 1.05;
+    return calculatedScale;
   };
 
   // APPROCCIO DIRETTO: offset è la posizione dell'angolo in alto a sinistra della griglia nello schermo
@@ -212,21 +207,15 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   };
 
 
+  // REGOLA 1: Lo zoom non deve esserci
+  // REGOLA 2: La griglia e il mondo sono la stessa cosa
+  // REGOLA 3: Non deve esistere nulla oltre il mondo griglia
   // Imposta la scala fissa al mount e quando cambiano le dimensioni della griglia o finestra
-  // LO ZOOM È COMPLETAMENTE RIMOSSO - solo scala fissa per coprire lo schermo
-  // La griglia deve SEMPRE coprire tutto lo schermo - il mondo E la griglia sono la stessa cosa
   useEffect(() => {
-    const fixedScale = getDynamicMinZoom();
+    const fixedScale = getScaleFactor();
     setZoom(fixedScale);
     zoomRef.current = fixedScale;
-    // Offset iniziale: la griglia scalata deve coprire tutto lo schermo
-    // Se la griglia scalata è più grande dello schermo, posizionarla in modo che copra tutto
-    const { width, height } = Dimensions.get("window");
-    const scaledGridW = gridWidth * fixedScale;
-    const scaledGridH = gridHeight * fixedScale;
-    
     // Offset iniziale: sempre (0,0) per garantire che la griglia copra tutto lo schermo
-    // Lo zoom è calcolato per garantire che la griglia scalata copra sempre tutto lo schermo
     // Il mondo E la griglia sono la stessa cosa - tutto lo schermo è la griglia
     const initialOffset = clampOffset({ x: 0, y: 0 }, fixedScale);
     setOffset(initialOffset);
@@ -234,9 +223,10 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
   }, [gridWidth, gridHeight]);
   
   // Ricalcola la scala fissa quando cambiano le dimensioni della finestra
+  // REGOLA 1: Lo zoom non deve esserci - solo ricalcolo della scala per coprire lo schermo
   useEffect(() => {
     const subscription = Dimensions.addEventListener("change", () => {
-      const fixedScale = getDynamicMinZoom();
+      const fixedScale = getScaleFactor();
       setZoom(fixedScale);
       zoomRef.current = fixedScale;
       // Mantieni l'offset corrente ma clampalo ai nuovi limiti
@@ -247,8 +237,11 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     return () => subscription?.remove();
   }, [gridWidth, gridHeight, offset]);
 
-  // APPROCCIO: il contenitore world è SEMPRE grande quanto lo schermo
-  // La griglia viene scalata per riempire completamente lo schermo
+  // REGOLA 1: Lo zoom non deve esserci - la griglia viene scalata solo per coprire lo schermo
+  // REGOLA 2: La griglia e il mondo sono la stessa cosa - tutto lo schermo è la griglia
+  // REGOLA 3: Non deve esistere nulla oltre il mondo griglia
+  
+  // Il contenitore world è SEMPRE grande quanto lo schermo
   // Il mondo E la griglia sono la stessa cosa - tutto lo schermo è la griglia
   const worldStyle = useMemo(() => {
     const { width, height } = Dimensions.get("window");
@@ -263,22 +256,41 @@ export function useCamera({ gridWidth, gridHeight, minZoom = 0.6, maxZoom = 2.2 
     return style;
   }, []);
   
-  // Scaliamo la griglia per riempire completamente lo schermo
-  // La griglia viene scalata con transform scale e posizionata per coprire tutto lo schermo
-  // Lo zoom è calcolato per garantire che la griglia scalata copra sempre tutto lo schermo
-  // Il mondo E la griglia sono la stessa cosa - tutto lo schermo è la griglia
+  // La griglia viene scalata per coprire sempre tutto lo schermo
+  // NON usiamo transform: scale perché lo zoom non deve esistere
+  // Invece calcoliamo direttamente le dimensioni scalate e la posizione
   const gridStyle = useMemo(() => {
-    // La griglia viene scalata dall'origine (0,0) e poi traslata con offset
-    // Lo zoom garantisce che gridWidth*zoom >= screenWidth e gridHeight*zoom >= screenHeight
-    // Quindi la griglia scalata copre sempre tutto lo schermo quando offset è (0,0)
+    const { width, height } = Dimensions.get("window");
+    // Calcola il fattore di scala necessario per coprire lo schermo
+    const scaleX = width / gridWidth;
+    const scaleY = height / gridHeight;
+    const scale = Math.max(scaleX, scaleY); // Usa il massimo per coprire tutto
+    
+    // Calcola le dimensioni scalate
+    const scaledWidth = gridWidth * scale;
+    const scaledHeight = gridHeight * scale;
+    
+    // Calcola la posizione per centrare se necessario, o per coprire tutto lo schermo
+    let left = offset.x;
+    let top = offset.y;
+    
+    // Se la griglia scalata è più piccola dello schermo, centrarla
+    if (scaledWidth < width) {
+      left = (width - scaledWidth) / 2;
+    }
+    if (scaledHeight < height) {
+      top = (height - scaledHeight) / 2;
+    }
+    
     return {
+      width: scaledWidth,
+      height: scaledHeight,
       transform: [
-        { scale: zoom },
-        { translateX: offset.x },
-        { translateY: offset.y }
+        { translateX: left },
+        { translateY: top }
       ]
     };
-  }, [zoom, offset.x, offset.y]);
+  }, [gridWidth, gridHeight, offset.x, offset.y]);
   
   // Manteniamo transformStyle per compatibilità, ma non lo usiamo più
   const transformStyle = useMemo(() => {
