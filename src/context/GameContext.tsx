@@ -23,12 +23,18 @@ type GameContextType = {
   punteggioSanzioni: number;
   penaDiMorteAttiva: boolean;
   politicaReligiosa: "ateismo-stato" | "religione-stato" | "liberta-culto";
+  leggeRazzialeAttiva: boolean;
+  razzaCampoLavoro: "Umano" | "Alieno" | null;
+  razzaCampoSterminio: "Umano" | "Alieno" | null;
   setTipoTassaReddito: (tipo: "flat" | "scaglioni") => void;
   setFlatTaxPercentuale: (percentuale: number) => void;
   setScaglioniConfig: (config: ScaglioneConfig[]) => void;
   setPoliticaNascite: (politica: "figlio-unico" | "incentivi" | "nessuna") => void;
   setPenaDiMorteAttiva: (attiva: boolean) => void;
   setPoliticaReligiosa: (politica: "ateismo-stato" | "religione-stato" | "liberta-culto") => void;
+  setLeggeRazzialeAttiva: (attiva: boolean) => void;
+  setRazzaCampoLavoro: (razza: "Umano" | "Alieno" | null) => void;
+  setRazzaCampoSterminio: (razza: "Umano" | "Alieno" | null) => void;
   avanzaMese: () => Promise<void>;
   assegnaAbitanteAEdificio: (abitanteId: number, edificioId: number) => void;
   rimuoviAbitanteDaEdificio: (abitanteId: number, edificioId: number) => void;

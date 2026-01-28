@@ -22,6 +22,23 @@ export default function LeggiScreen() {
     "Ambiente e Risorse": []
   };
 
+  // Mappa emoji per le leggi
+  const getEmojiLegge = (titolo: string): string => {
+    const emojiMap: Record<string, string> = {
+      "Tassa sulla Produzione": "📊",
+      "Tassa sul Patrimonio": "💎",
+      "Tassa sul Reddito": "💰",
+      "Carta dei Diritti dei Coloni": "📜",
+      "Età minima sul lavoro": "👶",
+      "Pena di Morte": "⚰️",
+      "Legge sulle Nascite": "👨‍👩‍👧‍👦",
+      "Religione": "🕊️",
+      "Regolamento sull'Uso dell'Energia": "⚡",
+      "Legge Razziale": "🚫"
+    };
+    return emojiMap[titolo] || "📋";
+  };
+
   // Aggiungi le leggi ai rispettivi temi
   leggiData.forEach((legge) => {
     if (
@@ -33,7 +50,8 @@ export default function LeggiScreen() {
     } else if (
       legge.titolo === "Carta dei Diritti dei Coloni" ||
       legge.titolo === "Età minima sul lavoro" ||
-      legge.titolo === "Pena di Morte"
+      legge.titolo === "Pena di Morte" ||
+      legge.titolo === "Legge Razziale"
     ) {
       leggiPerTema["Diritti e Giustizia"].push({ ...legge, tema: "Diritti e Giustizia" });
     } else if (legge.titolo === "Legge sulle Nascite" || legge.titolo === "Religione") {
@@ -55,6 +73,7 @@ export default function LeggiScreen() {
     if (titolo === "Legge sulle Nascite") return "/legge-nascite";
     if (titolo === "Pena di Morte") return "/pena-di-morte";
     if (titolo === "Religione") return "/religione";
+    if (titolo === "Legge Razziale") return "/legge-razziale";
     if (titolo === "Schiavitu") return "/schiavitu";
     return null;
   };
@@ -71,7 +90,10 @@ export default function LeggiScreen() {
         onPress={isClickable ? () => router.push(path) : undefined}
         disabled={!isClickable}
       >
-        <Text style={styles.cardTitle}>{legge.titolo}</Text>
+        <Text style={styles.cardTitle}>
+          <Text style={styles.cardEmoji}>{getEmojiLegge(legge.titolo)} </Text>
+          {legge.titolo}
+        </Text>
         <Text style={styles.line} numberOfLines={2}>
           {legge.descrizione}
         </Text>
@@ -198,6 +220,9 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     marginBottom: 3
+  },
+  cardEmoji: {
+    fontSize: 12
   },
   line: {
     color: "#cbd5f5",

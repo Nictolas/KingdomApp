@@ -242,6 +242,12 @@ export const leggiData: Legge[] = [
     titolo: "Religione",
     descrizione: "Politiche per regolare la libertà religiosa nella colonia.",
     stato: "In vigore"
+  },
+  {
+    id: 10,
+    titolo: "Legge Razziale",
+    descrizione: "Politiche discriminatorie basate sulla razza degli abitanti.",
+    stato: "Proposta"
   }
 ];
 
@@ -395,6 +401,34 @@ export const edificiData: Edificio[] = [
     abitantiAssegnati: [],
     efficienza: 80,
     manutenzione: 150,
+    stato: "Operativo",
+    livello: 1
+  },
+  {
+    id: 11,
+    nome: "Campo di Lavoro",
+    emoji: "⛓️",
+    tipo: "Prigione",
+    descrizione: "Campo di lavoro forzato per razze discriminate.",
+    capacità: 50,
+    occupazione: 0,
+    abitantiAssegnati: [],
+    efficienza: 60,
+    manutenzione: 200,
+    stato: "Operativo",
+    livello: 1
+  },
+  {
+    id: 12,
+    nome: "Campo di Sterminio",
+    emoji: "💀",
+    tipo: "Prigione",
+    descrizione: "Campo di sterminio per razze discriminate.",
+    capacità: 100,
+    occupazione: 0,
+    abitantiAssegnati: [],
+    efficienza: 0,
+    manutenzione: 300,
     stato: "Operativo",
     livello: 1
   }
