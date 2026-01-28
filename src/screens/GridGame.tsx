@@ -3,7 +3,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { formatGameTime, useGameClock } from "../game/gameClock";
 import { abitantiData, ministriData, fazioniData, leggiData, risorseData } from "../kingdomData";
-import type { Abitante, Ministro, Fazione, Legge, Risorsa } from "../types";
+import type { Risorsa } from "../types";
 
 export default function GridGame() {
   const { gameTime } = useGameClock(6, 0);
@@ -54,87 +54,6 @@ export default function GridGame() {
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
-        {/* Abitanti */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Abitanti</Text>
-          <Text style={styles.sectionDescription}>
-            Elenco delle persone che vivono nel tuo regno.
-          </Text>
-          <View style={styles.cardsContainer}>
-            {abitanti.map((a: Abitante) => (
-              <View key={a.id} style={styles.card}>
-                <Text style={styles.cardTitle}>{a.nome}</Text>
-                <Text style={styles.cardLine}>Ruolo: {a.ruolo}</Text>
-                <Text style={styles.cardLine}>Età: {a.eta}</Text>
-                <Text style={styles.cardLine}>Fazione: {a.fazione}</Text>
-                {a.èMinistro && <Text style={styles.tag}>Ministro</Text>}
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Ministri */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Ministri</Text>
-          <Text style={styles.sectionDescription}>
-            I tuoi collaboratori più fidati che gestiscono i vari aspetti del regno.
-          </Text>
-          <View style={styles.cardsContainer}>
-            {ministri.map((m: Ministro) => (
-              <View key={m.id} style={styles.card}>
-                <Text style={styles.cardTitle}>{m.nome}</Text>
-                <Text style={styles.cardLine}>Ministero: {m.ministero}</Text>
-                <Text style={styles.cardLine}>Fazione: {m.fazione}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Fazioni */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Fazioni</Text>
-          <Text style={styles.sectionDescription}>
-            Gruppi di interesse che influenzano la politica del regno.
-          </Text>
-          <View style={styles.cardsContainer}>
-            {fazioni.map((f: Fazione) => (
-              <View key={f.id} style={styles.card}>
-                <Text style={styles.cardTitle}>{f.nome}</Text>
-                <Text style={styles.cardLine}>{f.descrizione}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
-        {/* Leggi */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Leggi</Text>
-          <Text style={styles.sectionDescription}>
-            Decisioni politiche che determinano la vita nel regno.
-          </Text>
-          <View style={styles.cardsContainer}>
-            {leggi.map((l: Legge) => (
-              <View key={l.id} style={styles.card}>
-                <Text style={styles.cardTitle}>{l.titolo}</Text>
-                <Text style={styles.cardLine}>{l.descrizione}</Text>
-                <Text style={styles.chip}>
-                  Stato:{" "}
-                  <Text
-                    style={[
-                      styles.chipValue,
-                      l.stato === "In vigore" && styles.chipActive,
-                      l.stato === "Proposta" && styles.chipProposed,
-                      l.stato === "Abrogata" && styles.chipRepealed
-                    ]}
-                  >
-                    {l.stato}
-                  </Text>
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
-
         {/* Risorse */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Risorse</Text>
@@ -248,51 +167,6 @@ const styles = StyleSheet.create({
   },
   cardsContainer: {
     gap: 10
-  },
-  card: {
-    backgroundColor: "rgba(15,23,42,0.9)",
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.4)"
-  },
-  cardTitle: {
-    color: "#e5e7eb",
-    fontSize: 16,
-    fontWeight: "700",
-    marginBottom: 4
-  },
-  cardLine: {
-    color: "#cbd5f5",
-    fontSize: 13
-  },
-  tag: {
-    marginTop: 6,
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    backgroundColor: "rgba(56,189,248,0.18)",
-    color: "#e0f2fe",
-    fontSize: 11,
-    fontWeight: "600"
-  },
-  chip: {
-    marginTop: 6,
-    color: "#e5e7eb",
-    fontSize: 13
-  },
-  chipValue: {
-    fontWeight: "700"
-  },
-  chipActive: {
-    color: "#4ade80"
-  },
-  chipProposed: {
-    color: "#fde047"
-  },
-  chipRepealed: {
-    color: "#f97373"
   },
   resourceRow: {
     flexDirection: "row",
