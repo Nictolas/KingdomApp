@@ -14,12 +14,12 @@ export default function LeggiScreen() {
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
 
-  // Raggruppa le leggi per tema
+  // Raggruppa le leggi per tema (4 colonne)
   const leggiPerTema: Record<string, LeggeConTema[]> = {
     Fiscale: [],
     "Diritti e Giustizia": [],
-    "Società e Demografia": [],
-    "Ambiente e Risorse": []
+    "Società": [],
+    "Risorse e Gestione": []
   };
 
   // Mappa emoji per le leggi
@@ -42,7 +42,7 @@ export default function LeggiScreen() {
     return emojiMap[titolo] || "📋";
   };
 
-  // Aggiungi le leggi ai rispettivi temi
+  // Aggiungi le leggi ai rispettivi temi (riorganizzate logicamente)
   leggiData.forEach((legge) => {
     if (
       legge.titolo === "Tassa sulla Produzione" ||
@@ -58,17 +58,17 @@ export default function LeggiScreen() {
     ) {
       leggiPerTema["Diritti e Giustizia"].push({ ...legge, tema: "Diritti e Giustizia" });
     } else if (
-      legge.titolo === "Legge sulle Nascite" ||
       legge.titolo === "Religione" ||
       legge.titolo === "Legge sulle Famiglie" ||
+      legge.titolo === "Legge sulle Nascite" ||
       legge.titolo === "Divieto di espatrio"
     ) {
-      leggiPerTema["Società e Demografia"].push({ ...legge, tema: "Società e Demografia" });
+      leggiPerTema["Società"].push({ ...legge, tema: "Società" });
     } else if (
       legge.titolo === "Regolamento sull'Uso dell'Energia" ||
       legge.titolo === "Legge sulle Droghe"
     ) {
-      leggiPerTema["Ambiente e Risorse"].push({ ...legge, tema: "Ambiente e Risorse" });
+      leggiPerTema["Risorse e Gestione"].push({ ...legge, tema: "Risorse e Gestione" });
     }
   });
 
@@ -158,15 +158,19 @@ export default function LeggiScreen() {
           <View style={styles.column}>
             <Text style={styles.temaTitle}>⚖️ Diritti e Giustizia</Text>
             {leggiPerTema["Diritti e Giustizia"].map((legge) => renderLeggeCard(legge))}
-            {renderLeggeCard(gestioneSpeciale)}
           </View>
 
-          {/* Colonna 3: Società e Ambiente */}
+          {/* Colonna 3: Società */}
           <View style={styles.column}>
-            <Text style={styles.temaTitle}>👥 Società e Demografia</Text>
-            {leggiPerTema["Società e Demografia"].map((legge) => renderLeggeCard(legge))}
-            <Text style={styles.temaTitle}>🌍 Ambiente e Risorse</Text>
-            {leggiPerTema["Ambiente e Risorse"].map((legge) => renderLeggeCard(legge))}
+            <Text style={styles.temaTitle}>👥 Società</Text>
+            {leggiPerTema["Società"].map((legge) => renderLeggeCard(legge))}
+          </View>
+
+          {/* Colonna 4: Risorse e Gestione */}
+          <View style={styles.column}>
+            <Text style={styles.temaTitle}>🌍 Risorse e Gestione</Text>
+            {leggiPerTema["Risorse e Gestione"].map((legge) => renderLeggeCard(legge))}
+            {renderLeggeCard(gestioneSpeciale)}
           </View>
         </View>
       </ScrollView>
@@ -198,14 +202,14 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   content: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    paddingBottom: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    paddingBottom: 6,
     flex: 1
   },
   columnsContainer: {
     flexDirection: "row",
-    gap: 8,
+    gap: 6,
     alignItems: "flex-start"
   },
   column: {
@@ -214,35 +218,35 @@ const styles = StyleSheet.create({
   },
   temaTitle: {
     color: "#93c5fd",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
-    marginBottom: 8,
-    marginTop: 4,
+    marginBottom: 6,
+    marginTop: 2,
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
   card: {
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 8,
+    borderRadius: 6,
+    padding: 6,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
-    marginBottom: 6,
-    minHeight: 80
+    marginBottom: 4,
+    minHeight: 70
   },
   cardTitle: {
     color: "#e5e7eb",
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "700",
-    marginBottom: 3
+    marginBottom: 2
   },
   cardEmoji: {
-    fontSize: 12
+    fontSize: 11
   },
   line: {
     color: "#cbd5f5",
-    fontSize: 8,
-    lineHeight: 11
+    fontSize: 7,
+    lineHeight: 10
   },
   chip: {
     marginTop: 4,
