@@ -34,7 +34,9 @@ export default function LeggiScreen() {
       "Legge sulle Nascite": "👨‍👩‍👧‍👦",
       "Religione": "🕊️",
       "Regolamento sull'Uso dell'Energia": "⚡",
-      "Legge Razziale": "🚫"
+      "Legge Razziale": "🚫",
+      "Legge sulle Famiglie": "👨‍👩‍👧",
+      "Legge sulle Droghe": "💊"
     };
     return emojiMap[titolo] || "📋";
   };
@@ -54,9 +56,16 @@ export default function LeggiScreen() {
       legge.titolo === "Legge Razziale"
     ) {
       leggiPerTema["Diritti e Giustizia"].push({ ...legge, tema: "Diritti e Giustizia" });
-    } else if (legge.titolo === "Legge sulle Nascite" || legge.titolo === "Religione") {
+    } else if (
+      legge.titolo === "Legge sulle Nascite" ||
+      legge.titolo === "Religione" ||
+      legge.titolo === "Legge sulle Famiglie"
+    ) {
       leggiPerTema["Società e Demografia"].push({ ...legge, tema: "Società e Demografia" });
-    } else if (legge.titolo === "Regolamento sull'Uso dell'Energia") {
+    } else if (
+      legge.titolo === "Regolamento sull'Uso dell'Energia" ||
+      legge.titolo === "Legge sulle Droghe"
+    ) {
       leggiPerTema["Ambiente e Risorse"].push({ ...legge, tema: "Ambiente e Risorse" });
     }
   });
@@ -74,6 +83,7 @@ export default function LeggiScreen() {
     if (titolo === "Pena di Morte") return "/pena-di-morte";
     if (titolo === "Religione") return "/religione";
     if (titolo === "Legge Razziale") return "/legge-razziale";
+    if (titolo === "Età minima sul lavoro") return "/eta-minima-lavoro";
     if (titolo === "Schiavitu") return "/schiavitu";
     return null;
   };

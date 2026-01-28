@@ -461,6 +461,35 @@ export function useGameState() {
     setAbitantiProposti((prev) => prev.filter((a) => a.id !== abitanteId));
   }, []);
 
+  // Calcola la felicità modificata in base alla politica religiosa
+  const calcolaFelicitàModificata = useCallback(
+    (abitante: Abitante): number => {
+      let felicitàBase = abitante.felicità;
+
+      if (politicaReligiosa === "ateismo-stato") {
+        // Atei +10% felici
+        if (abitante.religione === "Ateo") {
+          felicitàBase = Math.min(100, felicitàBase + 10);
+        }
+      } else if (politicaReligiosa === "liberta-culto") {
+        // Deisti +10% felici
+        if (abitante.religione === "Deista") {
+          felicitàBase = Math.min(100, felicitàBase + 10);
+        }
+      } else if (politicaReligiosa === "religione-stato" && religioneDiStato) {
+        // Tutti -10% felici, tranne quelli della religione di stato +20% felici
+        if (abitante.religione === religioneDiStato) {
+          felicitàBase = Math.min(100, felicitàBase + 20);
+        } else {
+          felicitàBase = Math.max(0, felicitàBase - 10);
+        }
+      }
+
+      return felicitàBase;
+    },
+    [politicaReligiosa, religioneDiStato]
+  );
+
   // Calcola il punteggio sanzioni basato sulle leggi attive
   const calcolaPunteggioSanzioni = useCallback(() => {
     let punteggio = 1; // Punteggio base
@@ -536,6 +565,7 @@ export function useGameState() {
     setCapoReligiosoSole,
     setCapoReligiosoAlieni,
     setEtaMinimaLavoro,
+    calcolaFelicitàModificata,
     avanzaMese,
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,

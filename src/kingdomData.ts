@@ -19,7 +19,9 @@ export const abitantiData: Abitante[] = [
     reddito: 2000,
     spese: 1500,
     lealtà: 100,
-    paura: 5
+    paura: 5,
+    felicità: 75,
+    religione: "Ateo"
   },
   {
     id: 2,
@@ -40,6 +42,8 @@ export const abitantiData: Abitante[] = [
     spese: 800,
     lealtà: 85,
     paura: 10,
+    felicità: 70,
+    religione: "Deista",
     ministero: "Ricerca e Sviluppo"
   },
   {
@@ -61,6 +65,8 @@ export const abitantiData: Abitante[] = [
     spese: 200,
     lealtà: 75,
     paura: 20,
+    felicità: 65,
+    religione: "Culto del Sole",
     ministero: "Produzione Alimentare"
   },
   {
@@ -81,7 +87,9 @@ export const abitantiData: Abitante[] = [
     reddito: 500,
     spese: 350,
     lealtà: 70,
-    paura: 15
+    paura: 15,
+    felicità: 60,
+    religione: "Agnostico"
   },
   {
     id: 5,
@@ -101,7 +109,9 @@ export const abitantiData: Abitante[] = [
     reddito: 400,
     spese: 250,
     lealtà: 80,
-    paura: 12
+    paura: 12,
+    felicità: 72,
+    religione: "Deista"
   },
   {
     id: 6,
@@ -121,7 +131,9 @@ export const abitantiData: Abitante[] = [
     reddito: 0,
     spese: 100,
     lealtà: 60,
-    paura: 15
+    paura: 15,
+    felicità: 80,
+    religione: "Culto del Sole"
   },
   {
     id: 7,
@@ -141,7 +153,9 @@ export const abitantiData: Abitante[] = [
     reddito: 50,
     spese: 80,
     lealtà: 65,
-    paura: 12
+    paura: 12,
+    felicità: 78,
+    religione: "Agnostico"
   },
   {
     id: 8,
@@ -161,7 +175,9 @@ export const abitantiData: Abitante[] = [
     reddito: 80,
     spese: 120,
     lealtà: 70,
-    paura: 10
+    paura: 10,
+    felicità: 68,
+    religione: "Ateo"
   }
 ];
 
@@ -247,6 +263,18 @@ export const leggiData: Legge[] = [
     id: 10,
     titolo: "Legge Razziale",
     descrizione: "Politiche discriminatorie basate sulla razza degli abitanti.",
+    stato: "Proposta"
+  },
+  {
+    id: 11,
+    titolo: "Legge sulle Famiglie",
+    descrizione: "Politiche per regolare la struttura e i diritti delle famiglie nella colonia.",
+    stato: "In vigore"
+  },
+  {
+    id: 12,
+    titolo: "Legge sulle Droghe",
+    descrizione: "Regolamentazione sulla produzione, vendita e consumo di sostanze psicoattive.",
     stato: "Proposta"
   }
 ];

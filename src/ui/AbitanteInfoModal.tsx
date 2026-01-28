@@ -7,18 +7,25 @@ type AbitanteInfoModalProps = {
   abitante: Abitante | null;
   onClose: () => void;
   getAbitanteNome: (id: number) => string;
+  calcolaFelicitàModificata?: (abitante: Abitante) => number;
 };
 
 export function AbitanteInfoModal({
   visible,
   abitante,
   onClose,
-  getAbitanteNome
+  getAbitanteNome,
+  calcolaFelicitàModificata
 }: AbitanteInfoModalProps) {
   if (!abitante) return null;
 
   const formatPercentuale = (valore: number) => `${valore}%`;
   const formatMonete = (valore: number) => `${valore} crediti`;
+  
+  const felicitàModificata = calcolaFelicitàModificata
+    ? calcolaFelicitàModificata(abitante)
+    : abitante.felicità;
+  const felicitàCambiata = felicitàModificata !== abitante.felicità;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -37,6 +44,7 @@ export function AbitanteInfoModal({
               <Text style={styles.line}>Età: {abitante.eta} anni</Text>
               <Text style={styles.line}>Fazione: {abitante.fazione}</Text>
               <Text style={styles.line}>Personalità: {abitante.personalità}</Text>
+              <Text style={styles.line}>Religione: {abitante.religione}</Text>
             </View>
 
             {/* Competenze e stato */}
@@ -83,6 +91,22 @@ export function AbitanteInfoModal({
               <Text style={styles.sectionLabel}>Sentimenti</Text>
               <Text style={styles.line}>Lealtà: {formatPercentuale(abitante.lealtà)}</Text>
               <Text style={styles.line}>Paura: {formatPercentuale(abitante.paura)}</Text>
+              <View style={styles.felicitàRow}>
+                <Text style={styles.line}>
+                  Felicità: {formatPercentuale(felicitàModificata)}
+                </Text>
+                {felicitàCambiata && (
+                  <Text style={styles.felicitàModifica}>
+                    ({abitante.felicità} base
+                    {felicitàModificata > abitante.felicità ? (
+                      <Text style={styles.felicitàPositiva}> +{felicitàModificata - abitante.felicità}</Text>
+                    ) : (
+                      <Text style={styles.felicitàNegativa}> {felicitàModificata - abitante.felicità}</Text>
+                    )}
+                    )
+                  </Text>
+                )}
+              </View>
             </View>
 
             <Pressable style={styles.closeButton} onPress={onClose}>
@@ -169,5 +193,20 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "600"
+  },
+  felicitàRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  felicitàModifica: {
+    color: "rgba(203,213,245,0.5)",
+    fontSize: 12
+  },
+  felicitàPositiva: {
+    color: "#4ade80"
+  },
+  felicitàNegativa: {
+    color: "#ef4444"
   }
 });

@@ -30,6 +30,7 @@ type GameContextType = {
   capoReligiosoAlieni: number | null;
   religioneDiStato: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni" | null;
   etaMinimaLavoro: number;
+  calcolaFelicitàModificata: (abitante: Abitante) => number;
   setTipoTassaReddito: (tipo: "flat" | "scaglioni") => void;
   setFlatTaxPercentuale: (percentuale: number) => void;
   setScaglioniConfig: (config: ScaglioneConfig[]) => void;

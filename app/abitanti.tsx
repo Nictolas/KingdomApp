@@ -7,7 +7,7 @@ import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 
 export default function AbitantiScreen() {
   const router = useRouter();
-  const { abitanti } = useGameContext();
+  const { abitanti, calcolaFelicitàModificata } = useGameContext();
   const [selectedAbitante, setSelectedAbitante] = useState<Abitante | null>(null);
 
   const { width } = Dimensions.get("window");
@@ -29,20 +29,101 @@ export default function AbitantiScreen() {
         <View style={{ width: 50 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.grid}>
-          {abitanti.map((a: Abitante) => (
-            <Pressable
-              key={a.id}
-              style={styles.card}
-              onPress={() => setSelectedAbitante(a)}
-            >
-              <Text style={styles.emoji}>{a.emoji}</Text>
-              <Text style={styles.cardTitle}>{a.nome}</Text>
-              <Text style={styles.cardLavoro}>{a.lavoro}</Text>
-            </Pressable>
-          ))}
-        </View>
+      <ScrollView 
+        horizontal
+        contentContainerStyle={styles.tableContainer}
+        showsHorizontalScrollIndicator={true}
+      >
+        <ScrollView 
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator={true}
+        >
+          {/* Header della tabella */}
+          <View style={styles.tableHeader}>
+            <View style={[styles.headerCell, styles.cellEmoji]}><Text style={styles.headerText}>Emoji</Text></View>
+            <View style={[styles.headerCell, styles.cellNome]}><Text style={styles.headerText}>Nome</Text></View>
+            <View style={[styles.headerCell, styles.cellSmall]}><Text style={styles.headerText}>Età</Text></View>
+            <View style={[styles.headerCell, styles.cellLavoro]}><Text style={styles.headerText}>Lavoro</Text></View>
+            <View style={[styles.headerCell, styles.cellSmall]}><Text style={styles.headerText}>Comp.</Text></View>
+            <View style={[styles.headerCell, styles.cellSmall]}><Text style={styles.headerText}>Prod.</Text></View>
+            <View style={[styles.headerCell, styles.cellSmall]}><Text style={styles.headerText}>Stan.</Text></View>
+            <View style={[styles.headerCell, styles.cellSmall]}><Text style={styles.headerText}>Salute</Text></View>
+            <View style={[styles.headerCell, styles.cellMedium]}><Text style={styles.headerText}>Crediti</Text></View>
+            <View style={[styles.headerCell, styles.cellMedium]}><Text style={styles.headerText}>Reddito</Text></View>
+            <View style={[styles.headerCell, styles.cellMedium]}><Text style={styles.headerText}>Spese</Text></View>
+            <View style={[styles.headerCell, styles.cellSmall]}><Text style={styles.headerText}>Lealtà</Text></View>
+            <View style={[styles.headerCell, styles.cellSmall]}><Text style={styles.headerText}>Paura</Text></View>
+            <View style={[styles.headerCell, styles.cellSmall]}><Text style={styles.headerText}>Felicità</Text></View>
+            <View style={[styles.headerCell, styles.cellReligione]}><Text style={styles.headerText}>Religione</Text></View>
+            <View style={[styles.headerCell, styles.cellFazione]}><Text style={styles.headerText}>Fazione</Text></View>
+          </View>
+
+          {/* Righe della tabella */}
+          {abitanti.map((a: Abitante) => {
+            const felicitàModificata = calcolaFelicitàModificata(a);
+            return (
+              <Pressable
+                key={a.id}
+                style={styles.tableRow}
+                onPress={() => setSelectedAbitante(a)}
+              >
+                <View style={[styles.cell, styles.cellEmoji]}>
+                  <Text style={styles.cellEmojiText}>{a.emoji}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellNome]}>
+                  <Text style={styles.cellText}>{a.nome}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellSmall]}>
+                  <Text style={styles.cellText}>{a.eta}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellLavoro]}>
+                  <Text style={styles.cellTextSmall}>{a.lavoro}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellSmall]}>
+                  <Text style={styles.cellText}>{a.competenza}%</Text>
+                </View>
+                <View style={[styles.cell, styles.cellSmall]}>
+                  <Text style={styles.cellText}>{a.produttività}%</Text>
+                </View>
+                <View style={[styles.cell, styles.cellSmall]}>
+                  <Text style={styles.cellText}>{a.stanchezza}%</Text>
+                </View>
+                <View style={[styles.cell, styles.cellSmall]}>
+                  <Text style={styles.cellText}>{a.salute}%</Text>
+                </View>
+                <View style={[styles.cell, styles.cellMedium]}>
+                  <Text style={styles.cellText}>{a.crediti}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellMedium]}>
+                  <Text style={[styles.cellText, styles.cellTextPositive]}>{a.reddito}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellMedium]}>
+                  <Text style={[styles.cellText, styles.cellTextNegative]}>{a.spese}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellSmall]}>
+                  <Text style={styles.cellText}>{a.lealtà}%</Text>
+                </View>
+                <View style={[styles.cell, styles.cellSmall]}>
+                  <Text style={styles.cellText}>{a.paura}%</Text>
+                </View>
+                <View style={[styles.cell, styles.cellSmall]}>
+                  <Text style={[
+                    styles.cellText,
+                    felicitàModificata >= 70 ? styles.cellTextPositive : felicitàModificata >= 40 ? styles.cellTextNeutral : styles.cellTextNegative
+                  ]}>
+                    {felicitàModificata}%
+                  </Text>
+                </View>
+                <View style={[styles.cell, styles.cellReligione]}>
+                  <Text style={styles.cellTextSmall}>{a.religione}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellFazione]}>
+                  <Text style={styles.cellTextSmall}>{a.fazione}</Text>
+                </View>
+              </Pressable>
+            );
+          })}
+        </ScrollView>
       </ScrollView>
 
       <AbitanteInfoModal
@@ -50,6 +131,7 @@ export default function AbitantiScreen() {
         abitante={selectedAbitante}
         onClose={() => setSelectedAbitante(null)}
         getAbitanteNome={getAbitanteNome}
+        calcolaFelicitàModificata={calcolaFelicitàModificata}
       />
     </SafeAreaView>
   );
@@ -78,42 +160,98 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700"
   },
+  tableContainer: {
+    flexGrow: 1
+  },
   content: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    paddingBottom: 8,
-    flex: 1
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    paddingBottom: 6
   },
-  grid: {
+  tableHeader: {
     flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6
-  },
-  card: {
-    backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.6)",
-    alignItems: "center",
-    width: "48%",
-    minWidth: 140
-  },
-  emoji: {
-    fontSize: 32,
+    backgroundColor: "rgba(59,130,246,0.2)",
+    borderBottomWidth: 2,
+    borderBottomColor: "#3b82f6",
     marginBottom: 4
   },
-  cardTitle: {
-    color: "#e5e7eb",
-    fontSize: 12,
+  headerCell: {
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: "rgba(148,163,184,0.3)",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  headerText: {
+    color: "#93c5fd",
+    fontSize: 9,
     fontWeight: "700",
-    marginBottom: 2,
     textAlign: "center"
   },
-  cardLavoro: {
-    color: "#93c5fd",
-    fontSize: 10,
+  tableRow: {
+    flexDirection: "row",
+    backgroundColor: "rgba(15,23,42,0.6)",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(148,163,184,0.2)",
+    minHeight: 32
+  },
+  cell: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: "rgba(148,163,184,0.2)",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  cellEmoji: {
+    width: 40,
+    minWidth: 40
+  },
+  cellNome: {
+    width: 140,
+    minWidth: 140
+  },
+  cellLavoro: {
+    width: 120,
+    minWidth: 120
+  },
+  cellSmall: {
+    width: 50,
+    minWidth: 50
+  },
+  cellMedium: {
+    width: 70,
+    minWidth: 70
+  },
+  cellReligione: {
+    width: 100,
+    minWidth: 100
+  },
+  cellFazione: {
+    width: 110,
+    minWidth: 110
+  },
+  cellEmojiText: {
+    fontSize: 20
+  },
+  cellText: {
+    color: "#e5e7eb",
+    fontSize: 9,
     textAlign: "center"
+  },
+  cellTextSmall: {
+    color: "#e5e7eb",
+    fontSize: 8,
+    textAlign: "center"
+  },
+  cellTextPositive: {
+    color: "#4ade80"
+  },
+  cellTextNegative: {
+    color: "#ef4444"
+  },
+  cellTextNeutral: {
+    color: "#fde047"
   }
 });
-

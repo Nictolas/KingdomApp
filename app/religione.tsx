@@ -20,19 +20,22 @@ export default function ReligioneScreen() {
       id: "ateismo-stato" as const,
       titolo: "Ateismo di Stato",
       descrizione: "Lo stato promuove attivamente l'ateismo e scoraggia le pratiche religiose. Le religioni sono vietate.",
-      emoji: "🚫"
+      emoji: "🚫",
+      effettoFelicità: "Atei +10% felici"
     },
     {
       id: "religione-stato" as const,
       titolo: "Religione di Stato",
       descrizione: "Una religione ufficiale viene promossa dallo stato. Le altre religioni sono tollerate ma non supportate.",
-      emoji: "⛪"
+      emoji: "⛪",
+      effettoFelicità: "Tutti -10% felici, religione di stato +20% felici"
     },
     {
       id: "liberta-culto" as const,
       titolo: "Libertà di Culto",
       descrizione: "Tutti gli abitanti sono liberi di praticare qualsiasi religione o essere atei senza interferenze dello stato.",
-      emoji: "🕊️"
+      emoji: "🕊️",
+      effettoFelicità: "Deisti +10% felici"
     }
   ];
 
@@ -96,16 +99,17 @@ export default function ReligioneScreen() {
                         }
                       }}
                     >
-                      <Text style={styles.politicaEmojiInline}>{politica.emoji}</Text>
-                      <Text style={[styles.politicaTitoloInline, isSelected && styles.politicaTitoloSelected]}>
-                        {politica.titolo}
-                      </Text>
-                      {isSelected && <Text style={styles.selectedCheck}>✓</Text>}
-                    </Pressable>
-                  );
-                })}
-              </View>
-            </View>
+                  <Text style={styles.politicaEmojiInline}>{politica.emoji}</Text>
+                  <Text style={[styles.politicaTitoloInline, isSelected && styles.politicaTitoloSelected]}>
+                    {politica.titolo}
+                  </Text>
+                  <Text style={styles.politicaEffetto}>{politica.effettoFelicità}</Text>
+                  {isSelected && <Text style={styles.selectedCheck}>✓</Text>}
+                </Pressable>
+              );
+            })}
+          </View>
+        </View>
 
             {/* Selettore religione di stato */}
             {politicaReligiosa === "religione-stato" && (
@@ -290,6 +294,12 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     textAlign: "center",
     marginBottom: 2
+  },
+  politicaEffetto: {
+    color: "rgba(203,213,245,0.6)",
+    fontSize: 7,
+    textAlign: "center",
+    marginTop: 2
   },
   selectedCheck: {
     color: "#3b82f6",
