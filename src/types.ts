@@ -56,6 +56,8 @@ export type Abitante = {
   ministero?: string; // Ministero assegnato (se è ministro)
   ruoloSchiavitu?: "schiavista" | "schiavo"; // Ruolo nella schiavitù
   schiavistaId?: number; // ID dello schiavista (se è schiavo)
+  religione?: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni"; // Religione dell'abitante
+  specie?: "umano" | "alieno"; // Specie dell'abitante
 };
 
 export type Ministro = {

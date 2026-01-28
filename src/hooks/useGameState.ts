@@ -28,6 +28,9 @@ export function useGameState() {
   // Sistema sanzioni (punteggio da 1 a 10)
   const [punteggioSanzioni, setPunteggioSanzioni] = useState(1);
   const [penaDiMorteAttiva, setPenaDiMorteAttiva] = useState(false);
+  
+  // Configurazione politica religiosa
+  const [politicaReligiosa, setPoliticaReligiosa] = useState<"ateismo-stato" | "religione-stato" | "liberta-culto">("liberta-culto");
 
   // Genera nuovi abitanti proposti per immigrazione
   const generaNuoviAbitantiProposti = useCallback(() => {
@@ -484,11 +487,13 @@ export function useGameState() {
     politicaNascite,
     punteggioSanzioni,
     penaDiMorteAttiva,
+    politicaReligiosa,
     setTipoTassaReddito,
     setFlatTaxPercentuale,
     setScaglioniConfig,
     setPoliticaNascite,
     setPenaDiMorteAttiva,
+    setPoliticaReligiosa,
     avanzaMese,
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,

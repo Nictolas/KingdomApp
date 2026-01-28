@@ -236,6 +236,12 @@ export const leggiData: Legge[] = [
     titolo: "Pena di Morte",
     descrizione: "Consente l'esecuzione capitale per crimini gravi.",
     stato: "Proposta"
+  },
+  {
+    id: 9,
+    titolo: "Religione",
+    descrizione: "Politiche per regolare la libertà religiosa nella colonia.",
+    stato: "In vigore"
   }
 ];
 
@@ -362,6 +368,34 @@ export const edificiData: Edificio[] = [
     efficienza: 75,
     manutenzione: 320,
     stato: "In manutenzione",
+    livello: 1
+  },
+  {
+    id: 9,
+    nome: "Culto del Sole",
+    emoji: "☀️",
+    tipo: "Religione",
+    descrizione: "Tempio dedicato al culto del Sole. Aperto a tutti gli abitanti.",
+    capacità: 20,
+    occupazione: 0,
+    abitantiAssegnati: [],
+    efficienza: 80,
+    manutenzione: 150,
+    stato: "Operativo",
+    livello: 1
+  },
+  {
+    id: 10,
+    nome: "Culto degli Alieni",
+    emoji: "👽",
+    tipo: "Religione",
+    descrizione: "Tempio dedicato al culto degli Alieni. Riservato solo agli alieni.",
+    capacità: 15,
+    occupazione: 0,
+    abitantiAssegnati: [],
+    efficienza: 80,
+    manutenzione: 150,
+    stato: "Operativo",
     livello: 1
   }
 ];
