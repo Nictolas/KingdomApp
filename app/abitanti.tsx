@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { abitantiData } from "../src/kingdomData";
+import { useGameContext } from "../src/context/GameContext";
 import type { Abitante } from "../src/types";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 
 export default function AbitantiScreen() {
   const router = useRouter();
-  const abitanti = abitantiData;
+  const { abitanti } = useGameContext();
   const [selectedAbitante, setSelectedAbitante] = useState<Abitante | null>(null);
 
   const getAbitanteNome = (id: number) => {

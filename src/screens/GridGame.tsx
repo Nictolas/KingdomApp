@@ -1,32 +1,52 @@
 import React from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { formatGameTime, useGameClock } from "../game/gameClock";
-import { abitantiData, ministriData, fazioniData, leggiData, risorseData, edificiData } from "../kingdomData";
+import { ministriData, fazioniData, leggiData } from "../kingdomData";
+import { useGameContext } from "../context/GameContext";
 import type { Risorsa } from "../types";
 
 export default function GridGame() {
-  const { gameTime } = useGameClock(6, 0);
   const router = useRouter();
+  const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese } = useGameContext();
 
-  const abitanti = abitantiData;
   const ministri = ministriData;
   const fazioni = fazioniData;
   const leggi = leggiData;
-  const risorse = risorseData;
-  const edifici = edificiData;
+
+  // Calcola dimensioni 16:9 su PC
+  const { width } = Dimensions.get("window");
+  const isDesktop = width > 768;
+  const containerHeight = isDesktop ? width * (9 / 16) : undefined;
+  const maxHeight = isDesktop ? containerHeight : undefined;
 
   return (
-    <View style={styles.container}>
+    <View style={[styles.container, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
         <View>
           <Text style={styles.gameTitle}>MyKingdom</Text>
           <Text style={styles.subtitle}>Gestisci la tua colonia</Text>
+          <Text style={styles.meseLabel}>Mese {mese} - Anno {anno}</Text>
         </View>
-        <View style={styles.clockContainer}>
-          <Text style={styles.clockLabel}>Ora coloniale</Text>
-          <Text style={styles.clockValue}>🕐 {formatGameTime(gameTime)}</Text>
-        </View>
+      </View>
+
+      <View style={styles.skipContainer}>
+        <Pressable
+          style={[styles.skipButton, isLoading && styles.skipButtonDisabled]}
+          onPress={avanzaMese}
+          disabled={isLoading}
+        >
+          {isLoading ? (
+            <>
+              <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 6 }} />
+              <Text style={styles.skipButtonText}>Caricamento...</Text>
+            </>
+          ) : (
+            <>
+              <Text style={styles.skipEmoji}>⏭️</Text>
+              <Text style={styles.skipButtonText}>Skip Mese</Text>
+            </>
+          )}
+        </Pressable>
       </View>
 
       <View style={styles.navRow}>
@@ -62,16 +82,13 @@ export default function GridGame() {
         <View style={styles.navButton} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.scrollContent}>
+      <View style={styles.scrollContent}>
         {/* Risorse */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Risorse</Text>
-          <Text style={styles.sectionDescription}>
-            Risorse materiali ed energetiche essenziali per la sopravvivenza della colonia.
-          </Text>
-          <View style={styles.cardsContainer}>
+          <View style={styles.resourcesGrid}>
             {risorse.map((r: Risorsa) => (
-              <View key={r.id} style={styles.resourceRow}>
+              <View key={r.id} style={styles.resourceCard}>
                 <Text style={styles.resourceName}>{r.nome}</Text>
                 <Text style={styles.resourceValue}>
                   {r.quantità} <Text style={styles.resourceUnit}>{r.unità}</Text>
@@ -80,7 +97,7 @@ export default function GridGame() {
             ))}
           </View>
         </View>
-      </ScrollView>
+      </View>
     </View>
   );
 }
@@ -93,38 +110,38 @@ const styles = StyleSheet.create({
   navRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 4,
-    gap: 12
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 2,
+    gap: 8
   },
   navButton: {
     flex: 1,
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 16,
-    paddingVertical: 10,
-    paddingHorizontal: 12,
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)"
   },
   navEmoji: {
-    fontSize: 22,
-    marginBottom: 4
+    fontSize: 16,
+    marginBottom: 2
   },
   navLabel: {
     color: "#e5e7eb",
-    fontSize: 15,
+    fontSize: 11,
     fontWeight: "700"
   },
   navCount: {
     color: "rgba(148,163,184,0.9)",
-    fontSize: 12,
-    marginTop: 2
+    fontSize: 9,
+    marginTop: 1
   },
   header: {
-    paddingTop: 16,
-    paddingBottom: 12,
-    paddingHorizontal: 16,
+    paddingTop: 8,
+    paddingBottom: 6,
+    paddingHorizontal: 12,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -134,64 +151,85 @@ const styles = StyleSheet.create({
   },
   gameTitle: {
     color: "#ffffff",
-    fontSize: 22,
+    fontSize: 16,
     fontWeight: "800"
   },
   subtitle: {
     color: "rgba(255,255,255,0.7)",
+    fontSize: 11,
+    marginTop: 1
+  },
+  meseLabel: {
+    color: "rgba(255,255,255,0.6)",
+    fontSize: 10,
+    marginTop: 2
+  },
+  skipContainer: {
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 2
+  },
+  skipButton: {
+    backgroundColor: "rgba(59,130,246,0.9)",
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.3)"
+  },
+  skipButtonDisabled: {
+    backgroundColor: "rgba(59,130,246,0.5)",
+    opacity: 0.7
+  },
+  skipEmoji: {
     fontSize: 14,
-    marginTop: 2
+    marginRight: 6
   },
-  clockContainer: {
-    alignItems: "flex-end"
-  },
-  clockLabel: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 12
-  },
-  clockValue: {
+  skipButtonText: {
     color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "700",
-    marginTop: 2
+    fontSize: 12,
+    fontWeight: "700"
   },
   scrollContent: {
-    paddingHorizontal: 16,
-    paddingTop: 8,
-    paddingBottom: 32
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 8,
+    flex: 1
   },
   section: {
-    marginBottom: 20
+    marginBottom: 6
   },
   sectionTitle: {
     color: "#ffffff",
-    fontSize: 18,
+    fontSize: 12,
     fontWeight: "700",
     marginBottom: 4
   },
-  sectionDescription: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 13,
-    marginBottom: 10
-  },
-  cardsContainer: {
-    gap: 10
-  },
-  resourceRow: {
+  resourcesGrid: {
     flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "center",
-    paddingVertical: 8,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(148,163,184,0.4)"
+    flexWrap: "wrap",
+    gap: 6
+  },
+  resourceCard: {
+    flex: 1,
+    minWidth: "48%",
+    backgroundColor: "rgba(15,23,42,0.6)",
+    borderRadius: 6,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.3)"
   },
   resourceName: {
     color: "#e5e7eb",
-    fontSize: 14
+    fontSize: 10,
+    marginBottom: 2
   },
   resourceValue: {
     color: "#e5e7eb",
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: "700"
   },
   resourceUnit: {

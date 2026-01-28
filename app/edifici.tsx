@@ -1,13 +1,13 @@
 import React, { useState } from "react";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { edificiData } from "../src/kingdomData";
+import { useGameContext } from "../src/context/GameContext";
 import type { Edificio } from "../src/types";
 import { EdificioInfoModal } from "../src/ui/EdificioInfoModal";
 
 export default function EdificiScreen() {
   const router = useRouter();
-  const edifici = edificiData;
+  const { edifici } = useGameContext();
   const [selectedEdificio, setSelectedEdificio] = useState<Edificio | null>(null);
 
   return (
