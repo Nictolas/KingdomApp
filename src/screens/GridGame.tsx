@@ -2,7 +2,7 @@ import React from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { formatGameTime, useGameClock } from "../game/gameClock";
-import { abitantiData, ministriData, fazioniData, leggiData, risorseData } from "../kingdomData";
+import { abitantiData, ministriData, fazioniData, leggiData, risorseData, edificiData } from "../kingdomData";
 import type { Risorsa } from "../types";
 
 export default function GridGame() {
@@ -14,16 +14,17 @@ export default function GridGame() {
   const fazioni = fazioniData;
   const leggi = leggiData;
   const risorse = risorseData;
+  const edifici = edificiData;
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <View>
           <Text style={styles.gameTitle}>MyKingdom</Text>
-          <Text style={styles.subtitle}>Gestisci il tuo regno</Text>
+          <Text style={styles.subtitle}>Gestisci la tua colonia</Text>
         </View>
         <View style={styles.clockContainer}>
-          <Text style={styles.clockLabel}>Ora del regno</Text>
+          <Text style={styles.clockLabel}>Ora coloniale</Text>
           <Text style={styles.clockValue}>🕐 {formatGameTime(gameTime)}</Text>
         </View>
       </View>
@@ -52,13 +53,21 @@ export default function GridGame() {
           <Text style={styles.navCount}>{leggi.length} totali</Text>
         </Pressable>
       </View>
+      <View style={styles.navRow}>
+        <Pressable style={styles.navButton} onPress={() => router.push("/edifici")}>
+          <Text style={styles.navEmoji}>🏗️</Text>
+          <Text style={styles.navLabel}>Edifici</Text>
+          <Text style={styles.navCount}>{edifici.length} strutture</Text>
+        </Pressable>
+        <View style={styles.navButton} />
+      </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
         {/* Risorse */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Risorse</Text>
           <Text style={styles.sectionDescription}>
-            Ricchezze materiali e immateriali su cui si regge il regno.
+            Risorse materiali ed energetiche essenziali per la sopravvivenza della colonia.
           </Text>
           <View style={styles.cardsContainer}>
             {risorse.map((r: Risorsa) => (

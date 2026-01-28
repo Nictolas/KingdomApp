@@ -80,3 +80,18 @@ export type Risorsa = {
   quantità: number;
   unità: string;
 };
+
+export type Edificio = {
+  id: number;
+  nome: string;
+  tipo: string;
+  descrizione: string;
+  capacità: number; // Numero di persone che può ospitare
+  occupazione: number; // Numero attuale di persone
+  efficienza: number; // 0-100
+  manutenzione: number; // Costo mensile
+  stato: "Operativo" | "In costruzione" | "In manutenzione" | "Danneggiato";
+  livello: number; // Livello dell'edificio
+  produzione?: string; // Cosa produce (se applicabile)
+  consumo?: string; // Cosa consuma (se applicabile)
+};

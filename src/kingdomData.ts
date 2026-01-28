@@ -1,18 +1,18 @@
-import type { Abitante, Ministro, Fazione, Legge, Risorsa } from "./types";
+import type { Abitante, Ministro, Fazione, Legge, Risorsa, Edificio } from "./types";
 
 export const abitantiData: Abitante[] = [
   {
     id: 1,
-    nome: "Re Artù",
+    nome: "Comandante Sarah Chen",
     eta: 35,
-    lavoro: "Sovrano",
+    lavoro: "Comandante della Colonia",
     competenza: 95,
     produttività: 88,
     stanchezza: 25,
-    personalità: "Nobile e giusto",
+    personalità: "Decisa e strategica",
     amici: [2, 3],
     rivali: [],
-    fazione: "Corona",
+    fazione: "Amministrazione",
     salute: 90,
     crediti: 5000,
     reddito: 2000,
@@ -22,16 +22,16 @@ export const abitantiData: Abitante[] = [
   },
   {
     id: 2,
-    nome: "Morgana",
+    nome: "Dr. Marcus Volkov",
     eta: 32,
-    lavoro: "Consigliera",
+    lavoro: "Consigliere Scientifico",
     competenza: 92,
     produttività: 85,
     stanchezza: 30,
-    personalità: "Astuta e strategica",
+    personalità: "Analitico e metodico",
     amici: [1, 5],
     rivali: [4],
-    fazione: "Arcani",
+    fazione: "Scienziati",
     salute: 88,
     crediti: 3200,
     reddito: 1200,
@@ -41,16 +41,16 @@ export const abitantiData: Abitante[] = [
   },
   {
     id: 3,
-    nome: "Luca",
+    nome: "Luca Rodriguez",
     eta: 28,
-    lavoro: "Contadino",
+    lavoro: "Tecnico Agricolo",
     competenza: 75,
     produttività: 90,
     stanchezza: 60,
     personalità: "Lavoratore instancabile",
     amici: [1, 4],
     rivali: [],
-    fazione: "Popolo",
+    fazione: "Lavoratori",
     salute: 85,
     crediti: 450,
     reddito: 300,
@@ -60,16 +60,16 @@ export const abitantiData: Abitante[] = [
   },
   {
     id: 4,
-    nome: "Giovanni",
+    nome: "Giovanni Tanaka",
     eta: 40,
-    lavoro: "Artigiano",
+    lavoro: "Ingegnere Meccanico",
     competenza: 88,
     produttività: 82,
     stanchezza: 35,
     personalità: "Perfezionista e orgoglioso",
     amici: [3, 5],
     rivali: [2],
-    fazione: "Popolo",
+    fazione: "Lavoratori",
     salute: 80,
     crediti: 1200,
     reddito: 500,
@@ -79,16 +79,16 @@ export const abitantiData: Abitante[] = [
   },
   {
     id: 5,
-    nome: "Elena",
+    nome: "Elena Petrov",
     eta: 26,
-    lavoro: "Studiosa",
+    lavoro: "Ricercatrice",
     competenza: 90,
     produttività: 78,
     stanchezza: 40,
     personalità: "Curiosa e idealista",
     amici: [2, 4],
     rivali: [],
-    fazione: "Accademia",
+    fazione: "Scienziati",
     salute: 92,
     crediti: 800,
     reddito: 400,
@@ -99,44 +99,147 @@ export const abitantiData: Abitante[] = [
 ];
 
 export const ministriData: Ministro[] = [
-  { id: 1, nome: "Morgana", ministero: "Magia e Sapienza", fazione: "Arcani" },
-  { id: 2, nome: "Marco", ministero: "Agricoltura", fazione: "Popolo" },
-  { id: 3, nome: "Isabella", ministero: "Tesoro Reale", fazione: "Corona" }
+  { id: 1, nome: "Dr. Marcus Volkov", ministero: "Ricerca e Sviluppo", fazione: "Scienziati" },
+  { id: 2, nome: "Luca Rodriguez", ministero: "Produzione Alimentare", fazione: "Lavoratori" },
+  { id: 3, nome: "Isabella Kim", ministero: "Finanze Coloniali", fazione: "Amministrazione" }
 ];
 
 export const fazioniData: Fazione[] = [
-  { id: 1, nome: "Corona", descrizione: "Difende il potere del Re e la stabilità del regno." },
-  { id: 2, nome: "Popolo", descrizione: "Vuole più diritti per contadini e artigiani." },
-  { id: 3, nome: "Arcani", descrizione: "Ordine di maghi e sapienti, interessati alla conoscenza." },
-  { id: 4, nome: "Accademia", descrizione: "Studiosi e maestri che formano le nuove generazioni." }
+  { id: 1, nome: "Amministrazione", descrizione: "Sostiene l'autorità del Comandante e la stabilità della colonia." },
+  { id: 2, nome: "Lavoratori", descrizione: "Rappresenta i diritti dei tecnici e operai della colonia." },
+  { id: 3, nome: "Scienziati", descrizione: "Gruppo di ricercatori interessati al progresso tecnologico." },
+  { id: 4, nome: "Esploratori", descrizione: "Coloni che vogliono espandere i confini della colonia." }
 ];
 
 export const leggiData: Legge[] = [
   {
     id: 1,
-    titolo: "Tassa sul Grano",
-    descrizione: "Una tassa del 10% su tutto il raccolto di grano.",
+    titolo: "Tassa sulla Produzione",
+    descrizione: "Una tassa del 10% su tutte le risorse prodotte nella colonia.",
     stato: "In vigore"
   },
   {
     id: 2,
-    titolo: "Carta dei Diritti del Popolo",
-    descrizione: "Riconosce alcuni diritti fondamentali a tutti gli abitanti.",
+    titolo: "Carta dei Diritti dei Coloni",
+    descrizione: "Riconosce alcuni diritti fondamentali a tutti i membri della colonia.",
     stato: "Proposta"
   },
   {
     id: 3,
-    titolo: "Decreto sulla Magia",
-    descrizione: "Regola l'uso della magia all'interno delle mura della città.",
+    titolo: "Regolamento sull'Uso dell'Energia",
+    descrizione: "Stabilisce norme per l'utilizzo efficiente dell'energia nella colonia.",
     stato: "In vigore"
   }
 ];
 
 export const risorseData: Risorsa[] = [
-  { id: 1, nome: "Oro", quantità: 1250, unità: "monete" },
-  { id: 2, nome: "Grano", quantità: 430, unità: "sacchi" },
-  { id: 3, nome: "Legno", quantità: 780, unità: "tronchi" },
-  { id: 4, nome: "Influenza della Corona", quantità: 68, unità: "punti" },
-  { id: 5, nome: "Fiducia del Popolo", quantità: 74, unità: "punti" }
+  { id: 1, nome: "Crediti", quantità: 1250, unità: "crediti" },
+  { id: 2, nome: "Cibo sintetico", quantità: 430, unità: "razioni" },
+  { id: 3, nome: "Metalli", quantità: 780, unità: "tonnellate" },
+  { id: 4, nome: "Energia", quantità: 68, unità: "MW" },
+  { id: 5, nome: "Ossigeno", quantità: 95, unità: "%" }
+];
+
+export const edificiData: Edificio[] = [
+  {
+    id: 1,
+    nome: "Centro di Comando",
+    tipo: "Amministrazione",
+    descrizione: "Quartier generale della colonia. Coordina tutte le operazioni.",
+    capacità: 20,
+    occupazione: 5,
+    efficienza: 92,
+    manutenzione: 500,
+    stato: "Operativo",
+    livello: 3
+  },
+  {
+    id: 2,
+    nome: "Serra Idroponica Alpha",
+    tipo: "Agricoltura",
+    descrizione: "Produce cibo sintetico e ossigeno per la colonia.",
+    capacità: 15,
+    occupazione: 8,
+    efficienza: 85,
+    manutenzione: 300,
+    stato: "Operativo",
+    livello: 2,
+    produzione: "Cibo sintetico, Ossigeno"
+  },
+  {
+    id: 3,
+    nome: "Raffineria Mineraria",
+    tipo: "Industria",
+    descrizione: "Processa i minerali estratti e produce materiali utili.",
+    capacità: 25,
+    occupazione: 12,
+    efficienza: 78,
+    manutenzione: 450,
+    stato: "Operativo",
+    livello: 2,
+    produzione: "Metalli raffinati",
+    consumo: "Energia"
+  },
+  {
+    id: 4,
+    nome: "Quartieri Residenziali Settore A",
+    tipo: "Residenza",
+    descrizione: "Alloggi per i coloni. Fornisce comfort e riposo.",
+    capacità: 50,
+    occupazione: 35,
+    efficienza: 88,
+    manutenzione: 200,
+    stato: "Operativo",
+    livello: 1
+  },
+  {
+    id: 5,
+    nome: "Laboratorio di Ricerca",
+    tipo: "Scienza",
+    descrizione: "Centro di ricerca avanzata per migliorare le tecnologie della colonia.",
+    capacità: 10,
+    occupazione: 6,
+    efficienza: 90,
+    manutenzione: 400,
+    stato: "Operativo",
+    livello: 2
+  },
+  {
+    id: 6,
+    nome: "Centrale Energetica",
+    tipo: "Infrastruttura",
+    descrizione: "Genera energia per tutta la colonia utilizzando pannelli solari e reattori.",
+    capacità: 8,
+    occupazione: 4,
+    efficienza: 95,
+    manutenzione: 350,
+    stato: "Operativo",
+    livello: 3,
+    produzione: "Energia"
+  },
+  {
+    id: 7,
+    nome: "Ospedale Coloniale",
+    tipo: "Sanità",
+    descrizione: "Struttura medica avanzata per curare feriti e malati.",
+    capacità: 30,
+    occupazione: 8,
+    efficienza: 82,
+    manutenzione: 380,
+    stato: "Operativo",
+    livello: 2
+  },
+  {
+    id: 8,
+    nome: "Hangar di Manutenzione",
+    tipo: "Trasporti",
+    descrizione: "Manutiene e ripara veicoli e navi spaziali.",
+    capacità: 12,
+    occupazione: 5,
+    efficienza: 75,
+    manutenzione: 320,
+    stato: "In manutenzione",
+    livello: 1
+  }
 ];
 
