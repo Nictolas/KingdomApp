@@ -20,9 +20,27 @@ export default function PersonalitaScreen() {
     mappa.set(p, (mappa.get(p) ?? 0) + 1);
   });
 
-  const personalita = Array.from(mappa.entries())
+  const catalogoPersonalita: { nome: string; emoji: string; effetto: string }[] = [
+    { nome: "Pollice Verde", emoji: "🌱", effetto: "+10% produzione Cibo" },
+    { nome: "Empatico", emoji: "🩺", effetto: "+10% Competenza Medica" },
+    { nome: "Salutista", emoji: "🥗", effetto: "+10% Salute" },
+    { nome: "Depresso", emoji: "🌧️", effetto: "-10% qualsiasi produzione" }
+  ];
+
+  // Unione: prima catalogo (con conteggio), poi le personalità “custom” trovate tra gli abitanti
+  const nomiCatalogo = new Set(catalogoPersonalita.map((p) => p.nome));
+  const personalitaCustom = Array.from(mappa.entries())
+    .filter(([nome]) => !nomiCatalogo.has(nome))
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
-    .map(([nome, count]) => ({ nome, count }));
+    .map(([nome, count]) => ({ nome, count, emoji: "🧬", effetto: "—" }));
+
+  const personalita = [
+    ...catalogoPersonalita.map((p) => ({
+      ...p,
+      count: mappa.get(p.nome) ?? 0
+    })),
+    ...personalitaCustom
+  ];
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
@@ -36,14 +54,15 @@ export default function PersonalitaScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.subtitle}>
-          Lista delle personalità presenti tra gli abitanti (poi potremo aggiungere effetti/relazioni).
+          Catalogo delle personalità (con conteggio attuale nella colonia).
         </Text>
 
         <View style={styles.grid}>
           {personalita.map((p) => (
             <View key={p.nome} style={styles.card}>
-              <Text style={styles.emoji}>🧬</Text>
+              <Text style={styles.emoji}>{p.emoji}</Text>
               <Text style={styles.cardTitle}>{p.nome}</Text>
+              <Text style={styles.cardEffetto}>{p.effetto}</Text>
               <Text style={styles.cardDesc}>
                 Presenti: <Text style={styles.bold}>{p.count}</Text>
               </Text>
@@ -85,6 +104,7 @@ const styles = StyleSheet.create({
   },
   emoji: { fontSize: 24, marginBottom: 6 },
   cardTitle: { color: "#e5e7eb", fontSize: 12, fontWeight: "700", marginBottom: 2 },
+  cardEffetto: { color: "#93c5fd", fontSize: 10, marginBottom: 4 },
   cardDesc: { color: "rgba(203,213,245,0.7)", fontSize: 10, lineHeight: 14 },
   bold: { color: "#ffffff", fontWeight: "700" },
   emptyText: { color: "rgba(203,213,245,0.5)", fontSize: 10, fontStyle: "italic" }
