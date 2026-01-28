@@ -55,29 +55,26 @@ export default function ReligioneScreen() {
         {/* Selettore politiche */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Seleziona Politica</Text>
-          {politiche.map((politica) => {
-            const isSelected = politicaReligiosa === politica.id;
-            return (
-              <Pressable
-                key={politica.id}
-                style={[styles.politicaCard, isSelected && styles.politicaCardSelected]}
-                onPress={() => setPoliticaReligiosa(politica.id)}
-              >
-                <View style={styles.politicaHeader}>
-                  <Text style={styles.politicaEmoji}>{politica.emoji}</Text>
-                  <Text style={[styles.politicaTitolo, isSelected && styles.politicaTitoloSelected]}>
+          <View style={styles.politicheRow}>
+            {politiche.map((politica) => {
+              const isSelected = politicaReligiosa === politica.id;
+              return (
+                <Pressable
+                  key={politica.id}
+                  style={[styles.politicaCardInline, isSelected && styles.politicaCardSelected]}
+                  onPress={() => setPoliticaReligiosa(politica.id)}
+                >
+                  <Text style={styles.politicaEmojiInline}>{politica.emoji}</Text>
+                  <Text style={[styles.politicaTitoloInline, isSelected && styles.politicaTitoloSelected]}>
                     {politica.titolo}
                   </Text>
-                </View>
-                <Text style={styles.politicaDescrizione}>{politica.descrizione}</Text>
-                {isSelected && (
-                  <View style={styles.selectedBadge}>
-                    <Text style={styles.selectedBadgeText}>✓ Attiva</Text>
-                  </View>
-                )}
-              </Pressable>
-            );
-          })}
+                  {isSelected && (
+                    <Text style={styles.selectedCheck}>✓</Text>
+                  )}
+                </Pressable>
+              );
+            })}
+          </View>
         </View>
 
         {/* Religioni disponibili */}
@@ -110,23 +107,21 @@ export default function ReligioneScreen() {
         {/* Edifici religiosi */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Edifici Religiosi</Text>
-          <View style={styles.edificioCard}>
-            <Text style={styles.edificioEmoji}>☀️</Text>
-            <View style={styles.edificioContent}>
-              <Text style={styles.edificioNome}>Culto del Sole</Text>
-              <Text style={styles.edificioDescrizione}>
-                Tempio dedicato al culto del Sole. Aperto a tutti gli abitanti.
-              </Text>
-            </View>
-          </View>
-          <View style={styles.edificioCard}>
-            <Text style={styles.edificioEmoji}>👽</Text>
-            <View style={styles.edificioContent}>
-              <Text style={styles.edificioNome}>Culto degli Alieni</Text>
-              <Text style={styles.edificioDescrizione}>
-                Tempio dedicato al culto degli Alieni. Riservato solo agli alieni.
-              </Text>
-            </View>
+          <View style={styles.edificiRow}>
+            <Pressable
+              style={styles.edificioCardInline}
+              onPress={() => router.push("/culto-sole")}
+            >
+              <Text style={styles.edificioEmojiInline}>☀️</Text>
+              <Text style={styles.edificioNomeInline}>Culto del Sole</Text>
+            </Pressable>
+            <Pressable
+              style={styles.edificioCardInline}
+              onPress={() => router.push("/culto-alieni")}
+            >
+              <Text style={styles.edificioEmojiInline}>👽</Text>
+              <Text style={styles.edificioNomeInline}>Culto degli Alieni</Text>
+            </Pressable>
           </View>
         </View>
       </ScrollView>
@@ -193,6 +188,21 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 8
   },
+  politicheRow: {
+    flexDirection: "row",
+    gap: 6,
+    marginBottom: 8
+  },
+  politicaCardInline: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 8,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.6)",
+    alignItems: "center",
+    minHeight: 70
+  },
   politicaCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 8,
@@ -204,6 +214,23 @@ const styles = StyleSheet.create({
   politicaCardSelected: {
     borderColor: "#3b82f6",
     backgroundColor: "rgba(59,130,246,0.1)"
+  },
+  politicaEmojiInline: {
+    fontSize: 20,
+    marginBottom: 4
+  },
+  politicaTitoloInline: {
+    color: "#e5e7eb",
+    fontSize: 9,
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 2
+  },
+  selectedCheck: {
+    color: "#3b82f6",
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 2
   },
   politicaHeader: {
     flexDirection: "row",
@@ -264,6 +291,30 @@ const styles = StyleSheet.create({
     color: "#e5e7eb",
     fontSize: 10,
     fontWeight: "600",
+    textAlign: "center"
+  },
+  edificiRow: {
+    flexDirection: "row",
+    gap: 6
+  },
+  edificioCardInline: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.6)",
+    alignItems: "center",
+    minHeight: 80
+  },
+  edificioEmojiInline: {
+    fontSize: 32,
+    marginBottom: 6
+  },
+  edificioNomeInline: {
+    color: "#e5e7eb",
+    fontSize: 10,
+    fontWeight: "700",
     textAlign: "center"
   },
   edificioCard: {

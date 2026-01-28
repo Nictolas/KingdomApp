@@ -26,6 +26,8 @@ type GameContextType = {
   leggeRazzialeAttiva: boolean;
   razzaCampoLavoro: "Umano" | "Alieno" | null;
   razzaCampoSterminio: "Umano" | "Alieno" | null;
+  capoReligiosoSole: number | null;
+  capoReligiosoAlieni: number | null;
   setTipoTassaReddito: (tipo: "flat" | "scaglioni") => void;
   setFlatTaxPercentuale: (percentuale: number) => void;
   setScaglioniConfig: (config: ScaglioneConfig[]) => void;
@@ -35,6 +37,8 @@ type GameContextType = {
   setLeggeRazzialeAttiva: (attiva: boolean) => void;
   setRazzaCampoLavoro: (razza: "Umano" | "Alieno" | null) => void;
   setRazzaCampoSterminio: (razza: "Umano" | "Alieno" | null) => void;
+  setCapoReligiosoSole: (id: number | null) => void;
+  setCapoReligiosoAlieni: (id: number | null) => void;
   avanzaMese: () => Promise<void>;
   assegnaAbitanteAEdificio: (abitanteId: number, edificioId: number) => void;
   rimuoviAbitanteDaEdificio: (abitanteId: number, edificioId: number) => void;

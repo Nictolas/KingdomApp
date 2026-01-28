@@ -32,6 +32,10 @@ export function useGameState() {
   // Configurazione politica religiosa
   const [politicaReligiosa, setPoliticaReligiosa] = useState<"ateismo-stato" | "religione-stato" | "liberta-culto">("liberta-culto");
   
+  // Capo religioso e fedeli per ogni culto
+  const [capoReligiosoSole, setCapoReligiosoSole] = useState<number | null>(null); // ID abitante
+  const [capoReligiosoAlieni, setCapoReligiosoAlieni] = useState<number | null>(null); // ID abitante
+  
   // Configurazione legge razziale
   const [leggeRazzialeAttiva, setLeggeRazzialeAttiva] = useState(false);
   const [razzaCampoLavoro, setRazzaCampoLavoro] = useState<"Umano" | "Alieno" | null>(null);
@@ -506,6 +510,8 @@ export function useGameState() {
     leggeRazzialeAttiva,
     razzaCampoLavoro,
     razzaCampoSterminio,
+    capoReligiosoSole,
+    capoReligiosoAlieni,
     setTipoTassaReddito,
     setFlatTaxPercentuale,
     setScaglioniConfig,
@@ -515,6 +521,8 @@ export function useGameState() {
     setLeggeRazzialeAttiva,
     setRazzaCampoLavoro,
     setRazzaCampoSterminio,
+    setCapoReligiosoSole,
+    setCapoReligiosoAlieni,
     avanzaMese,
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,
