@@ -2,6 +2,12 @@ import React, { createContext, useContext, ReactNode } from "react";
 import { useGameState } from "../hooks/useGameState";
 import type { Abitante, Risorsa, Edificio } from "../types";
 
+type ScaglioneConfig = {
+  min: number;
+  max: number;
+  percentuale: number;
+};
+
 type GameContextType = {
   abitanti: Abitante[];
   risorse: Risorsa[];
@@ -10,6 +16,12 @@ type GameContextType = {
   anno: number;
   isLoading: boolean;
   abitantiProposti: Abitante[];
+  tipoTassaReddito: "flat" | "scaglioni";
+  flatTaxPercentuale: number;
+  scaglioniConfig: ScaglioneConfig[];
+  setTipoTassaReddito: (tipo: "flat" | "scaglioni") => void;
+  setFlatTaxPercentuale: (percentuale: number) => void;
+  setScaglioniConfig: (config: ScaglioneConfig[]) => void;
   avanzaMese: () => Promise<void>;
   assegnaAbitanteAEdificio: (abitanteId: number, edificioId: number) => void;
   rimuoviAbitanteDaEdificio: (abitanteId: number, edificioId: number) => void;

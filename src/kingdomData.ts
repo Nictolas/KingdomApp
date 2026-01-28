@@ -102,6 +102,66 @@ export const abitantiData: Abitante[] = [
     spese: 250,
     lealtà: 80,
     paura: 12
+  },
+  {
+    id: 6,
+    nome: "Marco Junior",
+    emoji: "👦",
+    eta: 15,
+    lavoro: "Studente",
+    competenza: 25,
+    produttività: 20,
+    stanchezza: 10,
+    personalità: "Curioso e vivace",
+    amici: [7, 8],
+    rivali: [],
+    fazione: "Esploratori",
+    salute: 95,
+    crediti: 50,
+    reddito: 0,
+    spese: 100,
+    lealtà: 60,
+    paura: 15
+  },
+  {
+    id: 7,
+    nome: "Sofia Junior",
+    emoji: "👧",
+    eta: 14,
+    lavoro: "Apprendista",
+    competenza: 30,
+    produttività: 25,
+    stanchezza: 15,
+    personalità: "Studiosa e determinata",
+    amici: [6, 8],
+    rivali: [],
+    fazione: "Scienziati",
+    salute: 92,
+    crediti: 30,
+    reddito: 50,
+    spese: 80,
+    lealtà: 65,
+    paura: 12
+  },
+  {
+    id: 8,
+    nome: "Luca Junior",
+    emoji: "🧒",
+    eta: 16,
+    lavoro: "Tirocinante",
+    competenza: 35,
+    produttività: 30,
+    stanchezza: 20,
+    personalità: "Ambizioso e creativo",
+    amici: [6, 7],
+    rivali: [],
+    fazione: "Lavoratori",
+    salute: 88,
+    crediti: 100,
+    reddito: 80,
+    spese: 120,
+    lealtà: 70,
+    paura: 10
   }
 ];
 
@@ -157,6 +217,12 @@ export const leggiData: Legge[] = [
     id: 5,
     titolo: "Tassa sul Reddito",
     descrizione: "Sistema di tassazione progressiva sul reddito mensile degli abitanti con scaglioni fiscali.",
+    stato: "In vigore"
+  },
+  {
+    id: 6,
+    titolo: "Età minima sul lavoro",
+    descrizione: "Stabilisce che i minori di 18 anni non possono essere impiegati in lavori pericolosi o a tempo pieno.",
     stato: "In vigore"
   }
 ];

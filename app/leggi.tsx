@@ -24,33 +24,37 @@ export default function LeggiScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {leggi.map((l: Legge) => {
-          const isTassaReddito = l.titolo === "Tassa sul Reddito";
-          return (
-            <Pressable
-              key={l.id}
-              style={styles.card}
-              onPress={isTassaReddito ? () => router.push("/tassa-reddito") : undefined}
-              disabled={!isTassaReddito}
-            >
-              <Text style={styles.cardTitle}>{l.titolo}</Text>
-              <Text style={styles.line}>{l.descrizione}</Text>
-              <Text style={styles.chip}>
-                Stato:{" "}
-                <Text
-                  style={[
-                    styles.chipValue,
-                    l.stato === "In vigore" && styles.chipActive,
-                    l.stato === "Proposta" && styles.chipProposed,
-                    l.stato === "Abrogata" && styles.chipRepealed
-                  ]}
-                >
-                  {l.stato}
+        <View style={styles.grid}>
+          {leggi.map((l: Legge) => {
+            const isTassaReddito = l.titolo === "Tassa sul Reddito";
+            return (
+              <Pressable
+                key={l.id}
+                style={styles.card}
+                onPress={isTassaReddito ? () => router.push("/tassa-reddito") : undefined}
+                disabled={!isTassaReddito}
+              >
+                <Text style={styles.cardTitle}>{l.titolo}</Text>
+                <Text style={styles.line} numberOfLines={2}>
+                  {l.descrizione}
                 </Text>
-              </Text>
-            </Pressable>
-          );
-        })}
+                <Text style={styles.chip}>
+                  Stato:{" "}
+                  <Text
+                    style={[
+                      styles.chipValue,
+                      l.stato === "In vigore" && styles.chipActive,
+                      l.stato === "Proposta" && styles.chipProposed,
+                      l.stato === "Abrogata" && styles.chipRepealed
+                    ]}
+                  >
+                    {l.stato}
+                  </Text>
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -83,25 +87,31 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     paddingBottom: 8,
-    gap: 6,
     flex: 1
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6
   },
   card: {
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 8,
-    padding: 10,
+    padding: 8,
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.6)"
+    borderColor: "rgba(148,163,184,0.6)",
+    width: "48%",
+    minWidth: 140
   },
   cardTitle: {
     color: "#e5e7eb",
-    fontSize: 13,
+    fontSize: 11,
     fontWeight: "700",
     marginBottom: 3
   },
   line: {
     color: "#cbd5f5",
-    fontSize: 11
+    fontSize: 9
   },
   chip: {
     marginTop: 4,

@@ -11,6 +11,16 @@ export function useGameState() {
   const [isLoading, setIsLoading] = useState(false);
   const [abitantiProposti, setAbitantiProposti] = useState<Abitante[]>([]);
   const [nextId, setNextId] = useState(100); // ID iniziale per nuovi abitanti
+  
+  // Configurazione tassa sul reddito
+  const [tipoTassaReddito, setTipoTassaReddito] = useState<"flat" | "scaglioni">("scaglioni");
+  const [flatTaxPercentuale, setFlatTaxPercentuale] = useState(15); // Percentuale flat tax
+  const [scaglioniConfig, setScaglioniConfig] = useState([
+    { min: 0, max: 300, percentuale: 0 },
+    { min: 301, max: 800, percentuale: 10 },
+    { min: 801, max: 1500, percentuale: 20 },
+    { min: 1501, max: Infinity, percentuale: 30 }
+  ]);
 
   // Genera nuovi abitanti proposti per immigrazione
   const generaNuoviAbitantiProposti = useCallback(() => {
@@ -436,6 +446,12 @@ export function useGameState() {
     anno,
     isLoading,
     abitantiProposti,
+    tipoTassaReddito,
+    flatTaxPercentuale,
+    scaglioniConfig,
+    setTipoTassaReddito,
+    setFlatTaxPercentuale,
+    setScaglioniConfig,
     avanzaMese,
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,
