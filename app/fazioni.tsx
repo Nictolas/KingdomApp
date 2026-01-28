@@ -26,21 +26,21 @@ export default function FazioniScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {fazioni.map((f: Fazione) => (
-          <Pressable
-            key={f.id}
-            style={styles.card}
-            onPress={() => setSelectedFazione(f)}
-          >
-            <Text style={styles.emoji}>{f.emoji}</Text>
-            <View style={styles.cardContent}>
+        <View style={styles.grid}>
+          {fazioni.map((f: Fazione) => (
+            <Pressable
+              key={f.id}
+              style={styles.card}
+              onPress={() => setSelectedFazione(f)}
+            >
+              <Text style={styles.emoji}>{f.emoji}</Text>
               <Text style={styles.cardTitle}>{f.nome}</Text>
               <Text style={styles.cardDescrizione} numberOfLines={2}>
                 {f.descrizione}
               </Text>
-            </View>
-          </Pressable>
-        ))}
+            </Pressable>
+          ))}
+        </View>
       </ScrollView>
 
       <FazioneInfoModal
@@ -79,34 +79,38 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     paddingBottom: 8,
-    gap: 6,
     flex: 1
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6
   },
   card: {
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 8,
-    padding: 10,
+    padding: 8,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
-    flexDirection: "row",
     alignItems: "center",
-    gap: 8
+    width: "48%",
+    minWidth: 140
   },
   emoji: {
-    fontSize: 28
-  },
-  cardContent: {
-    flex: 1
+    fontSize: 32,
+    marginBottom: 4
   },
   cardTitle: {
     color: "#e5e7eb",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
-    marginBottom: 2
+    marginBottom: 2,
+    textAlign: "center"
   },
   cardDescrizione: {
     color: "#cbd5f5",
-    fontSize: 11
+    fontSize: 10,
+    textAlign: "center"
   }
 });
 

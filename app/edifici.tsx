@@ -26,25 +26,25 @@ export default function EdificiScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {edifici.map((e: Edificio) => (
-          <Pressable
-            key={e.id}
-            style={styles.card}
-            onPress={() => {
-              if (e.nome === "Serra Idroponica Alpha") {
-                router.push("/serra");
-              } else {
-                setSelectedEdificio(e);
-              }
-            }}
-          >
-            <Text style={styles.emoji}>{e.emoji}</Text>
-            <View style={styles.cardContent}>
+        <View style={styles.grid}>
+          {edifici.map((e: Edificio) => (
+            <Pressable
+              key={e.id}
+              style={styles.card}
+              onPress={() => {
+                if (e.nome === "Serra Idroponica Alpha") {
+                  router.push("/serra");
+                } else {
+                  setSelectedEdificio(e);
+                }
+              }}
+            >
+              <Text style={styles.emoji}>{e.emoji}</Text>
               <Text style={styles.cardTitle}>{e.nome}</Text>
               <Text style={styles.cardTipo}>{e.tipo}</Text>
-            </View>
-          </Pressable>
-        ))}
+            </Pressable>
+          ))}
+        </View>
       </ScrollView>
 
       <EdificioInfoModal
@@ -83,33 +83,37 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     paddingBottom: 8,
-    gap: 6,
     flex: 1
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6
   },
   card: {
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 8,
-    padding: 10,
+    padding: 8,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
-    flexDirection: "row",
     alignItems: "center",
-    gap: 8
+    width: "48%",
+    minWidth: 140
   },
   emoji: {
-    fontSize: 28
-  },
-  cardContent: {
-    flex: 1
+    fontSize: 32,
+    marginBottom: 4
   },
   cardTitle: {
     color: "#e5e7eb",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
-    marginBottom: 2
+    marginBottom: 2,
+    textAlign: "center"
   },
   cardTipo: {
     color: "#93c5fd",
-    fontSize: 11
+    fontSize: 10,
+    textAlign: "center"
   }
 });

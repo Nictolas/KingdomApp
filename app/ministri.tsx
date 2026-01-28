@@ -46,22 +46,22 @@ export default function MinistriScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         {ministriAttuali.length > 0 ? (
-          ministriAttuali.map((a: Abitante) => (
-            <View key={a.id} style={styles.card}>
-              <Text style={styles.cardEmoji}>{a.emoji}</Text>
-              <View style={styles.cardContent}>
+          <View style={styles.grid}>
+            {ministriAttuali.map((a: Abitante) => (
+              <View key={a.id} style={styles.card}>
+                <Text style={styles.cardEmoji}>{a.emoji}</Text>
                 <Text style={styles.cardTitle}>{a.nome}</Text>
                 <Text style={styles.line}>Ministero: {a.ministero}</Text>
                 <Text style={styles.line}>Fazione: {a.fazione}</Text>
+                <Pressable
+                  style={styles.removeButton}
+                  onPress={() => rimuoviMinistro(a.id)}
+                >
+                  <Text style={styles.removeButtonText}>Rimuovi</Text>
+                </Pressable>
               </View>
-              <Pressable
-                style={styles.removeButton}
-                onPress={() => rimuoviMinistro(a.id)}
-              >
-                <Text style={styles.removeButtonText}>Rimuovi</Text>
-              </Pressable>
-            </View>
-          ))
+            ))}
+          </View>
         ) : (
           <Text style={styles.emptyText}>Nessun ministro nominato</Text>
         )}
@@ -184,41 +184,48 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
     paddingBottom: 8,
-    gap: 6,
     flex: 1
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6
   },
   card: {
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 8,
-    padding: 10,
+    padding: 8,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
-    flexDirection: "row",
     alignItems: "center",
-    gap: 8
+    width: "48%",
+    minWidth: 140
   },
   cardEmoji: {
-    fontSize: 24
-  },
-  cardContent: {
-    flex: 1
+    fontSize: 32,
+    marginBottom: 4
   },
   cardTitle: {
     color: "#e5e7eb",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "700",
-    marginBottom: 2
+    marginBottom: 2,
+    textAlign: "center"
   },
   line: {
     color: "#cbd5f5",
-    fontSize: 11,
-    marginBottom: 1
+    fontSize: 10,
+    marginBottom: 1,
+    textAlign: "center"
   },
   removeButton: {
     backgroundColor: "#ef4444",
     paddingHorizontal: 10,
     paddingVertical: 5,
-    borderRadius: 6
+    borderRadius: 6,
+    marginTop: 6,
+    width: "100%",
+    alignItems: "center"
   },
   removeButtonText: {
     color: "#ffffff",
