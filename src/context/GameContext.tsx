@@ -9,12 +9,15 @@ type GameContextType = {
   mese: number;
   anno: number;
   isLoading: boolean;
+  abitantiProposti: Abitante[];
   avanzaMese: () => Promise<void>;
   assegnaAbitanteAEdificio: (abitanteId: number, edificioId: number) => void;
   rimuoviAbitanteDaEdificio: (abitanteId: number, edificioId: number) => void;
   nominaMinistro: (abitanteId: number, ministero: string) => void;
   rimuoviMinistro: (abitanteId: number) => void;
   calcolaProduzioneConsumo: () => Record<string, number>;
+  accettaImmigrante: (abitanteId: number) => void;
+  rifiutaImmigrante: (abitanteId: number) => void;
 };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);

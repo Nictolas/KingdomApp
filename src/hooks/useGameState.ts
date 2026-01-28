@@ -9,6 +9,77 @@ export function useGameState() {
   const [mese, setMese] = useState(1);
   const [anno, setAnno] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
+  const [abitantiProposti, setAbitantiProposti] = useState<Abitante[]>([]);
+  const [nextId, setNextId] = useState(100); // ID iniziale per nuovi abitanti
+
+  // Genera nuovi abitanti proposti per immigrazione
+  const generaNuoviAbitantiProposti = useCallback(() => {
+    const numNuovi = Math.floor(Math.random() * 6); // 0-5
+    const nuoviAbitanti: Abitante[] = [];
+    const fazioni = ["Amministrazione", "Lavoratori", "Scienziati", "Esploratori"];
+    const lavori = [
+      "Tecnico",
+      "Ricercatore",
+      "Ingegnere",
+      "Medico",
+      "Agricoltore",
+      "Meccanico",
+      "Esploratore",
+      "Comunicatore",
+      "Sicurezza",
+      "Amministratore"
+    ];
+    const personalità = [
+      "Curioso",
+      "Lavoratore",
+      "Analitico",
+      "Creativo",
+      "Pragmatico",
+      "Idealista",
+      "Deciso",
+      "Collaborativo"
+    ];
+    const emojiUmani = ["👨", "👩", "👨‍🔬", "👩‍🔬", "👨‍💼", "👩‍💼", "👨‍🔧", "👩‍🔧", "👨‍🌾", "👩‍🌾"];
+    const emojiAlieni = ["👽", "🛸", "🤖", "👾", "🦎", "🦑"];
+
+    setNextId((prevId) => {
+      for (let i = 0; i < numNuovi; i++) {
+        const isAlieno = Math.random() < 0.3; // 30% probabilità di essere alieno
+        const emoji = isAlieno
+          ? emojiAlieni[Math.floor(Math.random() * emojiAlieni.length)]
+          : emojiUmani[Math.floor(Math.random() * emojiUmani.length)];
+
+        const nome = isAlieno
+          ? `X'${Math.floor(Math.random() * 9999)}`
+          : `${["Marco", "Luca", "Anna", "Sofia", "Giovanni", "Elena", "Alessandro", "Chiara"][Math.floor(Math.random() * 8)]} ${["Rossi", "Bianchi", "Verdi", "Neri", "Blu", "Gialli"][Math.floor(Math.random() * 6)]}`;
+
+        const nuovoAbitante: Abitante = {
+          id: prevId + i,
+          nome,
+          emoji,
+          eta: 20 + Math.floor(Math.random() * 50),
+          lavoro: lavori[Math.floor(Math.random() * lavori.length)],
+          competenza: 30 + Math.floor(Math.random() * 70),
+          produttività: 40 + Math.floor(Math.random() * 60),
+          stanchezza: Math.floor(Math.random() * 50),
+          personalità: personalità[Math.floor(Math.random() * personalità.length)],
+          amici: [],
+          rivali: [],
+          fazione: fazioni[Math.floor(Math.random() * fazioni.length)],
+          salute: 50 + Math.floor(Math.random() * 50),
+          crediti: Math.floor(Math.random() * 1000),
+          reddito: 100 + Math.floor(Math.random() * 500),
+          spese: 50 + Math.floor(Math.random() * 300),
+          lealtà: 30 + Math.floor(Math.random() * 50),
+          paura: Math.floor(Math.random() * 40)
+        };
+
+        nuoviAbitanti.push(nuovoAbitante);
+      }
+      setAbitantiProposti(nuoviAbitanti);
+      return prevId + numNuovi;
+    });
+  }, []);
 
   // Produzione fissa di cibo per abitante (10-20 razioni al mese, valore individuale costante)
   const getProduzioneCiboPerAbitante = (abitanteId: number): number => {
@@ -164,9 +235,12 @@ export function useGameState() {
       }
       return nuovoMese;
     });
+
+    // Genera nuovi abitanti proposti per immigrazione
+    generaNuoviAbitantiProposti();
     
     setIsLoading(false);
-  }, [abitanti, edifici, risorse]);
+  }, [abitanti, edifici, risorse, generaNuoviAbitantiProposti]);
 
   const assegnaAbitanteAEdificio = useCallback((abitanteId: number, edificioId: number) => {
     setEdifici((prevEdifici) =>
@@ -342,6 +416,18 @@ export function useGameState() {
     return variazioni;
   }, [abitanti, edifici, risorse]);
 
+  const accettaImmigrante = useCallback((abitanteId: number) => {
+    const immigrante = abitantiProposti.find((a) => a.id === abitanteId);
+    if (immigrante) {
+      setAbitanti((prev) => [...prev, immigrante]);
+      setAbitantiProposti((prev) => prev.filter((a) => a.id !== abitanteId));
+    }
+  }, [abitantiProposti]);
+
+  const rifiutaImmigrante = useCallback((abitanteId: number) => {
+    setAbitantiProposti((prev) => prev.filter((a) => a.id !== abitanteId));
+  }, []);
+
   return {
     abitanti,
     risorse,
@@ -349,11 +435,14 @@ export function useGameState() {
     mese,
     anno,
     isLoading,
+    abitantiProposti,
     avanzaMese,
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,
     nominaMinistro,
     rimuoviMinistro,
-    calcolaProduzioneConsumo
+    calcolaProduzioneConsumo,
+    accettaImmigrante,
+    rifiutaImmigrante
   };
 }

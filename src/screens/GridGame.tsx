@@ -10,7 +10,7 @@ import { EnergiaModal } from "../ui/EnergiaModal";
 
 export default function GridGame() {
   const router = useRouter();
-  const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo } = useGameContext();
+  const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, abitantiProposti } = useGameContext();
   const [showCiboModal, setShowCiboModal] = useState(false);
   const [showCreditiModal, setShowCreditiModal] = useState(false);
   const [showEnergiaModal, setShowEnergiaModal] = useState(false);
@@ -32,7 +32,13 @@ export default function GridGame() {
     <View style={[styles.container, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
         <View>
-          <Text style={styles.gameTitle}>MyKingdom</Text>
+          <View style={styles.titleRow}>
+            <Text style={styles.gameTitle}>MyKingdom</Text>
+            <Pressable style={styles.diarioButton} onPress={() => router.push("/diario")}>
+              <Text style={styles.diarioEmoji}>📖</Text>
+              <Text style={styles.diarioLabel}>Diario</Text>
+            </Pressable>
+          </View>
           <Text style={styles.subtitle}>Gestisci la tua colonia</Text>
           <Text style={styles.meseLabel}>Mese {mese} - Anno {anno}</Text>
         </View>
@@ -142,10 +148,12 @@ export default function GridGame() {
           <Text style={styles.navLabel}>Edifici</Text>
           <Text style={styles.navCount}>{edifici.length} strutture</Text>
         </Pressable>
-        <Pressable style={styles.navButton} onPress={() => router.push("/diario")}>
-          <Text style={styles.navEmoji}>📖</Text>
-          <Text style={styles.navLabel}>Diario</Text>
-          <Text style={styles.navCount}>Storia</Text>
+        <Pressable style={styles.navButton} onPress={() => router.push("/immigrazione")}>
+          <Text style={styles.navEmoji}>🚀</Text>
+          <Text style={styles.navLabel}>Immigrazione</Text>
+          <Text style={styles.navCount}>
+            {abitantiProposti.length > 0 ? `${abitantiProposti.length} candidati` : "Nessuno"}
+          </Text>
         </Pressable>
       </View>
 
@@ -219,10 +227,35 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(255,255,255,0.12)",
     backgroundColor: "#050816"
   },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 2
+  },
   gameTitle: {
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "800"
+  },
+  diarioButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(15,23,42,0.6)",
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.3)",
+    gap: 4
+  },
+  diarioEmoji: {
+    fontSize: 12
+  },
+  diarioLabel: {
+    color: "#e5e7eb",
+    fontSize: 10,
+    fontWeight: "600"
   },
   subtitle: {
     color: "rgba(255,255,255,0.7)",
