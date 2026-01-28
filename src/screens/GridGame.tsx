@@ -1,13 +1,15 @@
-import React from "react";
+import React, { useState } from "react";
 import { ActivityIndicator, Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { fazioniData, leggiData } from "../kingdomData";
 import { useGameContext } from "../context/GameContext";
 import type { Risorsa, Abitante } from "../types";
+import { CiboConsumoModal } from "../ui/CiboConsumoModal";
 
 export default function GridGame() {
   const router = useRouter();
   const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo } = useGameContext();
+  const [showCiboModal, setShowCiboModal] = useState(false);
 
   const ministriAttuali = abitanti.filter((a: Abitante) => a.ministero);
   const fazioni = fazioniData;
@@ -58,8 +60,14 @@ export default function GridGame() {
         <View style={styles.resourcesGrid}>
           {risorse.map((r: Risorsa) => {
             const variazione = variazioni[r.nome] || 0;
+            const isCibo = r.nome.toLowerCase().includes("cibo");
             return (
-              <View key={r.id} style={styles.resourceCard}>
+              <Pressable
+                key={r.id}
+                style={styles.resourceCard}
+                onPress={isCibo ? () => setShowCiboModal(true) : undefined}
+                disabled={!isCibo}
+              >
                 <Text style={styles.resourceName}>{r.nome}</Text>
                 <View style={styles.resourceRow}>
                   <Text style={styles.resourceValue}>
@@ -71,7 +79,7 @@ export default function GridGame() {
                     </Text>
                   )}
                 </View>
-              </View>
+              </Pressable>
             );
           })}
         </View>
@@ -113,6 +121,12 @@ export default function GridGame() {
           <Text style={styles.navCount}>Storia</Text>
         </Pressable>
       </View>
+
+      <CiboConsumoModal
+        visible={showCiboModal}
+        abitanti={abitanti}
+        onClose={() => setShowCiboModal(false)}
+      />
     </View>
   );
 }
