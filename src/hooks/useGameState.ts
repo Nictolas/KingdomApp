@@ -47,6 +47,22 @@ export function useGameState() {
   
   // Configurazione legge sulle droghe
   const [leggeDroghe, setLeggeDroghe] = useState<"vietate" | "legali" | "parziali">("vietate"); // Stato delle droghe
+  
+  // Configurazione divieto di espatrio
+  const [divietoEspatrioAttivo, setDivietoEspatrioAttivo] = useState(false);
+  
+  // Configurazione legge sulle famiglie
+  const [tipologieFamigliaAccettate, setTipologieFamigliaAccettate] = useState<{
+    tradizionale: boolean;
+    interrazziale: boolean;
+    arcobaleno: boolean;
+    monogenitoriale: boolean;
+  }>({
+    tradizionale: true,
+    interrazziale: true,
+    arcobaleno: true,
+    monogenitoriale: true
+  });
 
   // Genera nuovi abitanti proposti per immigrazione
   const generaNuoviAbitantiProposti = useCallback(() => {
@@ -129,8 +145,23 @@ export function useGameState() {
     // Simula un caricamento per rendere l'aggiornamento visibile
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
+    // Logica di emigrazione: se gli abitanti hanno felicità <= 10 e almeno 100 crediti,
+    // c'è il 50% di probabilità che se ne vadano, a meno che non sia attivo il Divieto di espatrio
+    let abitantiRimasti = abitanti;
+    if (!divietoEspatrioAttivo) {
+      abitantiRimasti = abitanti.filter((abitante) => {
+        const felicitàModificata = calcolaFelicitàModificata(abitante);
+        const puòEmigrare = felicitàModificata <= 10 && abitante.crediti >= 100;
+        if (puòEmigrare) {
+          // 50% di probabilità di emigrare
+          return Math.random() >= 0.5;
+        }
+        return true; // Non può emigrare, resta
+      });
+    }
+
     // Aggiorna gli abitanti
-    const nuoviAbitanti = abitanti.map((abitante) => {
+    const nuoviAbitanti = abitantiRimasti.map((abitante) => {
       // Calcola il nuovo saldo (reddito - spese)
       const nuovoSaldo = abitante.crediti + abitante.reddito - abitante.spese;
       
@@ -276,7 +307,7 @@ export function useGameState() {
     generaNuoviAbitantiProposti();
     
     setIsLoading(false);
-  }, [abitanti, edifici, risorse, generaNuoviAbitantiProposti]);
+  }, [abitanti, edifici, risorse, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata]);
 
   const assegnaAbitanteAEdificio = useCallback((abitanteId: number, edificioId: number) => {
     setEdifici((prevEdifici) =>
@@ -529,9 +560,14 @@ export function useGameState() {
       punteggio += 1;
     }
     
+    // +1 se il divieto di espatrio è attivo
+    if (divietoEspatrioAttivo) {
+      punteggio += 1;
+    }
+    
     // Limita tra 1 e 10
     return Math.min(Math.max(punteggio, 1), 10);
-  }, [abitanti, penaDiMorteAttiva, razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro]);
+  }, [abitanti, penaDiMorteAttiva, razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, divietoEspatrioAttivo]);
 
   // Aggiorna il punteggio quando cambiano le condizioni
   useEffect(() => {
@@ -562,6 +598,8 @@ export function useGameState() {
     religioneDiStato,
     etaMinimaLavoro,
     leggeDroghe,
+    divietoEspatrioAttivo,
+    tipologieFamigliaAccettate,
     setTipoTassaReddito,
     setFlatTaxPercentuale,
     setScaglioniConfig,
@@ -576,6 +614,8 @@ export function useGameState() {
     setCapoReligiosoAlieni,
     setEtaMinimaLavoro,
     setLeggeDroghe,
+    setDivietoEspatrioAttivo,
+    setTipologieFamigliaAccettate,
     calcolaFelicitàModificata,
     avanzaMese,
     assegnaAbitanteAEdificio,

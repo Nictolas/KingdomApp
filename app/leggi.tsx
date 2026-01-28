@@ -36,7 +36,8 @@ export default function LeggiScreen() {
       "Regolamento sull'Uso dell'Energia": "⚡",
       "Legge Razziale": "🚫",
       "Legge sulle Famiglie": "👨‍👩‍👧",
-      "Legge sulle Droghe": "💊"
+      "Legge sulle Droghe": "💊",
+      "Divieto di espatrio": "🚧"
     };
     return emojiMap[titolo] || "📋";
   };
@@ -59,7 +60,8 @@ export default function LeggiScreen() {
     } else if (
       legge.titolo === "Legge sulle Nascite" ||
       legge.titolo === "Religione" ||
-      legge.titolo === "Legge sulle Famiglie"
+      legge.titolo === "Legge sulle Famiglie" ||
+      legge.titolo === "Divieto di espatrio"
     ) {
       leggiPerTema["Società e Demografia"].push({ ...legge, tema: "Società e Demografia" });
     } else if (
@@ -85,6 +87,8 @@ export default function LeggiScreen() {
     if (titolo === "Legge Razziale") return "/legge-razziale";
     if (titolo === "Età minima sul lavoro") return "/eta-minima-lavoro";
     if (titolo === "Legge sulle Droghe") return "/legge-droghe";
+    if (titolo === "Legge sulle Famiglie") return "/legge-famiglie";
+    if (titolo === "Divieto di espatrio") return "/divieto-espatrio";
     if (titolo === "Schiavitu") return "/schiavitu";
     return null;
   };

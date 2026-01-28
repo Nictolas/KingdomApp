@@ -277,6 +277,12 @@ export const leggiData: Legge[] = [
     titolo: "Legge sulle Droghe",
     descrizione: "Regolamentazione sulla produzione, vendita e consumo di sostanze psicoattive.",
     stato: "Proposta"
+  },
+  {
+    id: 13,
+    titolo: "Divieto di espatrio",
+    descrizione: "Impedisce agli abitanti di lasciare la colonia.",
+    stato: "Proposta"
   }
 ];
 
