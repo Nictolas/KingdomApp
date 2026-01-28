@@ -31,6 +31,7 @@ export function useGameState() {
   
   // Configurazione politica religiosa
   const [politicaReligiosa, setPoliticaReligiosa] = useState<"ateismo-stato" | "religione-stato" | "liberta-culto">("liberta-culto");
+  const [religioneDiStato, setReligioneDiStato] = useState<"Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni" | null>(null);
   
   // Capo religioso e fedeli per ogni culto
   const [capoReligiosoSole, setCapoReligiosoSole] = useState<number | null>(null); // ID abitante
@@ -512,12 +513,14 @@ export function useGameState() {
     razzaCampoSterminio,
     capoReligiosoSole,
     capoReligiosoAlieni,
+    religioneDiStato,
     setTipoTassaReddito,
     setFlatTaxPercentuale,
     setScaglioniConfig,
     setPoliticaNascite,
     setPenaDiMorteAttiva,
     setPoliticaReligiosa,
+    setReligioneDiStato,
     setLeggeRazzialeAttiva,
     setRazzaCampoLavoro,
     setRazzaCampoSterminio,

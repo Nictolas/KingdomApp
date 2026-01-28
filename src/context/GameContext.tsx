@@ -28,12 +28,14 @@ type GameContextType = {
   razzaCampoSterminio: "Umano" | "Alieno" | null;
   capoReligiosoSole: number | null;
   capoReligiosoAlieni: number | null;
+  religioneDiStato: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni" | null;
   setTipoTassaReddito: (tipo: "flat" | "scaglioni") => void;
   setFlatTaxPercentuale: (percentuale: number) => void;
   setScaglioniConfig: (config: ScaglioneConfig[]) => void;
   setPoliticaNascite: (politica: "figlio-unico" | "incentivi" | "nessuna") => void;
   setPenaDiMorteAttiva: (attiva: boolean) => void;
   setPoliticaReligiosa: (politica: "ateismo-stato" | "religione-stato" | "liberta-culto") => void;
+  setReligioneDiStato: (religione: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni" | null) => void;
   setLeggeRazzialeAttiva: (attiva: boolean) => void;
   setRazzaCampoLavoro: (razza: "Umano" | "Alieno" | null) => void;
   setRazzaCampoSterminio: (razza: "Umano" | "Alieno" | null) => void;

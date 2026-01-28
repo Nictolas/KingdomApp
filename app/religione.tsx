@@ -1,11 +1,14 @@
-import React from "react";
+import React, { useState } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import type { Abitante } from "../src/types";
+import { ReligioneFedeliModal } from "../src/ui/ReligioneFedeliModal";
 
 export default function ReligioneScreen() {
   const router = useRouter();
-  const { politicaReligiosa, setPoliticaReligiosa } = useGameContext();
+  const { abitanti, politicaReligiosa, religioneDiStato, setPoliticaReligiosa, setReligioneDiStato } = useGameContext();
+  const [selectedReligione, setSelectedReligione] = useState<string | null>(null);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -33,6 +36,23 @@ export default function ReligioneScreen() {
     }
   ];
 
+  // Calcola percentuali per ogni religione
+  const religioni = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto degli Alieni"];
+  const totaleAbitanti = abitanti.length;
+  
+  const religioniConPercentuali = religioni.map((religione) => {
+    const fedeli = abitanti.filter((a: Abitante) => a.religione === religione);
+    const percentuale = totaleAbitanti > 0 ? Math.round((fedeli.length / totaleAbitanti) * 100) : 0;
+    return {
+      nome: religione,
+      emoji: religione === "Ateo" ? "🚫" : religione === "Deista" ? "🤔" : religione === "Agnostico" ? "❓" : religione === "Culto del Sole" ? "☀️" : "👽",
+      count: fedeli.length,
+      percentuale
+    };
+  });
+
+  const religioniDisponibili = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto degli Alieni"] as const;
+
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
@@ -50,6 +70,9 @@ export default function ReligioneScreen() {
           <Text style={styles.infoText}>
             {politiche.find((p) => p.id === politicaReligiosa)?.titolo || "Nessuna"}
           </Text>
+          {politicaReligiosa === "religione-stato" && religioneDiStato && (
+            <Text style={styles.infoSubtext}>Religione di Stato: {religioneDiStato}</Text>
+          )}
         </View>
 
         {/* Selettore politiche */}
@@ -62,45 +85,67 @@ export default function ReligioneScreen() {
                 <Pressable
                   key={politica.id}
                   style={[styles.politicaCardInline, isSelected && styles.politicaCardSelected]}
-                  onPress={() => setPoliticaReligiosa(politica.id)}
+                  onPress={() => {
+                    setPoliticaReligiosa(politica.id);
+                    if (politica.id !== "religione-stato") {
+                      setReligioneDiStato(null);
+                    }
+                  }}
                 >
                   <Text style={styles.politicaEmojiInline}>{politica.emoji}</Text>
                   <Text style={[styles.politicaTitoloInline, isSelected && styles.politicaTitoloSelected]}>
                     {politica.titolo}
                   </Text>
-                  {isSelected && (
-                    <Text style={styles.selectedCheck}>✓</Text>
-                  )}
+                  {isSelected && <Text style={styles.selectedCheck}>✓</Text>}
                 </Pressable>
               );
             })}
           </View>
         </View>
 
+        {/* Selettore religione di stato */}
+        {politicaReligiosa === "religione-stato" && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Seleziona Religione di Stato</Text>
+            <View style={styles.religioniStatoRow}>
+              {religioniDisponibili.map((religione) => {
+                const isSelected = religioneDiStato === religione;
+                return (
+                  <Pressable
+                    key={religione}
+                    style={[styles.religioneStatoCard, isSelected && styles.religioneStatoCardSelected]}
+                    onPress={() => setReligioneDiStato(isSelected ? null : religione)}
+                  >
+                    <Text style={styles.religioneStatoEmoji}>
+                      {religione === "Ateo" ? "🚫" : religione === "Deista" ? "🤔" : religione === "Agnostico" ? "❓" : religione === "Culto del Sole" ? "☀️" : "👽"}
+                    </Text>
+                    <Text style={[styles.religioneStatoNome, isSelected && styles.religioneStatoNomeSelected]}>
+                      {religione}
+                    </Text>
+                    {isSelected && <Text style={styles.selectedCheck}>✓</Text>}
+                  </Pressable>
+                );
+              })}
+            </View>
+          </View>
+        )}
+
         {/* Religioni disponibili */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Religioni Disponibili</Text>
           <View style={styles.religioniGrid}>
-            <View style={styles.religioneCard}>
-              <Text style={styles.religioneEmoji}>🚫</Text>
-              <Text style={styles.religioneNome}>Ateo</Text>
-            </View>
-            <View style={styles.religioneCard}>
-              <Text style={styles.religioneEmoji}>🤔</Text>
-              <Text style={styles.religioneNome}>Deista</Text>
-            </View>
-            <View style={styles.religioneCard}>
-              <Text style={styles.religioneEmoji}>❓</Text>
-              <Text style={styles.religioneNome}>Agnostico</Text>
-            </View>
-            <View style={styles.religioneCard}>
-              <Text style={styles.religioneEmoji}>☀️</Text>
-              <Text style={styles.religioneNome}>Culto del Sole</Text>
-            </View>
-            <View style={styles.religioneCard}>
-              <Text style={styles.religioneEmoji}>👽</Text>
-              <Text style={styles.religioneNome}>Culto degli Alieni</Text>
-            </View>
+            {religioniConPercentuali.map((religione) => (
+              <Pressable
+                key={religione.nome}
+                style={styles.religioneCard}
+                onPress={() => setSelectedReligione(religione.nome)}
+              >
+                <Text style={styles.religioneEmoji}>{religione.emoji}</Text>
+                <Text style={styles.religioneNome}>{religione.nome}</Text>
+                <Text style={styles.religionePercentuale}>{religione.percentuale}%</Text>
+                <Text style={styles.religioneCount}>({religione.count})</Text>
+              </Pressable>
+            ))}
           </View>
         </View>
 
@@ -108,23 +153,24 @@ export default function ReligioneScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Edifici Religiosi</Text>
           <View style={styles.edificiRow}>
-            <Pressable
-              style={styles.edificioCardInline}
-              onPress={() => router.push("/culto-sole")}
-            >
+            <Pressable style={styles.edificioCardInline} onPress={() => router.push("/culto-sole")}>
               <Text style={styles.edificioEmojiInline}>☀️</Text>
               <Text style={styles.edificioNomeInline}>Culto del Sole</Text>
             </Pressable>
-            <Pressable
-              style={styles.edificioCardInline}
-              onPress={() => router.push("/culto-alieni")}
-            >
+            <Pressable style={styles.edificioCardInline} onPress={() => router.push("/culto-alieni")}>
               <Text style={styles.edificioEmojiInline}>👽</Text>
               <Text style={styles.edificioNomeInline}>Culto degli Alieni</Text>
             </Pressable>
           </View>
         </View>
       </ScrollView>
+
+      <ReligioneFedeliModal
+        visible={selectedReligione !== null}
+        religione={selectedReligione || ""}
+        abitanti={abitanti}
+        onClose={() => setSelectedReligione(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -179,6 +225,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: "600"
   },
+  infoSubtext: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 10,
+    marginTop: 4
+  },
   section: {
     marginBottom: 12
   },
@@ -203,14 +254,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     minHeight: 70
   },
-  politicaCard: {
-    backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.6)",
-    marginBottom: 8
-  },
   politicaCardSelected: {
     borderColor: "#3b82f6",
     backgroundColor: "rgba(59,130,246,0.1)"
@@ -232,41 +275,39 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginTop: 2
   },
-  politicaHeader: {
+  religioniStatoRow: {
     flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6
+  },
+  religioneStatoCard: {
+    flex: 1,
+    minWidth: "30%",
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 8,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.6)",
     alignItems: "center",
-    marginBottom: 6
+    minHeight: 70
   },
-  politicaEmoji: {
+  religioneStatoCardSelected: {
+    borderColor: "#3b82f6",
+    backgroundColor: "rgba(59,130,246,0.1)"
+  },
+  religioneStatoEmoji: {
     fontSize: 24,
-    marginRight: 8
+    marginBottom: 4
   },
-  politicaTitolo: {
+  religioneStatoNome: {
     color: "#e5e7eb",
-    fontSize: 12,
-    fontWeight: "700",
-    flex: 1
-  },
-  politicaTitoloSelected: {
-    color: "#93c5fd"
-  },
-  politicaDescrizione: {
-    color: "rgba(203,213,245,0.7)",
-    fontSize: 10,
-    lineHeight: 14
-  },
-  selectedBadge: {
-    marginTop: 6,
-    alignSelf: "flex-start",
-    backgroundColor: "#3b82f6",
-    paddingHorizontal: 8,
-    paddingVertical: 2,
-    borderRadius: 4
-  },
-  selectedBadgeText: {
-    color: "#ffffff",
     fontSize: 9,
-    fontWeight: "600"
+    fontWeight: "700",
+    textAlign: "center",
+    marginBottom: 2
+  },
+  religioneStatoNomeSelected: {
+    color: "#93c5fd"
   },
   religioniGrid: {
     flexDirection: "row",
@@ -291,7 +332,18 @@ const styles = StyleSheet.create({
     color: "#e5e7eb",
     fontSize: 10,
     fontWeight: "600",
-    textAlign: "center"
+    textAlign: "center",
+    marginBottom: 2
+  },
+  religionePercentuale: {
+    color: "#4ade80",
+    fontSize: 11,
+    fontWeight: "700",
+    marginBottom: 2
+  },
+  religioneCount: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 9
   },
   edificiRow: {
     flexDirection: "row",
@@ -316,32 +368,5 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "700",
     textAlign: "center"
-  },
-  edificioCard: {
-    flexDirection: "row",
-    backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.6)",
-    marginBottom: 8
-  },
-  edificioEmoji: {
-    fontSize: 32,
-    marginRight: 10
-  },
-  edificioContent: {
-    flex: 1
-  },
-  edificioNome: {
-    color: "#e5e7eb",
-    fontSize: 11,
-    fontWeight: "700",
-    marginBottom: 4
-  },
-  edificioDescrizione: {
-    color: "rgba(203,213,245,0.7)",
-    fontSize: 9,
-    lineHeight: 13
   }
 });
