@@ -152,6 +152,12 @@ export const leggiData: Legge[] = [
     titolo: "Tassa sul Patrimonio",
     descrizione: "Una tassa progressiva sul patrimonio dei coloni basata sui loro crediti accumulati.",
     stato: "In vigore"
+  },
+  {
+    id: 5,
+    titolo: "Tassa sul Reddito",
+    descrizione: "Sistema di tassazione progressiva sul reddito mensile degli abitanti con scaglioni fiscali.",
+    stato: "In vigore"
   }
 ];
 

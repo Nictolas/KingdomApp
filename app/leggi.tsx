@@ -1,5 +1,5 @@
 import React from "react";
-import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { leggiData } from "../src/kingdomData";
 import type { Legge } from "../src/types";
@@ -24,25 +24,33 @@ export default function LeggiScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {leggi.map((l: Legge) => (
-          <View key={l.id} style={styles.card}>
-            <Text style={styles.cardTitle}>{l.titolo}</Text>
-            <Text style={styles.line}>{l.descrizione}</Text>
-            <Text style={styles.chip}>
-              Stato:{" "}
-              <Text
-                style={[
-                  styles.chipValue,
-                  l.stato === "In vigore" && styles.chipActive,
-                  l.stato === "Proposta" && styles.chipProposed,
-                  l.stato === "Abrogata" && styles.chipRepealed
-                ]}
-              >
-                {l.stato}
+        {leggi.map((l: Legge) => {
+          const isTassaReddito = l.titolo === "Tassa sul Reddito";
+          return (
+            <Pressable
+              key={l.id}
+              style={styles.card}
+              onPress={isTassaReddito ? () => router.push("/tassa-reddito") : undefined}
+              disabled={!isTassaReddito}
+            >
+              <Text style={styles.cardTitle}>{l.titolo}</Text>
+              <Text style={styles.line}>{l.descrizione}</Text>
+              <Text style={styles.chip}>
+                Stato:{" "}
+                <Text
+                  style={[
+                    styles.chipValue,
+                    l.stato === "In vigore" && styles.chipActive,
+                    l.stato === "Proposta" && styles.chipProposed,
+                    l.stato === "Abrogata" && styles.chipRepealed
+                  ]}
+                >
+                  {l.stato}
+                </Text>
               </Text>
-            </Text>
-          </View>
-        ))}
+            </Pressable>
+          );
+        })}
       </ScrollView>
     </SafeAreaView>
   );
