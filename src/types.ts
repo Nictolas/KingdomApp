@@ -37,6 +37,7 @@ export type Character = {
 export type Abitante = {
   id: number;
   nome: string;
+  emoji: string;
   eta: number;
   lavoro: string;
   competenza: number; // 0-100

@@ -4,6 +4,7 @@ export const abitantiData: Abitante[] = [
   {
     id: 1,
     nome: "Comandante Sarah Chen",
+    emoji: "👩‍🚀",
     eta: 35,
     lavoro: "Comandante della Colonia",
     competenza: 95,
@@ -23,6 +24,7 @@ export const abitantiData: Abitante[] = [
   {
     id: 2,
     nome: "Dr. Marcus Volkov",
+    emoji: "👨‍🔬",
     eta: 32,
     lavoro: "Consigliere Scientifico",
     competenza: 92,
@@ -42,6 +44,7 @@ export const abitantiData: Abitante[] = [
   {
     id: 3,
     nome: "Luca Rodriguez",
+    emoji: "👨‍🌾",
     eta: 28,
     lavoro: "Tecnico Agricolo",
     competenza: 75,
@@ -61,6 +64,7 @@ export const abitantiData: Abitante[] = [
   {
     id: 4,
     nome: "Giovanni Tanaka",
+    emoji: "👨‍🔧",
     eta: 40,
     lavoro: "Ingegnere Meccanico",
     competenza: 88,
@@ -80,6 +84,7 @@ export const abitantiData: Abitante[] = [
   {
     id: 5,
     nome: "Elena Petrov",
+    emoji: "👩‍🔬",
     eta: 26,
     lavoro: "Ricercatrice",
     competenza: 90,
