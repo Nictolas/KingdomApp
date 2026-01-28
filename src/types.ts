@@ -34,6 +34,8 @@ export type Character = {
 };
 
 // Nuovi tipi per il gestionale del regno
+export type Reato = "Omicidio" | "Stupro" | "Furto" | "Spaccio" | "Evasione";
+
 export type Abitante = {
   id: number;
   nome: string;
@@ -60,6 +62,7 @@ export type Abitante = {
   religione: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni"; // Religione dell'abitante
   specie?: "umano" | "alieno"; // Specie dell'abitante
   razza?: "Umano" | "Alieno"; // Razza dell'abitante
+  reati?: Reato[]; // Se presente e non vuoto, l'abitante è considerato "criminale"
 };
 
 export type Ministro = {

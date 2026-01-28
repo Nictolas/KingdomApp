@@ -16,6 +16,8 @@ export default function GridGame() {
   const [showEnergiaModal, setShowEnergiaModal] = useState(false);
 
   const ministriAttuali = abitanti.filter((a: Abitante) => a.ministero);
+  const criminali = abitanti.filter((a: Abitante) => (a.reati?.length ?? 0) > 0);
+  const personalitàUniche = Array.from(new Set(abitanti.map((a: Abitante) => a.personalità))).filter(Boolean);
   const fazioni = fazioniData;
   const leggi = leggiData;
 
@@ -161,6 +163,19 @@ export default function GridGame() {
           <Text style={[styles.navCount, punteggioSanzioni >= 5 && styles.navCountWarning]}>
             {punteggioSanzioni}/10
           </Text>
+        </Pressable>
+      </View>
+
+      <View style={styles.navRow}>
+        <Pressable style={styles.navButton} onPress={() => router.push("/crimine")}>
+          <Text style={styles.navEmoji}>🕵️</Text>
+          <Text style={styles.navLabel}>Crimine</Text>
+          <Text style={styles.navCount}>{criminali.length} criminali</Text>
+        </Pressable>
+        <Pressable style={styles.navButton} onPress={() => router.push("/personalita")}>
+          <Text style={styles.navEmoji}>🧠</Text>
+          <Text style={styles.navLabel}>Personalità</Text>
+          <Text style={styles.navCount}>{personalitàUniche.length} tipi</Text>
         </Pressable>
       </View>
 

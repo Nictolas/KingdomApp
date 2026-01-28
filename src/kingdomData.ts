@@ -89,7 +89,8 @@ export const abitantiData: Abitante[] = [
     lealtà: 70,
     paura: 15,
     felicità: 60,
-    religione: "Agnostico"
+    religione: "Agnostico",
+    reati: ["Furto"]
   },
   {
     id: 5,
@@ -177,7 +178,8 @@ export const abitantiData: Abitante[] = [
     lealtà: 70,
     paura: 10,
     felicità: 68,
-    religione: "Ateo"
+    religione: "Ateo",
+    reati: ["Spaccio"]
   }
 ];
 
@@ -478,6 +480,20 @@ export const edificiData: Edificio[] = [
     abitantiAssegnati: [],
     efficienza: 85,
     manutenzione: 250,
+    stato: "Operativo",
+    livello: 1
+  },
+  {
+    id: 14,
+    nome: "Tribunale",
+    emoji: "⚖️",
+    tipo: "Giustizia",
+    descrizione: "Gestisce i processi e assegna le sentenze della colonia.",
+    capacità: 10,
+    occupazione: 0,
+    abitantiAssegnati: [],
+    efficienza: 80,
+    manutenzione: 280,
     stato: "Operativo",
     livello: 1
   }

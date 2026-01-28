@@ -38,6 +38,8 @@ export default function EdificiScreen() {
                   router.push("/scuola");
                 } else if (e.nome === "Ospedale Coloniale") {
                   router.push("/ospedale");
+                } else if (e.nome === "Tribunale") {
+                  router.push("/tribunale");
                 } else {
                   setSelectedEdificio(e);
                 }
