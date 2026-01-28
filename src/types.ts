@@ -53,7 +53,7 @@ export type Abitante = {
   spese: number; // Monete al mese
   lealtà: number; // 0-100
   paura: number; // 0-100
-  felicità: number; // 0-100
+  felicità: number; // 1-100
   ministero?: string; // Ministero assegnato (se è ministro)
   ruoloSchiavitu?: "schiavista" | "schiavo"; // Ruolo nella schiavitù
   schiavistaId?: number; // ID dello schiavista (se è schiavo)

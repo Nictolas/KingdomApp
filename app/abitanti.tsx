@@ -1,14 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import type { Abitante } from "../src/types";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 
+type SortField = "nome" | "eta" | "lavoro" | "competenza" | "produttività" | "stanchezza" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "paura" | "felicità" | "religione" | "fazione" | null;
+type SortDirection = "asc" | "desc";
+
 export default function AbitantiScreen() {
   const router = useRouter();
   const { abitanti, calcolaFelicitàModificata } = useGameContext();
   const [selectedAbitante, setSelectedAbitante] = useState<Abitante | null>(null);
+  const [sortField, setSortField] = useState<SortField>(null);
+  const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -17,6 +22,50 @@ export default function AbitantiScreen() {
 
   const getAbitanteNome = (id: number) => {
     return abitanti.find((a) => a.id === id)?.nome || `ID ${id}`;
+  };
+
+  // Ordina gli abitanti
+  const abitantiOrdinati = useMemo(() => {
+    if (!sortField) return abitanti;
+
+    const sorted = [...abitanti].sort((a, b) => {
+      let aValue: number | string;
+      let bValue: number | string;
+
+      if (sortField === "felicità") {
+        aValue = calcolaFelicitàModificata(a);
+        bValue = calcolaFelicitàModificata(b);
+      } else if (sortField === "nome" || sortField === "lavoro" || sortField === "religione" || sortField === "fazione") {
+        aValue = a[sortField];
+        bValue = b[sortField];
+      } else {
+        aValue = a[sortField as keyof Abitante] as number;
+        bValue = b[sortField as keyof Abitante] as number;
+      }
+
+      if (typeof aValue === "string" && typeof bValue === "string") {
+        return sortDirection === "asc" 
+          ? aValue.localeCompare(bValue)
+          : bValue.localeCompare(aValue);
+      } else {
+        return sortDirection === "asc"
+          ? (aValue as number) - (bValue as number)
+          : (bValue as number) - (aValue as number);
+      }
+    });
+
+    return sorted;
+  }, [abitanti, sortField, sortDirection, calcolaFelicitàModificata]);
+
+  const handleSort = (field: SortField) => {
+    if (sortField === field) {
+      // Inverti la direzione se clicchi di nuovo sulla stessa colonna
+      setSortDirection(sortDirection === "asc" ? "desc" : "asc");
+    } else {
+      // Nuova colonna, inizia con ordine crescente
+      setSortField(field);
+      setSortDirection("asc");
+    }
   };
 
   return (
@@ -40,26 +89,148 @@ export default function AbitantiScreen() {
         >
           {/* Header della tabella */}
           <View style={styles.tableHeader}>
-            <View style={[styles.headerCell, styles.cellEmoji]}><Text style={styles.headerText}>Emoji</Text></View>
-            <View style={[styles.headerCell, styles.cellNome]}><Text style={styles.headerText}>Nome</Text></View>
-            <View style={[styles.headerCell, styles.cellSmall]}><Text style={styles.headerText}>Età</Text></View>
-            <View style={[styles.headerCell, styles.cellLavoro]}><Text style={styles.headerText}>Lavoro</Text></View>
-            <View style={[styles.headerCell, styles.cellSmall]}><Text style={styles.headerText}>Comp.</Text></View>
-            <View style={[styles.headerCell, styles.cellSmall]}><Text style={styles.headerText}>Prod.</Text></View>
-            <View style={[styles.headerCell, styles.cellSmall]}><Text style={styles.headerText}>Stan.</Text></View>
-            <View style={[styles.headerCell, styles.cellSmall]}><Text style={styles.headerText}>Salute</Text></View>
-            <View style={[styles.headerCell, styles.cellMedium]}><Text style={styles.headerText}>Crediti</Text></View>
-            <View style={[styles.headerCell, styles.cellMedium]}><Text style={styles.headerText}>Reddito</Text></View>
-            <View style={[styles.headerCell, styles.cellMedium]}><Text style={styles.headerText}>Spese</Text></View>
-            <View style={[styles.headerCell, styles.cellSmall]}><Text style={styles.headerText}>Lealtà</Text></View>
-            <View style={[styles.headerCell, styles.cellSmall]}><Text style={styles.headerText}>Paura</Text></View>
-            <View style={[styles.headerCell, styles.cellSmall]}><Text style={styles.headerText}>Felicità</Text></View>
-            <View style={[styles.headerCell, styles.cellReligione]}><Text style={styles.headerText}>Religione</Text></View>
-            <View style={[styles.headerCell, styles.cellFazione]}><Text style={styles.headerText}>Fazione</Text></View>
+            <View style={[styles.headerCell, styles.cellEmoji]}>
+              <Text style={styles.headerText}>😊</Text>
+            </View>
+            <Pressable 
+              style={[styles.headerCell, styles.cellNome, sortField === "nome" && styles.headerCellActive]}
+              onPress={() => handleSort("nome")}
+            >
+              <Text style={styles.headerText}>👤 Nome</Text>
+              {sortField === "nome" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellSmall, sortField === "eta" && styles.headerCellActive]}
+              onPress={() => handleSort("eta")}
+            >
+              <Text style={styles.headerText}>🎂 Età</Text>
+              {sortField === "eta" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellLavoro, sortField === "lavoro" && styles.headerCellActive]}
+              onPress={() => handleSort("lavoro")}
+            >
+              <Text style={styles.headerText}>💼 Lavoro</Text>
+              {sortField === "lavoro" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellSmall, sortField === "competenza" && styles.headerCellActive]}
+              onPress={() => handleSort("competenza")}
+            >
+              <Text style={styles.headerText}>⭐ Comp.</Text>
+              {sortField === "competenza" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellSmall, sortField === "produttività" && styles.headerCellActive]}
+              onPress={() => handleSort("produttività")}
+            >
+              <Text style={styles.headerText}>⚡ Prod.</Text>
+              {sortField === "produttività" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellSmall, sortField === "stanchezza" && styles.headerCellActive]}
+              onPress={() => handleSort("stanchezza")}
+            >
+              <Text style={styles.headerText}>😴 Stan.</Text>
+              {sortField === "stanchezza" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellSmall, sortField === "salute" && styles.headerCellActive]}
+              onPress={() => handleSort("salute")}
+            >
+              <Text style={styles.headerText}>🏥 Salute</Text>
+              {sortField === "salute" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellMedium, sortField === "crediti" && styles.headerCellActive]}
+              onPress={() => handleSort("crediti")}
+            >
+              <Text style={styles.headerText}>💰 Crediti</Text>
+              {sortField === "crediti" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellMedium, sortField === "reddito" && styles.headerCellActive]}
+              onPress={() => handleSort("reddito")}
+            >
+              <Text style={styles.headerText}>📈 Reddito</Text>
+              {sortField === "reddito" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellMedium, sortField === "spese" && styles.headerCellActive]}
+              onPress={() => handleSort("spese")}
+            >
+              <Text style={styles.headerText}>📉 Spese</Text>
+              {sortField === "spese" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellSmall, sortField === "lealtà" && styles.headerCellActive]}
+              onPress={() => handleSort("lealtà")}
+            >
+              <Text style={styles.headerText}>❤️ Lealtà</Text>
+              {sortField === "lealtà" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellSmall, sortField === "paura" && styles.headerCellActive]}
+              onPress={() => handleSort("paura")}
+            >
+              <Text style={styles.headerText}>😨 Paura</Text>
+              {sortField === "paura" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellSmall, sortField === "felicità" && styles.headerCellActive]}
+              onPress={() => handleSort("felicità")}
+            >
+              <Text style={styles.headerText}>😊 Felicità</Text>
+              {sortField === "felicità" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellReligione, sortField === "religione" && styles.headerCellActive]}
+              onPress={() => handleSort("religione")}
+            >
+              <Text style={styles.headerText}>🕊️ Religione</Text>
+              {sortField === "religione" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellFazione, sortField === "fazione" && styles.headerCellActive]}
+              onPress={() => handleSort("fazione")}
+            >
+              <Text style={styles.headerText}>⚔️ Fazione</Text>
+              {sortField === "fazione" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
           </View>
 
           {/* Righe della tabella */}
-          {abitanti.map((a: Abitante) => {
+          {abitantiOrdinati.map((a: Abitante) => {
             const felicitàModificata = calcolaFelicitàModificata(a);
             return (
               <Pressable
@@ -181,13 +352,23 @@ const styles = StyleSheet.create({
     borderRightWidth: StyleSheet.hairlineWidth,
     borderRightColor: "rgba(148,163,184,0.3)",
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "center",
+    flexDirection: "row",
+    gap: 2
+  },
+  headerCellActive: {
+    backgroundColor: "rgba(59,130,246,0.3)"
   },
   headerText: {
     color: "#93c5fd",
     fontSize: 9,
     fontWeight: "700",
     textAlign: "center"
+  },
+  sortIndicator: {
+    color: "#3b82f6",
+    fontSize: 10,
+    fontWeight: "700"
   },
   tableRow: {
     flexDirection: "row",

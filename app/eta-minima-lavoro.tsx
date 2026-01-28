@@ -42,7 +42,11 @@ export default function EtaMinimaLavoroScreen() {
         {/* Selettore età */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Seleziona Età Minima</Text>
-          <View style={styles.etaGrid}>
+          <ScrollView 
+            horizontal 
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.etaBarContainer}
+          >
             {etaOptions.map((eta) => {
               const isSelected = etaMinimaLavoro === eta;
               const haSanzioneEta = eta <= 13;
@@ -50,9 +54,9 @@ export default function EtaMinimaLavoroScreen() {
                 <Pressable
                   key={eta}
                   style={[
-                    styles.etaCard,
-                    isSelected && styles.etaCardSelected,
-                    haSanzioneEta && styles.etaCardWarning
+                    styles.etaButton,
+                    isSelected && styles.etaButtonSelected,
+                    haSanzioneEta && styles.etaButtonWarning
                   ]}
                   onPress={() => setEtaMinimaLavoro(eta)}
                 >
@@ -62,12 +66,12 @@ export default function EtaMinimaLavoroScreen() {
                   <Text style={styles.etaLabel}>anni</Text>
                   {isSelected && <Text style={styles.selectedCheck}>✓</Text>}
                   {haSanzioneEta && (
-                    <Text style={styles.sanzioneBadge}>⚠️ +1 sanzione</Text>
+                    <Text style={styles.sanzioneBadge}>⚠️</Text>
                   )}
                 </Pressable>
               );
             })}
-          </View>
+          </ScrollView>
         </View>
 
         {/* Descrizione */}
@@ -137,68 +141,70 @@ const styles = StyleSheet.create({
   },
   infoCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 6,
+    padding: 8,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
-    marginBottom: 12
+    marginBottom: 10
   },
   infoTitle: {
     color: "#93c5fd",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "600",
-    marginBottom: 6,
+    marginBottom: 4,
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
   infoText: {
     color: "#ffffff",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
     marginBottom: 4
   },
   warningText: {
     color: "#f97316",
-    fontSize: 10,
-    marginTop: 6,
+    fontSize: 9,
+    marginTop: 4,
     fontStyle: "italic"
   },
   section: {
-    marginBottom: 12
+    marginBottom: 10
   },
   sectionTitle: {
     color: "#ffffff",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
-    marginBottom: 8
+    marginBottom: 6
   },
-  etaGrid: {
+  etaBarContainer: {
     flexDirection: "row",
-    flexWrap: "wrap",
+    paddingVertical: 4,
     gap: 6
   },
-  etaCard: {
+  etaButton: {
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
     alignItems: "center",
-    width: "30%",
-    minWidth: 80,
+    justifyContent: "center",
+    minWidth: 60,
     position: "relative"
   },
-  etaCardSelected: {
+  etaButtonSelected: {
     borderColor: "#3b82f6",
-    backgroundColor: "rgba(59,130,246,0.1)"
+    backgroundColor: "rgba(59,130,246,0.1)",
+    borderWidth: 2
   },
-  etaCardWarning: {
+  etaButtonWarning: {
     borderColor: "#f97316",
     backgroundColor: "rgba(249,115,22,0.05)"
   },
   etaValue: {
     color: "#e5e7eb",
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: "700",
     marginBottom: 2
   },
@@ -207,12 +213,12 @@ const styles = StyleSheet.create({
   },
   etaLabel: {
     color: "rgba(203,213,245,0.7)",
-    fontSize: 9,
-    marginBottom: 4
+    fontSize: 8,
+    marginBottom: 2
   },
   selectedCheck: {
     color: "#3b82f6",
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "700",
     marginTop: 2
   },
@@ -220,59 +226,58 @@ const styles = StyleSheet.create({
     color: "#f97316",
     fontSize: 8,
     fontWeight: "600",
-    marginTop: 4,
-    textAlign: "center"
+    marginTop: 2
   },
   descCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 6,
+    padding: 8,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
-    marginBottom: 12
+    marginBottom: 10
   },
   descTitle: {
     color: "#93c5fd",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "600",
-    marginBottom: 6,
+    marginBottom: 4,
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
   descText: {
     color: "rgba(203,213,245,0.7)",
-    fontSize: 10,
-    lineHeight: 14
+    fontSize: 9,
+    lineHeight: 13
   },
   effettiCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 6,
+    padding: 8,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)"
   },
   effettiTitle: {
     color: "#93c5fd",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "600",
-    marginBottom: 8,
+    marginBottom: 6,
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
   effettoRow: {
     flexDirection: "row",
     alignItems: "flex-start",
-    marginBottom: 6
+    marginBottom: 4
   },
   effettoEmoji: {
-    fontSize: 16,
-    marginRight: 8,
-    marginTop: 2
+    fontSize: 14,
+    marginRight: 6,
+    marginTop: 1
   },
   effettoText: {
     color: "rgba(203,213,245,0.7)",
-    fontSize: 10,
-    lineHeight: 14,
+    fontSize: 9,
+    lineHeight: 13,
     flex: 1
   }
 });

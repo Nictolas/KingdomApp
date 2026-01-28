@@ -31,7 +31,13 @@ export default function FazioniScreen() {
             <Pressable
               key={f.id}
               style={styles.card}
-              onPress={() => setSelectedFazione(f)}
+              onPress={() => {
+                if (f.nome === "Mafia") {
+                  router.push("/mafia");
+                } else {
+                  setSelectedFazione(f);
+                }
+              }}
             >
               <Text style={styles.emoji}>{f.emoji}</Text>
               <Text style={styles.cardTitle}>{f.nome}</Text>

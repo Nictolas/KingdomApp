@@ -44,6 +44,9 @@ export function useGameState() {
   
   // Configurazione età minima sul lavoro
   const [etaMinimaLavoro, setEtaMinimaLavoro] = useState(18); // Età minima di default
+  
+  // Configurazione legge sulle droghe
+  const [leggeDroghe, setLeggeDroghe] = useState<"vietate" | "legali" | "parziali">("vietate"); // Stato delle droghe
 
   // Genera nuovi abitanti proposti per immigrazione
   const generaNuoviAbitantiProposti = useCallback(() => {
@@ -461,7 +464,7 @@ export function useGameState() {
     setAbitantiProposti((prev) => prev.filter((a) => a.id !== abitanteId));
   }, []);
 
-  // Calcola la felicità modificata in base alla politica religiosa
+  // Calcola la felicità modificata in base alla politica religiosa e altre leggi
   const calcolaFelicitàModificata = useCallback(
     (abitante: Abitante): number => {
       let felicitàBase = abitante.felicità;
@@ -481,13 +484,19 @@ export function useGameState() {
         if (abitante.religione === religioneDiStato) {
           felicitàBase = Math.min(100, felicitàBase + 20);
         } else {
-          felicitàBase = Math.max(0, felicitàBase - 10);
+          felicitàBase = Math.max(1, felicitàBase - 10);
         }
       }
 
-      return felicitàBase;
+      // Mafia +10% felici se tutte le droghe sono vietate
+      if (abitante.fazione === "Mafia" && leggeDroghe === "vietate") {
+        felicitàBase = Math.min(100, felicitàBase + 10);
+      }
+
+      // Limita tra 1 e 100
+      return Math.min(Math.max(felicitàBase, 1), 100);
     },
-    [politicaReligiosa, religioneDiStato]
+    [politicaReligiosa, religioneDiStato, leggeDroghe]
   );
 
   // Calcola il punteggio sanzioni basato sulle leggi attive
@@ -552,6 +561,7 @@ export function useGameState() {
     capoReligiosoAlieni,
     religioneDiStato,
     etaMinimaLavoro,
+    leggeDroghe,
     setTipoTassaReddito,
     setFlatTaxPercentuale,
     setScaglioniConfig,
@@ -565,6 +575,7 @@ export function useGameState() {
     setCapoReligiosoSole,
     setCapoReligiosoAlieni,
     setEtaMinimaLavoro,
+    setLeggeDroghe,
     calcolaFelicitàModificata,
     avanzaMese,
     assegnaAbitanteAEdificio,

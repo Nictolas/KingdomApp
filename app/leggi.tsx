@@ -84,6 +84,7 @@ export default function LeggiScreen() {
     if (titolo === "Religione") return "/religione";
     if (titolo === "Legge Razziale") return "/legge-razziale";
     if (titolo === "Età minima sul lavoro") return "/eta-minima-lavoro";
+    if (titolo === "Legge sulle Droghe") return "/legge-droghe";
     if (titolo === "Schiavitu") return "/schiavitu";
     return null;
   };

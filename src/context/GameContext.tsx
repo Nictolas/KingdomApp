@@ -30,6 +30,7 @@ type GameContextType = {
   capoReligiosoAlieni: number | null;
   religioneDiStato: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni" | null;
   etaMinimaLavoro: number;
+  leggeDroghe: "vietate" | "legali" | "parziali";
   calcolaFelicitàModificata: (abitante: Abitante) => number;
   setTipoTassaReddito: (tipo: "flat" | "scaglioni") => void;
   setFlatTaxPercentuale: (percentuale: number) => void;
@@ -44,6 +45,7 @@ type GameContextType = {
   setCapoReligiosoSole: (id: number | null) => void;
   setCapoReligiosoAlieni: (id: number | null) => void;
   setEtaMinimaLavoro: (eta: number) => void;
+  setLeggeDroghe: (legge: "vietate" | "legali" | "parziali") => void;
   avanzaMese: () => Promise<void>;
   assegnaAbitanteAEdificio: (abitanteId: number, edificioId: number) => void;
   rimuoviAbitanteDaEdificio: (abitanteId: number, edificioId: number) => void;
