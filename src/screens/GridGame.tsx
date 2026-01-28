@@ -5,11 +5,15 @@ import { fazioniData, leggiData } from "../kingdomData";
 import { useGameContext } from "../context/GameContext";
 import type { Risorsa, Abitante } from "../types";
 import { CiboConsumoModal } from "../ui/CiboConsumoModal";
+import { CreditiModal } from "../ui/CreditiModal";
+import { EnergiaModal } from "../ui/EnergiaModal";
 
 export default function GridGame() {
   const router = useRouter();
   const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo } = useGameContext();
   const [showCiboModal, setShowCiboModal] = useState(false);
+  const [showCreditiModal, setShowCreditiModal] = useState(false);
+  const [showEnergiaModal, setShowEnergiaModal] = useState(false);
 
   const ministriAttuali = abitanti.filter((a: Abitante) => a.ministero);
   const fazioni = fazioniData;
@@ -61,12 +65,22 @@ export default function GridGame() {
           {risorse.map((r: Risorsa) => {
             const variazione = variazioni[r.nome] || 0;
             const isCibo = r.nome.toLowerCase().includes("cibo");
+            const isCrediti = r.nome.toLowerCase().includes("crediti");
+            const isEnergia = r.nome.toLowerCase().includes("energia");
             return (
               <Pressable
                 key={r.id}
                 style={styles.resourceCard}
-                onPress={isCibo ? () => setShowCiboModal(true) : undefined}
-                disabled={!isCibo}
+                onPress={
+                  isCibo
+                    ? () => setShowCiboModal(true)
+                    : isCrediti
+                    ? () => setShowCreditiModal(true)
+                    : isEnergia
+                    ? () => setShowEnergiaModal(true)
+                    : undefined
+                }
+                disabled={!isCibo && !isCrediti && !isEnergia}
               >
                 <Text style={styles.resourceName}>{r.nome}</Text>
                 <View style={styles.resourceRow}>
@@ -126,6 +140,19 @@ export default function GridGame() {
         visible={showCiboModal}
         abitanti={abitanti}
         onClose={() => setShowCiboModal(false)}
+      />
+
+      <CreditiModal
+        visible={showCreditiModal}
+        abitanti={abitanti}
+        edifici={edifici}
+        onClose={() => setShowCreditiModal(false)}
+      />
+
+      <EnergiaModal
+        visible={showEnergiaModal}
+        edifici={edifici}
+        onClose={() => setShowEnergiaModal(false)}
       />
     </View>
   );

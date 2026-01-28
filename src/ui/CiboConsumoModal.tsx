@@ -9,40 +9,47 @@ type CiboConsumoModalProps = {
 };
 
 export function CiboConsumoModal({ visible, abitanti, onClose }: CiboConsumoModalProps) {
+  // Funzione per generare un numero deterministico basato sull'ID dell'abitante
+  // Usa l'ID come seed per avere sempre lo stesso numero per lo stesso abitante
+  const getConsumoFisso = (abitante: Abitante): number => {
+    // Usa una combinazione di ID e salute per generare un numero deterministico
+    const seed = abitante.id * 17 + abitante.salute * 23;
+    
+    if (abitante.salute > 70) {
+      // Obeso: consuma da 5 a 10
+      return 5 + (seed % 6); // 5 + (0-5) = 5-10
+    } else if (abitante.salute >= 30 && abitante.salute <= 70) {
+      // Normale: consuma da 1 a 5
+      return 1 + (seed % 5); // 1 + (0-4) = 1-5
+    } else {
+      // Altro: consuma da 1 a 10
+      return 1 + (seed % 10); // 1 + (0-9) = 1-10
+    }
+  };
+
   // Calcola il consumo di ogni abitante
   const consumiAbitanti = abitanti.map((abitante) => {
-    let consumoMin: number;
-    let consumoMax: number;
     let statoSalute: string;
 
     if (abitante.salute > 70) {
-      // Obeso: consuma da 5 a 10
-      consumoMin = 5;
-      consumoMax = 10;
       statoSalute = "Obeso";
     } else if (abitante.salute >= 30 && abitante.salute <= 70) {
-      // Normale: consuma da 1 a 5
-      consumoMin = 1;
-      consumoMax = 5;
       statoSalute = "Normale";
     } else {
-      // Altro: consuma da 1 a 10
-      consumoMin = 1;
-      consumoMax = 10;
       statoSalute = "Basso";
     }
 
+    const consumo = getConsumoFisso(abitante);
+
     return {
       abitante,
-      consumoMin,
-      consumoMax,
+      consumo,
       statoSalute
     };
   });
 
-  // Calcola il totale minimo e massimo
-  const totaleMin = consumiAbitanti.reduce((sum, c) => sum + c.consumoMin, 0);
-  const totaleMax = consumiAbitanti.reduce((sum, c) => sum + c.consumoMax, 0);
+  // Calcola il totale
+  const totale = consumiAbitanti.reduce((sum, c) => sum + c.consumo, 0);
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -51,7 +58,7 @@ export function CiboConsumoModal({ visible, abitanti, onClose }: CiboConsumoModa
           <Text style={styles.modalTitle}>Consumo Mensile di Cibo</Text>
 
           <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-            {consumiAbitanti.map(({ abitante, consumoMin, consumoMax, statoSalute }) => (
+            {consumiAbitanti.map(({ abitante, consumo, statoSalute }) => (
               <View key={abitante.id} style={styles.item}>
                 <Text style={styles.emoji}>{abitante.emoji}</Text>
                 <View style={styles.itemContent}>
@@ -59,12 +66,7 @@ export function CiboConsumoModal({ visible, abitanti, onClose }: CiboConsumoModa
                   <View style={styles.itemRow}>
                     <Text style={styles.statoSalute}>Salute: {abitante.salute} ({statoSalute})</Text>
                     <Text style={styles.consumo}>
-                      {consumoMin === consumoMax ? (
-                        `${consumoMin}`
-                      ) : (
-                        `${consumoMin}-${consumoMax}`
-                      )}{" "}
-                      <Text style={styles.unità}>razioni</Text>
+                      {consumo} <Text style={styles.unità}>razioni</Text>
                     </Text>
                   </View>
                 </View>
@@ -75,12 +77,7 @@ export function CiboConsumoModal({ visible, abitanti, onClose }: CiboConsumoModa
           <View style={styles.totaleContainer}>
             <Text style={styles.totaleLabel}>Totale mensile:</Text>
             <Text style={styles.totaleValue}>
-              {totaleMin === totaleMax ? (
-                `${totaleMin}`
-              ) : (
-                `${totaleMin}-${totaleMax}`
-              )}{" "}
-              <Text style={styles.unità}>razioni</Text>
+              {totale} <Text style={styles.unità}>razioni</Text>
             </Text>
           </View>
 

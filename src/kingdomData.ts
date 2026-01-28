@@ -146,6 +146,12 @@ export const leggiData: Legge[] = [
     titolo: "Regolamento sull'Uso dell'Energia",
     descrizione: "Stabilisce norme per l'utilizzo efficiente dell'energia nella colonia.",
     stato: "In vigore"
+  },
+  {
+    id: 4,
+    titolo: "Tassa sul Patrimonio",
+    descrizione: "Una tassa progressiva sul patrimonio dei coloni basata sui loro crediti accumulati.",
+    stato: "In vigore"
   }
 ];
 
