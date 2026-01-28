@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useEffect } from "react";
 import type { Abitante, Risorsa, Edificio } from "../types";
 import { abitantiData, risorseData, edificiData } from "../kingdomData";
 
@@ -24,6 +24,10 @@ export function useGameState() {
   
   // Configurazione politica sulle nascite
   const [politicaNascite, setPoliticaNascite] = useState<"figlio-unico" | "incentivi" | "nessuna">("nessuna");
+  
+  // Sistema sanzioni (punteggio da 1 a 10)
+  const [punteggioSanzioni, setPunteggioSanzioni] = useState(1);
+  const [penaDiMorteAttiva, setPenaDiMorteAttiva] = useState(false);
 
   // Genera nuovi abitanti proposti per immigrazione
   const generaNuoviAbitantiProposti = useCallback(() => {
@@ -441,6 +445,31 @@ export function useGameState() {
     setAbitantiProposti((prev) => prev.filter((a) => a.id !== abitanteId));
   }, []);
 
+  // Calcola il punteggio sanzioni basato sulle leggi attive
+  const calcolaPunteggioSanzioni = useCallback(() => {
+    let punteggio = 1; // Punteggio base
+    
+    // +1 se ci sono schiavisti o schiavi
+    const haSchiavitu = abitanti.some((a) => a.ruoloSchiavitu === "schiavista" || a.ruoloSchiavitu === "schiavo");
+    if (haSchiavitu) {
+      punteggio += 1;
+    }
+    
+    // +1 se la pena di morte è attiva
+    if (penaDiMorteAttiva) {
+      punteggio += 1;
+    }
+    
+    // Limita tra 1 e 10
+    return Math.min(Math.max(punteggio, 1), 10);
+  }, [abitanti, penaDiMorteAttiva]);
+
+  // Aggiorna il punteggio quando cambiano le condizioni
+  useEffect(() => {
+    const nuovoPunteggio = calcolaPunteggioSanzioni();
+    setPunteggioSanzioni(nuovoPunteggio);
+  }, [calcolaPunteggioSanzioni]);
+
   return {
     abitanti,
     risorse,
@@ -453,10 +482,13 @@ export function useGameState() {
     flatTaxPercentuale,
     scaglioniConfig,
     politicaNascite,
+    punteggioSanzioni,
+    penaDiMorteAttiva,
     setTipoTassaReddito,
     setFlatTaxPercentuale,
     setScaglioniConfig,
     setPoliticaNascite,
+    setPenaDiMorteAttiva,
     avanzaMese,
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,

@@ -20,10 +20,13 @@ type GameContextType = {
   flatTaxPercentuale: number;
   scaglioniConfig: ScaglioneConfig[];
   politicaNascite: "figlio-unico" | "incentivi" | "nessuna";
+  punteggioSanzioni: number;
+  penaDiMorteAttiva: boolean;
   setTipoTassaReddito: (tipo: "flat" | "scaglioni") => void;
   setFlatTaxPercentuale: (percentuale: number) => void;
   setScaglioniConfig: (config: ScaglioneConfig[]) => void;
   setPoliticaNascite: (politica: "figlio-unico" | "incentivi" | "nessuna") => void;
+  setPenaDiMorteAttiva: (attiva: boolean) => void;
   avanzaMese: () => Promise<void>;
   assegnaAbitanteAEdificio: (abitanteId: number, edificioId: number) => void;
   rimuoviAbitanteDaEdificio: (abitanteId: number, edificioId: number) => void;

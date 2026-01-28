@@ -28,6 +28,7 @@ export default function LeggiScreen() {
           {leggi.map((l: Legge) => {
             const isTassaReddito = l.titolo === "Tassa sul Reddito";
             const isLeggeNascite = l.titolo === "Legge sulle Nascite";
+            const isPenaDiMorte = l.titolo === "Pena di Morte";
             return (
               <Pressable
                 key={l.id}
@@ -37,9 +38,11 @@ export default function LeggiScreen() {
                     ? () => router.push("/tassa-reddito")
                     : isLeggeNascite
                     ? () => router.push("/legge-nascite")
+                    : isPenaDiMorte
+                    ? () => router.push("/pena-di-morte")
                     : undefined
                 }
-                disabled={!isTassaReddito && !isLeggeNascite}
+                disabled={!isTassaReddito && !isLeggeNascite && !isPenaDiMorte}
               >
                 <Text style={styles.cardTitle}>{l.titolo}</Text>
                 <Text style={styles.line} numberOfLines={2}>

@@ -10,7 +10,7 @@ import { EnergiaModal } from "../ui/EnergiaModal";
 
 export default function GridGame() {
   const router = useRouter();
-  const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, abitantiProposti } = useGameContext();
+  const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, abitantiProposti, punteggioSanzioni } = useGameContext();
   const [showCiboModal, setShowCiboModal] = useState(false);
   const [showCreditiModal, setShowCreditiModal] = useState(false);
   const [showEnergiaModal, setShowEnergiaModal] = useState(false);
@@ -153,6 +153,13 @@ export default function GridGame() {
           <Text style={styles.navLabel}>Immigrazione</Text>
           <Text style={styles.navCount}>
             {abitantiProposti.length > 0 ? `${abitantiProposti.length} candidati` : "Nessuno"}
+          </Text>
+        </Pressable>
+        <Pressable style={styles.navButton} onPress={() => router.push("/sanzioni")}>
+          <Text style={styles.navEmoji}>⚠️</Text>
+          <Text style={styles.navLabel}>Sanzioni</Text>
+          <Text style={[styles.navCount, punteggioSanzioni >= 5 && styles.navCountWarning]}>
+            {punteggioSanzioni}/10
           </Text>
         </Pressable>
       </View>
@@ -363,6 +370,10 @@ const styles = StyleSheet.create({
   },
   variazioneNegativa: {
     color: "#ef4444"
+  },
+  navCountWarning: {
+    color: "#ef4444",
+    fontWeight: "700"
   }
 });
 

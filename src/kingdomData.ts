@@ -230,6 +230,12 @@ export const leggiData: Legge[] = [
     titolo: "Legge sulle Nascite",
     descrizione: "Politiche per regolare la crescita demografica della colonia.",
     stato: "In vigore"
+  },
+  {
+    id: 8,
+    titolo: "Pena di Morte",
+    descrizione: "Consente l'esecuzione capitale per crimini gravi.",
+    stato: "Proposta"
   }
 ];
 
