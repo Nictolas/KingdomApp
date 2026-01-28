@@ -102,6 +102,27 @@ export function useGameState() {
         }
       });
 
+      // Calcola consumo del cibo basato sulla salute degli abitanti
+      if (risorsa.nome.toLowerCase().includes("cibo")) {
+        nuoviAbitanti.forEach((abitante) => {
+          let consumoCibo: number;
+          
+          // Determina consumo basato sulla salute
+          if (abitante.salute > 70) {
+            // Obeso: consuma da 5 a 10
+            consumoCibo = 5 + Math.floor(Math.random() * 6);
+          } else if (abitante.salute >= 30 && abitante.salute <= 70) {
+            // Normale: consuma da 1 a 5
+            consumoCibo = 1 + Math.floor(Math.random() * 5);
+          } else {
+            // Altro: consuma da 1 a 10
+            consumoCibo = 1 + Math.floor(Math.random() * 10);
+          }
+          
+          nuovaQuantità -= consumoCibo;
+        });
+      }
+
       // Limiti per alcune risorse
       if (risorsa.nome === "Ossigeno") {
         nuovaQuantità = Math.max(0, Math.min(100, nuovaQuantità));
@@ -201,6 +222,98 @@ export function useGameState() {
     );
   }, []);
 
+  // Calcola produzione/consumo mensile per ogni risorsa
+  const calcolaProduzioneConsumo = useCallback(() => {
+    const variazioni: Record<string, number> = {};
+
+    // Inizializza tutte le risorse a 0
+    risorse.forEach((r) => {
+      variazioni[r.nome] = 0;
+    });
+
+    // Calcola produzione dagli edifici
+    edifici.forEach((edificio) => {
+      if (edificio.stato === "Operativo" && edificio.produzione) {
+        const produzioni = edificio.produzione.split(",").map((p) => p.trim());
+        produzioni.forEach((prod) => {
+          const numAbitanti = edificio.abitantiAssegnati.length;
+          if (numAbitanti > 0) {
+            const produttivitàMedia = edificio.abitantiAssegnati.reduce((sum, id) => {
+              const abitante = abitanti.find((a) => a.id === id);
+              return sum + (abitante?.produttività || 0);
+            }, 0) / numAbitanti;
+            
+            const produzione = Math.floor(numAbitanti * (produttivitàMedia / 10));
+            
+            // Trova la risorsa corrispondente
+            risorse.forEach((r) => {
+              if (prod === r.nome || r.nome.includes(prod) || prod.includes(r.nome)) {
+                variazioni[r.nome] = (variazioni[r.nome] || 0) + produzione;
+              }
+            });
+          }
+        });
+      }
+    });
+
+    // Calcola consumo del cibo basato sulla salute degli abitanti
+    // Per la visualizzazione, usiamo valori medi deterministici
+    abitanti.forEach((abitante) => {
+      let consumoCibo: number;
+      
+      // Determina consumo basato sulla salute (valore medio per visualizzazione)
+      if (abitante.salute > 70) {
+        // Obeso: consuma da 5 a 10 (media: 7.5, arrotondato a 8)
+        consumoCibo = 8;
+      } else if (abitante.salute >= 30 && abitante.salute <= 70) {
+        // Normale: consuma da 1 a 5 (media: 3)
+        consumoCibo = 3;
+      } else {
+        // Altro: consuma da 1 a 10 (media: 5.5, arrotondato a 6)
+        consumoCibo = 6;
+      }
+      
+      // Trova la risorsa "Cibo" o "Cibo sintetico"
+      risorse.forEach((r) => {
+        if (r.nome.toLowerCase().includes("cibo")) {
+          variazioni[r.nome] = (variazioni[r.nome] || 0) - consumoCibo;
+        }
+      });
+    });
+
+    // Calcola consumo degli edifici
+    edifici.forEach((edificio) => {
+      if (edificio.stato === "Operativo" && edificio.consumo) {
+        const consumi = edificio.consumo.split(",").map((c) => c.trim());
+        consumi.forEach((cons) => {
+          const consumoBase = edificio.efficienza / 20;
+          const consumo = Math.floor(consumoBase * (edificio.occupazione / edificio.capacità));
+          
+          risorse.forEach((r) => {
+            if (cons === r.nome || r.nome.includes(cons) || cons.includes(r.nome)) {
+              variazioni[r.nome] = (variazioni[r.nome] || 0) - consumo;
+            }
+          });
+        });
+      }
+    });
+
+    // Calcola variazioni per i crediti
+    const totaleRedditi = abitanti.reduce((sum, a) => sum + a.reddito, 0);
+    const totaleSpese = abitanti.reduce((sum, a) => sum + a.spese, 0);
+    const totaleManutenzione = edifici
+      .filter((e) => e.stato === "Operativo")
+      .reduce((sum, e) => sum + e.manutenzione, 0);
+    
+    risorse.forEach((r) => {
+      if (r.nome === "Crediti") {
+        variazioni[r.nome] = totaleRedditi - totaleSpese - totaleManutenzione;
+      }
+    });
+
+    return variazioni;
+  }, [abitanti, edifici, risorse]);
+
   return {
     abitanti,
     risorse,
@@ -212,6 +325,7 @@ export function useGameState() {
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,
     nominaMinistro,
-    rimuoviMinistro
+    rimuoviMinistro,
+    calcolaProduzioneConsumo
   };
 }

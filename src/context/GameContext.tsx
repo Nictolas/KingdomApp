@@ -14,6 +14,7 @@ type GameContextType = {
   rimuoviAbitanteDaEdificio: (abitanteId: number, edificioId: number) => void;
   nominaMinistro: (abitanteId: number, ministero: string) => void;
   rimuoviMinistro: (abitanteId: number) => void;
+  calcolaProduzioneConsumo: () => Record<string, number>;
 };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);

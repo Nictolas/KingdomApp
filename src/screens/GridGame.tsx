@@ -7,7 +7,7 @@ import type { Risorsa, Abitante } from "../types";
 
 export default function GridGame() {
   const router = useRouter();
-  const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese } = useGameContext();
+  const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo } = useGameContext();
 
   const ministriAttuali = abitanti.filter((a: Abitante) => a.ministero);
   const fazioni = fazioniData;
@@ -18,6 +18,9 @@ export default function GridGame() {
   const isDesktop = width > 768;
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
+
+  // Calcola produzione/consumo mensile
+  const variazioni = calcolaProduzioneConsumo();
 
   return (
     <View style={[styles.container, maxHeight && { maxHeight, overflow: "hidden" }]}>
@@ -47,6 +50,31 @@ export default function GridGame() {
             </>
           )}
         </Pressable>
+      </View>
+
+      {/* Risorse */}
+      <View style={[styles.section, styles.resourcesSection]}>
+        <Text style={styles.sectionTitle}>Risorse</Text>
+        <View style={styles.resourcesGrid}>
+          {risorse.map((r: Risorsa) => {
+            const variazione = variazioni[r.nome] || 0;
+            return (
+              <View key={r.id} style={styles.resourceCard}>
+                <Text style={styles.resourceName}>{r.nome}</Text>
+                <View style={styles.resourceRow}>
+                  <Text style={styles.resourceValue}>
+                    {r.quantità} <Text style={styles.resourceUnit}>{r.unità}</Text>
+                  </Text>
+                  {variazione !== 0 && (
+                    <Text style={[styles.variazione, variazione > 0 ? styles.variazionePositiva : styles.variazioneNegativa]}>
+                      {variazione > 0 ? "+" : ""}{variazione}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            );
+          })}
+        </View>
       </View>
 
       <View style={styles.navRow}>
@@ -84,23 +112,6 @@ export default function GridGame() {
           <Text style={styles.navLabel}>Diario</Text>
           <Text style={styles.navCount}>Storia</Text>
         </Pressable>
-      </View>
-
-      <View style={styles.scrollContent}>
-        {/* Risorse */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Risorse</Text>
-          <View style={styles.resourcesGrid}>
-            {risorse.map((r: Risorsa) => (
-              <View key={r.id} style={styles.resourceCard}>
-                <Text style={styles.resourceName}>{r.nome}</Text>
-                <Text style={styles.resourceValue}>
-                  {r.quantità} <Text style={styles.resourceUnit}>{r.unità}</Text>
-                </Text>
-              </View>
-            ))}
-          </View>
-        </View>
       </View>
     </View>
   );
@@ -206,6 +217,11 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 6
   },
+  resourcesSection: {
+    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 4
+  },
   sectionTitle: {
     color: "#ffffff",
     fontSize: 12,
@@ -231,6 +247,12 @@ const styles = StyleSheet.create({
     fontSize: 10,
     marginBottom: 2
   },
+  resourceRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 4
+  },
   resourceValue: {
     color: "#e5e7eb",
     fontSize: 11,
@@ -239,6 +261,16 @@ const styles = StyleSheet.create({
   resourceUnit: {
     color: "rgba(148,163,184,0.9)",
     fontWeight: "500"
+  },
+  variazione: {
+    fontSize: 10,
+    fontWeight: "700"
+  },
+  variazionePositiva: {
+    color: "#4ade80"
+  },
+  variazioneNegativa: {
+    color: "#ef4444"
   }
 });
 
