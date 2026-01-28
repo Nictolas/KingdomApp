@@ -41,6 +41,9 @@ export function useGameState() {
   const [leggeRazzialeAttiva, setLeggeRazzialeAttiva] = useState(false);
   const [razzaCampoLavoro, setRazzaCampoLavoro] = useState<"Umano" | "Alieno" | null>(null);
   const [razzaCampoSterminio, setRazzaCampoSterminio] = useState<"Umano" | "Alieno" | null>(null);
+  
+  // Configurazione età minima sul lavoro
+  const [etaMinimaLavoro, setEtaMinimaLavoro] = useState(18); // Età minima di default
 
   // Genera nuovi abitanti proposti per immigrazione
   const generaNuoviAbitantiProposti = useCallback(() => {
@@ -483,9 +486,14 @@ export function useGameState() {
       punteggio += 1;
     }
     
+    // +1 se l'età minima sul lavoro è 13 o inferiore
+    if (etaMinimaLavoro <= 13) {
+      punteggio += 1;
+    }
+    
     // Limita tra 1 e 10
     return Math.min(Math.max(punteggio, 1), 10);
-  }, [abitanti, penaDiMorteAttiva, razzaCampoLavoro, razzaCampoSterminio]);
+  }, [abitanti, penaDiMorteAttiva, razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro]);
 
   // Aggiorna il punteggio quando cambiano le condizioni
   useEffect(() => {
@@ -514,6 +522,7 @@ export function useGameState() {
     capoReligiosoSole,
     capoReligiosoAlieni,
     religioneDiStato,
+    etaMinimaLavoro,
     setTipoTassaReddito,
     setFlatTaxPercentuale,
     setScaglioniConfig,
@@ -526,6 +535,7 @@ export function useGameState() {
     setRazzaCampoSterminio,
     setCapoReligiosoSole,
     setCapoReligiosoAlieni,
+    setEtaMinimaLavoro,
     avanzaMese,
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,

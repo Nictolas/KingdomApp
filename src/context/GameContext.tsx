@@ -29,6 +29,7 @@ type GameContextType = {
   capoReligiosoSole: number | null;
   capoReligiosoAlieni: number | null;
   religioneDiStato: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni" | null;
+  etaMinimaLavoro: number;
   setTipoTassaReddito: (tipo: "flat" | "scaglioni") => void;
   setFlatTaxPercentuale: (percentuale: number) => void;
   setScaglioniConfig: (config: ScaglioneConfig[]) => void;
@@ -41,6 +42,7 @@ type GameContextType = {
   setRazzaCampoSterminio: (razza: "Umano" | "Alieno" | null) => void;
   setCapoReligiosoSole: (id: number | null) => void;
   setCapoReligiosoAlieni: (id: number | null) => void;
+  setEtaMinimaLavoro: (eta: number) => void;
   avanzaMese: () => Promise<void>;
   assegnaAbitanteAEdificio: (abitanteId: number, edificioId: number) => void;
   rimuoviAbitanteDaEdificio: (abitanteId: number, edificioId: number) => void;

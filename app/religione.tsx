@@ -63,104 +63,113 @@ export default function ReligioneScreen() {
         <View style={{ width: 50 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Informazioni */}
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>Politica Attuale</Text>
-          <Text style={styles.infoText}>
-            {politiche.find((p) => p.id === politicaReligiosa)?.titolo || "Nessuna"}
-          </Text>
-          {politicaReligiosa === "religione-stato" && religioneDiStato && (
-            <Text style={styles.infoSubtext}>Religione di Stato: {religioneDiStato}</Text>
-          )}
-        </View>
-
-        {/* Selettore politiche */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Seleziona Politica</Text>
-          <View style={styles.politicheRow}>
-            {politiche.map((politica) => {
-              const isSelected = politicaReligiosa === politica.id;
-              return (
-                <Pressable
-                  key={politica.id}
-                  style={[styles.politicaCardInline, isSelected && styles.politicaCardSelected]}
-                  onPress={() => {
-                    setPoliticaReligiosa(politica.id);
-                    if (politica.id !== "religione-stato") {
-                      setReligioneDiStato(null);
-                    }
-                  }}
-                >
-                  <Text style={styles.politicaEmojiInline}>{politica.emoji}</Text>
-                  <Text style={[styles.politicaTitoloInline, isSelected && styles.politicaTitoloSelected]}>
-                    {politica.titolo}
-                  </Text>
-                  {isSelected && <Text style={styles.selectedCheck}>✓</Text>}
-                </Pressable>
-              );
-            })}
-          </View>
-        </View>
-
-        {/* Selettore religione di stato */}
-        {politicaReligiosa === "religione-stato" && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Seleziona Religione di Stato</Text>
-            <View style={styles.religioniStatoRow}>
-              {religioniDisponibili.map((religione) => {
-                const isSelected = religioneDiStato === religione;
-                return (
-                  <Pressable
-                    key={religione}
-                    style={[styles.religioneStatoCard, isSelected && styles.religioneStatoCardSelected]}
-                    onPress={() => setReligioneDiStato(isSelected ? null : religione)}
-                  >
-                    <Text style={styles.religioneStatoEmoji}>
-                      {religione === "Ateo" ? "🚫" : religione === "Deista" ? "🤔" : religione === "Agnostico" ? "❓" : religione === "Culto del Sole" ? "☀️" : "👽"}
-                    </Text>
-                    <Text style={[styles.religioneStatoNome, isSelected && styles.religioneStatoNomeSelected]}>
-                      {religione}
-                    </Text>
-                    {isSelected && <Text style={styles.selectedCheck}>✓</Text>}
-                  </Pressable>
-                );
-              })}
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
+        {/* Layout a due colonne per ottimizzare lo spazio */}
+        <View style={styles.twoColumnsLayout}>
+          {/* Colonna sinistra */}
+          <View style={styles.leftColumn}>
+            {/* Informazioni */}
+            <View style={styles.infoCard}>
+              <Text style={styles.infoTitle}>Politica Attuale</Text>
+              <Text style={styles.infoText}>
+                {politiche.find((p) => p.id === politicaReligiosa)?.titolo || "Nessuna"}
+              </Text>
+              {politicaReligiosa === "religione-stato" && religioneDiStato && (
+                <Text style={styles.infoSubtext}>Religione di Stato: {religioneDiStato}</Text>
+              )}
             </View>
-          </View>
-        )}
 
-        {/* Religioni disponibili */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Religioni Disponibili</Text>
-          <View style={styles.religioniGrid}>
-            {religioniConPercentuali.map((religione) => (
-              <Pressable
-                key={religione.nome}
-                style={styles.religioneCard}
-                onPress={() => setSelectedReligione(religione.nome)}
-              >
-                <Text style={styles.religioneEmoji}>{religione.emoji}</Text>
-                <Text style={styles.religioneNome}>{religione.nome}</Text>
-                <Text style={styles.religionePercentuale}>{religione.percentuale}%</Text>
-                <Text style={styles.religioneCount}>({religione.count})</Text>
-              </Pressable>
-            ))}
-          </View>
-        </View>
+            {/* Selettore politiche */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Seleziona Politica</Text>
+              <View style={styles.politicheRow}>
+                {politiche.map((politica) => {
+                  const isSelected = politicaReligiosa === politica.id;
+                  return (
+                    <Pressable
+                      key={politica.id}
+                      style={[styles.politicaCardInline, isSelected && styles.politicaCardSelected]}
+                      onPress={() => {
+                        setPoliticaReligiosa(politica.id);
+                        if (politica.id !== "religione-stato") {
+                          setReligioneDiStato(null);
+                        }
+                      }}
+                    >
+                      <Text style={styles.politicaEmojiInline}>{politica.emoji}</Text>
+                      <Text style={[styles.politicaTitoloInline, isSelected && styles.politicaTitoloSelected]}>
+                        {politica.titolo}
+                      </Text>
+                      {isSelected && <Text style={styles.selectedCheck}>✓</Text>}
+                    </Pressable>
+                  );
+                })}
+              </View>
+            </View>
 
-        {/* Edifici religiosi */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Edifici Religiosi</Text>
-          <View style={styles.edificiRow}>
-            <Pressable style={styles.edificioCardInline} onPress={() => router.push("/culto-sole")}>
-              <Text style={styles.edificioEmojiInline}>☀️</Text>
-              <Text style={styles.edificioNomeInline}>Culto del Sole</Text>
-            </Pressable>
-            <Pressable style={styles.edificioCardInline} onPress={() => router.push("/culto-alieni")}>
-              <Text style={styles.edificioEmojiInline}>👽</Text>
-              <Text style={styles.edificioNomeInline}>Culto degli Alieni</Text>
-            </Pressable>
+            {/* Selettore religione di stato */}
+            {politicaReligiosa === "religione-stato" && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>Religione di Stato</Text>
+                <View style={styles.religioniStatoRow}>
+                  {religioniDisponibili.map((religione) => {
+                    const isSelected = religioneDiStato === religione;
+                    return (
+                      <Pressable
+                        key={religione}
+                        style={[styles.religioneStatoCard, isSelected && styles.religioneStatoCardSelected]}
+                        onPress={() => setReligioneDiStato(isSelected ? null : religione)}
+                      >
+                        <Text style={styles.religioneStatoEmoji}>
+                          {religione === "Ateo" ? "🚫" : religione === "Deista" ? "🤔" : religione === "Agnostico" ? "❓" : religione === "Culto del Sole" ? "☀️" : "👽"}
+                        </Text>
+                        <Text style={[styles.religioneStatoNome, isSelected && styles.religioneStatoNomeSelected]}>
+                          {religione}
+                        </Text>
+                        {isSelected && <Text style={styles.selectedCheck}>✓</Text>}
+                      </Pressable>
+                    );
+                  })}
+                </View>
+              </View>
+            )}
+          </View>
+
+          {/* Colonna destra */}
+          <View style={styles.rightColumn}>
+            {/* Religioni disponibili */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Religioni Disponibili</Text>
+              <View style={styles.religioniGrid}>
+                {religioniConPercentuali.map((religione) => (
+                  <Pressable
+                    key={religione.nome}
+                    style={styles.religioneCard}
+                    onPress={() => setSelectedReligione(religione.nome)}
+                  >
+                    <Text style={styles.religioneEmoji}>{religione.emoji}</Text>
+                    <Text style={styles.religioneNome}>{religione.nome}</Text>
+                    <Text style={styles.religionePercentuale}>{religione.percentuale}%</Text>
+                    <Text style={styles.religioneCount}>({religione.count})</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </View>
+
+            {/* Edifici religiosi */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>Edifici Religiosi</Text>
+              <View style={styles.edificiRow}>
+                <Pressable style={styles.edificioCardInline} onPress={() => router.push("/culto-sole")}>
+                  <Text style={styles.edificioEmojiInline}>☀️</Text>
+                  <Text style={styles.edificioNomeInline}>Culto del Sole</Text>
+                </Pressable>
+                <Pressable style={styles.edificioCardInline} onPress={() => router.push("/culto-alieni")}>
+                  <Text style={styles.edificioEmojiInline}>👽</Text>
+                  <Text style={styles.edificioNomeInline}>Culto degli Alieni</Text>
+                </Pressable>
+              </View>
+            </View>
           </View>
         </View>
       </ScrollView>
@@ -199,109 +208,122 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   content: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    paddingBottom: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    paddingBottom: 6,
     flex: 1
+  },
+  twoColumnsLayout: {
+    flexDirection: "row",
+    gap: 6,
+    alignItems: "flex-start"
+  },
+  leftColumn: {
+    flex: 1,
+    minWidth: 0
+  },
+  rightColumn: {
+    flex: 1,
+    minWidth: 0
   },
   infoCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 6,
+    padding: 8,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
-    marginBottom: 12
+    marginBottom: 8
   },
   infoTitle: {
     color: "#93c5fd",
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: "600",
-    marginBottom: 4,
+    marginBottom: 3,
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
   infoText: {
     color: "#ffffff",
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "600"
   },
   infoSubtext: {
     color: "rgba(203,213,245,0.7)",
-    fontSize: 10,
-    marginTop: 4
+    fontSize: 9,
+    marginTop: 3
   },
   section: {
-    marginBottom: 12
+    marginBottom: 8
   },
   sectionTitle: {
     color: "#ffffff",
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "700",
-    marginBottom: 8
+    marginBottom: 6
   },
   politicheRow: {
     flexDirection: "row",
-    gap: 6,
-    marginBottom: 8
+    gap: 4,
+    marginBottom: 0
   },
   politicaCardInline: {
     flex: 1,
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 8,
+    borderRadius: 6,
+    padding: 6,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
     alignItems: "center",
-    minHeight: 70
+    minHeight: 60
   },
   politicaCardSelected: {
     borderColor: "#3b82f6",
     backgroundColor: "rgba(59,130,246,0.1)"
   },
   politicaEmojiInline: {
-    fontSize: 20,
-    marginBottom: 4
+    fontSize: 16,
+    marginBottom: 3
   },
   politicaTitoloInline: {
     color: "#e5e7eb",
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: "700",
     textAlign: "center",
     marginBottom: 2
   },
   selectedCheck: {
     color: "#3b82f6",
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "700",
     marginTop: 2
   },
   religioniStatoRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6
+    gap: 4
   },
   religioneStatoCard: {
     flex: 1,
     minWidth: "30%",
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 8,
+    borderRadius: 6,
+    padding: 6,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
     alignItems: "center",
-    minHeight: 70
+    minHeight: 60
   },
   religioneStatoCardSelected: {
     borderColor: "#3b82f6",
     backgroundColor: "rgba(59,130,246,0.1)"
   },
   religioneStatoEmoji: {
-    fontSize: 24,
-    marginBottom: 4
+    fontSize: 18,
+    marginBottom: 3
   },
   religioneStatoNome: {
     color: "#e5e7eb",
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: "700",
     textAlign: "center",
     marginBottom: 2
@@ -312,60 +334,60 @@ const styles = StyleSheet.create({
   religioniGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6
+    gap: 4
   },
   religioneCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 8,
+    borderRadius: 6,
+    padding: 6,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
     alignItems: "center",
     width: "48%",
-    minWidth: 120
+    minWidth: 100
   },
   religioneEmoji: {
-    fontSize: 32,
-    marginBottom: 4
+    fontSize: 24,
+    marginBottom: 3
   },
   religioneNome: {
     color: "#e5e7eb",
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "600",
     textAlign: "center",
     marginBottom: 2
   },
   religionePercentuale: {
     color: "#4ade80",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700",
-    marginBottom: 2
+    marginBottom: 1
   },
   religioneCount: {
     color: "rgba(203,213,245,0.7)",
-    fontSize: 9
+    fontSize: 8
   },
   edificiRow: {
     flexDirection: "row",
-    gap: 6
+    gap: 4
   },
   edificioCardInline: {
     flex: 1,
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 6,
+    padding: 8,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
     alignItems: "center",
-    minHeight: 80
+    minHeight: 70
   },
   edificioEmojiInline: {
-    fontSize: 32,
-    marginBottom: 6
+    fontSize: 24,
+    marginBottom: 4
   },
   edificioNomeInline: {
     color: "#e5e7eb",
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "700",
     textAlign: "center"
   }
