@@ -1,239 +1,209 @@
-import React, { useMemo, useState } from "react";
-import { View, StyleSheet, Dimensions } from "react-native";
-import { useCamera } from "../camera/useCamera";
-import { GridRenderer } from "../components/GridRenderer";
-import { CharacterRenderer } from "../components/CharacterRenderer";
-import { BuildingRenderer } from "../components/BuildingRenderer";
-import { BuildingInfoModal } from "../ui/BuildingInfoModal";
-import { CharacterInfoModal } from "../ui/CharacterInfoModal";
-import { GRID_SIZE, CELL_SIZE, castleData, farmData, houseData, barData } from "../constants";
-import type { Character, Building, Placed } from "../types";
-import { generateRiver, extendRiverToSea } from "../game/riverGeneration";
-import { isRiver, isSea } from "../game/terrain";
-import { generateTrees } from "../game/generation";
-import { useCharacterMovement } from "../game/useCharacterMovement";
-import { useCharacterMovementControl } from "../hooks/useCharacterMovementControl";
-import { useGameClock } from "../game/gameClock";
-import { TopHud } from "../ui/TopHud";
-import { GameOverModal } from "../ui/GameOverModal";
-import { TimeEditorModal } from "../ui/TimeEditorModal";
-import { BuildMenuModal } from "../ui/BuildMenuModal";
+import React, { useState } from "react";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { formatGameTime, useGameClock } from "../game/gameClock";
+
+type Abitante = {
+  id: number;
+  nome: string;
+  ruolo: string;
+  eta: number;
+  fazione: string;
+  èMinistro?: boolean;
+};
+
+type Ministro = {
+  id: number;
+  nome: string;
+  ministero: string;
+  fazione: string;
+};
+
+type Fazione = {
+  id: number;
+  nome: string;
+  descrizione: string;
+};
+
+type Legge = {
+  id: number;
+  titolo: string;
+  descrizione: string;
+  stato: "Proposta" | "In vigore" | "Abrogata";
+};
+
+type Risorsa = {
+  id: number;
+  nome: string;
+  quantità: number;
+  unità: string;
+};
 
 export default function GridGame() {
-  // Genera seed casuale all'avvio
-  const [seed] = useState(() => Math.floor(Math.random() * 1000000));
-  
-  // Genera il fiume basato sul seed e lo estende fino al mare
-  const riverCells = useMemo(() => {
-    const baseRiver = generateRiver(seed);
-    return extendRiverToSea(baseRiver);
-  }, [seed]);
-  
-  // Genera gli alberi basati sul seed (dopo aver generato il fiume)
-  const trees = useMemo(() => generateTrees(seed, riverCells), [seed, riverCells]);
+  const { gameTime } = useGameClock(6, 0);
 
-  const gridPixelSize = useMemo(() => {
-    const size = GRID_SIZE * CELL_SIZE;
-    return { w: size, h: size };
-  }, []);
-
-  const camera = useCamera({
-    gridWidth: gridPixelSize.w,
-    gridHeight: gridPixelSize.h
-  });
-
-  // Edifici - filtra quelli che non sono su fiume o mare
-  const buildings: Building[] = useMemo(() => {
-    const allBuildings = [castleData, farmData, barData, ...houseData];
-    
-    // Filtra gli edifici che non sono su fiume o mare
-    return allBuildings.filter(building => {
-      // Controlla tutte le celle dell'edificio
-      for (let bx = building.x; bx < building.x + building.width; bx++) {
-        for (let by = building.y; by < building.y + building.height; by++) {
-          // Se una cella è su fiume o mare, escludi l'edificio
-          if (isRiver(bx, by, riverCells) || isSea(bx, by)) {
-            return false;
-          }
-        }
-      }
-      return true;
-    });
-  }, [riverCells]);
-
-  // Hook per l'orologio del gioco (1 secondo reale = 1 minuto di gioco)
-  const { gameTime, setTime } = useGameClock(6, 0);
-
-  // Personaggi iniziali
-  const [characters, setCharacters] = useState<Character[]>([
-    { id: 1, x: 32, y: 22, targetX: 32, targetY: 22, emoji: "🤴", profession: "Re", name: "Re Artù", age: 35, lastMove: 0 },
-    { id: 2, x: 15, y: 33, targetX: 15, targetY: 33, emoji: "👨‍🌾", profession: "Contadino", name: "Marco", age: 28, lastMove: 0 },
-    { id: 3, x: 18, y: 17, targetX: 18, targetY: 17, emoji: "👨‍🍳", profession: "Cuoco", name: "Luca", age: 32, lastMove: 0 },
-    { id: 4, x: 25, y: 17, targetX: 25, targetY: 17, emoji: "👨‍🔬", profession: "Scienziato", name: "Giovanni", age: 40, lastMove: 0 },
-    { id: 5, x: 14, y: 23, targetX: 14, targetY: 23, emoji: "👨‍🎨", profession: "Artista", name: "Paolo", age: 26, lastMove: 0 },
-    { id: 6, x: 33, y: 29, targetX: 33, targetY: 29, emoji: "🪓", profession: "Boscaiolo", name: "Andrea", age: 30, lastMove: 0 },
-    { id: 7, x: 20, y: 20, targetX: 20, targetY: 20, emoji: "👹", profession: "Orco", name: "Grug", age: 45, lastMove: 0 }
+  const [abitanti] = useState<Abitante[]>([
+    { id: 1, nome: "Re Artù", ruolo: "Sovrano", eta: 35, fazione: "Corona", èMinistro: false },
+    { id: 2, nome: "Morgana", ruolo: "Consigliera", eta: 32, fazione: "Arcani", èMinistro: true },
+    { id: 3, nome: "Luca", ruolo: "Contadino", eta: 28, fazione: "Popolo" },
+    { id: 4, nome: "Giovanni", ruolo: "Artigiano", eta: 40, fazione: "Popolo" },
+    { id: 5, nome: "Elena", ruolo: "Studiosa", eta: 26, fazione: "Accademia" }
   ]);
-  
-  // Hook per il movimento dei personaggi
-  const { moveCharacter } = useCharacterMovement({
-    characters,
-    setCharacters,
-    buildings,
-    trees,
-    riverCells,
-    gameTime,
-    onKingCaptured: () => setGameOver(true)
-  });
 
-  // Hook per il controllo del movimento (selezione personaggio e click su cella)
-  const movementControl = useCharacterMovementControl();
+  const [ministri] = useState<Ministro[]>([
+    { id: 1, nome: "Morgana", ministero: "Magia e Sapienza", fazione: "Arcani" },
+    { id: 2, nome: "Marco", ministero: "Agricoltura", fazione: "Popolo" },
+    { id: 3, nome: "Isabella", ministero: "Tesoro Reale", fazione: "Corona" }
+  ]);
 
-  // Stato per i dialog
-  const [selectedBuilding, setSelectedBuilding] = useState<Building | null>(null);
-  const [selectedCharacter, setSelectedCharacter] = useState<Character | null>(null);
-  const [gameOver, setGameOver] = useState(false);
-  const [timeEditorVisible, setTimeEditorVisible] = useState(false);
-  const [buildMenuVisible, setBuildMenuVisible] = useState(false);
+  const [fazioni] = useState<Fazione[]>([
+    { id: 1, nome: "Corona", descrizione: "Difende il potere del Re e la stabilità del regno." },
+    { id: 2, nome: "Popolo", descrizione: "Vuole più diritti per contadini e artigiani." },
+    { id: 3, nome: "Arcani", descrizione: "Ordine di maghi e sapienti, interessati alla conoscenza." },
+    { id: 4, nome: "Accademia", descrizione: "Studiosi e maestri che formano le nuove generazioni." }
+  ]);
 
-  const handleBuildingPress = (building: Building) => {
-    setSelectedBuilding(building);
-    movementControl.selectCharacter(null); // Deseleziona personaggio se selezioni un edificio
-  };
-
-  const handleCharacterPress = (character: Character) => {
-    setSelectedCharacter(character);
-    movementControl.selectCharacter(character.id); // Seleziona il personaggio per il movimento
-  };
-
-  const handleCellPress = (x: number, y: number) => {
-    // Se c'è un personaggio selezionato, fallo muovere
-    movementControl.handleCellClick(x, y, moveCharacter);
-  };
-
-  const handleCallKing = () => {
-    // Trova il Re tra i personaggi
-    const king = characters.find((c: Character) => c.profession === "Re");
-    if (!king || !selectedBuilding || selectedBuilding.type !== "castle") return;
-
-    // Trova una posizione dentro il castello per il Re
-    const castle = selectedBuilding;
-    
-    // Prova posizioni dentro il castello (centro e angoli interni)
-    const entryPositions = [
-      { x: castle.x + Math.floor(castle.width / 2), y: castle.y + Math.floor(castle.height / 2) }, // Centro
-      { x: castle.x + 1, y: castle.y + 1 }, // Angolo superiore sinistro interno
-      { x: castle.x + castle.width - 2, y: castle.y + 1 }, // Angolo superiore destro interno
-      { x: castle.x + 1, y: castle.y + castle.height - 2 }, // Angolo inferiore sinistro interno
-      { x: castle.x + castle.width - 2, y: castle.y + castle.height - 2 }, // Angolo inferiore destro interno
-      { x: castle.x, y: castle.y }, // Angolo superiore sinistro
-      { x: castle.x + castle.width - 1, y: castle.y }, // Angolo superiore destro
-      { x: castle.x, y: castle.y + castle.height - 1 }, // Angolo inferiore sinistro
-      { x: castle.x + castle.width - 1, y: castle.y + castle.height - 1 } // Angolo inferiore destro
-    ];
-
-    for (const pos of entryPositions) {
-      // Controlla che la posizione sia dentro il castello e non sul fiume
-      if (
-        pos.x >= castle.x &&
-        pos.x < castle.x + castle.width &&
-        pos.y >= castle.y &&
-        pos.y < castle.y + castle.height &&
-        !isRiver(pos.x, pos.y, riverCells)
-      ) {
-        moveCharacter(king.id, pos.x, pos.y, true); // true = permette ingresso negli edifici
-        setSelectedBuilding(null); // Chiudi il dialog
-        return;
-      }
+  const [leggi] = useState<Legge[]>([
+    {
+      id: 1,
+      titolo: "Tassa sul Grano",
+      descrizione: "Una tassa del 10% su tutto il raccolto di grano.",
+      stato: "In vigore"
+    },
+    {
+      id: 2,
+      titolo: "Carta dei Diritti del Popolo",
+      descrizione: "Riconosce alcuni diritti fondamentali a tutti gli abitanti.",
+      stato: "Proposta"
+    },
+    {
+      id: 3,
+      titolo: "Decreto sulla Magia",
+      descrizione: "Regola l'uso della magia all'interno delle mura della città.",
+      stato: "In vigore"
     }
-  };
+  ]);
 
-  const { width: screenWidth, height: screenHeight } = Dimensions.get("window");
+  const [risorse] = useState<Risorsa[]>([
+    { id: 1, nome: "Oro", quantità: 1250, unità: "monete" },
+    { id: 2, nome: "Grano", quantità: 430, unità: "sacchi" },
+    { id: 3, nome: "Legno", quantità: 780, unità: "tronchi" },
+    { id: 4, nome: "Influenza della Corona", quantità: 68, unità: "punti" },
+    { id: 5, nome: "Fiducia del Popolo", quantità: 74, unità: "punti" }
+  ]);
 
   return (
-    <View
-      style={styles.container}
-      onTouchStart={camera.onTouchStart}
-      onTouchMove={camera.onTouchMove}
-      onTouchEnd={camera.onTouchEnd}
-      onMouseDown={camera.handleMouseDown}
-      onMouseMove={camera.handleMouseMove}
-      onMouseUp={camera.handleMouseUp}
-      onStartShouldSetResponder={() => true}
-      onMoveShouldSetResponder={() => true}
-      onResponderGrant={(e) => {
-        camera.onTouchStart(e);
-      }}
-      onResponderMove={(e) => {
-        camera.onTouchMove(e);
-      }}
-      onResponderRelease={(e) => {
-        camera.onTouchEnd();
-      }}
-    >
-      <View
-        style={[
-          styles.gridContainer,
-          {
-            width: gridPixelSize.w,
-            height: gridPixelSize.h,
-            transform: [
-              { translateX: camera.offset.x },
-              { translateY: camera.offset.y }
-            ]
-          }
-        ]}
-      >
-        <GridRenderer offset={{ x: 0, y: 0 }} seed={seed} riverCells={riverCells} trees={trees} onCellPress={handleCellPress} />
-        <CharacterRenderer characters={characters} buildings={buildings} onPress={handleCharacterPress} selectedCharacterId={movementControl.selectedCharacterId} />
-        <BuildingRenderer buildings={buildings} onPress={handleBuildingPress} />
+    <View style={styles.container}>
+      <View style={styles.header}>
+        <View>
+          <Text style={styles.gameTitle}>MyKingdom</Text>
+          <Text style={styles.subtitle}>Gestisci il tuo regno</Text>
+        </View>
+        <View style={styles.clockContainer}>
+          <Text style={styles.clockLabel}>Ora del regno</Text>
+          <Text style={styles.clockValue}>🕐 {formatGameTime(gameTime)}</Text>
+        </View>
       </View>
-      
-      <TopHud
-        gameTime={gameTime}
-        onBuildPress={() => setBuildMenuVisible(true)}
-        onClockPress={() => setTimeEditorVisible(true)}
-      />
-      
-      <BuildingInfoModal
-        visible={selectedBuilding !== null}
-        building={selectedBuilding}
-        characters={characters}
-        onClose={() => setSelectedBuilding(null)}
-        onCallKing={handleCallKing}
-      />
-      
-      <CharacterInfoModal
-        visible={selectedCharacter !== null}
-        character={selectedCharacter}
-        onClose={() => setSelectedCharacter(null)}
-      />
-      
-      <GameOverModal
-        visible={gameOver}
-        onRestart={() => {
-          // Ricarica la pagina per riavviare il gioco
-          if (typeof window !== "undefined" && window.location) {
-            window.location.reload();
-          }
-        }}
-      />
-      
-      <TimeEditorModal
-        visible={timeEditorVisible}
-        gameTime={gameTime}
-        onClose={() => setTimeEditorVisible(false)}
-        onTimeChange={(hours, minutes) => setTime(hours, minutes)}
-      />
-      
-      <BuildMenuModal
-        visible={buildMenuVisible}
-        onClose={() => setBuildMenuVisible(false)}
-        onSelectBuildType={(buildType) => {
-          console.log(`Costruisci: ${buildType}`);
-          // TODO: Implementare logica di costruzione
-        }}
-      />
+
+      <ScrollView contentContainerStyle={styles.scrollContent}>
+        {/* Abitanti */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Abitanti</Text>
+          <Text style={styles.sectionDescription}>
+            Elenco delle persone che vivono nel tuo regno.
+          </Text>
+          <View style={styles.cardsContainer}>
+            {abitanti.map((a: Abitante) => (
+              <View key={a.id} style={styles.card}>
+                <Text style={styles.cardTitle}>{a.nome}</Text>
+                <Text style={styles.cardLine}>Ruolo: {a.ruolo}</Text>
+                <Text style={styles.cardLine}>Età: {a.eta}</Text>
+                <Text style={styles.cardLine}>Fazione: {a.fazione}</Text>
+                {a.èMinistro && <Text style={styles.tag}>Ministro</Text>}
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Ministri */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Ministri</Text>
+          <Text style={styles.sectionDescription}>
+            I tuoi collaboratori più fidati che gestiscono i vari aspetti del regno.
+          </Text>
+          <View style={styles.cardsContainer}>
+            {ministri.map((m: Ministro) => (
+              <View key={m.id} style={styles.card}>
+                <Text style={styles.cardTitle}>{m.nome}</Text>
+                <Text style={styles.cardLine}>Ministero: {m.ministero}</Text>
+                <Text style={styles.cardLine}>Fazione: {m.fazione}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Fazioni */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Fazioni</Text>
+          <Text style={styles.sectionDescription}>
+            Gruppi di interesse che influenzano la politica del regno.
+          </Text>
+          <View style={styles.cardsContainer}>
+            {fazioni.map((f: Fazione) => (
+              <View key={f.id} style={styles.card}>
+                <Text style={styles.cardTitle}>{f.nome}</Text>
+                <Text style={styles.cardLine}>{f.descrizione}</Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Leggi */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Leggi</Text>
+          <Text style={styles.sectionDescription}>
+            Decisioni politiche che determinano la vita nel regno.
+          </Text>
+          <View style={styles.cardsContainer}>
+            {leggi.map((l: Legge) => (
+              <View key={l.id} style={styles.card}>
+                <Text style={styles.cardTitle}>{l.titolo}</Text>
+                <Text style={styles.cardLine}>{l.descrizione}</Text>
+                <Text style={styles.chip}>
+                  Stato:{" "}
+                  <Text
+                    style={[
+                      styles.chipValue,
+                      l.stato === "In vigore" && styles.chipActive,
+                      l.stato === "Proposta" && styles.chipProposed,
+                      l.stato === "Abrogata" && styles.chipRepealed
+                    ]}
+                  >
+                    {l.stato}
+                  </Text>
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+
+        {/* Risorse */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Risorse</Text>
+          <Text style={styles.sectionDescription}>
+            Ricchezze materiali e immateriali su cui si regge il regno.
+          </Text>
+          <View style={styles.cardsContainer}>
+            {risorse.map((r: Risorsa) => (
+              <View key={r.id} style={styles.resourceRow}>
+                <Text style={styles.resourceName}>{r.nome}</Text>
+                <Text style={styles.resourceValue}>
+                  {r.quantità} <Text style={styles.resourceUnit}>{r.unità}</Text>
+                </Text>
+              </View>
+            ))}
+          </View>
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -241,18 +211,129 @@ export default function GridGame() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#000",
-    overflow: "hidden",
-    userSelect: "none",
-    WebkitUserSelect: "none",
-    MozUserSelect: "none",
-    msUserSelect: "none"
+    backgroundColor: "#050816"
   },
-  gridContainer: {
-    position: "absolute",
-    userSelect: "none",
-    WebkitUserSelect: "none",
-    MozUserSelect: "none",
-    msUserSelect: "none"
+  header: {
+    paddingTop: 16,
+    paddingBottom: 12,
+    paddingHorizontal: 16,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(255,255,255,0.12)",
+    backgroundColor: "#050816"
+  },
+  gameTitle: {
+    color: "#ffffff",
+    fontSize: 22,
+    fontWeight: "800"
+  },
+  subtitle: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 14,
+    marginTop: 2
+  },
+  clockContainer: {
+    alignItems: "flex-end"
+  },
+  clockLabel: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 12
+  },
+  clockValue: {
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "700",
+    marginTop: 2
+  },
+  scrollContent: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    paddingBottom: 32
+  },
+  section: {
+    marginBottom: 20
+  },
+  sectionTitle: {
+    color: "#ffffff",
+    fontSize: 18,
+    fontWeight: "700",
+    marginBottom: 4
+  },
+  sectionDescription: {
+    color: "rgba(255,255,255,0.7)",
+    fontSize: 13,
+    marginBottom: 10
+  },
+  cardsContainer: {
+    gap: 10
+  },
+  card: {
+    backgroundColor: "rgba(15,23,42,0.9)",
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.4)"
+  },
+  cardTitle: {
+    color: "#e5e7eb",
+    fontSize: 16,
+    fontWeight: "700",
+    marginBottom: 4
+  },
+  cardLine: {
+    color: "#cbd5f5",
+    fontSize: 13
+  },
+  tag: {
+    marginTop: 6,
+    alignSelf: "flex-start",
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 999,
+    backgroundColor: "rgba(56,189,248,0.18)",
+    color: "#e0f2fe",
+    fontSize: 11,
+    fontWeight: "600"
+  },
+  chip: {
+    marginTop: 6,
+    color: "#e5e7eb",
+    fontSize: 13
+  },
+  chipValue: {
+    fontWeight: "700"
+  },
+  chipActive: {
+    color: "#4ade80"
+  },
+  chipProposed: {
+    color: "#fde047"
+  },
+  chipRepealed: {
+    color: "#f97373"
+  },
+  resourceRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    paddingVertical: 8,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(148,163,184,0.4)"
+  },
+  resourceName: {
+    color: "#e5e7eb",
+    fontSize: 14
+  },
+  resourceValue: {
+    color: "#e5e7eb",
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  resourceUnit: {
+    color: "rgba(148,163,184,0.9)",
+    fontWeight: "500"
   }
 });
+
