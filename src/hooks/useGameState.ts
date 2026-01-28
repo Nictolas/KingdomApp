@@ -73,9 +73,19 @@ export function useGameState() {
             const produzioni = edificio.produzione.split(",").map((p) => p.trim());
             produzioni.forEach((prod) => {
               if (prod === risorsa.nome || risorsa.nome.includes(prod) || prod.includes(risorsa.nome)) {
-                // Produzione basata sull'efficienza dell'edificio
-                const produzioneBase = edificio.efficienza / 10;
-                nuovaQuantità += Math.floor(produzioneBase * (edificio.occupazione / edificio.capacità));
+                // Produzione basata sul numero di abitanti assegnati
+                // Ogni abitante produce una quantità base moltiplicata per la sua produttività media
+                const numAbitanti = edificio.abitantiAssegnati.length;
+                if (numAbitanti > 0) {
+                  const produttivitàMedia = edificio.abitantiAssegnati.reduce((sum, id) => {
+                    const abitante = nuoviAbitanti.find((a) => a.id === id);
+                    return sum + (abitante?.produttività || 0);
+                  }, 0) / numAbitanti;
+                  
+                  // Produzione = numero abitanti * produttività media / 10
+                  const produzione = Math.floor(numAbitanti * (produttivitàMedia / 10));
+                  nuovaQuantità += produzione;
+                }
               }
             });
           }
@@ -121,6 +131,44 @@ export function useGameState() {
     setIsLoading(false);
   }, [abitanti, edifici, risorse]);
 
+  const assegnaAbitanteAEdificio = useCallback((abitanteId: number, edificioId: number) => {
+    setEdifici((prevEdifici) =>
+      prevEdifici.map((edificio) => {
+        if (edificio.id === edificioId) {
+          // Controlla se l'abitante è già assegnato e se c'è spazio
+          if (
+            !edificio.abitantiAssegnati.includes(abitanteId) &&
+            edificio.abitantiAssegnati.length < edificio.capacità &&
+            edificio.stato === "Operativo"
+          ) {
+            return {
+              ...edificio,
+              abitantiAssegnati: [...edificio.abitantiAssegnati, abitanteId],
+              occupazione: edificio.abitantiAssegnati.length + 1
+            };
+          }
+        }
+        return edificio;
+      })
+    );
+  }, []);
+
+  const rimuoviAbitanteDaEdificio = useCallback((abitanteId: number, edificioId: number) => {
+    setEdifici((prevEdifici) =>
+      prevEdifici.map((edificio) => {
+        if (edificio.id === edificioId) {
+          const nuoviAssegnati = edificio.abitantiAssegnati.filter((id) => id !== abitanteId);
+          return {
+            ...edificio,
+            abitantiAssegnati: nuoviAssegnati,
+            occupazione: nuoviAssegnati.length
+          };
+        }
+        return edificio;
+      })
+    );
+  }, []);
+
   return {
     abitanti,
     risorse,
@@ -128,6 +176,8 @@ export function useGameState() {
     mese,
     anno,
     isLoading,
-    avanzaMese
+    avanzaMese,
+    assegnaAbitanteAEdificio,
+    rimuoviAbitanteDaEdificio
   };
 }

@@ -25,7 +25,13 @@ export default function EdificiScreen() {
           <Pressable
             key={e.id}
             style={styles.card}
-            onPress={() => setSelectedEdificio(e)}
+            onPress={() => {
+              if (e.nome === "Serra Idroponica Alpha") {
+                router.push("/serra");
+              } else {
+                setSelectedEdificio(e);
+              }
+            }}
           >
             <Text style={styles.emoji}>{e.emoji}</Text>
             <View style={styles.cardContent}>

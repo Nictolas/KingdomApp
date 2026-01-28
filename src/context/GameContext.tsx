@@ -10,6 +10,8 @@ type GameContextType = {
   anno: number;
   isLoading: boolean;
   avanzaMese: () => Promise<void>;
+  assegnaAbitanteAEdificio: (abitanteId: number, edificioId: number) => void;
+  rimuoviAbitanteDaEdificio: (abitanteId: number, edificioId: number) => void;
 };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);

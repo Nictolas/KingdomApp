@@ -91,6 +91,7 @@ export type Edificio = {
   descrizione: string;
   capacità: number; // Numero di persone che può ospitare
   occupazione: number; // Numero attuale di persone
+  abitantiAssegnati: number[]; // Array di ID degli abitanti assegnati
   efficienza: number; // 0-100
   manutenzione: number; // Costo mensile
   stato: "Operativo" | "In costruzione" | "In manutenzione" | "Danneggiato";
