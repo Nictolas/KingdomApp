@@ -1,5 +1,5 @@
-import React from "react";
-import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import type { Abitante } from "../src/types";
@@ -7,6 +7,7 @@ import type { Abitante } from "../src/types";
 export default function OspedaleScreen() {
   const router = useRouter();
   const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio } = useGameContext();
+  const [dropdownDottoreVisible, setDropdownDottoreVisible] = useState(false);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -56,53 +57,75 @@ export default function OspedaleScreen() {
         {/* Dottore */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Dottore</Text>
-          {dottore ? (
-            <View style={styles.dottoreCard}>
-              <Text style={styles.cardEmoji}>{dottore.emoji}</Text>
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>{dottore.nome}</Text>
-                <Text style={styles.cardLavoro}>{dottore.lavoro}</Text>
-                <Text style={styles.cardInfo}>
-                  Età: {dottore.eta} anni | Competenza: {dottore.competenza}% | Salute: {dottore.salute}%
-                </Text>
+          <Pressable
+            style={styles.dropdownButton}
+            onPress={() => setDropdownDottoreVisible(true)}
+          >
+            {dottore ? (
+              <View style={styles.dropdownContent}>
+                <Text style={styles.dropdownEmoji}>{dottore.emoji}</Text>
+                <View style={styles.dropdownTextContainer}>
+                  <Text style={styles.dropdownNome}>{dottore.nome}</Text>
+                  <Text style={styles.dropdownCompetenza}>Competenza: {dottore.competenza}%</Text>
+                </View>
               </View>
-              <Pressable
-                style={styles.removeButton}
-                onPress={() => rimuoviAbitanteDaEdificio(dottore.id, ospedale.id)}
-              >
-                <Text style={styles.removeButtonText}>Rimuovi</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <Text style={styles.emptyText}>Nessun dottore assegnato</Text>
+            ) : (
+              <Text style={styles.dropdownPlaceholder}>Seleziona Dottore...</Text>
+            )}
+            <Text style={styles.dropdownArrow}>▼</Text>
+          </Pressable>
+          {dottore && (
+            <Pressable
+              style={styles.removeButton}
+              onPress={() => rimuoviAbitanteDaEdificio(dottore.id, ospedale.id)}
+            >
+              <Text style={styles.removeButtonText}>Rimuovi</Text>
+            </Pressable>
           )}
 
-          {/* Abitanti disponibili per dottore */}
-          {puòAssegnareDottore && (
-            <View style={styles.subsection}>
-              <Text style={styles.subsectionTitle}>Assegna Dottore</Text>
-              <View style={styles.cardsContainer}>
-                {abitantiDisponibiliDottore.map((a: Abitante) => (
-                  <View key={a.id} style={styles.card}>
-                    <Text style={styles.cardEmoji}>{a.emoji}</Text>
-                    <View style={styles.cardContent}>
-                      <Text style={styles.cardTitle}>{a.nome}</Text>
-                      <Text style={styles.cardLavoro}>{a.lavoro}</Text>
-                      <Text style={styles.cardInfo}>
-                        Età: {a.eta} | Competenza: {a.competenza}% | Salute: {a.salute}%
-                      </Text>
-                    </View>
-                    <Pressable
-                      style={styles.addButton}
-                      onPress={() => assegnaAbitanteAEdificio(a.id, ospedale.id)}
-                    >
-                      <Text style={styles.addButtonText}>Assegna</Text>
-                    </Pressable>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
+          {/* Modal dropdown */}
+          <Modal
+            visible={dropdownDottoreVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setDropdownDottoreVisible(false)}
+          >
+            <Pressable
+              style={styles.modalOverlay}
+              onPress={() => setDropdownDottoreVisible(false)}
+            >
+              <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Seleziona Dottore</Text>
+                  <Pressable onPress={() => setDropdownDottoreVisible(false)}>
+                    <Text style={styles.modalClose}>✕</Text>
+                  </Pressable>
+                </View>
+                <ScrollView style={styles.modalScrollView}>
+                  {abitantiDisponibiliDottore.length > 0 ? (
+                    abitantiDisponibiliDottore.map((a: Abitante) => (
+                      <Pressable
+                        key={a.id}
+                        style={styles.dropdownItem}
+                        onPress={() => {
+                          assegnaAbitanteAEdificio(a.id, ospedale.id);
+                          setDropdownDottoreVisible(false);
+                        }}
+                      >
+                        <Text style={styles.dropdownItemEmoji}>{a.emoji}</Text>
+                        <View style={styles.dropdownItemTextContainer}>
+                          <Text style={styles.dropdownItemNome}>{a.nome}</Text>
+                          <Text style={styles.dropdownItemCompetenza}>Competenza: {a.competenza}%</Text>
+                        </View>
+                      </Pressable>
+                    ))
+                  ) : (
+                    <Text style={styles.emptyText}>Nessun abitante disponibile</Text>
+                  )}
+                </ScrollView>
+              </Pressable>
+            </Pressable>
+          </Modal>
         </View>
 
         {/* Lista Malati */}
@@ -300,5 +323,107 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     textAlign: "center",
     paddingVertical: 8
+  },
+  dropdownButton: {
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 6,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.6)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6
+  },
+  dropdownContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1
+  },
+  dropdownEmoji: {
+    fontSize: 20,
+    marginRight: 8
+  },
+  dropdownTextContainer: {
+    flex: 1
+  },
+  dropdownNome: {
+    color: "#e5e7eb",
+    fontSize: 11,
+    fontWeight: "700",
+    marginBottom: 2
+  },
+  dropdownCompetenza: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 9
+  },
+  dropdownPlaceholder: {
+    color: "rgba(203,213,245,0.5)",
+    fontSize: 11,
+    flex: 1
+  },
+  dropdownArrow: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 10
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  modalContent: {
+    backgroundColor: "#050816",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.6)",
+    width: "80%",
+    maxWidth: 400,
+    maxHeight: "70%"
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(148,163,184,0.6)"
+  },
+  modalTitle: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  modalClose: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 18,
+    fontWeight: "700"
+  },
+  modalScrollView: {
+    maxHeight: 300
+  },
+  dropdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(148,163,184,0.3)"
+  },
+  dropdownItemEmoji: {
+    fontSize: 20,
+    marginRight: 10
+  },
+  dropdownItemTextContainer: {
+    flex: 1
+  },
+  dropdownItemNome: {
+    color: "#e5e7eb",
+    fontSize: 11,
+    fontWeight: "700",
+    marginBottom: 2
+  },
+  dropdownItemCompetenza: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 9
   }
 });

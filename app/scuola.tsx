@@ -1,5 +1,5 @@
-import React from "react";
-import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import type { Abitante } from "../src/types";
@@ -7,6 +7,7 @@ import type { Abitante } from "../src/types";
 export default function ScuolaScreen() {
   const router = useRouter();
   const { abitanti, edifici, etaMinimaLavoro, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio } = useGameContext();
+  const [dropdownProfessoreVisible, setDropdownProfessoreVisible] = useState(false);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -61,53 +62,75 @@ export default function ScuolaScreen() {
         {/* Professore */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Professore</Text>
-          {professore ? (
-            <View style={styles.professoreCard}>
-              <Text style={styles.cardEmoji}>{professore.emoji}</Text>
-              <View style={styles.cardContent}>
-                <Text style={styles.cardTitle}>{professore.nome}</Text>
-                <Text style={styles.cardLavoro}>{professore.lavoro}</Text>
-                <Text style={styles.cardInfo}>
-                  Età: {professore.eta} anni | Competenza: {professore.competenza}%
-                </Text>
+          <Pressable
+            style={styles.dropdownButton}
+            onPress={() => setDropdownProfessoreVisible(true)}
+          >
+            {professore ? (
+              <View style={styles.dropdownContent}>
+                <Text style={styles.dropdownEmoji}>{professore.emoji}</Text>
+                <View style={styles.dropdownTextContainer}>
+                  <Text style={styles.dropdownNome}>{professore.nome}</Text>
+                  <Text style={styles.dropdownCompetenza}>Competenza: {professore.competenza}%</Text>
+                </View>
               </View>
-              <Pressable
-                style={styles.removeButton}
-                onPress={() => rimuoviAbitanteDaEdificio(professore.id, scuola.id)}
-              >
-                <Text style={styles.removeButtonText}>Rimuovi</Text>
-              </Pressable>
-            </View>
-          ) : (
-            <Text style={styles.emptyText}>Nessun professore assegnato</Text>
+            ) : (
+              <Text style={styles.dropdownPlaceholder}>Seleziona Professore...</Text>
+            )}
+            <Text style={styles.dropdownArrow}>▼</Text>
+          </Pressable>
+          {professore && (
+            <Pressable
+              style={styles.removeButton}
+              onPress={() => rimuoviAbitanteDaEdificio(professore.id, scuola.id)}
+            >
+              <Text style={styles.removeButtonText}>Rimuovi</Text>
+            </Pressable>
           )}
 
-          {/* Abitanti disponibili per professore */}
-          {puòAssegnareProfessore && (
-            <View style={styles.subsection}>
-              <Text style={styles.subsectionTitle}>Assegna Professore</Text>
-              <View style={styles.cardsContainer}>
-                {abitantiDisponibiliProfessore.map((a: Abitante) => (
-                  <View key={a.id} style={styles.card}>
-                    <Text style={styles.cardEmoji}>{a.emoji}</Text>
-                    <View style={styles.cardContent}>
-                      <Text style={styles.cardTitle}>{a.nome}</Text>
-                      <Text style={styles.cardLavoro}>{a.lavoro}</Text>
-                      <Text style={styles.cardInfo}>
-                        Età: {a.eta} | Competenza: {a.competenza}%
-                      </Text>
-                    </View>
-                    <Pressable
-                      style={styles.addButton}
-                      onPress={() => assegnaAbitanteAEdificio(a.id, scuola.id)}
-                    >
-                      <Text style={styles.addButtonText}>Assegna</Text>
-                    </Pressable>
-                  </View>
-                ))}
-              </View>
-            </View>
-          )}
+          {/* Modal dropdown */}
+          <Modal
+            visible={dropdownProfessoreVisible}
+            transparent
+            animationType="fade"
+            onRequestClose={() => setDropdownProfessoreVisible(false)}
+          >
+            <Pressable
+              style={styles.modalOverlay}
+              onPress={() => setDropdownProfessoreVisible(false)}
+            >
+              <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+                <View style={styles.modalHeader}>
+                  <Text style={styles.modalTitle}>Seleziona Professore</Text>
+                  <Pressable onPress={() => setDropdownProfessoreVisible(false)}>
+                    <Text style={styles.modalClose}>✕</Text>
+                  </Pressable>
+                </View>
+                <ScrollView style={styles.modalScrollView}>
+                  {abitantiDisponibiliProfessore.length > 0 ? (
+                    abitantiDisponibiliProfessore.map((a: Abitante) => (
+                      <Pressable
+                        key={a.id}
+                        style={styles.dropdownItem}
+                        onPress={() => {
+                          assegnaAbitanteAEdificio(a.id, scuola.id);
+                          setDropdownProfessoreVisible(false);
+                        }}
+                      >
+                        <Text style={styles.dropdownItemEmoji}>{a.emoji}</Text>
+                        <View style={styles.dropdownItemTextContainer}>
+                          <Text style={styles.dropdownItemNome}>{a.nome}</Text>
+                          <Text style={styles.dropdownItemCompetenza}>Competenza: {a.competenza}%</Text>
+                        </View>
+                      </Pressable>
+                    ))
+                  ) : (
+                    <Text style={styles.emptyText}>Nessun abitante disponibile</Text>
+                  )}
+                </ScrollView>
+              </Pressable>
+            </Pressable>
+          </Modal>
         </View>
 
         {/* Lista Bambini */}
@@ -304,5 +327,107 @@ const styles = StyleSheet.create({
     fontStyle: "italic",
     textAlign: "center",
     paddingVertical: 8
+  },
+  dropdownButton: {
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 6,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.6)",
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    marginBottom: 6
+  },
+  dropdownContent: {
+    flexDirection: "row",
+    alignItems: "center",
+    flex: 1
+  },
+  dropdownEmoji: {
+    fontSize: 20,
+    marginRight: 8
+  },
+  dropdownTextContainer: {
+    flex: 1
+  },
+  dropdownNome: {
+    color: "#e5e7eb",
+    fontSize: 11,
+    fontWeight: "700",
+    marginBottom: 2
+  },
+  dropdownCompetenza: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 9
+  },
+  dropdownPlaceholder: {
+    color: "rgba(203,213,245,0.5)",
+    fontSize: 11,
+    flex: 1
+  },
+  dropdownArrow: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 10
+  },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  modalContent: {
+    backgroundColor: "#050816",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.6)",
+    width: "80%",
+    maxWidth: 400,
+    maxHeight: "70%"
+  },
+  modalHeader: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    alignItems: "center",
+    padding: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(148,163,184,0.6)"
+  },
+  modalTitle: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  modalClose: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 18,
+    fontWeight: "700"
+  },
+  modalScrollView: {
+    maxHeight: 300
+  },
+  dropdownItem: {
+    flexDirection: "row",
+    alignItems: "center",
+    padding: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(148,163,184,0.3)"
+  },
+  dropdownItemEmoji: {
+    fontSize: 20,
+    marginRight: 10
+  },
+  dropdownItemTextContainer: {
+    flex: 1
+  },
+  dropdownItemNome: {
+    color: "#e5e7eb",
+    fontSize: 11,
+    fontWeight: "700",
+    marginBottom: 2
+  },
+  dropdownItemCompetenza: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 9
   }
 });
