@@ -1,15 +1,15 @@
 import React from "react";
 import { ActivityIndicator, Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { ministriData, fazioniData, leggiData } from "../kingdomData";
+import { fazioniData, leggiData } from "../kingdomData";
 import { useGameContext } from "../context/GameContext";
-import type { Risorsa } from "../types";
+import type { Risorsa, Abitante } from "../types";
 
 export default function GridGame() {
   const router = useRouter();
   const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese } = useGameContext();
 
-  const ministri = ministriData;
+  const ministriAttuali = abitanti.filter((a: Abitante) => a.ministero);
   const fazioni = fazioniData;
   const leggi = leggiData;
 
@@ -58,7 +58,7 @@ export default function GridGame() {
         <Pressable style={styles.navButton} onPress={() => router.push("/ministri")}>
           <Text style={styles.navEmoji}>🏛️</Text>
           <Text style={styles.navLabel}>Ministri</Text>
-          <Text style={styles.navCount}>{ministri.length} in carica</Text>
+          <Text style={styles.navCount}>{ministriAttuali.length} in carica</Text>
         </Pressable>
       </View>
       <View style={styles.navRow}>

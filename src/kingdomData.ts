@@ -39,7 +39,8 @@ export const abitantiData: Abitante[] = [
     reddito: 1200,
     spese: 800,
     lealtà: 85,
-    paura: 10
+    paura: 10,
+    ministero: "Ricerca e Sviluppo"
   },
   {
     id: 3,
@@ -59,7 +60,8 @@ export const abitantiData: Abitante[] = [
     reddito: 300,
     spese: 200,
     lealtà: 75,
-    paura: 20
+    paura: 20,
+    ministero: "Produzione Alimentare"
   },
   {
     id: 4,
@@ -101,6 +103,16 @@ export const abitantiData: Abitante[] = [
     lealtà: 80,
     paura: 12
   }
+];
+
+export const ministeriDisponibili = [
+  "Ricerca e Sviluppo",
+  "Produzione Alimentare",
+  "Finanze Coloniali",
+  "Difesa e Sicurezza",
+  "Infrastrutture",
+  "Sanità Pubblica",
+  "Educazione"
 ];
 
 export const ministriData: Ministro[] = [

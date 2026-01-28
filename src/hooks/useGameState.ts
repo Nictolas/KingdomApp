@@ -169,6 +169,38 @@ export function useGameState() {
     );
   }, []);
 
+  const nominaMinistro = useCallback((abitanteId: number, ministero: string) => {
+    setAbitanti((prevAbitanti) =>
+      prevAbitanti.map((abitante) => {
+        // Rimuovi il ministero da chiunque lo avesse
+        if (abitante.ministero === ministero) {
+          const { ministero: _, ...rest } = abitante;
+          return rest;
+        }
+        // Assegna il ministero al nuovo abitante
+        if (abitante.id === abitanteId) {
+          return {
+            ...abitante,
+            ministero
+          };
+        }
+        return abitante;
+      })
+    );
+  }, []);
+
+  const rimuoviMinistro = useCallback((abitanteId: number) => {
+    setAbitanti((prevAbitanti) =>
+      prevAbitanti.map((abitante) => {
+        if (abitante.id === abitanteId) {
+          const { ministero: _, ...rest } = abitante;
+          return rest;
+        }
+        return abitante;
+      })
+    );
+  }, []);
+
   return {
     abitanti,
     risorse,
@@ -178,6 +210,8 @@ export function useGameState() {
     isLoading,
     avanzaMese,
     assegnaAbitanteAEdificio,
-    rimuoviAbitanteDaEdificio
+    rimuoviAbitanteDaEdificio,
+    nominaMinistro,
+    rimuoviMinistro
   };
 }
