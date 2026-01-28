@@ -460,6 +460,20 @@ export const edificiData: Edificio[] = [
     manutenzione: 300,
     stato: "Operativo",
     livello: 1
+  },
+  {
+    id: 13,
+    nome: "Scuola",
+    emoji: "📚",
+    tipo: "Educazione",
+    descrizione: "Struttura educativa per l'istruzione dei bambini della colonia.",
+    capacità: 30,
+    occupazione: 0,
+    abitantiAssegnati: [],
+    efficienza: 85,
+    manutenzione: 250,
+    stato: "Operativo",
+    livello: 1
   }
 ];
 

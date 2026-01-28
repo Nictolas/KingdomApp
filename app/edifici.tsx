@@ -34,6 +34,10 @@ export default function EdificiScreen() {
               onPress={() => {
                 if (e.nome === "Serra Idroponica Alpha") {
                   router.push("/serra");
+                } else if (e.nome === "Scuola") {
+                  router.push("/scuola");
+                } else if (e.nome === "Ospedale Coloniale") {
+                  router.push("/ospedale");
                 } else {
                   setSelectedEdificio(e);
                 }
@@ -80,9 +84,9 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   content: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    paddingBottom: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    paddingBottom: 6,
     flex: 1
   },
   grid: {
@@ -92,28 +96,28 @@ const styles = StyleSheet.create({
   },
   card: {
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 8,
+    borderRadius: 6,
+    padding: 6,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
     alignItems: "center",
-    width: "48%",
-    minWidth: 140
+    width: "23.5%",
+    minWidth: 100
   },
   emoji: {
-    fontSize: 32,
-    marginBottom: 4
+    fontSize: 24,
+    marginBottom: 2
   },
   cardTitle: {
     color: "#e5e7eb",
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "700",
-    marginBottom: 2,
+    marginBottom: 1,
     textAlign: "center"
   },
   cardTipo: {
     color: "#93c5fd",
-    fontSize: 10,
+    fontSize: 8,
     textAlign: "center"
   }
 });
