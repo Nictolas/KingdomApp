@@ -37,10 +37,21 @@ export type Character = {
 export type Abitante = {
   id: number;
   nome: string;
-  ruolo: string;
   eta: number;
+  lavoro: string;
+  competenza: number; // 0-100
+  produttività: number; // 0-100
+  stanchezza: number; // 0-100
+  personalità: string;
+  amici: number[]; // Array di ID di altri abitanti
+  rivali: number[]; // Array di ID di altri abitanti
   fazione: string;
-  èMinistro?: boolean;
+  salute: number; // 0-100
+  crediti: number; // Monete
+  reddito: number; // Monete al mese
+  spese: number; // Monete al mese
+  lealtà: number; // 0-100
+  paura: number; // 0-100
 };
 
 export type Ministro = {

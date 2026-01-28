@@ -8,6 +8,13 @@ export default function AbitantiScreen() {
   const router = useRouter();
   const abitanti = abitantiData;
 
+  const getAbitanteNome = (id: number) => {
+    return abitanti.find((a) => a.id === id)?.nome || `ID ${id}`;
+  };
+
+  const formatPercentuale = (valore: number) => `${valore}%`;
+  const formatMonete = (valore: number) => `${valore} monete`;
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -22,10 +29,61 @@ export default function AbitantiScreen() {
         {abitanti.map((a: Abitante) => (
           <View key={a.id} style={styles.card}>
             <Text style={styles.cardTitle}>{a.nome}</Text>
-            <Text style={styles.line}>Ruolo: {a.ruolo}</Text>
-            <Text style={styles.line}>Età: {a.eta}</Text>
-            <Text style={styles.line}>Fazione: {a.fazione}</Text>
-            {a.èMinistro && <Text style={styles.tag}>Ministro del regno</Text>}
+
+            {/* Informazioni base */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Informazioni Base</Text>
+              <Text style={styles.line}>Età: {a.eta} anni</Text>
+              <Text style={styles.line}>Lavoro: {a.lavoro}</Text>
+              <Text style={styles.line}>Fazione: {a.fazione}</Text>
+              <Text style={styles.line}>Personalità: {a.personalità}</Text>
+            </View>
+
+            {/* Competenze e stato */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Competenze e Stato</Text>
+              <Text style={styles.line}>Competenza: {formatPercentuale(a.competenza)}</Text>
+              <Text style={styles.line}>Produttività: {formatPercentuale(a.produttività)}</Text>
+              <Text style={styles.line}>Stanchezza: {formatPercentuale(a.stanchezza)}</Text>
+              <Text style={styles.line}>Salute: {formatPercentuale(a.salute)}</Text>
+            </View>
+
+            {/* Relazioni */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Relazioni</Text>
+              {a.amici.length > 0 ? (
+                <Text style={styles.line}>
+                  Amici: {a.amici.map((id) => getAbitanteNome(id)).join(", ")}
+                </Text>
+              ) : (
+                <Text style={styles.lineMuted}>Nessun amico</Text>
+              )}
+              {a.rivali.length > 0 ? (
+                <Text style={styles.line}>
+                  Rivali: {a.rivali.map((id) => getAbitanteNome(id)).join(", ")}
+                </Text>
+              ) : (
+                <Text style={styles.lineMuted}>Nessun rivale</Text>
+              )}
+            </View>
+
+            {/* Economia */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Economia</Text>
+              <Text style={styles.line}>Crediti: {formatMonete(a.crediti)}</Text>
+              <Text style={styles.line}>Reddito: {formatMonete(a.reddito)}/mese</Text>
+              <Text style={styles.line}>Spese: {formatMonete(a.spese)}/mese</Text>
+              <Text style={styles.line}>
+                Saldo mensile: {formatMonete(a.reddito - a.spese)}
+              </Text>
+            </View>
+
+            {/* Sentimenti */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Sentimenti</Text>
+              <Text style={styles.line}>Lealtà: {formatPercentuale(a.lealtà)}</Text>
+              <Text style={styles.line}>Paura: {formatPercentuale(a.paura)}</Text>
+            </View>
           </View>
         ))}
       </ScrollView>
@@ -60,35 +118,45 @@ const styles = StyleSheet.create({
     paddingHorizontal: 16,
     paddingVertical: 12,
     paddingBottom: 32,
-    gap: 10
+    gap: 12
   },
   card: {
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)"
   },
   cardTitle: {
     color: "#e5e7eb",
-    fontSize: 16,
+    fontSize: 20,
     fontWeight: "700",
-    marginBottom: 4
+    marginBottom: 12
+  },
+  section: {
+    marginBottom: 12,
+    paddingBottom: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(148,163,184,0.2)"
+  },
+  sectionLabel: {
+    color: "#93c5fd",
+    fontSize: 13,
+    fontWeight: "600",
+    marginBottom: 6,
+    textTransform: "uppercase",
+    letterSpacing: 0.5
   },
   line: {
     color: "#cbd5f5",
-    fontSize: 13
+    fontSize: 13,
+    marginBottom: 4
   },
-  tag: {
-    marginTop: 6,
-    alignSelf: "flex-start",
-    paddingHorizontal: 8,
-    paddingVertical: 3,
-    borderRadius: 999,
-    backgroundColor: "rgba(56,189,248,0.18)",
-    color: "#e0f2fe",
-    fontSize: 11,
-    fontWeight: "600"
+  lineMuted: {
+    color: "rgba(203,213,245,0.5)",
+    fontSize: 13,
+    marginBottom: 4,
+    fontStyle: "italic"
   }
 });
 
