@@ -79,7 +79,11 @@ export default function GridGame() {
           <Text style={styles.navLabel}>Edifici</Text>
           <Text style={styles.navCount}>{edifici.length} strutture</Text>
         </Pressable>
-        <View style={styles.navButton} />
+        <Pressable style={styles.navButton} onPress={() => router.push("/diario")}>
+          <Text style={styles.navEmoji}>📖</Text>
+          <Text style={styles.navLabel}>Diario</Text>
+          <Text style={styles.navCount}>Storia</Text>
+        </Pressable>
       </View>
 
       <View style={styles.scrollContent}>
