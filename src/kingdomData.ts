@@ -224,6 +224,12 @@ export const leggiData: Legge[] = [
     titolo: "Età minima sul lavoro",
     descrizione: "Stabilisce che i minori di 18 anni non possono essere impiegati in lavori pericolosi o a tempo pieno.",
     stato: "In vigore"
+  },
+  {
+    id: 7,
+    titolo: "Legge sulle Nascite",
+    descrizione: "Politiche per regolare la crescita demografica della colonia.",
+    stato: "In vigore"
   }
 ];
 

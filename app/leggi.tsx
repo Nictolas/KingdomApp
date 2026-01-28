@@ -27,12 +27,19 @@ export default function LeggiScreen() {
         <View style={styles.grid}>
           {leggi.map((l: Legge) => {
             const isTassaReddito = l.titolo === "Tassa sul Reddito";
+            const isLeggeNascite = l.titolo === "Legge sulle Nascite";
             return (
               <Pressable
                 key={l.id}
                 style={styles.card}
-                onPress={isTassaReddito ? () => router.push("/tassa-reddito") : undefined}
-                disabled={!isTassaReddito}
+                onPress={
+                  isTassaReddito
+                    ? () => router.push("/tassa-reddito")
+                    : isLeggeNascite
+                    ? () => router.push("/legge-nascite")
+                    : undefined
+                }
+                disabled={!isTassaReddito && !isLeggeNascite}
               >
                 <Text style={styles.cardTitle}>{l.titolo}</Text>
                 <Text style={styles.line} numberOfLines={2}>
@@ -54,6 +61,16 @@ export default function LeggiScreen() {
               </Pressable>
             );
           })}
+          {/* Pulsante Schiavitu */}
+          <Pressable style={styles.card} onPress={() => router.push("/schiavitu")}>
+            <Text style={styles.cardTitle}>Schiavitu</Text>
+            <Text style={styles.line} numberOfLines={2}>
+              Gestisci schiavisti e schiavi nella colonia
+            </Text>
+            <Text style={styles.chip}>
+              <Text style={styles.chipValue}>Gestione</Text>
+            </Text>
+          </Pressable>
         </View>
       </ScrollView>
     </SafeAreaView>

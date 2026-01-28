@@ -21,6 +21,9 @@ export function useGameState() {
     { min: 801, max: 1500, percentuale: 20 },
     { min: 1501, max: Infinity, percentuale: 30 }
   ]);
+  
+  // Configurazione politica sulle nascite
+  const [politicaNascite, setPoliticaNascite] = useState<"figlio-unico" | "incentivi" | "nessuna">("nessuna");
 
   // Genera nuovi abitanti proposti per immigrazione
   const generaNuoviAbitantiProposti = useCallback(() => {
@@ -449,9 +452,11 @@ export function useGameState() {
     tipoTassaReddito,
     flatTaxPercentuale,
     scaglioniConfig,
+    politicaNascite,
     setTipoTassaReddito,
     setFlatTaxPercentuale,
     setScaglioniConfig,
+    setPoliticaNascite,
     avanzaMese,
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,
