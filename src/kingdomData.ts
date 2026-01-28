@@ -157,7 +157,7 @@ export const leggiData: Legge[] = [
 
 export const risorseData: Risorsa[] = [
   { id: 1, nome: "Crediti", quantità: 1250, unità: "crediti" },
-  { id: 2, nome: "Cibo sintetico", quantità: 430, unità: "razioni" },
+  { id: 2, nome: "Cibo", quantità: 430, unità: "razioni" },
   { id: 3, nome: "Metalli", quantità: 780, unità: "tonnellate" },
   { id: 4, nome: "Energia", quantità: 68, unità: "MW" },
   { id: 5, nome: "Ossigeno", quantità: 95, unità: "%" }
@@ -183,7 +183,7 @@ export const edificiData: Edificio[] = [
     nome: "Serra Idroponica Alpha",
     emoji: "🌱",
     tipo: "Agricoltura",
-    descrizione: "Produce cibo sintetico e ossigeno per la colonia.",
+    descrizione: "Produce cibo e ossigeno per la colonia.",
     capacità: 15,
     occupazione: 8,
     abitantiAssegnati: [],
@@ -191,7 +191,7 @@ export const edificiData: Edificio[] = [
     manutenzione: 300,
     stato: "Operativo",
     livello: 2,
-    produzione: "Cibo sintetico, Ossigeno"
+    produzione: "Cibo, Ossigeno"
   },
   {
     id: 3,

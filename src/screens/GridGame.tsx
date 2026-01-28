@@ -67,6 +67,16 @@ export default function GridGame() {
             const isCibo = r.nome.toLowerCase().includes("cibo");
             const isCrediti = r.nome.toLowerCase().includes("crediti");
             const isEnergia = r.nome.toLowerCase().includes("energia");
+            const emoji =
+              isCrediti
+                ? "💰"
+                : isCibo
+                ? "🍱"
+                : isEnergia
+                ? "⚡"
+                : r.nome.toLowerCase().includes("ossigeno")
+                ? "🫧"
+                : "⛏️";
             return (
               <Pressable
                 key={r.id}
@@ -82,7 +92,10 @@ export default function GridGame() {
                 }
                 disabled={!isCibo && !isCrediti && !isEnergia}
               >
-                <Text style={styles.resourceName}>{r.nome}</Text>
+                <Text style={styles.resourceName}>
+                  <Text style={styles.resourceEmoji}>{emoji} </Text>
+                  {r.nome}
+                </Text>
                 <View style={styles.resourceRow}>
                   <Text style={styles.resourceValue}>
                     {r.quantità} <Text style={styles.resourceUnit}>{r.unità}</Text>
@@ -139,6 +152,7 @@ export default function GridGame() {
       <CiboConsumoModal
         visible={showCiboModal}
         abitanti={abitanti}
+        edifici={edifici}
         onClose={() => setShowCiboModal(false)}
       />
 
@@ -287,6 +301,10 @@ const styles = StyleSheet.create({
     color: "#e5e7eb",
     fontSize: 10,
     marginBottom: 2
+  },
+  resourceEmoji: {
+    fontSize: 11,
+    marginRight: 2
   },
   resourceRow: {
     flexDirection: "row",

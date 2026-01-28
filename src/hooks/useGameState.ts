@@ -10,6 +10,12 @@ export function useGameState() {
   const [anno, setAnno] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
 
+  // Produzione fissa di cibo per abitante (10-20 razioni al mese, valore individuale costante)
+  const getProduzioneCiboPerAbitante = (abitanteId: number): number => {
+    const seed = abitanteId * 31;
+    return 10 + (seed % 11); // 10-20
+  };
+
   const avanzaMese = useCallback(async () => {
     setIsLoading(true);
 
@@ -73,18 +79,24 @@ export function useGameState() {
             const produzioni = edificio.produzione.split(",").map((p) => p.trim());
             produzioni.forEach((prod) => {
               if (prod === risorsa.nome || risorsa.nome.includes(prod) || prod.includes(risorsa.nome)) {
-                // Produzione basata sul numero di abitanti assegnati
-                // Ogni abitante produce una quantità base moltiplicata per la sua produttività media
                 const numAbitanti = edificio.abitantiAssegnati.length;
                 if (numAbitanti > 0) {
-                  const produttivitàMedia = edificio.abitantiAssegnati.reduce((sum, id) => {
-                    const abitante = nuoviAbitanti.find((a) => a.id === id);
-                    return sum + (abitante?.produttività || 0);
-                  }, 0) / numAbitanti;
-                  
-                  // Produzione = numero abitanti * produttività media / 10
-                  const produzione = Math.floor(numAbitanti * (produttivitàMedia / 10));
-                  nuovaQuantità += produzione;
+                  if (risorsa.nome.toLowerCase().includes("cibo")) {
+                    // Cibo: ogni abitante assegnato produce un valore fisso (10-20) indipendente dal mese
+                    const produzioneTotale = edificio.abitantiAssegnati.reduce((sum, id) => {
+                      return sum + getProduzioneCiboPerAbitante(id);
+                    }, 0);
+                    nuovaQuantità += produzioneTotale;
+                  } else {
+                    // Altre risorse: produzione basata sulla produttività media (logica originale)
+                    const produttivitàMedia = edificio.abitantiAssegnati.reduce((sum, id) => {
+                      const abitante = nuoviAbitanti.find((a) => a.id === id);
+                      return sum + (abitante?.produttività || 0);
+                    }, 0) / numAbitanti;
+
+                    const produzione = Math.floor(numAbitanti * (produttivitàMedia / 10));
+                    nuovaQuantità += produzione;
+                  }
                 }
               }
             });
@@ -102,23 +114,27 @@ export function useGameState() {
         }
       });
 
+      // Funzione per calcolare il consumo fisso di cibo (stessa logica del modal)
+      const getConsumoFissoMese = (abitante: Abitante): number => {
+        // Usa una combinazione di ID e salute per generare un numero deterministico
+        const seed = abitante.id * 17 + abitante.salute * 23;
+        
+        if (abitante.salute > 70) {
+          // Obeso: consuma da 5 a 10
+          return 5 + (seed % 6); // 5 + (0-5) = 5-10
+        } else if (abitante.salute >= 30 && abitante.salute <= 70) {
+          // Normale: consuma da 1 a 5
+          return 1 + (seed % 5); // 1 + (0-4) = 1-5
+        } else {
+          // Altro: consuma da 1 a 10
+          return 1 + (seed % 10); // 1 + (0-9) = 1-10
+        }
+      };
+
       // Calcola consumo del cibo basato sulla salute degli abitanti
       if (risorsa.nome.toLowerCase().includes("cibo")) {
         nuoviAbitanti.forEach((abitante) => {
-          let consumoCibo: number;
-          
-          // Determina consumo basato sulla salute
-          if (abitante.salute > 70) {
-            // Obeso: consuma da 5 a 10
-            consumoCibo = 5 + Math.floor(Math.random() * 6);
-          } else if (abitante.salute >= 30 && abitante.salute <= 70) {
-            // Normale: consuma da 1 a 5
-            consumoCibo = 1 + Math.floor(Math.random() * 5);
-          } else {
-            // Altro: consuma da 1 a 10
-            consumoCibo = 1 + Math.floor(Math.random() * 10);
-          }
-          
+          const consumoCibo = getConsumoFissoMese(abitante);
           nuovaQuantità -= consumoCibo;
         });
       }
@@ -238,17 +254,25 @@ export function useGameState() {
         produzioni.forEach((prod) => {
           const numAbitanti = edificio.abitantiAssegnati.length;
           if (numAbitanti > 0) {
-            const produttivitàMedia = edificio.abitantiAssegnati.reduce((sum, id) => {
-              const abitante = abitanti.find((a) => a.id === id);
-              return sum + (abitante?.produttività || 0);
-            }, 0) / numAbitanti;
-            
-            const produzione = Math.floor(numAbitanti * (produttivitàMedia / 10));
-            
             // Trova la risorsa corrispondente
             risorse.forEach((r) => {
               if (prod === r.nome || r.nome.includes(prod) || prod.includes(r.nome)) {
-                variazioni[r.nome] = (variazioni[r.nome] || 0) + produzione;
+                if (r.nome.toLowerCase().includes("cibo")) {
+                  // Cibo: anteprima produzione fissa 10-20 per abitante (stessa logica della Serra)
+                  const produzioneTotale = edificio.abitantiAssegnati.reduce((sum, id) => {
+                    return sum + getProduzioneCiboPerAbitante(id);
+                  }, 0);
+                  variazioni[r.nome] = (variazioni[r.nome] || 0) + produzioneTotale;
+                } else {
+                  // Altre risorse: produzione basata sulla produttività media (logica originale)
+                  const produttivitàMedia = edificio.abitantiAssegnati.reduce((sum, id) => {
+                    const abitante = abitanti.find((a) => a.id === id);
+                    return sum + (abitante?.produttività || 0);
+                  }, 0) / numAbitanti;
+
+                  const produzione = Math.floor(numAbitanti * (produttivitàMedia / 10));
+                  variazioni[r.nome] = (variazioni[r.nome] || 0) + produzione;
+                }
               }
             });
           }
@@ -256,24 +280,28 @@ export function useGameState() {
       }
     });
 
-    // Calcola consumo del cibo basato sulla salute degli abitanti
-    // Per la visualizzazione, usiamo valori medi deterministici
-    abitanti.forEach((abitante) => {
-      let consumoCibo: number;
+    // Funzione per calcolare il consumo fisso di cibo (stessa logica del modal)
+    const getConsumoFisso = (abitante: Abitante): number => {
+      // Usa una combinazione di ID e salute per generare un numero deterministico
+      const seed = abitante.id * 17 + abitante.salute * 23;
       
-      // Determina consumo basato sulla salute (valore medio per visualizzazione)
       if (abitante.salute > 70) {
-        // Obeso: consuma da 5 a 10 (media: 7.5, arrotondato a 8)
-        consumoCibo = 8;
+        // Obeso: consuma da 5 a 10
+        return 5 + (seed % 6); // 5 + (0-5) = 5-10
       } else if (abitante.salute >= 30 && abitante.salute <= 70) {
-        // Normale: consuma da 1 a 5 (media: 3)
-        consumoCibo = 3;
+        // Normale: consuma da 1 a 5
+        return 1 + (seed % 5); // 1 + (0-4) = 1-5
       } else {
-        // Altro: consuma da 1 a 10 (media: 5.5, arrotondato a 6)
-        consumoCibo = 6;
+        // Altro: consuma da 1 a 10
+        return 1 + (seed % 10); // 1 + (0-9) = 1-10
       }
+    };
+
+    // Calcola consumo del cibo basato sulla salute degli abitanti
+    abitanti.forEach((abitante) => {
+      const consumoCibo = getConsumoFisso(abitante);
       
-      // Trova la risorsa "Cibo" o "Cibo sintetico"
+      // Trova la risorsa "Cibo"
       risorse.forEach((r) => {
         if (r.nome.toLowerCase().includes("cibo")) {
           variazioni[r.nome] = (variazioni[r.nome] || 0) - consumoCibo;

@@ -1,14 +1,15 @@
 import React from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import type { Abitante } from "../types";
+import type { Abitante, Edificio } from "../types";
 
 type CiboConsumoModalProps = {
   visible: boolean;
   abitanti: Abitante[];
+  edifici: Edificio[];
   onClose: () => void;
 };
 
-export function CiboConsumoModal({ visible, abitanti, onClose }: CiboConsumoModalProps) {
+export function CiboConsumoModal({ visible, abitanti, edifici, onClose }: CiboConsumoModalProps) {
   // Funzione per generare un numero deterministico basato sull'ID dell'abitante
   // Usa l'ID come seed per avere sempre lo stesso numero per lo stesso abitante
   const getConsumoFisso = (abitante: Abitante): number => {
@@ -27,7 +28,7 @@ export function CiboConsumoModal({ visible, abitanti, onClose }: CiboConsumoModa
     }
   };
 
-  // Calcola il consumo di ogni abitante
+  // Calcola il consumo di ogni abitante (numero fisso per individuo)
   const consumiAbitanti = abitanti.map((abitante) => {
     let statoSalute: string;
 
@@ -48,8 +49,19 @@ export function CiboConsumoModal({ visible, abitanti, onClose }: CiboConsumoModa
     };
   });
 
-  // Calcola il totale
-  const totale = consumiAbitanti.reduce((sum, c) => sum + c.consumo, 0);
+  // Calcola il totale consumato
+  const totaleConsumo = consumiAbitanti.reduce((sum, c) => sum + c.consumo, 0);
+
+  // Produzione fissa di cibo per abitante assegnato alla Serra (10-20, stessa logica di gioco)
+  const getProduzioneCiboPerAbitante = (abitanteId: number): number => {
+    const seed = abitanteId * 31;
+    return 10 + (seed % 11); // 10-20
+  };
+
+  // Calcola il totale prodotto dalla Serra Idroponica Alpha
+  const serra = edifici.find((e) => e.nome === "Serra Idroponica Alpha");
+  const totaleProduzione =
+    serra?.abitantiAssegnati.reduce((sum, id) => sum + getProduzioneCiboPerAbitante(id), 0) ?? 0;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -75,9 +87,16 @@ export function CiboConsumoModal({ visible, abitanti, onClose }: CiboConsumoModa
           </ScrollView>
 
           <View style={styles.totaleContainer}>
-            <Text style={styles.totaleLabel}>Totale mensile:</Text>
+            <Text style={styles.totaleLabel}>Totale mensile consumato:</Text>
             <Text style={styles.totaleValue}>
-              {totale} <Text style={styles.unità}>razioni</Text>
+              {totaleConsumo} <Text style={styles.unità}>razioni</Text>
+            </Text>
+          </View>
+
+          <View style={styles.totaleContainer}>
+            <Text style={styles.totaleLabel}>Totale mensile prodotto dalla Serra:</Text>
+            <Text style={styles.totaleValueProduzione}>
+              {totaleProduzione} <Text style={styles.unitàProduzione}>razioni</Text>
             </Text>
           </View>
 
@@ -179,6 +198,15 @@ const styles = StyleSheet.create({
     color: "#ef4444",
     fontSize: 18,
     fontWeight: "700"
+  },
+  totaleValueProduzione: {
+    color: "#4ade80",
+    fontSize: 16,
+    fontWeight: "700"
+  },
+  unitàProduzione: {
+    color: "rgba(74,222,128,0.7)",
+    fontWeight: "500"
   },
   closeButton: {
     backgroundColor: "#3b82f6",

@@ -25,12 +25,16 @@ export default function SerraScreen() {
   // Abitanti disponibili (non assegnati alla serra)
   const abitantiDisponibili = abitanti.filter((a) => !serra.abitantiAssegnati.includes(a.id));
 
-  // Calcola produzione mensile basata sugli abitanti assegnati
+  // Ogni abitante assegnato alla Serra produce un valore fisso di cibo (10-20 razioni al mese)
+  const getProduzioneCiboPerAbitante = (abitante: Abitante): number => {
+    const seed = abitante.id * 31;
+    return 10 + (seed % 11); // 10-20
+  };
+
+  // Calcola produzione mensile basata sugli abitanti assegnati (somma dei valori fissi individuali)
   const calcolaProduzione = () => {
     if (abitantiAssegnati.length === 0) return 0;
-    const produttivitàMedia =
-      abitantiAssegnati.reduce((sum, a) => sum + a.produttività, 0) / abitantiAssegnati.length;
-    return Math.floor(abitantiAssegnati.length * (produttivitàMedia / 10));
+    return abitantiAssegnati.reduce((sum, a) => sum + getProduzioneCiboPerAbitante(a), 0);
   };
 
   const produzioneMensile = calcolaProduzione();
