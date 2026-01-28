@@ -1,95 +1,19 @@
-import React, { useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import React from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import { formatGameTime, useGameClock } from "../game/gameClock";
-
-type Abitante = {
-  id: number;
-  nome: string;
-  ruolo: string;
-  eta: number;
-  fazione: string;
-  èMinistro?: boolean;
-};
-
-type Ministro = {
-  id: number;
-  nome: string;
-  ministero: string;
-  fazione: string;
-};
-
-type Fazione = {
-  id: number;
-  nome: string;
-  descrizione: string;
-};
-
-type Legge = {
-  id: number;
-  titolo: string;
-  descrizione: string;
-  stato: "Proposta" | "In vigore" | "Abrogata";
-};
-
-type Risorsa = {
-  id: number;
-  nome: string;
-  quantità: number;
-  unità: string;
-};
+import { abitantiData, ministriData, fazioniData, leggiData, risorseData } from "../kingdomData";
+import type { Abitante, Ministro, Fazione, Legge, Risorsa } from "../types";
 
 export default function GridGame() {
   const { gameTime } = useGameClock(6, 0);
+  const router = useRouter();
 
-  const [abitanti] = useState<Abitante[]>([
-    { id: 1, nome: "Re Artù", ruolo: "Sovrano", eta: 35, fazione: "Corona", èMinistro: false },
-    { id: 2, nome: "Morgana", ruolo: "Consigliera", eta: 32, fazione: "Arcani", èMinistro: true },
-    { id: 3, nome: "Luca", ruolo: "Contadino", eta: 28, fazione: "Popolo" },
-    { id: 4, nome: "Giovanni", ruolo: "Artigiano", eta: 40, fazione: "Popolo" },
-    { id: 5, nome: "Elena", ruolo: "Studiosa", eta: 26, fazione: "Accademia" }
-  ]);
-
-  const [ministri] = useState<Ministro[]>([
-    { id: 1, nome: "Morgana", ministero: "Magia e Sapienza", fazione: "Arcani" },
-    { id: 2, nome: "Marco", ministero: "Agricoltura", fazione: "Popolo" },
-    { id: 3, nome: "Isabella", ministero: "Tesoro Reale", fazione: "Corona" }
-  ]);
-
-  const [fazioni] = useState<Fazione[]>([
-    { id: 1, nome: "Corona", descrizione: "Difende il potere del Re e la stabilità del regno." },
-    { id: 2, nome: "Popolo", descrizione: "Vuole più diritti per contadini e artigiani." },
-    { id: 3, nome: "Arcani", descrizione: "Ordine di maghi e sapienti, interessati alla conoscenza." },
-    { id: 4, nome: "Accademia", descrizione: "Studiosi e maestri che formano le nuove generazioni." }
-  ]);
-
-  const [leggi] = useState<Legge[]>([
-    {
-      id: 1,
-      titolo: "Tassa sul Grano",
-      descrizione: "Una tassa del 10% su tutto il raccolto di grano.",
-      stato: "In vigore"
-    },
-    {
-      id: 2,
-      titolo: "Carta dei Diritti del Popolo",
-      descrizione: "Riconosce alcuni diritti fondamentali a tutti gli abitanti.",
-      stato: "Proposta"
-    },
-    {
-      id: 3,
-      titolo: "Decreto sulla Magia",
-      descrizione: "Regola l'uso della magia all'interno delle mura della città.",
-      stato: "In vigore"
-    }
-  ]);
-
-  const [risorse] = useState<Risorsa[]>([
-    { id: 1, nome: "Oro", quantità: 1250, unità: "monete" },
-    { id: 2, nome: "Grano", quantità: 430, unità: "sacchi" },
-    { id: 3, nome: "Legno", quantità: 780, unità: "tronchi" },
-    { id: 4, nome: "Influenza della Corona", quantità: 68, unità: "punti" },
-    { id: 5, nome: "Fiducia del Popolo", quantità: 74, unità: "punti" }
-  ]);
+  const abitanti = abitantiData;
+  const ministri = ministriData;
+  const fazioni = fazioniData;
+  const leggi = leggiData;
+  const risorse = risorseData;
 
   return (
     <View style={styles.container}>
@@ -102,6 +26,31 @@ export default function GridGame() {
           <Text style={styles.clockLabel}>Ora del regno</Text>
           <Text style={styles.clockValue}>🕐 {formatGameTime(gameTime)}</Text>
         </View>
+      </View>
+
+      <View style={styles.navRow}>
+        <Pressable style={styles.navButton} onPress={() => router.push("/abitanti")}>
+          <Text style={styles.navEmoji}>👥</Text>
+          <Text style={styles.navLabel}>Abitanti</Text>
+          <Text style={styles.navCount}>{abitanti.length} totali</Text>
+        </Pressable>
+        <Pressable style={styles.navButton} onPress={() => router.push("/ministri")}>
+          <Text style={styles.navEmoji}>🏛️</Text>
+          <Text style={styles.navLabel}>Ministri</Text>
+          <Text style={styles.navCount}>{ministri.length} in carica</Text>
+        </Pressable>
+      </View>
+      <View style={styles.navRow}>
+        <Pressable style={styles.navButton} onPress={() => router.push("/fazioni")}>
+          <Text style={styles.navEmoji}>⚔️</Text>
+          <Text style={styles.navLabel}>Fazioni</Text>
+          <Text style={styles.navCount}>{fazioni.length} attive</Text>
+        </Pressable>
+        <Pressable style={styles.navButton} onPress={() => router.push("/leggi")}>
+          <Text style={styles.navEmoji}>📜</Text>
+          <Text style={styles.navLabel}>Leggi</Text>
+          <Text style={styles.navCount}>{leggi.length} totali</Text>
+        </Pressable>
       </View>
 
       <ScrollView contentContainerStyle={styles.scrollContent}>
@@ -213,6 +162,37 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#050816"
   },
+  navRow: {
+    flexDirection: "row",
+    justifyContent: "space-between",
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 4,
+    gap: 12
+  },
+  navButton: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 16,
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.6)"
+  },
+  navEmoji: {
+    fontSize: 22,
+    marginBottom: 4
+  },
+  navLabel: {
+    color: "#e5e7eb",
+    fontSize: 15,
+    fontWeight: "700"
+  },
+  navCount: {
+    color: "rgba(148,163,184,0.9)",
+    fontSize: 12,
+    marginTop: 2
+  },
   header: {
     paddingTop: 16,
     paddingBottom: 12,
@@ -249,7 +229,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingTop: 8,
     paddingBottom: 32
   },
   section: {

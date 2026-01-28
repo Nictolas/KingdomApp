@@ -32,3 +32,40 @@ export type Character = {
   isInFarm?: boolean;
   isInHouse?: boolean;
 };
+
+// Nuovi tipi per il gestionale del regno
+export type Abitante = {
+  id: number;
+  nome: string;
+  ruolo: string;
+  eta: number;
+  fazione: string;
+  èMinistro?: boolean;
+};
+
+export type Ministro = {
+  id: number;
+  nome: string;
+  ministero: string;
+  fazione: string;
+};
+
+export type Fazione = {
+  id: number;
+  nome: string;
+  descrizione: string;
+};
+
+export type Legge = {
+  id: number;
+  titolo: string;
+  descrizione: string;
+  stato: "Proposta" | "In vigore" | "Abrogata";
+};
+
+export type Risorsa = {
+  id: number;
+  nome: string;
+  quantità: number;
+  unità: string;
+};
