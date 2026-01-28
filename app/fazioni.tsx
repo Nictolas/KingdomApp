@@ -1,12 +1,14 @@
-import React from "react";
-import { SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { fazioniData } from "../src/kingdomData";
 import type { Fazione } from "../src/types";
+import { FazioneInfoModal } from "../src/ui/FazioneInfoModal";
 
 export default function FazioniScreen() {
   const router = useRouter();
   const fazioni = fazioniData;
+  const [selectedFazione, setSelectedFazione] = useState<Fazione | null>(null);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -20,12 +22,27 @@ export default function FazioniScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         {fazioni.map((f: Fazione) => (
-          <View key={f.id} style={styles.card}>
-            <Text style={styles.cardTitle}>{f.nome}</Text>
-            <Text style={styles.line}>{f.descrizione}</Text>
-          </View>
+          <Pressable
+            key={f.id}
+            style={styles.card}
+            onPress={() => setSelectedFazione(f)}
+          >
+            <Text style={styles.emoji}>{f.emoji}</Text>
+            <View style={styles.cardContent}>
+              <Text style={styles.cardTitle}>{f.nome}</Text>
+              <Text style={styles.cardDescrizione} numberOfLines={2}>
+                {f.descrizione}
+              </Text>
+            </View>
+          </Pressable>
         ))}
       </ScrollView>
+
+      <FazioneInfoModal
+        visible={selectedFazione !== null}
+        fazione={selectedFazione}
+        onClose={() => setSelectedFazione(null)}
+      />
     </SafeAreaView>
   );
 }
@@ -62,17 +79,26 @@ const styles = StyleSheet.create({
   card: {
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 12,
-    padding: 12,
+    padding: 16,
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.6)"
+    borderColor: "rgba(148,163,184,0.6)",
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12
+  },
+  emoji: {
+    fontSize: 40
+  },
+  cardContent: {
+    flex: 1
   },
   cardTitle: {
     color: "#e5e7eb",
-    fontSize: 16,
+    fontSize: 18,
     fontWeight: "700",
     marginBottom: 4
   },
-  line: {
+  cardDescrizione: {
     color: "#cbd5f5",
     fontSize: 13
   }

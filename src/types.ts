@@ -65,6 +65,7 @@ export type Ministro = {
 export type Fazione = {
   id: number;
   nome: string;
+  emoji: string;
   descrizione: string;
 };
 
@@ -85,6 +86,7 @@ export type Risorsa = {
 export type Edificio = {
   id: number;
   nome: string;
+  emoji: string;
   tipo: string;
   descrizione: string;
   capacità: number; // Numero di persone che può ospitare

@@ -110,10 +110,10 @@ export const ministriData: Ministro[] = [
 ];
 
 export const fazioniData: Fazione[] = [
-  { id: 1, nome: "Amministrazione", descrizione: "Sostiene l'autorità del Comandante e la stabilità della colonia." },
-  { id: 2, nome: "Lavoratori", descrizione: "Rappresenta i diritti dei tecnici e operai della colonia." },
-  { id: 3, nome: "Scienziati", descrizione: "Gruppo di ricercatori interessati al progresso tecnologico." },
-  { id: 4, nome: "Esploratori", descrizione: "Coloni che vogliono espandere i confini della colonia." }
+  { id: 1, nome: "Amministrazione", emoji: "🏛️", descrizione: "Sostiene l'autorità del Comandante e la stabilità della colonia." },
+  { id: 2, nome: "Lavoratori", emoji: "🔧", descrizione: "Rappresenta i diritti dei tecnici e operai della colonia." },
+  { id: 3, nome: "Scienziati", emoji: "🔬", descrizione: "Gruppo di ricercatori interessati al progresso tecnologico." },
+  { id: 4, nome: "Esploratori", emoji: "🚀", descrizione: "Coloni che vogliono espandere i confini della colonia." }
 ];
 
 export const leggiData: Legge[] = [
@@ -149,6 +149,7 @@ export const edificiData: Edificio[] = [
   {
     id: 1,
     nome: "Centro di Comando",
+    emoji: "🏛️",
     tipo: "Amministrazione",
     descrizione: "Quartier generale della colonia. Coordina tutte le operazioni.",
     capacità: 20,
@@ -161,6 +162,7 @@ export const edificiData: Edificio[] = [
   {
     id: 2,
     nome: "Serra Idroponica Alpha",
+    emoji: "🌱",
     tipo: "Agricoltura",
     descrizione: "Produce cibo sintetico e ossigeno per la colonia.",
     capacità: 15,
@@ -174,6 +176,7 @@ export const edificiData: Edificio[] = [
   {
     id: 3,
     nome: "Raffineria Mineraria",
+    emoji: "⚙️",
     tipo: "Industria",
     descrizione: "Processa i minerali estratti e produce materiali utili.",
     capacità: 25,
@@ -188,6 +191,7 @@ export const edificiData: Edificio[] = [
   {
     id: 4,
     nome: "Quartieri Residenziali Settore A",
+    emoji: "🏠",
     tipo: "Residenza",
     descrizione: "Alloggi per i coloni. Fornisce comfort e riposo.",
     capacità: 50,
@@ -200,6 +204,7 @@ export const edificiData: Edificio[] = [
   {
     id: 5,
     nome: "Laboratorio di Ricerca",
+    emoji: "🔬",
     tipo: "Scienza",
     descrizione: "Centro di ricerca avanzata per migliorare le tecnologie della colonia.",
     capacità: 10,
@@ -212,6 +217,7 @@ export const edificiData: Edificio[] = [
   {
     id: 6,
     nome: "Centrale Energetica",
+    emoji: "⚡",
     tipo: "Infrastruttura",
     descrizione: "Genera energia per tutta la colonia utilizzando pannelli solari e reattori.",
     capacità: 8,
@@ -225,6 +231,7 @@ export const edificiData: Edificio[] = [
   {
     id: 7,
     nome: "Ospedale Coloniale",
+    emoji: "🏥",
     tipo: "Sanità",
     descrizione: "Struttura medica avanzata per curare feriti e malati.",
     capacità: 30,
@@ -237,6 +244,7 @@ export const edificiData: Edificio[] = [
   {
     id: 8,
     nome: "Hangar di Manutenzione",
+    emoji: "🚁",
     tipo: "Trasporti",
     descrizione: "Manutiene e ripara veicoli e navi spaziali.",
     capacità: 12,
