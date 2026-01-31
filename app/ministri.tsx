@@ -53,7 +53,7 @@ export default function MinistriScreen() {
                 <Text style={styles.cardEmoji}>{a.emoji}</Text>
                 <Text style={styles.cardTitle}>{a.nome}</Text>
                 <Text style={styles.line}>Ministero: {a.ministero}</Text>
-                <Text style={styles.line}>Fazione: {a.fazione}</Text>
+                <Text style={styles.line}>Fazioni: {a.fazioni?.join(", ") ?? "—"}</Text>
                 <Pressable
                   style={styles.removeButton}
                   onPress={() => rimuoviMinistro(a.id)}

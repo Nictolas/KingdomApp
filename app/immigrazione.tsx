@@ -38,7 +38,7 @@ export default function ImmigrazioneScreen() {
                   <Text style={styles.cardInfo}>Età: {a.eta}</Text>
                   <Text style={styles.cardInfo}>Competenza: {a.competenza}%</Text>
                   <Text style={styles.cardInfo}>Produttività: {a.produttività}%</Text>
-                  <Text style={styles.cardInfo}>Fazione: {a.fazione}</Text>
+                  <Text style={styles.cardInfo}>Fazioni: {a.fazioni?.join(", ") ?? "—"}</Text>
                   <View style={styles.buttonRow}>
                     <Pressable
                       style={styles.acceptButton}

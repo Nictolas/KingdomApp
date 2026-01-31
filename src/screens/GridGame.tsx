@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { fazioniData, leggiData } from "../kingdomData";
 import { useGameContext } from "../context/GameContext";
@@ -21,33 +21,36 @@ export default function GridGame() {
   const fazioni = fazioniData;
   const leggi = leggiData;
 
-  // Calcola dimensioni 16:9 su PC
+  // Su PC il contenitore 16:9 è gestito da app/index.tsx; qui usiamo sempre flex: 1
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
-  const containerHeight = isDesktop ? width * (9 / 16) : undefined;
-  const maxHeight = isDesktop ? containerHeight : undefined;
 
   // Calcola produzione/consumo mensile + effetto ordini Mercato (applicati al Skip Mese)
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
 
   return (
-    <View style={[styles.container, maxHeight && { maxHeight, overflow: "hidden" }]}>
-      <View style={styles.header}>
-        <View>
-          <View style={styles.titleRow}>
-            <Text style={styles.gameTitle}>MyKingdom</Text>
-            <Pressable style={styles.diarioButton} onPress={() => router.push("/diario")}>
-              <Text style={styles.diarioEmoji}>📖</Text>
-              <Text style={styles.diarioLabel}>Diario</Text>
-            </Pressable>
+    <View style={styles.container}>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+      >
+        <View style={styles.header}>
+          <View>
+            <View style={styles.titleRow}>
+              <Text style={styles.gameTitle}>MyKingdom</Text>
+              <Pressable style={styles.diarioButton} onPress={() => router.push("/diario")}>
+                <Text style={styles.diarioEmoji}>📖</Text>
+                <Text style={styles.diarioLabel}>Diario</Text>
+              </Pressable>
+            </View>
+            <Text style={styles.subtitle}>Gestisci la tua colonia</Text>
+            <Text style={styles.meseLabel}>Mese {mese} - Anno {anno}</Text>
           </View>
-          <Text style={styles.subtitle}>Gestisci la tua colonia</Text>
-          <Text style={styles.meseLabel}>Mese {mese} - Anno {anno}</Text>
         </View>
-      </View>
 
-      <View style={styles.skipContainer}>
+        <View style={styles.skipContainer}>
         <Pressable
           style={[styles.skipButton, isLoading && styles.skipButtonDisabled]}
           onPress={avanzaMese}
@@ -207,6 +210,7 @@ export default function GridGame() {
           <Text style={styles.navCount}>Possibili / In corso</Text>
         </Pressable>
       </View>
+      </ScrollView>
 
       <CiboConsumoModal
         visible={showCiboModal}
@@ -236,6 +240,8 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#050816"
   },
+  scroll: { flex: 1 },
+  scrollContent: { flexGrow: 1, paddingBottom: 16 },
   navRow: {
     flexDirection: "row",
     justifyContent: "space-between",

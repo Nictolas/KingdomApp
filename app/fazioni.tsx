@@ -1,12 +1,14 @@
 import React, { useState } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { useGameContext } from "../src/context/GameContext";
 import { fazioniData } from "../src/kingdomData";
 import type { Fazione } from "../src/types";
 import { FazioneInfoModal } from "../src/ui/FazioneInfoModal";
 
 export default function FazioniScreen() {
   const router = useRouter();
+  const { abitanti } = useGameContext();
   const fazioni = fazioniData;
   const [selectedFazione, setSelectedFazione] = useState<Fazione | null>(null);
 
@@ -52,6 +54,7 @@ export default function FazioniScreen() {
       <FazioneInfoModal
         visible={selectedFazione !== null}
         fazione={selectedFazione}
+        abitanti={abitanti}
         onClose={() => setSelectedFazione(null)}
       />
     </SafeAreaView>

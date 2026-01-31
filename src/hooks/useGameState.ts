@@ -71,7 +71,7 @@ export function useGameState() {
   const generaNuoviAbitantiProposti = useCallback(() => {
     const numNuovi = Math.floor(Math.random() * 6); // 0-5
     const nuoviAbitanti: Abitante[] = [];
-    const fazioni = ["Amministrazione", "Lavoratori", "Scienziati", "Esploratori"];
+    const fazioniRuolo = ["Amministrazione", "Lavoratori", "Scienziati", "Esploratori"];
     const lavori = [
       "Tecnico",
       "Ricercatore",
@@ -120,7 +120,7 @@ export function useGameState() {
           personalità: personalità[Math.floor(Math.random() * personalità.length)],
           amici: [],
           rivali: [],
-          fazione: fazioni[Math.floor(Math.random() * fazioni.length)],
+          fazioni: [fazioniRuolo[Math.floor(Math.random() * fazioniRuolo.length)], "Cittadini"],
           salute: 50 + Math.floor(Math.random() * 50),
           crediti: Math.floor(Math.random() * 1000),
           reddito: 100 + Math.floor(Math.random() * 500),
@@ -167,7 +167,7 @@ export function useGameState() {
       }
 
       // Mafia +10% felici se tutte le droghe sono vietate
-      if (abitante.fazione === "Mafia" && leggeDroghe === "vietate") {
+      if (abitante.fazioni?.includes("Mafia") && leggeDroghe === "vietate") {
         felicitàBase = Math.min(100, felicitàBase + 10);
       }
 

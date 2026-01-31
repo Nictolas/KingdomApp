@@ -5,7 +5,7 @@ import { useGameContext } from "../src/context/GameContext";
 import type { Abitante } from "../src/types";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 
-type SortField = "nome" | "eta" | "lavoro" | "competenza" | "produttività" | "stanchezza" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "paura" | "felicità" | "religione" | "fazione" | null;
+type SortField = "nome" | "eta" | "lavoro" | "competenza" | "produttività" | "stanchezza" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "paura" | "felicità" | "religione" | "fazioni" | null;
 type SortDirection = "asc" | "desc";
 
 export default function AbitantiScreen() {
@@ -35,7 +35,10 @@ export default function AbitantiScreen() {
       if (sortField === "felicità") {
         aValue = calcolaFelicitàModificata(a);
         bValue = calcolaFelicitàModificata(b);
-      } else if (sortField === "nome" || sortField === "lavoro" || sortField === "religione" || sortField === "fazione") {
+      } else if (sortField === "fazioni") {
+        aValue = (a.fazioni ?? []).join(", ");
+        bValue = (b.fazioni ?? []).join(", ");
+      } else if (sortField === "nome" || sortField === "lavoro" || sortField === "religione") {
         aValue = a[sortField];
         bValue = b[sortField];
       } else {
@@ -219,11 +222,11 @@ export default function AbitantiScreen() {
               )}
             </Pressable>
             <Pressable 
-              style={[styles.headerCell, styles.cellFazione, sortField === "fazione" && styles.headerCellActive]}
-              onPress={() => handleSort("fazione")}
+              style={[styles.headerCell, styles.cellFazione, sortField === "fazioni" && styles.headerCellActive]}
+              onPress={() => handleSort("fazioni")}
             >
               <Text style={styles.headerText}>⚔️ Fazione</Text>
-              {sortField === "fazione" && (
+              {sortField === "fazioni" && (
                 <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
               )}
             </Pressable>
@@ -289,7 +292,7 @@ export default function AbitantiScreen() {
                   <Text style={styles.cellTextSmall}>{a.religione}</Text>
                 </View>
                 <View style={[styles.cell, styles.cellFazione]}>
-                  <Text style={styles.cellTextSmall}>{a.fazione}</Text>
+                  <Text style={styles.cellTextSmall}>{a.fazioni?.join(", ") ?? "—"}</Text>
                 </View>
               </Pressable>
             );

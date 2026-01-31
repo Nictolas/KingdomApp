@@ -45,7 +45,7 @@ export function AbitanteInfoModal({
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Informazioni Base</Text>
               <Text style={styles.line}>Età: {abitante.eta} anni</Text>
-              <Text style={styles.line}>Fazione: {abitante.fazione}</Text>
+              <Text style={styles.line}>Fazioni: {abitante.fazioni?.join(", ") ?? "—"}</Text>
               <Text style={styles.line}>Personalità: {abitante.personalità}</Text>
               <Text style={styles.line}>Religione: {abitante.religione}</Text>
             </View>

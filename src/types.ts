@@ -48,7 +48,7 @@ export type Abitante = {
   personalità: string;
   amici: number[]; // Array di ID di altri abitanti
   rivali: number[]; // Array di ID di altri abitanti
-  fazione: string;
+  fazioni: string[]; // Ogni abitante può far parte di più fazioni (es. Cittadini, Nativi, Schiavi, Amministrazione, …)
   salute: number; // 0-100
   crediti: number; // Monete
   reddito: number; // Monete al mese
@@ -69,7 +69,7 @@ export type Ministro = {
   id: number;
   nome: string;
   ministero: string;
-  fazione: string;
+  fazioni: string[]; // come Abitante
 };
 
 export type Fazione = {

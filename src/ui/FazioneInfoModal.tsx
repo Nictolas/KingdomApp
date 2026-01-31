@@ -1,18 +1,20 @@
 import React from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import type { Fazione } from "../types";
+import type { Abitante, Fazione } from "../types";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type FazioneInfoModalProps = {
   visible: boolean;
   fazione: Fazione | null;
+  abitanti?: Abitante[];
   onClose: () => void;
 };
 
-export function FazioneInfoModal({ visible, fazione, onClose }: FazioneInfoModalProps) {
+export function FazioneInfoModal({ visible, fazione, abitanti = [], onClose }: FazioneInfoModalProps) {
   if (!fazione) return null;
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
+  const membri = abitanti.filter((a) => a.fazioni?.includes(fazione.nome));
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -27,6 +29,22 @@ export function FazioneInfoModal({ visible, fazione, onClose }: FazioneInfoModal
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Descrizione</Text>
               <Text style={styles.descrizione}>{fazione.descrizione}</Text>
+            </View>
+
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Membri ({membri.length})</Text>
+              {membri.length > 0 ? (
+                <View style={styles.membriList}>
+                  {membri.slice(0, 50).map((a) => (
+                    <Text key={a.id} style={styles.membroItem}>{a.emoji} {a.nome}</Text>
+                  ))}
+                  {membri.length > 50 && (
+                    <Text style={styles.membroMore}>… e altri {membri.length - 50}</Text>
+                  )}
+                </View>
+              ) : (
+                <Text style={styles.membroEmpty}>Nessun membro in questa fazione</Text>
+              )}
             </View>
 
             <Pressable style={styles.closeButton} onPress={onClose}>
@@ -86,6 +104,10 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22
   },
+  membriList: { marginTop: 4 },
+  membroItem: { color: "#cbd5f5", fontSize: 14, marginBottom: 4 },
+  membroMore: { color: "rgba(203,213,245,0.7)", fontSize: 12, fontStyle: "italic" },
+  membroEmpty: { color: "rgba(203,213,245,0.6)", fontSize: 13, fontStyle: "italic" },
   closeButton: {
     marginTop: 20,
     backgroundColor: "#3b82f6",
