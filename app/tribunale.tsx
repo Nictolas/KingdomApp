@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
 export default function TribunaleScreen() {
@@ -71,8 +72,8 @@ export default function TribunaleScreen() {
             animationType="fade"
             onRequestClose={() => setDropdownGiudiceVisible(false)}
           >
-            <Pressable style={styles.modalOverlay} onPress={() => setDropdownGiudiceVisible(false)}>
-              <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <Pressable style={[styles.modalOverlay, isDesktop && modalBackdropFullscreen]} onPress={() => setDropdownGiudiceVisible(false)}>
+              <Pressable style={[styles.modalContent, isDesktop && modalContentFullscreen]} onPress={(e) => e.stopPropagation()}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>Seleziona Giudice</Text>
                   <Pressable onPress={() => setDropdownGiudiceVisible(false)}>

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
 export default function OspedaleScreen() {
@@ -91,10 +92,10 @@ export default function OspedaleScreen() {
             onRequestClose={() => setDropdownDottoreVisible(false)}
           >
             <Pressable
-              style={styles.modalOverlay}
+              style={[styles.modalOverlay, isDesktop && modalBackdropFullscreen]}
               onPress={() => setDropdownDottoreVisible(false)}
             >
-              <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+              <Pressable style={[styles.modalContent, isDesktop && modalContentFullscreen]} onPress={(e) => e.stopPropagation()}>
                 <View style={styles.modalHeader}>
                   <Text style={styles.modalTitle}>Seleziona Dottore</Text>
                   <Pressable onPress={() => setDropdownDottoreVisible(false)}>

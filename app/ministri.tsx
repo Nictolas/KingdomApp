@@ -3,6 +3,7 @@ import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Tex
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { ministeriDisponibili } from "../src/kingdomData";
+import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
 export default function MinistriScreen() {
@@ -74,8 +75,8 @@ export default function MinistriScreen() {
         animationType="fade"
         onRequestClose={() => setShowNominaModal(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setShowNominaModal(false)}>
-          <Pressable style={styles.modalCard} onPress={() => undefined}>
+        <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={() => setShowNominaModal(false)}>
+          <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
             <Text style={styles.modalTitle}>Nomina Ministro</Text>
 
             <View style={styles.modalSection}>

@@ -513,7 +513,11 @@ export const risorseData: Risorsa[] = [
   { id: 2, nome: "Cibo", quantità: 430, unità: "razioni" },
   { id: 3, nome: "Metalli", quantità: 780, unità: "tonnellate" },
   { id: 4, nome: "Energia", quantità: 68, unità: "MW" },
-  { id: 5, nome: "Ossigeno", quantità: 95, unità: "%" }
+  { id: 5, nome: "Acqua potabile", quantità: 420, unità: "m³" },
+  { id: 6, nome: "Materiale Edile", quantità: 320, unità: "tonnellate" },
+  { id: 7, nome: "Medicine", quantità: 180, unità: "scorte" },
+  { id: 8, nome: "Combustibile", quantità: 95, unità: "tonnellate" },
+  { id: 9, nome: "Rifiuti", quantità: 40, unità: "tonnellate" }
 ];
 
 export const edificiData: Edificio[] = [
@@ -536,7 +540,7 @@ export const edificiData: Edificio[] = [
     nome: "Serra Idroponica Alpha",
     emoji: "🌱",
     tipo: "Agricoltura",
-    descrizione: "Produce cibo e ossigeno per la colonia.",
+    descrizione: "Produce cibo e acqua potabile per la colonia.",
     capacità: 15,
     occupazione: 8,
     abitantiAssegnati: [],
@@ -544,7 +548,7 @@ export const edificiData: Edificio[] = [
     manutenzione: 300,
     stato: "Operativo",
     livello: 2,
-    produzione: "Cibo, Ossigeno"
+    produzione: "Cibo, Acqua potabile"
   },
   {
     id: 3,
@@ -559,7 +563,7 @@ export const edificiData: Edificio[] = [
     manutenzione: 450,
     stato: "Operativo",
     livello: 2,
-    produzione: "Metalli raffinati",
+    produzione: "Metalli raffinati, Materiale Edile",
     consumo: "Energia"
   },
   {
@@ -574,7 +578,8 @@ export const edificiData: Edificio[] = [
     efficienza: 88,
     manutenzione: 200,
     stato: "Operativo",
-    livello: 1
+    livello: 1,
+    produzione: "Rifiuti"
   },
   {
     id: 5,
@@ -603,7 +608,8 @@ export const edificiData: Edificio[] = [
     manutenzione: 350,
     stato: "Operativo",
     livello: 3,
-    produzione: "Energia"
+    produzione: "Energia",
+    consumo: "Combustibile"
   },
   {
     id: 7,
@@ -617,7 +623,8 @@ export const edificiData: Edificio[] = [
     efficienza: 82,
     manutenzione: 380,
     stato: "Operativo",
-    livello: 2
+    livello: 2,
+    consumo: "Medicine"
   },
   {
     id: 8,
@@ -716,6 +723,21 @@ export const edificiData: Edificio[] = [
     manutenzione: 280,
     stato: "Operativo",
     livello: 1
+  },
+  {
+    id: 15,
+    nome: "Impianto di Riciclo",
+    emoji: "♻️",
+    tipo: "Infrastruttura",
+    descrizione: "Tratta e smaltisce i rifiuti della colonia, riducendo l'accumulo.",
+    capacità: 15,
+    occupazione: 6,
+    abitantiAssegnati: [],
+    efficienza: 75,
+    manutenzione: 220,
+    stato: "Operativo",
+    livello: 1,
+    consumo: "Rifiuti"
   }
 ];
 

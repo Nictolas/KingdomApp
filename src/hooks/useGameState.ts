@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from "react";
-import type { Abitante, Risorsa, Edificio, OrdineMercato } from "../types";
+import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso } from "../types";
 import { abitantiData, risorseData, edificiData } from "../kingdomData";
+import { EVENTI_CATALOGO } from "../game/eventi";
 
 export function useGameState() {
   const [abitanti, setAbitanti] = useState<Abitante[]>(abitantiData);
@@ -12,7 +13,8 @@ export function useGameState() {
   const [abitantiProposti, setAbitantiProposti] = useState<Abitante[]>([]);
   const [nextId, setNextId] = useState(100); // ID iniziale per nuovi abitanti
   const [ordiniMercato, setOrdiniMercato] = useState<OrdineMercato[]>([]);
-  
+  const [eventiInCorso, setEventiInCorso] = useState<EventoInCorso[]>([]);
+
   // Configurazione tassa sul reddito
   const [tipoTassaReddito, setTipoTassaReddito] = useState<"flat" | "scaglioni">("scaglioni");
   const [flatTaxPercentuale, setFlatTaxPercentuale] = useState(15); // Percentuale flat tax
@@ -313,19 +315,43 @@ export function useGameState() {
         });
       }
 
-      // Limiti per alcune risorse
-      if (risorsa.nome === "Ossigeno") {
-        nuovaQuantità = Math.max(0, Math.min(100, nuovaQuantità));
-      }
-
       return {
         ...risorsa,
         quantità: Math.max(0, nuovaQuantità)
       };
     });
 
+    // Eventi: calcola prossimo mese/anno, applica effetti mensili, rimuovi scaduti, attiva nuovi se condizioni ok
+    const nuovoMese = mese === 12 ? 1 : mese + 1;
+    const nuovoAnno = mese === 12 ? anno + 1 : anno;
+    const risorseEv = nuoveRisorse.map((r) => ({ ...r }));
+    const abitantiEv = nuoviAbitanti.map((a) => ({ ...a }));
+    const edificiEv = nuoviEdifici.map((e) => ({ ...e }));
+
+    const mesiTrascorsi = (ev: EventoInCorso) =>
+      (nuovoAnno - ev.iniziatoAnno) * 12 + (nuovoMese - ev.iniziatoMese);
+    let nuoviEventiInCorso = eventiInCorso.filter((ev) => mesiTrascorsi(ev) < ev.durataMesi);
+
+    nuoviEventiInCorso.forEach((ev) => {
+      const def = EVENTI_CATALOGO.find((d) => d.id === ev.id);
+      if (def) def.applicaMensile(risorseEv, abitantiEv, edificiEv);
+    });
+
+    EVENTI_CATALOGO.forEach((def) => {
+      if (nuoviEventiInCorso.some((e) => e.id === def.id)) return;
+      if (!def.condizione(abitantiEv, risorseEv, edificiEv, punteggioSanzioni)) return;
+      if (Math.random() >= def.probabilità) return;
+      nuoviEventiInCorso = [
+        ...nuoviEventiInCorso,
+        { id: def.id, iniziatoMese: nuovoMese, iniziatoAnno: nuovoAnno, durataMesi: def.durataMesi }
+      ];
+      def.applicaAttivazione(risorseEv, abitantiEv, edificiEv);
+    });
+
+    setEventiInCorso(nuoviEventiInCorso);
+
     // Esegui ordini Mercato (acquisti/vendite) al cambio mese
-    let risorseDopoOrdini = [...nuoveRisorse];
+    let risorseDopoOrdini = [...risorseEv];
     ordiniMercato.forEach((ordine) => {
       const creditiId = 1;
       if (ordine.risorsaId === creditiId || ordine.quantità <= 0 || ordine.prezzoUnitario <= 0) return;
@@ -353,8 +379,8 @@ export function useGameState() {
     setOrdiniMercato([]);
 
     // Applica tutti gli aggiornamenti
-    setAbitanti(nuoviAbitanti);
-    setEdifici(nuoviEdifici);
+    setAbitanti(abitantiEv);
+    setEdifici(edificiEv);
     setRisorse(risorseDopoOrdini);
     
     // Avanza mese e anno
@@ -371,7 +397,7 @@ export function useGameState() {
     generaNuoviAbitantiProposti();
     
     setIsLoading(false);
-  }, [abitanti, edifici, risorse, ordiniMercato, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata]);
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata]);
 
   const assegnaAbitanteAEdificio = useCallback((abitanteId: number, edificioId: number) => {
     setEdifici((prevEdifici) =>
@@ -729,6 +755,8 @@ export function useGameState() {
     aggiungiOrdineMercato,
     rimuoviOrdineMercato,
     calcolaDeltaOrdiniMercato,
-    graziaCriminale
+    graziaCriminale,
+    eventiInCorso,
+    eventiCatalogo: EVENTI_CATALOGO
   };
 }

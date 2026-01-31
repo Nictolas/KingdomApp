@@ -93,6 +93,14 @@ export type Risorsa = {
   unità: string;
 };
 
+/** Evento attivo nella colonia; si attiva al cambio mese se sono soddisfatte le condizioni. */
+export type EventoInCorso = {
+  id: string;
+  iniziatoMese: number;
+  iniziatoAnno: number;
+  durataMesi: number;
+};
+
 /** Ordine di acquisto o vendita nel Mercato; si esegue al cambio mese (Skip Mese). */
 export type OrdineMercato = {
   id: number;

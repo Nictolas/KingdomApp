@@ -1,6 +1,7 @@
 import React, { createContext, useContext, ReactNode } from "react";
 import { useGameState } from "../hooks/useGameState";
-import type { Abitante, Risorsa, Edificio, OrdineMercato } from "../types";
+import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso } from "../types";
+import type { EventoDef } from "../game/eventi";
 
 type ScaglioneConfig = {
   min: number;
@@ -73,6 +74,8 @@ type GameContextType = {
   rimuoviOrdineMercato: (ordineId: number) => void;
   calcolaDeltaOrdiniMercato: () => Record<string, number>;
   graziaCriminale: (abitanteId: number) => void;
+  eventiInCorso: EventoInCorso[];
+  eventiCatalogo: EventoDef[];
 };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);

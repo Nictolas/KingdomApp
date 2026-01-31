@@ -19,7 +19,11 @@ const PREZZI: Record<string, { compra: number; vendi: number; emoji: string }> =
   Cibo: { compra: 5, vendi: 3, emoji: "🍱" },
   Metalli: { compra: 8, vendi: 5, emoji: "⛏️" },
   Energia: { compra: 12, vendi: 7, emoji: "⚡" },
-  Ossigeno: { compra: 15, vendi: 9, emoji: "🫧" }
+  "Acqua potabile": { compra: 6, vendi: 4, emoji: "💧" },
+  "Materiale Edile": { compra: 7, vendi: 4, emoji: "🧱" },
+  Medicine: { compra: 14, vendi: 8, emoji: "💊" },
+  Combustibile: { compra: 10, vendi: 6, emoji: "⛽" },
+  Rifiuti: { compra: 2, vendi: 1, emoji: "🗑️" }
 };
 
 export default function MercatoScreen() {

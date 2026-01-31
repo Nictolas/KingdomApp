@@ -1,5 +1,6 @@
 import React from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type GameOverModalProps = {
   visible: boolean;
@@ -7,10 +8,12 @@ type GameOverModalProps = {
 };
 
 export function GameOverModal({ visible, onRestart }: GameOverModalProps) {
+  const { width } = Dimensions.get("window");
+  const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
   return (
     <Modal visible={visible} transparent animationType="fade">
-      <View style={styles.modalBackdrop}>
-        <View style={styles.modalCard}>
+      <View style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]}>
+        <View style={[styles.modalCard, isDesktop && modalContentFullscreen]}>
           <Text style={styles.emoji}>💀</Text>
           <Text style={styles.title}>Hai Perso!</Text>
           <Text style={styles.description}>

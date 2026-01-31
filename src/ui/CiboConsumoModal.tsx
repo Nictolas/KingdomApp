@@ -1,6 +1,7 @@
 import React from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Abitante, Edificio } from "../types";
+import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type CiboConsumoModalProps = {
   visible: boolean;
@@ -63,10 +64,12 @@ export function CiboConsumoModal({ visible, abitanti, edifici, onClose }: CiboCo
   const totaleProduzione =
     serra?.abitantiAssegnati.reduce((sum, id) => sum + getProduzioneCiboPerAbitante(id), 0) ?? 0;
 
+  const { width } = Dimensions.get("window");
+  const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => undefined}>
+      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={onClose}>
+        <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
           <Text style={styles.modalTitle}>Consumo Mensile di Cibo</Text>
 
           <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>

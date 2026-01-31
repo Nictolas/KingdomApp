@@ -1,8 +1,9 @@
 import React from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import type { Character, Building, Point } from "../types";
 import { formatGameTime } from "../hooks/useGameClock";
 import { styles } from "./InfoModal.styles";
+import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type InfoModalProps = {
   visible: boolean;
@@ -49,10 +50,12 @@ export function InfoModal({
   onBuildBridge,
   onClose
 }: InfoModalProps) {
+  const { width } = Dimensions.get("window");
+  const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => undefined}>
+      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={onClose}>
+        <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
           {isClockModalOpen && (
             <>
               <Text style={styles.modalTitle}>🕐 Imposta orario</Text>

@@ -1,5 +1,6 @@
 import React from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type BuildMenuModalProps = {
   visible: boolean;
@@ -8,10 +9,12 @@ type BuildMenuModalProps = {
 };
 
 export function BuildMenuModal({ visible, onClose, onSelectBuildType }: BuildMenuModalProps) {
+  const { width } = Dimensions.get("window");
+  const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => undefined}>
+      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={onClose}>
+        <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
           <Text style={styles.title}>Costruisci</Text>
           <Text style={styles.subtitle}>Scegli cosa costruire:</Text>
           

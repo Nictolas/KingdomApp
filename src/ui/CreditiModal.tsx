@@ -1,6 +1,7 @@
 import React from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Abitante, Edificio } from "../types";
+import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type CreditiModalProps = {
   visible: boolean;
@@ -31,11 +32,13 @@ export function CreditiModal({ visible, abitanti, edifici, onClose }: CreditiMod
   const totaleSpese = abitanti.reduce((sum, a) => sum + a.spese, 0);
   const totaleManutenzione = speseManutenzione.reduce((sum, s) => sum + s.manutenzione, 0);
   const totaleNetto = totaleRedditi - totaleSpese - totaleManutenzione;
+  const { width } = Dimensions.get("window");
+  const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => undefined}>
+      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={onClose}>
+        <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
           <Text style={styles.modalTitle}>Entrate e Uscite Mensili</Text>
 
           {/* Entrate dagli abitanti */}

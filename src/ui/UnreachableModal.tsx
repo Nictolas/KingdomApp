@@ -1,5 +1,6 @@
 import React from "react";
-import { Modal, Pressable, StyleSheet, Text } from "react-native";
+import { Dimensions, Modal, Pressable, StyleSheet, Text } from "react-native";
+import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type UnreachableModalProps = {
   visible: boolean;
@@ -8,10 +9,12 @@ type UnreachableModalProps = {
 };
 
 export function UnreachableModal({ visible, message, onClose }: UnreachableModalProps) {
+  const { width } = Dimensions.get("window");
+  const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => undefined}>
+      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={onClose}>
+        <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
           <Text style={styles.modalTitle}>⚠️ Postazione irraggiungibile</Text>
           <Text style={styles.modalSub}>{message}</Text>
           <Text style={styles.modalHint}>Suggerimento: costruisci ponti e libera il percorso da ostacoli.</Text>

@@ -1,6 +1,7 @@
 import React from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Abitante } from "../types";
+import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type AbitanteInfoModalProps = {
   visible: boolean;
@@ -26,11 +27,13 @@ export function AbitanteInfoModal({
     ? calcolaFelicitàModificata(abitante)
     : abitante.felicità;
   const felicitàCambiata = felicitàModificata !== abitante.felicità;
+  const { width } = Dimensions.get("window");
+  const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => undefined}>
+      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={onClose}>
+        <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
           <ScrollView showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
               <Text style={styles.emoji}>{abitante.emoji}</Text>

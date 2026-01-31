@@ -76,6 +76,11 @@ export default function GridGame() {
             const isCibo = r.nome.toLowerCase().includes("cibo");
             const isCrediti = r.nome.toLowerCase().includes("crediti");
             const isEnergia = r.nome.toLowerCase().includes("energia");
+            const isAcqua = r.nome.toLowerCase().includes("acqua");
+            const isMaterialeEdile = r.nome.toLowerCase().includes("materiale edile");
+            const isMedicine = r.nome.toLowerCase().includes("medicine");
+            const isCombustibile = r.nome.toLowerCase().includes("combustibile");
+            const isRifiuti = r.nome.toLowerCase().includes("rifiuti");
             const emoji =
               isCrediti
                 ? "💰"
@@ -83,8 +88,16 @@ export default function GridGame() {
                 ? "🍱"
                 : isEnergia
                 ? "⚡"
-                : r.nome.toLowerCase().includes("ossigeno")
-                ? "🫧"
+                : isAcqua
+                ? "💧"
+                : isMaterialeEdile
+                ? "🧱"
+                : isMedicine
+                ? "💊"
+                : isCombustibile
+                ? "⛽"
+                : isRifiuti
+                ? "🗑️"
                 : "⛏️";
             return (
               <Pressable
@@ -187,6 +200,11 @@ export default function GridGame() {
           <Text style={styles.navEmoji}>🏪</Text>
           <Text style={styles.navLabel}>Mercato</Text>
           <Text style={styles.navCount}>Compra / Vendi</Text>
+        </Pressable>
+        <Pressable style={styles.navButton} onPress={() => router.push("/eventi")}>
+          <Text style={styles.navEmoji}>📌</Text>
+          <Text style={styles.navLabel}>Eventi</Text>
+          <Text style={styles.navCount}>Possibili / In corso</Text>
         </Pressable>
       </View>
 

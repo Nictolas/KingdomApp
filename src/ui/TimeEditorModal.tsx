@@ -1,6 +1,7 @@
 import React, { useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Dimensions, Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import type { GameTime } from "../game/gameClock";
+import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type TimeEditorModalProps = {
   visible: boolean;
@@ -12,6 +13,8 @@ type TimeEditorModalProps = {
 export function TimeEditorModal({ visible, gameTime, onClose, onTimeChange }: TimeEditorModalProps) {
   const [hours, setHours] = useState(String(gameTime.hours));
   const [minutes, setMinutes] = useState(String(gameTime.minutes));
+  const { width } = Dimensions.get("window");
+  const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
 
   const handleSave = () => {
     const h = parseInt(hours, 10);
@@ -25,8 +28,8 @@ export function TimeEditorModal({ visible, gameTime, onClose, onTimeChange }: Ti
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => undefined}>
+      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={onClose}>
+        <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
           <Text style={styles.title}>Modifica Orario</Text>
           
           <View style={styles.inputContainer}>

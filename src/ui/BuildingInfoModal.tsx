@@ -1,6 +1,7 @@
 import React from "react";
-import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import type { Building, Character } from "../types";
+import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type BuildingInfoModalProps = {
   visible: boolean;
@@ -25,11 +26,13 @@ export function BuildingInfoModal({ visible, building, characters, onClose, onCa
       charY < building.y + building.height
     );
   }).length;
+  const { width } = Dimensions.get("window");
+  const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => undefined}>
+      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={onClose}>
+        <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
           <Text style={styles.emoji}>{building.emoji}</Text>
           <Text style={styles.title}>{building.name}</Text>
           <Text style={styles.description}>{building.description}</Text>

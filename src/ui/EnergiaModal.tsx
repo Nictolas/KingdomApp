@@ -1,6 +1,7 @@
 import React from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Edificio } from "../types";
+import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type EnergiaModalProps = {
   visible: boolean;
@@ -51,11 +52,13 @@ export function EnergiaModal({ visible, edifici, onClose }: EnergiaModalProps) {
   const totaleConsumo = consumiEnergia.reduce((sum, c) => sum + c.consumo, 0);
   const totaleProduzione = produzioneEnergia.reduce((sum, p) => sum + p.produzione, 0);
   const bilancio = totaleProduzione - totaleConsumo;
+  const { width } = Dimensions.get("window");
+  const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => undefined}>
+      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={onClose}>
+        <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
           <Text style={styles.modalTitle}>Consumo e Produzione di Energia</Text>
 
           {/* Produzione */}

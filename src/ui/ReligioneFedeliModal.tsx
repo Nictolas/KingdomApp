@@ -1,6 +1,7 @@
 import React from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Abitante } from "../types";
+import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type ReligioneFedeliModalProps = {
   visible: boolean;
@@ -11,6 +12,8 @@ type ReligioneFedeliModalProps = {
 
 export function ReligioneFedeliModal({ visible, religione, abitanti, onClose }: ReligioneFedeliModalProps) {
   const fedeli = abitanti.filter((a) => a.religione === religione);
+  const { width } = Dimensions.get("window");
+  const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
 
   const getEmojiReligione = (nome: string): string => {
     const emojiMap: Record<string, string> = {
@@ -25,8 +28,8 @@ export function ReligioneFedeliModal({ visible, religione, abitanti, onClose }: 
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={styles.modalBackdrop} onPress={onClose}>
-        <Pressable style={styles.modalCard} onPress={() => undefined}>
+      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={onClose}>
+        <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
           <View style={styles.header}>
             <Text style={styles.emoji}>{getEmojiReligione(religione)}</Text>
             <Text style={styles.title}>{religione}</Text>
