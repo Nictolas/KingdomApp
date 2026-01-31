@@ -530,6 +530,64 @@ export function useGameState() {
     setAbitantiProposti((prev) => prev.filter((a) => a.id !== abitanteId));
   }, []);
 
+  // Tribunale: grazia un criminale → lui e amici +10% lealtà, rivali -10% lealtà; reati azzerati
+  const graziaCriminale = useCallback((abitanteId: number) => {
+    setAbitanti((prev) => {
+      const criminale = prev.find((a) => a.id === abitanteId);
+      if (!criminale || !criminale.reati?.length) return prev;
+      const idsBonus = new Set<number>([criminale.id, ...(criminale.amici ?? [])]);
+      const idsMalus = new Set<number>(criminale.rivali ?? []);
+      return prev.map((a) => {
+        let lealtà = a.lealtà;
+        if (idsBonus.has(a.id)) lealtà = Math.min(100, lealtà + 10);
+        if (idsMalus.has(a.id)) lealtà = Math.max(0, lealtà - 10);
+        const reati = a.id === abitanteId ? [] : a.reati;
+        return { ...a, lealtà, reati: reati ?? a.reati };
+      });
+    });
+  }, []);
+
+  // Mercato: compra risorsa (spendi Crediti, ricevi risorsa)
+  const compraRisorsa = useCallback(
+    (risorsaId: number, quantità: number, prezzoUnitario: number): boolean => {
+      const creditiId = 1;
+      if (risorsaId === creditiId || quantità <= 0 || prezzoUnitario <= 0) return false;
+      const costo = quantità * prezzoUnitario;
+      const crediti = risorse.find((r) => r.id === creditiId);
+      const risorsa = risorse.find((r) => r.id === risorsaId);
+      if (!crediti || !risorsa || crediti.quantità < costo) return false;
+      setRisorse((prev) =>
+        prev.map((r) => {
+          if (r.id === creditiId) return { ...r, quantità: r.quantità - costo };
+          if (r.id === risorsaId) return { ...r, quantità: r.quantità + quantità };
+          return r;
+        })
+      );
+      return true;
+    },
+    [risorse]
+  );
+
+  // Mercato: vendi risorsa (cedi risorsa, ricevi Crediti)
+  const vendiRisorsa = useCallback(
+    (risorsaId: number, quantità: number, prezzoUnitario: number): boolean => {
+      const creditiId = 1;
+      if (risorsaId === creditiId || quantità <= 0 || prezzoUnitario <= 0) return false;
+      const ricavo = quantità * prezzoUnitario;
+      const risorsa = risorse.find((r) => r.id === risorsaId);
+      if (!risorsa || risorsa.quantità < quantità) return false;
+      setRisorse((prev) =>
+        prev.map((r) => {
+          if (r.id === creditiId) return { ...r, quantità: r.quantità + ricavo };
+          if (r.id === risorsaId) return { ...r, quantità: r.quantità - quantità };
+          return r;
+        })
+      );
+      return true;
+    },
+    [risorse]
+  );
+
   // Calcola il punteggio sanzioni basato sulle leggi attive
   const calcolaPunteggioSanzioni = useCallback(() => {
     let punteggio = 1; // Punteggio base
@@ -624,6 +682,9 @@ export function useGameState() {
     rimuoviMinistro,
     calcolaProduzioneConsumo,
     accettaImmigrante,
-    rifiutaImmigrante
+    rifiutaImmigrante,
+    compraRisorsa,
+    vendiRisorsa,
+    graziaCriminale
   };
 }

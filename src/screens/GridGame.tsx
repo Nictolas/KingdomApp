@@ -182,6 +182,11 @@ export default function GridGame() {
           <Text style={styles.navLabel}>Competenze</Text>
           <Text style={styles.navCount}>Catalogo</Text>
         </Pressable>
+        <Pressable style={styles.navButton} onPress={() => router.push("/mercato")}>
+          <Text style={styles.navEmoji}>🏪</Text>
+          <Text style={styles.navLabel}>Mercato</Text>
+          <Text style={styles.navCount}>Compra / Vendi</Text>
+        </Pressable>
       </View>
 
       <CiboConsumoModal

@@ -68,6 +68,9 @@ type GameContextType = {
   calcolaProduzioneConsumo: () => Record<string, number>;
   accettaImmigrante: (abitanteId: number) => void;
   rifiutaImmigrante: (abitanteId: number) => void;
+  compraRisorsa: (risorsaId: number, quantità: number, prezzoUnitario: number) => boolean;
+  vendiRisorsa: (risorsaId: number, quantità: number, prezzoUnitario: number) => boolean;
+  graziaCriminale: (abitanteId: number) => void;
 };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);

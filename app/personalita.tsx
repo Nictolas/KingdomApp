@@ -24,7 +24,8 @@ export default function PersonalitaScreen() {
     { nome: "Pollice Verde", emoji: "🌱", effetto: "+10% produzione Cibo" },
     { nome: "Empatico", emoji: "🩺", effetto: "+10% Competenza Medica" },
     { nome: "Salutista", emoji: "🥗", effetto: "+10% Salute" },
-    { nome: "Depresso", emoji: "🌧️", effetto: "-10% qualsiasi produzione" }
+    { nome: "Depresso", emoji: "🌧️", effetto: "-10% qualsiasi produzione" },
+    { nome: "Carismatico", emoji: "✨", effetto: "+10% lealtà della fazione" }
   ];
 
   // Unione: prima catalogo (con conteggio), poi le personalità “custom” trovate tra gli abitanti
