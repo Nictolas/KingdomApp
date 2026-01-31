@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from "react";
-import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso } from "../types";
-import { abitantiData, risorseData, edificiData } from "../kingdomData";
+import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
+import { abitantiData, risorseData, edificiData, pianetiData } from "../kingdomData";
 import { EVENTI_CATALOGO } from "../game/eventi";
 
 export function useGameState() {
@@ -42,8 +42,8 @@ export function useGameState() {
   
   // Configurazione legge razziale
   const [leggeRazzialeAttiva, setLeggeRazzialeAttiva] = useState(false);
-  const [razzaCampoLavoro, setRazzaCampoLavoro] = useState<"Umano" | "Alieno" | null>(null);
-  const [razzaCampoSterminio, setRazzaCampoSterminio] = useState<"Umano" | "Alieno" | null>(null);
+  const [razzaCampoLavoro, setRazzaCampoLavoro] = useState<Razza | null>(null);
+  const [razzaCampoSterminio, setRazzaCampoSterminio] = useState<Razza | null>(null);
   
   // Configurazione età minima sul lavoro
   const [etaMinimaLavoro, setEtaMinimaLavoro] = useState(18); // Età minima di default
@@ -94,19 +94,22 @@ export function useGameState() {
       "Deciso",
       "Collaborativo"
     ];
+    const razze: Razza[] = ["Umano", "Grigi", "Nordici", "Rettiliani", "Insettoidi", "Marini", "Ferini"];
     const emojiUmani = ["👨", "👩", "👨‍🔬", "👩‍🔬", "👨‍💼", "👩‍💼", "👨‍🔧", "👩‍🔧", "👨‍🌾", "👩‍🌾"];
-    const emojiAlieni = ["👽", "🛸", "🤖", "👾", "🦎", "🦑"];
+    const nomiUmani = ["Marco", "Luca", "Anna", "Sofia", "Giovanni", "Elena", "Alessandro", "Chiara"];
+    const cognomiUmani = ["Rossi", "Bianchi", "Verdi", "Neri", "Blu", "Gialli"];
+    const religioni: Abitante["religione"][] = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto degli Alieni"];
 
     setNextId((prevId) => {
       for (let i = 0; i < numNuovi; i++) {
-        const isAlieno = Math.random() < 0.3; // 30% probabilità di essere alieno
-        const emoji = isAlieno
-          ? emojiAlieni[Math.floor(Math.random() * emojiAlieni.length)]
-          : emojiUmani[Math.floor(Math.random() * emojiUmani.length)];
-
-        const nome = isAlieno
-          ? `X'${Math.floor(Math.random() * 9999)}`
-          : `${["Marco", "Luca", "Anna", "Sofia", "Giovanni", "Elena", "Alessandro", "Chiara"][Math.floor(Math.random() * 8)]} ${["Rossi", "Bianchi", "Verdi", "Neri", "Blu", "Gialli"][Math.floor(Math.random() * 6)]}`;
+        const razza = razze[Math.floor(Math.random() * razze.length)];
+        const isUmano = razza === "Umano";
+        const emoji = isUmano
+          ? emojiUmani[Math.floor(Math.random() * emojiUmani.length)]
+          : pianetiData.find((p) => p.razza === razza)?.emoji ?? "👽";
+        const nome = isUmano
+          ? `${nomiUmani[Math.floor(Math.random() * nomiUmani.length)]} ${cognomiUmani[Math.floor(Math.random() * cognomiUmani.length)]}`
+          : `${razza}-${Math.floor(Math.random() * 9999)}`;
 
         const nuovoAbitante: Abitante = {
           id: prevId + i,
@@ -126,7 +129,11 @@ export function useGameState() {
           reddito: 100 + Math.floor(Math.random() * 500),
           spese: 50 + Math.floor(Math.random() * 300),
           lealtà: 30 + Math.floor(Math.random() * 50),
-          paura: Math.floor(Math.random() * 40)
+          paura: Math.floor(Math.random() * 40),
+          felicità: 40 + Math.floor(Math.random() * 50),
+          religione: religioni[Math.floor(Math.random() * religioni.length)],
+          razza,
+          specie: isUmano ? "umano" : "alieno"
         };
 
         nuoviAbitanti.push(nuovoAbitante);

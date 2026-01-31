@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { fazioniData, leggiData } from "../kingdomData";
 import { useGameContext } from "../context/GameContext";
@@ -21,36 +21,32 @@ export default function GridGame() {
   const fazioni = fazioniData;
   const leggi = leggiData;
 
-  // Su PC il contenitore 16:9 è gestito da app/index.tsx; qui usiamo sempre flex: 1
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
 
-  // Calcola produzione/consumo mensile + effetto ordini Mercato (applicati al Skip Mese)
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
 
   return (
     <View style={styles.container}>
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={styles.scrollContent}
-        showsVerticalScrollIndicator={true}
-      >
-        <View style={styles.header}>
+      {/* Header + Skip su una riga compatta su PC */}
+      <View style={[styles.header, isDesktop && styles.headerCompact]}>
+        <View style={[styles.titleRow, isDesktop && styles.titleRowCompact]}>
+          <Text style={[styles.gameTitle, isDesktop && styles.gameTitleCompact]}>MyKingdom</Text>
+          <Pressable style={[styles.diarioButton, isDesktop && styles.diarioButtonCompact]} onPress={() => router.push("/diario")}>
+            <Text style={styles.diarioEmoji}>📖</Text>
+            <Text style={[styles.diarioLabel, isDesktop && styles.diarioLabelCompact]}>Diario</Text>
+          </Pressable>
+          {isDesktop && (
+            <Text style={styles.meseLabel}>Mese {mese} - Anno {anno}</Text>
+          )}
+        </View>
+        {!isDesktop && (
           <View>
-            <View style={styles.titleRow}>
-              <Text style={styles.gameTitle}>MyKingdom</Text>
-              <Pressable style={styles.diarioButton} onPress={() => router.push("/diario")}>
-                <Text style={styles.diarioEmoji}>📖</Text>
-                <Text style={styles.diarioLabel}>Diario</Text>
-              </Pressable>
-            </View>
             <Text style={styles.subtitle}>Gestisci la tua colonia</Text>
             <Text style={styles.meseLabel}>Mese {mese} - Anno {anno}</Text>
           </View>
-        </View>
-
-        <View style={styles.skipContainer}>
+        )}
         <Pressable
           style={[styles.skipButton, isLoading && styles.skipButtonDisabled]}
           onPress={avanzaMese}
@@ -71,9 +67,9 @@ export default function GridGame() {
       </View>
 
       {/* Risorse */}
-      <View style={[styles.section, styles.resourcesSection]}>
-        <Text style={styles.sectionTitle}>Risorse</Text>
-        <View style={styles.resourcesGrid}>
+      <View style={[styles.section, styles.resourcesSection, isDesktop && styles.sectionCompact]}>
+        <Text style={[styles.sectionTitle, isDesktop && styles.sectionTitleCompact]}>Risorse</Text>
+        <View style={[styles.resourcesGrid, isDesktop && styles.resourcesGridCompact]}>
           {risorse.map((r: Risorsa) => {
             const variazione = (variazioni[r.nome] || 0) + (deltaOrdini[r.nome] ?? 0);
             const isCibo = r.nome.toLowerCase().includes("cibo");
@@ -105,7 +101,7 @@ export default function GridGame() {
             return (
               <Pressable
                 key={r.id}
-                style={styles.resourceCard}
+                style={[styles.resourceCard, isDesktop && styles.resourceCardCompact]}
                 onPress={
                   isCibo
                     ? () => setShowCiboModal(true)
@@ -137,44 +133,44 @@ export default function GridGame() {
         </View>
       </View>
 
-      <View style={styles.navRow}>
-        <Pressable style={styles.navButton} onPress={() => router.push("/abitanti")}>
+      <View style={[styles.navRow, isDesktop && styles.navRowCompact]}>
+        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/abitanti")}>
           <Text style={styles.navEmoji}>👥</Text>
           <Text style={styles.navLabel}>Abitanti</Text>
           <Text style={styles.navCount}>{abitanti.length} totali</Text>
         </Pressable>
-        <Pressable style={styles.navButton} onPress={() => router.push("/ministri")}>
+        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/ministri")}>
           <Text style={styles.navEmoji}>🏛️</Text>
           <Text style={styles.navLabel}>Ministri</Text>
           <Text style={styles.navCount}>{ministriAttuali.length} in carica</Text>
         </Pressable>
       </View>
-      <View style={styles.navRow}>
-        <Pressable style={styles.navButton} onPress={() => router.push("/fazioni")}>
+      <View style={[styles.navRow, isDesktop && styles.navRowCompact]}>
+        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/fazioni")}>
           <Text style={styles.navEmoji}>⚔️</Text>
           <Text style={styles.navLabel}>Fazioni</Text>
           <Text style={styles.navCount}>{fazioni.length} attive</Text>
         </Pressable>
-        <Pressable style={styles.navButton} onPress={() => router.push("/leggi")}>
+        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/leggi")}>
           <Text style={styles.navEmoji}>📜</Text>
           <Text style={styles.navLabel}>Leggi</Text>
           <Text style={styles.navCount}>{leggi.length} totali</Text>
         </Pressable>
       </View>
-      <View style={styles.navRow}>
-        <Pressable style={styles.navButton} onPress={() => router.push("/edifici")}>
+      <View style={[styles.navRow, isDesktop && styles.navRowCompact]}>
+        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/edifici")}>
           <Text style={styles.navEmoji}>🏗️</Text>
           <Text style={styles.navLabel}>Edifici</Text>
           <Text style={styles.navCount}>{edifici.length} strutture</Text>
         </Pressable>
-        <Pressable style={styles.navButton} onPress={() => router.push("/immigrazione")}>
+        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/immigrazione")}>
           <Text style={styles.navEmoji}>🚀</Text>
           <Text style={styles.navLabel}>Immigrazione</Text>
           <Text style={styles.navCount}>
             {abitantiProposti.length > 0 ? `${abitantiProposti.length} candidati` : "Nessuno"}
           </Text>
         </Pressable>
-        <Pressable style={styles.navButton} onPress={() => router.push("/sanzioni")}>
+        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/sanzioni")}>
           <Text style={styles.navEmoji}>⚠️</Text>
           <Text style={styles.navLabel}>Sanzioni</Text>
           <Text style={[styles.navCount, punteggioSanzioni >= 5 && styles.navCountWarning]}>
@@ -183,34 +179,38 @@ export default function GridGame() {
         </Pressable>
       </View>
 
-      <View style={styles.navRow}>
-        <Pressable style={styles.navButton} onPress={() => router.push("/crimine")}>
+      <View style={[styles.navRow, isDesktop && styles.navRowCompact]}>
+        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/crimine")}>
           <Text style={styles.navEmoji}>🕵️</Text>
           <Text style={styles.navLabel}>Crimine</Text>
           <Text style={styles.navCount}>{criminali.length} criminali</Text>
         </Pressable>
-        <Pressable style={styles.navButton} onPress={() => router.push("/personalita")}>
+        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/personalita")}>
           <Text style={styles.navEmoji}>🧠</Text>
           <Text style={styles.navLabel}>Personalità</Text>
           <Text style={styles.navCount}>{personalitàUniche.length} tipi</Text>
         </Pressable>
-        <Pressable style={styles.navButton} onPress={() => router.push("/competenze")}>
+        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/competenze")}>
           <Text style={styles.navEmoji}>📊</Text>
           <Text style={styles.navLabel}>Competenze</Text>
           <Text style={styles.navCount}>Catalogo</Text>
         </Pressable>
-        <Pressable style={styles.navButton} onPress={() => router.push("/mercato")}>
+        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/mercato")}>
           <Text style={styles.navEmoji}>🏪</Text>
           <Text style={styles.navLabel}>Mercato</Text>
           <Text style={styles.navCount}>Compra / Vendi</Text>
         </Pressable>
-        <Pressable style={styles.navButton} onPress={() => router.push("/eventi")}>
+        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/eventi")}>
           <Text style={styles.navEmoji}>📌</Text>
           <Text style={styles.navLabel}>Eventi</Text>
           <Text style={styles.navCount}>Possibili / In corso</Text>
         </Pressable>
+        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/pianeti")}>
+          <Text style={styles.navEmoji}>🪐</Text>
+          <Text style={styles.navLabel}>Pianeti</Text>
+          <Text style={styles.navCount}>Razze / Origini</Text>
+        </Pressable>
       </View>
-      </ScrollView>
 
       <CiboConsumoModal
         visible={showCiboModal}

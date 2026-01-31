@@ -2,6 +2,9 @@ import React from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import type { Razza } from "../src/types";
+
+const RAZZE: Razza[] = ["Umano", "Grigi", "Nordici", "Rettiliani", "Insettoidi", "Marini", "Ferini"];
 
 export default function LeggeRazzialeScreen() {
   const router = useRouter();
@@ -19,7 +22,7 @@ export default function LeggeRazzialeScreen() {
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
 
-  const razze: ("Umano" | "Alieno")[] = ["Umano", "Alieno"];
+  const razze = RAZZE;
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>

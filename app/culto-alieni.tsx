@@ -13,19 +13,20 @@ export default function CultoAlieniScreen() {
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
 
-  // Fedeli del Culto degli Alieni (abitanti con religione "Culto degli Alieni" e razza "Alieno")
+  // Fedeli del Culto degli Alieni (abitanti con religione "Culto degli Alieni" e razza non Umana)
+  const isNonUmano = (a: Abitante) => (a.razza ?? "Umano") !== "Umano" || a.specie === "alieno";
   const fedeli = abitanti.filter(
-    (a: Abitante) => a.religione === "Culto degli Alieni" && (a.razza === "Alieno" || a.specie === "alieno")
+    (a: Abitante) => a.religione === "Culto degli Alieni" && isNonUmano(a)
   );
   const capoReligioso = abitanti.find((a: Abitante) => a.id === capoReligiosoAlieni);
 
-  // Abitanti disponibili per essere nominati capo religioso (non già capo di altro culto, alieni con culto degli alieni)
+  // Abitanti disponibili per essere nominati capo religioso (non già capo di altro culto, non-umani con culto degli alieni)
   const { capoReligiosoSole } = useGameContext();
   const disponibiliPerCapo = abitanti.filter(
     (a: Abitante) =>
       a.id !== capoReligiosoSole &&
       a.religione === "Culto degli Alieni" &&
-      (a.razza === "Alieno" || a.specie === "alieno")
+      isNonUmano(a)
   );
 
   return (

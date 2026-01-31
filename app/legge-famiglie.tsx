@@ -23,7 +23,7 @@ export default function LeggeFamiglieScreen() {
       chiave: "interrazziale" as const,
       emoji: "🌍",
       titolo: "Famiglia Interrazziale",
-      descrizione: "Famiglia composta da genitori di razze diverse (Umano/Alieno)."
+      descrizione: "Famiglia composta da genitori di razze diverse (es. Umano, Grigi, Nordici, Rettiliani, Insettoidi, Marini, Ferini)."
     },
     {
       chiave: "arcobaleno" as const,

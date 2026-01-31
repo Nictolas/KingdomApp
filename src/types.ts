@@ -60,10 +60,20 @@ export type Abitante = {
   ruoloSchiavitu?: "schiavista" | "schiavo"; // Ruolo nella schiavitù
   schiavistaId?: number; // ID dello schiavista (se è schiavo)
   religione: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni"; // Religione dell'abitante
-  specie?: "umano" | "alieno"; // Specie dell'abitante
-  razza?: "Umano" | "Alieno"; // Razza dell'abitante
+  specie?: "umano" | "alieno"; // Specie dell'abitante (alieno = non Umano)
+  razza?: Razza; // Razza/Pianeta di origine dell'abitante
   reati?: Reato[]; // Se presente e non vuoto, l'abitante è considerato "criminale"
 };
+
+// Razze trovabili tra gli abitanti (pianeti di origine)
+export type Razza =
+  | "Umano"
+  | "Grigi"
+  | "Nordici"
+  | "Rettiliani"
+  | "Insettoidi"
+  | "Marini"
+  | "Ferini";
 
 export type Ministro = {
   id: number;

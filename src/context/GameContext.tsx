@@ -1,6 +1,6 @@
 import React, { createContext, useContext, ReactNode } from "react";
 import { useGameState } from "../hooks/useGameState";
-import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso } from "../types";
+import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
 import type { EventoDef } from "../game/eventi";
 
 type ScaglioneConfig = {
@@ -25,8 +25,8 @@ type GameContextType = {
   penaDiMorteAttiva: boolean;
   politicaReligiosa: "ateismo-stato" | "religione-stato" | "liberta-culto";
   leggeRazzialeAttiva: boolean;
-  razzaCampoLavoro: "Umano" | "Alieno" | null;
-  razzaCampoSterminio: "Umano" | "Alieno" | null;
+  razzaCampoLavoro: Razza | null;
+  razzaCampoSterminio: Razza | null;
   capoReligiosoSole: number | null;
   capoReligiosoAlieni: number | null;
   religioneDiStato: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni" | null;
@@ -48,8 +48,8 @@ type GameContextType = {
   setPoliticaReligiosa: (politica: "ateismo-stato" | "religione-stato" | "liberta-culto") => void;
   setReligioneDiStato: (religione: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni" | null) => void;
   setLeggeRazzialeAttiva: (attiva: boolean) => void;
-  setRazzaCampoLavoro: (razza: "Umano" | "Alieno" | null) => void;
-  setRazzaCampoSterminio: (razza: "Umano" | "Alieno" | null) => void;
+  setRazzaCampoLavoro: (razza: Razza | null) => void;
+  setRazzaCampoSterminio: (razza: Razza | null) => void;
   setCapoReligiosoSole: (id: number | null) => void;
   setCapoReligiosoAlieni: (id: number | null) => void;
   setEtaMinimaLavoro: (eta: number) => void;

@@ -1,4 +1,15 @@
-import type { Abitante, Ministro, Fazione, Legge, Risorsa, Edificio } from "./types";
+import type { Abitante, Ministro, Fazione, Legge, Risorsa, Edificio, Razza } from "./types";
+
+export type PianetaInfo = { id: number; nome: string; emoji: string; razza: Razza };
+
+export const pianetiData: PianetaInfo[] = [
+  { id: 1, nome: "Pianeta dei Grigi", emoji: "👽", razza: "Grigi" },
+  { id: 2, nome: "Pianeta dei Nordici", emoji: "🧝", razza: "Nordici" },
+  { id: 3, nome: "Pianeta dei Rettiliani", emoji: "🦎", razza: "Rettiliani" },
+  { id: 4, nome: "Pianeta degli Insettoidi", emoji: "🦟", razza: "Insettoidi" },
+  { id: 5, nome: "Pianeta dei Marini", emoji: "🐙", razza: "Marini" },
+  { id: 6, nome: "Pianeta dei Ferini", emoji: "🐺", razza: "Ferini" }
+];
 
 export const abitantiData: Abitante[] = [
   {
@@ -21,7 +32,8 @@ export const abitantiData: Abitante[] = [
     lealtà: 100,
     paura: 5,
     felicità: 75,
-    religione: "Ateo"
+    religione: "Ateo",
+    razza: "Umano"
   },
   {
     id: 2,
