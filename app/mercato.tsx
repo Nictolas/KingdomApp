@@ -24,7 +24,7 @@ const PREZZI: Record<string, { compra: number; vendi: number; emoji: string }> =
 
 export default function MercatoScreen() {
   const router = useRouter();
-  const { risorse, compraRisorsa, vendiRisorsa } = useGameContext();
+  const { risorse, ordiniMercato, aggiungiOrdineMercato, rimuoviOrdineMercato } = useGameContext();
   const [quantitàInput, setQuantitàInput] = useState<Record<number, string>>({});
 
   const { width } = Dimensions.get("window");
@@ -34,20 +34,17 @@ export default function MercatoScreen() {
 
   const crediti = risorse.find((r) => r.id === CREDITI_ID);
   const risorseCommerciabili = risorse.filter((r) => r.id !== CREDITI_ID);
+  const creditiImpegnati = ordiniMercato
+    .filter((o) => o.tipo === "compra")
+    .reduce((s, o) => s + o.quantità * o.prezzoUnitario, 0);
+  const creditiDisponibili = crediti ? crediti.quantità - creditiImpegnati : 0;
 
-  const handleCompra = (risorsa: Risorsa) => {
+  const handleAggiungiOrdine = (tipo: "compra" | "vendi", risorsa: Risorsa) => {
     const q = Math.floor(Number(quantitàInput[risorsa.id]) || 0);
     const prezzi = PREZZI[risorsa.nome];
     if (!prezzi || q <= 0) return;
-    const ok = compraRisorsa(risorsa.id, q, prezzi.compra);
-    if (ok) setQuantitàInput((prev) => ({ ...prev, [risorsa.id]: "" }));
-  };
-
-  const handleVendi = (risorsa: Risorsa) => {
-    const q = Math.floor(Number(quantitàInput[risorsa.id]) || 0);
-    const prezzi = PREZZI[risorsa.nome];
-    if (!prezzi || q <= 0 || risorsa.quantità < q) return;
-    const ok = vendiRisorsa(risorsa.id, q, prezzi.vendi);
+    const prezzo = tipo === "compra" ? prezzi.compra : prezzi.vendi;
+    const ok = aggiungiOrdineMercato(tipo, risorsa.id, q, prezzo);
     if (ok) setQuantitàInput((prev) => ({ ...prev, [risorsa.id]: "" }));
   };
 
@@ -67,9 +64,34 @@ export default function MercatoScreen() {
           <Text style={styles.saldoValue}>
             {crediti ? `${crediti.quantità} ${crediti.unità}` : "—"}
           </Text>
+          <Text style={styles.saldoHint}>Gli ordini si applicano quando fai Skip Mese (anteprima in Home).</Text>
         </View>
 
-        <Text style={styles.sectionTitle}>Compra e vendi risorse</Text>
+        {ordiniMercato.length > 0 && (
+          <View style={styles.ordiniSection}>
+            <Text style={styles.sectionTitle}>Ordini in sospeso ({ordiniMercato.length})</Text>
+            {ordiniMercato.map((ordine) => {
+              const risorsa = risorse.find((r) => r.id === ordine.risorsaId);
+              const nome = risorsa?.nome ?? "?";
+              const prezzi = risorsa ? PREZZI[risorsa.nome] : null;
+              const emoji = prezzi?.emoji ?? "📦";
+              const costo = ordine.quantità * ordine.prezzoUnitario;
+              return (
+                <View key={ordine.id} style={styles.ordineRow}>
+                  <Text style={styles.ordineText}>
+                    {ordine.tipo === "compra" ? "🛒" : "💰"} {emoji} {ordine.tipo === "compra" ? "Acquisto" : "Vendita"} {ordine.quantità} {nome}
+                    {ordine.tipo === "compra" ? ` (−${costo} 💰)` : ` (+${costo} 💰)`}
+                  </Text>
+                  <Pressable style={styles.rimuoviOrdineBtn} onPress={() => rimuoviOrdineMercato(ordine.id)}>
+                    <Text style={styles.rimuoviOrdineText}>Elimina</Text>
+                  </Pressable>
+                </View>
+              );
+            })}
+          </View>
+        )}
+
+        <Text style={styles.sectionTitle}>Aggiungi ordini (eseguiti al Skip Mese)</Text>
 
         {risorseCommerciabili.map((risorsa) => {
           const prezzi = PREZZI[risorsa.nome] ?? { compra: 10, vendi: 6, emoji: "📦" };
@@ -77,8 +99,11 @@ export default function MercatoScreen() {
           const q = Math.floor(Number(qStr) || 0);
           const costoCompra = q * prezzi.compra;
           const ricavoVendita = q * prezzi.vendi;
-          const puòComprare = crediti != null && crediti.quantità >= costoCompra && q > 0;
-          const puòVendere = risorsa.quantità >= q && q > 0;
+          const qtàGiàInVendita = ordiniMercato
+            .filter((o) => o.tipo === "vendi" && o.risorsaId === risorsa.id)
+            .reduce((s, o) => s + o.quantità, 0);
+          const puòComprare = crediti != null && creditiDisponibili >= costoCompra && q > 0;
+          const puòVendere = risorsa.quantità - qtàGiàInVendita >= q && q > 0;
 
           return (
             <View key={risorsa.id} style={styles.card}>
@@ -108,20 +133,20 @@ export default function MercatoScreen() {
                 />
                 <Pressable
                   style={[styles.btn, styles.btnCompra, !puòComprare && styles.btnDisabled]}
-                  onPress={() => handleCompra(risorsa)}
+                  onPress={() => handleAggiungiOrdine("compra", risorsa)}
                   disabled={!puòComprare}
                 >
-                  <Text style={styles.btnText}>Compra</Text>
+                  <Text style={styles.btnText}>Ordine acquisto</Text>
                   {q > 0 && (
-                    <Text style={styles.btnSubtext}>-{costoCompra} 💰</Text>
+                    <Text style={styles.btnSubtext}>−{costoCompra} 💰</Text>
                   )}
                 </Pressable>
                 <Pressable
                   style={[styles.btn, styles.btnVendi, !puòVendere && styles.btnDisabled]}
-                  onPress={() => handleVendi(risorsa)}
+                  onPress={() => handleAggiungiOrdine("vendi", risorsa)}
                   disabled={!puòVendere}
                 >
-                  <Text style={styles.btnText}>Vendi</Text>
+                  <Text style={styles.btnText}>Ordine vendita</Text>
                   {q > 0 && (
                     <Text style={styles.btnSubtext}>+{ricavoVendita} 💰</Text>
                   )}
@@ -160,6 +185,22 @@ const styles = StyleSheet.create({
   },
   saldoLabel: { color: "rgba(203,213,245,0.8)", fontSize: 11, marginBottom: 4 },
   saldoValue: { color: "#4ade80", fontSize: 18, fontWeight: "700" },
+  saldoHint: { color: "rgba(203,213,245,0.5)", fontSize: 9, marginTop: 6, textAlign: "center" },
+  ordiniSection: { marginBottom: 12 },
+  ordineRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 6,
+    padding: 8,
+    marginBottom: 6,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.5)"
+  },
+  ordineText: { color: "#e5e7eb", fontSize: 11, flex: 1 },
+  rimuoviOrdineBtn: { backgroundColor: "#ef4444", paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
+  rimuoviOrdineText: { color: "#ffffff", fontSize: 10, fontWeight: "600" },
   sectionTitle: {
     color: "#ffffff",
     fontSize: 12,

@@ -10,7 +10,7 @@ import { EnergiaModal } from "../ui/EnergiaModal";
 
 export default function GridGame() {
   const router = useRouter();
-  const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, abitantiProposti, punteggioSanzioni } = useGameContext();
+  const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, calcolaDeltaOrdiniMercato, abitantiProposti, punteggioSanzioni } = useGameContext();
   const [showCiboModal, setShowCiboModal] = useState(false);
   const [showCreditiModal, setShowCreditiModal] = useState(false);
   const [showEnergiaModal, setShowEnergiaModal] = useState(false);
@@ -27,8 +27,9 @@ export default function GridGame() {
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
 
-  // Calcola produzione/consumo mensile
+  // Calcola produzione/consumo mensile + effetto ordini Mercato (applicati al Skip Mese)
   const variazioni = calcolaProduzioneConsumo();
+  const deltaOrdini = calcolaDeltaOrdiniMercato();
 
   return (
     <View style={[styles.container, maxHeight && { maxHeight, overflow: "hidden" }]}>
@@ -71,7 +72,7 @@ export default function GridGame() {
         <Text style={styles.sectionTitle}>Risorse</Text>
         <View style={styles.resourcesGrid}>
           {risorse.map((r: Risorsa) => {
-            const variazione = variazioni[r.nome] || 0;
+            const variazione = (variazioni[r.nome] || 0) + (deltaOrdini[r.nome] ?? 0);
             const isCibo = r.nome.toLowerCase().includes("cibo");
             const isCrediti = r.nome.toLowerCase().includes("crediti");
             const isEnergia = r.nome.toLowerCase().includes("energia");

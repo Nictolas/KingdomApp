@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
-import type { Abitante, Risorsa, Edificio } from "../types";
+import type { Abitante, Risorsa, Edificio, OrdineMercato } from "../types";
 import { abitantiData, risorseData, edificiData } from "../kingdomData";
 
 export function useGameState() {
@@ -11,6 +11,7 @@ export function useGameState() {
   const [isLoading, setIsLoading] = useState(false);
   const [abitantiProposti, setAbitantiProposti] = useState<Abitante[]>([]);
   const [nextId, setNextId] = useState(100); // ID iniziale per nuovi abitanti
+  const [ordiniMercato, setOrdiniMercato] = useState<OrdineMercato[]>([]);
   
   // Configurazione tassa sul reddito
   const [tipoTassaReddito, setTipoTassaReddito] = useState<"flat" | "scaglioni">("scaglioni");
@@ -323,10 +324,38 @@ export function useGameState() {
       };
     });
 
+    // Esegui ordini Mercato (acquisti/vendite) al cambio mese
+    let risorseDopoOrdini = [...nuoveRisorse];
+    ordiniMercato.forEach((ordine) => {
+      const creditiId = 1;
+      if (ordine.risorsaId === creditiId || ordine.quantità <= 0 || ordine.prezzoUnitario <= 0) return;
+      const costo = ordine.quantità * ordine.prezzoUnitario;
+      const crediti = risorseDopoOrdini.find((r) => r.id === creditiId);
+      const risorsa = risorseDopoOrdini.find((r) => r.id === ordine.risorsaId);
+      if (!crediti || !risorsa) return;
+      if (ordine.tipo === "compra") {
+        if (crediti.quantità < costo) return;
+        risorseDopoOrdini = risorseDopoOrdini.map((r) => {
+          if (r.id === creditiId) return { ...r, quantità: r.quantità - costo };
+          if (r.id === ordine.risorsaId) return { ...r, quantità: r.quantità + ordine.quantità };
+          return r;
+        });
+      } else {
+        if (risorsa.quantità < ordine.quantità) return;
+        const ricavo = ordine.quantità * ordine.prezzoUnitario;
+        risorseDopoOrdini = risorseDopoOrdini.map((r) => {
+          if (r.id === creditiId) return { ...r, quantità: r.quantità + ricavo };
+          if (r.id === ordine.risorsaId) return { ...r, quantità: r.quantità - ordine.quantità };
+          return r;
+        });
+      }
+    });
+    setOrdiniMercato([]);
+
     // Applica tutti gli aggiornamenti
     setAbitanti(nuoviAbitanti);
     setEdifici(nuoviEdifici);
-    setRisorse(nuoveRisorse);
+    setRisorse(risorseDopoOrdini);
     
     // Avanza mese e anno
     setMese((prevMese) => {
@@ -342,7 +371,7 @@ export function useGameState() {
     generaNuoviAbitantiProposti();
     
     setIsLoading(false);
-  }, [abitanti, edifici, risorse, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata]);
+  }, [abitanti, edifici, risorse, ordiniMercato, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata]);
 
   const assegnaAbitanteAEdificio = useCallback((abitanteId: number, edificioId: number) => {
     setEdifici((prevEdifici) =>
@@ -547,46 +576,59 @@ export function useGameState() {
     });
   }, []);
 
-  // Mercato: compra risorsa (spendi Crediti, ricevi risorsa)
-  const compraRisorsa = useCallback(
-    (risorsaId: number, quantità: number, prezzoUnitario: number): boolean => {
+  // Mercato: ordini di acquisto/vendita; si eseguono solo al cambio mese (Skip Mese)
+  const aggiungiOrdineMercato = useCallback(
+    (tipo: "compra" | "vendi", risorsaId: number, quantità: number, prezzoUnitario: number): boolean => {
       const creditiId = 1;
       if (risorsaId === creditiId || quantità <= 0 || prezzoUnitario <= 0) return false;
-      const costo = quantità * prezzoUnitario;
       const crediti = risorse.find((r) => r.id === creditiId);
       const risorsa = risorse.find((r) => r.id === risorsaId);
-      if (!crediti || !risorsa || crediti.quantità < costo) return false;
-      setRisorse((prev) =>
-        prev.map((r) => {
-          if (r.id === creditiId) return { ...r, quantità: r.quantità - costo };
-          if (r.id === risorsaId) return { ...r, quantità: r.quantità + quantità };
-          return r;
-        })
-      );
+      if (!crediti || !risorsa) return false;
+      if (tipo === "compra") {
+        const costo = quantità * prezzoUnitario;
+        const creditiImpegnati = ordiniMercato
+          .filter((o) => o.tipo === "compra")
+          .reduce((s, o) => s + o.quantità * o.prezzoUnitario, 0);
+        if (crediti.quantità - creditiImpegnati < costo) return false;
+      } else {
+        const qtàGiàInVendita = ordiniMercato
+          .filter((o) => o.tipo === "vendi" && o.risorsaId === risorsaId)
+          .reduce((s, o) => s + o.quantità, 0);
+        if (risorsa.quantità - qtàGiàInVendita < quantità) return false;
+      }
+      setOrdiniMercato((prev) => {
+        const newId = prev.length === 0 ? 1 : Math.max(...prev.map((o) => o.id)) + 1;
+        return [...prev, { id: newId, tipo, risorsaId, quantità, prezzoUnitario }];
+      });
       return true;
     },
-    [risorse]
+    [risorse, ordiniMercato]
   );
 
-  // Mercato: vendi risorsa (cedi risorsa, ricevi Crediti)
-  const vendiRisorsa = useCallback(
-    (risorsaId: number, quantità: number, prezzoUnitario: number): boolean => {
+  const rimuoviOrdineMercato = useCallback((ordineId: number) => {
+    setOrdiniMercato((prev) => prev.filter((o) => o.id !== ordineId));
+  }, []);
+
+  // Delta risorse dall'anteprima ordini (per mostrare in Home l'effetto al cambio mese)
+  const calcolaDeltaOrdiniMercato = useCallback((): Record<string, number> => {
+    const delta: Record<string, number> = {};
+    ordiniMercato.forEach((ordine) => {
       const creditiId = 1;
-      if (risorsaId === creditiId || quantità <= 0 || prezzoUnitario <= 0) return false;
-      const ricavo = quantità * prezzoUnitario;
-      const risorsa = risorse.find((r) => r.id === risorsaId);
-      if (!risorsa || risorsa.quantità < quantità) return false;
-      setRisorse((prev) =>
-        prev.map((r) => {
-          if (r.id === creditiId) return { ...r, quantità: r.quantità + ricavo };
-          if (r.id === risorsaId) return { ...r, quantità: r.quantità - quantità };
-          return r;
-        })
-      );
-      return true;
-    },
-    [risorse]
-  );
+      const risorsa = risorse.find((r) => r.id === ordine.risorsaId);
+      const nomeRisorsa = risorsa?.nome ?? "";
+      const nomeCrediti = risorse.find((r) => r.id === creditiId)?.nome ?? "Crediti";
+      if (ordine.tipo === "compra") {
+        const costo = ordine.quantità * ordine.prezzoUnitario;
+        delta[nomeRisorsa] = (delta[nomeRisorsa] ?? 0) + ordine.quantità;
+        delta[nomeCrediti] = (delta[nomeCrediti] ?? 0) - costo;
+      } else {
+        const ricavo = ordine.quantità * ordine.prezzoUnitario;
+        delta[nomeRisorsa] = (delta[nomeRisorsa] ?? 0) - ordine.quantità;
+        delta[nomeCrediti] = (delta[nomeCrediti] ?? 0) + ricavo;
+      }
+    });
+    return delta;
+  }, [ordiniMercato, risorse]);
 
   // Calcola il punteggio sanzioni basato sulle leggi attive
   const calcolaPunteggioSanzioni = useCallback(() => {
@@ -683,8 +725,10 @@ export function useGameState() {
     calcolaProduzioneConsumo,
     accettaImmigrante,
     rifiutaImmigrante,
-    compraRisorsa,
-    vendiRisorsa,
+    ordiniMercato,
+    aggiungiOrdineMercato,
+    rimuoviOrdineMercato,
+    calcolaDeltaOrdiniMercato,
     graziaCriminale
   };
 }

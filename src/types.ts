@@ -93,6 +93,15 @@ export type Risorsa = {
   unità: string;
 };
 
+/** Ordine di acquisto o vendita nel Mercato; si esegue al cambio mese (Skip Mese). */
+export type OrdineMercato = {
+  id: number;
+  tipo: "compra" | "vendi";
+  risorsaId: number;
+  quantità: number;
+  prezzoUnitario: number;
+};
+
 export type Edificio = {
   id: number;
   nome: string;

@@ -1,6 +1,6 @@
 import React, { createContext, useContext, ReactNode } from "react";
 import { useGameState } from "../hooks/useGameState";
-import type { Abitante, Risorsa, Edificio } from "../types";
+import type { Abitante, Risorsa, Edificio, OrdineMercato } from "../types";
 
 type ScaglioneConfig = {
   min: number;
@@ -68,8 +68,10 @@ type GameContextType = {
   calcolaProduzioneConsumo: () => Record<string, number>;
   accettaImmigrante: (abitanteId: number) => void;
   rifiutaImmigrante: (abitanteId: number) => void;
-  compraRisorsa: (risorsaId: number, quantità: number, prezzoUnitario: number) => boolean;
-  vendiRisorsa: (risorsaId: number, quantità: number, prezzoUnitario: number) => boolean;
+  ordiniMercato: OrdineMercato[];
+  aggiungiOrdineMercato: (tipo: "compra" | "vendi", risorsaId: number, quantità: number, prezzoUnitario: number) => boolean;
+  rimuoviOrdineMercato: (ordineId: number) => void;
+  calcolaDeltaOrdiniMercato: () => Record<string, number>;
   graziaCriminale: (abitanteId: number) => void;
 };
 
