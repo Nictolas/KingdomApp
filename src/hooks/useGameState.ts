@@ -530,7 +530,7 @@ export function useGameState() {
     setAbitantiProposti((prev) => prev.filter((a) => a.id !== abitanteId));
   }, []);
 
-  // Tribunale: grazia un criminale → lui e amici +10% lealtà, rivali -10% lealtà; reati azzerati
+  // Tribunale: grazia un criminale → lui e Amici +10% Lealtà, Nemici (rivali) -10% Lealtà; reati azzerati
   const graziaCriminale = useCallback((abitanteId: number) => {
     setAbitanti((prev) => {
       const criminale = prev.find((a) => a.id === abitanteId);
@@ -539,8 +539,8 @@ export function useGameState() {
       const idsMalus = new Set<number>(criminale.rivali ?? []);
       return prev.map((a) => {
         let lealtà = a.lealtà;
-        if (idsBonus.has(a.id)) lealtà = Math.min(100, lealtà + 10);
-        if (idsMalus.has(a.id)) lealtà = Math.max(0, lealtà - 10);
+        if (idsBonus.has(a.id)) lealtà = Math.min(100, Math.round(a.lealtà * 1.1));
+        if (idsMalus.has(a.id)) lealtà = Math.max(0, Math.round(a.lealtà * 0.9));
         const reati = a.id === abitanteId ? [] : a.reati;
         return { ...a, lealtà, reati: reati ?? a.reati };
       });

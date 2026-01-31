@@ -108,6 +108,9 @@ export default function TribunaleScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Criminali ({criminali.length})</Text>
+          <Text style={styles.sectionHint}>
+            Graziare: reati azzerati. Il graziato e i suoi Amici +10% Lealtà; i suoi Nemici −10% Lealtà.
+          </Text>
           {criminali.length > 0 ? (
             <View style={styles.cardsContainer}>
               {criminali.map((c) => (
@@ -171,6 +174,7 @@ const styles = StyleSheet.create({
   infoSubtext: { color: "rgba(203,213,245,0.7)", fontSize: 9, marginTop: 2 },
   section: { marginTop: 4 },
   sectionTitle: { color: "#ffffff", fontSize: 11, fontWeight: "700", marginBottom: 4 },
+  sectionHint: { color: "rgba(203,213,245,0.6)", fontSize: 9, marginBottom: 6 },
   cardsContainer: { flexDirection: "row", flexWrap: "wrap", gap: 4 },
   criminaleCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
