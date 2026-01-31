@@ -177,6 +177,11 @@ export default function GridGame() {
           <Text style={styles.navLabel}>Personalità</Text>
           <Text style={styles.navCount}>{personalitàUniche.length} tipi</Text>
         </Pressable>
+        <Pressable style={styles.navButton} onPress={() => router.push("/competenze")}>
+          <Text style={styles.navEmoji}>📊</Text>
+          <Text style={styles.navLabel}>Competenze</Text>
+          <Text style={styles.navCount}>Catalogo</Text>
+        </Pressable>
       </View>
 
       <CiboConsumoModal
