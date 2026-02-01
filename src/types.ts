@@ -48,6 +48,10 @@ export type Abitante = {
   personalità: string;
   amici: number[]; // Array di ID di altri abitanti
   rivali: number[]; // Array di ID di altri abitanti
+  coniugeId?: number; // ID del coniuge (se presente)
+  figliIds?: number[]; // ID dei figli
+  genitoriIds?: number[]; // ID dei genitori (1 o 2)
+  nonniIds?: number[]; // ID dei nonni
   fazioni: string[]; // Ogni abitante può far parte di più fazioni (es. Cittadini, Nativi, Schiavi, Amministrazione, …)
   peso: number; // 0-100: indicatore peso (Denutrito 0-40, Normopeso 41-80, Sovrappeso 81-95, Obeso 96+)
   salute: number; // 0-100: salute fisica (usata da eventi/ferite)

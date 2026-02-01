@@ -151,7 +151,7 @@ export function useGameState() {
           fazioni: [fazioniRuolo[Math.floor(Math.random() * fazioniRuolo.length)], "Cittadini"],
           peso: 41 + Math.floor(Math.random() * 40),
           salute: 50 + Math.floor(Math.random() * 50),
-          crediti: Math.floor(Math.random() * 1000),
+          crediti: 800 + Math.floor(Math.random() * 401),
           reddito: 100 + Math.floor(Math.random() * 500),
           spese: 50 + Math.floor(Math.random() * 300),
           lealtà: 30 + Math.floor(Math.random() * 50),
@@ -227,18 +227,31 @@ export function useGameState() {
 
     // Aggiorna gli abitanti
     const nuoviAbitanti = abitantiRimasti.map((abitante) => {
+      const èSchiavo = abitante.fazioni?.includes("Schiavi") ?? false;
+      // Schiavi: crediti, reddito e spese sempre 0
+      if (èSchiavo) {
+        const nuovaStanchezza = Math.min(100, abitante.stanchezza + Math.floor(Math.random() * 10));
+        const variazionePeso = Math.floor(Math.random() * 6) - 2;
+        const nuovoPeso = Math.max(0, Math.min(100, abitante.peso + variazionePeso));
+        const variazioneSalute = Math.floor(Math.random() * 6) - 2;
+        const nuovaSalute = Math.max(0, Math.min(100, abitante.salute + variazioneSalute));
+        return {
+          ...abitante,
+          crediti: 0,
+          reddito: 0,
+          spese: 0,
+          stanchezza: nuovaStanchezza,
+          peso: nuovoPeso,
+          salute: nuovaSalute
+        };
+      }
       // Calcola il nuovo saldo (reddito - spese)
       const nuovoSaldo = abitante.crediti + abitante.reddito - abitante.spese;
-      
-      // Aggiorna la stanchezza (aumenta leggermente, ma non oltre 100)
       const nuovaStanchezza = Math.min(100, abitante.stanchezza + Math.floor(Math.random() * 10));
-      
-      // Aggiorna peso e salute (possono variare leggermente)
-      const variazionePeso = Math.floor(Math.random() * 6) - 2; // -2 a +3
+      const variazionePeso = Math.floor(Math.random() * 6) - 2;
       const nuovoPeso = Math.max(0, Math.min(100, abitante.peso + variazionePeso));
       const variazioneSalute = Math.floor(Math.random() * 6) - 2;
       const nuovaSalute = Math.max(0, Math.min(100, abitante.salute + variazioneSalute));
-
       return {
         ...abitante,
         crediti: Math.max(0, nuovoSaldo),
@@ -616,7 +629,7 @@ export function useGameState() {
           fazioni: ["Nativi", "Cittadini"],
           peso: 41 + Math.floor(Math.random() * 40),
           salute: 60 + Math.floor(Math.random() * 35),
-          crediti: Math.floor(Math.random() * 500),
+          crediti: 800 + Math.floor(Math.random() * 401),
           reddito: 100 + Math.floor(Math.random() * 300),
           spese: 50 + Math.floor(Math.random() * 150),
           lealtà: 40 + Math.floor(Math.random() * 40),

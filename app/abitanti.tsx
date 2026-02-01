@@ -7,7 +7,7 @@ import { getEmojiRazza } from "../src/kingdomData";
 import type { Abitante } from "../src/types";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 
-type SortField = "nome" | "eta" | "lavoro" | "razza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "paura" | "felicità" | "religione" | "fazioni" | null;
+type SortField = "nome" | "eta" | "lavoro" | "razza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "coniuge" | "figli" | "genitori" | "nonni" | "paura" | "felicità" | "religione" | "fazioni" | null;
 type SortDirection = "asc" | "desc";
 
 const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
@@ -73,6 +73,24 @@ export default function AbitantiScreen() {
       } else if (sortField === "peso") {
         aValue = a.peso ?? 50;
         bValue = b.peso ?? 50;
+      } else if (sortField === "amici") {
+        aValue = (a.amici?.length ?? 0);
+        bValue = (b.amici?.length ?? 0);
+      } else if (sortField === "rivali") {
+        aValue = (a.rivali?.length ?? 0);
+        bValue = (b.rivali?.length ?? 0);
+      } else if (sortField === "coniuge") {
+        aValue = a.coniugeId != null ? getAbitanteNome(a.coniugeId) : "";
+        bValue = b.coniugeId != null ? getAbitanteNome(b.coniugeId) : "";
+      } else if (sortField === "figli") {
+        aValue = (a.figliIds ?? []).map(getAbitanteNome).join(", ");
+        bValue = (b.figliIds ?? []).map(getAbitanteNome).join(", ");
+      } else if (sortField === "genitori") {
+        aValue = (a.genitoriIds ?? []).map(getAbitanteNome).join(", ");
+        bValue = (b.genitoriIds ?? []).map(getAbitanteNome).join(", ");
+      } else if (sortField === "nonni") {
+        aValue = (a.nonniIds ?? []).map(getAbitanteNome).join(", ");
+        bValue = (b.nonniIds ?? []).map(getAbitanteNome).join(", ");
       } else {
         aValue = a[sortField as keyof Abitante] as number;
         bValue = b[sortField as keyof Abitante] as number;
@@ -139,6 +157,9 @@ export default function AbitantiScreen() {
             </View>
             <View style={[styles.superHeaderCell, styles.superLealta]}>
               <Text style={styles.superHeaderText}>Lealtà</Text>
+            </View>
+            <View style={[styles.superHeaderCell, styles.superSociale]}>
+              <Text style={styles.superHeaderText}>Sociale</Text>
             </View>
             <View style={[styles.superHeaderCell, styles.superReligioneFazioni]}>
               <Text style={styles.superHeaderText}>Religione e fazioni</Text>
@@ -286,6 +307,60 @@ export default function AbitantiScreen() {
               )}
             </Pressable>
             <Pressable 
+              style={[styles.headerCell, styles.cellSociale, sortField === "amici" && styles.headerCellActive]}
+              onPress={() => handleSort("amici")}
+            >
+              <Text style={styles.headerText}>👥 Amici</Text>
+              {sortField === "amici" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellSociale, sortField === "rivali" && styles.headerCellActive]}
+              onPress={() => handleSort("rivali")}
+            >
+              <Text style={styles.headerText}>⚔️ Rivali</Text>
+              {sortField === "rivali" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellConiuge, sortField === "coniuge" && styles.headerCellActive]}
+              onPress={() => handleSort("coniuge")}
+            >
+              <Text style={styles.headerText}>💑 Coniuge</Text>
+              {sortField === "coniuge" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellFigli, sortField === "figli" && styles.headerCellActive]}
+              onPress={() => handleSort("figli")}
+            >
+              <Text style={styles.headerText}>👶 Figli</Text>
+              {sortField === "figli" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellGenitori, sortField === "genitori" && styles.headerCellActive]}
+              onPress={() => handleSort("genitori")}
+            >
+              <Text style={styles.headerText}>👪 Genitori</Text>
+              {sortField === "genitori" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellNonni, sortField === "nonni" && styles.headerCellActive]}
+              onPress={() => handleSort("nonni")}
+            >
+              <Text style={styles.headerText}>🧓 Nonni</Text>
+              {sortField === "nonni" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
               style={[styles.headerCell, styles.cellReligione, sortField === "religione" && styles.headerCellActive]}
               onPress={() => handleSort("religione")}
             >
@@ -368,6 +443,24 @@ export default function AbitantiScreen() {
                 </View>
                 <View style={[styles.cell, styles.cellSmall]}>
                   <Text style={styles.cellText}>{a.lealtà}%</Text>
+                </View>
+                <View style={[styles.cell, styles.cellSociale]}>
+                  <Text style={styles.cellText}>{(a.amici?.length ?? 0)}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellSociale]}>
+                  <Text style={styles.cellText}>{(a.rivali?.length ?? 0)}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellConiuge]}>
+                  <Text style={styles.cellTextSmall}>{a.coniugeId != null ? getAbitanteNome(a.coniugeId) : "—"}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellFigli]}>
+                  <Text style={styles.cellTextSmall}>{(a.figliIds ?? []).length > 0 ? (a.figliIds ?? []).map(getAbitanteNome).join(", ") : "—"}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellGenitori]}>
+                  <Text style={styles.cellTextSmall}>{(a.genitoriIds ?? []).length > 0 ? (a.genitoriIds ?? []).map(getAbitanteNome).join(", ") : "—"}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellNonni]}>
+                  <Text style={styles.cellTextSmall}>{(a.nonniIds ?? []).length > 0 ? (a.nonniIds ?? []).map(getAbitanteNome).join(", ") : "—"}</Text>
                 </View>
                 <View style={[styles.cell, styles.cellReligione]}>
                   <Text style={styles.cellTextSmall}>{a.religione}</Text>
@@ -471,6 +564,10 @@ const styles = StyleSheet.create({
     width: 50,
     minWidth: 50
   },
+  superSociale: {
+    width: 420,
+    minWidth: 420
+  },
   superReligioneFazioni: {
     width: 210,
     minWidth: 210
@@ -544,6 +641,26 @@ const styles = StyleSheet.create({
   cellMedium: {
     width: 70,
     minWidth: 70
+  },
+  cellSociale: {
+    width: 50,
+    minWidth: 50
+  },
+  cellConiuge: {
+    width: 75,
+    minWidth: 75
+  },
+  cellFigli: {
+    width: 95,
+    minWidth: 95
+  },
+  cellGenitori: {
+    width: 75,
+    minWidth: 75
+  },
+  cellNonni: {
+    width: 75,
+    minWidth: 75
   },
   cellReligione: {
     width: 100,

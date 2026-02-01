@@ -71,7 +71,7 @@ export function AbitanteInfoModal({
               <Text style={styles.line}>Salute: {getStatoSalute(abitante)}</Text>
             </View>
 
-            {/* Relazioni */}
+            {/* Relazioni e Sociale */}
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Relazioni</Text>
               {abitante.amici.length > 0 ? (
@@ -87,6 +87,31 @@ export function AbitanteInfoModal({
                 </Text>
               ) : (
                 <Text style={styles.lineMuted}>Nessun rivale</Text>
+              )}
+            </View>
+
+            {/* Familiari */}
+            <View style={styles.section}>
+              <Text style={styles.sectionLabel}>Familiari</Text>
+              {abitante.coniugeId != null ? (
+                <Text style={styles.line}>Coniuge: {getAbitanteNome(abitante.coniugeId)}</Text>
+              ) : (
+                <Text style={styles.lineMuted}>Nessun coniuge</Text>
+              )}
+              {(abitante.figliIds?.length ?? 0) > 0 ? (
+                <Text style={styles.line}>Figli: {(abitante.figliIds ?? []).map(getAbitanteNome).join(", ")}</Text>
+              ) : (
+                <Text style={styles.lineMuted}>Nessun figlio</Text>
+              )}
+              {(abitante.genitoriIds?.length ?? 0) > 0 ? (
+                <Text style={styles.line}>Genitori: {(abitante.genitoriIds ?? []).map(getAbitanteNome).join(", ")}</Text>
+              ) : (
+                <Text style={styles.lineMuted}>Nessun genitore</Text>
+              )}
+              {(abitante.nonniIds?.length ?? 0) > 0 ? (
+                <Text style={styles.line}>Nonni: {(abitante.nonniIds ?? []).map(getAbitanteNome).join(", ")}</Text>
+              ) : (
+                <Text style={styles.lineMuted}>Nessun nonno</Text>
               )}
             </View>
 
