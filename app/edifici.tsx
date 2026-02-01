@@ -37,7 +37,7 @@ export default function EdificiScreen() {
               onPress={() => {
                 if (e.nome === "Serra Idroponica Alpha") {
                   router.push("/serra");
-                } else if (e.nome === "Quartieri Residenziali Settore A") {
+                } else if (e.nome === "Baracca") {
                   router.push("/residenze");
                 } else if (e.nome === "Scuola") {
                   router.push("/scuola");
@@ -52,7 +52,7 @@ export default function EdificiScreen() {
             >
               <Text style={styles.emoji}>{e.emoji}</Text>
               <Text style={styles.cardTitle}>
-                {e.nome === "Quartieri Residenziali Settore A" ? "Residenze" : e.nome}
+                {e.nome === "Baracca" ? "Residenze" : e.nome}
               </Text>
               <Text style={styles.cardTipo}>{e.tipo}</Text>
             </Pressable>

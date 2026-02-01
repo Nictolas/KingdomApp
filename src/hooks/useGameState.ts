@@ -1,50 +1,31 @@
 import { useState, useCallback, useEffect } from "react";
 import { Alert } from "react-native";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
-import { abitantiData, risorseData, edificiData, pianetiData } from "../kingdomData";
+import { risorseData, edificiData, pianetiData } from "../kingdomData";
 import { getConsumoCibo, getProduzioneCiboPerAbitante } from "../game/ciboConsumo";
 import { runAvanzaMese } from "../game/avanzaMese";
 import { EVENTI_CATALOGO } from "../game/eventi";
+import { generaColoniaIniziale } from "../game/generazionePartita";
 
-const RAZZE_NON_UMANE: Razza[] = ["Grigi", "Nordici", "Rettiliani", "Insettoidi", "Marini", "Ferini"];
-
-/** Un abitante non può avere contemporaneamente "Cittadini" e "Schiavi": se ha "Schiavi" si rimuove "Cittadini". */
-function normalizzaFazioni(fazioni: string[] | undefined): string[] {
-  if (!fazioni?.length) return fazioni ?? [];
-  if (fazioni.includes("Schiavi")) return fazioni.filter((f) => f !== "Cittadini");
-  return fazioni;
-}
-
-function inizializzaAbitanti(): { abitanti: Abitante[]; razzaNativi: Razza } {
-  const razzaNativi = RAZZE_NON_UMANE[Math.floor(Math.random() * RAZZE_NON_UMANE.length)];
-  const abitanti = abitantiData.map((a) => {
-    let razza = a.razza;
-    if (a.fazioni?.includes("Nativi")) {
-      razza = razzaNativi;
-    }
-    if (a.ruoloSchiavitu === "schiavo") {
-      razza = RAZZE_NON_UMANE[Math.floor(Math.random() * RAZZE_NON_UMANE.length)];
-    }
-    const razzaFinale = razza ?? a.razza;
-    const specie = (razzaFinale ?? "Umano") === "Umano" ? "umano" : "alieno";
-    const fazioniNorm = normalizzaFazioni(a.fazioni);
-    return { ...a, razza: razzaFinale, specie, fazioni: fazioniNorm };
-  });
-  return { abitanti, razzaNativi };
-}
-
-const statoIniziale = inizializzaAbitanti();
+const statoIniziale = generaColoniaIniziale();
 
 export function useGameState() {
   const [abitanti, setAbitanti] = useState<Abitante[]>(statoIniziale.abitanti);
   const [razzaNativi] = useState<Razza>(statoIniziale.razzaNativi);
   const [risorse, setRisorse] = useState<Risorsa[]>(risorseData);
-  const [edifici, setEdifici] = useState<Edificio[]>(edificiData);
+  const [edifici, setEdifici] = useState<Edificio[]>(() => {
+    const schiaviIds = statoIniziale.abitanti
+      .filter((a) => a.fazioni?.includes("Schiavi"))
+      .map((a) => a.id);
+    return edificiData.map((e) =>
+      e.id === 4 ? { ...e, abitantiAssegnati: schiaviIds, occupazione: schiaviIds.length } : e
+    );
+  });
   const [mese, setMese] = useState(1);
   const [anno, setAnno] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
   const [abitantiProposti, setAbitantiProposti] = useState<Abitante[]>([]);
-  const [nextId, setNextId] = useState(100); // ID iniziale per nuovi abitanti
+  const [nextId, setNextId] = useState(statoIniziale.abitanti.length + 100); // ID iniziale per nuovi abitanti
   const [ordiniMercato, setOrdiniMercato] = useState<OrdineMercato[]>([]);
   const [eventiInCorso, setEventiInCorso] = useState<EventoInCorso[]>([]);
   const [nativiNonIntegrati, setNativiNonIntegrati] = useState(() => 100 + Math.floor(Math.random() * 101));

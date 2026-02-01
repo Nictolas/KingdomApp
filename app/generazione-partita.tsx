@@ -1,0 +1,108 @@
+import React from "react";
+import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
+import { REGOLE_GENERAZIONE_PARTITA } from "../src/game/generazionePartita";
+
+export default function GenerazionePartitaScreen() {
+  const router = useRouter();
+  const { width } = Dimensions.get("window");
+  const isDesktop = width > 768;
+  const containerHeight = isDesktop ? width * (9 / 16) : undefined;
+  const maxHeight = isDesktop ? containerHeight : undefined;
+
+  return (
+    <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
+      <View style={styles.header}>
+        <Text style={styles.back} onPress={() => router.back()}>
+          ← Home
+        </Text>
+        <Text style={styles.title}>🎲 Generazione Partita</Text>
+        <View style={{ width: 50 }} />
+      </View>
+
+      <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={true}>
+        <Text style={styles.intro}>
+          Ogni partita la colonia iniziale è generata a caso. Di seguito le regole di distribuzione attualmente in uso.
+        </Text>
+
+        {REGOLE_GENERAZIONE_PARTITA.map((sezione) => (
+          <View key={sezione.titolo} style={styles.sezione}>
+            <Text style={styles.sezioneTitolo}>{sezione.titolo}</Text>
+            {sezione.punti.map((punto, idx) => (
+              <View key={idx} style={styles.punto}>
+                <Text style={styles.bullet}>•</Text>
+                <Text style={styles.puntoTesto}>{punto}</Text>
+              </View>
+            ))}
+          </View>
+        ))}
+      </ScrollView>
+    </SafeAreaView>
+  );
+}
+
+const styles = StyleSheet.create({
+  safe: {
+    flex: 1,
+    backgroundColor: "#050816"
+  },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(148,163,184,0.6)"
+  },
+  back: {
+    color: "#93c5fd",
+    fontSize: 12
+  },
+  title: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  content: {
+    padding: 16,
+    paddingBottom: 24,
+    flexGrow: 1
+  },
+  intro: {
+    color: "rgba(203,213,245,0.9)",
+    fontSize: 12,
+    lineHeight: 18,
+    marginBottom: 20
+  },
+  sezione: {
+    marginBottom: 20,
+    paddingBottom: 16,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(148,163,184,0.3)"
+  },
+  sezioneTitolo: {
+    color: "#93c5fd",
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 10,
+    textTransform: "uppercase",
+    letterSpacing: 0.5
+  },
+  punto: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    marginBottom: 8
+  },
+  bullet: {
+    color: "#93c5fd",
+    fontSize: 12,
+    marginRight: 8
+  },
+  puntoTesto: {
+    color: "#e5e7eb",
+    fontSize: 12,
+    flex: 1,
+    lineHeight: 18
+  }
+});
