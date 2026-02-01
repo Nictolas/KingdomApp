@@ -4,18 +4,51 @@ import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getStatoSalute } from "../src/game/ciboConsumo";
 import { getEmojiRazza, fazioniData } from "../src/kingdomData";
+import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
-
-/** Restituisce le emoji delle fazioni (come in /fazioni) invece dei nomi. */
-function getFazioniEmojiDisplay(fazioni: string[] | undefined): string {
-  if (!fazioni?.length) return "—";
-  return fazioni
-    .map((nome) => fazioniData.find((f) => f.nome === nome)?.emoji ?? nome)
-    .join(" ");
-}
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 
-type SortField = "nome" | "eta" | "lavoro" | "razza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "religione" | "fazioni" | null;
+type FazioneItem = { emoji: string; nome: string };
+
+/** Restituisce l'array emoji+nome per fazioni + Culto del Sole / Culto degli Alieni se presenti. */
+function getFazioniConReligione(a: Abitante): FazioneItem[] {
+  const items: FazioneItem[] = (a.fazioni ?? []).map((nome) => {
+    const f = fazioniData.find((x) => x.nome === nome);
+    return { emoji: f?.emoji ?? nome, nome };
+  });
+  if (a.religione === "Culto del Sole") items.push({ emoji: "☀️", nome: "Culto del Sole" });
+  if (a.religione === "Culto degli Alieni") items.push({ emoji: "👽", nome: "Culto degli Alieni" });
+  return items;
+}
+
+/** Stringa per ordinamento: emoji fazioni + eventuale emoji religione (Culto Sole/Alieni). */
+function getFazioniEmojiDisplay(fazioni: string[] | undefined, religione?: Abitante["religione"]): string {
+  let s = !fazioni?.length ? "" : fazioni.map((nome) => fazioniData.find((f) => f.nome === nome)?.emoji ?? nome).join(" ");
+  if (religione === "Culto del Sole") s += " ☀️";
+  if (religione === "Culto degli Alieni") s += " 👽";
+  return s || "—";
+}
+
+/** Wrapper emoji con tooltip (nome) al passaggio del mouse (web). */
+function EmojiWithTooltip({ emoji, nome }: { emoji: string; nome: string }) {
+  const [show, setShow] = useState(false);
+  return (
+    <View
+      style={styles.tooltipWrap}
+      onMouseEnter={() => setShow(true)}
+      onMouseLeave={() => setShow(false)}
+    >
+      <Text style={styles.cellEmojiText}>{emoji}</Text>
+      {show && (
+        <View style={styles.tooltipBox}>
+          <Text style={styles.tooltipText}>{nome}</Text>
+        </View>
+      )}
+    </View>
+  );
+}
+
+type SortField = "nome" | "eta" | "lavoro" | "razza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "fazioni" | null;
 type SortDirection = "asc" | "desc";
 
 type MacroKey = "anagrafica" | "prestazioni" | "benessere" | "economia" | "lealta" | "sociale" | "religioneFazioni";
@@ -68,13 +101,17 @@ export default function AbitantiScreen() {
     return abitanti.find((a) => a.id === id)?.nome || `ID ${id}`;
   };
 
-  /** Una sola stringa per tutti i familiari: "Mario Rossi (coniuge), Luca (figlio), ..." */
+  /** Familiari con emoji invece dei nomi: "👩‍🚀 (coniuge), 👦 (figlio), ..." */
   const getFamiliariDisplay = (a: Abitante): string => {
     const parti: string[] = [];
-    if (a.coniugeId != null) parti.push(`${getAbitanteNome(a.coniugeId)} (coniuge)`);
-    (a.figliIds ?? []).forEach((id) => parti.push(`${getAbitanteNome(id)} (figlio)`));
-    (a.genitoriIds ?? []).forEach((id) => parti.push(`${getAbitanteNome(id)} (genitore)`));
-    (a.nonniIds ?? []).forEach((id) => parti.push(`${getAbitanteNome(id)} (nonno)`));
+    const getEmoji = (id: number) => {
+      const ab = abitanti.find((x) => x.id === id);
+      return ab ? getEmojiAbitante(ab) : "?";
+    };
+    if (a.coniugeId != null) parti.push(`${getEmoji(a.coniugeId)} (coniuge)`);
+    (a.figliIds ?? []).forEach((id) => parti.push(`${getEmoji(id)} (figlio)`));
+    (a.genitoriIds ?? []).forEach((id) => parti.push(`${getEmoji(id)} (genitore)`));
+    (a.nonniIds ?? []).forEach((id) => parti.push(`${getEmoji(id)} (nonno)`));
     return parti.length > 0 ? parti.join(", ") : "—";
   };
 
@@ -90,11 +127,11 @@ export default function AbitantiScreen() {
         aValue = calcolaFelicitàModificata(a);
         bValue = calcolaFelicitàModificata(b);
       } else if (sortField === "fazioni") {
-        aValue = getFazioniEmojiDisplay(a.fazioni);
-        bValue = getFazioniEmojiDisplay(b.fazioni);
-      } else if (sortField === "nome" || sortField === "religione") {
-        aValue = a[sortField];
-        bValue = b[sortField];
+        aValue = getFazioniEmojiDisplay(a.fazioni, a.religione);
+        bValue = getFazioniEmojiDisplay(b.fazioni, b.religione);
+      } else if (sortField === "nome") {
+        aValue = a.nome;
+        bValue = b.nome;
       } else if (sortField === "lavoro") {
         aValue = getLavoroDisplay(a, etaMinimaLavoro);
         bValue = getLavoroDisplay(b, etaMinimaLavoro);
@@ -333,16 +370,10 @@ export default function AbitantiScreen() {
               </>
             )}
             {macroOpen.religioneFazioni && (
-              <>
-                <Pressable style={[styles.headerCell, styles.cellReligione, sortField === "religione" && styles.headerCellActive]} onPress={() => handleSort("religione")}>
-                  <Text style={styles.headerText}>🕊️ Religione</Text>
-                  {sortField === "religione" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
-                </Pressable>
-                <Pressable style={[styles.headerCell, styles.cellFazione, sortField === "fazioni" && styles.headerCellActive]} onPress={() => handleSort("fazioni")}>
-                  <Text style={styles.headerText}>⚔️ Fazione</Text>
-                  {sortField === "fazioni" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
-                </Pressable>
-              </>
+              <Pressable style={[styles.headerCell, styles.cellFazione, sortField === "fazioni" && styles.headerCellActive]} onPress={() => handleSort("fazioni")}>
+                <Text style={styles.headerText}>⚔️ Fazione</Text>
+                {sortField === "fazioni" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+              </Pressable>
             )}
           </View>
 
@@ -418,10 +449,17 @@ export default function AbitantiScreen() {
                   </>
                 )}
                 {macroOpen.religioneFazioni && (
-                  <>
-                    <View style={[styles.cell, styles.cellReligione]}><Text style={styles.cellTextSmall}>{a.religione}</Text></View>
-                    <View style={[styles.cell, styles.cellFazione]}><Text style={styles.cellEmojiText}>{getFazioniEmojiDisplay(a.fazioni)}</Text></View>
-                  </>
+                  <View style={[styles.cell, styles.cellFazione]}>
+                    {getFazioniConReligione(a).length > 0 ? (
+                      <View style={styles.fazioneEmojiRow}>
+                        {getFazioniConReligione(a).map((item, idx) => (
+                          <EmojiWithTooltip key={idx} emoji={item.emoji} nome={item.nome} />
+                        ))}
+                      </View>
+                    ) : (
+                      <Text style={styles.cellEmojiText}>—</Text>
+                    )}
+                  </View>
                 )}
               </Pressable>
             );
@@ -619,13 +657,37 @@ const styles = StyleSheet.create({
     width: 200,
     minWidth: 200
   },
-  cellReligione: {
-    width: 100,
-    minWidth: 100
-  },
   cellFazione: {
-    width: 110,
-    minWidth: 110
+    width: 140,
+    minWidth: 140
+  },
+  fazioneEmojiRow: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 4,
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  tooltipWrap: {
+    position: "relative"
+  },
+  tooltipBox: {
+    position: "absolute",
+    bottom: "100%",
+    left: 0,
+    marginBottom: 2,
+    backgroundColor: "#1e293b",
+    paddingHorizontal: 6,
+    paddingVertical: 4,
+    borderRadius: 4,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.5)",
+    zIndex: 10
+  },
+  tooltipText: {
+    color: "#e2e8f0",
+    fontSize: 10,
+    fontWeight: "600"
   },
   cellEmojiText: {
     fontSize: 20

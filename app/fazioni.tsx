@@ -42,6 +42,10 @@ export default function FazioniScreen() {
                   router.push("/nativi");
                 } else if (f.nome === "Amministrazione") {
                   router.push("/ministri");
+                } else if (f.nome === "Culto del Sole") {
+                  router.push("/culto-sole");
+                } else if (f.nome === "Culto degli Alieni") {
+                  router.push("/culto-alieni");
                 } else {
                   setSelectedFazione(f);
                 }

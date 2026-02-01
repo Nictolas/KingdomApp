@@ -48,7 +48,9 @@ export default function EdificiScreen() {
               }}
             >
               <Text style={styles.emoji}>{e.emoji}</Text>
-              <Text style={styles.cardTitle}>{e.nome}</Text>
+              <Text style={styles.cardTitle}>
+                {e.nome === "Quartieri Residenziali Settore A" ? "Residenze" : e.nome}
+              </Text>
               <Text style={styles.cardTipo}>{e.tipo}</Text>
             </Pressable>
           ))}

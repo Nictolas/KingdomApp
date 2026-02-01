@@ -8,5 +8,7 @@ export const fazioniData: Fazione[] = [
   { id: 5, nome: "Mafia", emoji: "🕴️", descrizione: "Organizzazione criminale che controlla attività illecite nella colonia." },
   { id: 6, nome: "Cittadini", emoji: "🏘️", descrizione: "Abitanti riconosciuti come cittadini della colonia, con pieni diritti." },
   { id: 7, nome: "Nativi", emoji: "🌿", descrizione: "Popolazione nativa del pianeta, integrata o in tensione con la colonia." },
-  { id: 8, nome: "Schiavi", emoji: "⛓️", descrizione: "Coloni ridotti in schiavitù; privi di diritti civili." }
+  { id: 8, nome: "Schiavi", emoji: "⛓️", descrizione: "Coloni ridotti in schiavitù; privi di diritti civili." },
+  { id: 9, nome: "Culto del Sole", emoji: "☀️", descrizione: "Tempio dedicato al culto del Sole. Aperto a tutti gli abitanti." },
+  { id: 10, nome: "Culto degli Alieni", emoji: "👽", descrizione: "Tempio dedicato al culto degli Alieni. Riservato solo agli alieni." }
 ];
