@@ -23,8 +23,10 @@ export default function SerraScreen() {
   // Abitanti assegnati alla serra
   const abitantiAssegnati = abitanti.filter((a) => serra.abitantiAssegnati.includes(a.id));
 
-  // Abitanti disponibili (non assegnati alla serra)
-  const abitantiDisponibili = abitanti.filter((a) => !serra.abitantiAssegnati.includes(a.id));
+  // Abitanti disponibili: non assegnati alla serra e con Lavoro "Disoccupato"
+  const abitantiDisponibili = abitanti.filter(
+    (a) => !serra.abitantiAssegnati.includes(a.id) && a.lavoro === "Disoccupato"
+  );
 
   // Ogni abitante assegnato alla Serra produce un valore fisso di cibo (10-20 razioni al mese)
   const getProduzioneCiboPerAbitante = (abitante: Abitante): number => {
@@ -41,6 +43,82 @@ export default function SerraScreen() {
   const produzioneMensile = calcolaProduzione();
   const puòAssegnare = abitantiDisponibili.length > 0 && abitantiAssegnati.length < serra.capacità;
 
+  const colContent = [
+    /* Sinistra: Produzione */
+    <View key="produzione" style={styles.column}>
+      <Text style={styles.sectionTitle}>Produzione</Text>
+      <View style={styles.infoCard}>
+        <Text style={styles.infoTitle}>Produzione Mensile</Text>
+        <Text style={styles.produzioneValue}>
+          {produzioneMensile} <Text style={styles.produzioneUnit}>razioni di cibo</Text>
+        </Text>
+        <Text style={styles.infoSubtext}>
+          {abitantiAssegnati.length} abitante{abitantiAssegnati.length !== 1 ? "i" : ""} assegnato
+          {abitantiAssegnati.length !== 1 ? "i" : ""}
+        </Text>
+        <Text style={styles.infoSubtext}>
+          Capacità: {abitantiAssegnati.length}/{serra.capacità}
+        </Text>
+      </View>
+    </View>,
+    /* Centro: Abitanti assegnati */
+    <View key="assegnati" style={styles.column}>
+      <Text style={styles.sectionTitle}>Abitanti Assegnati</Text>
+      {abitantiAssegnati.length > 0 ? (
+        <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
+          {abitantiAssegnati.map((a: Abitante) => (
+            <View key={a.id} style={styles.card}>
+              <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+              <View style={styles.cardContent}>
+                <Text style={styles.cardTitle}>{a.nome}</Text>
+                <Text style={styles.cardLavoro}>{a.lavoro}</Text>
+                <Text style={styles.cardExtra}>Produttività: {a.produttività}%</Text>
+              </View>
+              <Pressable
+                style={styles.removeButton}
+                onPress={() => rimuoviAbitanteDaEdificio(a.id, serra.id)}
+              >
+                <Text style={styles.removeButtonText}>Rimuovi</Text>
+              </Pressable>
+            </View>
+          ))}
+        </ScrollView>
+      ) : (
+        <Text style={styles.emptyText}>Nessun abitante assegnato</Text>
+      )}
+    </View>,
+    /* Destra: Abitanti disponibili (Disoccupati, con Produttività, Competenza, Personalità) */
+    <View key="disponibili" style={styles.column}>
+      <Text style={styles.sectionTitle}>Abitanti Disponibili</Text>
+      <Text style={styles.sectionSubtitle}>Lavoro: Disoccupato</Text>
+      {abitantiDisponibili.length > 0 ? (
+        <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
+          {abitantiDisponibili.map((a: Abitante) => (
+            <View key={a.id} style={styles.card}>
+              <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+              <View style={styles.cardContent}>
+                <Text style={styles.cardTitle}>{a.nome}</Text>
+                <Text style={styles.cardExtra}>Produttività: {a.produttività}%</Text>
+                <Text style={styles.cardExtra}>Competenza: {a.competenza}%</Text>
+                <Text style={styles.cardExtra}>Personalità: {a.personalità}</Text>
+              </View>
+              {puòAssegnare && (
+                <Pressable
+                  style={styles.addButton}
+                  onPress={() => assegnaAbitanteAEdificio(a.id, serra.id)}
+                >
+                  <Text style={styles.addButtonText}>Assegna</Text>
+                </Pressable>
+              )}
+            </View>
+          ))}
+        </ScrollView>
+      ) : (
+        <Text style={styles.emptyText}>Nessun disoccupato disponibile</Text>
+      )}
+    </View>
+  ];
+
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
@@ -51,77 +129,13 @@ export default function SerraScreen() {
         <View style={{ width: 50 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        {/* Informazioni produzione */}
-        <View style={styles.infoCard}>
-          <Text style={styles.infoTitle}>Produzione Mensile</Text>
-          <Text style={styles.produzioneValue}>
-            {produzioneMensile} <Text style={styles.produzioneUnit}>razioni di cibo</Text>
-          </Text>
-          <Text style={styles.infoSubtext}>
-            {abitantiAssegnati.length} abitante{abitantiAssegnati.length !== 1 ? "i" : ""} assegnato
-            {abitantiAssegnati.length !== 1 ? "i" : ""}
-          </Text>
-          <Text style={styles.infoSubtext}>
-            Capacità: {abitantiAssegnati.length}/{serra.capacità}
-          </Text>
-        </View>
-
-        {/* Abitanti assegnati */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Abitanti Assegnati</Text>
-          {abitantiAssegnati.length > 0 ? (
-            <View style={styles.cardsContainer}>
-              {abitantiAssegnati.map((a: Abitante) => (
-                <View key={a.id} style={styles.card}>
-                  <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
-                  <View style={styles.cardContent}>
-                    <Text style={styles.cardTitle}>{a.nome}</Text>
-                    <Text style={styles.cardLavoro}>{a.lavoro}</Text>
-                    <Text style={styles.cardProduttività}>
-                      Produttività: {a.produttività}%
-                    </Text>
-                  </View>
-                  <Pressable
-                    style={styles.removeButton}
-                    onPress={() => rimuoviAbitanteDaEdificio(a.id, serra.id)}
-                  >
-                    <Text style={styles.removeButtonText}>Rimuovi</Text>
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.emptyText}>Nessun abitante assegnato</Text>
-          )}
-        </View>
-
-        {/* Abitanti disponibili */}
-        {puòAssegnare && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Abitanti Disponibili</Text>
-            <View style={styles.cardsContainer}>
-              {abitantiDisponibili.map((a: Abitante) => (
-                <View key={a.id} style={styles.card}>
-                  <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
-                  <View style={styles.cardContent}>
-                    <Text style={styles.cardTitle}>{a.nome}</Text>
-                    <Text style={styles.cardLavoro}>{a.lavoro}</Text>
-                    <Text style={styles.cardProduttività}>
-                      Produttività: {a.produttività}%
-                    </Text>
-                  </View>
-                  <Pressable
-                    style={styles.addButton}
-                    onPress={() => assegnaAbitanteAEdificio(a.id, serra.id)}
-                  >
-                    <Text style={styles.addButtonText}>Assegna</Text>
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          </View>
-        )}
+      <ScrollView
+        style={isDesktop ? styles.scrollViewFlex : undefined}
+        horizontal={!isDesktop}
+        contentContainerStyle={[styles.content, isDesktop && styles.contentRow]}
+        showsHorizontalScrollIndicator={false}
+      >
+        {colContent}
       </ScrollView>
     </SafeAreaView>
   );
@@ -150,12 +164,34 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700"
   },
+  scrollViewFlex: {
+    flex: 1
+  },
   content: {
     paddingHorizontal: 12,
-    paddingVertical: 4,
-    paddingBottom: 6,
-    gap: 4,
+    paddingVertical: 8,
+    paddingBottom: 12,
     flex: 1
+  },
+  contentRow: {
+    flexDirection: "row",
+    alignItems: "stretch",
+    gap: 12,
+    flexGrow: 1
+  },
+  column: {
+    flex: 1,
+    minWidth: 220,
+    maxWidth: 360
+  },
+  listScroll: {
+    flex: 1,
+    maxHeight: 400
+  },
+  sectionSubtitle: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 10,
+    marginBottom: 6
   },
   infoCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
@@ -207,11 +243,11 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 6,
     padding: 6,
+    marginBottom: 6,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
     alignItems: "center",
-    width: "48%",
-    minWidth: 120
+    alignSelf: "stretch"
   },
   cardEmoji: {
     fontSize: 24,
@@ -234,10 +270,11 @@ const styles = StyleSheet.create({
     marginBottom: 1,
     textAlign: "center"
   },
-  cardProduttività: {
+  cardExtra: {
     color: "rgba(203,213,245,0.7)",
     fontSize: 8,
-    textAlign: "center"
+    textAlign: "center",
+    marginTop: 1
   },
   addButton: {
     backgroundColor: "#3b82f6",
