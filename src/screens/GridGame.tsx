@@ -9,7 +9,7 @@ import { EnergiaModal } from "../ui/EnergiaModal";
 
 export default function GridGame() {
   const router = useRouter();
-  const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, calcolaDeltaOrdiniMercato, abitantiProposti, punteggioSanzioni } = useGameContext();
+  const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, calcolaDeltaOrdiniMercato, calcolaFelicitàModificata, abitantiProposti, punteggioSanzioni } = useGameContext();
   const [showCreditiModal, setShowCreditiModal] = useState(false);
   const [showEnergiaModal, setShowEnergiaModal] = useState(false);
 
@@ -23,6 +23,11 @@ export default function GridGame() {
 
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
+
+  const n = abitanti.length;
+  const felicitàMedia = n ? Math.round(abitanti.reduce((s, a) => s + calcolaFelicitàModificata(a), 0) / n) : 0;
+  const lealtàMedia = n ? Math.round(abitanti.reduce((s, a) => s + a.lealtà, 0) / n) : 0;
+  const pauraMedia = n ? Math.round(abitanti.reduce((s, a) => s + a.paura, 0) / n) : 0;
 
   return (
     <View style={styles.container}>
@@ -63,7 +68,7 @@ export default function GridGame() {
         </Pressable>
       </View>
 
-      {/* Risorse */}
+      {/* Risorse + Indicatori (Felicità/Lealtà/Paura medie) */}
       <View style={[styles.section, styles.resourcesSection, isDesktop && styles.sectionCompact]}>
         <Text style={[styles.sectionTitle, isDesktop && styles.sectionTitleCompact]}>Risorse</Text>
         <View style={[styles.resourcesGrid, isDesktop && styles.resourcesGridCompact]}>
@@ -127,6 +132,27 @@ export default function GridGame() {
               </Pressable>
             );
           })}
+          <View style={[styles.resourceCard, styles.resourceCardMedia, isDesktop && styles.resourceCardCompact]}>
+            <Text style={styles.resourceName}>
+              <Text style={styles.resourceEmoji}>😊 </Text>
+              Felicità Media
+            </Text>
+            <Text style={styles.resourceValue}>{felicitàMedia}%</Text>
+          </View>
+          <View style={[styles.resourceCard, styles.resourceCardMedia, isDesktop && styles.resourceCardCompact]}>
+            <Text style={styles.resourceName}>
+              <Text style={styles.resourceEmoji}>❤️ </Text>
+              Lealtà Media
+            </Text>
+            <Text style={styles.resourceValue}>{lealtàMedia}%</Text>
+          </View>
+          <View style={[styles.resourceCard, styles.resourceCardMedia, isDesktop && styles.resourceCardCompact]}>
+            <Text style={styles.resourceName}>
+              <Text style={styles.resourceEmoji}>😨 </Text>
+              Paura Media
+            </Text>
+            <Text style={styles.resourceValue}>{pauraMedia}%</Text>
+          </View>
         </View>
       </View>
 
@@ -398,23 +424,28 @@ const styles = StyleSheet.create({
   resourcesGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 4
+    gap: 6
   },
   resourcesGridCompact: {
-    gap: 3
+    gap: 4
   },
   resourceCard: {
     flex: 1,
-    minWidth: "48%",
+    minWidth: "47%",
     backgroundColor: "rgba(15,23,42,0.6)",
     borderRadius: 4,
-    padding: 4,
+    padding: 6,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.3)"
   },
   resourceCardCompact: {
-    padding: 3,
-    borderRadius: 4
+    padding: 4,
+    borderRadius: 4,
+    minWidth: "15%",
+    maxWidth: "20%"
+  },
+  resourceCardMedia: {
+    minWidth: "47%"
   },
   resourceName: {
     color: "#e5e7eb",
