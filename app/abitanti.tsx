@@ -5,7 +5,7 @@ import { useGameContext } from "../src/context/GameContext";
 import type { Abitante } from "../src/types";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 
-type SortField = "nome" | "eta" | "lavoro" | "competenza" | "produttività" | "stanchezza" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "paura" | "felicità" | "religione" | "fazioni" | null;
+type SortField = "nome" | "eta" | "lavoro" | "razza" | "competenza" | "produttività" | "stanchezza" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "paura" | "felicità" | "religione" | "fazioni" | null;
 type SortDirection = "asc" | "desc";
 
 export default function AbitantiScreen() {
@@ -41,6 +41,9 @@ export default function AbitantiScreen() {
       } else if (sortField === "nome" || sortField === "lavoro" || sortField === "religione") {
         aValue = a[sortField];
         bValue = b[sortField];
+      } else if (sortField === "razza") {
+        aValue = a.razza ?? "Umano";
+        bValue = b.razza ?? "Umano";
       } else {
         aValue = a[sortField as keyof Abitante] as number;
         bValue = b[sortField as keyof Abitante] as number;
@@ -119,6 +122,15 @@ export default function AbitantiScreen() {
             >
               <Text style={styles.headerText}>💼 Lavoro</Text>
               {sortField === "lavoro" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellRazza, sortField === "razza" && styles.headerCellActive]}
+              onPress={() => handleSort("razza")}
+            >
+              <Text style={styles.headerText}>🪐 Razza</Text>
+              {sortField === "razza" && (
                 <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
               )}
             </Pressable>
@@ -252,6 +264,9 @@ export default function AbitantiScreen() {
                 </View>
                 <View style={[styles.cell, styles.cellLavoro]}>
                   <Text style={styles.cellTextSmall}>{a.lavoro}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellRazza]}>
+                  <Text style={styles.cellTextSmall}>{a.razza ?? "Umano"}</Text>
                 </View>
                 <View style={[styles.cell, styles.cellSmall]}>
                   <Text style={styles.cellText}>{a.competenza}%</Text>
@@ -399,6 +414,10 @@ const styles = StyleSheet.create({
   cellLavoro: {
     width: 120,
     minWidth: 120
+  },
+  cellRazza: {
+    width: 85,
+    minWidth: 85
   },
   cellSmall: {
     width: 50,

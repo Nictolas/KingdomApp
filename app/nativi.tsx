@@ -2,7 +2,7 @@ import React from "react";
 import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
-import { pianetiData } from "../src/kingdomData";
+import { getEmojiRazza } from "../src/kingdomData";
 import type { Abitante } from "../src/types";
 
 export default function NativiScreen() {
@@ -10,7 +10,7 @@ export default function NativiScreen() {
   const { abitanti, razzaNativi } = useGameContext();
 
   const nativi = abitanti.filter((a: Abitante) => a.fazioni?.includes("Nativi"));
-  const emojiRazza = pianetiData.find((p) => p.razza === razzaNativi)?.emoji ?? "🌿";
+  const emojiRazza = getEmojiRazza(razzaNativi);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -43,16 +43,20 @@ export default function NativiScreen() {
           <Text style={styles.sectionTitle}>Nativi ({nativi.length})</Text>
           {nativi.length > 0 ? (
             <View style={styles.grid}>
-              {nativi.map((a: Abitante) => (
-                <View key={a.id} style={styles.card}>
-                  <Text style={styles.emoji}>{a.emoji}</Text>
-                  <Text style={styles.cardTitle}>{a.nome}</Text>
-                  <Text style={styles.cardLavoro}>{a.lavoro}</Text>
-                  <Text style={styles.cardRazza}>
-                    Razza: {a.razza ?? razzaNativi}
-                  </Text>
-                </View>
-              ))}
+              {nativi.map((a: Abitante) => {
+                const razza = a.razza ?? razzaNativi;
+                const emoji = getEmojiRazza(razza);
+                return (
+                  <View key={a.id} style={styles.card}>
+                    <Text style={styles.emoji}>{emoji}</Text>
+                    <Text style={styles.cardTitle}>{a.nome}</Text>
+                    <Text style={styles.cardLavoro}>{a.lavoro}</Text>
+                    <Text style={styles.cardRazza}>
+                      Razza: {razza}
+                    </Text>
+                  </View>
+                );
+              })}
             </View>
           ) : (
             <Text style={styles.emptyText}>Nessun nativo in colonia</Text>
