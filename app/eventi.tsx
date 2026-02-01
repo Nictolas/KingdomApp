@@ -2,10 +2,19 @@ import React from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { esisteCoppiaMatrimonioPossibile } from "../src/game/avanzaMese";
+
+const MATRIMONIO_CARD = {
+  id: "matrimonio",
+  nome: "Matrimonio",
+  emoji: "💒",
+  descrizione: "Una coppia con amicizia ≥90 e compatibile (orientamento/sesso) può chiedere di sposarsi allo Skip Mese."
+};
 
 export default function EventiScreen() {
   const router = useRouter();
-  const { eventiInCorso, eventiCatalogo, pendingAssimilazione, accettaAssimilazione, rifiutaAssimilazione } = useGameContext();
+  const { abitanti, eventiInCorso, eventiCatalogo, pendingAssimilazione, accettaAssimilazione, rifiutaAssimilazione } = useGameContext();
+  const puòMatrimonio = esisteCoppiaMatrimonioPossibile(abitanti);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -15,6 +24,7 @@ export default function EventiScreen() {
   const idsInCorso = new Set(eventiInCorso.map((e) => e.id));
   const inCorso = eventiCatalogo.filter((e) => idsInCorso.has(e.id));
   const possibili = eventiCatalogo.filter((e) => !idsInCorso.has(e.id));
+  const possibiliConMatrimonio = puòMatrimonio ? [MATRIMONIO_CARD, ...possibili] : possibili;
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
@@ -69,9 +79,9 @@ export default function EventiScreen() {
         )}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Possibili ({possibili.length})</Text>
+          <Text style={styles.sectionTitle}>Possibili ({possibiliConMatrimonio.length})</Text>
           <View style={styles.grid}>
-            {possibili.map((e) => (
+            {possibiliConMatrimonio.map((e) => (
               <View key={e.id} style={styles.card}>
                 <Text style={styles.emoji}>{e.emoji}</Text>
                 <View style={styles.badgePossibile}>

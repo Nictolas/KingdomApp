@@ -31,7 +31,7 @@ export type AvanzaMeseOutput = {
 };
 
 /** Compatibilità matrimonio: Omo solo con Omo/Bi stesso sesso; Etero con Etero/Bi sesso opposto; Bi con chiunque. */
-function canMarry(a: Abitante, b: Abitante): boolean {
+export function canMarry(a: Abitante, b: Abitante): boolean {
   const sessoA = a.sesso ?? "M";
   const sessoB = b.sesso ?? "M";
   const orA = a.orientamento ?? "Etero";
@@ -40,6 +40,23 @@ function canMarry(a: Abitante, b: Abitante): boolean {
   if (orA === "Omo") return (orB === "Omo" || orB === "Bi") && stessoSesso;
   if (orA === "Etero") return (orB === "Etero" || orB === "Bi") && !stessoSesso;
   if (orA === "Bi") return true; // Bi con chiunque
+  return false;
+}
+
+const SOGLIA_AMICIZIA_MATRIMONIO = 90;
+
+/** True se esiste almeno una coppia (non sposata, amicizia ≥90, compatibile) che può generare pendingMatrimonio allo Skip Mese. */
+export function esisteCoppiaMatrimonioPossibile(abitanti: Abitante[]): boolean {
+  for (const a of abitanti) {
+    if (a.coniugeId != null) continue;
+    for (const rel of a.amici ?? []) {
+      if (rel.punteggio < SOGLIA_AMICIZIA_MATRIMONIO) continue;
+      const b = abitanti.find((x) => x.id === rel.id);
+      if (!b || b.coniugeId != null || a.id >= b.id) continue;
+      if (!canMarry(a, b) || !canMarry(b, a)) continue;
+      return true;
+    }
+  }
   return false;
 }
 
@@ -414,7 +431,6 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
 
   // Matrimonio: coppie con amicizia >= 90, non già sposate, compatibili (orientamento/sesso)
   let pendingMatrimonio: AvanzaMeseOutput["pendingMatrimonio"] = null;
-  const SOGLIA_AMICIZIA_MATRIMONIO = 90;
   for (const a of abitantiEv) {
     if (a.coniugeId != null) continue;
     for (const rel of a.amici ?? []) {

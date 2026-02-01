@@ -62,9 +62,9 @@ export default function PersonalitaScreen() {
           Catalogo delle personalità (con conteggio attuale nella colonia).
         </Text>
 
-        <View style={styles.grid}>
+        <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
           {personalita.map((p) => (
-            <View key={p.nome} style={styles.card}>
+            <View key={p.nome} style={[styles.card, isDesktop && styles.cardDesktop]}>
               <Text style={styles.emoji}>{p.emoji}</Text>
               <Text style={styles.cardTitle}>{p.nome}</Text>
               <Text style={styles.cardEffetto}>{p.effetto}</Text>
@@ -95,22 +95,43 @@ const styles = StyleSheet.create({
   },
   back: { color: "#93c5fd", fontSize: 12 },
   title: { color: "#ffffff", fontSize: 14, fontWeight: "700" },
-  content: { paddingHorizontal: 12, paddingVertical: 6, paddingBottom: 8, flex: 1 },
-  subtitle: { color: "rgba(203,213,245,0.7)", fontSize: 10, lineHeight: 14, marginBottom: 10 },
-  grid: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  content: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    paddingBottom: 12
+  },
+  subtitle: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 10,
+    lineHeight: 14,
+    marginBottom: 6
+  },
+  grid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6
+  },
+  gridDesktop: {
+    gap: 8
+  },
   card: {
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 6,
+    padding: 8,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
     width: "48%",
-    minWidth: 140
+    minWidth: 120
   },
-  emoji: { fontSize: 24, marginBottom: 6 },
-  cardTitle: { color: "#e5e7eb", fontSize: 12, fontWeight: "700", marginBottom: 2 },
-  cardEffetto: { color: "#93c5fd", fontSize: 10, marginBottom: 4 },
-  cardDesc: { color: "rgba(203,213,245,0.7)", fontSize: 10, lineHeight: 14 },
+  cardDesktop: {
+    width: "23%",
+    minWidth: 130,
+    maxWidth: 200
+  },
+  emoji: { fontSize: 20, marginBottom: 4 },
+  cardTitle: { color: "#e5e7eb", fontSize: 11, fontWeight: "700", marginBottom: 2 },
+  cardEffetto: { color: "#93c5fd", fontSize: 9, marginBottom: 2 },
+  cardDesc: { color: "rgba(203,213,245,0.7)", fontSize: 9, lineHeight: 12 },
   bold: { color: "#ffffff", fontWeight: "700" },
   emptyText: { color: "rgba(203,213,245,0.5)", fontSize: 10, fontStyle: "italic" }
 });
