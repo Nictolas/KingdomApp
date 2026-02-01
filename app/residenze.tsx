@@ -14,28 +14,14 @@ type ResidenzaTipo = {
   abitanti: number;
 };
 
-const CATEGORIE: { titolo: string; residenze: ResidenzaTipo[] }[] = [
-  {
-    titolo: "Residenze Povere",
-    residenze: [
-      { id: "baracca", nome: "Baracca", emoji: "🛖", felicità: 5, costoMensile: 100, energiaMensile: 2, abitanti: 2 },
-      { id: "dormitorio", nome: "Dormitorio", emoji: "🛏️", felicità: 10, costoMensile: 250, energiaMensile: 5, abitanti: 10 }
-    ]
-  },
-  {
-    titolo: "Residenze Ceto Medio",
-    residenze: [
-      { id: "modulo", nome: "Modulo", emoji: "📦", felicità: 30, costoMensile: 800, energiaMensile: 15, abitanti: 4 },
-      { id: "villetta", nome: "Villetta", emoji: "🏡", felicità: 45, costoMensile: 1500, energiaMensile: 25, abitanti: 5 }
-    ]
-  },
-  {
-    titolo: "Residenze di Lusso",
-    residenze: [
-      { id: "attico", nome: "Attico", emoji: "🏢", felicità: 80, costoMensile: 5000, energiaMensile: 60, abitanti: 3 },
-      { id: "villa", nome: "Villa", emoji: "🏰", felicità: 120, costoMensile: 12000, energiaMensile: 100, abitanti: 6 }
-    ]
-  }
+/** Catalogo tipi di residenza (ordine per le 6 colonne). */
+const RESIDENZE_CATALOGO: ResidenzaTipo[] = [
+  { id: "baracca", nome: "Baracca", emoji: "🛖", felicità: 5, costoMensile: 100, energiaMensile: 2, abitanti: 2 },
+  { id: "dormitorio", nome: "Dormitorio", emoji: "🛏️", felicità: 10, costoMensile: 250, energiaMensile: 5, abitanti: 10 },
+  { id: "modulo", nome: "Modulo", emoji: "📦", felicità: 30, costoMensile: 800, energiaMensile: 15, abitanti: 4 },
+  { id: "villetta", nome: "Villetta", emoji: "🏡", felicità: 45, costoMensile: 1500, energiaMensile: 25, abitanti: 5 },
+  { id: "attico", nome: "Attico", emoji: "🏢", felicità: 80, costoMensile: 5000, energiaMensile: 60, abitanti: 3 },
+  { id: "villa", nome: "Villa", emoji: "🏰", felicità: 120, costoMensile: 12000, energiaMensile: 100, abitanti: 6 }
 ];
 
 export default function ResidenzeScreen() {
@@ -49,6 +35,7 @@ export default function ResidenzeScreen() {
   const edificiResidenza = edifici.filter((e) => e.tipo === "Residenza");
 
   const getAbitanteById = (id: number) => abitanti.find((a) => a.id === id);
+  const getEdificioByName = (nome: string) => edificiResidenza.find((e) => e.nome === nome);
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
@@ -62,85 +49,66 @@ export default function ResidenzeScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={true}>
         <Text style={styles.intro}>
-          Costi in crediti ed energia sono mensili (ogni Skip Mese).
+          Costi in crediti ed energia sono mensili (ogni Skip Mese). Colonia e catalogo unificati.
         </Text>
 
-        {/* Edifici residenza nella colonia con abitanti */}
         <View style={styles.sezione}>
-          <Text style={styles.sezioneTitolo}>Edifici residenza nella colonia</Text>
-          <View style={[styles.edificiGrid, isDesktop && styles.edificiGridDesktop]}>
-            {edificiResidenza.length === 0 ? (
-              <Text style={styles.vuoto}>Nessun edificio residenza in colonia.</Text>
-            ) : (
-              edificiResidenza.map((ed) => {
-                const assegnati = (ed.abitantiAssegnati ?? [])
-                  .map((id) => getAbitanteById(id))
-                  .filter((a): a is NonNullable<typeof a> => a != null);
-                return (
-                  <View key={ed.id} style={styles.edificioCard}>
-                    <View style={styles.edificioHeader}>
-                      <Text style={styles.edificioEmoji}>{ed.emoji}</Text>
-                      <View style={styles.edificioTitoloWrap}>
-                        <Text style={styles.edificioNome}>{ed.nome}</Text>
-                        <Text style={styles.edificioOccupazione}>
-                          {ed.occupazione}/{ed.capacità} posti
-                        </Text>
-                      </View>
-                    </View>
-                    <Text style={styles.abitantiLabel}>Abitanti assegnati</Text>
-                    <View style={styles.abitantiLista}>
-                      {assegnati.length === 0 ? (
-                        <Text style={styles.abitantiVuoto}>Nessun abitante assegnato</Text>
-                      ) : (
-                        assegnati.map((a) => (
-                          <View key={a.id} style={styles.abitanteRiga}>
-                            <Text style={styles.abitanteEmoji}>{getEmojiAbitante(a)}</Text>
-                            <Text style={styles.abitanteNome} numberOfLines={1}>
-                              {a.nome} {a.cognome}
-                            </Text>
-                          </View>
-                        ))
-                      )}
-                    </View>
-                  </View>
-                );
-              })
-            )}
-          </View>
-        </View>
-
-        {/* Tipi di residenza (catalogo) */}
-        <View style={styles.sezione}>
-          <Text style={styles.sezioneTitolo}>Tipi di residenza (catalogo)</Text>
-          {CATEGORIE.map((cat) => (
-            <View key={cat.titolo} style={styles.categoria}>
-              <Text style={styles.categoriaTitolo}>{cat.titolo}</Text>
-              <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
-                {cat.residenze.map((r) => (
-                  <View key={r.id} style={[styles.card, isDesktop && styles.cardDesktop]}>
+          <View style={styles.gridSeiColonne}>
+            {RESIDENZE_CATALOGO.map((r) => {
+              const ed = getEdificioByName(r.nome);
+              const assegnati = ed
+                ? (ed.abitantiAssegnati ?? []).map((id) => getAbitanteById(id)).filter((a): a is NonNullable<typeof a> => a != null)
+                : [];
+              return (
+                <View key={r.id} style={[styles.colonna, isDesktop && styles.colonnaDesktop]}>
+                  <View style={styles.cardHeader}>
                     <Text style={styles.cardEmoji}>{r.emoji}</Text>
                     <Text style={styles.cardNome}>{r.nome}</Text>
-                    <View style={styles.cardRow}>
-                      <Text style={styles.cardLabel}>Felicità</Text>
-                      <Text style={styles.cardValorePositivo}>+{r.felicità}</Text>
-                    </View>
-                    <View style={styles.cardRow}>
-                      <Text style={styles.cardLabel}>Costo</Text>
-                      <Text style={styles.cardValore}>{r.costoMensile} crediti/mese</Text>
-                    </View>
-                    <View style={styles.cardRow}>
-                      <Text style={styles.cardLabel}>Energia</Text>
-                      <Text style={styles.cardValore}>{r.energiaMensile}/mese</Text>
-                    </View>
-                    <View style={styles.cardRow}>
-                      <Text style={styles.cardLabel}>Abitanti</Text>
-                      <Text style={styles.cardValore}>{r.abitanti}</Text>
-                    </View>
+                    {ed != null && (
+                      <Text style={styles.occupazione}>
+                        {ed.occupazione}/{ed.capacità} posti
+                      </Text>
+                    )}
                   </View>
-                ))}
-              </View>
-            </View>
-          ))}
+                  <View style={styles.cardRow}>
+                    <Text style={styles.cardLabel}>Felicità</Text>
+                    <Text style={styles.cardValorePositivo}>+{r.felicità}</Text>
+                  </View>
+                  <View style={styles.cardRow}>
+                    <Text style={styles.cardLabel}>Costo</Text>
+                    <Text style={styles.cardValore}>{r.costoMensile} cr/mese</Text>
+                  </View>
+                  <View style={styles.cardRow}>
+                    <Text style={styles.cardLabel}>Energia</Text>
+                    <Text style={styles.cardValore}>{r.energiaMensile}/mese</Text>
+                  </View>
+                  <View style={styles.cardRow}>
+                    <Text style={styles.cardLabel}>Abitanti</Text>
+                    <Text style={styles.cardValore}>{r.abitanti}</Text>
+                  </View>
+                  {ed != null && (
+                    <>
+                      <Text style={styles.abitantiLabel}>Assegnati in colonia</Text>
+                      <View style={styles.abitantiLista}>
+                        {assegnati.length === 0 ? (
+                          <Text style={styles.abitantiVuoto}>Nessuno</Text>
+                        ) : (
+                          assegnati.map((a) => (
+                            <View key={a.id} style={styles.abitanteRiga}>
+                              <Text style={styles.abitanteEmoji}>{getEmojiAbitante(a)}</Text>
+                              <Text style={styles.abitanteNome} numberOfLines={1}>
+                                {a.nome}
+                              </Text>
+                            </View>
+                          ))
+                        )}
+                      </View>
+                    </>
+                  )}
+                </View>
+              );
+            })}
+          </View>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -193,45 +161,35 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
-  edificiGrid: {
+  gridSeiColonne: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12
+    gap: 10
   },
-  edificiGridDesktop: {
-    gap: 16
-  },
-  edificioCard: {
+  colonna: {
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 10,
     padding: 12,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.5)",
-    minWidth: 200,
+    minWidth: 100,
     flex: 1,
-    maxWidth: 360
+    flexBasis: "48%",
+    maxWidth: 220
   },
-  edificioHeader: {
-    flexDirection: "row",
+  colonnaDesktop: {
+    flexBasis: "16%"
+  },
+  cardHeader: {
     alignItems: "center",
     marginBottom: 10,
     paddingBottom: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(148,163,184,0.3)"
   },
-  edificioEmoji: {
-    fontSize: 28,
-    marginRight: 10
-  },
-  edificioTitoloWrap: { flex: 1, minWidth: 0 },
-  edificioNome: {
-    color: "#e5e7eb",
-    fontSize: 14,
-    fontWeight: "700"
-  },
-  edificioOccupazione: {
+  occupazione: {
     color: "rgba(203,213,245,0.7)",
-    fontSize: 11,
+    fontSize: 10,
     marginTop: 2
   },
   abitantiLabel: {
@@ -243,7 +201,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5
   },
   abitantiLista: {
-    maxHeight: 200
+    maxHeight: 140
   },
   abitantiVuoto: {
     color: "rgba(203,213,245,0.4)",
@@ -271,39 +229,6 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontStyle: "italic",
     paddingVertical: 8
-  },
-  categoria: {
-    marginBottom: 16
-  },
-  categoriaTitolo: {
-    color: "#93c5fd",
-    fontSize: 11,
-    fontWeight: "700",
-    marginBottom: 8,
-    textTransform: "uppercase",
-    letterSpacing: 0.5
-  },
-  grid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10
-  },
-  gridDesktop: {
-    gap: 14
-  },
-  card: {
-    backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.5)",
-    minWidth: 150,
-    width: "47%"
-  },
-  cardDesktop: {
-    flex: 1,
-    minWidth: 160,
-    maxWidth: 220
   },
   cardEmoji: {
     fontSize: 26,

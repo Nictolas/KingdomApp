@@ -30,7 +30,7 @@ export default function EdificiScreen() {
 
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.grid}>
-          {edifici.map((e: Edificio) => (
+          {edifici.filter((e: Edificio) => e.nome !== "Dormitorio").map((e: Edificio) => (
             <Pressable
               key={e.id}
               style={styles.card}
