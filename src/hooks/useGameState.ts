@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect } from "react";
+import { Alert } from "react-native";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
 import { abitantiData, risorseData, edificiData, pianetiData } from "../kingdomData";
 import { getConsumoCibo, getProduzioneCiboPerAbitante } from "../game/ciboConsumo";
@@ -241,6 +242,9 @@ export function useGameState() {
     setOrdiniMercato([]);
     generaNuoviAbitantiProposti();
     setIsLoading(false);
+    (result.vittimeOmicidi ?? []).forEach((v) => {
+      Alert.alert("Omicidio", `È stato trovato il cadavere di ${v.nome}.`);
+    });
   }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata]);
 
   const assegnaAbitanteAEdificio = useCallback((abitanteId: number, edificioId: number) => {
@@ -479,8 +483,8 @@ export function useGameState() {
     setAbitanti((prev) => {
       const criminale = prev.find((a) => a.id === abitanteId);
       if (!criminale || !criminale.reati?.length) return prev;
-      const idsBonus = new Set<number>([criminale.id, ...(criminale.amici ?? [])]);
-      const idsMalus = new Set<number>(criminale.rivali ?? []);
+      const idsBonus = new Set<number>([criminale.id, ...(criminale.amici ?? []).map((x) => x.id)]);
+      const idsMalus = new Set<number>((criminale.rivali ?? []).map((x) => x.id));
       return prev.map((a) => {
         let lealtà = a.lealtà;
         if (idsBonus.has(a.id)) lealtà = Math.min(100, Math.round(a.lealtà * 1.1));

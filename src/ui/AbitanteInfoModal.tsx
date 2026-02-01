@@ -77,14 +77,14 @@ export function AbitanteInfoModal({
               <Text style={styles.sectionLabel}>Relazioni</Text>
               {abitante.amici.length > 0 ? (
                 <Text style={styles.line}>
-                  Amici: {abitante.amici.map((id) => getAbitanteNome(id)).join(", ")}
+                  Amici: {abitante.amici.map((r) => `${getAbitanteNome(r.id)} (${r.punteggio})`).join(", ")}
                 </Text>
               ) : (
                 <Text style={styles.lineMuted}>Nessun amico</Text>
               )}
               {abitante.rivali.length > 0 ? (
                 <Text style={styles.line}>
-                  Rivali: {abitante.rivali.map((id) => getAbitanteNome(id)).join(", ")}
+                  Rivali: {abitante.rivali.map((r) => `${getAbitanteNome(r.id)} (${r.punteggio})`).join(", ")}
                 </Text>
               ) : (
                 <Text style={styles.lineMuted}>Nessun rivale</Text>

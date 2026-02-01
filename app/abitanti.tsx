@@ -119,6 +119,20 @@ export default function AbitantiScreen() {
   const getFamiliariSortKey = (a: Abitante): string =>
     getFamiliariItems(a).map((x) => x.nome).join(" ") || "—";
 
+  /** Amici con emoji + tooltip "Nome (punteggio)". */
+  const getAmiciItems = (a: Abitante): { emoji: string; nome: string }[] =>
+    (a.amici ?? []).map((r) => {
+      const ab = abitanti.find((x) => x.id === r.id);
+      return ab ? { emoji: getEmojiAbitante(ab), nome: `${ab.nome} (${r.punteggio})` } : { emoji: "?", nome: `ID ${r.id} (${r.punteggio})` };
+    });
+
+  /** Rivali con emoji + tooltip "Nome (punteggio)". */
+  const getRivaliItems = (a: Abitante): { emoji: string; nome: string }[] =>
+    (a.rivali ?? []).map((r) => {
+      const ab = abitanti.find((x) => x.id === r.id);
+      return ab ? { emoji: getEmojiAbitante(ab), nome: `${ab.nome} (${r.punteggio})` } : { emoji: "?", nome: `ID ${r.id} (${r.punteggio})` };
+    });
+
   // Ordina gli abitanti
   const abitantiOrdinati = useMemo(() => {
     if (!sortField) return abitanti;
@@ -445,8 +459,28 @@ export default function AbitantiScreen() {
                 )}
                 {macroOpen.sociale && (
                   <>
-                    <View style={[styles.cell, styles.cellSociale]}><Text style={styles.cellText}>{(a.amici?.length ?? 0)}</Text></View>
-                    <View style={[styles.cell, styles.cellSociale]}><Text style={styles.cellText}>{(a.rivali?.length ?? 0)}</Text></View>
+                    <View style={[styles.cell, styles.cellSociale]}>
+                      {getAmiciItems(a).length > 0 ? (
+                        <View style={styles.fazioneEmojiRow}>
+                          {getAmiciItems(a).map((item, idx) => (
+                            <EmojiWithTooltip key={idx} emoji={item.emoji} nome={item.nome} />
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={styles.cellEmojiText}>—</Text>
+                      )}
+                    </View>
+                    <View style={[styles.cell, styles.cellSociale]}>
+                      {getRivaliItems(a).length > 0 ? (
+                        <View style={styles.fazioneEmojiRow}>
+                          {getRivaliItems(a).map((item, idx) => (
+                            <EmojiWithTooltip key={idx} emoji={item.emoji} nome={item.nome} />
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={styles.cellEmojiText}>—</Text>
+                      )}
+                    </View>
                     <View style={[styles.cell, styles.cellFamiliari]}>
                       {getFamiliariItems(a).length > 0 ? (
                         <View style={styles.fazioneEmojiRow}>
@@ -584,8 +618,8 @@ const styles = StyleSheet.create({
     minWidth: 50
   },
   superSociale: {
-    width: 300,
-    minWidth: 300
+    width: 450,
+    minWidth: 450
   },
   superReligioneFazioni: {
     width: 210,
@@ -662,8 +696,8 @@ const styles = StyleSheet.create({
     minWidth: 70
   },
   cellSociale: {
-    width: 50,
-    minWidth: 50
+    width: 120,
+    minWidth: 120
   },
   cellFamiliari: {
     width: 200,

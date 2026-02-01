@@ -24,6 +24,8 @@ export type AvanzaMeseOutput = {
   nuovoAnno: number;
   deltaNativiNonIntegrati: number;
   pendingAssimilazione: number | null;
+  /** Vittime di omicidio per rivalità (per mostrare alert). */
+  vittimeOmicidi: { nome: string }[];
 };
 
 /**
@@ -54,6 +56,43 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       return true;
     });
   }
+
+  // Omicidi per rivalità: coppie con punteggio rivalità >= 90 (o >= 60 se uno è Psicopatico), 50% probabilità che uno uccida l'altro
+  const SOGLIA_RIVALITÀ = 90;
+  const SOGLIA_PSICOPATICO = 60;
+  const vittimeOmicidi: { nome: string }[] = [];
+  const idsVittime = new Set<number>();
+  const coppieElaborate = new Set<string>();
+  for (const A of abitantiRimasti) {
+    for (const rivale of A.rivali ?? []) {
+      const B = abitantiRimasti.find((b) => b.id === rivale.id);
+      if (!B || A.id >= B.id) continue; // elabora ogni coppia una sola volta
+      const soglia = A.personalità === "Psicopatico" || B.personalità === "Psicopatico" ? SOGLIA_PSICOPATICO : SOGLIA_RIVALITÀ;
+      if (rivale.punteggio < soglia) continue;
+      const key = `${A.id}-${B.id}`;
+      if (coppieElaborate.has(key)) continue;
+      coppieElaborate.add(key);
+      if (Math.random() >= 0.5) continue; // 50% probabilità che avvenga l'omicidio
+      const vittima = Math.random() < 0.5 ? A : B;
+      vittimeOmicidi.push({ nome: vittima.nome });
+      idsVittime.add(vittima.id);
+    }
+  }
+  abitantiRimasti = abitantiRimasti.filter((a) => !idsVittime.has(a.id));
+
+  // Rimuovi riferimenti ai morti (amici, rivali, coniugeId, figliIds, genitoriIds, nonniIds)
+  const idsVivi = new Set(abitantiRimasti.map((a) => a.id));
+  const rimuoviMorti = (ids: number[]) => (ids ?? []).filter((id) => idsVivi.has(id));
+  const rimuoviMortiRel = (rel: { id: number; punteggio: number }[]) => (rel ?? []).filter((r) => idsVivi.has(r.id));
+  abitantiRimasti = abitantiRimasti.map((a) => ({
+    ...a,
+    amici: rimuoviMortiRel(a.amici),
+    rivali: rimuoviMortiRel(a.rivali),
+    coniugeId: a.coniugeId != null && idsVivi.has(a.coniugeId) ? a.coniugeId : undefined,
+    figliIds: rimuoviMorti(a.figliIds ?? []),
+    genitoriIds: rimuoviMorti(a.genitoriIds ?? []),
+    nonniIds: rimuoviMorti(a.nonniIds ?? [])
+  }));
 
   // Aggiorna abitanti (schiavi vs non-schiavi, crediti, stanchezza, peso, salute, reddito disoccupati)
   const nuoviAbitanti = abitantiRimasti.map((abitante) => {
@@ -175,7 +214,10 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   const nuovoAnno = mese === 12 ? anno + 1 : anno;
   const risorseEv = nuoveRisorse.map((r) => ({ ...r }));
   const abitantiEv = nuoviAbitanti.map((a) => ({ ...a }));
-  const edificiEv = nuoviEdifici.map((e) => ({ ...e }));
+  const edificiEv = nuoviEdifici.map((e) => ({
+    ...e,
+    abitantiAssegnati: (e.abitantiAssegnati ?? []).filter((id) => !idsVittime.has(id))
+  }));
 
   const mesiTrascorsi = (ev: EventoInCorso) =>
     (nuovoAnno - ev.iniziatoAnno) * 12 + (nuovoMese - ev.iniziatoMese);
@@ -237,6 +279,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     nuovoMese,
     nuovoAnno,
     deltaNativiNonIntegrati,
-    pendingAssimilazione
+    pendingAssimilazione,
+    vittimeOmicidi
   };
 }
