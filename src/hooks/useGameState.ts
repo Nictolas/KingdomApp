@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect } from "react";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
 import { abitantiData, risorseData, edificiData, pianetiData } from "../kingdomData";
 import { EVENTI_CATALOGO } from "../game/eventi";
+import { getConsumoCibo, getProduzioneCiboPerAbitante } from "../game/ciboConsumo";
 
 const RAZZE_NON_UMANE: Razza[] = ["Grigi", "Nordici", "Rettiliani", "Insettoidi", "Marini", "Ferini"];
 
@@ -165,12 +166,6 @@ export function useGameState() {
     });
   }, []);
 
-  // Produzione fissa di cibo per abitante (10-20 razioni al mese, valore individuale costante)
-  const getProduzioneCiboPerAbitante = (abitanteId: number): number => {
-    const seed = abitanteId * 31;
-    return 10 + (seed % 11); // 10-20
-  };
-
   // Calcola la felicità modificata in base alla politica religiosa e altre leggi
   const calcolaFelicitàModificata = useCallback(
     (abitante: Abitante): number => {
@@ -319,28 +314,10 @@ export function useGameState() {
         }
       });
 
-      // Funzione per calcolare il consumo fisso di cibo (stessa logica del modal)
-      const getConsumoFissoMese = (abitante: Abitante): number => {
-        // Usa una combinazione di ID e salute per generare un numero deterministico
-        const seed = abitante.id * 17 + abitante.salute * 23;
-        
-        if (abitante.salute > 70) {
-          // Obeso: consuma da 5 a 10
-          return 5 + (seed % 6); // 5 + (0-5) = 5-10
-        } else if (abitante.salute >= 30 && abitante.salute <= 70) {
-          // Normale: consuma da 1 a 5
-          return 1 + (seed % 5); // 1 + (0-4) = 1-5
-        } else {
-          // Altro: consuma da 1 a 10
-          return 1 + (seed % 10); // 1 + (0-9) = 1-10
-        }
-      };
-
-      // Calcola consumo del cibo basato sulla salute degli abitanti
+      // Calcola consumo del cibo basato sulla salute degli abitanti (4 categorie peso)
       if (risorsa.nome.toLowerCase().includes("cibo")) {
         nuoviAbitanti.forEach((abitante) => {
-          const consumoCibo = getConsumoFissoMese(abitante);
-          nuovaQuantità -= consumoCibo;
+          nuovaQuantità -= getConsumoCibo(abitante);
         });
       }
 
@@ -540,26 +517,9 @@ export function useGameState() {
       }
     });
 
-    // Funzione per calcolare il consumo fisso di cibo (stessa logica del modal)
-    const getConsumoFisso = (abitante: Abitante): number => {
-      // Usa una combinazione di ID e salute per generare un numero deterministico
-      const seed = abitante.id * 17 + abitante.salute * 23;
-      
-      if (abitante.salute > 70) {
-        // Obeso: consuma da 5 a 10
-        return 5 + (seed % 6); // 5 + (0-5) = 5-10
-      } else if (abitante.salute >= 30 && abitante.salute <= 70) {
-        // Normale: consuma da 1 a 5
-        return 1 + (seed % 5); // 1 + (0-4) = 1-5
-      } else {
-        // Altro: consuma da 1 a 10
-        return 1 + (seed % 10); // 1 + (0-9) = 1-10
-      }
-    };
-
-    // Calcola consumo del cibo basato sulla salute degli abitanti
+    // Calcola consumo del cibo basato sulla salute degli abitanti (4 categorie peso)
     abitanti.forEach((abitante) => {
-      const consumoCibo = getConsumoFisso(abitante);
+      const consumoCibo = getConsumoCibo(abitante);
       
       // Trova la risorsa "Cibo"
       risorse.forEach((r) => {
