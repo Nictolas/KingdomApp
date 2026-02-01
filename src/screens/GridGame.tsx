@@ -130,27 +130,36 @@ export default function GridGame() {
               </Pressable>
             );
           })}
-          <View style={[styles.resourceCard, styles.resourceCardMedia, isDesktop && styles.resourceCardCompact]}>
+          <Pressable
+            style={[styles.resourceCard, styles.resourceCardMedia, isDesktop && styles.resourceCardCompact]}
+            onPress={() => router.push("/felicita")}
+          >
             <Text style={styles.resourceName}>
               <Text style={styles.resourceEmoji}>😊 </Text>
               Felicità Media
             </Text>
             <Text style={styles.resourceValue}>{felicitàMedia}%</Text>
-          </View>
-          <View style={[styles.resourceCard, styles.resourceCardMedia, isDesktop && styles.resourceCardCompact]}>
+          </Pressable>
+          <Pressable
+            style={[styles.resourceCard, styles.resourceCardMedia, isDesktop && styles.resourceCardCompact]}
+            onPress={() => router.push("/lealta")}
+          >
             <Text style={styles.resourceName}>
               <Text style={styles.resourceEmoji}>❤️ </Text>
               Lealtà Media
             </Text>
             <Text style={styles.resourceValue}>{lealtàMedia}%</Text>
-          </View>
-          <View style={[styles.resourceCard, styles.resourceCardMedia, isDesktop && styles.resourceCardCompact]}>
+          </Pressable>
+          <Pressable
+            style={[styles.resourceCard, styles.resourceCardMedia, isDesktop && styles.resourceCardCompact]}
+            onPress={() => router.push("/paura")}
+          >
             <Text style={styles.resourceName}>
               <Text style={styles.resourceEmoji}>😨 </Text>
               Paura Media
             </Text>
             <Text style={styles.resourceValue}>{pauraMedia}%</Text>
-          </View>
+          </Pressable>
         </View>
       </View>
 
