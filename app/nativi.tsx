@@ -7,9 +7,9 @@ import type { Abitante } from "../src/types";
 
 export default function NativiScreen() {
   const router = useRouter();
-  const { abitanti, razzaNativi } = useGameContext();
+  const { abitanti, razzaNativi, nativiNonIntegrati } = useGameContext();
 
-  const nativi = abitanti.filter((a: Abitante) => a.fazioni?.includes("Nativi"));
+  const nativiIntegrati = abitanti.filter((a: Abitante) => a.fazioni?.includes("Nativi"));
   const emojiRazza = getEmojiRazza(razzaNativi);
 
   const { width } = Dimensions.get("window");
@@ -40,10 +40,19 @@ export default function NativiScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Nativi ({nativi.length})</Text>
-          {nativi.length > 0 ? (
+          <Text style={styles.sectionTitle}>Nativi non integrati</Text>
+          <Text style={styles.sectionDesc}>Contatore (aumenta di 0–5 ogni Skip Mese)</Text>
+          <View style={styles.counterCard}>
+            <Text style={styles.counterValue}>{nativiNonIntegrati}</Text>
+          </View>
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Nativi integrati ({nativiIntegrati.length})</Text>
+          <Text style={styles.sectionDesc}>Abitanti della colonia che sono anche Nativi (inclusi eventuali Schiavi)</Text>
+          {nativiIntegrati.length > 0 ? (
             <View style={styles.grid}>
-              {nativi.map((a: Abitante) => {
+              {nativiIntegrati.map((a: Abitante) => {
                 const razza = a.razza ?? razzaNativi;
                 const emoji = getEmojiRazza(razza);
                 return (
@@ -59,7 +68,7 @@ export default function NativiScreen() {
               })}
             </View>
           ) : (
-            <Text style={styles.emptyText}>Nessun nativo in colonia</Text>
+            <Text style={styles.emptyText}>Nessun nativo integrato in colonia</Text>
           )}
         </View>
       </ScrollView>
@@ -114,7 +123,26 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 12,
     fontWeight: "700",
-    marginBottom: 8
+    marginBottom: 4
+  },
+  sectionDesc: {
+    color: "rgba(203,213,245,0.6)",
+    fontSize: 10,
+    marginBottom: 6
+  },
+  counterCard: {
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 8,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.5)",
+    alignItems: "center",
+    marginBottom: 4
+  },
+  counterValue: {
+    color: "#e5e7eb",
+    fontSize: 24,
+    fontWeight: "700"
   },
   grid: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   card: {

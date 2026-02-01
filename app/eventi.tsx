@@ -1,11 +1,11 @@
 import React from "react";
-import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 
 export default function EventiScreen() {
   const router = useRouter();
-  const { eventiInCorso, eventiCatalogo } = useGameContext();
+  const { eventiInCorso, eventiCatalogo, pendingAssimilazione, accettaAssimilazione, rifiutaAssimilazione } = useGameContext();
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -30,6 +30,23 @@ export default function EventiScreen() {
         <Text style={styles.subtitle}>
           Eventi possibili o in corso nella colonia. Qui trovi il catalogo degli eventi che possono verificarsi o che sono attivi.
         </Text>
+
+        {pendingAssimilazione != null && pendingAssimilazione > 0 && (
+          <View style={styles.assimilazioneBanner}>
+            <Text style={styles.assimilazioneTitle}>🤝 Assimilazione</Text>
+            <Text style={styles.assimilazioneText}>
+              Alcuni nativi ({pendingAssimilazione}) vogliono aggiungersi alla colonia. Vuoi accettarli?
+            </Text>
+            <View style={styles.assimilazioneButtons}>
+              <Pressable style={[styles.assimilazioneBtn, styles.assimilazioneBtnAccetta]} onPress={accettaAssimilazione}>
+                <Text style={styles.assimilazioneBtnText}>Accetta</Text>
+              </Pressable>
+              <Pressable style={[styles.assimilazioneBtn, styles.assimilazioneBtnRifiuta]} onPress={rifiutaAssimilazione}>
+                <Text style={styles.assimilazioneBtnText}>Rifiuta</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
 
         {inCorso.length > 0 && (
           <View style={styles.section}>
@@ -135,5 +152,20 @@ const styles = StyleSheet.create({
   },
   badgeText: { color: "#e5e7eb", fontSize: 9, fontWeight: "700" },
   cardTitle: { color: "#e5e7eb", fontSize: 12, fontWeight: "700", marginBottom: 4 },
-  cardDesc: { color: "rgba(203,213,245,0.7)", fontSize: 10, lineHeight: 14 }
+  cardDesc: { color: "rgba(203,213,245,0.7)", fontSize: 10, lineHeight: 14 },
+  assimilazioneBanner: {
+    backgroundColor: "rgba(34,197,94,0.12)",
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 14,
+    borderWidth: 1,
+    borderColor: "rgba(34,197,94,0.5)"
+  },
+  assimilazioneTitle: { color: "#22c55e", fontSize: 13, fontWeight: "700", marginBottom: 6 },
+  assimilazioneText: { color: "#e5e7eb", fontSize: 11, marginBottom: 10, lineHeight: 16 },
+  assimilazioneButtons: { flexDirection: "row", gap: 8 },
+  assimilazioneBtn: { paddingVertical: 8, paddingHorizontal: 16, borderRadius: 6, minWidth: 80, alignItems: "center" },
+  assimilazioneBtnAccetta: { backgroundColor: "#22c55e" },
+  assimilazioneBtnRifiuta: { backgroundColor: "rgba(148,163,184,0.4)", borderWidth: 1, borderColor: "rgba(148,163,184,0.6)" },
+  assimilazioneBtnText: { color: "#ffffff", fontSize: 11, fontWeight: "700" }
 });

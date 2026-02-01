@@ -37,6 +37,8 @@ export function useGameState() {
   const [nextId, setNextId] = useState(100); // ID iniziale per nuovi abitanti
   const [ordiniMercato, setOrdiniMercato] = useState<OrdineMercato[]>([]);
   const [eventiInCorso, setEventiInCorso] = useState<EventoInCorso[]>([]);
+  const [nativiNonIntegrati, setNativiNonIntegrati] = useState(0);
+  const [pendingAssimilazione, setPendingAssimilazione] = useState<number | null>(null);
 
   // Configurazione tassa sul reddito
   const [tipoTassaReddito, setTipoTassaReddito] = useState<"flat" | "scaglioni">("scaglioni");
@@ -327,6 +329,9 @@ export function useGameState() {
       };
     });
 
+    // Nativi non integrati: aumenta di 0-5 ogni mese
+    setNativiNonIntegrati((prev) => prev + Math.floor(Math.random() * 6));
+
     // Eventi: calcola prossimo mese/anno, applica effetti mensili, rimuovi scaduti, attiva nuovi se condizioni ok
     const nuovoMese = mese === 12 ? 1 : mese + 1;
     const nuovoAnno = mese === 12 ? anno + 1 : anno;
@@ -337,6 +342,7 @@ export function useGameState() {
     const mesiTrascorsi = (ev: EventoInCorso) =>
       (nuovoAnno - ev.iniziatoAnno) * 12 + (nuovoMese - ev.iniziatoMese);
     let nuoviEventiInCorso = eventiInCorso.filter((ev) => mesiTrascorsi(ev) < ev.durataMesi);
+    const avevaAssimilazione = nuoviEventiInCorso.some((e) => e.id === "assimilazione");
 
     nuoviEventiInCorso.forEach((ev) => {
       const def = EVENTI_CATALOGO.find((d) => d.id === ev.id);
@@ -353,6 +359,12 @@ export function useGameState() {
       ];
       def.applicaAttivazione(risorseEv, abitantiEv, edificiEv);
     });
+
+    const assimilazioneAppenaAggiunto =
+      nuoviEventiInCorso.some((e) => e.id === "assimilazione") && !avevaAssimilazione;
+    if (assimilazioneAppenaAggiunto) {
+      setPendingAssimilazione(1 + Math.floor(Math.random() * 3));
+    }
 
     setEventiInCorso(nuoviEventiInCorso);
 
@@ -574,6 +586,51 @@ export function useGameState() {
     setAbitantiProposti((prev) => prev.filter((a) => a.id !== abitanteId));
   }, []);
 
+  const accettaAssimilazione = useCallback(() => {
+    const count = pendingAssimilazione ?? 0;
+    setPendingAssimilazione(null);
+    if (count <= 0) return;
+    const emojiNativo = pianetiData.find((p) => p.razza === razzaNativi)?.emoji ?? "🌿";
+    const lavori = ["Tecnico", "Agricoltore", "Meccanico", "Esploratore", "Comunicatore"];
+    const personalità = ["Curioso", "Lavoratore", "Pragmatico", "Collaborativo"];
+    const religioni: Abitante["religione"][] = ["Ateo", "Deista", "Culto del Sole"];
+    setNextId((prevId) => {
+      const nuovi: Abitante[] = [];
+      for (let i = 0; i < count; i++) {
+        nuovi.push({
+          id: prevId + i,
+          nome: `${razzaNativi}-${prevId + i}`,
+          emoji: emojiNativo,
+          eta: 18 + Math.floor(Math.random() * 40),
+          lavoro: lavori[Math.floor(Math.random() * lavori.length)],
+          competenza: 30 + Math.floor(Math.random() * 50),
+          produttività: 50 + Math.floor(Math.random() * 40),
+          stanchezza: Math.floor(Math.random() * 40),
+          personalità: personalità[Math.floor(Math.random() * personalità.length)],
+          amici: [],
+          rivali: [],
+          fazioni: ["Nativi", "Cittadini"],
+          salute: 60 + Math.floor(Math.random() * 35),
+          crediti: Math.floor(Math.random() * 500),
+          reddito: 100 + Math.floor(Math.random() * 300),
+          spese: 50 + Math.floor(Math.random() * 150),
+          lealtà: 40 + Math.floor(Math.random() * 40),
+          paura: Math.floor(Math.random() * 30),
+          felicità: 50 + Math.floor(Math.random() * 40),
+          religione: religioni[Math.floor(Math.random() * religioni.length)],
+          razza: razzaNativi,
+          specie: "alieno"
+        });
+      }
+      setAbitanti((prev) => [...prev, ...nuovi]);
+      return prevId + count;
+    });
+  }, [pendingAssimilazione, razzaNativi]);
+
+  const rifiutaAssimilazione = useCallback(() => {
+    setPendingAssimilazione(null);
+  }, []);
+
   // Tribunale: grazia un criminale → lui e Amici +10% Lealtà, Nemici (rivali) -10% Lealtà; reati azzerati
   const graziaCriminale = useCallback((abitanteId: number) => {
     setAbitanti((prev) => {
@@ -746,6 +803,10 @@ export function useGameState() {
     rimuoviOrdineMercato,
     calcolaDeltaOrdiniMercato,
     graziaCriminale,
+    nativiNonIntegrati,
+    pendingAssimilazione,
+    accettaAssimilazione,
+    rifiutaAssimilazione,
     eventiInCorso,
     eventiCatalogo: EVENTI_CATALOGO
   };

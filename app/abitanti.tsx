@@ -5,7 +5,7 @@ import { useGameContext } from "../src/context/GameContext";
 import type { Abitante } from "../src/types";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 
-type SortField = "nome" | "eta" | "lavoro" | "razza" | "competenza" | "produttività" | "stanchezza" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "paura" | "felicità" | "religione" | "fazioni" | null;
+type SortField = "nome" | "eta" | "lavoro" | "razza" | "nativi" | "competenza" | "produttività" | "stanchezza" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "paura" | "felicità" | "religione" | "fazioni" | null;
 type SortDirection = "asc" | "desc";
 
 const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
@@ -63,6 +63,9 @@ export default function AbitantiScreen() {
       } else if (sortField === "razza") {
         aValue = a.razza ?? "Umano";
         bValue = b.razza ?? "Umano";
+      } else if (sortField === "nativi") {
+        aValue = (a.fazioni?.includes("Nativi") ?? false) ? "Sì" : "No";
+        bValue = (b.fazioni?.includes("Nativi") ?? false) ? "Sì" : "No";
       } else {
         aValue = a[sortField as keyof Abitante] as number;
         bValue = b[sortField as keyof Abitante] as number;
@@ -150,6 +153,15 @@ export default function AbitantiScreen() {
             >
               <Text style={styles.headerText}>🪐 Razza</Text>
               {sortField === "razza" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellNativi, sortField === "nativi" && styles.headerCellActive]}
+              onPress={() => handleSort("nativi")}
+            >
+              <Text style={styles.headerText}>🌿 Nativi</Text>
+              {sortField === "nativi" && (
                 <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
               )}
             </Pressable>
@@ -284,10 +296,13 @@ export default function AbitantiScreen() {
                   <Text style={styles.cellText}>{a.eta}</Text>
                 </View>
                 <View style={[styles.cell, styles.cellLavoro]}>
-                  <Text style={styles.cellTextSmall}>{lavoroDisplay}</Text>
+                  <Text style={[styles.cellTextSmall, lavoroDisplay === "Disoccupato" && styles.cellTextDisoccupato]}>{lavoroDisplay}</Text>
                 </View>
                 <View style={[styles.cell, styles.cellRazza]}>
                   <Text style={styles.cellTextSmall}>{a.razza ?? "Umano"}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellNativi]}>
+                  <Text style={styles.cellTextSmall}>{(a.fazioni?.includes("Nativi") ?? false) ? "Sì" : "No"}</Text>
                 </View>
                 <View style={[styles.cell, styles.cellSmall]}>
                   <Text style={styles.cellText}>{a.competenza}%</Text>
@@ -441,6 +456,10 @@ const styles = StyleSheet.create({
     width: 85,
     minWidth: 85
   },
+  cellNativi: {
+    width: 42,
+    minWidth: 42
+  },
   cellSmall: {
     width: 50,
     minWidth: 50
@@ -469,6 +488,10 @@ const styles = StyleSheet.create({
     color: "#e5e7eb",
     fontSize: 8,
     textAlign: "center"
+  },
+  cellTextDisoccupato: {
+    color: "#ef4444",
+    fontWeight: "700"
   },
   cellTextPositive: {
     color: "#4ade80"

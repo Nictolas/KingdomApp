@@ -52,7 +52,7 @@ export default function GridGame() {
         >
           {isLoading ? (
             <>
-              <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 6 }} />
+              <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 4 }} />
               <Text style={styles.skipButtonText}>Caricamento...</Text>
             </>
           ) : (
@@ -236,38 +236,49 @@ const styles = StyleSheet.create({
   navRow: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 12,
-    paddingTop: 4,
-    paddingBottom: 2,
-    gap: 8
+    paddingHorizontal: 8,
+    paddingTop: 2,
+    paddingBottom: 1,
+    gap: 4
+  },
+  navRowCompact: {
+    paddingHorizontal: 6,
+    paddingTop: 1,
+    paddingBottom: 0,
+    gap: 4
   },
   navButton: {
     flex: 1,
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)"
   },
+  navButtonCompact: {
+    paddingVertical: 3,
+    paddingHorizontal: 4,
+    borderRadius: 4
+  },
   navEmoji: {
-    fontSize: 16,
-    marginBottom: 2
+    fontSize: 14,
+    marginBottom: 0
   },
   navLabel: {
     color: "#e5e7eb",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700"
   },
   navCount: {
     color: "rgba(148,163,184,0.9)",
-    fontSize: 9,
-    marginTop: 1
+    fontSize: 8,
+    marginTop: 0
   },
   header: {
-    paddingTop: 8,
-    paddingBottom: 6,
-    paddingHorizontal: 12,
+    paddingTop: 4,
+    paddingBottom: 4,
+    paddingHorizontal: 8,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
@@ -275,56 +286,75 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(255,255,255,0.12)",
     backgroundColor: "#050816"
   },
+  headerCompact: {
+    paddingTop: 2,
+    paddingBottom: 2,
+    paddingHorizontal: 6
+  },
   titleRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    marginBottom: 2
+    gap: 6,
+    marginBottom: 1
+  },
+  titleRowCompact: {
+    gap: 6,
+    marginBottom: 0
   },
   gameTitle: {
     color: "#ffffff",
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "800"
+  },
+  gameTitleCompact: {
+    fontSize: 13
   },
   diarioButton: {
     flexDirection: "row",
     alignItems: "center",
     backgroundColor: "rgba(15,23,42,0.6)",
-    borderRadius: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+    borderRadius: 4,
+    paddingVertical: 2,
+    paddingHorizontal: 6,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.3)",
-    gap: 4
+    gap: 2
+  },
+  diarioButtonCompact: {
+    paddingVertical: 2,
+    paddingHorizontal: 4
   },
   diarioEmoji: {
-    fontSize: 12
+    fontSize: 11
   },
   diarioLabel: {
     color: "#e5e7eb",
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "600"
+  },
+  diarioLabelCompact: {
+    fontSize: 9
   },
   subtitle: {
     color: "rgba(255,255,255,0.7)",
-    fontSize: 11,
-    marginTop: 1
+    fontSize: 10,
+    marginTop: 0
   },
   meseLabel: {
     color: "rgba(255,255,255,0.6)",
-    fontSize: 10,
-    marginTop: 2
+    fontSize: 9,
+    marginTop: 0
   },
   skipContainer: {
-    paddingHorizontal: 12,
-    paddingTop: 4,
-    paddingBottom: 2
+    paddingHorizontal: 8,
+    paddingTop: 2,
+    paddingBottom: 1
   },
   skipButton: {
     backgroundColor: "rgba(59,130,246,0.9)",
-    borderRadius: 8,
-    paddingVertical: 6,
-    paddingHorizontal: 12,
+    borderRadius: 6,
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
@@ -336,66 +366,80 @@ const styles = StyleSheet.create({
     opacity: 0.7
   },
   skipEmoji: {
-    fontSize: 14,
-    marginRight: 6
+    fontSize: 12,
+    marginRight: 4
   },
   skipButtonText: {
     color: "#ffffff",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700"
   },
   scrollContent: {
-    paddingHorizontal: 12,
-    paddingTop: 4,
-    paddingBottom: 8,
+    paddingHorizontal: 8,
+    paddingTop: 2,
+    paddingBottom: 4,
     flex: 1
   },
   section: {
-    marginBottom: 6
+    marginBottom: 3
+  },
+  sectionCompact: {
+    marginBottom: 2
   },
   resourcesSection: {
-    paddingHorizontal: 12,
-    paddingTop: 4,
-    paddingBottom: 4
+    paddingHorizontal: 8,
+    paddingTop: 2,
+    paddingBottom: 2
   },
   sectionTitle: {
     color: "#ffffff",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
-    marginBottom: 4
+    marginBottom: 2
+  },
+  sectionTitleCompact: {
+    fontSize: 10,
+    marginBottom: 1
   },
   resourcesGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6
+    gap: 4
+  },
+  resourcesGridCompact: {
+    gap: 3
   },
   resourceCard: {
     flex: 1,
     minWidth: "48%",
     backgroundColor: "rgba(15,23,42,0.6)",
-    borderRadius: 6,
-    padding: 6,
+    borderRadius: 4,
+    padding: 4,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.3)"
   },
+  resourceCardCompact: {
+    padding: 3,
+    borderRadius: 4
+  },
   resourceName: {
     color: "#e5e7eb",
-    fontSize: 10,
-    marginBottom: 2
+    fontSize: 9,
+    marginBottom: 1
   },
   resourceEmoji: {
-    fontSize: 11,
-    marginRight: 2
+    fontSize: 10,
+    marginRight: 1
   },
   resourceRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    gap: 4
+    gap: 2
   },
   resourceValue: {
     color: "#e5e7eb",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700"
   },
   resourceUnit: {
@@ -403,7 +447,7 @@ const styles = StyleSheet.create({
     fontWeight: "500"
   },
   variazione: {
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "700"
   },
   variazionePositiva: {
