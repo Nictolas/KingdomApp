@@ -2,15 +2,18 @@ import React, { useState, useMemo } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getEmojiRazza } from "../src/kingdomData";
 import type { Abitante } from "../src/types";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 
-type SortField = "nome" | "eta" | "lavoro" | "razza" | "nativi" | "competenza" | "produttività" | "stanchezza" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "paura" | "felicità" | "religione" | "fazioni" | null;
+type SortField = "nome" | "eta" | "lavoro" | "razza" | "competenza" | "produttività" | "stanchezza" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "paura" | "felicità" | "religione" | "fazioni" | null;
 type SortDirection = "asc" | "desc";
 
 const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
 
 function getEmojiDisplay(abitante: Abitante, etaMinimaLavoro: number): string {
+  const razza = abitante.razza ?? "Umano";
+  if (razza !== "Umano") return getEmojiRazza(razza);
   const maggiorenne = abitante.eta >= etaMinimaLavoro;
   const lavoroDaMinore = LAVORI_DA_MINORE.includes(abitante.lavoro);
   if (maggiorenne && lavoroDaMinore) return "👤";
@@ -63,9 +66,6 @@ export default function AbitantiScreen() {
       } else if (sortField === "razza") {
         aValue = a.razza ?? "Umano";
         bValue = b.razza ?? "Umano";
-      } else if (sortField === "nativi") {
-        aValue = (a.fazioni?.includes("Nativi") ?? false) ? "Sì" : "No";
-        bValue = (b.fazioni?.includes("Nativi") ?? false) ? "Sì" : "No";
       } else {
         aValue = a[sortField as keyof Abitante] as number;
         bValue = b[sortField as keyof Abitante] as number;
@@ -153,15 +153,6 @@ export default function AbitantiScreen() {
             >
               <Text style={styles.headerText}>🪐 Razza</Text>
               {sortField === "razza" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellNativi, sortField === "nativi" && styles.headerCellActive]}
-              onPress={() => handleSort("nativi")}
-            >
-              <Text style={styles.headerText}>🌿 Nativi</Text>
-              {sortField === "nativi" && (
                 <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
               )}
             </Pressable>
@@ -299,10 +290,7 @@ export default function AbitantiScreen() {
                   <Text style={[styles.cellTextSmall, lavoroDisplay === "Disoccupato" && styles.cellTextDisoccupato]}>{lavoroDisplay}</Text>
                 </View>
                 <View style={[styles.cell, styles.cellRazza]}>
-                  <Text style={styles.cellTextSmall}>{a.razza ?? "Umano"}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellNativi]}>
-                  <Text style={styles.cellTextSmall}>{(a.fazioni?.includes("Nativi") ?? false) ? "Sì" : "No"}</Text>
+                  <Text style={styles.cellEmojiText}>{getEmojiRazza(a.razza ?? "Umano")}</Text>
                 </View>
                 <View style={[styles.cell, styles.cellSmall]}>
                   <Text style={styles.cellText}>{a.competenza}%</Text>
@@ -453,12 +441,8 @@ const styles = StyleSheet.create({
     minWidth: 120
   },
   cellRazza: {
-    width: 85,
-    minWidth: 85
-  },
-  cellNativi: {
-    width: 42,
-    minWidth: 42
+    width: 40,
+    minWidth: 40
   },
   cellSmall: {
     width: 50,

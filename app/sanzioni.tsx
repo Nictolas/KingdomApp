@@ -3,33 +3,50 @@ import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "re
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 
+type Fattore = {
+  id: string;
+  emoji: string;
+  titolo: string;
+  descrizione: string;
+  punti: number;
+  attivo: boolean;
+};
+
 export default function SanzioniScreen() {
   const router = useRouter();
-  const { punteggioSanzioni } = useGameContext();
+  const {
+    punteggioSanzioni,
+    abitanti,
+    penaDiMorteAttiva,
+    razzaCampoLavoro,
+    razzaCampoSterminio,
+    etaMinimaLavoro,
+    divietoEspatrioAttivo
+  } = useGameContext();
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
 
+  const haSchiavitu = abitanti.some((a) => a.ruoloSchiavitu === "schiavista" || a.ruoloSchiavitu === "schiavo");
+  const etaBassa = etaMinimaLavoro <= 13;
+
+  const fattori: Fattore[] = [
+    { id: "base", emoji: "📋", titolo: "Punteggio base", descrizione: "Valore iniziale", punti: 1, attivo: true },
+    { id: "schiavitu", emoji: "🔗", titolo: "Schiavitù", descrizione: "Presenza di schiavisti o schiavi", punti: 1, attivo: haSchiavitu },
+    { id: "pena", emoji: "⚰️", titolo: "Pena di morte", descrizione: "Pena di morte attiva", punti: 1, attivo: penaDiMorteAttiva },
+    { id: "campoLavoro", emoji: "⛏️", titolo: "Campo di lavoro", descrizione: "Legge razziale: lavoro forzato per una razza", punti: 1, attivo: razzaCampoLavoro !== null },
+    { id: "campoSterminio", emoji: "☠️", titolo: "Campo di sterminio", descrizione: "Legge razziale: sterminio per una razza", punti: 1, attivo: razzaCampoSterminio !== null },
+    { id: "eta", emoji: "👶", titolo: "Età minima lavoro ≤13", descrizione: "Lavoro minorile sotto i 14 anni", punti: 1, attivo: etaBassa },
+    { id: "espatrio", emoji: "🚫", titolo: "Divieto di espatrio", descrizione: "Divieto di espatrio attivo", punti: 1, attivo: divietoEspatrioAttivo }
+  ];
+
   const haSanzioni = punteggioSanzioni >= 5;
   const livelloRischio =
-    punteggioSanzioni >= 8
-      ? "Critico"
-      : punteggioSanzioni >= 5
-      ? "Alto"
-      : punteggioSanzioni >= 3
-      ? "Medio"
-      : "Basso";
-
+    punteggioSanzioni >= 8 ? "Critico" : punteggioSanzioni >= 5 ? "Alto" : punteggioSanzioni >= 3 ? "Medio" : "Basso";
   const coloreRischio =
-    punteggioSanzioni >= 8
-      ? "#ef4444"
-      : punteggioSanzioni >= 5
-      ? "#f97316"
-      : punteggioSanzioni >= 3
-      ? "#fde047"
-      : "#4ade80";
+    punteggioSanzioni >= 8 ? "#ef4444" : punteggioSanzioni >= 5 ? "#f97316" : punteggioSanzioni >= 3 ? "#fde047" : "#4ade80";
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
@@ -42,80 +59,52 @@ export default function SanzioniScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Punteggio */}
         <View style={styles.punteggioCard}>
           <Text style={styles.punteggioTitle}>Punteggio Sanzioni</Text>
           <View style={styles.punteggioContainer}>
             <Text style={[styles.punteggioValue, { color: coloreRischio }]}>{punteggioSanzioni}</Text>
             <Text style={styles.punteggioMax}>/ 10</Text>
           </View>
-          <Text style={[styles.livelloRischio, { color: coloreRischio }]}>Livello Rischio: {livelloRischio}</Text>
+          <Text style={[styles.livelloRischio, { color: coloreRischio }]}>Livello: {livelloRischio}</Text>
         </View>
 
-        {/* Barra di progresso */}
         <View style={styles.progressContainer}>
           <View style={styles.progressBar}>
-            <View
-              style={[
-                styles.progressFill,
-                {
-                  width: `${(punteggioSanzioni / 10) * 100}%`,
-                  backgroundColor: coloreRischio
-                }
-              ]}
-            />
+            <View style={[styles.progressFill, { width: `${(punteggioSanzioni / 10) * 100}%`, backgroundColor: coloreRischio }]} />
           </View>
         </View>
 
-        {/* Informazioni */}
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Sistema di Sanzioni</Text>
           <Text style={styles.infoText}>
-            La Comunità Interplanetaria monitora le politiche della tua colonia. Alcune leggi e pratiche aumentano il
-            punteggio sanzioni.
-          </Text>
-          <Text style={styles.infoText}>
-            <Text style={styles.infoBold}>Soglia critica:</Text> Al raggiungimento di 5 punti, la Comunità
-            Interplanetaria impone sanzioni economiche e diplomatiche.
+            La Comunità Interplanetaria monitora le politiche della colonia. <Text style={styles.infoBold}>Soglia critica: 5 punti</Text> → sanzioni economiche e diplomatiche.
           </Text>
         </View>
 
-        {/* Fattori che influenzano */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Fattori che Influenzano il Punteggio</Text>
-          <View style={styles.fattoreCard}>
-            <Text style={styles.fattoreEmoji}>🔗</Text>
-            <View style={styles.fattoreContent}>
-              <Text style={styles.fattoreTitolo}>Schiavitù</Text>
-              <Text style={styles.fattoreDescrizione}>
-                Se la colonia pratica la schiavitù (presenza di schiavisti o schiavi): +1 punto
-              </Text>
+          <Text style={styles.sectionTitle}>Fattori che influenzano il punteggio</Text>
+          <Text style={styles.sectionSubtitle}>In verde: fattori attualmente attivi</Text>
+          {fattori.map((f) => (
+            <View key={f.id} style={[styles.fattoreRow, f.attivo && styles.fattoreRowAttivo]}>
+              <Text style={styles.fattoreEmoji}>{f.emoji}</Text>
+              <View style={styles.fattoreContent}>
+                <Text style={styles.fattoreTitolo}>{f.titolo}</Text>
+                <Text style={styles.fattoreDescrizione}>{f.descrizione}</Text>
+              </View>
+              <Text style={styles.fattorePunti}>+{f.punti}</Text>
+              {f.attivo ? <Text style={styles.fattoreAttivo}>●</Text> : <Text style={styles.fattoreInattivo}>○</Text>}
             </View>
-          </View>
-          <View style={styles.fattoreCard}>
-            <Text style={styles.fattoreEmoji}>⚰️</Text>
-            <View style={styles.fattoreContent}>
-              <Text style={styles.fattoreTitolo}>Pena di Morte</Text>
-              <Text style={styles.fattoreDescrizione}>
-                Se la pena di morte è attiva: +1 punto
-              </Text>
-            </View>
-          </View>
+          ))}
         </View>
 
-        {/* Stato sanzioni */}
         {haSanzioni && (
           <View style={[styles.sanzioniCard, { borderColor: "#ef4444" }]}>
             <Text style={[styles.sanzioniTitle, { color: "#ef4444" }]}>⚠️ Sanzioni Attive</Text>
             <Text style={styles.sanzioniText}>
-              La Comunità Interplanetaria ha imposto sanzioni alla tua colonia a causa delle politiche contrarie ai
-              diritti fondamentali.
+              Sanzioni imposte per politiche contrarie ai diritti fondamentali.
             </Text>
             <Text style={styles.sanzioniEffetti}>
-              <Text style={styles.sanzioniEffettiTitle}>Effetti:</Text>
-              {"\n"}• Riduzione del 20% delle risorse prodotte
-              {"\n"}• Blocco degli scambi commerciali
-              {"\n"}• Isolamento diplomatico
+              <Text style={styles.sanzioniEffettiTitle}>Effetti:</Text> −20% risorse • Blocco scambi • Isolamento diplomatico
             </Text>
           </View>
         )}
@@ -133,160 +122,184 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(148,163,184,0.6)"
   },
   back: {
     color: "#93c5fd",
-    fontSize: 12
+    fontSize: 11
   },
   title: {
     color: "#ffffff",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700"
   },
   content: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    paddingBottom: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    paddingBottom: 6,
     flex: 1
   },
   punteggioCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 6,
+    padding: 8,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
-    marginBottom: 8,
+    marginBottom: 6,
     alignItems: "center"
   },
   punteggioTitle: {
     color: "#93c5fd",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "600",
-    marginBottom: 8,
+    marginBottom: 4,
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
   punteggioContainer: {
     flexDirection: "row",
     alignItems: "baseline",
-    marginBottom: 6
+    marginBottom: 2
   },
   punteggioValue: {
-    fontSize: 36,
+    fontSize: 28,
     fontWeight: "800"
   },
   punteggioMax: {
     color: "rgba(203,213,245,0.7)",
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "600",
-    marginLeft: 4
+    marginLeft: 2
   },
   livelloRischio: {
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "700",
     textTransform: "uppercase"
   },
   progressContainer: {
-    marginBottom: 12
+    marginBottom: 8
   },
   progressBar: {
-    height: 8,
+    height: 6,
     backgroundColor: "rgba(15,23,42,0.8)",
-    borderRadius: 4,
+    borderRadius: 3,
     overflow: "hidden"
   },
   progressFill: {
     height: "100%",
-    borderRadius: 4
+    borderRadius: 3
   },
   infoCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 6,
+    padding: 6,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
-    marginBottom: 12
+    marginBottom: 8
   },
   infoTitle: {
     color: "#93c5fd",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "600",
-    marginBottom: 6,
+    marginBottom: 4,
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
   infoText: {
     color: "rgba(203,213,245,0.7)",
-    fontSize: 10,
-    lineHeight: 14,
-    marginBottom: 4
+    fontSize: 9,
+    lineHeight: 12
   },
   infoBold: {
     color: "#ffffff",
     fontWeight: "700"
   },
   section: {
-    marginBottom: 12
+    marginBottom: 8
   },
   sectionTitle: {
     color: "#ffffff",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700",
-    marginBottom: 8
+    marginBottom: 2
   },
-  fattoreCard: {
-    flexDirection: "row",
-    backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.6)",
+  sectionSubtitle: {
+    color: "#4ade80",
+    fontSize: 9,
     marginBottom: 6
   },
+  fattoreRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.4)",
+    marginBottom: 4
+  },
+  fattoreRowAttivo: {
+    borderLeftWidth: 3,
+    borderLeftColor: "#4ade80"
+  },
   fattoreEmoji: {
-    fontSize: 24,
-    marginRight: 10
+    fontSize: 16,
+    marginRight: 6
   },
   fattoreContent: {
     flex: 1
   },
   fattoreTitolo: {
     color: "#e5e7eb",
+    fontSize: 10,
+    fontWeight: "700"
+  },
+  fattoreDescrizione: {
+    color: "rgba(203,213,245,0.6)",
+    fontSize: 8,
+    lineHeight: 11
+  },
+  fattorePunti: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 9,
+    fontWeight: "600",
+    marginRight: 6
+  },
+  fattoreAttivo: {
+    color: "#4ade80",
+    fontSize: 10,
+    fontWeight: "700"
+  },
+  fattoreInattivo: {
+    color: "rgba(148,163,184,0.4)",
+    fontSize: 10
+  },
+  sanzioniCard: {
+    backgroundColor: "rgba(239,68,68,0.1)",
+    borderRadius: 6,
+    padding: 8,
+    borderWidth: 2,
+    marginTop: 4
+  },
+  sanzioniTitle: {
     fontSize: 11,
     fontWeight: "700",
     marginBottom: 4
   },
-  fattoreDescrizione: {
-    color: "rgba(203,213,245,0.7)",
-    fontSize: 9,
-    lineHeight: 13
-  },
-  sanzioniCard: {
-    backgroundColor: "rgba(239,68,68,0.1)",
-    borderRadius: 8,
-    padding: 12,
-    borderWidth: 2,
-    marginTop: 8
-  },
-  sanzioniTitle: {
-    fontSize: 13,
-    fontWeight: "700",
-    marginBottom: 8
-  },
   sanzioniText: {
     color: "rgba(203,213,245,0.9)",
-    fontSize: 10,
-    lineHeight: 14,
-    marginBottom: 8
+    fontSize: 9,
+    lineHeight: 12,
+    marginBottom: 4
   },
   sanzioniEffetti: {
     color: "rgba(203,213,245,0.8)",
-    fontSize: 9,
-    lineHeight: 14
+    fontSize: 8,
+    lineHeight: 12
   },
   sanzioniEffettiTitle: {
     color: "#ffffff",

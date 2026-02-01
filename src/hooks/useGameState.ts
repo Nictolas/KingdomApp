@@ -37,7 +37,7 @@ export function useGameState() {
   const [nextId, setNextId] = useState(100); // ID iniziale per nuovi abitanti
   const [ordiniMercato, setOrdiniMercato] = useState<OrdineMercato[]>([]);
   const [eventiInCorso, setEventiInCorso] = useState<EventoInCorso[]>([]);
-  const [nativiNonIntegrati, setNativiNonIntegrati] = useState(0);
+  const [nativiNonIntegrati, setNativiNonIntegrati] = useState(() => 100 + Math.floor(Math.random() * 101));
   const [pendingAssimilazione, setPendingAssimilazione] = useState<number | null>(null);
 
   // Configurazione tassa sul reddito
