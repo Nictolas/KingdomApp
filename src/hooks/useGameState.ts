@@ -56,7 +56,7 @@ export function useGameState() {
   
   // Sistema sanzioni (punteggio da 1 a 10)
   const [punteggioSanzioni, setPunteggioSanzioni] = useState(1);
-  const [penaDiMorteAttiva, setPenaDiMorteAttiva] = useState(false);
+  const [penaDiMorteAttiva, setPenaDiMorteAttiva] = useState(true);
   
   // Configurazione politica religiosa
   const [politicaReligiosa, setPoliticaReligiosa] = useState<"ateismo-stato" | "religione-stato" | "liberta-culto">("liberta-culto");
@@ -270,6 +270,17 @@ export function useGameState() {
       ]
     );
   }, [pendingMatrimonio, confermaMatrimonio, rifiutaMatrimonio]);
+
+  /** Alert a inizio partita: prima riga del Diario + ex governatore in Tribunale. */
+  const haMostratoAlertInizioRef = useRef(false);
+  useEffect(() => {
+    if (haMostratoAlertInizioRef.current) return;
+    haMostratoAlertInizioRef.current = true;
+    const primaRigaDiario = "Complimenti, hai appena concluso la Rivoluzione contro la Madre Patria.";
+    const messaggioExGovernatore =
+      "L'ex governatore è in Tribunale, puoi sceglierlo di graziarlo, condannarlo a morte o pensarci più tardi.";
+    Alert.alert("Diario", `${primaRigaDiario}\n\n${messaggioExGovernatore}`);
+  }, []);
 
   /** Edifici di lavoro: assegnando un abitante qui il suo "lavoro" viene aggiornato. Rimuovendolo torna "Disoccupato". */
   const EDIFICIO_TO_LAVORO: Record<number, string> = { 2: "Agricoltore" }; // id 2 = Serra

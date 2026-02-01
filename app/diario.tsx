@@ -25,6 +25,9 @@ export default function DiarioScreen() {
           <Text style={styles.text}>
             Complimenti, hai appena concluso la Rivoluzione contro la Madre Patria. Adesso sei il capo di questo pianeta. E' compito tuo farlo progredire.
           </Text>
+          <Text style={[styles.text, styles.textMargin]}>
+            L'ex governatore è in Tribunale, puoi sceglierlo di graziarlo, condannarlo a morte o pensarci più tardi.
+          </Text>
         </View>
       </ScrollView>
     </SafeAreaView>
@@ -72,5 +75,8 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     textAlign: "justify"
+  },
+  textMargin: {
+    marginTop: 12
   }
 });
