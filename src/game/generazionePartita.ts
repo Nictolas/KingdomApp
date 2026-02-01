@@ -37,6 +37,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     punti: [
       "Ogni abitante ha sempre la fazione «Cittadini» più una di: Amministrazione, Lavoratori, Scienziati, Esploratori (scelta a caso).",
       "Almeno 4 abitanti sono «Schiavi»: hanno fazione Schiavi (e non Cittadini), ruoloSchiavitu «schiavo», crediti/reddito/spese a 0.",
+      "4 abitanti hanno la fazione «Reazionari», tra cui l'ex governatore (prigioniero in Tribunale).",
       "Ci sono alcuni Immigrati fin da inizio partita."
     ]
   },
@@ -231,16 +232,35 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
   }
 
   // Regola: almeno 1 Prigioniero a inizio partita = Ex Governatore (Umano, reato "Ex Governatore"), assegnato al Campo di Lavoro; compare in Tribunale.
+  let exGovernatoreId: number | null = null;
   const candidatiPrigioniero = abitanti.filter(
     (a) => a.id !== 1 && a.lavoro !== "Agricoltore" && a.razza === "Umano"
   );
   if (candidatiPrigioniero.length > 0) {
     const prig = candidatiPrigioniero[Math.floor(Math.random() * candidatiPrigioniero.length)];
+    exGovernatoreId = prig.id;
     prig.lavoro = "Prigioniero";
     prig.razza = "Umano";
     prig.reati = ["Ex Governatore"];
     if (!prig.ruoloSchiavitu) prig.reddito = 0;
   }
+
+  // Regola: 4 abitanti con fazione "Reazionari", tra cui l'ex governatore.
+  const altriPerReazionari = abitanti.filter((a) => a.id !== 1 && a.id !== exGovernatoreId);
+  for (let k = altriPerReazionari.length - 1; k > 0; k--) {
+    const j = Math.floor(Math.random() * (k + 1));
+    [altriPerReazionari[k], altriPerReazionari[j]] = [altriPerReazionari[j], altriPerReazionari[k]];
+  }
+  const reazionariIds = new Set<number>();
+  if (exGovernatoreId != null) reazionariIds.add(exGovernatoreId);
+  for (let i = 0; i < altriPerReazionari.length && reazionariIds.size < 4; i++) {
+    reazionariIds.add(altriPerReazionari[i]!.id);
+  }
+  abitanti.forEach((a) => {
+    if (reazionariIds.has(a.id)) {
+      a.fazioni = normalizzaFazioni([...(a.fazioni ?? []), "Reazionari"]);
+    }
+  });
 
   // Regola: 1 Omo, 2 Bi, il resto Etero.
   const candidatiOrientamento = abitanti.map((_, idx) => idx);
