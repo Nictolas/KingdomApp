@@ -81,6 +81,7 @@ type GameContextType = {
   rimuoviOrdineMercato: (ordineId: number) => void;
   calcolaDeltaOrdiniMercato: () => Record<string, number>;
   graziaCriminale: (abitanteId: number) => void;
+  condannaAMorte: (abitanteId: number) => void;
   nativiNonIntegrati: number;
   pendingAssimilazione: number | null;
   accettaAssimilazione: () => void;

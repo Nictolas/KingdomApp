@@ -34,7 +34,7 @@ export type Character = {
 };
 
 // Nuovi tipi per il gestionale del regno
-export type Reato = "Omicidio" | "Stupro" | "Furto" | "Spaccio" | "Evasione";
+export type Reato = "Omicidio" | "Stupro" | "Furto" | "Spaccio" | "Evasione" | "Ex Governatore";
 
 /** Relazione con punteggio 1-100 (amicizia o rivalità). */
 export type RelazionePunteggio = { id: number; punteggio: number };

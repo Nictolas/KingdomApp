@@ -629,6 +629,19 @@ export function useGameState() {
     });
   }, []);
 
+  // Tribunale: condanna a morte (solo se pena di morte attiva) → rimuove l'abitante dalla colonia e da tutti gli edifici
+  const condannaAMorte = useCallback((abitanteId: number) => {
+    setAbitanti((prev) => prev.filter((a) => a.id !== abitanteId));
+    setEdifici((prev) =>
+      prev.map((e) => {
+        const nuovi = (e.abitantiAssegnati ?? []).filter((id) => id !== abitanteId);
+        return nuovi.length !== (e.abitantiAssegnati?.length ?? 0)
+          ? { ...e, abitantiAssegnati: nuovi, occupazione: nuovi.length }
+          : e;
+      })
+    );
+  }, []);
+
   // Mercato: ordini di acquisto/vendita; si eseguono solo al cambio mese (Skip Mese)
   const aggiungiOrdineMercato = useCallback(
     (tipo: "compra" | "vendi", risorsaId: number, quantità: number, prezzoUnitario: number): boolean => {
@@ -786,6 +799,7 @@ export function useGameState() {
     rimuoviOrdineMercato,
     calcolaDeltaOrdiniMercato,
     graziaCriminale,
+    condannaAMorte,
     nativiNonIntegrati,
     pendingAssimilazione,
     accettaAssimilazione,

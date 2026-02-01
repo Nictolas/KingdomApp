@@ -8,7 +8,15 @@ import type { Abitante } from "../src/types";
 
 export default function TribunaleScreen() {
   const router = useRouter();
-  const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, graziaCriminale } = useGameContext();
+  const {
+    abitanti,
+    edifici,
+    assegnaAbitanteAEdificio,
+    rimuoviAbitanteDaEdificio,
+    graziaCriminale,
+    condannaAMorte,
+    penaDiMorteAttiva
+  } = useGameContext();
   const [dropdownGiudiceVisible, setDropdownGiudiceVisible] = useState(false);
 
   const { width } = Dimensions.get("window");
@@ -125,12 +133,16 @@ export default function TribunaleScreen() {
                       Reati: <Text style={styles.cardInfoStrong}>{(c.reati ?? []).join(", ")}</Text>
                     </Text>
                   </View>
-                  <Pressable
-                    style={styles.graziaButton}
-                    onPress={() => graziaCriminale(c.id)}
-                  >
-                    <Text style={styles.graziaButtonText}>Graziare</Text>
-                  </Pressable>
+                  <View style={styles.criminaleButtons}>
+                    <Pressable style={styles.graziaButton} onPress={() => graziaCriminale(c.id)}>
+                      <Text style={styles.graziaButtonText}>Grazia</Text>
+                    </Pressable>
+                    {penaDiMorteAttiva && (
+                      <Pressable style={styles.condannaButton} onPress={() => condannaAMorte(c.id)}>
+                        <Text style={styles.condannaButtonText}>Condanna a Morte</Text>
+                      </Pressable>
+                    )}
+                  </View>
                 </View>
               ))}
             </View>
@@ -188,16 +200,31 @@ const styles = StyleSheet.create({
     width: "48%",
     minWidth: 120
   },
+  criminaleButtons: {
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 6,
+    width: "100%",
+    justifyContent: "center"
+  },
   graziaButton: {
     backgroundColor: "#22c55e",
     paddingHorizontal: 10,
     paddingVertical: 6,
     borderRadius: 6,
-    marginTop: 6,
-    width: "100%",
+    flex: 1,
     alignItems: "center"
   },
   graziaButtonText: { color: "#ffffff", fontSize: 10, fontWeight: "700" },
+  condannaButton: {
+    backgroundColor: "#dc2626",
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    flex: 1,
+    alignItems: "center"
+  },
+  condannaButtonText: { color: "#ffffff", fontSize: 9, fontWeight: "700" },
   cardEmoji: { fontSize: 24, marginBottom: 2 },
   cardContent: { width: "100%", alignItems: "center" },
   cardTitle: { color: "#e5e7eb", fontSize: 11, fontWeight: "700", marginBottom: 1, textAlign: "center" },

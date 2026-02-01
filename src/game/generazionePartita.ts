@@ -62,7 +62,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
       "Il primo abitante (id 1) è «Comandante della Colonia» con competenza alta.",
       "Il 50% degli abitanti deve avere come Lavoro «Disoccupato»; il restante a caso tra: Tecnico, Ricercatore, Ingegnere, Medico, Agricoltore, Meccanico, Esploratore, Comunicatore, Sicurezza, Amministratore.",
       "A inizio partita c'è almeno 1 lavoratore assegnato alla Serra: un abitante con Lavoro «Agricoltore».",
-      "A inizio partita c'è almeno 1 abitante con Lavoro «Prigioniero» (con reato), assegnato al Campo di Lavoro; compare in Tribunale come criminale."
+      "A inizio partita c'è almeno 1 abitante con Lavoro «Prigioniero»: è l'Ex Governatore (Razza Umano, reato «Ex Governatore»), assegnato al Campo di Lavoro; compare in Tribunale."
     ]
   },
   {
@@ -230,12 +230,15 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     if (!agr.ruoloSchiavitu) agr.reddito = 100 + Math.floor(Math.random() * 400);
   }
 
-  // Regola: almeno 1 Prigioniero a inizio partita (con reato, assegnato al Campo di Lavoro in useGameState; compare in Tribunale come criminale).
-  const candidatiPrigioniero = abitanti.filter((a) => a.id !== 1 && a.lavoro !== "Agricoltore");
+  // Regola: almeno 1 Prigioniero a inizio partita = Ex Governatore (Umano, reato "Ex Governatore"), assegnato al Campo di Lavoro; compare in Tribunale.
+  const candidatiPrigioniero = abitanti.filter(
+    (a) => a.id !== 1 && a.lavoro !== "Agricoltore" && a.razza === "Umano"
+  );
   if (candidatiPrigioniero.length > 0) {
     const prig = candidatiPrigioniero[Math.floor(Math.random() * candidatiPrigioniero.length)];
     prig.lavoro = "Prigioniero";
-    prig.reati = ["Furto"];
+    prig.razza = "Umano";
+    prig.reati = ["Ex Governatore"];
     if (!prig.ruoloSchiavitu) prig.reddito = 0;
   }
 
