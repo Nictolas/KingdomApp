@@ -462,10 +462,19 @@ export default function AbitantiScreen() {
                       <Text style={styles.cellTextSmall}>{getResidenzaAbitante(a.id, edifici)}</Text>
                     </View>
                     <View style={[styles.cell, styles.cellSmall]}>
-                      <Text style={styles.cellTextSmall}>{a.sesso ?? "—"}</Text>
+                      <Text style={styles.cellEmojiText}>{a.sesso === "M" ? "♂️" : a.sesso === "F" ? "♀️" : "—"}</Text>
                     </View>
                     <View style={[styles.cell, styles.cellOrientamento]}>
-                      <Text style={styles.cellTextSmall}>{a.orientamento ?? "—"}</Text>
+                      <Text
+                        style={[
+                          styles.cellTextSmall,
+                          a.orientamento === "Etero" && styles.cellTextOrientamentoEtero,
+                          a.orientamento === "Bi" && styles.cellTextOrientamentoBi,
+                          a.orientamento === "Omo" && styles.cellTextOrientamentoOmo
+                        ]}
+                      >
+                        {a.orientamento ?? "—"}
+                      </Text>
                     </View>
                   </>
                 )}
@@ -817,6 +826,18 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   cellTextSaluteObeso: {
+    color: "#ef4444",
+    fontWeight: "700"
+  },
+  cellTextOrientamentoEtero: {
+    color: "#22c55e",
+    fontWeight: "700"
+  },
+  cellTextOrientamentoBi: {
+    color: "#eab308",
+    fontWeight: "700"
+  },
+  cellTextOrientamentoOmo: {
     color: "#ef4444",
     fontWeight: "700"
   }

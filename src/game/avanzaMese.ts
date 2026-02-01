@@ -133,7 +133,13 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     }
   });
 
-  // Aggiorna rapporti mensili: ogni rapporto varia di un punteggio casuale da -10 a +10; se <= 0 si trasforma (amicizia↔rivalità) e riparte da 10
+  // Aggiorna rapporti mensili: ogni rapporto varia di un punteggio casuale da -10 a +10; se <= 0 si trasforma (amicizia↔rivalità) e riparte da 10.
+  // Eccezione Omofobo: se uno è Omofobo e l'altro Omo/Bi e hanno lo stesso Lavoro (stesso edificio), solo +0–5 Rivalità.
+  const isOmofoboOmoBiStessoLavoro = (x: Abitante, y: Abitante) =>
+    x.lavoro === y.lavoro &&
+    ((x.personalità === "Omofobo" && (y.orientamento === "Omo" || y.orientamento === "Bi")) ||
+      (y.personalità === "Omofobo" && (x.orientamento === "Omo" || x.orientamento === "Bi")));
+
   type CoppiaRapporto = { idA: number; idB: number; tipo: "amici" | "rivali"; punteggio: number };
   const coppieRapporto: CoppiaRapporto[] = [];
   abitantiRimasti.forEach((a) => {
@@ -153,6 +159,28 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     const a = getAb(idA);
     const b = getAb(idB);
     if (!a || !b) return;
+
+    if (isOmofoboOmoBiStessoLavoro(a, b)) {
+      // Solo +0–5 Rivalità: niente amicizia, solo rivalità che aumenta
+      const addRivalità = Math.floor(Math.random() * 6); // 0–5
+      rimuoviRel(a.amici!, idB);
+      rimuoviRel(b.amici!, idA);
+      const rivA = a.rivali?.find((r) => r.id === idB);
+      const rivB = b.rivali?.find((r) => r.id === idA);
+      const nuovoPunteggioRivalità = Math.min(100, (rivA?.punteggio ?? 0) + addRivalità);
+      if (rivA) rivA.punteggio = nuovoPunteggioRivalità;
+      else {
+        a.rivali = a.rivali ?? [];
+        a.rivali.push({ id: idB, punteggio: nuovoPunteggioRivalità });
+      }
+      if (rivB) rivB.punteggio = nuovoPunteggioRivalità;
+      else {
+        b.rivali = b.rivali ?? [];
+        b.rivali.push({ id: idA, punteggio: nuovoPunteggioRivalità });
+      }
+      return;
+    }
+
     const delta = Math.floor(Math.random() * 21) - 10;
     const nuovoPunteggio = punteggio + delta;
     if (nuovoPunteggio <= 0) {
