@@ -101,19 +101,23 @@ export default function AbitantiScreen() {
     return abitanti.find((a) => a.id === id)?.nome || `ID ${id}`;
   };
 
-  /** Familiari con emoji invece dei nomi: "👩‍🚀 (coniuge), 👦 (figlio), ..." */
-  const getFamiliariDisplay = (a: Abitante): string => {
-    const parti: string[] = [];
-    const getEmoji = (id: number) => {
+  /** Restituisce i familiari come { emoji, nome } con nome = "Nome Cognome (parentela)" per tooltip. In cella si mostrano solo le emoji. */
+  const getFamiliariItems = (a: Abitante): { emoji: string; nome: string }[] => {
+    const items: { emoji: string; nome: string }[] = [];
+    const push = (id: number, parentela: string) => {
       const ab = abitanti.find((x) => x.id === id);
-      return ab ? getEmojiAbitante(ab) : "?";
+      if (ab) items.push({ emoji: getEmojiAbitante(ab), nome: `${ab.nome} (${parentela})` });
     };
-    if (a.coniugeId != null) parti.push(`${getEmoji(a.coniugeId)} (coniuge)`);
-    (a.figliIds ?? []).forEach((id) => parti.push(`${getEmoji(id)} (figlio)`));
-    (a.genitoriIds ?? []).forEach((id) => parti.push(`${getEmoji(id)} (genitore)`));
-    (a.nonniIds ?? []).forEach((id) => parti.push(`${getEmoji(id)} (nonno)`));
-    return parti.length > 0 ? parti.join(", ") : "—";
+    if (a.coniugeId != null) push(a.coniugeId, "coniuge");
+    (a.figliIds ?? []).forEach((id) => push(id, "figlio"));
+    (a.genitoriIds ?? []).forEach((id) => push(id, "genitore"));
+    (a.nonniIds ?? []).forEach((id) => push(id, "nonno"));
+    return items;
   };
+
+  /** Stringa per ordinamento colonna Familiari (nome + parentela). */
+  const getFamiliariSortKey = (a: Abitante): string =>
+    getFamiliariItems(a).map((x) => x.nome).join(" ") || "—";
 
   // Ordina gli abitanti
   const abitantiOrdinati = useMemo(() => {
@@ -151,8 +155,8 @@ export default function AbitantiScreen() {
         aValue = (a.rivali?.length ?? 0);
         bValue = (b.rivali?.length ?? 0);
       } else if (sortField === "familiari") {
-        aValue = getFamiliariDisplay(a);
-        bValue = getFamiliariDisplay(b);
+        aValue = getFamiliariSortKey(a);
+        bValue = getFamiliariSortKey(b);
       } else {
         aValue = a[sortField as keyof Abitante] as number;
         bValue = b[sortField as keyof Abitante] as number;
@@ -444,7 +448,15 @@ export default function AbitantiScreen() {
                     <View style={[styles.cell, styles.cellSociale]}><Text style={styles.cellText}>{(a.amici?.length ?? 0)}</Text></View>
                     <View style={[styles.cell, styles.cellSociale]}><Text style={styles.cellText}>{(a.rivali?.length ?? 0)}</Text></View>
                     <View style={[styles.cell, styles.cellFamiliari]}>
-                      <Text style={styles.cellTextSmall} numberOfLines={3}>{getFamiliariDisplay(a)}</Text>
+                      {getFamiliariItems(a).length > 0 ? (
+                        <View style={styles.fazioneEmojiRow}>
+                          {getFamiliariItems(a).map((item, idx) => (
+                            <EmojiWithTooltip key={idx} emoji={item.emoji} nome={item.nome} />
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={styles.cellEmojiText}>—</Text>
+                      )}
                     </View>
                   </>
                 )}

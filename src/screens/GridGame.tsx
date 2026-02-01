@@ -4,13 +4,11 @@ import { useRouter } from "expo-router";
 import { fazioniData, leggiData } from "../kingdomData";
 import { useGameContext } from "../context/GameContext";
 import type { Risorsa, Abitante } from "../types";
-import { CreditiModal } from "../ui/CreditiModal";
 import { EnergiaModal } from "../ui/EnergiaModal";
 
 export default function GridGame() {
   const router = useRouter();
   const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, calcolaDeltaOrdiniMercato, calcolaFelicitàModificata, abitantiProposti, punteggioSanzioni } = useGameContext();
-  const [showCreditiModal, setShowCreditiModal] = useState(false);
   const [showEnergiaModal, setShowEnergiaModal] = useState(false);
 
   const criminali = abitanti.filter((a: Abitante) => (a.reati?.length ?? 0) > 0);
@@ -108,7 +106,7 @@ export default function GridGame() {
                   isCibo
                     ? () => router.push("/cibo")
                     : isCrediti
-                    ? () => setShowCreditiModal(true)
+                    ? () => router.push("/crediti")
                     : isEnergia
                     ? () => setShowEnergiaModal(true)
                     : undefined
@@ -229,13 +227,6 @@ export default function GridGame() {
           <Text style={styles.navCount}>Razze / Origini</Text>
         </Pressable>
       </View>
-
-      <CreditiModal
-        visible={showCreditiModal}
-        abitanti={abitanti}
-        edifici={edifici}
-        onClose={() => setShowCreditiModal(false)}
-      />
 
       <EnergiaModal
         visible={showEnergiaModal}
