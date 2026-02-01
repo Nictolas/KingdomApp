@@ -182,7 +182,7 @@ export const abitantiData: Abitante[] = [
     personalità: "Ambizioso e creativo",
     amici: [6, 7],
     rivali: [],
-    fazioni: ["Lavoratori", "Cittadini"],
+    fazioni: ["Lavoratori", "Cittadini", "Schiavi"],
     salute: 88,
     crediti: 100,
     reddito: 80,
@@ -191,7 +191,8 @@ export const abitantiData: Abitante[] = [
     paura: 10,
     felicità: 68,
     religione: "Ateo",
-    reati: ["Spaccio"]
+    reati: ["Spaccio"],
+    ruoloSchiavitu: "schiavo"
   },
   {
     id: 9,
@@ -271,7 +272,7 @@ export const abitantiData: Abitante[] = [
     personalità: "Carismatico",
     amici: [1, 4, 7],
     rivali: [],
-    fazioni: ["Amministrazione", "Cittadini"],
+    fazioni: ["Amministrazione", "Cittadini", "Schiavi"],
     salute: 78,
     crediti: 1500,
     reddito: 600,
@@ -279,7 +280,8 @@ export const abitantiData: Abitante[] = [
     lealtà: 92,
     paura: 6,
     felicità: 70,
-    religione: "Ateo"
+    religione: "Ateo",
+    ruoloSchiavitu: "schiavista"
   },
   {
     id: 13,
@@ -315,7 +317,7 @@ export const abitantiData: Abitante[] = [
     personalità: "Depresso",
     amici: [3],
     rivali: [4],
-    fazioni: ["Lavoratori", "Cittadini"],
+    fazioni: ["Lavoratori", "Cittadini", "Schiavi"],
     salute: 72,
     crediti: 290,
     reddito: 220,
@@ -323,7 +325,8 @@ export const abitantiData: Abitante[] = [
     lealtà: 55,
     paura: 25,
     felicità: 42,
-    religione: "Agnostico"
+    religione: "Agnostico",
+    ruoloSchiavitu: "schiavo"
   },
   {
     id: 15,
@@ -337,7 +340,7 @@ export const abitantiData: Abitante[] = [
     personalità: "Ambizioso e creativo",
     amici: [5, 12],
     rivali: [],
-    fazioni: ["Esploratori", "Cittadini"],
+    fazioni: ["Esploratori", "Cittadini", "Schiavi"],
     salute: 91,
     crediti: 410,
     reddito: 320,
@@ -345,7 +348,9 @@ export const abitantiData: Abitante[] = [
     lealtà: 78,
     paura: 10,
     felicità: 80,
-    religione: "Culto del Sole"
+    religione: "Culto del Sole",
+    ruoloSchiavitu: "schiavo",
+    schiavistaId: 12
   },
   {
     id: 16,

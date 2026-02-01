@@ -36,6 +36,8 @@ export default function FazioniScreen() {
               onPress={() => {
                 if (f.nome === "Mafia") {
                   router.push("/mafia");
+                } else if (f.nome === "Schiavi") {
+                  router.push("/schiavi");
                 } else {
                   setSelectedFazione(f);
                 }

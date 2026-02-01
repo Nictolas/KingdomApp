@@ -17,9 +17,9 @@ export default function SchiavituScreen() {
   const schiavisti = abitanti.filter((a: Abitante) => a.ruoloSchiavitu === "schiavista");
   const schiavi = abitanti.filter((a: Abitante) => a.ruoloSchiavitu === "schiavo");
 
-  // Funzione per ottenere il nome dello schiavista
+  // Funzione per ottenere il nome dello schiavista (Stato = schiavo di proprietà della colonia)
   const getSchiavistaNome = (schiavistaId?: number): string => {
-    if (!schiavistaId) return "Nessuno";
+    if (schiavistaId == null || schiavistaId === undefined) return "Stato";
     const schiavista = abitanti.find((a) => a.id === schiavistaId);
     return schiavista ? schiavista.nome : `ID ${schiavistaId}`;
   };
