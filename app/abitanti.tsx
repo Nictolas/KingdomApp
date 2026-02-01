@@ -3,8 +3,16 @@ import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getStatoSalute } from "../src/game/ciboConsumo";
-import { getEmojiRazza } from "../src/kingdomData";
+import { getEmojiRazza, fazioniData } from "../src/kingdomData";
 import type { Abitante } from "../src/types";
+
+/** Restituisce le emoji delle fazioni (come in /fazioni) invece dei nomi. */
+function getFazioniEmojiDisplay(fazioni: string[] | undefined): string {
+  if (!fazioni?.length) return "—";
+  return fazioni
+    .map((nome) => fazioniData.find((f) => f.nome === nome)?.emoji ?? nome)
+    .join(" ");
+}
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 
 type SortField = "nome" | "eta" | "lavoro" | "razza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "religione" | "fazioni" | null;
@@ -82,8 +90,8 @@ export default function AbitantiScreen() {
         aValue = calcolaFelicitàModificata(a);
         bValue = calcolaFelicitàModificata(b);
       } else if (sortField === "fazioni") {
-        aValue = (a.fazioni ?? []).join(", ");
-        bValue = (b.fazioni ?? []).join(", ");
+        aValue = getFazioniEmojiDisplay(a.fazioni);
+        bValue = getFazioniEmojiDisplay(b.fazioni);
       } else if (sortField === "nome" || sortField === "religione") {
         aValue = a[sortField];
         bValue = b[sortField];
@@ -412,7 +420,7 @@ export default function AbitantiScreen() {
                 {macroOpen.religioneFazioni && (
                   <>
                     <View style={[styles.cell, styles.cellReligione]}><Text style={styles.cellTextSmall}>{a.religione}</Text></View>
-                    <View style={[styles.cell, styles.cellFazione]}><Text style={styles.cellTextSmall}>{a.fazioni?.join(", ") ?? "—"}</Text></View>
+                    <View style={[styles.cell, styles.cellFazione]}><Text style={styles.cellEmojiText}>{getFazioniEmojiDisplay(a.fazioni)}</Text></View>
                   </>
                 )}
               </Pressable>
