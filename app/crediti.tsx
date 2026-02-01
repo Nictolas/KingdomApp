@@ -30,7 +30,7 @@ export default function CreditiScreen() {
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
-  const contentMaxWidth = isDesktop ? 900 : undefined;
+  const contentMaxWidth = isDesktop ? 1100 : undefined;
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -150,64 +150,65 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   scrollContent: {
-    padding: 20,
-    paddingBottom: 32
+    padding: 24,
+    paddingBottom: 40
   },
   pageTitle: {
     color: "#ffffff",
-    fontSize: 18,
+    fontSize: 20,
     fontWeight: "700",
-    marginBottom: 20,
+    marginBottom: 28,
     textAlign: "center"
   },
   twoCols: {
     flexDirection: "row",
-    gap: 20,
+    gap: 28,
     alignItems: "flex-start"
   },
   twoColsStack: {
-    flexDirection: "column"
+    flexDirection: "column",
+    gap: 28
   },
   col: {
     flex: 1,
     minWidth: 0
   },
   colFull: {
-    marginBottom: 24
+    marginBottom: 0
   },
   sectionTitle: {
     color: "#93c5fd",
     fontSize: 13,
     fontWeight: "600",
-    marginBottom: 12,
+    marginBottom: 14,
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
   card: {
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 10,
-    padding: 14,
+    borderRadius: 12,
+    padding: 18,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.4)"
   },
   list: {
-    maxHeight: 280,
-    marginBottom: 12
+    maxHeight: 320,
+    marginBottom: 16
   },
   item: {
     flexDirection: "row",
     alignItems: "flex-start",
-    paddingVertical: 10,
-    paddingHorizontal: 10,
+    paddingVertical: 12,
+    paddingHorizontal: 12,
     borderRadius: 8,
-    marginBottom: 6,
+    marginBottom: 8,
     backgroundColor: "rgba(15,23,42,0.8)",
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.2)"
   },
   itemEmoji: {
-    fontSize: 26,
-    marginRight: 12
+    fontSize: 28,
+    marginRight: 14
   },
   itemContent: {
     flex: 1
@@ -216,13 +217,13 @@ const styles = StyleSheet.create({
     color: "#e5e7eb",
     fontSize: 14,
     fontWeight: "600",
-    marginBottom: 6
+    marginBottom: 8
   },
   itemRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 2
+    marginBottom: 4
   },
   itemLabel: {
     color: "rgba(203,213,245,0.7)",
@@ -246,10 +247,10 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 10,
+    paddingTop: 14,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "rgba(148,163,184,0.3)",
-    marginTop: 4
+    marginTop: 6
   },
   totaleLabel: {
     color: "#93c5fd",
@@ -258,20 +259,20 @@ const styles = StyleSheet.create({
   },
   totaleValorePositivo: {
     color: "#4ade80",
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "700"
   },
   totaleValoreNegativo: {
     color: "#ef4444",
-    fontSize: 13,
+    fontSize: 14,
     fontWeight: "700"
   },
   bilancioCard: {
-    marginTop: 24,
-    paddingVertical: 20,
-    paddingHorizontal: 24,
+    marginTop: 32,
+    paddingVertical: 24,
+    paddingHorizontal: 32,
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 12,
+    borderRadius: 14,
     borderWidth: 2,
     borderColor: "rgba(148,163,184,0.4)",
     alignItems: "center"
@@ -280,16 +281,16 @@ const styles = StyleSheet.create({
     color: "#93c5fd",
     fontSize: 13,
     fontWeight: "600",
-    marginBottom: 8,
+    marginBottom: 10,
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
   bilancioValore: {
-    fontSize: 22,
+    fontSize: 24,
     fontWeight: "700"
   },
   bilancioUnita: {
-    fontSize: 16,
+    fontSize: 17,
     fontWeight: "500"
   }
 });

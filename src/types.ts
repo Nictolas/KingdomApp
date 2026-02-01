@@ -36,6 +36,9 @@ export type Character = {
 // Nuovi tipi per il gestionale del regno
 export type Reato = "Omicidio" | "Stupro" | "Furto" | "Spaccio" | "Evasione";
 
+/** Relazione con punteggio 1-100 (amicizia o rivalità). */
+export type RelazionePunteggio = { id: number; punteggio: number };
+
 export type Abitante = {
   id: number;
   nome: string;
@@ -46,8 +49,8 @@ export type Abitante = {
   produttività: number; // 0-100
   stanchezza: number; // 0-100
   personalità: string;
-  amici: number[]; // Array di ID di altri abitanti
-  rivali: number[]; // Array di ID di altri abitanti
+  amici: RelazionePunteggio[]; // ID + punteggio amicizia 1-100
+  rivali: RelazionePunteggio[]; // ID + punteggio rivalità 1-100
   coniugeId?: number; // ID del coniuge (se presente)
   figliIds?: number[]; // ID dei figli
   genitoriIds?: number[]; // ID dei genitori (1 o 2)
