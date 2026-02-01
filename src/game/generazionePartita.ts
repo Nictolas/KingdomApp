@@ -70,6 +70,13 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     ]
   },
   {
+    titolo: "Sesso e orientamento",
+    punti: [
+      "Ogni abitante ha Sesso M o F (assegnato a caso).",
+      "A inizio partita: 1 abitante con Orientamento «Omo», 2 con «Bi», il resto con «Etero»."
+    ]
+  },
+  {
     titolo: "Relazioni",
     punti: [
       "Amici e rivali iniziali: vuoti (nessun legame predefinito)."
@@ -134,6 +141,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     const razza: Razza = "Umano";
     const isUmano = true;
     const specie: "umano" | "alieno" = "umano";
+    const sesso: "M" | "F" = Math.random() >= 0.5 ? "M" : "F";
     const nome = `${NOMI_UMANI[Math.floor(Math.random() * NOMI_UMANI.length)]} ${COGNOMI_UMANI[Math.floor(Math.random() * COGNOMI_UMANI.length)]}`;
     const emoji = EMOJI_UMANI[Math.floor(Math.random() * EMOJI_UMANI.length)];
 
@@ -175,7 +183,9 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
       felicità: 40 + Math.floor(Math.random() * 51),
       religione: RELIGIONI[Math.floor(Math.random() * RELIGIONI.length)],
       razza,
-      specie
+      specie,
+      sesso,
+      orientamento: "Etero"
     };
     if (èSchiavo) {
       ab.ruoloSchiavitu = "schiavo";
@@ -212,6 +222,19 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     const agr = candidatiAgricoltore[Math.floor(Math.random() * candidatiAgricoltore.length)];
     agr.lavoro = "Agricoltore";
     if (!agr.ruoloSchiavitu) agr.reddito = 100 + Math.floor(Math.random() * 400);
+  }
+
+  // Regola: 1 Omo, 2 Bi, il resto Etero.
+  const candidatiOrientamento = abitanti.map((_, idx) => idx);
+  for (let k = candidatiOrientamento.length - 1; k > 0; k--) {
+    const j = Math.floor(Math.random() * (k + 1));
+    [candidatiOrientamento[k], candidatiOrientamento[j]] = [candidatiOrientamento[j], candidatiOrientamento[k]];
+  }
+  abitanti[candidatiOrientamento[0]!]!.orientamento = "Omo";
+  if (abitanti.length > 1) abitanti[candidatiOrientamento[1]!]!.orientamento = "Bi";
+  if (abitanti.length > 2) abitanti[candidatiOrientamento[2]!]!.orientamento = "Bi";
+  for (let i = 3; i < abitanti.length; i++) {
+    abitanti[candidatiOrientamento[i]!]!.orientamento = "Etero";
   }
 
   return { abitanti, razzaNativi };

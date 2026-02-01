@@ -57,7 +57,7 @@ function getResidenzaAbitante(abitanteId: number, edifici: Edificio[]): string {
   return residenza?.nome ?? "—";
 }
 
-type SortField = "nome" | "eta" | "lavoro" | "razza" | "residenza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "fazioni" | null;
+type SortField = "nome" | "eta" | "lavoro" | "razza" | "sesso" | "orientamento" | "residenza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "fazioni" | null;
 type SortDirection = "asc" | "desc";
 
 type MacroKey = "anagrafica" | "prestazioni" | "benessere" | "economia" | "lealta" | "sociale" | "religioneFazioni";
@@ -168,6 +168,12 @@ export default function AbitantiScreen() {
       } else if (sortField === "residenza") {
         aValue = getResidenzaAbitante(a.id, edifici);
         bValue = getResidenzaAbitante(b.id, edifici);
+      } else if (sortField === "sesso") {
+        aValue = a.sesso ?? "—";
+        bValue = b.sesso ?? "—";
+      } else if (sortField === "orientamento") {
+        aValue = a.orientamento ?? "—";
+        bValue = b.orientamento ?? "—";
       } else if (sortField === "salute") {
         aValue = getStatoSalute(a);
         bValue = getStatoSalute(b);
@@ -327,6 +333,14 @@ export default function AbitantiScreen() {
                   <Text style={styles.headerText}>🏠 Residenza</Text>
                   {sortField === "residenza" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
                 </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "sesso" && styles.headerCellActive]} onPress={() => handleSort("sesso")}>
+                  <Text style={styles.headerText}>⚧ Sesso</Text>
+                  {sortField === "sesso" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellOrientamento, sortField === "orientamento" && styles.headerCellActive]} onPress={() => handleSort("orientamento")}>
+                  <Text style={styles.headerText}>💕 Orient.</Text>
+                  {sortField === "orientamento" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
               </>
             )}
             {macroOpen.prestazioni && (
@@ -446,6 +460,12 @@ export default function AbitantiScreen() {
                     </View>
                     <View style={[styles.cell, styles.cellResidenza]}>
                       <Text style={styles.cellTextSmall}>{getResidenzaAbitante(a.id, edifici)}</Text>
+                    </View>
+                    <View style={[styles.cell, styles.cellSmall]}>
+                      <Text style={styles.cellTextSmall}>{a.sesso ?? "—"}</Text>
+                    </View>
+                    <View style={[styles.cell, styles.cellOrientamento]}>
+                      <Text style={styles.cellTextSmall}>{a.orientamento ?? "—"}</Text>
                     </View>
                   </>
                 )}
@@ -617,8 +637,8 @@ const styles = StyleSheet.create({
     minWidth: 40
   },
   superAnagrafica: {
-    width: 450,
-    minWidth: 450
+    width: 520,
+    minWidth: 520
   },
   superPrestazioni: {
     width: 150,
@@ -709,6 +729,10 @@ const styles = StyleSheet.create({
   cellResidenza: {
     width: 100,
     minWidth: 100
+  },
+  cellOrientamento: {
+    width: 60,
+    minWidth: 60
   },
   cellSmall: {
     width: 50,

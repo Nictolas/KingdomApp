@@ -21,6 +21,21 @@ const REGOLE_SKIP: { titolo: string; punti: string[] }[] = [
     ]
   },
   {
+    titolo: "Rapporti Amicizia / Rivalità",
+    punti: [
+      "Coppie di abitanti assegnati allo stesso edificio (qualsiasi edificio) che non hanno già un rapporto sviluppano in modo casuale Amicizia o Rivalità con punteggio iniziale 10.",
+      "Ogni Skip Mese ogni rapporto (amicizia o rivalità) varia di un punteggio casuale da -10 a +10.",
+      "Se il punteggio raggiunge 0 o inferiore, il rapporto si trasforma: amicizia diventa rivalità e viceversa, con nuovo punteggio 10."
+    ]
+  },
+  {
+    titolo: "Matrimonio",
+    punti: [
+      "Se due abitanti hanno Amicizia ≥ 90 e sono compatibili (orientamento/sesso), appare l’alert «X e Y vogliono sposarsi. Glielo concedi?». Sì: vengono impostati come coniugi; No: nulla.",
+      "Compatibilità: Omo solo con Omo o Bi dello stesso sesso; Etero con Etero o Bi del sesso opposto; Bi con Etero, Omo o Bi di qualunque sesso."
+    ]
+  },
+  {
     titolo: "Aggiornamento abitanti",
     punti: [
       "Schiavi: crediti, reddito e spese restano 0; stanchezza + random 0–9; peso e salute variano di ±2 (entro 0–100).",

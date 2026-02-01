@@ -84,6 +84,9 @@ type GameContextType = {
   pendingAssimilazione: number | null;
   accettaAssimilazione: () => void;
   rifiutaAssimilazione: () => void;
+  pendingMatrimonio: { idA: number; idB: number; nomeA: string; nomeB: string } | null;
+  confermaMatrimonio: (idA: number, idB: number) => void;
+  rifiutaMatrimonio: () => void;
   eventiInCorso: EventoInCorso[];
   eventiCatalogo: EventoDef[];
 };

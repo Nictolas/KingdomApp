@@ -71,6 +71,8 @@ export type Abitante = {
   specie?: "umano" | "alieno"; // Specie dell'abitante (alieno = non Umano)
   razza?: Razza; // Razza/Pianeta di origine dell'abitante
   reati?: Reato[]; // Se presente e non vuoto, l'abitante è considerato "criminale"
+  sesso?: "M" | "F"; // Sesso dell'abitante
+  orientamento?: "Etero" | "Omo" | "Bi"; // Orientamento sessuale (per matrimonio)
 };
 
 // Razze trovabili tra gli abitanti (pianeti di origine)

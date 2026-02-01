@@ -26,7 +26,22 @@ export type AvanzaMeseOutput = {
   pendingAssimilazione: number | null;
   /** Vittime di omicidio per rivalità (per mostrare alert). */
   vittimeOmicidi: { nome: string }[];
+  /** Coppia con amicizia >= 90 che chiede di sposarsi (compatibili per orientamento/sesso). */
+  pendingMatrimonio: { idA: number; idB: number; nomeA: string; nomeB: string } | null;
 };
+
+/** Compatibilità matrimonio: Omo solo con Omo/Bi stesso sesso; Etero con Etero/Bi sesso opposto; Bi con chiunque. */
+function canMarry(a: Abitante, b: Abitante): boolean {
+  const sessoA = a.sesso ?? "M";
+  const sessoB = b.sesso ?? "M";
+  const orA = a.orientamento ?? "Etero";
+  const orB = b.orientamento ?? "Etero";
+  const stessoSesso = sessoA === sessoB;
+  if (orA === "Omo") return (orB === "Omo" || orB === "Bi") && stessoSesso;
+  if (orA === "Etero") return (orB === "Etero" || orB === "Bi") && !stessoSesso;
+  if (orA === "Bi") return true; // Bi con chiunque
+  return false;
+}
 
 /**
  * Logica pura di avanzamento mese: dato lo stato attuale e la config, restituisce il nuovo stato.
@@ -93,6 +108,78 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     genitoriIds: rimuoviMorti(a.genitoriIds ?? []),
     nonniIds: rimuoviMorti(a.nonniIds ?? [])
   }));
+
+  // Rapporti stesso edificio: coppie assegnate allo stesso edificio sviluppano Amicizia o Rivalità (punteggio 10) se non già presenti
+  edifici.forEach((edificio) => {
+    const ids = (edificio.abitantiAssegnati ?? []).filter((id) => idsVivi.has(id));
+    for (let i = 0; i < ids.length; i++) {
+      for (let j = i + 1; j < ids.length; j++) {
+        const idA = ids[i];
+        const idB = ids[j];
+        const a = abitantiRimasti.find((x) => x.id === idA);
+        const b = abitantiRimasti.find((x) => x.id === idB);
+        if (!a || !b) continue;
+        const haGià = (arr: { id: number }[] | undefined, id: number) => (arr ?? []).some((r) => r.id === id);
+        if (haGià(a.amici, idB) || haGià(a.rivali, idB)) continue;
+        const èAmicizia = Math.random() >= 0.5;
+        if (èAmicizia) {
+          a.amici.push({ id: idB, punteggio: 10 });
+          b.amici.push({ id: idA, punteggio: 10 });
+        } else {
+          a.rivali.push({ id: idB, punteggio: 10 });
+          b.rivali.push({ id: idA, punteggio: 10 });
+        }
+      }
+    }
+  });
+
+  // Aggiorna rapporti mensili: ogni rapporto varia di un punteggio casuale da -10 a +10; se <= 0 si trasforma (amicizia↔rivalità) e riparte da 10
+  type CoppiaRapporto = { idA: number; idB: number; tipo: "amici" | "rivali"; punteggio: number };
+  const coppieRapporto: CoppiaRapporto[] = [];
+  abitantiRimasti.forEach((a) => {
+    (a.amici ?? []).forEach((rel) => {
+      if (rel.id > a.id) coppieRapporto.push({ idA: a.id, idB: rel.id, tipo: "amici", punteggio: rel.punteggio });
+    });
+    (a.rivali ?? []).forEach((rel) => {
+      if (rel.id > a.id) coppieRapporto.push({ idA: a.id, idB: rel.id, tipo: "rivali", punteggio: rel.punteggio });
+    });
+  });
+  const getAb = (id: number) => abitantiRimasti.find((x) => x.id === id)!;
+  const rimuoviRel = (arr: { id: number; punteggio: number }[], otherId: number) => {
+    const idx = (arr ?? []).findIndex((r) => r.id === otherId);
+    if (idx >= 0) arr!.splice(idx, 1);
+  };
+  coppieRapporto.forEach(({ idA, idB, tipo, punteggio }) => {
+    const a = getAb(idA);
+    const b = getAb(idB);
+    if (!a || !b) return;
+    const delta = Math.floor(Math.random() * 21) - 10;
+    const nuovoPunteggio = punteggio + delta;
+    if (nuovoPunteggio <= 0) {
+      if (tipo === "amici") {
+        rimuoviRel(a.amici!, idB);
+        rimuoviRel(b.amici!, idA);
+        a.rivali = a.rivali ?? [];
+        b.rivali = b.rivali ?? [];
+        a.rivali.push({ id: idB, punteggio: 10 });
+        b.rivali.push({ id: idA, punteggio: 10 });
+      } else {
+        rimuoviRel(a.rivali!, idB);
+        rimuoviRel(b.rivali!, idA);
+        a.amici = a.amici ?? [];
+        b.amici = b.amici ?? [];
+        a.amici.push({ id: idB, punteggio: 10 });
+        b.amici.push({ id: idA, punteggio: 10 });
+      }
+    } else {
+      const listA = tipo === "amici" ? a.amici! : a.rivali!;
+      const listB = tipo === "amici" ? b.amici! : b.rivali!;
+      const relA = listA.find((r) => r.id === idB);
+      const relB = listB.find((r) => r.id === idA);
+      if (relA) relA.punteggio = nuovoPunteggio;
+      if (relB) relB.punteggio = nuovoPunteggio;
+    }
+  });
 
   // Aggiorna abitanti (schiavi vs non-schiavi, crediti, stanchezza, peso, salute, reddito disoccupati)
   const nuoviAbitanti = abitantiRimasti.map((abitante) => {
@@ -271,6 +358,22 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     }
   });
 
+  // Matrimonio: coppie con amicizia >= 90, non già sposate, compatibili (orientamento/sesso)
+  let pendingMatrimonio: AvanzaMeseOutput["pendingMatrimonio"] = null;
+  const SOGLIA_AMICIZIA_MATRIMONIO = 90;
+  for (const a of abitantiEv) {
+    if (a.coniugeId != null) continue;
+    for (const rel of a.amici ?? []) {
+      if (rel.punteggio < SOGLIA_AMICIZIA_MATRIMONIO) continue;
+      const b = abitantiEv.find((x) => x.id === rel.id);
+      if (!b || b.coniugeId != null || a.id >= b.id) continue;
+      if (!canMarry(a, b) || !canMarry(b, a)) continue;
+      pendingMatrimonio = { idA: a.id, idB: b.id, nomeA: a.nome, nomeB: b.nome };
+      break;
+    }
+    if (pendingMatrimonio) break;
+  }
+
   return {
     abitanti: abitantiEv,
     edifici: edificiEv,
@@ -280,6 +383,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     nuovoAnno,
     deltaNativiNonIntegrati,
     pendingAssimilazione,
-    vittimeOmicidi
+    vittimeOmicidi,
+    pendingMatrimonio
   };
 }

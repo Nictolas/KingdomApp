@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useRef } from "react";
 import { Alert } from "react-native";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
 import { risorseData, edificiData, pianetiData } from "../kingdomData";
@@ -36,6 +36,7 @@ export function useGameState() {
   const [eventiInCorso, setEventiInCorso] = useState<EventoInCorso[]>([]);
   const [nativiNonIntegrati, setNativiNonIntegrati] = useState(() => 100 + Math.floor(Math.random() * 101));
   const [pendingAssimilazione, setPendingAssimilazione] = useState<number | null>(null);
+  const [pendingMatrimonio, setPendingMatrimonio] = useState<{ idA: number; idB: number; nomeA: string; nomeB: string } | null>(null);
 
   // Configurazione tassa sul reddito
   const [tipoTassaReddito, setTipoTassaReddito] = useState<"flat" | "scaglioni">("scaglioni");
@@ -220,6 +221,7 @@ export function useGameState() {
 
     setNativiNonIntegrati((prev) => prev + result.deltaNativiNonIntegrati);
     if (result.pendingAssimilazione != null) setPendingAssimilazione(result.pendingAssimilazione);
+    if (result.pendingMatrimonio != null) setPendingMatrimonio(result.pendingMatrimonio);
     setEventiInCorso(result.eventiInCorso);
     setAbitanti(result.abitanti);
     setEdifici(result.edifici);
@@ -233,6 +235,38 @@ export function useGameState() {
       Alert.alert("Omicidio", `È stato trovato il cadavere di ${v.nome}.`);
     });
   }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata]);
+
+  const confermaMatrimonio = useCallback((idA: number, idB: number) => {
+    setAbitanti((prev) =>
+      prev.map((a) =>
+        a.id === idA ? { ...a, coniugeId: idB } : a.id === idB ? { ...a, coniugeId: idA } : a
+      )
+    );
+    setPendingMatrimonio(null);
+  }, []);
+
+  const rifiutaMatrimonio = useCallback(() => {
+    setPendingMatrimonio(null);
+  }, []);
+
+  const pendingMatrimonioShownRef = useRef<string | null>(null);
+  useEffect(() => {
+    if (!pendingMatrimonio) {
+      pendingMatrimonioShownRef.current = null;
+      return;
+    }
+    const key = `${pendingMatrimonio.idA}-${pendingMatrimonio.idB}`;
+    if (pendingMatrimonioShownRef.current === key) return;
+    pendingMatrimonioShownRef.current = key;
+    Alert.alert(
+      "Matrimonio",
+      `${pendingMatrimonio.nomeA} e ${pendingMatrimonio.nomeB} vogliono sposarsi. Glielo concedi?`,
+      [
+        { text: "No", onPress: rifiutaMatrimonio },
+        { text: "Sì", onPress: () => confermaMatrimonio(pendingMatrimonio.idA, pendingMatrimonio.idB) }
+      ]
+    );
+  }, [pendingMatrimonio, confermaMatrimonio, rifiutaMatrimonio]);
 
   const assegnaAbitanteAEdificio = useCallback((abitanteId: number, edificioId: number) => {
     setEdifici((prevEdifici) =>
@@ -682,6 +716,9 @@ export function useGameState() {
     pendingAssimilazione,
     accettaAssimilazione,
     rifiutaAssimilazione,
+    pendingMatrimonio,
+    confermaMatrimonio,
+    rifiutaMatrimonio,
     eventiInCorso,
     eventiCatalogo: EVENTI_CATALOGO
   };
