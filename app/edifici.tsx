@@ -34,6 +34,8 @@ export default function EdificiScreen() {
               onPress={() => {
                 if (e.nome === "Serra Idroponica Alpha") {
                   router.push("/serra");
+                } else if (e.nome === "Quartieri Residenziali Settore A") {
+                  router.push("/residenze");
                 } else if (e.nome === "Scuola") {
                   router.push("/scuola");
                 } else if (e.nome === "Ospedale Coloniale") {
