@@ -285,6 +285,46 @@ export function useGameState() {
     );
   }, []);
 
+  /** Aggiunge al Campo di Lavoro tutti gli abitanti che soddisfano i filtri (Personalità, Razza, Religione).
+   * Il loro "lavoro" diventa "Prigioniero". Li rimuove da eventuali altri edifici. */
+  const aggiungiAlCampoDiLavoroTuttiQuelliChe = useCallback(
+    (filtro: { personalità?: string; razza?: string; religione?: string }) => {
+      const campoLavoro = edifici.find((e) => e.nome === "Campo di Lavoro");
+      if (!campoLavoro || campoLavoro.stato !== "Operativo") return;
+
+      let candidati = abitanti.filter((a) => {
+        if (filtro.personalità != null && filtro.personalità !== "" && a.personalità !== filtro.personalità)
+          return false;
+        const razza = a.razza ?? "Umano";
+        if (filtro.razza != null && filtro.razza !== "" && razza !== filtro.razza) return false;
+        if (filtro.religione != null && filtro.religione !== "" && a.religione !== filtro.religione)
+          return false;
+        return true;
+      });
+
+      const giàAssegnati = new Set(campoLavoro.abitantiAssegnati ?? []);
+      candidati = candidati.filter((a) => !giàAssegnati.has(a.id));
+      const postiLiberi = Math.max(0, campoLavoro.capacità - (campoLavoro.abitantiAssegnati?.length ?? 0));
+      const idsToAdd = candidati.slice(0, postiLiberi).map((a) => a.id);
+      if (idsToAdd.length === 0) return;
+
+      setAbitanti((prev) =>
+        prev.map((a) => (idsToAdd.includes(a.id) ? { ...a, lavoro: "Prigioniero" } : a))
+      );
+      setEdifici((prev) =>
+        prev.map((e) => {
+          if (e.nome === "Campo di Lavoro") {
+            const nuovi = [...(e.abitantiAssegnati ?? []), ...idsToAdd];
+            return { ...e, abitantiAssegnati: nuovi, occupazione: nuovi.length };
+          }
+          const nuoviAssegnati = (e.abitantiAssegnati ?? []).filter((id) => !idsToAdd.includes(id));
+          return { ...e, abitantiAssegnati: nuoviAssegnati, occupazione: nuoviAssegnati.length };
+        })
+      );
+    },
+    [abitanti, edifici]
+  );
+
   const nominaMinistro = useCallback((abitanteId: number, ministero: string) => {
     setAbitanti((prevAbitanti) =>
       prevAbitanti.map((abitante) => {
@@ -640,6 +680,7 @@ export function useGameState() {
     avanzaMese,
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,
+    aggiungiAlCampoDiLavoroTuttiQuelliChe,
     nominaMinistro,
     rimuoviMinistro,
     calcolaProduzioneConsumo,

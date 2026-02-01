@@ -29,7 +29,6 @@ export default function PersonalitaScreen() {
     { nome: "Psicopatico", emoji: "🔪", effetto: "Rivalità ≥60 può portare a omicidio (soglia 90 per gli altri)" }
   ];
 
-  // Unione: prima catalogo (con conteggio), poi le personalità “custom” trovate tra gli abitanti
   const nomiCatalogo = new Set(catalogoPersonalita.map((p) => p.nome));
   const personalitaCustom = Array.from(mappa.entries())
     .filter(([nome]) => !nomiCatalogo.has(nome))

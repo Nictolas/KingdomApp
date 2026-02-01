@@ -4,11 +4,14 @@ import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import type { Edificio } from "../src/types";
 import { EdificioInfoModal } from "../src/ui/EdificioInfoModal";
+import { CampoDiLavoroModal } from "../src/ui/CampoDiLavoroModal";
 
 export default function EdificiScreen() {
   const router = useRouter();
-  const { edifici } = useGameContext();
+  const { edifici, abitanti, aggiungiAlCampoDiLavoroTuttiQuelliChe } = useGameContext();
   const [selectedEdificio, setSelectedEdificio] = useState<Edificio | null>(null);
+
+  const isCampoDiLavoro = selectedEdificio?.nome === "Campo di Lavoro";
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -57,11 +60,21 @@ export default function EdificiScreen() {
         </View>
       </ScrollView>
 
-      <EdificioInfoModal
-        visible={selectedEdificio !== null}
-        edificio={selectedEdificio}
-        onClose={() => setSelectedEdificio(null)}
-      />
+      {isCampoDiLavoro ? (
+        <CampoDiLavoroModal
+          visible={selectedEdificio !== null}
+          edificio={selectedEdificio}
+          abitanti={abitanti}
+          aggiungiAlCampoDiLavoroTuttiQuelliChe={aggiungiAlCampoDiLavoroTuttiQuelliChe}
+          onClose={() => setSelectedEdificio(null)}
+        />
+      ) : (
+        <EdificioInfoModal
+          visible={selectedEdificio !== null}
+          edificio={selectedEdificio}
+          onClose={() => setSelectedEdificio(null)}
+        />
+      )}
     </SafeAreaView>
   );
 }
