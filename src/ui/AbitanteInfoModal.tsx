@@ -3,12 +3,15 @@ import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from
 import type { Abitante } from "../types";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
+const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
+
 type AbitanteInfoModalProps = {
   visible: boolean;
   abitante: Abitante | null;
   onClose: () => void;
   getAbitanteNome: (id: number) => string;
   calcolaFelicitàModificata?: (abitante: Abitante) => number;
+  etaMinimaLavoro?: number;
 };
 
 export function AbitanteInfoModal({
@@ -16,9 +19,15 @@ export function AbitanteInfoModal({
   abitante,
   onClose,
   getAbitanteNome,
-  calcolaFelicitàModificata
+  calcolaFelicitàModificata,
+  etaMinimaLavoro = 18
 }: AbitanteInfoModalProps) {
   if (!abitante) return null;
+
+  const maggiorenne = abitante.eta >= etaMinimaLavoro;
+  const lavoroDaMinore = LAVORI_DA_MINORE.includes(abitante.lavoro);
+  const emojiDisplay = maggiorenne && lavoroDaMinore ? "👤" : abitante.emoji;
+  const lavoroDisplay = maggiorenne && lavoroDaMinore ? "Disoccupato" : abitante.lavoro;
 
   const formatPercentuale = (valore: number) => `${valore}%`;
   const formatMonete = (valore: number) => `${valore} crediti`;
@@ -36,9 +45,9 @@ export function AbitanteInfoModal({
         <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
           <ScrollView showsVerticalScrollIndicator={false}>
             <View style={styles.header}>
-              <Text style={styles.emoji}>{abitante.emoji}</Text>
+              <Text style={styles.emoji}>{emojiDisplay}</Text>
               <Text style={styles.title}>{abitante.nome}</Text>
-              <Text style={styles.lavoro}>{abitante.lavoro}</Text>
+              <Text style={styles.lavoro}>{lavoroDisplay}</Text>
             </View>
 
             {/* Informazioni base */}

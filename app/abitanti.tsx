@@ -8,9 +8,25 @@ import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 type SortField = "nome" | "eta" | "lavoro" | "razza" | "competenza" | "produttività" | "stanchezza" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "paura" | "felicità" | "religione" | "fazioni" | null;
 type SortDirection = "asc" | "desc";
 
+const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
+
+function getEmojiDisplay(abitante: Abitante, etaMinimaLavoro: number): string {
+  const maggiorenne = abitante.eta >= etaMinimaLavoro;
+  const lavoroDaMinore = LAVORI_DA_MINORE.includes(abitante.lavoro);
+  if (maggiorenne && lavoroDaMinore) return "👤";
+  return abitante.emoji;
+}
+
+function getLavoroDisplay(abitante: Abitante, etaMinimaLavoro: number): string {
+  const maggiorenne = abitante.eta >= etaMinimaLavoro;
+  const lavoroDaMinore = LAVORI_DA_MINORE.includes(abitante.lavoro);
+  if (maggiorenne && lavoroDaMinore) return "Disoccupato";
+  return abitante.lavoro;
+}
+
 export default function AbitantiScreen() {
   const router = useRouter();
-  const { abitanti, calcolaFelicitàModificata } = useGameContext();
+  const { abitanti, calcolaFelicitàModificata, etaMinimaLavoro } = useGameContext();
   const [selectedAbitante, setSelectedAbitante] = useState<Abitante | null>(null);
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -38,9 +54,12 @@ export default function AbitantiScreen() {
       } else if (sortField === "fazioni") {
         aValue = (a.fazioni ?? []).join(", ");
         bValue = (b.fazioni ?? []).join(", ");
-      } else if (sortField === "nome" || sortField === "lavoro" || sortField === "religione") {
+      } else if (sortField === "nome" || sortField === "religione") {
         aValue = a[sortField];
         bValue = b[sortField];
+      } else if (sortField === "lavoro") {
+        aValue = getLavoroDisplay(a, etaMinimaLavoro);
+        bValue = getLavoroDisplay(b, etaMinimaLavoro);
       } else if (sortField === "razza") {
         aValue = a.razza ?? "Umano";
         bValue = b.razza ?? "Umano";
@@ -61,7 +80,7 @@ export default function AbitantiScreen() {
     });
 
     return sorted;
-  }, [abitanti, sortField, sortDirection, calcolaFelicitàModificata]);
+  }, [abitanti, sortField, sortDirection, calcolaFelicitàModificata, etaMinimaLavoro]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -247,6 +266,8 @@ export default function AbitantiScreen() {
           {/* Righe della tabella */}
           {abitantiOrdinati.map((a: Abitante) => {
             const felicitàModificata = calcolaFelicitàModificata(a);
+            const emojiDisplay = getEmojiDisplay(a, etaMinimaLavoro);
+            const lavoroDisplay = getLavoroDisplay(a, etaMinimaLavoro);
             return (
               <Pressable
                 key={a.id}
@@ -254,7 +275,7 @@ export default function AbitantiScreen() {
                 onPress={() => setSelectedAbitante(a)}
               >
                 <View style={[styles.cell, styles.cellEmoji]}>
-                  <Text style={styles.cellEmojiText}>{a.emoji}</Text>
+                  <Text style={styles.cellEmojiText}>{emojiDisplay}</Text>
                 </View>
                 <View style={[styles.cell, styles.cellNome]}>
                   <Text style={styles.cellText}>{a.nome}</Text>
@@ -263,7 +284,7 @@ export default function AbitantiScreen() {
                   <Text style={styles.cellText}>{a.eta}</Text>
                 </View>
                 <View style={[styles.cell, styles.cellLavoro]}>
-                  <Text style={styles.cellTextSmall}>{a.lavoro}</Text>
+                  <Text style={styles.cellTextSmall}>{lavoroDisplay}</Text>
                 </View>
                 <View style={[styles.cell, styles.cellRazza]}>
                   <Text style={styles.cellTextSmall}>{a.razza ?? "Umano"}</Text>
@@ -321,6 +342,7 @@ export default function AbitantiScreen() {
         onClose={() => setSelectedAbitante(null)}
         getAbitanteNome={getAbitanteNome}
         calcolaFelicitàModificata={calcolaFelicitàModificata}
+        etaMinimaLavoro={etaMinimaLavoro}
       />
     </SafeAreaView>
   );
