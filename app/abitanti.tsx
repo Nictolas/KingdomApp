@@ -10,6 +10,17 @@ import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 type SortField = "nome" | "eta" | "lavoro" | "razza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "religione" | "fazioni" | null;
 type SortDirection = "asc" | "desc";
 
+type MacroKey = "anagrafica" | "prestazioni" | "benessere" | "economia" | "lealta" | "sociale" | "religioneFazioni";
+const MACRO_OPEN_DEFAULT: Record<MacroKey, boolean> = {
+  anagrafica: true,
+  prestazioni: true,
+  benessere: true,
+  economia: true,
+  lealta: true,
+  sociale: true,
+  religioneFazioni: true
+};
+
 const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
 
 function getEmojiDisplay(abitante: Abitante, etaMinimaLavoro: number): string {
@@ -34,6 +45,11 @@ export default function AbitantiScreen() {
   const [selectedAbitante, setSelectedAbitante] = useState<Abitante | null>(null);
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
+  const [macroOpen, setMacroOpen] = useState<Record<MacroKey, boolean>>(MACRO_OPEN_DEFAULT);
+
+  const toggleMacro = (key: MacroKey) => {
+    setMacroOpen((prev) => ({ ...prev, [key]: !prev[key] }));
+  };
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -141,30 +157,72 @@ export default function AbitantiScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={true}
         >
-          {/* Riga sovracolonne */}
+          {/* Riga sovracolonne (cliccabili per aprire/chiudere) */}
           <View style={styles.superHeaderRow}>
             <View style={[styles.superHeaderCell, styles.superEmoji]} />
-            <View style={[styles.superHeaderCell, styles.superAnagrafica]}>
-              <Text style={styles.superHeaderText}>Anagrafica</Text>
-            </View>
-            <View style={[styles.superHeaderCell, styles.superPrestazioni]}>
-              <Text style={styles.superHeaderText}>Prestazioni</Text>
-            </View>
-            <View style={[styles.superHeaderCell, styles.superBenessere]}>
-              <Text style={styles.superHeaderText}>Salute e benessere</Text>
-            </View>
-            <View style={[styles.superHeaderCell, styles.superEconomia]}>
-              <Text style={styles.superHeaderText}>Economia</Text>
-            </View>
-            <View style={[styles.superHeaderCell, styles.superLealta]}>
-              <Text style={styles.superHeaderText}>Lealtà</Text>
-            </View>
-            <View style={[styles.superHeaderCell, styles.superSociale]}>
-              <Text style={styles.superHeaderText}>Sociale</Text>
-            </View>
-            <View style={[styles.superHeaderCell, styles.superReligioneFazioni]}>
-              <Text style={styles.superHeaderText}>Religione e fazioni</Text>
-            </View>
+            <Pressable
+              style={[styles.superHeaderCell, macroOpen.anagrafica ? styles.superAnagrafica : styles.superMacroCollapsed]}
+              onPress={() => toggleMacro("anagrafica")}
+            >
+              <View style={styles.superHeaderInner}>
+                <Text style={styles.superHeaderText} numberOfLines={1}>Anagrafica</Text>
+                <Text style={styles.superHeaderArrow}>{macroOpen.anagrafica ? "▼" : "▶"}</Text>
+              </View>
+            </Pressable>
+            <Pressable
+              style={[styles.superHeaderCell, macroOpen.prestazioni ? styles.superPrestazioni : styles.superMacroCollapsed]}
+              onPress={() => toggleMacro("prestazioni")}
+            >
+              <View style={styles.superHeaderInner}>
+                <Text style={styles.superHeaderText} numberOfLines={1}>Prestazioni</Text>
+                <Text style={styles.superHeaderArrow}>{macroOpen.prestazioni ? "▼" : "▶"}</Text>
+              </View>
+            </Pressable>
+            <Pressable
+              style={[styles.superHeaderCell, macroOpen.benessere ? styles.superBenessere : styles.superMacroCollapsed]}
+              onPress={() => toggleMacro("benessere")}
+            >
+              <View style={styles.superHeaderInner}>
+                <Text style={styles.superHeaderText} numberOfLines={1}>Salute e benessere</Text>
+                <Text style={styles.superHeaderArrow}>{macroOpen.benessere ? "▼" : "▶"}</Text>
+              </View>
+            </Pressable>
+            <Pressable
+              style={[styles.superHeaderCell, macroOpen.economia ? styles.superEconomia : styles.superMacroCollapsed]}
+              onPress={() => toggleMacro("economia")}
+            >
+              <View style={styles.superHeaderInner}>
+                <Text style={styles.superHeaderText} numberOfLines={1}>Economia</Text>
+                <Text style={styles.superHeaderArrow}>{macroOpen.economia ? "▼" : "▶"}</Text>
+              </View>
+            </Pressable>
+            <Pressable
+              style={[styles.superHeaderCell, macroOpen.lealta ? styles.superLealta : styles.superMacroCollapsed]}
+              onPress={() => toggleMacro("lealta")}
+            >
+              <View style={styles.superHeaderInner}>
+                <Text style={styles.superHeaderText} numberOfLines={1}>Lealtà</Text>
+                <Text style={styles.superHeaderArrow}>{macroOpen.lealta ? "▼" : "▶"}</Text>
+              </View>
+            </Pressable>
+            <Pressable
+              style={[styles.superHeaderCell, macroOpen.sociale ? styles.superSociale : styles.superMacroCollapsed]}
+              onPress={() => toggleMacro("sociale")}
+            >
+              <View style={styles.superHeaderInner}>
+                <Text style={styles.superHeaderText} numberOfLines={1}>Sociale</Text>
+                <Text style={styles.superHeaderArrow}>{macroOpen.sociale ? "▼" : "▶"}</Text>
+              </View>
+            </Pressable>
+            <Pressable
+              style={[styles.superHeaderCell, macroOpen.religioneFazioni ? styles.superReligioneFazioni : styles.superMacroCollapsed]}
+              onPress={() => toggleMacro("religioneFazioni")}
+            >
+              <View style={styles.superHeaderInner}>
+                <Text style={styles.superHeaderText} numberOfLines={1}>Religione e fazioni</Text>
+                <Text style={styles.superHeaderArrow}>{macroOpen.religioneFazioni ? "▼" : "▶"}</Text>
+              </View>
+            </Pressable>
           </View>
 
           {/* Header della tabella */}
@@ -172,186 +230,112 @@ export default function AbitantiScreen() {
             <View style={[styles.headerCell, styles.cellEmoji]}>
               <Text style={styles.headerText}>😊</Text>
             </View>
-            <Pressable 
-              style={[styles.headerCell, styles.cellNome, sortField === "nome" && styles.headerCellActive]}
-              onPress={() => handleSort("nome")}
-            >
-              <Text style={styles.headerText}>👤 Nome</Text>
-              {sortField === "nome" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellSmall, sortField === "eta" && styles.headerCellActive]}
-              onPress={() => handleSort("eta")}
-            >
-              <Text style={styles.headerText}>🎂 Età</Text>
-              {sortField === "eta" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellLavoro, sortField === "lavoro" && styles.headerCellActive]}
-              onPress={() => handleSort("lavoro")}
-            >
-              <Text style={styles.headerText}>💼 Lavoro</Text>
-              {sortField === "lavoro" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellRazza, sortField === "razza" && styles.headerCellActive]}
-              onPress={() => handleSort("razza")}
-            >
-              <Text style={styles.headerText}>🪐 Razza</Text>
-              {sortField === "razza" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellSmall, sortField === "competenza" && styles.headerCellActive]}
-              onPress={() => handleSort("competenza")}
-            >
-              <Text style={styles.headerText}>⭐ Comp.</Text>
-              {sortField === "competenza" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellSmall, sortField === "produttività" && styles.headerCellActive]}
-              onPress={() => handleSort("produttività")}
-            >
-              <Text style={styles.headerText}>⚡ Prod.</Text>
-              {sortField === "produttività" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellSmall, sortField === "stanchezza" && styles.headerCellActive]}
-              onPress={() => handleSort("stanchezza")}
-            >
-              <Text style={styles.headerText}>😴 Stan.</Text>
-              {sortField === "stanchezza" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellSmall, sortField === "peso" && styles.headerCellActive]}
-              onPress={() => handleSort("peso")}
-            >
-              <Text style={styles.headerText}>⚖️ Peso</Text>
-              {sortField === "peso" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellSmall, sortField === "salute" && styles.headerCellActive]}
-              onPress={() => handleSort("salute")}
-            >
-              <Text style={styles.headerText}>🏥 Salute</Text>
-              {sortField === "salute" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellSmall, sortField === "felicità" && styles.headerCellActive]}
-              onPress={() => handleSort("felicità")}
-            >
-              <Text style={styles.headerText}>😊 Felicità</Text>
-              {sortField === "felicità" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellSmall, sortField === "paura" && styles.headerCellActive]}
-              onPress={() => handleSort("paura")}
-            >
-              <Text style={styles.headerText}>😨 Paura</Text>
-              {sortField === "paura" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellMedium, sortField === "crediti" && styles.headerCellActive]}
-              onPress={() => handleSort("crediti")}
-            >
-              <Text style={styles.headerText}>💰 Crediti</Text>
-              {sortField === "crediti" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellMedium, sortField === "reddito" && styles.headerCellActive]}
-              onPress={() => handleSort("reddito")}
-            >
-              <Text style={styles.headerText}>📈 Reddito</Text>
-              {sortField === "reddito" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellMedium, sortField === "spese" && styles.headerCellActive]}
-              onPress={() => handleSort("spese")}
-            >
-              <Text style={styles.headerText}>📉 Spese</Text>
-              {sortField === "spese" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellSmall, sortField === "lealtà" && styles.headerCellActive]}
-              onPress={() => handleSort("lealtà")}
-            >
-              <Text style={styles.headerText}>❤️ Lealtà</Text>
-              {sortField === "lealtà" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellSociale, sortField === "amici" && styles.headerCellActive]}
-              onPress={() => handleSort("amici")}
-            >
-              <Text style={styles.headerText}>👥 Amici</Text>
-              {sortField === "amici" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellSociale, sortField === "rivali" && styles.headerCellActive]}
-              onPress={() => handleSort("rivali")}
-            >
-              <Text style={styles.headerText}>⚔️ Rivali</Text>
-              {sortField === "rivali" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellFamiliari, sortField === "familiari" && styles.headerCellActive]}
-              onPress={() => handleSort("familiari")}
-            >
-              <Text style={styles.headerText}>👨‍👩‍👧‍👦 Familiari</Text>
-              {sortField === "familiari" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellReligione, sortField === "religione" && styles.headerCellActive]}
-              onPress={() => handleSort("religione")}
-            >
-              <Text style={styles.headerText}>🕊️ Religione</Text>
-              {sortField === "religione" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellFazione, sortField === "fazioni" && styles.headerCellActive]}
-              onPress={() => handleSort("fazioni")}
-            >
-              <Text style={styles.headerText}>⚔️ Fazione</Text>
-              {sortField === "fazioni" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
+            {macroOpen.anagrafica && (
+              <>
+                <Pressable style={[styles.headerCell, styles.cellNome, sortField === "nome" && styles.headerCellActive]} onPress={() => handleSort("nome")}>
+                  <Text style={styles.headerText}>👤 Nome</Text>
+                  {sortField === "nome" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "eta" && styles.headerCellActive]} onPress={() => handleSort("eta")}>
+                  <Text style={styles.headerText}>🎂 Età</Text>
+                  {sortField === "eta" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellLavoro, sortField === "lavoro" && styles.headerCellActive]} onPress={() => handleSort("lavoro")}>
+                  <Text style={styles.headerText}>💼 Lavoro</Text>
+                  {sortField === "lavoro" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellRazza, sortField === "razza" && styles.headerCellActive]} onPress={() => handleSort("razza")}>
+                  <Text style={styles.headerText}>🪐 Razza</Text>
+                  {sortField === "razza" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+              </>
+            )}
+            {macroOpen.prestazioni && (
+              <>
+                <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "competenza" && styles.headerCellActive]} onPress={() => handleSort("competenza")}>
+                  <Text style={styles.headerText}>⭐ Comp.</Text>
+                  {sortField === "competenza" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "produttività" && styles.headerCellActive]} onPress={() => handleSort("produttività")}>
+                  <Text style={styles.headerText}>⚡ Prod.</Text>
+                  {sortField === "produttività" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "stanchezza" && styles.headerCellActive]} onPress={() => handleSort("stanchezza")}>
+                  <Text style={styles.headerText}>😴 Stan.</Text>
+                  {sortField === "stanchezza" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+              </>
+            )}
+            {macroOpen.benessere && (
+              <>
+                <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "peso" && styles.headerCellActive]} onPress={() => handleSort("peso")}>
+                  <Text style={styles.headerText}>⚖️ Peso</Text>
+                  {sortField === "peso" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "salute" && styles.headerCellActive]} onPress={() => handleSort("salute")}>
+                  <Text style={styles.headerText}>🏥 Salute</Text>
+                  {sortField === "salute" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "felicità" && styles.headerCellActive]} onPress={() => handleSort("felicità")}>
+                  <Text style={styles.headerText}>😊 Felicità</Text>
+                  {sortField === "felicità" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "paura" && styles.headerCellActive]} onPress={() => handleSort("paura")}>
+                  <Text style={styles.headerText}>😨 Paura</Text>
+                  {sortField === "paura" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+              </>
+            )}
+            {macroOpen.economia && (
+              <>
+                <Pressable style={[styles.headerCell, styles.cellMedium, sortField === "crediti" && styles.headerCellActive]} onPress={() => handleSort("crediti")}>
+                  <Text style={styles.headerText}>💰 Crediti</Text>
+                  {sortField === "crediti" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellMedium, sortField === "reddito" && styles.headerCellActive]} onPress={() => handleSort("reddito")}>
+                  <Text style={styles.headerText}>📈 Reddito</Text>
+                  {sortField === "reddito" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellMedium, sortField === "spese" && styles.headerCellActive]} onPress={() => handleSort("spese")}>
+                  <Text style={styles.headerText}>📉 Spese</Text>
+                  {sortField === "spese" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+              </>
+            )}
+            {macroOpen.lealta && (
+              <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "lealtà" && styles.headerCellActive]} onPress={() => handleSort("lealtà")}>
+                <Text style={styles.headerText}>❤️ Lealtà</Text>
+                {sortField === "lealtà" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+              </Pressable>
+            )}
+            {macroOpen.sociale && (
+              <>
+                <Pressable style={[styles.headerCell, styles.cellSociale, sortField === "amici" && styles.headerCellActive]} onPress={() => handleSort("amici")}>
+                  <Text style={styles.headerText}>👥 Amici</Text>
+                  {sortField === "amici" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellSociale, sortField === "rivali" && styles.headerCellActive]} onPress={() => handleSort("rivali")}>
+                  <Text style={styles.headerText}>⚔️ Rivali</Text>
+                  {sortField === "rivali" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellFamiliari, sortField === "familiari" && styles.headerCellActive]} onPress={() => handleSort("familiari")}>
+                  <Text style={styles.headerText}>👨‍👩‍👧‍👦 Familiari</Text>
+                  {sortField === "familiari" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+              </>
+            )}
+            {macroOpen.religioneFazioni && (
+              <>
+                <Pressable style={[styles.headerCell, styles.cellReligione, sortField === "religione" && styles.headerCellActive]} onPress={() => handleSort("religione")}>
+                  <Text style={styles.headerText}>🕊️ Religione</Text>
+                  {sortField === "religione" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellFazione, sortField === "fazioni" && styles.headerCellActive]} onPress={() => handleSort("fazioni")}>
+                  <Text style={styles.headerText}>⚔️ Fazione</Text>
+                  {sortField === "fazioni" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
+              </>
+            )}
           </View>
 
           {/* Righe della tabella */}
@@ -377,71 +361,60 @@ export default function AbitantiScreen() {
                 <View style={[styles.cell, styles.cellEmoji]}>
                   <Text style={styles.cellEmojiText}>{emojiDisplay}</Text>
                 </View>
-                <View style={[styles.cell, styles.cellNome]}>
-                  <Text style={styles.cellText}>{a.nome}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellSmall]}>
-                  <Text style={styles.cellText}>{a.eta}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellLavoro]}>
-                  <Text style={[styles.cellTextSmall, lavoroDisplay === "Disoccupato" && styles.cellTextDisoccupato]}>{lavoroDisplay}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellRazza]}>
-                  <Text style={styles.cellEmojiText}>{getEmojiRazza(a.razza ?? "Umano")}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellSmall]}>
-                  <Text style={styles.cellText}>{a.competenza}%</Text>
-                </View>
-                <View style={[styles.cell, styles.cellSmall]}>
-                  <Text style={styles.cellText}>{a.produttività}%</Text>
-                </View>
-                <View style={[styles.cell, styles.cellSmall]}>
-                  <Text style={styles.cellText}>{a.stanchezza}%</Text>
-                </View>
-                <View style={[styles.cell, styles.cellSmall]}>
-                  <Text style={styles.cellText}>{a.peso ?? 50}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellSmall]}>
-                  <Text style={[styles.cellTextSmall, saluteStyle]}>{statoSalute}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellSmall]}>
-                  <Text style={[
-                    styles.cellText,
-                    felicitàModificata >= 70 ? styles.cellTextPositive : felicitàModificata >= 40 ? styles.cellTextNeutral : styles.cellTextNegative
-                  ]}>
-                    {felicitàModificata}%
-                  </Text>
-                </View>
-                <View style={[styles.cell, styles.cellSmall]}>
-                  <Text style={styles.cellText}>{a.paura}%</Text>
-                </View>
-                <View style={[styles.cell, styles.cellMedium]}>
-                  <Text style={styles.cellText}>{a.crediti}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellMedium]}>
-                  <Text style={[styles.cellText, styles.cellTextPositive]}>{a.reddito}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellMedium]}>
-                  <Text style={[styles.cellText, styles.cellTextNegative]}>{a.spese}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellSmall]}>
-                  <Text style={styles.cellText}>{a.lealtà}%</Text>
-                </View>
-                <View style={[styles.cell, styles.cellSociale]}>
-                  <Text style={styles.cellText}>{(a.amici?.length ?? 0)}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellSociale]}>
-                  <Text style={styles.cellText}>{(a.rivali?.length ?? 0)}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellFamiliari]}>
-                  <Text style={styles.cellTextSmall} numberOfLines={3}>{getFamiliariDisplay(a)}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellReligione]}>
-                  <Text style={styles.cellTextSmall}>{a.religione}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellFazione]}>
-                  <Text style={styles.cellTextSmall}>{a.fazioni?.join(", ") ?? "—"}</Text>
-                </View>
+                {macroOpen.anagrafica && (
+                  <>
+                    <View style={[styles.cell, styles.cellNome]}><Text style={styles.cellText}>{a.nome}</Text></View>
+                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.eta}</Text></View>
+                    <View style={[styles.cell, styles.cellLavoro]}>
+                      <Text style={[styles.cellTextSmall, lavoroDisplay === "Disoccupato" && styles.cellTextDisoccupato]}>{lavoroDisplay}</Text>
+                    </View>
+                    <View style={[styles.cell, styles.cellRazza]}>
+                      <Text style={styles.cellEmojiText}>{getEmojiRazza(a.razza ?? "Umano")}</Text>
+                    </View>
+                  </>
+                )}
+                {macroOpen.prestazioni && (
+                  <>
+                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.competenza}%</Text></View>
+                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.produttività}%</Text></View>
+                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.stanchezza}%</Text></View>
+                  </>
+                )}
+                {macroOpen.benessere && (
+                  <>
+                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.peso ?? 50}</Text></View>
+                    <View style={[styles.cell, styles.cellSmall]}><Text style={[styles.cellTextSmall, saluteStyle]}>{statoSalute}</Text></View>
+                    <View style={[styles.cell, styles.cellSmall]}>
+                      <Text style={[styles.cellText, felicitàModificata >= 70 ? styles.cellTextPositive : felicitàModificata >= 40 ? styles.cellTextNeutral : styles.cellTextNegative]}>{felicitàModificata}%</Text>
+                    </View>
+                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.paura}%</Text></View>
+                  </>
+                )}
+                {macroOpen.economia && (
+                  <>
+                    <View style={[styles.cell, styles.cellMedium]}><Text style={styles.cellText}>{a.crediti}</Text></View>
+                    <View style={[styles.cell, styles.cellMedium]}><Text style={[styles.cellText, styles.cellTextPositive]}>{a.reddito}</Text></View>
+                    <View style={[styles.cell, styles.cellMedium]}><Text style={[styles.cellText, styles.cellTextNegative]}>{a.spese}</Text></View>
+                  </>
+                )}
+                {macroOpen.lealta && (
+                  <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.lealtà}%</Text></View>
+                )}
+                {macroOpen.sociale && (
+                  <>
+                    <View style={[styles.cell, styles.cellSociale]}><Text style={styles.cellText}>{(a.amici?.length ?? 0)}</Text></View>
+                    <View style={[styles.cell, styles.cellSociale]}><Text style={styles.cellText}>{(a.rivali?.length ?? 0)}</Text></View>
+                    <View style={[styles.cell, styles.cellFamiliari]}>
+                      <Text style={styles.cellTextSmall} numberOfLines={3}>{getFamiliariDisplay(a)}</Text>
+                    </View>
+                  </>
+                )}
+                {macroOpen.religioneFazioni && (
+                  <>
+                    <View style={[styles.cell, styles.cellReligione]}><Text style={styles.cellTextSmall}>{a.religione}</Text></View>
+                    <View style={[styles.cell, styles.cellFazione]}><Text style={styles.cellTextSmall}>{a.fazioni?.join(", ") ?? "—"}</Text></View>
+                  </>
+                )}
               </Pressable>
             );
           })}
@@ -513,6 +486,20 @@ const styles = StyleSheet.create({
     textAlign: "center",
     textTransform: "uppercase",
     letterSpacing: 0.3
+  },
+  superHeaderArrow: {
+    color: "rgba(191,219,254,0.8)",
+    fontSize: 8,
+    marginLeft: 2
+  },
+  superHeaderInner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  superMacroCollapsed: {
+    width: 48,
+    minWidth: 48
   },
   superEmoji: {
     width: 40,

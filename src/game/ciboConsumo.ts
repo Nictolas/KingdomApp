@@ -25,22 +25,26 @@ export function getStatoSalute(abitante: Abitante): StatoSalute {
 
 /**
  * Consumo mensile di cibo (razioni) per abitante, deterministico da id e peso.
- * Allineato alle 4 categorie: Denutrito 1-4, Normopeso 2-5, Sovrappeso 4-7, Obeso 5-10.
+ * Regola fissa per categoria:
+ * - Denutrito: 0-5 razioni/mese
+ * - Sano (Normopeso): 6-10 razioni/mese
+ * - Sovrappeso: 11-15 razioni/mese
+ * - Obeso: 16-20 razioni/mese
  */
 export function getConsumoCibo(abitante: Abitante): number {
   const seed = abitante.id * 17 + (abitante.peso ?? 50) * 23;
   const cat = getCategoriaPeso(abitante);
   switch (cat) {
     case "Denutrito":
-      return 1 + (seed % 4); // 1-4
+      return seed % 6; // 0-5
     case "Normopeso":
-      return 2 + (seed % 4); // 2-5
+      return 6 + (seed % 5); // 6-10
     case "Sovrappeso":
-      return 4 + (seed % 4); // 4-7
+      return 11 + (seed % 5); // 11-15
     case "Obeso":
-      return 5 + (seed % 6); // 5-10
+      return 16 + (seed % 5); // 16-20
     default:
-      return 2 + (seed % 4);
+      return 6 + (seed % 5);
   }
 }
 
