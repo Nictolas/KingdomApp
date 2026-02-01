@@ -253,8 +253,9 @@ export function useGameState() {
           salute: nuovaSalute
         };
       }
-      // Calcola il nuovo saldo (reddito - spese)
-      const nuovoSaldo = abitante.crediti + abitante.reddito - abitante.spese;
+      // Disoccupati: reddito sempre 0
+      const redditoEffettivo = abitante.lavoro === "Disoccupato" ? 0 : abitante.reddito;
+      const nuovoSaldo = abitante.crediti + redditoEffettivo - abitante.spese;
       const nuovaStanchezza = Math.min(100, abitante.stanchezza + Math.floor(Math.random() * 10));
       const variazionePeso = Math.floor(Math.random() * 6) - 2;
       const nuovoPeso = Math.max(0, Math.min(100, abitante.peso + variazionePeso));
@@ -262,6 +263,7 @@ export function useGameState() {
       const nuovaSalute = Math.max(0, Math.min(100, abitante.salute + variazioneSalute));
       return {
         ...abitante,
+        reddito: abitante.lavoro === "Disoccupato" ? 0 : abitante.reddito,
         crediti: Math.max(0, nuovoSaldo),
         stanchezza: nuovaStanchezza,
         peso: nuovoPeso,

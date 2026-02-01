@@ -7,7 +7,7 @@ import { getEmojiRazza } from "../src/kingdomData";
 import type { Abitante } from "../src/types";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 
-type SortField = "nome" | "eta" | "lavoro" | "razza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "coniuge" | "figli" | "genitori" | "nonni" | "paura" | "felicità" | "religione" | "fazioni" | null;
+type SortField = "nome" | "eta" | "lavoro" | "razza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "religione" | "fazioni" | null;
 type SortDirection = "asc" | "desc";
 
 const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
@@ -42,6 +42,16 @@ export default function AbitantiScreen() {
 
   const getAbitanteNome = (id: number) => {
     return abitanti.find((a) => a.id === id)?.nome || `ID ${id}`;
+  };
+
+  /** Una sola stringa per tutti i familiari: "Mario Rossi (coniuge), Luca (figlio), ..." */
+  const getFamiliariDisplay = (a: Abitante): string => {
+    const parti: string[] = [];
+    if (a.coniugeId != null) parti.push(`${getAbitanteNome(a.coniugeId)} (coniuge)`);
+    (a.figliIds ?? []).forEach((id) => parti.push(`${getAbitanteNome(id)} (figlio)`));
+    (a.genitoriIds ?? []).forEach((id) => parti.push(`${getAbitanteNome(id)} (genitore)`));
+    (a.nonniIds ?? []).forEach((id) => parti.push(`${getAbitanteNome(id)} (nonno)`));
+    return parti.length > 0 ? parti.join(", ") : "—";
   };
 
   // Ordina gli abitanti
@@ -79,18 +89,9 @@ export default function AbitantiScreen() {
       } else if (sortField === "rivali") {
         aValue = (a.rivali?.length ?? 0);
         bValue = (b.rivali?.length ?? 0);
-      } else if (sortField === "coniuge") {
-        aValue = a.coniugeId != null ? getAbitanteNome(a.coniugeId) : "";
-        bValue = b.coniugeId != null ? getAbitanteNome(b.coniugeId) : "";
-      } else if (sortField === "figli") {
-        aValue = (a.figliIds ?? []).map(getAbitanteNome).join(", ");
-        bValue = (b.figliIds ?? []).map(getAbitanteNome).join(", ");
-      } else if (sortField === "genitori") {
-        aValue = (a.genitoriIds ?? []).map(getAbitanteNome).join(", ");
-        bValue = (b.genitoriIds ?? []).map(getAbitanteNome).join(", ");
-      } else if (sortField === "nonni") {
-        aValue = (a.nonniIds ?? []).map(getAbitanteNome).join(", ");
-        bValue = (b.nonniIds ?? []).map(getAbitanteNome).join(", ");
+      } else if (sortField === "familiari") {
+        aValue = getFamiliariDisplay(a);
+        bValue = getFamiliariDisplay(b);
       } else {
         aValue = a[sortField as keyof Abitante] as number;
         bValue = b[sortField as keyof Abitante] as number;
@@ -325,38 +326,11 @@ export default function AbitantiScreen() {
               )}
             </Pressable>
             <Pressable 
-              style={[styles.headerCell, styles.cellConiuge, sortField === "coniuge" && styles.headerCellActive]}
-              onPress={() => handleSort("coniuge")}
+              style={[styles.headerCell, styles.cellFamiliari, sortField === "familiari" && styles.headerCellActive]}
+              onPress={() => handleSort("familiari")}
             >
-              <Text style={styles.headerText}>💑 Coniuge</Text>
-              {sortField === "coniuge" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellFigli, sortField === "figli" && styles.headerCellActive]}
-              onPress={() => handleSort("figli")}
-            >
-              <Text style={styles.headerText}>👶 Figli</Text>
-              {sortField === "figli" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellGenitori, sortField === "genitori" && styles.headerCellActive]}
-              onPress={() => handleSort("genitori")}
-            >
-              <Text style={styles.headerText}>👪 Genitori</Text>
-              {sortField === "genitori" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellNonni, sortField === "nonni" && styles.headerCellActive]}
-              onPress={() => handleSort("nonni")}
-            >
-              <Text style={styles.headerText}>🧓 Nonni</Text>
-              {sortField === "nonni" && (
+              <Text style={styles.headerText}>👨‍👩‍👧‍👦 Familiari</Text>
+              {sortField === "familiari" && (
                 <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
               )}
             </Pressable>
@@ -385,6 +359,15 @@ export default function AbitantiScreen() {
             const felicitàModificata = calcolaFelicitàModificata(a);
             const emojiDisplay = getEmojiDisplay(a, etaMinimaLavoro);
             const lavoroDisplay = getLavoroDisplay(a, etaMinimaLavoro);
+            const statoSalute = getStatoSalute(a);
+            const saluteStyle =
+              statoSalute === "Sano"
+                ? styles.cellTextSaluteSano
+                : statoSalute === "Sovrappeso" || statoSalute === "Denutrito"
+                ? styles.cellTextSaluteGiallo
+                : statoSalute === "Obeso"
+                ? styles.cellTextSaluteObeso
+                : undefined;
             return (
               <Pressable
                 key={a.id}
@@ -419,7 +402,7 @@ export default function AbitantiScreen() {
                   <Text style={styles.cellText}>{a.peso ?? 50}</Text>
                 </View>
                 <View style={[styles.cell, styles.cellSmall]}>
-                  <Text style={styles.cellTextSmall}>{getStatoSalute(a)}</Text>
+                  <Text style={[styles.cellTextSmall, saluteStyle]}>{statoSalute}</Text>
                 </View>
                 <View style={[styles.cell, styles.cellSmall]}>
                   <Text style={[
@@ -450,17 +433,8 @@ export default function AbitantiScreen() {
                 <View style={[styles.cell, styles.cellSociale]}>
                   <Text style={styles.cellText}>{(a.rivali?.length ?? 0)}</Text>
                 </View>
-                <View style={[styles.cell, styles.cellConiuge]}>
-                  <Text style={styles.cellTextSmall}>{a.coniugeId != null ? getAbitanteNome(a.coniugeId) : "—"}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellFigli]}>
-                  <Text style={styles.cellTextSmall}>{(a.figliIds ?? []).length > 0 ? (a.figliIds ?? []).map(getAbitanteNome).join(", ") : "—"}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellGenitori]}>
-                  <Text style={styles.cellTextSmall}>{(a.genitoriIds ?? []).length > 0 ? (a.genitoriIds ?? []).map(getAbitanteNome).join(", ") : "—"}</Text>
-                </View>
-                <View style={[styles.cell, styles.cellNonni]}>
-                  <Text style={styles.cellTextSmall}>{(a.nonniIds ?? []).length > 0 ? (a.nonniIds ?? []).map(getAbitanteNome).join(", ") : "—"}</Text>
+                <View style={[styles.cell, styles.cellFamiliari]}>
+                  <Text style={styles.cellTextSmall} numberOfLines={3}>{getFamiliariDisplay(a)}</Text>
                 </View>
                 <View style={[styles.cell, styles.cellReligione]}>
                   <Text style={styles.cellTextSmall}>{a.religione}</Text>
@@ -565,8 +539,8 @@ const styles = StyleSheet.create({
     minWidth: 50
   },
   superSociale: {
-    width: 420,
-    minWidth: 420
+    width: 300,
+    minWidth: 300
   },
   superReligioneFazioni: {
     width: 210,
@@ -646,21 +620,9 @@ const styles = StyleSheet.create({
     width: 50,
     minWidth: 50
   },
-  cellConiuge: {
-    width: 75,
-    minWidth: 75
-  },
-  cellFigli: {
-    width: 95,
-    minWidth: 95
-  },
-  cellGenitori: {
-    width: 75,
-    minWidth: 75
-  },
-  cellNonni: {
-    width: 75,
-    minWidth: 75
+  cellFamiliari: {
+    width: 200,
+    minWidth: 200
   },
   cellReligione: {
     width: 100,
@@ -695,5 +657,17 @@ const styles = StyleSheet.create({
   },
   cellTextNeutral: {
     color: "#fde047"
+  },
+  cellTextSaluteSano: {
+    color: "#4ade80",
+    fontWeight: "700"
+  },
+  cellTextSaluteGiallo: {
+    color: "#fde047",
+    fontWeight: "700"
+  },
+  cellTextSaluteObeso: {
+    color: "#ef4444",
+    fontWeight: "700"
   }
 });
