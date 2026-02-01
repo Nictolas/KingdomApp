@@ -3,8 +3,30 @@ import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza }
 import { abitantiData, risorseData, edificiData, pianetiData } from "../kingdomData";
 import { EVENTI_CATALOGO } from "../game/eventi";
 
+const RAZZE_NON_UMANE: Razza[] = ["Grigi", "Nordici", "Rettiliani", "Insettoidi", "Marini", "Ferini"];
+
+function inizializzaAbitanti(): { abitanti: Abitante[]; razzaNativi: Razza } {
+  const razzaNativi = RAZZE_NON_UMANE[Math.floor(Math.random() * RAZZE_NON_UMANE.length)];
+  const abitanti = abitantiData.map((a) => {
+    let razza = a.razza;
+    if (a.fazioni?.includes("Nativi")) {
+      razza = razzaNativi;
+    }
+    if (a.ruoloSchiavitu === "schiavo") {
+      razza = RAZZE_NON_UMANE[Math.floor(Math.random() * RAZZE_NON_UMANE.length)];
+    }
+    const razzaFinale = razza ?? a.razza;
+    const specie = (razzaFinale ?? "Umano") === "Umano" ? "umano" : "alieno";
+    return { ...a, razza: razzaFinale, specie };
+  });
+  return { abitanti, razzaNativi };
+}
+
+const statoIniziale = inizializzaAbitanti();
+
 export function useGameState() {
-  const [abitanti, setAbitanti] = useState<Abitante[]>(abitantiData);
+  const [abitanti, setAbitanti] = useState<Abitante[]>(statoIniziale.abitanti);
+  const [razzaNativi] = useState<Razza>(statoIniziale.razzaNativi);
   const [risorse, setRisorse] = useState<Risorsa[]>(risorseData);
   const [edifici, setEdifici] = useState<Edificio[]>(edificiData);
   const [mese, setMese] = useState(1);
@@ -715,6 +737,7 @@ export function useGameState() {
     mese,
     anno,
     isLoading,
+    razzaNativi,
     abitantiProposti,
     tipoTassaReddito,
     flatTaxPercentuale,

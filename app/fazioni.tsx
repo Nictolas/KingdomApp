@@ -38,6 +38,8 @@ export default function FazioniScreen() {
                   router.push("/mafia");
                 } else if (f.nome === "Schiavi") {
                   router.push("/schiavi");
+                } else if (f.nome === "Nativi") {
+                  router.push("/nativi");
                 } else {
                   setSelectedFazione(f);
                 }

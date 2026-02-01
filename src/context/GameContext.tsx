@@ -16,6 +16,7 @@ type GameContextType = {
   mese: number;
   anno: number;
   isLoading: boolean;
+  razzaNativi: Razza;
   abitantiProposti: Abitante[];
   tipoTassaReddito: "flat" | "scaglioni";
   flatTaxPercentuale: number;
