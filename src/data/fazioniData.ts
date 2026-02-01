@@ -1,0 +1,12 @@
+import type { Fazione } from "../types";
+
+export const fazioniData: Fazione[] = [
+  { id: 1, nome: "Amministrazione", emoji: "🏛️", descrizione: "Sostiene l'autorità del Comandante e la stabilità della colonia." },
+  { id: 2, nome: "Lavoratori", emoji: "🔧", descrizione: "Rappresenta i diritti dei tecnici e operai della colonia." },
+  { id: 3, nome: "Scienziati", emoji: "🔬", descrizione: "Gruppo di ricercatori interessati al progresso tecnologico." },
+  { id: 4, nome: "Esploratori", emoji: "🚀", descrizione: "Coloni che vogliono espandere i confini della colonia." },
+  { id: 5, nome: "Mafia", emoji: "🕴️", descrizione: "Organizzazione criminale che controlla attività illecite nella colonia." },
+  { id: 6, nome: "Cittadini", emoji: "🏘️", descrizione: "Abitanti riconosciuti come cittadini della colonia, con pieni diritti." },
+  { id: 7, nome: "Nativi", emoji: "🌿", descrizione: "Popolazione nativa del pianeta, integrata o in tensione con la colonia." },
+  { id: 8, nome: "Schiavi", emoji: "⛓️", descrizione: "Coloni ridotti in schiavitù; privi di diritti civili." }
+];
