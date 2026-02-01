@@ -89,7 +89,7 @@ export default function ResidenzeScreen() {
                   {ed != null && (
                     <>
                       <Text style={styles.abitantiLabel}>Assegnati in colonia</Text>
-                      <View style={styles.abitantiLista}>
+                      <ScrollView style={styles.abitantiLista} nestedScrollEnabled showsVerticalScrollIndicator={true}>
                         {assegnati.length === 0 ? (
                           <Text style={styles.abitantiVuoto}>Nessuno</Text>
                         ) : (
@@ -102,7 +102,7 @@ export default function ResidenzeScreen() {
                             </View>
                           ))
                         )}
-                      </View>
+                      </ScrollView>
                     </>
                   )}
                 </View>
@@ -175,7 +175,8 @@ const styles = StyleSheet.create({
     minWidth: 100,
     flex: 1,
     flexBasis: "48%",
-    maxWidth: 220
+    maxWidth: 220,
+    overflow: "hidden"
   },
   colonnaDesktop: {
     flexBasis: "16%"
@@ -201,7 +202,8 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5
   },
   abitantiLista: {
-    maxHeight: 140
+    maxHeight: 120,
+    overflow: "hidden"
   },
   abitantiVuoto: {
     color: "rgba(203,213,245,0.4)",

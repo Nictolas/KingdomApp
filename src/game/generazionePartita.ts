@@ -12,7 +12,8 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
   {
     titolo: "Razza",
     punti: [
-      "Circa 70% Umano, 30% alieni (Grigi, Nordici, Rettiliani, Insettoidi, Marini, Ferini con uguale probabilità).",
+      "Il Comandante della Colonia è sempre di razza umana.",
+      "A parte 1 Nativo iniziale, tutti gli abitanti sono a inizio partita di razza umana.",
       "La razza dei Nativi (per l’evento Assimilazione) è scelta a caso tra le razze non umane.",
       "Ogni partita deve partire con 1 Nativo tra gli abitanti (razza = razza Nativi del pianeta)."
     ]
@@ -34,7 +35,8 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     titolo: "Fazioni e ruoli",
     punti: [
       "Ogni abitante ha sempre la fazione «Cittadini» più una di: Amministrazione, Lavoratori, Scienziati, Esploratori (scelta a caso).",
-      "Tra 0 e 4 abitanti sono «Schiavi»: hanno fazione Schiavi (e non Cittadini), ruoloSchiavitu «schiavo», razza aliena a caso, crediti/reddito/spese a 0."
+      "Tra 0 e 4 abitanti sono «Schiavi»: hanno fazione Schiavi (e non Cittadini), ruoloSchiavitu «schiavo», crediti/reddito/spese a 0.",
+      "Ci sono alcuni Immigrati fin da inizio partita."
     ]
   },
   {
@@ -127,17 +129,12 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
 
   for (let i = 1; i <= n; i++) {
     const èSchiavo = indicesSchiavi.has(i);
-    const razza: Razza = èSchiavo
-      ? RAZZE_ALIENE[Math.floor(Math.random() * RAZZE_ALIENE.length)]
-      : Math.random() < 0.7 ? "Umano" : RAZZE_ALIENE[Math.floor(Math.random() * RAZZE_ALIENE.length)];
-    const isUmano = razza === "Umano";
-    const specie: "umano" | "alieno" = isUmano ? "umano" : "alieno";
-    const nome = isUmano
-      ? `${NOMI_UMANI[Math.floor(Math.random() * NOMI_UMANI.length)]} ${COGNOMI_UMANI[Math.floor(Math.random() * COGNOMI_UMANI.length)]}`
-      : `${razza}-${1000 + Math.floor(Math.random() * 9000)}`;
-    const emoji = isUmano
-      ? EMOJI_UMANI[Math.floor(Math.random() * EMOJI_UMANI.length)]
-      : getEmojiRazza(razza);
+    // Comandante sempre umano; tutti gli altri umani a inizio partita (1 Nativo verrà impostato dopo il loop).
+    const razza: Razza = "Umano";
+    const isUmano = true;
+    const specie: "umano" | "alieno" = "umano";
+    const nome = `${NOMI_UMANI[Math.floor(Math.random() * NOMI_UMANI.length)]} ${COGNOMI_UMANI[Math.floor(Math.random() * COGNOMI_UMANI.length)]}`;
+    const emoji = EMOJI_UMANI[Math.floor(Math.random() * EMOJI_UMANI.length)];
 
     const fazioneRuolo = FAZIONI_RUOLO[Math.floor(Math.random() * FAZIONI_RUOLO.length)];
     const fazioni = èSchiavo ? [fazioneRuolo, "Schiavi"] : [fazioneRuolo, "Cittadini"];
