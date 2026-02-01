@@ -2,6 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import type { Edificio } from "../src/types";
 import { getStatoSalute } from "../src/game/ciboConsumo";
 import { getEmojiRazza, fazioniData } from "../src/kingdomData";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
@@ -48,7 +49,15 @@ function EmojiWithTooltip({ emoji, nome }: { emoji: string; nome: string }) {
   );
 }
 
-type SortField = "nome" | "eta" | "lavoro" | "razza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "fazioni" | null;
+/** Restituisce il nome dell’edificio di residenza dell’abitante o "—" se nessuno. */
+function getResidenzaAbitante(abitanteId: number, edifici: Edificio[]): string {
+  const residenza = edifici.find(
+    (e) => e.tipo === "Residenza" && (e.abitantiAssegnati ?? []).includes(abitanteId)
+  );
+  return residenza?.nome ?? "—";
+}
+
+type SortField = "nome" | "eta" | "lavoro" | "razza" | "residenza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "fazioni" | null;
 type SortDirection = "asc" | "desc";
 
 type MacroKey = "anagrafica" | "prestazioni" | "benessere" | "economia" | "lealta" | "sociale" | "religioneFazioni";
@@ -82,7 +91,7 @@ function getLavoroDisplay(abitante: Abitante, etaMinimaLavoro: number): string {
 
 export default function AbitantiScreen() {
   const router = useRouter();
-  const { abitanti, calcolaFelicitàModificata, etaMinimaLavoro } = useGameContext();
+  const { abitanti, edifici, calcolaFelicitàModificata, etaMinimaLavoro } = useGameContext();
   const [selectedAbitante, setSelectedAbitante] = useState<Abitante | null>(null);
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -156,6 +165,9 @@ export default function AbitantiScreen() {
       } else if (sortField === "razza") {
         aValue = a.razza ?? "Umano";
         bValue = b.razza ?? "Umano";
+      } else if (sortField === "residenza") {
+        aValue = getResidenzaAbitante(a.id, edifici);
+        bValue = getResidenzaAbitante(b.id, edifici);
       } else if (sortField === "salute") {
         aValue = getStatoSalute(a);
         bValue = getStatoSalute(b);
@@ -188,7 +200,7 @@ export default function AbitantiScreen() {
     });
 
     return sorted;
-  }, [abitanti, sortField, sortDirection, calcolaFelicitàModificata, etaMinimaLavoro]);
+  }, [abitanti, edifici, sortField, sortDirection, calcolaFelicitàModificata, etaMinimaLavoro]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -311,6 +323,10 @@ export default function AbitantiScreen() {
                   <Text style={styles.headerText}>🪐 Razza</Text>
                   {sortField === "razza" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
                 </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellResidenza, sortField === "residenza" && styles.headerCellActive]} onPress={() => handleSort("residenza")}>
+                  <Text style={styles.headerText}>🏠 Residenza</Text>
+                  {sortField === "residenza" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
               </>
             )}
             {macroOpen.prestazioni && (
@@ -427,6 +443,9 @@ export default function AbitantiScreen() {
                     </View>
                     <View style={[styles.cell, styles.cellRazza]}>
                       <Text style={styles.cellEmojiText}>{getEmojiRazza(a.razza ?? "Umano")}</Text>
+                    </View>
+                    <View style={[styles.cell, styles.cellResidenza]}>
+                      <Text style={styles.cellTextSmall}>{getResidenzaAbitante(a.id, edifici)}</Text>
                     </View>
                   </>
                 )}
@@ -598,8 +617,8 @@ const styles = StyleSheet.create({
     minWidth: 40
   },
   superAnagrafica: {
-    width: 350,
-    minWidth: 350
+    width: 450,
+    minWidth: 450
   },
   superPrestazioni: {
     width: 150,
@@ -686,6 +705,10 @@ const styles = StyleSheet.create({
   cellRazza: {
     width: 40,
     minWidth: 40
+  },
+  cellResidenza: {
+    width: 100,
+    minWidth: 100
   },
   cellSmall: {
     width: 50,

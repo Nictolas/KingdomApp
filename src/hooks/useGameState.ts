@@ -14,12 +14,15 @@ export function useGameState() {
   const [razzaNativi] = useState<Razza>(statoIniziale.razzaNativi);
   const [risorse, setRisorse] = useState<Risorsa[]>(risorseData);
   const [edifici, setEdifici] = useState<Edificio[]>(() => {
-    const schiaviIds = statoIniziale.abitanti
-      .filter((a) => a.fazioni?.includes("Schiavi"))
-      .map((a) => a.id);
-    return edificiData.map((e) =>
-      e.id === 4 ? { ...e, abitantiAssegnati: schiaviIds, occupazione: schiaviIds.length } : e
-    );
+    const tuttiId = statoIniziale.abitanti.map((a) => a.id);
+    const metà = Math.floor(tuttiId.length / 2);
+    const baraccaIds = tuttiId.slice(0, metà);
+    const dormitorioIds = tuttiId.slice(metà);
+    return edificiData.map((e) => {
+      if (e.id === 4) return { ...e, abitantiAssegnati: baraccaIds, occupazione: baraccaIds.length };
+      if (e.id === 14) return { ...e, abitantiAssegnati: dormitorioIds, occupazione: dormitorioIds.length };
+      return e;
+    });
   });
   const [mese, setMese] = useState(1);
   const [anno, setAnno] = useState(0);

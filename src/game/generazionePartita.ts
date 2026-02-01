@@ -13,7 +13,8 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     titolo: "Razza",
     punti: [
       "Circa 70% Umano, 30% alieni (Grigi, Nordici, Rettiliani, Insettoidi, Marini, Ferini con uguale probabilità).",
-      "La razza dei Nativi (per l’evento Assimilazione) è scelta a caso tra le razze non umane."
+      "La razza dei Nativi (per l’evento Assimilazione) è scelta a caso tra le razze non umane.",
+      "Ogni partita deve partire con 1 Nativo tra gli abitanti (razza = razza Nativi del pianeta)."
     ]
   },
   {
@@ -55,7 +56,14 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
   {
     titolo: "Lavoro",
     punti: [
-      "Il primo abitante (id 1) è «Comandante della Colonia» con competenza alta; gli altri hanno lavoro scelto a caso tra: Disoccupato, Tecnico, Ricercatore, Ingegnere, Medico, Agricoltore, Meccanico, Esploratore, Comunicatore, Sicurezza, Amministratore."
+      "Il primo abitante (id 1) è «Comandante della Colonia» con competenza alta.",
+      "Il 50% degli abitanti deve avere come Lavoro «Disoccupato»; il restante a caso tra: Tecnico, Ricercatore, Ingegnere, Medico, Agricoltore, Meccanico, Esploratore, Comunicatore, Sicurezza, Amministratore."
+    ]
+  },
+  {
+    titolo: "Residenza",
+    punti: [
+      "Il 50% degli abitanti ha Residenza in Baracca e il restante in Dormitorio."
     ]
   },
   {
@@ -175,6 +183,29 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
       ab.ruoloSchiavitu = "schiavo";
     }
     abitanti.push(ab);
+  }
+
+  // Regola: esattamente 1 Nativo (razza = razzaNativi). Scegliamo un abitante con id !== 1 (non il Comandante).
+  const candidatiNativo = abitanti.filter((a) => a.id !== 1);
+  if (candidatiNativo.length > 0) {
+    const nat = candidatiNativo[Math.floor(Math.random() * candidatiNativo.length)];
+    nat.razza = razzaNativi;
+    nat.specie = "alieno";
+    nat.nome = `${razzaNativi}-${1000 + Math.floor(Math.random() * 9000)}`;
+    nat.emoji = getEmojiRazza(razzaNativi);
+  }
+
+  // Regola: 50% con Lavoro "Disoccupato" (il Comandante id 1 resta Comandante). Scegliamo floor(n/2) tra id 2..n.
+  const numDisoccupati = Math.floor(n / 2);
+  const indicesPerDisoccupato = abitanti.map((_, idx) => idx).filter((idx) => abitanti[idx].id !== 1);
+  for (let k = indicesPerDisoccupato.length - 1; k > 0; k--) {
+    const j = Math.floor(Math.random() * (k + 1));
+    [indicesPerDisoccupato[k], indicesPerDisoccupato[j]] = [indicesPerDisoccupato[j], indicesPerDisoccupato[k]];
+  }
+  for (let d = 0; d < numDisoccupati && d < indicesPerDisoccupato.length; d++) {
+    const ab = abitanti[indicesPerDisoccupato[d]];
+    ab.lavoro = "Disoccupato";
+    if (!ab.ruoloSchiavitu) ab.reddito = 0;
   }
 
   return { abitanti, razzaNativi };
