@@ -42,11 +42,26 @@ export default function SanzioniScreen() {
     { id: "espatrio", emoji: "🚫", titolo: "Divieto di espatrio", descrizione: "Divieto di espatrio attivo", punti: 1, attivo: divietoEspatrioAttivo }
   ];
 
+  const attivi = fattori.filter((f) => f.attivo);
+  const nonAttivi = fattori.filter((f) => !f.attivo);
+
   const haSanzioni = punteggioSanzioni >= 5;
   const livelloRischio =
     punteggioSanzioni >= 8 ? "Critico" : punteggioSanzioni >= 5 ? "Alto" : punteggioSanzioni >= 3 ? "Medio" : "Basso";
   const coloreRischio =
     punteggioSanzioni >= 8 ? "#ef4444" : punteggioSanzioni >= 5 ? "#f97316" : punteggioSanzioni >= 3 ? "#fde047" : "#4ade80";
+
+  const renderFattore = (f: Fattore) => (
+    <View key={f.id} style={[styles.fattoreRow, f.attivo && styles.fattoreRowAttivo]}>
+      <Text style={styles.fattoreEmoji}>{f.emoji}</Text>
+      <View style={styles.fattoreContent}>
+        <Text style={styles.fattoreTitolo}>{f.titolo}</Text>
+        <Text style={styles.fattoreDescrizione}>{f.descrizione}</Text>
+      </View>
+      <Text style={styles.fattorePunti}>+{f.punti}</Text>
+      {f.attivo ? <Text style={styles.fattoreAttivo}>●</Text> : <Text style={styles.fattoreInattivo}>○</Text>}
+    </View>
+  );
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
@@ -83,18 +98,16 @@ export default function SanzioniScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Fattori che influenzano il punteggio</Text>
-          <Text style={styles.sectionSubtitle}>In verde: fattori attualmente attivi</Text>
-          {fattori.map((f) => (
-            <View key={f.id} style={[styles.fattoreRow, f.attivo && styles.fattoreRowAttivo]}>
-              <Text style={styles.fattoreEmoji}>{f.emoji}</Text>
-              <View style={styles.fattoreContent}>
-                <Text style={styles.fattoreTitolo}>{f.titolo}</Text>
-                <Text style={styles.fattoreDescrizione}>{f.descrizione}</Text>
-              </View>
-              <Text style={styles.fattorePunti}>+{f.punti}</Text>
-              {f.attivo ? <Text style={styles.fattoreAttivo}>●</Text> : <Text style={styles.fattoreInattivo}>○</Text>}
+          <View style={styles.twoColumns}>
+            <View style={styles.column}>
+              <Text style={styles.columnTitle}>Attivi ({attivi.length})</Text>
+              {attivi.length > 0 ? attivi.map(renderFattore) : <Text style={styles.emptyColumn}>Nessuno</Text>}
             </View>
-          ))}
+            <View style={styles.column}>
+              <Text style={styles.columnTitle}>Non attivi ({nonAttivi.length})</Text>
+              {nonAttivi.length > 0 ? nonAttivi.map(renderFattore) : <Text style={styles.emptyColumn}>Nessuno</Text>}
+            </View>
+          </View>
         </View>
 
         {haSanzioni && (
@@ -224,12 +237,28 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 11,
     fontWeight: "700",
-    marginBottom: 2
+    marginBottom: 8
   },
-  sectionSubtitle: {
-    color: "#4ade80",
+  twoColumns: {
+    flexDirection: "row",
+    gap: 10
+  },
+  column: {
+    flex: 1,
+    minWidth: 0
+  },
+  columnTitle: {
+    color: "#93c5fd",
+    fontSize: 10,
+    fontWeight: "700",
+    marginBottom: 6,
+    textTransform: "uppercase",
+    letterSpacing: 0.5
+  },
+  emptyColumn: {
+    color: "rgba(203,213,245,0.5)",
     fontSize: 9,
-    marginBottom: 6
+    fontStyle: "italic"
   },
   fattoreRow: {
     flexDirection: "row",

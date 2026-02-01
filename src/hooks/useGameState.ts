@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Alert } from "react-native";
+import { Alert, Platform } from "react-native";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
 import { risorseData, edificiData, pianetiData } from "../kingdomData";
 import { getConsumoCibo, getProduzioneCiboPerAbitante } from "../game/ciboConsumo";
@@ -271,7 +271,7 @@ export function useGameState() {
     );
   }, [pendingMatrimonio, confermaMatrimonio, rifiutaMatrimonio]);
 
-  /** Alert a inizio partita: prima riga del Diario + ex governatore in Tribunale. */
+  /** Alert a inizio partita: prima riga del Diario + ex governatore in Tribunale. Su web Alert.alert non funziona, usiamo window.alert. */
   const haMostratoAlertInizioRef = useRef(false);
   useEffect(() => {
     if (haMostratoAlertInizioRef.current) return;
@@ -279,7 +279,17 @@ export function useGameState() {
     const primaRigaDiario = "Complimenti, hai appena concluso la Rivoluzione contro la Madre Patria.";
     const messaggioExGovernatore =
       "L'ex governatore è in Tribunale, puoi sceglierlo di graziarlo, condannarlo a morte o pensarci più tardi.";
-    Alert.alert("Diario", `${primaRigaDiario}\n\n${messaggioExGovernatore}`);
+    const titolo = "Diario";
+    const messaggio = `${primaRigaDiario}\n\n${messaggioExGovernatore}`;
+    const show = () => {
+      if (Platform.OS === "web" && typeof window !== "undefined" && window.alert) {
+        window.alert(`${titolo}\n\n${messaggio}`);
+      } else {
+        Alert.alert(titolo, messaggio);
+      }
+    };
+    const t = setTimeout(show, 100);
+    return () => clearTimeout(t);
   }, []);
 
   /** Edifici di lavoro: assegnando un abitante qui il suo "lavoro" viene aggiornato. Rimuovendolo torna "Disoccupato". */
