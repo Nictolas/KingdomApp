@@ -4,12 +4,10 @@ import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { esisteCoppiaMatrimonioPossibile } from "../src/game/avanzaMese";
 
-const MATRIMONIO_CARD = {
-  id: "matrimonio",
-  nome: "Matrimonio",
-  emoji: "💒",
-  descrizione: "Una coppia con amicizia ≥90 e compatibile (orientamento/sesso) può chiedere di sposarsi allo Skip Mese."
-};
+const MATRIMONIO_DESC_POSSIBILE =
+  "Una coppia con amicizia ≥90 e compatibile (orientamento/sesso) può chiedere di sposarsi allo Skip Mese.";
+const MATRIMONIO_DESC_NON_PRONTO =
+  "Quando una coppia avrà amicizia ≥90 e sarà compatibile (orientamento/sesso), potrà chiedere di sposarsi allo Skip Mese.";
 
 export default function EventiScreen() {
   const router = useRouter();
@@ -24,7 +22,13 @@ export default function EventiScreen() {
   const idsInCorso = new Set(eventiInCorso.map((e) => e.id));
   const inCorso = eventiCatalogo.filter((e) => idsInCorso.has(e.id));
   const possibili = eventiCatalogo.filter((e) => !idsInCorso.has(e.id));
-  const possibiliConMatrimonio = puòMatrimonio ? [MATRIMONIO_CARD, ...possibili] : possibili;
+  const matrimonioCard = {
+    id: "matrimonio",
+    nome: "Matrimonio",
+    emoji: "💒",
+    descrizione: puòMatrimonio ? MATRIMONIO_DESC_POSSIBILE : MATRIMONIO_DESC_NON_PRONTO
+  };
+  const possibiliConMatrimonio = [matrimonioCard, ...possibili];
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>

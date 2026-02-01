@@ -36,7 +36,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     titolo: "Fazioni e ruoli",
     punti: [
       "Ogni abitante ha sempre la fazione «Cittadini» più una di: Amministrazione, Lavoratori, Scienziati, Esploratori (scelta a caso).",
-      "Tra 0 e 4 abitanti sono «Schiavi»: hanno fazione Schiavi (e non Cittadini), ruoloSchiavitu «schiavo», crediti/reddito/spese a 0.",
+      "Almeno 4 abitanti sono «Schiavi»: hanno fazione Schiavi (e non Cittadini), ruoloSchiavitu «schiavo», crediti/reddito/spese a 0.",
       "Ci sono alcuni Immigrati fin da inizio partita."
     ]
   },
@@ -61,7 +61,8 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     punti: [
       "Il primo abitante (id 1) è «Comandante della Colonia» con competenza alta.",
       "Il 50% degli abitanti deve avere come Lavoro «Disoccupato»; il restante a caso tra: Tecnico, Ricercatore, Ingegnere, Medico, Agricoltore, Meccanico, Esploratore, Comunicatore, Sicurezza, Amministratore.",
-      "A inizio partita c'è almeno 1 lavoratore assegnato alla Serra: un abitante con Lavoro «Agricoltore»."
+      "A inizio partita c'è almeno 1 lavoratore assegnato alla Serra: un abitante con Lavoro «Agricoltore».",
+      "A inizio partita c'è almeno 1 abitante con Lavoro «Prigioniero» (con reato), assegnato al Campo di Lavoro; compare in Tribunale come criminale."
     ]
   },
   {
@@ -131,7 +132,7 @@ function normalizzaFazioni(fazioni: string[]): string[] {
 export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Razza } {
   const razzaNativi = RAZZE_ALIENE[Math.floor(Math.random() * RAZZE_ALIENE.length)];
   const n = NUM_ABITANTI_MIN + Math.floor(Math.random() * (NUM_ABITANTI_MAX - NUM_ABITANTI_MIN + 1));
-  const numSchiavi = Math.min(4, Math.floor(Math.random() * 5)); // 0-4
+  const numSchiavi = 4 + Math.floor(Math.random() * Math.max(0, n - 1 - 4)); // almeno 4, massimo n-1 (Comandante id 1 escluso)
   const abitanti: Abitante[] = [];
   const indicesSchiavi = new Set<number>();
   while (indicesSchiavi.size < numSchiavi && n > 1) {
@@ -227,6 +228,15 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     const agr = candidatiAgricoltore[Math.floor(Math.random() * candidatiAgricoltore.length)];
     agr.lavoro = "Agricoltore";
     if (!agr.ruoloSchiavitu) agr.reddito = 100 + Math.floor(Math.random() * 400);
+  }
+
+  // Regola: almeno 1 Prigioniero a inizio partita (con reato, assegnato al Campo di Lavoro in useGameState; compare in Tribunale come criminale).
+  const candidatiPrigioniero = abitanti.filter((a) => a.id !== 1 && a.lavoro !== "Agricoltore");
+  if (candidatiPrigioniero.length > 0) {
+    const prig = candidatiPrigioniero[Math.floor(Math.random() * candidatiPrigioniero.length)];
+    prig.lavoro = "Prigioniero";
+    prig.reati = ["Furto"];
+    if (!prig.ruoloSchiavitu) prig.reddito = 0;
   }
 
   // Regola: 1 Omo, 2 Bi, il resto Etero.
