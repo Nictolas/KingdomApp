@@ -6,6 +6,47 @@ import type { Edificio } from "../src/types";
 import { EdificioInfoModal } from "../src/ui/EdificioInfoModal";
 import { CampoDiLavoroModal } from "../src/ui/CampoDiLavoroModal";
 
+/** Colonne richieste: Produzione, Servizi, Punizione. Nomi come in edificiData. */
+const COLONNA_PRODUZIONE: string[] = [
+  "Serra",
+  "Raffineria Mineraria", // Miniera
+  "Laboratorio di Ricerca", // Laboratorio
+  "Centrale Energetica", // Centrale
+  "Impianto di Riciclo"
+];
+const COLONNA_SERVIZI: string[] = [
+  "Centro di Comando",
+  "Baracca", // Residenze (card mostrata come "Residenze")
+  "Scuola",
+  "Ospedale Coloniale" // Ospedale
+];
+const COLONNA_PUNIZIONE: string[] = ["Tribunale", "Campo di Lavoro", "Campo di Sterminio"];
+
+function getEdificiPerColonna(edifici: Edificio[], nomi: string[]): Edificio[] {
+  return nomi
+    .map((nome) => edifici.find((e) => e.nome === nome))
+    .filter((e): e is Edificio => e != null);
+}
+
+function CardEdificio({
+  e,
+  titleOverride,
+  onPress
+}: {
+  key?: number;
+  e: Edificio;
+  titleOverride?: string;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable style={styles.card} onPress={onPress}>
+      <Text style={styles.emoji}>{e.emoji}</Text>
+      <Text style={styles.cardTitle}>{titleOverride ?? e.nome}</Text>
+      <Text style={styles.cardTipo}>{e.tipo}</Text>
+    </Pressable>
+  );
+}
+
 export default function EdificiScreen() {
   const router = useRouter();
   const { edifici, abitanti, aggiungiAlCampoDiLavoroTuttiQuelliChe } = useGameContext();
@@ -18,6 +59,26 @@ export default function EdificiScreen() {
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
 
+  const produzione = getEdificiPerColonna(edifici, COLONNA_PRODUZIONE);
+  const servizi = getEdificiPerColonna(edifici, COLONNA_SERVIZI);
+  const punizione = getEdificiPerColonna(edifici, COLONNA_PUNIZIONE);
+
+  const handlePress = (e: Edificio) => {
+    if (e.nome === "Serra") {
+      router.push("/serra");
+    } else if (e.nome === "Baracca") {
+      router.push("/residenze");
+    } else if (e.nome === "Scuola") {
+      router.push("/scuola");
+    } else if (e.nome === "Ospedale Coloniale") {
+      router.push("/ospedale");
+    } else if (e.nome === "Tribunale") {
+      router.push("/tribunale");
+    } else {
+      setSelectedEdificio(e);
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
@@ -28,35 +89,40 @@ export default function EdificiScreen() {
         <View style={{ width: 50 }} />
       </View>
 
-      <ScrollView contentContainerStyle={styles.content}>
-        <View style={styles.grid}>
-          {edifici.filter((e: Edificio) => e.nome !== "Dormitorio").map((e: Edificio) => (
-            <Pressable
-              key={e.id}
-              style={styles.card}
-              onPress={() => {
-                if (e.nome === "Serra") {
-                  router.push("/serra");
-                } else if (e.nome === "Baracca") {
-                  router.push("/residenze");
-                } else if (e.nome === "Scuola") {
-                  router.push("/scuola");
-                } else if (e.nome === "Ospedale Coloniale") {
-                  router.push("/ospedale");
-                } else if (e.nome === "Tribunale") {
-                  router.push("/tribunale");
-                } else {
-                  setSelectedEdificio(e);
-                }
-              }}
-            >
-              <Text style={styles.emoji}>{e.emoji}</Text>
-              <Text style={styles.cardTitle}>
-                {e.nome === "Baracca" ? "Residenze" : e.nome}
-              </Text>
-              <Text style={styles.cardTipo}>{e.tipo}</Text>
-            </Pressable>
-          ))}
+      <ScrollView contentContainerStyle={styles.content} style={isDesktop ? styles.scrollFlex : undefined}>
+        <View style={styles.columns}>
+          <View style={styles.column}>
+            <Text style={styles.columnTitle}>Produzione</Text>
+            <Text style={styles.columnSubtitle}>Serra, Miniera, Laboratorio, Centrale, Impianto di Riciclo</Text>
+            <View style={styles.cardGrid}>
+              {produzione.map((e) => (
+                <CardEdificio key={e.id} e={e} onPress={() => handlePress(e)} />
+              ))}
+            </View>
+          </View>
+          <View style={styles.column}>
+            <Text style={styles.columnTitle}>Servizi</Text>
+            <Text style={styles.columnSubtitle}>Centro di Comando, Residenze, Scuola, Ospedale</Text>
+            <View style={styles.cardGrid}>
+              {servizi.map((e) => (
+                <CardEdificio
+                  key={e.id}
+                  e={e}
+                  titleOverride={e.nome === "Baracca" ? "Residenze" : undefined}
+                  onPress={() => handlePress(e)}
+                />
+              ))}
+            </View>
+          </View>
+          <View style={styles.column}>
+            <Text style={styles.columnTitle}>Punizione</Text>
+            <Text style={styles.columnSubtitle}>Tribunale, Campo di Lavoro, Campo di Sterminio</Text>
+            <View style={styles.cardGrid}>
+              {punizione.map((e) => (
+                <CardEdificio key={e.id} e={e} onPress={() => handlePress(e)} />
+              ))}
+            </View>
+          </View>
         </View>
       </ScrollView>
 
@@ -103,12 +169,35 @@ const styles = StyleSheet.create({
     fontWeight: "700"
   },
   content: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    paddingBottom: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    paddingBottom: 12,
     flex: 1
   },
-  grid: {
+  scrollFlex: {
+    flex: 1
+  },
+  columns: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16
+  },
+  column: {
+    minWidth: 180,
+    flex: 1
+  },
+  columnTitle: {
+    color: "#e5e7eb",
+    fontSize: 13,
+    fontWeight: "700",
+    marginBottom: 2
+  },
+  columnSubtitle: {
+    color: "rgba(148,163,184,0.8)",
+    fontSize: 9,
+    marginBottom: 8
+  },
+  cardGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 6
@@ -120,8 +209,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)",
     alignItems: "center",
-    width: "23.5%",
-    minWidth: 100
+    minWidth: 90
   },
   emoji: {
     fontSize: 24,

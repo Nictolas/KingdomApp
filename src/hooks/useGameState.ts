@@ -268,11 +268,41 @@ export function useGameState() {
     );
   }, [pendingMatrimonio, confermaMatrimonio, rifiutaMatrimonio]);
 
+  /** Edifici di lavoro: assegnando un abitante qui il suo "lavoro" viene aggiornato. Rimuovendolo torna "Disoccupato". */
+  const EDIFICIO_TO_LAVORO: Record<number, string> = { 2: "Agricoltore" }; // id 2 = Serra
+  const LAVORI_DA_EDIFICIO = new Set(Object.values(EDIFICIO_TO_LAVORO));
+
+  /** Mantiene lavoro in abitanti sincronizzato con le assegnazioni agli edifici (es. Serra → Agricoltore). */
+  useEffect(() => {
+    setAbitanti((prev) => {
+      const idToLavoroFromEdifici = new Map<number, string>();
+      edifici.forEach((edificio) => {
+        const job = EDIFICIO_TO_LAVORO[edificio.id];
+        if (!job) return;
+        (edificio.abitantiAssegnati ?? []).forEach((id) => idToLavoroFromEdifici.set(id, job));
+      });
+      let changed = false;
+      const next = prev.map((a) => {
+        const jobFromEdificio = idToLavoroFromEdifici.get(a.id);
+        if (jobFromEdificio) {
+          if (a.lavoro === jobFromEdificio) return a;
+          changed = true;
+          return { ...a, lavoro: jobFromEdificio };
+        }
+        if (LAVORI_DA_EDIFICIO.has(a.lavoro)) {
+          changed = true;
+          return { ...a, lavoro: "Disoccupato" };
+        }
+        return a;
+      });
+      return changed ? next : prev;
+    });
+  }, [edifici]);
+
   const assegnaAbitanteAEdificio = useCallback((abitanteId: number, edificioId: number) => {
     setEdifici((prevEdifici) =>
       prevEdifici.map((edificio) => {
         if (edificio.id === edificioId) {
-          // Controlla se l'abitante è già assegnato e se c'è spazio
           if (
             !edificio.abitantiAssegnati.includes(abitanteId) &&
             edificio.abitantiAssegnati.length < edificio.capacità &&
@@ -288,6 +318,12 @@ export function useGameState() {
         return edificio;
       })
     );
+    const lavoroAssociato = EDIFICIO_TO_LAVORO[edificioId];
+    if (lavoroAssociato) {
+      setAbitanti((prev) =>
+        prev.map((a) => (a.id === abitanteId ? { ...a, lavoro: lavoroAssociato } : a))
+      );
+    }
   }, []);
 
   const rimuoviAbitanteDaEdificio = useCallback((abitanteId: number, edificioId: number) => {
@@ -304,6 +340,11 @@ export function useGameState() {
         return edificio;
       })
     );
+    if (EDIFICIO_TO_LAVORO[edificioId]) {
+      setAbitanti((prev) =>
+        prev.map((a) => (a.id === abitanteId ? { ...a, lavoro: "Disoccupato" } : a))
+      );
+    }
   }, []);
 
   /** Aggiunge al Campo di Lavoro tutti gli abitanti che soddisfano i filtri (Personalità, Razza, Religione).
