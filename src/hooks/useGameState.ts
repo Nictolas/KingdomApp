@@ -149,6 +149,7 @@ export function useGameState() {
           amici: [],
           rivali: [],
           fazioni: [fazioniRuolo[Math.floor(Math.random() * fazioniRuolo.length)], "Cittadini"],
+          peso: 41 + Math.floor(Math.random() * 40),
           salute: 50 + Math.floor(Math.random() * 50),
           crediti: Math.floor(Math.random() * 1000),
           reddito: 100 + Math.floor(Math.random() * 500),
@@ -232,14 +233,17 @@ export function useGameState() {
       // Aggiorna la stanchezza (aumenta leggermente, ma non oltre 100)
       const nuovaStanchezza = Math.min(100, abitante.stanchezza + Math.floor(Math.random() * 10));
       
-      // Aggiorna la salute (può migliorare o peggiorare leggermente)
-      const variazioneSalute = Math.floor(Math.random() * 6) - 2; // -2 a +3
+      // Aggiorna peso e salute (possono variare leggermente)
+      const variazionePeso = Math.floor(Math.random() * 6) - 2; // -2 a +3
+      const nuovoPeso = Math.max(0, Math.min(100, abitante.peso + variazionePeso));
+      const variazioneSalute = Math.floor(Math.random() * 6) - 2;
       const nuovaSalute = Math.max(0, Math.min(100, abitante.salute + variazioneSalute));
 
       return {
         ...abitante,
-        crediti: Math.max(0, nuovoSaldo), // Non può andare sotto zero
+        crediti: Math.max(0, nuovoSaldo),
         stanchezza: nuovaStanchezza,
+        peso: nuovoPeso,
         salute: nuovaSalute
       };
     });
@@ -610,6 +614,7 @@ export function useGameState() {
           amici: [],
           rivali: [],
           fazioni: ["Nativi", "Cittadini"],
+          peso: 41 + Math.floor(Math.random() * 40),
           salute: 60 + Math.floor(Math.random() * 35),
           crediti: Math.floor(Math.random() * 500),
           reddito: 100 + Math.floor(Math.random() * 300),

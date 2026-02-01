@@ -1,6 +1,7 @@
 import React from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Abitante, Edificio } from "../types";
+import { getConsumoCibo, getStatoSalute } from "../game/ciboConsumo";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type CiboConsumoModalProps = {
@@ -11,44 +12,11 @@ type CiboConsumoModalProps = {
 };
 
 export function CiboConsumoModal({ visible, abitanti, edifici, onClose }: CiboConsumoModalProps) {
-  // Funzione per generare un numero deterministico basato sull'ID dell'abitante
-  // Usa l'ID come seed per avere sempre lo stesso numero per lo stesso abitante
-  const getConsumoFisso = (abitante: Abitante): number => {
-    // Usa una combinazione di ID e salute per generare un numero deterministico
-    const seed = abitante.id * 17 + abitante.salute * 23;
-    
-    if (abitante.salute > 70) {
-      // Obeso: consuma da 5 a 10
-      return 5 + (seed % 6); // 5 + (0-5) = 5-10
-    } else if (abitante.salute >= 30 && abitante.salute <= 70) {
-      // Normale: consuma da 1 a 5
-      return 1 + (seed % 5); // 1 + (0-4) = 1-5
-    } else {
-      // Altro: consuma da 1 a 10
-      return 1 + (seed % 10); // 1 + (0-9) = 1-10
-    }
-  };
-
-  // Calcola il consumo di ogni abitante (numero fisso per individuo)
-  const consumiAbitanti = abitanti.map((abitante) => {
-    let statoSalute: string;
-
-    if (abitante.salute > 70) {
-      statoSalute = "Obeso";
-    } else if (abitante.salute >= 30 && abitante.salute <= 70) {
-      statoSalute = "Normale";
-    } else {
-      statoSalute = "Basso";
-    }
-
-    const consumo = getConsumoFisso(abitante);
-
-    return {
-      abitante,
-      consumo,
-      statoSalute
-    };
-  });
+  const consumiAbitanti = abitanti.map((abitante) => ({
+    abitante,
+    consumo: getConsumoCibo(abitante),
+    statoSalute: getStatoSalute(abitante)
+  }));
 
   // Calcola il totale consumato
   const totaleConsumo = consumiAbitanti.reduce((sum, c) => sum + c.consumo, 0);
@@ -79,7 +47,7 @@ export function CiboConsumoModal({ visible, abitanti, edifici, onClose }: CiboCo
                 <View style={styles.itemContent}>
                   <Text style={styles.nome}>{abitante.nome}</Text>
                   <View style={styles.itemRow}>
-                    <Text style={styles.statoSalute}>Salute: {abitante.salute} ({statoSalute})</Text>
+                    <Text style={styles.statoSalute}>Peso: {abitante.peso ?? 50}/100 · Salute: {statoSalute}</Text>
                     <Text style={styles.consumo}>
                       {consumo} <Text style={styles.unità}>razioni</Text>
                     </Text>

@@ -49,10 +49,10 @@ export const EVENTI_CATALOGO: EventoDef[] = [
     probabilità: 0.2,
     condizione: (abitanti) => abitanti.filter((a) => (a.reati?.length ?? 0) > 0).length >= 1,
     applicaAttivazione: (_r, abitanti) => {
-      const vittime = abitanti.filter((a) => a.salute > 20);
+      const vittime = abitanti.filter((a) => a.peso > 20);
       if (vittime.length > 0) {
         const v = vittime[Math.floor(Math.random() * vittime.length)];
-        (v as Abitante).salute = Math.max(0, (v as Abitante).salute - 25);
+        (v as Abitante).peso = Math.max(0, (v as Abitante).peso - 25);
       }
     },
     applicaMensile: () => {}
@@ -72,7 +72,7 @@ export const EVENTI_CATALOGO: EventoDef[] = [
     applicaMensile: (risorse, abitanti) => {
       modificaRisorsa(risorse, "Cibo", -30);
       abitanti.forEach((a) => {
-        (a as Abitante).salute = Math.max(0, (a as Abitante).salute - 3);
+        (a as Abitante).peso = Math.max(0, (a as Abitante).peso - 3);
       });
     }
   },
@@ -91,7 +91,7 @@ export const EVENTI_CATALOGO: EventoDef[] = [
     applicaMensile: (risorse, abitanti) => {
       modificaRisorsa(risorse, "Medicine", -15);
       abitanti.forEach((a) => {
-        (a as Abitante).salute = Math.max(0, (a as Abitante).salute - 10);
+        (a as Abitante).peso = Math.max(0, (a as Abitante).peso - 10);
       });
     }
   },

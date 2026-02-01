@@ -2,11 +2,12 @@ import React, { useState, useMemo } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getStatoSalute } from "../src/game/ciboConsumo";
 import { getEmojiRazza } from "../src/kingdomData";
 import type { Abitante } from "../src/types";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 
-type SortField = "nome" | "eta" | "lavoro" | "razza" | "competenza" | "produttività" | "stanchezza" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "paura" | "felicità" | "religione" | "fazioni" | null;
+type SortField = "nome" | "eta" | "lavoro" | "razza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "paura" | "felicità" | "religione" | "fazioni" | null;
 type SortDirection = "asc" | "desc";
 
 const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
@@ -66,6 +67,12 @@ export default function AbitantiScreen() {
       } else if (sortField === "razza") {
         aValue = a.razza ?? "Umano";
         bValue = b.razza ?? "Umano";
+      } else if (sortField === "salute") {
+        aValue = getStatoSalute(a);
+        bValue = getStatoSalute(b);
+      } else if (sortField === "peso") {
+        aValue = a.peso ?? 50;
+        bValue = b.peso ?? 50;
       } else {
         aValue = a[sortField as keyof Abitante] as number;
         bValue = b[sortField as keyof Abitante] as number;
@@ -115,6 +122,29 @@ export default function AbitantiScreen() {
           contentContainerStyle={styles.content}
           showsVerticalScrollIndicator={true}
         >
+          {/* Riga sovracolonne */}
+          <View style={styles.superHeaderRow}>
+            <View style={[styles.superHeaderCell, styles.superEmoji]} />
+            <View style={[styles.superHeaderCell, styles.superAnagrafica]}>
+              <Text style={styles.superHeaderText}>Anagrafica</Text>
+            </View>
+            <View style={[styles.superHeaderCell, styles.superPrestazioni]}>
+              <Text style={styles.superHeaderText}>Prestazioni</Text>
+            </View>
+            <View style={[styles.superHeaderCell, styles.superBenessere]}>
+              <Text style={styles.superHeaderText}>Salute e benessere</Text>
+            </View>
+            <View style={[styles.superHeaderCell, styles.superEconomia]}>
+              <Text style={styles.superHeaderText}>Economia</Text>
+            </View>
+            <View style={[styles.superHeaderCell, styles.superLealta]}>
+              <Text style={styles.superHeaderText}>Lealtà</Text>
+            </View>
+            <View style={[styles.superHeaderCell, styles.superReligioneFazioni]}>
+              <Text style={styles.superHeaderText}>Religione e fazioni</Text>
+            </View>
+          </View>
+
           {/* Header della tabella */}
           <View style={styles.tableHeader}>
             <View style={[styles.headerCell, styles.cellEmoji]}>
@@ -184,11 +214,38 @@ export default function AbitantiScreen() {
               )}
             </Pressable>
             <Pressable 
+              style={[styles.headerCell, styles.cellSmall, sortField === "peso" && styles.headerCellActive]}
+              onPress={() => handleSort("peso")}
+            >
+              <Text style={styles.headerText}>⚖️ Peso</Text>
+              {sortField === "peso" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
               style={[styles.headerCell, styles.cellSmall, sortField === "salute" && styles.headerCellActive]}
               onPress={() => handleSort("salute")}
             >
               <Text style={styles.headerText}>🏥 Salute</Text>
               {sortField === "salute" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellSmall, sortField === "felicità" && styles.headerCellActive]}
+              onPress={() => handleSort("felicità")}
+            >
+              <Text style={styles.headerText}>😊 Felicità</Text>
+              {sortField === "felicità" && (
+                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+              )}
+            </Pressable>
+            <Pressable 
+              style={[styles.headerCell, styles.cellSmall, sortField === "paura" && styles.headerCellActive]}
+              onPress={() => handleSort("paura")}
+            >
+              <Text style={styles.headerText}>😨 Paura</Text>
+              {sortField === "paura" && (
                 <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
               )}
             </Pressable>
@@ -225,24 +282,6 @@ export default function AbitantiScreen() {
             >
               <Text style={styles.headerText}>❤️ Lealtà</Text>
               {sortField === "lealtà" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellSmall, sortField === "paura" && styles.headerCellActive]}
-              onPress={() => handleSort("paura")}
-            >
-              <Text style={styles.headerText}>😨 Paura</Text>
-              {sortField === "paura" && (
-                <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
-              )}
-            </Pressable>
-            <Pressable 
-              style={[styles.headerCell, styles.cellSmall, sortField === "felicità" && styles.headerCellActive]}
-              onPress={() => handleSort("felicità")}
-            >
-              <Text style={styles.headerText}>😊 Felicità</Text>
-              {sortField === "felicità" && (
                 <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
               )}
             </Pressable>
@@ -302,7 +341,21 @@ export default function AbitantiScreen() {
                   <Text style={styles.cellText}>{a.stanchezza}%</Text>
                 </View>
                 <View style={[styles.cell, styles.cellSmall]}>
-                  <Text style={styles.cellText}>{a.salute}%</Text>
+                  <Text style={styles.cellText}>{a.peso ?? 50}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellSmall]}>
+                  <Text style={styles.cellTextSmall}>{getStatoSalute(a)}</Text>
+                </View>
+                <View style={[styles.cell, styles.cellSmall]}>
+                  <Text style={[
+                    styles.cellText,
+                    felicitàModificata >= 70 ? styles.cellTextPositive : felicitàModificata >= 40 ? styles.cellTextNeutral : styles.cellTextNegative
+                  ]}>
+                    {felicitàModificata}%
+                  </Text>
+                </View>
+                <View style={[styles.cell, styles.cellSmall]}>
+                  <Text style={styles.cellText}>{a.paura}%</Text>
                 </View>
                 <View style={[styles.cell, styles.cellMedium]}>
                   <Text style={styles.cellText}>{a.crediti}</Text>
@@ -315,17 +368,6 @@ export default function AbitantiScreen() {
                 </View>
                 <View style={[styles.cell, styles.cellSmall]}>
                   <Text style={styles.cellText}>{a.lealtà}%</Text>
-                </View>
-                <View style={[styles.cell, styles.cellSmall]}>
-                  <Text style={styles.cellText}>{a.paura}%</Text>
-                </View>
-                <View style={[styles.cell, styles.cellSmall]}>
-                  <Text style={[
-                    styles.cellText,
-                    felicitàModificata >= 70 ? styles.cellTextPositive : felicitàModificata >= 40 ? styles.cellTextNeutral : styles.cellTextNegative
-                  ]}>
-                    {felicitàModificata}%
-                  </Text>
                 </View>
                 <View style={[styles.cell, styles.cellReligione]}>
                   <Text style={styles.cellTextSmall}>{a.religione}</Text>
@@ -381,6 +423,57 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 4,
     paddingBottom: 6
+  },
+  superHeaderRow: {
+    flexDirection: "row",
+    backgroundColor: "rgba(30,58,138,0.5)",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(59,130,246,0.5)",
+    marginBottom: 0
+  },
+  superHeaderCell: {
+    paddingVertical: 4,
+    paddingHorizontal: 4,
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: "rgba(148,163,184,0.4)",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  superHeaderText: {
+    color: "rgba(191,219,254,0.95)",
+    fontSize: 8,
+    fontWeight: "700",
+    textAlign: "center",
+    textTransform: "uppercase",
+    letterSpacing: 0.3
+  },
+  superEmoji: {
+    width: 40,
+    minWidth: 40
+  },
+  superAnagrafica: {
+    width: 350,
+    minWidth: 350
+  },
+  superPrestazioni: {
+    width: 150,
+    minWidth: 150
+  },
+  superBenessere: {
+    width: 200,
+    minWidth: 200
+  },
+  superEconomia: {
+    width: 210,
+    minWidth: 210
+  },
+  superLealta: {
+    width: 50,
+    minWidth: 50
+  },
+  superReligioneFazioni: {
+    width: 210,
+    minWidth: 210
   },
   tableHeader: {
     flexDirection: "row",

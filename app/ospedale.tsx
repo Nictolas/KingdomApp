@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getStatoSalute } from "../src/game/ciboConsumo";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
@@ -25,8 +26,8 @@ export default function OspedaleScreen() {
   const dottoreId = ospedale.abitantiAssegnati.length > 0 ? ospedale.abitantiAssegnati[0] : null;
   const dottore = dottoreId ? abitanti.find((a) => a.id === dottoreId) : null;
 
-  // I malati sono tutti gli abitanti con salute > 70 (Obesi)
-  const malati = abitanti.filter((a) => a.salute > 70);
+  // Malati = abitanti con Salute diversa da "Sano" (Denutrito, Sovrappeso, Obeso)
+  const malati = abitanti.filter((a) => getStatoSalute(a) !== "Sano");
 
   // Abitanti disponibili per essere dottore (non già dottore)
   const abitantiDisponibiliDottore = abitanti.filter((a) => a.id !== dottoreId);
@@ -140,7 +141,7 @@ export default function OspedaleScreen() {
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{malato.nome}</Text>
                     <Text style={styles.cardInfo}>Età: {malato.eta} anni</Text>
-                    <Text style={styles.cardInfo}>Salute: {malato.salute}% (Obeso)</Text>
+                    <Text style={styles.malatoPesoSalute}>Peso: {malato.peso ?? 50}/100 · Salute: {getStatoSalute(malato)}</Text>
                     <Text style={styles.cardInfo}>Felicità: {malato.felicità}/100</Text>
                   </View>
                 </View>
@@ -208,6 +209,11 @@ const styles = StyleSheet.create({
   },
   infoSubtext: {
     color: "rgba(203,213,245,0.7)",
+    fontSize: 9,
+    marginTop: 2
+  },
+  malatoPesoSalute: {
+    color: "rgba(203,213,245,0.8)",
     fontSize: 9,
     marginTop: 2
   },

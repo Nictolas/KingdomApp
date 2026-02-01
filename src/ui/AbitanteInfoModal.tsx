@@ -1,6 +1,7 @@
 import React from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Abitante } from "../types";
+import { getStatoSalute } from "../game/ciboConsumo";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
@@ -66,7 +67,8 @@ export function AbitanteInfoModal({
               <Text style={styles.line}>Competenza: {formatPercentuale(abitante.competenza)}</Text>
               <Text style={styles.line}>Produttività: {formatPercentuale(abitante.produttività)}</Text>
               <Text style={styles.line}>Stanchezza: {formatPercentuale(abitante.stanchezza)}</Text>
-              <Text style={styles.line}>Salute: {formatPercentuale(abitante.salute)}</Text>
+              <Text style={styles.line}>Peso: {abitante.peso ?? 50}/100</Text>
+              <Text style={styles.line}>Salute: {getStatoSalute(abitante)}</Text>
             </View>
 
             {/* Relazioni */}
