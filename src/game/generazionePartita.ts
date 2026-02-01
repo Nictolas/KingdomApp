@@ -21,7 +21,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
   {
     titolo: "Personalità",
     punti: [
-      "Solo personalità del catalogo: Pollice Verde, Salutista, Empatico, Depresso, Carismatico, Psicopatico, Stakanovista, Tiepido, Omofobo.",
+      "Solo personalità del catalogo: Pollice Verde, Salutista, Empatico, Depresso, Carismatico, Psicopatico, Stakanovista, Tiepido, Omofobo, Razzista.",
       "Distribuzione: circa 35% Tiepido, il resto distribuito in modo uniforme tra le altre sette."
     ]
   },
@@ -96,7 +96,8 @@ const PERSONALITÀ_POOL: { nome: string; peso: number }[] = [
   { nome: "Carismatico", peso: 10 },
   { nome: "Psicopatico", peso: 5 },
   { nome: "Stakanovista", peso: 10 },
-  { nome: "Omofobo", peso: 5 }
+  { nome: "Omofobo", peso: 5 },
+  { nome: "Razzista", peso: 5 }
 ];
 
 function pesaScelta<T>(pool: { nome: T; peso: number }[]): T {
@@ -194,7 +195,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     abitanti.push(ab);
   }
 
-  // Regola: esattamente 1 Nativo (razza = razzaNativi). Scegliamo un abitante con id !== 1 (non il Comandante).
+  // Regola: esattamente 1 Nativo (razza = razzaNativi) integrato in colonia. Scegliamo un abitante con id !== 1 (non il Comandante).
   const candidatiNativo = abitanti.filter((a) => a.id !== 1);
   if (candidatiNativo.length > 0) {
     const nat = candidatiNativo[Math.floor(Math.random() * candidatiNativo.length)];
@@ -202,6 +203,8 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     nat.specie = "alieno";
     nat.nome = `${razzaNativi}-${1000 + Math.floor(Math.random() * 9000)}`;
     nat.emoji = getEmojiRazza(razzaNativi);
+    // Nativo integrato: deve avere la fazione "Nativi" così appare in /nativi e in colonna Fazione in /abitanti.
+    nat.fazioni = normalizzaFazioni([...(nat.fazioni ?? []), "Nativi"]);
   }
 
   // Regola: 50% con Lavoro "Disoccupato" (il Comandante id 1 resta Comandante). Scegliamo floor(n/2) tra id 2..n.

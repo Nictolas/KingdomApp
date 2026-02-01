@@ -29,7 +29,8 @@ export default function PersonalitaScreen() {
     { nome: "Psicopatico", emoji: "🔪", effetto: "Rivalità ≥60 può portare a omicidio (soglia 90 per gli altri)" },
     { nome: "Stakanovista", emoji: "⚒️", effetto: "+15% produttività" },
     { nome: "Tiepido", emoji: "🌡️", effetto: "Nessun bonus né malus" },
-    { nome: "Omofobo", emoji: "😤", effetto: "Stesso Lavoro con Omo/Bi: a ogni Skip solo +0–5 Rivalità" }
+    { nome: "Omofobo", emoji: "😤", effetto: "Stesso Lavoro con Omo/Bi: a ogni Skip solo +0–5 Rivalità" },
+    { nome: "Razzista", emoji: "😠", effetto: "Stesso Lavoro con Razza diversa: a ogni Skip solo +0–5 Rivalità" }
   ];
 
   const nomiCatalogo = new Set(catalogoPersonalita.map((p) => p.nome));

@@ -74,6 +74,8 @@ export default function EdificiScreen() {
       router.push("/ospedale");
     } else if (e.nome === "Tribunale") {
       router.push("/tribunale");
+    } else if (e.nome === "Centro di Comando") {
+      router.push("/ministri");
     } else {
       setSelectedEdificio(e);
     }
