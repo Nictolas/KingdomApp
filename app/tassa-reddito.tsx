@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
 export default function TassaRedditoScreen() {
@@ -185,7 +186,7 @@ export default function TassaRedditoScreen() {
           <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
             {tasseAbitanti.map(({ abitante, tassa, redditoNetto }) => (
               <View key={abitante.id} style={styles.item}>
-                <Text style={styles.emoji}>{abitante.emoji}</Text>
+                <Text style={styles.emoji}>{getEmojiAbitante(abitante)}</Text>
                 <View style={styles.itemContent}>
                   <Text style={styles.nome}>{abitante.nome}</Text>
                   <View style={styles.itemRow}>

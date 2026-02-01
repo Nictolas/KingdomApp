@@ -3,6 +3,7 @@ import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "re
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getCategoriaPeso, getConsumoCibo, getProduzioneCiboPerAbitante, CATEGORIE_PESO } from "../src/game/ciboConsumo";
+import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
 export default function CiboScreen() {
@@ -83,7 +84,7 @@ export default function CiboScreen() {
                     ) : (
                       list.map(({ abitante, consumo }) => (
                         <View key={abitante.id} style={styles.rigaAbitante}>
-                          <Text style={styles.rigaEmoji}>{abitante.emoji}</Text>
+                          <Text style={styles.rigaEmoji}>{getEmojiAbitante(abitante)}</Text>
                           <View style={styles.rigaTesto}>
                             <Text style={styles.rigaNome} numberOfLines={1}>{abitante.nome}</Text>
                             <Text style={styles.rigaConsumo}>{consumo} raz.</Text>

@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
@@ -48,7 +49,7 @@ export default function TribunaleScreen() {
           <Pressable style={styles.dropdownButton} onPress={() => setDropdownGiudiceVisible(true)}>
             {giudice ? (
               <View style={styles.dropdownContent}>
-                <Text style={styles.dropdownEmoji}>{giudice.emoji}</Text>
+                <Text style={styles.dropdownEmoji}>{getEmojiAbitante(giudice)}</Text>
                 <View style={styles.dropdownTextContainer}>
                   <Text style={styles.dropdownNome}>{giudice.nome}</Text>
                   <Text style={styles.dropdownCompetenza}>Competenza: {giudice.competenza}%</Text>
@@ -91,7 +92,7 @@ export default function TribunaleScreen() {
                           setDropdownGiudiceVisible(false);
                         }}
                       >
-                        <Text style={styles.dropdownItemEmoji}>{a.emoji}</Text>
+                        <Text style={styles.dropdownItemEmoji}>{getEmojiAbitante(a)}</Text>
                         <View style={styles.dropdownItemTextContainer}>
                           <Text style={styles.dropdownItemNome}>{a.nome}</Text>
                           <Text style={styles.dropdownItemCompetenza}>Competenza: {a.competenza}%</Text>
@@ -116,7 +117,7 @@ export default function TribunaleScreen() {
             <View style={styles.cardsContainer}>
               {criminali.map((c) => (
                 <View key={c.id} style={styles.criminaleCard}>
-                  <Text style={styles.cardEmoji}>{c.emoji}</Text>
+                  <Text style={styles.cardEmoji}>{getEmojiAbitante(c)}</Text>
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{c.nome}</Text>
                     <Text style={styles.cardInfo}>Età: {c.eta} anni</Text>

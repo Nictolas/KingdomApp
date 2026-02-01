@@ -3,6 +3,7 @@ import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Tex
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getStatoSalute } from "../src/game/ciboConsumo";
+import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
@@ -65,7 +66,7 @@ export default function OspedaleScreen() {
           >
             {dottore ? (
               <View style={styles.dropdownContent}>
-                <Text style={styles.dropdownEmoji}>{dottore.emoji}</Text>
+                <Text style={styles.dropdownEmoji}>{getEmojiAbitante(dottore)}</Text>
                 <View style={styles.dropdownTextContainer}>
                   <Text style={styles.dropdownNome}>{dottore.nome}</Text>
                   <Text style={styles.dropdownCompetenza}>Competenza: {dottore.competenza}%</Text>
@@ -114,7 +115,7 @@ export default function OspedaleScreen() {
                           setDropdownDottoreVisible(false);
                         }}
                       >
-                        <Text style={styles.dropdownItemEmoji}>{a.emoji}</Text>
+                        <Text style={styles.dropdownItemEmoji}>{getEmojiAbitante(a)}</Text>
                         <View style={styles.dropdownItemTextContainer}>
                           <Text style={styles.dropdownItemNome}>{a.nome}</Text>
                           <Text style={styles.dropdownItemCompetenza}>Competenza: {a.competenza}%</Text>
@@ -137,7 +138,7 @@ export default function OspedaleScreen() {
             <View style={styles.cardsContainer}>
               {malati.map((malato: Abitante) => (
                 <View key={malato.id} style={styles.malatoCard}>
-                  <Text style={styles.cardEmoji}>{malato.emoji}</Text>
+                  <Text style={styles.cardEmoji}>{getEmojiAbitante(malato)}</Text>
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{malato.nome}</Text>
                     <Text style={styles.cardInfo}>Età: {malato.eta} anni</Text>

@@ -2,6 +2,7 @@ import React from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
 export default function SerraScreen() {
@@ -73,7 +74,7 @@ export default function SerraScreen() {
             <View style={styles.cardsContainer}>
               {abitantiAssegnati.map((a: Abitante) => (
                 <View key={a.id} style={styles.card}>
-                  <Text style={styles.cardEmoji}>{a.emoji}</Text>
+                  <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{a.nome}</Text>
                     <Text style={styles.cardLavoro}>{a.lavoro}</Text>
@@ -102,7 +103,7 @@ export default function SerraScreen() {
             <View style={styles.cardsContainer}>
               {abitantiDisponibili.map((a: Abitante) => (
                 <View key={a.id} style={styles.card}>
-                  <Text style={styles.cardEmoji}>{a.emoji}</Text>
+                  <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{a.nome}</Text>
                     <Text style={styles.cardLavoro}>{a.lavoro}</Text>

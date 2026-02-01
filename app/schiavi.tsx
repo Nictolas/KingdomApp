@@ -2,6 +2,7 @@ import React from "react";
 import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
 export default function SchiaviScreen() {
@@ -46,7 +47,7 @@ export default function SchiaviScreen() {
             <View style={styles.grid}>
               {schiaviDiStato.map((schiavo: Abitante) => (
                 <View key={schiavo.id} style={[styles.card, styles.cardStato]}>
-                  <Text style={styles.emoji}>{schiavo.emoji}</Text>
+                  <Text style={styles.emoji}>{getEmojiAbitante(schiavo)}</Text>
                   <Text style={styles.cardTitle}>{schiavo.nome}</Text>
                   <Text style={styles.cardLavoro}>{schiavo.lavoro}</Text>
                   <Text style={styles.badgeStato}>Padrone: Stato</Text>
@@ -66,7 +67,7 @@ export default function SchiaviScreen() {
             <View style={styles.grid}>
               {schiaviPrivati.map((schiavo: Abitante) => (
                 <View key={schiavo.id} style={[styles.card, styles.cardPrivato]}>
-                  <Text style={styles.emoji}>{schiavo.emoji}</Text>
+                  <Text style={styles.emoji}>{getEmojiAbitante(schiavo)}</Text>
                   <Text style={styles.cardTitle}>{schiavo.nome}</Text>
                   <Text style={styles.cardLavoro}>{schiavo.lavoro}</Text>
                   <Text style={styles.cardPadrone}>

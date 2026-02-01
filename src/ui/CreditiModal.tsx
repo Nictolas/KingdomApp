@@ -47,7 +47,7 @@ export function CreditiModal({ visible, abitanti, edifici, onClose }: CreditiMod
             <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
               {entrateAbitanti.map(({ abitante, reddito, spese, netto }) => (
                 <View key={abitante.id} style={styles.item}>
-                  <Text style={styles.emoji}>{abitante.emoji}</Text>
+                  <Text style={styles.emoji}>{getEmojiAbitante(abitante)}</Text>
                   <View style={styles.itemContent}>
                     <Text style={styles.nome}>{abitante.nome}</Text>
                     <View style={styles.itemRow}>

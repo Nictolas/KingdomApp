@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
 export default function CultoSoleScreen() {
@@ -39,7 +40,7 @@ export default function CultoSoleScreen() {
           <Text style={styles.sectionTitle}>Capo Religioso</Text>
           {capoReligioso ? (
             <View style={styles.capoCard}>
-              <Text style={styles.capoEmoji}>{capoReligioso.emoji}</Text>
+              <Text style={styles.capoEmoji}>{getEmojiAbitante(capoReligioso)}</Text>
               <View style={styles.capoContent}>
                 <Text style={styles.capoNome}>{capoReligioso.nome}</Text>
                 <Text style={styles.capoInfo}>{capoReligioso.lavoro}</Text>
@@ -64,7 +65,7 @@ export default function CultoSoleScreen() {
                         style={styles.fedeleItem}
                         onPress={() => setCapoReligiosoSole(abitante.id)}
                       >
-                        <Text style={styles.fedeleEmoji}>{abitante.emoji}</Text>
+                        <Text style={styles.fedeleEmoji}>{getEmojiAbitante(abitante)}</Text>
                         <View style={styles.fedeleContent}>
                           <Text style={styles.fedeleNome}>{abitante.nome}</Text>
                           <Text style={styles.fedeleInfo}>{abitante.lavoro}</Text>
@@ -86,7 +87,7 @@ export default function CultoSoleScreen() {
             <View style={styles.fedeliGrid}>
               {fedeli.map((fedele: Abitante) => (
                 <View key={fedele.id} style={styles.fedeleCard}>
-                  <Text style={styles.fedeleCardEmoji}>{fedele.emoji}</Text>
+                  <Text style={styles.fedeleCardEmoji}>{getEmojiAbitante(fedele)}</Text>
                   <Text style={styles.fedeleCardNome}>{fedele.nome}</Text>
                   <Text style={styles.fedeleCardLavoro}>{fedele.lavoro}</Text>
                 </View>

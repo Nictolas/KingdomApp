@@ -2,6 +2,7 @@ import React from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
 export default function SchiavituScreen() {
@@ -51,7 +52,7 @@ export default function SchiavituScreen() {
                 const schiaviDiQuesto = getSchiaviDiSchiavista(schiavista.id);
                 return (
                   <View key={schiavista.id} style={styles.card}>
-                    <Text style={styles.emoji}>{schiavista.emoji}</Text>
+                    <Text style={styles.emoji}>{getEmojiAbitante(schiavista)}</Text>
                     <Text style={styles.cardTitle}>{schiavista.nome}</Text>
                     <Text style={styles.cardLavoro}>{schiavista.lavoro}</Text>
                     <Text style={styles.cardInfo}>
@@ -61,7 +62,7 @@ export default function SchiavituScreen() {
                       <View style={styles.schiaviList}>
                         {schiaviDiQuesto.map((schiavo) => (
                           <Text key={schiavo.id} style={styles.schiavoItem}>
-                            {schiavo.emoji} {schiavo.nome}
+                            {getEmojiAbitante(schiavo)} {schiavo.nome}
                           </Text>
                         ))}
                       </View>
@@ -84,7 +85,7 @@ export default function SchiavituScreen() {
             <View style={styles.grid}>
               {schiavi.map((schiavo: Abitante) => (
                 <View key={schiavo.id} style={styles.card}>
-                  <Text style={styles.emoji}>{schiavo.emoji}</Text>
+                  <Text style={styles.emoji}>{getEmojiAbitante(schiavo)}</Text>
                   <Text style={styles.cardTitle}>{schiavo.nome}</Text>
                   <Text style={styles.cardLavoro}>{schiavo.lavoro}</Text>
                   <Text style={styles.cardInfo}>

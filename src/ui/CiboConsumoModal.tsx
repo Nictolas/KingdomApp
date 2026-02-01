@@ -2,6 +2,7 @@ import React from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Abitante, Edificio } from "../types";
 import { getConsumoCibo, getStatoSalute } from "../game/ciboConsumo";
+import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type CiboConsumoModalProps = {
@@ -43,7 +44,7 @@ export function CiboConsumoModal({ visible, abitanti, edifici, onClose }: CiboCo
           <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
             {consumiAbitanti.map(({ abitante, consumo, statoSalute }) => (
               <View key={abitante.id} style={styles.item}>
-                <Text style={styles.emoji}>{abitante.emoji}</Text>
+                <Text style={styles.emoji}>{getEmojiAbitante(abitante)}</Text>
                 <View style={styles.itemContent}>
                   <Text style={styles.nome}>{abitante.nome}</Text>
                   <View style={styles.itemRow}>

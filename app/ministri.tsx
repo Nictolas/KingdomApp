@@ -3,6 +3,7 @@ import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Tex
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { ministeriDisponibili } from "../src/kingdomData";
+import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
@@ -108,7 +109,7 @@ export default function MinistriScreen() {
                     ]}
                     onPress={() => setSelectedAbitante(a)}
                   >
-                    <Text style={styles.abitanteEmoji}>{a.emoji}</Text>
+                    <Text style={styles.abitanteEmoji}>{getEmojiAbitante(a)}</Text>
                     <View style={styles.abitanteInfo}>
                       <Text style={styles.abitanteNome}>{a.nome}</Text>
                       <Text style={styles.abitanteLavoro}>{a.lavoro}</Text>

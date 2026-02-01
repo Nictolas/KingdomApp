@@ -40,7 +40,7 @@ export function ReligioneFedeliModal({ visible, religione, abitanti, onClose }: 
             <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
               {fedeli.map((abitante) => (
                 <View key={abitante.id} style={styles.item}>
-                  <Text style={styles.itemEmoji}>{abitante.emoji}</Text>
+                  <Text style={styles.itemEmoji}>{getEmojiAbitante(abitante)}</Text>
                   <View style={styles.itemContent}>
                     <Text style={styles.itemNome}>{abitante.nome}</Text>
                     <Text style={styles.itemLavoro}>{abitante.lavoro}</Text>

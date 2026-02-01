@@ -2,6 +2,7 @@ import React from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
 export default function ImmigrazioneScreen() {
@@ -32,7 +33,7 @@ export default function ImmigrazioneScreen() {
             <View style={styles.grid}>
               {abitantiProposti.map((a: Abitante) => (
                 <View key={a.id} style={styles.card}>
-                  <Text style={styles.emoji}>{a.emoji}</Text>
+                  <Text style={styles.emoji}>{getEmojiAbitante(a)}</Text>
                   <Text style={styles.cardTitle}>{a.nome}</Text>
                   <Text style={styles.cardLavoro}>{a.lavoro}</Text>
                   <Text style={styles.cardInfo}>Età: {a.eta}</Text>

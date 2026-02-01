@@ -2,6 +2,7 @@ import React from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Abitante } from "../types";
 import { getStatoSalute } from "../game/ciboConsumo";
+import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
@@ -27,7 +28,7 @@ export function AbitanteInfoModal({
 
   const maggiorenne = abitante.eta >= etaMinimaLavoro;
   const lavoroDaMinore = LAVORI_DA_MINORE.includes(abitante.lavoro);
-  const emojiDisplay = maggiorenne && lavoroDaMinore ? "👤" : abitante.emoji;
+  const emojiDisplay = maggiorenne && lavoroDaMinore ? "👤" : getEmojiAbitante(abitante);
   const lavoroDisplay = maggiorenne && lavoroDaMinore ? "Disoccupato" : abitante.lavoro;
 
   const formatPercentuale = (valore: number) => `${valore}%`;

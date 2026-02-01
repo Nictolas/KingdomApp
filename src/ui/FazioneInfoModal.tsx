@@ -1,6 +1,7 @@
 import React from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Abitante, Fazione } from "../types";
+import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type FazioneInfoModalProps = {
@@ -36,7 +37,7 @@ export function FazioneInfoModal({ visible, fazione, abitanti = [], onClose }: F
               {membri.length > 0 ? (
                 <View style={styles.membriList}>
                   {membri.slice(0, 50).map((a) => (
-                    <Text key={a.id} style={styles.membroItem}>{a.emoji} {a.nome}</Text>
+                    <Text key={a.id} style={styles.membroItem}>{getEmojiAbitante(a)} {a.nome}</Text>
                   ))}
                   {membri.length > 50 && (
                     <Text style={styles.membroMore}>… e altri {membri.length - 50}</Text>
