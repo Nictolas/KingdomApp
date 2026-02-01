@@ -28,8 +28,8 @@ export function CiboConsumoModal({ visible, abitanti, edifici, onClose }: CiboCo
     return 10 + (seed % 11); // 10-20
   };
 
-  // Calcola il totale prodotto dalla Serra Idroponica Alpha
-  const serra = edifici.find((e) => e.nome === "Serra Idroponica Alpha");
+  // Calcola il totale prodotto dalla Serra
+  const serra = edifici.find((e) => e.nome === "Serra");
   const totaleProduzione =
     serra?.abitantiAssegnati.reduce((sum, id) => sum + getProduzioneCiboPerAbitante(id), 0) ?? 0;
 

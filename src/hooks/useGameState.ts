@@ -18,9 +18,12 @@ export function useGameState() {
     const metà = Math.floor(tuttiId.length / 2);
     const baraccaIds = tuttiId.slice(0, metà);
     const dormitorioIds = tuttiId.slice(metà);
+    const agricoltore = statoIniziale.abitanti.find((a) => a.lavoro === "Agricoltore");
+    const serraIds = agricoltore ? [agricoltore.id] : [];
     return edificiData.map((e) => {
       if (e.id === 4) return { ...e, abitantiAssegnati: baraccaIds, occupazione: baraccaIds.length };
       if (e.id === 14) return { ...e, abitantiAssegnati: dormitorioIds, occupazione: dormitorioIds.length };
+      if (e.id === 2) return { ...e, abitantiAssegnati: serraIds, occupazione: serraIds.length };
       return e;
     });
   });

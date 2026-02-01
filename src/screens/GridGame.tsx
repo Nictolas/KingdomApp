@@ -175,6 +175,10 @@ export default function GridGame() {
           <Text style={styles.navEmoji}>🎲</Text>
           <Text style={styles.navLabel}>Generazione Partita</Text>
         </Pressable>
+        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/regole-skip")}>
+          <Text style={styles.navEmoji}>⏭️</Text>
+          <Text style={styles.navLabel}>Regole Skip</Text>
+        </Pressable>
       </View>
       <View style={[styles.navRow, isDesktop && styles.navRowCompact]}>
         <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/fazioni")}>

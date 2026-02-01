@@ -15,7 +15,7 @@ export default function SerraScreen() {
   const maxHeight = isDesktop ? containerHeight : undefined;
 
   // Trova la Serra
-  const serra = edifici.find((e) => e.nome === "Serra Idroponica Alpha");
+  const serra = edifici.find((e) => e.nome === "Serra");
   if (!serra) {
     return null;
   }
@@ -125,7 +125,7 @@ export default function SerraScreen() {
         <Text style={styles.back} onPress={() => router.back()}>
           ← Edifici
         </Text>
-        <Text style={styles.title}>Serra Idroponica Alpha</Text>
+        <Text style={styles.title}>Serra</Text>
         <View style={{ width: 50 }} />
       </View>
 

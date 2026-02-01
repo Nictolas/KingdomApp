@@ -59,7 +59,8 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     titolo: "Lavoro",
     punti: [
       "Il primo abitante (id 1) è «Comandante della Colonia» con competenza alta.",
-      "Il 50% degli abitanti deve avere come Lavoro «Disoccupato»; il restante a caso tra: Tecnico, Ricercatore, Ingegnere, Medico, Agricoltore, Meccanico, Esploratore, Comunicatore, Sicurezza, Amministratore."
+      "Il 50% degli abitanti deve avere come Lavoro «Disoccupato»; il restante a caso tra: Tecnico, Ricercatore, Ingegnere, Medico, Agricoltore, Meccanico, Esploratore, Comunicatore, Sicurezza, Amministratore.",
+      "A inizio partita c'è almeno 1 lavoratore assegnato alla Serra: un abitante con Lavoro «Agricoltore»."
     ]
   },
   {
@@ -203,6 +204,14 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     const ab = abitanti[indicesPerDisoccupato[d]];
     ab.lavoro = "Disoccupato";
     if (!ab.ruoloSchiavitu) ab.reddito = 0;
+  }
+
+  // Regola: almeno 1 Agricoltore a inizio partita (assegnato alla Serra in useGameState).
+  const candidatiAgricoltore = abitanti.filter((a) => a.id !== 1);
+  if (candidatiAgricoltore.length > 0) {
+    const agr = candidatiAgricoltore[Math.floor(Math.random() * candidatiAgricoltore.length)];
+    agr.lavoro = "Agricoltore";
+    if (!agr.ruoloSchiavitu) agr.reddito = 100 + Math.floor(Math.random() * 400);
   }
 
   return { abitanti, razzaNativi };

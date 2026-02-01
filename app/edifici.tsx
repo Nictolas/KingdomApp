@@ -35,7 +35,7 @@ export default function EdificiScreen() {
               key={e.id}
               style={styles.card}
               onPress={() => {
-                if (e.nome === "Serra Idroponica Alpha") {
+                if (e.nome === "Serra") {
                   router.push("/serra");
                 } else if (e.nome === "Baracca") {
                   router.push("/residenze");
