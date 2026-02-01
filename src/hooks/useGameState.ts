@@ -6,6 +6,7 @@ import { getConsumoCibo, getProduzioneCiboPerAbitante } from "../game/ciboConsum
 import { runAvanzaMese } from "../game/avanzaMese";
 import { EVENTI_CATALOGO } from "../game/eventi";
 import { generaColoniaIniziale } from "../game/generazionePartita";
+import { generaNomeAlieno } from "../game/nomiAlieni";
 
 const statoIniziale = generaColoniaIniziale();
 
@@ -132,7 +133,7 @@ export function useGameState() {
           : pianetiData.find((p) => p.razza === razza)?.emoji ?? "👽";
         const nome = isUmano
           ? `${nomiUmani[Math.floor(Math.random() * nomiUmani.length)]} ${cognomiUmani[Math.floor(Math.random() * cognomiUmani.length)]}`
-          : `${razza}-${Math.floor(Math.random() * 9999)}`;
+          : generaNomeAlieno(razza);
 
         const nuovoAbitante: Abitante = {
           id: prevId + i,
@@ -419,6 +420,14 @@ export function useGameState() {
     );
   }, []);
 
+  const setNomeAbitante = useCallback((abitanteId: number, nuovoNome: string) => {
+    const nome = (nuovoNome ?? "").trim();
+    if (!nome) return;
+    setAbitanti((prev) =>
+      prev.map((a) => (a.id === abitanteId ? { ...a, nome } : a))
+    );
+  }, []);
+
   // Calcola produzione/consumo mensile per ogni risorsa
   const calcolaProduzioneConsumo = useCallback(() => {
     const variazioni: Record<string, number> = {};
@@ -547,7 +556,7 @@ export function useGameState() {
       for (let i = 0; i < count; i++) {
         nuovi.push({
           id: prevId + i,
-          nome: `${razzaNativi}-${prevId + i}`,
+          nome: generaNomeAlieno(razzaNativi),
           emoji: emojiNativo,
           eta: 18 + Math.floor(Math.random() * 40),
           lavoro: lavori[Math.floor(Math.random() * lavori.length)],
@@ -745,6 +754,7 @@ export function useGameState() {
     aggiungiAlCampoDiLavoroTuttiQuelliChe,
     nominaMinistro,
     rimuoviMinistro,
+    setNomeAbitante,
     calcolaProduzioneConsumo,
     accettaImmigrante,
     rifiutaImmigrante,

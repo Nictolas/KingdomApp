@@ -1,5 +1,6 @@
 import type { Abitante, Razza } from "../types";
 import { pianetiData, getEmojiRazza } from "../kingdomData";
+import { generaNomeAlieno } from "./nomiAlieni";
 
 /** Regole di generazione casuale della colonia iniziale (per la pagina "Generazione Partita"). */
 export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] = [
@@ -201,7 +202,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     const nat = candidatiNativo[Math.floor(Math.random() * candidatiNativo.length)];
     nat.razza = razzaNativi;
     nat.specie = "alieno";
-    nat.nome = `${razzaNativi}-${1000 + Math.floor(Math.random() * 9000)}`;
+    nat.nome = generaNomeAlieno(razzaNativi);
     nat.emoji = getEmojiRazza(razzaNativi);
     // Nativo integrato: deve avere la fazione "Nativi" così appare in /nativi e in colonna Fazione in /abitanti.
     nat.fazioni = normalizzaFazioni([...(nat.fazioni ?? []), "Nativi"]);

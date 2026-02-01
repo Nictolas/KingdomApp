@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { ministeriDisponibili } from "../src/kingdomData";
@@ -7,12 +7,27 @@ import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
+const ID_COMANDANTE = 1;
+
+/** Suddivide "Nome Cognome" in nome e cognome (ultimo spazio). */
+function splitNomeCognome(nome: string): { nome: string; cognome: string } {
+  const t = (nome ?? "").trim();
+  const lastSpace = t.lastIndexOf(" ");
+  if (lastSpace <= 0) return { nome: t, cognome: "" };
+  return { nome: t.slice(0, lastSpace).trim(), cognome: t.slice(lastSpace + 1).trim() };
+}
+
 export default function MinistriScreen() {
   const router = useRouter();
-  const { abitanti, nominaMinistro, rimuoviMinistro } = useGameContext();
+  const { abitanti, nominaMinistro, rimuoviMinistro, setNomeAbitante } = useGameContext();
   const [showNominaModal, setShowNominaModal] = useState(false);
   const [selectedAbitante, setSelectedAbitante] = useState<Abitante | null>(null);
   const [selectedMinistero, setSelectedMinistero] = useState<string>("");
+  const [showEditNome, setShowEditNome] = useState(false);
+  const [editNome, setEditNome] = useState("");
+  const [editCognome, setEditCognome] = useState("");
+
+  const comandante = abitanti.find((a) => a.id === ID_COMANDANTE);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -36,6 +51,22 @@ export default function MinistriScreen() {
     }
   };
 
+  const handleApriModificaNome = () => {
+    if (!comandante) return;
+    const { nome, cognome } = splitNomeCognome(comandante.nome);
+    setEditNome(nome);
+    setEditCognome(cognome);
+    setShowEditNome(true);
+  };
+
+  const handleSalvaNome = () => {
+    const nomeCompleto = [editNome.trim(), editCognome.trim()].filter(Boolean).join(" ");
+    if (nomeCompleto && comandante) {
+      setNomeAbitante(comandante.id, nomeCompleto);
+      setShowEditNome(false);
+    }
+  };
+
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
@@ -47,6 +78,20 @@ export default function MinistriScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        {comandante && (
+          <View style={styles.comandanteSection}>
+            <Text style={styles.comandanteTitle}>Il tuo personaggio</Text>
+            <View style={[styles.card, styles.cardComandante]}>
+              <Text style={styles.cardEmoji}>{getEmojiAbitante(comandante)}</Text>
+              <Text style={styles.cardTitle}>{comandante.nome}</Text>
+              <Text style={styles.line}>{comandante.lavoro}</Text>
+              <Pressable style={styles.modificaNomeButton} onPress={handleApriModificaNome}>
+                <Text style={styles.modificaNomeButtonText}>Modifica nome e cognome</Text>
+              </Pressable>
+            </View>
+          </View>
+        )}
+
         <View style={styles.grid}>
           {ministeriDisponibili.map((ministero) => {
             const assegnatario = getAssegnatario(ministero);
@@ -146,6 +191,57 @@ export default function MinistriScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      {/* Modal Modifica nome e cognome (Comandante) */}
+      <Modal
+        visible={showEditNome}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowEditNome(false)}
+      >
+        <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={() => setShowEditNome(false)}>
+          <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
+            <Text style={styles.modalTitle}>Modifica nome e cognome</Text>
+            <Text style={styles.modalSubtitle}>Comandante della Colonia</Text>
+
+            <View style={styles.modalSection}>
+              <Text style={styles.modalLabel}>Nome</Text>
+              <TextInput
+                style={styles.textInput}
+                value={editNome}
+                onChangeText={setEditNome}
+                placeholder="Nome"
+                placeholderTextColor="rgba(148,163,184,0.5)"
+                autoCapitalize="words"
+              />
+            </View>
+            <View style={styles.modalSection}>
+              <Text style={styles.modalLabel}>Cognome</Text>
+              <TextInput
+                style={styles.textInput}
+                value={editCognome}
+                onChangeText={setEditCognome}
+                placeholder="Cognome"
+                placeholderTextColor="rgba(148,163,184,0.5)"
+                autoCapitalize="words"
+              />
+            </View>
+
+            <View style={styles.modalButtons}>
+              <Pressable style={[styles.modalButton, styles.modalButtonCancel]} onPress={() => setShowEditNome(false)}>
+                <Text style={styles.modalButtonText}>Annulla</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonConfirm, !editNome.trim() && styles.modalButtonDisabled]}
+                onPress={handleSalvaNome}
+                disabled={!editNome.trim()}
+              >
+                <Text style={styles.modalButtonText}>Salva</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -183,6 +279,35 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingBottom: 8,
     flex: 1
+  },
+  comandanteSection: {
+    marginBottom: 14
+  },
+  comandanteTitle: {
+    color: "#93c5fd",
+    fontSize: 11,
+    fontWeight: "700",
+    marginBottom: 6,
+    textTransform: "uppercase",
+    letterSpacing: 0.5
+  },
+  cardComandante: {
+    borderColor: "rgba(234,179,8,0.5)",
+    backgroundColor: "rgba(234,179,8,0.06)"
+  },
+  modificaNomeButton: {
+    backgroundColor: "#eab308",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginTop: 8,
+    width: "100%",
+    alignItems: "center"
+  },
+  modificaNomeButtonText: {
+    color: "#0f172a",
+    fontSize: 11,
+    fontWeight: "700"
   },
   grid: {
     flexDirection: "row",
@@ -311,8 +436,24 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "700",
+    marginBottom: 4,
+    textAlign: "center"
+  },
+  modalSubtitle: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 12,
     marginBottom: 12,
     textAlign: "center"
+  },
+  textInput: {
+    backgroundColor: "rgba(15,23,42,0.8)",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.5)",
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    color: "#e5e7eb",
+    fontSize: 14
   },
   modalSection: {
     marginBottom: 12

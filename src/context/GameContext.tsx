@@ -72,6 +72,7 @@ type GameContextType = {
   }) => void;
   nominaMinistro: (abitanteId: number, ministero: string) => void;
   rimuoviMinistro: (abitanteId: number) => void;
+  setNomeAbitante: (abitanteId: number, nuovoNome: string) => void;
   calcolaProduzioneConsumo: () => Record<string, number>;
   accettaImmigrante: (abitanteId: number) => void;
   rifiutaImmigrante: (abitanteId: number) => void;
