@@ -49,7 +49,8 @@ export type Abitante = {
   amici: number[]; // Array di ID di altri abitanti
   rivali: number[]; // Array di ID di altri abitanti
   fazioni: string[]; // Ogni abitante può far parte di più fazioni (es. Cittadini, Nativi, Schiavi, Amministrazione, …)
-  salute: number; // 0-100
+  peso: number; // 0-100: indicatore peso (Denutrito 0-40, Normopeso 41-80, Sovrappeso 81-95, Obeso 96+)
+  salute: number; // 0-100: salute fisica (usata da eventi/ferite)
   crediti: number; // Monete
   reddito: number; // Monete al mese
   spese: number; // Monete al mese

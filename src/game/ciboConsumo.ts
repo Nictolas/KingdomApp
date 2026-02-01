@@ -3,23 +3,32 @@ import type { Abitante } from "../types";
 export type CategoriaPeso = "Denutrito" | "Normopeso" | "Sovrappeso" | "Obeso";
 
 /**
- * Categoria di peso in base alla salute (0-100):
- * Denutrito < 25, Normopeso 25-60, Sovrappeso 60-80, Obeso > 80
+ * Categoria di peso in base al valore peso (0-100):
+ * Denutrito 0-40, Normopeso 41-80, Sovrappeso 81-95, Obeso 96+
  */
 export function getCategoriaPeso(abitante: Abitante): CategoriaPeso {
-  const s = abitante.salute;
-  if (s < 25) return "Denutrito";
-  if (s <= 60) return "Normopeso";
-  if (s <= 80) return "Sovrappeso";
+  const p = abitante.peso ?? 50;
+  if (p <= 40) return "Denutrito";
+  if (p <= 80) return "Normopeso";
+  if (p <= 95) return "Sovrappeso";
   return "Obeso";
 }
 
+/** Stato Salute mostrato in UI: "Sano" se Normopeso, altrimenti la categoria peso (Denutrito/Sovrappeso/Obeso). */
+export type StatoSalute = "Sano" | "Denutrito" | "Sovrappeso" | "Obeso";
+
+export function getStatoSalute(abitante: Abitante): StatoSalute {
+  const cat = getCategoriaPeso(abitante);
+  if (cat === "Normopeso") return "Sano";
+  return cat;
+}
+
 /**
- * Consumo mensile di cibo (razioni) per abitante, deterministico da id e salute.
+ * Consumo mensile di cibo (razioni) per abitante, deterministico da id e peso.
  * Allineato alle 4 categorie: Denutrito 1-4, Normopeso 2-5, Sovrappeso 4-7, Obeso 5-10.
  */
 export function getConsumoCibo(abitante: Abitante): number {
-  const seed = abitante.id * 17 + abitante.salute * 23;
+  const seed = abitante.id * 17 + (abitante.peso ?? 50) * 23;
   const cat = getCategoriaPeso(abitante);
   switch (cat) {
     case "Denutrito":
