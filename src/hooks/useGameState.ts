@@ -6,6 +6,13 @@ import { getConsumoCibo, getProduzioneCiboPerAbitante } from "../game/ciboConsum
 
 const RAZZE_NON_UMANE: Razza[] = ["Grigi", "Nordici", "Rettiliani", "Insettoidi", "Marini", "Ferini"];
 
+/** Un abitante non può avere contemporaneamente "Cittadini" e "Schiavi": se ha "Schiavi" si rimuove "Cittadini". */
+function normalizzaFazioni(fazioni: string[] | undefined): string[] {
+  if (!fazioni?.length) return fazioni ?? [];
+  if (fazioni.includes("Schiavi")) return fazioni.filter((f) => f !== "Cittadini");
+  return fazioni;
+}
+
 function inizializzaAbitanti(): { abitanti: Abitante[]; razzaNativi: Razza } {
   const razzaNativi = RAZZE_NON_UMANE[Math.floor(Math.random() * RAZZE_NON_UMANE.length)];
   const abitanti = abitantiData.map((a) => {
@@ -18,7 +25,8 @@ function inizializzaAbitanti(): { abitanti: Abitante[]; razzaNativi: Razza } {
     }
     const razzaFinale = razza ?? a.razza;
     const specie = (razzaFinale ?? "Umano") === "Umano" ? "umano" : "alieno";
-    return { ...a, razza: razzaFinale, specie };
+    const fazioniNorm = normalizzaFazioni(a.fazioni);
+    return { ...a, razza: razzaFinale, specie, fazioni: fazioniNorm };
   });
   return { abitanti, razzaNativi };
 }
@@ -279,6 +287,7 @@ export function useGameState() {
     // Aggiorna le risorse usando i nuovi valori
     const nuoveRisorse = risorse.map((risorsa) => {
       let nuovaQuantità = risorsa.quantità;
+      let totaleCiboProdotto = 0;
 
       // Aggiorna i crediti della colonia (somma dei redditi degli abitanti meno le spese)
       if (risorsa.nome === "Crediti") {
@@ -305,6 +314,7 @@ export function useGameState() {
                     const produzioneTotale = edificio.abitantiAssegnati.reduce((sum, id) => {
                       return sum + getProduzioneCiboPerAbitante(id);
                     }, 0);
+                    totaleCiboProdotto += produzioneTotale;
                     nuovaQuantità += produzioneTotale;
                   } else {
                     // Altre risorse: produzione basata sulla produttività media (logica originale)
@@ -332,6 +342,14 @@ export function useGameState() {
           }
         }
       });
+
+      // Bonus +10% Cibo se il ministro dell'Agricoltura ha personalità "Pollice Verde"
+      if (risorsa.nome.toLowerCase().includes("cibo") && totaleCiboProdotto > 0) {
+        const ministroAgricoltura = nuoviAbitanti.find((a) => a.ministero === "Ministero dell'Agricoltura");
+        if (ministroAgricoltura?.personalità === "Pollice Verde") {
+          nuovaQuantità += Math.floor(totaleCiboProdotto * 0.1);
+        }
+      }
 
       // Calcola consumo del cibo basato sulla salute degli abitanti (4 categorie peso)
       if (risorsa.nome.toLowerCase().includes("cibo")) {
@@ -529,6 +547,8 @@ export function useGameState() {
                     return sum + getProduzioneCiboPerAbitante(id);
                   }, 0);
                   variazioni[r.nome] = (variazioni[r.nome] || 0) + produzioneTotale;
+                  // Traccia totale Cibo per bonus Ministero Agricoltura (applicato dopo il loop)
+                  variazioni["__ciboProdotto"] = (variazioni["__ciboProdotto"] || 0) + produzioneTotale;
                 } else {
                   // Altre risorse: produzione basata sulla produttività media (logica originale)
                   const produttivitàMedia = edificio.abitantiAssegnati.reduce((sum, id) => {
@@ -545,6 +565,20 @@ export function useGameState() {
         });
       }
     });
+
+    // Bonus +10% Cibo se il ministro dell'Agricoltura ha personalità "Pollice Verde"
+    const totaleCiboProdotto = variazioni["__ciboProdotto"];
+    if (totaleCiboProdotto != null && totaleCiboProdotto > 0) {
+      const ministroAgricoltura = abitanti.find((a) => a.ministero === "Ministero dell'Agricoltura");
+      if (ministroAgricoltura?.personalità === "Pollice Verde") {
+        risorse.forEach((r) => {
+          if (r.nome.toLowerCase().includes("cibo")) {
+            variazioni[r.nome] = (variazioni[r.nome] || 0) + Math.floor(totaleCiboProdotto * 0.1);
+          }
+        });
+      }
+      delete variazioni["__ciboProdotto"];
+    }
 
     // Calcola consumo del cibo basato sulla salute degli abitanti (4 categorie peso)
     abitanti.forEach((abitante) => {

@@ -206,7 +206,7 @@ export const abitantiData: Abitante[] = [
     amici: [6, 7],
     rivali: [],
     genitoriIds: [9],
-    fazioni: ["Lavoratori", "Cittadini", "Schiavi"],
+    fazioni: ["Lavoratori", "Schiavi"],
     peso: 88,
     salute: 72,
     crediti: 0,
@@ -301,7 +301,7 @@ export const abitantiData: Abitante[] = [
     personalità: "Carismatico",
     amici: [1, 4, 7],
     rivali: [],
-    fazioni: ["Amministrazione", "Cittadini", "Schiavi"],
+    fazioni: ["Amministrazione", "Schiavi"],
     peso: 86,
     salute: 68,
     crediti: 0,
@@ -348,7 +348,7 @@ export const abitantiData: Abitante[] = [
     personalità: "Depresso",
     amici: [3],
     rivali: [4],
-    fazioni: ["Lavoratori", "Cittadini", "Schiavi"],
+    fazioni: ["Lavoratori", "Schiavi"],
     peso: 28,
     salute: 62,
     crediti: 0,
@@ -372,7 +372,7 @@ export const abitantiData: Abitante[] = [
     personalità: "Ambizioso e creativo",
     amici: [5, 12],
     rivali: [],
-    fazioni: ["Esploratori", "Cittadini", "Schiavi"],
+    fazioni: ["Esploratori", "Schiavi"],
     peso: 65,
     salute: 52,
     crediti: 0,
@@ -457,6 +457,7 @@ export const abitantiData: Abitante[] = [
 ];
 
 export const ministeriDisponibili = [
+  "Ministero dell'Agricoltura",
   "Ricerca e Sviluppo",
   "Produzione Alimentare",
   "Finanze Coloniali",

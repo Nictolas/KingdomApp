@@ -40,6 +40,8 @@ export default function FazioniScreen() {
                   router.push("/schiavi");
                 } else if (f.nome === "Nativi") {
                   router.push("/nativi");
+                } else if (f.nome === "Amministrazione") {
+                  router.push("/ministri");
                 } else {
                   setSelectedFazione(f);
                 }

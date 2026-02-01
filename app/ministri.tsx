@@ -18,11 +18,13 @@ export default function MinistriScreen() {
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
 
-  // Ottieni i ministri attuali (abitanti con un ministero assegnato)
-  const ministriAttuali = abitanti.filter((a) => a.ministero);
+  const getAssegnatario = (ministero: string) => abitanti.find((a) => a.ministero === ministero);
 
-  // Abitanti disponibili per la nomina (non sono già ministri)
-  const abitantiDisponibili = abitanti.filter((a) => !a.ministero);
+  const handleApriAssegna = (ministero: string) => {
+    setSelectedMinistero(ministero);
+    setSelectedAbitante(getAssegnatario(ministero) ?? null);
+    setShowNominaModal(true);
+  };
 
   const handleNomina = () => {
     if (selectedAbitante && selectedMinistero) {
@@ -37,35 +39,50 @@ export default function MinistriScreen() {
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
         <Text style={styles.back} onPress={() => router.back()}>
-          ← Home
+          ← Fazioni
         </Text>
         <Text style={styles.title}>Ministri</Text>
-        <Pressable onPress={() => setShowNominaModal(true)}>
-          <Text style={styles.addButton}>+ Nomina</Text>
-        </Pressable>
+        <View style={{ width: 50 }} />
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
-        {ministriAttuali.length > 0 ? (
-          <View style={styles.grid}>
-            {ministriAttuali.map((a: Abitante) => (
-              <View key={a.id} style={styles.card}>
-                <Text style={styles.cardEmoji}>{a.emoji}</Text>
-                <Text style={styles.cardTitle}>{a.nome}</Text>
-                <Text style={styles.line}>Ministero: {a.ministero}</Text>
-                <Text style={styles.line}>Fazioni: {a.fazioni?.join(", ") ?? "—"}</Text>
-                <Pressable
-                  style={styles.removeButton}
-                  onPress={() => rimuoviMinistro(a.id)}
-                >
-                  <Text style={styles.removeButtonText}>Rimuovi</Text>
-                </Pressable>
+        <View style={styles.grid}>
+          {ministeriDisponibili.map((ministero) => {
+            const assegnatario = getAssegnatario(ministero);
+            const èAgricoltura = ministero === "Ministero dell'Agricoltura";
+            const bonusPolliceVerde = èAgricoltura && assegnatario?.personalità === "Pollice Verde";
+            return (
+              <View key={ministero} style={styles.card}>
+                <Text style={styles.cardMinistero}>{ministero}</Text>
+                {assegnatario ? (
+                  <>
+                    <Text style={styles.cardEmoji}>{assegnatario.emoji}</Text>
+                    <Text style={styles.cardTitle}>{assegnatario.nome}</Text>
+                    <Text style={styles.line}>Personalità: {assegnatario.personalità}</Text>
+                    {bonusPolliceVerde && (
+                      <Text style={styles.bonusText}>+10% produzione Cibo (Skip Mese)</Text>
+                    )}
+                    <View style={styles.cardButtons}>
+                      <Pressable style={styles.cambiaButton} onPress={() => handleApriAssegna(ministero)}>
+                        <Text style={styles.cambiaButtonText}>Cambia</Text>
+                      </Pressable>
+                      <Pressable style={styles.removeButton} onPress={() => rimuoviMinistro(assegnatario.id)}>
+                        <Text style={styles.removeButtonText}>Rimuovi</Text>
+                      </Pressable>
+                    </View>
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.nonAssegnato}>Non assegnato</Text>
+                    <Pressable style={styles.assegnaButton} onPress={() => handleApriAssegna(ministero)}>
+                      <Text style={styles.assegnaButtonText}>Assegna abitante</Text>
+                    </Pressable>
+                  </>
+                )}
               </View>
-            ))}
-          </View>
-        ) : (
-          <Text style={styles.emptyText}>Nessun ministro nominato</Text>
-        )}
+            );
+          })}
+        </View>
       </ScrollView>
 
       {/* Modal per nominare un nuovo ministro */}
@@ -82,7 +99,7 @@ export default function MinistriScreen() {
             <View style={styles.modalSection}>
               <Text style={styles.modalLabel}>Seleziona Abitante</Text>
               <ScrollView style={styles.abitantiList} nestedScrollEnabled>
-                {abitantiDisponibili.map((a: Abitante) => (
+                {abitanti.map((a: Abitante) => (
                   <Pressable
                     key={a.id}
                     style={[
@@ -102,29 +119,8 @@ export default function MinistriScreen() {
             </View>
 
             <View style={styles.modalSection}>
-              <Text style={styles.modalLabel}>Seleziona Ministero</Text>
-              <ScrollView style={styles.ministeriList} nestedScrollEnabled>
-                {ministeriDisponibili.map((ministero) => {
-                  const giàAssegnato = abitanti.some((a) => a.ministero === ministero);
-                  return (
-                    <Pressable
-                      key={ministero}
-                      style={[
-                        styles.ministeroOption,
-                        selectedMinistero === ministero && styles.ministeroOptionSelected,
-                        giàAssegnato && styles.ministeroOptionDisabled
-                      ]}
-                      onPress={() => !giàAssegnato && setSelectedMinistero(ministero)}
-                      disabled={giàAssegnato}
-                    >
-                      <Text style={styles.ministeroText}>{ministero}</Text>
-                      {giàAssegnato && (
-                        <Text style={styles.giàAssegnatoText}>Già assegnato</Text>
-                      )}
-                    </Pressable>
-                  );
-                })}
-              </ScrollView>
+              <Text style={styles.modalLabel}>Ministero</Text>
+              <Text style={styles.modalMinisteroValue}>{selectedMinistero || "—"}</Text>
             </View>
 
             <View style={styles.modalButtons}>
@@ -143,7 +139,7 @@ export default function MinistriScreen() {
                 onPress={handleNomina}
                 disabled={!selectedAbitante || !selectedMinistero}
               >
-                <Text style={styles.modalButtonText}>Nomina</Text>
+                <Text style={styles.modalButtonText}>{selectedMinistero ? "Conferma" : "Nomina"}</Text>
               </Pressable>
             </View>
           </Pressable>
@@ -233,12 +229,66 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: "600"
   },
-  emptyText: {
-    color: "rgba(203,213,245,0.5)",
-    fontSize: 12,
-    fontStyle: "italic",
+  cardMinistero: {
+    color: "#93c5fd",
+    fontSize: 10,
+    fontWeight: "700",
+    marginBottom: 4,
     textAlign: "center",
-    paddingVertical: 20
+    textTransform: "uppercase",
+    letterSpacing: 0.3
+  },
+  cardButtons: {
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 6,
+    width: "100%",
+    justifyContent: "center"
+  },
+  cambiaButton: {
+    backgroundColor: "#3b82f6",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 6,
+    flex: 1,
+    alignItems: "center"
+  },
+  cambiaButtonText: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: "600"
+  },
+  assegnaButton: {
+    backgroundColor: "#3b82f6",
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginTop: 6,
+    width: "100%",
+    alignItems: "center"
+  },
+  assegnaButtonText: {
+    color: "#ffffff",
+    fontSize: 11,
+    fontWeight: "600"
+  },
+  nonAssegnato: {
+    color: "rgba(203,213,245,0.5)",
+    fontSize: 11,
+    fontStyle: "italic",
+    marginBottom: 6
+  },
+  bonusText: {
+    color: "#4ade80",
+    fontSize: 9,
+    marginTop: 2,
+    fontStyle: "italic"
+  },
+  modalMinisteroValue: {
+    color: "#e5e7eb",
+    fontSize: 13,
+    fontWeight: "600",
+    marginTop: 4
   },
   modalBackdrop: {
     flex: 1,
@@ -321,20 +371,6 @@ const styles = StyleSheet.create({
   ministeroOptionSelected: {
     backgroundColor: "rgba(59,130,246,0.2)",
     borderColor: "#3b82f6"
-  },
-  ministeroOptionDisabled: {
-    opacity: 0.5
-  },
-  ministeroText: {
-    color: "#e5e7eb",
-    fontSize: 12,
-    fontWeight: "500"
-  },
-  giàAssegnatoText: {
-    color: "rgba(203,213,245,0.5)",
-    fontSize: 9,
-    marginTop: 2,
-    fontStyle: "italic"
   },
   modalButtons: {
     flexDirection: "row",
