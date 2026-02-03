@@ -13,6 +13,9 @@ export type AvanzaMeseInput = {
   divietoEspatrioAttivo: boolean;
   punteggioSanzioni: number;
   calcolaFelicitàModificata: (a: Abitante) => number;
+  politicaNascite: "figlio-unico" | "incentivi" | "nessuna";
+  /** Prossimo ID disponibile per nuovi abitanti (es. neonati). */
+  nextId: number;
 };
 
 export type AvanzaMeseOutput = {
@@ -30,6 +33,12 @@ export type AvanzaMeseOutput = {
   pendingMatrimonio: { idA: number; idB: number; nomeA: string; nomeB: string } | null;
   /** Messaggio da mostrare in home quando si attiva l'evento Emigrazione (es. "Alessandro Ricci ha lasciato la colonia."). */
   messaggioEmigrazione: string | null;
+  /** Abitante appena incinta (concepimento questo mese): mostra avviso "X è incinta.". */
+  pendingGravidanza: { id: number; nome: string } | null;
+  /** Messaggio nascita: "È nato [nome]. Genitori: X e Y." */
+  messaggioNascita: string | null;
+  /** ID assegnato al neonato (se creato); il hook deve fare setNextId(value + 1). */
+  newIdNascita: number | null;
 };
 
 /** Compatibilità matrimonio: Omo solo con Omo/Bi stesso sesso; Etero con Etero/Bi sesso opposto; Bi con chiunque. */
@@ -77,7 +86,9 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     anno,
     divietoEspatrioAttivo,
     punteggioSanzioni,
-    calcolaFelicitàModificata
+    calcolaFelicitàModificata,
+    politicaNascite,
+    nextId
   } = input;
 
   let abitantiRimasti = abitanti;
@@ -387,6 +398,103 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     abitantiAssegnati: (e.abitantiAssegnati ?? []).filter((id) => !idsVittime.has(id))
   }));
 
+  // —— Nascite (gravidanze a 9 mesi) ——
+  let newIdNascita: number | null = null;
+  let messaggioNascita: string | null = null;
+  let idUsato = nextId;
+  for (const madre of abitantiEv) {
+    if (!madre.incinta || madre.razza === "Robot") continue;
+    const startMese = madre.gravidanzaIniziataMese ?? mese;
+    const startAnno = madre.gravidanzaIniziataAnno ?? anno;
+    const mesiTrascorsi =
+      (nuovoAnno - startAnno) * 12 + (nuovoMese - startMese);
+    if (mesiTrascorsi < 9) continue;
+    const padre = abitantiEv.find((x) => x.id === madre.coniugeId);
+    const nomePadre = padre?.nome ?? "?";
+    const nomeNeonato = `Figlio di ${madre.nome} e ${nomePadre}`;
+    const razzaNeonato = madre.razza ?? padre?.razza ?? "Umano";
+    const sessoNeonato = Math.random() < 0.5 ? ("M" as const) : ("F" as const);
+    const neonato: Abitante = {
+      id: idUsato,
+      nome: nomeNeonato,
+      emoji: sessoNeonato === "M" ? "🧒" : "👧",
+      eta: 0,
+      lavoro: "Neonato",
+      competenza: 0,
+      produttività: 0,
+      stanchezza: 0,
+      personalità: "Tiepido",
+      amici: [],
+      rivali: [],
+      genitoriIds: [madre.id, ...(padre ? [padre.id] : [])],
+      fazioni: [...(madre.fazioni || ["Cittadini"])],
+      peso: 35 + Math.floor(Math.random() * 15),
+      salute: 70 + Math.floor(Math.random() * 25),
+      crediti: 0,
+      reddito: 0,
+      spese: 0,
+      lealtà: 50 + Math.floor(Math.random() * 30),
+      paura: 0,
+      felicità: 70 + Math.floor(Math.random() * 25),
+      religione: madre.religione,
+      razza: razzaNeonato,
+      sesso: sessoNeonato
+    };
+    abitantiEv.push(neonato);
+    const madreIdx = abitantiEv.findIndex((a) => a.id === madre.id);
+    const padreIdx = padre ? abitantiEv.findIndex((a) => a.id === padre.id) : -1;
+    if (madreIdx >= 0) {
+      const m = abitantiEv[madreIdx];
+      abitantiEv[madreIdx] = {
+        ...m,
+        incinta: false,
+        gravidanzaIniziataMese: undefined,
+        gravidanzaIniziataAnno: undefined,
+        figliIds: [...(m.figliIds ?? []), idUsato]
+      };
+    }
+    if (padreIdx >= 0) {
+      const p = abitantiEv[padreIdx];
+      abitantiEv[padreIdx] = { ...p, figliIds: [...(p.figliIds ?? []), idUsato] };
+    }
+    newIdNascita = idUsato;
+    messaggioNascita = `È nato/a ${nomeNeonato}. Genitori: ${madre.nome} e ${nomePadre}.`;
+    idUsato += 1;
+    break; // una nascita per mese
+  }
+
+  // —— Concepimento (coppie sposate, politica nascite) ——
+  let pendingGravidanza: AvanzaMeseOutput["pendingGravidanza"] = null;
+  if (politicaNascite !== "nessuna") {
+    const probConcepimento =
+      politicaNascite === "incentivi" ? 0.12 : 0.05;
+    const coppieGiaElaborate = new Set<string>();
+    for (const a of abitantiEv) {
+      if (a.coniugeId == null || a.incinta || a.razza === "Robot") continue;
+      const b = abitantiEv.find((x) => x.id === a.coniugeId);
+      if (!b || b.incinta || b.razza === "Robot") continue;
+      const key = a.id < b.id ? `${a.id}-${b.id}` : `${b.id}-${a.id}`;
+      if (coppieGiaElaborate.has(key)) continue;
+      coppieGiaElaborate.add(key);
+      if (politicaNascite === "figlio-unico") {
+        if ((a.figliIds?.length ?? 0) > 0) continue;
+      }
+      if (Math.random() >= probConcepimento) continue;
+      const portatrice =
+        (a.sesso ?? "M") === "F" ? a : (b.sesso ?? "M") === "F" ? b : Math.random() < 0.5 ? a : b;
+      const idx = abitantiEv.findIndex((x) => x.id === portatrice.id);
+      if (idx < 0) continue;
+      abitantiEv[idx] = {
+        ...abitantiEv[idx],
+        incinta: true,
+        gravidanzaIniziataMese: nuovoMese,
+        gravidanzaIniziataAnno: nuovoAnno
+      };
+      pendingGravidanza = { id: portatrice.id, nome: portatrice.nome };
+      break; // un concepimento per mese
+    }
+  }
+
   const mesiTrascorsi = (ev: EventoInCorso) =>
     (nuovoAnno - ev.iniziatoAnno) * 12 + (nuovoMese - ev.iniziatoMese);
   let nuoviEventiInCorso = eventiInCorso.filter((ev) => mesiTrascorsi(ev) < ev.durataMesi);
@@ -467,6 +575,9 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     pendingAssimilazione,
     vittimeOmicidi,
     pendingMatrimonio,
-    messaggioEmigrazione
+    messaggioEmigrazione,
+    pendingGravidanza,
+    messaggioNascita,
+    newIdNascita
   };
 }

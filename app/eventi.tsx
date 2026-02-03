@@ -9,10 +9,22 @@ const MATRIMONIO_DESC_POSSIBILE =
 const MATRIMONIO_DESC_NON_PRONTO =
   "Quando una coppia avrà amicizia ≥90 e sarà compatibile (orientamento/sesso), potrà chiedere di sposarsi allo Skip Mese.";
 
+const NASCITA_DESC_POSSIBILE =
+  "Le coppie sposate possono concepire (Legge sulle Nascite ≠ Nessuna). Dopo 9 mesi nasce un figlio; avviso quando qualcuna è incinta.";
+const NASCITA_DESC_NON_POSSIBILE =
+  "Attiva una politica sulle nascite (Legge sulle Nascite) e avere coppie sposate per poter avere nuove nascite.";
+
+function esisteCoppiaSposata(abitanti: { coniugeId?: number }[]): boolean {
+  return abitanti.some((a) => a.coniugeId != null);
+}
+
 export default function EventiScreen() {
   const router = useRouter();
-  const { abitanti, eventiInCorso, eventiCatalogo, pendingAssimilazione, accettaAssimilazione, rifiutaAssimilazione } = useGameContext();
+  const { abitanti, eventiInCorso, eventiCatalogo, pendingAssimilazione, accettaAssimilazione, rifiutaAssimilazione, politicaNascite } = useGameContext();
   const puòMatrimonio = esisteCoppiaMatrimonioPossibile(abitanti);
+  const incinte = abitanti.filter((a) => a.incinta === true);
+  const nascitaInCorso = incinte.length > 0;
+  const nascitaPossibile = !nascitaInCorso && politicaNascite !== "nessuna" && esisteCoppiaSposata(abitanti);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -28,7 +40,20 @@ export default function EventiScreen() {
     emoji: "💒",
     descrizione: puòMatrimonio ? MATRIMONIO_DESC_POSSIBILE : MATRIMONIO_DESC_NON_PRONTO
   };
-  const possibiliConMatrimonio = [matrimonioCard, ...possibili];
+  const nascitaCard = {
+    id: "nascita",
+    nome: "Nascita",
+    emoji: "👶",
+    descrizione: nascitaInCorso
+      ? incinte.length === 1
+        ? `${incinte[0].nome} è incinta. Parto tra 9 mesi dall'inizio gravidanza.`
+        : `${incinte.map((a) => a.nome).join(", ")} sono incinte. Parto tra 9 mesi dall'inizio gravidanza.`
+      : nascitaPossibile
+        ? NASCITA_DESC_POSSIBILE
+        : NASCITA_DESC_NON_POSSIBILE
+  };
+  const inCorsoConNascita = nascitaInCorso ? [nascitaCard, ...inCorso] : inCorso;
+  const possibiliConMatrimonioENascita = nascitaPossibile ? [matrimonioCard, nascitaCard, ...possibili] : [matrimonioCard, ...possibili];
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
@@ -62,11 +87,11 @@ export default function EventiScreen() {
           </View>
         )}
 
-        {inCorso.length > 0 && (
+        {inCorsoConNascita.length > 0 && (
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>In corso ({inCorso.length})</Text>
+            <Text style={styles.sectionTitle}>In corso ({inCorsoConNascita.length})</Text>
             <View style={styles.grid}>
-              {inCorso.map((e) => (
+              {inCorsoConNascita.map((e) => (
                 <View key={e.id} style={[styles.card, styles.cardInCorso]}>
                   <Text style={styles.emoji}>{e.emoji}</Text>
                   <View style={styles.badgeInCorso}>
@@ -83,9 +108,9 @@ export default function EventiScreen() {
         )}
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Possibili ({possibiliConMatrimonio.length})</Text>
+          <Text style={styles.sectionTitle}>Possibili ({possibiliConMatrimonioENascita.length})</Text>
           <View style={styles.grid}>
-            {possibiliConMatrimonio.map((e) => (
+            {possibiliConMatrimonioENascita.map((e) => (
               <View key={e.id} style={styles.card}>
                 <Text style={styles.emoji}>{e.emoji}</Text>
                 <View style={styles.badgePossibile}>

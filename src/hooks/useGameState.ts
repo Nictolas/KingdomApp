@@ -229,12 +229,15 @@ export function useGameState() {
       anno,
       divietoEspatrioAttivo,
       punteggioSanzioni,
-      calcolaFelicitàModificata
+      calcolaFelicitàModificata,
+      politicaNascite,
+      nextId
     });
 
     setNativiNonIntegrati((prev) => prev + result.deltaNativiNonIntegrati);
     if (result.pendingAssimilazione != null) setPendingAssimilazione(result.pendingAssimilazione);
     if (result.pendingMatrimonio != null) setPendingMatrimonio(result.pendingMatrimonio);
+    if (result.newIdNascita != null) setNextId(result.newIdNascita + 1);
     setEventiInCorso(result.eventiInCorso);
     setAbitanti(result.abitanti);
     setEdifici(result.edifici);
@@ -250,7 +253,13 @@ export function useGameState() {
     if (result.messaggioEmigrazione) {
       setMessaggioEmigrazione(result.messaggioEmigrazione);
     }
-  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata]);
+    if (result.pendingGravidanza) {
+      Alert.alert("Gravidanza", `${result.pendingGravidanza.nome} è incinta.`);
+    }
+    if (result.messaggioNascita) {
+      Alert.alert("Nascita", result.messaggioNascita);
+    }
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId]);
 
   const confermaMatrimonio = useCallback((idA: number, idB: number) => {
     setAbitanti((prev) =>
@@ -278,11 +287,18 @@ export function useGameState() {
       const sessoScelto = scelto.sesso ?? "F";
       const opposto = (sessoComandante === "M" && sessoScelto === "F") || (sessoComandante === "F" && sessoScelto === "M");
       if (opposto && Math.random() < 0.5) {
-        setAbitanti((prev) => prev.map((a) => (a.id === abitanteId ? { ...a, incinta: true } : a)));
+        setAbitanti((prev) =>
+          prev.map((a) =>
+            a.id === abitanteId
+              ? { ...a, incinta: true, gravidanzaIniziataMese: mese, gravidanzaIniziataAnno: anno }
+              : a
+          )
+        );
+        Alert.alert("Gravidanza", `${scelto.nome} è incinta.`);
       }
       setPendingMatrimonio(null);
     },
-    [abitanti]
+    [abitanti, mese, anno]
   );
 
   const pendingMatrimonioShownRef = useRef<string | null>(null);

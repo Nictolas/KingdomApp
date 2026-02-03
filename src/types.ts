@@ -74,6 +74,9 @@ export type Abitante = {
   sesso?: "M" | "F"; // Sesso dell'abitante
   orientamento?: "Etero" | "Omo" | "Bi"; // Orientamento sessuale (per matrimonio)
   incinta?: boolean; // Gravidanza (stato salute "Incinta")
+  /** Mese/anno inizio gravidanza (per parto a 9 mesi). */
+  gravidanzaIniziataMese?: number;
+  gravidanzaIniziataAnno?: number;
 };
 
 // Razze trovabili tra gli abitanti (pianeti di origine o sintetici)
