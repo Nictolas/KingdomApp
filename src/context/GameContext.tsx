@@ -98,6 +98,8 @@ type GameContextType = {
   eventiCatalogo: EventoDef[];
   alertInizioPartita: { titolo: string; messaggio: string } | null;
   chiudiAlertInizioPartita: () => void;
+  messaggioEmigrazione: string | null;
+  chiudiMessaggioEmigrazione: () => void;
 };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -114,6 +116,19 @@ function DialogInizioPartitaWrapper() {
   );
 }
 
+function EmigrazioneDialogWrapper() {
+  const { messaggioEmigrazione, chiudiMessaggioEmigrazione } = useGameContext();
+  return (
+    <DialogInizioPartitaModal
+      visible={!!messaggioEmigrazione}
+      titolo="Emigrazione"
+      messaggio={messaggioEmigrazione ?? ""}
+      onClose={chiudiMessaggioEmigrazione}
+      emoji="✈️"
+    />
+  );
+}
+
 export function GameProvider({ children }: { children: ReactNode }) {
   const gameState = useGameState();
 
@@ -121,6 +136,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     <GameContext.Provider value={gameState}>
       {children}
       <DialogInizioPartitaWrapper />
+      <EmigrazioneDialogWrapper />
     </GameContext.Provider>
   );
 }

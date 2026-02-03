@@ -1,5 +1,5 @@
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso } from "../types";
-import { EVENTI_CATALOGO } from "./eventi";
+import { EVENTI_CATALOGO } from "./eventi/index";
 import { getConsumoCibo, getConsumoAcqua, getProduzioneCiboPerAbitante } from "./ciboConsumo";
 
 export type AvanzaMeseInput = {

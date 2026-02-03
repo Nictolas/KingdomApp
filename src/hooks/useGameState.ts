@@ -4,7 +4,7 @@ import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza }
 import { risorseData, edificiData, pianetiData, getEmojiRazza } from "../kingdomData";
 import { getConsumoCibo, getConsumoAcqua, getProduzioneCiboPerAbitante } from "../game/ciboConsumo";
 import { runAvanzaMese } from "../game/avanzaMese";
-import { EVENTI_CATALOGO } from "../game/eventi";
+import { EVENTI_CATALOGO } from "../game/eventi/index";
 import { generaColoniaIniziale } from "../game/generazionePartita";
 import { generaNomeAlieno } from "../game/nomiAlieni";
 
@@ -40,6 +40,7 @@ export function useGameState() {
   const [nativiNonIntegrati, setNativiNonIntegrati] = useState(() => 100 + Math.floor(Math.random() * 101));
   const [pendingAssimilazione, setPendingAssimilazione] = useState<number | null>(null);
   const [pendingMatrimonio, setPendingMatrimonio] = useState<{ idA: number; idB: number; nomeA: string; nomeB: string } | null>(null);
+  const [messaggioEmigrazione, setMessaggioEmigrazione] = useState<string | null>(null);
 
   // Configurazione tassa sul reddito
   const [tipoTassaReddito, setTipoTassaReddito] = useState<"flat" | "scaglioni">("scaglioni");
@@ -247,7 +248,7 @@ export function useGameState() {
       Alert.alert("Omicidio", `È stato trovato il cadavere di ${v.nome}.`);
     });
     if (result.messaggioEmigrazione) {
-      Alert.alert("✈️ Emigrazione", result.messaggioEmigrazione);
+      setMessaggioEmigrazione(result.messaggioEmigrazione);
     }
   }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata]);
 
@@ -339,6 +340,7 @@ export function useGameState() {
     return () => clearTimeout(t);
   }, []);
   const chiudiAlertInizioPartita = useCallback(() => setAlertInizioPartita(null), []);
+  const chiudiMessaggioEmigrazione = useCallback(() => setMessaggioEmigrazione(null), []);
 
   /** Edifici di lavoro: assegnando un abitante qui il suo "lavoro" viene aggiornato. Rimuovendolo torna "Disoccupato". */
   const EDIFICIO_TO_LAVORO: Record<number, string> = { 2: "Agricoltore", 15: "Operatore" }; // 2 = Serra, 15 = Dissalatore
@@ -905,6 +907,8 @@ export function useGameState() {
     eventiInCorso,
     eventiCatalogo: EVENTI_CATALOGO,
     alertInizioPartita,
-    chiudiAlertInizioPartita
+    chiudiAlertInizioPartita,
+    messaggioEmigrazione,
+    chiudiMessaggioEmigrazione
   };
 }
