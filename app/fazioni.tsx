@@ -7,7 +7,7 @@ import type { Fazione } from "../src/types";
 import { FazioneInfoModal } from "../src/ui/FazioneInfoModal";
 
 /** Colonne tematiche: nome colonna + nomi fazioni (come in fazioniData). */
-const COLONNA_GOVERNO = ["Amministrazione", "Cittadini", "Reazionari"];
+const COLONNA_GOVERNO = ["Amministrazione", "Cittadini", "Reazionari", "Sicurezza"];
 const COLONNA_LAVORO = ["Lavoratori", "Scienziati", "Esploratori"];
 const COLONNA_MARGINI = ["Mafia", "Schiavi", "Nativi", "Robots"];
 const COLONNA_RELIGIONE = ["Culto del Sole", "Culto degli Alieni"];
@@ -29,6 +29,7 @@ function handleFazionePress(
   else if (f.nome === "Amministrazione") router.push("/ministri");
   else if (f.nome === "Culto del Sole") router.push("/culto-sole");
   else if (f.nome === "Culto degli Alieni") router.push("/culto-alieni");
+  else if (f.nome === "Sicurezza") router.push("/sicurezza");
   else setSelectedFazione(f);
 }
 
@@ -84,7 +85,7 @@ export default function FazioniScreen() {
         style={isDesktop ? styles.scrollFlex : undefined}
       >
         <View style={styles.columns}>
-          {renderColumn("Governo e società", "Amministrazione, Cittadini, Reazionari", governo)}
+          {renderColumn("Governo e società", "Amministrazione, Cittadini, Reazionari, Sicurezza", governo)}
           {renderColumn("Lavoro e professione", "Lavoratori, Scienziati, Esploratori", lavoro)}
           {renderColumn("Margini e coercizione", "Mafia, Schiavi, Nativi, Robots", margini)}
           {renderColumn("Religione", "Culto del Sole, Culto degli Alieni", religione)}

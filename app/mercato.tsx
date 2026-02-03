@@ -42,6 +42,11 @@ export default function MercatoScreen() {
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
 
+  const padding = 20;
+  const gap = 6;
+  const numCols = width >= 720 ? 6 : width >= 480 ? 3 : 2;
+  const colWidth = (width - padding - gap * (numCols - 1)) / numCols;
+
   const crediti = risorse.find((r) => r.id === CREDITI_ID);
   const creditiImpegnati = ordiniMercato
     .filter((o) => o.tipo === "compra")
@@ -117,6 +122,7 @@ export default function MercatoScreen() {
           </Pressable>
         </View>
 
+        <View style={[styles.grid6, { gap }]}>
         {pianetiData.map((pianeta) => {
           const risorsaCheCompra = risorse.find((r) => r.id === pianeta.compraRisorsaId);
           const risorsaCheVende = risorse.find((r) => r.id === pianeta.vendiRisorsaId);
@@ -141,20 +147,22 @@ export default function MercatoScreen() {
             qCompra > 0;
 
           return (
-            <View key={pianeta.id} style={styles.planetCard}>
+            <View key={pianeta.id} style={[styles.planetCard, { width: colWidth }]}>
               <View style={styles.planetHeader}>
                 <Text style={styles.planetEmoji}>{pianeta.emoji}</Text>
-                <Text style={styles.planetNome}>{pianeta.nome}</Text>
-                {risorsaCheCompra && (
-                  <Text style={styles.disponibilitaInline}>
-                    {risorsaCheCompra.quantità} {risorsaCheCompra.unità}
-                  </Text>
-                )}
+                <View style={styles.planetNomeWrap}>
+                  <Text style={styles.planetNome} numberOfLines={2}>{pianeta.nome}</Text>
+                  {risorsaCheCompra && (
+                    <Text style={styles.disponibilitaInline}>
+                      {risorsaCheCompra.quantità} {risorsaCheCompra.unità}
+                    </Text>
+                  )}
+                </View>
               </View>
               <View style={styles.trades}>
                 <View style={styles.tradeRow}>
-                  <Text style={styles.tradeShort}>
-                    {getEmojiRisorsa(risorsaCheCompra)} Vendi {risorsaCheCompra?.nome ?? "?"} @{pianeta.prezzoVendita}
+                  <Text style={styles.tradeShort} numberOfLines={1}>
+                    {getEmojiRisorsa(risorsaCheCompra)} Vendi @{pianeta.prezzoVendita}
                   </Text>
                   <View style={styles.tradeActions}>
                     <TextInput
@@ -180,8 +188,8 @@ export default function MercatoScreen() {
                   </View>
                 </View>
                 <View style={styles.tradeRow}>
-                  <Text style={styles.tradeShort}>
-                    {getEmojiRisorsa(risorsaCheVende)} Compra {risorsaCheVende?.nome ?? "?"} @{pianeta.prezzoAcquisto}
+                  <Text style={styles.tradeShort} numberOfLines={1}>
+                    {getEmojiRisorsa(risorsaCheVende)} Compra @{pianeta.prezzoAcquisto}
                   </Text>
                   <View style={styles.tradeActions}>
                     <TextInput
@@ -209,6 +217,7 @@ export default function MercatoScreen() {
             </View>
           );
         })}
+        </View>
       </ScrollView>
     </SafeAreaView>
   );
@@ -292,49 +301,53 @@ const styles = StyleSheet.create({
   },
   sectionTitle: { color: "#f1f5f9", fontSize: 11, fontWeight: "700" },
   link: { color: "#7dd3fc", fontSize: 10 },
+  grid6: {
+    flexDirection: "row",
+    flexWrap: "wrap"
+  },
   planetCard: {
     backgroundColor: "rgba(30,41,59,0.5)",
     borderRadius: 6,
-    padding: 8,
-    marginBottom: 6,
+    padding: 6,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.25)"
   },
   planetHeader: {
     flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 6,
-    gap: 6
+    alignItems: "flex-start",
+    marginBottom: 4,
+    gap: 4
   },
-  planetEmoji: { fontSize: 20 },
-  planetNome: { color: "#e2e8f0", fontSize: 12, fontWeight: "700", flex: 1 },
+  planetEmoji: { fontSize: 18 },
+  planetNomeWrap: { flex: 1, minWidth: 0 },
+  planetNome: { color: "#e2e8f0", fontSize: 10, fontWeight: "700" },
   disponibilitaInline: {
     color: "rgba(148,163,184,0.55)",
-    fontSize: 10
+    fontSize: 9
   },
-  trades: { gap: 4 },
+  trades: { gap: 2 },
   tradeRow: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
     flexWrap: "wrap",
-    gap: 6,
-    paddingVertical: 2
+    gap: 4,
+    paddingVertical: 1
   },
   tradeShort: {
     color: "rgba(203,213,245,0.85)",
-    fontSize: 10,
+    fontSize: 9,
     flex: 1,
-    minWidth: 120
+    minWidth: 0
   },
   tradeActions: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 4
+    gap: 3
   },
   input: {
-    width: 44,
-    height: 28,
+    width: 36,
+    height: 24,
     backgroundColor: "rgba(15,23,42,0.7)",
     borderRadius: 4,
     borderWidth: 1,
@@ -345,9 +358,9 @@ const styles = StyleSheet.create({
     textAlign: "center"
   },
   btn: {
-    minWidth: 64,
-    paddingVertical: 5,
-    paddingHorizontal: 8,
+    minWidth: 48,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
     borderRadius: 4,
     alignItems: "center",
     justifyContent: "center"
@@ -355,5 +368,5 @@ const styles = StyleSheet.create({
   btnCompra: { backgroundColor: "rgba(59,130,246,0.75)" },
   btnVendi: { backgroundColor: "rgba(34,197,94,0.7)" },
   btnDisabled: { opacity: 0.45 },
-  btnText: { color: "#fff", fontSize: 10, fontWeight: "700" }
+  btnText: { color: "#fff", fontSize: 9, fontWeight: "700" }
 });
