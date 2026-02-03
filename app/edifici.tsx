@@ -12,7 +12,8 @@ const COLONNA_PRODUZIONE: string[] = [
   "Raffineria Mineraria", // Miniera
   "Laboratorio di Ricerca", // Laboratorio
   "Centrale Energetica", // Centrale
-  "Impianto di Riciclo"
+  "Impianto di Riciclo",
+  "Dissalatore"
 ];
 const COLONNA_SERVIZI: string[] = [
   "Centro di Comando",
@@ -82,6 +83,8 @@ export default function EdificiScreen() {
       router.push("/tribunale");
     } else if (e.nome === "Centro di Comando") {
       router.push("/ministri");
+    } else if (e.nome === "Dissalatore") {
+      router.push("/dissalatore");
     } else {
       setSelectedEdificio(e);
     }

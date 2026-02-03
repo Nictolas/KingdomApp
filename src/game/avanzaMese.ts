@@ -1,6 +1,6 @@
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso } from "../types";
 import { EVENTI_CATALOGO } from "./eventi";
-import { getConsumoCibo, getProduzioneCiboPerAbitante } from "./ciboConsumo";
+import { getConsumoCibo, getConsumoAcqua, getProduzioneCiboPerAbitante } from "./ciboConsumo";
 
 export type AvanzaMeseInput = {
   abitanti: Abitante[];
@@ -366,6 +366,13 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     if (risorsa.nome.toLowerCase().includes("cibo")) {
       nuoviAbitanti.forEach((abitante) => {
         nuovaQuantità -= getConsumoCibo(abitante);
+      });
+    }
+
+    if (risorsa.nome.toLowerCase().includes("acqua")) {
+      nuoviAbitanti.forEach((abitante) => {
+        if (abitante.razza === "Robot") return;
+        nuovaQuantità -= getConsumoAcqua(abitante);
       });
     }
 

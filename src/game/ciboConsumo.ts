@@ -56,3 +56,12 @@ export function getProduzioneCiboPerAbitante(abitanteId: number): number {
   const seed = abitanteId * 31;
   return 10 + (seed % 11);
 }
+
+/**
+ * Consumo mensile di acqua potabile (m³) per abitante, deterministico da id.
+ * I Robot non consumano acqua (gestiti dal chiamante).
+ */
+export function getConsumoAcqua(abitante: Abitante): number {
+  const seed = abitante.id * 13 + 7;
+  return 2 + (seed % 4); // 2-5 m³/mese
+}

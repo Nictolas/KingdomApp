@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Alert } from "react-native";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
 import { risorseData, edificiData, pianetiData, getEmojiRazza } from "../kingdomData";
-import { getConsumoCibo, getProduzioneCiboPerAbitante } from "../game/ciboConsumo";
+import { getConsumoCibo, getConsumoAcqua, getProduzioneCiboPerAbitante } from "../game/ciboConsumo";
 import { runAvanzaMese } from "../game/avanzaMese";
 import { EVENTI_CATALOGO } from "../game/eventi";
 import { generaColoniaIniziale } from "../game/generazionePartita";
@@ -318,7 +318,7 @@ export function useGameState() {
   const chiudiAlertInizioPartita = useCallback(() => setAlertInizioPartita(null), []);
 
   /** Edifici di lavoro: assegnando un abitante qui il suo "lavoro" viene aggiornato. Rimuovendolo torna "Disoccupato". */
-  const EDIFICIO_TO_LAVORO: Record<number, string> = { 2: "Agricoltore" }; // id 2 = Serra
+  const EDIFICIO_TO_LAVORO: Record<number, string> = { 2: "Agricoltore", 15: "Operatore" }; // 2 = Serra, 15 = Dissalatore
   const LAVORI_DA_EDIFICIO = new Set(Object.values(EDIFICIO_TO_LAVORO));
 
   /** Mantiene lavoro in abitanti sincronizzato con le assegnazioni agli edifici (es. Serra → Agricoltore). */
@@ -568,6 +568,17 @@ export function useGameState() {
       risorse.forEach((r) => {
         if (r.nome.toLowerCase().includes("cibo")) {
           variazioni[r.nome] = (variazioni[r.nome] || 0) - consumoCibo;
+        }
+      });
+    });
+
+    // Consumo acqua potabile: ogni abitante (esclusi i Robot) consuma 2-5 m³/mese
+    abitanti.forEach((abitante) => {
+      if (abitante.razza === "Robot") return;
+      const consumoAcqua = getConsumoAcqua(abitante);
+      risorse.forEach((r) => {
+        if (r.nome.toLowerCase().includes("acqua")) {
+          variazioni[r.nome] = (variazioni[r.nome] || 0) - consumoAcqua;
         }
       });
     });

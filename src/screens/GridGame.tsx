@@ -109,11 +109,13 @@ export default function GridGame() {
                     ? () => router.push("/crediti")
                     : isEnergia
                     ? () => setShowEnergiaModal(true)
+                    : isAcqua
+                    ? () => router.push("/acqua")
                     : isRifiuti
                     ? () => router.push("/rifiuti")
                     : undefined
                 }
-                disabled={!isCibo && !isCrediti && !isEnergia && !isRifiuti}
+                disabled={!isCibo && !isCrediti && !isEnergia && !isAcqua && !isRifiuti}
               >
                 <Text style={styles.resourceName}>
                   <Text style={styles.resourceEmoji}>{emoji} </Text>
