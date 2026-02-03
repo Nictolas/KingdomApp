@@ -10,11 +10,14 @@ export default function CiboScreen() {
   const router = useRouter();
   const { abitanti, edifici, risorse } = useGameContext();
 
-  const consumiPerAbitante = abitanti.map((a) => ({
-    abitante: a,
-    categoria: getCategoriaPeso(a),
-    consumo: getConsumoCibo(a)
-  }));
+  // I Robot non consumano cibo: esclusi da lista e totali
+  const consumiPerAbitante = abitanti
+    .filter((a) => a.razza !== "Robot")
+    .map((a) => ({
+      abitante: a,
+      categoria: getCategoriaPeso(a),
+      consumo: getConsumoCibo(a)
+    }));
 
   const totaleConsumo = consumiPerAbitante.reduce((s, c) => s + c.consumo, 0);
 
