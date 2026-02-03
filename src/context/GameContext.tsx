@@ -33,6 +33,8 @@ type GameContextType = {
   capoReligiosoAlieni: number | null;
   religioneDiStato: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni" | null;
   etaMinimaLavoro: number;
+  etaPensionabile: number;
+  assegnoPensionati: number;
   leggeDroghe: "vietate" | "legali" | "parziali";
   divietoEspatrioAttivo: boolean;
   iusPrimaeNoctisAttivo: boolean;
@@ -56,6 +58,8 @@ type GameContextType = {
   setCapoReligiosoSole: (id: number | null) => void;
   setCapoReligiosoAlieni: (id: number | null) => void;
   setEtaMinimaLavoro: (eta: number) => void;
+  setEtaPensionabile: (eta: number) => void;
+  setAssegnoPensionati: (importo: number) => void;
   setLeggeDroghe: (legge: "vietate" | "legali" | "parziali") => void;
   setDivietoEspatrioAttivo: (attivo: boolean) => void;
   setIusPrimaeNoctisAttivo: (attivo: boolean) => void;

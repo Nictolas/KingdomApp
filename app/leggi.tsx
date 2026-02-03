@@ -30,6 +30,7 @@ export default function LeggiScreen() {
       "Tassa sul Reddito": "💰",
       "Carta dei Diritti dei Coloni": "📜",
       "Età minima sul lavoro": "👶",
+      "Età pensionabile": "👴",
       "Pena di Morte": "⚰️",
       "Legge sulle Nascite": "👨‍👩‍👧‍👦",
       "Religione": "🕊️",
@@ -54,6 +55,7 @@ export default function LeggiScreen() {
     } else if (
       legge.titolo === "Carta dei Diritti dei Coloni" ||
       legge.titolo === "Età minima sul lavoro" ||
+      legge.titolo === "Età pensionabile" ||
       legge.titolo === "Pena di Morte" ||
       legge.titolo === "Legge Razziale"
     ) {
@@ -88,6 +90,7 @@ export default function LeggiScreen() {
     if (titolo === "Religione") return "/religione";
     if (titolo === "Legge Razziale") return "/legge-razziale";
     if (titolo === "Età minima sul lavoro") return "/eta-minima-lavoro";
+    if (titolo === "Età pensionabile") return "/eta-pensionabile";
     if (titolo === "Legge sulle Droghe") return "/legge-droghe";
     if (titolo === "Legge sulle Famiglie") return "/legge-famiglie";
     if (titolo === "Divieto di espatrio") return "/divieto-espatrio";

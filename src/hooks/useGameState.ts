@@ -74,6 +74,10 @@ export function useGameState() {
   
   // Configurazione età minima sul lavoro
   const [etaMinimaLavoro, setEtaMinimaLavoro] = useState(18); // Età minima di default
+
+  // Età pensionabile: oltre questa età l'abitante diventa "Pensionato" e riceve assegno mensile; non lavora
+  const [etaPensionabile, setEtaPensionabile] = useState(65);
+  const [assegnoPensionati, setAssegnoPensionati] = useState(200);
   
   // Configurazione legge sulle droghe
   const [leggeDroghe, setLeggeDroghe] = useState<"vietate" | "legali" | "parziali">("vietate"); // Stato delle droghe
@@ -231,7 +235,9 @@ export function useGameState() {
       punteggioSanzioni,
       calcolaFelicitàModificata,
       politicaNascite,
-      nextId
+      nextId,
+      etaPensionabile,
+      assegnoPensionati
     });
 
     setNativiNonIntegrati((prev) => prev + result.deltaNativiNonIntegrati);
@@ -259,7 +265,7 @@ export function useGameState() {
     if (result.messaggioNascita) {
       Alert.alert("Nascita", result.messaggioNascita);
     }
-  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId]);
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati]);
 
   const confermaMatrimonio = useCallback((idA: number, idB: number) => {
     setAbitanti((prev) =>
@@ -373,6 +379,7 @@ export function useGameState() {
       });
       let changed = false;
       const next = prev.map((a) => {
+        if (a.lavoro === "Pensionato") return a;
         const jobFromEdificio = idToLavoroFromEdifici.get(a.id);
         if (jobFromEdificio) {
           if (a.lavoro === jobFromEdificio) return a;
@@ -390,6 +397,8 @@ export function useGameState() {
   }, [edifici]);
 
   const assegnaAbitanteAEdificio = useCallback((abitanteId: number, edificioId: number) => {
+    const abitante = abitanti.find((a) => a.id === abitanteId);
+    if (abitante?.lavoro === "Pensionato") return;
     setEdifici((prevEdifici) =>
       prevEdifici.map((edificio) => {
         if (edificio.id === edificioId) {
@@ -414,7 +423,7 @@ export function useGameState() {
         prev.map((a) => (a.id === abitanteId ? { ...a, lavoro: lavoroAssociato } : a))
       );
     }
-  }, []);
+  }, [abitanti]);
 
   const rimuoviAbitanteDaEdificio = useCallback((abitanteId: number, edificioId: number) => {
     setEdifici((prevEdifici) =>
@@ -639,7 +648,9 @@ export function useGameState() {
     }
 
     // Calcola variazioni per i crediti: stipendio per lavoratore × numero lavoratori (niente costo fisso edifici)
-    const totaleRedditi = abitanti.reduce((sum, a) => sum + a.reddito, 0);
+    const totaleRedditi = abitanti
+      .filter((a) => a.lavoro !== "Pensionato")
+      .reduce((sum, a) => sum + a.reddito, 0);
     const totaleSpese = abitanti.reduce((sum, a) => sum + a.spese, 0);
     const totaleStipendiEdifici = edifici
       .filter((e) => e.stato === "Operativo")
@@ -648,15 +659,17 @@ export function useGameState() {
           sum + (e.stipendioPerLavoratore ?? 0) * (e.abitantiAssegnati?.length ?? 0),
         0
       );
+    const numPensionati = abitanti.filter((a) => a.lavoro === "Pensionato").length;
+    const costoPensioni = numPensionati * assegnoPensionati;
 
     risorse.forEach((r) => {
       if (r.nome === "Crediti") {
-        variazioni[r.nome] = totaleRedditi - totaleSpese - totaleStipendiEdifici;
+        variazioni[r.nome] = totaleRedditi - totaleSpese - totaleStipendiEdifici - costoPensioni;
       }
     });
 
     return variazioni;
-  }, [abitanti, edifici, risorse]);
+  }, [abitanti, edifici, risorse, assegnoPensionati]);
 
   const accettaImmigrante = useCallback((abitanteId: number) => {
     const immigrante = abitantiProposti.find((a) => a.id === abitanteId);
@@ -829,6 +842,11 @@ export function useGameState() {
     if (etaMinimaLavoro <= 13) {
       punteggio += 1;
     }
+
+    // Età pensionabile: +1 se 61-70, +2 se 71-80, +3 se 81+
+    if (etaPensionabile >= 61 && etaPensionabile <= 70) punteggio += 1;
+    else if (etaPensionabile >= 71 && etaPensionabile <= 80) punteggio += 2;
+    else if (etaPensionabile >= 81) punteggio += 3;
     
     // +1 se il divieto di espatrio è attivo
     if (divietoEspatrioAttivo) {
@@ -842,7 +860,7 @@ export function useGameState() {
     
     // Limita tra 1 e 10
     return Math.min(Math.max(punteggio, 1), 10);
-  }, [abitanti, penaDiMorteAttiva, razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, divietoEspatrioAttivo, iusPrimaeNoctisAttivo]);
+  }, [abitanti, penaDiMorteAttiva, razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, etaPensionabile, divietoEspatrioAttivo, iusPrimaeNoctisAttivo]);
 
   // Aggiorna il punteggio quando cambiano le condizioni
   useEffect(() => {
@@ -873,6 +891,8 @@ export function useGameState() {
     capoReligiosoAlieni,
     religioneDiStato,
     etaMinimaLavoro,
+    etaPensionabile,
+    assegnoPensionati,
     leggeDroghe,
     divietoEspatrioAttivo,
     iusPrimaeNoctisAttivo,
@@ -890,6 +910,8 @@ export function useGameState() {
     setCapoReligiosoSole,
     setCapoReligiosoAlieni,
     setEtaMinimaLavoro,
+    setEtaPensionabile,
+    setAssegnoPensionati,
     setLeggeDroghe,
     setDivietoEspatrioAttivo,
     setIusPrimaeNoctisAttivo,

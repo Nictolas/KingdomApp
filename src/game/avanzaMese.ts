@@ -16,6 +16,10 @@ export type AvanzaMeseInput = {
   politicaNascite: "figlio-unico" | "incentivi" | "nessuna";
   /** Prossimo ID disponibile per nuovi abitanti (es. neonati). */
   nextId: number;
+  /** Età alla quale l'abitante diventa Pensionato (non lavora, riceve assegno mensile). */
+  etaPensionabile: number;
+  /** Assegno mensile in crediti dato a ogni pensionato. */
+  assegnoPensionati: number;
 };
 
 export type AvanzaMeseOutput = {
@@ -88,8 +92,14 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     punteggioSanzioni,
     calcolaFelicitàModificata,
     politicaNascite,
-    nextId
+    nextId,
+    etaPensionabile,
+    assegnoPensionati
   } = input;
+
+  const nuovoMese = mese === 12 ? 1 : mese + 1;
+  const nuovoAnno = mese === 12 ? anno + 1 : anno;
+  const avanzaAnno = nuovoAnno > anno;
 
   let abitantiRimasti = abitanti;
 
@@ -256,8 +266,27 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     }
   });
 
-  // Aggiorna abitanti (schiavi vs non-schiavi, crediti, stanchezza, peso, salute, reddito disoccupati)
+  // Invecchiamento: +1 anno quando si cambia anno
+  const idsPensionati = new Set<number>();
+
+  // Aggiorna abitanti (invecchiamento, pensionamento, schiavi vs non-schiavi, crediti, stanchezza, peso, salute)
   const nuoviAbitanti = abitantiRimasti.map((abitante) => {
+    let eta = abitante.eta;
+    if (avanzaAnno) eta += 1;
+
+    let lavoro = abitante.lavoro;
+    let reddito = abitante.reddito;
+    if (
+      eta >= etaPensionabile &&
+      lavoro !== "Comandante della Colonia" &&
+      lavoro !== "Neonato" &&
+      lavoro !== "Pensionato"
+    ) {
+      lavoro = "Pensionato";
+      reddito = assegnoPensionati;
+      idsPensionati.add(abitante.id);
+    }
+
     const èSchiavo = abitante.fazioni?.includes("Schiavi") ?? false;
     if (èSchiavo) {
       const nuovaStanchezza = Math.min(100, abitante.stanchezza + Math.floor(Math.random() * 10));
@@ -267,15 +296,17 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       const nuovaSalute = Math.max(0, Math.min(100, abitante.salute + variazioneSalute));
       return {
         ...abitante,
+        eta,
+        lavoro,
+        reddito,
         crediti: 0,
-        reddito: 0,
         spese: 0,
         stanchezza: nuovaStanchezza,
         peso: nuovoPeso,
         salute: nuovaSalute
       };
     }
-    const redditoEffettivo = abitante.lavoro === "Disoccupato" ? 0 : abitante.reddito;
+    const redditoEffettivo = lavoro === "Disoccupato" ? 0 : reddito;
     const nuovoSaldo = abitante.crediti + redditoEffettivo - abitante.spese;
     const nuovaStanchezza = Math.min(100, abitante.stanchezza + Math.floor(Math.random() * 10));
     const variazionePeso = Math.floor(Math.random() * 6) - 2;
@@ -284,7 +315,9 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     const nuovaSalute = Math.max(0, Math.min(100, abitante.salute + variazioneSalute));
     return {
       ...abitante,
-      reddito: abitante.lavoro === "Disoccupato" ? 0 : abitante.reddito,
+      eta,
+      lavoro,
+      reddito: lavoro === "Disoccupato" ? 0 : reddito,
       crediti: Math.max(0, nuovoSaldo),
       stanchezza: nuovaStanchezza,
       peso: nuovoPeso,
@@ -292,14 +325,25 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     };
   });
 
-  // Aggiorna edifici (variazione efficienza se operativo)
+  // Aggiorna edifici (rimuovi pensionati dalle assegnazioni, variazione efficienza se operativo)
   const nuoviEdifici = edifici.map((edificio) => {
-    if (edificio.stato === "Operativo") {
-      const variazioneEfficienza = Math.floor(Math.random() * 6) - 2;
-      const nuovaEfficienza = Math.max(50, Math.min(100, edificio.efficienza + variazioneEfficienza));
-      return { ...edificio, efficienza: nuovaEfficienza };
+    const abitantiAssegnatiSenzaPensionati = (edificio.abitantiAssegnati ?? []).filter(
+      (id) => !idsPensionati.has(id)
+    );
+    const occupazioneAggiornata =
+      abitantiAssegnatiSenzaPensionati.length !== (edificio.abitantiAssegnati?.length ?? 0)
+        ? abitantiAssegnatiSenzaPensionati.length
+        : edificio.occupazione;
+    let out = edificio;
+    if (abitantiAssegnatiSenzaPensionati.length !== (edificio.abitantiAssegnati?.length ?? 0)) {
+      out = { ...edificio, abitantiAssegnati: abitantiAssegnatiSenzaPensionati, occupazione: occupazioneAggiornata };
     }
-    return edificio;
+    if (out.stato === "Operativo") {
+      const variazioneEfficienza = Math.floor(Math.random() * 6) - 2;
+      const nuovaEfficienza = Math.max(50, Math.min(100, out.efficienza + variazioneEfficienza));
+      return { ...out, efficienza: nuovaEfficienza };
+    }
+    return out;
   });
 
   // Aggiorna risorse (crediti, produzione/consumo edifici, consumo cibo, bonus ministro agricoltura)
@@ -308,7 +352,9 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     let totaleCiboProdotto = 0;
 
     if (risorsa.nome === "Crediti") {
-      const totaleRedditi = nuoviAbitanti.reduce((sum, a) => sum + a.reddito, 0);
+      const totaleRedditi = nuoviAbitanti
+        .filter((a) => a.lavoro !== "Pensionato")
+        .reduce((sum, a) => sum + a.reddito, 0);
       const totaleSpese = nuoviAbitanti.reduce((sum, a) => sum + a.spese, 0);
       const totaleStipendiEdifici = nuoviEdifici
         .filter((e) => e.stato === "Operativo")
@@ -317,7 +363,9 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
             sum + (e.stipendioPerLavoratore ?? 0) * (e.abitantiAssegnati?.length ?? 0),
           0
         );
-      nuovaQuantità = risorsa.quantità + totaleRedditi - totaleSpese - totaleStipendiEdifici;
+      const numPensionati = nuoviAbitanti.filter((a) => a.lavoro === "Pensionato").length;
+      const costoPensioni = numPensionati * assegnoPensionati;
+      nuovaQuantità = risorsa.quantità + totaleRedditi - totaleSpese - totaleStipendiEdifici - costoPensioni;
     }
 
     nuoviEdifici.forEach((edificio) => {
@@ -389,8 +437,6 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
 
   const deltaNativiNonIntegrati = Math.floor(Math.random() * 6);
 
-  const nuovoMese = mese === 12 ? 1 : mese + 1;
-  const nuovoAnno = mese === 12 ? anno + 1 : anno;
   const risorseEv = nuoveRisorse.map((r) => ({ ...r }));
   const abitantiEv = nuoviAbitanti.map((a) => ({ ...a }));
   const edificiEv = nuoviEdifici.map((e) => ({
