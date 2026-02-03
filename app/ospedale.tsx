@@ -27,8 +27,8 @@ export default function OspedaleScreen() {
   const dottoreId = ospedale.abitantiAssegnati.length > 0 ? ospedale.abitantiAssegnati[0] : null;
   const dottore = dottoreId ? abitanti.find((a) => a.id === dottoreId) : null;
 
-  // Malati = abitanti con Salute diversa da "Sano" (Denutrito, Sovrappeso, Obeso)
-  const malati = abitanti.filter((a) => getStatoSalute(a) !== "Sano");
+  // Malati = abitanti con Salute diversa da "Sano" (esclusi i Robot, che non hanno Salute)
+  const malati = abitanti.filter((a) => a.razza !== "Robot" && getStatoSalute(a) !== "Sano");
 
   // Abitanti disponibili per essere dottore (non già dottore)
   const abitantiDisponibiliDottore = abitanti.filter((a) => a.id !== dottoreId);
