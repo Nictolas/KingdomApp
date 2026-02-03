@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef } from "react";
 import { Alert, Platform } from "react-native";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
-import { risorseData, edificiData, pianetiData } from "../kingdomData";
+import { risorseData, edificiData, pianetiData, getEmojiRazza } from "../kingdomData";
 import { getConsumoCibo, getProduzioneCiboPerAbitante } from "../game/ciboConsumo";
 import { runAvanzaMese } from "../game/avanzaMese";
 import { EVENTI_CATALOGO } from "../game/eventi";
@@ -132,10 +132,15 @@ export function useGameState() {
         const isUmano = razza === "Umano";
         const emoji = isUmano
           ? emojiUmani[Math.floor(Math.random() * emojiUmani.length)]
-          : pianetiData.find((p) => p.razza === razza)?.emoji ?? "👽";
+          : getEmojiRazza(razza);
         const nome = isUmano
           ? `${nomiUmani[Math.floor(Math.random() * nomiUmani.length)]} ${cognomiUmani[Math.floor(Math.random() * cognomiUmani.length)]}`
           : generaNomeAlieno(razza);
+
+        const fazioniIniziali =
+          razza === "Robot"
+            ? ["Robots", "Cittadini"]
+            : [fazioniRuolo[Math.floor(Math.random() * fazioniRuolo.length)], "Cittadini"];
 
         const nuovoAbitante: Abitante = {
           id: prevId + i,
@@ -149,7 +154,7 @@ export function useGameState() {
           personalità: personalità[Math.floor(Math.random() * personalità.length)],
           amici: [],
           rivali: [],
-          fazioni: [fazioniRuolo[Math.floor(Math.random() * fazioniRuolo.length)], "Cittadini"],
+          fazioni: fazioniIniziali,
           peso: 41 + Math.floor(Math.random() * 40),
           salute: 50 + Math.floor(Math.random() * 50),
           crediti: 800 + Math.floor(Math.random() * 401),

@@ -211,13 +211,14 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     nat.fazioni = normalizzaFazioni([...(nat.fazioni ?? []), "Nativi"]);
   }
 
-  // Regola: esattamente 1 Robot a inizio partita (razza "Robot", nome stile Unit-XXXX).
+  // Regola: esattamente 1 Robot a inizio partita (razza "Robot", nome stile Unit-XXXX). Fazione "Robots" automatica.
   const candidatiRobot = abitanti.filter((a) => a.id !== 1 && a.razza === "Umano");
   if (candidatiRobot.length > 0) {
     const bot = candidatiRobot[Math.floor(Math.random() * candidatiRobot.length)];
     bot.razza = "Robot";
     bot.nome = generaNomeAlieno("Robot");
     bot.emoji = getEmojiRazza("Robot");
+    bot.fazioni = normalizzaFazioni([...(bot.fazioni ?? []), "Robots"]);
   }
 
   // Regola: 50% con Lavoro "Disoccupato" (il Comandante id 1 resta Comandante). Scegliamo floor(n/2) tra id 2..n.

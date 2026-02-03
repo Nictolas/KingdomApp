@@ -15,7 +15,11 @@ export function FazioneInfoModal({ visible, fazione, abitanti = [], onClose }: F
   if (!fazione) return null;
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
-  const membri = abitanti.filter((a) => a.fazioni?.includes(fazione.nome));
+  // "Robots": membri = tutti gli abitanti con razza Robot (fazione automatica)
+  const membri =
+    fazione.nome === "Robots"
+      ? abitanti.filter((a) => a.razza === "Robot")
+      : abitanti.filter((a) => a.fazioni?.includes(fazione.nome));
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
