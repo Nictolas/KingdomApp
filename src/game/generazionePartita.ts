@@ -16,7 +16,8 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
       "Il Comandante della Colonia è sempre di razza umana.",
       "A parte 1 Nativo iniziale, tutti gli abitanti sono a inizio partita di razza umana.",
       "La razza dei Nativi (per l’evento Assimilazione) è scelta a caso tra le razze non umane.",
-      "Ogni partita deve partire con 1 Nativo tra gli abitanti (razza = razza Nativi del pianeta)."
+      "Ogni partita deve partire con 1 Nativo tra gli abitanti (razza = razza Nativi del pianeta).",
+      "Ogni partita deve partire con 1 abitante di razza Robot."
     ]
   },
   {
@@ -208,6 +209,15 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     nat.emoji = getEmojiRazza(razzaNativi);
     // Nativo integrato: deve avere la fazione "Nativi" così appare in /nativi e in colonna Fazione in /abitanti.
     nat.fazioni = normalizzaFazioni([...(nat.fazioni ?? []), "Nativi"]);
+  }
+
+  // Regola: esattamente 1 Robot a inizio partita (razza "Robot", nome stile Unit-XXXX).
+  const candidatiRobot = abitanti.filter((a) => a.id !== 1 && a.razza === "Umano");
+  if (candidatiRobot.length > 0) {
+    const bot = candidatiRobot[Math.floor(Math.random() * candidatiRobot.length)];
+    bot.razza = "Robot";
+    bot.nome = generaNomeAlieno("Robot");
+    bot.emoji = getEmojiRazza("Robot");
   }
 
   // Regola: 50% con Lavoro "Disoccupato" (il Comandante id 1 resta Comandante). Scegliamo floor(n/2) tra id 2..n.

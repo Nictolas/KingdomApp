@@ -20,9 +20,18 @@ export function generaNomeAlieno(razza: Razza): string {
       return generaNomeRettiliani();
     case "Ferini":
       return generaNomeFerini();
+    case "Robot":
+      return generaNomeRobot();
     default:
       return `${razza}-${1000 + Math.floor(Math.random() * 9000)}`;
   }
+}
+
+/** Robot: stile unità/sigla (es. Unit-7342, AX-12). */
+function generaNomeRobot(): string {
+  const prefissi = ["Unit-", "AX-", "RX-", "Bot-", "Syn-"];
+  const num = 1000 + Math.floor(Math.random() * 9000);
+  return maybe(0.3) ? `${pick(prefissi).replace("-", "")}${num}` : pick(prefissi) + num;
 }
 
 /** Grigi: brevi, asettici, stile codice. Glottal stop (') e numeri finali opzionali. */

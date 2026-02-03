@@ -11,10 +11,11 @@ export const pianetiData: PianetaInfo[] = [
   { id: 6, nome: "Pianeta dei Ferini", emoji: "🐺", razza: "Ferini" }
 ];
 
-/** Restituisce l'emoji associata alla razza (es. Rettiliani → 🦎, Nordici → 🧝). */
+/** Restituisce l'emoji associata alla razza (es. Rettiliani → 🦎, Robot → 🤖). */
 export function getEmojiRazza(razza: Razza): string {
   const p = pianetiData.find((x) => x.razza === razza);
   if (p) return p.emoji;
   if (razza === "Umano") return "👤";
+  if (razza === "Robot") return "🤖";
   return "🪐";
 }

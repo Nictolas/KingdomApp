@@ -120,7 +120,7 @@ export function useGameState() {
       "Deciso",
       "Collaborativo"
     ];
-    const razze: Razza[] = ["Umano", "Grigi", "Nordici", "Rettiliani", "Insettoidi", "Marini", "Ferini"];
+    const razze: Razza[] = ["Umano", "Robot", "Grigi", "Nordici", "Rettiliani", "Insettoidi", "Marini", "Ferini"];
     const emojiUmani = ["👨", "👩", "👨‍🔬", "👩‍🔬", "👨‍💼", "👩‍💼", "👨‍🔧", "👩‍🔧", "👨‍🌾", "👩‍🌾"];
     const nomiUmani = ["Marco", "Luca", "Anna", "Sofia", "Giovanni", "Elena", "Alessandro", "Chiara"];
     const cognomiUmani = ["Rossi", "Bianchi", "Verdi", "Neri", "Blu", "Gialli"];

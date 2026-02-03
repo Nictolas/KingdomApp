@@ -75,9 +75,10 @@ export type Abitante = {
   orientamento?: "Etero" | "Omo" | "Bi"; // Orientamento sessuale (per matrimonio)
 };
 
-// Razze trovabili tra gli abitanti (pianeti di origine)
+// Razze trovabili tra gli abitanti (pianeti di origine o sintetici)
 export type Razza =
   | "Umano"
+  | "Robot"
   | "Grigi"
   | "Nordici"
   | "Rettiliani"
