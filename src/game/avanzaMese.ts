@@ -28,6 +28,8 @@ export type AvanzaMeseOutput = {
   vittimeOmicidi: { nome: string }[];
   /** Coppia con amicizia >= 90 che chiede di sposarsi (compatibili per orientamento/sesso). */
   pendingMatrimonio: { idA: number; idB: number; nomeA: string; nomeB: string } | null;
+  /** Messaggio da mostrare in home quando si attiva l'evento Emigrazione (es. "Alessandro Ricci ha lasciato la colonia."). */
+  messaggioEmigrazione: string | null;
 };
 
 /** Compatibilità matrimonio: Omo solo con Omo/Bi stesso sesso; Etero con Etero/Bi sesso opposto; Bi con chiunque. */
@@ -395,6 +397,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     if (def) def.applicaMensile(risorseEv, abitantiEv, edificiEv);
   });
 
+  let messaggioEmigrazione: string | null = null;
   EVENTI_CATALOGO.forEach((def) => {
     if (nuoviEventiInCorso.some((e) => e.id === def.id)) return;
     if (!def.condizione(abitantiEv, risorseEv, edificiEv, punteggioSanzioni, divietoEspatrioAttivo)) return;
@@ -403,7 +406,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       ...nuoviEventiInCorso,
       { id: def.id, iniziatoMese: nuovoMese, iniziatoAnno: nuovoAnno, durataMesi: def.durataMesi }
     ];
-    def.applicaAttivazione(risorseEv, abitantiEv, edificiEv);
+    const ret = def.applicaAttivazione(risorseEv, abitantiEv, edificiEv);
+    if (def.id === "emigrazione" && ret?.messaggioExtra) messaggioEmigrazione = ret.messaggioExtra;
   });
 
   const assimilazioneAppenaAggiunto =
@@ -462,6 +466,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     deltaNativiNonIntegrati,
     pendingAssimilazione,
     vittimeOmicidi,
-    pendingMatrimonio
+    pendingMatrimonio,
+    messaggioEmigrazione
   };
 }

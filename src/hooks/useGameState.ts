@@ -246,6 +246,9 @@ export function useGameState() {
     (result.vittimeOmicidi ?? []).forEach((v) => {
       Alert.alert("Omicidio", `È stato trovato il cadavere di ${v.nome}.`);
     });
+    if (result.messaggioEmigrazione) {
+      Alert.alert("✈️ Emigrazione", result.messaggioEmigrazione);
+    }
   }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata]);
 
   const confermaMatrimonio = useCallback((idA: number, idB: number) => {
