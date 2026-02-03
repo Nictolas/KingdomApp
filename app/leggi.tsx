@@ -37,7 +37,8 @@ export default function LeggiScreen() {
       "Legge Razziale": "🚫",
       "Legge sulle Famiglie": "👨‍👩‍👧",
       "Legge sulle Droghe": "💊",
-      "Divieto di espatrio": "🚧"
+      "Divieto di espatrio": "🚧",
+      "Ius primae noctis": "👑"
     };
     return emojiMap[titolo] || "📋";
   };
@@ -61,7 +62,8 @@ export default function LeggiScreen() {
       legge.titolo === "Religione" ||
       legge.titolo === "Legge sulle Famiglie" ||
       legge.titolo === "Legge sulle Nascite" ||
-      legge.titolo === "Divieto di espatrio"
+      legge.titolo === "Divieto di espatrio" ||
+      legge.titolo === "Ius primae noctis"
     ) {
       leggiPerTema["Società"].push({ ...legge, tema: "Società" });
     } else if (
@@ -89,6 +91,7 @@ export default function LeggiScreen() {
     if (titolo === "Legge sulle Droghe") return "/legge-droghe";
     if (titolo === "Legge sulle Famiglie") return "/legge-famiglie";
     if (titolo === "Divieto di espatrio") return "/divieto-espatrio";
+    if (titolo === "Ius primae noctis") return "/ius-primae-noctis";
     if (titolo === "Schiavitu") return "/schiavitu";
     return null;
   };

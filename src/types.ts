@@ -73,6 +73,7 @@ export type Abitante = {
   reati?: Reato[]; // Se presente e non vuoto, l'abitante è considerato "criminale"
   sesso?: "M" | "F"; // Sesso dell'abitante
   orientamento?: "Etero" | "Omo" | "Bi"; // Orientamento sessuale (per matrimonio)
+  incinta?: boolean; // Gravidanza (stato salute "Incinta")
 };
 
 // Razze trovabili tra gli abitanti (pianeti di origine o sintetici)

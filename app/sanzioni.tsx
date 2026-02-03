@@ -21,7 +21,8 @@ export default function SanzioniScreen() {
     razzaCampoLavoro,
     razzaCampoSterminio,
     etaMinimaLavoro,
-    divietoEspatrioAttivo
+    divietoEspatrioAttivo,
+    iusPrimaeNoctisAttivo
   } = useGameContext();
 
   const { width } = Dimensions.get("window");
@@ -39,7 +40,8 @@ export default function SanzioniScreen() {
     { id: "campoLavoro", emoji: "⛏️", titolo: "Campo di lavoro", descrizione: "Legge razziale: lavoro forzato per una razza", punti: 1, attivo: razzaCampoLavoro !== null },
     { id: "campoSterminio", emoji: "☠️", titolo: "Campo di sterminio", descrizione: "Legge razziale: sterminio per una razza", punti: 1, attivo: razzaCampoSterminio !== null },
     { id: "eta", emoji: "👶", titolo: "Età minima lavoro ≤13", descrizione: "Lavoro minorile sotto i 14 anni", punti: 1, attivo: etaBassa },
-    { id: "espatrio", emoji: "🚫", titolo: "Divieto di espatrio", descrizione: "Divieto di espatrio attivo", punti: 1, attivo: divietoEspatrioAttivo }
+    { id: "espatrio", emoji: "🚫", titolo: "Divieto di espatrio", descrizione: "Divieto di espatrio attivo", punti: 1, attivo: divietoEspatrioAttivo },
+    { id: "iusPrimaeNoctis", emoji: "👑", titolo: "Ius primae noctis", descrizione: "Legge Ius primae noctis attiva", punti: 1, attivo: iusPrimaeNoctisAttivo }
   ];
 
   const attivi = fattori.filter((f) => f.attivo);

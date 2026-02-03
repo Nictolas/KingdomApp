@@ -79,6 +79,9 @@ export function useGameState() {
   
   // Configurazione divieto di espatrio
   const [divietoEspatrioAttivo, setDivietoEspatrioAttivo] = useState(false);
+
+  // Ius primae noctis: se attivo aggiunge +1 alle sanzioni; in evento Matrimonio permette di scegliere uno dei due e 50% incinta se sesso opposto al Comandante
+  const [iusPrimaeNoctisAttivo, setIusPrimaeNoctisAttivo] = useState(false);
   
   // Configurazione legge sulle famiglie
   const [tipologieFamigliaAccettate, setTipologieFamigliaAccettate] = useState<{
@@ -267,15 +270,33 @@ export function useGameState() {
     const key = `${pendingMatrimonio.idA}-${pendingMatrimonio.idB}`;
     if (pendingMatrimonioShownRef.current === key) return;
     pendingMatrimonioShownRef.current = key;
+
+    const buttons: { text: string; onPress: () => void }[] = [
+      { text: "No", onPress: rifiutaMatrimonio },
+      { text: "Sì", onPress: () => confermaMatrimonio(pendingMatrimonio!.idA, pendingMatrimonio!.idB) }
+    ];
+    if (iusPrimaeNoctisAttivo) {
+      buttons.push({
+        text: "Utilizza Ius primae noctis",
+        onPress: () => {
+          Alert.alert(
+            "Ius primae noctis",
+            "Su chi eserciti il diritto?",
+            [
+              { text: pendingMatrimonio!.nomeA, onPress: () => esercitaIusPrimaeNoctis(pendingMatrimonio!.idA) },
+              { text: pendingMatrimonio!.nomeB, onPress: () => esercitaIusPrimaeNoctis(pendingMatrimonio!.idB) }
+            ]
+          );
+        }
+      });
+    }
+
     Alert.alert(
       "Matrimonio",
       `${pendingMatrimonio.nomeA} e ${pendingMatrimonio.nomeB} vogliono sposarsi. Glielo concedi?`,
-      [
-        { text: "No", onPress: rifiutaMatrimonio },
-        { text: "Sì", onPress: () => confermaMatrimonio(pendingMatrimonio.idA, pendingMatrimonio.idB) }
-      ]
+      buttons
     );
-  }, [pendingMatrimonio, confermaMatrimonio, rifiutaMatrimonio]);
+  }, [pendingMatrimonio, confermaMatrimonio, rifiutaMatrimonio, iusPrimaeNoctisAttivo, esercitaIusPrimaeNoctis]);
 
   /** Dialog in-game a inizio partita: prima riga del Diario + ex governatore in Tribunale (niente alert browser). */
   const [alertInizioPartita, setAlertInizioPartita] = useState<{
@@ -454,6 +475,32 @@ export function useGameState() {
       prev.map((a) => (a.id === abitanteId ? { ...a, nome } : a))
     );
   }, []);
+
+  const setAbitanteIncinta = useCallback((abitanteId: number, incinta: boolean) => {
+    setAbitanti((prev) =>
+      prev.map((a) => (a.id === abitanteId ? { ...a, incinta } : a))
+    );
+  }, []);
+
+  /** Esercita Ius primae noctis su un abitante (evento Matrimonio): se sesso opposto al Comandante, 50% diventa incinta. Poi chiude il matrimonio. */
+  const esercitaIusPrimaeNoctis = useCallback(
+    (abitanteId: number) => {
+      const comandante = abitanti.find((a) => a.id === 1);
+      const scelto = abitanti.find((a) => a.id === abitanteId);
+      if (!scelto || scelto.razza === "Robot") {
+        setPendingMatrimonio(null);
+        return;
+      }
+      const sessoComandante = comandante?.sesso ?? "M";
+      const sessoScelto = scelto.sesso ?? "F";
+      const opposto = (sessoComandante === "M" && sessoScelto === "F") || (sessoComandante === "F" && sessoScelto === "M");
+      if (opposto && Math.random() < 0.5) {
+        setAbitanti((prev) => prev.map((a) => (a.id === abitanteId ? { ...a, incinta: true } : a)));
+      }
+      setPendingMatrimonio(null);
+    },
+    [abitanti]
+  );
 
   // Calcola produzione/consumo mensile per ogni risorsa
   const calcolaProduzioneConsumo = useCallback(() => {
@@ -744,10 +791,15 @@ export function useGameState() {
     if (divietoEspatrioAttivo) {
       punteggio += 1;
     }
+
+    // +1 se Ius primae noctis è attivo
+    if (iusPrimaeNoctisAttivo) {
+      punteggio += 1;
+    }
     
     // Limita tra 1 e 10
     return Math.min(Math.max(punteggio, 1), 10);
-  }, [abitanti, penaDiMorteAttiva, razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, divietoEspatrioAttivo]);
+  }, [abitanti, penaDiMorteAttiva, razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, divietoEspatrioAttivo, iusPrimaeNoctisAttivo]);
 
   // Aggiorna il punteggio quando cambiano le condizioni
   useEffect(() => {
@@ -780,6 +832,7 @@ export function useGameState() {
     etaMinimaLavoro,
     leggeDroghe,
     divietoEspatrioAttivo,
+    iusPrimaeNoctisAttivo,
     tipologieFamigliaAccettate,
     setTipoTassaReddito,
     setFlatTaxPercentuale,
@@ -796,7 +849,9 @@ export function useGameState() {
     setEtaMinimaLavoro,
     setLeggeDroghe,
     setDivietoEspatrioAttivo,
+    setIusPrimaeNoctisAttivo,
     setTipologieFamigliaAccettate,
+    setAbitanteIncinta,
     calcolaFelicitàModificata,
     avanzaMese,
     assegnaAbitanteAEdificio,

@@ -164,36 +164,36 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 16,
-    paddingVertical: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(148,163,184,0.6)"
   },
   back: {
     color: "#93c5fd",
-    fontSize: 14
+    fontSize: 12
   },
   title: {
     color: "#ffffff",
-    fontSize: 16,
+    fontSize: 14,
     fontWeight: "700"
   },
   scrollContent: {
-    padding: 16,
-    paddingBottom: 40
+    padding: 10,
+    paddingBottom: 24
   },
   summaryRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 12,
-    marginBottom: 24
+    gap: 8,
+    marginBottom: 12
   },
   summaryCard: {
     flex: 1,
-    minWidth: 140,
+    minWidth: 120,
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 12,
-    padding: 16,
+    borderRadius: 8,
+    padding: 10,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.5)",
     alignItems: "center"
@@ -203,38 +203,38 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     color: "rgba(203,213,245,0.8)",
-    fontSize: 11,
+    fontSize: 9,
     fontWeight: "600",
     textTransform: "uppercase",
     letterSpacing: 0.5,
-    marginBottom: 6
+    marginBottom: 2
   },
   summaryValore: {
     color: "#e5e7eb",
-    fontSize: 22,
+    fontSize: 18,
     fontWeight: "700"
   },
   summaryUnita: {
     color: "rgba(203,213,245,0.6)",
-    fontSize: 10,
-    marginTop: 2
+    fontSize: 9,
+    marginTop: 0
   },
   pageTitle: {
     color: "#93c5fd",
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "600",
-    marginBottom: 12,
+    marginBottom: 6,
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
   twoCols: {
     flexDirection: "row",
-    gap: 28,
+    gap: 12,
     alignItems: "flex-start"
   },
   twoColsStack: {
     flexDirection: "column",
-    gap: 28
+    gap: 12
   },
   col: {
     flex: 1,
@@ -245,109 +245,109 @@ const styles = StyleSheet.create({
   },
   sectionTitle: {
     color: "#93c5fd",
-    fontSize: 13,
+    fontSize: 10,
     fontWeight: "600",
-    marginBottom: 14,
+    marginBottom: 6,
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
   card: {
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 12,
-    padding: 18,
+    borderRadius: 8,
+    padding: 10,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.4)"
   },
   list: {
-    maxHeight: 320,
-    marginBottom: 16
+    maxHeight: 260,
+    marginBottom: 8
   },
   item: {
     flexDirection: "row",
     alignItems: "flex-start",
-    paddingVertical: 12,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginBottom: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    marginBottom: 4,
     backgroundColor: "rgba(15,23,42,0.8)",
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.2)"
   },
   itemEmoji: {
-    fontSize: 28,
-    marginRight: 14
+    fontSize: 20,
+    marginRight: 8
   },
   itemContent: {
     flex: 1
   },
   itemNome: {
     color: "#e5e7eb",
-    fontSize: 14,
+    fontSize: 11,
     fontWeight: "600",
-    marginBottom: 8
+    marginBottom: 4
   },
   itemRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 4
+    marginBottom: 2
   },
   itemLabel: {
     color: "rgba(203,213,245,0.7)",
-    fontSize: 11
+    fontSize: 10
   },
   valorePositivo: {
     color: "#4ade80",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700"
   },
   valoreNegativo: {
     color: "#ef4444",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700"
   },
   valoreNetto: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700"
   },
   totaleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 14,
+    paddingTop: 8,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "rgba(148,163,184,0.3)",
-    marginTop: 6
+    marginTop: 4
   },
   totaleLabel: {
     color: "#93c5fd",
-    fontSize: 12,
+    fontSize: 10,
     fontWeight: "600"
   },
   totaleValorePositivo: {
     color: "#4ade80",
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "700"
   },
   totaleValoreNegativo: {
     color: "#ef4444",
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "700"
   },
   emptyText: {
     color: "rgba(203,213,245,0.5)",
-    fontSize: 12,
+    fontSize: 11,
     fontStyle: "italic",
     textAlign: "center",
-    paddingVertical: 24
+    paddingVertical: 12
   },
   linkRow: {
-    marginTop: 20,
-    paddingVertical: 10,
+    marginTop: 12,
+    paddingVertical: 6,
     alignItems: "center"
   },
   linkText: {
     color: "#93c5fd",
-    fontSize: 12
+    fontSize: 11
   }
 });

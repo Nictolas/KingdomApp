@@ -14,10 +14,11 @@ export function getCategoriaPeso(abitante: Abitante): CategoriaPeso {
   return "Obeso";
 }
 
-/** Stato Salute mostrato in UI: "Sano" se Normopeso, altrimenti la categoria peso (Denutrito/Sovrappeso/Obeso). */
-export type StatoSalute = "Sano" | "Denutrito" | "Sovrappeso" | "Obeso";
+/** Stato Salute mostrato in UI: "Incinta", "Sano" se Normopeso, altrimenti la categoria peso. */
+export type StatoSalute = "Sano" | "Denutrito" | "Sovrappeso" | "Obeso" | "Incinta";
 
 export function getStatoSalute(abitante: Abitante): StatoSalute {
+  if (abitante.incinta) return "Incinta";
   const cat = getCategoriaPeso(abitante);
   if (cat === "Normopeso") return "Sano";
   return cat;

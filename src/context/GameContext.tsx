@@ -35,6 +35,7 @@ type GameContextType = {
   etaMinimaLavoro: number;
   leggeDroghe: "vietate" | "legali" | "parziali";
   divietoEspatrioAttivo: boolean;
+  iusPrimaeNoctisAttivo: boolean;
   tipologieFamigliaAccettate: {
     tradizionale: boolean;
     interrazziale: boolean;
@@ -57,6 +58,7 @@ type GameContextType = {
   setEtaMinimaLavoro: (eta: number) => void;
   setLeggeDroghe: (legge: "vietate" | "legali" | "parziali") => void;
   setDivietoEspatrioAttivo: (attivo: boolean) => void;
+  setIusPrimaeNoctisAttivo: (attivo: boolean) => void;
   setTipologieFamigliaAccettate: (tipologie: {
     tradizionale: boolean;
     interrazziale: boolean;
@@ -74,6 +76,7 @@ type GameContextType = {
   nominaMinistro: (abitanteId: number, ministero: string) => void;
   rimuoviMinistro: (abitanteId: number) => void;
   setNomeAbitante: (abitanteId: number, nuovoNome: string) => void;
+  setAbitanteIncinta: (abitanteId: number, incinta: boolean) => void;
   calcolaProduzioneConsumo: () => Record<string, number>;
   accettaImmigrante: (abitanteId: number) => void;
   rifiutaImmigrante: (abitanteId: number) => void;

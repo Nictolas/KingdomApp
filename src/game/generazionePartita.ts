@@ -296,5 +296,13 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     abitanti[candidatiOrientamento[i]!]!.orientamento = "Etero";
   }
 
+  // Regola: 1 abitante con stato "Incinta" a inizio partita (preferibilmente donna, non Comandante, non Robot)
+  const candidatiIncinta = abitanti.filter((a) => a.id !== 1 && a.razza !== "Robot");
+  if (candidatiIncinta.length > 0) {
+    const femmine = candidatiIncinta.filter((a) => a.sesso === "F");
+    const scelta = femmine.length > 0 ? femmine[Math.floor(Math.random() * femmine.length)]! : candidatiIncinta[Math.floor(Math.random() * candidatiIncinta.length)]!;
+    scelta.incinta = true;
+  }
+
   return { abitanti, razzaNativi };
 }
