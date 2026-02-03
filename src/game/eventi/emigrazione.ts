@@ -20,21 +20,29 @@ export const eventoEmigrazione: EventoDef = {
       ctx?.calcolaFelicitàModificata ? ctx.calcolaFelicitàModificata(a) : a.felicità;
     const candidati = abitanti.filter((a) => a.id !== 1 && felicità(a) <= 50);
     if (candidati.length === 0) return;
-    const scelto = candidati[Math.floor(Math.random() * candidati.length)];
-    const nome = scelto.nome;
-    const idx = abitanti.findIndex((a) => a.id === scelto.id);
-    if (idx >= 0) abitanti.splice(idx, 1);
-    const idEmigrato = scelto.id;
+    const idsEmigrati = new Set(candidati.map((c) => c.id));
+    const nomi = candidati.map((c) => c.nome);
+    // Rimuovi tutti i candidati dall'array (in ordine inverso per non sbagliare gli indici)
+    candidati.forEach((c) => {
+      const idx = abitanti.findIndex((a) => a.id === c.id);
+      if (idx >= 0) abitanti.splice(idx, 1);
+    });
     abitanti.forEach((a) => {
-      if (a.amici?.length) a.amici = a.amici.filter((r) => r.id !== idEmigrato);
-      if (a.rivali?.length) a.rivali = a.rivali.filter((r) => r.id !== idEmigrato);
+      if (a.amici?.length) a.amici = a.amici.filter((r) => !idsEmigrati.has(r.id));
+      if (a.rivali?.length) a.rivali = a.rivali.filter((r) => !idsEmigrati.has(r.id));
     });
     edifici.forEach((e) => {
       if (e.abitantiAssegnati) {
-        e.abitantiAssegnati = e.abitantiAssegnati.filter((id) => id !== idEmigrato);
+        e.abitantiAssegnati = e.abitantiAssegnati.filter((id) => !idsEmigrati.has(id));
       }
     });
-    return { messaggioExtra: `${nome} ha lasciato la colonia.` };
+    const messaggio =
+      nomi.length === 1
+        ? `${nomi[0]} ha lasciato la colonia.`
+        : nomi.length === 2
+          ? `${nomi[0]} e ${nomi[1]} hanno lasciato la colonia.`
+          : `${nomi.slice(0, -1).join(", ")} e ${nomi[nomi.length - 1]} hanno lasciato la colonia.`;
+    return { messaggioExtra: messaggio };
   },
   applicaMensile: () => {}
 };
