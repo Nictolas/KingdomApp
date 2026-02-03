@@ -8,12 +8,13 @@ export type EventoDef = {
   durataMesi: number;
   /** Probabilità 0-1 di attivazione quando la condizione è vera */
   probabilità: number;
-  condizione: (abitanti: Abitante[], risorse: Risorsa[], edifici: Edificio[], punteggioSanzioni: number, divietoEspatrioAttivo?: boolean) => boolean;
+  condizione: (abitanti: Abitante[], risorse: Risorsa[], edifici: Edificio[], punteggioSanzioni: number, divietoEspatrioAttivo?: boolean, calcolaFelicitàModificata?: (a: Abitante) => number) => boolean;
   /** Effetto all'attivazione (modifica risorse/abitanti/edifici in place). Può restituire messaggio extra per il dialog. */
   applicaAttivazione: (
     risorse: Risorsa[],
     abitanti: Abitante[],
-    edifici: Edificio[]
+    edifici: Edificio[],
+    ctx?: { calcolaFelicitàModificata?: (a: Abitante) => number }
   ) => void | { messaggioExtra?: string };
   /** Effetto ogni mese mentre l'evento è in corso */
   applicaMensile: (risorse: Risorsa[], abitanti: Abitante[], edifici: Edificio[]) => void;
@@ -142,13 +143,15 @@ export const EVENTI_CATALOGO: EventoDef[] = [
     emoji: "✈️",
     descrizione: "Un abitante con Felicità pari o inferiore al 50% lascia la colonia per cercare fortuna altrove.",
     durataMesi: 1,
-    probabilità: 0.5,
-    condizione: (abitanti, _r, _e, _p, divietoEspatrioAttivo) => {
+    probabilità: 1,
+    condizione: (abitanti, _r, _e, _p, divietoEspatrioAttivo, calcolaFelicitàModificata) => {
       if (divietoEspatrioAttivo) return false;
-      return abitanti.some((a) => a.id !== 1 && a.felicità <= 50);
+      const felicità = (a: Abitante) => (calcolaFelicitàModificata ? calcolaFelicitàModificata(a) : a.felicità);
+      return abitanti.some((a) => a.id !== 1 && felicità(a) <= 50);
     },
-    applicaAttivazione: (_risorse, abitanti, edifici) => {
-      const candidati = abitanti.filter((a) => a.id !== 1 && a.felicità <= 50);
+    applicaAttivazione: (_risorse, abitanti, edifici, ctx) => {
+      const felicità = (a: Abitante) => (ctx?.calcolaFelicitàModificata ? ctx.calcolaFelicitàModificata(a) : a.felicità);
+      const candidati = abitanti.filter((a) => a.id !== 1 && felicità(a) <= 50);
       if (candidati.length === 0) return;
       const scelto = candidati[Math.floor(Math.random() * candidati.length)];
       const nome = scelto.nome;

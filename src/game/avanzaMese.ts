@@ -400,13 +400,13 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   let messaggioEmigrazione: string | null = null;
   EVENTI_CATALOGO.forEach((def) => {
     if (nuoviEventiInCorso.some((e) => e.id === def.id)) return;
-    if (!def.condizione(abitantiEv, risorseEv, edificiEv, punteggioSanzioni, divietoEspatrioAttivo)) return;
+    if (!def.condizione(abitantiEv, risorseEv, edificiEv, punteggioSanzioni, divietoEspatrioAttivo, calcolaFelicitàModificata)) return;
     if (Math.random() >= def.probabilità) return;
     nuoviEventiInCorso = [
       ...nuoviEventiInCorso,
       { id: def.id, iniziatoMese: nuovoMese, iniziatoAnno: nuovoAnno, durataMesi: def.durataMesi }
     ];
-    const ret = def.applicaAttivazione(risorseEv, abitantiEv, edificiEv);
+    const ret = def.applicaAttivazione(risorseEv, abitantiEv, edificiEv, { calcolaFelicitàModificata });
     if (def.id === "emigrazione" && ret?.messaggioExtra) messaggioEmigrazione = ret.messaggioExtra;
   });
 
