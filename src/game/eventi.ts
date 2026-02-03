@@ -9,8 +9,12 @@ export type EventoDef = {
   /** Probabilità 0-1 di attivazione quando la condizione è vera */
   probabilità: number;
   condizione: (abitanti: Abitante[], risorse: Risorsa[], edifici: Edificio[], punteggioSanzioni: number) => boolean;
-  /** Effetto all'attivazione (modifica risorse/abitanti/edifici in place) */
-  applicaAttivazione: (risorse: Risorsa[], abitanti: Abitante[], edifici: Edificio[]) => void;
+  /** Effetto all'attivazione (modifica risorse/abitanti/edifici in place). Può restituire messaggio extra per il dialog. */
+  applicaAttivazione: (
+    risorse: Risorsa[],
+    abitanti: Abitante[],
+    edifici: Edificio[]
+  ) => void | { messaggioExtra?: string };
   /** Effetto ogni mese mentre l'evento è in corso */
   applicaMensile: (risorse: Risorsa[], abitanti: Abitante[], edifici: Edificio[]) => void;
 };
@@ -130,6 +134,32 @@ export const EVENTI_CATALOGO: EventoDef[] = [
       return felicitàMedia > 80;
     },
     applicaAttivazione: () => {},
+    applicaMensile: () => {}
+  },
+  {
+    id: "emigrazione",
+    nome: "Emigrazione",
+    emoji: "✈️",
+    descrizione: "Un abitante con Felicità pari o inferiore al 50% lascia la colonia per cercare fortuna altrove.",
+    durataMesi: 1,
+    probabilità: 0.5,
+    condizione: (abitanti) => {
+      return abitanti.some((a) => a.id !== 1 && a.felicità <= 50);
+    },
+    applicaAttivazione: (_risorse, abitanti, edifici) => {
+      const candidati = abitanti.filter((a) => a.id !== 1 && a.felicità <= 50);
+      if (candidati.length === 0) return;
+      const scelto = candidati[Math.floor(Math.random() * candidati.length)];
+      const nome = scelto.nome;
+      const idx = abitanti.findIndex((a) => a.id === scelto.id);
+      if (idx >= 0) abitanti.splice(idx, 1);
+      edifici.forEach((e) => {
+        if (e.abitantiAssegnati) {
+          e.abitantiAssegnati = e.abitantiAssegnati.filter((id) => id !== scelto.id);
+        }
+      });
+      return { messaggioExtra: `${nome} ha lasciato la colonia.` };
+    },
     applicaMensile: () => {}
   }
 ];
