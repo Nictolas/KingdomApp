@@ -8,7 +8,7 @@ export type EventoDef = {
   durataMesi: number;
   /** Probabilità 0-1 di attivazione quando la condizione è vera */
   probabilità: number;
-  condizione: (abitanti: Abitante[], risorse: Risorsa[], edifici: Edificio[], punteggioSanzioni: number) => boolean;
+  condizione: (abitanti: Abitante[], risorse: Risorsa[], edifici: Edificio[], punteggioSanzioni: number, divietoEspatrioAttivo?: boolean) => boolean;
   /** Effetto all'attivazione (modifica risorse/abitanti/edifici in place). Può restituire messaggio extra per il dialog. */
   applicaAttivazione: (
     risorse: Risorsa[],
@@ -143,7 +143,8 @@ export const EVENTI_CATALOGO: EventoDef[] = [
     descrizione: "Un abitante con Felicità pari o inferiore al 50% lascia la colonia per cercare fortuna altrove.",
     durataMesi: 1,
     probabilità: 0.5,
-    condizione: (abitanti) => {
+    condizione: (abitanti, _r, _e, _p, divietoEspatrioAttivo) => {
+      if (divietoEspatrioAttivo) return false;
       return abitanti.some((a) => a.id !== 1 && a.felicità <= 50);
     },
     applicaAttivazione: (_risorse, abitanti, edifici) => {

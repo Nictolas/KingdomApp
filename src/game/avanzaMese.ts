@@ -78,16 +78,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     calcolaFelicitàModificata
   } = input;
 
-  // Emigrazione: felicità <= 10 e crediti >= 100 → 50% probabilità di andarsene (se divieto non attivo)
   let abitantiRimasti = abitanti;
-  if (!divietoEspatrioAttivo) {
-    abitantiRimasti = abitanti.filter((abitante) => {
-      const felicitàModificata = calcolaFelicitàModificata(abitante);
-      const puòEmigrare = felicitàModificata <= 10 && abitante.crediti >= 100;
-      if (puòEmigrare) return Math.random() >= 0.5;
-      return true;
-    });
-  }
 
   // Omicidi per rivalità: coppie con punteggio rivalità >= 90 (o >= 60 se uno è Psicopatico), 50% probabilità che uno uccida l'altro
   const SOGLIA_RIVALITÀ = 90;
@@ -406,7 +397,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
 
   EVENTI_CATALOGO.forEach((def) => {
     if (nuoviEventiInCorso.some((e) => e.id === def.id)) return;
-    if (!def.condizione(abitantiEv, risorseEv, edificiEv, punteggioSanzioni)) return;
+    if (!def.condizione(abitantiEv, risorseEv, edificiEv, punteggioSanzioni, divietoEspatrioAttivo)) return;
     if (Math.random() >= def.probabilità) return;
     nuoviEventiInCorso = [
       ...nuoviEventiInCorso,
