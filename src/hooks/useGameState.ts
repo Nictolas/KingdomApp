@@ -541,6 +541,16 @@ export function useGameState() {
       }
     });
 
+    // Fazione Robots: 2 energia per ogni membro Robot
+    const numRobots = abitanti.filter((a) => a.razza === "Robot").length;
+    if (numRobots > 0) {
+      risorse.forEach((r) => {
+        if (r.nome === "Energia") {
+          variazioni[r.nome] = (variazioni[r.nome] || 0) - numRobots * 2;
+        }
+      });
+    }
+
     // Calcola variazioni per i crediti
     const totaleRedditi = abitanti.reduce((sum, a) => sum + a.reddito, 0);
     const totaleSpese = abitanti.reduce((sum, a) => sum + a.spese, 0);

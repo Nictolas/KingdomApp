@@ -1,15 +1,18 @@
 import React from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import type { Edificio } from "../types";
+import type { Edificio, Abitante } from "../types";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type EnergiaModalProps = {
   visible: boolean;
   edifici: Edificio[];
+  abitanti?: Abitante[];
   onClose: () => void;
 };
 
-export function EnergiaModal({ visible, edifici, onClose }: EnergiaModalProps) {
+const ENERGIA_PER_ROBOT = 2;
+
+export function EnergiaModal({ visible, edifici, abitanti = [], onClose }: EnergiaModalProps) {
   // Calcola i consumi di energia degli edifici
   const consumiEnergia = edifici
     .filter((edificio) => {
@@ -48,8 +51,12 @@ export function EnergiaModal({ visible, edifici, onClose }: EnergiaModalProps) {
       };
     });
 
+  // Fazione Robots: 2 energia per ogni membro Robot
+  const numRobots = abitanti.filter((a) => a.razza === "Robot").length;
+  const consumoRobots = numRobots * ENERGIA_PER_ROBOT;
+
   // Calcola i totali
-  const totaleConsumo = consumiEnergia.reduce((sum, c) => sum + c.consumo, 0);
+  const totaleConsumo = consumiEnergia.reduce((sum, c) => sum + c.consumo, 0) + consumoRobots;
   const totaleProduzione = produzioneEnergia.reduce((sum, p) => sum + p.produzione, 0);
   const bilancio = totaleProduzione - totaleConsumo;
   const { width } = Dimensions.get("window");
@@ -118,6 +125,22 @@ export function EnergiaModal({ visible, edifici, onClose }: EnergiaModalProps) {
                       </View>
                     </View>
                   ))}
+                  {numRobots > 0 && (
+                    <View style={styles.item}>
+                      <Text style={styles.emoji}>🤖</Text>
+                      <View style={styles.itemContent}>
+                        <Text style={styles.nome}>Fazione Robots</Text>
+                        <View style={styles.itemRow}>
+                          <Text style={styles.label}>Consumo:</Text>
+                          <Text style={styles.valoreNegativo}>-{consumoRobots} MW</Text>
+                        </View>
+                        <View style={styles.itemRow}>
+                          <Text style={styles.label}>Membri (Robot):</Text>
+                          <Text style={styles.dettaglio}>{numRobots} × {ENERGIA_PER_ROBOT} MW</Text>
+                        </View>
+                      </View>
+                    </View>
+                  )}
                 </ScrollView>
                 <View style={styles.totaleRow}>
                   <Text style={styles.totaleLabel}>Totale consumo:</Text>

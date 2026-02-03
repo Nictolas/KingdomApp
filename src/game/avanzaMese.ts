@@ -350,6 +350,12 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       }
     });
 
+    // Fazione Robots: 2 energia per ogni membro Robot
+    if (risorsa.nome === "Energia") {
+      const numRobots = nuoviAbitanti.filter((a) => a.razza === "Robot").length;
+      nuovaQuantità -= numRobots * 2;
+    }
+
     if (risorsa.nome.toLowerCase().includes("cibo") && totaleCiboProdotto > 0) {
       const ministroAgricoltura = nuoviAbitanti.find((a) => a.ministero === "Ministero dell'Agricoltura");
       if (ministroAgricoltura?.personalità === "Pollice Verde") {

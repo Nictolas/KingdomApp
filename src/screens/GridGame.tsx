@@ -246,6 +246,7 @@ export default function GridGame() {
       <EnergiaModal
         visible={showEnergiaModal}
         edifici={edifici}
+        abitanti={abitanti}
         onClose={() => setShowEnergiaModal(false)}
       />
     </View>
