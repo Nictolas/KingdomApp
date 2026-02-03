@@ -261,6 +261,26 @@ export function useGameState() {
     setPendingMatrimonio(null);
   }, []);
 
+  /** Esercita Ius primae noctis su un abitante (evento Matrimonio): se sesso opposto al Comandante, 50% diventa incinta. Poi chiude il matrimonio. */
+  const esercitaIusPrimaeNoctis = useCallback(
+    (abitanteId: number) => {
+      const comandante = abitanti.find((a) => a.id === 1);
+      const scelto = abitanti.find((a) => a.id === abitanteId);
+      if (!scelto || scelto.razza === "Robot") {
+        setPendingMatrimonio(null);
+        return;
+      }
+      const sessoComandante = comandante?.sesso ?? "M";
+      const sessoScelto = scelto.sesso ?? "F";
+      const opposto = (sessoComandante === "M" && sessoScelto === "F") || (sessoComandante === "F" && sessoScelto === "M");
+      if (opposto && Math.random() < 0.5) {
+        setAbitanti((prev) => prev.map((a) => (a.id === abitanteId ? { ...a, incinta: true } : a)));
+      }
+      setPendingMatrimonio(null);
+    },
+    [abitanti]
+  );
+
   const pendingMatrimonioShownRef = useRef<string | null>(null);
   useEffect(() => {
     if (!pendingMatrimonio) {
@@ -481,26 +501,6 @@ export function useGameState() {
       prev.map((a) => (a.id === abitanteId ? { ...a, incinta } : a))
     );
   }, []);
-
-  /** Esercita Ius primae noctis su un abitante (evento Matrimonio): se sesso opposto al Comandante, 50% diventa incinta. Poi chiude il matrimonio. */
-  const esercitaIusPrimaeNoctis = useCallback(
-    (abitanteId: number) => {
-      const comandante = abitanti.find((a) => a.id === 1);
-      const scelto = abitanti.find((a) => a.id === abitanteId);
-      if (!scelto || scelto.razza === "Robot") {
-        setPendingMatrimonio(null);
-        return;
-      }
-      const sessoComandante = comandante?.sesso ?? "M";
-      const sessoScelto = scelto.sesso ?? "F";
-      const opposto = (sessoComandante === "M" && sessoScelto === "F") || (sessoComandante === "F" && sessoScelto === "M");
-      if (opposto && Math.random() < 0.5) {
-        setAbitanti((prev) => prev.map((a) => (a.id === abitanteId ? { ...a, incinta: true } : a)));
-      }
-      setPendingMatrimonio(null);
-    },
-    [abitanti]
-  );
 
   // Calcola produzione/consumo mensile per ogni risorsa
   const calcolaProduzioneConsumo = useCallback(() => {
