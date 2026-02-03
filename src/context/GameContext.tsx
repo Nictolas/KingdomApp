@@ -2,6 +2,7 @@ import React, { createContext, useContext, ReactNode } from "react";
 import { useGameState } from "../hooks/useGameState";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
 import type { EventoDef } from "../game/eventi";
+import { DialogInizioPartitaModal } from "../ui/DialogInizioPartitaModal";
 
 type ScaglioneConfig = {
   min: number;
@@ -91,14 +92,33 @@ type GameContextType = {
   rifiutaMatrimonio: () => void;
   eventiInCorso: EventoInCorso[];
   eventiCatalogo: EventoDef[];
+  alertInizioPartita: { titolo: string; messaggio: string } | null;
+  chiudiAlertInizioPartita: () => void;
 };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
+function DialogInizioPartitaWrapper() {
+  const { alertInizioPartita, chiudiAlertInizioPartita } = useGameContext();
+  return (
+    <DialogInizioPartitaModal
+      visible={!!alertInizioPartita}
+      titolo={alertInizioPartita?.titolo ?? ""}
+      messaggio={alertInizioPartita?.messaggio ?? ""}
+      onClose={chiudiAlertInizioPartita}
+    />
+  );
+}
+
 export function GameProvider({ children }: { children: ReactNode }) {
   const gameState = useGameState();
 
-  return <GameContext.Provider value={gameState}>{children}</GameContext.Provider>;
+  return (
+    <GameContext.Provider value={gameState}>
+      {children}
+      <DialogInizioPartitaWrapper />
+    </GameContext.Provider>
+  );
 }
 
 export function useGameContext() {

@@ -139,6 +139,12 @@ Vercel aggiornerà automaticamente il deploy! ✨
 ### Vercel non trova il build
 - **Soluzione**: Verifica che `vercel.json` sia presente e che `package.json` abbia lo script `build:web`
 
+### Vercel non fa deploy dopo il push
+- **Collega il repository**: Su [vercel.com](https://vercel.com) → **Add New…** → **Project** → **Import Git Repository**. Scegli il repo GitHub del gioco e autorizza Vercel.
+- **Branch**: In **Settings → Git** controlla che il branch da cui fare il deploy sia quello giusto (es. `main`).
+- **Deploy manuale**: Dopo aver collegato il repo, ogni `git push` su quel branch avvia un deploy. Se non parte, in **Deployments** clicca **Redeploy** sull’ultimo deploy o su **Create Deployment**.
+- **Log**: Se il deploy fallisce, apri il deployment su Vercel e controlla i log di build per errori.
+
 ---
 
 ## 📝 File di Configurazione

@@ -1,5 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
-import { Alert, Platform } from "react-native";
+import { Alert } from "react-native";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
 import { risorseData, edificiData, pianetiData, getEmojiRazza } from "../kingdomData";
 import { getConsumoCibo, getProduzioneCiboPerAbitante } from "../game/ciboConsumo";
@@ -276,7 +276,11 @@ export function useGameState() {
     );
   }, [pendingMatrimonio, confermaMatrimonio, rifiutaMatrimonio]);
 
-  /** Alert a inizio partita: prima riga del Diario + ex governatore in Tribunale. Su web Alert.alert non funziona, usiamo window.alert. */
+  /** Dialog in-game a inizio partita: prima riga del Diario + ex governatore in Tribunale (niente alert browser). */
+  const [alertInizioPartita, setAlertInizioPartita] = useState<{
+    titolo: string;
+    messaggio: string;
+  } | null>(null);
   const haMostratoAlertInizioRef = useRef(false);
   useEffect(() => {
     if (haMostratoAlertInizioRef.current) return;
@@ -286,16 +290,10 @@ export function useGameState() {
       "L'ex governatore è in Tribunale, puoi sceglierlo di graziarlo, condannarlo a morte o pensarci più tardi.";
     const titolo = "Diario";
     const messaggio = `${primaRigaDiario}\n\n${messaggioExGovernatore}`;
-    const show = () => {
-      if (Platform.OS === "web" && typeof window !== "undefined" && window.alert) {
-        window.alert(`${titolo}\n\n${messaggio}`);
-      } else {
-        Alert.alert(titolo, messaggio);
-      }
-    };
-    const t = setTimeout(show, 100);
+    const t = setTimeout(() => setAlertInizioPartita({ titolo, messaggio }), 100);
     return () => clearTimeout(t);
   }, []);
+  const chiudiAlertInizioPartita = useCallback(() => setAlertInizioPartita(null), []);
 
   /** Edifici di lavoro: assegnando un abitante qui il suo "lavoro" viene aggiornato. Rimuovendolo torna "Disoccupato". */
   const EDIFICIO_TO_LAVORO: Record<number, string> = { 2: "Agricoltore" }; // id 2 = Serra
@@ -813,6 +811,8 @@ export function useGameState() {
     confermaMatrimonio,
     rifiutaMatrimonio,
     eventiInCorso,
-    eventiCatalogo: EVENTI_CATALOGO
+    eventiCatalogo: EVENTI_CATALOGO,
+    alertInizioPartita,
+    chiudiAlertInizioPartita
   };
 }
