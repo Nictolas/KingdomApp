@@ -68,6 +68,7 @@ type GameContextType = {
   avanzaMese: () => Promise<void>;
   assegnaAbitanteAEdificio: (abitanteId: number, edificioId: number) => void;
   rimuoviAbitanteDaEdificio: (abitanteId: number, edificioId: number) => void;
+  setStipendioEdificio: (edificioId: number, stipendioPerLavoratore: number) => void;
   aggiungiAlCampoDiLavoroTuttiQuelliChe: (filtro: {
     personalità?: string;
     razza?: string;

@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getStatoSalute } from "../src/game/ciboConsumo";
@@ -9,7 +9,7 @@ import type { Abitante } from "../src/types";
 
 export default function OspedaleScreen() {
   const router = useRouter();
-  const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio } = useGameContext();
+  const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
   const [dropdownDottoreVisible, setDropdownDottoreVisible] = useState(false);
 
   const { width } = Dimensions.get("window");
@@ -56,6 +56,22 @@ export default function OspedaleScreen() {
           </Text>
           <Text style={styles.infoSubtext}>
             Malati nella colonia: {malati.length}
+          </Text>
+        </View>
+
+        <View style={styles.stipendioCard}>
+          <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (crediti)</Text>
+          <TextInput
+            style={styles.stipendioInput}
+            value={String(ospedale.stipendioPerLavoratore ?? 0)}
+            keyboardType="number-pad"
+            onChangeText={(text) => {
+              const n = parseInt(text.replace(/[^0-9]/g, ""), 10);
+              setStipendioEdificio(ospedale.id, isNaN(n) ? 0 : Math.max(0, n));
+            }}
+          />
+          <Text style={styles.infoSubtext}>
+            Totale: {(ospedale.stipendioPerLavoratore ?? 0) * (ospedale.abitantiAssegnati?.length ?? 0)} crediti/mese
           </Text>
         </View>
 
@@ -214,6 +230,30 @@ const styles = StyleSheet.create({
     color: "rgba(203,213,245,0.7)",
     fontSize: 9,
     marginTop: 2
+  },
+  stipendioCard: {
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.6)"
+  },
+  stipendioLabel: {
+    color: "#93c5fd",
+    fontSize: 10,
+    fontWeight: "600",
+    marginBottom: 4
+  },
+  stipendioInput: {
+    backgroundColor: "rgba(30,41,59,0.9)",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.5)",
+    borderRadius: 4,
+    padding: 6,
+    color: "#e5e7eb",
+    fontSize: 14,
+    minWidth: 80
   },
   malatoPesoSalute: {
     color: "rgba(203,213,245,0.8)",

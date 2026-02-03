@@ -142,9 +142,11 @@ export type Edificio = {
   occupazione: number; // Numero attuale di persone
   abitantiAssegnati: number[]; // Array di ID degli abitanti assegnati
   efficienza: number; // 0-100
-  manutenzione: number; // Costo mensile
+  manutenzione: number; // Obsoleto: non usato per crediti; costo mensile = stipendioPerLavoratore × lavoratori
   stato: "Operativo" | "In costruzione" | "In manutenzione" | "Danneggiato";
   livello: number; // Livello dell'edificio
   produzione?: string; // Cosa produce (se applicabile)
   consumo?: string; // Cosa consuma (se applicabile)
+  /** Stipendio mensile per ogni lavoratore assegnato (configurabile dall'utente). Costo edificio = stipendioPerLavoratore × numero lavoratori. */
+  stipendioPerLavoratore?: number;
 };

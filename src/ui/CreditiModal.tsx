@@ -20,19 +20,18 @@ export function CreditiModal({ visible, abitanti, edifici, onClose }: CreditiMod
     netto: abitante.reddito - abitante.spese
   }));
 
-  // Calcola le spese di manutenzione degli edifici
-  const speseManutenzione = edifici
+  // Costo edifici = stipendio per lavoratore × numero lavoratori
+  const speseEdifici = edifici
     .filter((e) => e.stato === "Operativo")
-    .map((edificio) => ({
-      edificio,
-      manutenzione: edificio.manutenzione
-    }));
+    .map((edificio) => {
+      const costo = (edificio.stipendioPerLavoratore ?? 0) * (edificio.abitantiAssegnati?.length ?? 0);
+      return { edificio, costo };
+    });
 
-  // Calcola i totali
   const totaleRedditi = abitanti.reduce((sum, a) => sum + a.reddito, 0);
   const totaleSpese = abitanti.reduce((sum, a) => sum + a.spese, 0);
-  const totaleManutenzione = speseManutenzione.reduce((sum, s) => sum + s.manutenzione, 0);
-  const totaleNetto = totaleRedditi - totaleSpese - totaleManutenzione;
+  const totaleStipendiEdifici = speseEdifici.reduce((sum, s) => sum + s.costo, 0);
+  const totaleNetto = totaleRedditi - totaleSpese - totaleStipendiEdifici;
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
 
@@ -79,26 +78,26 @@ export function CreditiModal({ visible, abitanti, edifici, onClose }: CreditiMod
             </View>
           </View>
 
-          {/* Spese di manutenzione */}
+          {/* Stipendi edifici */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Spese di Manutenzione</Text>
+            <Text style={styles.sectionTitle}>Stipendi edifici</Text>
             <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-              {speseManutenzione.map(({ edificio, manutenzione }) => (
+              {speseEdifici.map(({ edificio, costo }) => (
                 <View key={edificio.id} style={styles.item}>
                   <Text style={styles.emoji}>{edificio.emoji}</Text>
                   <View style={styles.itemContent}>
                     <Text style={styles.nome}>{edificio.nome}</Text>
                     <View style={styles.itemRow}>
-                      <Text style={styles.label}>Manutenzione:</Text>
-                      <Text style={styles.valoreNegativo}>-{manutenzione}</Text>
+                      <Text style={styles.label}>Costo mensile:</Text>
+                      <Text style={styles.valoreNegativo}>-{costo}</Text>
                     </View>
                   </View>
                 </View>
               ))}
             </ScrollView>
             <View style={styles.totaleRow}>
-              <Text style={styles.totaleLabel}>Totale manutenzione:</Text>
-              <Text style={styles.totaleValoreNegativo}>-{totaleManutenzione}</Text>
+              <Text style={styles.totaleLabel}>Totale stipendi edifici:</Text>
+              <Text style={styles.totaleValoreNegativo}>-{totaleStipendiEdifici}</Text>
             </View>
           </View>
 

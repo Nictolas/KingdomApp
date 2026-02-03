@@ -120,7 +120,7 @@ export function CampoDiLavoroModal({
               </Text>
               <Text style={styles.line}>Efficienza: {edificio.efficienza}%</Text>
               <Text style={styles.line}>
-                Manutenzione: {formatCrediti(edificio.manutenzione)}/mese
+                Costo mensile: {formatCrediti((edificio.stipendioPerLavoratore ?? 0) * (edificio.abitantiAssegnati?.length ?? 0))} (stipendio × lavoratori)
               </Text>
             </View>
 

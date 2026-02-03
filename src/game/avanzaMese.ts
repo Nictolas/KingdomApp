@@ -306,10 +306,14 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     if (risorsa.nome === "Crediti") {
       const totaleRedditi = nuoviAbitanti.reduce((sum, a) => sum + a.reddito, 0);
       const totaleSpese = nuoviAbitanti.reduce((sum, a) => sum + a.spese, 0);
-      const totaleManutenzione = nuoviEdifici
+      const totaleStipendiEdifici = nuoviEdifici
         .filter((e) => e.stato === "Operativo")
-        .reduce((sum, e) => sum + e.manutenzione, 0);
-      nuovaQuantità = risorsa.quantità + totaleRedditi - totaleSpese - totaleManutenzione;
+        .reduce(
+          (sum, e) =>
+            sum + (e.stipendioPerLavoratore ?? 0) * (e.abitantiAssegnati?.length ?? 0),
+          0
+        );
+      nuovaQuantità = risorsa.quantità + totaleRedditi - totaleSpese - totaleStipendiEdifici;
     }
 
     nuoviEdifici.forEach((edificio) => {

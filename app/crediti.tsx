@@ -22,18 +22,21 @@ export default function CreditiScreen() {
     }))
     .sort((a, b) => b.netto - a.netto);
 
-  const speseManutenzione = edifici
+  // Costo edificio = stipendio per lavoratore × numero lavoratori (niente costo fisso)
+  const speseEdifici = edifici
     .filter((e) => e.stato === "Operativo")
-    .map((edificio) => ({
-      edificio,
-      manutenzione: edificio.manutenzione
-    }))
-    .sort((a, b) => b.manutenzione - a.manutenzione);
+    .map((edificio) => {
+      const stipendio = edificio.stipendioPerLavoratore ?? 0;
+      const lavoratori = edificio.abitantiAssegnati?.length ?? 0;
+      const costo = stipendio * lavoratori;
+      return { edificio, stipendioPerLavoratore: stipendio, lavoratori, costo };
+    })
+    .sort((a, b) => b.costo - a.costo);
 
   const totaleRedditi = abitanti.reduce((sum, a) => sum + a.reddito, 0);
   const totaleSpese = abitanti.reduce((sum, a) => sum + a.spese, 0);
-  const totaleManutenzione = speseManutenzione.reduce((sum, s) => sum + s.manutenzione, 0);
-  const totaleNetto = totaleRedditi - totaleSpese - totaleManutenzione;
+  const totaleStipendiEdifici = speseEdifici.reduce((sum, s) => sum + s.costo, 0);
+  const totaleNetto = totaleRedditi - totaleSpese - totaleStipendiEdifici;
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -117,27 +120,35 @@ export default function CreditiScreen() {
           </View>
 
           <View style={[styles.col, !isDesktop && styles.colFull]}>
-            <Text style={styles.sectionTitle}>Manutenzione edifici</Text>
+            <Text style={styles.sectionTitle}>Stipendi edifici</Text>
             <View style={styles.card}>
-              {speseManutenzione.length > 0 ? (
+              {speseEdifici.length > 0 ? (
                 <>
                   <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-                    {speseManutenzione.map(({ edificio, manutenzione }) => (
+                    {speseEdifici.map(({ edificio, stipendioPerLavoratore, lavoratori, costo }) => (
                       <View key={edificio.id} style={styles.item}>
                         <Text style={styles.itemEmoji}>{edificio.emoji}</Text>
                         <View style={styles.itemContent}>
                           <Text style={styles.itemNome}>{edificio.nome}</Text>
                           <View style={styles.itemRow}>
-                            <Text style={styles.itemLabel}>Manutenzione</Text>
-                            <Text style={styles.valoreNegativo}>-{manutenzione}</Text>
+                            <Text style={styles.itemLabel}>Stipendio/lavoratore</Text>
+                            <Text style={styles.itemLabel}>{stipendioPerLavoratore} crediti/mese</Text>
+                          </View>
+                          <View style={styles.itemRow}>
+                            <Text style={styles.itemLabel}>Lavoratori</Text>
+                            <Text style={styles.itemLabel}>{lavoratori}</Text>
+                          </View>
+                          <View style={styles.itemRow}>
+                            <Text style={styles.itemLabel}>Costo mensile</Text>
+                            <Text style={styles.valoreNegativo}>-{costo}</Text>
                           </View>
                         </View>
                       </View>
                     ))}
                   </ScrollView>
                   <View style={styles.totaleRow}>
-                    <Text style={styles.totaleLabel}>Totale manutenzione</Text>
-                    <Text style={styles.totaleValoreNegativo}>-{totaleManutenzione}</Text>
+                    <Text style={styles.totaleLabel}>Totale stipendi edifici</Text>
+                    <Text style={styles.totaleValoreNegativo}>-{totaleStipendiEdifici}</Text>
                   </View>
                 </>
               ) : (

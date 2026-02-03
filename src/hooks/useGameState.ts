@@ -416,6 +416,13 @@ export function useGameState() {
     }
   }, []);
 
+  const setStipendioEdificio = useCallback((edificioId: number, stipendioPerLavoratore: number) => {
+    const value = Math.max(0, Math.floor(stipendioPerLavoratore));
+    setEdifici((prev) =>
+      prev.map((e) => (e.id === edificioId ? { ...e, stipendioPerLavoratore: value } : e))
+    );
+  }, []);
+
   /** Aggiunge al Campo di Lavoro tutti gli abitanti che soddisfano i filtri (Personalità, Razza, Religione).
    * Il loro "lavoro" diventa "Prigioniero". Li rimuove da eventuali altri edifici. */
   const aggiungiAlCampoDiLavoroTuttiQuelliChe = useCallback(
@@ -610,16 +617,20 @@ export function useGameState() {
       });
     }
 
-    // Calcola variazioni per i crediti
+    // Calcola variazioni per i crediti: stipendio per lavoratore × numero lavoratori (niente costo fisso edifici)
     const totaleRedditi = abitanti.reduce((sum, a) => sum + a.reddito, 0);
     const totaleSpese = abitanti.reduce((sum, a) => sum + a.spese, 0);
-    const totaleManutenzione = edifici
+    const totaleStipendiEdifici = edifici
       .filter((e) => e.stato === "Operativo")
-      .reduce((sum, e) => sum + e.manutenzione, 0);
-    
+      .reduce(
+        (sum, e) =>
+          sum + (e.stipendioPerLavoratore ?? 0) * (e.abitantiAssegnati?.length ?? 0),
+        0
+      );
+
     risorse.forEach((r) => {
       if (r.nome === "Crediti") {
-        variazioni[r.nome] = totaleRedditi - totaleSpese - totaleManutenzione;
+        variazioni[r.nome] = totaleRedditi - totaleSpese - totaleStipendiEdifici;
       }
     });
 
@@ -867,6 +878,7 @@ export function useGameState() {
     avanzaMese,
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,
+    setStipendioEdificio,
     aggiungiAlCampoDiLavoroTuttiQuelliChe,
     nominaMinistro,
     rimuoviMinistro,

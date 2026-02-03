@@ -1,5 +1,5 @@
 import React from "react";
-import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
@@ -7,7 +7,7 @@ import type { Abitante } from "../src/types";
 
 export default function ImpiantoRicicloScreen() {
   const router = useRouter();
-  const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio } = useGameContext();
+  const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -42,6 +42,21 @@ export default function ImpiantoRicicloScreen() {
           Capacità: {abitantiAssegnati.length}/{impianto.capacità}
         </Text>
         <Text style={styles.infoSubtext}>Consumo: Rifiuti</Text>
+      </View>
+      <View style={styles.stipendioCard}>
+        <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (crediti)</Text>
+        <TextInput
+          style={styles.stipendioInput}
+          value={String(impianto.stipendioPerLavoratore ?? 0)}
+          keyboardType="number-pad"
+          onChangeText={(text) => {
+            const n = parseInt(text.replace(/[^0-9]/g, ""), 10);
+            setStipendioEdificio(impianto.id, isNaN(n) ? 0 : Math.max(0, n));
+          }}
+        />
+        <Text style={styles.infoSubtext}>
+          Totale: {(impianto.stipendioPerLavoratore ?? 0) * abitantiAssegnati.length} crediti/mese
+        </Text>
       </View>
     </View>,
     <View key="assegnati" style={styles.column}>
@@ -194,6 +209,30 @@ const styles = StyleSheet.create({
     color: "rgba(203,213,245,0.7)",
     fontSize: 9,
     marginTop: 1
+  },
+  stipendioCard: {
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 6,
+    padding: 8,
+    marginTop: 8,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.6)"
+  },
+  stipendioLabel: {
+    color: "#93c5fd",
+    fontSize: 10,
+    fontWeight: "600",
+    marginBottom: 4
+  },
+  stipendioInput: {
+    backgroundColor: "rgba(30,41,59,0.9)",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.5)",
+    borderRadius: 4,
+    padding: 6,
+    color: "#e5e7eb",
+    fontSize: 14,
+    minWidth: 80
   },
   section: {
     marginTop: 4
