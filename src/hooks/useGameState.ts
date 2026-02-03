@@ -120,7 +120,8 @@ export function useGameState() {
       "Deciso",
       "Collaborativo"
     ];
-    const razze: Razza[] = ["Umano", "Robot", "Grigi", "Nordici", "Rettiliani", "Insettoidi", "Marini", "Ferini"];
+    // Robot non appaiono tra gli immigrati (solo in colonia a inizio partita o per altri eventi)
+    const razze: Razza[] = ["Umano", "Grigi", "Nordici", "Rettiliani", "Insettoidi", "Marini", "Ferini"];
     const emojiUmani = ["👨", "👩", "👨‍🔬", "👩‍🔬", "👨‍💼", "👩‍💼", "👨‍🔧", "👩‍🔧", "👨‍🌾", "👩‍🌾"];
     const nomiUmani = ["Marco", "Luca", "Anna", "Sofia", "Giovanni", "Elena", "Alessandro", "Chiara"];
     const cognomiUmani = ["Rossi", "Bianchi", "Verdi", "Neri", "Blu", "Gialli"];

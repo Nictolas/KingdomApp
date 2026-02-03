@@ -66,6 +66,12 @@ export default function EdificiScreen() {
   const handlePress = (e: Edificio) => {
     if (e.nome === "Serra") {
       router.push("/serra");
+    } else if (e.nome === "Centrale Energetica") {
+      router.push("/centrale-energetica");
+    } else if (e.nome === "Raffineria Mineraria") {
+      router.push("/raffineria-mineraria");
+    } else if (e.nome === "Impianto di Riciclo") {
+      router.push("/impianto-riciclo");
     } else if (e.nome === "Baracca") {
       router.push("/residenze");
     } else if (e.nome === "Scuola") {

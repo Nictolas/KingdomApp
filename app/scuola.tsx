@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
@@ -263,7 +264,7 @@ const styles = StyleSheet.create({
     borderRadius: 6,
     padding: 6,
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.6)",
+    borderColor: "#3b82f6",
     alignItems: "center",
     width: "48%",
     minWidth: 120
