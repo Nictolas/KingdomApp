@@ -1,9 +1,14 @@
 import React from "react";
 import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { useGameContext } from "../src/context/GameContext";
+
+const SOGLIA_SODDISFAZIONE_BLOCCO_GUERRA = 70;
 
 export default function SicurezzaScreen() {
   const router = useRouter();
+  const { soddisfazioneFazioni } = useGameContext();
+  const soddisfazione = soddisfazioneFazioni["Sicurezza"] ?? 80;
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -21,6 +26,15 @@ export default function SicurezzaScreen() {
       </View>
 
       <ScrollView contentContainerStyle={styles.content}>
+        {/* Soddisfazione */}
+        <View style={styles.soddisfazioneCard}>
+          <Text style={styles.soddisfazioneLabel}>Soddisfazione</Text>
+          <Text style={styles.soddisfazioneValore}>{soddisfazione}/100</Text>
+          <Text style={styles.soddisfazioneHint}>
+            Con Caserma (almeno 3 addetti) e Soddisfazione ≥ {SOGLIA_SODDISFAZIONE_BLOCCO_GUERRA} si blocca l'evento Guerra Civile.
+          </Text>
+        </View>
+
         {/* Descrizione */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Chi Sono</Text>
@@ -62,6 +76,16 @@ export default function SicurezzaScreen() {
             <Text style={styles.listEmoji}>📉</Text>
             <Text style={styles.listText}>Tagli al budget per tribunale e forze dell'ordine</Text>
           </View>
+        </View>
+
+        {/* Caserma e Guerra Civile */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>🏰 Caserma e Guerra Civile</Text>
+          <Text style={styles.text}>
+            Assegna almeno 3 abitanti alla Caserma (pagina Edifici). Con Soddisfazione Sicurezza ≥ {SOGLIA_SODDISFAZIONE_BLOCCO_GUERRA}%
+            l'evento Guerra Civile non scatta quando i Lealisti sono maggioranza. Se scatta comunque, la Caserma piena mitiga
+            gli effetti (malus ridotti, una sola vittima invece di due).
+          </Text>
         </View>
 
         {/* Effetti */}
@@ -111,6 +135,29 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingBottom: 8,
     flex: 1
+  },
+  soddisfazioneCard: {
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 8,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.6)",
+    marginBottom: 12
+  },
+  soddisfazioneLabel: {
+    color: "rgba(148,163,184,0.9)",
+    fontSize: 10,
+    marginBottom: 2
+  },
+  soddisfazioneValore: {
+    color: "#e5e7eb",
+    fontSize: 18,
+    fontWeight: "700"
+  },
+  soddisfazioneHint: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 9,
+    marginTop: 6
   },
   section: {
     marginBottom: 12

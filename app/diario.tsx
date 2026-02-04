@@ -1,9 +1,11 @@
 import React from "react";
 import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
+import { useGameContext } from "../src/context/GameContext";
 
 export default function DiarioScreen() {
   const router = useRouter();
+  const { diarioRighe } = useGameContext();
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -29,6 +31,16 @@ export default function DiarioScreen() {
             L'ex governatore è in Tribunale, puoi sceglierlo di graziarlo, condannarlo a morte o pensarci più tardi.
           </Text>
         </View>
+        {diarioRighe.length > 0 && (
+          <View style={styles.card}>
+            <Text style={styles.avvisiTitle}>Avvisi</Text>
+            {diarioRighe.map((riga, i) => (
+              <Text key={i} style={[styles.text, styles.avvisoRiga]}>
+                {riga}
+              </Text>
+            ))}
+          </View>
+        )}
       </ScrollView>
     </SafeAreaView>
   );
@@ -78,5 +90,16 @@ const styles = StyleSheet.create({
   },
   textMargin: {
     marginTop: 12
+  },
+  avvisiTitle: {
+    color: "#93c5fd",
+    fontSize: 11,
+    fontWeight: "700",
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 0.5
+  },
+  avvisoRiga: {
+    marginTop: 6
   }
 });

@@ -106,6 +106,7 @@ type GameContextType = {
   chiudiAlertInizioPartita: () => void;
   messaggioEmigrazione: string | null;
   chiudiMessaggioEmigrazione: () => void;
+  diarioRighe: string[];
 };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);

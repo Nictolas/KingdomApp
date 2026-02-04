@@ -19,7 +19,8 @@ const COLONNA_SERVIZI: string[] = [
   "Centro di Comando",
   "Baracca", // Residenze (card mostrata come "Residenze")
   "Scuola",
-  "Ospedale Coloniale" // Ospedale
+  "Ospedale Coloniale", // Ospedale
+  "Caserma"
 ];
 const COLONNA_PUNIZIONE: string[] = ["Tribunale", "Campo di Lavoro", "Campo di Sterminio"];
 
@@ -113,7 +114,7 @@ export default function EdificiScreen() {
           </View>
           <View style={styles.column}>
             <Text style={styles.columnTitle}>Servizi</Text>
-            <Text style={styles.columnSubtitle}>Centro di Comando, Residenze, Scuola, Ospedale</Text>
+            <Text style={styles.columnSubtitle}>Centro di Comando, Residenze, Scuola, Ospedale, Caserma</Text>
             <View style={styles.cardGrid}>
               {servizi.map((e) => (
                 <CardEdificio

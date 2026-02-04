@@ -45,6 +45,8 @@ export type AvanzaMeseOutput = {
   messaggioNascita: string | null;
   /** ID assegnato al neonato (se creato); il hook deve fare setNextId(value + 1). */
   newIdNascita: number | null;
+  /** Avviso da appendere al Diario (es. rischio Guerra Civile). */
+  avvisoDiario: string | null;
 };
 
 /** Compatibilità matrimonio: Omo solo con Omo/Bi stesso sesso; Etero con Etero/Bi sesso opposto; Bi con chiunque. */
@@ -613,6 +615,18 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     if (pendingMatrimonio) break;
   }
 
+  // Avviso Diario: rischio Guerra Civile quando i Lealisti sono vicini alla maggioranza
+  let avvisoDiario: string | null = null;
+  const guerraCivileInCorso = nuoviEventiInCorso.some((e) => e.id === "guerra-civile");
+  if (!guerraCivileInCorso && abitantiEv.length >= 2) {
+    const lealisti = abitantiEv.filter((a) => a.fazioni?.includes("Lealisti")).length;
+    const maggioranza = Math.floor(abitantiEv.length / 2) + 1;
+    const percentuale = Math.round((lealisti / abitantiEv.length) * 100);
+    if (lealisti >= maggioranza - 1 || percentuale >= 40) {
+      avvisoDiario = `Rischio Guerra Civile: i Lealisti sono ${lealisti}/${abitantiEv.length} (${percentuale}%). Rafforza la Caserma (almeno 3 addetti) e mantieni alta la Soddisfazione della fazione Sicurezza per bloccare o mitigare il conflitto.`;
+    }
+  }
+
   return {
     abitanti: abitantiEv,
     edifici: edificiEv,
@@ -627,6 +641,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     messaggioEmigrazione,
     pendingGravidanza,
     messaggioNascita,
-    newIdNascita
+    newIdNascita,
+    avvisoDiario
   };
 }

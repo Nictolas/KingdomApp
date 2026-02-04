@@ -41,10 +41,13 @@ export function useGameState() {
   const [pendingAssimilazione, setPendingAssimilazione] = useState<number | null>(null);
   const [pendingMatrimonio, setPendingMatrimonio] = useState<{ idA: number; idB: number; nomeA: string; nomeB: string } | null>(null);
   const [messaggioEmigrazione, setMessaggioEmigrazione] = useState<string | null>(null);
+  /** Righe appendici al Diario (avvisi rischio Guerra Civile, ecc.). */
+  const [diarioRighe, setDiarioRighe] = useState<string[]>([]);
 
-  /** Soddisfazione 1-100 per fazioni tracciate (es. Rivoluzionari). Partono a 80. */
+  /** Soddisfazione 1-100 per fazioni tracciate (Rivoluzionari, Sicurezza). Partono a 80. */
   const [soddisfazioneFazioni, setSoddisfazioneFazioni] = useState<Record<string, number>>(() => ({
-    Rivoluzionari: 80
+    Rivoluzionari: 80,
+    Sicurezza: 80
   }));
   const modificaSoddisfazioneFazione = useCallback((fazione: string, delta: number) => {
     setSoddisfazioneFazioni((prev) => ({
@@ -277,6 +280,9 @@ export function useGameState() {
     if (result.messaggioNascita) {
       Alert.alert("Nascita", result.messaggioNascita);
     }
+    if (result.avvisoDiario) {
+      setDiarioRighe((prev) => [...prev, result.avvisoDiario!]);
+    }
   }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni]);
 
   const confermaMatrimonio = useCallback((idA: number, idB: number) => {
@@ -377,7 +383,7 @@ export function useGameState() {
   const chiudiMessaggioEmigrazione = useCallback(() => setMessaggioEmigrazione(null), []);
 
   /** Edifici di lavoro: assegnando un abitante qui il suo "lavoro" viene aggiornato. Rimuovendolo torna "Disoccupato". */
-  const EDIFICIO_TO_LAVORO: Record<number, string> = { 2: "Agricoltore", 15: "Operatore" }; // 2 = Serra, 15 = Dissalatore
+  const EDIFICIO_TO_LAVORO: Record<number, string> = { 2: "Agricoltore", 15: "Operatore", 16: "Sicurezza" }; // 2 = Serra, 15 = Dissalatore, 16 = Caserma
   const LAVORI_DA_EDIFICIO = new Set(Object.values(EDIFICIO_TO_LAVORO));
 
   /** Mantiene lavoro in abitanti sincronizzato con le assegnazioni agli edifici (es. Serra → Agricoltore). */
@@ -968,6 +974,7 @@ export function useGameState() {
     alertInizioPartita,
     chiudiAlertInizioPartita,
     messaggioEmigrazione,
-    chiudiMessaggioEmigrazione
+    chiudiMessaggioEmigrazione,
+    diarioRighe
   };
 }

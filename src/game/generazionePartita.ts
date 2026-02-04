@@ -38,7 +38,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     punti: [
       "Ogni abitante ha sempre la fazione «Cittadini» più una di: Amministrazione, Lavoratori, Scienziati, Esploratori (scelta a caso).",
       "Almeno 4 abitanti sono «Schiavi»: hanno fazione Schiavi (e non Cittadini), ruoloSchiavitu «schiavo», crediti/reddito/spese a 0.",
-      "4 abitanti hanno la fazione «Reazionari», tra cui l'ex governatore (prigioniero in Tribunale).",
+      "4 abitanti hanno la fazione «Lealisti», tra cui l'ex governatore (prigioniero in Tribunale).",
       "Il Comandante e 3 altri abitanti (escluso l'Ex Governatore) hanno la fazione «Rivoluzionari»: chi ha fatto la Rivoluzione.",
       "Ci sono alcuni Immigrati fin da inizio partita."
     ]
@@ -267,20 +267,20 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     if (!prig.ruoloSchiavitu) prig.reddito = 0;
   }
 
-  // Regola: 4 abitanti con fazione "Reazionari", tra cui l'ex governatore.
-  const altriPerReazionari = abitanti.filter((a) => a.id !== 1 && a.id !== exGovernatoreId);
-  for (let k = altriPerReazionari.length - 1; k > 0; k--) {
+  // Regola: 4 abitanti con fazione "Lealisti", tra cui l'ex governatore.
+  const altriPerLealisti = abitanti.filter((a) => a.id !== 1 && a.id !== exGovernatoreId);
+  for (let k = altriPerLealisti.length - 1; k > 0; k--) {
     const j = Math.floor(Math.random() * (k + 1));
-    [altriPerReazionari[k], altriPerReazionari[j]] = [altriPerReazionari[j], altriPerReazionari[k]];
+    [altriPerLealisti[k], altriPerLealisti[j]] = [altriPerLealisti[j], altriPerLealisti[k]];
   }
-  const reazionariIds = new Set<number>();
-  if (exGovernatoreId != null) reazionariIds.add(exGovernatoreId);
-  for (let i = 0; i < altriPerReazionari.length && reazionariIds.size < 4; i++) {
-    reazionariIds.add(altriPerReazionari[i]!.id);
+  const lealistiIds = new Set<number>();
+  if (exGovernatoreId != null) lealistiIds.add(exGovernatoreId);
+  for (let i = 0; i < altriPerLealisti.length && lealistiIds.size < 4; i++) {
+    lealistiIds.add(altriPerLealisti[i]!.id);
   }
   abitanti.forEach((a) => {
-    if (reazionariIds.has(a.id)) {
-      a.fazioni = normalizzaFazioni([...(a.fazioni ?? []), "Reazionari"]);
+    if (lealistiIds.has(a.id)) {
+      a.fazioni = normalizzaFazioni([...(a.fazioni ?? []), "Lealisti"]);
     }
   });
 

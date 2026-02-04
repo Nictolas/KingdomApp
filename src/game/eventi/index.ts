@@ -11,6 +11,7 @@ import { eventoMinacceGeopolitiche } from "./minacceGeopolitiche";
 import { eventoAssimilazione } from "./assimilazione";
 import { eventoEmigrazione } from "./emigrazione";
 import { eventoRivoluzionariDelusi } from "./rivoluzionariDelusi";
+import { eventoGuerraCivile } from "./guerraCivile";
 
 /** Catalogo di tutti gli eventi: aggiungi qui i nuovi eventi. */
 export const EVENTI_CATALOGO: EventoDef[] = [
@@ -22,5 +23,6 @@ export const EVENTI_CATALOGO: EventoDef[] = [
   eventoMinacceGeopolitiche,
   eventoAssimilazione,
   eventoEmigrazione,
-  eventoRivoluzionariDelusi
+  eventoRivoluzionariDelusi,
+  eventoGuerraCivile
 ];

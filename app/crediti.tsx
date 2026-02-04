@@ -7,9 +7,14 @@ import type { Abitante, Edificio } from "../src/types";
 
 export default function CreditiScreen() {
   const router = useRouter();
-  const { abitanti, edifici, risorse } = useGameContext();
+  const { abitanti, edifici, risorse, calcolaDeltaOrdiniMercato } = useGameContext();
 
   const saldoCrediti = risorse.find((r) => r.nome === "Crediti")?.quantità ?? 0;
+
+  // Anteprima effetto ordini di mercato sui crediti (come in Home)
+  const deltaMercato = calcolaDeltaOrdiniMercato();
+  const deltaCrediti = deltaMercato["Crediti"] ?? 0;
+  const saldoDopoMercato = saldoCrediti + deltaCrediti;
 
   // Solo abitanti con reddito/spese (escludi Robot); ordina per netto decrescente
   const entrateAbitanti = abitanti
@@ -62,6 +67,15 @@ export default function CreditiScreen() {
             <Text style={styles.summaryLabel}>Saldo attuale</Text>
             <Text style={styles.summaryValore}>{saldoCrediti.toLocaleString("it-IT")}</Text>
             <Text style={styles.summaryUnita}>crediti</Text>
+            <Text style={styles.summaryHint}>
+              Dopo ordini mercato:{" "}
+              <Text style={deltaCrediti >= 0 ? styles.valorePositivo : styles.valoreNegativo}>
+                {saldoDopoMercato.toLocaleString("it-IT")}
+                {deltaCrediti !== 0
+                  ? ` (${deltaCrediti > 0 ? "+" : ""}${deltaCrediti.toLocaleString("it-IT")})`
+                  : ""}
+              </Text>
+            </Text>
           </View>
           <View style={[styles.summaryCard, styles.summaryCardBilancio]}>
             <Text style={styles.summaryLabel}>Bilancio mensile</Text>
@@ -229,6 +243,12 @@ const styles = StyleSheet.create({
     color: "rgba(203,213,245,0.6)",
     fontSize: 9,
     marginTop: 0
+  },
+  summaryHint: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 9,
+    marginTop: 4,
+    textAlign: "center"
   },
   pageTitle: {
     color: "#93c5fd",

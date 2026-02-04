@@ -2,13 +2,18 @@ import React from "react";
 import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
-import { getCategoriaPeso, getConsumoCibo, getProduzioneCiboPerAbitante, CATEGORIE_PESO } from "../src/game/ciboConsumo";
+import {
+  getCategoriaPeso,
+  getConsumoCibo,
+  getProduzioneCiboPerAbitante,
+  CATEGORIE_PESO
+} from "../src/game/ciboConsumo";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
 export default function CiboScreen() {
   const router = useRouter();
-  const { abitanti, edifici, risorse } = useGameContext();
+  const { abitanti, edifici, risorse, calcolaDeltaOrdiniMercato } = useGameContext();
 
   // I Robot non consumano cibo: esclusi da lista e totali
   const consumiPerAbitante = abitanti
@@ -28,6 +33,11 @@ export default function CiboScreen() {
 
   const risorsaCibo = risorse.find((r) => r.nome.toLowerCase().includes("cibo"));
   const scortaAttuale = risorsaCibo?.quantità ?? 0;
+
+  // Anteprima effetto ordini di mercato su Cibo (come in Home)
+  const deltaMercato = calcolaDeltaOrdiniMercato();
+  const deltaCibo = risorsaCibo ? deltaMercato[risorsaCibo.nome] ?? 0 : 0;
+  const scortaDopoMercato = scortaAttuale + deltaCibo;
 
   const perCategoria = CATEGORIE_PESO.map((cat) => ({
     categoria: cat,
@@ -71,6 +81,13 @@ export default function CiboScreen() {
             <View style={styles.totaleCard}>
               <Text style={styles.totaleLabel}>Scorta attuale</Text>
               <Text style={styles.totaleValueScorta}>{scortaAttuale} razioni</Text>
+              <Text style={styles.totaleSubHint}>
+                Dopo ordini mercato:{" "}
+                <Text style={deltaCibo >= 0 ? styles.deltaPositivo : styles.deltaNegativo}>
+                  {scortaDopoMercato} razioni
+                  {deltaCibo !== 0 ? ` (${deltaCibo > 0 ? "+" : ""}${deltaCibo})` : ""}
+                </Text>
+              </Text>
             </View>
           </View>
 
@@ -158,6 +175,17 @@ const styles = StyleSheet.create({
   bilancioPos: { color: "#4ade80" },
   bilancioNeg: { color: "#ef4444" },
   totaleValueScorta: { color: "#e5e7eb", fontSize: 16, fontWeight: "700" },
+  totaleSubHint: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 9,
+    marginTop: 4
+  },
+  deltaPositivo: {
+    color: "#4ade80"
+  },
+  deltaNegativo: {
+    color: "#ef4444"
+  },
   gridColonne: { flexDirection: "row", gap: 8, flexWrap: "wrap" },
   gridColonneStack: { flexDirection: "row", flexWrap: "wrap" },
   colonna: {
