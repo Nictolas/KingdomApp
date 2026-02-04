@@ -115,6 +115,12 @@ export function useGameState() {
     monogenitoriale: true
   });
 
+  // Reddito di cittadinanza: importo mensile dato a disoccupati non schiavi
+  const [redditoCittadinanza, setRedditoCittadinanza] = useState(0);
+
+  // Modalità sistema sanitario: influenza i costi dell'Ospedale
+  const [modalitaSanita, setModalitaSanita] = useState<"privata" | "pubblica">("privata");
+
   // Genera nuovi abitanti proposti per immigrazione
   const generaNuoviAbitantiProposti = useCallback(() => {
     const numNuovi = Math.floor(Math.random() * 6); // 0-5
@@ -253,7 +259,9 @@ export function useGameState() {
       etaPensionabile,
       assegnoPensionati,
       soddisfazioneFazioni,
-      prezzoResidenze
+      prezzoResidenze,
+      redditoCittadinanza,
+      modalitaSanita
     });
 
     setNativiNonIntegrati((prev) => prev + result.deltaNativiNonIntegrati);
@@ -284,7 +292,7 @@ export function useGameState() {
     if (result.avvisoDiario) {
       setDiarioRighe((prev) => [...prev, result.avvisoDiario!]);
     }
-  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze]);
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita]);
 
   const confermaMatrimonio = useCallback((idA: number, idB: number) => {
     setAbitanti((prev) =>
@@ -930,6 +938,8 @@ export function useGameState() {
     divietoEspatrioAttivo,
     iusPrimaeNoctisAttivo,
     tipologieFamigliaAccettate,
+    modalitaSanita,
+    redditoCittadinanza,
     setTipoTassaReddito,
     setFlatTaxPercentuale,
     setScaglioniConfig,
@@ -949,6 +959,8 @@ export function useGameState() {
     setDivietoEspatrioAttivo,
     setIusPrimaeNoctisAttivo,
     setTipologieFamigliaAccettate,
+    setRedditoCittadinanza,
+    setModalitaSanita,
     setAbitanteIncinta,
     calcolaFelicitàModificata,
     avanzaMese,

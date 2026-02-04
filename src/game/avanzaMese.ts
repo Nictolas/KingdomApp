@@ -25,6 +25,10 @@ export type AvanzaMeseInput = {
   soddisfazioneFazioni?: Record<string, number>;
   /** Prezzo mensile (crediti) per tipo di residenza. Se assente si usa il default del catalogo. */
   prezzoResidenze?: Record<string, number>;
+  /** Importo mensile del Reddito di Cittadinanza per ogni disoccupato non schiavo. */
+  redditoCittadinanza?: number;
+  /** Modalità del sistema sanitario (Privata/Pubblica) per i costi dell'Ospedale. */
+  modalitaSanita?: "privata" | "pubblica";
 };
 
 export type AvanzaMeseOutput = {
@@ -103,7 +107,9 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     etaPensionabile,
     assegnoPensionati,
     soddisfazioneFazioni = {},
-    prezzoResidenze = {}
+    prezzoResidenze = {},
+    redditoCittadinanza = 0,
+    modalitaSanita = "privata"
   } = input;
 
   const nuovoMese = mese === 12 ? 1 : mese + 1;
@@ -315,8 +321,26 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
         salute: nuovaSalute
       };
     }
+    // Reddito di cittadinanza per disoccupati non schiavi
+    if (lavoro === "Disoccupato" && !èSchiavo && redditoCittadinanza > 0) {
+      reddito = redditoCittadinanza;
+    }
+
     const redditoEffettivo = lavoro === "Disoccupato" ? 0 : reddito;
-    const nuovoSaldo = abitante.crediti + redditoEffettivo - abitante.spese;
+
+    // Risparmio: di base 10% del reddito, 0 se Spendaccione, 50% se Tirchio
+    let risparmio = 0;
+    if (redditoEffettivo > 0) {
+      if (abitante.personalità === "Spendaccione") {
+        risparmio = 0;
+      } else if (abitante.personalità === "Tirchio") {
+        risparmio = Math.floor(redditoEffettivo * 0.5);
+      } else {
+        risparmio = Math.floor(redditoEffettivo * 0.1);
+      }
+    }
+
+    const nuovoSaldo = abitante.crediti + redditoEffettivo - abitante.spese + risparmio;
     const nuovaStanchezza = Math.min(100, abitante.stanchezza + Math.floor(Math.random() * 10));
     const variazionePeso = Math.floor(Math.random() * 6) - 2;
     const nuovoPeso = Math.max(0, Math.min(100, abitante.peso + variazionePeso));
@@ -367,11 +391,13 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       const totaleSpese = nuoviAbitanti.reduce((sum, a) => sum + a.spese, 0);
       const totaleStipendiEdifici = nuoviEdifici
         .filter((e) => e.stato === "Operativo")
-        .reduce(
-          (sum, e) =>
-            sum + (e.stipendioPerLavoratore ?? 0) * (e.abitantiAssegnati?.length ?? 0),
-          0
-        );
+        .reduce((sum, e) => {
+          // Se la sanità è privata, gli stipendi dell'Ospedale non pesano sul bilancio della colonia
+          if (modalitaSanita === "privata" && e.nome === "Ospedale Coloniale") {
+            return sum;
+          }
+          return sum + (e.stipendioPerLavoratore ?? 0) * (e.abitantiAssegnati?.length ?? 0);
+        }, 0);
       const numPensionati = nuoviAbitanti.filter((a) => a.lavoro === "Pensionato").length;
       const costoPensioni = numPensionati * assegnoPensionati;
       const entrateResidenze = nuoviEdifici

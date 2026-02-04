@@ -44,6 +44,8 @@ type GameContextType = {
     arcobaleno: boolean;
     monogenitoriale: boolean;
   };
+  /** Modalità del sistema sanitario: influisce sui costi dell'Ospedale. */
+  modalitaSanita: "privata" | "pubblica";
   calcolaFelicitàModificata: (abitante: Abitante) => number;
   setTipoTassaReddito: (tipo: "flat" | "scaglioni") => void;
   setFlatTaxPercentuale: (percentuale: number) => void;
@@ -69,6 +71,11 @@ type GameContextType = {
     arcobaleno: boolean;
     monogenitoriale: boolean;
   }) => void;
+  /** Importo mensile del Reddito di Cittadinanza per ogni disoccupato non schiavo. */
+  redditoCittadinanza: number;
+  setRedditoCittadinanza: (importo: number) => void;
+  /** Imposta la modalità del sistema sanitario (Privata/Pubblica). */
+  setModalitaSanita: (modalita: "privata" | "pubblica") => void;
   avanzaMese: () => Promise<void>;
   assegnaAbitanteAEdificio: (abitanteId: number, edificioId: number) => void;
   rimuoviAbitanteDaEdificio: (abitanteId: number, edificioId: number) => void;

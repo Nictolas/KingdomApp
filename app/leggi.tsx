@@ -28,6 +28,7 @@ export default function LeggiScreen() {
       "Tassa sulla Produzione": "📊",
       "Tassa sul Patrimonio": "💎",
       "Tassa sul Reddito": "💰",
+      "Reddito di Cittadinanza": "🪙",
       "Carta dei Diritti dei Coloni": "📜",
       "Età minima sul lavoro": "👶",
       "Età pensionabile": "👴",
@@ -39,7 +40,8 @@ export default function LeggiScreen() {
       "Legge sulle Famiglie": "👨‍👩‍👧",
       "Legge sulle Droghe": "💊",
       "Divieto di espatrio": "🚧",
-      "Ius primae noctis": "👑"
+      "Ius primae noctis": "👑",
+      "Sanità": "🏥"
     };
     return emojiMap[titolo] || "📋";
   };
@@ -49,7 +51,8 @@ export default function LeggiScreen() {
     if (
       legge.titolo === "Tassa sulla Produzione" ||
       legge.titolo === "Tassa sul Patrimonio" ||
-      legge.titolo === "Tassa sul Reddito"
+      legge.titolo === "Tassa sul Reddito" ||
+      legge.titolo === "Reddito di Cittadinanza"
     ) {
       leggiPerTema.Fiscale.push({ ...legge, tema: "Fiscale" });
     } else if (
@@ -65,7 +68,8 @@ export default function LeggiScreen() {
       legge.titolo === "Legge sulle Famiglie" ||
       legge.titolo === "Legge sulle Nascite" ||
       legge.titolo === "Divieto di espatrio" ||
-      legge.titolo === "Ius primae noctis"
+      legge.titolo === "Ius primae noctis" ||
+      legge.titolo === "Sanità"
     ) {
       leggiPerTema["Società"].push({ ...legge, tema: "Società" });
     } else if (
@@ -88,6 +92,8 @@ export default function LeggiScreen() {
     if (titolo === "Legge sulle Nascite") return "/legge-nascite";
     if (titolo === "Pena di Morte") return "/pena-di-morte";
     if (titolo === "Religione") return "/religione";
+    if (titolo === "Reddito di Cittadinanza") return "/reddito-cittadinanza";
+    if (titolo === "Sanità") return "/sanita";
     if (titolo === "Legge Razziale") return "/legge-razziale";
     if (titolo === "Età minima sul lavoro") return "/eta-minima-lavoro";
     if (titolo === "Età pensionabile") return "/eta-pensionabile";
