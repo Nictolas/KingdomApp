@@ -1,10 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { RESIDENZE_CATALOGO } from "../src/data/residenzeData";
-import type { Abitante, Edificio } from "../src/types";
 
 export default function CreditiScreen() {
   const router = useRouter();
@@ -12,52 +10,47 @@ export default function CreditiScreen() {
 
   const saldoCrediti = risorse.find((r) => r.nome === "Crediti")?.quantità ?? 0;
 
-  // Anteprima effetto ordini di mercato sui crediti (come in Home)
   const deltaMercato = calcolaDeltaOrdiniMercato();
   const deltaCrediti = deltaMercato["Crediti"] ?? 0;
   const saldoDopoMercato = saldoCrediti + deltaCrediti;
 
-  // Solo abitanti con reddito/spese (escludi Robot); ordina per netto decrescente
-  const entrateAbitanti = abitanti
-    .filter((a) => a.razza !== "Robot")
-    .map((abitante) => ({
-      abitante,
-      reddito: abitante.reddito,
-      spese: abitante.spese,
-      netto: abitante.reddito - abitante.spese
-    }))
-    .sort((a, b) => b.netto - a.netto);
-
-  // Costo edificio = stipendio per lavoratore × numero lavoratori (niente costo fisso)
-  const speseEdifici = edifici
-    .filter((e) => e.stato === "Operativo")
-    .map((edificio) => {
-      const stipendio = edificio.stipendioPerLavoratore ?? 0;
-      const lavoratori = edificio.abitantiAssegnati?.length ?? 0;
-      const costo = stipendio * lavoratori;
-      return { edificio, stipendioPerLavoratore: stipendio, lavoratori, costo };
-    })
-    .sort((a, b) => b.costo - a.costo);
-
   const totaleRedditi = abitanti.filter((a) => a.razza !== "Robot").reduce((sum, a) => sum + a.reddito, 0);
   const totaleSpese = abitanti.filter((a) => a.razza !== "Robot").reduce((sum, a) => sum + a.spese, 0);
-  const totaleStipendiEdifici = speseEdifici.reduce((sum, s) => sum + s.costo, 0);
+
+  // Costi per edificio: stipendio × lavoratori; raggruppa per nome edificio (una riga per tipo)
+  const spesePerTipoEdificio = useMemo(() => {
+    const operativi = edifici.filter((e) => e.stato === "Operativo");
+    const map = new Map<string, { nome: string; emoji: string; costo: number }>();
+    for (const e of operativi) {
+      const stipendio = e.stipendioPerLavoratore ?? 0;
+      const lavoratori = e.abitantiAssegnati?.length ?? 0;
+      const costo = stipendio * lavoratori;
+      if (costo <= 0 && e.tipo === "Residenza") continue; // Residenze non compaiono come uscita
+      const key = e.nome;
+      const existing = map.get(key);
+      if (existing) {
+        existing.costo += costo;
+      } else {
+        map.set(key, { nome: e.nome, emoji: e.emoji ?? "🏢", costo });
+      }
+    }
+    return Array.from(map.values()).sort((a, b) => b.costo - a.costo);
+  }, [edifici]);
+
+  const totaleStipendiEdifici = spesePerTipoEdificio.reduce((sum, s) => sum + s.costo, 0);
 
   const beneficiariRedditoCittadinanza = abitanti.filter(
     (a) => a.razza !== "Robot" && a.lavoro === "Disoccupato" && !(a.fazioni?.includes("Schiavi") ?? false)
   ).length;
   const spesaRedditoCittadinanza = (redditoCittadinanza ?? 0) * beneficiariRedditoCittadinanza;
 
-  // Entrate da Residenze: prezzo impostato per tipo × residenti in ogni edificio residenza
-  const edificiResidenza = edifici.filter((e) => e.tipo === "Residenza" && e.stato === "Operativo");
-  const entrateResidenzeDettaglio = edificiResidenza.map((edificio) => {
-    const defaultPrezzo = RESIDENZE_CATALOGO.find((r) => r.nome === edificio.nome)?.costoMensile ?? 0;
-    const prezzo = prezzoResidenze[edificio.nome] ?? defaultPrezzo;
-    const residenti = edificio.abitantiAssegnati?.length ?? 0;
-    const entrata = prezzo * residenti;
-    return { edificio, prezzo, residenti, entrata };
-  });
-  const totaleEntrateResidenze = entrateResidenzeDettaglio.reduce((sum, e) => sum + e.entrata, 0);
+  let totaleEntrateResidenze = 0;
+  for (const e of edifici) {
+    if (e.tipo !== "Residenza" || e.stato !== "Operativo") continue;
+    const defaultPrezzo = RESIDENZE_CATALOGO.find((r) => r.nome === e.nome)?.costoMensile ?? 0;
+    const prezzo = prezzoResidenze[e.nome] ?? defaultPrezzo;
+    totaleEntrateResidenze += prezzo * (e.abitantiAssegnati?.length ?? 0);
+  }
 
   const totaleNetto =
     totaleRedditi + totaleEntrateResidenze - totaleSpese - totaleStipendiEdifici - spesaRedditoCittadinanza;
@@ -105,153 +98,53 @@ export default function CreditiScreen() {
           </View>
         </View>
 
-        <Text style={styles.pageTitle}>Dettaglio entrate e uscite</Text>
+        {/* Unico blocco: Dettaglio entrate e uscite */}
+        <View style={styles.bilancioCard}>
+          <Text style={styles.pageTitle}>Dettaglio entrate e uscite</Text>
 
-        {/* Entrate da Residenze */}
-        <View style={styles.entrateResidenzeCard}>
-          <Text style={styles.sectionTitle}>Entrate da Residenze</Text>
-          {entrateResidenzeDettaglio.length > 0 ? (
-            <>
-              <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-                {entrateResidenzeDettaglio.map(({ edificio, prezzo, residenti, entrata }) => (
-                  <View key={edificio.id} style={styles.item}>
-                    <Text style={styles.itemEmoji}>{edificio.emoji}</Text>
-                    <View style={styles.itemContent}>
-                      <Text style={styles.itemNome}>{edificio.nome}</Text>
-                      <View style={styles.itemRow}>
-                        <Text style={styles.itemLabel}>Prezzo</Text>
-                        <Text style={styles.itemLabel}>{prezzo} cr/mese</Text>
-                      </View>
-                      <View style={styles.itemRow}>
-                        <Text style={styles.itemLabel}>Residenti</Text>
-                        <Text style={styles.itemLabel}>{residenti}</Text>
-                      </View>
-                      <View style={styles.itemRow}>
-                        <Text style={styles.itemLabel}>Entrata mensile</Text>
-                        <Text style={styles.valorePositivo}>+{entrata}</Text>
-                      </View>
-                    </View>
-                  </View>
-                ))}
-              </ScrollView>
-              <View style={styles.totaleRow}>
-                <Text style={styles.totaleLabel}>Totale entrate da residenze</Text>
-                <Text style={styles.totaleValorePositivo}>+{totaleEntrateResidenze}</Text>
-              </View>
-            </>
-          ) : (
-            <Text style={styles.emptyText}>Nessuna residenza con residenti</Text>
+          {/* Entrate: una voce Residenze */}
+          <View style={styles.bilancioRow}>
+            <Text style={styles.bilancioEmoji}>🏠</Text>
+            <Text style={styles.bilancioLabel}>Residenze</Text>
+            <Text style={[styles.bilancioValore, styles.valorePositivo]}>
+              +{totaleEntrateResidenze}
+            </Text>
+          </View>
+
+          {/* Uscite: Redditi di Cittadinanza (se attivo) */}
+          {(redditoCittadinanza ?? 0) > 0 && (
+            <View style={styles.bilancioRow}>
+              <Text style={styles.bilancioEmoji}>💳</Text>
+              <Text style={styles.bilancioLabel}>Redditi di Cittadinanza</Text>
+              <Text style={[styles.bilancioValore, styles.valoreNegativo]}>
+                -{spesaRedditoCittadinanza}
+              </Text>
+            </View>
           )}
-        </View>
 
-        <View style={[styles.twoCols, !isDesktop && styles.twoColsStack]}>
-          <View style={[styles.col, !isDesktop && styles.colFull]}>
-            <Text style={styles.sectionTitle}>Redditi e spese abitanti</Text>
-            <View style={styles.card}>
-              {entrateAbitanti.length > 0 ? (
-                <>
-                  <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-                    {entrateAbitanti.map(({ abitante, reddito, spese, netto }) => (
-                      <View key={abitante.id} style={styles.item}>
-                        <Text style={styles.itemEmoji}>{getEmojiAbitante(abitante)}</Text>
-                        <View style={styles.itemContent}>
-                          <Text style={styles.itemNome}>{abitante.nome}</Text>
-                          <View style={styles.itemRow}>
-                            <Text style={styles.itemLabel}>Reddito</Text>
-                            <Text style={styles.valorePositivo}>+{reddito}</Text>
-                          </View>
-                          <View style={styles.itemRow}>
-                            <Text style={styles.itemLabel}>Spese</Text>
-                            <Text style={styles.valoreNegativo}>-{spese}</Text>
-                          </View>
-                          <View style={styles.itemRow}>
-                            <Text style={styles.itemLabel}>Netto</Text>
-                            <Text style={[styles.valoreNetto, netto >= 0 ? styles.valorePositivo : styles.valoreNegativo]}>
-                              {netto >= 0 ? "+" : ""}{netto}
-                            </Text>
-                          </View>
-                        </View>
-                      </View>
-                    ))}
-                  </ScrollView>
-                  <View style={styles.totaleRow}>
-                    <Text style={styles.totaleLabel}>Totale redditi</Text>
-                    <Text style={styles.totaleValorePositivo}>+{totaleRedditi}</Text>
-                  </View>
-                  <View style={styles.totaleRow}>
-                    <Text style={styles.totaleLabel}>Totale spese abitanti</Text>
-                    <Text style={styles.totaleValoreNegativo}>-{totaleSpese}</Text>
-                  </View>
-                </>
-              ) : (
-                <Text style={styles.emptyText}>Nessun abitante con reddito/spese (esclusi i Robot)</Text>
-              )}
+          {/* Uscite: una riga per tipo di edificio (Ospedale, Serra, ecc.) */}
+          {spesePerTipoEdificio.map(({ nome, emoji, costo }) => (
+            <View key={nome} style={styles.bilancioRow}>
+              <Text style={styles.bilancioEmoji}>{emoji}</Text>
+              <Text style={styles.bilancioLabel}>{nome}</Text>
+              <Text style={[styles.bilancioValore, styles.valoreNegativo]}>-{costo}</Text>
             </View>
-          </View>
+          ))}
 
-          <View style={[styles.col, !isDesktop && styles.colFull]}>
-            <Text style={styles.sectionTitle}>Stipendi edifici</Text>
-            <View style={styles.card}>
-              {speseEdifici.length > 0 ? (
-                <>
-                  <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
-                    {speseEdifici.map(({ edificio, stipendioPerLavoratore, lavoratori, costo }) => (
-                      <View key={edificio.id} style={styles.item}>
-                        <Text style={styles.itemEmoji}>{edificio.emoji}</Text>
-                        <View style={styles.itemContent}>
-                          <Text style={styles.itemNome}>{edificio.nome}</Text>
-                          <View style={styles.itemRow}>
-                            <Text style={styles.itemLabel}>Stipendio/lavoratore</Text>
-                            <Text style={styles.itemLabel}>{stipendioPerLavoratore} crediti/mese</Text>
-                          </View>
-                          <View style={styles.itemRow}>
-                            <Text style={styles.itemLabel}>Lavoratori</Text>
-                            <Text style={styles.itemLabel}>{lavoratori}</Text>
-                          </View>
-                          <View style={styles.itemRow}>
-                            <Text style={styles.itemLabel}>Costo mensile</Text>
-                            <Text style={styles.valoreNegativo}>-{costo}</Text>
-                          </View>
-                        </View>
-                      </View>
-                    ))}
-                  </ScrollView>
-                  <View style={styles.totaleRow}>
-                    <Text style={styles.totaleLabel}>Totale stipendi edifici</Text>
-                    <Text style={styles.totaleValoreNegativo}>-{totaleStipendiEdifici}</Text>
-                  </View>
-                </>
-              ) : (
-                <Text style={styles.emptyText}>Nessun edificio operativo</Text>
-              )}
-            </View>
+          {/* Riga totale */}
+          <View style={[styles.bilancioRow, styles.bilancioRowTotale]}>
+            <Text style={styles.bilancioEmoji}>📊</Text>
+            <Text style={styles.bilancioLabelTotale}>Bilancio mensile</Text>
+            <Text
+              style={[
+                styles.bilancioValoreTotale,
+                totaleNetto >= 0 ? styles.valorePositivo : styles.valoreNegativo
+              ]}
+            >
+              {totaleNetto >= 0 ? "+" : ""}{totaleNetto}
+            </Text>
           </View>
         </View>
-
-        {/* Redditi di Cittadinanza (costo per il regno) */}
-        {(redditoCittadinanza ?? 0) > 0 && (
-          <View style={[styles.card, { marginTop: 12 }]}>
-            <Text style={styles.sectionTitle}>Redditi di Cittadinanza</Text>
-            <View style={styles.item}>
-              <Text style={styles.itemEmoji}>🏠</Text>
-              <View style={styles.itemContent}>
-                <Text style={styles.itemNome}>Importo per beneficiario</Text>
-                <View style={styles.itemRow}>
-                  <Text style={styles.itemLabel}>Beneficiari (disoccupati non schiavi)</Text>
-                  <Text style={styles.itemLabel}>{beneficiariRedditoCittadinanza}</Text>
-                </View>
-                <View style={styles.itemRow}>
-                  <Text style={styles.itemLabel}>Costo mensile per il regno</Text>
-                  <Text style={styles.valoreNegativo}>-{spesaRedditoCittadinanza}</Text>
-                </View>
-              </View>
-            </View>
-            <View style={styles.totaleRow}>
-              <Text style={styles.totaleLabel}>Totale Redditi di Cittadinanza</Text>
-              <Text style={styles.totaleValoreNegativo}>-{spesaRedditoCittadinanza}</Text>
-            </View>
-          </View>
-        )}
 
         <Pressable style={styles.linkRow} onPress={() => router.push("/tassa-reddito")}>
           <Text style={styles.linkText}>Configura tassa sul reddito →</Text>
@@ -335,86 +228,60 @@ const styles = StyleSheet.create({
     color: "#93c5fd",
     fontSize: 10,
     fontWeight: "600",
-    marginBottom: 6,
+    marginBottom: 10,
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
-  entrateResidenzeCard: {
+  bilancioCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 8,
-    padding: 10,
-    marginBottom: 12,
+    padding: 12,
+    paddingBottom: 16,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.4)"
   },
-  twoCols: {
+  bilancioRow: {
     flexDirection: "row",
-    gap: 12,
-    alignItems: "flex-start"
-  },
-  twoColsStack: {
-    flexDirection: "column",
-    gap: 12
-  },
-  col: {
-    flex: 1,
-    minWidth: 0
-  },
-  colFull: {
-    marginBottom: 0
-  },
-  sectionTitle: {
-    color: "#93c5fd",
-    fontSize: 10,
-    fontWeight: "600",
-    marginBottom: 6,
-    textTransform: "uppercase",
-    letterSpacing: 0.5
-  },
-  card: {
-    backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.4)"
-  },
-  list: {
-    maxHeight: 260,
-    marginBottom: 8
-  },
-  item: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 6,
-    marginBottom: 4,
-    backgroundColor: "rgba(15,23,42,0.8)",
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.2)"
-  },
-  itemEmoji: {
-    fontSize: 20,
-    marginRight: 8
-  },
-  itemContent: {
-    flex: 1
-  },
-  itemNome: {
-    color: "#e5e7eb",
-    fontSize: 11,
-    fontWeight: "600",
-    marginBottom: 4
-  },
-  itemRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
     alignItems: "center",
-    marginBottom: 2
+    paddingVertical: 8,
+    paddingHorizontal: 4,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(148,163,184,0.2)"
   },
-  itemLabel: {
-    color: "rgba(203,213,245,0.7)",
-    fontSize: 10
+  bilancioEmoji: {
+    fontSize: 18,
+    width: 28,
+    textAlign: "center"
+  },
+  bilancioLabel: {
+    flex: 1,
+    color: "#e5e7eb",
+    fontSize: 12
+  },
+  bilancioValore: {
+    fontSize: 12,
+    fontWeight: "600",
+    minWidth: 56,
+    textAlign: "right"
+  },
+  bilancioRowTotale: {
+    borderBottomWidth: 0,
+    borderTopWidth: 2,
+    borderTopColor: "rgba(148,163,184,0.4)",
+    marginTop: 6,
+    paddingTop: 12
+  },
+  bilancioLabelTotale: {
+    flex: 1,
+    color: "#93c5fd",
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  bilancioValoreTotale: {
+    fontSize: 14,
+    fontWeight: "700",
+    minWidth: 56,
+    textAlign: "right"
   },
   valorePositivo: {
     color: "#4ade80",
