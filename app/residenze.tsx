@@ -3,26 +3,7 @@ import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "re
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
-
-type ResidenzaTipo = {
-  id: string;
-  nome: string;
-  emoji: string;
-  felicità: number;
-  costoMensile: number;
-  energiaMensile: number;
-  abitanti: number;
-};
-
-/** Catalogo tipi di residenza (ordine per le 6 colonne). */
-const RESIDENZE_CATALOGO: ResidenzaTipo[] = [
-  { id: "baracca", nome: "Baracca", emoji: "🛖", felicità: 5, costoMensile: 100, energiaMensile: 2, abitanti: 2 },
-  { id: "dormitorio", nome: "Dormitorio", emoji: "🛏️", felicità: 10, costoMensile: 250, energiaMensile: 5, abitanti: 10 },
-  { id: "modulo", nome: "Modulo", emoji: "📦", felicità: 30, costoMensile: 800, energiaMensile: 15, abitanti: 4 },
-  { id: "villetta", nome: "Villetta", emoji: "🏡", felicità: 45, costoMensile: 1500, energiaMensile: 25, abitanti: 5 },
-  { id: "attico", nome: "Attico", emoji: "🏢", felicità: 80, costoMensile: 5000, energiaMensile: 60, abitanti: 3 },
-  { id: "villa", nome: "Villa", emoji: "🏰", felicità: 120, costoMensile: 12000, energiaMensile: 100, abitanti: 6 }
-];
+import { RESIDENZE_CATALOGO } from "../src/data/residenzeData";
 
 export default function ResidenzeScreen() {
   const router = useRouter();
@@ -49,7 +30,7 @@ export default function ResidenzeScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={true}>
         <Text style={styles.intro}>
-          Costi in crediti ed energia sono mensili (ogni Skip Mese). Colonia e catalogo unificati.
+          Costi in crediti ed energia sono mensili (ogni Skip Mese). L'energia è consumata per ogni residente (es. Baracca 0, Dormitorio 1 MW/abitante). Colonia e catalogo unificati.
         </Text>
 
         <View style={styles.sezione}>
@@ -80,7 +61,12 @@ export default function ResidenzeScreen() {
                   </View>
                   <View style={styles.cardRow}>
                     <Text style={styles.cardLabel}>Energia</Text>
-                    <Text style={styles.cardValore}>{r.energiaMensile}/mese</Text>
+                    <Text style={styles.cardValore}>
+                      {r.energiaPerAbitante} MW/abitante
+                      {ed != null && (ed.abitantiAssegnati ?? []).length > 0
+                        ? ` → ${r.energiaPerAbitante * (ed.abitantiAssegnati ?? []).length} MW/mese`
+                        : ""}
+                    </Text>
                   </View>
                   <View style={styles.cardRow}>
                     <Text style={styles.cardLabel}>Abitanti</Text>

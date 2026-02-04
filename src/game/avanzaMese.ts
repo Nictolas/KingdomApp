@@ -1,6 +1,7 @@
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso } from "../types";
 import { EVENTI_CATALOGO } from "./eventi/index";
 import { getConsumoCibo, getConsumoAcqua, getProduzioneCiboPerAbitante } from "./ciboConsumo";
+import { RESIDENZE_ENERGIA_PER_ABITANTE } from "../data/residenzeData";
 
 export type AvanzaMeseInput = {
   abitanti: Abitante[];
@@ -415,6 +416,13 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     if (risorsa.nome === "Energia") {
       const numRobots = nuoviAbitanti.filter((a) => a.razza === "Robot").length;
       nuovaQuantità -= numRobots * 2;
+      // Residenze: consumo energia per abitante (es. Baracca 0, Dormitorio 1 MW/abitante)
+      nuoviEdifici.forEach((edificio) => {
+        if (edificio.stato !== "Operativo" || edificio.tipo !== "Residenza") return;
+        const perAbitante = RESIDENZE_ENERGIA_PER_ABITANTE[edificio.nome] ?? 0;
+        const numAbitanti = (edificio.abitantiAssegnati ?? []).length;
+        nuovaQuantità -= perAbitante * numAbitanti;
+      });
     }
 
     if (risorsa.nome.toLowerCase().includes("cibo") && totaleCiboProdotto > 0) {

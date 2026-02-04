@@ -1,15 +1,13 @@
-import React, { useState } from "react";
+import React from "react";
 import { ActivityIndicator, Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { fazioniData, leggiData } from "../kingdomData";
 import { useGameContext } from "../context/GameContext";
 import type { Risorsa, Abitante } from "../types";
-import { EnergiaModal } from "../ui/EnergiaModal";
 
 export default function GridGame() {
   const router = useRouter();
   const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, calcolaDeltaOrdiniMercato, calcolaFelicitàModificata, abitantiProposti, punteggioSanzioni } = useGameContext();
-  const [showEnergiaModal, setShowEnergiaModal] = useState(false);
 
   const criminali = abitanti.filter((a: Abitante) => (a.reati?.length ?? 0) > 0);
   const personalitàUniche = Array.from(new Set(abitanti.map((a: Abitante) => a.personalità))).filter(Boolean);
@@ -111,7 +109,7 @@ export default function GridGame() {
                     : isCrediti
                     ? () => router.push("/crediti")
                     : isEnergia
-                    ? () => setShowEnergiaModal(true)
+                    ? () => router.push("/energia")
                     : isAcqua
                     ? () => router.push("/acqua")
                     : isRifiuti
@@ -248,12 +246,6 @@ export default function GridGame() {
         </Pressable>
       </View>
 
-      <EnergiaModal
-        visible={showEnergiaModal}
-        edifici={edifici}
-        abitanti={abitanti}
-        onClose={() => setShowEnergiaModal(false)}
-      />
     </View>
   );
 }

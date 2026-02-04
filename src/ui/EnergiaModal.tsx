@@ -1,6 +1,7 @@
 import React from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Edificio, Abitante } from "../types";
+import { RESIDENZE_ENERGIA_PER_ABITANTE } from "../data/residenzeData";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type EnergiaModalProps = {
@@ -31,6 +32,16 @@ export function EnergiaModal({ visible, edifici, abitanti = [], onClose }: Energ
       };
     });
 
+  // Residenze: consumo = energiaPerAbitante × numero residenti
+  const consumiResidenze = edifici
+    .filter((e) => e.tipo === "Residenza" && e.stato === "Operativo")
+    .map((e) => {
+      const perAbitante = RESIDENZE_ENERGIA_PER_ABITANTE[e.nome] ?? 0;
+      const numAbitanti = (e.abitantiAssegnati ?? []).length;
+      return { edificio: e, consumo: perAbitante * numAbitanti };
+    })
+    .filter((c) => c.consumo > 0);
+
   // Calcola la produzione di energia
   const produzioneEnergia = edifici
     .filter((edificio) => {
@@ -55,8 +66,10 @@ export function EnergiaModal({ visible, edifici, abitanti = [], onClose }: Energ
   const numRobots = abitanti.filter((a) => a.razza === "Robot").length;
   const consumoRobots = numRobots * ENERGIA_PER_ROBOT;
 
-  // Calcola i totali
-  const totaleConsumo = consumiEnergia.reduce((sum, c) => sum + c.consumo, 0) + consumoRobots;
+  const totaleConsumo =
+    consumiEnergia.reduce((sum, c) => sum + c.consumo, 0) +
+    consumiResidenze.reduce((sum, c) => sum + c.consumo, 0) +
+    consumoRobots;
   const totaleProduzione = produzioneEnergia.reduce((sum, p) => sum + p.produzione, 0);
   const bilancio = totaleProduzione - totaleConsumo;
   const { width } = Dimensions.get("window");
@@ -100,7 +113,7 @@ export function EnergiaModal({ visible, edifici, abitanti = [], onClose }: Energ
           {/* Consumo */}
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Consumo</Text>
-            {consumiEnergia.length > 0 ? (
+            {consumiEnergia.length > 0 || consumiResidenze.length > 0 || numRobots > 0 ? (
               <>
                 <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
                   {consumiEnergia.map(({ edificio, consumo }) => (
@@ -115,12 +128,30 @@ export function EnergiaModal({ visible, edifici, abitanti = [], onClose }: Energ
                         <View style={styles.itemRow}>
                           <Text style={styles.label}>Occupazione:</Text>
                           <Text style={styles.dettaglio}>
-                            {edificio.occupazione}/{edificio.capacità} ({Math.floor((edificio.occupazione / edificio.capacità) * 100)}%)
+                            {edificio.occupazione}/{edificio.capacità} ({Math.floor(((edificio.occupazione || 0) / (edificio.capacità || 1)) * 100)}%)
                           </Text>
                         </View>
                         <View style={styles.itemRow}>
                           <Text style={styles.label}>Efficienza:</Text>
                           <Text style={styles.dettaglio}>{edificio.efficienza}%</Text>
+                        </View>
+                      </View>
+                    </View>
+                  ))}
+                  {consumiResidenze.map(({ edificio, consumo }) => (
+                    <View key={edificio.id} style={styles.item}>
+                      <Text style={styles.emoji}>{edificio.emoji}</Text>
+                      <View style={styles.itemContent}>
+                        <Text style={styles.nome}>{edificio.nome} (residenza)</Text>
+                        <View style={styles.itemRow}>
+                          <Text style={styles.label}>Consumo:</Text>
+                          <Text style={styles.valoreNegativo}>-{consumo} MW</Text>
+                        </View>
+                        <View style={styles.itemRow}>
+                          <Text style={styles.label}>Abitanti:</Text>
+                          <Text style={styles.dettaglio}>
+                            {(edificio.abitantiAssegnati ?? []).length} × {RESIDENZE_ENERGIA_PER_ABITANTE[edificio.nome] ?? 0} MW
+                          </Text>
                         </View>
                       </View>
                     </View>
