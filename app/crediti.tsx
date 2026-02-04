@@ -4,6 +4,29 @@ import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { RESIDENZE_CATALOGO } from "../src/data/residenzeData";
 
+/** Route per le voci del bilancio (clic sulla riga). */
+function getRoutePerVoceBilancio(label: string): string | null {
+  const map: Record<string, string> = {
+    Residenze: "/residenze",
+    "Redditi di Cittadinanza": "/reddito-cittadinanza",
+    "Ordini di Mercato": "/mercato",
+    "Ospedale Coloniale": "/ospedale",
+    Serra: "/serra",
+    "Centrale Energetica": "/centrale-energetica",
+    "Raffineria Mineraria": "/raffineria-mineraria",
+    "Impianto di Riciclo": "/impianto-riciclo",
+    Dissalatore: "/dissalatore",
+    Scuola: "/scuola",
+    Tribunale: "/tribunale",
+    "Centro di Comando": "/ministri",
+    Bar: "/bar",
+    Caserma: "/caserma",
+    Baracca: "/residenze",
+    Dormitorio: "/residenze"
+  };
+  return map[label] ?? null;
+}
+
 export default function CreditiScreen() {
   const router = useRouter();
   const { abitanti, edifici, risorse, calcolaDeltaOrdiniMercato, prezzoResidenze, redditoCittadinanza } = useGameContext();
@@ -59,6 +82,9 @@ export default function CreditiScreen() {
   const isDesktop = width > 768;
   const contentMaxWidth = isDesktop ? 1000 : undefined;
 
+  const haOrdiniEntrata = deltaCrediti > 0;
+  const haOrdiniUscita = deltaCrediti < 0;
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
@@ -98,51 +124,82 @@ export default function CreditiScreen() {
           </View>
         </View>
 
-        {/* Unico blocco: Dettaglio entrate e uscite */}
+        {/* Dettaglio: colonna Entrate e colonna Uscite */}
         <View style={styles.bilancioCard}>
           <Text style={styles.pageTitle}>Dettaglio entrate e uscite</Text>
 
-          {/* Entrate: una voce Residenze */}
-          <View style={styles.bilancioRow}>
-            <Text style={styles.bilancioEmoji}>🏠</Text>
-            <Text style={styles.bilancioLabel}>Residenze</Text>
-            <Text style={[styles.bilancioValore, styles.valorePositivo]}>
-              +{totaleEntrateResidenze}
-            </Text>
-          </View>
-
-          {/* Uscite: Redditi di Cittadinanza (se attivo) */}
-          {(redditoCittadinanza ?? 0) > 0 && (
-            <View style={styles.bilancioRow}>
-              <Text style={styles.bilancioEmoji}>💳</Text>
-              <Text style={styles.bilancioLabel}>Redditi di Cittadinanza</Text>
-              <Text style={[styles.bilancioValore, styles.valoreNegativo]}>
-                -{spesaRedditoCittadinanza}
-              </Text>
+          <View style={[styles.dueColonne, !isDesktop && styles.dueColonneStack]}>
+            {/* Colonna Entrate */}
+            <View style={styles.colonna}>
+              <Text style={styles.colonnaTitolo}>Entrate</Text>
+              <Pressable
+                style={styles.bilancioRow}
+                onPress={() => getRoutePerVoceBilancio("Residenze") && router.push(getRoutePerVoceBilancio("Residenze")!)}
+              >
+                <Text style={styles.bilancioEmoji}>🏠</Text>
+                <Text style={styles.bilancioLabel}>Residenze</Text>
+                <Text style={[styles.bilancioValore, styles.valorePositivo]}>+{totaleEntrateResidenze}</Text>
+              </Pressable>
+              {haOrdiniEntrata && (
+                <Pressable
+                  style={styles.bilancioRow}
+                  onPress={() => getRoutePerVoceBilancio("Ordini di Mercato") && router.push(getRoutePerVoceBilancio("Ordini di Mercato")!)}
+                >
+                  <Text style={styles.bilancioEmoji}>📦</Text>
+                  <Text style={styles.bilancioLabel}>Ordini di Mercato</Text>
+                  <Text style={[styles.bilancioValore, styles.valorePositivo]}>+{deltaCrediti}</Text>
+                </Pressable>
+              )}
+              {!haOrdiniEntrata && deltaCrediti === 0 && (
+                <Pressable
+                  style={styles.bilancioRow}
+                  onPress={() => getRoutePerVoceBilancio("Ordini di Mercato") && router.push(getRoutePerVoceBilancio("Ordini di Mercato")!)}
+                >
+                  <Text style={styles.bilancioEmoji}>📦</Text>
+                  <Text style={styles.bilancioLabel}>Ordini di Mercato</Text>
+                  <Text style={[styles.bilancioValore, styles.valorePositivo]}>0</Text>
+                </Pressable>
+              )}
             </View>
-          )}
 
-          {/* Uscite: una riga per tipo di edificio (Ospedale, Serra, ecc.) */}
-          {spesePerTipoEdificio.map(({ nome, emoji, costo }) => (
-            <View key={nome} style={styles.bilancioRow}>
-              <Text style={styles.bilancioEmoji}>{emoji}</Text>
-              <Text style={styles.bilancioLabel}>{nome}</Text>
-              <Text style={[styles.bilancioValore, styles.valoreNegativo]}>-{costo}</Text>
+            {/* Colonna Uscite */}
+            <View style={styles.colonna}>
+              <Text style={styles.colonnaTitolo}>Uscite</Text>
+              {(redditoCittadinanza ?? 0) > 0 && (
+                <Pressable
+                  style={styles.bilancioRow}
+                  onPress={() => getRoutePerVoceBilancio("Redditi di Cittadinanza") && router.push(getRoutePerVoceBilancio("Redditi di Cittadinanza")!)}
+                >
+                  <Text style={styles.bilancioEmoji}>💳</Text>
+                  <Text style={styles.bilancioLabel}>Redditi di Cittadinanza</Text>
+                  <Text style={[styles.bilancioValore, styles.valoreNegativo]}>-{spesaRedditoCittadinanza}</Text>
+                </Pressable>
+              )}
+              {spesePerTipoEdificio.map(({ nome, emoji, costo }) => {
+                const route = getRoutePerVoceBilancio(nome);
+                return (
+                  <Pressable
+                    key={nome}
+                    style={styles.bilancioRow}
+                    onPress={() => route && router.push(route)}
+                  >
+                    <Text style={styles.bilancioEmoji}>{emoji}</Text>
+                    <Text style={styles.bilancioLabel}>{nome}</Text>
+                    <Text style={[styles.bilancioValore, styles.valoreNegativo]}>-{costo}</Text>
+                  </Pressable>
+                );
+              })}
+              {haOrdiniUscita && (
+                <Pressable
+                  style={styles.bilancioRow}
+                  onPress={() => getRoutePerVoceBilancio("Ordini di Mercato") && router.push(getRoutePerVoceBilancio("Ordini di Mercato")!)}
+                >
+                  <Text style={styles.bilancioEmoji}>📦</Text>
+                  <Text style={styles.bilancioLabel}>Ordini di Mercato</Text>
+                  <Text style={[styles.bilancioValore, styles.valoreNegativo]}>{deltaCrediti}</Text>
+                </Pressable>
+              )}
             </View>
-          ))}
-
-          {/* Ordini di Mercato (effetto sui crediti al prossimo avanzamento) */}
-          <View style={styles.bilancioRow}>
-            <Text style={styles.bilancioEmoji}>📦</Text>
-            <Text style={styles.bilancioLabel}>Ordini di Mercato</Text>
-            <Text
-              style={[
-                styles.bilancioValore,
-                deltaCrediti >= 0 ? styles.valorePositivo : styles.valoreNegativo
-              ]}
-            >
-              {deltaCrediti >= 0 ? "+" : ""}{deltaCrediti}
-            </Text>
           </View>
 
           {/* Riga totale */}
@@ -253,6 +310,30 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.4)"
+  },
+  dueColonne: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "flex-start"
+  },
+  dueColonneStack: {
+    flexDirection: "column",
+    gap: 6
+  },
+  colonna: {
+    flex: 1,
+    minWidth: 0
+  },
+  colonnaTitolo: {
+    color: "#93c5fd",
+    fontSize: 9,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+    marginBottom: 4,
+    paddingBottom: 2,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(148,163,184,0.4)"
   },
   bilancioRow: {
     flexDirection: "row",
