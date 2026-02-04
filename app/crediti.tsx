@@ -8,7 +8,7 @@ import type { Abitante, Edificio } from "../src/types";
 
 export default function CreditiScreen() {
   const router = useRouter();
-  const { abitanti, edifici, risorse, calcolaDeltaOrdiniMercato, prezzoResidenze } = useGameContext();
+  const { abitanti, edifici, risorse, calcolaDeltaOrdiniMercato, prezzoResidenze, redditoCittadinanza } = useGameContext();
 
   const saldoCrediti = risorse.find((r) => r.nome === "Crediti")?.quantità ?? 0;
 
@@ -43,6 +43,11 @@ export default function CreditiScreen() {
   const totaleSpese = abitanti.filter((a) => a.razza !== "Robot").reduce((sum, a) => sum + a.spese, 0);
   const totaleStipendiEdifici = speseEdifici.reduce((sum, s) => sum + s.costo, 0);
 
+  const beneficiariRedditoCittadinanza = abitanti.filter(
+    (a) => a.razza !== "Robot" && a.lavoro === "Disoccupato" && !(a.fazioni?.includes("Schiavi") ?? false)
+  ).length;
+  const spesaRedditoCittadinanza = (redditoCittadinanza ?? 0) * beneficiariRedditoCittadinanza;
+
   // Entrate da Residenze: prezzo impostato per tipo × residenti in ogni edificio residenza
   const edificiResidenza = edifici.filter((e) => e.tipo === "Residenza" && e.stato === "Operativo");
   const entrateResidenzeDettaglio = edificiResidenza.map((edificio) => {
@@ -54,7 +59,8 @@ export default function CreditiScreen() {
   });
   const totaleEntrateResidenze = entrateResidenzeDettaglio.reduce((sum, e) => sum + e.entrata, 0);
 
-  const totaleNetto = totaleRedditi + totaleEntrateResidenze - totaleSpese - totaleStipendiEdifici;
+  const totaleNetto =
+    totaleRedditi + totaleEntrateResidenze - totaleSpese - totaleStipendiEdifici - spesaRedditoCittadinanza;
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -221,6 +227,31 @@ export default function CreditiScreen() {
             </View>
           </View>
         </View>
+
+        {/* Redditi di Cittadinanza (costo per il regno) */}
+        {(redditoCittadinanza ?? 0) > 0 && (
+          <View style={[styles.card, { marginTop: 12 }]}>
+            <Text style={styles.sectionTitle}>Redditi di Cittadinanza</Text>
+            <View style={styles.item}>
+              <Text style={styles.itemEmoji}>🏠</Text>
+              <View style={styles.itemContent}>
+                <Text style={styles.itemNome}>Importo per beneficiario</Text>
+                <View style={styles.itemRow}>
+                  <Text style={styles.itemLabel}>Beneficiari (disoccupati non schiavi)</Text>
+                  <Text style={styles.itemLabel}>{beneficiariRedditoCittadinanza}</Text>
+                </View>
+                <View style={styles.itemRow}>
+                  <Text style={styles.itemLabel}>Costo mensile per il regno</Text>
+                  <Text style={styles.valoreNegativo}>-{spesaRedditoCittadinanza}</Text>
+                </View>
+              </View>
+            </View>
+            <View style={styles.totaleRow}>
+              <Text style={styles.totaleLabel}>Totale Redditi di Cittadinanza</Text>
+              <Text style={styles.totaleValoreNegativo}>-{spesaRedditoCittadinanza}</Text>
+            </View>
+          </View>
+        )}
 
         <Pressable style={styles.linkRow} onPress={() => router.push("/tassa-reddito")}>
           <Text style={styles.linkText}>Configura tassa sul reddito →</Text>

@@ -14,6 +14,8 @@ type AbitanteInfoModalProps = {
   getAbitanteNome: (id: number) => string;
   calcolaFelicitàModificata?: (abitante: Abitante) => number;
   etaMinimaLavoro?: number;
+  /** Importo reddito di cittadinanza: per disoccupati non schiavi il reddito mostrato include questo importo. */
+  redditoCittadinanza?: number;
 };
 
 export function AbitanteInfoModal({
@@ -22,7 +24,8 @@ export function AbitanteInfoModal({
   onClose,
   getAbitanteNome,
   calcolaFelicitàModificata,
-  etaMinimaLavoro = 18
+  etaMinimaLavoro = 18,
+  redditoCittadinanza = 0
 }: AbitanteInfoModalProps) {
   if (!abitante) return null;
 
@@ -30,6 +33,13 @@ export function AbitanteInfoModal({
   const lavoroDaMinore = LAVORI_DA_MINORE.includes(abitante.lavoro);
   const emojiDisplay = maggiorenne && lavoroDaMinore ? "👤" : getEmojiAbitante(abitante);
   const lavoroDisplay = maggiorenne && lavoroDaMinore ? "Disoccupato" : abitante.lavoro;
+
+  const èBeneficiario =
+    abitante.razza !== "Robot" &&
+    lavoroDisplay === "Disoccupato" &&
+    !(abitante.fazioni?.includes("Schiavi") ?? false) &&
+    redditoCittadinanza > 0;
+  const redditoEffettivo = abitante.razza === "Robot" ? 0 : abitante.reddito + (èBeneficiario ? redditoCittadinanza : 0);
 
   const formatPercentuale = (valore: number) => `${valore}%`;
   const formatMonete = (valore: number) => `${valore} crediti`;
@@ -130,10 +140,10 @@ export function AbitanteInfoModal({
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Economia</Text>
               <Text style={styles.line}>Crediti: {abitante.razza === "Robot" ? "—" : formatMonete(abitante.crediti)}</Text>
-              <Text style={styles.line}>Reddito: {abitante.razza === "Robot" ? "—" : `${formatMonete(abitante.reddito)}/mese`}</Text>
+              <Text style={styles.line}>Reddito: {abitante.razza === "Robot" ? "—" : `${formatMonete(redditoEffettivo)}/mese`}</Text>
               <Text style={styles.line}>Spese: {abitante.razza === "Robot" ? "—" : `${formatMonete(abitante.spese)}/mese`}</Text>
               <Text style={styles.line}>
-                Saldo mensile: {abitante.razza === "Robot" ? "—" : formatMonete(abitante.reddito - abitante.spese)}
+                Saldo mensile: {abitante.razza === "Robot" ? "—" : formatMonete(redditoEffettivo - abitante.spese)}
               </Text>
             </View>
 

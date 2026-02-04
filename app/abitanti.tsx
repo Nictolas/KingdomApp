@@ -89,9 +89,18 @@ function getLavoroDisplay(abitante: Abitante, etaMinimaLavoro: number): string {
   return abitante.lavoro;
 }
 
+/** Reddito da mostrare: per beneficiari (Disoccupato non schiavo) include il reddito di cittadinanza. */
+function getRedditoDisplay(abitante: Abitante, etaMinimaLavoro: number, redditoCittadinanza: number): number {
+  if (abitante.razza === "Robot") return 0;
+  const lavoroDisplay = getLavoroDisplay(abitante, etaMinimaLavoro);
+  const èSchiavo = abitante.fazioni?.includes("Schiavi") ?? false;
+  const beneficiario = lavoroDisplay === "Disoccupato" && !èSchiavo && redditoCittadinanza > 0;
+  return beneficiario ? abitante.reddito + redditoCittadinanza : abitante.reddito;
+}
+
 export default function AbitantiScreen() {
   const router = useRouter();
-  const { abitanti, edifici, calcolaFelicitàModificata, etaMinimaLavoro } = useGameContext();
+  const { abitanti, edifici, calcolaFelicitàModificata, etaMinimaLavoro, redditoCittadinanza } = useGameContext();
   const [selectedAbitante, setSelectedAbitante] = useState<Abitante | null>(null);
   const [sortField, setSortField] = useState<SortField>(null);
   const [sortDirection, setSortDirection] = useState<SortDirection>("asc");
@@ -189,6 +198,9 @@ export default function AbitantiScreen() {
       } else if (sortField === "familiari") {
         aValue = getFamiliariSortKey(a);
         bValue = getFamiliariSortKey(b);
+      } else if (sortField === "reddito") {
+        aValue = getRedditoDisplay(a, etaMinimaLavoro, redditoCittadinanza ?? 0);
+        bValue = getRedditoDisplay(b, etaMinimaLavoro, redditoCittadinanza ?? 0);
       } else {
         aValue = a[sortField as keyof Abitante] as number;
         bValue = b[sortField as keyof Abitante] as number;
@@ -206,7 +218,7 @@ export default function AbitantiScreen() {
     });
 
     return sorted;
-  }, [abitanti, edifici, sortField, sortDirection, calcolaFelicitàModificata, etaMinimaLavoro]);
+  }, [abitanti, edifici, sortField, sortDirection, calcolaFelicitàModificata, etaMinimaLavoro, redditoCittadinanza]);
 
   const handleSort = (field: SortField) => {
     if (sortField === field) {
@@ -498,7 +510,7 @@ export default function AbitantiScreen() {
                 {macroOpen.economia && (
                   <>
                     <View style={[styles.cell, styles.cellMedium]}><Text style={styles.cellText}>{a.razza === "Robot" ? "—" : a.crediti}</Text></View>
-                    <View style={[styles.cell, styles.cellMedium]}><Text style={[styles.cellText, a.razza === "Robot" ? undefined : styles.cellTextPositive]}>{a.razza === "Robot" ? "—" : a.reddito}</Text></View>
+                    <View style={[styles.cell, styles.cellMedium]}><Text style={[styles.cellText, a.razza === "Robot" ? undefined : styles.cellTextPositive]}>{a.razza === "Robot" ? "—" : getRedditoDisplay(a, etaMinimaLavoro, redditoCittadinanza ?? 0)}</Text></View>
                     <View style={[styles.cell, styles.cellMedium]}><Text style={[styles.cellText, a.razza === "Robot" ? undefined : styles.cellTextNegative]}>{a.razza === "Robot" ? "—" : a.spese}</Text></View>
                   </>
                 )}
@@ -574,6 +586,7 @@ export default function AbitantiScreen() {
         getAbitanteNome={getAbitanteNome}
         calcolaFelicitàModificata={calcolaFelicitàModificata}
         etaMinimaLavoro={etaMinimaLavoro}
+        redditoCittadinanza={redditoCittadinanza ?? 0}
       />
     </SafeAreaView>
   );
