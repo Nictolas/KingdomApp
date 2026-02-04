@@ -513,7 +513,7 @@ export default function AbitantiScreen() {
                     <View style={[styles.cell, styles.cellMedium]}>
                       {a.razza === "Robot" ? (
                         <Text style={styles.cellText}>—</Text>
-                      ) : (a.fazioni?.includes("Schiavi") ? (
+                      ) : a.fazioni?.includes("Schiavi") ? (
                         <Text style={styles.cellEmojiText}>{fazioniData.find((f) => f.nome === "Schiavi")?.emoji ?? "⛓️"}</Text>
                       ) : (
                         <Text style={[styles.cellText, styles.cellTextPositive]}>{getRedditoDisplay(a, etaMinimaLavoro, redditoCittadinanza ?? 0)}</Text>
