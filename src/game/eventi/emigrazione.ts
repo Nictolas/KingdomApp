@@ -13,12 +13,12 @@ export const eventoEmigrazione: EventoDef = {
     if (divietoEspatrioAttivo) return false;
     const felicità = (a: Abitante) =>
       calcolaFelicitàModificata ? calcolaFelicitàModificata(a) : a.felicità;
-    return abitanti.some((a) => a.id !== 1 && felicità(a) <= 50);
+    return abitanti.some((a) => a.id !== 1 && a.razza !== "Robot" && felicità(a) <= 50);
   },
   applicaAttivazione: (_risorse, abitanti, edifici, ctx) => {
     const felicità = (a: Abitante) =>
       ctx?.calcolaFelicitàModificata ? ctx.calcolaFelicitàModificata(a) : a.felicità;
-    const candidati = abitanti.filter((a) => a.id !== 1 && felicità(a) <= 50);
+    const candidati = abitanti.filter((a) => a.id !== 1 && a.razza !== "Robot" && felicità(a) <= 50);
     if (candidati.length === 0) return;
     const idsEmigrati = new Set(candidati.map((c) => c.id));
     const nomi = candidati.map((c) => c.nome);

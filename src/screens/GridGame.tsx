@@ -22,8 +22,10 @@ export default function GridGame() {
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
 
+  const abitantiConFelicità = abitanti.filter((a) => a.razza !== "Robot");
   const n = abitanti.length;
-  const felicitàMedia = n ? Math.round(abitanti.reduce((s, a) => s + calcolaFelicitàModificata(a), 0) / n) : 0;
+  const nConFelicità = abitantiConFelicità.length;
+  const felicitàMedia = nConFelicità ? Math.round(abitantiConFelicità.reduce((s, a) => s + calcolaFelicitàModificata(a), 0) / nConFelicità) : 0;
   const lealtàMedia = n ? Math.round(abitanti.reduce((s, a) => s + a.lealtà, 0) / n) : 0;
   const pauraMedia = n ? Math.round(abitanti.reduce((s, a) => s + a.paura, 0) / n) : 0;
 

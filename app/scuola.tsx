@@ -162,7 +162,7 @@ export default function ScuolaScreen() {
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{bambino.nome}</Text>
                     <Text style={styles.cardInfo}>Età: {bambino.eta} anni</Text>
-                    <Text style={styles.cardInfo}>Felicità: {bambino.felicità}/100</Text>
+                    <Text style={styles.cardInfo}>Felicità: {bambino.razza === "Robot" ? "—" : `${bambino.felicità}/100`}</Text>
                   </View>
                 </View>
               ))}

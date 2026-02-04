@@ -9,8 +9,9 @@ export const eventoAssimilazione: EventoDef = {
   durataMesi: 1,
   probabilità: 0.4,
   condizione: (abitanti) => {
-    if (abitanti.length === 0) return false;
-    const felicitàMedia = abitanti.reduce((s, a) => s + a.felicità, 0) / abitanti.length;
+    const conFelicità = abitanti.filter((a) => a.razza !== "Robot");
+    if (conFelicità.length === 0) return false;
+    const felicitàMedia = conFelicità.reduce((s, a) => s + a.felicità, 0) / conFelicità.length;
     return felicitàMedia > 80;
   },
   applicaAttivazione: () => {},

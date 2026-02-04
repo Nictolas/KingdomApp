@@ -10,13 +10,15 @@ export const eventoProtesteAutoctoni: EventoDef = {
   durataMesi: 2,
   probabilità: 0.25,
   condizione: (abitanti) => {
-    if (abitanti.length === 0) return false;
-    const felicitàMedia = abitanti.reduce((s, a) => s + a.felicità, 0) / abitanti.length;
+    const conFelicità = abitanti.filter((a) => a.razza !== "Robot");
+    if (conFelicità.length === 0) return false;
+    const felicitàMedia = conFelicità.reduce((s, a) => s + a.felicità, 0) / conFelicità.length;
     return felicitàMedia < 45;
   },
   applicaAttivazione: () => {},
   applicaMensile: (_r, abitanti) => {
     abitanti.forEach((a) => {
+      if (a.razza === "Robot") return;
       (a as Abitante).felicità = Math.max(1, (a as Abitante).felicità - 3);
     });
   }

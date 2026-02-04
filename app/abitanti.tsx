@@ -151,8 +151,8 @@ export default function AbitantiScreen() {
       let bValue: number | string;
 
       if (sortField === "felicità") {
-        aValue = calcolaFelicitàModificata(a);
-        bValue = calcolaFelicitàModificata(b);
+        aValue = a.razza === "Robot" ? -1 : calcolaFelicitàModificata(a);
+        bValue = b.razza === "Robot" ? -1 : calcolaFelicitàModificata(b);
       } else if (sortField === "fazioni") {
         aValue = getFazioniEmojiDisplay(a.fazioni, a.religione);
         bValue = getFazioniEmojiDisplay(b.fazioni, b.religione);
@@ -490,7 +490,7 @@ export default function AbitantiScreen() {
                     <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.peso ?? 50}</Text></View>
                     <View style={[styles.cell, styles.cellSmall]}><Text style={[styles.cellTextSmall, saluteStyle]}>{statoSalute}</Text></View>
                     <View style={[styles.cell, styles.cellSmall]}>
-                      <Text style={[styles.cellText, felicitàModificata >= 70 ? styles.cellTextPositive : felicitàModificata >= 40 ? styles.cellTextNeutral : styles.cellTextNegative]}>{felicitàModificata}%</Text>
+                      <Text style={[styles.cellText, a.razza === "Robot" ? undefined : felicitàModificata >= 70 ? styles.cellTextPositive : felicitàModificata >= 40 ? styles.cellTextNeutral : styles.cellTextNegative]}>{a.razza === "Robot" ? "—" : `${felicitàModificata}%`}</Text>
                     </View>
                     <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.paura}%</Text></View>
                   </>

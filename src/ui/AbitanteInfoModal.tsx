@@ -134,9 +134,9 @@ export function AbitanteInfoModal({
               <Text style={styles.line}>Paura: {formatPercentuale(abitante.paura)}</Text>
               <View style={styles.felicitàRow}>
                 <Text style={styles.line}>
-                  Felicità: {formatPercentuale(felicitàModificata)}
+                  Felicità: {abitante.razza === "Robot" ? "—" : formatPercentuale(felicitàModificata)}
                 </Text>
-                {felicitàCambiata && (
+                {abitante.razza !== "Robot" && felicitàCambiata && (
                   <Text style={styles.felicitàModifica}>
                     ({abitante.felicità} base
                     {felicitàModificata > abitante.felicità ? (
