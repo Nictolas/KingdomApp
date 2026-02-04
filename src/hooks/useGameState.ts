@@ -130,6 +130,13 @@ export function useGameState() {
   // Modalità sistema sanitario: influenza i costi dell'Ospedale
   const [modalitaSanita, setModalitaSanita] = useState<"privata" | "pubblica">("privata");
 
+  /** Prezzo mensile (crediti) impostato dall'utente per ogni tipo di residenza. Default dal catalogo se non impostato. */
+  const [prezzoResidenze, setPrezzoResidenzeState] = useState<Record<string, number>>({});
+  const setPrezzoResidenza = useCallback((nomeResidenza: string, prezzo: number) => {
+    const value = Math.max(0, Math.floor(prezzo));
+    setPrezzoResidenzeState((prev) => ({ ...prev, [nomeResidenza]: value }));
+  }, []);
+
   // Genera nuovi abitanti proposti per immigrazione (logica in src/game/immigrazione)
   const generaNuoviAbitantiProposti = useCallback(() => {
     setNextId((prevId) => {
@@ -362,13 +369,6 @@ export function useGameState() {
     setEdifici((prev) =>
       prev.map((e) => (e.id === edificioId ? { ...e, stipendioPerLavoratore: value } : e))
     );
-  }, []);
-
-  /** Prezzo mensile (crediti) impostato dall'utente per ogni tipo di residenza. Default dal catalogo se non impostato. */
-  const [prezzoResidenze, setPrezzoResidenzeState] = useState<Record<string, number>>({});
-  const setPrezzoResidenza = useCallback((nomeResidenza: string, prezzo: number) => {
-    const value = Math.max(0, Math.floor(prezzo));
-    setPrezzoResidenzeState((prev) => ({ ...prev, [nomeResidenza]: value }));
   }, []);
 
   /** Aggiunge al Campo di Lavoro tutti gli abitanti che soddisfano i filtri (Personalità, Razza, Religione).
