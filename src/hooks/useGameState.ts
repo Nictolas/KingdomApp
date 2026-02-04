@@ -42,6 +42,17 @@ export function useGameState() {
   const [pendingMatrimonio, setPendingMatrimonio] = useState<{ idA: number; idB: number; nomeA: string; nomeB: string } | null>(null);
   const [messaggioEmigrazione, setMessaggioEmigrazione] = useState<string | null>(null);
 
+  /** Soddisfazione 1-100 per fazioni tracciate (es. Rivoluzionari). Partono a 80. */
+  const [soddisfazioneFazioni, setSoddisfazioneFazioni] = useState<Record<string, number>>(() => ({
+    Rivoluzionari: 80
+  }));
+  const modificaSoddisfazioneFazione = useCallback((fazione: string, delta: number) => {
+    setSoddisfazioneFazioni((prev) => ({
+      ...prev,
+      [fazione]: Math.max(1, Math.min(100, (prev[fazione] ?? 80) + delta))
+    }));
+  }, []);
+
   // Configurazione tassa sul reddito
   const [tipoTassaReddito, setTipoTassaReddito] = useState<"flat" | "scaglioni">("scaglioni");
   const [flatTaxPercentuale, setFlatTaxPercentuale] = useState(15); // Percentuale flat tax
@@ -237,7 +248,8 @@ export function useGameState() {
       politicaNascite,
       nextId,
       etaPensionabile,
-      assegnoPensionati
+      assegnoPensionati,
+      soddisfazioneFazioni
     });
 
     setNativiNonIntegrati((prev) => prev + result.deltaNativiNonIntegrati);
@@ -265,7 +277,7 @@ export function useGameState() {
     if (result.messaggioNascita) {
       Alert.alert("Nascita", result.messaggioNascita);
     }
-  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati]);
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni]);
 
   const confermaMatrimonio = useCallback((idA: number, idB: number) => {
     setAbitanti((prev) =>
@@ -729,22 +741,29 @@ export function useGameState() {
     setPendingAssimilazione(null);
   }, []);
 
-  // Tribunale: grazia un criminale → lui e Amici +10% Lealtà, Nemici (rivali) -10% Lealtà; reati azzerati
-  const graziaCriminale = useCallback((abitanteId: number) => {
-    setAbitanti((prev) => {
-      const criminale = prev.find((a) => a.id === abitanteId);
-      if (!criminale || !criminale.reati?.length) return prev;
-      const idsBonus = new Set<number>([criminale.id, ...(criminale.amici ?? []).map((x) => x.id)]);
-      const idsMalus = new Set<number>((criminale.rivali ?? []).map((x) => x.id));
-      return prev.map((a) => {
-        let lealtà = a.lealtà;
-        if (idsBonus.has(a.id)) lealtà = Math.min(100, Math.round(a.lealtà * 1.1));
-        if (idsMalus.has(a.id)) lealtà = Math.max(0, Math.round(a.lealtà * 0.9));
-        const reati = a.id === abitanteId ? [] : a.reati;
-        return { ...a, lealtà, reati: reati ?? a.reati };
+  // Tribunale: grazia un criminale → lui e Amici +10% Lealtà, Nemici (rivali) -10% Lealtà; reati azzerati. Se è Ex Governatore, Rivoluzionari -20 Soddisfazione.
+  const graziaCriminale = useCallback(
+    (abitanteId: number) => {
+      const criminale = abitanti.find((a) => a.id === abitanteId);
+      if (criminale?.reati?.includes("Ex Governatore")) {
+        modificaSoddisfazioneFazione("Rivoluzionari", -20);
+      }
+      setAbitanti((prev) => {
+        const c = prev.find((a) => a.id === abitanteId);
+        if (!c || !c.reati?.length) return prev;
+        const idsBonus = new Set<number>([c.id, ...(c.amici ?? []).map((x) => x.id)]);
+        const idsMalus = new Set<number>((c.rivali ?? []).map((x) => x.id));
+        return prev.map((a) => {
+          let lealtà = a.lealtà;
+          if (idsBonus.has(a.id)) lealtà = Math.min(100, Math.round(a.lealtà * 1.1));
+          if (idsMalus.has(a.id)) lealtà = Math.max(0, Math.round(a.lealtà * 0.9));
+          const reati = a.id === abitanteId ? [] : a.reati;
+          return { ...a, lealtà, reati: reati ?? a.reati };
+        });
       });
-    });
-  }, []);
+    },
+    [abitanti, modificaSoddisfazioneFazione]
+  );
 
   // Tribunale: condanna a morte (solo se pena di morte attiva) → rimuove l'abitante dalla colonia e da tutti gli edifici
   const condannaAMorte = useCallback((abitanteId: number) => {
@@ -935,6 +954,8 @@ export function useGameState() {
     calcolaDeltaOrdiniMercato,
     graziaCriminale,
     condannaAMorte,
+    soddisfazioneFazioni,
+    modificaSoddisfazioneFazione,
     nativiNonIntegrati,
     pendingAssimilazione,
     accettaAssimilazione,

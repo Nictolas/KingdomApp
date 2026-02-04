@@ -39,6 +39,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
       "Ogni abitante ha sempre la fazione «Cittadini» più una di: Amministrazione, Lavoratori, Scienziati, Esploratori (scelta a caso).",
       "Almeno 4 abitanti sono «Schiavi»: hanno fazione Schiavi (e non Cittadini), ruoloSchiavitu «schiavo», crediti/reddito/spese a 0.",
       "4 abitanti hanno la fazione «Reazionari», tra cui l'ex governatore (prigioniero in Tribunale).",
+      "Il Comandante e 3 altri abitanti (escluso l'Ex Governatore) hanno la fazione «Rivoluzionari»: chi ha fatto la Rivoluzione.",
       "Ci sono alcuni Immigrati fin da inizio partita."
     ]
   },
@@ -280,6 +281,22 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
   abitanti.forEach((a) => {
     if (reazionariIds.has(a.id)) {
       a.fazioni = normalizzaFazioni([...(a.fazioni ?? []), "Reazionari"]);
+    }
+  });
+
+  // Regola: Rivoluzionari = Comandante (id 1) + 3 abitanti che hanno aiutato la Rivoluzione (escluso l'Ex Governatore).
+  const candidatiRivoluzionari = abitanti.filter((a) => a.id !== 1 && a.id !== exGovernatoreId);
+  for (let k = candidatiRivoluzionari.length - 1; k > 0; k--) {
+    const j = Math.floor(Math.random() * (k + 1));
+    [candidatiRivoluzionari[k], candidatiRivoluzionari[j]] = [candidatiRivoluzionari[j], candidatiRivoluzionari[k]];
+  }
+  const rivoluzionariIds = new Set<number>([1]);
+  for (let i = 0; i < candidatiRivoluzionari.length && rivoluzionariIds.size < 4; i++) {
+    rivoluzionariIds.add(candidatiRivoluzionari[i]!.id);
+  }
+  abitanti.forEach((a) => {
+    if (rivoluzionariIds.has(a.id)) {
+      a.fazioni = normalizzaFazioni([...(a.fazioni ?? []), "Rivoluzionari"]);
     }
   });
 

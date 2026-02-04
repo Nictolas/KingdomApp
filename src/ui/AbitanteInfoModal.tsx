@@ -68,21 +68,25 @@ export function AbitanteInfoModal({
               <Text style={styles.line}>Competenza: {formatPercentuale(abitante.competenza)}</Text>
               <Text style={styles.line}>Produttività: {formatPercentuale(abitante.produttività)}</Text>
               <Text style={styles.line}>Stanchezza: {formatPercentuale(abitante.stanchezza)}</Text>
-              <Text style={styles.line}>Peso: {abitante.peso ?? 50}/100</Text>
-              <Text style={styles.line}>Salute: {getStatoSalute(abitante)}</Text>
+              <Text style={styles.line}>Peso: {abitante.razza === "Robot" ? "—" : `${abitante.peso ?? 50}/100`}</Text>
+              <Text style={styles.line}>Salute: {abitante.razza === "Robot" ? "—" : getStatoSalute(abitante)}</Text>
             </View>
 
             {/* Relazioni e Sociale */}
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Relazioni</Text>
-              {abitante.amici.length > 0 ? (
+              {abitante.razza === "Robot" ? (
+                <Text style={styles.line}>Amici: —</Text>
+              ) : abitante.amici.length > 0 ? (
                 <Text style={styles.line}>
                   Amici: {abitante.amici.map((r) => `${getAbitanteNome(r.id)} (${r.punteggio})`).join(", ")}
                 </Text>
               ) : (
                 <Text style={styles.lineMuted}>Nessun amico</Text>
               )}
-              {abitante.rivali.length > 0 ? (
+              {abitante.razza === "Robot" ? (
+                <Text style={styles.line}>Rivali: —</Text>
+              ) : abitante.rivali.length > 0 ? (
                 <Text style={styles.line}>
                   Rivali: {abitante.rivali.map((r) => `${getAbitanteNome(r.id)} (${r.punteggio})`).join(", ")}
                 </Text>
@@ -94,44 +98,50 @@ export function AbitanteInfoModal({
             {/* Familiari */}
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Familiari</Text>
-              {abitante.coniugeId != null ? (
-                <Text style={styles.line}>Coniuge: {getAbitanteNome(abitante.coniugeId)}</Text>
+              {abitante.razza === "Robot" ? (
+                <Text style={styles.lineMuted}>—</Text>
               ) : (
-                <Text style={styles.lineMuted}>Nessun coniuge</Text>
-              )}
-              {(abitante.figliIds?.length ?? 0) > 0 ? (
-                <Text style={styles.line}>Figli: {(abitante.figliIds ?? []).map(getAbitanteNome).join(", ")}</Text>
-              ) : (
-                <Text style={styles.lineMuted}>Nessun figlio</Text>
-              )}
-              {(abitante.genitoriIds?.length ?? 0) > 0 ? (
-                <Text style={styles.line}>Genitori: {(abitante.genitoriIds ?? []).map(getAbitanteNome).join(", ")}</Text>
-              ) : (
-                <Text style={styles.lineMuted}>Nessun genitore</Text>
-              )}
-              {(abitante.nonniIds?.length ?? 0) > 0 ? (
-                <Text style={styles.line}>Nonni: {(abitante.nonniIds ?? []).map(getAbitanteNome).join(", ")}</Text>
-              ) : (
-                <Text style={styles.lineMuted}>Nessun nonno</Text>
+                <>
+                  {abitante.coniugeId != null ? (
+                    <Text style={styles.line}>Coniuge: {getAbitanteNome(abitante.coniugeId)}</Text>
+                  ) : (
+                    <Text style={styles.lineMuted}>Nessun coniuge</Text>
+                  )}
+                  {(abitante.figliIds?.length ?? 0) > 0 ? (
+                    <Text style={styles.line}>Figli: {(abitante.figliIds ?? []).map(getAbitanteNome).join(", ")}</Text>
+                  ) : (
+                    <Text style={styles.lineMuted}>Nessun figlio</Text>
+                  )}
+                  {(abitante.genitoriIds?.length ?? 0) > 0 ? (
+                    <Text style={styles.line}>Genitori: {(abitante.genitoriIds ?? []).map(getAbitanteNome).join(", ")}</Text>
+                  ) : (
+                    <Text style={styles.lineMuted}>Nessun genitore</Text>
+                  )}
+                  {(abitante.nonniIds?.length ?? 0) > 0 ? (
+                    <Text style={styles.line}>Nonni: {(abitante.nonniIds ?? []).map(getAbitanteNome).join(", ")}</Text>
+                  ) : (
+                    <Text style={styles.lineMuted}>Nessun nonno</Text>
+                  )}
+                </>
               )}
             </View>
 
             {/* Economia */}
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Economia</Text>
-              <Text style={styles.line}>Crediti: {formatMonete(abitante.crediti)}</Text>
-              <Text style={styles.line}>Reddito: {formatMonete(abitante.reddito)}/mese</Text>
-              <Text style={styles.line}>Spese: {formatMonete(abitante.spese)}/mese</Text>
+              <Text style={styles.line}>Crediti: {abitante.razza === "Robot" ? "—" : formatMonete(abitante.crediti)}</Text>
+              <Text style={styles.line}>Reddito: {abitante.razza === "Robot" ? "—" : `${formatMonete(abitante.reddito)}/mese`}</Text>
+              <Text style={styles.line}>Spese: {abitante.razza === "Robot" ? "—" : `${formatMonete(abitante.spese)}/mese`}</Text>
               <Text style={styles.line}>
-                Saldo mensile: {formatMonete(abitante.reddito - abitante.spese)}
+                Saldo mensile: {abitante.razza === "Robot" ? "—" : formatMonete(abitante.reddito - abitante.spese)}
               </Text>
             </View>
 
             {/* Sentimenti */}
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Sentimenti</Text>
-              <Text style={styles.line}>Lealtà: {formatPercentuale(abitante.lealtà)}</Text>
-              <Text style={styles.line}>Paura: {formatPercentuale(abitante.paura)}</Text>
+              <Text style={styles.line}>Lealtà: {abitante.razza === "Robot" ? "—" : formatPercentuale(abitante.lealtà)}</Text>
+              <Text style={styles.line}>Paura: {abitante.razza === "Robot" ? "—" : formatPercentuale(abitante.paura)}</Text>
               <View style={styles.felicitàRow}>
                 <Text style={styles.line}>
                   Felicità: {abitante.razza === "Robot" ? "—" : formatPercentuale(felicitàModificata)}

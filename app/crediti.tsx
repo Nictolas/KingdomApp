@@ -33,8 +33,8 @@ export default function CreditiScreen() {
     })
     .sort((a, b) => b.costo - a.costo);
 
-  const totaleRedditi = abitanti.reduce((sum, a) => sum + a.reddito, 0);
-  const totaleSpese = abitanti.reduce((sum, a) => sum + a.spese, 0);
+  const totaleRedditi = abitanti.filter((a) => a.razza !== "Robot").reduce((sum, a) => sum + a.reddito, 0);
+  const totaleSpese = abitanti.filter((a) => a.razza !== "Robot").reduce((sum, a) => sum + a.spese, 0);
   const totaleStipendiEdifici = speseEdifici.reduce((sum, s) => sum + s.costo, 0);
   const totaleNetto = totaleRedditi - totaleSpese - totaleStipendiEdifici;
 

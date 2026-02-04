@@ -487,28 +487,30 @@ export default function AbitantiScreen() {
                 )}
                 {macroOpen.benessere && (
                   <>
-                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.peso ?? 50}</Text></View>
-                    <View style={[styles.cell, styles.cellSmall]}><Text style={[styles.cellTextSmall, saluteStyle]}>{statoSalute}</Text></View>
+                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.razza === "Robot" ? "—" : String(a.peso ?? 50)}</Text></View>
+                    <View style={[styles.cell, styles.cellSmall]}><Text style={[styles.cellTextSmall, a.razza === "Robot" ? undefined : saluteStyle]}>{a.razza === "Robot" ? "—" : statoSalute}</Text></View>
                     <View style={[styles.cell, styles.cellSmall]}>
                       <Text style={[styles.cellText, a.razza === "Robot" ? undefined : felicitàModificata >= 70 ? styles.cellTextPositive : felicitàModificata >= 40 ? styles.cellTextNeutral : styles.cellTextNegative]}>{a.razza === "Robot" ? "—" : `${felicitàModificata}%`}</Text>
                     </View>
-                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.paura}%</Text></View>
+                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.razza === "Robot" ? "—" : `${a.paura}%`}</Text></View>
                   </>
                 )}
                 {macroOpen.economia && (
                   <>
-                    <View style={[styles.cell, styles.cellMedium]}><Text style={styles.cellText}>{a.crediti}</Text></View>
-                    <View style={[styles.cell, styles.cellMedium]}><Text style={[styles.cellText, styles.cellTextPositive]}>{a.reddito}</Text></View>
-                    <View style={[styles.cell, styles.cellMedium]}><Text style={[styles.cellText, styles.cellTextNegative]}>{a.spese}</Text></View>
+                    <View style={[styles.cell, styles.cellMedium]}><Text style={styles.cellText}>{a.razza === "Robot" ? "—" : a.crediti}</Text></View>
+                    <View style={[styles.cell, styles.cellMedium]}><Text style={[styles.cellText, a.razza === "Robot" ? undefined : styles.cellTextPositive]}>{a.razza === "Robot" ? "—" : a.reddito}</Text></View>
+                    <View style={[styles.cell, styles.cellMedium]}><Text style={[styles.cellText, a.razza === "Robot" ? undefined : styles.cellTextNegative]}>{a.razza === "Robot" ? "—" : a.spese}</Text></View>
                   </>
                 )}
                 {macroOpen.lealta && (
-                  <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.lealtà}%</Text></View>
+                  <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.razza === "Robot" ? "—" : `${a.lealtà}%`}</Text></View>
                 )}
                 {macroOpen.sociale && (
                   <>
                     <View style={[styles.cell, styles.cellSociale]}>
-                      {getAmiciItems(a).length > 0 ? (
+                      {a.razza === "Robot" ? (
+                        <Text style={styles.cellEmojiText}>—</Text>
+                      ) : getAmiciItems(a).length > 0 ? (
                         <View style={styles.fazioneEmojiRow}>
                           {getAmiciItems(a).map((item, idx) => (
                             <EmojiWithTooltip key={idx} emoji={item.emoji} nome={item.nome} />
@@ -519,7 +521,9 @@ export default function AbitantiScreen() {
                       )}
                     </View>
                     <View style={[styles.cell, styles.cellSociale]}>
-                      {getRivaliItems(a).length > 0 ? (
+                      {a.razza === "Robot" ? (
+                        <Text style={styles.cellEmojiText}>—</Text>
+                      ) : getRivaliItems(a).length > 0 ? (
                         <View style={styles.fazioneEmojiRow}>
                           {getRivaliItems(a).map((item, idx) => (
                             <EmojiWithTooltip key={idx} emoji={item.emoji} nome={item.nome} />
@@ -530,7 +534,9 @@ export default function AbitantiScreen() {
                       )}
                     </View>
                     <View style={[styles.cell, styles.cellFamiliari]}>
-                      {getFamiliariItems(a).length > 0 ? (
+                      {a.razza === "Robot" ? (
+                        <Text style={styles.cellEmojiText}>—</Text>
+                      ) : getFamiliariItems(a).length > 0 ? (
                         <View style={styles.fazioneEmojiRow}>
                           {getFamiliariItems(a).map((item, idx) => (
                             <EmojiWithTooltip key={idx} emoji={item.emoji} nome={item.nome} />

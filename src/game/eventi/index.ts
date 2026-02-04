@@ -10,6 +10,7 @@ import { eventoTempestaSolare } from "./tempestaSolare";
 import { eventoMinacceGeopolitiche } from "./minacceGeopolitiche";
 import { eventoAssimilazione } from "./assimilazione";
 import { eventoEmigrazione } from "./emigrazione";
+import { eventoRivoluzionariDelusi } from "./rivoluzionariDelusi";
 
 /** Catalogo di tutti gli eventi: aggiungi qui i nuovi eventi. */
 export const EVENTI_CATALOGO: EventoDef[] = [
@@ -20,5 +21,6 @@ export const EVENTI_CATALOGO: EventoDef[] = [
   eventoTempestaSolare,
   eventoMinacceGeopolitiche,
   eventoAssimilazione,
-  eventoEmigrazione
+  eventoEmigrazione,
+  eventoRivoluzionariDelusi
 ];

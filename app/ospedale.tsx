@@ -160,7 +160,7 @@ export default function OspedaleScreen() {
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{malato.nome}</Text>
                     <Text style={styles.cardInfo}>Età: {malato.eta} anni</Text>
-                    <Text style={styles.malatoPesoSalute}>Peso: {malato.peso ?? 50}/100 · Salute: {getStatoSalute(malato)}</Text>
+                    <Text style={styles.malatoPesoSalute}>Peso: {malato.razza === "Robot" ? "—" : `${malato.peso ?? 50}/100`} · Salute: {malato.razza === "Robot" ? "—" : getStatoSalute(malato)}</Text>
                     <Text style={styles.cardInfo}>Felicità: {malato.razza === "Robot" ? "—" : `${malato.felicità}/100`}</Text>
                   </View>
                 </View>

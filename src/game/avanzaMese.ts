@@ -20,6 +20,8 @@ export type AvanzaMeseInput = {
   etaPensionabile: number;
   /** Assegno mensile in crediti dato a ogni pensionato. */
   assegnoPensionati: number;
+  /** Soddisfazione 1-100 per fazioni tracciate (es. Rivoluzionari). */
+  soddisfazioneFazioni?: Record<string, number>;
 };
 
 export type AvanzaMeseOutput = {
@@ -94,7 +96,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     politicaNascite,
     nextId,
     etaPensionabile,
-    assegnoPensionati
+    assegnoPensionati,
+    soddisfazioneFazioni = {}
   } = input;
 
   const nuovoMese = mese === 12 ? 1 : mese + 1;
@@ -554,7 +557,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   let messaggioEmigrazione: string | null = null;
   EVENTI_CATALOGO.forEach((def) => {
     if (nuoviEventiInCorso.some((e) => e.id === def.id)) return;
-    if (!def.condizione(abitantiEv, risorseEv, edificiEv, punteggioSanzioni, divietoEspatrioAttivo, calcolaFelicitàModificata)) return;
+    if (!def.condizione(abitantiEv, risorseEv, edificiEv, punteggioSanzioni, divietoEspatrioAttivo, calcolaFelicitàModificata, soddisfazioneFazioni)) return;
     if (Math.random() >= def.probabilità) return;
     nuoviEventiInCorso = [
       ...nuoviEventiInCorso,

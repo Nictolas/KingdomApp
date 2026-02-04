@@ -91,6 +91,8 @@ type GameContextType = {
   calcolaDeltaOrdiniMercato: () => Record<string, number>;
   graziaCriminale: (abitanteId: number) => void;
   condannaAMorte: (abitanteId: number) => void;
+  soddisfazioneFazioni: Record<string, number>;
+  modificaSoddisfazioneFazione: (fazione: string, delta: number) => void;
   nativiNonIntegrati: number;
   pendingAssimilazione: number | null;
   accettaAssimilazione: () => void;

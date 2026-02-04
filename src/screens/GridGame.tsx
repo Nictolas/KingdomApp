@@ -26,8 +26,9 @@ export default function GridGame() {
   const n = abitanti.length;
   const nConFelicità = abitantiConFelicità.length;
   const felicitàMedia = nConFelicità ? Math.round(abitantiConFelicità.reduce((s, a) => s + calcolaFelicitàModificata(a), 0) / nConFelicità) : 0;
-  const lealtàMedia = n ? Math.round(abitanti.reduce((s, a) => s + a.lealtà, 0) / n) : 0;
-  const pauraMedia = n ? Math.round(abitanti.reduce((s, a) => s + a.paura, 0) / n) : 0;
+  const nConLealtàPaura = abitantiConFelicità.length;
+  const lealtàMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.lealtà, 0) / nConLealtàPaura) : 0;
+  const pauraMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.paura, 0) / nConLealtàPaura) : 0;
 
   return (
     <View style={styles.container}>
