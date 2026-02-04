@@ -1,7 +1,7 @@
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso } from "../types";
 import { EVENTI_CATALOGO } from "./eventi/index";
 import { getConsumoCibo, getConsumoAcqua, getProduzioneCiboPerAbitante } from "./ciboConsumo";
-import { RESIDENZE_ENERGIA_PER_ABITANTE } from "../data/residenzeData";
+import { RESIDENZE_CATALOGO, RESIDENZE_ENERGIA_PER_ABITANTE } from "../data/residenzeData";
 
 export type AvanzaMeseInput = {
   abitanti: Abitante[];
@@ -23,6 +23,8 @@ export type AvanzaMeseInput = {
   assegnoPensionati: number;
   /** Soddisfazione 1-100 per fazioni tracciate (es. Rivoluzionari). */
   soddisfazioneFazioni?: Record<string, number>;
+  /** Prezzo mensile (crediti) per tipo di residenza. Se assente si usa il default del catalogo. */
+  prezzoResidenze?: Record<string, number>;
 };
 
 export type AvanzaMeseOutput = {
@@ -100,7 +102,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     nextId,
     etaPensionabile,
     assegnoPensionati,
-    soddisfazioneFazioni = {}
+    soddisfazioneFazioni = {},
+    prezzoResidenze = {}
   } = input;
 
   const nuovoMese = mese === 12 ? 1 : mese + 1;
@@ -371,7 +374,14 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
         );
       const numPensionati = nuoviAbitanti.filter((a) => a.lavoro === "Pensionato").length;
       const costoPensioni = numPensionati * assegnoPensionati;
-      nuovaQuantità = risorsa.quantità + totaleRedditi - totaleSpese - totaleStipendiEdifici - costoPensioni;
+      const entrateResidenze = nuoviEdifici
+        .filter((e) => e.tipo === "Residenza" && e.stato === "Operativo")
+        .reduce((sum, e) => {
+          const defaultPrezzo = RESIDENZE_CATALOGO.find((r) => r.nome === e.nome)?.costoMensile ?? 0;
+          const prezzo = prezzoResidenze[e.nome] ?? defaultPrezzo;
+          return sum + prezzo * ((e.abitantiAssegnati ?? []).length);
+        }, 0);
+      nuovaQuantità = risorsa.quantità + totaleRedditi + entrateResidenze - totaleSpese - totaleStipendiEdifici - costoPensioni;
     }
 
     nuoviEdifici.forEach((edificio) => {

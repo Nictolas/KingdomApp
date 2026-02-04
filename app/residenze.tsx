@@ -1,5 +1,5 @@
 import React from "react";
-import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
@@ -7,7 +7,7 @@ import { RESIDENZE_CATALOGO } from "../src/data/residenzeData";
 
 export default function ResidenzeScreen() {
   const router = useRouter();
-  const { edifici, abitanti } = useGameContext();
+  const { edifici, abitanti, prezzoResidenze, setPrezzoResidenza } = useGameContext();
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
@@ -56,8 +56,21 @@ export default function ResidenzeScreen() {
                     <Text style={styles.cardValorePositivo}>+{r.felicità}</Text>
                   </View>
                   <View style={styles.cardRow}>
-                    <Text style={styles.cardLabel}>Costo</Text>
-                    <Text style={styles.cardValore}>{r.costoMensile} cr/mese</Text>
+                    <Text style={styles.cardLabel}>Prezzo (cr/mese)</Text>
+                  </View>
+                  <View style={styles.prezzoRow}>
+                    <TextInput
+                      style={styles.prezzoInput}
+                      value={String(prezzoResidenze[r.nome] ?? r.costoMensile)}
+                      keyboardType="number-pad"
+                      placeholder={String(r.costoMensile)}
+                      placeholderTextColor="rgba(203,213,245,0.4)"
+                      onChangeText={(text) => {
+                        const n = parseInt(text.replace(/[^0-9]/g, ""), 10);
+                        setPrezzoResidenza(r.nome, isNaN(n) ? 0 : n);
+                      }}
+                    />
+                    <Text style={styles.prezzoUnit}>cr/mese</Text>
                   </View>
                   <View style={styles.cardRow}>
                     <Text style={styles.cardLabel}>Energia</Text>
@@ -249,5 +262,27 @@ const styles = StyleSheet.create({
     color: "#4ade80",
     fontSize: 10,
     fontWeight: "700"
+  },
+  prezzoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    marginBottom: 6,
+    gap: 6
+  },
+  prezzoInput: {
+    backgroundColor: "rgba(30,41,59,0.9)",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.5)",
+    borderRadius: 4,
+    paddingVertical: 4,
+    paddingHorizontal: 6,
+    color: "#e5e7eb",
+    fontSize: 11,
+    minWidth: 56,
+    maxWidth: 80
+  },
+  prezzoUnit: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 10
   }
 });

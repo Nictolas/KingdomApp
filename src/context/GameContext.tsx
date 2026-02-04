@@ -73,6 +73,9 @@ type GameContextType = {
   assegnaAbitanteAEdificio: (abitanteId: number, edificioId: number) => void;
   rimuoviAbitanteDaEdificio: (abitanteId: number, edificioId: number) => void;
   setStipendioEdificio: (edificioId: number, stipendioPerLavoratore: number) => void;
+  /** Prezzo mensile (crediti) per tipo di residenza. Chiave = nome residenza (es. "Baracca"). Se assente si usa il default del catalogo. */
+  prezzoResidenze: Record<string, number>;
+  setPrezzoResidenza: (nomeResidenza: string, prezzo: number) => void;
   aggiungiAlCampoDiLavoroTuttiQuelliChe: (filtro: {
     personalità?: string;
     razza?: string;

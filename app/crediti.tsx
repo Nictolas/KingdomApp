@@ -3,11 +3,12 @@ import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
+import { RESIDENZE_CATALOGO } from "../src/data/residenzeData";
 import type { Abitante, Edificio } from "../src/types";
 
 export default function CreditiScreen() {
   const router = useRouter();
-  const { abitanti, edifici, risorse, calcolaDeltaOrdiniMercato } = useGameContext();
+  const { abitanti, edifici, risorse, calcolaDeltaOrdiniMercato, prezzoResidenze } = useGameContext();
 
   const saldoCrediti = risorse.find((r) => r.nome === "Crediti")?.quantità ?? 0;
 
@@ -41,7 +42,19 @@ export default function CreditiScreen() {
   const totaleRedditi = abitanti.filter((a) => a.razza !== "Robot").reduce((sum, a) => sum + a.reddito, 0);
   const totaleSpese = abitanti.filter((a) => a.razza !== "Robot").reduce((sum, a) => sum + a.spese, 0);
   const totaleStipendiEdifici = speseEdifici.reduce((sum, s) => sum + s.costo, 0);
-  const totaleNetto = totaleRedditi - totaleSpese - totaleStipendiEdifici;
+
+  // Entrate da Residenze: prezzo impostato per tipo × residenti in ogni edificio residenza
+  const edificiResidenza = edifici.filter((e) => e.tipo === "Residenza" && e.stato === "Operativo");
+  const entrateResidenzeDettaglio = edificiResidenza.map((edificio) => {
+    const defaultPrezzo = RESIDENZE_CATALOGO.find((r) => r.nome === edificio.nome)?.costoMensile ?? 0;
+    const prezzo = prezzoResidenze[edificio.nome] ?? defaultPrezzo;
+    const residenti = edificio.abitantiAssegnati?.length ?? 0;
+    const entrata = prezzo * residenti;
+    return { edificio, prezzo, residenti, entrata };
+  });
+  const totaleEntrateResidenze = entrateResidenzeDettaglio.reduce((sum, e) => sum + e.entrata, 0);
+
+  const totaleNetto = totaleRedditi + totaleEntrateResidenze - totaleSpese - totaleStipendiEdifici;
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -87,6 +100,43 @@ export default function CreditiScreen() {
         </View>
 
         <Text style={styles.pageTitle}>Dettaglio entrate e uscite</Text>
+
+        {/* Entrate da Residenze */}
+        <View style={styles.entrateResidenzeCard}>
+          <Text style={styles.sectionTitle}>Entrate da Residenze</Text>
+          {entrateResidenzeDettaglio.length > 0 ? (
+            <>
+              <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
+                {entrateResidenzeDettaglio.map(({ edificio, prezzo, residenti, entrata }) => (
+                  <View key={edificio.id} style={styles.item}>
+                    <Text style={styles.itemEmoji}>{edificio.emoji}</Text>
+                    <View style={styles.itemContent}>
+                      <Text style={styles.itemNome}>{edificio.nome}</Text>
+                      <View style={styles.itemRow}>
+                        <Text style={styles.itemLabel}>Prezzo</Text>
+                        <Text style={styles.itemLabel}>{prezzo} cr/mese</Text>
+                      </View>
+                      <View style={styles.itemRow}>
+                        <Text style={styles.itemLabel}>Residenti</Text>
+                        <Text style={styles.itemLabel}>{residenti}</Text>
+                      </View>
+                      <View style={styles.itemRow}>
+                        <Text style={styles.itemLabel}>Entrata mensile</Text>
+                        <Text style={styles.valorePositivo}>+{entrata}</Text>
+                      </View>
+                    </View>
+                  </View>
+                ))}
+              </ScrollView>
+              <View style={styles.totaleRow}>
+                <Text style={styles.totaleLabel}>Totale entrate da residenze</Text>
+                <Text style={styles.totaleValorePositivo}>+{totaleEntrateResidenze}</Text>
+              </View>
+            </>
+          ) : (
+            <Text style={styles.emptyText}>Nessuna residenza con residenti</Text>
+          )}
+        </View>
 
         <View style={[styles.twoCols, !isDesktop && styles.twoColsStack]}>
           <View style={[styles.col, !isDesktop && styles.colFull]}>
@@ -257,6 +307,14 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     textTransform: "uppercase",
     letterSpacing: 0.5
+  },
+  entrateResidenzeCard: {
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.4)"
   },
   twoCols: {
     flexDirection: "row",

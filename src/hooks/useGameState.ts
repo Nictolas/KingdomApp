@@ -252,7 +252,8 @@ export function useGameState() {
       nextId,
       etaPensionabile,
       assegnoPensionati,
-      soddisfazioneFazioni
+      soddisfazioneFazioni,
+      prezzoResidenze
     });
 
     setNativiNonIntegrati((prev) => prev + result.deltaNativiNonIntegrati);
@@ -283,7 +284,7 @@ export function useGameState() {
     if (result.avvisoDiario) {
       setDiarioRighe((prev) => [...prev, result.avvisoDiario!]);
     }
-  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni]);
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze]);
 
   const confermaMatrimonio = useCallback((idA: number, idB: number) => {
     setAbitanti((prev) =>
@@ -469,6 +470,13 @@ export function useGameState() {
     setEdifici((prev) =>
       prev.map((e) => (e.id === edificioId ? { ...e, stipendioPerLavoratore: value } : e))
     );
+  }, []);
+
+  /** Prezzo mensile (crediti) impostato dall'utente per ogni tipo di residenza. Default dal catalogo se non impostato. */
+  const [prezzoResidenze, setPrezzoResidenzeState] = useState<Record<string, number>>({});
+  const setPrezzoResidenza = useCallback((nomeResidenza: string, prezzo: number) => {
+    const value = Math.max(0, Math.floor(prezzo));
+    setPrezzoResidenzeState((prev) => ({ ...prev, [nomeResidenza]: value }));
   }, []);
 
   /** Aggiunge al Campo di Lavoro tutti gli abitanti che soddisfano i filtri (Personalità, Razza, Religione).
@@ -947,6 +955,8 @@ export function useGameState() {
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,
     setStipendioEdificio,
+    prezzoResidenze,
+    setPrezzoResidenza,
     aggiungiAlCampoDiLavoroTuttiQuelliChe,
     nominaMinistro,
     rimuoviMinistro,
