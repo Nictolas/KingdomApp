@@ -394,7 +394,7 @@ export default function AbitantiScreen() {
             {macroOpen.economia && (
               <>
                 <Pressable style={[styles.headerCell, styles.cellMedium, sortField === "crediti" && styles.headerCellActive]} onPress={() => handleSort("crediti")}>
-                  <Text style={styles.headerText}>💰 Crediti</Text>
+                  <Text style={styles.headerText}>💰 Patrimonio</Text>
                   {sortField === "crediti" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
                 </Pressable>
                 <Pressable style={[styles.headerCell, styles.cellMedium, sortField === "reddito" && styles.headerCellActive]} onPress={() => handleSort("reddito")}>
@@ -510,7 +510,15 @@ export default function AbitantiScreen() {
                 {macroOpen.economia && (
                   <>
                     <View style={[styles.cell, styles.cellMedium]}><Text style={styles.cellText}>{a.razza === "Robot" ? "—" : a.crediti}</Text></View>
-                    <View style={[styles.cell, styles.cellMedium]}><Text style={[styles.cellText, a.razza === "Robot" ? undefined : styles.cellTextPositive]}>{a.razza === "Robot" ? "—" : getRedditoDisplay(a, etaMinimaLavoro, redditoCittadinanza ?? 0)}</Text></View>
+                    <View style={[styles.cell, styles.cellMedium]}>
+                      {a.razza === "Robot" ? (
+                        <Text style={styles.cellText}>—</Text>
+                      ) : (a.fazioni?.includes("Schiavi") ? (
+                        <Text style={styles.cellEmojiText}>{fazioniData.find((f) => f.nome === "Schiavi")?.emoji ?? "⛓️"}</Text>
+                      ) : (
+                        <Text style={[styles.cellText, styles.cellTextPositive]}>{getRedditoDisplay(a, etaMinimaLavoro, redditoCittadinanza ?? 0)}</Text>
+                      )}
+                    </View>
                     <View style={[styles.cell, styles.cellMedium]}><Text style={[styles.cellText, a.razza === "Robot" ? undefined : styles.cellTextNegative]}>{a.razza === "Robot" ? "—" : a.spese}</Text></View>
                   </>
                 )}

@@ -18,6 +18,7 @@ const COLONNA_PRODUZIONE: string[] = [
 const COLONNA_SERVIZI: string[] = [
   "Centro di Comando",
   "Baracca", // Residenze (card mostrata come "Residenze")
+  "Bar",
   "Scuola",
   "Ospedale Coloniale", // Ospedale
   "Caserma"

@@ -131,6 +131,20 @@ export default function CreditiScreen() {
             </View>
           ))}
 
+          {/* Ordini di Mercato (effetto sui crediti al prossimo avanzamento) */}
+          <View style={styles.bilancioRow}>
+            <Text style={styles.bilancioEmoji}>📦</Text>
+            <Text style={styles.bilancioLabel}>Ordini di Mercato</Text>
+            <Text
+              style={[
+                styles.bilancioValore,
+                deltaCrediti >= 0 ? styles.valorePositivo : styles.valoreNegativo
+              ]}
+            >
+              {deltaCrediti >= 0 ? "+" : ""}{deltaCrediti}
+            </Text>
+          </View>
+
           {/* Riga totale */}
           <View style={[styles.bilancioRow, styles.bilancioRowTotale]}>
             <Text style={styles.bilancioEmoji}>📊</Text>
@@ -163,36 +177,36 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "space-between",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(148,163,184,0.6)"
   },
   back: {
     color: "#93c5fd",
-    fontSize: 12
+    fontSize: 11
   },
   title: {
     color: "#ffffff",
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: "700"
   },
   scrollContent: {
-    padding: 10,
-    paddingBottom: 24
+    padding: 6,
+    paddingBottom: 12
   },
   summaryRow: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 8,
-    marginBottom: 12
+    gap: 4,
+    marginBottom: 6
   },
   summaryCard: {
     flex: 1,
-    minWidth: 120,
+    minWidth: 100,
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 10,
+    borderRadius: 4,
+    padding: 6,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.5)",
     alignItems: "center"
@@ -202,139 +216,139 @@ const styles = StyleSheet.create({
   },
   summaryLabel: {
     color: "rgba(203,213,245,0.8)",
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: "600",
     textTransform: "uppercase",
-    letterSpacing: 0.5,
-    marginBottom: 2
+    letterSpacing: 0.3,
+    marginBottom: 0
   },
   summaryValore: {
     color: "#e5e7eb",
-    fontSize: 18,
+    fontSize: 14,
     fontWeight: "700"
   },
   summaryUnita: {
     color: "rgba(203,213,245,0.6)",
-    fontSize: 9,
+    fontSize: 8,
     marginTop: 0
   },
   summaryHint: {
     color: "rgba(203,213,245,0.7)",
-    fontSize: 9,
-    marginTop: 4,
+    fontSize: 8,
+    marginTop: 2,
     textAlign: "center"
   },
   pageTitle: {
     color: "#93c5fd",
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "600",
-    marginBottom: 10,
+    marginBottom: 4,
     textTransform: "uppercase",
-    letterSpacing: 0.5
+    letterSpacing: 0.3
   },
   bilancioCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 12,
-    paddingBottom: 16,
+    borderRadius: 4,
+    padding: 6,
+    paddingBottom: 8,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.4)"
   },
   bilancioRow: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 4,
+    paddingVertical: 3,
+    paddingHorizontal: 2,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(148,163,184,0.2)"
   },
   bilancioEmoji: {
-    fontSize: 18,
-    width: 28,
+    fontSize: 14,
+    width: 22,
     textAlign: "center"
   },
   bilancioLabel: {
     flex: 1,
     color: "#e5e7eb",
-    fontSize: 12
+    fontSize: 11
   },
   bilancioValore: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "600",
-    minWidth: 56,
+    minWidth: 44,
     textAlign: "right"
   },
   bilancioRowTotale: {
     borderBottomWidth: 0,
-    borderTopWidth: 2,
+    borderTopWidth: 1,
     borderTopColor: "rgba(148,163,184,0.4)",
-    marginTop: 6,
-    paddingTop: 12
+    marginTop: 2,
+    paddingTop: 4
   },
   bilancioLabelTotale: {
     flex: 1,
     color: "#93c5fd",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700"
   },
   bilancioValoreTotale: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: "700",
-    minWidth: 56,
+    minWidth: 44,
     textAlign: "right"
   },
   valorePositivo: {
     color: "#4ade80",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700"
   },
   valoreNegativo: {
     color: "#ef4444",
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700"
   },
   valoreNetto: {
-    fontSize: 11,
+    fontSize: 10,
     fontWeight: "700"
   },
   totaleRow: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    paddingTop: 8,
+    paddingTop: 4,
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "rgba(148,163,184,0.3)",
-    marginTop: 4
+    marginTop: 2
   },
   totaleLabel: {
     color: "#93c5fd",
-    fontSize: 10,
+    fontSize: 9,
     fontWeight: "600"
   },
   totaleValorePositivo: {
     color: "#4ade80",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700"
   },
   totaleValoreNegativo: {
     color: "#ef4444",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700"
   },
   emptyText: {
     color: "rgba(203,213,245,0.5)",
-    fontSize: 11,
+    fontSize: 10,
     fontStyle: "italic",
     textAlign: "center",
-    paddingVertical: 12
+    paddingVertical: 6
   },
   linkRow: {
-    marginTop: 12,
-    paddingVertical: 6,
+    marginTop: 6,
+    paddingVertical: 4,
     alignItems: "center"
   },
   linkText: {
     color: "#93c5fd",
-    fontSize: 11
+    fontSize: 10
   }
 });

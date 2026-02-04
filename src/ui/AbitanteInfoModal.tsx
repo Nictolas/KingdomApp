@@ -139,7 +139,7 @@ export function AbitanteInfoModal({
             {/* Economia */}
             <View style={styles.section}>
               <Text style={styles.sectionLabel}>Economia</Text>
-              <Text style={styles.line}>Crediti: {abitante.razza === "Robot" ? "—" : formatMonete(abitante.crediti)}</Text>
+              <Text style={styles.line}>Patrimonio: {abitante.razza === "Robot" ? "—" : formatMonete(abitante.crediti)}</Text>
               <Text style={styles.line}>Reddito: {abitante.razza === "Robot" ? "—" : `${formatMonete(redditoEffettivo)}/mese`}</Text>
               <Text style={styles.line}>Spese: {abitante.razza === "Robot" ? "—" : `${formatMonete(abitante.spese)}/mese`}</Text>
               <Text style={styles.line}>
