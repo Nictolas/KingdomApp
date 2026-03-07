@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { fazioniData } from "../kingdomData";
 import { useGameContext } from "../context/GameContext";
@@ -7,7 +7,7 @@ import type { Abitante } from "../types";
 
 export default function GridGame() {
   const router = useRouter();
-  const { abitanti, edifici, mese, anno, isLoading, avanzaMese, abitantiProposti } = useGameContext();
+  const { abitanti, edifici, abitantiProposti } = useGameContext();
 
   const criminali = abitanti.filter((a: Abitante) => (a.reati?.length ?? 0) > 0);
   const personalitàUniche = Array.from(new Set(abitanti.map((a: Abitante) => a.personalità))).filter(Boolean);
@@ -30,34 +30,7 @@ export default function GridGame() {
               <Text style={styles.heroSubtitle}>Gestisci la tua colonia</Text>
             </View>
           </View>
-          <View style={styles.heroActions}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>📅 Mese {mese}</Text>
-              <Text style={styles.badgeText}>· Anno {anno}</Text>
-            </View>
-            <Pressable style={styles.diarioBtn} onPress={() => router.push("/diario")}>
-              <Text style={styles.diarioBtnEmoji}>📖</Text>
-              <Text style={styles.diarioBtnLabel}>Diario</Text>
-            </Pressable>
-          </View>
         </View>
-        <Pressable
-          style={[styles.skipBtn, isLoading && styles.skipBtnDisabled]}
-          onPress={avanzaMese}
-          disabled={isLoading}
-        >
-          {isLoading ? (
-            <>
-              <ActivityIndicator size="small" color="#fff" />
-              <Text style={styles.skipBtnText}>Caricamento...</Text>
-            </>
-          ) : (
-            <>
-              <Text style={styles.skipBtnEmoji}>⏭️</Text>
-              <Text style={styles.skipBtnText}>Skip Mese</Text>
-            </>
-          )}
-        </Pressable>
       </View>
 
       {/* Navigazione: Colonia */}
@@ -173,57 +146,6 @@ const styles = StyleSheet.create({
     color: "rgba(248,250,252,0.65)",
     marginTop: 2
   },
-  heroActions: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8
-  },
-  badge: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(30,41,59,0.8)",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    gap: 4
-  },
-  badgeText: {
-    fontSize: 11,
-    color: "rgba(248,250,252,0.85)",
-    fontWeight: "600"
-  },
-  diarioBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(51,65,85,0.6)",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    borderRadius: 20,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.2)",
-    gap: 6
-  },
-  diarioBtnEmoji: { fontSize: 14 },
-  diarioBtnLabel: { fontSize: 12, fontWeight: "600", color: "#e2e8f0" },
-  skipBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#2563eb",
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    borderRadius: 14,
-    gap: 10,
-    borderWidth: 1,
-    borderColor: "rgba(59,130,246,0.5)"
-  },
-  skipBtnDisabled: {
-    backgroundColor: "rgba(37,99,235,0.5)",
-    opacity: 0.9
-  },
-  skipBtnEmoji: { fontSize: 20 },
-  skipBtnText: { fontSize: 16, fontWeight: "700", color: "#fff" },
-
   block: {
     marginBottom: 20
   },

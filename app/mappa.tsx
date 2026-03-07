@@ -1,5 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   Modal,
   Platform,
@@ -164,7 +165,7 @@ function getResourceRoute(r: Risorsa): string | null {
 
 export default function MappaScreen() {
   const router = useRouter();
-  const { risorse, abitanti, calcolaProduzioneConsumo, calcolaDeltaOrdiniMercato, calcolaFelicitàModificata } = useGameContext();
+  const { risorse, abitanti, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, calcolaDeltaOrdiniMercato, calcolaFelicitàModificata } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
 
@@ -327,24 +328,53 @@ export default function MappaScreen() {
         <View style={{ width: 60 }} />
       </View>
 
-      {/* Banner in alto: Indicatori colonia (fisso, sopra la mappa) */}
+      {/* Banner in alto: Mese/Anno, Diario, Skip Mese + Indicatori colonia */}
       <View style={styles.topBanner}>
         <View style={styles.topBannerInner}>
-          <Pressable style={styles.indCard} onPress={() => router.push("/felicita")}>
-            <Text style={styles.indEmoji}>😊</Text>
-            <Text style={styles.indLabel}>Felicità</Text>
-            <Text style={styles.indValue}>{felicitàMedia}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/lealta")}>
-            <Text style={styles.indEmoji}>❤️</Text>
-            <Text style={styles.indLabel}>Lealtà</Text>
-            <Text style={styles.indValue}>{lealtàMedia}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/paura")}>
-            <Text style={styles.indEmoji}>😨</Text>
-            <Text style={styles.indLabel}>Paura</Text>
-            <Text style={styles.indValue}>{pauraMedia}%</Text>
-          </Pressable>
+          <View style={styles.topBannerRow1}>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>📅 Mese {mese}</Text>
+              <Text style={styles.badgeText}>· Anno {anno}</Text>
+            </View>
+            <Pressable style={styles.diarioBtn} onPress={() => router.push("/diario")}>
+              <Text style={styles.diarioBtnEmoji}>📖</Text>
+              <Text style={styles.diarioBtnLabel}>Diario</Text>
+            </Pressable>
+            <Pressable
+              style={[styles.skipBtn, isLoading && styles.skipBtnDisabled]}
+              onPress={avanzaMese}
+              disabled={isLoading}
+            >
+              {isLoading ? (
+                <>
+                  <ActivityIndicator size="small" color="#fff" />
+                  <Text style={styles.skipBtnText}>Caricamento...</Text>
+                </>
+              ) : (
+                <>
+                  <Text style={styles.skipBtnEmoji}>⏭️</Text>
+                  <Text style={styles.skipBtnText}>Skip Mese</Text>
+                </>
+              )}
+            </Pressable>
+          </View>
+          <View style={styles.topBannerRow2}>
+            <Pressable style={styles.indCard} onPress={() => router.push("/felicita")}>
+              <Text style={styles.indEmoji}>😊</Text>
+              <Text style={styles.indLabel}>Felicità</Text>
+              <Text style={styles.indValue}>{felicitàMedia}%</Text>
+            </Pressable>
+            <Pressable style={styles.indCard} onPress={() => router.push("/lealta")}>
+              <Text style={styles.indEmoji}>❤️</Text>
+              <Text style={styles.indLabel}>Lealtà</Text>
+              <Text style={styles.indValue}>{lealtàMedia}%</Text>
+            </Pressable>
+            <Pressable style={styles.indCard} onPress={() => router.push("/paura")}>
+              <Text style={styles.indEmoji}>😨</Text>
+              <Text style={styles.indLabel}>Paura</Text>
+              <Text style={styles.indValue}>{pauraMedia}%</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -659,18 +689,71 @@ const styles = StyleSheet.create({
   },
   topBanner: {
     zIndex: 999,
-    paddingHorizontal: 16,
+    paddingHorizontal: 0,
     paddingVertical: 8,
-    alignItems: "center",
+    width: "100%",
     backgroundColor: "#050816"
   },
   topBannerInner: {
     width: "100%",
-    maxWidth: 480,
+    gap: 10,
+    paddingHorizontal: 12
+  },
+  topBannerRow1: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  topBannerRow2: {
     flexDirection: "row",
     gap: 10,
     alignItems: "stretch"
   },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(30,41,59,0.8)",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    gap: 4
+  },
+  badgeText: {
+    fontSize: 11,
+    color: "rgba(248,250,252,0.85)",
+    fontWeight: "600"
+  },
+  diarioBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(51,65,85,0.6)",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.2)",
+    gap: 6
+  },
+  diarioBtnEmoji: { fontSize: 14 },
+  diarioBtnLabel: { fontSize: 12, fontWeight: "600", color: "#e2e8f0" },
+  skipBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#2563eb",
+    paddingVertical: 10,
+    paddingHorizontal: 16,
+    borderRadius: 14,
+    gap: 8,
+    borderWidth: 1,
+    borderColor: "rgba(59,130,246,0.5)"
+  },
+  skipBtnDisabled: {
+    backgroundColor: "rgba(37,99,235,0.5)",
+    opacity: 0.9
+  },
+  skipBtnEmoji: { fontSize: 18 },
+  skipBtnText: { fontSize: 14, fontWeight: "700", color: "#fff" },
   indCard: {
     flex: 1,
     backgroundColor: "rgba(15,23,42,0.85)",
@@ -690,27 +773,25 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     zIndex: 999,
-    alignItems: "center",
-    justifyContent: "center",
-    paddingHorizontal: 16,
-    paddingVertical: 12
+    width: "100%",
+    paddingVertical: 12,
+    paddingHorizontal: 0
   },
   bottomBarInner: {
     width: "100%",
-    maxWidth: 480,
     minHeight: 56,
     backgroundColor: "rgba(5,8,22,0.92)",
     borderRadius: 12,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.25)",
     paddingVertical: 8,
-    paddingHorizontal: 8
+    paddingHorizontal: 12
   },
   risorseRow: {
     flexDirection: "row",
     gap: 8,
     alignItems: "center",
-    paddingHorizontal: 4
+    paddingHorizontal: 0
   },
   risorseCard: {
     minWidth: 72,
