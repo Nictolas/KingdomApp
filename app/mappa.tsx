@@ -1,8 +1,6 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { useAnimatedStyle, useSharedValue, clamp, runOnJS } from "react-native-reanimated";
 import { edificiData } from "../src/data/edificiData";
 import type { Edificio } from "../src/types";
 
@@ -31,7 +29,8 @@ const EDIFICIO_TO_ROUTE: Record<string, string> = {
   "Dissalatore": "/dissalatore",
   "Laboratorio di Ricerca": "/laboratorio",
   "Bar": "/bar",
-  "Caserma": "/caserma"
+  "Caserma": "/caserma",
+  "Spazioporto": "/spazioporto"
 };
 
 type EdificioInCella = { id: number; nome: string; emoji: string };
@@ -65,40 +64,6 @@ export default function MappaScreen() {
   const gridHeight = GRIGLIA_RIGHE * size + (GRIGLIA_RIGHE - 1) * GAP;
   const contentWidth = gridWidth + PADDING * 2;
   const contentHeight = gridHeight + PADDING * 2;
-
-  const translateX = useSharedValue(0);
-  const translateY = useSharedValue(0);
-  const viewportW = useSharedValue(0);
-  const viewportH = useSharedValue(0);
-  const contentW = useSharedValue(contentWidth);
-  const contentH = useSharedValue(contentHeight);
-
-  useEffect(() => {
-    contentW.value = contentWidth;
-    contentH.value = contentHeight;
-  }, [contentWidth, contentHeight, contentW, contentH]);
-
-  const onViewportLayout = useCallback(
-    (e: { nativeEvent: { layout: { width: number; height: number } } }) => {
-      const { width: w, height: h } = e.nativeEvent.layout;
-      viewportW.value = w;
-      viewportH.value = h;
-    },
-    [viewportW, viewportH]
-  );
-
-  const pan = Gesture.Pan()
-    .minDistance(8)
-    .onUpdate((e) => {
-      const maxX = Math.min(0, viewportW.value - contentW.value);
-      const maxY = Math.min(0, viewportH.value - contentH.value);
-      translateX.value = clamp(translateX.value + e.deltaX, maxX, 0);
-      translateY.value = clamp(translateY.value + e.deltaY, maxY, 0);
-    });
-
-  const animatedStyle = useAnimatedStyle(() => ({
-    transform: [{ translateX: translateX.value }, { translateY: translateY.value }]
-  }));
 
   const openRouteForEdificio = useCallback(
     (nome: string) => {
@@ -149,46 +114,49 @@ export default function MappaScreen() {
         <View style={{ width: 60 }} />
       </View>
 
-      <View style={styles.viewport} onLayout={onViewportLayout}>
-        <GestureDetector gesture={pan}>
-          <Animated.View
-            style={[
-              styles.contentWrap,
-              { width: contentWidth, height: contentHeight, padding: PADDING },
-              animatedStyle
-            ]}
-            collapsable={false}
-          >
+      <ScrollView
+        style={styles.viewport}
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        contentContainerStyle={{ width: contentWidth, height: "100%" }}
+      >
+        <ScrollView
+          style={[styles.viewportInner, { width: contentWidth }]}
+          showsVerticalScrollIndicator={false}
+          contentContainerStyle={{ width: contentWidth, height: contentHeight }}
+          bounces={false}
+        >
+          <View style={[styles.contentWrap, { padding: PADDING }]}>
             <View style={[styles.griglia, { gap: GAP, width: gridWidth }]}>
-              {Array.from({ length: totaleCelle }, (_, i) => {
-                const acqua = isAcqua(i);
-                const edificio = edificiInMappa[i];
-                const emoji = edificio?.emoji ?? null;
-                const hasEdificio = !!edificio;
-                const cellStyle = [
-                  styles.cella,
-                  acqua ? styles.cellaAcqua : styles.cellaErba,
-                  { width: size, height: size },
-                  hasEdificio && styles.cellaEdificio
-                ];
-                const content = emoji ? (
-                  <Text style={[styles.edificioEmoji, { fontSize: Math.max(10, Math.min(22, size - 4)) }]}>
-                    {emoji}
-                  </Text>
-                ) : null;
-                if (acqua) {
-                  return <View key={i} style={cellStyle} />;
-                }
-                return (
-                  <Pressable key={i} style={cellStyle} onPress={() => onCellPress(i)}>
-                    {content}
-                  </Pressable>
-                );
-              })}
+            {Array.from({ length: totaleCelle }, (_, i) => {
+              const acqua = isAcqua(i);
+              const edificio = edificiInMappa[i];
+              const emoji = edificio?.emoji ?? null;
+              const hasEdificio = !!edificio;
+              const cellStyle = [
+                styles.cella,
+                acqua ? styles.cellaAcqua : styles.cellaErba,
+                { width: size, height: size },
+                hasEdificio && styles.cellaEdificio
+              ];
+              const content = emoji ? (
+                <Text style={[styles.edificioEmoji, { fontSize: Math.max(10, Math.min(22, size - 4)) }]}>
+                  {emoji}
+                </Text>
+              ) : null;
+              if (acqua) {
+                return <View key={i} style={cellStyle} />;
+              }
+              return (
+                <Pressable key={i} style={cellStyle} onPress={() => onCellPress(i)}>
+                  {content}
+                </Pressable>
+              );
+            })}
             </View>
-          </Animated.View>
-        </GestureDetector>
-      </View>
+          </View>
+        </ScrollView>
+      </ScrollView>
 
       <Modal
         visible={selectedCellForDialog !== null}
@@ -247,8 +215,10 @@ const styles = StyleSheet.create({
   },
   viewport: {
     flex: 1,
-    backgroundColor: "#2d5a27",
-    overflow: "hidden"
+    backgroundColor: "#2d5a27"
+  },
+  viewportInner: {
+    flex: 1
   },
   contentWrap: {
     flexDirection: "row",
