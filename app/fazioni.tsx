@@ -7,9 +7,9 @@ import type { Fazione } from "../src/types";
 import { FazioneInfoModal } from "../src/ui/FazioneInfoModal";
 
 /** Colonne tematiche: nome colonna + nomi fazioni (come in fazioniData). */
-const COLONNA_GOVERNO = ["Amministrazione", "Cittadini", "Lealisti", "Sicurezza", "Rivoluzionari"];
+const COLONNA_GOVERNO = ["Amministrazione", "Cittadini", "Lealisti", "Sicurezza", "Rivoluzionari", "Élite"];
 const COLONNA_LAVORO = ["Lavoratori", "Scienziati", "Esploratori"];
-const COLONNA_MARGINI = ["Mafia", "Schiavi", "Nativi", "Robots"];
+const COLONNA_MARGINI = ["Mafia", "Schiavi", "Nativi", "Robots", "Senzatetto"];
 const COLONNA_RELIGIONE = ["Culto del Sole", "Culto degli Alieni"];
 
 function getFazioniPerColonna(nomi: string[]): Fazione[] {
@@ -86,9 +86,9 @@ export default function FazioniScreen() {
         style={isDesktop ? styles.scrollFlex : undefined}
       >
         <View style={styles.columns}>
-          {renderColumn("Governo e società", "Amministrazione, Cittadini, Lealisti, Sicurezza, Rivoluzionari", governo)}
+          {renderColumn("Governo e società", "Amministrazione, Cittadini, Lealisti, Sicurezza, Rivoluzionari, Élite", governo)}
           {renderColumn("Lavoro e professione", "Lavoratori, Scienziati, Esploratori", lavoro)}
-          {renderColumn("Margini e coercizione", "Mafia, Schiavi, Nativi, Robots", margini)}
+          {renderColumn("Margini e coercizione", "Mafia, Schiavi, Nativi, Robots, Senzatetto", margini)}
           {renderColumn("Religione", "Culto del Sole, Culto degli Alieni", religione)}
         </View>
       </ScrollView>
