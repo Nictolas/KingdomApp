@@ -185,7 +185,6 @@ export function MappaScreen() {
   );
   const [isDragging, setIsDragging] = useState(false);
   const [mapScale, setMapScale] = useState(1);
-  mapScaleRef.current = mapScale;
   const lastTapCell = useRef<number | null>(null);
   const lastTapTime = useRef<number>(0);
   const pinchStartDist = useRef<number | null>(null);
@@ -222,6 +221,7 @@ export function MappaScreen() {
   const didDragThisGesture = useRef(false);
   const pendingWheelScroll = useRef<{ x: number; y: number } | null>(null);
   const mapScaleRef = useRef(1);
+  mapScaleRef.current = mapScale;
 
   const { width } = Dimensions.get("window");
   const rawSize = (width - PADDING * 2 - GAP * (GRIGLIA_COLONNE - 1)) / GRIGLIA_COLONNE;
