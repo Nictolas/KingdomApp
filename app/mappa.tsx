@@ -77,28 +77,72 @@ const STRADA_OPZIONE: EdificioInCella = { id: -1, nome: "Strada", emoji: "🛤�
 const DORMITORIO: EdificioInCella = { id: 14, nome: "Dormitorio", emoji: "🛏️" };
 const CAPANNA: EdificioInCella = { id: 20, nome: "Capanna", emoji: "⛺" };
 
-/** Restituisce edifici iniziali fissi (centro comando, serra, ecc.) per la griglia cols×rows. */
-function getEdificiIniziali(cols: number, rows: number): Record<number, EdificioInCella> {
-  const idx = getIndiciEdificiIniziali(cols, rows);
-  return {
-    [idx.CENTRO_COMANDO_INDEX]: { id: 1, nome: "Centro di Comando", emoji: "🏛️" },
-    [idx.SPAZIOPORTO_INDEX]: { id: 19, nome: "Spazioporto", emoji: "🚀" },
-    [idx.TRIBUNALE_INDEX]: { id: 12, nome: "Tribunale", emoji: "⚖️" },
-    [idx.SERRA_INDEX]: { id: 2, nome: "Serra", emoji: "🌱" },
-    [idx.DORMITORIO_1_INDEX]: DORMITORIO,
-    [idx.DORMITORIO_2_INDEX]: DORMITORIO,
-    [idx.DORMITORIO_3_INDEX]: DORMITORIO
-  };
+/** Trova la prima cella terra (non acqua, non fiume, non in exclude) partendo da index. */
+function findNearestLandNotRiver(
+  start: number,
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  exclude: Set<number> = new Set()
+): number | null {
+  if (!isAcqua(start, cols, rows) && !riverSet.has(start) && !exclude.has(start)) return start;
+  const visitati = new Set<number>([start]);
+  let frontiera: number[] = [start];
+  for (let dist = 0; dist < cols * rows && frontiera.length > 0; dist++) {
+    const next: number[] = [];
+    for (const i of frontiera) {
+      for (const n of getViciniOrtogonali(i, cols, rows)) {
+        if (visitati.has(n)) continue;
+        visitati.add(n);
+        if (!isAcqua(n, cols, rows) && !riverSet.has(n) && !exclude.has(n)) return n;
+        next.push(n);
+      }
+    }
+    frontiera = next;
+  }
+  return null;
 }
 
-/** Restituisce lo stato iniziale della mappa con 5–9 Capanne e 2–5 Giacimenti su erba libera. */
-function getInitialEdificiInMappa(cols: number, rows: number): Record<number, EdificioInCella> {
-  const edificiIniziali = getEdificiIniziali(cols, rows);
+/** Restituisce edifici iniziali fissi, spostati su terra (no fiume, no mare); nessuna cella condivisa. */
+function getEdificiIniziali(
+  cols: number,
+  rows: number,
+  riverSet: Set<number>
+): Record<number, EdificioInCella> {
+  const idx = getIndiciEdificiIniziali(cols, rows);
+  const edifici: [number, EdificioInCella][] = [
+    [idx.CENTRO_COMANDO_INDEX, { id: 1, nome: "Centro di Comando", emoji: "🏛️" }],
+    [idx.SPAZIOPORTO_INDEX, { id: 19, nome: "Spazioporto", emoji: "🚀" }],
+    [idx.TRIBUNALE_INDEX, { id: 12, nome: "Tribunale", emoji: "⚖️" }],
+    [idx.SERRA_INDEX, { id: 2, nome: "Serra", emoji: "🌱" }],
+    [idx.DORMITORIO_1_INDEX, DORMITORIO],
+    [idx.DORMITORIO_2_INDEX, DORMITORIO],
+    [idx.DORMITORIO_3_INDEX, DORMITORIO]
+  ];
+  const out: Record<number, EdificioInCella> = {};
+  const used = new Set<number>();
+  for (const [preferred, e] of edifici) {
+    const cell = findNearestLandNotRiver(preferred, cols, rows, riverSet, used);
+    if (cell != null) {
+      out[cell] = e;
+      used.add(cell);
+    }
+  }
+  return out;
+}
+
+/** Restituisce lo stato iniziale della mappa; esclude sempre acqua e fiumi dalle celle edificabili. */
+function getInitialEdificiInMappa(
+  cols: number,
+  rows: number,
+  riverSet: Set<number>
+): Record<number, EdificioInCella> {
+  const edificiIniziali = getEdificiIniziali(cols, rows, riverSet);
   const totaleCelle = cols * rows;
   const occupate = new Set<number>(Object.keys(edificiIniziali).map(Number));
   const erbaLibera: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {
-    if (!isAcqua(i, cols, rows) && !occupate.has(i)) erbaLibera.push(i);
+    if (!isAcqua(i, cols, rows) && !riverSet.has(i) && !occupate.has(i)) erbaLibera.push(i);
   }
   const shuffled = [...erbaLibera].sort(() => Math.random() - 0.5);
   const nCapanne = 5 + Math.floor(Math.random() * 5);
@@ -112,25 +156,24 @@ function getInitialEdificiInMappa(cols: number, rows: number): Record<number, Ed
   return { ...edificiIniziali, ...capanne, ...giacimenti };
 }
 
-/** Stato iniziale mappa: edifici + terreno (fiumi e sabbia). Ogni nuova cella = prato (erba). */
+/** Stato iniziale mappa: prima si generano i fiumi (solo bordi vietati), poi gli edifici su terra (no fiumi, no mare). */
 function getInitialMappaWithRivers(cols: number, rows: number): {
   edificiInMappa: Record<number, EdificioInCella>;
   terrenoInMappa: Record<number, TerrenoType>;
 } {
-  const edificiInMappa = getInitialEdificiInMappa(cols, rows);
   const totaleCelle = cols * rows;
   const borderIndices = new Set<number>();
   for (let i = 0; i < totaleCelle; i++) if (isAcqua(i, cols, rows)) borderIndices.add(i);
-  const buildingIndices = new Set(Object.keys(edificiInMappa).map(Number));
-  const forbiddenIndices = new Set([...borderIndices, ...buildingIndices]);
   const { riverIndices, sandIndices } = generateRivers({
     cols,
     rows,
     numSources: 2 + Math.floor(Math.random() * 2),
     maxLength: 60,
     bifurcationProbability: 0.1,
-    forbiddenIndices
+    forbiddenIndices: borderIndices
   });
+  const riverSet = new Set(riverIndices);
+  const edificiInMappa = getInitialEdificiInMappa(cols, rows, riverSet);
   const giacimentoIndices = new Set(
     Object.keys(edificiInMappa)
       .map(Number)
@@ -140,14 +183,24 @@ function getInitialMappaWithRivers(cols: number, rows: number): {
   return { edificiInMappa, terrenoInMappa };
 }
 
-/** Coppie [indiceA, indiceB] per strade iniziali (centro → spazioporto, tribunale, serra). */
-function getStradeIniziali(cols: number, rows: number): [number, number][] {
-  const idx = getIndiciEdificiIniziali(cols, rows);
-  return [
-    [idx.CENTRO_COMANDO_INDEX, idx.SPAZIOPORTO_INDEX],
-    [idx.CENTRO_COMANDO_INDEX, idx.TRIBUNALE_INDEX],
-    [idx.CENTRO_COMANDO_INDEX, idx.SERRA_INDEX]
-  ];
+/** Coppie [indiceA, indiceB] per strade iniziali (centro → spazioporto, tribunale, serra); usa le posizioni effettive degli edifici. */
+function getStradeIniziali(edificiInMappa: Record<number, EdificioInCella>): [number, number][] {
+  let centro: number | null = null;
+  let spazioporto: number | null = null;
+  let tribunale: number | null = null;
+  let serra: number | null = null;
+  for (const [i, e] of Object.entries(edificiInMappa)) {
+    const idx = Number(i);
+    if (e.nome === "Centro di Comando") centro = idx;
+    if (e.nome === "Spazioporto") spazioporto = idx;
+    if (e.nome === "Tribunale") tribunale = idx;
+    if (e.nome === "Serra") serra = idx;
+  }
+  const out: [number, number][] = [];
+  if (centro != null && spazioporto != null) out.push([centro, spazioporto]);
+  if (centro != null && tribunale != null) out.push([centro, tribunale]);
+  if (centro != null && serra != null) out.push([centro, serra]);
+  return out;
 }
 
 /** Centro della cella in px (per layer strade/emoji). Usa dimensioni effettive griglia. */
@@ -287,7 +340,7 @@ export function MappaScreen() {
   const cellH = rows > 0 ? (vh - (rows - 1) * GAP) / rows : CELL_SIZE_PX;
   const contentWidth = vw;
   const contentHeight = vh;
-  const stradeIniziali = getStradeIniziali(cols, rows);
+  const stradeIniziali = getStradeIniziali(edificiInMappa);
 
   useEffect(() => {
     if (vw <= 0 || vh <= 0 || cols <= 0 || rows <= 0) return;

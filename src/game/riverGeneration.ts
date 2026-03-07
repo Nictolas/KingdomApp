@@ -58,7 +58,7 @@ function flowDirectionFromEdge(edge: number): number {
   return (edge + 2) % 4;
 }
 
-/** Sceglie un indice di partenza su un bordo (non angolo). edge 0=top, 1=right, 2=bottom, 3=left */
+/** Sceglie un indice di partenza sulla prima fila di terra (un passo dentro dal bordo mare). edge 0=top, 1=right, 2=bottom, 3=left */
 function pickStartOnEdge(
   edge: number,
   rows: number,
@@ -68,17 +68,17 @@ function pickStartOnEdge(
 ): number | null {
   let row: number, col: number;
   if (edge === 0) {
-    row = 0;
+    row = 1;
     col = 1 + Math.floor(random() * (cols - 2));
   } else if (edge === 1) {
     row = 1 + Math.floor(random() * (rows - 2));
-    col = cols - 1;
+    col = cols - 2;
   } else if (edge === 2) {
-    row = rows - 1;
+    row = rows - 2;
     col = 1 + Math.floor(random() * (cols - 2));
   } else {
     row = 1 + Math.floor(random() * (rows - 2));
-    col = 0;
+    col = 1;
   }
   const idx = rowColToIndex(row, col, cols);
   if (forbidden.has(idx)) return null;
