@@ -119,7 +119,7 @@ function pesaScelta<T>(pool: { nome: T; peso: number }[]): T {
 
 const RELIGIONI: Abitante["religione"][] = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto degli Alieni"];
 const RAZZE_ALIENE: Razza[] = ["Grigi", "Nordici", "Rettiliani", "Insettoidi", "Marini", "Ferini"];
-const FAZIONI_RUOLO = ["Amministrazione", "Lavoratori", "Scienziati", "Esploratori"];
+const FAZIONI_RUOLO = ["Amministrazione", "Lavoratori", "Scienziati", "Esploratori", "Intellettuali", "Ambientalisti"];
 const LAVORI = [
   "Disoccupato", "Tecnico", "Ricercatore", "Ingegnere", "Medico", "Agricoltore",
   "Meccanico", "Esploratore", "Comunicatore", "Sicurezza", "Amministratore"

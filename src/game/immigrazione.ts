@@ -8,7 +8,7 @@ export type GeneraImmigratiPropostiResult = {
   nextIdDopo: number;
 };
 
-const FAZIONI_RUOLO = ["Amministrazione", "Lavoratori", "Scienziati", "Esploratori"];
+const FAZIONI_RUOLO = ["Amministrazione", "Lavoratori", "Scienziati", "Esploratori", "Intellettuali", "Ambientalisti"];
 const LAVORI = [
   "Tecnico", "Ricercatore", "Ingegnere", "Medico", "Agricoltore",
   "Meccanico", "Esploratore", "Comunicatore", "Sicurezza", "Amministratore"
