@@ -1,6 +1,7 @@
 import React from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Edificio } from "../types";
+import { EDIFICIO_COMPETENZA_RICHIESTA } from "../data/edificiCompetenze";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type EdificioInfoModalProps = {
@@ -66,6 +67,19 @@ export function EdificioInfoModal({ visible, edificio, onClose }: EdificioInfoMo
                 Costo mensile: {formatCrediti((edificio.stipendioPerLavoratore ?? 0) * (edificio.abitantiAssegnati?.length ?? 0))} (stipendio × lavoratori)
               </Text>
             </View>
+
+            {/* Competenza richiesta (da /competenze) */}
+            {EDIFICIO_COMPETENZA_RICHIESTA[edificio.id] && (
+              <View style={styles.section}>
+                <Text style={styles.sectionLabel}>Competenza</Text>
+                <Text style={styles.line}>
+                  {EDIFICIO_COMPETENZA_RICHIESTA[edificio.id].nomeCompetenza} (min. {EDIFICIO_COMPETENZA_RICHIESTA[edificio.id].competenzaMinima}%)
+                </Text>
+                <Text style={styles.lineHint}>
+                  I Disoccupati con competenza ≥ soglia possono essere assegnati automaticamente allo Skip Mese.
+                </Text>
+              </View>
+            )}
 
             {/* Produzione e consumo */}
             {(edificio.produzione || edificio.consumo) && (
@@ -171,6 +185,12 @@ const styles = StyleSheet.create({
     color: "#cbd5f5",
     fontSize: 14,
     marginBottom: 6
+  },
+  lineHint: {
+    color: "rgba(203,213,245,0.6)",
+    fontSize: 11,
+    marginTop: 2,
+    fontStyle: "italic"
   },
   label: {
     color: "rgba(203,213,245,0.7)",

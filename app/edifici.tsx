@@ -3,6 +3,7 @@ import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import type { Edificio } from "../src/types";
+import { EDIFICIO_COMPETENZA_RICHIESTA } from "../src/data/edificiCompetenze";
 import { EdificioInfoModal } from "../src/ui/EdificioInfoModal";
 import { CampoDiLavoroModal } from "../src/ui/CampoDiLavoroModal";
 
@@ -42,11 +43,15 @@ function CardEdificio({
   titleOverride?: string;
   onPress: () => void;
 }) {
+  const competenza = EDIFICIO_COMPETENZA_RICHIESTA[e.id];
   return (
     <Pressable style={styles.card} onPress={onPress}>
       <Text style={styles.emoji}>{e.emoji}</Text>
       <Text style={styles.cardTitle}>{titleOverride ?? e.nome}</Text>
       <Text style={styles.cardTipo}>{e.tipo}</Text>
+      {competenza && (
+        <Text style={styles.cardCompetenza} numberOfLines={1}>{competenza.nomeCompetenza} (≥{competenza.competenzaMinima}%)</Text>
+      )}
     </Pressable>
   );
 }
@@ -248,5 +253,11 @@ const styles = StyleSheet.create({
     color: "#93c5fd",
     fontSize: 8,
     textAlign: "center"
+  },
+  cardCompetenza: {
+    color: "rgba(203,213,245,0.7)",
+    fontSize: 7,
+    textAlign: "center",
+    marginTop: 2
   }
 });

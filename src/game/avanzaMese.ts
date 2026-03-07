@@ -2,6 +2,7 @@ import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso } from "
 import { EVENTI_CATALOGO } from "./eventi/index";
 import { getConsumoCibo, getConsumoAcqua, getProduzioneCiboPerAbitante } from "./ciboConsumo";
 import { RESIDENZE_CATALOGO, RESIDENZE_ENERGIA_PER_ABITANTE } from "../data/residenzeData";
+import { autoAssegnaDisoccupati, sincronizzaLavoroDaEdifici } from "./edificiLavoro";
 
 export type AvanzaMeseInput = {
   abitanti: Abitante[];
@@ -318,12 +319,53 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     }
   });
 
-  // Invecchiamento: +1 anno quando si cambia anno
+  // Invecchiamento: +1 anno quando si cambia anno. Calcola chi diventa pensionato per rimuoverli dagli edifici.
   const idsPensionati = new Set<number>();
+  abitantiRimasti.forEach((a) => {
+    const etaNext = avanzaAnno ? a.eta + 1 : a.eta;
+    if (
+      etaNext >= etaPensionabile &&
+      a.lavoro !== "Comandante della Colonia" &&
+      a.lavoro !== "Neonato" &&
+      a.lavoro !== "Pensionato"
+    ) {
+      idsPensionati.add(a.id);
+    }
+  });
+
+  // Aggiorna edifici (rimuovi pensionati, variazione efficienza)
+  const nuoviEdifici = edificiSync.map((edificio) => {
+    const abitantiAssegnatiSenzaPensionati = (edificio.abitantiAssegnati ?? []).filter(
+      (id) => !idsPensionati.has(id)
+    );
+    const occupazioneAggiornata =
+      abitantiAssegnatiSenzaPensionati.length !== (edificio.abitantiAssegnati?.length ?? 0)
+        ? abitantiAssegnatiSenzaPensionati.length
+        : edificio.occupazione;
+    let out = edificio;
+    if (abitantiAssegnatiSenzaPensionati.length !== (edificio.abitantiAssegnati?.length ?? 0)) {
+      out = { ...edificio, abitantiAssegnati: abitantiAssegnatiSenzaPensionati, occupazione: occupazioneAggiornata };
+    }
+    if (out.stato === "Operativo") {
+      const variazioneEfficienza = Math.floor(Math.random() * 6) - 2;
+      const nuovaEfficienza = Math.max(50, Math.min(100, out.efficienza + variazioneEfficienza));
+      return { ...out, efficienza: nuovaEfficienza };
+    }
+    return out;
+  });
+
+  // Auto-assign: Disoccupati (non Robot) con competenza sufficiente vanno in edifici con posti liberi
+  const edificiConAuto = autoAssegnaDisoccupati(abitantiRimasti, nuoviEdifici);
+  const abitantiConLavoro = sincronizzaLavoroDaEdifici(abitantiRimasti, edificiConAuto);
+  const idToStipendio = new Map<number, number>();
+  edificiConAuto.forEach((e) => {
+    const stipendio = e.stipendioPerLavoratore ?? 0;
+    (e.abitantiAssegnati ?? []).forEach((id) => idToStipendio.set(id, stipendio));
+  });
 
   // Costo abitazione per abitante (dalla residenza assegnata). Usato per Senzatetto e per entrateResidenze.
   const idToCostoAbitazione = new Map<number, number>();
-  edificiSync.forEach((edificio) => {
+  edificiConAuto.forEach((edificio) => {
     if (edificio.tipo !== "Residenza" || edificio.stato !== "Operativo") return;
     const prezzo =
       edificio.nome === "Baracca"
@@ -333,7 +375,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   });
 
   // Aggiorna abitanti (invecchiamento, pensionamento, schiavi vs non-schiavi, crediti, stanchezza, peso, salute)
-  const nuoviAbitanti = abitantiRimasti.map((abitante) => {
+  const nuoviAbitanti = abitantiConLavoro.map((abitante) => {
     let eta = abitante.eta;
     if (avanzaAnno) eta += 1;
 
@@ -347,7 +389,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     ) {
       lavoro = "Pensionato";
       reddito = assegnoPensionati;
-      idsPensionati.add(abitante.id);
+    } else if (lavoro !== "Disoccupato") {
+      reddito = idToStipendio.get(abitante.id) ?? abitante.reddito;
     }
 
     const èSchiavo = abitante.fazioni?.includes("Schiavi") ?? false;
@@ -418,27 +461,6 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     };
   });
 
-  // Aggiorna edifici (rimuovi pensionati dalle assegnazioni, variazione efficienza se operativo)
-  const nuoviEdifici = edificiSync.map((edificio) => {
-    const abitantiAssegnatiSenzaPensionati = (edificio.abitantiAssegnati ?? []).filter(
-      (id) => !idsPensionati.has(id)
-    );
-    const occupazioneAggiornata =
-      abitantiAssegnatiSenzaPensionati.length !== (edificio.abitantiAssegnati?.length ?? 0)
-        ? abitantiAssegnatiSenzaPensionati.length
-        : edificio.occupazione;
-    let out = edificio;
-    if (abitantiAssegnatiSenzaPensionati.length !== (edificio.abitantiAssegnati?.length ?? 0)) {
-      out = { ...edificio, abitantiAssegnati: abitantiAssegnatiSenzaPensionati, occupazione: occupazioneAggiornata };
-    }
-    if (out.stato === "Operativo") {
-      const variazioneEfficienza = Math.floor(Math.random() * 6) - 2;
-      const nuovaEfficienza = Math.max(50, Math.min(100, out.efficienza + variazioneEfficienza));
-      return { ...out, efficienza: nuovaEfficienza };
-    }
-    return out;
-  });
-
   // Aggiorna risorse (crediti, produzione/consumo edifici, consumo cibo, bonus ministro agricoltura)
   const nuoveRisorse = risorse.map((risorsa) => {
     let nuovaQuantità = risorsa.quantità;
@@ -449,7 +471,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
         .filter((a) => a.lavoro !== "Pensionato")
         .reduce((sum, a) => sum + a.reddito, 0);
       const totaleSpese = nuoviAbitanti.reduce((sum, a) => sum + a.spese, 0);
-      const totaleStipendiEdifici = nuoviEdifici
+      const totaleStipendiEdifici = edificiConAuto
         .filter((e) => e.stato === "Operativo")
         .reduce((sum, e) => {
           // Se la sanità è privata, gli stipendi dell'Ospedale non pesano sul bilancio della colonia
@@ -460,7 +482,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
         }, 0);
       const numPensionati = nuoviAbitanti.filter((a) => a.lavoro === "Pensionato").length;
       const costoPensioni = numPensionati * assegnoPensionati;
-      const entrateResidenze = nuoviEdifici
+      const entrateResidenze = edificiConAuto
         .filter((e) => e.tipo === "Residenza" && e.stato === "Operativo")
         .reduce((sum, e) => {
           const prezzo =
@@ -476,7 +498,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       nuovaQuantità = risorsa.quantità + totaleRedditi + entrateResidenze - totaleSpese - totaleStipendiEdifici - costoPensioni;
     }
 
-    nuoviEdifici.forEach((edificio) => {
+    edificiConAuto.forEach((edificio) => {
       if (edificio.stato !== "Operativo") return;
       if (edificio.produzione) {
         const produzioni = edificio.produzione.split(",").map((p) => p.trim());
@@ -519,7 +541,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       const numRobots = nuoviAbitanti.filter((a) => a.razza === "Robot").length;
       nuovaQuantità -= numRobots * 2;
       // Residenze: consumo energia per abitante (es. Baracca 0, Dormitorio 1 MW/abitante)
-      nuoviEdifici.forEach((edificio) => {
+      edificiConAuto.forEach((edificio) => {
         if (edificio.stato !== "Operativo" || edificio.tipo !== "Residenza") return;
         const perAbitante = RESIDENZE_ENERGIA_PER_ABITANTE[edificio.nome] ?? 0;
         const numAbitanti = (edificio.abitantiAssegnati ?? []).length;
@@ -554,7 +576,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
 
   const risorseEv = nuoveRisorse.map((r) => ({ ...r }));
   const abitantiEv = nuoviAbitanti.map((a) => ({ ...a }));
-  const edificiEv = nuoviEdifici.map((e) => ({
+  const edificiEv = edificiConAuto.map((e) => ({
     ...e,
     abitantiAssegnati: (e.abitantiAssegnati ?? []).filter((id) => !idsVittime.has(id))
   }));
