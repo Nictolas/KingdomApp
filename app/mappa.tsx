@@ -63,11 +63,33 @@ function isAcqua(index: number): boolean {
   );
 }
 
+const MINIERA: EdificioInCella = { id: 0, nome: "Miniera", emoji: "⛏️" };
+const RAFFINERIA_MINERARIA: EdificioInCella = { id: 3, nome: "Raffineria Mineraria", emoji: "⚙️" };
+/** Opzione "Strada" per il dialog costruzione (cella diventa lastricato strada). */
+const STRADA_OPZIONE: EdificioInCella = { id: -1, nome: "Strada", emoji: "🛤️" };
+
 const edificiIniziali: Record<number, EdificioInCella> = {
   [CENTRO_COMANDO_INDEX]: { id: 1, nome: "Centro di Comando", emoji: "🏛️" },
   [SPAZIOPORTO_INDEX]: { id: 19, nome: "Spazioporto", emoji: "🚀" },
   [TRIBUNALE_INDEX]: { id: 12, nome: "Tribunale", emoji: "⚖️" }
 };
+
+const TOTALE_CELLE = GRIGLIA_COLONNE * GRIGLIA_RIGHE;
+
+/** Restituisce lo stato iniziale della mappa con 2–5 Miniere casuali su erba libera. */
+function getInitialEdificiInMappa(): Record<number, EdificioInCella> {
+  const occupate = new Set<number>(Object.keys(edificiIniziali).map(Number));
+  const erbaLibera: number[] = [];
+  for (let i = 0; i < TOTALE_CELLE; i++) {
+    if (!isAcqua(i) && !occupate.has(i)) erbaLibera.push(i);
+  }
+  const nMiniera = 2 + Math.floor(Math.random() * 4);
+  const shuffled = [...erbaLibera].sort(() => Math.random() - 0.5);
+  const celleMiniera = shuffled.slice(0, Math.min(nMiniera, shuffled.length));
+  const miniere: Record<number, EdificioInCella> = {};
+  celleMiniera.forEach((i) => (miniere[i] = MINIERA));
+  return { ...edificiIniziali, ...miniere };
+}
 
 /** Coppie [indiceA, indiceB] di celle tra cui disegnare una strada (centro → centro). */
 const STRADE_INIZIALI: [number, number][] = [
@@ -85,10 +107,13 @@ function getCellCenter(cellIndex: number, size: number): { x: number; y: number 
 
 export default function MappaScreen() {
   const router = useRouter();
-  const [edificiInMappa, setEdificiInMappa] = useState<Record<number, EdificioInCella>>(() => ({
-    ...edificiIniziali
-  }));
+  const [edificiInMappa, setEdificiInMappa] = useState<Record<number, EdificioInCella>>(
+    getInitialEdificiInMappa
+  );
   const [selectedCellForDialog, setSelectedCellForDialog] = useState<number | null>(null);
+  const [selectedCellForTransformDialog, setSelectedCellForTransformDialog] = useState<number | null>(
+    null
+  );
   const [isDragging, setIsDragging] = useState(false);
   const lastTapCell = useRef<number | null>(null);
   const lastTapTime = useRef<number>(0);
@@ -189,7 +214,11 @@ export default function MappaScreen() {
       if (isDoubleTap) {
         lastTapCell.current = null;
         if (edificio) {
-          openRouteForEdificio(edificio.nome);
+          if (edificio.nome === "Miniera") {
+            setSelectedCellForTransformDialog(cellIndex);
+          } else {
+            openRouteForEdificio(edificio.nome);
+          }
         } else {
           setSelectedCellForDialog(cellIndex);
         }
@@ -211,6 +240,14 @@ export default function MappaScreen() {
     },
     []
   );
+
+  const handleTrasformaMiniera = useCallback((cellIndex: number) => {
+    setEdificiInMappa((prev) => ({
+      ...prev,
+      [cellIndex]: RAFFINERIA_MINERARIA
+    }));
+    setSelectedCellForTransformDialog(null);
+  }, []);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -293,11 +330,12 @@ export default function MappaScreen() {
               const edificio = edificiInMappa[i];
               const emoji = edificio?.emoji ?? null;
               const hasEdificio = !!edificio;
+              const èStrada = edificio?.nome === "Strada";
               const cellStyle = [
                 styles.cella,
                 acqua ? styles.cellaAcqua : styles.cellaErba,
                 { width: size, height: size },
-                hasEdificio && styles.cellaEdificio
+                hasEdificio && (èStrada ? styles.cellaStrada : styles.cellaEdificio)
               ];
               const content = emoji ? (
                 <Text style={[styles.edificioEmoji, { fontSize: Math.max(10, Math.min(22, size - 4)) }]}>
@@ -329,6 +367,16 @@ export default function MappaScreen() {
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.modalTitle}>Quale edificio vuoi inserire qui?</Text>
             <ScrollView style={styles.modalList} nestedScrollEnabled>
+              <Pressable
+                style={styles.modalOption}
+                onPress={() =>
+                  selectedCellForDialog !== null &&
+                  handleScegliEdificio(selectedCellForDialog, STRADA_OPZIONE as unknown as Edificio)
+                }
+              >
+                <Text style={styles.modalOptionEmoji}>{STRADA_OPZIONE.emoji}</Text>
+                <Text style={styles.modalOptionNome}>{STRADA_OPZIONE.nome}</Text>
+              </Pressable>
               {edificiData.map((e) => (
                 <Pressable
                   key={e.id}
@@ -343,6 +391,42 @@ export default function MappaScreen() {
             <Pressable style={styles.modalCancel} onPress={() => setSelectedCellForDialog(null)}>
               <Text style={styles.modalCancelText}>Annulla</Text>
             </Pressable>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={selectedCellForTransformDialog !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setSelectedCellForTransformDialog(null)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setSelectedCellForTransformDialog(null)}
+        >
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>Trasformare in Raffineria Mineraria?</Text>
+            <Text style={styles.modalSubtitle}>
+              Vuoi trasformare questa Miniera ⛏️ nell'edificio Raffineria Mineraria ⚙️?
+            </Text>
+            <View style={styles.modalButtonsRow}>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setSelectedCellForTransformDialog(null)}
+              >
+                <Text style={styles.modalButtonText}>Annulla</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={() =>
+                  selectedCellForTransformDialog !== null &&
+                  handleTrasformaMiniera(selectedCellForTransformDialog)
+                }
+              >
+                <Text style={styles.modalButtonText}>Conferma</Text>
+              </Pressable>
+            </View>
           </Pressable>
         </Pressable>
       </Modal>
@@ -428,6 +512,10 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(234,179,8,0.25)",
     borderColor: "rgba(234,179,8,0.7)"
   },
+  cellaStrada: {
+    backgroundColor: STRADA_COLORE,
+    borderColor: "rgba(0,0,0,0.2)"
+  },
   edificioEmoji: {
     fontSize: 18
   },
@@ -454,6 +542,35 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 12,
     textAlign: "center"
+  },
+  modalSubtitle: {
+    color: "rgba(203,213,245,0.9)",
+    fontSize: 13,
+    marginBottom: 16,
+    textAlign: "center"
+  },
+  modalButtonsRow: {
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "center"
+  },
+  modalButton: {
+    paddingVertical: 10,
+    paddingHorizontal: 20,
+    borderRadius: 8,
+    minWidth: 100,
+    alignItems: "center"
+  },
+  modalButtonCancel: {
+    backgroundColor: "rgba(148,163,184,0.3)"
+  },
+  modalButtonConfirm: {
+    backgroundColor: "#3b82f6"
+  },
+  modalButtonText: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "600"
   },
   modalList: {
     maxHeight: 320
