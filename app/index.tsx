@@ -1,16 +1,6 @@
-import React from "react";
-import { SafeAreaView, StyleSheet } from "react-native";
-import GridGame from "../src/screens/GridGame";
+import { Redirect } from "expo-router";
 
 export default function Index() {
-  return (
-    <SafeAreaView style={styles.safe}>
-      <GridGame />
-    </SafeAreaView>
-  );
+  return <Redirect href="/menu" />;
 }
-
-const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#0a0f1a" }
-});
 

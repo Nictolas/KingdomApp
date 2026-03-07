@@ -336,7 +336,9 @@ export default function MappaScreen() {
           ← Indietro
         </Text>
         <Text style={styles.title}>Mappa</Text>
-        <View style={{ width: 60 }} />
+        <Pressable style={styles.menuBtn} onPress={() => router.push("/menu")}>
+          <Text style={styles.menuBtnText}>Menu</Text>
+        </Pressable>
       </View>
 
       {/* Banner in alto: MyKingdom a sinistra + Mese/Anno, Diario, Skip Mese, Felicità, Lealtà, Paura */}
@@ -871,6 +873,19 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 14,
     fontWeight: "700"
+  },
+  menuBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    backgroundColor: "rgba(59,130,246,0.4)",
+    borderWidth: 1,
+    borderColor: "rgba(147,197,253,0.5)"
+  },
+  menuBtnText: {
+    color: "#93c5fd",
+    fontSize: 12,
+    fontWeight: "600"
   },
   viewport: {
     flex: 1,
