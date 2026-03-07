@@ -14,30 +14,30 @@ import {
 import { Redirect, useRouter } from "expo-router";
 import { edificiData } from "../src/data/edificiData";
 import { useGameContext } from "../src/context/GameContext";
+import { generateRivers, buildTerrenoFromRivers, type TerrenoType } from "../src/game/riverGeneration";
 import type { Edificio, Risorsa } from "../src/types";
 
-const GRIGLIA_COLONNE = 24;
-const GRIGLIA_RIGHE = 24;
-const PADDING = 12;
 const GAP = 2;
-const MIN_CELL_SIZE = 14;
+/** Dimensione fissa cella in px: griglia genera esattamente le celle che coprono lo schermo. */
+const CELL_SIZE_PX = 32;
 const DOPPIO_TAP_MS = 400;
 const STRADA_SPESSORE = 6;
 const STRADA_COLORE = "#78716c";
 const STRADA_CERCHIO_RAGGIO = 5;
 
-/** Indice della cella occupata dal Centro di Comando (centro griglia). */
-const CENTRO_COMANDO_INDEX = Math.floor(GRIGLIA_COLONNE * GRIGLIA_RIGHE / 2) - Math.floor(GRIGLIA_COLONNE / 2);
-/** Cella occupata dallo Spazioporto (a destra del Centro di Comando). */
-const SPAZIOPORTO_INDEX = CENTRO_COMANDO_INDEX + 1;
-/** Cella occupata dal Tribunale (sotto il Centro di Comando). */
-const TRIBUNALE_INDEX = CENTRO_COMANDO_INDEX + GRIGLIA_COLONNE;
-/** Cella occupata dalla Serra (a sinistra del Centro di Comando). */
-const SERRA_INDEX = CENTRO_COMANDO_INDEX - 1;
-/** Celle occupate dai tre Dormitori. */
-const DORMITORIO_1_INDEX = CENTRO_COMANDO_INDEX + 2;
-const DORMITORIO_2_INDEX = CENTRO_COMANDO_INDEX - GRIGLIA_COLONNE;
-const DORMITORIO_3_INDEX = CENTRO_COMANDO_INDEX + GRIGLIA_COLONNE + 1;
+/** Calcola indici edifici iniziali in funzione di cols/rows (centro griglia). */
+function getIndiciEdificiIniziali(cols: number, rows: number) {
+  const centro = Math.floor((cols * rows) / 2) - Math.floor(cols / 2);
+  return {
+    CENTRO_COMANDO_INDEX: centro,
+    SPAZIOPORTO_INDEX: centro + 1,
+    TRIBUNALE_INDEX: centro + cols,
+    SERRA_INDEX: centro - 1,
+    DORMITORIO_1_INDEX: centro + 2,
+    DORMITORIO_2_INDEX: centro - cols,
+    DORMITORIO_3_INDEX: centro + cols + 1
+  };
+}
 
 /** Route per edificio (come in app/edifici). */
 const EDIFICIO_TO_ROUTE: Record<string, string> = {
@@ -63,15 +63,10 @@ const EDIFICIO_TO_ROUTE: Record<string, string> = {
 type EdificioInCella = { id: number; nome: string; emoji: string };
 
 /** Cella è acqua (blu) se true, altrimenti erba (verde). Bordi della mappa = mare. */
-function isAcqua(index: number): boolean {
-  const row = Math.floor(index / GRIGLIA_COLONNE);
-  const col = index % GRIGLIA_COLONNE;
-  return (
-    row === 0 ||
-    row === GRIGLIA_RIGHE - 1 ||
-    col === 0 ||
-    col === GRIGLIA_COLONNE - 1
-  );
+function isAcqua(index: number, cols: number, rows: number): boolean {
+  const row = Math.floor(index / cols);
+  const col = index % cols;
+  return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
 }
 
 const GIACIMENTO: EdificioInCella = { id: 0, nome: "Giacimento", emoji: "⛰️" };
@@ -82,27 +77,31 @@ const STRADA_OPZIONE: EdificioInCella = { id: -1, nome: "Strada", emoji: "🛤�
 const DORMITORIO: EdificioInCella = { id: 14, nome: "Dormitorio", emoji: "🛏️" };
 const CAPANNA: EdificioInCella = { id: 20, nome: "Capanna", emoji: "⛺" };
 
-const edificiIniziali: Record<number, EdificioInCella> = {
-  [CENTRO_COMANDO_INDEX]: { id: 1, nome: "Centro di Comando", emoji: "🏛️" },
-  [SPAZIOPORTO_INDEX]: { id: 19, nome: "Spazioporto", emoji: "🚀" },
-  [TRIBUNALE_INDEX]: { id: 12, nome: "Tribunale", emoji: "⚖️" },
-  [SERRA_INDEX]: { id: 2, nome: "Serra", emoji: "🌱" },
-  [DORMITORIO_1_INDEX]: DORMITORIO,
-  [DORMITORIO_2_INDEX]: DORMITORIO,
-  [DORMITORIO_3_INDEX]: DORMITORIO
-};
+/** Restituisce edifici iniziali fissi (centro comando, serra, ecc.) per la griglia cols×rows. */
+function getEdificiIniziali(cols: number, rows: number): Record<number, EdificioInCella> {
+  const idx = getIndiciEdificiIniziali(cols, rows);
+  return {
+    [idx.CENTRO_COMANDO_INDEX]: { id: 1, nome: "Centro di Comando", emoji: "🏛️" },
+    [idx.SPAZIOPORTO_INDEX]: { id: 19, nome: "Spazioporto", emoji: "🚀" },
+    [idx.TRIBUNALE_INDEX]: { id: 12, nome: "Tribunale", emoji: "⚖️" },
+    [idx.SERRA_INDEX]: { id: 2, nome: "Serra", emoji: "🌱" },
+    [idx.DORMITORIO_1_INDEX]: DORMITORIO,
+    [idx.DORMITORIO_2_INDEX]: DORMITORIO,
+    [idx.DORMITORIO_3_INDEX]: DORMITORIO
+  };
+}
 
-const TOTALE_CELLE = GRIGLIA_COLONNE * GRIGLIA_RIGHE;
-
-/** Restituisce lo stato iniziale della mappa con 5–9 Capanne e 2–5 Giacimenti casuali su erba libera. */
-function getInitialEdificiInMappa(): Record<number, EdificioInCella> {
+/** Restituisce lo stato iniziale della mappa con 5–9 Capanne e 2–5 Giacimenti su erba libera. */
+function getInitialEdificiInMappa(cols: number, rows: number): Record<number, EdificioInCella> {
+  const edificiIniziali = getEdificiIniziali(cols, rows);
+  const totaleCelle = cols * rows;
   const occupate = new Set<number>(Object.keys(edificiIniziali).map(Number));
   const erbaLibera: number[] = [];
-  for (let i = 0; i < TOTALE_CELLE; i++) {
-    if (!isAcqua(i) && !occupate.has(i)) erbaLibera.push(i);
+  for (let i = 0; i < totaleCelle; i++) {
+    if (!isAcqua(i, cols, rows) && !occupate.has(i)) erbaLibera.push(i);
   }
   const shuffled = [...erbaLibera].sort(() => Math.random() - 0.5);
-  const nCapanne = 5 + Math.floor(Math.random() * 5); // 5–9
+  const nCapanne = 5 + Math.floor(Math.random() * 5);
   const nGiacimento = 2 + Math.floor(Math.random() * 4);
   const celleCapanne = shuffled.slice(0, Math.min(nCapanne, shuffled.length));
   const celleGiacimento = shuffled.slice(nCapanne, nCapanne + Math.min(nGiacimento, Math.max(0, shuffled.length - nCapanne)));
@@ -113,30 +112,62 @@ function getInitialEdificiInMappa(): Record<number, EdificioInCella> {
   return { ...edificiIniziali, ...capanne, ...giacimenti };
 }
 
-/** Coppie [indiceA, indiceB] di celle tra cui disegnare una strada (centro → centro). */
-const STRADE_INIZIALI: [number, number][] = [
-  [CENTRO_COMANDO_INDEX, SPAZIOPORTO_INDEX],
-  [CENTRO_COMANDO_INDEX, TRIBUNALE_INDEX],
-  [CENTRO_COMANDO_INDEX, SERRA_INDEX]
-];
+/** Stato iniziale mappa: edifici + terreno (fiumi e sabbia). Ogni nuova cella = prato (erba). */
+function getInitialMappaWithRivers(cols: number, rows: number): {
+  edificiInMappa: Record<number, EdificioInCella>;
+  terrenoInMappa: Record<number, TerrenoType>;
+} {
+  const edificiInMappa = getInitialEdificiInMappa(cols, rows);
+  const totaleCelle = cols * rows;
+  const borderIndices = new Set<number>();
+  for (let i = 0; i < totaleCelle; i++) if (isAcqua(i, cols, rows)) borderIndices.add(i);
+  const buildingIndices = new Set(Object.keys(edificiInMappa).map(Number));
+  const forbiddenIndices = new Set([...borderIndices, ...buildingIndices]);
+  const { riverIndices, sandIndices } = generateRivers({
+    cols,
+    rows,
+    numSources: 2 + Math.floor(Math.random() * 2),
+    maxLength: 60,
+    bifurcationProbability: 0.1,
+    forbiddenIndices
+  });
+  const giacimentoIndices = new Set(
+    Object.keys(edificiInMappa)
+      .map(Number)
+      .filter((i) => edificiInMappa[i]?.nome === "Giacimento")
+  );
+  const terrenoInMappa = buildTerrenoFromRivers(riverIndices, sandIndices, giacimentoIndices);
+  return { edificiInMappa, terrenoInMappa };
+}
 
-function getCellCenter(cellIndex: number, size: number): { x: number; y: number } {
-  const col = cellIndex % GRIGLIA_COLONNE;
-  const row = Math.floor(cellIndex / GRIGLIA_COLONNE);
-  const x = PADDING + col * (size + GAP) + size / 2;
-  const y = PADDING + row * (size + GAP) + size / 2;
+/** Coppie [indiceA, indiceB] per strade iniziali (centro → spazioporto, tribunale, serra). */
+function getStradeIniziali(cols: number, rows: number): [number, number][] {
+  const idx = getIndiciEdificiIniziali(cols, rows);
+  return [
+    [idx.CENTRO_COMANDO_INDEX, idx.SPAZIOPORTO_INDEX],
+    [idx.CENTRO_COMANDO_INDEX, idx.TRIBUNALE_INDEX],
+    [idx.CENTRO_COMANDO_INDEX, idx.SERRA_INDEX]
+  ];
+}
+
+/** Centro della cella in px (per layer strade/emoji). Usa dimensioni effettive griglia. */
+function getCellCenter(cellIndex: number, cellW: number, cellH: number, cols: number): { x: number; y: number } {
+  const col = cellIndex % cols;
+  const row = Math.floor(cellIndex / cols);
+  const x = col * (cellW + GAP) + cellW / 2;
+  const y = row * (cellH + GAP) + cellH / 2;
   return { x, y };
 }
 
 /** Vicini ortogonali (su, giù, sinistra, destra) con controlli sui bordi. */
-function getViciniOrtogonali(index: number): number[] {
-  const col = index % GRIGLIA_COLONNE;
-  const row = Math.floor(index / GRIGLIA_COLONNE);
+function getViciniOrtogonali(index: number, cols: number, rows: number): number[] {
+  const col = index % cols;
+  const row = Math.floor(index / cols);
   const out: number[] = [];
-  if (row > 0) out.push(index - GRIGLIA_COLONNE);
-  if (row < GRIGLIA_RIGHE - 1) out.push(index + GRIGLIA_COLONNE);
+  if (row > 0) out.push(index - cols);
+  if (row < rows - 1) out.push(index + cols);
   if (col > 0) out.push(index - 1);
-  if (col < GRIGLIA_COLONNE - 1) out.push(index + 1);
+  if (col < cols - 1) out.push(index + 1);
   return out;
 }
 
@@ -176,8 +207,18 @@ export function MappaScreen() {
   const lealtàMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.lealtà, 0) / nConLealtàPaura) : 0;
   const pauraMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.paura, 0) / nConLealtàPaura) : 0;
 
-  const [edificiInMappa, setEdificiInMappa] = useState<Record<number, EdificioInCella>>(
-    getInitialEdificiInMappa
+  const [mappaState, setMappaState] = useState<{
+    edificiInMappa: Record<number, EdificioInCella>;
+    terrenoInMappa: Record<number, TerrenoType>;
+  }>({ edificiInMappa: {}, terrenoInMappa: {} });
+  const initializedForGrid = useRef<{ cols: number; rows: number } | null>(null);
+  const edificiInMappa = mappaState.edificiInMappa;
+  const terrenoInMappa = mappaState.terrenoInMappa;
+  const setEdificiInMappa = useCallback(
+    (updater: (prev: Record<number, EdificioInCella>) => Record<number, EdificioInCella>) => {
+      setMappaState((s) => ({ ...s, edificiInMappa: updater(s.edificiInMappa) }));
+    },
+    []
   );
   const [selectedCellForDialog, setSelectedCellForDialog] = useState<number | null>(null);
   const [selectedCellForTransformDialog, setSelectedCellForTransformDialog] = useState<number | null>(
@@ -239,16 +280,22 @@ export function MappaScreen() {
   const { width, height } = Dimensions.get("window");
   const vw = viewportSize.w > 0 ? viewportSize.w : width;
   const vh = viewportSize.h > 0 ? viewportSize.h : height;
-  const rawSizeByW = (vw - PADDING * 2 - GAP * (GRIGLIA_COLONNE - 1)) / GRIGLIA_COLONNE;
-  const rawSizeByH = (vh - PADDING * 2 - GAP * (GRIGLIA_RIGHE - 1)) / GRIGLIA_RIGHE;
-  const rawSize = Math.max(rawSizeByW, rawSizeByH);
-  const size = Math.max(MIN_CELL_SIZE, Math.floor(rawSize));
+  const cols = Math.max(1, Math.floor((vw + GAP) / (CELL_SIZE_PX + GAP)));
+  const rows = Math.max(1, Math.floor((vh + GAP) / (CELL_SIZE_PX + GAP)));
+  const totaleCelle = cols * rows;
+  const cellW = cols > 0 ? (vw - (cols - 1) * GAP) / cols : CELL_SIZE_PX;
+  const cellH = rows > 0 ? (vh - (rows - 1) * GAP) / rows : CELL_SIZE_PX;
+  const contentWidth = vw;
+  const contentHeight = vh;
+  const stradeIniziali = getStradeIniziali(cols, rows);
 
-  const totaleCelle = GRIGLIA_COLONNE * GRIGLIA_RIGHE;
-  const gridWidth = GRIGLIA_COLONNE * size + (GRIGLIA_COLONNE - 1) * GAP;
-  const gridHeight = GRIGLIA_RIGHE * size + (GRIGLIA_RIGHE - 1) * GAP;
-  const contentWidth = gridWidth + PADDING * 2;
-  const contentHeight = gridHeight + PADDING * 2;
+  useEffect(() => {
+    if (vw <= 0 || vh <= 0 || cols <= 0 || rows <= 0) return;
+    if (initializedForGrid.current !== null) return;
+    initializedForGrid.current = { cols, rows };
+    const initial = getInitialMappaWithRivers(cols, rows);
+    setMappaState(initial);
+  }, [vw, vh, cols, rows]);
 
   const onViewportLayout = useCallback((e: { nativeEvent: { layout: { width: number; height: number } } }) => {
     const w = e.nativeEvent.layout.width;
@@ -467,6 +514,7 @@ export function MappaScreen() {
     (cellIndex: number) => {
       const now = Date.now();
       const edificio = edificiInMappa[cellIndex];
+      const terreno = terrenoInMappa[cellIndex] ?? "erba";
       const isDoubleTap = lastTapCell.current === cellIndex && now - lastTapTime.current < DOPPIO_TAP_MS;
       if (isDoubleTap) {
         lastTapCell.current = null;
@@ -476,7 +524,7 @@ export function MappaScreen() {
           } else {
             openRouteForEdificio(edificio.nome);
           }
-        } else {
+        } else if (terreno !== "river") {
           setSelectedCellForDialog(cellIndex);
         }
         return;
@@ -484,7 +532,7 @@ export function MappaScreen() {
       lastTapCell.current = cellIndex;
       lastTapTime.current = now;
     },
-    [edificiInMappa, openRouteForEdificio]
+    [edificiInMappa, terrenoInMappa, openRouteForEdificio]
   );
 
   const handleScegliEdificio = useCallback(
@@ -564,7 +612,7 @@ export function MappaScreen() {
         </View>
       </View>
 
-      {/* Contenitore mappa: solo transform (translate3d + scale), niente reflow */}
+      {/* Contenitore mappa: 100% larghezza/altezza, overflow hidden, nessuno sfondo fuori griglia */}
       <View style={styles.mapContainer}>
         <View
           nativeID="mappa-viewport"
@@ -575,55 +623,53 @@ export function MappaScreen() {
           ]}
           onLayout={onViewportLayout}
         >
+          <View style={[styles.gridFill, { width: contentWidth, height: contentHeight }]}>
+            {Array.from({ length: rows }, (_, rowIndex) => (
+              <View key={rowIndex} style={[styles.gridRow, { gap: GAP }]}>
+                {Array.from({ length: cols }, (_, colIndex) => {
+                  const i = rowIndex * cols + colIndex;
+                  const acqua = isAcqua(i, cols, rows);
+                  const terreno = terrenoInMappa[i] ?? "erba";
+                  const edificio = edificiInMappa[i];
+                  const hasEdificio = !!edificio;
+                  const èStrada = edificio?.nome === "Strada";
+                  const styleTerreno =
+                    acqua
+                      ? styles.cellaAcqua
+                      : terreno === "river"
+                        ? styles.cellaFiume
+                        : terreno === "sabbia"
+                          ? styles.cellaSabbia
+                          : styles.cellaErba;
+                  const cellStyle = [
+                    styles.cella,
+                    styleTerreno,
+                    styles.cellaStretch,
+                    hasEdificio && !èStrada && styles.cellaEdificio
+                  ];
+                  if (acqua) {
+                    return <View key={i} style={cellStyle} />;
+                  }
+                  return (
+                    <Pressable key={i} style={cellStyle} onPress={() => onCellPress(i)} />
+                  );
+                })}
+              </View>
+            ))}
+          </View>
           <View
             style={[
-              styles.mapTransform,
-              {
-                width: contentWidth,
-                height: contentHeight,
-                transform: [
-                  { translateX: -panX },
-                  { translateY: -panY },
-                  { scale: mapScale }
-                ]
-              },
-              Platform.OS === "web" && styles.mapTransformWeb
+              styles.roadsLayer,
+              styles.roadsLayerSopra,
+              { width: contentWidth, height: contentHeight }
             ]}
+            pointerEvents="none"
           >
-          <View style={[styles.contentWrap, { padding: PADDING }]}>
-            <View style={[styles.griglia, styles.grigliaTerreno, { gap: GAP, width: gridWidth }]}>
-              {Array.from({ length: totaleCelle }, (_, i) => {
-                const acqua = isAcqua(i);
-                const edificio = edificiInMappa[i];
-                const hasEdificio = !!edificio;
-                const èStrada = edificio?.nome === "Strada";
-                const cellStyle = [
-                  styles.cella,
-                  acqua ? styles.cellaAcqua : styles.cellaErba,
-                  { width: size, height: size },
-                  hasEdificio && !èStrada && styles.cellaEdificio
-                ];
-                if (acqua) {
-                  return <View key={i} style={cellStyle} />;
-                }
-                return (
-                  <Pressable key={i} style={cellStyle} onPress={() => onCellPress(i)} />
-                );
-              })}
-            </View>
-            <View
-              style={[
-                styles.roadsLayer,
-                styles.roadsLayerSopra,
-                { width: contentWidth, height: contentHeight }
-              ]}
-              pointerEvents="none"
-            >
-              {STRADE_INIZIALI.filter(
-                ([a, b]) => edificiInMappa[a] && edificiInMappa[b]
-              ).map(([from, to]) => {
-                const c1 = getCellCenter(from, size);
-                const c2 = getCellCenter(to, size);
+            {stradeIniziali.filter(
+              ([a, b]) => edificiInMappa[a] && edificiInMappa[b]
+            ).map(([from, to]) => {
+              const c1 = getCellCenter(from, cellW, cellH, cols);
+              const c2 = getCellCenter(to, cellW, cellH, cols);
                 const dx = c2.x - c1.x;
                 const dy = c2.y - c1.y;
                 const length = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -654,7 +700,7 @@ export function MappaScreen() {
                   .map(Number)
                   .filter((i) => edificiInMappa[i]?.nome === "Strada")
                   .forEach((i) => {
-                    const vicini = getViciniOrtogonali(i).filter(
+                    const vicini = getViciniOrtogonali(i, cols, rows).filter(
                       (n) => edificiInMappa[n]
                     );
                     if (vicini.length === 0) {
@@ -672,8 +718,8 @@ export function MappaScreen() {
                 return (
                   <>
                     {segmenti.map(([from, to]) => {
-                      const c1 = getCellCenter(from, size);
-                      const c2 = getCellCenter(to, size);
+                      const c1 = getCellCenter(from, cellW, cellH, cols);
+                      const c2 = getCellCenter(to, cellW, cellH, cols);
                       const dx = c2.x - c1.x;
                       const dy = c2.y - c1.y;
                       const length = Math.sqrt(dx * dx + dy * dy) || 1;
@@ -697,7 +743,7 @@ export function MappaScreen() {
                       );
                     })}
                     {celleIsolate.map((i) => {
-                      const c = getCellCenter(i, size);
+                      const c = getCellCenter(i, cellW, cellH, cols);
                       const r = STRADA_CERCHIO_RAGGIO;
                       return (
                         <View
@@ -720,33 +766,37 @@ export function MappaScreen() {
               })()}
             </View>
             <View
-              style={[styles.griglia, styles.grigliaEmoji, { gap: GAP, width: gridWidth }]}
+              style={[styles.gridFill, styles.grigliaEmoji, { width: contentWidth, height: contentHeight }]}
               pointerEvents="none"
             >
-              {Array.from({ length: totaleCelle }, (_, i) => {
-                const edificio = edificiInMappa[i];
-                const emoji = edificio?.emoji ?? null;
-                const èStrada = edificio?.nome === "Strada";
-                const mostraEmoji = !!edificio && !èStrada && emoji;
-                return (
-                  <View key={i} style={[styles.cella, { width: size, height: size }]}>
-                    {mostraEmoji ? (
-                      <Text
-                        style={[
-                          styles.edificioEmoji,
-                          { fontSize: Math.max(10, Math.min(22, size - 4)) }
-                        ]}
-                      >
-                        {emoji}
-                      </Text>
-                    ) : null}
-                  </View>
-                );
-              })}
+              {Array.from({ length: rows }, (_, rowIndex) => (
+                <View key={rowIndex} style={[styles.gridRow, { gap: GAP }]}>
+                  {Array.from({ length: cols }, (_, colIndex) => {
+                    const i = rowIndex * cols + colIndex;
+                    const edificio = edificiInMappa[i];
+                    const emoji = edificio?.emoji ?? null;
+                    const èStrada = edificio?.nome === "Strada";
+                    const mostraEmoji = !!edificio && !èStrada && emoji;
+                    const cellSize = Math.min(cellW, cellH);
+                    return (
+                      <View key={i} style={[styles.cella, styles.cellaStretch]}>
+                        {mostraEmoji ? (
+                          <Text
+                            style={[
+                              styles.edificioEmoji,
+                              { fontSize: Math.max(10, Math.min(22, cellSize - 4)) }
+                            ]}
+                          >
+                            {emoji}
+                          </Text>
+                        ) : null}
+                      </View>
+                    );
+                  })}
+                </View>
+              ))}
             </View>
           </View>
-        </View>
-        </View>
       </View>
 
       {/* Menu fisso in basso: Risorse (ancorato al fondo schermo) */}
@@ -956,7 +1006,9 @@ const styles = StyleSheet.create({
   mapContainer: {
     flex: 1,
     minHeight: 0,
-    overflow: "hidden"
+    overflow: "hidden",
+    width: "100%",
+    backgroundColor: "#3d7c47"
   },
   indCard: {
     flex: 1,
@@ -1035,8 +1087,25 @@ const styles = StyleSheet.create({
   viewport: {
     flex: 1,
     minHeight: 0,
-    backgroundColor: "#2d5a27",
-    overflow: "hidden"
+    width: "100%",
+    backgroundColor: "transparent",
+    overflow: "hidden",
+    position: "relative"
+  },
+  gridFill: {
+    flex: 1,
+    width: "100%",
+    height: "100%"
+  },
+  gridRow: {
+    flexDirection: "row",
+    flex: 1,
+    minHeight: 0
+  },
+  cellaStretch: {
+    flex: 1,
+    minWidth: 0,
+    minHeight: 0
   },
   viewportTouchAction: {
     ...(Platform.OS === "web" ? { touchAction: "none" as const } : {})
@@ -1084,7 +1153,10 @@ const styles = StyleSheet.create({
     position: "absolute",
     left: 0,
     top: 0,
-    zIndex: 2
+    zIndex: 2,
+    flex: 1,
+    width: "100%",
+    height: "100%"
   },
   stradaLinea: {
     position: "absolute",
@@ -1108,6 +1180,12 @@ const styles = StyleSheet.create({
   },
   cellaAcqua: {
     backgroundColor: "#2c5282"
+  },
+  cellaFiume: {
+    backgroundColor: "#2563eb"
+  },
+  cellaSabbia: {
+    backgroundColor: "#ca8a04"
   },
   cellaEdificio: {},
   stradaCerchio: {
