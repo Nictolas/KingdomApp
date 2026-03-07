@@ -1,19 +1,21 @@
 import React from "react";
-import { Dimensions, Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
 const GRIGLIA_COLONNE = 6;
 const GRIGLIA_RIGHE = 6;
+const PADDING = 12;
+const GAP = 4;
+const MIN_CELL_SIZE = 44;
 
-/** Indice della cella occupata dal Centro di Comando (es. centro griglia). */
+/** Indice della cella occupata dal Centro di Comando (centro griglia). */
 const CENTRO_COMANDO_INDEX = Math.floor(GRIGLIA_COLONNE * GRIGLIA_RIGHE / 2) - Math.floor(GRIGLIA_COLONNE / 2);
 
 export default function MappaScreen() {
   const router = useRouter();
   const { width } = Dimensions.get("window");
-  const padding = 12;
-  const gap = 4;
-  const size = Math.floor((width - padding * 2 - gap * (GRIGLIA_COLONNE - 1)) / GRIGLIA_COLONNE);
+  const rawSize = (width - PADDING * 2 - GAP * (GRIGLIA_COLONNE - 1)) / GRIGLIA_COLONNE;
+  const size = Math.max(MIN_CELL_SIZE, Math.floor(rawSize));
 
   const totaleCelle = GRIGLIA_COLONNE * GRIGLIA_RIGHE;
 
@@ -27,30 +29,36 @@ export default function MappaScreen() {
         <View style={{ width: 60 }} />
       </View>
 
-      <View style={[styles.griglia, { padding, gap }]}>
-        {Array.from({ length: totaleCelle }, (_, i) => {
-          const èCentroComando = i === CENTRO_COMANDO_INDEX;
-          return (
-            <Pressable
-              key={i}
-              style={[
-                styles.cella,
-                { width: size, height: size },
-                èCentroComando && styles.cellaEdificio
-              ]}
-              onPress={() => {
-                if (èCentroComando) router.push("/ministri");
-              }}
-            >
-              {èCentroComando ? (
-                <Text style={styles.edificioNome} numberOfLines={2}>
-                  Centro di Comando
-                </Text>
-              ) : null}
-            </Pressable>
-          );
-        })}
-      </View>
+      <ScrollView
+        style={styles.scroll}
+        contentContainerStyle={[styles.grigliaWrap, { padding: PADDING }]}
+        showsVerticalScrollIndicator={false}
+      >
+        <View style={[styles.griglia, { gap: GAP }]}>
+          {Array.from({ length: totaleCelle }, (_, i) => {
+            const èCentroComando = i === CENTRO_COMANDO_INDEX;
+            return (
+              <Pressable
+                key={i}
+                style={[
+                  styles.cella,
+                  { width: size, height: size },
+                  èCentroComando && styles.cellaEdificio
+                ]}
+                onPress={() => {
+                  if (èCentroComando) router.push("/ministri");
+                }}
+              >
+                {èCentroComando ? (
+                  <Text style={styles.edificioNome} numberOfLines={2}>
+                    Centro di Comando
+                  </Text>
+                ) : null}
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -78,10 +86,15 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700"
   },
+  scroll: {
+    flex: 1
+  },
+  grigliaWrap: {
+    flexGrow: 1
+  },
   griglia: {
     flexDirection: "row",
     flexWrap: "wrap",
-    flex: 1,
     alignContent: "flex-start"
   },
   cella: {
