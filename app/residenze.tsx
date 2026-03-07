@@ -90,8 +90,8 @@ export default function ResidenzeScreen() {
                     </Text>
                   </View>
                   <View style={styles.cardRow}>
-                    <Text style={styles.cardLabel}>Abitanti</Text>
-                    <Text style={styles.cardValore}>{r.abitanti}</Text>
+                    <Text style={styles.cardLabel}>Posti per unità</Text>
+                    <Text style={styles.cardValore}>{r.postiIllimitati ? "∞" : r.abitanti}</Text>
                   </View>
                   {ed != null && (
                     <>

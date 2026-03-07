@@ -1,10 +1,8 @@
-import React, { useState } from "react";
+import React from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { useGameContext } from "../src/context/GameContext";
 import { fazioniData } from "../src/kingdomData";
 import type { Fazione } from "../src/types";
-import { FazioneInfoModal } from "../src/ui/FazioneInfoModal";
 
 /** Colonne tematiche: nome colonna + nomi fazioni (come in fazioniData). */
 const COLONNA_GOVERNO = ["Amministrazione", "Cittadini", "Lealisti", "Sicurezza", "Rivoluzionari", "Élite"];
@@ -12,32 +10,41 @@ const COLONNA_LAVORO = ["Lavoratori", "Scienziati", "Esploratori", "Intellettual
 const COLONNA_MARGINI = ["Mafia", "Schiavi", "Nativi", "Robots", "Senzatetto", "Immigrati"];
 const COLONNA_RELIGIONE = ["Culto del Sole", "Culto degli Alieni"];
 
+/** Path per ogni fazione: pagina dedicata o /fazione/[slug]. */
+const FAZIONE_TO_PATH: Record<string, string> = {
+  Amministrazione: "/ministri",
+  Cittadini: "/fazione/cittadini",
+  Lealisti: "/fazione/lealisti",
+  Sicurezza: "/sicurezza",
+  Rivoluzionari: "/rivoluzionari",
+  "Élite": "/fazione/elite",
+  Lavoratori: "/fazione/lavoratori",
+  Scienziati: "/fazione/scienziati",
+  Esploratori: "/fazione/esploratori",
+  Intellettuali: "/fazione/intellettuali",
+  Ambientalisti: "/fazione/ambientalisti",
+  Mafia: "/mafia",
+  Schiavi: "/schiavi",
+  Nativi: "/nativi",
+  Robots: "/fazione/robots",
+  Senzatetto: "/fazione/senzatetto",
+  Immigrati: "/fazione/immigrati",
+  "Culto del Sole": "/culto-sole",
+  "Culto degli Alieni": "/culto-alieni"
+};
+
 function getFazioniPerColonna(nomi: string[]): Fazione[] {
   return nomi
     .map((nome) => fazioniData.find((f) => f.nome === nome))
     .filter((f): f is Fazione => f != null);
 }
 
-function handleFazionePress(
-  f: Fazione,
-  router: ReturnType<typeof useRouter>,
-  setSelectedFazione: (f: Fazione | null) => void
-) {
-  if (f.nome === "Mafia") router.push("/mafia");
-  else if (f.nome === "Schiavi") router.push("/schiavi");
-  else if (f.nome === "Nativi") router.push("/nativi");
-  else if (f.nome === "Amministrazione") router.push("/ministri");
-  else if (f.nome === "Culto del Sole") router.push("/culto-sole");
-  else if (f.nome === "Culto degli Alieni") router.push("/culto-alieni");
-  else if (f.nome === "Sicurezza") router.push("/sicurezza");
-  else if (f.nome === "Rivoluzionari") router.push("/rivoluzionari");
-  else setSelectedFazione(f);
+function getPathForFazione(f: Fazione): string {
+  return FAZIONE_TO_PATH[f.nome] ?? `/fazione/${f.nome.toLowerCase().replace(/\s+/g, "-").replace(/[èé]/gi, "e")}`;
 }
 
 export default function FazioniScreen() {
   const router = useRouter();
-  const { abitanti } = useGameContext();
-  const [selectedFazione, setSelectedFazione] = useState<Fazione | null>(null);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -58,7 +65,7 @@ export default function FazioniScreen() {
           <Pressable
             key={f.id}
             style={styles.card}
-            onPress={() => handleFazionePress(f, router, setSelectedFazione)}
+            onPress={() => router.push(getPathForFazione(f))}
           >
             <Text style={styles.emoji}>{f.emoji}</Text>
             <Text style={styles.cardTitle}>{f.nome}</Text>
@@ -92,13 +99,6 @@ export default function FazioniScreen() {
           {renderColumn("Religione", "Culto del Sole, Culto degli Alieni", religione)}
         </View>
       </ScrollView>
-
-      <FazioneInfoModal
-        visible={selectedFazione !== null}
-        fazione={selectedFazione}
-        abitanti={abitanti}
-        onClose={() => setSelectedFazione(null)}
-      />
     </SafeAreaView>
   );
 }

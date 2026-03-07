@@ -11,11 +11,14 @@ export type ResidenzaTipo = {
   costoMensile: number;
   /** Consumo energia (MW) per abitante al mese. Es: Baracca 0, Dormitorio 1. */
   energiaPerAbitante: number;
+  /** Posti per unità; ignorato se postiIllimitati è true. */
   abitanti: number;
+  /** Se true, la residenza ha capacità illimitata per unità (es. Baracca). */
+  postiIllimitati?: boolean;
 };
 
 export const RESIDENZE_CATALOGO: ResidenzaTipo[] = [
-  { id: "baracca", nome: "Baracca", emoji: "🛖", felicità: 5, costoMensile: 0, energiaPerAbitante: 0, abitanti: 2 },
+  { id: "baracca", nome: "Baracca", emoji: "🛖", felicità: 5, costoMensile: 0, energiaPerAbitante: 0, abitanti: 0, postiIllimitati: true },
   { id: "dormitorio", nome: "Dormitorio", emoji: "🛏️", felicità: 10, costoMensile: 250, energiaPerAbitante: 1, abitanti: 10 },
   { id: "modulo", nome: "Modulo", emoji: "📦", felicità: 30, costoMensile: 800, energiaPerAbitante: 3, abitanti: 4 },
   { id: "villetta", nome: "Villetta", emoji: "🏡", felicità: 45, costoMensile: 1500, energiaPerAbitante: 5, abitanti: 5 },
