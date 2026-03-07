@@ -39,7 +39,7 @@ const DORMITORIO_3_INDEX = CENTRO_COMANDO_INDEX + GRIGLIA_COLONNE + 1;
 
 /** Route per edificio (come in app/edifici). */
 const EDIFICIO_TO_ROUTE: Record<string, string> = {
-  "Centro di Comando": "/ministri",
+  "Centro di Comando": "/amministrazione",
   "Serra": "/serra",
   "Centrale Energetica": "/centrale-energetica",
   "Raffineria Mineraria": "/raffineria-mineraria",
@@ -495,7 +495,9 @@ export default function MappaScreen() {
                 <Text style={styles.modalOptionEmoji}>{STRADA_OPZIONE.emoji}</Text>
                 <Text style={styles.modalOptionNome}>{STRADA_OPZIONE.nome}</Text>
               </Pressable>
-              {edificiData.map((e) => (
+              {edificiData
+                .filter((e) => e.nome !== "Centro di Comando")
+                .map((e) => (
                 <Pressable
                   key={e.id}
                   style={styles.modalOption}

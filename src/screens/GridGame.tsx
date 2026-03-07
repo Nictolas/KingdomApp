@@ -1,18 +1,17 @@
 import React from "react";
 import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { fazioniData, leggiData } from "../kingdomData";
+import { fazioniData } from "../kingdomData";
 import { useGameContext } from "../context/GameContext";
 import type { Risorsa, Abitante } from "../types";
 
 export default function GridGame() {
   const router = useRouter();
-  const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, calcolaDeltaOrdiniMercato, calcolaFelicitàModificata, abitantiProposti, punteggioSanzioni } = useGameContext();
+  const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, calcolaDeltaOrdiniMercato, calcolaFelicitàModificata, abitantiProposti } = useGameContext();
 
   const criminali = abitanti.filter((a: Abitante) => (a.reati?.length ?? 0) > 0);
   const personalitàUniche = Array.from(new Set(abitanti.map((a: Abitante) => a.personalità))).filter(Boolean);
   const fazioni = fazioniData;
-  const leggi = leggiData;
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -151,11 +150,6 @@ export default function GridGame() {
       <View style={styles.block}>
         <Text style={styles.blockTitle}>🏘️ Colonia</Text>
         <View style={[styles.navGrid, isDesktop && styles.navGridWide]}>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/abitanti")}>
-            <Text style={styles.navEmoji}>👥</Text>
-            <Text style={styles.navLabel}>Abitanti</Text>
-            <Text style={styles.navMeta}>{abitanti.length}</Text>
-          </Pressable>
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/fazioni")}>
             <Text style={styles.navEmoji}>⚔️</Text>
             <Text style={styles.navLabel}>Fazioni</Text>
@@ -177,15 +171,9 @@ export default function GridGame() {
       <View style={styles.block}>
         <Text style={styles.blockTitle}>📜 Leggi e ordine</Text>
         <View style={[styles.navGrid, isDesktop && styles.navGridWide]}>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/leggi")}>
-            <Text style={styles.navEmoji}>📜</Text>
-            <Text style={styles.navLabel}>Leggi</Text>
-            <Text style={styles.navMeta}>{leggi.length}</Text>
-          </Pressable>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/sanzioni")}>
-            <Text style={styles.navEmoji}>⚠️</Text>
-            <Text style={styles.navLabel}>Sanzioni</Text>
-            <Text style={[styles.navMeta, punteggioSanzioni >= 5 && styles.navMetaWarn]}>{punteggioSanzioni}/10</Text>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/amministrazione")}>
+            <Text style={styles.navEmoji}>🏛️</Text>
+            <Text style={styles.navLabel}>Amministrazione</Text>
           </Pressable>
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/crimine")}>
             <Text style={styles.navEmoji}>🕵️</Text>
