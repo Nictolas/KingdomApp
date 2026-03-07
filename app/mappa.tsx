@@ -30,6 +30,8 @@ const CENTRO_COMANDO_INDEX = Math.floor(GRIGLIA_COLONNE * GRIGLIA_RIGHE / 2) - M
 const SPAZIOPORTO_INDEX = CENTRO_COMANDO_INDEX + 1;
 /** Cella occupata dal Tribunale (sotto il Centro di Comando). */
 const TRIBUNALE_INDEX = CENTRO_COMANDO_INDEX + GRIGLIA_COLONNE;
+/** Cella occupata dalla Serra (a sinistra del Centro di Comando). */
+const SERRA_INDEX = CENTRO_COMANDO_INDEX - 1;
 
 /** Route per edificio (come in app/edifici). */
 const EDIFICIO_TO_ROUTE: Record<string, string> = {
@@ -72,7 +74,8 @@ const STRADA_OPZIONE: EdificioInCella = { id: -1, nome: "Strada", emoji: "🛤�
 const edificiIniziali: Record<number, EdificioInCella> = {
   [CENTRO_COMANDO_INDEX]: { id: 1, nome: "Centro di Comando", emoji: "🏛️" },
   [SPAZIOPORTO_INDEX]: { id: 19, nome: "Spazioporto", emoji: "🚀" },
-  [TRIBUNALE_INDEX]: { id: 12, nome: "Tribunale", emoji: "⚖️" }
+  [TRIBUNALE_INDEX]: { id: 12, nome: "Tribunale", emoji: "⚖️" },
+  [SERRA_INDEX]: { id: 2, nome: "Serra", emoji: "🌱" }
 };
 
 const TOTALE_CELLE = GRIGLIA_COLONNE * GRIGLIA_RIGHE;
@@ -95,7 +98,8 @@ function getInitialEdificiInMappa(): Record<number, EdificioInCella> {
 /** Coppie [indiceA, indiceB] di celle tra cui disegnare una strada (centro → centro). */
 const STRADE_INIZIALI: [number, number][] = [
   [CENTRO_COMANDO_INDEX, SPAZIOPORTO_INDEX],
-  [CENTRO_COMANDO_INDEX, TRIBUNALE_INDEX]
+  [CENTRO_COMANDO_INDEX, TRIBUNALE_INDEX],
+  [CENTRO_COMANDO_INDEX, SERRA_INDEX]
 ];
 
 function getCellCenter(cellIndex: number, size: number): { x: number; y: number } {
@@ -302,9 +306,30 @@ export default function MappaScreen() {
             scrollEventThrottle={16}
           >
           <View style={[styles.contentWrap, { padding: PADDING }]}>
+            <View style={[styles.griglia, styles.grigliaTerreno, { gap: GAP, width: gridWidth }]}>
+              {Array.from({ length: totaleCelle }, (_, i) => {
+                const acqua = isAcqua(i);
+                const edificio = edificiInMappa[i];
+                const hasEdificio = !!edificio;
+                const èStrada = edificio?.nome === "Strada";
+                const cellStyle = [
+                  styles.cella,
+                  acqua ? styles.cellaAcqua : styles.cellaErba,
+                  { width: size, height: size },
+                  hasEdificio && !èStrada && styles.cellaEdificio
+                ];
+                if (acqua) {
+                  return <View key={i} style={cellStyle} />;
+                }
+                return (
+                  <Pressable key={i} style={cellStyle} onPress={() => onCellPress(i)} />
+                );
+              })}
+            </View>
             <View
               style={[
                 styles.roadsLayer,
+                styles.roadsLayerSopra,
                 { width: contentWidth, height: contentHeight }
               ]}
               pointerEvents="none"
@@ -409,34 +434,30 @@ export default function MappaScreen() {
                 );
               })()}
             </View>
-            <View style={[styles.griglia, { gap: GAP, width: gridWidth }]}>
-            {Array.from({ length: totaleCelle }, (_, i) => {
-              const acqua = isAcqua(i);
-              const edificio = edificiInMappa[i];
-              const emoji = edificio?.emoji ?? null;
-              const hasEdificio = !!edificio;
-              const èStrada = edificio?.nome === "Strada";
-              const cellStyle = [
-                styles.cella,
-                acqua ? styles.cellaAcqua : styles.cellaErba,
-                { width: size, height: size },
-                hasEdificio && !èStrada && styles.cellaEdificio
-              ];
-              const content =
-                hasEdificio && !èStrada && emoji ? (
-                  <Text style={[styles.edificioEmoji, { fontSize: Math.max(10, Math.min(22, size - 4)) }]}>
-                    {emoji}
-                  </Text>
-                ) : null;
-              if (acqua) {
-                return <View key={i} style={cellStyle} />;
-              }
-              return (
-                <Pressable key={i} style={cellStyle} onPress={() => onCellPress(i)}>
-                  {content}
-                </Pressable>
-              );
-            })}
+            <View
+              style={[styles.griglia, styles.grigliaEmoji, { gap: GAP, width: gridWidth }]}
+              pointerEvents="none"
+            >
+              {Array.from({ length: totaleCelle }, (_, i) => {
+                const edificio = edificiInMappa[i];
+                const emoji = edificio?.emoji ?? null;
+                const èStrada = edificio?.nome === "Strada";
+                const mostraEmoji = !!edificio && !èStrada && emoji;
+                return (
+                  <View key={i} style={[styles.cella, { width: size, height: size }]}>
+                    {mostraEmoji ? (
+                      <Text
+                        style={[
+                          styles.edificioEmoji,
+                          { fontSize: Math.max(10, Math.min(22, size - 4)) }
+                        ]}
+                      >
+                        {emoji}
+                      </Text>
+                    ) : null}
+                  </View>
+                );
+              })}
             </View>
           </View>
           </ScrollView>
@@ -564,11 +585,26 @@ const styles = StyleSheet.create({
     alignContent: "flex-start",
     position: "relative"
   },
+  grigliaTerreno: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    zIndex: 0
+  },
   roadsLayer: {
     position: "absolute",
     left: 0,
     top: 0,
     zIndex: 0
+  },
+  roadsLayerSopra: {
+    zIndex: 1
+  },
+  grigliaEmoji: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    zIndex: 2
   },
   stradaLinea: {
     position: "absolute",
@@ -578,8 +614,7 @@ const styles = StyleSheet.create({
   griglia: {
     flexDirection: "row",
     flexWrap: "wrap",
-    alignContent: "flex-start",
-    zIndex: 1
+    alignContent: "flex-start"
   },
   cella: {
     borderRadius: 2,
