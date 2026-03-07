@@ -1,4 +1,4 @@
-import React, { useCallback, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Dimensions,
@@ -186,6 +186,17 @@ export default function MappaScreen() {
   const [isDragging, setIsDragging] = useState(false);
   const lastTapCell = useRef<number | null>(null);
   const lastTapTime = useRef<number>(0);
+
+  useEffect(() => {
+    if (Platform.OS === "web" && typeof document !== "undefined") {
+      document.body.style.overflow = "hidden";
+      document.documentElement.style.overflow = "hidden";
+      return () => {
+        document.body.style.overflow = "";
+        document.documentElement.style.overflow = "";
+      };
+    }
+  }, []);
 
   const hScrollRef = useRef<ScrollView>(null);
   const vScrollRef = useRef<ScrollView>(null);
@@ -378,18 +389,20 @@ export default function MappaScreen() {
         </View>
       </View>
 
-      <View
-        style={[
-          styles.viewport,
-          Platform.OS === "web" && (isDragging ? styles.viewportWebGrabbing : styles.viewportWeb)
-        ]}
-        onLayout={onViewportLayout}
-        onPointerDown={onPointerDown}
-        onPointerMove={onPointerMove}
-        onPointerUp={onPointerUp}
-        onPointerLeave={onPointerLeave}
-      >
-        <ScrollView
+      {/* Contenitore mappa: occupa esattamente lo spazio tra banner superiore e inferiore */}
+      <View style={styles.mapContainer}>
+        <View
+          style={[
+            styles.viewport,
+            Platform.OS === "web" && (isDragging ? styles.viewportWebGrabbing : styles.viewportWeb)
+          ]}
+          onLayout={onViewportLayout}
+          onPointerDown={onPointerDown}
+          onPointerMove={onPointerMove}
+          onPointerUp={onPointerUp}
+          onPointerLeave={onPointerLeave}
+        >
+          <ScrollView
           ref={hScrollRef}
           style={styles.viewport}
           horizontal
@@ -564,9 +577,10 @@ export default function MappaScreen() {
           </View>
           </ScrollView>
         </ScrollView>
+        </View>
       </View>
 
-      {/* Menu fisso in basso: Risorse (rimane sopra la mappa) */}
+      {/* Menu fisso in basso: Risorse (ancorato al fondo schermo) */}
       <View style={styles.bottomBar} pointerEvents="box-none">
         <View style={styles.bottomBarInner}>
           <ScrollView
@@ -685,7 +699,8 @@ const styles = StyleSheet.create({
   safe: {
     flex: 1,
     backgroundColor: "#2d5a27",
-    userSelect: "none"
+    userSelect: "none",
+    overflow: "hidden"
   },
   topBanner: {
     zIndex: 999,
@@ -706,8 +721,10 @@ const styles = StyleSheet.create({
   },
   topBannerRow2: {
     flexDirection: "row",
-    gap: 10,
-    alignItems: "stretch"
+    width: "100%",
+    justifyContent: "space-between",
+    alignItems: "stretch",
+    gap: 10
   },
   badge: {
     flexDirection: "row",
@@ -754,6 +771,11 @@ const styles = StyleSheet.create({
   },
   skipBtnEmoji: { fontSize: 18 },
   skipBtnText: { fontSize: 14, fontWeight: "700", color: "#fff" },
+  mapContainer: {
+    flex: 1,
+    minHeight: 0,
+    overflow: "hidden"
+  },
   indCard: {
     flex: 1,
     backgroundColor: "rgba(15,23,42,0.85)",
@@ -774,15 +796,17 @@ const styles = StyleSheet.create({
     right: 0,
     zIndex: 999,
     width: "100%",
-    paddingVertical: 12,
+    paddingVertical: 0,
     paddingHorizontal: 0
   },
   bottomBarInner: {
     width: "100%",
     minHeight: 56,
     backgroundColor: "rgba(5,8,22,0.92)",
-    borderRadius: 12,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
     borderWidth: 1,
+    borderBottomWidth: 0,
     borderColor: "rgba(148,163,184,0.25)",
     paddingVertical: 8,
     paddingHorizontal: 12
@@ -834,6 +858,7 @@ const styles = StyleSheet.create({
   },
   viewport: {
     flex: 1,
+    minHeight: 0,
     backgroundColor: "#2d5a27"
   },
   viewportWeb: {
