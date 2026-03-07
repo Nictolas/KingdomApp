@@ -210,6 +210,7 @@ export function MappaScreen() {
 
   const [panX, setPanX] = useState(0);
   const [panY, setPanY] = useState(0);
+  const [viewportSize, setViewportSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
   const viewportW = useRef(0);
   const viewportH = useRef(0);
   const activePointers = useRef<Map<number, { clientX: number; clientY: number }>>(new Map());
@@ -235,8 +236,12 @@ export function MappaScreen() {
   panXRef.current = panX;
   panYRef.current = panY;
 
-  const { width } = Dimensions.get("window");
-  const rawSize = (width - PADDING * 2 - GAP * (GRIGLIA_COLONNE - 1)) / GRIGLIA_COLONNE;
+  const { width, height } = Dimensions.get("window");
+  const vw = viewportSize.w > 0 ? viewportSize.w : width;
+  const vh = viewportSize.h > 0 ? viewportSize.h : height;
+  const rawSizeByW = (vw - PADDING * 2 - GAP * (GRIGLIA_COLONNE - 1)) / GRIGLIA_COLONNE;
+  const rawSizeByH = (vh - PADDING * 2 - GAP * (GRIGLIA_RIGHE - 1)) / GRIGLIA_RIGHE;
+  const rawSize = Math.max(rawSizeByW, rawSizeByH);
   const size = Math.max(MIN_CELL_SIZE, Math.floor(rawSize));
 
   const totaleCelle = GRIGLIA_COLONNE * GRIGLIA_RIGHE;
@@ -246,8 +251,11 @@ export function MappaScreen() {
   const contentHeight = gridHeight + PADDING * 2;
 
   const onViewportLayout = useCallback((e: { nativeEvent: { layout: { width: number; height: number } } }) => {
-    viewportW.current = e.nativeEvent.layout.width;
-    viewportH.current = e.nativeEvent.layout.height;
+    const w = e.nativeEvent.layout.width;
+    const h = e.nativeEvent.layout.height;
+    viewportW.current = w;
+    viewportH.current = h;
+    setViewportSize((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
   }, []);
 
   useEffect(() => {
@@ -257,6 +265,14 @@ export function MappaScreen() {
     setPanX(x);
     setPanY(y);
   }, [mapScale]);
+
+  useEffect(() => {
+    const sub = Dimensions.addEventListener("change", () => {
+      const { width: w, height: h } = Dimensions.get("window");
+      setViewportSize((prev) => (prev.w === w && prev.h === h ? prev : { w: 0, h: 0 }));
+    });
+    return () => sub?.remove();
+  }, []);
 
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
