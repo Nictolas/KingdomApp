@@ -56,6 +56,20 @@ export type AvanzaMeseOutput = {
   avvisoDiario: string | null;
 };
 
+/** Sincronizza le residenze: Baracca = tutti e solo i Senzatetto; gli altri edifici residenza non contengono Senzatetto. */
+export function syncResidenzeBaraccaSenzatetto(edifici: Edificio[], abitanti: Abitante[]): Edificio[] {
+  const senzatettoIds = new Set(abitanti.filter((a) => a.fazioni?.includes("Senzatetto")).map((a) => a.id));
+  return edifici.map((e) => {
+    if (e.tipo !== "Residenza") return e;
+    if (e.nome === "Baracca") {
+      const ids = [...senzatettoIds];
+      return { ...e, abitantiAssegnati: ids, occupazione: ids.length };
+    }
+    const nuovi = (e.abitantiAssegnati ?? []).filter((id) => !senzatettoIds.has(id));
+    return { ...e, abitantiAssegnati: nuovi, occupazione: nuovi.length };
+  });
+}
+
 /** Compatibilità matrimonio: Omo solo con Omo/Bi stesso sesso; Etero con Etero/Bi sesso opposto; Bi con chiunque. */
 export function canMarry(a: Abitante, b: Abitante): boolean {
   const sessoA = a.sesso ?? "M";
@@ -112,6 +126,9 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     modalitaSanita = "privata"
   } = input;
 
+  // Baracca contiene tutti e solo i Senzatetto; sincronizza prima di procedere.
+  let edificiSync = syncResidenzeBaraccaSenzatetto(edifici, abitanti);
+
   const nuovoMese = mese === 12 ? 1 : mese + 1;
   const nuovoAnno = mese === 12 ? anno + 1 : anno;
   const avanzaAnno = nuovoAnno > anno;
@@ -156,7 +173,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   }));
 
   // Rapporti stesso edificio: coppie assegnate allo stesso edificio sviluppano Amicizia o Rivalità (punteggio 10) se non già presenti
-  edifici.forEach((edificio) => {
+  edificiSync.forEach((edificio) => {
     const ids = (edificio.abitantiAssegnati ?? []).filter((id) => idsVivi.has(id));
     for (let i = 0; i < ids.length; i++) {
       for (let j = i + 1; j < ids.length; j++) {
@@ -286,10 +303,12 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
 
   // Costo abitazione per abitante (dalla residenza assegnata). Usato per Senzatetto e per entrateResidenze.
   const idToCostoAbitazione = new Map<number, number>();
-  edifici.forEach((edificio) => {
+  edificiSync.forEach((edificio) => {
     if (edificio.tipo !== "Residenza" || edificio.stato !== "Operativo") return;
-    const defaultPrezzo = RESIDENZE_CATALOGO.find((r) => r.nome === edificio.nome)?.costoMensile ?? 0;
-    const prezzo = prezzoResidenze[edificio.nome] ?? defaultPrezzo;
+    const prezzo =
+      edificio.nome === "Baracca"
+        ? 0
+        : (prezzoResidenze[edificio.nome] ?? RESIDENZE_CATALOGO.find((r) => r.nome === edificio.nome)?.costoMensile ?? 0);
     (edificio.abitantiAssegnati ?? []).forEach((id) => idToCostoAbitazione.set(id, prezzo));
   });
 
@@ -380,7 +399,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   });
 
   // Aggiorna edifici (rimuovi pensionati dalle assegnazioni, variazione efficienza se operativo)
-  const nuoviEdifici = edifici.map((edificio) => {
+  const nuoviEdifici = edificiSync.map((edificio) => {
     const abitantiAssegnatiSenzaPensionati = (edificio.abitantiAssegnati ?? []).filter(
       (id) => !idsPensionati.has(id)
     );
@@ -424,8 +443,10 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       const entrateResidenze = nuoviEdifici
         .filter((e) => e.tipo === "Residenza" && e.stato === "Operativo")
         .reduce((sum, e) => {
-          const defaultPrezzo = RESIDENZE_CATALOGO.find((r) => r.nome === e.nome)?.costoMensile ?? 0;
-          const prezzo = prezzoResidenze[e.nome] ?? defaultPrezzo;
+          const prezzo =
+            e.nome === "Baracca"
+              ? 0
+              : (prezzoResidenze[e.nome] ?? RESIDENZE_CATALOGO.find((r) => r.nome === e.nome)?.costoMensile ?? 0);
           for (const id of e.abitantiAssegnati ?? []) {
             const ab = abitantiRimasti.find((a) => a.id === id);
             if (ab && ab.crediti >= prezzo) sum += prezzo;
@@ -696,9 +717,12 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     }
   }
 
+  // Sincronizza di nuovo Baracca con i Senzatetto (dopo aggiornamento fazioni in nuoviAbitanti)
+  const edificiEvSync = syncResidenzeBaraccaSenzatetto(edificiEv, abitantiEv);
+
   return {
     abitanti: abitantiEv,
-    edifici: edificiEv,
+    edifici: edificiEvSync,
     risorse: risorseDopoOrdini,
     eventiInCorso: nuoviEventiInCorso,
     nuovoMese,

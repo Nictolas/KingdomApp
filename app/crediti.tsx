@@ -70,8 +70,8 @@ export default function CreditiScreen() {
   let totaleEntrateResidenze = 0;
   for (const e of edifici) {
     if (e.tipo !== "Residenza" || e.stato !== "Operativo") continue;
-    const defaultPrezzo = RESIDENZE_CATALOGO.find((r) => r.nome === e.nome)?.costoMensile ?? 0;
-    const prezzo = prezzoResidenze[e.nome] ?? defaultPrezzo;
+    const prezzo =
+      e.nome === "Baracca" ? 0 : (prezzoResidenze[e.nome] ?? RESIDENZE_CATALOGO.find((r) => r.nome === e.nome)?.costoMensile ?? 0);
     totaleEntrateResidenze += prezzo * (e.abitantiAssegnati?.length ?? 0);
   }
 

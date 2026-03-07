@@ -59,17 +59,21 @@ export default function ResidenzeScreen() {
                     <Text style={styles.cardLabel}>Prezzo (cr/mese)</Text>
                   </View>
                   <View style={styles.prezzoRow}>
-                    <TextInput
-                      style={styles.prezzoInput}
-                      value={String(prezzoResidenze[r.nome] ?? r.costoMensile)}
-                      keyboardType="number-pad"
-                      placeholder={String(r.costoMensile)}
-                      placeholderTextColor="rgba(203,213,245,0.4)"
-                      onChangeText={(text) => {
-                        const n = parseInt(text.replace(/[^0-9]/g, ""), 10);
-                        setPrezzoResidenza(r.nome, isNaN(n) ? 0 : n);
-                      }}
-                    />
+                    {r.nome === "Baracca" ? (
+                      <Text style={styles.prezzoFisso}>0 (fisso)</Text>
+                    ) : (
+                      <TextInput
+                        style={styles.prezzoInput}
+                        value={String(prezzoResidenze[r.nome] ?? r.costoMensile)}
+                        keyboardType="number-pad"
+                        placeholder={String(r.costoMensile)}
+                        placeholderTextColor="rgba(203,213,245,0.4)"
+                        onChangeText={(text) => {
+                          const n = parseInt(text.replace(/[^0-9]/g, ""), 10);
+                          setPrezzoResidenza(r.nome, isNaN(n) ? 0 : n);
+                        }}
+                      />
+                    )}
                     <Text style={styles.prezzoUnit}>cr/mese</Text>
                   </View>
                   <View style={styles.cardRow}>
@@ -284,5 +288,10 @@ const styles = StyleSheet.create({
   prezzoUnit: {
     color: "rgba(203,213,245,0.7)",
     fontSize: 10
+  },
+  prezzoFisso: {
+    color: "#93c5fd",
+    fontSize: 11,
+    fontWeight: "600"
   }
 });

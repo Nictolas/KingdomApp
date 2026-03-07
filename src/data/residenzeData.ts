@@ -15,7 +15,7 @@ export type ResidenzaTipo = {
 };
 
 export const RESIDENZE_CATALOGO: ResidenzaTipo[] = [
-  { id: "baracca", nome: "Baracca", emoji: "🛖", felicità: 5, costoMensile: 100, energiaPerAbitante: 0, abitanti: 2 },
+  { id: "baracca", nome: "Baracca", emoji: "🛖", felicità: 5, costoMensile: 0, energiaPerAbitante: 0, abitanti: 2 },
   { id: "dormitorio", nome: "Dormitorio", emoji: "🛏️", felicità: 10, costoMensile: 250, energiaPerAbitante: 1, abitanti: 10 },
   { id: "modulo", nome: "Modulo", emoji: "📦", felicità: 30, costoMensile: 800, energiaPerAbitante: 3, abitanti: 4 },
   { id: "villetta", nome: "Villetta", emoji: "🏡", felicità: 45, costoMensile: 1500, energiaPerAbitante: 5, abitanti: 5 },

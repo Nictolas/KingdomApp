@@ -49,7 +49,7 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
     const fazioniIniziali =
       razza === "Robot"
         ? ["Robots", "Cittadini"]
-        : [FAZIONI_RUOLO[Math.floor(Math.random() * FAZIONI_RUOLO.length)], "Cittadini"];
+        : [FAZIONI_RUOLO[Math.floor(Math.random() * FAZIONI_RUOLO.length)], "Immigrati"];
 
     nuoviAbitanti.push({
       id: nextId + i,

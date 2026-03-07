@@ -16,6 +16,7 @@ import { calcolaProduzioneConsumoPuro } from "../game/produzioneConsumo";
 import { calcolaFelicitàModificataPuro } from "../game/felicita";
 import { generaImmigratiProposti } from "../game/immigrazione";
 import { EDIFICIO_TO_LAVORO, sincronizzaLavoroDaEdifici } from "../game/edificiLavoro";
+import { syncResidenzeBaraccaSenzatetto } from "../game/avanzaMese";
 
 const statoIniziale = generaColoniaIniziale();
 
@@ -25,9 +26,8 @@ export function useGameState() {
   const [risorse, setRisorse] = useState<Risorsa[]>(risorseData);
   const [edifici, setEdifici] = useState<Edificio[]>(() => {
     const tuttiId = statoIniziale.abitanti.map((a) => a.id);
-    const metà = Math.floor(tuttiId.length / 2);
-    const baraccaIds = tuttiId.slice(0, metà);
-    const dormitorioIds = tuttiId.slice(metà);
+    const baraccaIds = statoIniziale.abitanti.filter((a) => a.fazioni?.includes("Senzatetto")).map((a) => a.id);
+    const dormitorioIds = tuttiId.filter((id) => !baraccaIds.includes(id));
     const agricoltore = statoIniziale.abitanti.find((a) => a.lavoro === "Agricoltore");
     const serraIds = agricoltore ? [agricoltore.id] : [];
     const prigionieriIds = statoIniziale.abitanti.filter((a) => a.lavoro === "Prigioniero").map((a) => a.id);
@@ -64,6 +64,11 @@ export function useGameState() {
       [fazione]: Math.max(1, Math.min(100, (prev[fazione] ?? 80) + delta))
     }));
   }, []);
+
+  // Baracca = tutti e solo i Senzatetto: sincronizza quando cambiano gli abitanti (es. nuovo immigrato approvato)
+  useEffect(() => {
+    setEdifici((prev) => syncResidenzeBaraccaSenzatetto(prev, abitanti));
+  }, [abitanti]);
 
   // Configurazione tassa sul reddito
   const [tipoTassaReddito, setTipoTassaReddito] = useState<"flat" | "scaglioni">("scaglioni");
@@ -133,6 +138,7 @@ export function useGameState() {
   /** Prezzo mensile (crediti) impostato dall'utente per ogni tipo di residenza. Default dal catalogo se non impostato. */
   const [prezzoResidenze, setPrezzoResidenzeState] = useState<Record<string, number>>({});
   const setPrezzoResidenza = useCallback((nomeResidenza: string, prezzo: number) => {
+    if (nomeResidenza === "Baracca") return; // Baracca ha sempre costo 0, non modificabile
     const value = Math.max(0, Math.floor(prezzo));
     setPrezzoResidenzeState((prev) => ({ ...prev, [nomeResidenza]: value }));
   }, []);
