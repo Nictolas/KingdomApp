@@ -339,53 +339,56 @@ export default function MappaScreen() {
         <View style={{ width: 60 }} />
       </View>
 
-      {/* Banner in alto: Mese/Anno, Diario, Skip Mese + Indicatori colonia */}
+      {/* Banner in alto: MyKingdom a sinistra + Mese/Anno, Diario, Skip Mese, Felicità, Lealtà, Paura */}
       <View style={styles.topBanner}>
         <View style={styles.topBannerInner}>
-          <View style={styles.topBannerRow1}>
-            <View style={styles.badge}>
-              <Text style={styles.badgeText}>📅 Mese {mese}</Text>
-              <Text style={styles.badgeText}>· Anno {anno}</Text>
+          <View style={styles.bannerTitleBlock}>
+            <Text style={styles.bannerTitleEmoji}>🏰</Text>
+            <View>
+              <Text style={styles.bannerTitle}>MyKingdom</Text>
+              <Text style={styles.bannerSubtitle}>Gestisci la tua colonia</Text>
             </View>
-            <Pressable style={styles.diarioBtn} onPress={() => router.push("/diario")}>
-              <Text style={styles.diarioBtnEmoji}>📖</Text>
-              <Text style={styles.diarioBtnLabel}>Diario</Text>
-            </Pressable>
-            <Pressable
-              style={[styles.skipBtn, isLoading && styles.skipBtnDisabled]}
-              onPress={avanzaMese}
-              disabled={isLoading}
-            >
-              {isLoading ? (
-                <>
-                  <ActivityIndicator size="small" color="#fff" />
-                  <Text style={styles.skipBtnText}>Caricamento...</Text>
-                </>
-              ) : (
-                <>
-                  <Text style={styles.skipBtnEmoji}>⏭️</Text>
-                  <Text style={styles.skipBtnText}>Skip Mese</Text>
-                </>
-              )}
-            </Pressable>
           </View>
-          <View style={styles.topBannerRow2}>
-            <Pressable style={styles.indCard} onPress={() => router.push("/felicita")}>
-              <Text style={styles.indEmoji}>😊</Text>
-              <Text style={styles.indLabel}>Felicità</Text>
-              <Text style={styles.indValue}>{felicitàMedia}%</Text>
-            </Pressable>
-            <Pressable style={styles.indCard} onPress={() => router.push("/lealta")}>
-              <Text style={styles.indEmoji}>❤️</Text>
-              <Text style={styles.indLabel}>Lealtà</Text>
-              <Text style={styles.indValue}>{lealtàMedia}%</Text>
-            </Pressable>
-            <Pressable style={styles.indCard} onPress={() => router.push("/paura")}>
-              <Text style={styles.indEmoji}>😨</Text>
-              <Text style={styles.indLabel}>Paura</Text>
-              <Text style={styles.indValue}>{pauraMedia}%</Text>
-            </Pressable>
+          <View style={styles.badge}>
+            <Text style={styles.badgeText}>📅 Mese {mese}</Text>
+            <Text style={styles.badgeText}>· Anno {anno}</Text>
           </View>
+          <Pressable style={styles.diarioBtn} onPress={() => router.push("/diario")}>
+            <Text style={styles.diarioBtnEmoji}>📖</Text>
+            <Text style={styles.diarioBtnLabel}>Diario</Text>
+          </Pressable>
+          <Pressable
+            style={[styles.skipBtn, isLoading && styles.skipBtnDisabled]}
+            onPress={avanzaMese}
+            disabled={isLoading}
+          >
+            {isLoading ? (
+              <>
+                <ActivityIndicator size="small" color="#fff" />
+                <Text style={styles.skipBtnText}>Caricamento...</Text>
+              </>
+            ) : (
+              <>
+                <Text style={styles.skipBtnEmoji}>⏭️</Text>
+                <Text style={styles.skipBtnText}>Skip Mese</Text>
+              </>
+            )}
+          </Pressable>
+          <Pressable style={styles.indCard} onPress={() => router.push("/felicita")}>
+            <Text style={styles.indEmoji}>😊</Text>
+            <Text style={styles.indLabel}>Felicità</Text>
+            <Text style={styles.indValue}>{felicitàMedia}%</Text>
+          </Pressable>
+          <Pressable style={styles.indCard} onPress={() => router.push("/lealta")}>
+            <Text style={styles.indEmoji}>❤️</Text>
+            <Text style={styles.indLabel}>Lealtà</Text>
+            <Text style={styles.indValue}>{lealtàMedia}%</Text>
+          </Pressable>
+          <Pressable style={styles.indCard} onPress={() => router.push("/paura")}>
+            <Text style={styles.indEmoji}>😨</Text>
+            <Text style={styles.indLabel}>Paura</Text>
+            <Text style={styles.indValue}>{pauraMedia}%</Text>
+          </Pressable>
         </View>
       </View>
 
@@ -711,20 +714,33 @@ const styles = StyleSheet.create({
   },
   topBannerInner: {
     width: "100%",
-    gap: 10,
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
     paddingHorizontal: 12
   },
-  topBannerRow1: {
+  bannerTitleBlock: {
     flexDirection: "row",
     alignItems: "center",
     gap: 8
   },
-  topBannerRow2: {
-    flexDirection: "row",
-    width: "100%",
-    justifyContent: "space-between",
-    alignItems: "stretch",
-    gap: 10
+  bannerTitleEmoji: {
+    fontSize: 28,
+    textShadowColor: "rgba(251,191,36,0.3)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 8
+  },
+  bannerTitle: {
+    fontSize: 18,
+    fontWeight: "800",
+    color: "#f8fafc",
+    letterSpacing: 0.3
+  },
+  bannerSubtitle: {
+    fontSize: 11,
+    color: "rgba(248,250,252,0.65)",
+    marginTop: 1
   },
   badge: {
     flexDirection: "row",

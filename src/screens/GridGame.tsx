@@ -20,19 +20,6 @@ export default function GridGame() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={contentWrapStyle} showsVerticalScrollIndicator={false}>
-      {/* Hero header */}
-      <View style={styles.hero}>
-        <View style={styles.heroTop}>
-          <View style={styles.titleBlock}>
-            <Text style={styles.heroEmoji}>🏰</Text>
-            <View>
-              <Text style={styles.heroTitle}>MyKingdom</Text>
-              <Text style={styles.heroSubtitle}>Gestisci la tua colonia</Text>
-            </View>
-          </View>
-        </View>
-      </View>
-
       {/* Navigazione: Colonia */}
       <View style={styles.block}>
         <Text style={styles.blockTitle}>🏘️ Colonia</Text>
@@ -110,41 +97,6 @@ const styles = StyleSheet.create({
     maxWidth: 440,
     alignSelf: "center",
     width: "100%"
-  },
-  hero: {
-    paddingTop: 16,
-    paddingBottom: 20,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(148,163,184,0.12)",
-    marginBottom: 18
-  },
-  heroTop: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-    alignItems: "flex-start",
-    marginBottom: 14
-  },
-  titleBlock: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 12
-  },
-  heroEmoji: {
-    fontSize: 42,
-    textShadowColor: "rgba(251,191,36,0.3)",
-    textShadowOffset: { width: 0, height: 0 },
-    textShadowRadius: 12
-  },
-  heroTitle: {
-    fontSize: 26,
-    fontWeight: "800",
-    color: "#f8fafc",
-    letterSpacing: 0.5
-  },
-  heroSubtitle: {
-    fontSize: 13,
-    color: "rgba(248,250,252,0.65)",
-    marginTop: 2
   },
   block: {
     marginBottom: 20
