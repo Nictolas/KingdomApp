@@ -16,10 +16,13 @@ export function FazioneInfoModal({ visible, fazione, abitanti = [], onClose }: F
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
   // "Robots": membri = tutti gli abitanti con razza Robot (fazione automatica)
+  // "Élite": membri = i 3 abitanti con più crediti (fazione automatica)
   const membri =
     fazione.nome === "Robots"
       ? abitanti.filter((a) => a.razza === "Robot")
-      : abitanti.filter((a) => a.fazioni?.includes(fazione.nome));
+      : fazione.nome === "Élite"
+        ? [...abitanti].sort((a, b) => (b.crediti ?? 0) - (a.crediti ?? 0)).slice(0, 3)
+        : abitanti.filter((a) => a.fazioni?.includes(fazione.nome));
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>

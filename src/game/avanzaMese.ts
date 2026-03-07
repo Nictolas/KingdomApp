@@ -284,6 +284,15 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   // Invecchiamento: +1 anno quando si cambia anno
   const idsPensionati = new Set<number>();
 
+  // Costo abitazione per abitante (dalla residenza assegnata). Usato per Senzatetto e per entrateResidenze.
+  const idToCostoAbitazione = new Map<number, number>();
+  edifici.forEach((edificio) => {
+    if (edificio.tipo !== "Residenza" || edificio.stato !== "Operativo") return;
+    const defaultPrezzo = RESIDENZE_CATALOGO.find((r) => r.nome === edificio.nome)?.costoMensile ?? 0;
+    const prezzo = prezzoResidenze[edificio.nome] ?? defaultPrezzo;
+    (edificio.abitantiAssegnati ?? []).forEach((id) => idToCostoAbitazione.set(id, prezzo));
+  });
+
   // Aggiorna abitanti (invecchiamento, pensionamento, schiavi vs non-schiavi, crediti, stanchezza, peso, salute)
   const nuoviAbitanti = abitantiRimasti.map((abitante) => {
     let eta = abitante.eta;
@@ -340,7 +349,18 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       }
     }
 
-    const nuovoSaldo = abitante.crediti + redditoEffettivo - abitante.spese + risparmio;
+    // Costo abitazione dalla residenza assegnata. Se non può permettersela paga 0 e entra in Senzatetto.
+    const costoAbitazione = idToCostoAbitazione.get(abitante.id) ?? 0;
+    const puòPermettersiAbitazione = abitante.crediti >= costoAbitazione;
+    const spesaAbitazioneEffettiva = costoAbitazione > 0 && puòPermettersiAbitazione ? costoAbitazione : 0;
+    let fazioni = abitante.fazioni ?? [];
+    if (costoAbitazione > 0 && !puòPermettersiAbitazione) {
+      fazioni = [...fazioni.filter((f) => f !== "Senzatetto"), "Senzatetto"];
+    } else {
+      fazioni = fazioni.filter((f) => f !== "Senzatetto");
+    }
+
+    const nuovoSaldo = abitante.crediti + redditoEffettivo - abitante.spese - spesaAbitazioneEffettiva + risparmio;
     const nuovaStanchezza = Math.min(100, abitante.stanchezza + Math.floor(Math.random() * 10));
     const variazionePeso = Math.floor(Math.random() * 6) - 2;
     const nuovoPeso = Math.max(0, Math.min(100, abitante.peso + variazionePeso));
@@ -352,6 +372,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       lavoro,
       reddito: lavoro === "Disoccupato" ? 0 : reddito,
       crediti: Math.max(0, nuovoSaldo),
+      fazioni,
       stanchezza: nuovaStanchezza,
       peso: nuovoPeso,
       salute: nuovaSalute
@@ -405,7 +426,11 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
         .reduce((sum, e) => {
           const defaultPrezzo = RESIDENZE_CATALOGO.find((r) => r.nome === e.nome)?.costoMensile ?? 0;
           const prezzo = prezzoResidenze[e.nome] ?? defaultPrezzo;
-          return sum + prezzo * ((e.abitantiAssegnati ?? []).length);
+          for (const id of e.abitantiAssegnati ?? []) {
+            const ab = abitantiRimasti.find((a) => a.id === id);
+            if (ab && ab.crediti >= prezzo) sum += prezzo;
+          }
+          return sum;
         }, 0);
       nuovaQuantità = risorsa.quantità + totaleRedditi + entrateResidenze - totaleSpese - totaleStipendiEdifici - costoPensioni;
     }
