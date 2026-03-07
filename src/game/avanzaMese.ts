@@ -29,6 +29,8 @@ export type AvanzaMeseInput = {
   redditoCittadinanza?: number;
   /** Modalità del sistema sanitario (Privata/Pubblica) per i costi dell'Ospedale. */
   modalitaSanita?: "privata" | "pubblica";
+  /** Configurazione legge famiglie: se matrimonioUmanoRobot è false, coppie umano+robot non possono sposarsi. */
+  tipologieFamigliaAccettate?: { matrimonioUmanoRobot: boolean };
 };
 
 export type AvanzaMeseOutput = {
@@ -85,8 +87,25 @@ export function canMarry(a: Abitante, b: Abitante): boolean {
 
 const SOGLIA_AMICIZIA_MATRIMONIO = 90;
 
+/** True se la coppia (a,b) è consentita dalla legge (es. matrimonio umano-robot se abilitato). */
+function coppiaConsentitaLegge(
+  a: Abitante,
+  b: Abitante,
+  tipologie?: { matrimonioUmanoRobot: boolean }
+): boolean {
+  const unoRobot = (a.razza ?? "Umano") === "Robot";
+  const altroRobot = (b.razza ?? "Umano") === "Robot";
+  if (unoRobot !== altroRobot) {
+    return tipologie?.matrimonioUmanoRobot === true;
+  }
+  return true;
+}
+
 /** True se esiste almeno una coppia (non sposata, amicizia ≥90, compatibile) che può generare pendingMatrimonio allo Skip Mese. */
-export function esisteCoppiaMatrimonioPossibile(abitanti: Abitante[]): boolean {
+export function esisteCoppiaMatrimonioPossibile(
+  abitanti: Abitante[],
+  tipologieFamigliaAccettate?: { matrimonioUmanoRobot: boolean }
+): boolean {
   for (const a of abitanti) {
     if (a.coniugeId != null) continue;
     for (const rel of a.amici ?? []) {
@@ -94,6 +113,7 @@ export function esisteCoppiaMatrimonioPossibile(abitanti: Abitante[]): boolean {
       const b = abitanti.find((x) => x.id === rel.id);
       if (!b || b.coniugeId != null || a.id >= b.id) continue;
       if (!canMarry(a, b) || !canMarry(b, a)) continue;
+      if (!coppiaConsentitaLegge(a, b, tipologieFamigliaAccettate)) continue;
       return true;
     }
   }
@@ -690,7 +710,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     }
   });
 
-  // Matrimonio: coppie con amicizia >= 90, non già sposate, compatibili (orientamento/sesso)
+  // Matrimonio: coppie con amicizia >= 90, non già sposate, compatibili (orientamento/sesso) e consentite dalla legge (es. umano-robot)
+  const tipologie = input.tipologieFamigliaAccettate;
   let pendingMatrimonio: AvanzaMeseOutput["pendingMatrimonio"] = null;
   for (const a of abitantiEv) {
     if (a.coniugeId != null) continue;
@@ -699,6 +720,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       const b = abitantiEv.find((x) => x.id === rel.id);
       if (!b || b.coniugeId != null || a.id >= b.id) continue;
       if (!canMarry(a, b) || !canMarry(b, a)) continue;
+      if (!coppiaConsentitaLegge(a, b, tipologie)) continue;
       pendingMatrimonio = { idA: a.id, idB: b.id, nomeA: a.nome, nomeB: b.nome };
       break;
     }

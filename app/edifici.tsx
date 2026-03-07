@@ -87,6 +87,8 @@ export default function EdificiScreen() {
       router.push("/ministri");
     } else if (e.nome === "Dissalatore") {
       router.push("/dissalatore");
+    } else if (e.nome === "Laboratorio di Ricerca") {
+      router.push("/laboratorio");
     } else if (e.nome === "Bar") {
       router.push("/bar");
     } else if (e.nome === "Caserma") {

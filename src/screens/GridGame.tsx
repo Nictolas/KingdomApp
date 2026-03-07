@@ -1,5 +1,5 @@
 import React from "react";
-import { ActivityIndicator, Dimensions, Pressable, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { fazioniData, leggiData } from "../kingdomData";
 import { useGameContext } from "../context/GameContext";
@@ -21,473 +21,386 @@ export default function GridGame() {
   const deltaOrdini = calcolaDeltaOrdiniMercato();
 
   const abitantiConFelicità = abitanti.filter((a) => a.razza !== "Robot");
-  const n = abitanti.length;
   const nConFelicità = abitantiConFelicità.length;
   const felicitàMedia = nConFelicità ? Math.round(abitantiConFelicità.reduce((s, a) => s + calcolaFelicitàModificata(a), 0) / nConFelicità) : 0;
   const nConLealtàPaura = abitantiConFelicità.length;
   const lealtàMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.lealtà, 0) / nConLealtàPaura) : 0;
   const pauraMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.paura, 0) / nConLealtàPaura) : 0;
 
+  const getResourceEmoji = (r: Risorsa) => {
+    const n = r.nome.toLowerCase();
+    if (n.includes("crediti")) return "💰";
+    if (n.includes("cibo")) return "🍱";
+    if (n.includes("energia")) return "⚡";
+    if (n.includes("acqua")) return "💧";
+    if (n.includes("materiale edile")) return "🧱";
+    if (n.includes("medicine")) return "💊";
+    if (n.includes("combustibile")) return "⛽";
+    if (n.includes("rifiuti")) return "🗑️";
+    return "⛏️";
+  };
+
+  const getResourceRoute = (r: Risorsa) => {
+    const n = r.nome.toLowerCase();
+    if (n.includes("cibo")) return "/cibo";
+    if (n.includes("crediti")) return "/crediti";
+    if (n.includes("energia")) return "/energia";
+    if (n.includes("acqua")) return "/acqua";
+    if (n.includes("rifiuti")) return "/rifiuti";
+    return null;
+  };
+
   return (
-    <View style={styles.container}>
-      {/* Header + Skip su una riga compatta su PC */}
-      <View style={[styles.header, isDesktop && styles.headerCompact]}>
-        <View style={[styles.titleRow, isDesktop && styles.titleRowCompact]}>
-          <Text style={[styles.gameTitle, isDesktop && styles.gameTitleCompact]}>MyKingdom</Text>
-          <Pressable style={[styles.diarioButton, isDesktop && styles.diarioButtonCompact]} onPress={() => router.push("/diario")}>
-            <Text style={styles.diarioEmoji}>📖</Text>
-            <Text style={[styles.diarioLabel, isDesktop && styles.diarioLabelCompact]}>Diario</Text>
-          </Pressable>
-          {isDesktop && (
-            <Text style={styles.meseLabel}>Mese {mese} - Anno {anno}</Text>
-          )}
-        </View>
-        {!isDesktop && (
-          <View>
-            <Text style={styles.subtitle}>Gestisci la tua colonia</Text>
-            <Text style={styles.meseLabel}>Mese {mese} - Anno {anno}</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      {/* Hero header */}
+      <View style={styles.hero}>
+        <View style={styles.heroTop}>
+          <View style={styles.titleBlock}>
+            <Text style={styles.heroEmoji}>🏰</Text>
+            <View>
+              <Text style={styles.heroTitle}>MyKingdom</Text>
+              <Text style={styles.heroSubtitle}>Gestisci la tua colonia</Text>
+            </View>
           </View>
-        )}
+          <View style={styles.heroActions}>
+            <View style={styles.badge}>
+              <Text style={styles.badgeText}>📅 Mese {mese}</Text>
+              <Text style={styles.badgeText}>· Anno {anno}</Text>
+            </View>
+            <Pressable style={styles.diarioBtn} onPress={() => router.push("/diario")}>
+              <Text style={styles.diarioBtnEmoji}>📖</Text>
+              <Text style={styles.diarioBtnLabel}>Diario</Text>
+            </Pressable>
+          </View>
+        </View>
         <Pressable
-          style={[styles.skipButton, isLoading && styles.skipButtonDisabled]}
+          style={[styles.skipBtn, isLoading && styles.skipBtnDisabled]}
           onPress={avanzaMese}
           disabled={isLoading}
         >
           {isLoading ? (
             <>
-              <ActivityIndicator size="small" color="#ffffff" style={{ marginRight: 4 }} />
-              <Text style={styles.skipButtonText}>Caricamento...</Text>
+              <ActivityIndicator size="small" color="#fff" />
+              <Text style={styles.skipBtnText}>Caricamento...</Text>
             </>
           ) : (
             <>
-              <Text style={styles.skipEmoji}>⏭️</Text>
-              <Text style={styles.skipButtonText}>Skip Mese</Text>
+              <Text style={styles.skipBtnEmoji}>⏭️</Text>
+              <Text style={styles.skipBtnText}>Skip Mese</Text>
             </>
           )}
         </Pressable>
       </View>
 
-      {/* Risorse + Indicatori (Felicità/Lealtà/Paura medie) */}
-      <View style={[styles.section, styles.resourcesSection, isDesktop && styles.sectionCompact]}>
-        <Text style={[styles.sectionTitle, isDesktop && styles.sectionTitleCompact]}>Risorse</Text>
-        <View style={[styles.resourcesGrid, isDesktop && styles.resourcesGridCompact]}>
+      {/* Risorse */}
+      <View style={styles.block}>
+        <Text style={styles.blockTitle}>📦 Risorse</Text>
+        <View style={styles.resourcesGrid}>
           {risorse.map((r: Risorsa) => {
-            const variazione = (variazioni[r.nome] || 0) + (deltaOrdini[r.nome] ?? 0);
-            const isCibo = r.nome.toLowerCase().includes("cibo");
-            const isCrediti = r.nome.toLowerCase().includes("crediti");
-            const isEnergia = r.nome.toLowerCase().includes("energia");
-            const isAcqua = r.nome.toLowerCase().includes("acqua");
-            const isMaterialeEdile = r.nome.toLowerCase().includes("materiale edile");
-            const isMedicine = r.nome.toLowerCase().includes("medicine");
-            const isCombustibile = r.nome.toLowerCase().includes("combustibile");
-            const isRifiuti = r.nome.toLowerCase().includes("rifiuti");
-            const emoji =
-              isCrediti
-                ? "💰"
-                : isCibo
-                ? "🍱"
-                : isEnergia
-                ? "⚡"
-                : isAcqua
-                ? "💧"
-                : isMaterialeEdile
-                ? "🧱"
-                : isMedicine
-                ? "💊"
-                : isCombustibile
-                ? "⛽"
-                : isRifiuti
-                ? "🗑️"
-                : "⛏️";
+            const delta = (variazioni[r.nome] || 0) + (deltaOrdini[r.nome] ?? 0);
+            const route = getResourceRoute(r);
             return (
               <Pressable
                 key={r.id}
-                style={[styles.resourceCard, isDesktop && styles.resourceCardCompact]}
-                onPress={
-                  isCibo
-                    ? () => router.push("/cibo")
-                    : isCrediti
-                    ? () => router.push("/crediti")
-                    : isEnergia
-                    ? () => router.push("/energia")
-                    : isAcqua
-                    ? () => router.push("/acqua")
-                    : isRifiuti
-                    ? () => router.push("/rifiuti")
-                    : undefined
-                }
-                disabled={!isCibo && !isCrediti && !isEnergia && !isAcqua && !isRifiuti}
+                style={[styles.resCard, route && styles.resCardClickable]}
+                onPress={route ? () => router.push(route) : undefined}
+                disabled={!route}
               >
-                <Text style={styles.resourceName}>
-                  <Text style={styles.resourceEmoji}>{emoji} </Text>
-                  {r.nome}
-                </Text>
-                <View style={styles.resourceRow}>
-                  <Text style={styles.resourceValue}>
-                    {r.quantità} <Text style={styles.resourceUnit}>{r.unità}</Text>
-                  </Text>
-                  {variazione !== 0 && (
-                    <Text style={[styles.variazione, variazione > 0 ? styles.variazionePositiva : styles.variazioneNegativa]}>
-                      {variazione > 0 ? "+" : ""}{variazione}
-                    </Text>
-                  )}
+                <Text style={styles.resEmoji}>{getResourceEmoji(r)}</Text>
+                <Text style={styles.resName} numberOfLines={1}>{r.nome}</Text>
+                <View style={styles.resValueRow}>
+                  <Text style={styles.resValue}>{r.quantità}</Text>
+                  <Text style={styles.resUnit}> {r.unità}</Text>
                 </View>
+                {delta !== 0 && (
+                  <Text style={[styles.resDelta, delta > 0 ? styles.resDeltaPos : styles.resDeltaNeg]}>
+                    {delta > 0 ? "+" : ""}{delta}
+                  </Text>
+                )}
               </Pressable>
             );
           })}
-          <Pressable
-            style={[styles.resourceCard, styles.resourceCardMedia, isDesktop && styles.resourceCardCompact]}
-            onPress={() => router.push("/felicita")}
-          >
-            <Text style={styles.resourceName}>
-              <Text style={styles.resourceEmoji}>😊 </Text>
-              Felicità Media
-            </Text>
-            <Text style={styles.resourceValue}>{felicitàMedia}%</Text>
+        </View>
+      </View>
+
+      {/* Indicatori (Felicità, Lealtà, Paura) */}
+      <View style={styles.block}>
+        <Text style={styles.blockTitle}>📊 Indicatori colonia</Text>
+        <View style={styles.indicatoriRow}>
+          <Pressable style={styles.indCard} onPress={() => router.push("/felicita")}>
+            <Text style={styles.indEmoji}>😊</Text>
+            <Text style={styles.indLabel}>Felicità</Text>
+            <Text style={styles.indValue}>{felicitàMedia}%</Text>
           </Pressable>
-          <Pressable
-            style={[styles.resourceCard, styles.resourceCardMedia, isDesktop && styles.resourceCardCompact]}
-            onPress={() => router.push("/lealta")}
-          >
-            <Text style={styles.resourceName}>
-              <Text style={styles.resourceEmoji}>❤️ </Text>
-              Lealtà Media
-            </Text>
-            <Text style={styles.resourceValue}>{lealtàMedia}%</Text>
+          <Pressable style={styles.indCard} onPress={() => router.push("/lealta")}>
+            <Text style={styles.indEmoji}>❤️</Text>
+            <Text style={styles.indLabel}>Lealtà</Text>
+            <Text style={styles.indValue}>{lealtàMedia}%</Text>
           </Pressable>
-          <Pressable
-            style={[styles.resourceCard, styles.resourceCardMedia, isDesktop && styles.resourceCardCompact]}
-            onPress={() => router.push("/paura")}
-          >
-            <Text style={styles.resourceName}>
-              <Text style={styles.resourceEmoji}>😨 </Text>
-              Paura Media
-            </Text>
-            <Text style={styles.resourceValue}>{pauraMedia}%</Text>
+          <Pressable style={styles.indCard} onPress={() => router.push("/paura")}>
+            <Text style={styles.indEmoji}>😨</Text>
+            <Text style={styles.indLabel}>Paura</Text>
+            <Text style={styles.indValue}>{pauraMedia}%</Text>
           </Pressable>
         </View>
       </View>
 
-      <View style={[styles.navRow, isDesktop && styles.navRowCompact]}>
-        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/abitanti")}>
-          <Text style={styles.navEmoji}>👥</Text>
-          <Text style={styles.navLabel}>Abitanti</Text>
-          <Text style={styles.navCount}>{abitanti.length} totali</Text>
-        </Pressable>
-        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/regole")}>
-          <Text style={styles.navEmoji}>📋</Text>
-          <Text style={styles.navLabel}>Regole</Text>
-        </Pressable>
-      </View>
-      <View style={[styles.navRow, isDesktop && styles.navRowCompact]}>
-        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/fazioni")}>
-          <Text style={styles.navEmoji}>⚔️</Text>
-          <Text style={styles.navLabel}>Fazioni</Text>
-          <Text style={styles.navCount}>{fazioni.length} attive</Text>
-        </Pressable>
-        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/leggi")}>
-          <Text style={styles.navEmoji}>📜</Text>
-          <Text style={styles.navLabel}>Leggi</Text>
-          <Text style={styles.navCount}>{leggi.length} totali</Text>
-        </Pressable>
-      </View>
-      <View style={[styles.navRow, isDesktop && styles.navRowCompact]}>
-        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/edifici")}>
-          <Text style={styles.navEmoji}>🏗️</Text>
-          <Text style={styles.navLabel}>Edifici</Text>
-          <Text style={styles.navCount}>{edifici.length} strutture</Text>
-        </Pressable>
-        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/immigrazione")}>
-          <Text style={styles.navEmoji}>🚀</Text>
-          <Text style={styles.navLabel}>Immigrazione</Text>
-          <Text style={styles.navCount}>
-            {abitantiProposti.length > 0 ? `${abitantiProposti.length} candidati` : "Nessuno"}
-          </Text>
-        </Pressable>
-        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/sanzioni")}>
-          <Text style={styles.navEmoji}>⚠️</Text>
-          <Text style={styles.navLabel}>Sanzioni</Text>
-          <Text style={[styles.navCount, punteggioSanzioni >= 5 && styles.navCountWarning]}>
-            {punteggioSanzioni}/10
-          </Text>
-        </Pressable>
+      {/* Navigazione: Colonia */}
+      <View style={styles.block}>
+        <Text style={styles.blockTitle}>🏘️ Colonia</Text>
+        <View style={[styles.navGrid, isDesktop && styles.navGridWide]}>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/abitanti")}>
+            <Text style={styles.navEmoji}>👥</Text>
+            <Text style={styles.navLabel}>Abitanti</Text>
+            <Text style={styles.navMeta}>{abitanti.length}</Text>
+          </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/fazioni")}>
+            <Text style={styles.navEmoji}>⚔️</Text>
+            <Text style={styles.navLabel}>Fazioni</Text>
+            <Text style={styles.navMeta}>{fazioni.length}</Text>
+          </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/edifici")}>
+            <Text style={styles.navEmoji}>🏗️</Text>
+            <Text style={styles.navLabel}>Edifici</Text>
+            <Text style={styles.navMeta}>{edifici.length}</Text>
+          </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/immigrazione")}>
+            <Text style={styles.navEmoji}>🛂</Text>
+            <Text style={styles.navLabel}>Immigrazione</Text>
+            <Text style={styles.navMeta}>{abitantiProposti.length > 0 ? `${abitantiProposti.length} candidati` : "—"}</Text>
+          </Pressable>
+        </View>
       </View>
 
-      <View style={[styles.navRow, isDesktop && styles.navRowCompact]}>
-        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/crimine")}>
-          <Text style={styles.navEmoji}>🕵️</Text>
-          <Text style={styles.navLabel}>Crimine</Text>
-          <Text style={styles.navCount}>{criminali.length} criminali</Text>
-        </Pressable>
-        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/personalita")}>
-          <Text style={styles.navEmoji}>🧠</Text>
-          <Text style={styles.navLabel}>Personalità</Text>
-          <Text style={styles.navCount}>{personalitàUniche.length} tipi</Text>
-        </Pressable>
-        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/competenze")}>
-          <Text style={styles.navEmoji}>📊</Text>
-          <Text style={styles.navLabel}>Competenze</Text>
-          <Text style={styles.navCount}>Catalogo</Text>
-        </Pressable>
-        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/mercato")}>
-          <Text style={styles.navEmoji}>🏪</Text>
-          <Text style={styles.navLabel}>Mercato</Text>
-          <Text style={styles.navCount}>Compra / Vendi</Text>
-        </Pressable>
-        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/eventi")}>
-          <Text style={styles.navEmoji}>📌</Text>
-          <Text style={styles.navLabel}>Eventi</Text>
-          <Text style={styles.navCount}>Possibili / In corso</Text>
-        </Pressable>
-        <Pressable style={[styles.navButton, isDesktop && styles.navButtonCompact]} onPress={() => router.push("/pianeti")}>
-          <Text style={styles.navEmoji}>🪐</Text>
-          <Text style={styles.navLabel}>Pianeti</Text>
-          <Text style={styles.navCount}>Razze / Origini</Text>
-        </Pressable>
+      {/* Navigazione: Leggi e ordine */}
+      <View style={styles.block}>
+        <Text style={styles.blockTitle}>📜 Leggi e ordine</Text>
+        <View style={[styles.navGrid, isDesktop && styles.navGridWide]}>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/leggi")}>
+            <Text style={styles.navEmoji}>📜</Text>
+            <Text style={styles.navLabel}>Leggi</Text>
+            <Text style={styles.navMeta}>{leggi.length}</Text>
+          </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/sanzioni")}>
+            <Text style={styles.navEmoji}>⚠️</Text>
+            <Text style={styles.navLabel}>Sanzioni</Text>
+            <Text style={[styles.navMeta, punteggioSanzioni >= 5 && styles.navMetaWarn]}>{punteggioSanzioni}/10</Text>
+          </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/crimine")}>
+            <Text style={styles.navEmoji}>🕵️</Text>
+            <Text style={styles.navLabel}>Crimine</Text>
+            <Text style={styles.navMeta}>{criminali.length}</Text>
+          </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/regole")}>
+            <Text style={styles.navEmoji}>📋</Text>
+            <Text style={styles.navLabel}>Regole</Text>
+          </Pressable>
+        </View>
       </View>
 
-    </View>
+      {/* Navigazione: Altro */}
+      <View style={[styles.block, styles.blockLast]}>
+        <Text style={styles.blockTitle}>🌐 Altro</Text>
+        <View style={[styles.navGrid, isDesktop && styles.navGridWide]}>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/personalita")}>
+            <Text style={styles.navEmoji}>🧠</Text>
+            <Text style={styles.navLabel}>Personalità</Text>
+            <Text style={styles.navMeta}>{personalitàUniche.length}</Text>
+          </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/competenze")}>
+            <Text style={styles.navEmoji}>📊</Text>
+            <Text style={styles.navLabel}>Competenze</Text>
+          </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/mercato")}>
+            <Text style={styles.navEmoji}>🏪</Text>
+            <Text style={styles.navLabel}>Mercato</Text>
+          </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/eventi")}>
+            <Text style={styles.navEmoji}>📌</Text>
+            <Text style={styles.navLabel}>Eventi</Text>
+          </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/pianeti")}>
+            <Text style={styles.navEmoji}>🪐</Text>
+            <Text style={styles.navLabel}>Pianeti</Text>
+          </Pressable>
+        </View>
+      </View>
+    </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: "#050816"
+    backgroundColor: "#0a0f1a"
   },
-  scroll: { flex: 1 },
-  scrollContent: { flexGrow: 1, paddingBottom: 16 },
-  navRow: {
+  scrollContent: {
+    paddingBottom: 28,
+    paddingHorizontal: 14
+  },
+  hero: {
+    paddingTop: 16,
+    paddingBottom: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(148,163,184,0.12)",
+    marginBottom: 18
+  },
+  heroTop: {
     flexDirection: "row",
     justifyContent: "space-between",
-    paddingHorizontal: 8,
-    paddingTop: 2,
-    paddingBottom: 1,
+    alignItems: "flex-start",
+    marginBottom: 14
+  },
+  titleBlock: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 12
+  },
+  heroEmoji: {
+    fontSize: 42,
+    textShadowColor: "rgba(251,191,36,0.3)",
+    textShadowOffset: { width: 0, height: 0 },
+    textShadowRadius: 12
+  },
+  heroTitle: {
+    fontSize: 26,
+    fontWeight: "800",
+    color: "#f8fafc",
+    letterSpacing: 0.5
+  },
+  heroSubtitle: {
+    fontSize: 13,
+    color: "rgba(248,250,252,0.65)",
+    marginTop: 2
+  },
+  heroActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8
+  },
+  badge: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(30,41,59,0.8)",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 20,
     gap: 4
   },
-  navRowCompact: {
-    paddingHorizontal: 6,
-    paddingTop: 1,
-    paddingBottom: 0,
-    gap: 4
-  },
-  navButton: {
-    flex: 1,
-    backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 6,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.6)"
-  },
-  navButtonCompact: {
-    paddingVertical: 3,
-    paddingHorizontal: 4,
-    borderRadius: 4
-  },
-  navEmoji: {
-    fontSize: 14,
-    marginBottom: 0
-  },
-  navLabel: {
-    color: "#e5e7eb",
-    fontSize: 10,
-    fontWeight: "700"
-  },
-  navCount: {
-    color: "rgba(148,163,184,0.9)",
-    fontSize: 8,
-    marginTop: 0
-  },
-  header: {
-    paddingTop: 4,
-    paddingBottom: 4,
-    paddingHorizontal: 8,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(255,255,255,0.12)",
-    backgroundColor: "#050816"
-  },
-  headerCompact: {
-    paddingTop: 2,
-    paddingBottom: 2,
-    paddingHorizontal: 6
-  },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 6,
-    marginBottom: 1
-  },
-  titleRowCompact: {
-    gap: 6,
-    marginBottom: 0
-  },
-  gameTitle: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "800"
-  },
-  gameTitleCompact: {
-    fontSize: 13
-  },
-  diarioButton: {
-    flexDirection: "row",
-    alignItems: "center",
-    backgroundColor: "rgba(15,23,42,0.6)",
-    borderRadius: 4,
-    paddingVertical: 2,
-    paddingHorizontal: 6,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.3)",
-    gap: 2
-  },
-  diarioButtonCompact: {
-    paddingVertical: 2,
-    paddingHorizontal: 4
-  },
-  diarioEmoji: {
-    fontSize: 11
-  },
-  diarioLabel: {
-    color: "#e5e7eb",
-    fontSize: 9,
+  badgeText: {
+    fontSize: 11,
+    color: "rgba(248,250,252,0.85)",
     fontWeight: "600"
   },
-  diarioLabelCompact: {
-    fontSize: 9
+  diarioBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    backgroundColor: "rgba(51,65,85,0.6)",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 20,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.2)",
+    gap: 6
   },
-  subtitle: {
-    color: "rgba(255,255,255,0.7)",
-    fontSize: 10,
-    marginTop: 0
-  },
-  meseLabel: {
-    color: "rgba(255,255,255,0.6)",
-    fontSize: 9,
-    marginTop: 0
-  },
-  skipContainer: {
-    paddingHorizontal: 8,
-    paddingTop: 2,
-    paddingBottom: 1
-  },
-  skipButton: {
-    backgroundColor: "rgba(59,130,246,0.9)",
-    borderRadius: 6,
-    paddingVertical: 4,
-    paddingHorizontal: 8,
+  diarioBtnEmoji: { fontSize: 14 },
+  diarioBtnLabel: { fontSize: 12, fontWeight: "600", color: "#e2e8f0" },
+  skipBtn: {
     flexDirection: "row",
     alignItems: "center",
     justifyContent: "center",
+    backgroundColor: "#2563eb",
+    paddingVertical: 14,
+    paddingHorizontal: 20,
+    borderRadius: 14,
+    gap: 10,
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.3)"
+    borderColor: "rgba(59,130,246,0.5)"
   },
-  skipButtonDisabled: {
-    backgroundColor: "rgba(59,130,246,0.5)",
-    opacity: 0.7
+  skipBtnDisabled: {
+    backgroundColor: "rgba(37,99,235,0.5)",
+    opacity: 0.9
   },
-  skipEmoji: {
-    fontSize: 12,
-    marginRight: 4
+  skipBtnEmoji: { fontSize: 20 },
+  skipBtnText: { fontSize: 16, fontWeight: "700", color: "#fff" },
+
+  block: {
+    marginBottom: 20
   },
-  skipButtonText: {
-    color: "#ffffff",
-    fontSize: 11,
-    fontWeight: "700"
-  },
-  scrollContent: {
-    paddingHorizontal: 8,
-    paddingTop: 2,
-    paddingBottom: 4,
-    flex: 1
-  },
-  section: {
-    marginBottom: 3
-  },
-  sectionCompact: {
-    marginBottom: 2
-  },
-  resourcesSection: {
-    paddingHorizontal: 8,
-    paddingTop: 2,
-    paddingBottom: 2
-  },
-  sectionTitle: {
-    color: "#ffffff",
-    fontSize: 11,
+  blockLast: { marginBottom: 12 },
+  blockTitle: {
+    fontSize: 13,
     fontWeight: "700",
-    marginBottom: 2
-  },
-  sectionTitleCompact: {
-    fontSize: 10,
-    marginBottom: 1
+    color: "rgba(248,250,252,0.9)",
+    marginBottom: 10,
+    letterSpacing: 0.3
   },
   resourcesGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6
+    gap: 10
   },
-  resourcesGridCompact: {
-    gap: 4
-  },
-  resourceCard: {
-    flex: 1,
-    minWidth: "47%",
-    backgroundColor: "rgba(15,23,42,0.6)",
-    borderRadius: 4,
-    padding: 6,
+  resCard: {
+    width: "47%",
+    minHeight: 82,
+    backgroundColor: "rgba(15,23,42,0.7)",
+    borderRadius: 12,
+    padding: 12,
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.3)"
+    borderColor: "rgba(148,163,184,0.15)"
   },
-  resourceCardCompact: {
-    padding: 4,
-    borderRadius: 4,
-    minWidth: "15%",
-    maxWidth: "20%"
+  resCardClickable: {
+    borderColor: "rgba(59,130,246,0.25)"
   },
-  resourceCardMedia: {
-    minWidth: "47%"
-  },
-  resourceName: {
-    color: "#e5e7eb",
-    fontSize: 9,
-    marginBottom: 1
-  },
-  resourceEmoji: {
-    fontSize: 10,
-    marginRight: 1
-  },
-  resourceRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    gap: 2
-  },
-  resourceValue: {
-    color: "#e5e7eb",
-    fontSize: 10,
-    fontWeight: "700"
-  },
-  resourceUnit: {
-    color: "rgba(148,163,184,0.9)",
-    fontWeight: "500"
-  },
-  variazione: {
-    fontSize: 9,
-    fontWeight: "700"
-  },
-  variazionePositiva: {
-    color: "#4ade80"
-  },
-  variazioneNegativa: {
-    color: "#ef4444"
-  },
-  navCountWarning: {
-    color: "#ef4444",
-    fontWeight: "700"
-  }
-});
+  resEmoji: { fontSize: 22, marginBottom: 4 },
+  resName: { fontSize: 11, color: "rgba(248,250,252,0.8)", marginBottom: 2 },
+  resValueRow: { flexDirection: "row", alignItems: "baseline" },
+  resValue: { fontSize: 16, fontWeight: "800", color: "#f8fafc" },
+  resUnit: { fontSize: 11, color: "rgba(148,163,184,0.8)", marginLeft: 2 },
+  resDelta: { fontSize: 11, fontWeight: "700", marginTop: 2 },
+  resDeltaPos: { color: "#4ade80" },
+  resDeltaNeg: { color: "#f87171" },
 
+  indicatoriRow: {
+    flexDirection: "row",
+    gap: 10
+  },
+  indCard: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.7)",
+    borderRadius: 12,
+    padding: 14,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.15)"
+  },
+  indEmoji: { fontSize: 28, marginBottom: 6 },
+  indLabel: { fontSize: 10, color: "rgba(248,250,252,0.7)", marginBottom: 2 },
+  indValue: { fontSize: 18, fontWeight: "800", color: "#f8fafc" },
+
+  navGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10
+  },
+  navGridWide: {
+    gap: 12
+  },
+  navCard: {
+    width: "47%",
+    minHeight: 72,
+    backgroundColor: "rgba(15,23,42,0.6)",
+    borderRadius: 12,
+    padding: 12,
+    justifyContent: "center",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.12)"
+  },
+  navCardWide: {
+    width: "31%"
+  },
+  navEmoji: { fontSize: 24, marginBottom: 4 },
+  navLabel: { fontSize: 12, fontWeight: "700", color: "#e2e8f0" },
+  navMeta: { fontSize: 10, color: "rgba(148,163,184,0.85)", marginTop: 2 },
+  navMetaWarn: { color: "#f87171", fontWeight: "700" }
+});

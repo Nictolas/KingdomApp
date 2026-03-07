@@ -122,11 +122,13 @@ export function useGameState() {
     interrazziale: boolean;
     arcobaleno: boolean;
     monogenitoriale: boolean;
+    matrimonioUmanoRobot: boolean;
   }>({
     tradizionale: true,
     interrazziale: true,
     arcobaleno: true,
-    monogenitoriale: true
+    monogenitoriale: true,
+    matrimonioUmanoRobot: false
   });
 
   // Reddito di cittadinanza: importo mensile dato a disoccupati non schiavi
@@ -185,7 +187,8 @@ export function useGameState() {
       soddisfazioneFazioni,
       prezzoResidenze,
       redditoCittadinanza,
-      modalitaSanita
+      modalitaSanita,
+      tipologieFamigliaAccettate
     });
 
     setNativiNonIntegrati((prev) => prev + result.deltaNativiNonIntegrati);
@@ -216,7 +219,7 @@ export function useGameState() {
     if (result.avvisoDiario) {
       setDiarioRighe((prev) => [...prev, result.avvisoDiario!]);
     }
-  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita]);
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate]);
 
   const confermaMatrimonio = useCallback((idA: number, idB: number) => {
     setAbitanti((prev) =>

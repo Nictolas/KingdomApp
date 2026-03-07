@@ -11,6 +11,6 @@ export default function Index() {
 }
 
 const styles = StyleSheet.create({
-  safe: { flex: 1, backgroundColor: "#050816" }
+  safe: { flex: 1, backgroundColor: "#0a0f1a" }
 });
 

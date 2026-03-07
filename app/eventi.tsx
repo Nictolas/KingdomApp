@@ -20,8 +20,8 @@ function esisteCoppiaSposata(abitanti: { coniugeId?: number }[]): boolean {
 
 export default function EventiScreen() {
   const router = useRouter();
-  const { abitanti, eventiInCorso, eventiCatalogo, pendingAssimilazione, accettaAssimilazione, rifiutaAssimilazione, politicaNascite } = useGameContext();
-  const puòMatrimonio = esisteCoppiaMatrimonioPossibile(abitanti);
+  const { abitanti, eventiInCorso, eventiCatalogo, pendingAssimilazione, accettaAssimilazione, rifiutaAssimilazione, politicaNascite, tipologieFamigliaAccettate } = useGameContext();
+  const puòMatrimonio = esisteCoppiaMatrimonioPossibile(abitanti, tipologieFamigliaAccettate);
   const incinte = abitanti.filter((a) => a.incinta === true);
   const nascitaInCorso = incinte.length > 0;
   const nascitaPossibile = !nascitaInCorso && politicaNascite !== "nessuna" && esisteCoppiaSposata(abitanti);

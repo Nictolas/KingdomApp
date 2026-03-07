@@ -36,6 +36,12 @@ export default function LeggeFamiglieScreen() {
       emoji: "👤",
       titolo: "Famiglia Monogenitoriale",
       descrizione: "Famiglia composta da un solo genitore e i suoi figli."
+    },
+    {
+      chiave: "matrimonioUmanoRobot" as const,
+      emoji: "🤖💒",
+      titolo: "Matrimonio Umano-Robot",
+      descrizione: "Consenti il matrimonio tra abitanti umani (o altre razze) e Robot: le coppie miste possono sposarsi."
     }
   ];
 
