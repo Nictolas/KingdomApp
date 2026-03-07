@@ -21,7 +21,8 @@ const COLONNA_SERVIZI: string[] = [
   "Bar",
   "Scuola",
   "Ospedale Coloniale", // Ospedale
-  "Caserma"
+  "Centrale",   // Polizia
+  "Caserma"    // Militari
 ];
 const COLONNA_PUNIZIONE: string[] = ["Tribunale", "Campo di Lavoro", "Campo di Sterminio"];
 
@@ -81,6 +82,8 @@ export default function EdificiScreen() {
       router.push("/scuola");
     } else if (e.nome === "Ospedale Coloniale") {
       router.push("/ospedale");
+    } else if (e.nome === "Centrale") {
+      router.push("/centrale");
     } else if (e.nome === "Tribunale") {
       router.push("/tribunale");
     } else if (e.nome === "Centro di Comando") {
@@ -121,7 +124,7 @@ export default function EdificiScreen() {
           </View>
           <View style={styles.column}>
             <Text style={styles.columnTitle}>Servizi</Text>
-            <Text style={styles.columnSubtitle}>Centro di Comando, Residenze, Scuola, Ospedale, Caserma</Text>
+            <Text style={styles.columnSubtitle}>Centro di Comando, Residenze, Scuola, Ospedale, Centrale (polizia), Caserma (militari)</Text>
             <View style={styles.cardGrid}>
               {servizi.map((e) => (
                 <CardEdificio

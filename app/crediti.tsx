@@ -20,6 +20,7 @@ function getRoutePerVoceBilancio(label: string): string | null {
     Tribunale: "/tribunale",
     "Centro di Comando": "/ministri",
     Bar: "/bar",
+    Centrale: "/centrale",
     Caserma: "/caserma",
     Baracca: "/residenze",
     Dormitorio: "/residenze"

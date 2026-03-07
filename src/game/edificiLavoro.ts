@@ -1,10 +1,11 @@
 import type { Abitante, Edificio } from "../types";
 
-/** Mappa edificioId → nome lavoro (Serra=Agricoltore, Dissalatore=Operatore, Caserma=Sicurezza). */
+/** Mappa edificioId → nome lavoro (Serra=Agricoltore, Dissalatore=Operatore, Caserma=Sicurezza, Centrale=Polizia). */
 export const EDIFICIO_TO_LAVORO: Record<number, string> = {
   2: "Agricoltore",   // Serra
   15: "Operatore",    // Dissalatore
-  16: "Sicurezza"     // Caserma
+  16: "Sicurezza",    // Caserma
+  18: "Polizia"       // Centrale
 };
 
 const LAVORI_DA_EDIFICIO = new Set(Object.values(EDIFICIO_TO_LAVORO));

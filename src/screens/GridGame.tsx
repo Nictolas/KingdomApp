@@ -50,8 +50,10 @@ export default function GridGame() {
     return null;
   };
 
+  const contentWrapStyle = isDesktop ? [styles.scrollContent, styles.contentWrapDesktop] : styles.scrollContent;
+
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <ScrollView style={styles.container} contentContainerStyle={contentWrapStyle} showsVerticalScrollIndicator={false}>
       {/* Hero header */}
       <View style={styles.hero}>
         <View style={styles.heroTop}>
@@ -237,6 +239,11 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 28,
     paddingHorizontal: 14
+  },
+  contentWrapDesktop: {
+    maxWidth: 440,
+    alignSelf: "center",
+    width: "100%"
   },
   hero: {
     paddingTop: 16,
