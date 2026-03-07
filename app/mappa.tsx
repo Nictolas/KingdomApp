@@ -22,6 +22,7 @@ const MIN_CELL_SIZE = 14;
 const DOPPIO_TAP_MS = 400;
 const STRADA_SPESSORE = 6;
 const STRADA_COLORE = "#78716c";
+const STRADA_CERCHIO_RAGGIO = 5;
 
 /** Indice della cella occupata dal Centro di Comando (centro griglia). */
 const CENTRO_COMANDO_INDEX = Math.floor(GRIGLIA_COLONNE * GRIGLIA_RIGHE / 2) - Math.floor(GRIGLIA_COLONNE / 2);
@@ -63,7 +64,7 @@ function isAcqua(index: number): boolean {
   );
 }
 
-const MINIERA: EdificioInCella = { id: 0, nome: "Miniera", emoji: "⛏️" };
+const GIACIMENTO: EdificioInCella = { id: 0, nome: "Giacimento", emoji: "⛰️" };
 const RAFFINERIA_MINERARIA: EdificioInCella = { id: 3, nome: "Raffineria Mineraria", emoji: "⚙️" };
 /** Opzione "Strada" per il dialog costruzione (cella diventa lastricato strada). */
 const STRADA_OPZIONE: EdificioInCella = { id: -1, nome: "Strada", emoji: "🛤️" };
@@ -76,19 +77,19 @@ const edificiIniziali: Record<number, EdificioInCella> = {
 
 const TOTALE_CELLE = GRIGLIA_COLONNE * GRIGLIA_RIGHE;
 
-/** Restituisce lo stato iniziale della mappa con 2–5 Miniere casuali su erba libera. */
+/** Restituisce lo stato iniziale della mappa con 2–5 Giacimenti casuali su erba libera. */
 function getInitialEdificiInMappa(): Record<number, EdificioInCella> {
   const occupate = new Set<number>(Object.keys(edificiIniziali).map(Number));
   const erbaLibera: number[] = [];
   for (let i = 0; i < TOTALE_CELLE; i++) {
     if (!isAcqua(i) && !occupate.has(i)) erbaLibera.push(i);
   }
-  const nMiniera = 2 + Math.floor(Math.random() * 4);
+  const nGiacimento = 2 + Math.floor(Math.random() * 4);
   const shuffled = [...erbaLibera].sort(() => Math.random() - 0.5);
-  const celleMiniera = shuffled.slice(0, Math.min(nMiniera, shuffled.length));
-  const miniere: Record<number, EdificioInCella> = {};
-  celleMiniera.forEach((i) => (miniere[i] = MINIERA));
-  return { ...edificiIniziali, ...miniere };
+  const celleGiacimento = shuffled.slice(0, Math.min(nGiacimento, shuffled.length));
+  const giacimenti: Record<number, EdificioInCella> = {};
+  celleGiacimento.forEach((i) => (giacimenti[i] = GIACIMENTO));
+  return { ...edificiIniziali, ...giacimenti };
 }
 
 /** Coppie [indiceA, indiceB] di celle tra cui disegnare una strada (centro → centro). */
@@ -103,6 +104,18 @@ function getCellCenter(cellIndex: number, size: number): { x: number; y: number 
   const x = PADDING + col * (size + GAP) + size / 2;
   const y = PADDING + row * (size + GAP) + size / 2;
   return { x, y };
+}
+
+/** Vicini ortogonali (su, giù, sinistra, destra) con controlli sui bordi. */
+function getViciniOrtogonali(index: number): number[] {
+  const col = index % GRIGLIA_COLONNE;
+  const row = Math.floor(index / GRIGLIA_COLONNE);
+  const out: number[] = [];
+  if (row > 0) out.push(index - GRIGLIA_COLONNE);
+  if (row < GRIGLIA_RIGHE - 1) out.push(index + GRIGLIA_COLONNE);
+  if (col > 0) out.push(index - 1);
+  if (col < GRIGLIA_COLONNE - 1) out.push(index + 1);
+  return out;
 }
 
 export default function MappaScreen() {
@@ -214,7 +227,7 @@ export default function MappaScreen() {
       if (isDoubleTap) {
         lastTapCell.current = null;
         if (edificio) {
-          if (edificio.nome === "Miniera") {
+          if (edificio.nome === "Giacimento") {
             setSelectedCellForTransformDialog(cellIndex);
           } else {
             openRouteForEdificio(edificio.nome);
@@ -241,7 +254,7 @@ export default function MappaScreen() {
     []
   );
 
-  const handleTrasformaMiniera = useCallback((cellIndex: number) => {
+  const handleTrasformaGiacimento = useCallback((cellIndex: number) => {
     setEdificiInMappa((prev) => ({
       ...prev,
       [cellIndex]: RAFFINERIA_MINERARIA
@@ -323,6 +336,78 @@ export default function MappaScreen() {
                   />
                 );
               })}
+              {(() => {
+                const drawnEdges = new Set<string>();
+                const segmenti: [number, number][] = [];
+                const celleIsolate: number[] = [];
+                Object.keys(edificiInMappa)
+                  .map(Number)
+                  .filter((i) => edificiInMappa[i]?.nome === "Strada")
+                  .forEach((i) => {
+                    const vicini = getViciniOrtogonali(i).filter(
+                      (n) => edificiInMappa[n]
+                    );
+                    if (vicini.length === 0) {
+                      celleIsolate.push(i);
+                    } else {
+                      vicini.forEach((n) => {
+                        const key = `${Math.min(i, n)}-${Math.max(i, n)}`;
+                        if (!drawnEdges.has(key)) {
+                          drawnEdges.add(key);
+                          segmenti.push([i, n]);
+                        }
+                      });
+                    }
+                  });
+                return (
+                  <>
+                    {segmenti.map(([from, to]) => {
+                      const c1 = getCellCenter(from, size);
+                      const c2 = getCellCenter(to, size);
+                      const dx = c2.x - c1.x;
+                      const dy = c2.y - c1.y;
+                      const length = Math.sqrt(dx * dx + dy * dy) || 1;
+                      const midX = (c1.x + c2.x) / 2;
+                      const midY = (c1.y + c2.y) / 2;
+                      const angle = Math.atan2(dy, dx);
+                      return (
+                        <View
+                          key={`strada-cell-${from}-${to}`}
+                          style={[
+                            styles.stradaLinea,
+                            {
+                              width: length,
+                              height: STRADA_SPESSORE,
+                              left: midX - length / 2,
+                              top: midY - STRADA_SPESSORE / 2,
+                              transform: [{ rotate: `${angle}rad` }]
+                            }
+                          ]}
+                        />
+                      );
+                    })}
+                    {celleIsolate.map((i) => {
+                      const c = getCellCenter(i, size);
+                      const r = STRADA_CERCHIO_RAGGIO;
+                      return (
+                        <View
+                          key={`strada-cerchio-${i}`}
+                          style={[
+                            styles.stradaCerchio,
+                            {
+                              width: r * 2,
+                              height: r * 2,
+                              left: c.x - r,
+                              top: c.y - r,
+                              borderRadius: r
+                            }
+                          ]}
+                        />
+                      );
+                    })}
+                  </>
+                );
+              })()}
             </View>
             <View style={[styles.griglia, { gap: GAP, width: gridWidth }]}>
             {Array.from({ length: totaleCelle }, (_, i) => {
@@ -335,13 +420,14 @@ export default function MappaScreen() {
                 styles.cella,
                 acqua ? styles.cellaAcqua : styles.cellaErba,
                 { width: size, height: size },
-                hasEdificio && (èStrada ? styles.cellaStrada : styles.cellaEdificio)
+                hasEdificio && !èStrada && styles.cellaEdificio
               ];
-              const content = emoji ? (
-                <Text style={[styles.edificioEmoji, { fontSize: Math.max(10, Math.min(22, size - 4)) }]}>
-                  {emoji}
-                </Text>
-              ) : null;
+              const content =
+                hasEdificio && !èStrada && emoji ? (
+                  <Text style={[styles.edificioEmoji, { fontSize: Math.max(10, Math.min(22, size - 4)) }]}>
+                    {emoji}
+                  </Text>
+                ) : null;
               if (acqua) {
                 return <View key={i} style={cellStyle} />;
               }
@@ -408,7 +494,7 @@ export default function MappaScreen() {
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
             <Text style={styles.modalTitle}>Trasformare in Raffineria Mineraria?</Text>
             <Text style={styles.modalSubtitle}>
-              Vuoi trasformare questa Miniera ⛏️ nell'edificio Raffineria Mineraria ⚙️?
+              Vuoi trasformare questo Giacimento ⛰️ nell'edificio Raffineria Mineraria ⚙️?
             </Text>
             <View style={styles.modalButtonsRow}>
               <Pressable
@@ -421,7 +507,7 @@ export default function MappaScreen() {
                 style={[styles.modalButton, styles.modalButtonConfirm]}
                 onPress={() =>
                   selectedCellForTransformDialog !== null &&
-                  handleTrasformaMiniera(selectedCellForTransformDialog)
+                  handleTrasformaGiacimento(selectedCellForTransformDialog)
                 }
               >
                 <Text style={styles.modalButtonText}>Conferma</Text>
@@ -508,13 +594,10 @@ const styles = StyleSheet.create({
   cellaAcqua: {
     backgroundColor: "#2c5282"
   },
-  cellaEdificio: {
-    backgroundColor: "rgba(234,179,8,0.25)",
-    borderColor: "rgba(234,179,8,0.7)"
-  },
-  cellaStrada: {
-    backgroundColor: STRADA_COLORE,
-    borderColor: "rgba(0,0,0,0.2)"
+  cellaEdificio: {},
+  stradaCerchio: {
+    position: "absolute",
+    backgroundColor: STRADA_COLORE
   },
   edificioEmoji: {
     fontSize: 18
