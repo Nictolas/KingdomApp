@@ -1,5 +1,15 @@
 import React, { useCallback, useRef, useState } from "react";
-import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Dimensions,
+  Modal,
+  Platform,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View
+} from "react-native";
 import { useRouter } from "expo-router";
 import { edificiData } from "../src/data/edificiData";
 import type { Edificio } from "../src/types";
@@ -13,6 +23,8 @@ const DOPPIO_TAP_MS = 400;
 
 /** Indice della cella occupata dal Centro di Comando (centro griglia). */
 const CENTRO_COMANDO_INDEX = Math.floor(GRIGLIA_COLONNE * GRIGLIA_RIGHE / 2) - Math.floor(GRIGLIA_COLONNE / 2);
+/** Cella occupata dallo Spazioporto (a destra del Centro di Comando). */
+const SPAZIOPORTO_INDEX = CENTRO_COMANDO_INDEX + 1;
 
 /** Route per edificio (come in app/edifici). */
 const EDIFICIO_TO_ROUTE: Record<string, string> = {
@@ -40,20 +52,28 @@ function isAcqua(_index: number): boolean {
   return false;
 }
 
-const edificioIniziale: EdificioInCella = {
-  id: 1,
-  nome: "Centro di Comando",
-  emoji: "🏛️"
+const edificiIniziali: Record<number, EdificioInCella> = {
+  [CENTRO_COMANDO_INDEX]: { id: 1, nome: "Centro di Comando", emoji: "🏛️" },
+  [SPAZIOPORTO_INDEX]: { id: 19, nome: "Spazioporto", emoji: "🚀" }
 };
 
 export default function MappaScreen() {
   const router = useRouter();
   const [edificiInMappa, setEdificiInMappa] = useState<Record<number, EdificioInCella>>(() => ({
-    [CENTRO_COMANDO_INDEX]: edificioIniziale
+    ...edificiIniziali
   }));
   const [selectedCellForDialog, setSelectedCellForDialog] = useState<number | null>(null);
+  const [isDragging, setIsDragging] = useState(false);
   const lastTapCell = useRef<number | null>(null);
   const lastTapTime = useRef<number>(0);
+
+  const hScrollRef = useRef<ScrollView>(null);
+  const vScrollRef = useRef<ScrollView>(null);
+  const scrollX = useRef(0);
+  const scrollY = useRef(0);
+  const viewportW = useRef(0);
+  const viewportH = useRef(0);
+  const dragStart = useRef<{ x: number; y: number; scrollX: number; scrollY: number } | null>(null);
 
   const { width } = Dimensions.get("window");
   const rawSize = (width - PADDING * 2 - GAP * (GRIGLIA_COLONNE - 1)) / GRIGLIA_COLONNE;
@@ -64,6 +84,58 @@ export default function MappaScreen() {
   const gridHeight = GRIGLIA_RIGHE * size + (GRIGLIA_RIGHE - 1) * GAP;
   const contentWidth = gridWidth + PADDING * 2;
   const contentHeight = gridHeight + PADDING * 2;
+
+  const onViewportLayout = useCallback((e: { nativeEvent: { layout: { width: number; height: number } } }) => {
+    viewportW.current = e.nativeEvent.layout.width;
+    viewportH.current = e.nativeEvent.layout.height;
+  }, []);
+
+  const onPointerDown = useCallback(
+    (e: React.PointerEvent) => {
+      if (Platform.OS !== "web") return;
+      const el = e.currentTarget as HTMLElement;
+      if (el?.setPointerCapture) el.setPointerCapture(e.pointerId);
+      dragStart.current = {
+        x: e.clientX,
+        y: e.clientY,
+        scrollX: scrollX.current,
+        scrollY: scrollY.current
+      };
+    },
+    []
+  );
+
+  const onPointerMove = useCallback(
+    (e: React.PointerEvent) => {
+      if (Platform.OS !== "web" || !dragStart.current) return;
+      setIsDragging(true);
+      e.preventDefault();
+      const dx = dragStart.current.x - e.clientX;
+      const dy = dragStart.current.y - e.clientY;
+      const maxX = Math.max(0, contentWidth - viewportW.current);
+      const maxY = Math.max(0, contentHeight - viewportH.current);
+      const newX = Math.max(0, Math.min(maxX, dragStart.current.scrollX + dx));
+      const newY = Math.max(0, Math.min(maxY, dragStart.current.scrollY + dy));
+      scrollX.current = newX;
+      scrollY.current = newY;
+      hScrollRef.current?.scrollTo({ x: newX, animated: false });
+      vScrollRef.current?.scrollTo({ y: newY, animated: false });
+    },
+    [contentWidth, contentHeight]
+  );
+
+  const onPointerUp = useCallback((e: React.PointerEvent) => {
+    if (Platform.OS !== "web") return;
+    const el = e.currentTarget as HTMLElement;
+    if (el?.releasePointerCapture) el.releasePointerCapture(e.pointerId);
+    dragStart.current = null;
+    setIsDragging(false);
+  }, []);
+
+  const onPointerLeave = useCallback(() => {
+    dragStart.current = null;
+    setIsDragging(false);
+  }, []);
 
   const openRouteForEdificio = useCallback(
     (nome: string) => {
@@ -114,18 +186,35 @@ export default function MappaScreen() {
         <View style={{ width: 60 }} />
       </View>
 
-      <ScrollView
-        style={styles.viewport}
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={{ width: contentWidth, height: "100%" }}
+      <View
+        style={[
+          styles.viewport,
+          Platform.OS === "web" && (isDragging ? styles.viewportWebGrabbing : styles.viewportWeb)
+        ]}
+        onLayout={onViewportLayout}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerLeave={onPointerLeave}
       >
         <ScrollView
-          style={[styles.viewportInner, { width: contentWidth }]}
-          showsVerticalScrollIndicator={false}
-          contentContainerStyle={{ width: contentWidth, height: contentHeight }}
-          bounces={false}
+          ref={hScrollRef}
+          style={styles.viewport}
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={{ width: contentWidth, height: "100%" }}
+          onScroll={(e) => { scrollX.current = e.nativeEvent.contentOffset.x; }}
+          scrollEventThrottle={16}
         >
+          <ScrollView
+            ref={vScrollRef}
+            style={[styles.viewportInner, { width: contentWidth }]}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={{ width: contentWidth, height: contentHeight }}
+            bounces={false}
+            onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
+            scrollEventThrottle={16}
+          >
           <View style={[styles.contentWrap, { padding: PADDING }]}>
             <View style={[styles.griglia, { gap: GAP, width: gridWidth }]}>
             {Array.from({ length: totaleCelle }, (_, i) => {
@@ -155,8 +244,9 @@ export default function MappaScreen() {
             })}
             </View>
           </View>
+          </ScrollView>
         </ScrollView>
-      </ScrollView>
+      </View>
 
       <Modal
         visible={selectedCellForDialog !== null}
@@ -192,7 +282,8 @@ export default function MappaScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#2d5a27"
+    backgroundColor: "#2d5a27",
+    userSelect: "none"
   },
   header: {
     flexDirection: "row",
@@ -216,6 +307,12 @@ const styles = StyleSheet.create({
   viewport: {
     flex: 1,
     backgroundColor: "#2d5a27"
+  },
+  viewportWeb: {
+    cursor: "grab"
+  },
+  viewportWebGrabbing: {
+    cursor: "grabbing"
   },
   viewportInner: {
     flex: 1
