@@ -381,11 +381,15 @@ export function MappaScreen() {
         const dy = cur.y - dragStart.current.pointerY;
         didDragThisGesture.current = true;
         setIsDraggingRef.current(true);
-        const maxX = Math.max(0, contentWidth * mapScaleRef.current - viewportW.current);
-        const maxY = Math.max(0, contentHeight * mapScaleRef.current - viewportH.current);
-        /* Trascinamento invertito (stile gioco): il punto agganciato segue il cursore, la mappa trasla in direzione opposta */
-        const newPanX = Math.max(0, Math.min(maxX, dragStart.current.panX - dx));
-        const newPanY = Math.max(0, Math.min(maxY, dragStart.current.panY - dy));
+        const scale = mapScaleRef.current;
+        const vw = viewportW.current;
+        const vh = viewportH.current;
+        const minPanX = (contentWidth * scale) / 2 - vw / 2;
+        const maxPanX = vw / 2 - (contentWidth * scale) / 2;
+        const minPanY = (contentHeight * scale) / 2 - vh / 2;
+        const maxPanY = vh / 2 - (contentHeight * scale) / 2;
+        const newPanX = Math.max(minPanX, Math.min(maxPanX, dragStart.current.panX - dx));
+        const newPanY = Math.max(minPanY, Math.min(maxPanY, dragStart.current.panY - dy));
         if (rafId.current !== null) cancelAnimationFrame(rafId.current);
         rafId.current = requestAnimationFrame(() => {
           rafId.current = null;
@@ -401,13 +405,18 @@ export function MappaScreen() {
         const centerY = (c1.y + c2.y) / 2;
         const ps = pinchStart.current;
         const scaleNew = Math.min(3, Math.max(0.4, ps.scale * (dist / ps.dist)));
-        const ratio = scaleNew / ps.scale;
-        let newPanX = (ps.panX + centerX) * ratio - centerX;
-        let newPanY = (ps.panY + centerY) * ratio - centerY;
-        const maxX = Math.max(0, contentWidth * scaleNew - viewportW.current);
-        const maxY = Math.max(0, contentHeight * scaleNew - viewportH.current);
-        newPanX = Math.max(0, Math.min(maxX, newPanX));
-        newPanY = Math.max(0, Math.min(maxY, newPanY));
+        const vw = viewportW.current;
+        const vh = viewportH.current;
+        const contentX = (centerX - vw / 2 + (contentWidth * ps.scale) / 2 + ps.panX) / ps.scale;
+        const contentY = (centerY - vh / 2 + (contentHeight * ps.scale) / 2 + ps.panY) / ps.scale;
+        let newPanX = vw / 2 - (contentWidth * scaleNew) / 2 + contentX * scaleNew - centerX;
+        let newPanY = vh / 2 - (contentHeight * scaleNew) / 2 + contentY * scaleNew - centerY;
+        const minPanX = (contentWidth * scaleNew) / 2 - vw / 2;
+        const maxPanX = vw / 2 - (contentWidth * scaleNew) / 2;
+        const minPanY = (contentHeight * scaleNew) / 2 - vh / 2;
+        const maxPanY = vh / 2 - (contentHeight * scaleNew) / 2;
+        newPanX = Math.max(minPanX, Math.min(maxPanX, newPanX));
+        newPanY = Math.max(minPanY, Math.min(maxPanY, newPanY));
         if (rafId.current !== null) cancelAnimationFrame(rafId.current);
         rafId.current = requestAnimationFrame(() => {
           rafId.current = null;
@@ -472,13 +481,18 @@ export function MappaScreen() {
       const scaleDelta = 1 - e.deltaY * 0.0018;
       const scaleNew = Math.min(3, Math.max(0.4, scale * scaleDelta));
       if (scaleNew === scale) return;
-      const ratio = scaleNew / scale;
-      let panXNew = (panXRef.current + mouseX) * ratio - mouseX;
-      let panYNew = (panYRef.current + mouseY) * ratio - mouseY;
-      const maxX = Math.max(0, contentWidth * scaleNew - viewportW.current);
-      const maxY = Math.max(0, contentHeight * scaleNew - viewportH.current);
-      panXNew = Math.max(0, Math.min(maxX, panXNew));
-      panYNew = Math.max(0, Math.min(maxY, panYNew));
+      const vw = viewportW.current;
+      const vh = viewportH.current;
+      const contentX = (mouseX - vw / 2 + (contentWidth * scale) / 2 + panXRef.current) / scale;
+      const contentY = (mouseY - vh / 2 + (contentHeight * scale) / 2 + panYRef.current) / scale;
+      let panXNew = vw / 2 - (contentWidth * scaleNew) / 2 + contentX * scaleNew - mouseX;
+      let panYNew = vh / 2 - (contentHeight * scaleNew) / 2 + contentY * scaleNew - mouseY;
+      const minPanX = (contentWidth * scaleNew) / 2 - vw / 2;
+      const maxPanX = vw / 2 - (contentWidth * scaleNew) / 2;
+      const minPanY = (contentHeight * scaleNew) / 2 - vh / 2;
+      const maxPanY = vh / 2 - (contentHeight * scaleNew) / 2;
+      panXNew = Math.max(minPanX, Math.min(maxPanX, panXNew));
+      panYNew = Math.max(minPanY, Math.min(maxPanY, panYNew));
       pendingWheelPan.current = { x: panXNew, y: panYNew };
       setMapScale(scaleNew);
     };
@@ -614,7 +628,7 @@ export function MappaScreen() {
         </View>
       </View>
 
-      {/* Contenitore mappa: viewport con overflow hidden; contenuto con transform (scale + translate) per zoom/pan */}
+      {/* Contenitore mappa: viewport centrato, sfondo nero; zoom dal centro/mouse */}
       <View style={styles.mapContainer}>
         <View
           nativeID="mappa-viewport"
@@ -626,22 +640,23 @@ export function MappaScreen() {
           ]}
           onLayout={onViewportLayout}
         >
-          <View
-            style={[
-              styles.mapTransform,
-              {
-                width: contentWidth,
-                height: contentHeight,
-                transform: [
-                  { translateX: -panX },
-                  { translateY: -panY },
-                  { scale: mapScale }
-                ]
-              },
-              Platform.OS === "web" && styles.mapTransformWeb
-            ]}
-            pointerEvents="box-none"
-          >
+          <View style={styles.viewportCenterWrap} pointerEvents="box-none">
+            <View
+              style={[
+                styles.mapTransform,
+                {
+                  width: contentWidth,
+                  height: contentHeight,
+                  transform: [
+                    { translateX: (viewportSize.w || contentWidth) / 2 - (contentWidth * mapScale) / 2 - panX },
+                    { translateY: (viewportSize.h || contentHeight) / 2 - (contentHeight * mapScale) / 2 - panY },
+                    { scale: mapScale }
+                  ]
+                },
+                Platform.OS === "web" && styles.mapTransformWeb
+              ]}
+              pointerEvents="box-none"
+            >
           <View style={[styles.gridFill, { width: contentWidth, height: contentHeight }]}>
             {Array.from({ length: rows }, (_, rowIndex) => (
               <View key={rowIndex} style={[styles.gridRow, { gap: GAP }]}>
@@ -816,6 +831,7 @@ export function MappaScreen() {
               ))}
             </View>
           </View>
+          </View>
         </View>
       </View>
 
@@ -937,7 +953,7 @@ export function MappaScreen() {
 const styles = StyleSheet.create({
   safe: {
     flex: 1,
-    backgroundColor: "#2d5a27",
+    backgroundColor: "#000000",
     userSelect: "none",
     overflow: "hidden"
   },
@@ -1028,7 +1044,7 @@ const styles = StyleSheet.create({
     minHeight: 0,
     overflow: "hidden",
     width: "100%",
-    backgroundColor: "#3d7c47"
+    backgroundColor: "#000000"
   },
   indCard: {
     flex: 1,
@@ -1108,9 +1124,16 @@ const styles = StyleSheet.create({
     flex: 1,
     minHeight: 0,
     width: "100%",
-    backgroundColor: "transparent",
+    backgroundColor: "#000000",
     overflow: "hidden",
     position: "relative"
+  },
+  viewportCenterWrap: {
+    flex: 1,
+    width: "100%",
+    height: "100%",
+    justifyContent: "center",
+    alignItems: "center"
   },
   gridFill: {
     flex: 1,
@@ -1205,7 +1228,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#2c5282"
   },
   cellaFiume: {
-    backgroundColor: "#2563eb"
+    backgroundColor: "#0ea5e9"
   },
   cellaSabbia: {
     backgroundColor: "#ca8a04"
