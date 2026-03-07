@@ -78,6 +78,7 @@ const RAFFINERIA_MINERARIA: EdificioInCella = { id: 3, nome: "Raffineria Minerar
 const STRADA_OPZIONE: EdificioInCella = { id: -1, nome: "Strada", emoji: "🛤️" };
 
 const DORMITORIO: EdificioInCella = { id: 14, nome: "Dormitorio", emoji: "🛏️" };
+const CAPANNA: EdificioInCella = { id: 20, nome: "Capanna", emoji: "⛺" };
 
 const edificiIniziali: Record<number, EdificioInCella> = {
   [CENTRO_COMANDO_INDEX]: { id: 1, nome: "Centro di Comando", emoji: "🏛️" },
@@ -91,19 +92,23 @@ const edificiIniziali: Record<number, EdificioInCella> = {
 
 const TOTALE_CELLE = GRIGLIA_COLONNE * GRIGLIA_RIGHE;
 
-/** Restituisce lo stato iniziale della mappa con 2–5 Giacimenti casuali su erba libera. */
+/** Restituisce lo stato iniziale della mappa con 5–9 Capanne e 2–5 Giacimenti casuali su erba libera. */
 function getInitialEdificiInMappa(): Record<number, EdificioInCella> {
   const occupate = new Set<number>(Object.keys(edificiIniziali).map(Number));
   const erbaLibera: number[] = [];
   for (let i = 0; i < TOTALE_CELLE; i++) {
     if (!isAcqua(i) && !occupate.has(i)) erbaLibera.push(i);
   }
-  const nGiacimento = 2 + Math.floor(Math.random() * 4);
   const shuffled = [...erbaLibera].sort(() => Math.random() - 0.5);
-  const celleGiacimento = shuffled.slice(0, Math.min(nGiacimento, shuffled.length));
+  const nCapanne = 5 + Math.floor(Math.random() * 5); // 5–9
+  const nGiacimento = 2 + Math.floor(Math.random() * 4);
+  const celleCapanne = shuffled.slice(0, Math.min(nCapanne, shuffled.length));
+  const celleGiacimento = shuffled.slice(nCapanne, nCapanne + Math.min(nGiacimento, Math.max(0, shuffled.length - nCapanne)));
+  const capanne: Record<number, EdificioInCella> = {};
+  celleCapanne.forEach((i) => (capanne[i] = CAPANNA));
   const giacimenti: Record<number, EdificioInCella> = {};
   celleGiacimento.forEach((i) => (giacimenti[i] = GIACIMENTO));
-  return { ...edificiIniziali, ...giacimenti };
+  return { ...edificiIniziali, ...capanne, ...giacimenti };
 }
 
 /** Coppie [indiceA, indiceB] di celle tra cui disegnare una strada (centro → centro). */
@@ -475,6 +480,11 @@ export default function MappaScreen() {
         </ScrollView>
       </View>
 
+      {/* Menu fisso in basso: rimane sopra la mappa (trascinamento/scroll non lo spostano) */}
+      <View style={styles.bottomBar} pointerEvents="box-none">
+        <View style={styles.bottomBarInner} />
+      </View>
+
       <Modal
         visible={selectedCellForDialog !== null}
         transparent
@@ -559,6 +569,26 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: "#2d5a27",
     userSelect: "none"
+  },
+  bottomBar: {
+    position: "absolute",
+    bottom: 0,
+    left: 0,
+    right: 0,
+    zIndex: 999,
+    alignItems: "center",
+    justifyContent: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12
+  },
+  bottomBarInner: {
+    width: "100%",
+    maxWidth: 480,
+    height: 56,
+    backgroundColor: "rgba(5,8,22,0.92)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.25)"
   },
   header: {
     flexDirection: "row",
