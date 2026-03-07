@@ -22,7 +22,7 @@ export type ResidenzaTipo = {
 };
 
 export const RESIDENZE_CATALOGO: ResidenzaTipo[] = [
-  { id: "baracca", nome: "Baracca", nomePlurale: "Baracche", emoji: "🛖", felicità: 5, costoMensile: 0, energiaPerAbitante: 0, abitanti: 0, postiIllimitati: true },
+  { id: "baracca", nome: "Baracca", nomePlurale: "Baracche", emoji: "📦", felicità: 5, costoMensile: 0, energiaPerAbitante: 0, abitanti: 0, postiIllimitati: true },
   { id: "capanna", nome: "Capanna", nomePlurale: "Capanne", emoji: "🏠", felicità: 8, costoMensile: 0, energiaPerAbitante: 0, abitanti: 30, fazioneRichiesta: "Nativi" },
   { id: "dormitorio", nome: "Dormitorio", nomePlurale: "Dormitori", emoji: "🛏️", felicità: 10, costoMensile: 250, energiaPerAbitante: 1, abitanti: 10 },
   { id: "modulo", nome: "Modulo", nomePlurale: "Moduli", emoji: "📦", felicità: 30, costoMensile: 800, energiaPerAbitante: 3, abitanti: 4 },

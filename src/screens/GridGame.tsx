@@ -3,11 +3,11 @@ import { ActivityIndicator, Dimensions, Pressable, ScrollView, StyleSheet, Text,
 import { useRouter } from "expo-router";
 import { fazioniData } from "../kingdomData";
 import { useGameContext } from "../context/GameContext";
-import type { Risorsa, Abitante } from "../types";
+import type { Abitante } from "../types";
 
 export default function GridGame() {
   const router = useRouter();
-  const { abitanti, risorse, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, calcolaDeltaOrdiniMercato, calcolaFelicitàModificata, abitantiProposti } = useGameContext();
+  const { abitanti, edifici, mese, anno, isLoading, avanzaMese, abitantiProposti } = useGameContext();
 
   const criminali = abitanti.filter((a: Abitante) => (a.reati?.length ?? 0) > 0);
   const personalitàUniche = Array.from(new Set(abitanti.map((a: Abitante) => a.personalità))).filter(Boolean);
@@ -15,39 +15,6 @@ export default function GridGame() {
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
-
-  const variazioni = calcolaProduzioneConsumo();
-  const deltaOrdini = calcolaDeltaOrdiniMercato();
-
-  const abitantiConFelicità = abitanti.filter((a) => a.razza !== "Robot");
-  const nConFelicità = abitantiConFelicità.length;
-  const felicitàMedia = nConFelicità ? Math.round(abitantiConFelicità.reduce((s, a) => s + calcolaFelicitàModificata(a), 0) / nConFelicità) : 0;
-  const nConLealtàPaura = abitantiConFelicità.length;
-  const lealtàMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.lealtà, 0) / nConLealtàPaura) : 0;
-  const pauraMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.paura, 0) / nConLealtàPaura) : 0;
-
-  const getResourceEmoji = (r: Risorsa) => {
-    const n = r.nome.toLowerCase();
-    if (n.includes("crediti")) return "💰";
-    if (n.includes("cibo")) return "🍱";
-    if (n.includes("energia")) return "⚡";
-    if (n.includes("acqua")) return "💧";
-    if (n.includes("materiale edile")) return "🧱";
-    if (n.includes("medicine")) return "💊";
-    if (n.includes("combustibile")) return "⛽";
-    if (n.includes("rifiuti")) return "🗑️";
-    return "⛏️";
-  };
-
-  const getResourceRoute = (r: Risorsa) => {
-    const n = r.nome.toLowerCase();
-    if (n.includes("cibo")) return "/cibo";
-    if (n.includes("crediti")) return "/crediti";
-    if (n.includes("energia")) return "/energia";
-    if (n.includes("acqua")) return "/acqua";
-    if (n.includes("rifiuti")) return "/rifiuti";
-    return null;
-  };
 
   const contentWrapStyle = isDesktop ? [styles.scrollContent, styles.contentWrapDesktop] : styles.scrollContent;
 
@@ -91,59 +58,6 @@ export default function GridGame() {
             </>
           )}
         </Pressable>
-      </View>
-
-      {/* Risorse */}
-      <View style={styles.block}>
-        <Text style={styles.blockTitle}>📦 Risorse</Text>
-        <View style={styles.resourcesGrid}>
-          {risorse.map((r: Risorsa) => {
-            const delta = (variazioni[r.nome] || 0) + (deltaOrdini[r.nome] ?? 0);
-            const route = getResourceRoute(r);
-            return (
-              <Pressable
-                key={r.id}
-                style={[styles.resCard, route && styles.resCardClickable]}
-                onPress={route ? () => router.push(route) : undefined}
-                disabled={!route}
-              >
-                <Text style={styles.resEmoji}>{getResourceEmoji(r)}</Text>
-                <Text style={styles.resName} numberOfLines={1}>{r.nome}</Text>
-                <View style={styles.resValueRow}>
-                  <Text style={styles.resValue}>{r.quantità}</Text>
-                  <Text style={styles.resUnit}> {r.unità}</Text>
-                </View>
-                {delta !== 0 && (
-                  <Text style={[styles.resDelta, delta > 0 ? styles.resDeltaPos : styles.resDeltaNeg]}>
-                    {delta > 0 ? "+" : ""}{delta}
-                  </Text>
-                )}
-              </Pressable>
-            );
-          })}
-        </View>
-      </View>
-
-      {/* Indicatori (Felicità, Lealtà, Paura) */}
-      <View style={styles.block}>
-        <Text style={styles.blockTitle}>📊 Indicatori colonia</Text>
-        <View style={styles.indicatoriRow}>
-          <Pressable style={styles.indCard} onPress={() => router.push("/felicita")}>
-            <Text style={styles.indEmoji}>😊</Text>
-            <Text style={styles.indLabel}>Felicità</Text>
-            <Text style={styles.indValue}>{felicitàMedia}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/lealta")}>
-            <Text style={styles.indEmoji}>❤️</Text>
-            <Text style={styles.indLabel}>Lealtà</Text>
-            <Text style={styles.indValue}>{lealtàMedia}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/paura")}>
-            <Text style={styles.indEmoji}>😨</Text>
-            <Text style={styles.indLabel}>Paura</Text>
-            <Text style={styles.indValue}>{pauraMedia}%</Text>
-          </Pressable>
-        </View>
       </View>
 
       {/* Navigazione: Colonia */}
@@ -321,49 +235,6 @@ const styles = StyleSheet.create({
     marginBottom: 10,
     letterSpacing: 0.3
   },
-  resourcesGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10
-  },
-  resCard: {
-    width: "47%",
-    minHeight: 82,
-    backgroundColor: "rgba(15,23,42,0.7)",
-    borderRadius: 12,
-    padding: 12,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.15)"
-  },
-  resCardClickable: {
-    borderColor: "rgba(59,130,246,0.25)"
-  },
-  resEmoji: { fontSize: 22, marginBottom: 4 },
-  resName: { fontSize: 11, color: "rgba(248,250,252,0.8)", marginBottom: 2 },
-  resValueRow: { flexDirection: "row", alignItems: "baseline" },
-  resValue: { fontSize: 16, fontWeight: "800", color: "#f8fafc" },
-  resUnit: { fontSize: 11, color: "rgba(148,163,184,0.8)", marginLeft: 2 },
-  resDelta: { fontSize: 11, fontWeight: "700", marginTop: 2 },
-  resDeltaPos: { color: "#4ade80" },
-  resDeltaNeg: { color: "#f87171" },
-
-  indicatoriRow: {
-    flexDirection: "row",
-    gap: 10
-  },
-  indCard: {
-    flex: 1,
-    backgroundColor: "rgba(15,23,42,0.7)",
-    borderRadius: 12,
-    padding: 14,
-    alignItems: "center",
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.15)"
-  },
-  indEmoji: { fontSize: 28, marginBottom: 6 },
-  indLabel: { fontSize: 10, color: "rgba(248,250,252,0.7)", marginBottom: 2 },
-  indValue: { fontSize: 18, fontWeight: "800", color: "#f8fafc" },
-
   navGrid: {
     flexDirection: "row",
     flexWrap: "wrap",

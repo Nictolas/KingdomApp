@@ -12,7 +12,8 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { edificiData } from "../src/data/edificiData";
-import type { Edificio } from "../src/types";
+import { useGameContext } from "../src/context/GameContext";
+import type { Edificio, Risorsa } from "../src/types";
 
 const GRIGLIA_COLONNE = 24;
 const GRIGLIA_RIGHE = 24;
@@ -138,8 +139,42 @@ function getViciniOrtogonali(index: number): number[] {
   return out;
 }
 
+function getResourceEmoji(r: Risorsa): string {
+  const n = r.nome.toLowerCase();
+  if (n.includes("crediti")) return "💰";
+  if (n.includes("cibo")) return "🍱";
+  if (n.includes("energia")) return "⚡";
+  if (n.includes("acqua")) return "💧";
+  if (n.includes("materiale edile")) return "🧱";
+  if (n.includes("medicine")) return "💊";
+  if (n.includes("combustibile")) return "⛽";
+  if (n.includes("rifiuti")) return "🗑️";
+  return "⛏️";
+}
+
+function getResourceRoute(r: Risorsa): string | null {
+  const n = r.nome.toLowerCase();
+  if (n.includes("cibo")) return "/cibo";
+  if (n.includes("crediti")) return "/crediti";
+  if (n.includes("energia")) return "/energia";
+  if (n.includes("acqua")) return "/acqua";
+  if (n.includes("rifiuti")) return "/rifiuti";
+  return null;
+}
+
 export default function MappaScreen() {
   const router = useRouter();
+  const { risorse, abitanti, calcolaProduzioneConsumo, calcolaDeltaOrdiniMercato, calcolaFelicitàModificata } = useGameContext();
+  const variazioni = calcolaProduzioneConsumo();
+  const deltaOrdini = calcolaDeltaOrdiniMercato();
+
+  const abitantiConFelicità = abitanti.filter((a) => a.razza !== "Robot");
+  const nConFelicità = abitantiConFelicità.length;
+  const felicitàMedia = nConFelicità ? Math.round(abitantiConFelicità.reduce((s, a) => s + calcolaFelicitàModificata(a), 0) / nConFelicità) : 0;
+  const nConLealtàPaura = abitantiConFelicità.length;
+  const lealtàMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.lealtà, 0) / nConLealtàPaura) : 0;
+  const pauraMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.paura, 0) / nConLealtàPaura) : 0;
+
   const [edificiInMappa, setEdificiInMappa] = useState<Record<number, EdificioInCella>>(
     getInitialEdificiInMappa
   );
@@ -290,6 +325,27 @@ export default function MappaScreen() {
         </Text>
         <Text style={styles.title}>Mappa</Text>
         <View style={{ width: 60 }} />
+      </View>
+
+      {/* Banner in alto: Indicatori colonia (fisso, sopra la mappa) */}
+      <View style={styles.topBanner}>
+        <View style={styles.topBannerInner}>
+          <Pressable style={styles.indCard} onPress={() => router.push("/felicita")}>
+            <Text style={styles.indEmoji}>😊</Text>
+            <Text style={styles.indLabel}>Felicità</Text>
+            <Text style={styles.indValue}>{felicitàMedia}%</Text>
+          </Pressable>
+          <Pressable style={styles.indCard} onPress={() => router.push("/lealta")}>
+            <Text style={styles.indEmoji}>❤️</Text>
+            <Text style={styles.indLabel}>Lealtà</Text>
+            <Text style={styles.indValue}>{lealtàMedia}%</Text>
+          </Pressable>
+          <Pressable style={styles.indCard} onPress={() => router.push("/paura")}>
+            <Text style={styles.indEmoji}>😨</Text>
+            <Text style={styles.indLabel}>Paura</Text>
+            <Text style={styles.indValue}>{pauraMedia}%</Text>
+          </Pressable>
+        </View>
       </View>
 
       <View
@@ -480,9 +536,40 @@ export default function MappaScreen() {
         </ScrollView>
       </View>
 
-      {/* Menu fisso in basso: rimane sopra la mappa (trascinamento/scroll non lo spostano) */}
+      {/* Menu fisso in basso: Risorse (rimane sopra la mappa) */}
       <View style={styles.bottomBar} pointerEvents="box-none">
-        <View style={styles.bottomBarInner} />
+        <View style={styles.bottomBarInner}>
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.risorseRow}
+          >
+            {risorse.map((r: Risorsa) => {
+              const delta = (variazioni[r.nome] || 0) + (deltaOrdini[r.nome] ?? 0);
+              const route = getResourceRoute(r);
+              return (
+                <Pressable
+                  key={r.id}
+                  style={[styles.risorseCard, route && styles.risorseCardClickable]}
+                  onPress={route ? () => router.push(route) : undefined}
+                  disabled={!route}
+                >
+                  <Text style={styles.risorseEmoji}>{getResourceEmoji(r)}</Text>
+                  <Text style={styles.risorseName} numberOfLines={1}>{r.nome}</Text>
+                  <View style={styles.risorseValueRow}>
+                    <Text style={styles.risorseValue}>{r.quantità}</Text>
+                    <Text style={styles.risorseUnit}> {r.unità}</Text>
+                  </View>
+                  {delta !== 0 && (
+                    <Text style={[styles.risorseDelta, delta > 0 ? styles.risorseDeltaPos : styles.risorseDeltaNeg]}>
+                      {delta > 0 ? "+" : ""}{delta}
+                    </Text>
+                  )}
+                </Pressable>
+              );
+            })}
+          </ScrollView>
+        </View>
       </View>
 
       <Modal
@@ -570,6 +657,33 @@ const styles = StyleSheet.create({
     backgroundColor: "#2d5a27",
     userSelect: "none"
   },
+  topBanner: {
+    zIndex: 999,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    alignItems: "center",
+    backgroundColor: "#050816"
+  },
+  topBannerInner: {
+    width: "100%",
+    maxWidth: 480,
+    flexDirection: "row",
+    gap: 10,
+    alignItems: "stretch"
+  },
+  indCard: {
+    flex: 1,
+    backgroundColor: "rgba(15,23,42,0.85)",
+    borderRadius: 10,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.2)"
+  },
+  indEmoji: { fontSize: 22, marginBottom: 4 },
+  indLabel: { fontSize: 10, color: "rgba(248,250,252,0.8)", marginBottom: 2 },
+  indValue: { fontSize: 14, fontWeight: "800", color: "#f8fafc" },
   bottomBar: {
     position: "absolute",
     bottom: 0,
@@ -584,12 +698,40 @@ const styles = StyleSheet.create({
   bottomBarInner: {
     width: "100%",
     maxWidth: 480,
-    height: 56,
+    minHeight: 56,
     backgroundColor: "rgba(5,8,22,0.92)",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.25)"
+    borderColor: "rgba(148,163,184,0.25)",
+    paddingVertical: 8,
+    paddingHorizontal: 8
   },
+  risorseRow: {
+    flexDirection: "row",
+    gap: 8,
+    alignItems: "center",
+    paddingHorizontal: 4
+  },
+  risorseCard: {
+    minWidth: 72,
+    backgroundColor: "rgba(15,23,42,0.8)",
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.15)"
+  },
+  risorseCardClickable: {
+    borderColor: "rgba(59,130,246,0.3)"
+  },
+  risorseEmoji: { fontSize: 18, marginBottom: 2 },
+  risorseName: { fontSize: 9, color: "rgba(248,250,252,0.85)", marginBottom: 1 },
+  risorseValueRow: { flexDirection: "row", alignItems: "baseline" },
+  risorseValue: { fontSize: 13, fontWeight: "800", color: "#f8fafc" },
+  risorseUnit: { fontSize: 9, color: "rgba(148,163,184,0.8)", marginLeft: 1 },
+  risorseDelta: { fontSize: 9, fontWeight: "700", marginTop: 1 },
+  risorseDeltaPos: { color: "#4ade80" },
+  risorseDeltaNeg: { color: "#f87171" },
   header: {
     flexDirection: "row",
     alignItems: "center",
