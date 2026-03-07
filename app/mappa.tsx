@@ -185,6 +185,7 @@ export function MappaScreen() {
   );
   const [isDragging, setIsDragging] = useState(false);
   const [mapScale, setMapScale] = useState(1);
+  mapScaleRef.current = mapScale;
   const lastTapCell = useRef<number | null>(null);
   const lastTapTime = useRef<number>(0);
   const pinchStartDist = useRef<number | null>(null);
@@ -219,6 +220,8 @@ export function MappaScreen() {
   const dragStart = useRef<{ x: number; y: number; scrollX: number; scrollY: number } | null>(null);
   const pointerDownTarget = useRef<HTMLElement | null>(null);
   const didDragThisGesture = useRef(false);
+  const pendingWheelScroll = useRef<{ x: number; y: number } | null>(null);
+  const mapScaleRef = useRef(1);
 
   const { width } = Dimensions.get("window");
   const rawSize = (width - PADDING * 2 - GAP * (GRIGLIA_COLONNE - 1)) / GRIGLIA_COLONNE;
@@ -260,8 +263,8 @@ export function MappaScreen() {
       e.preventDefault();
       const dx = dragStart.current.x - e.clientX;
       const dy = dragStart.current.y - e.clientY;
-      const maxX = Math.max(0, contentWidth - viewportW.current);
-      const maxY = Math.max(0, contentHeight - viewportH.current);
+      const maxX = Math.max(0, contentWidth * mapScale - viewportW.current);
+      const maxY = Math.max(0, contentHeight * mapScale - viewportH.current);
       const newX = Math.max(0, Math.min(maxX, dragStart.current.scrollX + dx));
       const newY = Math.max(0, Math.min(maxY, dragStart.current.scrollY + dy));
       scrollX.current = newX;
@@ -269,7 +272,7 @@ export function MappaScreen() {
       hScrollRef.current?.scrollTo({ x: newX, animated: false });
       vScrollRef.current?.scrollTo({ y: newY, animated: false });
     },
-    [contentWidth, contentHeight]
+    [contentWidth, contentHeight, mapScale]
   );
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
@@ -324,6 +327,16 @@ export function MappaScreen() {
   }, []);
 
   useEffect(() => {
+    if (pendingWheelScroll.current === null) return;
+    const { x, y } = pendingWheelScroll.current;
+    pendingWheelScroll.current = null;
+    scrollX.current = x;
+    scrollY.current = y;
+    hScrollRef.current?.scrollTo({ x, animated: false });
+    vScrollRef.current?.scrollTo({ y, animated: false });
+  }, [mapScale]);
+
+  useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
     const el = document.getElementById("mappa-viewport");
     if (!el) return;
@@ -331,8 +344,31 @@ export function MappaScreen() {
       if (e.touches.length === 2 && pinchStartDist.current !== null) e.preventDefault();
     };
     el.addEventListener("touchmove", onMove, { passive: false });
-    return () => el.removeEventListener("touchmove", onMove);
-  }, []);
+    const onWheelNative = (e: WheelEvent) => {
+      e.preventDefault();
+      const rect = el.getBoundingClientRect();
+      const mouseX = e.clientX - rect.left;
+      const mouseY = e.clientY - rect.top;
+      const scale = mapScaleRef.current;
+      const scaleDelta = 1 - e.deltaY * 0.0018;
+      const scaleNew = Math.min(3, Math.max(0.4, scale * scaleDelta));
+      if (scaleNew === scale) return;
+      const ratio = scaleNew / scale;
+      let scrollXNew = (scrollX.current + mouseX) * ratio - mouseX;
+      let scrollYNew = (scrollY.current + mouseY) * ratio - mouseY;
+      const maxX = Math.max(0, contentWidth * scaleNew - viewportW.current);
+      const maxY = Math.max(0, contentHeight * scaleNew - viewportH.current);
+      scrollXNew = Math.max(0, Math.min(maxX, scrollXNew));
+      scrollYNew = Math.max(0, Math.min(maxY, scrollYNew));
+      pendingWheelScroll.current = { x: scrollXNew, y: scrollYNew };
+      setMapScale(scaleNew);
+    };
+    el.addEventListener("wheel", onWheelNative, { passive: false });
+    return () => {
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("wheel", onWheelNative);
+    };
+  }, [contentWidth, contentHeight]);
 
   const openRouteForEdificio = useCallback(
     (nome: string) => {
