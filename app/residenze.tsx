@@ -44,11 +44,13 @@ export default function ResidenzeScreen() {
               const assegnati = ed
                 ? (ed.abitantiAssegnati ?? []).map((id) => getAbitanteById(id)).filter((a): a is NonNullable<typeof a> => a != null)
                 : [];
+              const numAbitanti = assegnati.length;
+              const energiaConsumata = r.energiaPerAbitante * numAbitanti;
               return (
                 <View key={r.id} style={[styles.colonna, isDesktop && styles.colonnaDesktop]}>
                   <View style={styles.cardHeader}>
                     <Text style={styles.cardEmoji}>{r.emoji}</Text>
-                    <Text style={styles.cardNome}>{r.nome}</Text>
+                    <Text style={styles.cardNome}>{r.nomePlurale}</Text>
                     {ed != null && (
                       <Text style={styles.occupazione}>
                         {ed.occupazione}/{ed.capacità} posti
@@ -81,13 +83,12 @@ export default function ResidenzeScreen() {
                     <Text style={styles.prezzoUnit}>cr/mese</Text>
                   </View>
                   <View style={styles.cardRow}>
-                    <Text style={styles.cardLabel}>Energia</Text>
-                    <Text style={styles.cardValore}>
-                      {r.energiaPerAbitante} MW/abitante
-                      {ed != null && (ed.abitantiAssegnati ?? []).length > 0
-                        ? ` → ${r.energiaPerAbitante * (ed.abitantiAssegnati ?? []).length} MW/mese`
-                        : ""}
-                    </Text>
+                    <Text style={styles.cardLabel}>Energia richiesta</Text>
+                    <Text style={styles.cardValore}>{r.energiaPerAbitante} MW/abitante</Text>
+                  </View>
+                  <View style={styles.cardRow}>
+                    <Text style={styles.cardLabel}>Energia consumata</Text>
+                    <Text style={styles.cardValore}>{energiaConsumata} MW/mese</Text>
                   </View>
                   <View style={styles.cardRow}>
                     <Text style={styles.cardLabel}>Posti per unità</Text>
