@@ -319,8 +319,9 @@ export function MappaScreen() {
         setIsDraggingRef.current(true);
         const maxX = Math.max(0, contentWidth * mapScaleRef.current - viewportW.current);
         const maxY = Math.max(0, contentHeight * mapScaleRef.current - viewportH.current);
-        const newPanX = Math.max(0, Math.min(maxX, dragStart.current.panX + dx));
-        const newPanY = Math.max(0, Math.min(maxY, dragStart.current.panY + dy));
+        /* Trascinamento invertito (stile gioco): il punto agganciato segue il cursore, la mappa trasla in direzione opposta */
+        const newPanX = Math.max(0, Math.min(maxX, dragStart.current.panX - dx));
+        const newPanY = Math.max(0, Math.min(maxY, dragStart.current.panY - dy));
         if (rafId.current !== null) cancelAnimationFrame(rafId.current);
         rafId.current = requestAnimationFrame(() => {
           rafId.current = null;
