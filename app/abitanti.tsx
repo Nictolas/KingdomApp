@@ -462,7 +462,17 @@ export default function AbitantiScreen() {
                 </View>
                 {macroOpen.anagrafica && (
                   <>
-                    <View style={[styles.cell, styles.cellNome]}><Text style={styles.cellText}>{a.nome}</Text></View>
+                    <View style={[styles.cell, styles.cellNome]}>
+                      <Text
+                        style={[
+                          styles.cellText,
+                          a.sesso === "F" && styles.cellNomeFemmina,
+                          a.sesso === "M" && styles.cellNomeMaschio
+                        ]}
+                      >
+                        {a.nome}
+                      </Text>
+                    </View>
                     <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.eta}</Text></View>
                     <View style={[styles.cell, styles.cellLavoro]}>
                       <Text style={[styles.cellTextSmall, lavoroDisplay === "Disoccupato" && styles.cellTextDisoccupato]}>{lavoroDisplay}</Text>
@@ -825,6 +835,15 @@ const styles = StyleSheet.create({
     color: "#e5e7eb",
     fontSize: 9,
     textAlign: "center"
+  },
+  /** Nome e cognome: rosso/rosa se femmina, azzurro se maschio. */
+  cellNomeFemmina: {
+    color: "#f472b6",
+    fontWeight: "600"
+  },
+  cellNomeMaschio: {
+    color: "#38bdf8",
+    fontWeight: "600"
   },
   cellTextSmall: {
     color: "#e5e7eb",

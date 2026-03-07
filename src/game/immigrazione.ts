@@ -1,6 +1,7 @@
 import type { Abitante, Razza } from "../types";
 import { getEmojiRazza } from "../kingdomData";
 import { generaNomeAlieno } from "./nomiAlieni";
+import { scegliNomeCognomeUmano } from "./nomiUmani";
 
 export type GeneraImmigratiPropostiResult = {
   nuoviAbitanti: Abitante[];
@@ -17,9 +18,8 @@ const PERSONALITÀ = [
   "Pragmatico", "Idealista", "Deciso", "Collaborativo"
 ];
 const RAZZE_IMMIGRATI: Razza[] = ["Umano", "Grigi", "Nordici", "Rettiliani", "Insettoidi", "Marini", "Ferini"];
-const EMOJI_UMANI = ["👨", "👩", "👨‍🔬", "👩‍🔬", "👨‍💼", "👩‍💼", "👨‍🔧", "👩‍🔧", "👨‍🌾", "👩‍🌾"];
-const NOMI_UMANI = ["Marco", "Luca", "Anna", "Sofia", "Giovanni", "Elena", "Alessandro", "Chiara"];
-const COGNOMI_UMANI = ["Rossi", "Bianchi", "Verdi", "Neri", "Blu", "Gialli"];
+const EMOJI_UMANI_M: string[] = ["👨", "👨‍🔬", "👨‍💼", "👨‍🔧", "👨‍🌾"];
+const EMOJI_UMANI_F: string[] = ["👩", "👩‍🔬", "👩‍💼", "👩‍🔧", "👩‍🌾"];
 const RELIGIONI: Abitante["religione"][] = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto degli Alieni"];
 
 /**
@@ -32,12 +32,20 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
   for (let i = 0; i < numNuovi; i++) {
     const razza = RAZZE_IMMIGRATI[Math.floor(Math.random() * RAZZE_IMMIGRATI.length)];
     const isUmano = razza === "Umano";
-    const emoji = isUmano
-      ? EMOJI_UMANI[Math.floor(Math.random() * EMOJI_UMANI.length)]
-      : getEmojiRazza(razza);
-    const nome = isUmano
-      ? `${NOMI_UMANI[Math.floor(Math.random() * NOMI_UMANI.length)]} ${COGNOMI_UMANI[Math.floor(Math.random() * COGNOMI_UMANI.length)]}`
-      : generaNomeAlieno(razza);
+    let nome: string;
+    let sesso: "M" | "F" | undefined;
+    let emoji: string;
+    if (isUmano) {
+      const { nomeCompleto, sesso: s } = scegliNomeCognomeUmano();
+      nome = nomeCompleto;
+      sesso = s;
+      emoji = s === "M"
+        ? EMOJI_UMANI_M[Math.floor(Math.random() * EMOJI_UMANI_M.length)]
+        : EMOJI_UMANI_F[Math.floor(Math.random() * EMOJI_UMANI_F.length)];
+    } else {
+      nome = generaNomeAlieno(razza);
+      emoji = getEmojiRazza(razza);
+    }
     const fazioniIniziali =
       razza === "Robot"
         ? ["Robots", "Cittadini"]
@@ -66,7 +74,8 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
       felicità: 40 + Math.floor(Math.random() * 50),
       religione: RELIGIONI[Math.floor(Math.random() * RELIGIONI.length)],
       razza,
-      specie: isUmano ? "umano" : "alieno"
+      specie: isUmano ? "umano" : "alieno",
+      ...(sesso != null && { sesso })
     });
   }
 

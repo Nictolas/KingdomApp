@@ -1,6 +1,7 @@
 import type { Abitante, Razza } from "../types";
 import { pianetiData, getEmojiRazza } from "../kingdomData";
 import { generaNomeAlieno } from "./nomiAlieni";
+import { scegliNomeCognomeUmano } from "./nomiUmani";
 
 /** Regole di generazione casuale della colonia iniziale (per la pagina "Generazione Partita"). */
 export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] = [
@@ -17,7 +18,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
       "A parte 1 Nativo iniziale, tutti gli abitanti sono a inizio partita di razza umana.",
       "La razza dei Nativi (per l’evento Assimilazione) è scelta a caso tra le razze non umane.",
       "Ogni partita deve partire con 1 Nativo tra gli abitanti (razza = razza Nativi del pianeta).",
-      "Ogni partita deve partire con 1 abitante di razza Robot."
+      "Ogni partita deve partire con 1 abitante di razza Robot. I Robot sono sempre bisessuali (orientamento «Bi»)."
     ]
   },
   {
@@ -77,8 +78,9 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
   {
     titolo: "Sesso e orientamento",
     punti: [
-      "Ogni abitante ha Sesso M o F (assegnato a caso).",
-      "A inizio partita: 1 abitante con Orientamento «Omo», 2 con «Bi», il resto con «Etero»."
+      "Ogni abitante ha Sesso M o F coerente al nome (es. Alessandro sempre M, Anna sempre F).",
+      "I Robot hanno sempre orientamento «Bi» (bisessuali); è una regola fondamentale.",
+      "Per i non-Robot a inizio partita: 1 con Orientamento «Omo», 2 con «Bi», il resto con «Etero»."
     ]
   },
   {
@@ -122,9 +124,8 @@ const LAVORI = [
   "Disoccupato", "Tecnico", "Ricercatore", "Ingegnere", "Medico", "Agricoltore",
   "Meccanico", "Esploratore", "Comunicatore", "Sicurezza", "Amministratore"
 ];
-const NOMI_UMANI = ["Marco", "Luca", "Anna", "Sofia", "Giovanni", "Elena", "Alessandro", "Chiara", "Francesco", "Maria", "Andrea", "Laura"];
-const COGNOMI_UMANI = ["Rossi", "Bianchi", "Verdi", "Neri", "Blu", "Gialli", "Ferrari", "Romano", "Colombo", "Ricci"];
-const EMOJI_UMANI = ["👨", "👩", "👨‍🔬", "👩‍🔬", "👨‍💼", "👩‍💼", "👨‍🔧", "👩‍🔧", "👨‍🌾", "👩‍🌾"];
+const EMOJI_UMANI_M: string[] = ["👨", "👨‍🔬", "👨‍💼", "👨‍🔧", "👨‍🌾"];
+const EMOJI_UMANI_F: string[] = ["👩", "👩‍🔬", "👩‍💼", "👩‍🔧", "👩‍🌾"];
 
 function normalizzaFazioni(fazioni: string[]): string[] {
   if (fazioni.includes("Schiavi")) return fazioni.filter((f) => f !== "Cittadini");
@@ -148,9 +149,10 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     const razza: Razza = "Umano";
     const isUmano = true;
     const specie: "umano" | "alieno" = "umano";
-    const sesso: "M" | "F" = Math.random() >= 0.5 ? "M" : "F";
-    const nome = `${NOMI_UMANI[Math.floor(Math.random() * NOMI_UMANI.length)]} ${COGNOMI_UMANI[Math.floor(Math.random() * COGNOMI_UMANI.length)]}`;
-    const emoji = EMOJI_UMANI[Math.floor(Math.random() * EMOJI_UMANI.length)];
+    const { nomeCompleto: nome, sesso } = scegliNomeCognomeUmano();
+    const emoji = sesso === "M"
+      ? EMOJI_UMANI_M[Math.floor(Math.random() * EMOJI_UMANI_M.length)]
+      : EMOJI_UMANI_F[Math.floor(Math.random() * EMOJI_UMANI_F.length)];
 
     const fazioneRuolo = FAZIONI_RUOLO[Math.floor(Math.random() * FAZIONI_RUOLO.length)];
     const fazioni = èSchiavo ? [fazioneRuolo, "Schiavi"] : [fazioneRuolo, "Cittadini"];
@@ -213,7 +215,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
   }
 
   // Regola: esattamente 1 Robot a inizio partita (razza "Robot", nome stile Unit-XXXX). Fazione "Robots" automatica.
-  // Robot non hanno Crediti, Reddito, Spese, Sesso, Orientamento, Salute, Peso, Paura, Lealtà.
+  // Robot non hanno Crediti, Reddito, Spese, Sesso, Salute, Peso, Paura, Lealtà. Orientamento sempre «Bi» (regola fondamentale).
   const candidatiRobot = abitanti.filter((a) => a.id !== 1 && a.razza === "Umano");
   if (candidatiRobot.length > 0) {
     const bot = candidatiRobot[Math.floor(Math.random() * candidatiRobot.length)];
@@ -225,7 +227,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     bot.reddito = 0;
     bot.spese = 0;
     bot.sesso = undefined;
-    bot.orientamento = undefined;
+    bot.orientamento = "Bi";
     bot.salute = 0;
     bot.peso = 0;
     bot.paura = 0;
@@ -300,17 +302,20 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     }
   });
 
-  // Regola: 1 Omo, 2 Bi, il resto Etero.
-  const candidatiOrientamento = abitanti.map((_, idx) => idx);
+  // Regola: 1 Omo, 2 Bi, il resto Etero (solo non-Robot; i Robot hanno sempre Bi, vedi sopra).
+  const candidatiOrientamento = abitanti
+    .map((_, idx) => idx)
+    .filter((idx) => abitanti[idx]!.razza !== "Robot");
   for (let k = candidatiOrientamento.length - 1; k > 0; k--) {
     const j = Math.floor(Math.random() * (k + 1));
     [candidatiOrientamento[k], candidatiOrientamento[j]] = [candidatiOrientamento[j], candidatiOrientamento[k]];
   }
-  abitanti[candidatiOrientamento[0]!]!.orientamento = "Omo";
-  if (abitanti.length > 1) abitanti[candidatiOrientamento[1]!]!.orientamento = "Bi";
-  if (abitanti.length > 2) abitanti[candidatiOrientamento[2]!]!.orientamento = "Bi";
-  for (let i = 3; i < abitanti.length; i++) {
-    abitanti[candidatiOrientamento[i]!]!.orientamento = "Etero";
+  if (candidatiOrientamento[0] != null) abitanti[candidatiOrientamento[0]]!.orientamento = "Omo";
+  if (candidatiOrientamento[1] != null) abitanti[candidatiOrientamento[1]]!.orientamento = "Bi";
+  if (candidatiOrientamento[2] != null) abitanti[candidatiOrientamento[2]]!.orientamento = "Bi";
+  for (let i = 3; i < candidatiOrientamento.length; i++) {
+    const idx = candidatiOrientamento[i];
+    if (idx != null) abitanti[idx]!.orientamento = "Etero";
   }
 
   // Regola: 1 abitante con stato "Incinta" a inizio partita (preferibilmente donna, non Comandante, non Robot)
