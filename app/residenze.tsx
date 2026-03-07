@@ -1,13 +1,16 @@
-import React from "react";
-import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import React, { useState } from "react";
+import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { RESIDENZE_CATALOGO } from "../src/data/residenzeData";
+import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
+import type { Abitante } from "../src/types";
 
 export default function ResidenzeScreen() {
   const router = useRouter();
-  const { edifici, abitanti, prezzoResidenze, setPrezzoResidenza } = useGameContext();
+  const { edifici, abitanti, prezzoResidenze, setPrezzoResidenza, calcolaFelicitàModificata, etaMinimaLavoro, redditoCittadinanza } = useGameContext();
+  const [selectedAbitante, setSelectedAbitante] = useState<Abitante | null>(null);
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
@@ -17,6 +20,7 @@ export default function ResidenzeScreen() {
 
   const getAbitanteById = (id: number) => abitanti.find((a) => a.id === id);
   const getEdificioByName = (nome: string) => edificiResidenza.find((e) => e.nome === nome);
+  const getAbitanteNome = (id: number) => abitanti.find((a) => a.id === id)?.nome ?? `ID ${id}`;
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
@@ -97,12 +101,16 @@ export default function ResidenzeScreen() {
                           <Text style={styles.abitantiVuoto}>Nessuno</Text>
                         ) : (
                           assegnati.map((a) => (
-                            <View key={a.id} style={styles.abitanteRiga}>
+                            <Pressable
+                              key={a.id}
+                              style={styles.abitanteRiga}
+                              onPress={() => setSelectedAbitante(a)}
+                            >
                               <Text style={styles.abitanteEmoji}>{getEmojiAbitante(a)}</Text>
                               <Text style={styles.abitanteNome} numberOfLines={1}>
                                 {a.nome}
                               </Text>
-                            </View>
+                            </Pressable>
                           ))
                         )}
                       </ScrollView>
@@ -114,6 +122,16 @@ export default function ResidenzeScreen() {
           </View>
         </View>
       </ScrollView>
+
+      <AbitanteInfoModal
+        visible={selectedAbitante !== null}
+        abitante={selectedAbitante}
+        onClose={() => setSelectedAbitante(null)}
+        getAbitanteNome={getAbitanteNome}
+        calcolaFelicitàModificata={calcolaFelicitàModificata}
+        etaMinimaLavoro={etaMinimaLavoro}
+        redditoCittadinanza={redditoCittadinanza ?? 0}
+      />
     </SafeAreaView>
   );
 }
@@ -224,10 +242,11 @@ const styles = StyleSheet.create({
   },
   abitanteEmoji: { fontSize: 16, marginRight: 8 },
   abitanteNome: {
-    color: "#e5e7eb",
+    color: "#93c5fd",
     fontSize: 11,
     fontWeight: "500",
-    flex: 1
+    flex: 1,
+    textDecorationLine: "underline"
   },
   vuoto: {
     color: "rgba(203,213,245,0.5)",

@@ -14,9 +14,17 @@ type AbitanteInfoModalProps = {
   getAbitanteNome: (id: number) => string;
   calcolaFelicitàModificata?: (abitante: Abitante) => number;
   etaMinimaLavoro?: number;
-  /** Importo reddito di cittadinanza: per disoccupati non schiavi il reddito mostrato include questo importo. */
   redditoCittadinanza?: number;
 };
+
+/** Riga compatta: emoji + valore (es. "🎂 32 anni") */
+function Row({ emoji, value, muted }: { emoji: string; value: string; muted?: boolean }) {
+  return (
+    <Text style={[styles.row, muted && styles.rowMuted]} numberOfLines={1}>
+      {emoji} {value}
+    </Text>
+  );
+}
 
 export function AbitanteInfoModal({
   visible,
@@ -40,138 +48,95 @@ export function AbitanteInfoModal({
     !(abitante.fazioni?.includes("Schiavi") ?? false) &&
     redditoCittadinanza > 0;
   const redditoEffettivo = abitante.razza === "Robot" ? 0 : abitante.reddito + (èBeneficiario ? redditoCittadinanza : 0);
+  const felicitàModificata = calcolaFelicitàModificata ? calcolaFelicitàModificata(abitante) : abitante.felicità;
+  const felicitàCambiata = abitante.razza !== "Robot" && felicitàModificata !== abitante.felicità;
 
-  const formatPercentuale = (valore: number) => `${valore}%`;
-  const formatMonete = (valore: number) => `${valore} crediti`;
-  
-  const felicitàModificata = calcolaFelicitàModificata
-    ? calcolaFelicitàModificata(abitante)
-    : abitante.felicità;
-  const felicitàCambiata = felicitàModificata !== abitante.felicità;
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={onClose}>
-        <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
-          <ScrollView showsVerticalScrollIndicator={false}>
+      <Pressable style={[styles.backdrop, isDesktop && modalBackdropFullscreen]} onPress={onClose}>
+        <Pressable style={[styles.card, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
+          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+            {/* Header compatto */}
             <View style={styles.header}>
-              <Text style={styles.emoji}>{emojiDisplay}</Text>
-              <Text style={styles.title}>{abitante.nome}</Text>
-              <Text style={styles.lavoro}>{lavoroDisplay}</Text>
+              <Text style={styles.headerEmoji}>{emojiDisplay}</Text>
+              <View style={styles.headerText}>
+                <Text style={styles.title}>{abitante.nome}</Text>
+                <Text style={styles.subtitle}>💼 {lavoroDisplay}</Text>
+              </View>
             </View>
 
-            {/* Informazioni base */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Informazioni Base</Text>
-              <Text style={styles.line}>Età: {abitante.eta} anni</Text>
-              <Text style={styles.line}>Razza / Pianeta: {abitante.razza ?? "Umano"}</Text>
-              <Text style={styles.line}>Fazioni: {abitante.fazioni?.join(", ") ?? "—"}</Text>
-              <Text style={styles.line}>Personalità: {abitante.personalità}</Text>
-              <Text style={styles.line}>Religione: {abitante.religione}</Text>
+            {/* Blocco unico compatto a due colonne */}
+            <View style={styles.grid}>
+              <View style={styles.col}>
+                <Text style={styles.blockTitle}>📋 Anagrafica</Text>
+                <Row emoji="🎂" value={`${abitante.eta} anni`} />
+                <Row emoji="🪐" value={abitante.razza ?? "Umano"} />
+                <Row emoji="⚔️" value={abitante.fazioni?.join(", ") ?? "—"} />
+                <Row emoji="🧠" value={abitante.personalità} />
+                <Row emoji="⛪" value={abitante.religione} />
+              </View>
+              <View style={styles.col}>
+                <Text style={styles.blockTitle}>📊 Prestazioni & Salute</Text>
+                <Row emoji="⭐" value={`${abitante.competenza}%`} />
+                <Row emoji="⚡" value={`${abitante.produttività}%`} />
+                <Row emoji="😴" value={`${abitante.stanchezza}%`} />
+                <Row emoji="⚖️" value={abitante.razza === "Robot" ? "—" : `${abitante.peso ?? 50}`} />
+                <Row emoji="🏥" value={abitante.razza === "Robot" ? "—" : getStatoSalute(abitante)} />
+              </View>
             </View>
 
-            {/* Competenze e stato */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Competenze e Stato</Text>
-              <Text style={styles.line}>Competenza: {formatPercentuale(abitante.competenza)}</Text>
-              <Text style={styles.line}>Produttività: {formatPercentuale(abitante.produttività)}</Text>
-              <Text style={styles.line}>Stanchezza: {formatPercentuale(abitante.stanchezza)}</Text>
-              <Text style={styles.line}>Peso: {abitante.razza === "Robot" ? "—" : `${abitante.peso ?? 50}/100`}</Text>
-              <Text style={styles.line}>Salute: {abitante.razza === "Robot" ? "—" : getStatoSalute(abitante)}</Text>
-            </View>
-
-            {/* Relazioni e Sociale */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Relazioni</Text>
-              {abitante.razza === "Robot" ? (
-                <Text style={styles.line}>Amici: —</Text>
-              ) : abitante.amici.length > 0 ? (
-                <Text style={styles.line}>
-                  Amici: {abitante.amici.map((r) => `${getAbitanteNome(r.id)} (${r.punteggio})`).join(", ")}
-                </Text>
-              ) : (
-                <Text style={styles.lineMuted}>Nessun amico</Text>
-              )}
-              {abitante.razza === "Robot" ? (
-                <Text style={styles.line}>Rivali: —</Text>
-              ) : abitante.rivali.length > 0 ? (
-                <Text style={styles.line}>
-                  Rivali: {abitante.rivali.map((r) => `${getAbitanteNome(r.id)} (${r.punteggio})`).join(", ")}
-                </Text>
-              ) : (
-                <Text style={styles.lineMuted}>Nessun rivale</Text>
-              )}
-            </View>
-
-            {/* Familiari */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Familiari</Text>
-              {abitante.razza === "Robot" ? (
-                <Text style={styles.lineMuted}>—</Text>
-              ) : (
-                <>
-                  {abitante.coniugeId != null ? (
-                    <Text style={styles.line}>Coniuge: {getAbitanteNome(abitante.coniugeId)}</Text>
-                  ) : (
-                    <Text style={styles.lineMuted}>Nessun coniuge</Text>
-                  )}
-                  {(abitante.figliIds?.length ?? 0) > 0 ? (
-                    <Text style={styles.line}>Figli: {(abitante.figliIds ?? []).map(getAbitanteNome).join(", ")}</Text>
-                  ) : (
-                    <Text style={styles.lineMuted}>Nessun figlio</Text>
-                  )}
-                  {(abitante.genitoriIds?.length ?? 0) > 0 ? (
-                    <Text style={styles.line}>Genitori: {(abitante.genitoriIds ?? []).map(getAbitanteNome).join(", ")}</Text>
-                  ) : (
-                    <Text style={styles.lineMuted}>Nessun genitore</Text>
-                  )}
-                  {(abitante.nonniIds?.length ?? 0) > 0 ? (
-                    <Text style={styles.line}>Nonni: {(abitante.nonniIds ?? []).map(getAbitanteNome).join(", ")}</Text>
-                  ) : (
-                    <Text style={styles.lineMuted}>Nessun nonno</Text>
-                  )}
-                </>
-              )}
-            </View>
-
-            {/* Economia */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Economia</Text>
-              <Text style={styles.line}>Patrimonio: {abitante.razza === "Robot" ? "—" : formatMonete(abitante.crediti)}</Text>
-              <Text style={styles.line}>Reddito: {abitante.razza === "Robot" ? "—" : `${formatMonete(redditoEffettivo)}/mese`}</Text>
-              <Text style={styles.line}>Spese: {abitante.razza === "Robot" ? "—" : `${formatMonete(abitante.spese)}/mese`}</Text>
-              <Text style={styles.line}>
-                Saldo mensile: {abitante.razza === "Robot" ? "—" : formatMonete(redditoEffettivo - abitante.spese)}
-              </Text>
-            </View>
-
-            {/* Sentimenti */}
-            <View style={styles.section}>
-              <Text style={styles.sectionLabel}>Sentimenti</Text>
-              <Text style={styles.line}>Lealtà: {abitante.razza === "Robot" ? "—" : formatPercentuale(abitante.lealtà)}</Text>
-              <Text style={styles.line}>Paura: {abitante.razza === "Robot" ? "—" : formatPercentuale(abitante.paura)}</Text>
-              <View style={styles.felicitàRow}>
-                <Text style={styles.line}>
-                  Felicità: {abitante.razza === "Robot" ? "—" : formatPercentuale(felicitàModificata)}
-                </Text>
-                {abitante.razza !== "Robot" && felicitàCambiata && (
-                  <Text style={styles.felicitàModifica}>
-                    ({abitante.felicità} base
-                    {felicitàModificata > abitante.felicità ? (
-                      <Text style={styles.felicitàPositiva}> +{felicitàModificata - abitante.felicità}</Text>
-                    ) : (
-                      <Text style={styles.felicitàNegativa}> {felicitàModificata - abitante.felicità}</Text>
-                    )}
-                    )
-                  </Text>
+            <View style={styles.grid}>
+              <View style={styles.col}>
+                <Text style={styles.blockTitle}>👥 Relazioni</Text>
+                {abitante.razza === "Robot" ? (
+                  <Row emoji="—" value="—" muted />
+                ) : (
+                  <>
+                    <Row emoji="😊" value={abitante.amici?.length ? abitante.amici.map((r) => getAbitanteNome(r.id)).join(", ") : "nessuno"} muted={!abitante.amici?.length} />
+                    <Row emoji="😠" value={abitante.rivali?.length ? abitante.rivali.map((r) => getAbitanteNome(r.id)).join(", ") : "nessuno"} muted={!abitante.rivali?.length} />
+                  </>
+                )}
+              </View>
+              <View style={styles.col}>
+                <Text style={styles.blockTitle}>👨‍👩‍👧 Famiglia</Text>
+                {abitante.razza === "Robot" ? (
+                  <Row emoji="—" value="—" muted />
+                ) : (
+                  <>
+                    <Row emoji="💍" value={abitante.coniugeId != null ? getAbitanteNome(abitante.coniugeId) : "—"} muted={abitante.coniugeId == null} />
+                    <Row emoji="👶" value={(abitante.figliIds?.length ?? 0) > 0 ? (abitante.figliIds ?? []).map(getAbitanteNome).join(", ") : "—"} muted={!(abitante.figliIds?.length ?? 0)} />
+                  </>
                 )}
               </View>
             </View>
 
-            <Pressable style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeButtonText}>Chiudi</Text>
+            <View style={styles.grid}>
+              <View style={styles.col}>
+                <Text style={styles.blockTitle}>💰 Economia</Text>
+                <Row emoji="💵" value={abitante.razza === "Robot" ? "—" : `${abitante.crediti} cr`} />
+                <Row emoji="📈" value={abitante.razza === "Robot" ? "—" : `${redditoEffettivo} cr/mese`} />
+                <Row emoji="📉" value={abitante.razza === "Robot" ? "—" : `${abitante.spese} cr/mese`} />
+              </View>
+              <View style={styles.col}>
+                <Text style={styles.blockTitle}>❤️ Sentimenti</Text>
+                <Row emoji="❤️" value={abitante.razza === "Robot" ? "—" : `${abitante.lealtà}%`} />
+                <Row emoji="😨" value={abitante.razza === "Robot" ? "—" : `${abitante.paura}%`} />
+                <Row
+                  emoji="😊"
+                  value={
+                    abitante.razza === "Robot"
+                      ? "—"
+                      : `${felicitàModificata}%${felicitàCambiata ? ` (base ${abitante.felicità})` : ""}`
+                  }
+                />
+              </View>
+            </View>
+
+            <Pressable style={styles.closeBtn} onPress={onClose}>
+              <Text style={styles.closeBtnText}>✕ Chiudi</Text>
             </Pressable>
           </ScrollView>
         </Pressable>
@@ -181,93 +146,65 @@ export function AbitanteInfoModal({
 }
 
 const styles = StyleSheet.create({
-  modalBackdrop: {
+  backdrop: {
     flex: 1,
-    backgroundColor: "rgba(0, 0, 0, 0.8)",
+    backgroundColor: "rgba(0,0,0,0.75)",
     justifyContent: "center",
     alignItems: "center"
   },
-  modalCard: {
+  card: {
     backgroundColor: "#0f172a",
-    borderRadius: 16,
-    padding: 20,
-    minWidth: 320,
-    maxWidth: 400,
-    maxHeight: "80%",
+    borderRadius: 12,
+    padding: 14,
+    minWidth: 300,
+    maxWidth: 420,
+    maxHeight: "85%",
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.3)"
+    borderColor: "rgba(148,163,184,0.25)"
   },
+  scroll: { paddingBottom: 8 },
   header: {
+    flexDirection: "row",
     alignItems: "center",
-    marginBottom: 20
+    marginBottom: 12,
+    paddingBottom: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(148,163,184,0.2)"
   },
-  emoji: {
-    fontSize: 64,
-    marginBottom: 12
+  headerEmoji: { fontSize: 40, marginRight: 12 },
+  headerText: { flex: 1 },
+  title: { fontSize: 16, fontWeight: "700", color: "#e5e7eb" },
+  subtitle: { fontSize: 11, color: "#93c5fd", marginTop: 2 },
+  grid: {
+    flexDirection: "row",
+    gap: 16,
+    marginBottom: 10
   },
-  title: {
-    fontSize: 22,
+  col: { flex: 1, minWidth: 0 },
+  blockTitle: {
+    fontSize: 10,
     fontWeight: "700",
-    color: "#e5e7eb",
+    color: "#93c5fd",
     marginBottom: 4,
-    textAlign: "center"
-  },
-  lavoro: {
-    fontSize: 16,
-    color: "#93c5fd",
-    textAlign: "center"
-  },
-  section: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(148,163,184,0.2)"
-  },
-  sectionLabel: {
-    color: "#93c5fd",
-    fontSize: 12,
-    fontWeight: "600",
-    marginBottom: 8,
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
-  line: {
+  row: {
+    fontSize: 11,
     color: "#cbd5f5",
-    fontSize: 14,
-    marginBottom: 6
+    marginBottom: 2
   },
-  lineMuted: {
+  rowMuted: {
     color: "rgba(203,213,245,0.5)",
-    fontSize: 14,
-    marginBottom: 6,
     fontStyle: "italic"
   },
-  closeButton: {
-    marginTop: 20,
-    backgroundColor: "#3b82f6",
-    paddingHorizontal: 24,
-    paddingVertical: 12,
+  closeBtn: {
+    marginTop: 12,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    backgroundColor: "rgba(59,130,246,0.9)",
     borderRadius: 8,
-    alignItems: "center"
+    alignSelf: "center"
   },
-  closeButtonText: {
-    color: "#ffffff",
-    fontSize: 16,
-    fontWeight: "600"
-  },
-  felicitàRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8
-  },
-  felicitàModifica: {
-    color: "rgba(203,213,245,0.5)",
-    fontSize: 12
-  },
-  felicitàPositiva: {
-    color: "#4ade80"
-  },
-  felicitàNegativa: {
-    color: "#ef4444"
-  }
+  closeBtnText: { color: "#fff", fontSize: 13, fontWeight: "600" }
 });
