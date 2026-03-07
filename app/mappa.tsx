@@ -11,7 +11,7 @@ import {
   Text,
   View
 } from "react-native";
-import { useRouter } from "expo-router";
+import { Redirect, useRouter } from "expo-router";
 import { edificiData } from "../src/data/edificiData";
 import { useGameContext } from "../src/context/GameContext";
 import type { Edificio, Risorsa } from "../src/types";
@@ -163,7 +163,7 @@ function getResourceRoute(r: Risorsa): string | null {
   return null;
 }
 
-export default function MappaScreen() {
+export function MappaScreen() {
   const router = useRouter();
   const { risorse, abitanti, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, calcolaDeltaOrdiniMercato, calcolaFelicitàModificata } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
@@ -1046,3 +1046,8 @@ const styles = StyleSheet.create({
     fontSize: 14
   }
 });
+
+/** Route /mappa reindirizza alla root: la Mappa è la schermata principale. */
+export default function MappaRoute() {
+  return <Redirect href="/" />;
+}

@@ -1,6 +1,6 @@
-import { Redirect } from "expo-router";
+import { MappaScreen } from "./mappa";
 
 export default function Index() {
-  return <Redirect href="/menu" />;
+  return <MappaScreen />;
 }
 

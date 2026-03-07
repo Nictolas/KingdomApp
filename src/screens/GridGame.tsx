@@ -34,7 +34,7 @@ export default function GridGame() {
             <Text style={styles.navLabel}>Edifici</Text>
             <Text style={styles.navMeta}>{edifici.length}</Text>
           </Pressable>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/mappa")}>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/")}>
             <Text style={styles.navEmoji}>🗺️</Text>
             <Text style={styles.navLabel}>Mappa</Text>
           </Pressable>
