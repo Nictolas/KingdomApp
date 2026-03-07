@@ -51,9 +51,16 @@ const EDIFICIO_TO_ROUTE: Record<string, string> = {
 
 type EdificioInCella = { id: number; nome: string; emoji: string };
 
-/** Cella è acqua (blu) se true, altrimenti erba (verde). Per ora solo erba; si può espandere con mappa terreno. */
-function isAcqua(_index: number): boolean {
-  return false;
+/** Cella è acqua (blu) se true, altrimenti erba (verde). Bordi della mappa = mare. */
+function isAcqua(index: number): boolean {
+  const row = Math.floor(index / GRIGLIA_COLONNE);
+  const col = index % GRIGLIA_COLONNE;
+  return (
+    row === 0 ||
+    row === GRIGLIA_RIGHE - 1 ||
+    col === 0 ||
+    col === GRIGLIA_COLONNE - 1
+  );
 }
 
 const edificiIniziali: Record<number, EdificioInCella> = {
