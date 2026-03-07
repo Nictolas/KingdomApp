@@ -331,17 +331,7 @@ export function MappaScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
-      <View style={styles.header}>
-        <Text style={styles.back} onPress={() => router.back()}>
-          ← Indietro
-        </Text>
-        <Text style={styles.title}>Mappa</Text>
-        <Pressable style={styles.menuBtn} onPress={() => router.push("/menu")}>
-          <Text style={styles.menuBtnText}>Menu</Text>
-        </Pressable>
-      </View>
-
-      {/* Banner in alto: MyKingdom a sinistra + Mese/Anno, Diario, Skip Mese, Felicità, Lealtà, Paura */}
+      {/* Banner in alto: MyKingdom, Mese/Anno, Diario, Skip Mese, Felicità, Lealtà, Paura, Menu */}
       <View style={styles.topBanner}>
         <View style={styles.topBannerInner}>
           <View style={styles.bannerTitleBlock}>
@@ -390,6 +380,9 @@ export function MappaScreen() {
             <Text style={styles.indEmoji}>😨</Text>
             <Text style={styles.indLabel}>Paura</Text>
             <Text style={styles.indValue}>{pauraMedia}%</Text>
+          </Pressable>
+          <Pressable style={styles.menuBtn} onPress={() => router.push("/menu")}>
+            <Text style={styles.menuBtnText}>Menu</Text>
           </Pressable>
         </View>
       </View>
@@ -855,25 +848,6 @@ const styles = StyleSheet.create({
   risorseDelta: { fontSize: 9, fontWeight: "700", marginTop: 1 },
   risorseDeltaPos: { color: "#4ade80" },
   risorseDeltaNeg: { color: "#f87171" },
-  header: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(148,163,184,0.6)",
-    backgroundColor: "#050816"
-  },
-  back: {
-    color: "#93c5fd",
-    fontSize: 12
-  },
-  title: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "700"
-  },
   menuBtn: {
     paddingVertical: 6,
     paddingHorizontal: 12,
