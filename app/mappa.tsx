@@ -184,16 +184,28 @@ export function MappaScreen() {
     null
   );
   const [isDragging, setIsDragging] = useState(false);
+  const [mapScale, setMapScale] = useState(1);
   const lastTapCell = useRef<number | null>(null);
   const lastTapTime = useRef<number>(0);
+  const pinchStartDist = useRef<number | null>(null);
+  const pinchStartScale = useRef<number>(1);
 
   useEffect(() => {
     if (Platform.OS === "web" && typeof document !== "undefined") {
       document.body.style.overflow = "hidden";
       document.documentElement.style.overflow = "hidden";
+      const meta = document.querySelector('meta[name="viewport"]');
+      const previousContent = meta?.getAttribute("content") ?? "";
+      if (meta) {
+        meta.setAttribute(
+          "content",
+          "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+        );
+      }
       return () => {
         document.body.style.overflow = "";
         document.documentElement.style.overflow = "";
+        if (meta) meta.setAttribute("content", previousContent || "width=device-width, initial-scale=1, viewport-fit=cover");
       };
     }
   }, []);
@@ -276,6 +288,50 @@ export function MappaScreen() {
   const onPointerLeave = useCallback(() => {
     dragStart.current = null;
     setIsDragging(false);
+  }, []);
+
+  const getTouchDistance = useCallback((touches: { pageX: number; pageY: number }[]) => {
+    if (touches.length < 2) return 0;
+    const dx = touches[1].pageX - touches[0].pageX;
+    const dy = touches[1].pageY - touches[0].pageY;
+    return Math.hypot(dx, dy);
+  }, []);
+
+  const onTouchStart = useCallback(
+    (e: React.TouchEvent) => {
+      if (e.nativeEvent.touches.length === 2) {
+        pinchStartDist.current = getTouchDistance(Array.from(e.nativeEvent.touches));
+        pinchStartScale.current = mapScale;
+      }
+    },
+    [getTouchDistance, mapScale]
+  );
+
+  const onTouchMove = useCallback(
+    (e: React.TouchEvent) => {
+      if (e.nativeEvent.touches.length === 2 && pinchStartDist.current !== null) {
+        e.preventDefault();
+        const dist = getTouchDistance(Array.from(e.nativeEvent.touches));
+        const scale = (dist / pinchStartDist.current) * pinchStartScale.current;
+        setMapScale((s) => Math.min(3, Math.max(0.4, scale)));
+      }
+    },
+    [getTouchDistance]
+  );
+
+  const onTouchEnd = useCallback(() => {
+    pinchStartDist.current = null;
+  }, []);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof document === "undefined") return;
+    const el = document.getElementById("mappa-viewport");
+    if (!el) return;
+    const onMove = (e: TouchEvent) => {
+      if (e.touches.length === 2 && pinchStartDist.current !== null) e.preventDefault();
+    };
+    el.addEventListener("touchmove", onMove, { passive: false });
+    return () => el.removeEventListener("touchmove", onMove);
   }, []);
 
   const openRouteForEdificio = useCallback(
@@ -390,6 +446,7 @@ export function MappaScreen() {
       {/* Contenitore mappa: occupa esattamente lo spazio tra banner superiore e inferiore */}
       <View style={styles.mapContainer}>
         <View
+          nativeID="mappa-viewport"
           style={[
             styles.viewport,
             Platform.OS === "web" && (isDragging ? styles.viewportWebGrabbing : styles.viewportWeb)
@@ -399,25 +456,45 @@ export function MappaScreen() {
           onPointerMove={onPointerMove}
           onPointerUp={onPointerUp}
           onPointerLeave={onPointerLeave}
+          onTouchStart={onTouchStart}
+          onTouchMove={onTouchMove}
+          onTouchEnd={onTouchEnd}
         >
           <ScrollView
           ref={hScrollRef}
           style={styles.viewport}
           horizontal
           showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{ width: contentWidth, height: "100%" }}
+          contentContainerStyle={{
+            width: contentWidth * mapScale,
+            height: "100%"
+          }}
           onScroll={(e) => { scrollX.current = e.nativeEvent.contentOffset.x; }}
           scrollEventThrottle={16}
         >
           <ScrollView
             ref={vScrollRef}
-            style={[styles.viewportInner, { width: contentWidth }]}
+            style={[styles.viewportInner, { width: contentWidth * mapScale }]}
             showsVerticalScrollIndicator={false}
-            contentContainerStyle={{ width: contentWidth, height: contentHeight }}
+            contentContainerStyle={{
+              width: contentWidth * mapScale,
+              height: contentHeight * mapScale
+            }}
             bounces={false}
             onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
             scrollEventThrottle={16}
           >
+          <View style={{ width: contentWidth * mapScale, height: contentHeight * mapScale }}>
+            <View
+              style={[
+                {
+                  width: contentWidth,
+                  height: contentHeight,
+                  transform: [{ scale: mapScale }]
+                },
+                Platform.OS === "web" && { transformOrigin: "top left" as const }
+              ]}
+            >
           <View style={[styles.contentWrap, { padding: PADDING }]}>
             <View style={[styles.griglia, styles.grigliaTerreno, { gap: GAP, width: gridWidth }]}>
               {Array.from({ length: totaleCelle }, (_, i) => {
@@ -571,6 +648,8 @@ export function MappaScreen() {
                   </View>
                 );
               })}
+            </View>
+          </View>
             </View>
           </View>
           </ScrollView>
