@@ -25,13 +25,12 @@ export default function ResidenzeScreen() {
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
-        <Text style={styles.back} onPress={() => router.back()}>
-          ← Edifici
-        </Text>
+        <View style={{ width: 50 }} />
         <Text style={styles.title}>Residenze</Text>
         <View style={{ width: 50 }} />
       </View>
 
+      <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={true}>
         <Text style={styles.intro}>
           Costi in crediti ed energia sono mensili (ogni Skip Mese). L'energia è consumata per ogni residente (es. Baracca 0, Dormitorio 1 MW/abitante). Colonia e catalogo unificati.
@@ -129,6 +128,7 @@ export default function ResidenzeScreen() {
           </View>
         </View>
       </ScrollView>
+      </View>
 
       <AbitanteInfoModal
         visible={selectedAbitante !== null}
@@ -139,6 +139,9 @@ export default function ResidenzeScreen() {
         etaMinimaLavoro={etaMinimaLavoro}
         redditoCittadinanza={redditoCittadinanza ?? 0}
       />
+      <View style={styles.footer}>
+        <Text style={styles.back} onPress={() => router.back()}>← Edifici</Text>
+      </View>
     </SafeAreaView>
   );
 }
@@ -156,6 +159,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(148,163,184,0.6)"
+  },
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(148,163,184,0.6)"
   },
   back: {
     color: "#93c5fd",

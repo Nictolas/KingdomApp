@@ -33,13 +33,12 @@ export default function CultoAlieniScreen() {
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
-        <Text style={styles.back} onPress={() => router.back()}>
-          ← Religione
-        </Text>
+        <View style={{ width: 50 }} />
         <Text style={styles.title}>👽 Culto degli Alieni</Text>
         <View style={{ width: 50 }} />
       </View>
 
+      <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         {/* Capo Religioso */}
         <View style={styles.section}>
@@ -104,6 +103,10 @@ export default function CultoAlieniScreen() {
           )}
         </View>
       </ScrollView>
+    </View>
+    <View style={styles.footer}>
+      <Text style={styles.back} onPress={() => router.back()}>← Religione</Text>
+    </View>
     </SafeAreaView>
   );
 }
@@ -121,6 +124,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(148,163,184,0.6)"
+  },
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(148,163,184,0.6)"
   },
   back: {
     color: "#93c5fd",

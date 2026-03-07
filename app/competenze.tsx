@@ -23,13 +23,12 @@ export default function CompetenzeScreen() {
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
-        <Text style={styles.back} onPress={() => router.back()}>
-          ← Home
-        </Text>
+        <View style={{ width: 50 }} />
         <Text style={styles.title}>📊 Competenze</Text>
         <View style={{ width: 50 }} />
       </View>
 
+      <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.subtitle}>
           Catalogo delle competenze riconosciute nella colonia. Ogni abitante ha un livello di competenza generale; alcune competenze speciali influenzano edifici e ruoli.
@@ -47,6 +46,10 @@ export default function CompetenzeScreen() {
           ))}
         </View>
       </ScrollView>
+    </View>
+    <View style={styles.footer}>
+      <Text style={styles.back} onPress={() => router.back()}>← Home</Text>
+    </View>
     </SafeAreaView>
   );
 }
@@ -61,6 +64,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(148,163,184,0.6)"
+  },
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(148,163,184,0.6)"
   },
   back: { color: "#93c5fd", fontSize: 12 },
   title: { color: "#ffffff", fontSize: 14, fontWeight: "700" },

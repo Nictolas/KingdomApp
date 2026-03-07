@@ -45,12 +45,15 @@ export default function FazioneSlugScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <View style={styles.header}>
-          <Text style={styles.back} onPress={() => router.back()}>← Fazioni</Text>
+          <View style={{ width: 50 }} />
           <Text style={styles.title}>Fazione</Text>
           <View style={{ width: 50 }} />
         </View>
         <View style={styles.content}>
           <Text style={styles.emptyText}>Fazione non trovata.</Text>
+        </View>
+        <View style={styles.footer}>
+          <Text style={styles.back} onPress={() => router.back()}>← Fazioni</Text>
         </View>
       </SafeAreaView>
     );
@@ -61,11 +64,12 @@ export default function FazioneSlugScreen() {
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
-        <Text style={styles.back} onPress={() => router.back()}>← Fazioni</Text>
+        <View style={{ width: 50 }} />
         <Text style={styles.title}>{fazione.emoji} {fazione.nome}</Text>
         <View style={{ width: 50 }} />
       </View>
 
+      <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <View style={styles.section}>
           <Text style={styles.sectionLabel}>Descrizione</Text>
@@ -87,6 +91,10 @@ export default function FazioneSlugScreen() {
           )}
         </View>
       </ScrollView>
+      </View>
+      <View style={styles.footer}>
+        <Text style={styles.back} onPress={() => router.back()}>← Fazioni</Text>
+      </View>
     </SafeAreaView>
   );
 }
@@ -101,6 +109,14 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(148,163,184,0.6)"
+  },
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(148,163,184,0.6)"
   },
   back: { color: "#93c5fd", fontSize: 12 },
   title: { color: "#ffffff", fontSize: 14, fontWeight: "700" },

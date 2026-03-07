@@ -68,13 +68,12 @@ export default function MercatoScreen() {
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
-        <Text style={styles.back} onPress={() => router.back()}>
-          ← Home
-        </Text>
+        <View style={{ width: 50 }} />
         <Text style={styles.title}>🏪 Mercato</Text>
         <View style={{ width: 50 }} />
       </View>
 
+      <View style={{ flex: 1 }}>
       <ScrollView
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
@@ -219,6 +218,10 @@ export default function MercatoScreen() {
         })}
         </View>
       </ScrollView>
+    </View>
+    <View style={styles.footer}>
+      <Text style={styles.back} onPress={() => router.back()}>← Home</Text>
+    </View>
     </SafeAreaView>
   );
 }
@@ -233,6 +236,14 @@ const styles = StyleSheet.create({
     paddingVertical: 4,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(148,163,184,0.2)"
+  },
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(148,163,184,0.6)"
   },
   back: { color: "#7dd3fc", fontSize: 12 },
   title: { color: "#f1f5f9", fontSize: 13, fontWeight: "700" },
