@@ -328,6 +328,7 @@ export function MappaScreen() {
 
     el.style.touchAction = "none";
     el.style.userSelect = "none";
+    el.style.pointerEvents = "auto";
 
     const getContainerCoords = (clientX: number, clientY: number, rect: DOMRect) => ({
       x: clientX - rect.left,
@@ -493,6 +494,7 @@ export function MappaScreen() {
     return () => {
       el.style.touchAction = "";
       el.style.userSelect = "";
+      el.style.pointerEvents = "";
       el.removeEventListener("pointerdown", onPointerDown);
       el.removeEventListener("pointermove", onPointerMove);
       el.removeEventListener("pointerup", onPointerUp);
@@ -612,17 +614,34 @@ export function MappaScreen() {
         </View>
       </View>
 
-      {/* Contenitore mappa: 100% larghezza/altezza, overflow hidden, nessuno sfondo fuori griglia */}
+      {/* Contenitore mappa: viewport con overflow hidden; contenuto con transform (scale + translate) per zoom/pan */}
       <View style={styles.mapContainer}>
         <View
           nativeID="mappa-viewport"
           style={[
             styles.viewport,
             styles.viewportTouchAction,
+            styles.viewportPointerEvents,
             Platform.OS === "web" && (isDragging ? styles.viewportWebGrabbing : styles.viewportWeb)
           ]}
           onLayout={onViewportLayout}
         >
+          <View
+            style={[
+              styles.mapTransform,
+              {
+                width: contentWidth,
+                height: contentHeight,
+                transform: [
+                  { translateX: -panX },
+                  { translateY: -panY },
+                  { scale: mapScale }
+                ]
+              },
+              Platform.OS === "web" && styles.mapTransformWeb
+            ]}
+            pointerEvents="box-none"
+          >
           <View style={[styles.gridFill, { width: contentWidth, height: contentHeight }]}>
             {Array.from({ length: rows }, (_, rowIndex) => (
               <View key={rowIndex} style={[styles.gridRow, { gap: GAP }]}>
@@ -797,6 +816,7 @@ export function MappaScreen() {
               ))}
             </View>
           </View>
+        </View>
       </View>
 
       {/* Menu fisso in basso: Risorse (ancorato al fondo schermo) */}
@@ -1109,6 +1129,9 @@ const styles = StyleSheet.create({
   },
   viewportTouchAction: {
     ...(Platform.OS === "web" ? { touchAction: "none" as const } : {})
+  },
+  viewportPointerEvents: {
+    pointerEvents: "auto"
   },
   viewportWeb: {
     cursor: "grab"
