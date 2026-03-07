@@ -74,6 +74,8 @@ export default function MappaScreen() {
   const viewportW = useRef(0);
   const viewportH = useRef(0);
   const dragStart = useRef<{ x: number; y: number; scrollX: number; scrollY: number } | null>(null);
+  const pointerDownTarget = useRef<HTMLElement | null>(null);
+  const didDragThisGesture = useRef(false);
 
   const { width } = Dimensions.get("window");
   const rawSize = (width - PADDING * 2 - GAP * (GRIGLIA_COLONNE - 1)) / GRIGLIA_COLONNE;
@@ -93,6 +95,8 @@ export default function MappaScreen() {
   const onPointerDown = useCallback(
     (e: React.PointerEvent) => {
       if (Platform.OS !== "web") return;
+      didDragThisGesture.current = false;
+      pointerDownTarget.current = e.target as HTMLElement;
       const el = e.currentTarget as HTMLElement;
       if (el?.setPointerCapture) el.setPointerCapture(e.pointerId);
       dragStart.current = {
@@ -108,6 +112,7 @@ export default function MappaScreen() {
   const onPointerMove = useCallback(
     (e: React.PointerEvent) => {
       if (Platform.OS !== "web" || !dragStart.current) return;
+      didDragThisGesture.current = true;
       setIsDragging(true);
       e.preventDefault();
       const dx = dragStart.current.x - e.clientX;
@@ -128,7 +133,12 @@ export default function MappaScreen() {
     if (Platform.OS !== "web") return;
     const el = e.currentTarget as HTMLElement;
     if (el?.releasePointerCapture) el.releasePointerCapture(e.pointerId);
+    if (!didDragThisGesture.current && pointerDownTarget.current) {
+      pointerDownTarget.current.click();
+    }
+    pointerDownTarget.current = null;
     dragStart.current = null;
+    didDragThisGesture.current = false;
     setIsDragging(false);
   }, []);
 
