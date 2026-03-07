@@ -210,18 +210,21 @@ export function MappaScreen() {
     }
   }, []);
 
-  const hScrollRef = useRef<ScrollView>(null);
-  const vScrollRef = useRef<ScrollView>(null);
-  const scrollX = useRef(0);
-  const scrollY = useRef(0);
+  const [panX, setPanX] = useState(0);
+  const [panY, setPanY] = useState(0);
   const viewportW = useRef(0);
   const viewportH = useRef(0);
-  const dragStart = useRef<{ x: number; y: number; scrollX: number; scrollY: number } | null>(null);
+  const dragStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
   const pointerDownTarget = useRef<HTMLElement | null>(null);
   const didDragThisGesture = useRef(false);
-  const pendingWheelScroll = useRef<{ x: number; y: number } | null>(null);
+  const pendingWheelPan = useRef<{ x: number; y: number } | null>(null);
   const mapScaleRef = useRef(1);
+  const panXRef = useRef(0);
+  const panYRef = useRef(0);
+  const rafId = useRef<number | null>(null);
   mapScaleRef.current = mapScale;
+  panXRef.current = panX;
+  panYRef.current = panY;
 
   const { width } = Dimensions.get("window");
   const rawSize = (width - PADDING * 2 - GAP * (GRIGLIA_COLONNE - 1)) / GRIGLIA_COLONNE;
@@ -248,11 +251,11 @@ export function MappaScreen() {
       dragStart.current = {
         x: e.clientX,
         y: e.clientY,
-        scrollX: scrollX.current,
-        scrollY: scrollY.current
+        panX,
+        panY
       };
     },
-    []
+    [panX, panY]
   );
 
   const onPointerMove = useCallback(
@@ -265,14 +268,16 @@ export function MappaScreen() {
       const dy = dragStart.current.y - e.clientY;
       const maxX = Math.max(0, contentWidth * mapScale - viewportW.current);
       const maxY = Math.max(0, contentHeight * mapScale - viewportH.current);
-      const newX = Math.max(0, Math.min(maxX, dragStart.current.scrollX + dx));
-      const newY = Math.max(0, Math.min(maxY, dragStart.current.scrollY + dy));
-      scrollX.current = newX;
-      scrollY.current = newY;
-      hScrollRef.current?.scrollTo({ x: newX, animated: false });
-      vScrollRef.current?.scrollTo({ y: newY, animated: false });
+      const newX = Math.max(0, Math.min(maxX, dragStart.current.panX + dx));
+      const newY = Math.max(0, Math.min(maxY, dragStart.current.panY + dy));
+      if (rafId.current !== null) cancelAnimationFrame(rafId.current);
+      rafId.current = requestAnimationFrame(() => {
+        rafId.current = null;
+        setPanX(newX);
+        setPanY(newY);
+      });
     },
-    [contentWidth, contentHeight, mapScale]
+    [contentWidth, contentHeight, mapScale, panX, panY]
   );
 
   const onPointerUp = useCallback((e: React.PointerEvent) => {
@@ -300,6 +305,16 @@ export function MappaScreen() {
     return Math.hypot(dx, dy);
   }, []);
 
+  const getTouchCenter = useCallback(
+    (touches: { pageX: number; pageY: number }[], containerRect: DOMRect) => {
+      if (touches.length < 2) return { x: 0, y: 0 };
+      const cx = (touches[0].pageX + touches[1].pageX) / 2 - containerRect.left;
+      const cy = (touches[0].pageY + touches[1].pageY) / 2 - containerRect.top;
+      return { x: cx, y: cy };
+    },
+    []
+  );
+
   const onTouchStart = useCallback(
     (e: React.TouchEvent) => {
       if (e.nativeEvent.touches.length === 2) {
@@ -314,12 +329,30 @@ export function MappaScreen() {
     (e: React.TouchEvent) => {
       if (e.nativeEvent.touches.length === 2 && pinchStartDist.current !== null) {
         e.preventDefault();
-        const dist = getTouchDistance(Array.from(e.nativeEvent.touches));
-        const scale = (dist / pinchStartDist.current) * pinchStartScale.current;
-        setMapScale((s) => Math.min(3, Math.max(0.4, scale)));
+        const touches = Array.from(e.nativeEvent.touches);
+        const dist = getTouchDistance(touches);
+        const scaleNew = Math.min(3, Math.max(0.4, (dist / pinchStartDist.current) * pinchStartScale.current));
+        const el = e.currentTarget as HTMLElement;
+        const rect = el.getBoundingClientRect();
+        const center = getTouchCenter(touches, rect);
+        const scale = pinchStartScale.current;
+        const ratio = scaleNew / scale;
+        let newPanX = (panXRef.current + center.x) * ratio - center.x;
+        let newPanY = (panYRef.current + center.y) * ratio - center.y;
+        const maxX = Math.max(0, contentWidth * scaleNew - viewportW.current);
+        const maxY = Math.max(0, contentHeight * scaleNew - viewportH.current);
+        newPanX = Math.max(0, Math.min(maxX, newPanX));
+        newPanY = Math.max(0, Math.min(maxY, newPanY));
+        if (rafId.current !== null) cancelAnimationFrame(rafId.current);
+        rafId.current = requestAnimationFrame(() => {
+          rafId.current = null;
+          setMapScale(scaleNew);
+          setPanX(newPanX);
+          setPanY(newPanY);
+        });
       }
     },
-    [getTouchDistance]
+    [getTouchDistance, getTouchCenter, contentWidth, contentHeight]
   );
 
   const onTouchEnd = useCallback(() => {
@@ -327,22 +360,24 @@ export function MappaScreen() {
   }, []);
 
   useEffect(() => {
-    if (pendingWheelScroll.current === null) return;
-    const { x, y } = pendingWheelScroll.current;
-    pendingWheelScroll.current = null;
-    scrollX.current = x;
-    scrollY.current = y;
-    hScrollRef.current?.scrollTo({ x, animated: false });
-    vScrollRef.current?.scrollTo({ y, animated: false });
+    if (pendingWheelPan.current === null) return;
+    const { x, y } = pendingWheelPan.current;
+    pendingWheelPan.current = null;
+    setPanX(x);
+    setPanY(y);
   }, [mapScale]);
 
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
     const el = document.getElementById("mappa-viewport");
     if (!el) return;
+    const onTouchStartNative = (e: TouchEvent) => {
+      if (e.touches.length >= 2) e.preventDefault();
+    };
     const onMove = (e: TouchEvent) => {
       if (e.touches.length === 2 && pinchStartDist.current !== null) e.preventDefault();
     };
+    el.addEventListener("touchstart", onTouchStartNative, { passive: false });
     el.addEventListener("touchmove", onMove, { passive: false });
     const onWheelNative = (e: WheelEvent) => {
       e.preventDefault();
@@ -354,17 +389,18 @@ export function MappaScreen() {
       const scaleNew = Math.min(3, Math.max(0.4, scale * scaleDelta));
       if (scaleNew === scale) return;
       const ratio = scaleNew / scale;
-      let scrollXNew = (scrollX.current + mouseX) * ratio - mouseX;
-      let scrollYNew = (scrollY.current + mouseY) * ratio - mouseY;
+      let panXNew = (panXRef.current + mouseX) * ratio - mouseX;
+      let panYNew = (panYRef.current + mouseY) * ratio - mouseY;
       const maxX = Math.max(0, contentWidth * scaleNew - viewportW.current);
       const maxY = Math.max(0, contentHeight * scaleNew - viewportH.current);
-      scrollXNew = Math.max(0, Math.min(maxX, scrollXNew));
-      scrollYNew = Math.max(0, Math.min(maxY, scrollYNew));
-      pendingWheelScroll.current = { x: scrollXNew, y: scrollYNew };
+      panXNew = Math.max(0, Math.min(maxX, panXNew));
+      panYNew = Math.max(0, Math.min(maxY, panYNew));
+      pendingWheelPan.current = { x: panXNew, y: panYNew };
       setMapScale(scaleNew);
     };
     el.addEventListener("wheel", onWheelNative, { passive: false });
     return () => {
+      el.removeEventListener("touchstart", onTouchStartNative);
       el.removeEventListener("touchmove", onMove);
       el.removeEventListener("wheel", onWheelNative);
     };
@@ -479,12 +515,13 @@ export function MappaScreen() {
         </View>
       </View>
 
-      {/* Contenitore mappa: occupa esattamente lo spazio tra banner superiore e inferiore */}
+      {/* Contenitore mappa: solo transform (translate3d + scale), niente reflow */}
       <View style={styles.mapContainer}>
         <View
           nativeID="mappa-viewport"
           style={[
             styles.viewport,
+            styles.viewportTouchAction,
             Platform.OS === "web" && (isDragging ? styles.viewportWebGrabbing : styles.viewportWeb)
           ]}
           onLayout={onViewportLayout}
@@ -496,41 +533,21 @@ export function MappaScreen() {
           onTouchMove={onTouchMove}
           onTouchEnd={onTouchEnd}
         >
-          <ScrollView
-          ref={hScrollRef}
-          style={styles.viewport}
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={{
-            width: contentWidth * mapScale,
-            height: "100%"
-          }}
-          onScroll={(e) => { scrollX.current = e.nativeEvent.contentOffset.x; }}
-          scrollEventThrottle={16}
-        >
-          <ScrollView
-            ref={vScrollRef}
-            style={[styles.viewportInner, { width: contentWidth * mapScale }]}
-            showsVerticalScrollIndicator={false}
-            contentContainerStyle={{
-              width: contentWidth * mapScale,
-              height: contentHeight * mapScale
-            }}
-            bounces={false}
-            onScroll={(e) => { scrollY.current = e.nativeEvent.contentOffset.y; }}
-            scrollEventThrottle={16}
+          <View
+            style={[
+              styles.mapTransform,
+              {
+                width: contentWidth,
+                height: contentHeight,
+                transform: [
+                  { translateX: -panX },
+                  { translateY: -panY },
+                  { scale: mapScale }
+                ]
+              },
+              Platform.OS === "web" && styles.mapTransformWeb
+            ]}
           >
-          <View style={{ width: contentWidth * mapScale, height: contentHeight * mapScale }}>
-            <View
-              style={[
-                {
-                  width: contentWidth,
-                  height: contentHeight,
-                  transform: [{ scale: mapScale }]
-                },
-                Platform.OS === "web" && { transformOrigin: "top left" as const }
-              ]}
-            >
           <View style={[styles.contentWrap, { padding: PADDING }]}>
             <View style={[styles.griglia, styles.grigliaTerreno, { gap: GAP, width: gridWidth }]}>
               {Array.from({ length: totaleCelle }, (_, i) => {
@@ -686,10 +703,7 @@ export function MappaScreen() {
               })}
             </View>
           </View>
-            </View>
-          </View>
-          </ScrollView>
-        </ScrollView>
+        </View>
         </View>
       </View>
 
@@ -979,13 +993,26 @@ const styles = StyleSheet.create({
   viewport: {
     flex: 1,
     minHeight: 0,
-    backgroundColor: "#2d5a27"
+    backgroundColor: "#2d5a27",
+    overflow: "hidden"
+  },
+  viewportTouchAction: {
+    ...(Platform.OS === "web" ? { touchAction: "none" as const } : {})
   },
   viewportWeb: {
     cursor: "grab"
   },
   viewportWebGrabbing: {
     cursor: "grabbing"
+  },
+  mapTransform: {
+    position: "absolute",
+    left: 0,
+    top: 0
+  },
+  mapTransformWeb: {
+    transformOrigin: "top left",
+    willChange: "transform"
   },
   viewportInner: {
     flex: 1
