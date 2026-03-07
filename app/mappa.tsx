@@ -187,8 +187,6 @@ export function MappaScreen() {
   const [mapScale, setMapScale] = useState(1);
   const lastTapCell = useRef<number | null>(null);
   const lastTapTime = useRef<number>(0);
-  const pinchStartDist = useRef<number | null>(null);
-  const pinchStartScale = useRef<number>(1);
 
   useEffect(() => {
     if (Platform.OS === "web" && typeof document !== "undefined") {
@@ -214,7 +212,16 @@ export function MappaScreen() {
   const [panY, setPanY] = useState(0);
   const viewportW = useRef(0);
   const viewportH = useRef(0);
-  const dragStart = useRef<{ x: number; y: number; panX: number; panY: number } | null>(null);
+  const activePointers = useRef<Map<number, { clientX: number; clientY: number }>>(new Map());
+  const dragStart = useRef<{ pointerX: number; pointerY: number; panX: number; panY: number } | null>(null);
+  const pinchStart = useRef<{
+    dist: number;
+    scale: number;
+    centerX: number;
+    centerY: number;
+    panX: number;
+    panY: number;
+  } | null>(null);
   const pointerDownTarget = useRef<HTMLElement | null>(null);
   const didDragThisGesture = useRef(false);
   const pendingWheelPan = useRef<{ x: number; y: number } | null>(null);
@@ -222,6 +229,8 @@ export function MappaScreen() {
   const panXRef = useRef(0);
   const panYRef = useRef(0);
   const rafId = useRef<number | null>(null);
+  const setIsDraggingRef = useRef(setIsDragging);
+  setIsDraggingRef.current = setIsDragging;
   mapScaleRef.current = mapScale;
   panXRef.current = panX;
   panYRef.current = panY;
@@ -241,104 +250,95 @@ export function MappaScreen() {
     viewportH.current = e.nativeEvent.layout.height;
   }, []);
 
-  const onPointerDown = useCallback(
-    (e: React.PointerEvent) => {
-      if (Platform.OS !== "web") return;
-      didDragThisGesture.current = false;
-      pointerDownTarget.current = e.target as HTMLElement;
-      const el = e.currentTarget as HTMLElement;
-      if (el?.setPointerCapture) el.setPointerCapture(e.pointerId);
-      dragStart.current = {
-        x: e.clientX,
-        y: e.clientY,
-        panX,
-        panY
-      };
-    },
-    [panX, panY]
-  );
+  useEffect(() => {
+    if (pendingWheelPan.current === null) return;
+    const { x, y } = pendingWheelPan.current;
+    pendingWheelPan.current = null;
+    setPanX(x);
+    setPanY(y);
+  }, [mapScale]);
 
-  const onPointerMove = useCallback(
-    (e: React.PointerEvent) => {
-      if (Platform.OS !== "web" || !dragStart.current) return;
-      didDragThisGesture.current = true;
-      setIsDragging(true);
+  useEffect(() => {
+    if (Platform.OS !== "web" || typeof document === "undefined") return;
+    const el = document.getElementById("mappa-viewport") as HTMLElement | null;
+    if (!el) return;
+
+    el.style.touchAction = "none";
+    el.style.userSelect = "none";
+
+    const getContainerCoords = (clientX: number, clientY: number, rect: DOMRect) => ({
+      x: clientX - rect.left,
+      y: clientY - rect.top
+    });
+
+    const onPointerDown = (e: PointerEvent) => {
       e.preventDefault();
-      const dx = dragStart.current.x - e.clientX;
-      const dy = dragStart.current.y - e.clientY;
-      const maxX = Math.max(0, contentWidth * mapScale - viewportW.current);
-      const maxY = Math.max(0, contentHeight * mapScale - viewportH.current);
-      const newX = Math.max(0, Math.min(maxX, dragStart.current.panX + dx));
-      const newY = Math.max(0, Math.min(maxY, dragStart.current.panY + dy));
-      if (rafId.current !== null) cancelAnimationFrame(rafId.current);
-      rafId.current = requestAnimationFrame(() => {
-        rafId.current = null;
-        setPanX(newX);
-        setPanY(newY);
-      });
-    },
-    [contentWidth, contentHeight, mapScale, panX, panY]
-  );
+      e.stopPropagation();
+      if (el.setPointerCapture) el.setPointerCapture(e.pointerId);
+      activePointers.current.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
+      const rect = el.getBoundingClientRect();
 
-  const onPointerUp = useCallback((e: React.PointerEvent) => {
-    if (Platform.OS !== "web") return;
-    const el = e.currentTarget as HTMLElement;
-    if (el?.releasePointerCapture) el.releasePointerCapture(e.pointerId);
-    if (!didDragThisGesture.current && pointerDownTarget.current) {
-      pointerDownTarget.current.click();
-    }
-    pointerDownTarget.current = null;
-    dragStart.current = null;
-    didDragThisGesture.current = false;
-    setIsDragging(false);
-  }, []);
-
-  const onPointerLeave = useCallback(() => {
-    dragStart.current = null;
-    setIsDragging(false);
-  }, []);
-
-  const getTouchDistance = useCallback((touches: { pageX: number; pageY: number }[]) => {
-    if (touches.length < 2) return 0;
-    const dx = touches[1].pageX - touches[0].pageX;
-    const dy = touches[1].pageY - touches[0].pageY;
-    return Math.hypot(dx, dy);
-  }, []);
-
-  const getTouchCenter = useCallback(
-    (touches: { pageX: number; pageY: number }[], containerRect: DOMRect) => {
-      if (touches.length < 2) return { x: 0, y: 0 };
-      const cx = (touches[0].pageX + touches[1].pageX) / 2 - containerRect.left;
-      const cy = (touches[0].pageY + touches[1].pageY) / 2 - containerRect.top;
-      return { x: cx, y: cy };
-    },
-    []
-  );
-
-  const onTouchStart = useCallback(
-    (e: React.TouchEvent) => {
-      if (e.nativeEvent.touches.length === 2) {
-        pinchStartDist.current = getTouchDistance(Array.from(e.nativeEvent.touches));
-        pinchStartScale.current = mapScale;
+      if (activePointers.current.size === 1) {
+        const { x, y } = getContainerCoords(e.clientX, e.clientY, rect);
+        dragStart.current = { pointerX: x, pointerY: y, panX: panXRef.current, panY: panYRef.current };
+        pinchStart.current = null;
+        pointerDownTarget.current = e.target as HTMLElement;
+        didDragThisGesture.current = false;
+      } else if (activePointers.current.size === 2) {
+        dragStart.current = null;
+        const arr = Array.from(activePointers.current.entries());
+        const c1 = getContainerCoords(arr[0][1].clientX, arr[0][1].clientY, rect);
+        const c2 = getContainerCoords(arr[1][1].clientX, arr[1][1].clientY, rect);
+        const dist = Math.hypot(c2.x - c1.x, c2.y - c1.y);
+        const centerX = (c1.x + c2.x) / 2;
+        const centerY = (c1.y + c2.y) / 2;
+        pinchStart.current = {
+          dist,
+          scale: mapScaleRef.current,
+          centerX,
+          centerY,
+          panX: panXRef.current,
+          panY: panYRef.current
+        };
       }
-    },
-    [getTouchDistance, mapScale]
-  );
+    };
 
-  const onTouchMove = useCallback(
-    (e: React.TouchEvent) => {
-      if (e.nativeEvent.touches.length === 2 && pinchStartDist.current !== null) {
-        e.preventDefault();
-        const touches = Array.from(e.nativeEvent.touches);
-        const dist = getTouchDistance(touches);
-        const scaleNew = Math.min(3, Math.max(0.4, (dist / pinchStartDist.current) * pinchStartScale.current));
-        const el = e.currentTarget as HTMLElement;
-        const rect = el.getBoundingClientRect();
-        const center = getTouchCenter(touches, rect);
-        const scale = pinchStartScale.current;
-        const ratio = scaleNew / scale;
-        let newPanX = (panXRef.current + center.x) * ratio - center.x;
-        let newPanY = (panYRef.current + center.y) * ratio - center.y;
+    const onPointerMove = (e: PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      activePointers.current.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
+      const rect = el.getBoundingClientRect();
+      const n = activePointers.current.size;
+
+      if (n === 1 && dragStart.current) {
+        const p = Array.from(activePointers.current.values())[0];
+        const cur = getContainerCoords(p.clientX, p.clientY, rect);
+        const dx = cur.x - dragStart.current.pointerX;
+        const dy = cur.y - dragStart.current.pointerY;
+        didDragThisGesture.current = true;
+        setIsDraggingRef.current(true);
+        const maxX = Math.max(0, contentWidth * mapScaleRef.current - viewportW.current);
+        const maxY = Math.max(0, contentHeight * mapScaleRef.current - viewportH.current);
+        const newPanX = Math.max(0, Math.min(maxX, dragStart.current.panX + dx));
+        const newPanY = Math.max(0, Math.min(maxY, dragStart.current.panY + dy));
+        if (rafId.current !== null) cancelAnimationFrame(rafId.current);
+        rafId.current = requestAnimationFrame(() => {
+          rafId.current = null;
+          setPanX(newPanX);
+          setPanY(newPanY);
+        });
+      } else if (n === 2 && pinchStart.current) {
+        const arr = Array.from(activePointers.current.entries());
+        const c1 = getContainerCoords(arr[0][1].clientX, arr[0][1].clientY, rect);
+        const c2 = getContainerCoords(arr[1][1].clientX, arr[1][1].clientY, rect);
+        const dist = Math.hypot(c2.x - c1.x, c2.y - c1.y);
+        const centerX = (c1.x + c2.x) / 2;
+        const centerY = (c1.y + c2.y) / 2;
+        const ps = pinchStart.current;
+        const scaleNew = Math.min(3, Math.max(0.4, ps.scale * (dist / ps.dist)));
+        const ratio = scaleNew / ps.scale;
+        let newPanX = (ps.panX + centerX) * ratio - centerX;
+        let newPanY = (ps.panY + centerY) * ratio - centerY;
         const maxX = Math.max(0, contentWidth * scaleNew - viewportW.current);
         const maxY = Math.max(0, contentHeight * scaleNew - viewportH.current);
         newPanX = Math.max(0, Math.min(maxX, newPanX));
@@ -351,36 +351,55 @@ export function MappaScreen() {
           setPanY(newPanY);
         });
       }
-    },
-    [getTouchDistance, getTouchCenter, contentWidth, contentHeight]
-  );
-
-  const onTouchEnd = useCallback(() => {
-    pinchStartDist.current = null;
-  }, []);
-
-  useEffect(() => {
-    if (pendingWheelPan.current === null) return;
-    const { x, y } = pendingWheelPan.current;
-    pendingWheelPan.current = null;
-    setPanX(x);
-    setPanY(y);
-  }, [mapScale]);
-
-  useEffect(() => {
-    if (Platform.OS !== "web" || typeof document === "undefined") return;
-    const el = document.getElementById("mappa-viewport");
-    if (!el) return;
-    const onTouchStartNative = (e: TouchEvent) => {
-      if (e.touches.length >= 2) e.preventDefault();
     };
-    const onMove = (e: TouchEvent) => {
-      if (e.touches.length === 2 && pinchStartDist.current !== null) e.preventDefault();
+
+    const onPointerUp = (e: PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      if (el.releasePointerCapture) el.releasePointerCapture(e.pointerId);
+      activePointers.current.delete(e.pointerId);
+      const n = activePointers.current.size;
+
+      if (n === 0) {
+        if (!didDragThisGesture.current && pointerDownTarget.current) {
+          pointerDownTarget.current.click();
+        }
+        pointerDownTarget.current = null;
+        dragStart.current = null;
+        pinchStart.current = null;
+        didDragThisGesture.current = false;
+        setIsDraggingRef.current(false);
+      } else if (n === 1) {
+        pinchStart.current = null;
+        const [id, p] = Array.from(activePointers.current.entries())[0];
+        const rect = el.getBoundingClientRect();
+        const { x, y } = getContainerCoords(p.clientX, p.clientY, rect);
+        dragStart.current = { pointerX: x, pointerY: y, panX: panXRef.current, panY: panYRef.current };
+      }
     };
-    el.addEventListener("touchstart", onTouchStartNative, { passive: false });
-    el.addEventListener("touchmove", onMove, { passive: false });
+
+    const onPointerCancel = (e: PointerEvent) => {
+      e.preventDefault();
+      e.stopPropagation();
+      activePointers.current.delete(e.pointerId);
+      if (activePointers.current.size === 0) {
+        dragStart.current = null;
+        pinchStart.current = null;
+        pointerDownTarget.current = null;
+        didDragThisGesture.current = false;
+        setIsDraggingRef.current(false);
+      } else if (activePointers.current.size === 1) {
+        pinchStart.current = null;
+        const [_, p] = Array.from(activePointers.current.entries())[0];
+        const rect = el.getBoundingClientRect();
+        const { x, y } = getContainerCoords(p.clientX, p.clientY, rect);
+        dragStart.current = { pointerX: x, pointerY: y, panX: panXRef.current, panY: panYRef.current };
+      }
+    };
+
     const onWheelNative = (e: WheelEvent) => {
       e.preventDefault();
+      e.stopPropagation();
       const rect = el.getBoundingClientRect();
       const mouseX = e.clientX - rect.left;
       const mouseY = e.clientY - rect.top;
@@ -398,10 +417,23 @@ export function MappaScreen() {
       pendingWheelPan.current = { x: panXNew, y: panYNew };
       setMapScale(scaleNew);
     };
-    el.addEventListener("wheel", onWheelNative, { passive: false });
+
+    const opts = { passive: false };
+    el.addEventListener("pointerdown", onPointerDown, opts);
+    el.addEventListener("pointermove", onPointerMove, opts);
+    el.addEventListener("pointerup", onPointerUp, opts);
+    el.addEventListener("pointercancel", onPointerCancel, opts);
+    el.addEventListener("pointerleave", onPointerUp, opts);
+    el.addEventListener("wheel", onWheelNative, opts);
+
     return () => {
-      el.removeEventListener("touchstart", onTouchStartNative);
-      el.removeEventListener("touchmove", onMove);
+      el.style.touchAction = "";
+      el.style.userSelect = "";
+      el.removeEventListener("pointerdown", onPointerDown);
+      el.removeEventListener("pointermove", onPointerMove);
+      el.removeEventListener("pointerup", onPointerUp);
+      el.removeEventListener("pointercancel", onPointerCancel);
+      el.removeEventListener("pointerleave", onPointerUp);
       el.removeEventListener("wheel", onWheelNative);
     };
   }, [contentWidth, contentHeight]);
@@ -525,13 +557,6 @@ export function MappaScreen() {
             Platform.OS === "web" && (isDragging ? styles.viewportWebGrabbing : styles.viewportWeb)
           ]}
           onLayout={onViewportLayout}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerLeave={onPointerLeave}
-          onTouchStart={onTouchStart}
-          onTouchMove={onTouchMove}
-          onTouchEnd={onTouchEnd}
         >
           <View
             style={[
