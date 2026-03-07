@@ -39,6 +39,13 @@ export default function SpazioportoScreen() {
 
         <View style={styles.linksSection}>
           <Text style={styles.sectionTitle}>Collegamenti</Text>
+          <Pressable style={styles.linkCard} onPress={() => router.push("/mercato")}>
+            <Text style={styles.linkEmoji}>🏪</Text>
+            <View style={styles.linkContent}>
+              <Text style={styles.linkTitle}>Mercato</Text>
+              <Text style={styles.linkDesc}>Ordini e scambi di risorse</Text>
+            </View>
+          </Pressable>
           <Pressable style={styles.linkCard} onPress={() => router.push("/immigrazione")}>
             <Text style={styles.linkEmoji}>🛂</Text>
             <View style={styles.linkContent}>

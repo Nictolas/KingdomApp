@@ -170,11 +170,6 @@ export default function GridGame() {
             <Text style={styles.navEmoji}>🗺️</Text>
             <Text style={styles.navLabel}>Mappa</Text>
           </Pressable>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/immigrazione")}>
-            <Text style={styles.navEmoji}>🛂</Text>
-            <Text style={styles.navLabel}>Immigrazione</Text>
-            <Text style={styles.navMeta}>{abitantiProposti.length > 0 ? `${abitantiProposti.length} candidati` : "—"}</Text>
-          </Pressable>
         </View>
       </View>
 
@@ -217,17 +212,9 @@ export default function GridGame() {
             <Text style={styles.navEmoji}>📊</Text>
             <Text style={styles.navLabel}>Competenze</Text>
           </Pressable>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/mercato")}>
-            <Text style={styles.navEmoji}>🏪</Text>
-            <Text style={styles.navLabel}>Mercato</Text>
-          </Pressable>
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/eventi")}>
             <Text style={styles.navEmoji}>📌</Text>
             <Text style={styles.navLabel}>Eventi</Text>
-          </Pressable>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/pianeti")}>
-            <Text style={styles.navEmoji}>🪐</Text>
-            <Text style={styles.navLabel}>Pianeti</Text>
           </Pressable>
         </View>
       </View>

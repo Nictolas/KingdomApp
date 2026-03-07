@@ -32,6 +32,10 @@ const SPAZIOPORTO_INDEX = CENTRO_COMANDO_INDEX + 1;
 const TRIBUNALE_INDEX = CENTRO_COMANDO_INDEX + GRIGLIA_COLONNE;
 /** Cella occupata dalla Serra (a sinistra del Centro di Comando). */
 const SERRA_INDEX = CENTRO_COMANDO_INDEX - 1;
+/** Celle occupate dai tre Dormitori. */
+const DORMITORIO_1_INDEX = CENTRO_COMANDO_INDEX + 2;
+const DORMITORIO_2_INDEX = CENTRO_COMANDO_INDEX - GRIGLIA_COLONNE;
+const DORMITORIO_3_INDEX = CENTRO_COMANDO_INDEX + GRIGLIA_COLONNE + 1;
 
 /** Route per edificio (come in app/edifici). */
 const EDIFICIO_TO_ROUTE: Record<string, string> = {
@@ -41,6 +45,8 @@ const EDIFICIO_TO_ROUTE: Record<string, string> = {
   "Raffineria Mineraria": "/raffineria-mineraria",
   "Impianto di Riciclo": "/impianto-riciclo",
   "Baracca": "/residenze",
+  "Capanna": "/residenze",
+  "Dormitorio": "/residenze",
   "Scuola": "/scuola",
   "Ospedale Coloniale": "/ospedale",
   "Centrale": "/centrale",
@@ -71,11 +77,16 @@ const RAFFINERIA_MINERARIA: EdificioInCella = { id: 3, nome: "Raffineria Minerar
 /** Opzione "Strada" per il dialog costruzione (cella diventa lastricato strada). */
 const STRADA_OPZIONE: EdificioInCella = { id: -1, nome: "Strada", emoji: "🛤️" };
 
+const DORMITORIO: EdificioInCella = { id: 14, nome: "Dormitorio", emoji: "🛏️" };
+
 const edificiIniziali: Record<number, EdificioInCella> = {
   [CENTRO_COMANDO_INDEX]: { id: 1, nome: "Centro di Comando", emoji: "🏛️" },
   [SPAZIOPORTO_INDEX]: { id: 19, nome: "Spazioporto", emoji: "🚀" },
   [TRIBUNALE_INDEX]: { id: 12, nome: "Tribunale", emoji: "⚖️" },
-  [SERRA_INDEX]: { id: 2, nome: "Serra", emoji: "🌱" }
+  [SERRA_INDEX]: { id: 2, nome: "Serra", emoji: "🌱" },
+  [DORMITORIO_1_INDEX]: DORMITORIO,
+  [DORMITORIO_2_INDEX]: DORMITORIO,
+  [DORMITORIO_3_INDEX]: DORMITORIO
 };
 
 const TOTALE_CELLE = GRIGLIA_COLONNE * GRIGLIA_RIGHE;

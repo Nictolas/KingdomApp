@@ -19,6 +19,7 @@ const COLONNA_PRODUZIONE: string[] = [
 const COLONNA_SERVIZI: string[] = [
   "Centro di Comando",
   "Baracca", // Residenze (card mostrata come "Residenze")
+  "Capanna", // Residenza solo Nativi
   "Bar",
   "Scuola",
   "Ospedale Coloniale", // Ospedale
@@ -82,7 +83,7 @@ export default function EdificiScreen() {
       router.push("/raffineria-mineraria");
     } else if (e.nome === "Impianto di Riciclo") {
       router.push("/impianto-riciclo");
-    } else if (e.nome === "Baracca") {
+    } else if (e.nome === "Baracca" || e.nome === "Capanna") {
       router.push("/residenze");
     } else if (e.nome === "Scuola") {
       router.push("/scuola");

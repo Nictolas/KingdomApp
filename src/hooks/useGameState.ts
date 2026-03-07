@@ -140,7 +140,7 @@ export function useGameState() {
   /** Prezzo mensile (crediti) impostato dall'utente per ogni tipo di residenza. Default dal catalogo se non impostato. */
   const [prezzoResidenze, setPrezzoResidenzeState] = useState<Record<string, number>>({});
   const setPrezzoResidenza = useCallback((nomeResidenza: string, prezzo: number) => {
-    if (nomeResidenza === "Baracca") return; // Baracca ha sempre costo 0, non modificabile
+    if (nomeResidenza === "Baracca" || nomeResidenza === "Capanna") return; // Costo 0 fisso, non modificabile
     const value = Math.max(0, Math.floor(prezzo));
     setPrezzoResidenzeState((prev) => ({ ...prev, [nomeResidenza]: value }));
   }, []);
@@ -329,6 +329,7 @@ export function useGameState() {
     setEdifici((prevEdifici) =>
       prevEdifici.map((edificio) => {
         if (edificio.id === edificioId) {
+          if (edificio.nome === "Capanna" && !abitante?.fazioni?.includes("Nativi")) return edificio;
           if (
             !edificio.abitantiAssegnati.includes(abitanteId) &&
             edificio.abitantiAssegnati.length < edificio.capacità &&

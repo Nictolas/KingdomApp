@@ -41,9 +41,12 @@ export default function ResidenzeScreen() {
           <View style={styles.gridSeiColonne}>
             {RESIDENZE_CATALOGO.map((r) => {
               const ed = getEdificioByName(r.nome);
-              const assegnati = ed
+              let assegnati = ed
                 ? (ed.abitantiAssegnati ?? []).map((id) => getAbitanteById(id)).filter((a): a is NonNullable<typeof a> => a != null)
                 : [];
+              if (r.fazioneRichiesta != null) {
+                assegnati = assegnati.filter((a) => a.fazioni?.includes(r.fazioneRichiesta!));
+              }
               const numAbitanti = assegnati.length;
               const energiaConsumata = r.energiaPerAbitante * numAbitanti;
               return (
@@ -51,6 +54,9 @@ export default function ResidenzeScreen() {
                   <View style={styles.cardHeader}>
                     <Text style={styles.cardEmoji}>{r.emoji}</Text>
                     <Text style={styles.cardNome}>{r.nomePlurale}</Text>
+                    {r.fazioneRichiesta != null && (
+                      <Text style={styles.fazioneRichiesta}>Solo {r.fazioneRichiesta}</Text>
+                    )}
                     {ed != null && (
                       <Text style={styles.occupazione}>
                         {ed.occupazione}/{ed.capacità} posti
@@ -65,7 +71,7 @@ export default function ResidenzeScreen() {
                     <Text style={styles.cardLabel}>Prezzo (cr/mese)</Text>
                   </View>
                   <View style={styles.prezzoRow}>
-                    {r.nome === "Baracca" ? (
+                    {r.nome === "Baracca" || r.nome === "Capanna" ? (
                       <Text style={styles.prezzoFisso}>0 (fisso)</Text>
                     ) : (
                       <TextInput
@@ -214,6 +220,12 @@ const styles = StyleSheet.create({
     color: "rgba(203,213,245,0.7)",
     fontSize: 10,
     marginTop: 2
+  },
+  fazioneRichiesta: {
+    color: "rgba(203,213,245,0.6)",
+    fontSize: 10,
+    marginTop: 2,
+    fontStyle: "italic"
   },
   abitantiLabel: {
     color: "#93c5fd",

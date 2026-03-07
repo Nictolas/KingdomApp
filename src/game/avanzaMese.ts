@@ -59,16 +59,20 @@ export type AvanzaMeseOutput = {
   avvisoDiario: string | null;
 };
 
-/** Sincronizza le residenze: Baracca = tutti e solo i Senzatetto; gli altri edifici residenza non contengono Senzatetto. */
+/** Sincronizza le residenze: Baracca = tutti e solo i Senzatetto; Capanna solo Nativi; gli altri non contengono Senzatetto. */
 export function syncResidenzeBaraccaSenzatetto(edifici: Edificio[], abitanti: Abitante[]): Edificio[] {
   const senzatettoIds = new Set(abitanti.filter((a) => a.fazioni?.includes("Senzatetto")).map((a) => a.id));
+  const nativiIds = new Set(abitanti.filter((a) => a.fazioni?.includes("Nativi")).map((a) => a.id));
   return edifici.map((e) => {
     if (e.tipo !== "Residenza") return e;
     if (e.nome === "Baracca") {
       const ids = [...senzatettoIds];
       return { ...e, abitantiAssegnati: ids, occupazione: ids.length };
     }
-    const nuovi = (e.abitantiAssegnati ?? []).filter((id) => !senzatettoIds.has(id));
+    let nuovi = (e.abitantiAssegnati ?? []).filter((id) => !senzatettoIds.has(id));
+    if (e.nome === "Capanna") {
+      nuovi = nuovi.filter((id) => nativiIds.has(id));
+    }
     return { ...e, abitantiAssegnati: nuovi, occupazione: nuovi.length };
   });
 }
