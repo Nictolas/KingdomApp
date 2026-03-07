@@ -20,11 +20,15 @@ const PADDING = 12;
 const GAP = 2;
 const MIN_CELL_SIZE = 14;
 const DOPPIO_TAP_MS = 400;
+const STRADA_SPESSORE = 6;
+const STRADA_COLORE = "#78716c";
 
 /** Indice della cella occupata dal Centro di Comando (centro griglia). */
 const CENTRO_COMANDO_INDEX = Math.floor(GRIGLIA_COLONNE * GRIGLIA_RIGHE / 2) - Math.floor(GRIGLIA_COLONNE / 2);
 /** Cella occupata dallo Spazioporto (a destra del Centro di Comando). */
 const SPAZIOPORTO_INDEX = CENTRO_COMANDO_INDEX + 1;
+/** Cella occupata dal Tribunale (sotto il Centro di Comando). */
+const TRIBUNALE_INDEX = CENTRO_COMANDO_INDEX + GRIGLIA_COLONNE;
 
 /** Route per edificio (come in app/edifici). */
 const EDIFICIO_TO_ROUTE: Record<string, string> = {
@@ -54,8 +58,23 @@ function isAcqua(_index: number): boolean {
 
 const edificiIniziali: Record<number, EdificioInCella> = {
   [CENTRO_COMANDO_INDEX]: { id: 1, nome: "Centro di Comando", emoji: "🏛️" },
-  [SPAZIOPORTO_INDEX]: { id: 19, nome: "Spazioporto", emoji: "🚀" }
+  [SPAZIOPORTO_INDEX]: { id: 19, nome: "Spazioporto", emoji: "🚀" },
+  [TRIBUNALE_INDEX]: { id: 12, nome: "Tribunale", emoji: "⚖️" }
 };
+
+/** Coppie [indiceA, indiceB] di celle tra cui disegnare una strada (centro → centro). */
+const STRADE_INIZIALI: [number, number][] = [
+  [CENTRO_COMANDO_INDEX, SPAZIOPORTO_INDEX],
+  [CENTRO_COMANDO_INDEX, TRIBUNALE_INDEX]
+];
+
+function getCellCenter(cellIndex: number, size: number): { x: number; y: number } {
+  const col = cellIndex % GRIGLIA_COLONNE;
+  const row = Math.floor(cellIndex / GRIGLIA_COLONNE);
+  const x = PADDING + col * (size + GAP) + size / 2;
+  const y = PADDING + row * (size + GAP) + size / 2;
+  return { x, y };
+}
 
 export default function MappaScreen() {
   const router = useRouter();
@@ -226,6 +245,41 @@ export default function MappaScreen() {
             scrollEventThrottle={16}
           >
           <View style={[styles.contentWrap, { padding: PADDING }]}>
+            <View
+              style={[
+                styles.roadsLayer,
+                { width: contentWidth, height: contentHeight }
+              ]}
+              pointerEvents="none"
+            >
+              {STRADE_INIZIALI.filter(
+                ([a, b]) => edificiInMappa[a] && edificiInMappa[b]
+              ).map(([from, to]) => {
+                const c1 = getCellCenter(from, size);
+                const c2 = getCellCenter(to, size);
+                const dx = c2.x - c1.x;
+                const dy = c2.y - c1.y;
+                const length = Math.sqrt(dx * dx + dy * dy) || 1;
+                const midX = (c1.x + c2.x) / 2;
+                const midY = (c1.y + c2.y) / 2;
+                const angle = Math.atan2(dy, dx);
+                return (
+                  <View
+                    key={`strada-${from}-${to}`}
+                    style={[
+                      styles.stradaLinea,
+                      {
+                        width: length,
+                        height: STRADA_SPESSORE,
+                        left: midX - length / 2,
+                        top: midY - STRADA_SPESSORE / 2,
+                        transform: [{ rotate: `${angle}rad` }]
+                      }
+                    ]}
+                  />
+                );
+              })}
+            </View>
             <View style={[styles.griglia, { gap: GAP, width: gridWidth }]}>
             {Array.from({ length: totaleCelle }, (_, i) => {
               const acqua = isAcqua(i);
@@ -330,12 +384,25 @@ const styles = StyleSheet.create({
   contentWrap: {
     flexDirection: "row",
     flexWrap: "wrap",
-    alignContent: "flex-start"
+    alignContent: "flex-start",
+    position: "relative"
+  },
+  roadsLayer: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    zIndex: 0
+  },
+  stradaLinea: {
+    position: "absolute",
+    backgroundColor: STRADA_COLORE,
+    borderRadius: STRADA_SPESSORE / 2
   },
   griglia: {
     flexDirection: "row",
     flexWrap: "wrap",
-    alignContent: "flex-start"
+    alignContent: "flex-start",
+    zIndex: 1
   },
   cella: {
     borderRadius: 2,
