@@ -1,9 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import {
   ActivityIndicator,
-  Dimensions,
   Modal,
-  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -11,6 +9,7 @@ import {
   Text,
   View
 } from "react-native";
+import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { Redirect, useRouter } from "expo-router";
 import { edificiData } from "../src/data/edificiData";
 import { useGameContext } from "../src/context/GameContext";
@@ -278,283 +277,35 @@ export function MappaScreen() {
     []
   );
   const [selectedCellForDialog, setSelectedCellForDialog] = useState<number | null>(null);
-  const [selectedCellForTransformDialog, setSelectedCellForTransformDialog] = useState<number | null>(
-    null
-  );
-  const [isDragging, setIsDragging] = useState(false);
-  const [mapScale, setMapScale] = useState(1);
   const lastTapCell = useRef<number | null>(null);
   const lastTapTime = useRef<number>(0);
 
   useEffect(() => {
-    if (Platform.OS === "web" && typeof document !== "undefined") {
-      document.body.style.overflow = "hidden";
-      document.documentElement.style.overflow = "hidden";
-      const meta = document.querySelector('meta[name="viewport"]');
-      const previousContent = meta?.getAttribute("content") ?? "";
-      if (meta) {
-        meta.setAttribute(
-          "content",
-          "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
-        );
-      }
-      return () => {
-        document.body.style.overflow = "";
-        document.documentElement.style.overflow = "";
-        if (meta) meta.setAttribute("content", previousContent || "width=device-width, initial-scale=1, viewport-fit=cover");
-      };
+    if (typeof document === "undefined") return;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    const meta = document.querySelector('meta[name="viewport"]');
+    const previousContent = meta?.getAttribute("content") ?? "";
+    if (meta) {
+      meta.setAttribute(
+        "content",
+        "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover"
+      );
     }
+    return () => {
+      document.body.style.overflow = "";
+      document.documentElement.style.overflow = "";
+      if (meta) meta.setAttribute("content", previousContent || "width=device-width, initial-scale=1, viewport-fit=cover");
+    };
   }, []);
-
-  const [panX, setPanX] = useState(0);
-  const [panY, setPanY] = useState(0);
-  const [viewportSize, setViewportSize] = useState<{ w: number; h: number }>({ w: 0, h: 0 });
-  const viewportW = useRef(0);
-  const viewportH = useRef(0);
-  const activePointers = useRef<Map<number, { clientX: number; clientY: number }>>(new Map());
-  const dragStart = useRef<{ pointerX: number; pointerY: number; panX: number; panY: number } | null>(null);
-  const pinchStart = useRef<{
-    dist: number;
-    scale: number;
-    centerX: number;
-    centerY: number;
-    panX: number;
-    panY: number;
-  } | null>(null);
-  const pointerDownTarget = useRef<HTMLElement | null>(null);
-  const didDragThisGesture = useRef(false);
-  const pendingWheelPan = useRef<{ x: number; y: number } | null>(null);
-  const mapScaleRef = useRef(1);
-  const panXRef = useRef(0);
-  const panYRef = useRef(0);
-  const rafId = useRef<number | null>(null);
-  const setIsDraggingRef = useRef(setIsDragging);
-  setIsDraggingRef.current = setIsDragging;
-  mapScaleRef.current = mapScale;
-  panXRef.current = panX;
-  panYRef.current = panY;
 
   const cols = FIXED_MAP_COLS;
   const rows = FIXED_MAP_ROWS;
-  const totaleCelle = cols * rows;
   const cellW = CELL_SIZE_PX;
   const cellH = CELL_SIZE_PX;
   const contentWidth = cols * CELL_SIZE_PX + (cols - 1) * GAP;
   const contentHeight = rows * CELL_SIZE_PX + (rows - 1) * GAP;
   const stradeIniziali = getStradeIniziali(edificiInMappa);
-
-  const onViewportLayout = useCallback((e: { nativeEvent: { layout: { width: number; height: number } } }) => {
-    const w = e.nativeEvent.layout.width;
-    const h = e.nativeEvent.layout.height;
-    viewportW.current = w;
-    viewportH.current = h;
-    setViewportSize((prev) => (prev.w === w && prev.h === h ? prev : { w, h }));
-  }, []);
-
-  useEffect(() => {
-    if (pendingWheelPan.current === null) return;
-    const { x, y } = pendingWheelPan.current;
-    pendingWheelPan.current = null;
-    setPanX(x);
-    setPanY(y);
-  }, [mapScale]);
-
-  useEffect(() => {
-    if (Platform.OS !== "web" || typeof document === "undefined") return;
-    const el = document.getElementById("mappa-viewport") as HTMLElement | null;
-    if (!el) return;
-
-    el.style.touchAction = "none";
-    el.style.userSelect = "none";
-    el.style.pointerEvents = "auto";
-
-    const getContainerCoords = (clientX: number, clientY: number, rect: DOMRect) => ({
-      x: clientX - rect.left,
-      y: clientY - rect.top
-    });
-
-    const onPointerDown = (e: PointerEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (el.setPointerCapture) el.setPointerCapture(e.pointerId);
-      activePointers.current.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
-      const rect = el.getBoundingClientRect();
-
-      if (activePointers.current.size === 1) {
-        const { x, y } = getContainerCoords(e.clientX, e.clientY, rect);
-        dragStart.current = { pointerX: x, pointerY: y, panX: panXRef.current, panY: panYRef.current };
-        pinchStart.current = null;
-        pointerDownTarget.current = e.target as HTMLElement;
-        didDragThisGesture.current = false;
-      } else if (activePointers.current.size === 2) {
-        dragStart.current = null;
-        const arr = Array.from(activePointers.current.entries());
-        const c1 = getContainerCoords(arr[0][1].clientX, arr[0][1].clientY, rect);
-        const c2 = getContainerCoords(arr[1][1].clientX, arr[1][1].clientY, rect);
-        const dist = Math.hypot(c2.x - c1.x, c2.y - c1.y);
-        const centerX = (c1.x + c2.x) / 2;
-        const centerY = (c1.y + c2.y) / 2;
-        pinchStart.current = {
-          dist,
-          scale: mapScaleRef.current,
-          centerX,
-          centerY,
-          panX: panXRef.current,
-          panY: panYRef.current
-        };
-      }
-    };
-
-    const onPointerMove = (e: PointerEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      activePointers.current.set(e.pointerId, { clientX: e.clientX, clientY: e.clientY });
-      const rect = el.getBoundingClientRect();
-      const n = activePointers.current.size;
-
-      if (n === 1 && dragStart.current) {
-        const p = Array.from(activePointers.current.values())[0];
-        const cur = getContainerCoords(p.clientX, p.clientY, rect);
-        const dx = cur.x - dragStart.current.pointerX;
-        const dy = cur.y - dragStart.current.pointerY;
-        didDragThisGesture.current = true;
-        setIsDraggingRef.current(true);
-        const scale = mapScaleRef.current;
-        const vw = viewportW.current;
-        const vh = viewportH.current;
-        const minPanX = (contentWidth * scale) / 2 - vw / 2;
-        const maxPanX = vw / 2 - (contentWidth * scale) / 2;
-        const minPanY = (contentHeight * scale) / 2 - vh / 2;
-        const maxPanY = vh / 2 - (contentHeight * scale) / 2;
-        const newPanX = Math.max(minPanX, Math.min(maxPanX, dragStart.current.panX - dx));
-        const newPanY = Math.max(minPanY, Math.min(maxPanY, dragStart.current.panY - dy));
-        if (rafId.current !== null) cancelAnimationFrame(rafId.current);
-        rafId.current = requestAnimationFrame(() => {
-          rafId.current = null;
-          setPanX(newPanX);
-          setPanY(newPanY);
-        });
-      } else if (n === 2 && pinchStart.current) {
-        const arr = Array.from(activePointers.current.entries());
-        const c1 = getContainerCoords(arr[0][1].clientX, arr[0][1].clientY, rect);
-        const c2 = getContainerCoords(arr[1][1].clientX, arr[1][1].clientY, rect);
-        const dist = Math.hypot(c2.x - c1.x, c2.y - c1.y);
-        const centerX = (c1.x + c2.x) / 2;
-        const centerY = (c1.y + c2.y) / 2;
-        const ps = pinchStart.current;
-        const scaleNew = Math.min(3, Math.max(0.4, ps.scale * (dist / ps.dist)));
-        const vw = viewportW.current;
-        const vh = viewportH.current;
-        const contentX = (centerX - vw / 2 + (contentWidth * ps.scale) / 2 + ps.panX) / ps.scale;
-        const contentY = (centerY - vh / 2 + (contentHeight * ps.scale) / 2 + ps.panY) / ps.scale;
-        let newPanX = vw / 2 - (contentWidth * scaleNew) / 2 + contentX * scaleNew - centerX;
-        let newPanY = vh / 2 - (contentHeight * scaleNew) / 2 + contentY * scaleNew - centerY;
-        const minPanX = (contentWidth * scaleNew) / 2 - vw / 2;
-        const maxPanX = vw / 2 - (contentWidth * scaleNew) / 2;
-        const minPanY = (contentHeight * scaleNew) / 2 - vh / 2;
-        const maxPanY = vh / 2 - (contentHeight * scaleNew) / 2;
-        newPanX = Math.max(minPanX, Math.min(maxPanX, newPanX));
-        newPanY = Math.max(minPanY, Math.min(maxPanY, newPanY));
-        if (rafId.current !== null) cancelAnimationFrame(rafId.current);
-        rafId.current = requestAnimationFrame(() => {
-          rafId.current = null;
-          setMapScale(scaleNew);
-          setPanX(newPanX);
-          setPanY(newPanY);
-        });
-      }
-    };
-
-    const onPointerUp = (e: PointerEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      if (el.releasePointerCapture) el.releasePointerCapture(e.pointerId);
-      activePointers.current.delete(e.pointerId);
-      const n = activePointers.current.size;
-
-      if (n === 0) {
-        if (!didDragThisGesture.current && pointerDownTarget.current) {
-          pointerDownTarget.current.click();
-        }
-        pointerDownTarget.current = null;
-        dragStart.current = null;
-        pinchStart.current = null;
-        didDragThisGesture.current = false;
-        setIsDraggingRef.current(false);
-      } else if (n === 1) {
-        pinchStart.current = null;
-        const [id, p] = Array.from(activePointers.current.entries())[0];
-        const rect = el.getBoundingClientRect();
-        const { x, y } = getContainerCoords(p.clientX, p.clientY, rect);
-        dragStart.current = { pointerX: x, pointerY: y, panX: panXRef.current, panY: panYRef.current };
-      }
-    };
-
-    const onPointerCancel = (e: PointerEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      activePointers.current.delete(e.pointerId);
-      if (activePointers.current.size === 0) {
-        dragStart.current = null;
-        pinchStart.current = null;
-        pointerDownTarget.current = null;
-        didDragThisGesture.current = false;
-        setIsDraggingRef.current(false);
-      } else if (activePointers.current.size === 1) {
-        pinchStart.current = null;
-        const [_, p] = Array.from(activePointers.current.entries())[0];
-        const rect = el.getBoundingClientRect();
-        const { x, y } = getContainerCoords(p.clientX, p.clientY, rect);
-        dragStart.current = { pointerX: x, pointerY: y, panX: panXRef.current, panY: panYRef.current };
-      }
-    };
-
-    const onWheelNative = (e: WheelEvent) => {
-      e.preventDefault();
-      e.stopPropagation();
-      const rect = el.getBoundingClientRect();
-      const mouseX = e.clientX - rect.left;
-      const mouseY = e.clientY - rect.top;
-      const scale = mapScaleRef.current;
-      const scaleDelta = 1 - e.deltaY * 0.0018;
-      const scaleNew = Math.min(3, Math.max(0.4, scale * scaleDelta));
-      if (scaleNew === scale) return;
-      const vw = viewportW.current;
-      const vh = viewportH.current;
-      const contentX = (mouseX - vw / 2 + (contentWidth * scale) / 2 + panXRef.current) / scale;
-      const contentY = (mouseY - vh / 2 + (contentHeight * scale) / 2 + panYRef.current) / scale;
-      let panXNew = vw / 2 - (contentWidth * scaleNew) / 2 + contentX * scaleNew - mouseX;
-      let panYNew = vh / 2 - (contentHeight * scaleNew) / 2 + contentY * scaleNew - mouseY;
-      const minPanX = (contentWidth * scaleNew) / 2 - vw / 2;
-      const maxPanX = vw / 2 - (contentWidth * scaleNew) / 2;
-      const minPanY = (contentHeight * scaleNew) / 2 - vh / 2;
-      const maxPanY = vh / 2 - (contentHeight * scaleNew) / 2;
-      panXNew = Math.max(minPanX, Math.min(maxPanX, panXNew));
-      panYNew = Math.max(minPanY, Math.min(maxPanY, panYNew));
-      pendingWheelPan.current = { x: panXNew, y: panYNew };
-      setMapScale(scaleNew);
-    };
-
-    const opts = { passive: false };
-    el.addEventListener("pointerdown", onPointerDown, opts);
-    el.addEventListener("pointermove", onPointerMove, opts);
-    el.addEventListener("pointerup", onPointerUp, opts);
-    el.addEventListener("pointercancel", onPointerCancel, opts);
-    el.addEventListener("pointerleave", onPointerUp, opts);
-    el.addEventListener("wheel", onWheelNative, opts);
-
-    return () => {
-      el.style.touchAction = "";
-      el.style.userSelect = "";
-      el.style.pointerEvents = "";
-      el.removeEventListener("pointerdown", onPointerDown);
-      el.removeEventListener("pointermove", onPointerMove);
-      el.removeEventListener("pointerup", onPointerUp);
-      el.removeEventListener("pointercancel", onPointerCancel);
-      el.removeEventListener("pointerleave", onPointerUp);
-      el.removeEventListener("wheel", onWheelNative);
-    };
-  }, [contentWidth, contentHeight]);
 
   const openRouteForEdificio = useCallback(
     (nome: string) => {
@@ -671,38 +422,39 @@ export function MappaScreen() {
         </View>
       </View>
 
-      {/* Contenitore mappa: viewport centrato, sfondo nero; zoom dal centro/mouse */}
+      {/* Contenitore mappa: viewport sfondo nero, griglia gestita da react-zoom-pan-pinch */}
       <View style={styles.mapContainer}>
-        <View
-          nativeID="mappa-viewport"
-          style={[
-            styles.viewport,
-            styles.viewportTouchAction,
-            styles.viewportPointerEvents,
-            Platform.OS === "web" && (isDragging ? styles.viewportWebGrabbing : styles.viewportWeb)
-          ]}
-          onLayout={onViewportLayout}
-        >
+        <View style={styles.viewport}>
           <View style={styles.viewportCenterWrap} pointerEvents="box-none">
-            <View
-              style={[
-                styles.mapTransform,
-                {
+            <TransformWrapper
+              limitToBounds={false}
+              centerOnInit
+              initialScale={1}
+              minScale={0.5}
+              maxScale={3}
+              doubleClick={{ disabled: true }}
+            >
+              <TransformComponent
+                wrapperStyle={{
+                  width: "100%",
+                  height: "100%",
+                  display: "flex",
+                  justifyContent: "center",
+                  alignItems: "center",
+                  overflow: "hidden"
+                }}
+                contentStyle={{
                   width: contentWidth,
                   height: contentHeight,
                   minWidth: contentWidth,
-                  minHeight: contentHeight,
-                  transform: [
-                    { translateX: -panX },
-                    { translateY: -panY },
-                    { scale: mapScale }
-                  ]
-                },
-                Platform.OS === "web" && styles.mapTransformWeb
-              ]}
-              pointerEvents="box-none"
-            >
-                <View style={[styles.gridFill, styles.gridFillFixed, { width: contentWidth, height: contentHeight, minWidth: contentWidth, minHeight: contentHeight }]}>
+                  minHeight: contentHeight
+                }}
+              >
+                <View
+                  style={[styles.gridWrap, { width: contentWidth, height: contentHeight }]}
+                  pointerEvents="box-none"
+                >
+                  <View style={[styles.gridFill, styles.gridFillFixed, { width: contentWidth, height: contentHeight, minWidth: contentWidth, minHeight: contentHeight }]}>
                   {Array.from({ length: rows }, (_, rowIndex) => (
                     <View key={rowIndex} style={[styles.gridRowFixed, { gap: GAP, height: cellH }]}>
                       {Array.from({ length: cols }, (_, colIndex) => {
@@ -826,7 +578,9 @@ export function MappaScreen() {
                     </View>
                   ))}
                 </View>
-            </View>
+                </View>
+              </TransformComponent>
+            </TransformWrapper>
           </View>
         </View>
       </View>
@@ -1122,8 +876,7 @@ const styles = StyleSheet.create({
     width: "100%",
     backgroundColor: "#000000",
     overflow: "hidden",
-    position: "relative",
-    ...(Platform.OS === "web" ? { display: "flex" as const } : {})
+    position: "relative"
   },
   viewportCenterWrap: {
     flex: 1,
@@ -1132,8 +885,10 @@ const styles = StyleSheet.create({
     minHeight: 120,
     justifyContent: "center",
     alignItems: "center",
-    overflow: "hidden",
-    ...(Platform.OS === "web" ? { display: "flex" as const } : {})
+    overflow: "hidden"
+  },
+  gridWrap: {
+    position: "relative"
   },
   gridFill: {
     flex: 1,
@@ -1158,29 +913,6 @@ const styles = StyleSheet.create({
     flex: 1,
     minWidth: 0,
     minHeight: 0
-  },
-  viewportTouchAction: {
-    ...(Platform.OS === "web" ? { touchAction: "none" as const } : {})
-  },
-  viewportPointerEvents: {
-    pointerEvents: "auto"
-  },
-  viewportWeb: {
-    cursor: "grab"
-  },
-  viewportWebGrabbing: {
-    cursor: "grabbing"
-  },
-  mapTransform: {
-    zIndex: 1
-  },
-  mapTransformWeb: {
-    transformOrigin: "center center",
-    willChange: "transform",
-    ...(Platform.OS === "web" ? { display: "block" as const } : {})
-  },
-  viewportInner: {
-    flex: 1
   },
   contentWrap: {
     flexDirection: "row",
