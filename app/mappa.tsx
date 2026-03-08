@@ -427,6 +427,11 @@ export function MappaScreen() {
             <Text style={styles.indLabel}>Disoccupazione</Text>
             <Text style={styles.indValue}>{disoccupazionePercent}%</Text>
           </Pressable>
+          <Pressable style={styles.indCard} onPress={() => router.push("/abitanti")}>
+            <Text style={styles.indEmoji}>👥</Text>
+            <Text style={styles.indLabel}>Abitanti</Text>
+            <Text style={styles.indValue}>{abitanti.length}</Text>
+          </Pressable>
           <Pressable style={styles.menuBtn} onPress={() => router.push("/menu")}>
             <Text style={styles.menuBtnText}>Menu</Text>
           </Pressable>
