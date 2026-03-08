@@ -233,6 +233,22 @@ function getCellCenter(cellIndex: number, cellW: number, cellH: number, cols: nu
   return { x, y };
 }
 
+/** Dato due indici cella, restituisce segmenti solo orizzontali/verticali (percorso a L). Ogni segmento è [indiceA, indiceB] con A e B adiacenti sulla griglia. */
+function getManhattanPathSegments(from: number, to: number, cols: number): [number, number][] {
+  const c1 = from % cols;
+  const r1 = Math.floor(from / cols);
+  const c2 = to % cols;
+  const r2 = Math.floor(to / cols);
+  if (c1 === c2 && r1 === r2) return [];
+  if (c1 === c2) return [[from, to]];
+  if (r1 === r2) return [[from, to]];
+  const mid = r1 * cols + c2;
+  return [
+    [from, mid],
+    [mid, to]
+  ];
+}
+
 /** Vicini ortogonali (su, giù, sinistra, destra) con controlli sui bordi. */
 function getViciniOrtogonali(index: number, cols: number, rows: number): number[] {
   const col = index % cols;
@@ -270,7 +286,7 @@ function getResourceRoute(r: Risorsa): string | null {
 
 export function MappaScreen() {
   const router = useRouter();
-  const { risorse, abitanti, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, calcolaDeltaOrdiniMercato, calcolaFelicitàModificata } = useGameContext();
+  const { risorse, abitanti, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, calcolaDeltaOrdiniMercato, calcolaFelicitàModificata } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
 
@@ -299,8 +315,14 @@ export function MappaScreen() {
   );
   const [selectedCellForDialog, setSelectedCellForDialog] = useState<number | null>(null);
   const [selectedCellForTransformDialog, setSelectedCellForTransformDialog] = useState<number | null>(null);
+  const [showCapannaAbitantiModal, setShowCapannaAbitantiModal] = useState(false);
   const lastTapCell = useRef<number | null>(null);
   const lastTapTime = useRef<number>(0);
+
+  const capannaEdificio = edifici.find((e) => e.nome === "Capanna");
+  const abitantiCapanna = (capannaEdificio?.abitantiAssegnati ?? [])
+    .map((id) => abitanti.find((a) => a.id === id))
+    .filter((a): a is NonNullable<typeof a> => a != null);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -357,6 +379,8 @@ export function MappaScreen() {
         if (edificio) {
           if (edificio.nome === "Giacimento") {
             setSelectedCellForTransformDialog(cellIndex);
+          } else if (edificio.nome === "Capanna") {
+            setShowCapannaAbitantiModal(true);
           } else {
             openRouteForEdificio(edificio.nome);
           }
@@ -519,22 +543,27 @@ export function MappaScreen() {
                     style={[styles.roadsLayer, styles.roadsLayerSopra, { width: contentWidth, height: contentHeight }]}
                     pointerEvents="none"
                   >
-                  {stradeIniziali.filter(([a, b]) => edificiInMappa[a] && edificiInMappa[b]).map(([from, to]) => {
-                    const c1 = getCellCenter(from, cellW, cellH, cols);
-                    const c2 = getCellCenter(to, cellW, cellH, cols);
-                    const dx = c2.x - c1.x;
-                    const dy = c2.y - c1.y;
-                    const length = Math.sqrt(dx * dx + dy * dy) || 1;
-                    const midX = (c1.x + c2.x) / 2;
-                    const midY = (c1.y + c2.y) / 2;
-                    const angle = Math.atan2(dy, dx);
-                    return (
-                      <View
-                        key={`strada-${from}-${to}`}
-                        style={[styles.stradaLinea, { width: length, height: STRADA_SPESSORE, left: midX - length / 2, top: midY - STRADA_SPESSORE / 2, transform: [{ rotate: `${angle}rad` }] }]}
-                      />
-                    );
-                  })}
+                  {stradeIniziali
+                    .filter(([a, b]) => edificiInMappa[a] && edificiInMappa[b])
+                    .flatMap(([from, to]) =>
+                      getManhattanPathSegments(from, to, cols).map(([a, b]) => ({ from: a, to: b, keyBase: `${from}-${to}` }))
+                    )
+                    .map(({ from: a, to: b, keyBase }, segIdx) => {
+                      const c1 = getCellCenter(a, cellW, cellH, cols);
+                      const c2 = getCellCenter(b, cellW, cellH, cols);
+                      const dx = c2.x - c1.x;
+                      const dy = c2.y - c1.y;
+                      const length = Math.sqrt(dx * dx + dy * dy) || 1;
+                      const midX = (c1.x + c2.x) / 2;
+                      const midY = (c1.y + c2.y) / 2;
+                      const angle = Math.atan2(dy, dx);
+                      return (
+                        <View
+                          key={`strada-${keyBase}-${a}-${b}-${segIdx}`}
+                          style={[styles.stradaLinea, { width: length, height: STRADA_SPESSORE, left: midX - length / 2, top: midY - STRADA_SPESSORE / 2, transform: [{ rotate: `${angle}rad` }] }]}
+                        />
+                      );
+                    })}
                   {(() => {
                     const drawnEdges = new Set<string>();
                     const segmenti: [number, number][] = [];
@@ -717,6 +746,54 @@ export function MappaScreen() {
                 }
               >
                 <Text style={styles.modalButtonText}>Conferma</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={showCapannaAbitantiModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowCapannaAbitantiModal(false)}
+      >
+        <Pressable style={styles.modalBackdrop} onPress={() => setShowCapannaAbitantiModal(false)}>
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>⛺ Abitanti della Capanna</Text>
+            <Text style={styles.modalSubtitle}>
+              Chi abita in questa residenza (solo fazione Nativi):
+            </Text>
+            <ScrollView style={styles.modalList} nestedScrollEnabled>
+              {abitantiCapanna.length === 0 ? (
+                <Text style={styles.capannaEmpty}>Nessun abitante al momento.</Text>
+              ) : (
+                abitantiCapanna.map((a) => (
+                  <View key={a.id} style={styles.capannaAbitanteRow}>
+                    <Text style={styles.capannaAbitanteEmoji}>{a.emoji}</Text>
+                    <Text style={styles.capannaAbitanteNome}>{a.nome}</Text>
+                    {a.lavoro ? (
+                      <Text style={styles.capannaAbitanteLavoro}> · {a.lavoro}</Text>
+                    ) : null}
+                  </View>
+                ))
+              )}
+            </ScrollView>
+            <View style={styles.modalButtonsRow}>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setShowCapannaAbitantiModal(false)}
+              >
+                <Text style={styles.modalButtonText}>Chiudi</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={() => {
+                  setShowCapannaAbitantiModal(false);
+                  router.push("/residenze");
+                }}
+              >
+                <Text style={styles.modalButtonText}>Vai a Residenze</Text>
               </Pressable>
             </View>
           </Pressable>
@@ -1107,6 +1184,38 @@ const styles = StyleSheet.create({
   modalCancelText: {
     color: "#93c5fd",
     fontSize: 14
+  },
+  capannaEmpty: {
+    color: "rgba(203,213,245,0.9)",
+    fontSize: 13,
+    fontStyle: "italic",
+    textAlign: "center",
+    paddingVertical: 12
+  },
+  capannaAbitanteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    borderRadius: 8,
+    marginBottom: 4,
+    backgroundColor: "rgba(15,23,42,0.8)",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.2)"
+  },
+  capannaAbitanteEmoji: {
+    fontSize: 20,
+    marginRight: 10
+  },
+  capannaAbitanteNome: {
+    color: "#e5e7eb",
+    fontSize: 14,
+    fontWeight: "600",
+    flex: 1
+  },
+  capannaAbitanteLavoro: {
+    color: "rgba(203,213,245,0.8)",
+    fontSize: 12
   }
 });
 

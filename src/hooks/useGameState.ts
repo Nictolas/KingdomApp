@@ -31,11 +31,13 @@ export function useGameState() {
     const agricoltore = statoIniziale.abitanti.find((a) => a.lavoro === "Agricoltore");
     const serraIds = agricoltore ? [agricoltore.id] : [];
     const prigionieriIds = statoIniziale.abitanti.filter((a) => a.lavoro === "Prigioniero").map((a) => a.id);
+    const capannaIds = statoIniziale.abitanti.filter((a) => a.fazioni?.includes("Nativi")).map((a) => a.id);
     return edificiData.map((e) => {
       if (e.id === 4) return { ...e, abitantiAssegnati: baraccaIds, occupazione: baraccaIds.length };
       if (e.id === 14) return { ...e, abitantiAssegnati: dormitorioIds, occupazione: dormitorioIds.length };
       if (e.id === 2) return { ...e, abitantiAssegnati: serraIds, occupazione: serraIds.length };
       if (e.id === 9) return { ...e, abitantiAssegnati: prigionieriIds, occupazione: prigionieriIds.length };
+      if (e.id === 20) return { ...e, abitantiAssegnati: capannaIds, occupazione: capannaIds.length };
       return e;
     });
   });

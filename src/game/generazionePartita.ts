@@ -15,9 +15,9 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     titolo: "Razza",
     punti: [
       "Il Comandante della Colonia è sempre di razza umana.",
-      "A parte 1 Nativo iniziale, tutti gli abitanti sono a inizio partita di razza umana.",
+      "A parte 2-3 Nativi iniziali, tutti gli abitanti sono a inizio partita di razza umana.",
       "La razza dei Nativi (per l’evento Assimilazione) è scelta a caso tra le razze non umane.",
-      "Ogni partita deve partire con 1 Nativo tra gli abitanti (razza = razza Nativi del pianeta).",
+      "Ogni partita deve partire con 2-3 Nativi tra gli abitanti (razza = razza Nativi del pianeta), assegnati alle Capanne.",
       "Ogni partita deve partire con 1 abitante di razza Robot. I Robot sono sempre bisessuali (orientamento «Bi»)."
     ]
   },
@@ -202,15 +202,19 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     abitanti.push(ab);
   }
 
-  // Regola: esattamente 1 Nativo (razza = razzaNativi) integrato in colonia. Scegliamo un abitante con id !== 1 (non il Comandante).
+  // Regola: 2-3 Nativi (razza = razzaNativi) integrati in colonia, assegnati alle Capanne. Scegliamo abitanti con id !== 1 (non il Comandante).
   const candidatiNativo = abitanti.filter((a) => a.id !== 1);
-  if (candidatiNativo.length > 0) {
-    const nat = candidatiNativo[Math.floor(Math.random() * candidatiNativo.length)];
+  const numNativi = Math.min(candidatiNativo.length, 2 + Math.floor(Math.random() * 2)); // 2 o 3
+  for (let k = candidatiNativo.length - 1; k > 0; k--) {
+    const j = Math.floor(Math.random() * (k + 1));
+    [candidatiNativo[k], candidatiNativo[j]] = [candidatiNativo[j], candidatiNativo[k]];
+  }
+  for (let i = 0; i < numNativi && i < candidatiNativo.length; i++) {
+    const nat = candidatiNativo[i]!;
     nat.razza = razzaNativi;
     nat.specie = "alieno";
     nat.nome = generaNomeAlieno(razzaNativi);
     nat.emoji = getEmojiRazza(razzaNativi);
-    // Nativo integrato: deve avere la fazione "Nativi" così appare in /nativi e in colonna Fazione in /abitanti.
     nat.fazioni = normalizzaFazioni([...(nat.fazioni ?? []), "Nativi"]);
   }
 
