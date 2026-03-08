@@ -18,7 +18,10 @@ import { generateRivers, buildTerrenoFromRivers, type TerrenoType } from "../src
 import type { Edificio, Risorsa } from "../src/types";
 
 const GAP = 2;
-/** Dimensione fissa cella in px: griglia genera esattamente le celle che coprono lo schermo. */
+/** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
+const FIXED_MAP_COLS = 50;
+const FIXED_MAP_ROWS = 50;
+/** Dimensione fissa di ogni cella in pixel. */
 const CELL_SIZE_PX = 32;
 const DOPPIO_TAP_MS = 400;
 const STRADA_SPESSORE = 6;
@@ -263,8 +266,7 @@ export function MappaScreen() {
   const [mappaState, setMappaState] = useState<{
     edificiInMappa: Record<number, EdificioInCella>;
     terrenoInMappa: Record<number, TerrenoType>;
-  }>({ edificiInMappa: {}, terrenoInMappa: {} });
-  const initializedForGrid = useRef<{ cols: number; rows: number } | null>(null);
+  }>(() => getInitialMappaWithRivers(FIXED_MAP_COLS, FIXED_MAP_ROWS));
   const edificiInMappa = mappaState.edificiInMappa;
   const terrenoInMappa = mappaState.terrenoInMappa;
   const setEdificiInMappa = useCallback(
@@ -330,25 +332,14 @@ export function MappaScreen() {
   panXRef.current = panX;
   panYRef.current = panY;
 
-  const { width, height } = Dimensions.get("window");
-  const vw = viewportSize.w > 0 ? viewportSize.w : width;
-  const vh = viewportSize.h > 0 ? viewportSize.h : height;
-  const cols = Math.max(1, Math.floor((vw + GAP) / (CELL_SIZE_PX + GAP)));
-  const rows = Math.max(1, Math.floor((vh + GAP) / (CELL_SIZE_PX + GAP)));
+  const cols = FIXED_MAP_COLS;
+  const rows = FIXED_MAP_ROWS;
   const totaleCelle = cols * rows;
-  const cellW = cols > 0 ? (vw - (cols - 1) * GAP) / cols : CELL_SIZE_PX;
-  const cellH = rows > 0 ? (vh - (rows - 1) * GAP) / rows : CELL_SIZE_PX;
-  const contentWidth = vw;
-  const contentHeight = vh;
+  const cellW = CELL_SIZE_PX;
+  const cellH = CELL_SIZE_PX;
+  const contentWidth = cols * CELL_SIZE_PX + (cols - 1) * GAP;
+  const contentHeight = rows * CELL_SIZE_PX + (rows - 1) * GAP;
   const stradeIniziali = getStradeIniziali(edificiInMappa);
-
-  useEffect(() => {
-    if (vw <= 0 || vh <= 0 || cols <= 0 || rows <= 0) return;
-    if (initializedForGrid.current !== null) return;
-    initializedForGrid.current = { cols, rows };
-    const initial = getInitialMappaWithRivers(cols, rows);
-    setMappaState(initial);
-  }, [vw, vh, cols, rows]);
 
   const onViewportLayout = useCallback((e: { nativeEvent: { layout: { width: number; height: number } } }) => {
     const w = e.nativeEvent.layout.width;
@@ -365,14 +356,6 @@ export function MappaScreen() {
     setPanX(x);
     setPanY(y);
   }, [mapScale]);
-
-  useEffect(() => {
-    const sub = Dimensions.addEventListener("change", () => {
-      const { width: w, height: h } = Dimensions.get("window");
-      setViewportSize((prev) => (prev.w === w && prev.h === h ? prev : { w: 0, h: 0 }));
-    });
-    return () => sub?.remove();
-  }, []);
 
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
@@ -701,8 +684,8 @@ export function MappaScreen() {
                   width: contentWidth,
                   height: contentHeight,
                   transform: [
-                    { translateX: (viewportSize.w || contentWidth) / 2 - (contentWidth * mapScale) / 2 - panX },
-                    { translateY: (viewportSize.h || contentHeight) / 2 - (contentHeight * mapScale) / 2 - panY },
+                    { translateX: (viewportSize.w || 0) / 2 - (contentWidth * mapScale) / 2 - panX },
+                    { translateY: (viewportSize.h || 0) / 2 - (contentHeight * mapScale) / 2 - panY },
                     { scale: mapScale }
                   ]
                 },
@@ -710,9 +693,9 @@ export function MappaScreen() {
               ]}
               pointerEvents="box-none"
             >
-          <View style={[styles.gridFill, { width: contentWidth, height: contentHeight }]}>
+          <View style={[styles.gridFill, styles.gridFillFixed, { width: contentWidth, height: contentHeight }]}>
             {Array.from({ length: rows }, (_, rowIndex) => (
-              <View key={rowIndex} style={[styles.gridRow, { gap: GAP }]}>
+              <View key={rowIndex} style={[styles.gridRowFixed, { gap: GAP, height: cellH }]}>
                 {Array.from({ length: cols }, (_, colIndex) => {
                   const i = rowIndex * cols + colIndex;
                   const acqua = isAcqua(i, cols, rows);
@@ -731,7 +714,7 @@ export function MappaScreen() {
                   const cellStyle = [
                     styles.cella,
                     styleTerreno,
-                    styles.cellaStretch,
+                    { width: cellW, height: cellH },
                     hasEdificio && !èStrada && styles.cellaEdificio
                   ];
                   if (acqua) {
@@ -853,25 +836,24 @@ export function MappaScreen() {
               })()}
             </View>
             <View
-              style={[styles.gridFill, styles.grigliaEmoji, { width: contentWidth, height: contentHeight }]}
+              style={[styles.gridFill, styles.gridFillFixed, styles.grigliaEmoji, { width: contentWidth, height: contentHeight }]}
               pointerEvents="none"
             >
               {Array.from({ length: rows }, (_, rowIndex) => (
-                <View key={rowIndex} style={[styles.gridRow, { gap: GAP }]}>
+                <View key={rowIndex} style={[styles.gridRowFixed, { gap: GAP, height: cellH }]}>
                   {Array.from({ length: cols }, (_, colIndex) => {
                     const i = rowIndex * cols + colIndex;
                     const edificio = edificiInMappa[i];
                     const emoji = edificio?.emoji ?? null;
                     const èStrada = edificio?.nome === "Strada";
                     const mostraEmoji = !!edificio && !èStrada && emoji;
-                    const cellSize = Math.min(cellW, cellH);
                     return (
-                      <View key={i} style={[styles.cella, styles.cellaStretch]}>
+                      <View key={i} style={[styles.cella, { width: cellW, height: cellH }]}>
                         {mostraEmoji ? (
                           <Text
                             style={[
                               styles.edificioEmoji,
-                              { fontSize: Math.max(10, Math.min(22, cellSize - 4)) }
+                              { fontSize: Math.max(10, Math.min(22, CELL_SIZE_PX - 4)) }
                             ]}
                           >
                             {emoji}
@@ -1193,10 +1175,19 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%"
   },
+  gridFillFixed: {
+    flexDirection: "column",
+    flex: 0,
+    gap: GAP
+  },
   gridRow: {
     flexDirection: "row",
     flex: 1,
     minHeight: 0
+  },
+  gridRowFixed: {
+    flexDirection: "row",
+    flex: 0
   },
   cellaStretch: {
     flex: 1,
