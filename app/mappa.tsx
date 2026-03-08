@@ -80,6 +80,9 @@ const STRADA_OPZIONE: EdificioInCella = { id: -1, nome: "Strada", emoji: "🛤�
 const DORMITORIO: EdificioInCella = { id: 14, nome: "Dormitorio", emoji: "🛏️" };
 const CAPANNA: EdificioInCella = { id: 20, nome: "Capanna", emoji: "⛺" };
 
+/** Emoji per decorazioni procedurali sulla mappa (alberi, palme, cactus, vulcano). */
+const DECORAZIONI_EMOJI = ["🌳", "🌲", "🌴", "🌵", "🌋"] as const;
+
 /** Trova la prima cella terra (non acqua, non fiume, non in exclude) partendo da index. */
 function findNearestLandNotRiver(
   start: number,
@@ -159,10 +162,11 @@ function getInitialEdificiInMappa(
   return { ...edificiIniziali, ...capanne, ...giacimenti };
 }
 
-/** Stato iniziale mappa: prima si generano i fiumi (solo bordi vietati), poi gli edifici su terra (no fiumi, no mare). */
+/** Stato iniziale mappa: prima si generano i fiumi (solo bordi vietati), poi gli edifici su terra (no fiumi, no mare), infine decorazioni su celle libere. */
 function getInitialMappaWithRivers(cols: number, rows: number): {
   edificiInMappa: Record<number, EdificioInCella>;
   terrenoInMappa: Record<number, TerrenoType>;
+  decorazioniInMappa: Record<number, string>;
 } {
   const totaleCelle = cols * rows;
   const borderIndices = new Set<number>();
@@ -183,7 +187,21 @@ function getInitialMappaWithRivers(cols: number, rows: number): {
       .filter((i) => edificiInMappa[i]?.nome === "Giacimento")
   );
   const terrenoInMappa = buildTerrenoFromRivers(riverIndices, sandIndices, giacimentoIndices);
-  return { edificiInMappa, terrenoInMappa };
+
+  const celleLibere: number[] = [];
+  for (let i = 0; i < totaleCelle; i++) {
+    if (isAcqua(i, cols, rows) || riverSet.has(i) || edificiInMappa[i]) continue;
+    celleLibere.push(i);
+  }
+  const shuffled = [...celleLibere].sort(() => Math.random() - 0.5);
+  const numDecorazioni = Math.min(shuffled.length, 60 + Math.floor(Math.random() * 80));
+  const decorazioniInMappa: Record<number, string> = {};
+  for (let k = 0; k < numDecorazioni; k++) {
+    const idx = shuffled[k]!;
+    decorazioniInMappa[idx] = DECORAZIONI_EMOJI[Math.floor(Math.random() * DECORAZIONI_EMOJI.length)]!;
+  }
+
+  return { edificiInMappa, terrenoInMappa, decorazioniInMappa };
 }
 
 /** Coppie [indiceA, indiceB] per strade iniziali (centro → spazioporto, tribunale, serra); usa le posizioni effettive degli edifici. */
@@ -268,9 +286,11 @@ export function MappaScreen() {
   const [mappaState, setMappaState] = useState<{
     edificiInMappa: Record<number, EdificioInCella>;
     terrenoInMappa: Record<number, TerrenoType>;
+    decorazioniInMappa: Record<number, string>;
   }>(() => getInitialMappaWithRivers(FIXED_MAP_COLS, FIXED_MAP_ROWS));
   const edificiInMappa = mappaState.edificiInMappa;
   const terrenoInMappa = mappaState.terrenoInMappa;
+  const decorazioniInMappa = mappaState.decorazioniInMappa;
   const setEdificiInMappa = useCallback(
     (updater: (prev: Record<number, EdificioInCella>) => Record<number, EdificioInCella>) => {
       setMappaState((s) => ({ ...s, edificiInMappa: updater(s.edificiInMappa) }));
@@ -572,9 +592,9 @@ export function MappaScreen() {
                   >
                     {Array.from({ length: rows * cols }, (_, i) => {
                       const edificio = edificiInMappa[i];
-                      const emoji = edificio?.emoji ?? null;
                       const èStrada = edificio?.nome === "Strada";
-                      const mostraEmoji = !!edificio && !èStrada && emoji;
+                      const emoji = edificio && !èStrada ? edificio.emoji : (decorazioniInMappa[i] ?? null);
+                      const mostraEmoji = !!emoji;
                       return (
                         <View key={i} style={[styles.cella, styles.cellaFixed, { width: CELL_SIZE_PX, height: CELL_SIZE_PX }]}>
                           {mostraEmoji ? (
