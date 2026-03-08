@@ -16,12 +16,13 @@ import { useGameContext } from "../src/context/GameContext";
 import { generateRivers, buildTerrenoFromRivers, type TerrenoType } from "../src/game/riverGeneration";
 import type { Edificio, Risorsa } from "../src/types";
 
-const GAP = 2;
 /** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
 const FIXED_MAP_COLS = 50;
 const FIXED_MAP_ROWS = 50;
-/** Dimensione fissa di ogni cella in pixel. */
-const CELL_SIZE_PX = 32;
+/** Dimensione fissa di ogni cella in pixel (nessuna percentuale, solo px). */
+const CELL_SIZE_PX = 40;
+/** Gap tra le celle (0 = griglia compatta 2000x2000). */
+const GAP = 0;
 const DOPPIO_TAP_MS = 400;
 const STRADA_SPESSORE = 6;
 const STRADA_COLORE = "#78716c";
@@ -308,6 +309,15 @@ export function MappaScreen() {
   const contentHeight = rows * CELL_SIZE_PX + (rows - 1) * GAP;
   const stradeIniziali = getStradeIniziali(edificiInMappa);
 
+  const gridContainerStyle = {
+    display: "grid" as const,
+    gridTemplateColumns: `repeat(${cols}, ${CELL_SIZE_PX}px)`,
+    gridTemplateRows: `repeat(${rows}, ${CELL_SIZE_PX}px)`,
+    width: contentWidth,
+    height: contentHeight,
+    position: "relative" as const
+  };
+
   const openRouteForEdificio = useCallback(
     (nome: string) => {
       const route = EDIFICIO_TO_ROUTE[nome];
@@ -439,60 +449,51 @@ export function MappaScreen() {
                 wrapperStyle={{
                   width: "100%",
                   height: "100%",
-                  display: "flex",
-                  justifyContent: "center",
-                  alignItems: "center",
                   overflow: "hidden"
                 }}
                 contentStyle={{
                   width: contentWidth,
                   height: contentHeight,
                   minWidth: contentWidth,
-                  minHeight: contentHeight
+                  minHeight: contentHeight,
+                  flex: "none"
                 }}
               >
-                <View
-                  style={[styles.gridWrap, { width: contentWidth, height: contentHeight }]}
-                  pointerEvents="box-none"
-                >
-                  <View style={[styles.gridFill, styles.gridFillFixed, { width: contentWidth, height: contentHeight, minWidth: contentWidth, minHeight: contentHeight }]}>
-                  {Array.from({ length: rows }, (_, rowIndex) => (
-                    <View key={rowIndex} style={[styles.gridRowFixed, { gap: GAP, height: cellH }]}>
-                      {Array.from({ length: cols }, (_, colIndex) => {
-                        const i = rowIndex * cols + colIndex;
-                        const acqua = isAcqua(i, cols, rows);
-                        const terreno = terrenoInMappa[i] ?? "erba";
-                        const edificio = edificiInMappa[i];
-                        const hasEdificio = !!edificio;
-                        const èStrada = edificio?.nome === "Strada";
-                        const styleTerreno =
-                          acqua
-                            ? styles.cellaAcqua
-                            : terreno === "river"
-                              ? styles.cellaFiume
-                              : terreno === "sabbia"
-                                ? styles.cellaSabbia
-                                : styles.cellaErba;
-                        const cellStyle = [
-                          styles.cella,
-                          styleTerreno,
-                          { width: cellW, height: cellH },
-                          hasEdificio && !èStrada && styles.cellaEdificio
-                        ];
-                        if (acqua) {
-                          return <View key={i} style={cellStyle} />;
-                        }
-                        return (
-                          <Pressable key={i} style={cellStyle} onPress={() => onCellPress(i)} />
-                        );
-                      })}
-                    </View>
-                  ))}
-                </View>
-                <View
-                  style={[styles.roadsLayer, styles.roadsLayerSopra, { width: contentWidth, height: contentHeight }]}
-                  pointerEvents="none"
-                >
+                <View style={[styles.gridWrap, { width: contentWidth, height: contentHeight }]} pointerEvents="box-none">
+                  <View style={[styles.gridTerrain, gridContainerStyle]}>
+                    {Array.from({ length: rows * cols }, (_, i) => {
+                      const acqua = isAcqua(i, cols, rows);
+                      const terreno = terrenoInMappa[i] ?? "erba";
+                      const edificio = edificiInMappa[i];
+                      const hasEdificio = !!edificio;
+                      const èStrada = edificio?.nome === "Strada";
+                      const styleTerreno =
+                        acqua
+                          ? styles.cellaAcqua
+                          : terreno === "river"
+                            ? styles.cellaFiume
+                            : terreno === "sabbia"
+                              ? styles.cellaSabbia
+                              : styles.cellaErba;
+                      const cellStyle = [
+                        styles.cella,
+                        styles.cellaFixed,
+                        styleTerreno,
+                        { width: CELL_SIZE_PX, height: CELL_SIZE_PX },
+                        hasEdificio && !èStrada && styles.cellaEdificio
+                      ];
+                      if (acqua) {
+                        return <View key={i} style={cellStyle} />;
+                      }
+                      return (
+                        <Pressable key={i} style={cellStyle} onPress={() => onCellPress(i)} />
+                      );
+                    })}
+                  </View>
+                  <View
+                    style={[styles.roadsLayer, styles.roadsLayerSopra, { width: contentWidth, height: contentHeight }]}
+                    pointerEvents="none"
+                  >
                   {stradeIniziali.filter(([a, b]) => edificiInMappa[a] && edificiInMappa[b]).map(([from, to]) => {
                     const c1 = getCellCenter(from, cellW, cellH, cols);
                     const c2 = getCellCenter(to, cellW, cellH, cols);
@@ -556,29 +557,28 @@ export function MappaScreen() {
                     );
                   })()}
                 </View>
-                <View
-                  style={[styles.gridFill, styles.gridFillFixed, styles.grigliaEmoji, { width: contentWidth, height: contentHeight }]}
-                  pointerEvents="none"
-                >
-                  {Array.from({ length: rows }, (_, rowIndex) => (
-                    <View key={rowIndex} style={[styles.gridRowFixed, { gap: GAP, height: cellH }]}>
-                      {Array.from({ length: cols }, (_, colIndex) => {
-                        const i = rowIndex * cols + colIndex;
-                        const edificio = edificiInMappa[i];
-                        const emoji = edificio?.emoji ?? null;
-                        const èStrada = edificio?.nome === "Strada";
-                        const mostraEmoji = !!edificio && !èStrada && emoji;
-                        return (
-                          <View key={i} style={[styles.cella, { width: cellW, height: cellH }]}>
-                            {mostraEmoji ? (
-                              <Text style={[styles.edificioEmoji, { fontSize: Math.max(10, Math.min(22, CELL_SIZE_PX - 4)) }]}>{emoji}</Text>
-                            ) : null}
-                          </View>
-                        );
-                      })}
-                    </View>
-                  ))}
-                </View>
+                  <View
+                    style={[
+                      styles.grigliaEmoji,
+                      { ...gridContainerStyle, position: "absolute" as const, left: 0, top: 0, zIndex: 2 },
+                      { width: contentWidth, height: contentHeight }
+                    ]}
+                    pointerEvents="none"
+                  >
+                    {Array.from({ length: rows * cols }, (_, i) => {
+                      const edificio = edificiInMappa[i];
+                      const emoji = edificio?.emoji ?? null;
+                      const èStrada = edificio?.nome === "Strada";
+                      const mostraEmoji = !!edificio && !èStrada && emoji;
+                      return (
+                        <View key={i} style={[styles.cella, styles.cellaFixed, { width: CELL_SIZE_PX, height: CELL_SIZE_PX }]}>
+                          {mostraEmoji ? (
+                            <Text style={[styles.edificioEmoji, { fontSize: Math.max(10, Math.min(22, CELL_SIZE_PX - 4)) }]}>{emoji}</Text>
+                          ) : null}
+                        </View>
+                      );
+                    })}
+                  </View>
                 </View>
               </TransformComponent>
             </TransformWrapper>
@@ -889,7 +889,15 @@ const styles = StyleSheet.create({
     overflow: "hidden"
   },
   gridWrap: {
-    position: "relative"
+    position: "relative",
+    width: "100%",
+    height: "100%"
+  },
+  gridTerrain: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    zIndex: 0
   },
   gridFill: {
     flex: 1,
@@ -897,9 +905,7 @@ const styles = StyleSheet.create({
     height: "100%"
   },
   gridFillFixed: {
-    flexDirection: "column",
-    flex: 0,
-    gap: GAP
+    flex: 0
   },
   gridRow: {
     flexDirection: "row",
@@ -909,6 +915,15 @@ const styles = StyleSheet.create({
   gridRowFixed: {
     flexDirection: "row",
     flex: 0
+  },
+  cellaFixed: {
+    width: CELL_SIZE_PX,
+    height: CELL_SIZE_PX,
+    minWidth: CELL_SIZE_PX,
+    maxWidth: CELL_SIZE_PX,
+    minHeight: CELL_SIZE_PX,
+    maxHeight: CELL_SIZE_PX,
+    boxSizing: "border-box"
   },
   cellaStretch: {
     flex: 1,
