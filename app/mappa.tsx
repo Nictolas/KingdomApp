@@ -11,7 +11,6 @@ import {
   Text,
   View
 } from "react-native";
-import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { Redirect, useRouter } from "expo-router";
 import { edificiData } from "../src/data/edificiData";
 import { useGameContext } from "../src/context/GameContext";
@@ -362,8 +361,6 @@ export function MappaScreen() {
 
   useEffect(() => {
     if (Platform.OS !== "web" || typeof document === "undefined") return;
-    // Su web zoom/pan gestiti da react-zoom-pan-pinch: non attaccare listener custom
-    if (Platform.OS === "web") return;
     const el = document.getElementById("mappa-viewport") as HTMLElement | null;
     if (!el) return;
 
@@ -687,163 +684,24 @@ export function MappaScreen() {
           onLayout={onViewportLayout}
         >
           <View style={styles.viewportCenterWrap} pointerEvents="box-none">
-            {Platform.OS === "web" ? (
-              <TransformWrapper
-                initialScale={1}
-                minScale={0.4}
-                maxScale={3}
-                doubleClick={{ disabled: true }}
-              >
-                <TransformComponent
-                  wrapperStyle={{ width: "100%", height: "100%", display: "flex", justifyContent: "center", alignItems: "center" }}
-                  contentStyle={{ width: contentWidth, height: contentHeight, minWidth: contentWidth, minHeight: contentHeight }}
-                >
-                  <View style={{ width: contentWidth, height: contentHeight, minWidth: contentWidth, minHeight: contentHeight }} pointerEvents="box-none">
-                    <View style={[styles.gridFill, styles.gridFillFixed, { width: contentWidth, height: contentHeight, minWidth: contentWidth, minHeight: contentHeight }]}>
-                      {Array.from({ length: rows }, (_, rowIndex) => (
-                        <View key={rowIndex} style={[styles.gridRowFixed, { gap: GAP, height: cellH }]}>
-                          {Array.from({ length: cols }, (_, colIndex) => {
-                            const i = rowIndex * cols + colIndex;
-                            const acqua = isAcqua(i, cols, rows);
-                            const terreno = terrenoInMappa[i] ?? "erba";
-                            const edificio = edificiInMappa[i];
-                            const hasEdificio = !!edificio;
-                            const èStrada = edificio?.nome === "Strada";
-                            const styleTerreno =
-                              acqua
-                                ? styles.cellaAcqua
-                                : terreno === "river"
-                                  ? styles.cellaFiume
-                                  : terreno === "sabbia"
-                                    ? styles.cellaSabbia
-                                    : styles.cellaErba;
-                            const cellStyle = [
-                              styles.cella,
-                              styleTerreno,
-                              { width: cellW, height: cellH },
-                              hasEdificio && !èStrada && styles.cellaEdificio
-                            ];
-                            if (acqua) {
-                              return <View key={i} style={cellStyle} />;
-                            }
-                            return (
-                              <Pressable key={i} style={cellStyle} onPress={() => onCellPress(i)} />
-                            );
-                          })}
-                        </View>
-                      ))}
-                    </View>
-                    <View
-                      style={[styles.roadsLayer, styles.roadsLayerSopra, { width: contentWidth, height: contentHeight }]}
-                      pointerEvents="none"
-                    >
-                      {stradeIniziali.filter(([a, b]) => edificiInMappa[a] && edificiInMappa[b]).map(([from, to]) => {
-                        const c1 = getCellCenter(from, cellW, cellH, cols);
-                        const c2 = getCellCenter(to, cellW, cellH, cols);
-                        const dx = c2.x - c1.x;
-                        const dy = c2.y - c1.y;
-                        const length = Math.sqrt(dx * dx + dy * dy) || 1;
-                        const midX = (c1.x + c2.x) / 2;
-                        const midY = (c1.y + c2.y) / 2;
-                        const angle = Math.atan2(dy, dx);
-                        return (
-                          <View
-                            key={`strada-${from}-${to}`}
-                            style={[styles.stradaLinea, { width: length, height: STRADA_SPESSORE, left: midX - length / 2, top: midY - STRADA_SPESSORE / 2, transform: [{ rotate: `${angle}rad` }] }]}
-                          />
-                        );
-                      })}
-                      {(() => {
-                        const drawnEdges = new Set<string>();
-                        const segmenti: [number, number][] = [];
-                        const celleIsolate: number[] = [];
-                        Object.keys(edificiInMappa)
-                          .map(Number)
-                          .filter((i) => edificiInMappa[i]?.nome === "Strada")
-                          .forEach((i) => {
-                            const vicini = getViciniOrtogonali(i, cols, rows).filter((n) => edificiInMappa[n]);
-                            if (vicini.length === 0) celleIsolate.push(i);
-                            else vicini.forEach((n) => {
-                              const key = `${Math.min(i, n)}-${Math.max(i, n)}`;
-                              if (!drawnEdges.has(key)) {
-                                drawnEdges.add(key);
-                                segmenti.push([i, n]);
-                              }
-                            });
-                          });
-                        return (
-                          <>
-                            {segmenti.map(([from, to]) => {
-                              const c1 = getCellCenter(from, cellW, cellH, cols);
-                              const c2 = getCellCenter(to, cellW, cellH, cols);
-                              const dx = c2.x - c1.x;
-                              const dy = c2.y - c1.y;
-                              const length = Math.sqrt(dx * dx + dy * dy) || 1;
-                              const midX = (c1.x + c2.x) / 2;
-                              const midY = (c1.y + c2.y) / 2;
-                              const angle = Math.atan2(dy, dx);
-                              return (
-                                <View
-                                  key={`strada-cell-${from}-${to}`}
-                                  style={[styles.stradaLinea, { width: length, height: STRADA_SPESSORE, left: midX - length / 2, top: midY - STRADA_SPESSORE / 2, transform: [{ rotate: `${angle}rad` }] }]}
-                                />
-                              );
-                            })}
-                            {celleIsolate.map((i) => {
-                              const c = getCellCenter(i, cellW, cellH, cols);
-                              const r = STRADA_CERCHIO_RAGGIO;
-                              return (
-                                <View key={`strada-cerchio-${i}`} style={[styles.stradaCerchio, { width: r * 2, height: r * 2, left: c.x - r, top: c.y - r, borderRadius: r }]} />
-                              );
-                            })}
-                          </>
-                        );
-                      })()}
-                    </View>
-                    <View
-                      style={[styles.gridFill, styles.gridFillFixed, styles.grigliaEmoji, { width: contentWidth, height: contentHeight }]}
-                      pointerEvents="none"
-                    >
-                      {Array.from({ length: rows }, (_, rowIndex) => (
-                        <View key={rowIndex} style={[styles.gridRowFixed, { gap: GAP, height: cellH }]}>
-                          {Array.from({ length: cols }, (_, colIndex) => {
-                            const i = rowIndex * cols + colIndex;
-                            const edificio = edificiInMappa[i];
-                            const emoji = edificio?.emoji ?? null;
-                            const èStrada = edificio?.nome === "Strada";
-                            const mostraEmoji = !!edificio && !èStrada && emoji;
-                            return (
-                              <View key={i} style={[styles.cella, { width: cellW, height: cellH }]}>
-                                {mostraEmoji ? (
-                                  <Text style={[styles.edificioEmoji, { fontSize: Math.max(10, Math.min(22, CELL_SIZE_PX - 4)) }]}>{emoji}</Text>
-                                ) : null}
-                              </View>
-                            );
-                          })}
-                        </View>
-                      ))}
-                    </View>
-                  </View>
-                </TransformComponent>
-              </TransformWrapper>
-            ) : (
-              <View
-                style={[
-                  styles.mapTransform,
-                  {
-                    width: contentWidth,
-                    height: contentHeight,
-                    minWidth: contentWidth,
-                    minHeight: contentHeight,
-                    transform: [
-                      { translateX: -panX },
-                      { translateY: -panY },
-                      { scale: mapScale }
-                    ]
-                  }
-                ]}
-                pointerEvents="box-none"
-              >
+            <View
+              style={[
+                styles.mapTransform,
+                {
+                  width: contentWidth,
+                  height: contentHeight,
+                  minWidth: contentWidth,
+                  minHeight: contentHeight,
+                  transform: [
+                    { translateX: -panX },
+                    { translateY: -panY },
+                    { scale: mapScale }
+                  ]
+                },
+                Platform.OS === "web" && styles.mapTransformWeb
+              ]}
+              pointerEvents="box-none"
+            >
                 <View style={[styles.gridFill, styles.gridFillFixed, { width: contentWidth, height: contentHeight, minWidth: contentWidth, minHeight: contentHeight }]}>
                   {Array.from({ length: rows }, (_, rowIndex) => (
                     <View key={rowIndex} style={[styles.gridRowFixed, { gap: GAP, height: cellH }]}>
@@ -968,8 +826,7 @@ export function MappaScreen() {
                     </View>
                   ))}
                 </View>
-              </View>
-            )}
+            </View>
           </View>
         </View>
       </View>
