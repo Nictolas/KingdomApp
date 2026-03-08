@@ -262,6 +262,8 @@ export function MappaScreen() {
   const nConLealtàPaura = abitantiConFelicità.length;
   const lealtàMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.lealtà, 0) / nConLealtàPaura) : 0;
   const pauraMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.paura, 0) / nConLealtàPaura) : 0;
+  const nDisoccupati = abitantiConFelicità.filter((a) => a.lavoro === "Disoccupato").length;
+  const disoccupazionePercent = nConFelicità ? Math.round((nDisoccupati / nConFelicità) * 100) : 0;
 
   const [mappaState, setMappaState] = useState<{
     edificiInMappa: Record<number, EdificioInCella>;
@@ -340,6 +342,9 @@ export function MappaScreen() {
   const contentWidth = cols * CELL_SIZE_PX + (cols - 1) * GAP;
   const contentHeight = rows * CELL_SIZE_PX + (rows - 1) * GAP;
   const stradeIniziali = getStradeIniziali(edificiInMappa);
+  const windowDim = Dimensions.get("window");
+  const vwForCenter = viewportSize.w > 0 ? viewportSize.w : windowDim.width;
+  const vhForCenter = viewportSize.h > 0 ? viewportSize.h : windowDim.height;
 
   const onViewportLayout = useCallback((e: { nativeEvent: { layout: { width: number; height: number } } }) => {
     const w = e.nativeEvent.layout.width;
@@ -658,6 +663,11 @@ export function MappaScreen() {
             <Text style={styles.indLabel}>Paura</Text>
             <Text style={styles.indValue}>{pauraMedia}%</Text>
           </Pressable>
+          <Pressable style={styles.indCard}>
+            <Text style={styles.indEmoji}>📋</Text>
+            <Text style={styles.indLabel}>Disoccupazione</Text>
+            <Text style={styles.indValue}>{disoccupazionePercent}%</Text>
+          </Pressable>
           <Pressable style={styles.menuBtn} onPress={() => router.push("/menu")}>
             <Text style={styles.menuBtnText}>Menu</Text>
           </Pressable>
@@ -683,9 +693,12 @@ export function MappaScreen() {
                 {
                   width: contentWidth,
                   height: contentHeight,
+                  minWidth: contentWidth,
+                  minHeight: contentHeight,
+                  zIndex: 1,
                   transform: [
-                    { translateX: (viewportSize.w || 0) / 2 - (contentWidth * mapScale) / 2 - panX },
-                    { translateY: (viewportSize.h || 0) / 2 - (contentHeight * mapScale) / 2 - panY },
+                    { translateX: vwForCenter / 2 - (contentWidth * mapScale) / 2 - panX },
+                    { translateY: vhForCenter / 2 - (contentHeight * mapScale) / 2 - panY },
                     { scale: mapScale }
                   ]
                 },
@@ -693,7 +706,7 @@ export function MappaScreen() {
               ]}
               pointerEvents="box-none"
             >
-          <View style={[styles.gridFill, styles.gridFillFixed, { width: contentWidth, height: contentHeight }]}>
+          <View style={[styles.gridFill, styles.gridFillFixed, { width: contentWidth, height: contentHeight, minWidth: contentWidth, minHeight: contentHeight }]}>
             {Array.from({ length: rows }, (_, rowIndex) => (
               <View key={rowIndex} style={[styles.gridRowFixed, { gap: GAP, height: cellH }]}>
                 {Array.from({ length: cols }, (_, colIndex) => {
@@ -1161,14 +1174,17 @@ const styles = StyleSheet.create({
     width: "100%",
     backgroundColor: "#000000",
     overflow: "hidden",
-    position: "relative"
+    position: "relative",
+    ...(Platform.OS === "web" ? { display: "flex" as const } : {})
   },
   viewportCenterWrap: {
     flex: 1,
     width: "100%",
     height: "100%",
     justifyContent: "center",
-    alignItems: "center"
+    alignItems: "center",
+    overflow: "hidden",
+    ...(Platform.OS === "web" ? { display: "flex" as const } : {})
   },
   gridFill: {
     flex: 1,
@@ -1209,11 +1225,13 @@ const styles = StyleSheet.create({
   mapTransform: {
     position: "absolute",
     left: 0,
-    top: 0
+    top: 0,
+    zIndex: 1
   },
   mapTransformWeb: {
     transformOrigin: "top left",
-    willChange: "transform"
+    willChange: "transform",
+    ...(Platform.OS === "web" ? { display: "block" as const } : {})
   },
   viewportInner: {
     flex: 1
