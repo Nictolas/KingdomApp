@@ -15,6 +15,7 @@ import { edificiData } from "../src/data/edificiData";
 import { useGameContext } from "../src/context/GameContext";
 import { generateRivers, buildTerrenoFromRivers, type TerrenoType } from "../src/game/riverGeneration";
 import type { Edificio, Risorsa } from "../src/types";
+import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 
 /** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
 const FIXED_MAP_COLS = 50;
@@ -770,7 +771,7 @@ export function MappaScreen() {
               ) : (
                 abitantiCapanna.map((a) => (
                   <View key={a.id} style={styles.capannaAbitanteRow}>
-                    <Text style={styles.capannaAbitanteEmoji}>{a.emoji}</Text>
+                    <Text style={styles.capannaAbitanteEmoji}>{getEmojiAbitante(a)}</Text>
                     <Text style={styles.capannaAbitanteNome}>{a.nome}</Text>
                     {a.lavoro ? (
                       <Text style={styles.capannaAbitanteLavoro}> · {a.lavoro}</Text>

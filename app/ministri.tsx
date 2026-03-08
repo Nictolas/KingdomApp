@@ -101,7 +101,7 @@ export default function MinistriScreen() {
                 <Text style={styles.cardMinistero}>{ministero}</Text>
                 {assegnatario ? (
                   <>
-                    <Text style={styles.cardEmoji}>{assegnatario.emoji}</Text>
+                    <Text style={styles.cardEmoji}>{getEmojiAbitante(assegnatario)}</Text>
                     <Text style={styles.cardTitle}>{assegnatario.nome}</Text>
                     <Text style={styles.line}>Personalità: {assegnatario.personalità}</Text>
                     {bonusPolliceVerde && (

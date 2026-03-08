@@ -74,12 +74,10 @@ const MACRO_OPEN_DEFAULT: Record<MacroKey, boolean> = {
 const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
 
 function getEmojiDisplay(abitante: Abitante, etaMinimaLavoro: number): string {
-  const razza = abitante.razza ?? "Umano";
-  if (razza !== "Umano") return getEmojiRazza(razza);
   const maggiorenne = abitante.eta >= etaMinimaLavoro;
   const lavoroDaMinore = LAVORI_DA_MINORE.includes(abitante.lavoro);
   if (maggiorenne && lavoroDaMinore) return "👤";
-  return abitante.emoji;
+  return getEmojiAbitante(abitante);
 }
 
 function getLavoroDisplay(abitante: Abitante, etaMinimaLavoro: number): string {
