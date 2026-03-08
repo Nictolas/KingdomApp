@@ -277,6 +277,7 @@ export function MappaScreen() {
     []
   );
   const [selectedCellForDialog, setSelectedCellForDialog] = useState<number | null>(null);
+  const [selectedCellForTransformDialog, setSelectedCellForTransformDialog] = useState<number | null>(null);
   const lastTapCell = useRef<number | null>(null);
   const lastTapTime = useRef<number>(0);
 
