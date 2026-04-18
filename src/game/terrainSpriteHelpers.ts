@@ -177,7 +177,25 @@ export function getGrassSandBorderSubtileIfAny(
   ) {
     return undefined;
   }
+  /**
+   * Sopra la fascia “erba buffer → strada”: il vicino sotto è ancora erba, non Strada, quindi
+   * non si applica il bordo erba–strada; senza questa regola la sabbia in diagonale attiva
+   * l’angolo erba–sabbia al posto dell’erba centrale 2×2.
+   * Se a nord c’è già sabbia (costa), il bordo sabbia resta consentito.
+   */
+  let stradaDueRigheSotto = false;
+  for (const dc of [-1, 0, 1] as const) {
+    const c2 = col + dc;
+    if (c2 < 0 || c2 >= cols) continue;
+    if (row + 2 < rows && isStradaCell(row + 2, c2, cols, rows, edificiInMappa)) {
+      stradaDueRigheSotto = true;
+      break;
+    }
+  }
   const n = isSandAt(row - 1, col, cols, rows, terrenoInMappa);
+  if (stradaDueRigheSotto && !n) {
+    return undefined;
+  }
   const e = isSandAt(row, col + 1, cols, rows, terrenoInMappa);
   const s = isSandAt(row + 1, col, cols, rows, terrenoInMappa);
   const w = isSandAt(row, col - 1, cols, rows, terrenoInMappa);
