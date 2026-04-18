@@ -128,32 +128,6 @@ const CAPANNA: EdificioInCella = { id: 20, nome: "Capanna", emoji: "⛺" };
 /** Emoji per decorazioni procedurali sulla mappa (alberi, palme, cactus, vulcano). */
 const DECORAZIONI_EMOJI = ["🌳", "🌲", "🌴", "🌵", "🌋"] as const;
 
-/** Trova la prima cella terra (non acqua, non fiume, non in exclude) partendo da index. */
-function findNearestLandNotRiver(
-  start: number,
-  cols: number,
-  rows: number,
-  riverSet: Set<number>,
-  exclude: Set<number> = new Set()
-): number | null {
-  if (!isAcqua(start, cols, rows) && !riverSet.has(start) && !exclude.has(start)) return start;
-  const visitati = new Set<number>([start]);
-  let frontiera: number[] = [start];
-  for (let dist = 0; dist < cols * rows && frontiera.length > 0; dist++) {
-    const next: number[] = [];
-    for (const i of frontiera) {
-      for (const n of getViciniOrtogonali(i, cols, rows)) {
-        if (visitati.has(n)) continue;
-        visitati.add(n);
-        if (!isAcqua(n, cols, rows) && !riverSet.has(n) && !exclude.has(n)) return n;
-        next.push(n);
-      }
-    }
-    frontiera = next;
-  }
-  return null;
-}
-
 /** Indici di tutte le celle occupate da un footprint ancorato in `anchor`. */
 function getIndiciFootprint(anchor: number, w: number, h: number, cols: number): number[] {
   const ac = anchor % cols;
@@ -167,14 +141,69 @@ function getIndiciFootprint(anchor: number, w: number, h: number, cols: number):
   return out;
 }
 
-function puòMettereFootprint(
+/** 8 vicini (ortogonali + diagonali). */
+function getVicini8(index: number, cols: number, rows: number): number[] {
+  const c = index % cols;
+  const r = Math.floor(index / cols);
+  const out: number[] = [];
+  for (let dr = -1; dr <= 1; dr++) {
+    for (let dc = -1; dc <= 1; dc++) {
+      if (dr === 0 && dc === 0) continue;
+      const r2 = r + dr;
+      const c2 = c + dc;
+      if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) continue;
+      out.push(r2 * cols + c2);
+    }
+  }
+  return out;
+}
+
+function haVicinoFiume(index: number, riverSet: Set<number>, cols: number, rows: number): boolean {
+  return getVicini8(index, cols, rows).some((n) => riverSet.has(n));
+}
+
+/**
+ * Anello di celle intorno al rettangolo w×h (una cella in ogni direzione, inclusi gli obliqui).
+ * Non include l'interno dell'edificio.
+ */
+function getIndiciCuscinoErba(anchor: number, w: number, h: number, cols: number, rows: number): number[] {
+  const ac = anchor % cols;
+  const ar = Math.floor(anchor / cols);
+  const foot = new Set(getIndiciFootprint(anchor, w, h, cols));
+  const out: number[] = [];
+  for (let dr = -1; dr <= h; dr++) {
+    for (let dc = -1; dc <= w; dc++) {
+      const inside = dr >= 0 && dr < h && dc >= 0 && dc < w;
+      if (inside) continue;
+      const r = ar + dr;
+      const c = ac + dc;
+      if (r < 0 || r >= rows || c < 0 || c >= cols) continue;
+      const i = r * cols + c;
+      if (!foot.has(i)) out.push(i);
+    }
+  }
+  return out;
+}
+
+/** Cella adatta a “solo erba”: no mare, no fiume; se adiacente a un fiume diventerebbe sabbia → esclusa. */
+function cellaSoloErba(index: number, cols: number, rows: number, riverSet: Set<number>): boolean {
+  if (isAcqua(index, cols, rows) || riverSet.has(index)) return false;
+  if (haVicinoFiume(index, riverSet, cols, rows)) return false;
+  return true;
+}
+
+/**
+ * `vietato` = unione (footprint ∪ cuscino) degli edifici già piazzati: il nuovo blocco
+ * non può invadere quell'area (mantiene almeno un anello d'erba tra strutture).
+ */
+function puòPiazzareFootprintConCuscino(
   anchor: number,
   w: number,
   h: number,
   cols: number,
   rows: number,
   riverSet: Set<number>,
-  used: Set<number>
+  vietato: Set<number>
 ): boolean {
   const ac = anchor % cols;
   const ar = Math.floor(anchor / cols);
@@ -182,13 +211,28 @@ function puòMettereFootprint(
   for (let dr = 0; dr < h; dr++) {
     for (let dc = 0; dc < w; dc++) {
       const i = (ar + dr) * cols + (ac + dc);
-      if (isAcqua(i, cols, rows) || riverSet.has(i) || used.has(i)) return false;
+      if (vietato.has(i) || isAcqua(i, cols, rows) || riverSet.has(i)) return false;
     }
+  }
+  for (const i of getIndiciCuscinoErba(anchor, w, h, cols, rows)) {
+    if (vietato.has(i) || !cellaSoloErba(i, cols, rows, riverSet)) return false;
   }
   return true;
 }
 
-/** Primo angolo w×h libero partendo dalle celle più vicine a `preferred`. */
+function estendiVietatoConFootprintECuscino(
+  anchor: number,
+  w: number,
+  h: number,
+  cols: number,
+  rows: number,
+  vietato: Set<number>
+): void {
+  for (const i of getIndiciFootprint(anchor, w, h, cols)) vietato.add(i);
+  for (const i of getIndiciCuscinoErba(anchor, w, h, cols, rows)) vietato.add(i);
+}
+
+/** Primo angolo w×h con cuscino d'erba e rispetto di `vietato`, ordinato per vicinanza a `preferred`. */
 function trovaAnchorFootprintLibero(
   w: number,
   h: number,
@@ -196,7 +240,7 @@ function trovaAnchorFootprintLibero(
   cols: number,
   rows: number,
   riverSet: Set<number>,
-  used: Set<number>
+  vietato: Set<number>
 ): number | null {
   const pc = preferred % cols;
   const pr = Math.floor(preferred / cols);
@@ -208,9 +252,20 @@ function trovaAnchorFootprintLibero(
     return Math.abs(ar - pr) + Math.abs(ac - pc) - (Math.abs(br - pr) + Math.abs(bc - pc));
   });
   for (const anchor of candidati) {
-    if (puòMettereFootprint(anchor, w, h, cols, rows, riverSet, used)) return anchor;
+    if (puòPiazzareFootprintConCuscino(anchor, w, h, cols, rows, riverSet, vietato)) return anchor;
   }
   return null;
+}
+
+/** Singola cella edificio 1×1 con stesso cuscino e `vietato`. */
+function trovaCellaSingolaConCuscino(
+  preferred: number,
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  vietato: Set<number>
+): number | null {
+  return trovaAnchorFootprintLibero(1, 1, preferred, cols, rows, riverSet, vietato);
 }
 
 /**
@@ -231,20 +286,12 @@ function scegliAnchorComplessoAmministrativo(cols: number, rows: number): number
   const maxC = cols - 2 - w;
   let bestAnchor = preferred;
   let bestD = Infinity;
+  const vietatoVuoto = new Set<number>();
+  const fiumiVuoti = new Set<number>();
   for (let ar = minR; ar <= maxR; ar++) {
     for (let ac = minC; ac <= maxC; ac++) {
       const anchor = ar * cols + ac;
-      let allLand = true;
-      for (let dr = 0; dr < h && allLand; dr++) {
-        for (let dc = 0; dc < w; dc++) {
-          const i = (ar + dr) * cols + (ac + dc);
-          if (isAcqua(i, cols, rows)) {
-            allLand = false;
-            break;
-          }
-        }
-      }
-      if (!allLand) continue;
+      if (!puòPiazzareFootprintConCuscino(anchor, w, h, cols, rows, fiumiVuoti, vietatoVuoto)) continue;
       const d = Math.abs(ar - pr) + Math.abs(ac - pc);
       if (d < bestD) {
         bestD = d;
@@ -259,8 +306,6 @@ function scegliAnchorComplessoAmministrativo(cols: number, rows: number): number
 function aggiungiComplessoAmministrativo(
   cols: number,
   rows: number,
-  riverSet: Set<number>,
-  used: Set<number>,
   out: Record<number, EdificioInCella>,
   anchor: number
 ): void {
@@ -274,11 +319,9 @@ function aggiungiComplessoAmministrativo(
     footprint: { w, h }
   };
   out[anchor] = anchorEd;
-  used.add(anchor);
   for (const i of celle) {
     if (i === anchor) continue;
     out[i] = { id: 1, nome: "Centro di Comando", emoji: "", footprintRef: anchor };
-    used.add(i);
   }
 }
 
@@ -286,18 +329,18 @@ function aggiungiDormitorioFootprint(
   cols: number,
   rows: number,
   riverSet: Set<number>,
-  used: Set<number>,
+  vietato: Set<number>,
   out: Record<number, EdificioInCella>,
   preferred: number
 ): void {
   const w = DORMITORIO_FOOTPRINT_W;
   const h = DORMITORIO_FOOTPRINT_H;
-  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, used);
+  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, vietato);
   if (anchor == null) {
-    const cell = findNearestLandNotRiver(preferred, cols, rows, riverSet, used);
+    const cell = trovaCellaSingolaConCuscino(preferred, cols, rows, riverSet, vietato);
     if (cell != null) {
       out[cell] = { ...DORMITORIO };
-      used.add(cell);
+      estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, vietato);
     }
     return;
   }
@@ -308,12 +351,11 @@ function aggiungiDormitorioFootprint(
     emoji: "",
     footprint: { w, h }
   };
-  used.add(anchor);
   for (const i of celle) {
     if (i === anchor) continue;
     out[i] = { id: DORMITORIO.id, nome: DORMITORIO.nome, emoji: "", footprintRef: anchor };
-    used.add(i);
   }
+  estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
 }
 
 const SPAZIOPORTO_EDIFICIO: EdificioInCella = { id: 19, nome: "Spazioporto", emoji: "🚀" };
@@ -322,18 +364,18 @@ function aggiungiSpazioportoFootprint(
   cols: number,
   rows: number,
   riverSet: Set<number>,
-  used: Set<number>,
+  vietato: Set<number>,
   out: Record<number, EdificioInCella>,
   preferred: number
 ): void {
   const w = SPAZIOPORTO_FOOTPRINT_W;
   const h = SPAZIOPORTO_FOOTPRINT_H;
-  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, used);
+  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, vietato);
   if (anchor == null) {
-    const cell = findNearestLandNotRiver(preferred, cols, rows, riverSet, used);
+    const cell = trovaCellaSingolaConCuscino(preferred, cols, rows, riverSet, vietato);
     if (cell != null) {
       out[cell] = { ...SPAZIOPORTO_EDIFICIO };
-      used.add(cell);
+      estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, vietato);
     }
     return;
   }
@@ -344,7 +386,6 @@ function aggiungiSpazioportoFootprint(
     emoji: "",
     footprint: { w, h }
   };
-  used.add(anchor);
   for (const i of celle) {
     if (i === anchor) continue;
     out[i] = {
@@ -353,8 +394,8 @@ function aggiungiSpazioportoFootprint(
       emoji: "",
       footprintRef: anchor
     };
-    used.add(i);
   }
+  estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
 }
 
 /** Restituisce edifici iniziali fissi, spostati su terra (no fiume, no mare); nessuna cella condivisa. */
@@ -366,26 +407,45 @@ function getEdificiIniziali(
 ): Record<number, EdificioInCella> {
   const idx = getIndiciEdificiIniziali(cols, rows);
   const out: Record<number, EdificioInCella> = {};
-  const used = new Set<number>();
+  /** Footprint ∪ cuscino d'erba degli edifici già piazzati. */
+  const vietato = new Set<number>();
 
-  aggiungiComplessoAmministrativo(cols, rows, riverSet, used, out, adminAnchor);
+  aggiungiComplessoAmministrativo(cols, rows, out, adminAnchor);
+  estendiVietatoConFootprintECuscino(adminAnchor, ADMIN_FOOTPRINT_W, ADMIN_FOOTPRINT_H, cols, rows, vietato);
 
-  aggiungiSpazioportoFootprint(cols, rows, riverSet, used, out, idx.SPAZIOPORTO_INDEX);
+  aggiungiSpazioportoFootprint(cols, rows, riverSet, vietato, out, idx.SPAZIOPORTO_INDEX);
 
-  const edifici: [number, EdificioInCella][] = [[idx.SERRA_INDEX, { id: 2, nome: "Serra", emoji: "🌱" }]];
-  for (const [preferred, e] of edifici) {
-    const cell = findNearestLandNotRiver(preferred, cols, rows, riverSet, used);
-    if (cell != null) {
-      out[cell] = e;
-      used.add(cell);
-    }
+  const cellaSerra = trovaCellaSingolaConCuscino(idx.SERRA_INDEX, cols, rows, riverSet, vietato);
+  if (cellaSerra != null) {
+    out[cellaSerra] = { id: 2, nome: "Serra", emoji: "🌱" };
+    estendiVietatoConFootprintECuscino(cellaSerra, 1, 1, cols, rows, vietato);
   }
 
-  aggiungiDormitorioFootprint(cols, rows, riverSet, used, out, idx.DORMITORIO_1_INDEX);
-  aggiungiDormitorioFootprint(cols, rows, riverSet, used, out, idx.DORMITORIO_2_INDEX);
-  aggiungiDormitorioFootprint(cols, rows, riverSet, used, out, idx.DORMITORIO_3_INDEX);
+  aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_1_INDEX);
+  aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_2_INDEX);
+  aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_3_INDEX);
 
   return out;
+}
+
+/** Footprint ∪ cuscino d'erba (8 direzioni) per ogni edificio iniziale ancorato: evita capanne/giacimenti sul verde riservato. */
+function vietatoFootprintECuscinoDaEdificiIniziali(
+  edifici: Record<number, EdificioInCella>,
+  cols: number,
+  rows: number
+): Set<number> {
+  const vietato = new Set<number>();
+  for (const idxStr of Object.keys(edifici)) {
+    const idx = Number(idxStr);
+    const e = edifici[idx];
+    if (e.footprintRef != null) continue;
+    if (e.footprint) {
+      estendiVietatoConFootprintECuscino(idx, e.footprint.w, e.footprint.h, cols, rows, vietato);
+    } else {
+      estendiVietatoConFootprintECuscino(idx, 1, 1, cols, rows, vietato);
+    }
+  }
+  return vietato;
 }
 
 /** Restituisce lo stato iniziale della mappa; esclude sempre acqua e fiumi dalle celle edificabili. */
@@ -397,10 +457,10 @@ function getInitialEdificiInMappa(
 ): Record<number, EdificioInCella> {
   const edificiIniziali = getEdificiIniziali(cols, rows, riverSet, adminAnchor);
   const totaleCelle = cols * rows;
-  const occupate = new Set<number>(Object.keys(edificiIniziali).map(Number));
+  const vietatoEdifici = vietatoFootprintECuscinoDaEdificiIniziali(edificiIniziali, cols, rows);
   const erbaLibera: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {
-    if (!isAcqua(i, cols, rows) && !riverSet.has(i) && !occupate.has(i)) erbaLibera.push(i);
+    if (!isAcqua(i, cols, rows) && !riverSet.has(i) && !vietatoEdifici.has(i)) erbaLibera.push(i);
   }
   const shuffled = [...erbaLibera].sort(() => Math.random() - 0.5);
   const nCapanne = 5 + Math.floor(Math.random() * 5);
@@ -424,8 +484,9 @@ function getInitialMappaWithRivers(cols: number, rows: number): {
   const borderIndices = new Set<number>();
   for (let i = 0; i < totaleCelle; i++) if (isAcqua(i, cols, rows)) borderIndices.add(i);
   const adminAnchor = scegliAnchorComplessoAmministrativo(cols, rows);
-  const adminReserved = new Set(getIndiciFootprint(adminAnchor, ADMIN_FOOTPRINT_W, ADMIN_FOOTPRINT_H, cols));
-  const forbiddenForRivers = new Set<number>([...borderIndices, ...adminReserved]);
+  const adminFootprint = getIndiciFootprint(adminAnchor, ADMIN_FOOTPRINT_W, ADMIN_FOOTPRINT_H, cols);
+  const adminCuscino = getIndiciCuscinoErba(adminAnchor, ADMIN_FOOTPRINT_W, ADMIN_FOOTPRINT_H, cols, rows);
+  const forbiddenForRivers = new Set<number>([...borderIndices, ...adminFootprint, ...adminCuscino]);
   const { riverIndices, sandIndices } = generateRivers({
     cols,
     rows,

@@ -153,41 +153,67 @@ export function RpgFootprintDorm2x2({ width, height }: Props) {
   );
 }
 
+/** Vetrata centrale larga (hangar / sala controllo). */
+function HangarGlassPane() {
+  return (
+    <View style={styles.hangarOuter}>
+      <View style={styles.hangarGlassL} />
+      <View style={styles.hangarMullion} />
+      <View style={styles.hangarGlassR} />
+    </View>
+  );
+}
+
 /**
- * Spazioporto 4×3 — composizione stile “centro spaziale” (no PNG):
- * fila alta: plancia + cupola + piatto; medio: edificio verde/grigio; basso: razzo + torri.
+ * Spazioporto 4×3 — stessa lettura degli altri edifici: tetto metallico → gronda → facciata a 4 campate → piazzale con razzo.
  */
 export function RpgFootprintSpazioporto4x3({ width, height }: Props) {
+  const roofH = Math.round(height * 0.4);
+  const grondaH = 3;
+  const lowerH = height - roofH - grondaH;
+  const padH = Math.min(Math.max(12, Math.round(lowerH * 0.22)), Math.floor(lowerH * 0.35));
+  const bandH = Math.max(3, Math.floor((lowerH - padH) * 0.11));
+  const facadeInnerH = Math.max(12, lowerH - padH - bandH * 2);
+
   return (
-    <View style={[styles.wrap, styles.wrapSpazioporto, { width, height }]} pointerEvents="none">
-      <View style={styles.spRowTop}>
-        <View style={styles.spTopSide} />
-        <View style={styles.spTopCenter}>
-          <View style={styles.spDome} />
-          <View style={styles.spDish} />
+    <View style={[styles.wrap, { width, height }]} pointerEvents="none">
+      <View style={{ height: roofH, position: "relative" }}>
+        <RoofStripes
+          roofH={roofH}
+          stripeEvery={5}
+          colors={{ base: "#475569", dark: "#334155", light: "#64748b" }}
+        />
+        <View style={[styles.spRoofDecor, { height: Math.max(14, roofH * 0.38) }]}>
+          <View style={styles.spDomeSmall} />
+          <View style={styles.spDishSmall} />
         </View>
-        <View style={styles.spTopSide} />
-        <View style={styles.spTopSide} />
       </View>
-      <View style={styles.spRowMid}>
-        <View style={styles.spWallSeg} />
-        <View style={[styles.spGlassCol, styles.spGlassMid]} />
-        <View style={styles.spWallSeg} />
-        <View style={styles.spWallSeg} />
-      </View>
-      <View style={styles.spRowBot}>
-        <View style={styles.spTower}>
-          <View style={styles.spTowerArm} />
-          <View style={styles.spTowerArm} />
+      <View style={[styles.gronda, { height: grondaH }]} />
+      <View style={styles.spLower}>
+        <View style={[styles.trimBand, { height: bandH, backgroundColor: "#1e3a5f" }]} />
+        <View style={[styles.spFacade, { backgroundColor: "#e2e8f0" }]}>
+          <WallBrickTexture wallH={facadeInnerH} />
+          <View style={styles.spFourCols}>
+            <View style={styles.col}>
+              <WindowPane small />
+            </View>
+            <View style={[styles.col, { flex: 1.2 }]}>
+              <HangarGlassPane />
+            </View>
+            <View style={styles.col}>
+              <WindowPane small />
+            </View>
+            <View style={styles.col}>
+              <WindowPane small />
+            </View>
+          </View>
         </View>
-        <View style={styles.spRocketCol}>
-          <View style={styles.spRocketBody} />
+        <View style={[styles.trimBand, { height: bandH, backgroundColor: "#1e293b" }]} />
+        <View style={[styles.spLaunchPad, { height: padH }]}>
+          <View style={styles.spGantry} />
+          <View style={styles.spRocketMini} />
+          <View style={styles.spGantry} />
         </View>
-        <View style={styles.spTower}>
-          <View style={styles.spTowerArm} />
-          <View style={styles.spTowerArm} />
-        </View>
-        <View style={styles.spPad} />
       </View>
     </View>
   );
@@ -201,9 +227,107 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#1a1814"
   },
-  wrapSpazioporto: {
-    borderColor: "#1e3a5f",
-    backgroundColor: "#4a5d23"
+  spLower: {
+    flex: 1,
+    minHeight: 0,
+    width: "100%"
+  },
+  spRoofDecor: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 1,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    gap: 6,
+    pointerEvents: "none"
+  },
+  spDomeSmall: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: "#94a3b8",
+    borderWidth: 2,
+    borderColor: OUTLINE
+  },
+  spDishSmall: {
+    width: 26,
+    height: 20,
+    borderRadius: 13,
+    backgroundColor: "#cbd5e1",
+    borderWidth: 2,
+    borderColor: OUTLINE,
+    borderBottomWidth: 5,
+    borderBottomColor: "#64748b"
+  },
+  spFacade: {
+    flex: 1,
+    minHeight: 0,
+    position: "relative",
+    paddingHorizontal: 3,
+    paddingVertical: 2
+  },
+  spFourCols: {
+    flex: 1,
+    flexDirection: "row",
+    gap: 3,
+    alignItems: "flex-end",
+    justifyContent: "center",
+    paddingBottom: 3,
+    zIndex: 1
+  },
+  hangarOuter: {
+    width: "94%",
+    height: "58%",
+    minHeight: 20,
+    flexDirection: "row",
+    borderWidth: 2,
+    borderColor: OUTLINE,
+    overflow: "hidden"
+  },
+  hangarGlassL: {
+    flex: 1,
+    backgroundColor: "#38bdf8"
+  },
+  hangarMullion: {
+    width: 3,
+    backgroundColor: OUTLINE
+  },
+  hangarGlassR: {
+    flex: 1,
+    backgroundColor: "#0ea5e9"
+  },
+  spLaunchPad: {
+    position: "relative",
+    width: "100%",
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "space-between",
+    paddingHorizontal: 6,
+    paddingBottom: 2,
+    backgroundColor: "#44403c",
+    borderTopWidth: 1,
+    borderTopColor: OUTLINE
+  },
+  spGantry: {
+    width: 4,
+    height: "75%",
+    backgroundColor: "#b91c1c",
+    borderWidth: 1,
+    borderColor: OUTLINE
+  },
+  spRocketMini: {
+    position: "absolute",
+    left: "38%",
+    right: "38%",
+    bottom: 2,
+    height: "88%",
+    backgroundColor: "#f8fafc",
+    borderWidth: 2,
+    borderColor: OUTLINE,
+    borderTopLeftRadius: 6,
+    borderTopRightRadius: 6
   },
   roofShell: {
     width: "100%",
@@ -305,113 +429,4 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#854d0e"
   },
-  spRowTop: {
-    flex: 1,
-    flexDirection: "row",
-    borderBottomWidth: 1,
-    borderBottomColor: OUTLINE,
-    backgroundColor: "#5c6b4a"
-  },
-  spTopSide: {
-    flex: 1,
-    margin: 1,
-    backgroundColor: "#6b7c52",
-    borderWidth: 1,
-    borderColor: OUTLINE
-  },
-  spTopCenter: {
-    flex: 1.4,
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-around",
-    paddingHorizontal: 2
-  },
-  spDome: {
-    width: "38%",
-    aspectRatio: 1,
-    borderRadius: 999,
-    backgroundColor: "#94a3b8",
-    borderWidth: 2,
-    borderColor: OUTLINE
-  },
-  spDish: {
-    width: "42%",
-    aspectRatio: 1,
-    borderRadius: 999,
-    backgroundColor: "#e2e8f0",
-    borderWidth: 2,
-    borderColor: OUTLINE,
-    borderBottomWidth: 6,
-    borderBottomColor: "#64748b"
-  },
-  spRowMid: {
-    flex: 1,
-    flexDirection: "row",
-    backgroundColor: "#7c8f5a",
-    borderBottomWidth: 1,
-    borderBottomColor: OUTLINE
-  },
-  spWallSeg: {
-    flex: 1,
-    margin: 1,
-    backgroundColor: "#8b9a6e",
-    borderWidth: 1,
-    borderColor: OUTLINE
-  },
-  spGlassCol: {
-    flex: 1,
-    margin: 1,
-    borderWidth: 2,
-    borderColor: OUTLINE
-  },
-  spGlassMid: {
-    backgroundColor: "#38bdf8"
-  },
-  spRowBot: {
-    flex: 1.1,
-    flexDirection: "row",
-    alignItems: "flex-end",
-    backgroundColor: "#78716c",
-    paddingBottom: 2
-  },
-  spTower: {
-    flex: 0.85,
-    height: "88%",
-    marginHorizontal: 1,
-    backgroundColor: "#b91c1c",
-    borderWidth: 2,
-    borderColor: OUTLINE,
-    justifyContent: "space-between",
-    paddingVertical: 3
-  },
-  spTowerArm: {
-    height: 3,
-    backgroundColor: "#ea580c",
-    marginHorizontal: 2,
-    borderRadius: 1
-  },
-  spRocketCol: {
-    flex: 1.1,
-    alignItems: "center",
-    justifyContent: "flex-end",
-    height: "100%"
-  },
-  spRocketBody: {
-    width: "42%",
-    flex: 1,
-    maxHeight: "92%",
-    backgroundColor: "#f8fafc",
-    borderWidth: 2,
-    borderColor: OUTLINE,
-    borderBottomLeftRadius: 2,
-    borderBottomRightRadius: 2
-  },
-  spPad: {
-    flex: 0.75,
-    height: "35%",
-    margin: 2,
-    backgroundColor: "#57534e",
-    borderWidth: 1,
-    borderColor: OUTLINE
-  }
 });
