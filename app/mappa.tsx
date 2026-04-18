@@ -51,9 +51,6 @@ const CELL_SIZE_PX = 40;
 /** Gap tra le celle (0 = griglia compatta 2000x2000). */
 const GAP = 0;
 const DOPPIO_TAP_MS = 400;
-const STRADA_SPESSORE = 6;
-const STRADA_COLORE = "#78716c";
-const STRADA_CERCHIO_RAGGIO = 5;
 
 /** Calcola indici edifici iniziali in funzione di cols/rows (centro griglia). */
 function getIndiciEdificiIniziali(cols: number, rows: number) {
@@ -107,7 +104,7 @@ function isAcqua(index: number, cols: number, rows: number): boolean {
   return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
 }
 
-/** Mare, fiume: nessun segmento strada (né visivo tra due centri celle). */
+/** Mare, fiume: nessuna cella strada. */
 function isCellaOkPerStrada(
   index: number,
   cols: number,
@@ -117,16 +114,6 @@ function isCellaOkPerStrada(
   if (isAcqua(index, cols, rows)) return false;
   if ((terrenoInMappa[index] ?? "erba") === "river") return false;
   return true;
-}
-
-function segmentoStradaConsentito(
-  a: number,
-  b: number,
-  cols: number,
-  rows: number,
-  terrenoInMappa: Record<number, TerrenoType>
-): boolean {
-  return isCellaOkPerStrada(a, cols, rows, terrenoInMappa) && isCellaOkPerStrada(b, cols, rows, terrenoInMappa);
 }
 
 const GIACIMENTO: EdificioInCella = { id: 0, nome: "Giacimento", emoji: "⛰️" };
@@ -516,6 +503,7 @@ function getInitialMappaWithRivers(cols: number, rows: number): {
   );
   const terrenoInMappa = buildTerrenoFromRivers(riverIndices, sandIndices, giacimentoIndices);
   applyTerrenoGrassAndSandContinuity(terrenoInMappa, cols, rows, giacimentoIndices);
+  piazzaStradeInizialiTraEdifici(edificiInMappa, terrenoInMappa, cols, rows);
 
   const celleLibere: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {
@@ -556,15 +544,6 @@ function getStradeIniziali(edificiInMappa: Record<number, EdificioInCella>): [nu
   if (centro != null && spazioporto != null) out.push([centro, spazioporto]);
   if (centro != null && serra != null) out.push([centro, serra]);
   return out;
-}
-
-/** Centro della cella in px (per layer strade/emoji). Usa dimensioni effettive griglia. */
-function getCellCenter(cellIndex: number, cellW: number, cellH: number, cols: number): { x: number; y: number } {
-  const col = cellIndex % cols;
-  const row = Math.floor(cellIndex / cols);
-  const x = col * (cellW + GAP) + cellW / 2;
-  const y = row * (cellH + GAP) + cellH / 2;
-  return { x, y };
 }
 
 /** Angolo in alto a sinistra della cella in px (per overlay edifici multi-cella). */
@@ -678,16 +657,29 @@ function getManhattanPathSegments(from: number, to: number, cols: number): [numb
   return [...expandAxisToUnitSteps(from, mid, cols), ...expandAxisToUnitSteps(mid, to, cols)];
 }
 
-/** Vicini ortogonali (su, giù, sinistra, destra) con controlli sui bordi. */
-function getViciniOrtogonali(index: number, cols: number, rows: number): number[] {
-  const col = index % cols;
-  const row = Math.floor(index / cols);
-  const out: number[] = [];
-  if (row > 0) out.push(index - cols);
-  if (row < rows - 1) out.push(index + cols);
-  if (col > 0) out.push(index - 1);
-  if (col < cols - 1) out.push(index + 1);
-  return out;
+/**
+ * Lastrica con celle "Strada" i percorsi Manhattan tra edifici chiave (centro ↔ spazioporto/serra).
+ * Il collegamento non dipende più dal layer vettoriale grigio sopra la griglia.
+ */
+function piazzaStradeInizialiTraEdifici(
+  edificiInMappa: Record<number, EdificioInCella>,
+  terrenoInMappa: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): void {
+  for (const [from, to] of getStradeIniziali(edificiInMappa)) {
+    const segs = getManhattanPathSegments(from, to, cols);
+    const touch = new Set<number>();
+    for (const [a, b] of segs) {
+      touch.add(a);
+      touch.add(b);
+    }
+    for (const i of touch) {
+      if (!isCellaOkPerStrada(i, cols, rows, terrenoInMappa)) continue;
+      if (edificiInMappa[i]) continue;
+      edificiInMappa[i] = { ...STRADA_OPZIONE };
+    }
+  }
 }
 
 function getResourceEmoji(r: Risorsa): string {
@@ -793,7 +785,6 @@ export function MappaScreen() {
   const cellH = CELL_SIZE_PX;
   const contentWidth = cols * CELL_SIZE_PX + (cols - 1) * GAP;
   const contentHeight = rows * CELL_SIZE_PX + (rows - 1) * GAP;
-  const stradeIniziali = getStradeIniziali(edificiInMappa);
 
   const edificiFootprintOverlay = useMemo(() => {
     const list: { anchor: number; fp: { w: number; h: number }; variant: FootprintVariant }[] = [];
@@ -1020,84 +1011,6 @@ export function MappaScreen() {
                       );
                     })}
                   </View>
-                  <View
-                    style={[styles.roadsLayer, styles.roadsLayerSopra, { width: contentWidth, height: contentHeight }]}
-                    pointerEvents="none"
-                  >
-                  {stradeIniziali
-                    .filter(([a, b]) => edificiInMappa[a] && edificiInMappa[b])
-                    .flatMap(([from, to]) =>
-                      getManhattanPathSegments(from, to, cols)
-                        .filter(([a, b]) => segmentoStradaConsentito(a, b, cols, rows, terrenoInMappa))
-                        .map(([a, b]) => ({ from: a, to: b, keyBase: `${from}-${to}` }))
-                    )
-                    .map(({ from: a, to: b, keyBase }, segIdx) => {
-                      const c1 = getCellCenter(a, cellW, cellH, cols);
-                      const c2 = getCellCenter(b, cellW, cellH, cols);
-                      const dx = c2.x - c1.x;
-                      const dy = c2.y - c1.y;
-                      const length = Math.sqrt(dx * dx + dy * dy) || 1;
-                      const midX = (c1.x + c2.x) / 2;
-                      const midY = (c1.y + c2.y) / 2;
-                      const angle = Math.atan2(dy, dx);
-                      return (
-                        <View
-                          key={`strada-${keyBase}-${a}-${b}-${segIdx}`}
-                          style={[styles.stradaLinea, { width: length, height: STRADA_SPESSORE, left: midX - length / 2, top: midY - STRADA_SPESSORE / 2, transform: [{ rotate: `${angle}rad` }] }]}
-                        />
-                      );
-                    })}
-                  {(() => {
-                    const drawnEdges = new Set<string>();
-                    const segmenti: [number, number][] = [];
-                    const celleIsolate: number[] = [];
-                    Object.keys(edificiInMappa)
-                      .map(Number)
-                      .filter((i) => edificiInMappa[i]?.nome === "Strada")
-                      .forEach((i) => {
-                        const vicini = getViciniOrtogonali(i, cols, rows).filter((n) => edificiInMappa[n]);
-                        if (vicini.length === 0) celleIsolate.push(i);
-                        else vicini.forEach((n) => {
-                          if (!segmentoStradaConsentito(i, n, cols, rows, terrenoInMappa)) return;
-                          const key = `${Math.min(i, n)}-${Math.max(i, n)}`;
-                          if (!drawnEdges.has(key)) {
-                            drawnEdges.add(key);
-                            segmenti.push([i, n]);
-                          }
-                        });
-                      });
-                    return (
-                      <>
-                        {segmenti.map(([from, to]) => {
-                          if (edificiInMappa[from]?.nome === "Strada" && edificiInMappa[to]?.nome === "Strada") {
-                            return null;
-                          }
-                          const c1 = getCellCenter(from, cellW, cellH, cols);
-                          const c2 = getCellCenter(to, cellW, cellH, cols);
-                          const dx = c2.x - c1.x;
-                          const dy = c2.y - c1.y;
-                          const length = Math.sqrt(dx * dx + dy * dy) || 1;
-                          const midX = (c1.x + c2.x) / 2;
-                          const midY = (c1.y + c2.y) / 2;
-                          const angle = Math.atan2(dy, dx);
-                          return (
-                            <View
-                              key={`strada-cell-${from}-${to}`}
-                              style={[styles.stradaLinea, { width: length, height: STRADA_SPESSORE, left: midX - length / 2, top: midY - STRADA_SPESSORE / 2, transform: [{ rotate: `${angle}rad` }] }]}
-                            />
-                          );
-                        })}
-                        {celleIsolate.map((i) => {
-                          const c = getCellCenter(i, cellW, cellH, cols);
-                          const r = STRADA_CERCHIO_RAGGIO;
-                          return (
-                            <View key={`strada-cerchio-${i}`} style={[styles.stradaCerchio, { width: r * 2, height: r * 2, left: c.x - r, top: c.y - r, borderRadius: r }]} />
-                          );
-                        })}
-                      </>
-                    );
-                  })()}
-                </View>
                   <View
                     style={[styles.footprintsLayer, { width: contentWidth, height: contentHeight }]}
                     pointerEvents="none"
@@ -1552,15 +1465,6 @@ const styles = StyleSheet.create({
     top: 0,
     zIndex: 0
   },
-  roadsLayer: {
-    position: "absolute",
-    left: 0,
-    top: 0,
-    zIndex: 0
-  },
-  roadsLayerSopra: {
-    zIndex: 1
-  },
   footprintsLayer: {
     position: "absolute",
     left: 0,
@@ -1607,11 +1511,6 @@ const styles = StyleSheet.create({
     width: "100%",
     height: "100%"
   },
-  stradaLinea: {
-    position: "absolute",
-    backgroundColor: STRADA_COLORE,
-    borderRadius: STRADA_SPESSORE / 2
-  },
   griglia: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -1631,10 +1530,6 @@ const styles = StyleSheet.create({
     position: "relative"
   },
   cellaEdificio: {},
-  stradaCerchio: {
-    position: "absolute",
-    backgroundColor: STRADA_COLORE
-  },
   edificioEmoji: {
     fontSize: 18
   },
