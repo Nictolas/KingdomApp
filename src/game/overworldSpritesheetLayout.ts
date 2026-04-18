@@ -26,10 +26,11 @@ export const OVERWORLD_SHEET_PX = {
    */
   grassSand3x3Origin: { x: 320, y: 128 },
   /**
-   * Strada terra: blocco 3×3 con transizione verso erba (stesso schema indici della spiaggia).
-   * Rilevato nel foglio come terra uniforme R222 G118 B80.
+   * Strada (autotile 3×3 verso erba, stesso schema indici di spiaggia / erba–sabbia).
+   * Motivo verde menta con bordo “a nuvola” nel foglio DEMO, in alto a sinistra (x=128, y=128),
+   * al posto del blocco terra marrone (512, 128).
    */
-  roadDirt3x3Origin: { x: 512, y: 128 },
+  roadDirt3x3Origin: { x: 128, y: 128 },
   /**
    * Blocco 3×3 spiaggia/sabbia–acqua (angoli, lati, centro).
    */
