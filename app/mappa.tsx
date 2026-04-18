@@ -21,6 +21,7 @@ import {
   RpgFootprintDorm2x2,
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
+import { TerrainWaterSprite } from "../src/components/TerrainWaterSprite";
 
 /** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
 const FIXED_MAP_COLS = 50;
@@ -743,6 +744,13 @@ export function MappaScreen() {
   const lastTapCell = useRef<number | null>(null);
   const lastTapTime = useRef<number>(0);
 
+  /** Frame condiviso per mare + fiumi: ciclo 0…3 sullo spritesheet (simile a GIF). */
+  const [waterAnimFrame, setWaterAnimFrame] = useState(0);
+  useEffect(() => {
+    const id = setInterval(() => setWaterAnimFrame((n) => (n + 1) % 4), 180);
+    return () => clearInterval(id);
+  }, []);
+
   const capannaEdificio = edifici.find((e) => e.nome === "Capanna");
   const abitantiCapanna = (capannaEdificio?.abitantiAssegnati ?? [])
     .map((id) => abitanti.find((a) => a.id === id))
@@ -956,14 +964,12 @@ export function MappaScreen() {
                       const edificio = edificiInMappa[i];
                       const hasEdificio = !!edificio;
                       const èStrada = edificio?.nome === "Strada";
-                      const styleTerreno =
-                        acqua
-                          ? styles.cellaAcqua
-                          : terreno === "river"
-                            ? styles.cellaFiume
-                            : terreno === "sabbia"
-                              ? styles.cellaSabbia
-                              : styles.cellaErba;
+                      const acquaAnimata = acqua || terreno === "river";
+                      const styleTerreno = acquaAnimata
+                        ? styles.cellaAcquaAnimata
+                        : terreno === "sabbia"
+                          ? styles.cellaSabbia
+                          : styles.cellaErba;
                       const cellStyle = [
                         styles.cella,
                         styles.cellaFixed,
@@ -971,11 +977,20 @@ export function MappaScreen() {
                         { width: CELL_SIZE_PX, height: CELL_SIZE_PX },
                         hasEdificio && !èStrada && styles.cellaEdificio
                       ];
+                      const spriteAcqua = acquaAnimata ? (
+                        <TerrainWaterSprite cellSize={CELL_SIZE_PX} frame={waterAnimFrame} />
+                      ) : null;
                       if (acqua) {
-                        return <View key={i} style={cellStyle} />;
+                        return (
+                          <View key={i} style={cellStyle}>
+                            {spriteAcqua}
+                          </View>
+                        );
                       }
                       return (
-                        <Pressable key={i} style={cellStyle} onPress={() => onCellPress(i)} />
+                        <Pressable key={i} style={cellStyle} onPress={() => onCellPress(i)}>
+                          {spriteAcqua}
+                        </Pressable>
                       );
                     })}
                   </View>
@@ -1583,11 +1598,11 @@ const styles = StyleSheet.create({
   cellaErba: {
     backgroundColor: "#3d7c47"
   },
-  cellaAcqua: {
-    backgroundColor: "#2c5282"
-  },
-  cellaFiume: {
-    backgroundColor: "#0ea5e9"
+  /** Mare e fiume: texture animata da spritesheet (vedi TerrainWaterSprite). */
+  cellaAcquaAnimata: {
+    backgroundColor: "transparent",
+    overflow: "hidden",
+    position: "relative"
   },
   cellaSabbia: {
     backgroundColor: "#ca8a04"
