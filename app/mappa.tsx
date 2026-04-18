@@ -475,7 +475,10 @@ function getInitialEdificiInMappa(
   return { ...edificiIniziali, ...capanne, ...giacimenti };
 }
 
-/** Stato iniziale mappa: prima si generano i fiumi (solo bordi vietati), poi gli edifici su terra (no fiumi, no mare), infine decorazioni su celle libere. */
+/**
+ * Stato iniziale mappa. Ordine: edifici → strade che li collegano → erba (implicita) →
+ * fiumi e sabbia → continuità erba/sabbia → acqua (mare ai bordi già implicito) → decorazioni.
+ */
 function getInitialMappaWithRivers(cols: number, rows: number): {
   edificiInMappa: Record<number, EdificioInCella>;
   terrenoInMappa: Record<number, TerrenoType>;
@@ -485,28 +488,31 @@ function getInitialMappaWithRivers(cols: number, rows: number): {
   const borderIndices = new Set<number>();
   for (let i = 0; i < totaleCelle; i++) if (isAcqua(i, cols, rows)) borderIndices.add(i);
   const adminAnchor = scegliAnchorComplessoAmministrativo(cols, rows);
-  const adminFootprint = getIndiciFootprint(adminAnchor, ADMIN_FOOTPRINT_W, ADMIN_FOOTPRINT_H, cols);
-  const adminCuscino = getIndiciCuscinoErba(adminAnchor, ADMIN_FOOTPRINT_W, ADMIN_FOOTPRINT_H, cols, rows);
-  const forbiddenForRivers = new Set<number>([...borderIndices, ...adminFootprint, ...adminCuscino]);
+
+  const edificiInMappa = getInitialEdificiInMappa(cols, rows, new Set(), adminAnchor);
+  const terrenoInMappa: Record<number, TerrenoType> = {};
+
+  piazzaStradeInizialiTraEdifici(edificiInMappa, terrenoInMappa, cols, rows);
+  assicuraEdificiCollegatiDaStrada(edificiInMappa, terrenoInMappa, cols, rows, STRADA_OPZIONE);
+
+  const vietatoPerFiumi = new Set<number>([...borderIndices, ...Object.keys(edificiInMappa).map(Number)]);
   const { riverIndices, sandIndices } = generateRivers({
     cols,
     rows,
     numSources: 2 + Math.floor(Math.random() * 2),
     maxLength: 60,
     bifurcationProbability: 0.1,
-    forbiddenIndices: forbiddenForRivers
+    forbiddenIndices: vietatoPerFiumi
   });
   const riverSet = new Set(riverIndices);
-  const edificiInMappa = getInitialEdificiInMappa(cols, rows, riverSet, adminAnchor);
+
   const giacimentoIndices = new Set(
     Object.keys(edificiInMappa)
       .map(Number)
       .filter((i) => edificiInMappa[i]?.nome === "Giacimento")
   );
-  const terrenoInMappa = buildTerrenoFromRivers(riverIndices, sandIndices, giacimentoIndices);
+  Object.assign(terrenoInMappa, buildTerrenoFromRivers(riverIndices, sandIndices, giacimentoIndices));
   applyTerrenoGrassAndSandContinuity(terrenoInMappa, cols, rows, giacimentoIndices);
-  piazzaStradeInizialiTraEdifici(edificiInMappa, terrenoInMappa, cols, rows);
-  assicuraEdificiCollegatiDaStrada(edificiInMappa, terrenoInMappa, cols, rows, STRADA_OPZIONE);
 
   const celleLibere: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {

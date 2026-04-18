@@ -181,7 +181,23 @@ export function getGrassSandBorderSubtileIfAny(
   const e = isSandAt(row, col + 1, cols, rows, terrenoInMappa);
   const s = isSandAt(row + 1, col, cols, rows, terrenoInMappa);
   const w = isSandAt(row, col - 1, cols, rows, terrenoInMappa);
-  if (!n && !e && !s && !w) return undefined;
-  const mask = (n ? 1 : 0) | (e ? 2 : 0) | (s ? 4 : 0) | (w ? 8 : 0);
-  return subtile9FromMask(mask);
+  if (n || e || s || w) {
+    const mask = (n ? 1 : 0) | (e ? 2 : 0) | (s ? 4 : 0) | (w ? 8 : 0);
+    return subtile9FromMask(mask);
+  }
+  /**
+   * Solo sabbia in diagonale (nessun vicino ortogonale sabbia): “angolo interno” nel blocco 3×3.
+   * Indici nel foglio grass–sabbia (320,128): NW→6, NE→5, SW→7, SE→8.
+   */
+  const nw = isSandAt(row - 1, col - 1, cols, rows, terrenoInMappa);
+  const ne = isSandAt(row - 1, col + 1, cols, rows, terrenoInMappa);
+  const sw = isSandAt(row + 1, col - 1, cols, rows, terrenoInMappa);
+  const se = isSandAt(row + 1, col + 1, cols, rows, terrenoInMappa);
+  const dCount = (nw ? 1 : 0) + (ne ? 1 : 0) + (sw ? 1 : 0) + (se ? 1 : 0);
+  if (dCount !== 1) return undefined;
+  if (nw) return 6;
+  if (ne) return 5;
+  if (sw) return 7;
+  if (se) return 8;
+  return undefined;
 }
