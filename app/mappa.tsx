@@ -27,6 +27,7 @@ import {
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
 import { TerrainSheetSprite } from "../src/components/TerrainSheetSprite";
+import { assicuraEdificiCollegatiDaStrada } from "../src/game/roadConnectivity";
 import {
   getGrass2x2Index,
   getGrassRoadBorderSubtileIfAny,
@@ -505,6 +506,7 @@ function getInitialMappaWithRivers(cols: number, rows: number): {
   const terrenoInMappa = buildTerrenoFromRivers(riverIndices, sandIndices, giacimentoIndices);
   applyTerrenoGrassAndSandContinuity(terrenoInMappa, cols, rows, giacimentoIndices);
   piazzaStradeInizialiTraEdifici(edificiInMappa, terrenoInMappa, cols, rows);
+  assicuraEdificiCollegatiDaStrada(edificiInMappa, terrenoInMappa, cols, rows, STRADA_OPZIONE);
 
   const celleLibere: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {
@@ -737,12 +739,6 @@ export function MappaScreen() {
   const edificiInMappa = mappaState.edificiInMappa;
   const terrenoInMappa = mappaState.terrenoInMappa;
   const decorazioniInMappa = mappaState.decorazioniInMappa;
-  const setEdificiInMappa = useCallback(
-    (updater: (prev: Record<number, EdificioInCella>) => Record<number, EdificioInCella>) => {
-      setMappaStatePersistente((s) => ({ ...s, edificiInMappa: updater(s.edificiInMappa) }));
-    },
-    [setMappaStatePersistente]
-  );
   const [selectedCellForDialog, setSelectedCellForDialog] = useState<number | null>(null);
   const [selectedCellForTransformDialog, setSelectedCellForTransformDialog] = useState<number | null>(null);
   const [showCapannaAbitantiModal, setShowCapannaAbitantiModal] = useState(false);
@@ -849,22 +845,39 @@ export function MappaScreen() {
 
   const handleScegliEdificio = useCallback(
     (cellIndex: number, e: Edificio) => {
-      setEdificiInMappa((prev) => ({
-        ...prev,
-        [cellIndex]: { id: e.id, nome: e.nome, emoji: e.emoji }
-      }));
+      setMappaStatePersistente((s) => {
+        const nextEdifici = {
+          ...s.edificiInMappa,
+          [cellIndex]: { id: e.id, nome: e.nome, emoji: e.emoji }
+        };
+        assicuraEdificiCollegatiDaStrada(
+          nextEdifici,
+          s.terrenoInMappa,
+          FIXED_MAP_COLS,
+          FIXED_MAP_ROWS,
+          STRADA_OPZIONE
+        );
+        return { ...s, edificiInMappa: nextEdifici };
+      });
       setSelectedCellForDialog(null);
     },
-    []
+    [setMappaStatePersistente]
   );
 
   const handleTrasformaGiacimento = useCallback((cellIndex: number) => {
-    setEdificiInMappa((prev) => ({
-      ...prev,
-      [cellIndex]: RAFFINERIA_MINERARIA
-    }));
+    setMappaStatePersistente((s) => {
+      const nextEdifici = { ...s.edificiInMappa, [cellIndex]: RAFFINERIA_MINERARIA };
+      assicuraEdificiCollegatiDaStrada(
+        nextEdifici,
+        s.terrenoInMappa,
+        FIXED_MAP_COLS,
+        FIXED_MAP_ROWS,
+        STRADA_OPZIONE
+      );
+      return { ...s, edificiInMappa: nextEdifici };
+    });
     setSelectedCellForTransformDialog(null);
-  }, []);
+  }, [setMappaStatePersistente]);
 
   return (
     <SafeAreaView style={styles.safe}>
