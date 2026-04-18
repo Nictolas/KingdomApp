@@ -203,7 +203,44 @@ export function generateRivers(options: RiverOptions): {
     }
   }
 
-  return { riverIndices, sandIndices };
+  const sandIndicesPruned = pruneSandMinTwoSandNeighbors(sandIndices, cols, rows);
+
+  return { riverIndices, sandIndices: sandIndicesPruned };
+}
+
+/** Vicini ortogonali che sono ancora sabbia (solo insieme `sandSet`). */
+function countSandNeighborsOrth(index: number, sandSet: Set<number>, cols: number, rows: number): number {
+  const [r, c] = indexToRowCol(index, cols);
+  let n = 0;
+  for (const [dr, dc] of DELTA) {
+    const r2 = r + dr;
+    const c2 = c + dc;
+    if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) continue;
+    const i2 = rowColToIndex(r2, c2, cols);
+    if (sandSet.has(i2)) n++;
+  }
+  return n;
+}
+
+/**
+ * Ogni cella sabbia deve avere almeno 2 vicini ortogonali sabbia (nessun tile “isolato”
+ * senza abbastanza continuità per l’autotile). Rimuove iterativamente le sabbie sotto soglia.
+ */
+function pruneSandMinTwoSandNeighbors(sandIndices: number[], cols: number, rows: number): number[] {
+  const sandSet = new Set(sandIndices);
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const toRemove: number[] = [];
+    for (const i of sandSet) {
+      if (countSandNeighborsOrth(i, sandSet, cols, rows) < 2) toRemove.push(i);
+    }
+    for (const i of toRemove) {
+      sandSet.delete(i);
+      changed = true;
+    }
+  }
+  return Array.from(sandSet);
 }
 
 /** Restituisce un Record indice → tipo terreno (solo per celle non erba). */

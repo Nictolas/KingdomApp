@@ -10,20 +10,50 @@ export const OVERWORLD_SHEET_PX = {
   waterAnimX: 768,
   waterAnimY: 64,
   waterFrames: 4,
-  /** Riempimento erba (tile “piena”) */
+  /**
+   * Erba “piena” (fallback, meno usata se c’è il blocco 2×2).
+   * @deprecated preferisci grassDecor2x2Origin
+   */
   grassFill: { x: 192, y: 192 },
   /**
-   * Blocco 3×3 spiaggia/sabbia–acqua (angoli, lati, centro). Origine = angolo in alto a sinistra.
-   * Righe: TL, T, TR | L, C, R | BL, B, BR
+   * Motivo erba 2×2 (quattro quarti che formano un’unica texture, es. chiocciola).
+   * Origine angolo in alto a sinistra del blocco 2×2.
+   */
+  grassDecor2x2Origin: { x: 320, y: 320 },
+  /**
+   * Strada terra: blocco 3×3 con transizione verso erba (stesso schema indici della spiaggia).
+   * Rilevato nel foglio come terra uniforme R222 G118 B80.
+   */
+  roadDirt3x3Origin: { x: 512, y: 128 },
+  /**
+   * Blocco 3×3 spiaggia/sabbia–acqua (angoli, lati, centro).
    */
   beachSand3x3Origin: { x: 768, y: 128 }
 } as const;
 
-/** Pixel (sx, sy) della sottotile spiaggia indice 0…8 nel blocco 3×3. */
-export function beachSubtileOriginPx(idx: number): { x: number; y: number } {
-  const { x: ox, y: oy } = OVERWORLD_SHEET_PX.beachSand3x3Origin;
+/** Sottotile 0…8 in un blocco 3×3 con origine nota. */
+export function subtile3x3OriginPx(origin: { x: number; y: number }, idx: number): { x: number; y: number } {
   const t = OVERWORLD_SHEET_PX.tile;
   const col = idx % 3;
   const row = Math.floor(idx / 3);
+  return { x: origin.x + col * t, y: origin.y + row * t };
+}
+
+/** Compat: spiaggia. */
+export function beachSubtileOriginPx(idx: number): { x: number; y: number } {
+  return subtile3x3OriginPx(OVERWORLD_SHEET_PX.beachSand3x3Origin, idx);
+}
+
+/** Strada terra 3×3. */
+export function roadSubtileOriginPx(idx: number): { x: number; y: number } {
+  return subtile3x3OriginPx(OVERWORLD_SHEET_PX.roadDirt3x3Origin, idx);
+}
+
+/** Erba decor 2×2: indice 0=TL,1=TR,2=BL,3=BR. */
+export function grass2x2SubtileOriginPx(idx: number): { x: number; y: number } {
+  const { x: ox, y: oy } = OVERWORLD_SHEET_PX.grassDecor2x2Origin;
+  const t = OVERWORLD_SHEET_PX.tile;
+  const col = idx % 2;
+  const row = Math.floor(idx / 2);
   return { x: ox + col * t, y: oy + row * t };
 }

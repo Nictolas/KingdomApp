@@ -22,7 +22,7 @@ import {
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
 import { TerrainSheetSprite } from "../src/components/TerrainSheetSprite";
-import { getSandBeachSubtile } from "../src/game/terrainSpriteHelpers";
+import { getGrass2x2Index, getRoadDirtSubtile, getSandBeachSubtile } from "../src/game/terrainSpriteHelpers";
 
 /** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
 const FIXED_MAP_COLS = 50;
@@ -981,8 +981,18 @@ export function MappaScreen() {
                           terrain="sand"
                           beachSubtile={getSandBeachSubtile(i, cols, rows, terrenoInMappa)}
                         />
+                      ) : èStrada ? (
+                        <TerrainSheetSprite
+                          cellSize={CELL_SIZE_PX}
+                          terrain="road"
+                          roadSubtile={getRoadDirtSubtile(i, cols, rows, edificiInMappa)}
+                        />
                       ) : (
-                        <TerrainSheetSprite cellSize={CELL_SIZE_PX} terrain="grass" />
+                        <TerrainSheetSprite
+                          cellSize={CELL_SIZE_PX}
+                          terrain="grass"
+                          grass2x2Index={getGrass2x2Index(i, cols)}
+                        />
                       );
                       if (acqua) {
                         return (
@@ -1047,6 +1057,9 @@ export function MappaScreen() {
                     return (
                       <>
                         {segmenti.map(([from, to]) => {
+                          if (edificiInMappa[from]?.nome === "Strada" && edificiInMappa[to]?.nome === "Strada") {
+                            return null;
+                          }
                           const c1 = getCellCenter(from, cellW, cellH, cols);
                           const c2 = getCellCenter(to, cellW, cellH, cols);
                           const dx = c2.x - c1.x;

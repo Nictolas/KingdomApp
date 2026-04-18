@@ -1,18 +1,21 @@
 import React, { memo } from "react";
 import { View, Image, StyleSheet } from "react-native";
-import { OVERWORLD_SHEET_PX, beachSubtileOriginPx } from "../game/overworldSpritesheetLayout";
-import type { BeachSubtileIndex } from "../game/terrainSpriteHelpers";
+import {
+  OVERWORLD_SHEET_PX,
+  beachSubtileOriginPx,
+  grass2x2SubtileOriginPx,
+  roadSubtileOriginPx
+} from "../game/overworldSpritesheetLayout";
+import type { Tile2x2Index, Tile3x3Index } from "../game/terrainSpriteHelpers";
 
 const SPRITESHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spritesheet-full.png");
 
 type Props =
   | { cellSize: number; terrain: "water"; frame: number }
-  | { cellSize: number; terrain: "grass" }
-  | { cellSize: number; terrain: "sand"; beachSubtile: BeachSubtileIndex };
+  | { cellSize: number; terrain: "grass"; grass2x2Index: Tile2x2Index }
+  | { cellSize: number; terrain: "sand"; beachSubtile: Tile3x3Index }
+  | { cellSize: number; terrain: "road"; roadSubtile: Tile3x3Index };
 
-/**
- * Ritaglia una tile 64×64 dallo spritesheet e la scala alla cella (overflow hidden).
- */
 function TerrainSheetSpriteInner(props: Props) {
   const { w: sw, h: sh, tile: t } = OVERWORLD_SHEET_PX;
   const scale = props.cellSize / t;
@@ -27,10 +30,15 @@ function TerrainSheetSpriteInner(props: Props) {
     ox = OVERWORLD_SHEET_PX.waterAnimX + f * t;
     oy = OVERWORLD_SHEET_PX.waterAnimY;
   } else if (props.terrain === "grass") {
-    ox = OVERWORLD_SHEET_PX.grassFill.x;
-    oy = OVERWORLD_SHEET_PX.grassFill.y;
-  } else {
+    const o = grass2x2SubtileOriginPx(props.grass2x2Index);
+    ox = o.x;
+    oy = o.y;
+  } else if (props.terrain === "sand") {
     const o = beachSubtileOriginPx(props.beachSubtile);
+    ox = o.x;
+    oy = o.y;
+  } else {
+    const o = roadSubtileOriginPx(props.roadSubtile);
     ox = o.x;
     oy = o.y;
   }
