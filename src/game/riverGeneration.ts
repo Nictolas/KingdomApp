@@ -342,7 +342,8 @@ export function applyTerrenoGrassAndSandContinuity(
     const g = pruneGrassMinTwoGrassNeighbors(terreno, cols, rows, excludeFromSand);
     const s = pruneSandMinTwoSandNeighborsInTerreno(terreno, cols, rows);
     const w = applySandAdjacentToAnyWater(terreno, cols, rows, excludeFromSand);
-    if (!g && !s && !w) break;
+    const iso = pruneSandOrthogonallySurroundedByWaterOnly(terreno, cols, rows);
+    if (!g && !s && !w && !iso) break;
   }
 }
 
@@ -369,10 +370,82 @@ export function isMareCell(index: number, cols: number, rows: number): boolean {
   return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
 }
 
+/** Vicino ortogonale è solo acqua (mare o fiume). */
+function isAcquaOrtogonale(
+  index: number,
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): boolean {
+  if (isMareCell(index, cols, rows)) return true;
+  return (terreno[index] ?? "erba") === "river";
+}
+
 /**
- * Fascia di sabbia attorno a **tutta** l’acqua (mare ai bordi e celle fiume): nessuna erba
- * adiacente ortogonalmente all’acqua. Ripristina anche i casi in cui il pruning aveva tolto
- * sabbia lasciando erba a contatto col fiume.
+ * Almeno un vicino ortogonale erba o sabbia: evita fascia sabbia su “buchi” circondati solo da acqua
+ * e rompe l’oscillazione prune → riapplica sabbia.
+ */
+function hasOrthogonalErbaOrSabbia(
+  index: number,
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): boolean {
+  const [r, c] = indexToRowCol(index, cols);
+  for (const [dr, dc] of DELTA) {
+    const r2 = r + dr;
+    const c2 = c + dc;
+    if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) continue;
+    const j = rowColToIndex(r2, c2, cols);
+    const t = terreno[j] ?? "erba";
+    if (t === "erba" || t === "sabbia") return true;
+  }
+  return false;
+}
+
+/**
+ * Rimuove sabbia i cui quattro vicini ortogonali sono tutti acqua (chiazze isolate in mezzo al mare/fiume).
+ */
+function pruneSandOrthogonallySurroundedByWaterOnly(
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): boolean {
+  let any = false;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const tot = cols * rows;
+    for (let i = 0; i < tot; i++) {
+      if ((terreno[i] ?? "erba") !== "sabbia") continue;
+      const [r, c] = indexToRowCol(i, cols);
+      let tuttiAcqua = true;
+      for (const [dr, dc] of DELTA) {
+        const r2 = r + dr;
+        const c2 = c + dc;
+        if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) {
+          tuttiAcqua = false;
+          break;
+        }
+        const j = rowColToIndex(r2, c2, cols);
+        if (!isAcquaOrtogonale(j, terreno, cols, rows)) {
+          tuttiAcqua = false;
+          break;
+        }
+      }
+      if (tuttiAcqua) {
+        delete terreno[i];
+        any = true;
+        changed = true;
+      }
+    }
+  }
+  return any;
+}
+
+/**
+ * Fascia di sabbia attorno all’acqua: solo dove la cella confina con acqua **e** ha già un attacco a
+ * erba/sabbia (nessun cubetto di sola sabbia circondato da acqua; niente erba su quattro lati solo fiume/mare).
  */
 export function applySandAdjacentToAnyWater(
   terreno: Record<number, TerrenoType>,
@@ -403,7 +476,11 @@ export function applySandAdjacentToAnyWater(
         break;
       }
     }
-    if (vicinoAcqua && (terreno[i] ?? "erba") !== "sabbia") {
+    if (
+      vicinoAcqua &&
+      hasOrthogonalErbaOrSabbia(i, terreno, cols, rows) &&
+      (terreno[i] ?? "erba") !== "sabbia"
+    ) {
       terreno[i] = "sabbia";
       changed = true;
     }
