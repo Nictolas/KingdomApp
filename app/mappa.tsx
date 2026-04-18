@@ -23,6 +23,9 @@ const FIXED_MAP_ROWS = 50;
 /** Footprint del complesso amministrativo: 3 colonne × 2 righe (largo × alto). */
 const ADMIN_FOOTPRINT_W = 3;
 const ADMIN_FOOTPRINT_H = 2;
+/** Footprint dormitori iniziali: 2×2. */
+const DORMITORIO_FOOTPRINT_W = 2;
+const DORMITORIO_FOOTPRINT_H = 2;
 /** Dimensione fissa di ogni cella in pixel (nessuna percentuale, solo px). */
 const CELL_SIZE_PX = 40;
 /** Gap tra le celle (0 = griglia compatta 2000x2000). */
@@ -156,6 +159,52 @@ function getIndiciFootprint(anchor: number, w: number, h: number, cols: number):
   return out;
 }
 
+function puòMettereFootprint(
+  anchor: number,
+  w: number,
+  h: number,
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  used: Set<number>
+): boolean {
+  const ac = anchor % cols;
+  const ar = Math.floor(anchor / cols);
+  if (ac + w > cols || ar + h > rows) return false;
+  for (let dr = 0; dr < h; dr++) {
+    for (let dc = 0; dc < w; dc++) {
+      const i = (ar + dr) * cols + (ac + dc);
+      if (isAcqua(i, cols, rows) || riverSet.has(i) || used.has(i)) return false;
+    }
+  }
+  return true;
+}
+
+/** Primo angolo w×h libero partendo dalle celle più vicine a `preferred`. */
+function trovaAnchorFootprintLibero(
+  w: number,
+  h: number,
+  preferred: number,
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  used: Set<number>
+): number | null {
+  const pc = preferred % cols;
+  const pr = Math.floor(preferred / cols);
+  const candidati = Array.from({ length: cols * rows }, (_, i) => i).sort((a, b) => {
+    const ar = Math.floor(a / cols);
+    const ac = a % cols;
+    const br = Math.floor(b / cols);
+    const bc = b % cols;
+    return Math.abs(ar - pr) + Math.abs(ac - pc) - (Math.abs(br - pr) + Math.abs(bc - pc));
+  });
+  for (const anchor of candidati) {
+    if (puòMettereFootprint(anchor, w, h, cols, rows, riverSet, used)) return anchor;
+  }
+  return null;
+}
+
 /**
  * Angolo in alto a sinistra del blocco ADMIN_FOOTPRINT_W×H, scelto in modo deterministico:
  * tra tutti i rettangoli interamente su terra (non mare), quello col centro più vicino al "centro" mappa.
@@ -225,6 +274,40 @@ function aggiungiComplessoAmministrativo(
   }
 }
 
+function aggiungiDormitorioFootprint(
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  used: Set<number>,
+  out: Record<number, EdificioInCella>,
+  preferred: number
+): void {
+  const w = DORMITORIO_FOOTPRINT_W;
+  const h = DORMITORIO_FOOTPRINT_H;
+  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, used);
+  if (anchor == null) {
+    const cell = findNearestLandNotRiver(preferred, cols, rows, riverSet, used);
+    if (cell != null) {
+      out[cell] = { ...DORMITORIO };
+      used.add(cell);
+    }
+    return;
+  }
+  const celle = getIndiciFootprint(anchor, w, h, cols);
+  out[anchor] = {
+    id: DORMITORIO.id,
+    nome: DORMITORIO.nome,
+    emoji: "",
+    footprint: { w, h }
+  };
+  used.add(anchor);
+  for (const i of celle) {
+    if (i === anchor) continue;
+    out[i] = { id: DORMITORIO.id, nome: DORMITORIO.nome, emoji: "", footprintRef: anchor };
+    used.add(i);
+  }
+}
+
 /** Restituisce edifici iniziali fissi, spostati su terra (no fiume, no mare); nessuna cella condivisa. */
 function getEdificiIniziali(
   cols: number,
@@ -240,10 +323,7 @@ function getEdificiIniziali(
 
   const edifici: [number, EdificioInCella][] = [
     [idx.SPAZIOPORTO_INDEX, { id: 19, nome: "Spazioporto", emoji: "🚀" }],
-    [idx.SERRA_INDEX, { id: 2, nome: "Serra", emoji: "🌱" }],
-    [idx.DORMITORIO_1_INDEX, DORMITORIO],
-    [idx.DORMITORIO_2_INDEX, DORMITORIO],
-    [idx.DORMITORIO_3_INDEX, DORMITORIO]
+    [idx.SERRA_INDEX, { id: 2, nome: "Serra", emoji: "🌱" }]
   ];
   for (const [preferred, e] of edifici) {
     const cell = findNearestLandNotRiver(preferred, cols, rows, riverSet, used);
@@ -252,6 +332,11 @@ function getEdificiIniziali(
       used.add(cell);
     }
   }
+
+  aggiungiDormitorioFootprint(cols, rows, riverSet, used, out, idx.DORMITORIO_1_INDEX);
+  aggiungiDormitorioFootprint(cols, rows, riverSet, used, out, idx.DORMITORIO_2_INDEX);
+  aggiungiDormitorioFootprint(cols, rows, riverSet, used, out, idx.DORMITORIO_3_INDEX);
+
   return out;
 }
 
@@ -341,7 +426,7 @@ function getStradeIniziali(edificiInMappa: Record<number, EdificioInCella>): [nu
   let serra: number | null = null;
   for (const [i, e] of Object.entries(edificiInMappa)) {
     const idx = Number(i);
-    if (e.nome === "Centro di Comando" && !e.footprintRef) centro = idx;
+    if (e.nome === "Centro di Comando" && e.footprint && !e.footprintRef) centro = idx;
     if (e.nome === "Spazioporto") spazioporto = idx;
     if (e.nome === "Serra") serra = idx;
   }
@@ -372,15 +457,23 @@ const FOOTPRINT_ADMIN_TETTO: string[] = ["#4b5563", "#52525b", "#57534e"];
 /** Facciata in pietra (fila inferiore). */
 const FOOTPRINT_ADMIN_MURO: string[] = ["#b8956e", "#9a7650", "#a68462"];
 
-function EdificioFootprintAmministrazioneGfx({
+/** Dormitorio 2×2: tetto più caldo, muri intonaco chiaro. */
+const FOOTPRINT_DORM_TETTO: string[] = ["#7c5c3c", "#6b4e38"];
+const FOOTPRINT_DORM_MURO: string[] = ["#d8ccb8", "#cdc0a8"];
+
+type FootprintVariant = "amministrazione" | "dormitorio";
+
+function EdificioFootprintGfx({
   anchor,
   footprint,
+  variant,
   cols,
   cellW,
   cellH
 }: {
   anchor: number;
   footprint: { w: number; h: number };
+  variant: FootprintVariant;
   cols: number;
   cellW: number;
   cellH: number;
@@ -390,6 +483,41 @@ function EdificioFootprintAmministrazioneGfx({
   const width = w * cellW + (w - 1) * GAP;
   const height = h * cellH + (h - 1) * GAP;
   const porticoH = Math.max(6, Math.floor(cellH * 0.22));
+
+  if (variant === "dormitorio" && w === DORMITORIO_FOOTPRINT_W && h === DORMITORIO_FOOTPRINT_H) {
+    return (
+      <View style={[styles.footprintBlock, styles.footprintBlockDorm, { left, top, width, height }]} pointerEvents="none">
+        <View style={styles.footprintRowTetto}>
+          {FOOTPRINT_DORM_TETTO.map((bg, col) => (
+            <View
+              key={`d-tetto-${col}`}
+              style={[
+                styles.footprintTileTetto,
+                col < FOOTPRINT_DORM_TETTO.length - 1 && styles.footprintTileTettoSep
+              ]}
+            >
+              <View style={[styles.footprintTettoFill, { backgroundColor: bg }]} />
+            </View>
+          ))}
+        </View>
+        <View style={styles.footprintGronda} pointerEvents="none" />
+        <View style={styles.footprintRowMuro}>
+          {FOOTPRINT_DORM_MURO.map((bg, col) => (
+            <View
+              key={`d-muro-${col}`}
+              style={[
+                styles.footprintTileMuro,
+                col < FOOTPRINT_DORM_MURO.length - 1 && styles.footprintTileMuroSep
+              ]}
+            >
+              <View style={[styles.footprintMuroFill, { backgroundColor: bg }]} />
+            </View>
+          ))}
+        </View>
+        <View style={[styles.footprintPortico, styles.footprintPorticoDorm, { height: porticoH }]} pointerEvents="none" />
+      </View>
+    );
+  }
 
   if (w === ADMIN_FOOTPRINT_W && h === ADMIN_FOOTPRINT_H) {
     return (
@@ -594,10 +722,11 @@ export function MappaScreen() {
   const stradeIniziali = getStradeIniziali(edificiInMappa);
 
   const edificiFootprintOverlay = useMemo(() => {
-    const list: { anchor: number; fp: { w: number; h: number } }[] = [];
+    const list: { anchor: number; fp: { w: number; h: number }; variant: FootprintVariant }[] = [];
     for (const [i, e] of Object.entries(edificiInMappa)) {
       if (e.footprint && !e.footprintRef) {
-        list.push({ anchor: Number(i), fp: e.footprint });
+        const variant: FootprintVariant = e.nome === "Dormitorio" ? "dormitorio" : "amministrazione";
+        list.push({ anchor: Number(i), fp: e.footprint, variant });
       }
     }
     return list;
@@ -870,11 +999,12 @@ export function MappaScreen() {
                     style={[styles.footprintsLayer, { width: contentWidth, height: contentHeight }]}
                     pointerEvents="none"
                   >
-                    {edificiFootprintOverlay.map(({ anchor, fp }) => (
-                      <EdificioFootprintAmministrazioneGfx
+                    {edificiFootprintOverlay.map(({ anchor, fp, variant }) => (
+                      <EdificioFootprintGfx
                         key={`footprint-${anchor}`}
                         anchor={anchor}
                         footprint={fp}
+                        variant={variant}
                         cols={cols}
                         cellW={cellW}
                         cellH={cellH}
@@ -1342,6 +1472,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#1a1814"
   },
+  footprintBlockDorm: {
+    borderColor: "#5a4a3c",
+    backgroundColor: "#2a2218"
+  },
   footprintRow: {
     flex: 1,
     flexDirection: "row",
@@ -1410,6 +1544,11 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 3,
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.08)"
+  },
+  footprintPorticoDorm: {
+    left: "24%",
+    width: "52%",
+    backgroundColor: "rgba(18,14,10,0.58)"
   },
   grigliaEmoji: {
     position: "absolute",
