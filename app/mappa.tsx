@@ -16,6 +16,7 @@ import { useGameContext } from "../src/context/GameContext";
 import { generateRivers, buildTerrenoFromRivers, type TerrenoType } from "../src/game/riverGeneration";
 import type { Edificio, Risorsa } from "../src/types";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
+import { RpgFootprintAdmin3x2, RpgFootprintDorm2x2 } from "../src/components/RpgFootprintBuilding";
 
 /** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
 const FIXED_MAP_COLS = 50;
@@ -452,15 +453,6 @@ function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: n
   return { left: col * (cellW + GAP), top: row * (cellH + GAP) };
 }
 
-/** Tegole / falde (fila superiore, vista dall'alto). */
-const FOOTPRINT_ADMIN_TETTO: string[] = ["#4b5563", "#52525b", "#57534e"];
-/** Facciata in pietra (fila inferiore). */
-const FOOTPRINT_ADMIN_MURO: string[] = ["#b8956e", "#9a7650", "#a68462"];
-
-/** Dormitorio 2×2: tetto più caldo, muri intonaco chiaro. */
-const FOOTPRINT_DORM_TETTO: string[] = ["#7c5c3c", "#6b4e38"];
-const FOOTPRINT_DORM_MURO: string[] = ["#d8ccb8", "#cdc0a8"];
-
 type FootprintVariant = "amministrazione" | "dormitorio";
 
 function EdificioFootprintGfx({
@@ -486,70 +478,16 @@ function EdificioFootprintGfx({
 
   if (variant === "dormitorio" && w === DORMITORIO_FOOTPRINT_W && h === DORMITORIO_FOOTPRINT_H) {
     return (
-      <View style={[styles.footprintBlock, styles.footprintBlockDorm, { left, top, width, height }]} pointerEvents="none">
-        <View style={styles.footprintRowTetto}>
-          {FOOTPRINT_DORM_TETTO.map((bg, col) => (
-            <View
-              key={`d-tetto-${col}`}
-              style={[
-                styles.footprintTileTetto,
-                col < FOOTPRINT_DORM_TETTO.length - 1 && styles.footprintTileTettoSep
-              ]}
-            >
-              <View style={[styles.footprintTettoFill, { backgroundColor: bg }]} />
-            </View>
-          ))}
-        </View>
-        <View style={styles.footprintGronda} pointerEvents="none" />
-        <View style={styles.footprintRowMuro}>
-          {FOOTPRINT_DORM_MURO.map((bg, col) => (
-            <View
-              key={`d-muro-${col}`}
-              style={[
-                styles.footprintTileMuro,
-                col < FOOTPRINT_DORM_MURO.length - 1 && styles.footprintTileMuroSep
-              ]}
-            >
-              <View style={[styles.footprintMuroFill, { backgroundColor: bg }]} />
-            </View>
-          ))}
-        </View>
-        <View style={[styles.footprintPortico, styles.footprintPorticoDorm, { height: porticoH }]} pointerEvents="none" />
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintDorm2x2 width={width} height={height} />
       </View>
     );
   }
 
   if (w === ADMIN_FOOTPRINT_W && h === ADMIN_FOOTPRINT_H) {
     return (
-      <View style={[styles.footprintBlock, { left, top, width, height }]} pointerEvents="none">
-        <View style={styles.footprintRowTetto}>
-          {FOOTPRINT_ADMIN_TETTO.map((bg, col) => (
-            <View
-              key={`tetto-${col}`}
-              style={[
-                styles.footprintTileTetto,
-                col < FOOTPRINT_ADMIN_TETTO.length - 1 && styles.footprintTileTettoSep
-              ]}
-            >
-              <View style={[styles.footprintTettoFill, { backgroundColor: bg }]} />
-            </View>
-          ))}
-        </View>
-        <View style={styles.footprintGronda} pointerEvents="none" />
-        <View style={styles.footprintRowMuro}>
-          {FOOTPRINT_ADMIN_MURO.map((bg, col) => (
-            <View
-              key={`muro-${col}`}
-              style={[
-                styles.footprintTileMuro,
-                col < FOOTPRINT_ADMIN_MURO.length - 1 && styles.footprintTileMuroSep
-              ]}
-            >
-              <View style={[styles.footprintMuroFill, { backgroundColor: bg }]} />
-            </View>
-          ))}
-        </View>
-        <View style={[styles.footprintPortico, { height: porticoH }]} pointerEvents="none" />
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintAdmin3x2 width={width} height={height} />
       </View>
     );
   }
@@ -1464,6 +1402,9 @@ const styles = StyleSheet.create({
     top: 0,
     zIndex: 3
   },
+  footprintAbsolute: {
+    position: "absolute"
+  },
   footprintBlock: {
     position: "absolute",
     borderRadius: 4,
@@ -1472,63 +1413,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     backgroundColor: "#1a1814"
   },
-  footprintBlockDorm: {
-    borderColor: "#5a4a3c",
-    backgroundColor: "#2a2218"
-  },
   footprintRow: {
     flex: 1,
     flexDirection: "row",
     minHeight: 0
-  },
-  footprintRowTetto: {
-    flex: 1,
-    flexDirection: "row",
-    minHeight: 0,
-    backgroundColor: "#3f3f46"
-  },
-  footprintTileTetto: {
-    flex: 1,
-    minWidth: 0,
-    paddingTop: 2,
-    paddingHorizontal: 1
-  },
-  footprintTileTettoSep: {
-    borderRightWidth: StyleSheet.hairlineWidth,
-    borderRightColor: "rgba(0,0,0,0.35)"
-  },
-  footprintTettoFill: {
-    flex: 1,
-    borderTopLeftRadius: 3,
-    borderTopRightRadius: 3,
-    borderBottomLeftRadius: 1,
-    borderBottomRightRadius: 1
-  },
-  footprintGronda: {
-    height: 3,
-    backgroundColor: "#e7e5e4",
-    borderBottomWidth: 1,
-    borderBottomColor: "#292524"
-  },
-  footprintRowMuro: {
-    flex: 1,
-    flexDirection: "row",
-    minHeight: 0,
-    backgroundColor: "#5c4d3d"
-  },
-  footprintTileMuro: {
-    flex: 1,
-    minWidth: 0,
-    paddingBottom: 2,
-    paddingHorizontal: 1
-  },
-  footprintTileMuroSep: {
-    borderRightWidth: StyleSheet.hairlineWidth,
-    borderRightColor: "rgba(0,0,0,0.25)"
-  },
-  footprintMuroFill: {
-    flex: 1,
-    borderRadius: 1
   },
   footprintTile: {
     flex: 1,
@@ -1544,11 +1432,6 @@ const styles = StyleSheet.create({
     borderTopRightRadius: 3,
     borderTopWidth: 1,
     borderTopColor: "rgba(255,255,255,0.08)"
-  },
-  footprintPorticoDorm: {
-    left: "24%",
-    width: "52%",
-    backgroundColor: "rgba(18,14,10,0.58)"
   },
   grigliaEmoji: {
     position: "absolute",
