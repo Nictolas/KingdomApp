@@ -16,7 +16,11 @@ import { useGameContext } from "../src/context/GameContext";
 import { generateRivers, buildTerrenoFromRivers, type TerrenoType } from "../src/game/riverGeneration";
 import type { Edificio, Risorsa } from "../src/types";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
-import { RpgFootprintAdmin3x2, RpgFootprintDorm2x2 } from "../src/components/RpgFootprintBuilding";
+import {
+  RpgFootprintAdmin3x2,
+  RpgFootprintDorm2x2,
+  RpgFootprintSpazioporto4x3
+} from "../src/components/RpgFootprintBuilding";
 
 /** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
 const FIXED_MAP_COLS = 50;
@@ -27,6 +31,9 @@ const ADMIN_FOOTPRINT_H = 2;
 /** Footprint dormitori iniziali: 2×2. */
 const DORMITORIO_FOOTPRINT_W = 2;
 const DORMITORIO_FOOTPRINT_H = 2;
+/** Spazioporto: edificio + area lancio (sprite orizzontale). */
+const SPAZIOPORTO_FOOTPRINT_W = 4;
+const SPAZIOPORTO_FOOTPRINT_H = 3;
 /** Dimensione fissa di ogni cella in pixel (nessuna percentuale, solo px). */
 const CELL_SIZE_PX = 40;
 /** Gap tra le celle (0 = griglia compatta 2000x2000). */
@@ -309,6 +316,47 @@ function aggiungiDormitorioFootprint(
   }
 }
 
+const SPAZIOPORTO_EDIFICIO: EdificioInCella = { id: 19, nome: "Spazioporto", emoji: "🚀" };
+
+function aggiungiSpazioportoFootprint(
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  used: Set<number>,
+  out: Record<number, EdificioInCella>,
+  preferred: number
+): void {
+  const w = SPAZIOPORTO_FOOTPRINT_W;
+  const h = SPAZIOPORTO_FOOTPRINT_H;
+  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, used);
+  if (anchor == null) {
+    const cell = findNearestLandNotRiver(preferred, cols, rows, riverSet, used);
+    if (cell != null) {
+      out[cell] = { ...SPAZIOPORTO_EDIFICIO };
+      used.add(cell);
+    }
+    return;
+  }
+  const celle = getIndiciFootprint(anchor, w, h, cols);
+  out[anchor] = {
+    id: SPAZIOPORTO_EDIFICIO.id,
+    nome: SPAZIOPORTO_EDIFICIO.nome,
+    emoji: "",
+    footprint: { w, h }
+  };
+  used.add(anchor);
+  for (const i of celle) {
+    if (i === anchor) continue;
+    out[i] = {
+      id: SPAZIOPORTO_EDIFICIO.id,
+      nome: SPAZIOPORTO_EDIFICIO.nome,
+      emoji: "",
+      footprintRef: anchor
+    };
+    used.add(i);
+  }
+}
+
 /** Restituisce edifici iniziali fissi, spostati su terra (no fiume, no mare); nessuna cella condivisa. */
 function getEdificiIniziali(
   cols: number,
@@ -322,10 +370,9 @@ function getEdificiIniziali(
 
   aggiungiComplessoAmministrativo(cols, rows, riverSet, used, out, adminAnchor);
 
-  const edifici: [number, EdificioInCella][] = [
-    [idx.SPAZIOPORTO_INDEX, { id: 19, nome: "Spazioporto", emoji: "🚀" }],
-    [idx.SERRA_INDEX, { id: 2, nome: "Serra", emoji: "🌱" }]
-  ];
+  aggiungiSpazioportoFootprint(cols, rows, riverSet, used, out, idx.SPAZIOPORTO_INDEX);
+
+  const edifici: [number, EdificioInCella][] = [[idx.SERRA_INDEX, { id: 2, nome: "Serra", emoji: "🌱" }]];
   for (const [preferred, e] of edifici) {
     const cell = findNearestLandNotRiver(preferred, cols, rows, riverSet, used);
     if (cell != null) {
@@ -428,7 +475,7 @@ function getStradeIniziali(edificiInMappa: Record<number, EdificioInCella>): [nu
   for (const [i, e] of Object.entries(edificiInMappa)) {
     const idx = Number(i);
     if (e.nome === "Centro di Comando" && e.footprint && !e.footprintRef) centro = idx;
-    if (e.nome === "Spazioporto") spazioporto = idx;
+    if (e.nome === "Spazioporto" && e.footprint && !e.footprintRef) spazioporto = idx;
     if (e.nome === "Serra") serra = idx;
   }
   const out: [number, number][] = [];
@@ -453,7 +500,7 @@ function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: n
   return { left: col * (cellW + GAP), top: row * (cellH + GAP) };
 }
 
-type FootprintVariant = "amministrazione" | "dormitorio";
+type FootprintVariant = "amministrazione" | "dormitorio" | "spazioporto";
 
 function EdificioFootprintGfx({
   anchor,
@@ -480,6 +527,14 @@ function EdificioFootprintGfx({
     return (
       <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
         <RpgFootprintDorm2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "spazioporto" && w === SPAZIOPORTO_FOOTPRINT_W && h === SPAZIOPORTO_FOOTPRINT_H) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintSpazioporto4x3 width={width} height={height} />
       </View>
     );
   }
@@ -663,7 +718,12 @@ export function MappaScreen() {
     const list: { anchor: number; fp: { w: number; h: number }; variant: FootprintVariant }[] = [];
     for (const [i, e] of Object.entries(edificiInMappa)) {
       if (e.footprint && !e.footprintRef) {
-        const variant: FootprintVariant = e.nome === "Dormitorio" ? "dormitorio" : "amministrazione";
+        const variant: FootprintVariant =
+          e.nome === "Dormitorio"
+            ? "dormitorio"
+            : e.nome === "Spazioporto"
+              ? "spazioporto"
+              : "amministrazione";
         list.push({ anchor: Number(i), fp: e.footprint, variant });
       }
     }
