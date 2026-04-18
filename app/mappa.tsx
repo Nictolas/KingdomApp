@@ -20,9 +20,9 @@ import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 /** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
 const FIXED_MAP_COLS = 50;
 const FIXED_MAP_ROWS = 50;
-/** Footprint del complesso amministrativo (deve restare compatibile con `scegliAnchorComplessoAmministrativo`). */
-const ADMIN_FOOTPRINT_W = 2;
-const ADMIN_FOOTPRINT_H = 3;
+/** Footprint del complesso amministrativo: 3 colonne × 2 righe (largo × alto). */
+const ADMIN_FOOTPRINT_W = 3;
+const ADMIN_FOOTPRINT_H = 2;
 /** Dimensione fissa di ogni cella in pixel (nessuna percentuale, solo px). */
 const CELL_SIZE_PX = 40;
 /** Gap tra le celle (0 = griglia compatta 2000x2000). */
@@ -159,7 +159,7 @@ function getIndiciFootprint(anchor: number, w: number, h: number, cols: number):
 /**
  * Angolo in alto a sinistra del blocco ADMIN_FOOTPRINT_W×H, scelto in modo deterministico:
  * tra tutti i rettangoli interamente su terra (non mare), quello col centro più vicino al "centro" mappa.
- * Va riservato ai fiumi prima di `generateRivers` così il 2×3 resta sempre libero.
+ * Va riservato ai fiumi prima di `generateRivers` così il 3×2 resta sempre libero.
  */
 function scegliAnchorComplessoAmministrativo(cols: number, rows: number): number {
   const idx = getIndiciEdificiIniziali(cols, rows);
@@ -198,7 +198,7 @@ function scegliAnchorComplessoAmministrativo(cols: number, rows: number): number
   return bestAnchor;
 }
 
-/** Complesso amministrativo: rettangolo 2×3 (6 celle), `anchor` già riservato ai fiumi. */
+/** Complesso amministrativo: rettangolo 3×2 (6 celle), `anchor` già riservato ai fiumi. */
 function aggiungiComplessoAmministrativo(
   cols: number,
   rows: number,
@@ -359,12 +359,10 @@ function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: n
   return { left: col * (cellW + GAP), top: row * (cellH + GAP) };
 }
 
-/** Palette a mattoncini per il complesso amministrativo (2×3 o altri rettangoli). */
-const FOOTPRINT_ADMIN_COLORS: string[][] = [
-  ["#c4a574", "#a67c52"],
-  ["#8f6b45", "#b8956a"],
-  ["#9a8365", "#7d6a4f"]
-];
+/** Tegole / falde (fila superiore, vista dall'alto). */
+const FOOTPRINT_ADMIN_TETTO: string[] = ["#4b5563", "#52525b", "#57534e"];
+/** Facciata in pietra (fila inferiore). */
+const FOOTPRINT_ADMIN_MURO: string[] = ["#b8956e", "#9a7650", "#a68462"];
 
 function EdificioFootprintAmministrazioneGfx({
   anchor,
@@ -383,22 +381,56 @@ function EdificioFootprintAmministrazioneGfx({
   const { w, h } = footprint;
   const width = w * cellW + (w - 1) * GAP;
   const height = h * cellH + (h - 1) * GAP;
-  const nr = FOOTPRINT_ADMIN_COLORS.length;
-  const nc = FOOTPRINT_ADMIN_COLORS[0]!.length;
+  const porticoH = Math.max(6, Math.floor(cellH * 0.22));
+
+  if (w === ADMIN_FOOTPRINT_W && h === ADMIN_FOOTPRINT_H) {
+    return (
+      <View style={[styles.footprintBlock, { left, top, width, height }]} pointerEvents="none">
+        <View style={styles.footprintRowTetto}>
+          {FOOTPRINT_ADMIN_TETTO.map((bg, col) => (
+            <View
+              key={`tetto-${col}`}
+              style={[
+                styles.footprintTileTetto,
+                col < FOOTPRINT_ADMIN_TETTO.length - 1 && styles.footprintTileTettoSep
+              ]}
+            >
+              <View style={[styles.footprintTettoFill, { backgroundColor: bg }]} />
+            </View>
+          ))}
+        </View>
+        <View style={styles.footprintGronda} pointerEvents="none" />
+        <View style={styles.footprintRowMuro}>
+          {FOOTPRINT_ADMIN_MURO.map((bg, col) => (
+            <View
+              key={`muro-${col}`}
+              style={[
+                styles.footprintTileMuro,
+                col < FOOTPRINT_ADMIN_MURO.length - 1 && styles.footprintTileMuroSep
+              ]}
+            >
+              <View style={[styles.footprintMuroFill, { backgroundColor: bg }]} />
+            </View>
+          ))}
+        </View>
+        <View style={[styles.footprintPortico, { height: porticoH }]} pointerEvents="none" />
+      </View>
+    );
+  }
+
   return (
     <View style={[styles.footprintBlock, { left, top, width, height }]} pointerEvents="none">
       {Array.from({ length: h }, (_, row) => (
         <View key={`r-${row}`} style={styles.footprintRow}>
-          {Array.from({ length: w }, (_, col) => {
-            const bg = FOOTPRINT_ADMIN_COLORS[row % nr]![col % nc]!;
-            return <View key={`c-${row}-${col}`} style={[styles.footprintTile, { backgroundColor: bg }]} />;
-          })}
+          {Array.from({ length: w }, (_, col) => (
+            <View
+              key={`c-${row}-${col}`}
+              style={[styles.footprintTile, { backgroundColor: row === 0 ? "#52525b" : "#a68462" }]}
+            />
+          ))}
         </View>
       ))}
-      <View
-        style={[styles.footprintPortico, { height: Math.max(6, Math.floor(cellH * 0.2)) }]}
-        pointerEvents="none"
-      />
+      <View style={[styles.footprintPortico, { height: porticoH }]} pointerEvents="none" />
     </View>
   );
 }
@@ -1292,12 +1324,61 @@ const styles = StyleSheet.create({
     borderWidth: 2,
     borderColor: "#3d3426",
     overflow: "hidden",
-    backgroundColor: "#2a241c"
+    backgroundColor: "#1a1814"
   },
   footprintRow: {
     flex: 1,
     flexDirection: "row",
     minHeight: 0
+  },
+  footprintRowTetto: {
+    flex: 1,
+    flexDirection: "row",
+    minHeight: 0,
+    backgroundColor: "#3f3f46"
+  },
+  footprintTileTetto: {
+    flex: 1,
+    minWidth: 0,
+    paddingTop: 2,
+    paddingHorizontal: 1
+  },
+  footprintTileTettoSep: {
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: "rgba(0,0,0,0.35)"
+  },
+  footprintTettoFill: {
+    flex: 1,
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3,
+    borderBottomLeftRadius: 1,
+    borderBottomRightRadius: 1
+  },
+  footprintGronda: {
+    height: 3,
+    backgroundColor: "#e7e5e4",
+    borderBottomWidth: 1,
+    borderBottomColor: "#292524"
+  },
+  footprintRowMuro: {
+    flex: 1,
+    flexDirection: "row",
+    minHeight: 0,
+    backgroundColor: "#5c4d3d"
+  },
+  footprintTileMuro: {
+    flex: 1,
+    minWidth: 0,
+    paddingBottom: 2,
+    paddingHorizontal: 1
+  },
+  footprintTileMuroSep: {
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: "rgba(0,0,0,0.25)"
+  },
+  footprintMuroFill: {
+    flex: 1,
+    borderRadius: 1
   },
   footprintTile: {
     flex: 1,
@@ -1306,11 +1387,13 @@ const styles = StyleSheet.create({
   footprintPortico: {
     position: "absolute",
     bottom: 0,
-    left: "18%",
-    width: "64%",
-    backgroundColor: "rgba(20,18,14,0.55)",
+    left: "22%",
+    width: "56%",
+    backgroundColor: "rgba(12,10,8,0.65)",
     borderTopLeftRadius: 3,
-    borderTopRightRadius: 3
+    borderTopRightRadius: 3,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(255,255,255,0.08)"
   },
   grigliaEmoji: {
     position: "absolute",
