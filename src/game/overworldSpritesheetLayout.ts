@@ -21,6 +21,11 @@ export const OVERWORLD_SHEET_PX = {
    */
   grassDecor2x2Origin: { x: 0, y: 128 },
   /**
+   * Transizioni erba ↔ sabbia (3×3 autotile, stesso ordine indici di spiaggia/strada).
+   * Nel foglio DEMO è il blocco a sinistra della terra rossa, y=128.
+   */
+  grassSand3x3Origin: { x: 320, y: 128 },
+  /**
    * Strada terra: blocco 3×3 con transizione verso erba (stesso schema indici della spiaggia).
    * Rilevato nel foglio come terra uniforme R222 G118 B80.
    */
@@ -56,4 +61,9 @@ export function grass2x2SubtileOriginPx(idx: number): { x: number; y: number } {
   const col = idx % 2;
   const row = Math.floor(idx / 2);
   return { x: ox + col * t, y: oy + row * t };
+}
+
+/** Bordo erba–sabbia: indici 0…8 come negli altri blocchi 3×3. */
+export function grassSandSubtileOriginPx(idx: number): { x: number; y: number } {
+  return subtile3x3OriginPx(OVERWORLD_SHEET_PX.grassSand3x3Origin, idx);
 }

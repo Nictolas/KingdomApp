@@ -27,7 +27,12 @@ import {
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
 import { TerrainSheetSprite } from "../src/components/TerrainSheetSprite";
-import { getGrass2x2Index, getRoadDirtSubtile, getSandBeachSubtile } from "../src/game/terrainSpriteHelpers";
+import {
+  getGrass2x2Index,
+  getGrassSandBorderSubtileIfAny,
+  getRoadDirtSubtile,
+  getSandBeachSubtile
+} from "../src/game/terrainSpriteHelpers";
 
 /** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
 const FIXED_MAP_COLS = 50;
@@ -998,6 +1003,7 @@ export function MappaScreen() {
                           cellSize={CELL_SIZE_PX}
                           terrain="grass"
                           grass2x2Index={getGrass2x2Index(i, cols)}
+                          grassSandBorderSubtile={getGrassSandBorderSubtileIfAny(i, cols, rows, terrenoInMappa)}
                         />
                       );
                       if (acqua) {

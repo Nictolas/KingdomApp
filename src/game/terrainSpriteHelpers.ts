@@ -19,6 +19,17 @@ function isWaterAt(
   return (terrenoInMappa[index] ?? "erba") === "river";
 }
 
+function isSandAt(
+  row: number,
+  col: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>
+): boolean {
+  if (row < 0 || row >= rows || col < 0 || col >= cols) return false;
+  return (terrenoInMappa[row * cols + col] ?? "erba") === "sabbia";
+}
+
 /** Indice 0…8 nel blocco 3×3 (TL,T,TR / L,C,R / BL,B,BR). */
 export type Tile3x3Index = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
@@ -119,4 +130,26 @@ export function getGrass2x2Index(index: number, cols: number): Tile2x2Index {
   const col = index % cols;
   const row = Math.floor(index / cols);
   return ((((row & 1) << 1) | (col & 1)) as Tile2x2Index);
+}
+
+/**
+ * Celle erba confinanti con sabbia: stesso schema maschera della spiaggia (sabbia = “acqua” nel bitmask).
+ * Se nessun vicino è sabbia, l’erba usa solo il motivo 2×2.
+ */
+export function getGrassSandBorderSubtileIfAny(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>
+): Tile3x3Index | undefined {
+  if ((terrenoInMappa[index] ?? "erba") !== "erba") return undefined;
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  const n = isSandAt(row - 1, col, cols, rows, terrenoInMappa);
+  const e = isSandAt(row, col + 1, cols, rows, terrenoInMappa);
+  const s = isSandAt(row + 1, col, cols, rows, terrenoInMappa);
+  const w = isSandAt(row, col - 1, cols, rows, terrenoInMappa);
+  if (!n && !e && !s && !w) return undefined;
+  const mask = (n ? 1 : 0) | (e ? 2 : 0) | (s ? 4 : 0) | (w ? 8 : 0);
+  return subtile9FromMask(mask);
 }

@@ -4,6 +4,7 @@ import {
   OVERWORLD_SHEET_PX,
   beachSubtileOriginPx,
   grass2x2SubtileOriginPx,
+  grassSandSubtileOriginPx,
   roadSubtileOriginPx
 } from "../game/overworldSpritesheetLayout";
 import type { Tile2x2Index, Tile3x3Index } from "../game/terrainSpriteHelpers";
@@ -12,7 +13,13 @@ const SPRITESHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-til
 
 type Props =
   | { cellSize: number; terrain: "water"; frame: number }
-  | { cellSize: number; terrain: "grass"; grass2x2Index: Tile2x2Index }
+  | {
+      cellSize: number;
+      terrain: "grass";
+      grass2x2Index: Tile2x2Index;
+      /** Se presente, priorità sul 2×2: bordo erba–sabbia (blocco 3×3 nel foglio). */
+      grassSandBorderSubtile?: Tile3x3Index;
+    }
   | { cellSize: number; terrain: "sand"; beachSubtile: Tile3x3Index }
   | { cellSize: number; terrain: "road"; roadSubtile: Tile3x3Index };
 
@@ -30,9 +37,15 @@ function TerrainSheetSpriteInner(props: Props) {
     ox = OVERWORLD_SHEET_PX.waterAnimX + f * t;
     oy = OVERWORLD_SHEET_PX.waterAnimY;
   } else if (props.terrain === "grass") {
-    const o = grass2x2SubtileOriginPx(props.grass2x2Index);
-    ox = o.x;
-    oy = o.y;
+    if (props.grassSandBorderSubtile != null) {
+      const o = grassSandSubtileOriginPx(props.grassSandBorderSubtile);
+      ox = o.x;
+      oy = o.y;
+    } else {
+      const o = grass2x2SubtileOriginPx(props.grass2x2Index);
+      ox = o.x;
+      oy = o.y;
+    }
   } else if (props.terrain === "sand") {
     const o = beachSubtileOriginPx(props.beachSubtile);
     ox = o.x;
