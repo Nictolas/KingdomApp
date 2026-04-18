@@ -26,9 +26,13 @@ export const OVERWORLD_SHEET_PX = {
    */
   grassSand3x3Origin: { x: 320, y: 128 },
   /**
-   * Strada (autotile 3×3 verso erba, stesso schema indici di spiaggia / erba–sabbia).
-   * Motivo verde menta con bordo “a nuvola” nel foglio DEMO, in alto a sinistra (x=128, y=128),
-   * al posto del blocco terra marrone (512, 128).
+   * Transizioni erba ↔ strada (sentiero menta): celle erba che confinano con una cella “Strada”.
+   * Blocco tra il lastricato menta (128,128) e l’erba–sabbia (320,128); stessi indici maschera della sabbia.
+   */
+  grassRoad3x3Origin: { x: 256, y: 128 },
+  /**
+   * Strada: lastricato (interno ~#A0D0C0, vicino a #99CDBB), bordo “a nuvola” verso erba.
+   * Blocco 3×3 con origine (128, 128) — centro tile indice 4 = riempimento sentiero.
    */
   roadDirt3x3Origin: { x: 128, y: 128 },
   /**
@@ -67,4 +71,9 @@ export function grass2x2SubtileOriginPx(idx: number): { x: number; y: number } {
 /** Bordo erba–sabbia: indici 0…8 come negli altri blocchi 3×3. */
 export function grassSandSubtileOriginPx(idx: number): { x: number; y: number } {
   return subtile3x3OriginPx(OVERWORLD_SHEET_PX.grassSand3x3Origin, idx);
+}
+
+/** Bordo erba–strada: stessi indici di erba–sabbia / strada. */
+export function grassRoadSubtileOriginPx(idx: number): { x: number; y: number } {
+  return subtile3x3OriginPx(OVERWORLD_SHEET_PX.grassRoad3x3Origin, idx);
 }

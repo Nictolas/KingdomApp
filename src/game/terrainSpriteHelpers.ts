@@ -93,7 +93,7 @@ export function getSandBeachSubtile(
   return subtile9FromMask(mask);
 }
 
-function isStradaCell(
+export function isStradaCell(
   row: number,
   col: number,
   cols: number,
@@ -133,6 +133,29 @@ export function getGrass2x2Index(index: number, cols: number): Tile2x2Index {
 }
 
 /**
+ * Celle erba confinanti con strada: maschera come spiaggia/sabbia (strada = “feature” nel bitmask).
+ * Ha priorità sulla fascia erba–sabbia se un vicino è strada.
+ */
+export function getGrassRoadBorderSubtileIfAny(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  edificiInMappa: Record<number, { nome?: string }>
+): Tile3x3Index | undefined {
+  if ((terrenoInMappa[index] ?? "erba") !== "erba") return undefined;
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  const n = isStradaCell(row - 1, col, cols, rows, edificiInMappa);
+  const e = isStradaCell(row, col + 1, cols, rows, edificiInMappa);
+  const s = isStradaCell(row + 1, col, cols, rows, edificiInMappa);
+  const w = isStradaCell(row, col - 1, cols, rows, edificiInMappa);
+  if (!n && !e && !s && !w) return undefined;
+  const mask = (n ? 1 : 0) | (e ? 2 : 0) | (s ? 4 : 0) | (w ? 8 : 0);
+  return subtile9FromMask(mask);
+}
+
+/**
  * Celle erba confinanti con sabbia: stesso schema maschera della spiaggia (sabbia = “acqua” nel bitmask).
  * Se nessun vicino è sabbia, l’erba usa solo il motivo 2×2.
  */
@@ -140,11 +163,20 @@ export function getGrassSandBorderSubtileIfAny(
   index: number,
   cols: number,
   rows: number,
-  terrenoInMappa: Record<number, TerrenoType>
+  terrenoInMappa: Record<number, TerrenoType>,
+  edificiInMappa: Record<number, { nome?: string }>
 ): Tile3x3Index | undefined {
   if ((terrenoInMappa[index] ?? "erba") !== "erba") return undefined;
   const col = index % cols;
   const row = Math.floor(index / cols);
+  if (
+    isStradaCell(row - 1, col, cols, rows, edificiInMappa) ||
+    isStradaCell(row, col + 1, cols, rows, edificiInMappa) ||
+    isStradaCell(row + 1, col, cols, rows, edificiInMappa) ||
+    isStradaCell(row, col - 1, cols, rows, edificiInMappa)
+  ) {
+    return undefined;
+  }
   const n = isSandAt(row - 1, col, cols, rows, terrenoInMappa);
   const e = isSandAt(row, col + 1, cols, rows, terrenoInMappa);
   const s = isSandAt(row + 1, col, cols, rows, terrenoInMappa);
