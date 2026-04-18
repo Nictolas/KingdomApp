@@ -13,7 +13,12 @@ import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { Redirect, useRouter } from "expo-router";
 import { edificiData } from "../src/data/edificiData";
 import { useGameContext } from "../src/context/GameContext";
-import { generateRivers, buildTerrenoFromRivers, type TerrenoType } from "../src/game/riverGeneration";
+import {
+  applySandRingAlongSea,
+  buildTerrenoFromRivers,
+  generateRivers,
+  type TerrenoType
+} from "../src/game/riverGeneration";
 import type { Edificio, Risorsa } from "../src/types";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import {
@@ -505,6 +510,7 @@ function getInitialMappaWithRivers(cols: number, rows: number): {
       .filter((i) => edificiInMappa[i]?.nome === "Giacimento")
   );
   const terrenoInMappa = buildTerrenoFromRivers(riverIndices, sandIndices, giacimentoIndices);
+  applySandRingAlongSea(terrenoInMappa, cols, rows, giacimentoIndices);
 
   const celleLibere: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {

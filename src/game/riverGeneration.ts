@@ -259,6 +259,45 @@ export function buildTerrenoFromRivers(
   return out;
 }
 
+/** Mare = bordo griglia (come `isAcqua` in app/mappa). */
+export function isMareCell(index: number, cols: number, rows: number): boolean {
+  const row = Math.floor(index / cols);
+  const col = index % cols;
+  return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
+}
+
+/**
+ * Fascia di spiaggia: ogni cella di terra (non fiume) con almeno un vicino ortogonale al mare
+ * diventa sabbia, così non c’è erba a contatto diretto col mare.
+ */
+export function applySandRingAlongSea(
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number,
+  excludeFromSand?: Set<number>
+): void {
+  const ex = excludeFromSand ?? new Set();
+  const tot = cols * rows;
+  for (let i = 0; i < tot; i++) {
+    if (isMareCell(i, cols, rows)) continue;
+    if ((terreno[i] ?? "erba") === "river") continue;
+    if (ex.has(i)) continue;
+    const [r, c] = indexToRowCol(i, cols);
+    let vicinoAlMare = false;
+    for (const [dr, dc] of DELTA) {
+      const r2 = r + dr;
+      const c2 = c + dc;
+      if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) continue;
+      const j = rowColToIndex(r2, c2, cols);
+      if (isMareCell(j, cols, rows)) {
+        vicinoAlMare = true;
+        break;
+      }
+    }
+    if (vicinoAlMare) terreno[i] = "sabbia";
+  }
+}
+
 function seededRandom(seed: number): () => number {
   let s = seed;
   return () => {
