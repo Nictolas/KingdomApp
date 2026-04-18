@@ -16,10 +16,10 @@ export const OVERWORLD_SHEET_PX = {
    */
   grassFill: { x: 192, y: 192 },
   /**
-   * Motivo erba 2×2 (quattro quarti che formano un’unica texture, es. chiocciola).
-   * Origine angolo in alto a sinistra del blocco 2×2.
+   * Motivo erba 2×2: blocco in alto a sinistra nel foglio (sotto i conigli), quattro tile coerenti.
+   * Origine = angolo in alto a sinistra del blocco 2×2.
    */
-  grassDecor2x2Origin: { x: 320, y: 320 },
+  grassDecor2x2Origin: { x: 0, y: 128 },
   /**
    * Strada terra: blocco 3×3 con transizione verso erba (stesso schema indici della spiaggia).
    * Rilevato nel foglio come terra uniforme R222 G118 B80.
