@@ -1,6 +1,6 @@
 /**
  * Coordinate in pixel sul file spritesheet-full.png (RhosGFX DEMO, 1341×1408).
- * Tile base 64×64 (stesso della striscia acqua).
+ * Tile base 64×64.
  */
 export const OVERWORLD_SHEET_PX = {
   w: 1341,
@@ -10,8 +10,13 @@ export const OVERWORLD_SHEET_PX = {
   waterAnimX: 768,
   waterAnimY: 64,
   waterFrames: 4,
-  /** Riempimento erba (tile “piena” zona autotile) */
+  /** Riempimento erba (tile “piena”) */
   grassFill: { x: 192, y: 192 },
-  /** Sabbia / spiaggia (tile piena vicino all’acqua nel foglio) */
-  sandFill: { x: 896, y: 192 }
+  /**
+   * Spiaggia: due tile nella fila sotto l’acqua (y=128), NON intercambiabili.
+   * - shoreWest: acqua sul bordo sinistro del riquadro → usare quando il fiume/mare è a OVEST della cella.
+   * - shoreEast: acqua sul bordo destro → fiume/mare a EST.
+   */
+  sandShoreWest: { x: 832, y: 128 },
+  sandShoreEast: { x: 896, y: 128 }
 } as const;

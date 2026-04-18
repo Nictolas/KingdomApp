@@ -22,6 +22,7 @@ import {
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
 import { TerrainSheetSprite } from "../src/components/TerrainSheetSprite";
+import { getSandWaterDirection } from "../src/game/terrainSpriteHelpers";
 
 /** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
 const FIXED_MAP_COLS = 50;
@@ -975,7 +976,11 @@ export function MappaScreen() {
                       const spriteTerreno = acquaAnimata ? (
                         <TerrainSheetSprite cellSize={CELL_SIZE_PX} terrain="water" frame={waterAnimFrame} />
                       ) : terreno === "sabbia" ? (
-                        <TerrainSheetSprite cellSize={CELL_SIZE_PX} terrain="sand" />
+                        <TerrainSheetSprite
+                          cellSize={CELL_SIZE_PX}
+                          terrain="sand"
+                          waterDirection={getSandWaterDirection(i, cols, rows, terrenoInMappa)}
+                        />
                       ) : (
                         <TerrainSheetSprite cellSize={CELL_SIZE_PX} terrain="grass" />
                       );
