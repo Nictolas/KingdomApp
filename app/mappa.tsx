@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
   Modal,
@@ -20,6 +20,9 @@ import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 /** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
 const FIXED_MAP_COLS = 50;
 const FIXED_MAP_ROWS = 50;
+/** Footprint del complesso amministrativo (deve restare compatibile con `scegliAnchorComplessoAmministrativo`). */
+const ADMIN_FOOTPRINT_W = 2;
+const ADMIN_FOOTPRINT_H = 3;
 /** Dimensione fissa di ogni cella in pixel (nessuna percentuale, solo px). */
 const CELL_SIZE_PX = 40;
 /** Gap tra le celle (0 = griglia compatta 2000x2000). */
@@ -64,7 +67,15 @@ const EDIFICIO_TO_ROUTE: Record<string, string> = {
   "Spazioporto": "/spazioporto"
 };
 
-type EdificioInCella = { id: number; nome: string; emoji: string };
+type EdificioInCella = {
+  id: number;
+  nome: string;
+  emoji: string;
+  /** Indice dell'angolo in alto a sinistra dell'edificio multi-cella (solo sulle celle "schiena"). */
+  footprintRef?: number;
+  /** Solo sulla cella anchor: larghezza/altezza in celle del rettangolo. */
+  footprint?: { w: number; h: number };
+};
 
 /** Cella è acqua (blu) se true, altrimenti erba (verde). Bordi della mappa = mare. */
 function isAcqua(index: number, cols: number, rows: number): boolean {
@@ -132,24 +143,108 @@ function findNearestLandNotRiver(
   return null;
 }
 
+/** Indici di tutte le celle occupate da un footprint ancorato in `anchor`. */
+function getIndiciFootprint(anchor: number, w: number, h: number, cols: number): number[] {
+  const ac = anchor % cols;
+  const ar = Math.floor(anchor / cols);
+  const out: number[] = [];
+  for (let dr = 0; dr < h; dr++) {
+    for (let dc = 0; dc < w; dc++) {
+      out.push((ar + dr) * cols + (ac + dc));
+    }
+  }
+  return out;
+}
+
+/**
+ * Angolo in alto a sinistra del blocco ADMIN_FOOTPRINT_W×H, scelto in modo deterministico:
+ * tra tutti i rettangoli interamente su terra (non mare), quello col centro più vicino al "centro" mappa.
+ * Va riservato ai fiumi prima di `generateRivers` così il 2×3 resta sempre libero.
+ */
+function scegliAnchorComplessoAmministrativo(cols: number, rows: number): number {
+  const idx = getIndiciEdificiIniziali(cols, rows);
+  const preferred = idx.CENTRO_COMANDO_INDEX;
+  const pc = preferred % cols;
+  const pr = Math.floor(preferred / cols);
+  const w = ADMIN_FOOTPRINT_W;
+  const h = ADMIN_FOOTPRINT_H;
+  const minR = 1;
+  const maxR = rows - 2 - h;
+  const minC = 1;
+  const maxC = cols - 2 - w;
+  let bestAnchor = preferred;
+  let bestD = Infinity;
+  for (let ar = minR; ar <= maxR; ar++) {
+    for (let ac = minC; ac <= maxC; ac++) {
+      const anchor = ar * cols + ac;
+      let allLand = true;
+      for (let dr = 0; dr < h && allLand; dr++) {
+        for (let dc = 0; dc < w; dc++) {
+          const i = (ar + dr) * cols + (ac + dc);
+          if (isAcqua(i, cols, rows)) {
+            allLand = false;
+            break;
+          }
+        }
+      }
+      if (!allLand) continue;
+      const d = Math.abs(ar - pr) + Math.abs(ac - pc);
+      if (d < bestD) {
+        bestD = d;
+        bestAnchor = anchor;
+      }
+    }
+  }
+  return bestAnchor;
+}
+
+/** Complesso amministrativo: rettangolo 2×3 (6 celle), `anchor` già riservato ai fiumi. */
+function aggiungiComplessoAmministrativo(
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  used: Set<number>,
+  out: Record<number, EdificioInCella>,
+  anchor: number
+): void {
+  const w = ADMIN_FOOTPRINT_W;
+  const h = ADMIN_FOOTPRINT_H;
+  const celle = getIndiciFootprint(anchor, w, h, cols);
+  const anchorEd: EdificioInCella = {
+    id: 1,
+    nome: "Centro di Comando",
+    emoji: "🏛️",
+    footprint: { w, h }
+  };
+  out[anchor] = anchorEd;
+  used.add(anchor);
+  for (const i of celle) {
+    if (i === anchor) continue;
+    out[i] = { id: 1, nome: "Centro di Comando", emoji: "", footprintRef: anchor };
+    used.add(i);
+  }
+}
+
 /** Restituisce edifici iniziali fissi, spostati su terra (no fiume, no mare); nessuna cella condivisa. */
 function getEdificiIniziali(
   cols: number,
   rows: number,
-  riverSet: Set<number>
+  riverSet: Set<number>,
+  adminAnchor: number
 ): Record<number, EdificioInCella> {
   const idx = getIndiciEdificiIniziali(cols, rows);
+  const out: Record<number, EdificioInCella> = {};
+  const used = new Set<number>();
+
+  aggiungiComplessoAmministrativo(cols, rows, riverSet, used, out, adminAnchor);
+
   const edifici: [number, EdificioInCella][] = [
-    [idx.CENTRO_COMANDO_INDEX, { id: 1, nome: "Centro di Comando", emoji: "🏛️" }],
     [idx.SPAZIOPORTO_INDEX, { id: 19, nome: "Spazioporto", emoji: "🚀" }],
-    [idx.TRIBUNALE_INDEX, { id: 12, nome: "Tribunale", emoji: "⚖️" }],
     [idx.SERRA_INDEX, { id: 2, nome: "Serra", emoji: "🌱" }],
     [idx.DORMITORIO_1_INDEX, DORMITORIO],
     [idx.DORMITORIO_2_INDEX, DORMITORIO],
     [idx.DORMITORIO_3_INDEX, DORMITORIO]
   ];
-  const out: Record<number, EdificioInCella> = {};
-  const used = new Set<number>();
   for (const [preferred, e] of edifici) {
     const cell = findNearestLandNotRiver(preferred, cols, rows, riverSet, used);
     if (cell != null) {
@@ -164,9 +259,10 @@ function getEdificiIniziali(
 function getInitialEdificiInMappa(
   cols: number,
   rows: number,
-  riverSet: Set<number>
+  riverSet: Set<number>,
+  adminAnchor: number
 ): Record<number, EdificioInCella> {
-  const edificiIniziali = getEdificiIniziali(cols, rows, riverSet);
+  const edificiIniziali = getEdificiIniziali(cols, rows, riverSet, adminAnchor);
   const totaleCelle = cols * rows;
   const occupate = new Set<number>(Object.keys(edificiIniziali).map(Number));
   const erbaLibera: number[] = [];
@@ -194,16 +290,19 @@ function getInitialMappaWithRivers(cols: number, rows: number): {
   const totaleCelle = cols * rows;
   const borderIndices = new Set<number>();
   for (let i = 0; i < totaleCelle; i++) if (isAcqua(i, cols, rows)) borderIndices.add(i);
+  const adminAnchor = scegliAnchorComplessoAmministrativo(cols, rows);
+  const adminReserved = new Set(getIndiciFootprint(adminAnchor, ADMIN_FOOTPRINT_W, ADMIN_FOOTPRINT_H, cols));
+  const forbiddenForRivers = new Set<number>([...borderIndices, ...adminReserved]);
   const { riverIndices, sandIndices } = generateRivers({
     cols,
     rows,
     numSources: 2 + Math.floor(Math.random() * 2),
     maxLength: 60,
     bifurcationProbability: 0.1,
-    forbiddenIndices: borderIndices
+    forbiddenIndices: forbiddenForRivers
   });
   const riverSet = new Set(riverIndices);
-  const edificiInMappa = getInitialEdificiInMappa(cols, rows, riverSet);
+  const edificiInMappa = getInitialEdificiInMappa(cols, rows, riverSet, adminAnchor);
   const giacimentoIndices = new Set(
     Object.keys(edificiInMappa)
       .map(Number)
@@ -227,22 +326,19 @@ function getInitialMappaWithRivers(cols: number, rows: number): {
   return { edificiInMappa, terrenoInMappa, decorazioniInMappa };
 }
 
-/** Coppie [indiceA, indiceB] per strade iniziali (centro → spazioporto, tribunale, serra); usa le posizioni effettive degli edifici. */
+/** Coppie [indiceA, indiceB] per strade iniziali (anchor centro → spazioporto, serra); usa le posizioni effettive degli edifici. */
 function getStradeIniziali(edificiInMappa: Record<number, EdificioInCella>): [number, number][] {
   let centro: number | null = null;
   let spazioporto: number | null = null;
-  let tribunale: number | null = null;
   let serra: number | null = null;
   for (const [i, e] of Object.entries(edificiInMappa)) {
     const idx = Number(i);
-    if (e.nome === "Centro di Comando") centro = idx;
+    if (e.nome === "Centro di Comando" && !e.footprintRef) centro = idx;
     if (e.nome === "Spazioporto") spazioporto = idx;
-    if (e.nome === "Tribunale") tribunale = idx;
     if (e.nome === "Serra") serra = idx;
   }
   const out: [number, number][] = [];
   if (centro != null && spazioporto != null) out.push([centro, spazioporto]);
-  if (centro != null && tribunale != null) out.push([centro, tribunale]);
   if (centro != null && serra != null) out.push([centro, serra]);
   return out;
 }
@@ -254,6 +350,57 @@ function getCellCenter(cellIndex: number, cellW: number, cellH: number, cols: nu
   const x = col * (cellW + GAP) + cellW / 2;
   const y = row * (cellH + GAP) + cellH / 2;
   return { x, y };
+}
+
+/** Angolo in alto a sinistra della cella in px (per overlay edifici multi-cella). */
+function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: number): { left: number; top: number } {
+  const col = cellIndex % cols;
+  const row = Math.floor(cellIndex / cols);
+  return { left: col * (cellW + GAP), top: row * (cellH + GAP) };
+}
+
+/** Palette a mattoncini per il complesso amministrativo (2×3 o altri rettangoli). */
+const FOOTPRINT_ADMIN_COLORS: string[][] = [
+  ["#c4a574", "#a67c52"],
+  ["#8f6b45", "#b8956a"],
+  ["#9a8365", "#7d6a4f"]
+];
+
+function EdificioFootprintAmministrazioneGfx({
+  anchor,
+  footprint,
+  cols,
+  cellW,
+  cellH
+}: {
+  anchor: number;
+  footprint: { w: number; h: number };
+  cols: number;
+  cellW: number;
+  cellH: number;
+}) {
+  const { left, top } = getCellTopLeft(anchor, cellW, cellH, cols);
+  const { w, h } = footprint;
+  const width = w * cellW + (w - 1) * GAP;
+  const height = h * cellH + (h - 1) * GAP;
+  const nr = FOOTPRINT_ADMIN_COLORS.length;
+  const nc = FOOTPRINT_ADMIN_COLORS[0]!.length;
+  return (
+    <View style={[styles.footprintBlock, { left, top, width, height }]} pointerEvents="none">
+      {Array.from({ length: h }, (_, row) => (
+        <View key={`r-${row}`} style={styles.footprintRow}>
+          {Array.from({ length: w }, (_, col) => {
+            const bg = FOOTPRINT_ADMIN_COLORS[row % nr]![col % nc]!;
+            return <View key={`c-${row}-${col}`} style={[styles.footprintTile, { backgroundColor: bg }]} />;
+          })}
+        </View>
+      ))}
+      <View
+        style={[styles.footprintPortico, { height: Math.max(6, Math.floor(cellH * 0.2)) }]}
+        pointerEvents="none"
+      />
+    </View>
+  );
 }
 
 /**
@@ -397,6 +544,16 @@ export function MappaScreen() {
   const contentWidth = cols * CELL_SIZE_PX + (cols - 1) * GAP;
   const contentHeight = rows * CELL_SIZE_PX + (rows - 1) * GAP;
   const stradeIniziali = getStradeIniziali(edificiInMappa);
+
+  const edificiFootprintOverlay = useMemo(() => {
+    const list: { anchor: number; fp: { w: number; h: number } }[] = [];
+    for (const [i, e] of Object.entries(edificiInMappa)) {
+      if (e.footprint && !e.footprintRef) {
+        list.push({ anchor: Number(i), fp: e.footprint });
+      }
+    }
+    return list;
+  }, [edificiInMappa]);
 
   const gridContainerStyle = {
     display: "grid" as const,
@@ -662,6 +819,21 @@ export function MappaScreen() {
                   })()}
                 </View>
                   <View
+                    style={[styles.footprintsLayer, { width: contentWidth, height: contentHeight }]}
+                    pointerEvents="none"
+                  >
+                    {edificiFootprintOverlay.map(({ anchor, fp }) => (
+                      <EdificioFootprintAmministrazioneGfx
+                        key={`footprint-${anchor}`}
+                        anchor={anchor}
+                        footprint={fp}
+                        cols={cols}
+                        cellW={cellW}
+                        cellH={cellH}
+                      />
+                    ))}
+                  </View>
+                  <View
                     style={[
                       styles.grigliaEmoji,
                       { ...gridContainerStyle, position: "absolute" as const, left: 0, top: 0, zIndex: 2 },
@@ -672,7 +844,12 @@ export function MappaScreen() {
                     {Array.from({ length: rows * cols }, (_, i) => {
                       const edificio = edificiInMappa[i];
                       const èStrada = edificio?.nome === "Strada";
-                      const emoji = edificio && !èStrada ? edificio.emoji : (decorazioniInMappa[i] ?? null);
+                      const edificioMulticella =
+                        !!edificio && !èStrada && (edificio.footprintRef != null || edificio.footprint != null);
+                      const emoji =
+                        edificio && !èStrada && !edificioMulticella
+                          ? edificio.emoji
+                          : (decorazioniInMappa[i] ?? null);
                       const mostraEmoji = !!emoji;
                       return (
                         <View key={i} style={[styles.cella, styles.cellaFixed, { width: CELL_SIZE_PX, height: CELL_SIZE_PX }]}>
@@ -1102,6 +1279,38 @@ const styles = StyleSheet.create({
   },
   roadsLayerSopra: {
     zIndex: 1
+  },
+  footprintsLayer: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    zIndex: 3
+  },
+  footprintBlock: {
+    position: "absolute",
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: "#3d3426",
+    overflow: "hidden",
+    backgroundColor: "#2a241c"
+  },
+  footprintRow: {
+    flex: 1,
+    flexDirection: "row",
+    minHeight: 0
+  },
+  footprintTile: {
+    flex: 1,
+    margin: 0.5
+  },
+  footprintPortico: {
+    position: "absolute",
+    bottom: 0,
+    left: "18%",
+    width: "64%",
+    backgroundColor: "rgba(20,18,14,0.55)",
+    borderTopLeftRadius: 3,
+    borderTopRightRadius: 3
   },
   grigliaEmoji: {
     position: "absolute",
