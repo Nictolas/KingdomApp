@@ -267,10 +267,11 @@ export function isMareCell(index: number, cols: number, rows: number): boolean {
 }
 
 /**
- * Fascia di spiaggia: ogni cella di terra (non fiume) con almeno un vicino ortogonale al mare
- * diventa sabbia, così non c’è erba a contatto diretto col mare.
+ * Fascia di sabbia attorno a **tutta** l’acqua (mare ai bordi e celle fiume): nessuna erba
+ * adiacente ortogonalmente all’acqua. Ripristina anche i casi in cui il pruning aveva tolto
+ * sabbia lasciando erba a contatto col fiume.
  */
-export function applySandRingAlongSea(
+export function applySandAdjacentToAnyWater(
   terreno: Record<number, TerrenoType>,
   cols: number,
   rows: number,
@@ -283,18 +284,22 @@ export function applySandRingAlongSea(
     if ((terreno[i] ?? "erba") === "river") continue;
     if (ex.has(i)) continue;
     const [r, c] = indexToRowCol(i, cols);
-    let vicinoAlMare = false;
+    let vicinoAcqua = false;
     for (const [dr, dc] of DELTA) {
       const r2 = r + dr;
       const c2 = c + dc;
       if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) continue;
       const j = rowColToIndex(r2, c2, cols);
       if (isMareCell(j, cols, rows)) {
-        vicinoAlMare = true;
+        vicinoAcqua = true;
+        break;
+      }
+      if ((terreno[j] ?? "erba") === "river") {
+        vicinoAcqua = true;
         break;
       }
     }
-    if (vicinoAlMare) terreno[i] = "sabbia";
+    if (vicinoAcqua) terreno[i] = "sabbia";
   }
 }
 
