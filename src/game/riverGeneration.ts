@@ -243,6 +243,109 @@ function pruneSandMinTwoSandNeighbors(sandIndices: number[], cols: number, rows:
   return Array.from(sandSet);
 }
 
+/** Terra erba (non mare, tipo esplicito o implicito `erba`). */
+function isCellaErbaTerreno(
+  index: number,
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): boolean {
+  if (isMareCell(index, cols, rows)) return false;
+  return (terreno[index] ?? "erba") === "erba";
+}
+
+/** Vicini ortogonali che sono ancora erba (stessa logica di `isCellaErbaTerreno`). */
+function countGrassNeighborsOrth(
+  index: number,
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): number {
+  const [r, c] = indexToRowCol(index, cols);
+  let n = 0;
+  for (const [dr, dc] of DELTA) {
+    const r2 = r + dr;
+    const c2 = c + dc;
+    if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) continue;
+    const i2 = rowColToIndex(r2, c2, cols);
+    if (isCellaErbaTerreno(i2, terreno, cols, rows)) n++;
+  }
+  return n;
+}
+
+/**
+ * Ogni cella erba deve avere almeno 2 vicini ortogonali erba (come la sabbia).
+ * Le celle sotto soglia diventano sabbia (poi gestite dal pruning sabbia / fascia acqua).
+ */
+function pruneGrassMinTwoGrassNeighbors(
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number,
+  exclude?: Set<number>
+): boolean {
+  const ex = exclude ?? new Set();
+  let any = false;
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const toSand: number[] = [];
+    const tot = cols * rows;
+    for (let i = 0; i < tot; i++) {
+      if (isMareCell(i, cols, rows)) continue;
+      if (ex.has(i)) continue;
+      if (!isCellaErbaTerreno(i, terreno, cols, rows)) continue;
+      if (countGrassNeighborsOrth(i, terreno, cols, rows) < 2) toSand.push(i);
+    }
+    for (const i of toSand) {
+      terreno[i] = "sabbia";
+      any = true;
+      changed = true;
+    }
+  }
+  return any;
+}
+
+/** Rimuove sabbia con meno di 2 vicini sabbia; le celle tornano erba (chiave rimossa). */
+function pruneSandMinTwoSandNeighborsInTerreno(
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): boolean {
+  const allSand: number[] = [];
+  const tot = cols * rows;
+  for (let i = 0; i < tot; i++) {
+    if ((terreno[i] ?? "erba") === "sabbia") allSand.push(i);
+  }
+  const pruned = pruneSandMinTwoSandNeighbors(allSand, cols, rows);
+  const keep = new Set(pruned);
+  let any = false;
+  for (const i of allSand) {
+    if (!keep.has(i)) {
+      delete terreno[i];
+      any = true;
+    }
+  }
+  return any;
+}
+
+/**
+ * Allinea erba e sabbia alle regole di continuità (≥2 vicini ortogonali dello stesso tipo)
+ * e ripete fascia sabbia sull’acqua finché non c’è più cambiamento.
+ */
+export function applyTerrenoGrassAndSandContinuity(
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number,
+  excludeFromSand?: Set<number>
+): void {
+  for (let k = 0; k < 64; k++) {
+    const g = pruneGrassMinTwoGrassNeighbors(terreno, cols, rows, excludeFromSand);
+    const s = pruneSandMinTwoSandNeighborsInTerreno(terreno, cols, rows);
+    const w = applySandAdjacentToAnyWater(terreno, cols, rows, excludeFromSand);
+    if (!g && !s && !w) break;
+  }
+}
+
 /** Restituisce un Record indice → tipo terreno (solo per celle non erba). */
 export function buildTerrenoFromRivers(
   riverIndices: number[],
@@ -276,9 +379,10 @@ export function applySandAdjacentToAnyWater(
   cols: number,
   rows: number,
   excludeFromSand?: Set<number>
-): void {
+): boolean {
   const ex = excludeFromSand ?? new Set();
   const tot = cols * rows;
+  let changed = false;
   for (let i = 0; i < tot; i++) {
     if (isMareCell(i, cols, rows)) continue;
     if ((terreno[i] ?? "erba") === "river") continue;
@@ -299,8 +403,12 @@ export function applySandAdjacentToAnyWater(
         break;
       }
     }
-    if (vicinoAcqua) terreno[i] = "sabbia";
+    if (vicinoAcqua && (terreno[i] ?? "erba") !== "sabbia") {
+      terreno[i] = "sabbia";
+      changed = true;
+    }
   }
+  return changed;
 }
 
 function seededRandom(seed: number): () => number {

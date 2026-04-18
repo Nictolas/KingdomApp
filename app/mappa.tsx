@@ -14,7 +14,7 @@ import { Redirect, useRouter } from "expo-router";
 import { edificiData } from "../src/data/edificiData";
 import { useGameContext } from "../src/context/GameContext";
 import {
-  applySandAdjacentToAnyWater,
+  applyTerrenoGrassAndSandContinuity,
   buildTerrenoFromRivers,
   generateRivers,
   type TerrenoType
@@ -515,7 +515,7 @@ function getInitialMappaWithRivers(cols: number, rows: number): {
       .filter((i) => edificiInMappa[i]?.nome === "Giacimento")
   );
   const terrenoInMappa = buildTerrenoFromRivers(riverIndices, sandIndices, giacimentoIndices);
-  applySandAdjacentToAnyWater(terrenoInMappa, cols, rows, giacimentoIndices);
+  applyTerrenoGrassAndSandContinuity(terrenoInMappa, cols, rows, giacimentoIndices);
 
   const celleLibere: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {
