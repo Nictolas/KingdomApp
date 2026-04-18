@@ -13,10 +13,17 @@ export const OVERWORLD_SHEET_PX = {
   /** Riempimento erba (tile “piena”) */
   grassFill: { x: 192, y: 192 },
   /**
-   * Spiaggia: due tile nella fila sotto l’acqua (y=128), NON intercambiabili.
-   * - shoreWest: acqua sul bordo sinistro del riquadro → usare quando il fiume/mare è a OVEST della cella.
-   * - shoreEast: acqua sul bordo destro → fiume/mare a EST.
+   * Blocco 3×3 spiaggia/sabbia–acqua (angoli, lati, centro). Origine = angolo in alto a sinistra.
+   * Righe: TL, T, TR | L, C, R | BL, B, BR
    */
-  sandShoreWest: { x: 832, y: 128 },
-  sandShoreEast: { x: 896, y: 128 }
+  beachSand3x3Origin: { x: 768, y: 128 }
 } as const;
+
+/** Pixel (sx, sy) della sottotile spiaggia indice 0…8 nel blocco 3×3. */
+export function beachSubtileOriginPx(idx: number): { x: number; y: number } {
+  const { x: ox, y: oy } = OVERWORLD_SHEET_PX.beachSand3x3Origin;
+  const t = OVERWORLD_SHEET_PX.tile;
+  const col = idx % 3;
+  const row = Math.floor(idx / 3);
+  return { x: ox + col * t, y: oy + row * t };
+}
