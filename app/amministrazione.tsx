@@ -14,6 +14,12 @@ export default function AmministrazioneScreen() {
 
   return (
     <SafeAreaView style={styles.safe}>
+      <View style={styles.header}>
+        <View style={styles.headerSpacer} />
+        <Pressable onPress={() => router.replace("/")} hitSlop={8} accessibilityRole="button" accessibilityLabel="Chiudi e torna alla mappa">
+          <Text style={styles.chiudi}>Chiudi</Text>
+        </Pressable>
+      </View>
       <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         <View style={styles.hero}>
           <Text style={styles.heroEmoji}>🏛️</Text>
@@ -47,10 +53,21 @@ export default function AmministrazioneScreen() {
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#0a0f1a" },
+  header: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "flex-end",
+    paddingHorizontal: 14,
+    paddingVertical: 10,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(148,163,184,0.12)"
+  },
+  headerSpacer: { flex: 1 },
+  chiudi: { color: "#93c5fd", fontSize: 14, fontWeight: "600" },
   container: { flex: 1 },
   scrollContent: { paddingBottom: 28, paddingHorizontal: 14, maxWidth: 440, alignSelf: "center", width: "100%" },
   hero: {
-    paddingTop: 24,
+    paddingTop: 16,
     paddingBottom: 20,
     borderBottomWidth: 1,
     borderBottomColor: "rgba(148,163,184,0.12)",
