@@ -326,6 +326,14 @@ function getInitialMappaWithRivers(cols: number, rows: number): {
   return { edificiInMappa, terrenoInMappa, decorazioniInMappa };
 }
 
+type MappaRuntimeState = ReturnType<typeof getInitialMappaWithRivers>;
+
+/**
+ * Cache fuori dal ciclo di vita di React: quando si esce dalla mappa (es. /amministrazione) e si torna
+ * con `replace("/")`, il componente si rimonta; senza questo, `useState` rigenererebbe fiumi e decorazioni.
+ */
+let mappaSessione: MappaRuntimeState | null = null;
+
 /** Coppie [indiceA, indiceB] per strade iniziali (anchor centro → spazioporto, serra); usa le posizioni effettive degli edifici. */
 function getStradeIniziali(edificiInMappa: Record<number, EdificioInCella>): [number, number][] {
   let centro: number | null = null;
@@ -525,19 +533,27 @@ export function MappaScreen() {
   const nDisoccupati = abitantiConFelicità.filter((a) => a.lavoro === "Disoccupato").length;
   const disoccupazionePercent = nConFelicità ? Math.round((nDisoccupati / nConFelicità) * 100) : 0;
 
-  const [mappaState, setMappaState] = useState<{
-    edificiInMappa: Record<number, EdificioInCella>;
-    terrenoInMappa: Record<number, TerrenoType>;
-    decorazioniInMappa: Record<number, string>;
-  }>(() => getInitialMappaWithRivers(FIXED_MAP_COLS, FIXED_MAP_ROWS));
+  const [mappaState, setMappaState] = useState<MappaRuntimeState>(() => {
+    if (!mappaSessione) {
+      mappaSessione = getInitialMappaWithRivers(FIXED_MAP_COLS, FIXED_MAP_ROWS);
+    }
+    return mappaSessione;
+  });
+  const setMappaStatePersistente = useCallback((action: React.SetStateAction<MappaRuntimeState>) => {
+    setMappaState((prev) => {
+      const next = typeof action === "function" ? (action as (p: MappaRuntimeState) => MappaRuntimeState)(prev) : action;
+      mappaSessione = next;
+      return next;
+    });
+  }, []);
   const edificiInMappa = mappaState.edificiInMappa;
   const terrenoInMappa = mappaState.terrenoInMappa;
   const decorazioniInMappa = mappaState.decorazioniInMappa;
   const setEdificiInMappa = useCallback(
     (updater: (prev: Record<number, EdificioInCella>) => Record<number, EdificioInCella>) => {
-      setMappaState((s) => ({ ...s, edificiInMappa: updater(s.edificiInMappa) }));
+      setMappaStatePersistente((s) => ({ ...s, edificiInMappa: updater(s.edificiInMappa) }));
     },
-    []
+    [setMappaStatePersistente]
   );
   const [selectedCellForDialog, setSelectedCellForDialog] = useState<number | null>(null);
   const [selectedCellForTransformDialog, setSelectedCellForTransformDialog] = useState<number | null>(null);
