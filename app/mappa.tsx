@@ -21,7 +21,7 @@ import {
   RpgFootprintDorm2x2,
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
-import { TerrainWaterSprite } from "../src/components/TerrainWaterSprite";
+import { TerrainSheetSprite } from "../src/components/TerrainSheetSprite";
 
 /** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
 const FIXED_MAP_COLS = 50;
@@ -965,31 +965,30 @@ export function MappaScreen() {
                       const hasEdificio = !!edificio;
                       const èStrada = edificio?.nome === "Strada";
                       const acquaAnimata = acqua || terreno === "river";
-                      const styleTerreno = acquaAnimata
-                        ? styles.cellaAcquaAnimata
-                        : terreno === "sabbia"
-                          ? styles.cellaSabbia
-                          : styles.cellaErba;
                       const cellStyle = [
                         styles.cella,
                         styles.cellaFixed,
-                        styleTerreno,
+                        styles.cellaTextureTerreno,
                         { width: CELL_SIZE_PX, height: CELL_SIZE_PX },
                         hasEdificio && !èStrada && styles.cellaEdificio
                       ];
-                      const spriteAcqua = acquaAnimata ? (
-                        <TerrainWaterSprite cellSize={CELL_SIZE_PX} frame={waterAnimFrame} />
-                      ) : null;
+                      const spriteTerreno = acquaAnimata ? (
+                        <TerrainSheetSprite cellSize={CELL_SIZE_PX} terrain="water" frame={waterAnimFrame} />
+                      ) : terreno === "sabbia" ? (
+                        <TerrainSheetSprite cellSize={CELL_SIZE_PX} terrain="sand" />
+                      ) : (
+                        <TerrainSheetSprite cellSize={CELL_SIZE_PX} terrain="grass" />
+                      );
                       if (acqua) {
                         return (
                           <View key={i} style={cellStyle}>
-                            {spriteAcqua}
+                            {spriteTerreno}
                           </View>
                         );
                       }
                       return (
                         <Pressable key={i} style={cellStyle} onPress={() => onCellPress(i)}>
-                          {spriteAcqua}
+                          {spriteTerreno}
                         </Pressable>
                       );
                     })}
@@ -1595,17 +1594,11 @@ const styles = StyleSheet.create({
     justifyContent: "center",
     alignItems: "center"
   },
-  cellaErba: {
-    backgroundColor: "#3d7c47"
-  },
-  /** Mare e fiume: texture animata da spritesheet (vedi TerrainWaterSprite). */
-  cellaAcquaAnimata: {
+  /** Erba / sabbia / acqua: texture da spritesheet (TerrainSheetSprite). */
+  cellaTextureTerreno: {
     backgroundColor: "transparent",
     overflow: "hidden",
     position: "relative"
-  },
-  cellaSabbia: {
-    backgroundColor: "#ca8a04"
   },
   cellaEdificio: {},
   stradaCerchio: {
