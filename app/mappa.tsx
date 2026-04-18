@@ -73,6 +73,28 @@ function isAcqua(index: number, cols: number, rows: number): boolean {
   return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
 }
 
+/** Mare, fiume: nessun segmento strada (né visivo tra due centri celle). */
+function isCellaOkPerStrada(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>
+): boolean {
+  if (isAcqua(index, cols, rows)) return false;
+  if ((terrenoInMappa[index] ?? "erba") === "river") return false;
+  return true;
+}
+
+function segmentoStradaConsentito(
+  a: number,
+  b: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>
+): boolean {
+  return isCellaOkPerStrada(a, cols, rows, terrenoInMappa) && isCellaOkPerStrada(b, cols, rows, terrenoInMappa);
+}
+
 const GIACIMENTO: EdificioInCella = { id: 0, nome: "Giacimento", emoji: "⛰️" };
 const RAFFINERIA_MINERARIA: EdificioInCella = { id: 3, nome: "Raffineria Mineraria", emoji: "⚙️" };
 /** Opzione "Strada" per il dialog costruzione (cella diventa lastricato strada). */
@@ -234,20 +256,44 @@ function getCellCenter(cellIndex: number, cellW: number, cellH: number, cols: nu
   return { x, y };
 }
 
-/** Dato due indici cella, restituisce segmenti solo orizzontali/verticali (percorso a L). Ogni segmento è [indiceA, indiceB] con A e B adiacenti sulla griglia. */
+/**
+ * Tra due celle sulla stessa riga o colonna, restituisce solo coppie adiacenti (un passo ortogonale per segmento).
+ * Non restituisce mai un singolo segmento che "salta" più celle.
+ */
+function expandAxisToUnitSteps(from: number, to: number, cols: number): [number, number][] {
+  const c1 = from % cols;
+  const r1 = Math.floor(from / cols);
+  const c2 = to % cols;
+  const r2 = Math.floor(to / cols);
+  if (r1 !== r2 && c1 !== c2) return [];
+  const out: [number, number][] = [];
+  if (r1 === r2) {
+    if (c1 === c2) return [];
+    const step = c2 > c1 ? 1 : -1;
+    for (let c = c1; c !== c2; c += step) {
+      const i = r1 * cols + c;
+      out.push([i, i + step]);
+    }
+  } else {
+    const step = r2 > r1 ? cols : -cols;
+    for (let i = from; i !== to; i += step) {
+      out.push([i, i + step]);
+    }
+  }
+  return out;
+}
+
+/** Percorso a L in soli passi ortogonali adiacenti (ogni segmento collega due celle vicine). */
 function getManhattanPathSegments(from: number, to: number, cols: number): [number, number][] {
   const c1 = from % cols;
   const r1 = Math.floor(from / cols);
   const c2 = to % cols;
   const r2 = Math.floor(to / cols);
   if (c1 === c2 && r1 === r2) return [];
-  if (c1 === c2) return [[from, to]];
-  if (r1 === r2) return [[from, to]];
+  if (c1 === c2) return expandAxisToUnitSteps(from, to, cols);
+  if (r1 === r2) return expandAxisToUnitSteps(from, to, cols);
   const mid = r1 * cols + c2;
-  return [
-    [from, mid],
-    [mid, to]
-  ];
+  return [...expandAxisToUnitSteps(from, mid, cols), ...expandAxisToUnitSteps(mid, to, cols)];
 }
 
 /** Vicini ortogonali (su, giù, sinistra, destra) con controlli sui bordi. */
@@ -547,7 +593,9 @@ export function MappaScreen() {
                   {stradeIniziali
                     .filter(([a, b]) => edificiInMappa[a] && edificiInMappa[b])
                     .flatMap(([from, to]) =>
-                      getManhattanPathSegments(from, to, cols).map(([a, b]) => ({ from: a, to: b, keyBase: `${from}-${to}` }))
+                      getManhattanPathSegments(from, to, cols)
+                        .filter(([a, b]) => segmentoStradaConsentito(a, b, cols, rows, terrenoInMappa))
+                        .map(([a, b]) => ({ from: a, to: b, keyBase: `${from}-${to}` }))
                     )
                     .map(({ from: a, to: b, keyBase }, segIdx) => {
                       const c1 = getCellCenter(a, cellW, cellH, cols);
@@ -576,6 +624,7 @@ export function MappaScreen() {
                         const vicini = getViciniOrtogonali(i, cols, rows).filter((n) => edificiInMappa[n]);
                         if (vicini.length === 0) celleIsolate.push(i);
                         else vicini.forEach((n) => {
+                          if (!segmentoStradaConsentito(i, n, cols, rows, terrenoInMappa)) return;
                           const key = `${Math.min(i, n)}-${Math.max(i, n)}`;
                           if (!drawnEdges.has(key)) {
                             drawnEdges.add(key);
