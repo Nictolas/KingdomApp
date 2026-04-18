@@ -27,7 +27,10 @@ import {
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
 import { TerrainSheetSprite } from "../src/components/TerrainSheetSprite";
-import { assicuraEdificiCollegatiDaStrada } from "../src/game/roadConnectivity";
+import {
+  assicuraEdificiCollegatiDaStrada,
+  indiciViciniOrtogonaliStrada
+} from "../src/game/roadConnectivity";
 import {
   getGrass2x2Index,
   getGrassRoadBorderSubtileIfAny,
@@ -106,7 +109,7 @@ function isAcqua(index: number, cols: number, rows: number): boolean {
   return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
 }
 
-/** Mare, fiume: nessuna cella strada. */
+/** Mare, fiume, sabbia: nessuna cella strada (le strade si agganciano solo all’erba). */
 function isCellaOkPerStrada(
   index: number,
   cols: number,
@@ -114,7 +117,8 @@ function isCellaOkPerStrada(
   terrenoInMappa: Record<number, TerrenoType>
 ): boolean {
   if (isAcqua(index, cols, rows)) return false;
-  if ((terrenoInMappa[index] ?? "erba") === "river") return false;
+  const t = terrenoInMappa[index] ?? "erba";
+  if (t !== "erba") return false;
   return true;
 }
 
@@ -511,8 +515,12 @@ function getInitialMappaWithRivers(cols: number, rows: number): {
       .map(Number)
       .filter((i) => edificiInMappa[i]?.nome === "Giacimento")
   );
-  Object.assign(terrenoInMappa, buildTerrenoFromRivers(riverIndices, sandIndices, giacimentoIndices));
-  applyTerrenoGrassAndSandContinuity(terrenoInMappa, cols, rows, giacimentoIndices);
+  const excludeSand = new Set<number>(giacimentoIndices);
+  for (const j of indiciViciniOrtogonaliStrada(edificiInMappa, cols, rows)) {
+    excludeSand.add(j);
+  }
+  Object.assign(terrenoInMappa, buildTerrenoFromRivers(riverIndices, sandIndices, excludeSand));
+  applyTerrenoGrassAndSandContinuity(terrenoInMappa, cols, rows, excludeSand);
 
   const celleLibere: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {
@@ -852,6 +860,9 @@ export function MappaScreen() {
   const handleScegliEdificio = useCallback(
     (cellIndex: number, e: Edificio) => {
       setMappaStatePersistente((s) => {
+        if (e.nome === "Strada" && (s.terrenoInMappa[cellIndex] ?? "erba") !== "erba") {
+          return s;
+        }
         const nextEdifici = {
           ...s.edificiInMappa,
           [cellIndex]: { id: e.id, nome: e.nome, emoji: e.emoji }

@@ -22,7 +22,18 @@ function isMareCell(index: number, cols: number, rows: number): boolean {
   return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
 }
 
-/** Cammino su celle attraversabili (erba/sabbia/strada), non attraverso edifici non-strada. */
+/** Solo erba (implicita o esplicita): niente sabbia né fiume. */
+function isTerrenoErba(
+  index: number,
+  terreno: Record<number, TerrenoType>
+): boolean {
+  return (terreno[index] ?? "erba") === "erba";
+}
+
+/**
+ * Cammino per pavimentare strade: solo erba o celle già strada, non attraverso edifici non-strada.
+ * La sabbia non è attraversabile: le strade restano agganciate solo all’erba.
+ */
 function passabilePerAttraversamento(
   index: number,
   cols: number,
@@ -31,7 +42,7 @@ function passabilePerAttraversamento(
   edifici: Record<number, EdificioMappa>
 ): boolean {
   if (isMareCell(index, cols, rows)) return false;
-  if ((terreno[index] ?? "erba") === "river") return false;
+  if (!isTerrenoErba(index, terreno)) return false;
   const e = edifici[index];
   if (e && e.nome !== "Strada") return false;
   return true;
@@ -130,6 +141,32 @@ function raccogliIndiciStrada(edifici: Record<number, EdificioMappa>): number[] 
   return Object.keys(edifici)
     .map(Number)
     .filter((i) => edifici[i]?.nome === "Strada");
+}
+
+/** Vicini ortogonali di tutte le celle strada (per escludere sabbia procedurale accanto alle strade). */
+export function indiciViciniOrtogonaliStrada(
+  edifici: Record<number, EdificioMappa>,
+  cols: number,
+  rows: number
+): number[] {
+  const seen = new Set<number>();
+  const out: number[] = [];
+  for (const ks of Object.keys(edifici)) {
+    const i = Number(ks);
+    if (edifici[i]?.nome !== "Strada") continue;
+    const r = Math.floor(i / cols);
+    const c = i % cols;
+    for (const [dr, dc] of DELTA) {
+      const r2 = r + dr;
+      const c2 = c + dc;
+      if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) continue;
+      const j = r2 * cols + c2;
+      if (seen.has(j)) continue;
+      seen.add(j);
+      out.push(j);
+    }
+  }
+  return out;
 }
 
 /**
@@ -277,6 +314,92 @@ function componentiStrada(edifici: Record<number, EdificioMappa>, cols: number, 
 }
 
 /**
+ * Dopo aver piazzato strade a singolo tile, espande ogni tratto a corsia larga 2:
+ * tratti E–O hanno anche la riga parallela (preferenza sud); tratti N–S anche la colonna (preferenza est).
+ * Ripete fino a stabilità; una cella strada isolata riceve un vicino ortogonale (domino) se possibile.
+ */
+export function espandiStradeLarghezzaDue(
+  edifici: Record<number, EdificioMappa>,
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number,
+  stradaTemplate: EdificioMappa
+): void {
+  const tpl = { ...stradaTemplate };
+  const isStrada = (i: number) => edifici[i]?.nome === "Strada";
+
+  const tryPlace = (j: number): boolean => {
+    if (!puoRicevereStrada(j, cols, rows, terreno, edifici)) return false;
+    edifici[j] = { ...tpl };
+    return true;
+  };
+
+  const oneThickenPass = (): boolean => {
+    let changed = false;
+    for (const i of raccogliIndiciStrada(edifici)) {
+      const r = Math.floor(i / cols);
+      const c = i % cols;
+      const hasH =
+        (c > 0 && isStrada(i - 1)) || (c < cols - 1 && isStrada(i + 1));
+      const hasV =
+        (r > 0 && isStrada(i - cols)) || (r < rows - 1 && isStrada(i + cols));
+
+      if (hasH) {
+        const hasBuddyH =
+          (r + 1 < rows && isStrada(i + cols)) || (r > 0 && isStrada(i - cols));
+        if (!hasBuddyH) {
+          if (r + 1 < rows && tryPlace(i + cols)) changed = true;
+          else if (r > 0 && tryPlace(i - cols)) changed = true;
+        }
+      }
+      if (hasV) {
+        const hasBuddyV =
+          (c + 1 < cols && isStrada(i + 1)) || (c > 0 && isStrada(i - 1));
+        if (!hasBuddyV) {
+          if (c + 1 < cols && tryPlace(i + 1)) changed = true;
+          else if (c > 0 && tryPlace(i - 1)) changed = true;
+        }
+      }
+    }
+    return changed;
+  };
+
+  const maxGuard = cols * rows * 4;
+  let guard = 0;
+  while (guard++ < maxGuard && oneThickenPass()) {}
+
+  const isolati = raccogliIndiciStrada(edifici).filter((i) => {
+    const r = Math.floor(i / cols);
+    const c = i % cols;
+    for (const [dr, dc] of DELTA) {
+      const r2 = r + dr;
+      const c2 = c + dc;
+      if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) continue;
+      if (isStrada(r2 * cols + c2)) return false;
+    }
+    return true;
+  });
+  const tryOrder = (i: number): number[] => {
+    const r = Math.floor(i / cols);
+    const c = i % cols;
+    const o: number[] = [];
+    if (r + 1 < rows) o.push(i + cols);
+    if (c + 1 < cols) o.push(i + 1);
+    if (r > 0) o.push(i - cols);
+    if (c > 0) o.push(i - 1);
+    return o;
+  };
+  for (const i of isolati) {
+    for (const j of tryOrder(i)) {
+      if (tryPlace(j)) break;
+    }
+  }
+
+  guard = 0;
+  while (guard++ < maxGuard && oneThickenPass()) {}
+}
+
+/**
  * Regola: ogni edificio ha almeno un vicino ortogonale strada e tutte le celle strada formano un’unica
  * componente connessa (ortogonale). Aggiunge strada su celle vuote (mare/fiume/edifici intatti esclusi).
  */
@@ -331,4 +454,6 @@ export function assicuraEdificiCollegatiDaStrada(
       if (!ok) break;
     }
   }
+
+  espandiStradeLarghezzaDue(edifici, terreno, cols, rows, stradaTemplate);
 }
