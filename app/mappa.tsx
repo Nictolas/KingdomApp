@@ -25,6 +25,7 @@ import {
 import type { Abitante, Edificio, Risorsa } from "../src/types";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 import { CapannaFullscreenModal } from "../src/ui/CapannaFullscreenModal";
+import { SerraFullscreenModal } from "../src/ui/SerraFullscreenModal";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import {
   RpgFootprintAdmin3x2,
@@ -1520,6 +1521,8 @@ export function MappaScreen() {
   const [selectedCellForTransformDialog, setSelectedCellForTransformDialog] = useState<number | null>(null);
   /** Cella anchor della residenza aperta dal doppio tocco (Baracca, Capanna, Dormitorio). */
   const [selectedResidenzaAnchor, setSelectedResidenzaAnchor] = useState<number | null>(null);
+  /** Id edificio globale della Serra il cui pannello presenze è aperto (tap sulla mappa). */
+  const [selectedSerraEdificioId, setSelectedSerraEdificioId] = useState<number | null>(null);
   /** Scheda abitante aperta dal doppio tocco su un passeggiatore sulla mappa. */
   const [schedaWandererAbitante, setSchedaWandererAbitante] = useState<Abitante | null>(null);
   /** Bordi tra le celle: di default nascosti; il toggle nella barra risorse li attiva. */
@@ -1981,6 +1984,11 @@ export function MappaScreen() {
     return residenzeMappa[selectedResidenzaAnchor] ?? [];
   }, [selectedResidenzaAnchor, residenzeMappa]);
 
+  const edificioSerraPerModal = useMemo(() => {
+    if (selectedSerraEdificioId == null) return null;
+    return edifici.find((e) => e.id === selectedSerraEdificioId && e.nome === "Serra") ?? null;
+  }, [selectedSerraEdificioId, edifici]);
+
   const altreCaseMappaTengonoId = useCallback(
     (abitanteId: number, anchorEscluso: number) => {
       for (const [k, ids] of Object.entries(residenzeMappa)) {
@@ -2212,6 +2220,12 @@ export function MappaScreen() {
       /** Capanna: un tap apre subito la scheda a tutto schermo (presenze dentro/fuori). */
       if (edificio?.nome === "Capanna") {
         setSelectedResidenzaAnchor(getAnchorCellPerEdificio(cellIndex, edificiInMappa));
+        lastTapCell.current = null;
+        return;
+      }
+      /** Serra: stesso schema — elenco lavoratori e dentro/fuori. */
+      if (edificio?.nome === "Serra") {
+        setSelectedSerraEdificioId(edificio.id);
         lastTapCell.current = null;
         return;
       }
@@ -2793,6 +2807,28 @@ export function MappaScreen() {
         etaMinimaLavoro={etaMinimaLavoro}
         redditoCittadinanza={redditoCittadinanza ?? 0}
       />
+
+      {edificioSerraPerModal != null ? (
+        <SerraFullscreenModal
+          visible
+          onClose={() => setSelectedSerraEdificioId(null)}
+          edificio={edificioSerraPerModal}
+          abitanti={abitanti}
+          edifici={edifici}
+          cellaCasaPerAbitanteId={cellaCasaPerAbitanteId}
+          orologioMinuti={orologioMinuti}
+          buioCielo={statoCielo.buio}
+          dormonoACasaIds={dormonoACasaIds}
+          lavoroArrivatiIds={lavoroArrivatiIds}
+          commuteByAbitanteId={commuteByAbitanteId}
+          barArrivatiByEdificio={barArrivatiByEdificio}
+          onApriProduzione={() => {
+            const id = edificioSerraPerModal.id;
+            setSelectedSerraEdificioId(null);
+            router.push(`/serra/${id}`);
+          }}
+        />
+      ) : null}
 
       {edificioResidenzaAperta?.nome === "Capanna" && selectedResidenzaAnchor !== null ? (
         <CapannaFullscreenModal
