@@ -2,7 +2,7 @@ import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso } from "
 import { EVENTI_CATALOGO } from "./eventi/index";
 import { getConsumoCibo, getConsumoAcqua, getProduzioneCiboPerAbitante } from "./ciboConsumo";
 import { RESIDENZE_CATALOGO, RESIDENZE_ENERGIA_PER_ABITANTE } from "../data/residenzeData";
-import { autoAssegnaDisoccupati, sincronizzaLavoroDaEdifici } from "./edificiLavoro";
+import { autoAssegnaDisoccupati, normalizzaLavoroEAgricoltura } from "./edificiLavoro";
 
 export type AvanzaMeseInput = {
   abitanti: Abitante[];
@@ -359,9 +359,12 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     return out;
   });
 
-  // Auto-assign: Disoccupati (non Robot) con competenza sufficiente vanno in edifici con posti liberi
-  const edificiConAuto = autoAssegnaDisoccupati(abitantiRimasti, nuoviEdifici);
-  const abitantiConLavoro = sincronizzaLavoroDaEdifici(abitantiRimasti, edificiConAuto);
+  // Auto-assign: Disoccupati (non Robot) con competenza sufficiente vanno in edifici con posti liberi;
+  // poi Agricoltori nelle Serre e lavoro allineato alle assegnazioni.
+  let edificiConAuto = autoAssegnaDisoccupati(abitantiRimasti, nuoviEdifici);
+  const normLavoro = normalizzaLavoroEAgricoltura(abitantiRimasti, edificiConAuto);
+  edificiConAuto = normLavoro.edifici;
+  const abitantiConLavoro = normLavoro.abitanti;
   const idToStipendio = new Map<number, number>();
   edificiConAuto.forEach((e) => {
     const stipendio = e.stipendioPerLavoratore ?? 0;

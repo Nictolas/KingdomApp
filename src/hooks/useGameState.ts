@@ -15,7 +15,7 @@ import { generaAssimilati } from "../game/assimilazione";
 import { calcolaProduzioneConsumoPuro } from "../game/produzioneConsumo";
 import { calcolaFelicitàModificataPuro } from "../game/felicita";
 import { generaImmigratiProposti } from "../game/immigrazione";
-import { getLavoroPerEdificio, sincronizzaLavoroDaEdifici } from "../game/edificiLavoro";
+import { getLavoroPerEdificio, normalizzaLavoroEAgricoltura } from "../game/edificiLavoro";
 import { syncResidenzeBaraccaSenzatetto } from "../game/avanzaMese";
 
 const statoIniziale = generaColoniaIniziale();
@@ -322,10 +322,15 @@ export function useGameState() {
   const chiudiAlertInizioPartita = useCallback(() => setAlertInizioPartita(null), []);
   const chiudiMessaggioEmigrazione = useCallback(() => setMessaggioEmigrazione(null), []);
 
-  /** Mantiene lavoro in abitanti sincronizzato con le assegnazioni agli edifici (logica in src/game/edificiLavoro). */
+  /**
+   * Ogni «Agricoltore» finisce in una Serra operativa con posto libero; poi il lavoro segue le assegnazioni.
+   * Eseguito in un solo passaggio per evitare stati intermedi (es. immigrato Agricoltore demotato a Disoccupato).
+   */
   useEffect(() => {
-    setAbitanti((prev) => sincronizzaLavoroDaEdifici(prev, edifici));
-  }, [edifici]);
+    const { abitanti: nextA, edifici: nextE } = normalizzaLavoroEAgricoltura(abitanti, edifici);
+    if (nextA !== abitanti) setAbitanti(nextA);
+    if (nextE !== edifici) setEdifici(nextE);
+  }, [abitanti, edifici]);
 
   const assegnaAbitanteAEdificio = useCallback((abitanteId: number, edificioId: number) => {
     const abitante = abitanti.find((a) => a.id === abitanteId);

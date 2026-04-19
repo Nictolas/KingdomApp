@@ -71,6 +71,62 @@ export function sincronizzaLavoroDaEdifici(
 }
 
 /**
+ * Ogni abitante con lavoro «Agricoltore» deve comparire in almeno una Serra operativa.
+ * Assegna automaticamente ai posti liberi (ordine edificio id crescente) senza duplicare id.
+ */
+export function assicuraAgricoltoriNelleSerre(abitanti: Abitante[], edifici: Edificio[]): Edificio[] {
+  const serre = edifici
+    .filter((e) => e.nome === "Serra" && e.stato === "Operativo")
+    .sort((a, b) => a.id - b.id);
+  if (serre.length === 0) return edifici;
+
+  const agrIds = abitanti.filter((a) => a.lavoro === "Agricoltore").map((a) => a.id);
+  if (agrIds.length === 0) return edifici;
+
+  const giàInSerra = (id: number) =>
+    edifici.some((e) => e.nome === "Serra" && (e.abitantiAssegnati ?? []).includes(id));
+
+  const daAssegnare = agrIds.filter((id) => !giàInSerra(id));
+  if (daAssegnare.length === 0) return edifici;
+
+  const byId = new Map(edifici.map((e) => [e.id, { ...e, abitantiAssegnati: [...(e.abitantiAssegnati ?? [])] }]));
+  let modified = false;
+
+  for (const abitanteId of daAssegnare) {
+    for (const s of serre) {
+      const ed = byId.get(s.id);
+      if (!ed) continue;
+      const cap = ed.capacità ?? 0;
+      const att = ed.abitantiAssegnati.length;
+      if (att >= cap) continue;
+      ed.abitantiAssegnati.push(abitanteId);
+      ed.occupazione = ed.abitantiAssegnati.length;
+      modified = true;
+      break;
+    }
+  }
+
+  if (!modified) return edifici;
+  return edifici.map((e) => {
+    const repl = byId.get(e.id);
+    return repl ?? e;
+  });
+}
+
+/**
+ * Ordine: prima si riempiono le Serre con gli Agricoltori, poi si sincronizza il lavoro dagli edifici
+ * (evita finestre in cui la sync demoterebbe un Agricoltore prima dell’assegnazione).
+ */
+export function normalizzaLavoroEAgricoltura(abitanti: Abitante[], edifici: Edificio[]): {
+  abitanti: Abitante[];
+  edifici: Edificio[];
+} {
+  const edifici2 = assicuraAgricoltoriNelleSerre(abitanti, edifici);
+  const abitanti2 = sincronizzaLavoroDaEdifici(abitanti, edifici2);
+  return { abitanti: abitanti2, edifici: edifici2 };
+}
+
+/**
  * Assegna automaticamente i Disoccupati (non Robot) agli edifici con posti liberi,
  * se la competenza dell'abitante è >= competenzaMinima dell'edificio.
  * Ordine edifici per id; per ogni edificio si riempiono i posti con i disoccupati migliori (competenza più alta).
