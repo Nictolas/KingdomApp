@@ -1,9 +1,13 @@
-import React, { useState } from "react";
+import React, { useState, useSyncExternalStore } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { computeStatoCielo } from "../src/game/cicloCielo";
 import { abitantiPresentiNelBarOra } from "../src/game/orariLavoroMappa";
+import {
+  getBarArrivatiMappaSnapshot,
+  subscribeBarArrivatiMappa
+} from "../src/game/mappaBarArrivatiStore";
 import { formatOrologioGioco } from "../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../src/hooks/useOrologioGioco";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
@@ -17,6 +21,12 @@ export default function BarScreen() {
   const orologioMinuti = useOrologioGioco();
   const statoCielo = computeStatoCielo(orologioMinuti);
 
+  const barArrivatiMappa = useSyncExternalStore(
+    subscribeBarArrivatiMappa,
+    getBarArrivatiMappaSnapshot,
+    getBarArrivatiMappaSnapshot
+  );
+
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
@@ -25,12 +35,12 @@ export default function BarScreen() {
   const bar = edifici.find((e) => e.nome === "Bar");
   if (!bar) return null;
 
-  const presentiOraDisoccupati = abitantiPresentiNelBarOra(
-    abitanti,
-    orologioMinuti,
-    statoCielo.buio,
-    edifici
-  );
+  const candidatiBar = abitantiPresentiNelBarOra(abitanti, orologioMinuti, statoCielo.buio, edifici);
+  /** Allineato alla mappa: solo dopo essere “entrati” al Bar (fine passeggiata). Se la mappa non ha ancora sincronizzato, mostriamo comunque i candidati orari. */
+  const presentiOraDisoccupati =
+    barArrivatiMappa.size > 0
+      ? candidatiBar.filter((a) => barArrivatiMappa.has(a.id))
+      : candidatiBar;
 
   const addettiIds = bar.abitantiAssegnati ?? [];
   /** Disoccupati in sala: gli addetti di ruolo sono elencati sotto nella sezione Addetti. */

@@ -41,7 +41,16 @@ import {
   assicuraEdificiCollegatiDaStrada,
   indiciViciniOrtogonaliStrada
 } from "../src/game/roadConnectivity";
-import { abitanteDisoccupatoAlBarOra, abitanteInOrarioLavoroEdificio } from "../src/game/orariLavoroMappa";
+import {
+  abitanteDisoccupatoAlBarOra,
+  abitanteInOrarioLavoroEdificio,
+  primoEdificioLavoroOrarioPerAbitante
+} from "../src/game/orariLavoroMappa";
+import {
+  pianificaCommuteMattina,
+  pianificaCommuteSeraACasa
+} from "../src/game/commutePathsMappa";
+import { setBarArrivatiMappaSnapshot } from "../src/game/mappaBarArrivatiStore";
 import { computeStatoCielo } from "../src/game/cicloCielo";
 import { formatOrologioGioco } from "../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../src/hooks/useOrologioGioco";
@@ -1432,24 +1441,145 @@ export function MappaScreen() {
     return m;
   }, [abitanti, edifici, edificiInMappa, residenzeMappa]);
 
-  /** In fascia lavoro (edifici produttivi): personaggio non disegnato sulla mappa. */
-  const abitantiNascostiPerTurnoLavoro = useMemo(() => {
-    const s = new Set<number>();
-    for (const a of abitanti) {
-      if (abitanteInOrarioLavoroEdificio(a.id, orologioMinuti, edifici)) s.add(a.id);
-    }
-    return s;
-  }, [abitanti, edifici, orologioMinuti]);
+  const ultimaCellaAbitanteRef = useRef<Map<number, number>>(new Map());
+  const prevBuioNotteTransitRef = useRef<boolean | undefined>(undefined);
+  const prevWindowLavoroRef = useRef(false);
 
-  /** Disoccupati di giorno: “dentro il Bar” (non in giro), tranne in orario notte (dormono a casa). */
-  const abitantiNascostiAlBarDisoccupati = useMemo(() => {
-    const s = new Set<number>();
-    const buio = statoCielo.buio;
-    for (const a of abitanti) {
-      if (abitanteDisoccupatoAlBarOra(a, orologioMinuti, buio, edifici)) s.add(a.id);
+  const [dormonoACasaIds, setDormonoACasaIds] = useState<Set<number>>(() => new Set());
+  const [lavoroArrivatiIds, setLavoroArrivatiIds] = useState<Set<number>>(() => new Set());
+  const [barArrivatiIds, setBarArrivatiIds] = useState<Set<number>>(() => new Set());
+  const [commuteByAbitanteId, setCommuteByAbitanteId] = useState<
+    Record<number, { path: number[]; token: number; purpose: "work" | "bar" | "home" }>
+  >({});
+
+  const inFinestraOrarioLavoroGlobale = useMemo(
+    () => abitanti.some((a) => abitanteInOrarioLavoroEdificio(a.id, orologioMinuti, edifici)),
+    [abitanti, edifici, orologioMinuti]
+  );
+
+  useEffect(() => {
+    const pw = inFinestraOrarioLavoroGlobale;
+    if (prevWindowLavoroRef.current && !pw) {
+      setLavoroArrivatiIds(new Set());
     }
-    return s;
-  }, [abitanti, edifici, orologioMinuti, statoCielo.buio]);
+    prevWindowLavoroRef.current = pw;
+  }, [inFinestraOrarioLavoroGlobale]);
+
+  useEffect(() => {
+    setBarArrivatiMappaSnapshot(barArrivatiIds);
+  }, [barArrivatiIds]);
+
+  const handleCommuteFinita = useCallback((abitanteId: number, purpose: "work" | "bar" | "home") => {
+    setCommuteByAbitanteId((prev) => {
+      const cur = prev[abitanteId];
+      if (cur?.path?.length) {
+        ultimaCellaAbitanteRef.current.set(abitanteId, cur.path[cur.path.length - 1]!);
+      }
+      const { [abitanteId]: _removed, ...rest } = prev;
+      return rest;
+    });
+    if (purpose === "home") {
+      setDormonoACasaIds((s) => new Set(s).add(abitanteId));
+    } else if (purpose === "work") {
+      setLavoroArrivatiIds((s) => new Set(s).add(abitanteId));
+    } else if (purpose === "bar") {
+      setBarArrivatiIds((s) => new Set(s).add(abitanteId));
+    }
+  }, []);
+
+  const handleCellAbitante = useCallback((abitanteId: number, cell: number) => {
+    ultimaCellaAbitanteRef.current.set(abitanteId, cell);
+  }, []);
+
+  useEffect(() => {
+    const notte = statoCielo.buio > 0.5;
+    if (prevBuioNotteTransitRef.current === undefined) {
+      prevBuioNotteTransitRef.current = notte;
+      if (notte) {
+        const s = new Set<number>();
+        for (const a of abitanti) {
+          if (cellaCasaPerAbitanteId.get(a.id) != null) s.add(a.id);
+        }
+        setDormonoACasaIds(s);
+      }
+      return;
+    }
+    if (prevBuioNotteTransitRef.current === notte) return;
+    const eraNotte = prevBuioNotteTransitRef.current;
+    prevBuioNotteTransitRef.current = notte;
+
+    if (eraNotte && !notte) {
+      setDormonoACasaIds(new Set());
+      setLavoroArrivatiIds(new Set());
+      setBarArrivatiIds(new Set());
+      const next: Record<number, { path: number[]; token: number; purpose: "work" | "bar" }> = {};
+      for (const a of abitanti) {
+        if (a.razza === "Robot") continue;
+        const home = cellaCasaPerAbitanteId.get(a.id) ?? null;
+        const ult = ultimaCellaAbitanteRef.current.get(a.id) ?? null;
+        const path = pianificaCommuteMattina(a, home, ult, edifici, edificiInMappa, cols, rows, isWalkableCell);
+        if (!path || path.length < 2) continue;
+        const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
+        const purpose: "work" | "bar" = lav ? "work" : "bar";
+        next[a.id] = { path, token: Date.now(), purpose };
+      }
+      setCommuteByAbitanteId(next);
+      setLavoroArrivatiIds((prev) => {
+        const s = new Set(prev);
+        for (const a of abitanti) {
+          if (a.razza === "Robot") continue;
+          const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
+          if (lav && !next[a.id]) s.add(a.id);
+        }
+        return s;
+      });
+      setBarArrivatiIds((prev) => {
+        const s = new Set(prev);
+        for (const a of abitanti) {
+          if (a.razza === "Robot") continue;
+          if (a.lavoro !== "Disoccupato") continue;
+          if (primoEdificioLavoroOrarioPerAbitante(a.id, edifici)) continue;
+          if (!next[a.id]) s.add(a.id);
+        }
+        return s;
+      });
+    }
+
+    if (!eraNotte && notte) {
+      setLavoroArrivatiIds(new Set());
+      setBarArrivatiIds(new Set());
+      const next: Record<number, { path: number[]; token: number; purpose: "home" }> = {};
+      const dormiSenzaPercorso: number[] = [];
+      for (const a of abitanti) {
+        const home = cellaCasaPerAbitanteId.get(a.id);
+        if (home == null) continue;
+        const from = ultimaCellaAbitanteRef.current.get(a.id) ?? home;
+        const path = pianificaCommuteSeraACasa(home, from, cols, rows, isWalkableCell);
+        if (path && path.length >= 2) {
+          next[a.id] = { path, token: Date.now(), purpose: "home" };
+        } else {
+          dormiSenzaPercorso.push(a.id);
+        }
+      }
+      setCommuteByAbitanteId(next);
+      if (dormiSenzaPercorso.length > 0) {
+        setDormonoACasaIds((prev) => {
+          const s = new Set(prev);
+          for (const id of dormiSenzaPercorso) s.add(id);
+          return s;
+        });
+      }
+    }
+  }, [
+    statoCielo.buio,
+    abitanti,
+    cellaCasaPerAbitanteId,
+    edifici,
+    edificiInMappa,
+    cols,
+    rows,
+    isWalkableCell
+  ]);
 
   const edificiFootprintOverlay = useMemo(() => {
     const list: { anchor: number; fp: { w: number; h: number }; variant: FootprintVariant }[] = [];
@@ -2054,20 +2184,45 @@ export function MappaScreen() {
                     })}
                   </View>
                   {abitantiPerOverlayMappa.map((abitante: Abitante) => {
-                    if (abitantiNascostiPerTurnoLavoro.has(abitante.id)) return null;
-                    if (abitantiNascostiAlBarDisoccupati.has(abitante.id)) return null;
+                    const infoCommute = commuteByAbitanteId[abitante.id];
+                    const inCommute = infoCommute != null;
+
+                    const nascostoLavoro =
+                      abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&
+                      lavoroArrivatiIds.has(abitante.id) &&
+                      !inCommute;
+
+                    const nascostoBar =
+                      abitanteDisoccupatoAlBarOra(abitante, orologioMinuti, statoCielo.buio, edifici) &&
+                      barArrivatiIds.has(abitante.id) &&
+                      !inCommute;
+
+                    if (nascostoLavoro) return null;
+                    if (nascostoBar) return null;
+
                     const homeCell = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
                     const fixedCellNotte =
-                      èNottePersonaggiInCasa && homeCell !== null ? homeCell : null;
+                      !inCommute &&
+                      èNottePersonaggiInCasa &&
+                      homeCell !== null &&
+                      dormonoACasaIds.has(abitante.id)
+                        ? homeCell
+                        : null;
+
                     return (
                       <MapWandererCharacter
-                        key={`wanderer-${abitante.id}`}
+                        key={`wanderer-${abitante.id}-${infoCommute?.token ?? 0}-${fixedCellNotte ?? "x"}`}
                         cols={cols}
                         rows={rows}
                         cellSizePx={CELL_SIZE_PX}
                         isWalkable={isWalkableCell}
                         instanceId={abitante.id}
                         fixedCell={fixedCellNotte}
+                        commutePath={infoCommute?.path ?? null}
+                        commuteToken={infoCommute?.token ?? 0}
+                        commutePurpose={infoCommute?.purpose ?? null}
+                        onCommuteComplete={(purpose) => handleCommuteFinita(abitante.id, purpose)}
+                        onCellSettled={(cell) => handleCellAbitante(abitante.id, cell)}
                         onDoublePress={() => {
                           const a = abitanti.find((x) => x.id === abitante.id);
                           if (a) setSchedaWandererAbitante(a);

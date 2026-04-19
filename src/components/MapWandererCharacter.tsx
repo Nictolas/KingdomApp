@@ -80,6 +80,16 @@ type MapWandererCharacterProps = {
    * Usato di notte sulla cella della residenza; z-index sotto gli edifici per effetto “dentro casa”.
    */
   fixedCell?: number | null;
+  /**
+   * Percorso determinato (celle inclusive). Se length ≥ 2, ha priorità su girovago e fixedCell.
+   * Il genitore incrementa `commuteToken` per forzare un nuovo run con lo stesso path se serve.
+   */
+  commutePath?: number[] | null;
+  commuteToken?: number;
+  commutePurpose?: "work" | "bar" | "home" | null;
+  onCommuteComplete?: (purpose: "work" | "bar" | "home") => void;
+  /** Chiamato quando il personaggio “arriva” su una cella (fine passo o snap). */
+  onCellSettled?: (cellIndex: number) => void;
   /** Doppio tocco: apre la scheda abitante (mappa). */
   onDoublePress?: () => void;
   /** Etichetta accessibilità per il target tocco (es. nome abitante). */
@@ -97,6 +107,11 @@ export function MapWandererCharacter({
   isWalkable,
   instanceId = 0,
   fixedCell = null,
+  commutePath = null,
+  commuteToken = 0,
+  commutePurpose = null,
+  onCommuteComplete,
+  onCellSettled,
   onDoublePress,
   doubleTapAccessibilityLabel
 }: MapWandererCharacterProps) {
@@ -137,6 +152,7 @@ export function MapWandererCharacter({
 
   const pickNextMove = useCallback(() => {
     if (fixedCell != null) return;
+    if (commutePath != null && commutePath.length >= 2) return;
     const prev = cellRef.current;
     if (prev === null) return;
 
@@ -182,7 +198,101 @@ export function MapWandererCharacter({
       }
     };
     rafRef.current = requestAnimationFrame(step);
-  }, [cols, rows, cellSizePx, isWalkable, fixedCell]);
+  }, [cols, rows, cellSizePx, isWalkable, fixedCell, commutePath]);
+
+  const runOneSegment = useCallback(
+    (from: number, to: number, onDone: () => void) => {
+      setDirection(directionBetween(from, to, cols));
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      const fromX = (from % cols) * cellSizePx;
+      const fromY = Math.floor(from / cols) * cellSizePx;
+      const toX = (to % cols) * cellSizePx;
+      const toY = Math.floor(to / cols) * cellSizePx;
+      setIsMoving(true);
+      const start = performance.now();
+      const step = (now: number) => {
+        const t = Math.min(1, (now - start) / MOVE_DURATION_MS);
+        const e = easeInOutCubic(t);
+        setPixelPos({
+          x: fromX + (toX - fromX) * e,
+          y: fromY + (toY - fromY) * e
+        });
+        if (t < 1) {
+          setWalkFrame(Math.min(2, Math.floor(e * 2.99)));
+          rafRef.current = requestAnimationFrame(step);
+        } else {
+          setPixelPos({ x: toX, y: toY });
+          setWalkFrame(0);
+          setIsMoving(false);
+          setLogicalCell(to);
+          cellRef.current = to;
+          onCellSettled?.(to);
+          onDone();
+        }
+      };
+      rafRef.current = requestAnimationFrame(step);
+    },
+    [cols, cellSizePx, onCellSettled]
+  );
+
+  /** Percorso casa → lavoro / lavoro → casa / … */
+  useEffect(() => {
+    if (!commutePath || commutePath.length < 2) return;
+    let alive = true;
+    clearIdle();
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    inited.current = true;
+    const path = commutePath;
+    const start = path[0]!;
+    const cx = (start % cols) * cellSizePx;
+    const cy = Math.floor(start / cols) * cellSizePx;
+    setLogicalCell(start);
+    cellRef.current = start;
+    setPixelPos({ x: cx, y: cy });
+    setIsMoving(false);
+    setWalkFrame(0);
+    onCellSettled?.(start);
+
+    let seg = 0;
+    const stepChain = () => {
+      if (!alive) return;
+      if (seg >= path.length - 1) {
+        if (commutePurpose != null && onCommuteComplete) onCommuteComplete(commutePurpose);
+        idleTimerRef.current = setTimeout(pickNextMove, IDLE_BEFORE_NEXT_MS);
+        return;
+      }
+      const from = path[seg]!;
+      const to = path[seg + 1]!;
+      seg++;
+      runOneSegment(from, to, stepChain);
+    };
+    stepChain();
+    return () => {
+      alive = false;
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      clearIdle();
+    };
+  }, [
+    commutePath,
+    commuteToken,
+    commutePurpose,
+    cols,
+    cellSizePx,
+    clearIdle,
+    onCommuteComplete,
+    onCellSettled,
+    runOneSegment,
+    pickNextMove
+  ]);
 
   /** Di notte sulla residenza: fermo, sotto il layer edifici. */
   useEffect(() => {
@@ -201,7 +311,8 @@ export function MapWandererCharacter({
     setIsMoving(false);
     setWalkFrame(0);
     setDirection("s");
-  }, [fixedCell, cols, cellSizePx, clearIdle]);
+    onCellSettled?.(fixedCell);
+  }, [fixedCell, cols, cellSizePx, clearIdle, onCellSettled]);
 
   /** Fine notte in casa → ripristina il girovago (re-inizializza spawn su strade). */
   useEffect(() => {
@@ -221,6 +332,7 @@ export function MapWandererCharacter({
   }, [fixedCell, clearIdle]);
 
   useEffect(() => {
+    if (commutePath != null && commutePath.length >= 2) return;
     if (fixedCell != null) return;
     if (inited.current) return;
     const ok: number[] = [];
@@ -236,8 +348,9 @@ export function MapWandererCharacter({
     setLogicalCell(idx);
     cellRef.current = idx;
     setPixelPos({ x: cx, y: cy });
+    onCellSettled?.(idx);
     idleTimerRef.current = setTimeout(pickNextMove, IDLE_BEFORE_NEXT_MS);
-  }, [cols, rows, isWalkable, instanceId, pickNextMove, fixedCell]);
+  }, [cols, rows, isWalkable, instanceId, pickNextMove, fixedCell, commutePath, onCellSettled]);
 
   useEffect(
     () => () => {

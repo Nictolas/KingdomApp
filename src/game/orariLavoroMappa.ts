@@ -43,10 +43,22 @@ export function minutiInFascia(minutiDaMezzanotte: number, fascia: FasciaOrariaM
   return t >= inizio && t < fine;
 }
 
-function fasciaPerEdificio(e: Edificio): FasciaOrariaMinuti | null {
+export function fasciaPerEdificio(e: Edificio): FasciaOrariaMinuti | null {
   if (e.tipo === "Prigione" || e.tipo === "Residenza") return null;
   if (!NOMI_CON_ORARIO_LAVORO.has(e.nome)) return null;
   return FASCE_CUSTOM[e.nome] ?? LAVORO_STANDARD;
+}
+
+/** Primo edificio produttivo a cui l’abitante è assegnato (per ancoraggio mappa). */
+export function primoEdificioLavoroOrarioPerAbitante(
+  abitanteId: number,
+  edificiList: Edificio[]
+): Edificio | undefined {
+  for (const e of edificiList) {
+    if (!(e.abitantiAssegnati ?? []).includes(abitanteId)) continue;
+    if (fasciaPerEdificio(e)) return e;
+  }
+  return undefined;
 }
 
 /**
