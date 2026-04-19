@@ -27,7 +27,7 @@ import {
   RpgFootprintSerra2x1,
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
-import { MapWandererCharacter, useMapRandomWanderer } from "../src/components/MapWandererCharacter";
+import { MapWandererCharacter } from "../src/components/MapWandererCharacter";
 import { StradaTile1x1 } from "../src/components/StradaTile1x1";
 import { TerrainSheetSprite } from "../src/components/TerrainSheetSprite";
 import {
@@ -860,14 +860,6 @@ export function MappaScreen() {
     [terrenoInMappa, edificiInMappa, cols, rows]
   );
 
-  const { cellIndex: wandererCell, direction: wandererDir, walkPhase: wandererPhase } = useMapRandomWanderer({
-    cols,
-    rows,
-    isWalkable: isWalkableCell,
-    moveIntervalMs: 850,
-    animIntervalMs: 190
-  });
-
   const edificiFootprintOverlay = useMemo(() => {
     const list: { anchor: number; fp: { w: number; h: number }; variant: FootprintVariant }[] = [];
     for (const [i, e] of Object.entries(edificiInMappa)) {
@@ -1167,15 +1159,7 @@ export function MappaScreen() {
                       );
                     })}
                   </View>
-                  {wandererCell != null ? (
-                    <MapWandererCharacter
-                      cellIndex={wandererCell}
-                      cols={cols}
-                      cellSizePx={CELL_SIZE_PX}
-                      direction={wandererDir}
-                      walkPhase={wandererPhase}
-                    />
-                  ) : null}
+                  <MapWandererCharacter cols={cols} rows={rows} cellSizePx={CELL_SIZE_PX} isWalkable={isWalkableCell} />
                 </View>
               </TransformComponent>
             </TransformWrapper>

@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
 
 const CHARACTER_SHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/character.png");
@@ -6,6 +6,9 @@ const CHARACTER_SHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld
 /** Nel foglio ogni frame è 64×64 px; 12 frame in fila (Sud, NE, Nord, SE). */
 const FRAME_PX = 64;
 const FRAMES = 12;
+
+const MOVE_DURATION_MS = 380;
+const IDLE_BEFORE_NEXT_MS = 520;
 
 export type WanderDirection = "n" | "s" | "e" | "w";
 
@@ -28,7 +31,6 @@ function directionBetween(from: number, to: number, cols: number): WanderDirecti
   return "s";
 }
 
-/** Indice base (0,3,6,9) del gruppo direzione nello sheet. */
 function frameGroupStart(dir: WanderDirection): number {
   switch (dir) {
     case "s":
@@ -43,22 +45,91 @@ function frameGroupStart(dir: WanderDirection): number {
   }
 }
 
-export function useMapRandomWanderer(options: {
+function easeInOutQuad(t: number): number {
+  return t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+}
+
+type MapWandererCharacterProps = {
   cols: number;
   rows: number;
+  cellSizePx: number;
   isWalkable: (cellIndex: number) => boolean;
-  moveIntervalMs?: number;
-  animIntervalMs?: number;
-}): {
-  cellIndex: number | null;
-  direction: WanderDirection;
-  walkPhase: number;
-} {
-  const { cols, rows, isWalkable, moveIntervalMs = 900, animIntervalMs = 200 } = options;
-  const [cellIndex, setCellIndex] = useState<number | null>(null);
+};
+
+/**
+ * Personaggio da `character.png`: spostamento fluido tra celle, camminata solo durante il movimento,
+ * idle sul primo frame a riposo; sprite più alto della cella, piedi sulla casella.
+ */
+export function MapWandererCharacter({ cols, rows, cellSizePx, isWalkable }: MapWandererCharacterProps) {
+  const [logicalCell, setLogicalCell] = useState<number | null>(null);
+  const cellRef = useRef<number | null>(null);
+  const [pixelPos, setPixelPos] = useState({ x: 0, y: 0 });
   const [direction, setDirection] = useState<WanderDirection>("s");
-  const [walkPhase, setWalkPhase] = useState(0);
+  const [walkFrame, setWalkFrame] = useState(0);
+  const [isMoving, setIsMoving] = useState(false);
+
   const inited = useRef(false);
+  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const rafRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    cellRef.current = logicalCell;
+  }, [logicalCell]);
+
+  const clearIdle = useCallback(() => {
+    if (idleTimerRef.current != null) {
+      clearTimeout(idleTimerRef.current);
+      idleTimerRef.current = null;
+    }
+  }, []);
+
+  const pickNextMove = useCallback(() => {
+    const prev = cellRef.current;
+    if (prev === null) return;
+
+    const cand = orthogonalNeighbors(prev, cols, rows).filter((j) => isWalkable(j));
+    if (cand.length === 0) {
+      idleTimerRef.current = setTimeout(pickNextMove, IDLE_BEFORE_NEXT_MS);
+      return;
+    }
+
+    const next = cand[Math.floor(Math.random() * cand.length)]!;
+    setDirection(directionBetween(prev, next, cols));
+
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+
+    const fromX = (prev % cols) * cellSizePx;
+    const fromY = Math.floor(prev / cols) * cellSizePx;
+    const toX = (next % cols) * cellSizePx;
+    const toY = Math.floor(next / cols) * cellSizePx;
+
+    setIsMoving(true);
+    const start = performance.now();
+
+    const step = (now: number) => {
+      const t = Math.min(1, (now - start) / MOVE_DURATION_MS);
+      const e = easeInOutQuad(t);
+      setPixelPos({
+        x: fromX + (toX - fromX) * e,
+        y: fromY + (toY - fromY) * e
+      });
+      if (t < 1) {
+        setWalkFrame(Math.min(2, Math.floor(t * 3)));
+        rafRef.current = requestAnimationFrame(step);
+      } else {
+        setPixelPos({ x: toX, y: toY });
+        setWalkFrame(0);
+        setIsMoving(false);
+        setLogicalCell(next);
+        cellRef.current = next;
+        idleTimerRef.current = setTimeout(pickNextMove, IDLE_BEFORE_NEXT_MS);
+      }
+    };
+    rafRef.current = requestAnimationFrame(step);
+  }, [cols, rows, cellSizePx, isWalkable]);
 
   useEffect(() => {
     if (inited.current) return;
@@ -69,96 +140,75 @@ export function useMapRandomWanderer(options: {
     }
     if (ok.length === 0) return;
     inited.current = true;
-    setCellIndex(ok[Math.floor(Math.random() * ok.length)]!);
-  }, [cols, rows, isWalkable]);
+    const idx = ok[Math.floor(Math.random() * ok.length)]!;
+    const cx = (idx % cols) * cellSizePx;
+    const cy = Math.floor(idx / cols) * cellSizePx;
+    setLogicalCell(idx);
+    cellRef.current = idx;
+    setPixelPos({ x: cx, y: cy });
+    idleTimerRef.current = setTimeout(pickNextMove, IDLE_BEFORE_NEXT_MS);
+  }, [cols, rows, isWalkable, pickNextMove]);
 
-  useEffect(() => {
-    if (cellIndex === null) return;
-    const t = setInterval(() => setWalkPhase((p) => (p + 1) % 3), animIntervalMs);
-    return () => clearInterval(t);
-  }, [cellIndex, animIntervalMs]);
+  useEffect(
+    () => () => {
+      clearIdle();
+      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+    },
+    [clearIdle]
+  );
 
-  useEffect(() => {
-    if (cellIndex === null) return;
-    const t = setInterval(() => {
-      setCellIndex((prev) => {
-        if (prev === null) return prev;
-        const cand = orthogonalNeighbors(prev, cols, rows).filter((j) => isWalkable(j));
-        if (cand.length === 0) return prev;
-        const next = cand[Math.floor(Math.random() * cand.length)]!;
-        setDirection(directionBetween(prev, next, cols));
-        return next;
-      });
-    }, moveIntervalMs);
-    return () => clearInterval(t);
-  }, [cellIndex, cols, rows, isWalkable, moveIntervalMs]);
-
-  return { cellIndex, direction, walkPhase };
-}
-
-type MapWandererCharacterProps = {
-  cellIndex: number;
-  cols: number;
-  cellSizePx: number;
-  direction: WanderDirection;
-  walkPhase: number;
-};
-
-/**
- * Personaggio dallo sheet `character.png`, centrato sulla cella, animazione camminata 3 frame.
- */
-export function MapWandererCharacter({
-  cellIndex,
-  cols,
-  cellSizePx,
-  direction,
-  walkPhase
-}: MapWandererCharacterProps) {
-  const col = cellIndex % cols;
-  const row = Math.floor(cellIndex / cols);
-  const left = col * cellSizePx;
-  const top = row * cellSizePx;
+  if (logicalCell === null) return null;
 
   const group = frameGroupStart(direction);
-  const frameIndex = Math.min(group + (walkPhase % 3), FRAMES - 1);
-  const scale = cellSizePx / FRAME_PX;
+  const frameInGroup = isMoving ? walkFrame % 3 : 0;
+  const frameIndex = Math.min(group + frameInGroup, FRAMES - 1);
+
+  const flipW = direction === "w";
+
+  const spriteH = cellSizePx * 1.22;
+  const spriteW = spriteH;
+  const scale = spriteH / FRAME_PX;
   const sheetW = FRAMES * FRAME_PX * scale;
   const sheetH = FRAME_PX * scale;
   const offsetX = -frameIndex * FRAME_PX * scale;
-
-  const flipW = direction === "w";
 
   return (
     <View
       style={[
         styles.anchor,
         {
-          left,
-          top,
+          left: pixelPos.x,
+          top: pixelPos.y,
           width: cellSizePx,
-          height: cellSizePx
+          height: cellSizePx,
+          overflow: "visible"
         }
       ]}
       pointerEvents="none"
     >
-      <View
-        style={[
-          styles.clip,
-          { width: cellSizePx, height: cellSizePx },
-          flipW && { transform: [{ scaleX: -1 }] }
-        ]}
-      >
-        <Image
-          source={CHARACTER_SHEET}
-          resizeMode="stretch"
-          style={{
-            position: "absolute",
-            width: sheetW,
-            height: sheetH,
-            left: offsetX,
-            top: 0
-          }}
-        />
+      <View style={[styles.spriteColumn, { height: cellSizePx, width: cellSizePx }]}>
+        <View
+          style={[
+            styles.clip,
+            {
+              width: spriteW,
+              height: spriteH,
+              transform: flipW ? [{ scaleX: -1 }] : undefined
+            }
+          ]}
+        >
+          <Image
+            source={CHARACTER_SHEET}
+            resizeMode="stretch"
+            style={{
+              position: "absolute",
+              width: sheetW,
+              height: sheetH,
+              left: offsetX,
+              top: 0
+            }}
+          />
+        </View>
       </View>
     </View>
   );
@@ -167,13 +217,13 @@ export function MapWandererCharacter({
 const styles = StyleSheet.create({
   anchor: {
     position: "absolute",
-    zIndex: 10,
+    zIndex: 10
+  },
+  spriteColumn: {
     alignItems: "center",
-    justifyContent: "center"
+    justifyContent: "flex-end"
   },
   clip: {
-    overflow: "hidden",
-    alignItems: "center",
-    justifyContent: "center"
+    overflow: "hidden"
   }
 });
