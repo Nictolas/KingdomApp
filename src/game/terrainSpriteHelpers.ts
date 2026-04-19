@@ -212,6 +212,19 @@ const ALLOWED_SOUTH_OF_VERTICAL_OR_NORD = new Set<StradaTileAsset1x1>([
   "curva_sud_ovest"
 ]);
 
+/**
+ * Sotto `curva_sud_ovest1x1` (cella a nord): incastro verso sud ammesso dai PNG.
+ */
+const ALLOWED_SOUTH_OF_CURVA_SUD_OVEST = new Set<StradaTileAsset1x1>([
+  "curva_nord_ovest",
+  "incrocio_centro",
+  "incrocio_est_sud_nord",
+  "incrocio_nord_est_ovest",
+  "incrocio_nord_est_sud",
+  "sud",
+  "verticale"
+]);
+
 function cardinalStrada(
   index: number,
   cols: number,
@@ -340,7 +353,7 @@ function getStradaAsset1x1Grezzo(
  * ovest / curva_nord_est / curva_sud_est / orizzontale, e a Est solo tra
  * orizzontale / curva_nord_ovest / curva_sud_ovest (incastro del segmento E–O).
  *
- * La regola “sotto verticale / strada_nord” (whitelist sprite verso sud) si applica in
+ * Le regole “sotto verticale / strada_nord” e “sotto curva_sud_ovest” si applicano in
  * {@link buildStradaAssetLookup}.
  */
 function getStradaAsset1x1Base(
@@ -422,6 +435,42 @@ function clampSouthOfVerticalOrNord(
 }
 
 /**
+ * Sotto `curva_sud_ovest` solo gli asset in {@link ALLOWED_SOUTH_OF_CURVA_SUD_OVEST}.
+ */
+function clampSouthOfCurvaSudOvest(
+  index: number,
+  cols: number,
+  rows: number,
+  edificiInMappa: Record<number, { nome?: string }>
+): StradaTileAsset1x1 {
+  const g = getStradaAsset1x1Grezzo(index, cols, rows, edificiInMappa);
+  if (ALLOWED_SOUTH_OF_CURVA_SUD_OVEST.has(g)) return g;
+
+  const { n, s, w, e } = cardinalStrada(index, cols, rows, edificiInMappa);
+  const count = (n ? 1 : 0) + (s ? 1 : 0) + (w ? 1 : 0) + (e ? 1 : 0);
+
+  if (count === 4) return "incrocio_centro";
+  if (count === 2 && n && s) return "verticale";
+  if (count === 1 && n) {
+    return "sud";
+  }
+  if (count === 1 && s) return "nord";
+  if (count === 3) {
+    if (n && e && w && !s) return "incrocio_nord_est_ovest";
+    if (n && e && s && !w) return "incrocio_nord_est_sud";
+    if (n && s && w && !e) return "incrocio_est_sud_nord";
+    if (e && s && w && !n) return "incrocio_centro";
+  }
+  if (count === 2) {
+    if (n && w) return "curva_nord_ovest";
+    if (n && e) return "incrocio_nord_est_sud";
+    if (s && w) return "incrocio_est_sud_nord";
+    if (s && e) return "incrocio_nord_est_sud";
+  }
+  return "verticale";
+}
+
+/**
  * `incrocio_nord_est_sud` (T senza ovest) richiede strada a N, E e S e non a O.
  */
 function fixAssetIfIncrocioNordEstSudMismatch(
@@ -462,7 +511,7 @@ function fixCardinalSpriteConstraints(
 }
 
 /**
- * Lookup per indice cella: applica la whitelist “sotto strada_verticale / strada_nord” in ordine per righe (nord → sud).
+ * Lookup per indice cella: whitelist verso sud (sotto verticale/nord, sotto curva_sud_ovest) in ordine per righe.
  */
 export function buildStradaAssetLookup(
   cols: number,
@@ -480,12 +529,19 @@ export function buildStradaAssetLookup(
 
       if (row > 0 && edificiInMappa[index - cols]?.nome === "Strada") {
         const northAsset = final.get(index - cols);
-        if (
-          northAsset != null &&
-          (northAsset === "verticale" || northAsset === "nord") &&
-          !ALLOWED_SOUTH_OF_VERTICAL_OR_NORD.has(asset)
-        ) {
-          asset = clampSouthOfVerticalOrNord(index, cols, rows, edificiInMappa);
+        if (northAsset != null) {
+          if (
+            (northAsset === "verticale" || northAsset === "nord") &&
+            !ALLOWED_SOUTH_OF_VERTICAL_OR_NORD.has(asset)
+          ) {
+            asset = clampSouthOfVerticalOrNord(index, cols, rows, edificiInMappa);
+          }
+          if (
+            northAsset === "curva_sud_ovest" &&
+            !ALLOWED_SOUTH_OF_CURVA_SUD_OVEST.has(asset)
+          ) {
+            asset = clampSouthOfCurvaSudOvest(index, cols, rows, edificiInMappa);
+          }
         }
       }
 
