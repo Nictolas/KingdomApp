@@ -93,3 +93,28 @@ export function etichettaStatoPresenza(s: StatoPresenzaCapanna): string {
 export function èDentroCapanna(s: StatoPresenzaCapanna): boolean {
   return s === "in_capanna";
 }
+
+/** Per la lista in Capanna: simbolo + titolo + dettaglio accanto al nome. */
+export function badgePresenzaCapanna(stato: StatoPresenzaCapanna): {
+  èDentro: boolean;
+  simbolo: string;
+  titolo: "Dentro" | "Fuori";
+  sottotitolo: string | null;
+} {
+  switch (stato) {
+    case "in_capanna":
+      return { èDentro: true, simbolo: "🏠", titolo: "Dentro", sottotitolo: null };
+    case "viaggio_casa":
+      return { èDentro: false, simbolo: "🧭", titolo: "Fuori", sottotitolo: "Verso casa" };
+    case "viaggio_lavoro":
+      return { èDentro: false, simbolo: "🧭", titolo: "Fuori", sottotitolo: "Verso il lavoro" };
+    case "viaggio_bar":
+      return { èDentro: false, simbolo: "🧭", titolo: "Fuori", sottotitolo: "Verso il bar" };
+    case "al_lavoro":
+      return { èDentro: false, simbolo: "🔧", titolo: "Fuori", sottotitolo: "Al lavoro" };
+    case "al_bar":
+      return { èDentro: false, simbolo: "🍺", titolo: "Fuori", sottotitolo: "Al bar" };
+    case "in_giro":
+      return { èDentro: false, simbolo: "🚶", titolo: "Fuori", sottotitolo: "In giro" };
+  }
+}

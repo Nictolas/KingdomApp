@@ -11,11 +11,7 @@ import {
 import { StatusBar } from "expo-status-bar";
 import type { Abitante, Edificio } from "../types";
 import { getEmojiAbitante } from "../utils/getEmojiAbitante";
-import {
-  etichettaStatoPresenza,
-  statoPresenzaOccupanteCapanna,
-  èDentroCapanna
-} from "../game/presenzaCapanna";
+import { badgePresenzaCapanna, statoPresenzaOccupanteCapanna } from "../game/presenzaCapanna";
 
 type CommuteEntry = {
   purpose: "work" | "bar" | "home";
@@ -89,7 +85,7 @@ export function CapannaFullscreenModal({
         barArrivatiByEdificio,
         edifici
       });
-      return { abitante: a, stato, label: etichettaStatoPresenza(stato), dentro: èDentroCapanna(stato) };
+      return { abitante: a, badge: badgePresenzaCapanna(stato) };
     });
   }, [
     occupanti,
@@ -103,9 +99,6 @@ export function CapannaFullscreenModal({
     barArrivatiByEdificio,
     edifici
   ]);
-
-  const dentro = rows.filter((r) => r.dentro);
-  const fuori = rows.filter((r) => !r.dentro);
 
   return (
     <Modal
@@ -134,7 +127,7 @@ export function CapannaFullscreenModal({
             Residenza coloniale · Cella #{anchor} · {occupantiIds.length}/{postiPerCasa} posti
           </Text>
           <Text style={styles.hint}>
-            Di notte chi riposa qui è «dentro»; di giorno o in viaggio verso lavoro/bar è «fuori».
+            Accanto a ogni nome: se è dentro la capanna o fuori, e dove si trova (viaggio, bar, lavoro…).
           </Text>
         </View>
 
@@ -144,51 +137,41 @@ export function CapannaFullscreenModal({
           showsVerticalScrollIndicator={false}
         >
           <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionIcon}>🌙</Text>
-              <Text style={styles.sectionTitle}>Dentro l'edificio</Text>
-              <View style={styles.badgeDentro}>
-                <Text style={styles.badgeDentroText}>{dentro.length}</Text>
-              </View>
-            </View>
-            {dentro.length === 0 ? (
-              <Text style={styles.empty}>
-                Nessuno è in capanna in questo momento (di giorno gli abitanti sono in giro o altrove).
-              </Text>
+            <Text style={styles.listaTitolo}>Chi abita qui</Text>
+            {rows.length === 0 ? (
+              <Text style={styles.empty}>Nessun abitante assegnato a questa capanna.</Text>
             ) : (
-              dentro.map(({ abitante, label }) => (
-                <View key={abitante.id} style={[styles.card, styles.cardDentro]}>
-                  <Text style={styles.cardEmoji}>{getEmojiAbitante(abitante)}</Text>
-                  <View style={styles.cardBody}>
-                    <Text style={styles.cardNome} numberOfLines={1}>
-                      {abitante.nome}
-                    </Text>
-                    <Text style={styles.cardStato}>{label}</Text>
-                  </View>
-                </View>
-              ))
-            )}
-          </View>
-
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionIcon}>🚶</Text>
-              <Text style={styles.sectionTitle}>Fuori dall'edificio</Text>
-              <View style={styles.badgeFuori}>
-                <Text style={styles.badgeFuoriText}>{fuori.length}</Text>
-              </View>
-            </View>
-            {fuori.length === 0 ? (
-              <Text style={styles.empty}>Tutti gli assegnati sono in capanna.</Text>
-            ) : (
-              fuori.map(({ abitante, label }) => (
-                <View key={abitante.id} style={[styles.card, styles.cardFuori]}>
-                  <Text style={styles.cardEmoji}>{getEmojiAbitante(abitante)}</Text>
-                  <View style={styles.cardBody}>
-                    <Text style={styles.cardNome} numberOfLines={1}>
-                      {abitante.nome}
-                    </Text>
-                    <Text style={styles.cardStato}>{label}</Text>
+              rows.map(({ abitante, badge }) => (
+                <View
+                  key={abitante.id}
+                  style={[styles.listaRiga, badge.èDentro ? styles.listaRigaDentro : styles.listaRigaFuori]}
+                >
+                  <Text style={styles.listaAvatar}>{getEmojiAbitante(abitante)}</Text>
+                  <Text style={styles.listaNome} numberOfLines={1}>
+                    {abitante.nome}
+                  </Text>
+                  <View style={styles.listaBadgeCol}>
+                    <View
+                      style={[
+                        styles.presenzaPill,
+                        badge.èDentro ? styles.presenzaPillDentro : styles.presenzaPillFuori
+                      ]}
+                    >
+                      <Text style={styles.presenzaPillEmoji}>{badge.simbolo}</Text>
+                      <Text
+                        style={[
+                          styles.presenzaPillTesto,
+                          badge.èDentro ? styles.presenzaPillTestoDentro : styles.presenzaPillTestoFuori
+                        ]}
+                      >
+                        {badge.titolo}
+                      </Text>
+                    </View>
+                    {badge.sottotitolo != null ? (
+                      <Text style={styles.presenzaDettaglio} numberOfLines={1}>
+                        {badge.sottotitolo}
+                      </Text>
+                    ) : null}
                   </View>
                 </View>
               ))
@@ -348,44 +331,11 @@ const styles = StyleSheet.create({
   section: {
     marginBottom: 22
   },
-  sectionHeader: {
-    flexDirection: "row",
-    alignItems: "center",
-    marginBottom: 12,
-    gap: 8
-  },
-  sectionIcon: { fontSize: 18 },
-  sectionTitle: {
-    flex: 1,
+  listaTitolo: {
     fontSize: 17,
     fontWeight: "800",
-    color: "#f1f5f9"
-  },
-  badgeDentro: {
-    backgroundColor: "rgba(34,197,94,0.25)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(74,222,128,0.45)"
-  },
-  badgeDentroText: {
-    color: "#bbf7d0",
-    fontSize: 13,
-    fontWeight: "800"
-  },
-  badgeFuori: {
-    backgroundColor: "rgba(59,130,246,0.22)",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(96,165,250,0.4)"
-  },
-  badgeFuoriText: {
-    color: "#bfdbfe",
-    fontSize: 13,
-    fontWeight: "800"
+    color: "#f1f5f9",
+    marginBottom: 12
   },
   empty: {
     color: "rgba(203,213,225,0.85)",
@@ -394,41 +344,76 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     paddingVertical: 8
   },
-  card: {
+  listaRiga: {
     flexDirection: "row",
     alignItems: "center",
-    paddingVertical: 12,
-    paddingHorizontal: 14,
+    paddingVertical: 11,
+    paddingHorizontal: 12,
     borderRadius: 14,
     marginBottom: 8,
-    borderWidth: 1
+    borderWidth: 1,
+    gap: 10
   },
-  cardDentro: {
+  listaRigaDentro: {
     backgroundColor: "rgba(22,101,52,0.35)",
     borderColor: "rgba(74,222,128,0.35)"
   },
-  cardFuori: {
+  listaRigaFuori: {
     backgroundColor: "rgba(30,41,59,0.85)",
     borderColor: "rgba(148,163,184,0.25)"
   },
-  cardEmoji: {
-    fontSize: 28,
-    marginRight: 12
+  listaAvatar: {
+    fontSize: 26
   },
-  cardBody: {
+  listaNome: {
     flex: 1,
-    minWidth: 0
-  },
-  cardNome: {
+    minWidth: 0,
     fontSize: 16,
     fontWeight: "700",
     color: "#f8fafc"
   },
-  cardStato: {
-    marginTop: 2,
-    fontSize: 13,
-    color: "rgba(203,213,225,0.9)",
-    fontWeight: "500"
+  listaBadgeCol: {
+    alignItems: "flex-end",
+    maxWidth: "52%",
+    flexShrink: 0
+  },
+  presenzaPill: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 999,
+    gap: 5,
+    borderWidth: 1
+  },
+  presenzaPillDentro: {
+    backgroundColor: "rgba(34,197,94,0.22)",
+    borderColor: "rgba(74,222,128,0.45)"
+  },
+  presenzaPillFuori: {
+    backgroundColor: "rgba(59,130,246,0.18)",
+    borderColor: "rgba(96,165,250,0.38)"
+  },
+  presenzaPillEmoji: {
+    fontSize: 14
+  },
+  presenzaPillTesto: {
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.2
+  },
+  presenzaPillTestoDentro: {
+    color: "#bbf7d0"
+  },
+  presenzaPillTestoFuori: {
+    color: "#bfdbfe"
+  },
+  presenzaDettaglio: {
+    marginTop: 3,
+    fontSize: 11,
+    color: "rgba(203,213,225,0.88)",
+    fontWeight: "600",
+    textAlign: "right"
   },
   toggleGestione: {
     marginTop: 4,

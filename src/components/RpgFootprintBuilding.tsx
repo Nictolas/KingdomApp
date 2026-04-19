@@ -332,6 +332,33 @@ export function RpgFootprintBar2x2({ width, height }: Props) {
   );
 }
 
+/** Dissalatore 2×2 — impianto a riva (due zone mare + due sabbia in gioco); emoji 💧. */
+export function RpgFootprintDissalatore2x2({ width, height }: Props) {
+  const halfW = width / 2;
+  const halfH = height / 2;
+  const emojiSize = Math.max(12, Math.min(26, Math.floor(Math.min(width, height) * 0.2)));
+  return (
+    <View style={[styles.wrap, { width, height, flexDirection: "row", flexWrap: "wrap" }]} pointerEvents="none">
+      <View style={{ width: halfW, height: halfH, backgroundColor: "#0ea5e9", borderWidth: 1, borderColor: OUTLINE }} />
+      <View style={{ width: halfW, height: halfH, backgroundColor: "#0284c7", borderWidth: 1, borderColor: OUTLINE }} />
+      <View style={{ width: halfW, height: halfH, backgroundColor: "#d6d3d1", borderWidth: 1, borderColor: OUTLINE }} />
+      <View
+        style={{
+          width: halfW,
+          height: halfH,
+          backgroundColor: "#e7e5e4",
+          borderWidth: 1,
+          borderColor: OUTLINE,
+          justifyContent: "center",
+          alignItems: "center"
+        }}
+      >
+        <Text style={{ fontSize: emojiSize, lineHeight: emojiSize + 2 }}>💧</Text>
+      </View>
+    </View>
+  );
+}
+
 /** Tribunale 2×2 — facciata in pietra con emoji bilancia (stesso ingombro del dormitorio). */
 export function RpgFootprintTribunale2x2({ width, height }: Props) {
   const roofH = Math.round(height * 0.44);

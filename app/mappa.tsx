@@ -32,6 +32,7 @@ import {
   RpgFootprintDorm2x2,
   RpgFootprintBar2x2,
   RpgFootprintTribunale2x2,
+  RpgFootprintDissalatore2x2,
   RpgFootprintSerra2x1,
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
@@ -84,6 +85,9 @@ const BAR_FOOTPRINT_H = 2;
 /** Tribunale: 2×2 (emoji bilancia ⚖️ sul catalogo). */
 const TRIBUNALE_FOOTPRINT_W = 2;
 const TRIBUNALE_FOOTPRINT_H = 2;
+/** Dissalatore: 2×2 con 2 celle sabbia + 2 celle mare (confine `isAcqua`). */
+const DISSALATORE_FOOTPRINT_W = 2;
+const DISSALATORE_FOOTPRINT_H = 2;
 /** Spazioporto: edificio + area lancio (sprite orizzontale). */
 const SPAZIOPORTO_FOOTPRINT_W = 4;
 const SPAZIOPORTO_FOOTPRINT_H = 3;
@@ -303,8 +307,93 @@ const FOOTPRINT_COSTRUZIONE: Record<string, { w: number; h: number }> = {
   Dormitorio: { w: DORMITORIO_FOOTPRINT_W, h: DORMITORIO_FOOTPRINT_H },
   Bar: { w: BAR_FOOTPRINT_W, h: BAR_FOOTPRINT_H },
   Tribunale: { w: TRIBUNALE_FOOTPRINT_W, h: TRIBUNALE_FOOTPRINT_H },
+  Dissalatore: { w: DISSALATORE_FOOTPRINT_W, h: DISSALATORE_FOOTPRINT_H },
   Spazioporto: { w: SPAZIOPORTO_FOOTPRINT_W, h: SPAZIOPORTO_FOOTPRINT_H }
 };
+
+/** Sabbia = terreno sabbia su terraferma (non mare). */
+function cellaÈSabbiaDissalatore(
+  index: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): boolean {
+  if (isAcqua(index, cols, rows)) return false;
+  return (terrenoInMappa[index] ?? "erba") === "sabbia";
+}
+
+/**
+ * Rettangolo 2×2 con esattamente 2 celle sul mare (bordo mappa) e 2 sulla sabbia; niente fiume né edifici.
+ */
+function footprintDissalatoreMareSabbiaValido(
+  anchor: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  edificiInMappa: Record<number, EdificioInCella>
+): boolean {
+  const w = DISSALATORE_FOOTPRINT_W;
+  const h = DISSALATORE_FOOTPRINT_H;
+  const ac = anchor % cols;
+  const ar = Math.floor(anchor / cols);
+  if (ac + w > cols || ar + h > rows) return false;
+  const celle = getIndiciFootprint(anchor, w, h, cols);
+  let nMare = 0;
+  let nSabbia = 0;
+  for (const i of celle) {
+    if (edificiInMappa[i]) return false;
+    const t = terrenoInMappa[i] ?? "erba";
+    if (t === "river") return false;
+    if (isAcqua(i, cols, rows)) nMare++;
+    else if (cellaÈSabbiaDissalatore(i, terrenoInMappa, cols, rows)) nSabbia++;
+    else return false;
+  }
+  return nMare === 2 && nSabbia === 2;
+}
+
+/** Cerca un ancoraggio 2×2 valido per il Dissalatore, partendo dalla cella toccata. */
+function trovaAnchorDissalatore(
+  preferredCell: number,
+  edificiInMappa: Record<number, EdificioInCella>,
+  terrenoInMappa: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): number | null {
+  const w = DISSALATORE_FOOTPRINT_W;
+  const h = DISSALATORE_FOOTPRINT_H;
+  const pc = preferredCell % cols;
+  const pr = Math.floor(preferredCell / cols);
+  const dist = (an: number) => {
+    const aac = an % cols;
+    const aar = Math.floor(an / cols);
+    return Math.abs(aac - pc) + Math.abs(aar - pr);
+  };
+  const candidati = new Set<number>();
+  for (let dr = 0; dr < h; dr++) {
+    for (let dc = 0; dc < w; dc++) {
+      const ac = pc - dc;
+      const ar = pr - dr;
+      if (ac < 0 || ar < 0) continue;
+      if (ac + w > cols || ar + h > rows) continue;
+      candidati.add(ar * cols + ac);
+    }
+  }
+  const sortedNear = [...candidati].sort((a, b) => dist(a) - dist(b));
+  for (const an of sortedNear) {
+    if (footprintDissalatoreMareSabbiaValido(an, cols, rows, terrenoInMappa, edificiInMappa)) return an;
+  }
+  const tutti: number[] = [];
+  for (let ar = 0; ar <= rows - h; ar++) {
+    for (let ac = 0; ac <= cols - w; ac++) {
+      tutti.push(ar * cols + ac);
+    }
+  }
+  tutti.sort((a, b) => dist(a) - dist(b));
+  for (const an of tutti) {
+    if (footprintDissalatoreMareSabbiaValido(an, cols, rows, terrenoInMappa, edificiInMappa)) return an;
+  }
+  return null;
+}
 
 /** Scrive l'occupazione multi-cella sulla griglia (come aggiungiSerraFootprint ma con anchor già scelto). */
 function applicaEdificioFootprintCostruzione(
@@ -843,11 +932,15 @@ function calcolaAnchorEdificioMultiCella(
   cols: number,
   rows: number
 ): { anchor: number | null; w: number; h: number } {
-  const riverSet = riverSetDaTerreno(terrenoInMappa);
-  const vietato = vietatoFootprintECuscinoDaEdificiIniziali(edificiInMappa, cols, rows);
   const dim = FOOTPRINT_COSTRUZIONE[nomeEdificio] ?? { w: 1, h: 1 };
   const w = dim.w;
   const h = dim.h;
+  if (nomeEdificio === "Dissalatore") {
+    const anchor = trovaAnchorDissalatore(cellIndex, edificiInMappa, terrenoInMappa, cols, rows);
+    return { anchor, w, h };
+  }
+  const riverSet = riverSetDaTerreno(terrenoInMappa);
+  const vietato = vietatoFootprintECuscinoDaEdificiIniziali(edificiInMappa, cols, rows);
   let anchor: number | null = null;
   if (puòPiazzareFootprintConCuscino(cellIndex, w, h, cols, rows, riverSet, vietato)) {
     anchor = cellIndex;
@@ -1116,6 +1209,7 @@ type FootprintVariant =
   | "dormitorio"
   | "bar"
   | "tribunale"
+  | "dissalatore"
   | "spazioporto"
   | "serra"
   | "capanna";
@@ -1161,6 +1255,14 @@ function EdificioFootprintGfx({
     return (
       <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
         <RpgFootprintTribunale2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "dissalatore" && w === DISSALATORE_FOOTPRINT_W && h === DISSALATORE_FOOTPRINT_H) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintDissalatore2x2 width={width} height={height} />
       </View>
     );
   }
@@ -1817,13 +1919,15 @@ export function MappaScreen() {
               ? "bar"
               : e.nome === "Tribunale"
                 ? "tribunale"
-                : e.nome === "Spazioporto"
-                  ? "spazioporto"
-                  : e.nome === "Serra"
-                    ? "serra"
-                    : e.nome === "Capanna"
-                      ? "capanna"
-                      : "amministrazione";
+                : e.nome === "Dissalatore"
+                  ? "dissalatore"
+                  : e.nome === "Spazioporto"
+                    ? "spazioporto"
+                    : e.nome === "Serra"
+                      ? "serra"
+                      : e.nome === "Capanna"
+                        ? "capanna"
+                        : "amministrazione";
         list.push({ anchor: Number(i), fp: e.footprint, variant });
       }
     }
@@ -2003,7 +2107,9 @@ export function MappaScreen() {
       if (anchor == null) {
         Alert.alert(
           "Spazio insufficiente",
-          "Non c'è spazio adatto (terreno, cuscino d'erba o distanza dagli altri edifici)."
+          e.nome === "Dissalatore"
+            ? "Il Dissalatore richiede un’area 2×2 con esattamente 2 celle sulla sabbia e 2 sul mare (bordo acqua)."
+            : "Non c'è spazio adatto (terreno, cuscino d'erba o distanza dagli altri edifici)."
         );
         return;
       }
@@ -2046,7 +2152,13 @@ export function MappaScreen() {
         const edificio = edificiInMappa[cellIndex];
         const terreno = terrenoInMappa[cellIndex] ?? "erba";
         if (edificio) return;
-        if (terreno === "river" || isAcqua(cellIndex, cols, rows)) return;
+        const èDissalatore =
+          costruzioneSelezione.tipo === "edificio" && costruzioneSelezione.edificio.nome === "Dissalatore";
+        if (èDissalatore) {
+          if (terreno === "river") return;
+        } else if (terreno === "river" || isAcqua(cellIndex, cols, rows)) {
+          return;
+        }
         if (costruzioneSelezione.tipo === "strada") {
           handleScegliEdificio(cellIndex, STRADA_OPZIONE as unknown as Edificio);
         } else {
@@ -2212,7 +2324,9 @@ export function MappaScreen() {
           <Text style={styles.costruzioneBannerText} numberOfLines={2}>
             {costruzioneSelezione.tipo === "strada"
               ? "🛤️ Strada — verde = cella valida; tocca per piazzare."
-              : `🔨 ${costruzioneSelezione.edificio.emoji} ${costruzioneSelezione.edificio.nome} — l’anteprima segue il puntatore; tocca per confermare.`}
+              : costruzioneSelezione.edificio.nome === "Dissalatore"
+                ? `🔨 ${costruzioneSelezione.edificio.emoji} Dissalatore — serve un 2×2 con 2 celle sabbia e 2 sul mare; tocca sabbia o acqua.`
+                : `🔨 ${costruzioneSelezione.edificio.emoji} ${costruzioneSelezione.edificio.nome} — l’anteprima segue il puntatore; tocca per confermare.`}
           </Text>
           <Pressable style={styles.costruzioneBannerBtn} onPress={uscitaCostruzione} accessibilityRole="button">
             <Text style={styles.costruzioneBannerBtnText}>Annulla</Text>
@@ -2315,7 +2429,10 @@ export function MappaScreen() {
                           ) : null}
                         </>
                       );
-                      if (acqua) {
+                      const costruzioneDissalatore =
+                        costruzioneSelezione?.tipo === "edificio" &&
+                        costruzioneSelezione.edificio.nome === "Dissalatore";
+                      if (acqua && !costruzioneDissalatore) {
                         return (
                           <View key={i} style={cellStyle}>
                             {spriteTerreno}
