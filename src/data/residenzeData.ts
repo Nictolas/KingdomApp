@@ -17,13 +17,13 @@ export type ResidenzaTipo = {
   abitanti: number;
   /** Se true, la residenza ha capacità illimitata per unità (es. Baracca). */
   postiIllimitati?: boolean;
-  /** Se impostato, solo abitanti di questa fazione possono vivere qui (es. "Nativi" per Capanna). */
+  /** Se impostato, solo abitanti di questa fazione possono vivere qui. */
   fazioneRichiesta?: string;
 };
 
 export const RESIDENZE_CATALOGO: ResidenzaTipo[] = [
   { id: "baracca", nome: "Baracca", nomePlurale: "Baracche", emoji: "📦", felicità: 5, costoMensile: 0, energiaPerAbitante: 0, abitanti: 0, postiIllimitati: true },
-  { id: "capanna", nome: "Capanna", nomePlurale: "Capanne", emoji: "🏠", felicità: 8, costoMensile: 0, energiaPerAbitante: 0, abitanti: 30, fazioneRichiesta: "Nativi" },
+  { id: "capanna", nome: "Capanna", nomePlurale: "Capanne", emoji: "🏠", felicità: 8, costoMensile: 0, energiaPerAbitante: 0, abitanti: 30 },
   { id: "dormitorio", nome: "Dormitorio", nomePlurale: "Dormitori", emoji: "🛏️", felicità: 10, costoMensile: 250, energiaPerAbitante: 1, abitanti: 10 },
   { id: "modulo", nome: "Modulo", nomePlurale: "Moduli", emoji: "📦", felicità: 30, costoMensile: 800, energiaPerAbitante: 3, abitanti: 4 },
   { id: "villetta", nome: "Villetta", nomePlurale: "Villette", emoji: "🏡", felicità: 45, costoMensile: 1500, energiaPerAbitante: 5, abitanti: 5 },

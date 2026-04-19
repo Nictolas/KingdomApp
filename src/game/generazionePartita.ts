@@ -17,7 +17,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
       "Il Comandante della Colonia è sempre di razza umana.",
       "A parte 2-3 Nativi iniziali, tutti gli abitanti sono a inizio partita di razza umana.",
       "La razza dei Nativi (per l’evento Assimilazione) è scelta a caso tra le razze non umane.",
-      "Ogni partita deve partire con 2-3 Nativi tra gli abitanti (razza = razza Nativi del pianeta), assegnati alle Capanne.",
+      "Ogni partita deve partire con 2-3 Nativi tra gli abitanti (razza = razza Nativi del pianeta). Tutti i colonisti non Senzatetto sono assegnati alle Capanne.",
       "Ogni partita deve partire con 1 abitante di razza Robot. I Robot sono sempre bisessuali (orientamento «Bi»)."
     ]
   },
@@ -202,7 +202,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     abitanti.push(ab);
   }
 
-  // Regola: 2-3 Nativi (razza = razzaNativi) integrati in colonia, assegnati alle Capanne. Scegliamo abitanti con id !== 1 (non il Comandante).
+  // Regola: 2-3 Nativi (razza = razzaNativi) integrati in colonia. La residenza iniziale per tutti (tranne Senzatetto) è nelle Capanne (useGameState).
   const candidatiNativo = abitanti.filter((a) => a.id !== 1);
   const numNativi = Math.min(candidatiNativo.length, 2 + Math.floor(Math.random() * 2)); // 2 o 3
   for (let k = candidatiNativo.length - 1; k > 0; k--) {

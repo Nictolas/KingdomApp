@@ -208,6 +208,52 @@ function trovaCellaAnchorCasaSuMappa(
   return null;
 }
 
+/** Celle anchor delle Capanne procedurali (un edificio 2×1 per anchor). */
+function elencoAnchorCelleCapanne(edificiInMappa: Record<number, EdificioInCella>): number[] {
+  const anchors: number[] = [];
+  for (const k of Object.keys(edificiInMappa)) {
+    const idx = Number(k);
+    const e = edificiInMappa[idx];
+    if (!e || e.nome !== "Capanna") continue;
+    const anchor = getAnchorCellPerEdificio(idx, edificiInMappa);
+    if (anchor !== idx) continue;
+    anchors.push(anchor);
+  }
+  anchors.sort((a, b) => a - b);
+  return anchors;
+}
+
+/** Riparti i colonisti tra le capanne sulla mappa (max `postiPerCapanna` per anchor). */
+function distribuisciAbitantiSuAnchorCapanne(
+  idsOrdinati: number[],
+  anchors: number[],
+  postiPerCapanna: number
+): Record<number, number[]> {
+  if (anchors.length === 0) return {};
+  const out: Record<number, number[]> = {};
+  for (const a of anchors) out[a] = [];
+  let round = 0;
+  for (const id of idsOrdinati) {
+    let pos = -1;
+    for (let t = 0; t < anchors.length; t++) {
+      const i = (round + t) % anchors.length;
+      const a = anchors[i]!;
+      if (out[a]!.length < postiPerCapanna) {
+        pos = i;
+        break;
+      }
+    }
+    if (pos < 0) {
+      out[anchors[0]!]!.push(id);
+    } else {
+      const a = anchors[pos]!;
+      out[a]!.push(id);
+      round = (pos + 1) % anchors.length;
+    }
+  }
+  return out;
+}
+
 function idEdificioGlobalePerNomeResidenza(nome: string): number | undefined {
   const found = edificiData.find((e) => e.nome === nome && e.tipo === "Residenza");
   return found?.id;
@@ -705,6 +751,29 @@ type SelezioneCostruzioneAnteprima =
   | { tipo: "strada" }
   | { tipo: "edificio"; edificio: Edificio };
 
+/** Stessa ricerca anchor usata in `handleScegliEdificio` per edifici multi-cella. */
+function calcolaAnchorEdificioMultiCella(
+  cellIndex: number,
+  nomeEdificio: string,
+  edificiInMappa: Record<number, EdificioInCella>,
+  terrenoInMappa: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): { anchor: number | null; w: number; h: number } {
+  const riverSet = riverSetDaTerreno(terrenoInMappa);
+  const vietato = vietatoFootprintECuscinoDaEdificiIniziali(edificiInMappa, cols, rows);
+  const dim = FOOTPRINT_COSTRUZIONE[nomeEdificio] ?? { w: 1, h: 1 };
+  const w = dim.w;
+  const h = dim.h;
+  let anchor: number | null = null;
+  if (puòPiazzareFootprintConCuscino(cellIndex, w, h, cols, rows, riverSet, vietato)) {
+    anchor = cellIndex;
+  } else {
+    anchor = trovaAnchorFootprintLibero(w, h, cellIndex, cols, rows, riverSet, vietato);
+  }
+  return { anchor, w, h };
+}
+
 function calcolaPreviewPiazzamento(
   selezione: SelezioneCostruzioneAnteprima,
   hoverCell: number | null,
@@ -721,17 +790,14 @@ function calcolaPreviewPiazzamento(
     return { celle: [hoverCell], valido };
   }
   const e = selezione.edificio;
-  const riverSet = riverSetDaTerreno(terrenoInMappa);
-  const vietato = vietatoFootprintECuscinoDaEdificiIniziali(edificiInMappa, cols, rows);
-  const dim = FOOTPRINT_COSTRUZIONE[e.nome] ?? { w: 1, h: 1 };
-  const w = dim.w;
-  const h = dim.h;
-  let anchor: number | null = null;
-  if (puòPiazzareFootprintConCuscino(hoverCell, w, h, cols, rows, riverSet, vietato)) {
-    anchor = hoverCell;
-  } else {
-    anchor = trovaAnchorFootprintLibero(w, h, hoverCell, cols, rows, riverSet, vietato);
-  }
+  const { anchor, w, h } = calcolaAnchorEdificioMultiCella(
+    hoverCell,
+    e.nome,
+    edificiInMappa,
+    terrenoInMappa,
+    cols,
+    rows
+  );
   if (anchor == null) {
     const ac = hoverCell % cols;
     const ar = Math.floor(hoverCell / cols);
@@ -740,6 +806,7 @@ function calcolaPreviewPiazzamento(
     }
     return { celle: getIndiciFootprint(hoverCell, w, h, cols), valido: false };
   }
+  /** Verde: il gioco può piazzare (anchor trovato). Rosso: nessuno spazio valido. */
   return { celle: getIndiciFootprint(anchor, w, h, cols), valido: true };
 }
 
@@ -1227,6 +1294,25 @@ export function MappaScreen() {
   const terrenoInMappa = mappaState.terrenoInMappa;
   const decorazioniInMappa = mappaState.decorazioniInMappa;
   const residenzeMappa = mappaState.residenzeMappa;
+  /** Una tantum: distribuisce i residenti della Capanna globale sulle capanne procedurali. */
+  const residenzeCapanneInizialiRef = useRef(false);
+
+  useEffect(() => {
+    if (Object.keys(residenzeMappa).length > 0) {
+      residenzeCapanneInizialiRef.current = true;
+      return;
+    }
+    if (residenzeCapanneInizialiRef.current) return;
+    const capannaGlob = edifici.find((x) => x.id === 20);
+    const ids = [...(capannaGlob?.abitantiAssegnati ?? [])].sort((a, b) => a - b);
+    if (ids.length === 0) return;
+    const anchors = elencoAnchorCelleCapanne(edificiInMappa);
+    if (anchors.length === 0) return;
+    const next = distribuisciAbitantiSuAnchorCapanne(ids, anchors, POSTI_PER_CASA_MAPPA);
+    residenzeCapanneInizialiRef.current = true;
+    setMappaStatePersistente((s) => ({ ...s, residenzeMappa: next }));
+  }, [edifici, edificiInMappa, residenzeMappa, setMappaStatePersistente]);
+
   /** Modal elenco edifici (pulsante Costruisci). */
   const [mostraModalCostruisci, setMostraModalCostruisci] = useState(false);
   /** Edifico scelto: anteprima sulla mappa e tap per piazzare. */
@@ -1486,7 +1572,6 @@ export function MappaScreen() {
       if ((residenzeMappa[anchor] ?? []).includes(a.id)) continue;
       const dove = residenzaGlobaleDi(a.id, edifici);
       if (nome === "Capanna") {
-        if (!a.fazioni?.includes("Nativi")) continue;
         if (dove && dove.nome !== "Capanna") continue;
       } else if (nome === "Dormitorio") {
         if (a.fazioni?.includes("Senzatetto")) continue;
@@ -1601,26 +1686,14 @@ export function MappaScreen() {
       }
 
       const s = mappaStateRef.current;
-      const riverSet = riverSetDaTerreno(s.terrenoInMappa);
-      const vietato = vietatoFootprintECuscinoDaEdificiIniziali(s.edificiInMappa, FIXED_MAP_COLS, FIXED_MAP_ROWS);
-      const dim = FOOTPRINT_COSTRUZIONE[e.nome] ?? { w: 1, h: 1 };
-      const w = dim.w;
-      const h = dim.h;
-
-      let anchor: number | null = null;
-      if (puòPiazzareFootprintConCuscino(cellIndex, w, h, FIXED_MAP_COLS, FIXED_MAP_ROWS, riverSet, vietato)) {
-        anchor = cellIndex;
-      } else {
-        anchor = trovaAnchorFootprintLibero(
-          w,
-          h,
-          cellIndex,
-          FIXED_MAP_COLS,
-          FIXED_MAP_ROWS,
-          riverSet,
-          vietato
-        );
-      }
+      const { anchor, w, h } = calcolaAnchorEdificioMultiCella(
+        cellIndex,
+        e.nome,
+        s.edificiInMappa,
+        s.terrenoInMappa,
+        FIXED_MAP_COLS,
+        FIXED_MAP_ROWS
+      );
       if (anchor == null) {
         Alert.alert(
           "Spazio insufficiente",
@@ -1963,20 +2036,17 @@ export function MappaScreen() {
                       style={[styles.previewFootprintLayer, { width: contentWidth, height: contentHeight }]}
                       pointerEvents="none"
                     >
-                      {previewPiazzamento.celle.map((idx) => (
+                      {previewPiazzamento.celle.map((idx: number) => (
                         <View
                           key={`pv-${idx}`}
                           style={[
                             styles.previewCell,
+                            previewPiazzamento.valido ? styles.previewCellValid : styles.previewCellInvalid,
                             {
                               width: CELL_SIZE_PX,
                               height: CELL_SIZE_PX,
                               left: (idx % cols) * CELL_SIZE_PX,
-                              top: Math.floor(idx / cols) * CELL_SIZE_PX,
-                              backgroundColor: previewPiazzamento.valido
-                                ? "rgba(34,197,94,0.3)"
-                                : "rgba(239,68,68,0.38)",
-                              borderColor: previewPiazzamento.valido ? "rgba(22,163,74,0.9)" : "rgba(220,38,38,0.95)"
+                              top: Math.floor(idx / cols) * CELL_SIZE_PX
                             }
                           ]}
                         />
@@ -2237,7 +2307,7 @@ export function MappaScreen() {
             <Text style={styles.modalSubtitle}>
               Posti sulla mappa: {occupantiCasaMappaIds.length}/{POSTI_PER_CASA_MAPPA} · Cella #{selectedResidenzaAnchor}
               {edificioResidenzaAperta?.nome === "Capanna"
-                ? "\nSolo Nativi; l'assegnazione aggiorna la Capanna in colonia."
+                ? "\nL'assegnazione qui aggiorna anche la Capanna globale in colonia."
                 : edificioResidenzaAperta?.nome === "Dormitorio"
                   ? "\nPuoi assegnare chi è già nel Dormitorio coloniale o far entrare chi non ha ancora residenza (non i Senzatetto)."
                   : "\nI Senzatetto sono tutti in Baracca a livello colonia: qui scegli chi associare a questa baracca (max 6)."}
@@ -2653,7 +2723,17 @@ const styles = StyleSheet.create({
   },
   previewCell: {
     position: "absolute",
-    borderWidth: 1
+    borderWidth: 2
+  },
+  /** Puoi costruire qui (stessa condizione del piazzamento effettivo). */
+  previewCellValid: {
+    backgroundColor: "rgba(22,163,74,0.48)",
+    borderColor: "#15803d"
+  },
+  /** Non puoi costruire qui. */
+  previewCellInvalid: {
+    backgroundColor: "rgba(220,38,38,0.5)",
+    borderColor: "#b91c1c"
   },
   footprintAbsolute: {
     position: "absolute"

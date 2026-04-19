@@ -27,11 +27,12 @@ export function useGameState() {
   const [edifici, setEdifici] = useState<Edificio[]>(() => {
     const tuttiId = statoIniziale.abitanti.map((a) => a.id);
     const baraccaIds = statoIniziale.abitanti.filter((a) => a.fazioni?.includes("Senzatetto")).map((a) => a.id);
-    const dormitorioIds = tuttiId.filter((id) => !baraccaIds.includes(id));
+    /** A inizio partita tutti (tranne Senzatetto in Baracca) stanno nelle Capanne; Dormitorio vuoto. */
+    const dormitorioIds: number[] = [];
     const agricoltore = statoIniziale.abitanti.find((a) => a.lavoro === "Agricoltore");
     const serraIds = agricoltore ? [agricoltore.id] : [];
     const prigionieriIds = statoIniziale.abitanti.filter((a) => a.lavoro === "Prigioniero").map((a) => a.id);
-    const capannaIds = statoIniziale.abitanti.filter((a) => a.fazioni?.includes("Nativi")).map((a) => a.id);
+    const capannaIds = tuttiId.filter((id) => !baraccaIds.includes(id));
     return edificiData.map((e) => {
       if (e.id === 4) return { ...e, abitantiAssegnati: baraccaIds, occupazione: baraccaIds.length };
       if (e.id === 14) return { ...e, abitantiAssegnati: dormitorioIds, occupazione: dormitorioIds.length };
@@ -331,7 +332,6 @@ export function useGameState() {
     if (abitante?.lavoro === "Pensionato") return;
     const edificioCorrente = edifici.find((e) => e.id === edificioId);
     if (!edificioCorrente) return;
-    if (edificioCorrente.nome === "Capanna" && !abitante?.fazioni?.includes("Nativi")) return;
     if (
       edificioCorrente.abitantiAssegnati.includes(abitanteId) ||
       edificioCorrente.abitantiAssegnati.length >= edificioCorrente.capacità ||
