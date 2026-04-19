@@ -213,9 +213,9 @@ const ALLOWED_SOUTH_OF_VERTICAL_OR_NORD = new Set<StradaTileAsset1x1>([
 ]);
 
 /**
- * Sotto `curva_sud_ovest1x1` (cella a nord): incastro verso sud ammesso dai PNG.
+ * Sotto `curva_sud_ovest` o `incrocio_est_sud_ovest` a nord: stessa whitelist di incastro verso sud.
  */
-const ALLOWED_SOUTH_OF_CURVA_SUD_OVEST = new Set<StradaTileAsset1x1>([
+const ALLOWED_SOUTH_OF_CURVA_SUD_OVEST_OR_INCROCIO_EST_SUD_OVEST = new Set<StradaTileAsset1x1>([
   "curva_nord_ovest",
   "incrocio_centro",
   "incrocio_est_sud_nord",
@@ -353,7 +353,7 @@ function getStradaAsset1x1Grezzo(
  * ovest / curva_nord_est / curva_sud_est / orizzontale, e a Est solo tra
  * orizzontale / curva_nord_ovest / curva_sud_ovest (incastro del segmento E–O).
  *
- * Le regole “sotto verticale / strada_nord” e “sotto curva_sud_ovest” si applicano in
+ * Le regole “sotto verticale / strada_nord” e “sotto curva_sud_ovest / incrocio_est_sud_ovest” si applicano in
  * {@link buildStradaAssetLookup}.
  */
 function getStradaAsset1x1Base(
@@ -435,16 +435,17 @@ function clampSouthOfVerticalOrNord(
 }
 
 /**
- * Sotto `curva_sud_ovest` solo gli asset in {@link ALLOWED_SOUTH_OF_CURVA_SUD_OVEST}.
+ * Sotto `curva_sud_ovest` / `incrocio_est_sud_ovest` a nord: solo asset in
+ * {@link ALLOWED_SOUTH_OF_CURVA_SUD_OVEST_OR_INCROCIO_EST_SUD_OVEST}.
  */
-function clampSouthOfCurvaSudOvest(
+function clampSouthBelowCurvaOrIncrocioEstSudOvest(
   index: number,
   cols: number,
   rows: number,
   edificiInMappa: Record<number, { nome?: string }>
 ): StradaTileAsset1x1 {
   const g = getStradaAsset1x1Grezzo(index, cols, rows, edificiInMappa);
-  if (ALLOWED_SOUTH_OF_CURVA_SUD_OVEST.has(g)) return g;
+  if (ALLOWED_SOUTH_OF_CURVA_SUD_OVEST_OR_INCROCIO_EST_SUD_OVEST.has(g)) return g;
 
   const { n, s, w, e } = cardinalStrada(index, cols, rows, edificiInMappa);
   const count = (n ? 1 : 0) + (s ? 1 : 0) + (w ? 1 : 0) + (e ? 1 : 0);
@@ -511,7 +512,7 @@ function fixCardinalSpriteConstraints(
 }
 
 /**
- * Lookup per indice cella: whitelist verso sud (sotto verticale/nord, sotto curva_sud_ovest) in ordine per righe.
+ * Lookup per indice cella: whitelist verso sud (sotto verticale/nord, sotto curva_sud_ovest o incrocio_est_sud_ovest) in ordine per righe.
  */
 export function buildStradaAssetLookup(
   cols: number,
@@ -537,10 +538,10 @@ export function buildStradaAssetLookup(
             asset = clampSouthOfVerticalOrNord(index, cols, rows, edificiInMappa);
           }
           if (
-            northAsset === "curva_sud_ovest" &&
-            !ALLOWED_SOUTH_OF_CURVA_SUD_OVEST.has(asset)
+            (northAsset === "curva_sud_ovest" || northAsset === "incrocio_est_sud_ovest") &&
+            !ALLOWED_SOUTH_OF_CURVA_SUD_OVEST_OR_INCROCIO_EST_SUD_OVEST.has(asset)
           ) {
-            asset = clampSouthOfCurvaSudOvest(index, cols, rows, edificiInMappa);
+            asset = clampSouthBelowCurvaOrIncrocioEstSudOvest(index, cols, rows, edificiInMappa);
           }
         }
       }
