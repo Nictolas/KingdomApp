@@ -127,6 +127,12 @@ export function MapWandererCharacter({
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastTapTimeRef = useRef(0);
+  /** Evita di rieseguire effetti a ogni render (es. tick orologio sul genitore → callback nuove). */
+  const onCommuteCompleteRef = useRef(onCommuteComplete);
+  const onCellSettledRef = useRef(onCellSettled);
+  const pickNextMoveRef = useRef<() => void>(() => {});
+  onCommuteCompleteRef.current = onCommuteComplete;
+  onCellSettledRef.current = onCellSettled;
 
   const handlePress = useCallback(() => {
     if (!onDoublePress) return;
@@ -158,7 +164,7 @@ export function MapWandererCharacter({
 
     const cand = orthogonalNeighbors(prev, cols, rows).filter((j) => isWalkable(j));
     if (cand.length === 0) {
-      idleTimerRef.current = setTimeout(pickNextMove, IDLE_BEFORE_NEXT_MS);
+      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
       return;
     }
 
@@ -194,11 +200,13 @@ export function MapWandererCharacter({
         setIsMoving(false);
         setLogicalCell(next);
         cellRef.current = next;
-        idleTimerRef.current = setTimeout(pickNextMove, IDLE_BEFORE_NEXT_MS);
+        idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
       }
     };
     rafRef.current = requestAnimationFrame(step);
   }, [cols, rows, cellSizePx, isWalkable, fixedCell, commutePath]);
+
+  pickNextMoveRef.current = pickNextMove;
 
   const runOneSegment = useCallback(
     (from: number, to: number, onDone: () => void) => {
@@ -229,13 +237,13 @@ export function MapWandererCharacter({
           setIsMoving(false);
           setLogicalCell(to);
           cellRef.current = to;
-          onCellSettled?.(to);
+          onCellSettledRef.current?.(to);
           onDone();
         }
       };
       rafRef.current = requestAnimationFrame(step);
     },
-    [cols, cellSizePx, onCellSettled]
+    [cols, cellSizePx]
   );
 
   /** Percorso casa → lavoro / lavoro → casa / … */
@@ -257,14 +265,14 @@ export function MapWandererCharacter({
     setPixelPos({ x: cx, y: cy });
     setIsMoving(false);
     setWalkFrame(0);
-    onCellSettled?.(start);
+    onCellSettledRef.current?.(start);
 
     let seg = 0;
     const stepChain = () => {
       if (!alive) return;
       if (seg >= path.length - 1) {
-        if (commutePurpose != null && onCommuteComplete) onCommuteComplete(commutePurpose);
-        idleTimerRef.current = setTimeout(pickNextMove, IDLE_BEFORE_NEXT_MS);
+        if (commutePurpose != null) onCommuteCompleteRef.current?.(commutePurpose);
+        idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
         return;
       }
       const from = path[seg]!;
@@ -288,10 +296,7 @@ export function MapWandererCharacter({
     cols,
     cellSizePx,
     clearIdle,
-    onCommuteComplete,
-    onCellSettled,
-    runOneSegment,
-    pickNextMove
+    runOneSegment
   ]);
 
   /** Di notte sulla residenza: fermo, sotto il layer edifici. */
@@ -311,8 +316,8 @@ export function MapWandererCharacter({
     setIsMoving(false);
     setWalkFrame(0);
     setDirection("s");
-    onCellSettled?.(fixedCell);
-  }, [fixedCell, cols, cellSizePx, clearIdle, onCellSettled]);
+    onCellSettledRef.current?.(fixedCell);
+  }, [fixedCell, cols, cellSizePx, clearIdle]);
 
   /** Fine notte in casa → ripristina il girovago (re-inizializza spawn su strade). */
   useEffect(() => {
@@ -348,9 +353,9 @@ export function MapWandererCharacter({
     setLogicalCell(idx);
     cellRef.current = idx;
     setPixelPos({ x: cx, y: cy });
-    onCellSettled?.(idx);
-    idleTimerRef.current = setTimeout(pickNextMove, IDLE_BEFORE_NEXT_MS);
-  }, [cols, rows, isWalkable, instanceId, pickNextMove, fixedCell, commutePath, onCellSettled]);
+    onCellSettledRef.current?.(idx);
+    idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+  }, [cols, rows, isWalkable, instanceId, fixedCell, commutePath]);
 
   useEffect(
     () => () => {
