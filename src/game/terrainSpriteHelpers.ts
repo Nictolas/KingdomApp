@@ -133,7 +133,12 @@ export type StradaTileAsset1x1 =
   | "nord"
   | "sud"
   | "est"
-  | "ovest";
+  | "ovest"
+  /** Angolo a L: vicini strada esattamente a N+E, N+O, S+E, S+O (es. nord+est → sopra verticale/nord, a destra orizzontale/est). */
+  | "curva_nord_est"
+  | "curva_nord_ovest"
+  | "curva_sud_est"
+  | "curva_sud_ovest";
 
 /**
  * Sceglie lo sprite 1×1 in base ai vicini strada: più connessioni E–O → orizzontale, N–S → verticale.
@@ -161,8 +166,8 @@ export function getOrientamentoStrada1x1(
 }
 
 /**
- * Sceglie quale PNG 1×1 usare: tratti dritti (2 vicini opposti), punti ciechi (1 vicino → direzione verso quel vicino),
- * angoli/incroci come in {@link getOrientamentoStrada1x1}.
+ * Sceglie quale PNG 1×1 usare: tratti dritti (2 vicini opposti), punti ciechi (1 vicino),
+ * curve a L (2 vicini ortogonali: N+E → curva_nord_est, …), T/incroci come in {@link getOrientamentoStrada1x1}.
  */
 export function getStradaAsset1x1(
   index: number,
@@ -187,6 +192,10 @@ export function getStradaAsset1x1(
   if (count === 2) {
     if (n && s) return "verticale";
     if (w && e) return "orizzontale";
+    if (n && e) return "curva_nord_est";
+    if (n && w) return "curva_nord_ovest";
+    if (s && e) return "curva_sud_est";
+    if (s && w) return "curva_sud_ovest";
     return getOrientamentoStrada1x1(index, cols, rows, edificiInMappa);
   }
   if (count === 0) return "orizzontale";
