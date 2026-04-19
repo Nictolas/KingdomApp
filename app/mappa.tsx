@@ -40,6 +40,7 @@ import {
   assicuraEdificiCollegatiDaStrada,
   indiciViciniOrtogonaliStrada
 } from "../src/game/roadConnectivity";
+import { abitanteInOrarioLavoroEdificio } from "../src/game/orariLavoroMappa";
 import {
   buildStradaAssetLookup,
   erbaExtraDecorCasuale,
@@ -1279,6 +1280,15 @@ export function MappaScreen() {
     return m;
   }, [abitanti, edifici, edificiInMappa, residenzeMappa]);
 
+  /** In fascia lavoro (edifici produttivi): personaggio non disegnato sulla mappa. */
+  const abitantiNascostiPerTurnoLavoro = useMemo(() => {
+    const s = new Set<number>();
+    for (const a of abitanti) {
+      if (abitanteInOrarioLavoroEdificio(a.id, orologioMinuti, edifici)) s.add(a.id);
+    }
+    return s;
+  }, [abitanti, edifici, orologioMinuti]);
+
   const edificiFootprintOverlay = useMemo(() => {
     const list: { anchor: number; fp: { w: number; h: number }; variant: FootprintVariant }[] = [];
     for (const [i, e] of Object.entries(edificiInMappa)) {
@@ -1826,6 +1836,7 @@ export function MappaScreen() {
                     })}
                   </View>
                   {abitantiPerOverlayMappa.map((abitante: Abitante) => {
+                    if (abitantiNascostiPerTurnoLavoro.has(abitante.id)) return null;
                     const homeCell = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
                     const fixedCellNotte =
                       èNottePersonaggiInCasa && homeCell !== null ? homeCell : null;
