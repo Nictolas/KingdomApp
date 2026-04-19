@@ -265,6 +265,73 @@ export function RpgFootprintDorm2x2({ width, height }: Props) {
   );
 }
 
+/** Bar 2×2 — tetto scuro, tenda a strisce, facciata da pub (finestroni + ingresso). */
+export function RpgFootprintBar2x2({ width, height }: Props) {
+  const roofH = Math.round(height * 0.34);
+  const awningH = Math.max(6, Math.round(height * 0.1));
+  const grondaH = 2;
+  const bandH = Math.max(3, Math.floor((height - roofH - awningH - grondaH) * 0.09));
+  const nStripes = Math.max(6, Math.floor(width / 10));
+
+  return (
+    <View style={[styles.wrap, { width, height }]} pointerEvents="none">
+      <View
+        style={{
+          height: roofH,
+          backgroundColor: "#1c1917",
+          borderBottomWidth: 2,
+          borderBottomColor: OUTLINE
+        }}
+      />
+      <View style={{ height: awningH, flexDirection: "row", overflow: "hidden" }}>
+        {Array.from({ length: nStripes }, (_, i) => (
+          <View
+            key={`aw-${i}`}
+            style={{
+              flex: 1,
+              backgroundColor: i % 2 === 0 ? "#ca8a04" : "#a16207",
+              borderRightWidth: i < nStripes - 1 ? 1 : 0,
+              borderRightColor: OUTLINE
+            }}
+          />
+        ))}
+      </View>
+      <View style={[styles.gronda, { height: grondaH }]} />
+      <View style={[styles.wallBlockFlex, { backgroundColor: "#44403c" }]}>
+        <View style={[styles.trimBand, { height: bandH, backgroundColor: "#292524" }]} />
+        <View style={[styles.wallInnerFlex, { backgroundColor: "#57534e" }]}>
+          <View style={styles.threeCols}>
+            <View style={styles.col}>
+              <WindowPane small />
+            </View>
+            <View style={[styles.col, { flex: 1.15, justifyContent: "flex-end" }]}>
+              <View style={[styles.doorOuter, { width: "72%", minHeight: 22, backgroundColor: "#422006" }]}>
+                <View style={styles.doorKnob} />
+              </View>
+              <View
+                style={{
+                  marginTop: 2,
+                  height: 4,
+                  width: "80%",
+                  borderRadius: 2,
+                  backgroundColor: "#fbbf24",
+                  borderWidth: 1,
+                  borderColor: OUTLINE,
+                  opacity: 0.95
+                }}
+              />
+            </View>
+            <View style={styles.col}>
+              <WindowPane small />
+            </View>
+          </View>
+        </View>
+        <View style={[styles.trimBand, { height: bandH, backgroundColor: "#1c1917" }]} />
+      </View>
+    </View>
+  );
+}
+
 /** Vetrata centrale larga (hangar / sala controllo). */
 function HangarGlassPane() {
   return (

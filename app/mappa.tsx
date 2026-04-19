@@ -29,6 +29,7 @@ import {
   RpgFootprintAdmin3x2,
   RpgFootprintCapanna2x1,
   RpgFootprintDorm2x2,
+  RpgFootprintBar2x2,
   RpgFootprintSerra2x1,
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
@@ -58,6 +59,9 @@ const ADMIN_FOOTPRINT_H = 2;
 /** Footprint dormitori iniziali: 2×2. */
 const DORMITORIO_FOOTPRINT_W = 2;
 const DORMITORIO_FOOTPRINT_H = 2;
+/** Bar: stesso ingombro 2×2 del dormitorio. */
+const BAR_FOOTPRINT_W = 2;
+const BAR_FOOTPRINT_H = 2;
 /** Spazioporto: edificio + area lancio (sprite orizzontale). */
 const SPAZIOPORTO_FOOTPRINT_W = 4;
 const SPAZIOPORTO_FOOTPRINT_H = 3;
@@ -118,7 +122,9 @@ function getIndiciEdificiIniziali(cols: number, rows: number) {
     SERRA_2_INDEX: centro - 4,
     DORMITORIO_1_INDEX: centro + 2,
     DORMITORIO_2_INDEX: centro - cols,
-    DORMITORIO_3_INDEX: centro + cols + 1
+    DORMITORIO_3_INDEX: centro + cols + 1,
+    /** Bar 2×2: preferenza a sud-est del nucleo (trovaAnchor risolve conflitti). */
+    BAR_INDEX: centro + 2 * cols + 3
   };
 }
 
@@ -227,6 +233,7 @@ const FOOTPRINT_COSTRUZIONE: Record<string, { w: number; h: number }> = {
   Serra: { w: SERRA_FOOTPRINT_W, h: SERRA_FOOTPRINT_H },
   Capanna: { w: CAPANNA_FOOTPRINT_W, h: CAPANNA_FOOTPRINT_H },
   Dormitorio: { w: DORMITORIO_FOOTPRINT_W, h: DORMITORIO_FOOTPRINT_H },
+  Bar: { w: BAR_FOOTPRINT_W, h: BAR_FOOTPRINT_H },
   Spazioporto: { w: SPAZIOPORTO_FOOTPRINT_W, h: SPAZIOPORTO_FOOTPRINT_H }
 };
 
@@ -294,6 +301,7 @@ const RAFFINERIA_MINERARIA: EdificioInCella = { id: 3, nome: "Raffineria Minerar
 const STRADA_OPZIONE: EdificioInCella = { id: -1, nome: "Strada", emoji: "🛤️" };
 
 const DORMITORIO: EdificioInCella = { id: 14, nome: "Dormitorio", emoji: "🛏️" };
+const BAR_EDIFICIO: EdificioInCella = { id: 17, nome: "Bar", emoji: "🍺" };
 const SERRA_EDIFICIO: EdificioInCella = { id: 2, nome: "Serra", emoji: "🌱" };
 const SERRA_2_EDIFICIO: EdificioInCella = { id: 21, nome: "Serra", emoji: "🌱" };
 const CAPANNA: EdificioInCella = { id: 20, nome: "Capanna", emoji: "⛺" };
@@ -531,6 +539,39 @@ function aggiungiDormitorioFootprint(
   estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
 }
 
+function aggiungiBarFootprint(
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  vietato: Set<number>,
+  out: Record<number, EdificioInCella>,
+  preferred: number
+): void {
+  const w = BAR_FOOTPRINT_W;
+  const h = BAR_FOOTPRINT_H;
+  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, vietato);
+  if (anchor == null) {
+    const cell = trovaCellaSingolaConCuscino(preferred, cols, rows, riverSet, vietato);
+    if (cell != null) {
+      out[cell] = { ...BAR_EDIFICIO };
+      estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, vietato);
+    }
+    return;
+  }
+  const celle = getIndiciFootprint(anchor, w, h, cols);
+  out[anchor] = {
+    id: BAR_EDIFICIO.id,
+    nome: BAR_EDIFICIO.nome,
+    emoji: "",
+    footprint: { w, h }
+  };
+  for (const i of celle) {
+    if (i === anchor) continue;
+    out[i] = { id: BAR_EDIFICIO.id, nome: BAR_EDIFICIO.nome, emoji: "", footprintRef: anchor };
+  }
+  estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
+}
+
 function aggiungiSerraFootprint(
   cols: number,
   rows: number,
@@ -633,6 +674,8 @@ function getEdificiIniziali(
   aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_1_INDEX);
   aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_2_INDEX);
   aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_3_INDEX);
+
+  aggiungiBarFootprint(cols, rows, riverSet, vietato, out, idx.BAR_INDEX);
 
   return out;
 }
@@ -872,18 +915,21 @@ function computeStatoCielo(minutiDaMezzanotte: number): { buio: number; caloreTr
 function getStradeIniziali(edificiInMappa: Record<number, EdificioInCella>): [number, number][] {
   let centro: number | null = null;
   let spazioporto: number | null = null;
+  let bar: number | null = null;
   const serre: number[] = [];
   for (const [i, e] of Object.entries(edificiInMappa)) {
     const idx = Number(i);
     if (e.nome === "Centro di Comando" && e.footprint && !e.footprintRef) centro = idx;
     if (e.nome === "Spazioporto" && e.footprint && !e.footprintRef) spazioporto = idx;
     if (e.nome === "Serra" && e.footprint && !e.footprintRef) serre.push(idx);
+    if (e.nome === "Bar" && e.footprint && !e.footprintRef) bar = idx;
   }
   const out: [number, number][] = [];
   if (centro != null && spazioporto != null) out.push([centro, spazioporto]);
   if (centro != null) {
     for (const sa of serre) out.push([centro, sa]);
   }
+  if (centro != null && bar != null) out.push([centro, bar]);
   return out;
 }
 
@@ -894,7 +940,7 @@ function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: n
   return { left: col * (cellW + GAP), top: row * (cellH + GAP) };
 }
 
-type FootprintVariant = "amministrazione" | "dormitorio" | "spazioporto" | "serra" | "capanna";
+type FootprintVariant = "amministrazione" | "dormitorio" | "bar" | "spazioporto" | "serra" | "capanna";
 
 function EdificioFootprintGfx({
   anchor,
@@ -921,6 +967,14 @@ function EdificioFootprintGfx({
     return (
       <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
         <RpgFootprintDorm2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "bar" && w === BAR_FOOTPRINT_W && h === BAR_FOOTPRINT_H) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintBar2x2 width={width} height={height} />
       </View>
     );
   }
@@ -1296,13 +1350,15 @@ export function MappaScreen() {
         const variant: FootprintVariant =
           e.nome === "Dormitorio"
             ? "dormitorio"
-            : e.nome === "Spazioporto"
-              ? "spazioporto"
-              : e.nome === "Serra"
-                ? "serra"
-                : e.nome === "Capanna"
-                  ? "capanna"
-                  : "amministrazione";
+            : e.nome === "Bar"
+              ? "bar"
+              : e.nome === "Spazioporto"
+                ? "spazioporto"
+                : e.nome === "Serra"
+                  ? "serra"
+                  : e.nome === "Capanna"
+                    ? "capanna"
+                    : "amministrazione";
         list.push({ anchor: Number(i), fp: e.footprint, variant });
       }
     }
