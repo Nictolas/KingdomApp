@@ -149,6 +149,30 @@ type EdificioInCella = {
   footprint?: { w: number; h: number };
 };
 
+/** Case sulla mappa con posti limitati (UI). */
+const NOMI_RESIDENZE_MAPPA = new Set(["Baracca", "Capanna", "Dormitorio"]);
+const POSTI_PER_CASA_MAPPA = 6;
+
+function getAnchorCellPerEdificio(cellIndex: number, edificiInMappa: Record<number, EdificioInCella>): number {
+  const e = edificiInMappa[cellIndex];
+  if (!e) return cellIndex;
+  if (e.footprintRef != null) return e.footprintRef;
+  return cellIndex;
+}
+
+function èResidenzaMappa(nome: string | undefined): boolean {
+  return nome != null && NOMI_RESIDENZE_MAPPA.has(nome);
+}
+
+function residenzaGlobaleDi(abitanteId: number, edificiList: Edificio[]): Edificio | undefined {
+  return edificiList.find((e) => e.tipo === "Residenza" && (e.abitantiAssegnati ?? []).includes(abitanteId));
+}
+
+function idEdificioGlobalePerNomeResidenza(nome: string): number | undefined {
+  const found = edificiData.find((e) => e.nome === nome && e.tipo === "Residenza");
+  return found?.id;
+}
+
 /** Cella è acqua (blu) se true, altrimenti erba (verde). Bordi della mappa = mare. */
 function isAcqua(index: number, cols: number, rows: number): boolean {
   const row = Math.floor(index / cols);
@@ -635,6 +659,7 @@ function getInitialMappaWithRivers(cols: number, rows: number): {
   edificiInMappa: Record<number, EdificioInCella>;
   terrenoInMappa: Record<number, TerrenoType>;
   decorazioniInMappa: Record<number, string>;
+  residenzeMappa: Record<number, number[]>;
 } {
   const totaleCelle = cols * rows;
   const borderIndices = new Set<number>();
@@ -683,7 +708,7 @@ function getInitialMappaWithRivers(cols: number, rows: number): {
     decorazioniInMappa[idx] = DECORAZIONI_EMOJI[Math.floor(Math.random() * DECORAZIONI_EMOJI.length)]!;
   }
 
-  return { edificiInMappa, terrenoInMappa, decorazioniInMappa };
+  return { edificiInMappa, terrenoInMappa, decorazioniInMappa, residenzeMappa: {} as Record<number, number[]> };
 }
 
 type MappaRuntimeState = ReturnType<typeof getInitialMappaWithRivers>;
@@ -916,7 +941,9 @@ export function MappaScreen() {
     calcolaDeltaOrdiniMercato,
     calcolaFelicitàModificata,
     etaMinimaLavoro,
-    redditoCittadinanza
+    redditoCittadinanza,
+    assegnaAbitanteAEdificio,
+    rimuoviAbitanteDaEdificio
   } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
@@ -934,6 +961,9 @@ export function MappaScreen() {
     if (!mappaSessione) {
       mappaSessione = getInitialMappaWithRivers(FIXED_MAP_COLS, FIXED_MAP_ROWS);
     }
+    if (!mappaSessione.residenzeMappa) {
+      mappaSessione = { ...mappaSessione, residenzeMappa: {} };
+    }
     return mappaSessione;
   });
   const setMappaStatePersistente = useCallback((action: React.SetStateAction<MappaRuntimeState>) => {
@@ -946,9 +976,11 @@ export function MappaScreen() {
   const edificiInMappa = mappaState.edificiInMappa;
   const terrenoInMappa = mappaState.terrenoInMappa;
   const decorazioniInMappa = mappaState.decorazioniInMappa;
+  const residenzeMappa = mappaState.residenzeMappa;
   const [selectedCellForDialog, setSelectedCellForDialog] = useState<number | null>(null);
   const [selectedCellForTransformDialog, setSelectedCellForTransformDialog] = useState<number | null>(null);
-  const [showCapannaAbitantiModal, setShowCapannaAbitantiModal] = useState(false);
+  /** Cella anchor della residenza aperta dal doppio tocco (Baracca, Capanna, Dormitorio). */
+  const [selectedResidenzaAnchor, setSelectedResidenzaAnchor] = useState<number | null>(null);
   /** Scheda abitante aperta dal doppio tocco su un passeggiatore sulla mappa. */
   const [schedaWandererAbitante, setSchedaWandererAbitante] = useState<Abitante | null>(null);
   /** Bordi neri tra le celle della mappa (toggle dalla barra risorse). */
@@ -975,11 +1007,6 @@ export function MappaScreen() {
     (id: number) => abitanti.find((a) => a.id === id)?.nome ?? `ID ${id}`,
     [abitanti]
   );
-
-  const capannaEdificio = edifici.find((e) => e.nome === "Capanna");
-  const abitantiCapanna = (capannaEdificio?.abitantiAssegnati ?? [])
-    .map((id) => abitanti.find((a) => a.id === id))
-    .filter((a): a is NonNullable<typeof a> => a != null);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -1096,6 +1123,128 @@ export function MappaScreen() {
     [router]
   );
 
+  const edificioResidenzaAperta = useMemo(() => {
+    if (selectedResidenzaAnchor === null) return null;
+    return edificiInMappa[selectedResidenzaAnchor] ?? null;
+  }, [selectedResidenzaAnchor, edificiInMappa]);
+
+  const occupantiCasaMappaIds = useMemo(() => {
+    if (selectedResidenzaAnchor === null) return [];
+    return residenzeMappa[selectedResidenzaAnchor] ?? [];
+  }, [selectedResidenzaAnchor, residenzeMappa]);
+
+  const altreCaseMappaTengonoId = useCallback(
+    (abitanteId: number, anchorEscluso: number) => {
+      for (const [k, ids] of Object.entries(residenzeMappa)) {
+        if (Number(k) === anchorEscluso) continue;
+        if (ids.includes(abitanteId)) return true;
+      }
+      return false;
+    },
+    [residenzeMappa]
+  );
+
+  const candidatiPerCasaMappa = useMemo(() => {
+    if (selectedResidenzaAnchor === null || !edificioResidenzaAperta) return [];
+    const nome = edificioResidenzaAperta.nome;
+    const anchor = selectedResidenzaAnchor;
+    const wandererSet = new Set(wandererAbitanteIds);
+    const out: Abitante[] = [];
+    for (const a of abitanti) {
+      if (altreCaseMappaTengonoId(a.id, anchor)) continue;
+      if ((residenzeMappa[anchor] ?? []).includes(a.id)) continue;
+      const dove = residenzaGlobaleDi(a.id, edifici);
+      if (nome === "Capanna") {
+        if (!a.fazioni?.includes("Nativi")) continue;
+        if (dove && dove.nome !== "Capanna") continue;
+      } else if (nome === "Dormitorio") {
+        if (a.fazioni?.includes("Senzatetto")) continue;
+        if (dove && dove.nome !== "Dormitorio") continue;
+      } else if (nome === "Baracca") {
+        if (!a.fazioni?.includes("Senzatetto")) continue;
+      } else continue;
+      out.push(a);
+    }
+    out.sort((a, b) => Number(wandererSet.has(b.id)) - Number(wandererSet.has(a.id)));
+    return out;
+  }, [
+    selectedResidenzaAnchor,
+    edificioResidenzaAperta,
+    abitanti,
+    edifici,
+    residenzeMappa,
+    wandererAbitanteIds,
+    altreCaseMappaTengonoId
+  ]);
+
+  const postiLiberiCasaMappa = Math.max(0, POSTI_PER_CASA_MAPPA - occupantiCasaMappaIds.length);
+
+  const handleRimuoviDaCasaMappa = useCallback(
+    (abitanteId: number) => {
+      if (selectedResidenzaAnchor === null || !edificioResidenzaAperta) return;
+      setMappaStatePersistente((s) => {
+        const cur = s.residenzeMappa[selectedResidenzaAnchor] ?? [];
+        if (!cur.includes(abitanteId)) return s;
+        const nextList = cur.filter((id) => id !== abitanteId);
+        return {
+          ...s,
+          residenzeMappa: {
+            ...s.residenzeMappa,
+            [selectedResidenzaAnchor]: nextList
+          }
+        };
+      });
+    },
+    [selectedResidenzaAnchor, setMappaStatePersistente]
+  );
+
+  const handleAggiungiACasaMappa = useCallback(
+    (abitanteId: number) => {
+      if (selectedResidenzaAnchor === null || !edificioResidenzaAperta || postiLiberiCasaMappa <= 0) return;
+      const nome = edificioResidenzaAperta.nome;
+      const anchor = selectedResidenzaAnchor;
+      const globId = idEdificioGlobalePerNomeResidenza(nome);
+      if (!abitanti.some((x) => x.id === abitanteId)) return;
+
+      if (nome === "Capanna" || nome === "Dormitorio") {
+        if (globId == null) return;
+        const giàNelTipo =
+          nome === "Capanna"
+            ? residenzaGlobaleDi(abitanteId, edifici)?.nome === "Capanna"
+            : residenzaGlobaleDi(abitanteId, edifici)?.nome === "Dormitorio";
+        if (!giàNelTipo) {
+          for (const e of edifici) {
+            if (e.tipo === "Residenza" && (e.abitantiAssegnati ?? []).includes(abitanteId)) {
+              rimuoviAbitanteDaEdificio(abitanteId, e.id);
+            }
+          }
+          assegnaAbitanteAEdificio(abitanteId, globId);
+        }
+      }
+
+      setMappaStatePersistente((s) => {
+        const next: Record<number, number[]> = {};
+        for (const [k, ids] of Object.entries(s.residenzeMappa)) {
+          next[Number(k)] = ids.filter((id) => id !== abitanteId);
+        }
+        const cur = next[anchor] ?? [];
+        if (cur.length >= POSTI_PER_CASA_MAPPA || cur.includes(abitanteId)) return s;
+        next[anchor] = [...cur, abitanteId];
+        return { ...s, residenzeMappa: next };
+      });
+    },
+    [
+      selectedResidenzaAnchor,
+      edificioResidenzaAperta,
+      postiLiberiCasaMappa,
+      abitanti,
+      edifici,
+      rimuoviAbitanteDaEdificio,
+      assegnaAbitanteAEdificio,
+      setMappaStatePersistente
+    ]
+  );
+
   const onCellPress = useCallback(
     (cellIndex: number) => {
       const now = Date.now();
@@ -1107,8 +1256,8 @@ export function MappaScreen() {
         if (edificio) {
           if (edificio.nome === "Giacimento") {
             setSelectedCellForTransformDialog(cellIndex);
-          } else if (edificio.nome === "Capanna") {
-            setShowCapannaAbitantiModal(true);
+          } else if (èResidenzaMappa(edificio.nome)) {
+            setSelectedResidenzaAnchor(getAnchorCellPerEdificio(cellIndex, edificiInMappa));
           } else {
             openRouteForEdificio(edificio.nome);
           }
@@ -1553,47 +1702,93 @@ export function MappaScreen() {
       />
 
       <Modal
-        visible={showCapannaAbitantiModal}
+        visible={selectedResidenzaAnchor !== null && edificioResidenzaAperta !== null}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowCapannaAbitantiModal(false)}
+        onRequestClose={() => setSelectedResidenzaAnchor(null)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setShowCapannaAbitantiModal(false)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setSelectedResidenzaAnchor(null)}>
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>⛺ Abitanti della Capanna</Text>
-            <Text style={styles.modalSubtitle}>
-              Chi abita in questa residenza (solo fazione Nativi):
+            <Text style={styles.modalTitle}>
+              {edificioResidenzaAperta?.emoji ?? "🏠"} {edificioResidenzaAperta?.nome ?? "Casa"}
             </Text>
+            <Text style={styles.modalSubtitle}>
+              Posti sulla mappa: {occupantiCasaMappaIds.length}/{POSTI_PER_CASA_MAPPA} · Cella #{selectedResidenzaAnchor}
+              {edificioResidenzaAperta?.nome === "Capanna"
+                ? "\nSolo Nativi; l'assegnazione aggiorna la Capanna in colonia."
+                : edificioResidenzaAperta?.nome === "Dormitorio"
+                  ? "\nPuoi assegnare chi è già nel Dormitorio coloniale o far entrare chi non ha ancora residenza (non i Senzatetto)."
+                  : "\nI Senzatetto sono tutti in Baracca a livello colonia: qui scegli chi associare a questa baracca (max 6)."}
+            </Text>
+            <Text style={styles.casaPostiTitolo}>Posti</Text>
             <ScrollView style={styles.modalList} nestedScrollEnabled>
-              {abitantiCapanna.length === 0 ? (
-                <Text style={styles.capannaEmpty}>Nessun abitante al momento.</Text>
-              ) : (
-                abitantiCapanna.map((a) => (
-                  <View key={a.id} style={styles.capannaAbitanteRow}>
-                    <Text style={styles.capannaAbitanteEmoji}>{getEmojiAbitante(a)}</Text>
-                    <Text style={styles.capannaAbitanteNome}>{a.nome}</Text>
-                    {a.lavoro ? (
-                      <Text style={styles.capannaAbitanteLavoro}> · {a.lavoro}</Text>
-                    ) : null}
+              {Array.from({ length: POSTI_PER_CASA_MAPPA }, (_, slot) => {
+                const id = occupantiCasaMappaIds[slot];
+                const occ = id != null ? abitanti.find((x) => x.id === id) : null;
+                return (
+                  <View key={`slot-${slot}`} style={styles.capannaAbitanteRow}>
+                    <Text style={styles.casaSlotLabel}>{slot + 1}</Text>
+                    {occ ? (
+                      <>
+                        <Text style={styles.capannaAbitanteEmoji}>{getEmojiAbitante(occ)}</Text>
+                        <Text style={styles.capannaAbitanteNome} numberOfLines={1}>
+                          {occ.nome}
+                        </Text>
+                        <Pressable
+                          style={styles.casaRimuoviBtn}
+                          onPress={() => handleRimuoviDaCasaMappa(occ.id)}
+                        >
+                          <Text style={styles.casaRimuoviBtnText}>Esci</Text>
+                        </Pressable>
+                      </>
+                    ) : (
+                      <Text style={styles.casaSlotVuoto}>Libero</Text>
+                    )}
                   </View>
+                );
+              })}
+            </ScrollView>
+            <Text style={styles.casaPostiTitolo}>
+              Può entrare {postiLiberiCasaMappa === 0 ? "(pieno)" : `(${postiLiberiCasaMappa} liberi)`}
+            </Text>
+            <ScrollView style={[styles.modalList, styles.modalListCompact]} nestedScrollEnabled>
+              {candidatiPerCasaMappa.length === 0 ? (
+                <Text style={styles.capannaEmpty}>
+                  Nessun abitante disponibile (passeggiatori senza casa, o regole fazione non soddisfatte).
+                </Text>
+              ) : (
+                candidatiPerCasaMappa.map((a) => (
+                  <Pressable
+                    key={a.id}
+                    style={styles.modalOption}
+                    onPress={() => handleAggiungiACasaMappa(a.id)}
+                    disabled={postiLiberiCasaMappa === 0}
+                  >
+                    <Text style={styles.modalOptionEmoji}>{getEmojiAbitante(a)}</Text>
+                    <Text style={styles.modalOptionNome} numberOfLines={1}>
+                      {a.nome}
+                      {wandererAbitanteIds.includes(a.id) ? " · passeggiatore" : ""}
+                    </Text>
+                    <Text style={styles.casaAggiungiHint}>Aggiungi</Text>
+                  </Pressable>
                 ))
               )}
             </ScrollView>
             <View style={styles.modalButtonsRow}>
               <Pressable
                 style={[styles.modalButton, styles.modalButtonCancel]}
-                onPress={() => setShowCapannaAbitantiModal(false)}
+                onPress={() => setSelectedResidenzaAnchor(null)}
               >
                 <Text style={styles.modalButtonText}>Chiudi</Text>
               </Pressable>
               <Pressable
                 style={[styles.modalButton, styles.modalButtonConfirm]}
                 onPress={() => {
-                  setShowCapannaAbitantiModal(false);
+                  setSelectedResidenzaAnchor(null);
                   router.push("/residenze");
                 }}
               >
-                <Text style={styles.modalButtonText}>Vai a Residenze</Text>
+                <Text style={styles.modalButtonText}>Schermata Residenze (prezzi)</Text>
               </Pressable>
             </View>
           </Pressable>
@@ -1995,6 +2190,44 @@ const styles = StyleSheet.create({
   },
   modalList: {
     maxHeight: 320
+  },
+  modalListCompact: {
+    maxHeight: 200
+  },
+  casaPostiTitolo: {
+    color: "rgba(203,213,245,0.95)",
+    fontSize: 12,
+    fontWeight: "700",
+    marginTop: 8,
+    marginBottom: 4
+  },
+  casaSlotLabel: {
+    color: "rgba(148,163,184,0.95)",
+    fontSize: 12,
+    width: 22,
+    fontWeight: "700"
+  },
+  casaSlotVuoto: {
+    color: "rgba(148,163,184,0.7)",
+    fontSize: 13,
+    fontStyle: "italic",
+    flex: 1
+  },
+  casaRimuoviBtn: {
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: "rgba(239,68,68,0.35)"
+  },
+  casaRimuoviBtnText: {
+    color: "#fecaca",
+    fontSize: 12,
+    fontWeight: "600"
+  },
+  casaAggiungiHint: {
+    color: "#93c5fd",
+    fontSize: 12,
+    fontWeight: "600"
   },
   modalOption: {
     flexDirection: "row",
