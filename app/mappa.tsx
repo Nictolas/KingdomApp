@@ -26,6 +26,7 @@ import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import {
   RpgFootprintAdmin3x2,
+  RpgFootprintCapanna2x1,
   RpgFootprintDorm2x2,
   RpgFootprintSerra2x1,
   RpgFootprintSpazioporto4x3
@@ -59,6 +60,9 @@ const SPAZIOPORTO_FOOTPRINT_H = 3;
 /** Serra: due celle in orizzontale × una in verticale. */
 const SERRA_FOOTPRINT_W = 2;
 const SERRA_FOOTPRINT_H = 1;
+/** Capanna procedurale: stesso footprint 2×1 della Serra. */
+const CAPANNA_FOOTPRINT_W = 2;
+const CAPANNA_FOOTPRINT_H = 1;
 /** Dimensione fissa di ogni cella in pixel (nessuna percentuale, solo px). */
 const CELL_SIZE_PX = 40;
 /** Gap tra le celle (0 = griglia compatta 2000x2000). */
@@ -516,6 +520,69 @@ function vietatoFootprintECuscinoDaEdificiIniziali(
   return vietato;
 }
 
+/** Capanne 2×1 (o 1×1 se non c’è spazio) e giacimenti 1×1 senza sovrapposizioni al buffer d’erba. */
+function piazzaCapanneEgiacimentiProcedurali(
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  vietatoBase: Set<number>,
+  shuffled: number[],
+  nCapanne: number,
+  nGiacimento: number
+): { capanne: Record<number, EdificioInCella>; giacimenti: Record<number, EdificioInCella> } {
+  const occupato = new Set(vietatoBase);
+  const capanne: Record<number, EdificioInCella> = {};
+  let placedC = 0;
+  const w = CAPANNA_FOOTPRINT_W;
+  const h = CAPANNA_FOOTPRINT_H;
+
+  for (const pref of shuffled) {
+    if (placedC >= nCapanne) break;
+    const anchor = trovaAnchorFootprintLibero(w, h, pref, cols, rows, riverSet, occupato);
+    if (anchor != null) {
+      const celle = getIndiciFootprint(anchor, w, h, cols);
+      capanne[anchor] = {
+        id: CAPANNA.id,
+        nome: CAPANNA.nome,
+        emoji: "",
+        footprint: { w, h }
+      };
+      for (const i of celle) {
+        if (i === anchor) continue;
+        capanne[i] = {
+          id: CAPANNA.id,
+          nome: CAPANNA.nome,
+          emoji: "",
+          footprintRef: anchor
+        };
+      }
+      estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, occupato);
+      placedC++;
+      continue;
+    }
+    const cell = trovaCellaSingolaConCuscino(pref, cols, rows, riverSet, occupato);
+    if (cell != null) {
+      capanne[cell] = { ...CAPANNA };
+      estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, occupato);
+      placedC++;
+    }
+  }
+
+  const poolGi: number[] = [];
+  const tot = cols * rows;
+  for (let i = 0; i < tot; i++) {
+    if (isAcqua(i, cols, rows) || riverSet.has(i) || occupato.has(i)) continue;
+    poolGi.push(i);
+  }
+  poolGi.sort(() => Math.random() - 0.5);
+  const giacimenti: Record<number, EdificioInCella> = {};
+  const nG = Math.min(nGiacimento, poolGi.length);
+  for (let k = 0; k < nG; k++) {
+    giacimenti[poolGi[k]!] = GIACIMENTO;
+  }
+  return { capanne, giacimenti };
+}
+
 /** Restituisce lo stato iniziale della mappa; esclude sempre acqua e fiumi dalle celle edificabili. */
 function getInitialEdificiInMappa(
   cols: number,
@@ -533,12 +600,15 @@ function getInitialEdificiInMappa(
   const shuffled = [...erbaLibera].sort(() => Math.random() - 0.5);
   const nCapanne = 5 + Math.floor(Math.random() * 5);
   const nGiacimento = 2 + Math.floor(Math.random() * 4);
-  const celleCapanne = shuffled.slice(0, Math.min(nCapanne, shuffled.length));
-  const celleGiacimento = shuffled.slice(nCapanne, nCapanne + Math.min(nGiacimento, Math.max(0, shuffled.length - nCapanne)));
-  const capanne: Record<number, EdificioInCella> = {};
-  celleCapanne.forEach((i) => (capanne[i] = CAPANNA));
-  const giacimenti: Record<number, EdificioInCella> = {};
-  celleGiacimento.forEach((i) => (giacimenti[i] = GIACIMENTO));
+  const { capanne, giacimenti } = piazzaCapanneEgiacimentiProcedurali(
+    cols,
+    rows,
+    riverSet,
+    vietatoEdifici,
+    shuffled,
+    nCapanne,
+    nGiacimento
+  );
   return { ...edificiIniziali, ...capanne, ...giacimenti };
 }
 
@@ -649,7 +719,7 @@ function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: n
   return { left: col * (cellW + GAP), top: row * (cellH + GAP) };
 }
 
-type FootprintVariant = "amministrazione" | "dormitorio" | "spazioporto" | "serra";
+type FootprintVariant = "amministrazione" | "dormitorio" | "spazioporto" | "serra" | "capanna";
 
 function EdificioFootprintGfx({
   anchor,
@@ -692,6 +762,14 @@ function EdificioFootprintGfx({
     return (
       <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
         <RpgFootprintSerra2x1 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "capanna" && w === CAPANNA_FOOTPRINT_W && h === CAPANNA_FOOTPRINT_H) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintCapanna2x1 width={width} height={height} />
       </View>
     );
   }
@@ -914,6 +992,27 @@ export function MappaScreen() {
   const contentWidth = cols * CELL_SIZE_PX + (cols - 1) * GAP;
   const contentHeight = rows * CELL_SIZE_PX + (rows - 1) * GAP;
 
+  /**
+   * Web + zoom (CSS transform): i bordi per-cella (hairline) si allineano male ai pixel dello schermo e
+   * compaiono/scompaiono spostando o ridimensionando. Un unico layer con gradienti ripetuti scala col
+   * contenuto e resta stabile.
+   */
+  const grigliaOverlayWebStyle = useMemo((): ViewStyle => {
+    const line = "rgba(0,0,0,0.15)";
+    return {
+      position: "absolute",
+      left: 0,
+      top: 0,
+      width: contentWidth,
+      height: contentHeight,
+      zIndex: 1,
+      pointerEvents: "none",
+      backgroundImage: `linear-gradient(to right, ${line} 1px, transparent 1px), linear-gradient(to bottom, ${line} 1px, transparent 1px)`,
+      backgroundSize: `${CELL_SIZE_PX}px ${CELL_SIZE_PX}px`,
+      backgroundRepeat: "repeat"
+    } as ViewStyle;
+  }, [contentWidth, contentHeight]);
+
   const stradaAssetAt = useMemo(
     () => buildStradaAssetLookup(cols, rows, edificiInMappa),
     [cols, rows, edificiInMappa]
@@ -943,7 +1042,9 @@ export function MappaScreen() {
               ? "spazioporto"
               : e.nome === "Serra"
                 ? "serra"
-                : "amministrazione";
+                : e.nome === "Capanna"
+                  ? "capanna"
+                  : "amministrazione";
         list.push({ anchor: Number(i), fp: e.footprint, variant });
       }
     }
@@ -1138,7 +1239,11 @@ export function MappaScreen() {
                       const acquaAnimata = acqua || terreno === "river";
                       const cellStyle = [
                         styles.cella,
-                        mostraGrigliaMappa ? styles.cellaGrigliaOn : CELLA_SENZA_GRIGLIA,
+                        Platform.OS === "web"
+                          ? CELLA_SENZA_GRIGLIA
+                          : mostraGrigliaMappa
+                            ? styles.cellaGrigliaOn
+                            : CELLA_SENZA_GRIGLIA,
                         styles.cellaFixed,
                         styles.cellaTextureTerreno,
                         { width: CELL_SIZE_PX, height: CELL_SIZE_PX },
@@ -1179,6 +1284,9 @@ export function MappaScreen() {
                       );
                     })}
                   </View>
+                  {Platform.OS === "web" && mostraGrigliaMappa && (
+                    <View style={grigliaOverlayWebStyle} pointerEvents="none" />
+                  )}
                   <View
                     style={[styles.footprintsLayer, { width: contentWidth, height: contentHeight }]}
                     pointerEvents="none"

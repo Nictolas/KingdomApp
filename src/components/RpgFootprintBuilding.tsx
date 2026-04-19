@@ -119,6 +119,61 @@ export function RpgFootprintAdmin3x2({ width, height }: Props) {
   );
 }
 
+/** Capanna 2×1 — due rifugi affiancati (telo / legno). */
+export function RpgFootprintCapanna2x1({ width, height }: Props) {
+  const roofH = Math.round(height * 0.42);
+  const baseH = height - roofH;
+
+  return (
+    <View style={[styles.wrap, { width, height }]} pointerEvents="none">
+      <View
+        style={{
+          height: roofH,
+          flexDirection: "row",
+          borderBottomWidth: 2,
+          borderBottomColor: OUTLINE,
+          backgroundColor: "#78350f"
+        }}
+      >
+        <View
+          style={{
+            flex: 1,
+            margin: 2,
+            marginBottom: 0,
+            backgroundColor: "#b45309",
+            borderTopLeftRadius: 10,
+            borderTopRightRadius: 4
+          }}
+        />
+        <View style={{ width: 2, backgroundColor: OUTLINE }} />
+        <View
+          style={{
+            flex: 1,
+            margin: 2,
+            marginBottom: 0,
+            backgroundColor: "#d97706",
+            borderTopLeftRadius: 4,
+            borderTopRightRadius: 10
+          }}
+        />
+      </View>
+      <View style={[styles.capBase, { height: baseH }]}>
+        <View style={styles.capBaseInner}>
+          <View style={styles.capBay}>
+            <View style={styles.capLog} />
+            <View style={styles.capFire} />
+          </View>
+          <View style={[styles.capMullion, { height: Math.max(8, baseH - 6) }]} />
+          <View style={styles.capBay}>
+            <View style={[styles.capLog, { alignSelf: "flex-end" }]} />
+            <View style={[styles.capBedroll, { opacity: 0.9 }]} />
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 /** Serra 2×1 (due campate affiancate, tetto di vetro). */
 export function RpgFootprintSerra2x1({ width, height }: Props) {
   const frame = 3;
@@ -277,6 +332,56 @@ export function RpgFootprintSpazioporto4x3({ width, height }: Props) {
 }
 
 const styles = StyleSheet.create({
+  capBase: {
+    width: "100%",
+    backgroundColor: "#44403c",
+    padding: 3
+  },
+  capBaseInner: {
+    flex: 1,
+    flexDirection: "row",
+    borderWidth: 2,
+    borderColor: OUTLINE,
+    backgroundColor: "#57534e",
+    overflow: "hidden"
+  },
+  capBay: {
+    flex: 1,
+    justifyContent: "flex-end",
+    alignItems: "center",
+    paddingBottom: 2,
+    gap: 2
+  },
+  capMullion: {
+    width: 2,
+    alignSelf: "center",
+    backgroundColor: OUTLINE
+  },
+  capLog: {
+    width: "70%",
+    height: 5,
+    backgroundColor: "#5c4033",
+    borderRadius: 1,
+    borderWidth: 1,
+    borderColor: "#292524"
+  },
+  capFire: {
+    width: 8,
+    height: 10,
+    borderRadius: 4,
+    backgroundColor: "#f97316",
+    borderWidth: 1,
+    borderColor: OUTLINE,
+    opacity: 0.95
+  },
+  capBedroll: {
+    width: "75%",
+    height: 6,
+    backgroundColor: "#78716c",
+    borderRadius: 1,
+    borderWidth: 1,
+    borderColor: OUTLINE
+  },
   serraRoofRib: {
     position: "absolute",
     top: 0,
