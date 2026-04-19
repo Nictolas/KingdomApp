@@ -24,6 +24,7 @@ import {
 } from "../src/game/riverGeneration";
 import type { Abitante, Edificio, Risorsa } from "../src/types";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
+import { CapannaFullscreenModal } from "../src/ui/CapannaFullscreenModal";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import {
   RpgFootprintAdmin3x2,
@@ -2053,9 +2054,15 @@ export function MappaScreen() {
         }
         return;
       }
-      const now = Date.now();
       const edificio = edificiInMappa[cellIndex];
       const terreno = terrenoInMappa[cellIndex] ?? "erba";
+      /** Capanna: un tap apre subito la scheda a tutto schermo (presenze dentro/fuori). */
+      if (edificio?.nome === "Capanna") {
+        setSelectedResidenzaAnchor(getAnchorCellPerEdificio(cellIndex, edificiInMappa));
+        lastTapCell.current = null;
+        return;
+      }
+      const now = Date.now();
       const isDoubleTap = lastTapCell.current === cellIndex && now - lastTapTime.current < DOPPIO_TAP_MS;
       if (isDoubleTap) {
         lastTapCell.current = null;
@@ -2629,98 +2636,123 @@ export function MappaScreen() {
         redditoCittadinanza={redditoCittadinanza ?? 0}
       />
 
-      <Modal
-        visible={selectedResidenzaAnchor !== null && edificioResidenzaAperta !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelectedResidenzaAnchor(null)}
-      >
-        <Pressable style={styles.modalBackdrop} onPress={() => setSelectedResidenzaAnchor(null)}>
-          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>
-              {edificioResidenzaAperta?.emoji ?? "🏠"} {edificioResidenzaAperta?.nome ?? "Casa"}
-            </Text>
-            <Text style={styles.modalSubtitle}>
-              Posti sulla mappa: {occupantiCasaMappaIds.length}/{POSTI_PER_CASA_MAPPA} · Cella #{selectedResidenzaAnchor}
-              {edificioResidenzaAperta?.nome === "Capanna"
-                ? "\nL'assegnazione qui aggiorna anche la Capanna globale in colonia."
-                : edificioResidenzaAperta?.nome === "Dormitorio"
+      {edificioResidenzaAperta?.nome === "Capanna" && selectedResidenzaAnchor !== null ? (
+        <CapannaFullscreenModal
+          visible
+          onClose={() => setSelectedResidenzaAnchor(null)}
+          anchor={selectedResidenzaAnchor}
+          occupantiIds={occupantiCasaMappaIds}
+          abitanti={abitanti}
+          edifici={edifici}
+          cellaCasaPerAbitanteId={cellaCasaPerAbitanteId}
+          orologioMinuti={orologioMinuti}
+          buioCielo={statoCielo.buio}
+          dormonoACasaIds={dormonoACasaIds}
+          lavoroArrivatiIds={lavoroArrivatiIds}
+          commuteByAbitanteId={commuteByAbitanteId}
+          barArrivatiByEdificio={barArrivatiByEdificio}
+          postiPerCasa={POSTI_PER_CASA_MAPPA}
+          postiLiberi={postiLiberiCasaMappa}
+          candidati={candidatiPerCasaMappa}
+          onRimuovi={handleRimuoviDaCasaMappa}
+          onAggiungi={handleAggiungiACasaMappa}
+          onGoResidenze={() => {
+            setSelectedResidenzaAnchor(null);
+            router.push("/residenze");
+          }}
+        />
+      ) : (
+        <Modal
+          visible={selectedResidenzaAnchor !== null && edificioResidenzaAperta !== null}
+          transparent
+          animationType="fade"
+          onRequestClose={() => setSelectedResidenzaAnchor(null)}
+        >
+          <Pressable style={styles.modalBackdrop} onPress={() => setSelectedResidenzaAnchor(null)}>
+            <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+              <Text style={styles.modalTitle}>
+                {edificioResidenzaAperta?.emoji ?? "🏠"} {edificioResidenzaAperta?.nome ?? "Casa"}
+              </Text>
+              <Text style={styles.modalSubtitle}>
+                Posti sulla mappa: {occupantiCasaMappaIds.length}/{POSTI_PER_CASA_MAPPA} · Cella #{selectedResidenzaAnchor}
+                {edificioResidenzaAperta?.nome === "Dormitorio"
                   ? "\nPuoi assegnare chi è già nel Dormitorio coloniale o far entrare chi non ha ancora residenza (non i Senzatetto)."
                   : "\nI Senzatetto sono tutti in Baracca a livello colonia: qui scegli chi associare a questa baracca (max 6)."}
-            </Text>
-            <Text style={styles.casaPostiTitolo}>Posti</Text>
-            <ScrollView style={styles.modalList} nestedScrollEnabled>
-              {Array.from({ length: POSTI_PER_CASA_MAPPA }, (_, slot) => {
-                const id = occupantiCasaMappaIds[slot];
-                const occ = id != null ? abitanti.find((x) => x.id === id) : null;
-                return (
-                  <View key={`slot-${slot}`} style={styles.capannaAbitanteRow}>
-                    <Text style={styles.casaSlotLabel}>{slot + 1}</Text>
-                    {occ ? (
-                      <>
-                        <Text style={styles.capannaAbitanteEmoji}>{getEmojiAbitante(occ)}</Text>
-                        <Text style={styles.capannaAbitanteNome} numberOfLines={1}>
-                          {occ.nome}
-                        </Text>
-                        <Pressable
-                          style={styles.casaRimuoviBtn}
-                          onPress={() => handleRimuoviDaCasaMappa(occ.id)}
-                        >
-                          <Text style={styles.casaRimuoviBtnText}>Esci</Text>
-                        </Pressable>
-                      </>
-                    ) : (
-                      <Text style={styles.casaSlotVuoto}>Libero</Text>
-                    )}
-                  </View>
-                );
-              })}
-            </ScrollView>
-            <Text style={styles.casaPostiTitolo}>
-              Può entrare {postiLiberiCasaMappa === 0 ? "(pieno)" : `(${postiLiberiCasaMappa} liberi)`}
-            </Text>
-            <ScrollView style={[styles.modalList, styles.modalListCompact]} nestedScrollEnabled>
-              {candidatiPerCasaMappa.length === 0 ? (
-                <Text style={styles.capannaEmpty}>
-                  Nessun abitante disponibile (nessuno può entrare qui con le regole attuali o sono già assegnati altrove).
-                </Text>
-              ) : (
-                candidatiPerCasaMappa.map((a) => (
-                  <Pressable
-                    key={a.id}
-                    style={styles.modalOption}
-                    onPress={() => handleAggiungiACasaMappa(a.id)}
-                    disabled={postiLiberiCasaMappa === 0}
-                  >
-                    <Text style={styles.modalOptionEmoji}>{getEmojiAbitante(a)}</Text>
-                    <Text style={styles.modalOptionNome} numberOfLines={1}>
-                      {a.nome}
-                    </Text>
-                    <Text style={styles.casaAggiungiHint}>Aggiungi</Text>
-                  </Pressable>
-                ))
-              )}
-            </ScrollView>
-            <View style={styles.modalButtonsRow}>
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonCancel]}
-                onPress={() => setSelectedResidenzaAnchor(null)}
-              >
-                <Text style={styles.modalButtonText}>Chiudi</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonConfirm]}
-                onPress={() => {
-                  setSelectedResidenzaAnchor(null);
-                  router.push("/residenze");
-                }}
-              >
-                <Text style={styles.modalButtonText}>Schermata Residenze (prezzi)</Text>
-              </Pressable>
-            </View>
+              </Text>
+              <Text style={styles.casaPostiTitolo}>Posti</Text>
+              <ScrollView style={styles.modalList} nestedScrollEnabled>
+                {Array.from({ length: POSTI_PER_CASA_MAPPA }, (_, slot) => {
+                  const id = occupantiCasaMappaIds[slot];
+                  const occ = id != null ? abitanti.find((x) => x.id === id) : null;
+                  return (
+                    <View key={`slot-${slot}`} style={styles.capannaAbitanteRow}>
+                      <Text style={styles.casaSlotLabel}>{slot + 1}</Text>
+                      {occ ? (
+                        <>
+                          <Text style={styles.capannaAbitanteEmoji}>{getEmojiAbitante(occ)}</Text>
+                          <Text style={styles.capannaAbitanteNome} numberOfLines={1}>
+                            {occ.nome}
+                          </Text>
+                          <Pressable
+                            style={styles.casaRimuoviBtn}
+                            onPress={() => handleRimuoviDaCasaMappa(occ.id)}
+                          >
+                            <Text style={styles.casaRimuoviBtnText}>Esci</Text>
+                          </Pressable>
+                        </>
+                      ) : (
+                        <Text style={styles.casaSlotVuoto}>Libero</Text>
+                      )}
+                    </View>
+                  );
+                })}
+              </ScrollView>
+              <Text style={styles.casaPostiTitolo}>
+                Può entrare {postiLiberiCasaMappa === 0 ? "(pieno)" : `(${postiLiberiCasaMappa} liberi)`}
+              </Text>
+              <ScrollView style={[styles.modalList, styles.modalListCompact]} nestedScrollEnabled>
+                {candidatiPerCasaMappa.length === 0 ? (
+                  <Text style={styles.capannaEmpty}>
+                    Nessun abitante disponibile (nessuno può entrare qui con le regole attuali o sono già assegnati altrove).
+                  </Text>
+                ) : (
+                  candidatiPerCasaMappa.map((a) => (
+                    <Pressable
+                      key={a.id}
+                      style={styles.modalOption}
+                      onPress={() => handleAggiungiACasaMappa(a.id)}
+                      disabled={postiLiberiCasaMappa === 0}
+                    >
+                      <Text style={styles.modalOptionEmoji}>{getEmojiAbitante(a)}</Text>
+                      <Text style={styles.modalOptionNome} numberOfLines={1}>
+                        {a.nome}
+                      </Text>
+                      <Text style={styles.casaAggiungiHint}>Aggiungi</Text>
+                    </Pressable>
+                  ))
+                )}
+              </ScrollView>
+              <View style={styles.modalButtonsRow}>
+                <Pressable
+                  style={[styles.modalButton, styles.modalButtonCancel]}
+                  onPress={() => setSelectedResidenzaAnchor(null)}
+                >
+                  <Text style={styles.modalButtonText}>Chiudi</Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalButton, styles.modalButtonConfirm]}
+                  onPress={() => {
+                    setSelectedResidenzaAnchor(null);
+                    router.push("/residenze");
+                  }}
+                >
+                  <Text style={styles.modalButtonText}>Schermata Residenze (prezzi)</Text>
+                </Pressable>
+              </View>
+            </Pressable>
           </Pressable>
-        </Pressable>
-      </Modal>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
