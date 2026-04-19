@@ -11,7 +11,7 @@ function getRoutePerVoceBilancio(label: string): string | null {
     "Redditi di Cittadinanza": "/reddito-cittadinanza",
     "Ordini di Mercato": "/mercato",
     "Ospedale Coloniale": "/ospedale",
-    Serra: "/serra",
+    Serra: "/serra/2",
     "Centrale Energetica": "/centrale-energetica",
     "Raffineria Mineraria": "/raffineria-mineraria",
     "Impianto di Riciclo": "/impianto-riciclo",

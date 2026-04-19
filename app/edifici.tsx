@@ -30,9 +30,16 @@ const COLONNA_SERVIZI: string[] = [
 const COLONNA_PUNIZIONE: string[] = ["Tribunale", "Campo di Lavoro", "Campo di Sterminio"];
 
 function getEdificiPerColonna(edifici: Edificio[], nomi: string[]): Edificio[] {
-  return nomi
-    .map((nome) => edifici.find((e) => e.nome === nome))
-    .filter((e): e is Edificio => e != null);
+  const out: Edificio[] = [];
+  for (const nome of nomi) {
+    if (nome === "Serra") {
+      out.push(...edifici.filter((e) => e.nome === "Serra"));
+    } else {
+      const e = edifici.find((x) => x.nome === nome);
+      if (e) out.push(e);
+    }
+  }
+  return out;
 }
 
 function CardEdificio({
@@ -76,7 +83,7 @@ export default function EdificiScreen() {
 
   const handlePress = (e: Edificio) => {
     if (e.nome === "Serra") {
-      router.push("/serra");
+      router.push(`/serra/${e.id}`);
     } else if (e.nome === "Centrale Energetica") {
       router.push("/centrale-energetica");
     } else if (e.nome === "Raffineria Mineraria") {
@@ -126,7 +133,12 @@ export default function EdificiScreen() {
             <Text style={styles.columnSubtitle}>Serra, Miniera, Laboratorio, Centrale, Impianto di Riciclo</Text>
             <View style={styles.cardGrid}>
               {produzione.map((e) => (
-                <CardEdificio key={e.id} e={e} onPress={() => handlePress(e)} />
+                <CardEdificio
+                  key={e.id}
+                  e={e}
+                  titleOverride={e.nome === "Serra" ? `Serra (${e.id === 2 ? "1" : "2"})` : undefined}
+                  onPress={() => handlePress(e)}
+                />
               ))}
             </View>
           </View>

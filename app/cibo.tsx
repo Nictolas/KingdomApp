@@ -26,9 +26,13 @@ export default function CiboScreen() {
 
   const totaleConsumo = consumiPerAbitante.reduce((s, c) => s + c.consumo, 0);
 
-  const serra = edifici.find((e) => e.nome === "Serra");
-  const totaleProduzione =
-    serra?.abitantiAssegnati.reduce((sum, id) => sum + getProduzioneCiboPerAbitante(id), 0) ?? 0;
+  const totaleProduzione = edifici
+    .filter((e) => e.nome === "Serra")
+    .reduce(
+      (sum, serra) =>
+        sum + serra.abitantiAssegnati.reduce((s, id) => s + getProduzioneCiboPerAbitante(id), 0),
+      0
+    );
   const bilancio = totaleProduzione - totaleConsumo;
 
   const risorsaCibo = risorse.find((r) => r.nome.toLowerCase().includes("cibo"));

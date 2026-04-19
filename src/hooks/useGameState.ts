@@ -36,6 +36,7 @@ export function useGameState() {
       if (e.id === 4) return { ...e, abitantiAssegnati: baraccaIds, occupazione: baraccaIds.length };
       if (e.id === 14) return { ...e, abitantiAssegnati: dormitorioIds, occupazione: dormitorioIds.length };
       if (e.id === 2) return { ...e, abitantiAssegnati: serraIds, occupazione: serraIds.length };
+      if (e.id === 21) return { ...e, abitantiAssegnati: [], occupazione: 0 };
       if (e.id === 9) return { ...e, abitantiAssegnati: prigionieriIds, occupazione: prigionieriIds.length };
       if (e.id === 20) return { ...e, abitantiAssegnati: capannaIds, occupazione: capannaIds.length };
       return e;

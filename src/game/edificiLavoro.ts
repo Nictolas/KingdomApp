@@ -4,6 +4,7 @@ import { EDIFICIO_COMPETENZA_RICHIESTA } from "../data/edificiCompetenze";
 /** Mappa edificioId → nome lavoro. Usata per sincronizzare lavoro abitante e per auto-assign Skip Mese. */
 export const EDIFICIO_TO_LAVORO: Record<number, string> = {
   2: "Agricoltore",     // Serra
+  21: "Agricoltore",    // Serra (seconda unità)
   3: "Tecnico",         // Raffineria Mineraria
   5: "Ricercatore",     // Laboratorio di Ricerca
   6: "Operatore",       // Centrale Energetica

@@ -10,6 +10,7 @@ export type CompetenzaEdificio = {
 
 export const EDIFICIO_COMPETENZA_RICHIESTA: Record<number, CompetenzaEdificio> = {
   2: { competenzaMinima: 25, nomeCompetenza: "Competenza Agricola" },           // Serra
+  21: { competenzaMinima: 25, nomeCompetenza: "Competenza Agricola" },          // Serra (seconda unità)
   3: { competenzaMinima: 35, nomeCompetenza: "Competenza Tecnica" },            // Raffineria Mineraria
   5: { competenzaMinima: 50, nomeCompetenza: "Competenza Scientifica" },       // Laboratorio di Ricerca
   6: { competenzaMinima: 30, nomeCompetenza: "Competenza Tecnica" },            // Centrale Energetica

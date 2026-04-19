@@ -112,6 +112,8 @@ function getIndiciEdificiIniziali(cols: number, rows: number) {
     SPAZIOPORTO_INDEX: centro + 1,
     TRIBUNALE_INDEX: centro + cols,
     SERRA_INDEX: centro - 1,
+    /** Preferenza posizionamento seconda Serra (2×1), lontano dalla prima. */
+    SERRA_2_INDEX: centro - 4,
     DORMITORIO_1_INDEX: centro + 2,
     DORMITORIO_2_INDEX: centro - cols,
     DORMITORIO_3_INDEX: centro + cols + 1
@@ -200,6 +202,7 @@ const STRADA_OPZIONE: EdificioInCella = { id: -1, nome: "Strada", emoji: "🛤�
 
 const DORMITORIO: EdificioInCella = { id: 14, nome: "Dormitorio", emoji: "🛏️" };
 const SERRA_EDIFICIO: EdificioInCella = { id: 2, nome: "Serra", emoji: "🌱" };
+const SERRA_2_EDIFICIO: EdificioInCella = { id: 21, nome: "Serra", emoji: "🌱" };
 const CAPANNA: EdificioInCella = { id: 20, nome: "Capanna", emoji: "⛺" };
 
 /** Emoji per decorazioni procedurali sulla mappa (alberi, palme, cactus, vulcano). */
@@ -441,7 +444,8 @@ function aggiungiSerraFootprint(
   riverSet: Set<number>,
   vietato: Set<number>,
   out: Record<number, EdificioInCella>,
-  preferred: number
+  preferred: number,
+  spec: EdificioInCella
 ): void {
   const w = SERRA_FOOTPRINT_W;
   const h = SERRA_FOOTPRINT_H;
@@ -449,23 +453,23 @@ function aggiungiSerraFootprint(
   if (anchor == null) {
     const cell = trovaCellaSingolaConCuscino(preferred, cols, rows, riverSet, vietato);
     if (cell != null) {
-      out[cell] = { ...SERRA_EDIFICIO };
+      out[cell] = { ...spec };
       estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, vietato);
     }
     return;
   }
   const celle = getIndiciFootprint(anchor, w, h, cols);
   out[anchor] = {
-    id: SERRA_EDIFICIO.id,
-    nome: SERRA_EDIFICIO.nome,
+    id: spec.id,
+    nome: spec.nome,
     emoji: "",
     footprint: { w, h }
   };
   for (const i of celle) {
     if (i === anchor) continue;
     out[i] = {
-      id: SERRA_EDIFICIO.id,
-      nome: SERRA_EDIFICIO.nome,
+      id: spec.id,
+      nome: spec.nome,
       emoji: "",
       footprintRef: anchor
     };
@@ -530,7 +534,8 @@ function getEdificiIniziali(
 
   aggiungiSpazioportoFootprint(cols, rows, riverSet, vietato, out, idx.SPAZIOPORTO_INDEX);
 
-  aggiungiSerraFootprint(cols, rows, riverSet, vietato, out, idx.SERRA_INDEX);
+  aggiungiSerraFootprint(cols, rows, riverSet, vietato, out, idx.SERRA_INDEX, SERRA_EDIFICIO);
+  aggiungiSerraFootprint(cols, rows, riverSet, vietato, out, idx.SERRA_2_INDEX, SERRA_2_EDIFICIO);
 
   aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_1_INDEX);
   aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_2_INDEX);
@@ -753,16 +758,18 @@ function pickFourAbitanteIds(abitantiList: Abitante[]): number[] {
 function getStradeIniziali(edificiInMappa: Record<number, EdificioInCella>): [number, number][] {
   let centro: number | null = null;
   let spazioporto: number | null = null;
-  let serra: number | null = null;
+  const serre: number[] = [];
   for (const [i, e] of Object.entries(edificiInMappa)) {
     const idx = Number(i);
     if (e.nome === "Centro di Comando" && e.footprint && !e.footprintRef) centro = idx;
     if (e.nome === "Spazioporto" && e.footprint && !e.footprintRef) spazioporto = idx;
-    if (e.nome === "Serra" && e.footprint && !e.footprintRef) serra = idx;
+    if (e.nome === "Serra" && e.footprint && !e.footprintRef) serre.push(idx);
   }
   const out: [number, number][] = [];
   if (centro != null && spazioporto != null) out.push([centro, spazioporto]);
-  if (centro != null && serra != null) out.push([centro, serra]);
+  if (centro != null) {
+    for (const sa of serre) out.push([centro, sa]);
+  }
   return out;
 }
 
@@ -1152,9 +1159,14 @@ export function MappaScreen() {
   }, [edificiInMappa]);
 
   const openRouteForEdificio = useCallback(
-    (nome: string) => {
+    (nome: string, edificioId?: number) => {
       const route = EDIFICIO_TO_ROUTE[nome];
-      if (route) router.push(route);
+      if (!route) return;
+      if (nome === "Serra" && edificioId != null) {
+        router.push(`/serra/${edificioId}`);
+        return;
+      }
+      router.push(route);
     },
     [router]
   );
@@ -1295,7 +1307,7 @@ export function MappaScreen() {
           } else if (èResidenzaMappa(edificio.nome)) {
             setSelectedResidenzaAnchor(getAnchorCellPerEdificio(cellIndex, edificiInMappa));
           } else {
-            openRouteForEdificio(edificio.nome);
+            openRouteForEdificio(edificio.nome, edificio.id);
           }
         } else if (terreno !== "river") {
           setSelectedCellForDialog(cellIndex);

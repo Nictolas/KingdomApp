@@ -28,10 +28,13 @@ export function CiboConsumoModal({ visible, abitanti, edifici, onClose }: CiboCo
     return 10 + (seed % 11); // 10-20
   };
 
-  // Calcola il totale prodotto dalla Serra
-  const serra = edifici.find((e) => e.nome === "Serra");
-  const totaleProduzione =
-    serra?.abitantiAssegnati.reduce((sum, id) => sum + getProduzioneCiboPerAbitante(id), 0) ?? 0;
+  const totaleProduzione = edifici
+    .filter((e) => e.nome === "Serra")
+    .reduce(
+      (sum, serra) =>
+        sum + serra.abitantiAssegnati.reduce((s, id) => s + getProduzioneCiboPerAbitante(id), 0),
+      0
+    );
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;

@@ -1,40 +1,50 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useRouter } from "expo-router";
-import { useGameContext } from "../src/context/GameContext";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
-import type { Abitante } from "../src/types";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useGameContext } from "../../src/context/GameContext";
+import { getEmojiAbitante } from "../../src/utils/getEmojiAbitante";
+import type { Abitante } from "../../src/types";
 
-export default function SerraScreen() {
+export default function SerraScreenById() {
   const router = useRouter();
+  const raw = useLocalSearchParams<{ id: string | string[] }>().id;
+  const idStr = Array.isArray(raw) ? raw[0] : raw;
+  const edificioId = Number(idStr);
+
   const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
+
+  const serra = useMemo(
+    () => edifici.find((e) => e.id === edificioId && e.nome === "Serra"),
+    [edifici, edificioId]
+  );
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
 
-  // Trova la Serra
-  const serra = edifici.find((e) => e.nome === "Serra");
-  if (!serra) {
-    return null;
+  if (!Number.isFinite(edificioId) || !serra) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <Text style={styles.title}>Serra non trovata</Text>
+        <Text style={styles.back} onPress={() => router.back()}>
+          ← Indietro
+        </Text>
+      </SafeAreaView>
+    );
   }
 
-  // Abitanti assegnati alla serra
   const abitantiAssegnati = abitanti.filter((a) => serra.abitantiAssegnati.includes(a.id));
 
-  // Abitanti disponibili: non assegnati alla serra e con Lavoro "Disoccupato"
   const abitantiDisponibili = abitanti.filter(
     (a) => !serra.abitantiAssegnati.includes(a.id) && a.lavoro === "Disoccupato"
   );
 
-  // Ogni abitante assegnato alla Serra produce un valore fisso di cibo (10-20 razioni al mese)
   const getProduzioneCiboPerAbitante = (abitante: Abitante): number => {
     const seed = abitante.id * 31;
-    return 10 + (seed % 11); // 10-20
+    return 10 + (seed % 11);
   };
 
-  // Calcola produzione mensile basata sugli abitanti assegnati (somma dei valori fissi individuali)
   const calcolaProduzione = () => {
     if (abitantiAssegnati.length === 0) return 0;
     return abitantiAssegnati.reduce((sum, a) => sum + getProduzioneCiboPerAbitante(a), 0);
@@ -43,8 +53,10 @@ export default function SerraScreen() {
   const produzioneMensile = calcolaProduzione();
   const puòAssegnare = abitantiDisponibili.length > 0 && abitantiAssegnati.length < serra.capacità;
 
+  const titoloSerra =
+    edificioId === 2 ? "Serra (unità 1)" : edificioId === 21 ? "Serra (unità 2)" : `Serra (#${edificioId})`;
+
   const colContent = [
-    /* Sinistra: Produzione */
     <View key="produzione" style={styles.column}>
       <Text style={styles.sectionTitle}>Produzione</Text>
       <View style={styles.infoCard}>
@@ -57,7 +69,7 @@ export default function SerraScreen() {
           {abitantiAssegnati.length !== 1 ? "i" : ""}
         </Text>
         <Text style={styles.infoSubtext}>
-          Capacità: {abitantiAssegnati.length}/{serra.capacità}
+          Posti: {abitantiAssegnati.length}/{serra.capacità}
         </Text>
       </View>
       <View style={styles.stipendioCard}>
@@ -76,7 +88,6 @@ export default function SerraScreen() {
         </Text>
       </View>
     </View>,
-    /* Centro: Abitanti assegnati */
     <View key="assegnati" style={styles.column}>
       <Text style={styles.sectionTitle}>Abitanti Assegnati</Text>
       {abitantiAssegnati.length > 0 ? (
@@ -89,10 +100,7 @@ export default function SerraScreen() {
                 <Text style={styles.cardLavoro}>{a.lavoro}</Text>
                 <Text style={styles.cardExtra}>Produttività: {a.produttività}%</Text>
               </View>
-              <Pressable
-                style={styles.removeButton}
-                onPress={() => rimuoviAbitanteDaEdificio(a.id, serra.id)}
-              >
+              <Pressable style={styles.removeButton} onPress={() => rimuoviAbitanteDaEdificio(a.id, serra.id)}>
                 <Text style={styles.removeButtonText}>Rimuovi</Text>
               </Pressable>
             </View>
@@ -102,7 +110,6 @@ export default function SerraScreen() {
         <Text style={styles.emptyText}>Nessun abitante assegnato</Text>
       )}
     </View>,
-    /* Destra: Abitanti disponibili (Disoccupati, con Produttività, Competenza, Personalità) */
     <View key="disponibili" style={styles.column}>
       <Text style={styles.sectionTitle}>Abitanti Disponibili</Text>
       <Text style={styles.sectionSubtitle}>Lavoro: Disoccupato</Text>
@@ -118,10 +125,7 @@ export default function SerraScreen() {
                 <Text style={styles.cardExtra}>Personalità: {a.personalità}</Text>
               </View>
               {puòAssegnare && (
-                <Pressable
-                  style={styles.addButton}
-                  onPress={() => assegnaAbitanteAEdificio(a.id, serra.id)}
-                >
+                <Pressable style={styles.addButton} onPress={() => assegnaAbitanteAEdificio(a.id, serra.id)}>
                   <Text style={styles.addButtonText}>Assegna</Text>
                 </Pressable>
               )}
@@ -138,23 +142,25 @@ export default function SerraScreen() {
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
-        <Text style={styles.title}>Serra</Text>
+        <Text style={styles.title}>{titoloSerra}</Text>
         <View style={{ width: 50 }} />
       </View>
 
       <View style={{ flex: 1 }}>
-      <ScrollView
-        style={isDesktop ? styles.scrollViewFlex : undefined}
-        horizontal={!isDesktop}
-        contentContainerStyle={[styles.content, isDesktop && styles.contentRow]}
-        showsHorizontalScrollIndicator={false}
-      >
-        {colContent}
-      </ScrollView>
-    </View>
-    <View style={styles.footer}>
-      <Text style={styles.back} onPress={() => router.back()}>← Edifici</Text>
-    </View>
+        <ScrollView
+          style={isDesktop ? styles.scrollViewFlex : undefined}
+          horizontal={!isDesktop}
+          contentContainerStyle={[styles.content, isDesktop && styles.contentRow]}
+          showsHorizontalScrollIndicator={false}
+        >
+          {colContent}
+        </ScrollView>
+      </View>
+      <View style={styles.footer}>
+        <Text style={styles.back} onPress={() => router.back()}>
+          ← Edifici
+        </Text>
+      </View>
     </SafeAreaView>
   );
 }
@@ -275,19 +281,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     minWidth: 80
   },
-  section: {
-    marginTop: 4
-  },
   sectionTitle: {
     color: "#ffffff",
     fontSize: 11,
     fontWeight: "700",
     marginBottom: 4
-  },
-  cardsContainer: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 4
   },
   card: {
     backgroundColor: "rgba(15,23,42,0.95)",

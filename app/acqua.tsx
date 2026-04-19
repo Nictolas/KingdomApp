@@ -19,20 +19,19 @@ export default function AcquaScreen() {
 
   const totaleConsumo = consumatori.reduce((s, c) => s + c.consumo, 0);
 
-  const serra = edifici.find((e) => e.nome === "Serra");
+  const serre = edifici.filter((e) => e.nome === "Serra");
   const dissalatore = edifici.find((e) => e.nome === "Dissalatore");
 
-  const produttivitàMediaSerra =
-    serra && serra.abitantiAssegnati.length > 0
-      ? serra.abitantiAssegnati.reduce((sum, id) => {
-          const a = abitanti.find((x) => x.id === id);
-          return sum + (a?.produttività ?? 0);
-        }, 0) / serra.abitantiAssegnati.length
-      : 0;
-  const produzioneSerra =
-    serra && serra.abitantiAssegnati.length > 0
-      ? Math.floor(serra.abitantiAssegnati.length * (produttivitàMediaSerra / 10))
-      : 0;
+  let produzioneSerra = 0;
+  for (const serra of serre) {
+    if (serra.abitantiAssegnati.length === 0) continue;
+    const produttivitàMedia =
+      serra.abitantiAssegnati.reduce((sum, id) => {
+        const a = abitanti.find((x) => x.id === id);
+        return sum + (a?.produttività ?? 0);
+      }, 0) / serra.abitantiAssegnati.length;
+    produzioneSerra += Math.floor(serra.abitantiAssegnati.length * (produttivitàMedia / 10));
+  }
 
   const produttivitàMediaDissalatore =
     dissalatore && dissalatore.abitantiAssegnati.length > 0
