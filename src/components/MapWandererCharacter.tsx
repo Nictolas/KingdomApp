@@ -39,10 +39,19 @@ function frameGroupStart(dir: WanderDirection): number {
       return 6;
     case "e":
     case "w":
+      /** 3/4 verso est (SE nello sheet); con Ovest si applica flip orizzontale. */
       return 9;
     default:
       return 0;
   }
+}
+
+/** Ordine dei 3 frame di camminata nel gruppo: per Est serve invertito rispetto al disegno SE; per Ovest avanti + flip. */
+function walkIndexInGroup(direction: WanderDirection, walkFrame: number, isMoving: boolean): number {
+  if (!isMoving) return 0;
+  const k = Math.min(2, walkFrame % 3);
+  if (direction === "e") return 2 - k;
+  return k;
 }
 
 function easeInOutQuad(t: number): number {
@@ -160,17 +169,17 @@ export function MapWandererCharacter({ cols, rows, cellSizePx, isWalkable }: Map
   if (logicalCell === null) return null;
 
   const group = frameGroupStart(direction);
-  const frameInGroup = isMoving ? walkFrame % 3 : 0;
+  const frameInGroup = walkIndexInGroup(direction, walkFrame, isMoving);
   const frameIndex = Math.min(group + frameInGroup, FRAMES - 1);
 
   const flipW = direction === "w";
 
-  const spriteH = cellSizePx * 1.22;
-  const spriteW = spriteH;
-  const scale = spriteH / FRAME_PX;
-  const sheetW = FRAMES * FRAME_PX * scale;
-  const sheetH = FRAME_PX * scale;
-  const offsetX = -frameIndex * FRAME_PX * scale;
+  /** Larghezza = una cella; altezza maggiore (nessun allargamento orizzontale). */
+  const frameW = cellSizePx;
+  const frameH = cellSizePx * 1.22;
+  const sheetW = FRAMES * frameW;
+  const sheetH = frameH;
+  const offsetX = -frameIndex * frameW;
 
   return (
     <View
@@ -191,8 +200,8 @@ export function MapWandererCharacter({ cols, rows, cellSizePx, isWalkable }: Map
           style={[
             styles.clip,
             {
-              width: spriteW,
-              height: spriteH,
+              width: frameW,
+              height: frameH,
               transform: flipW ? [{ scaleX: -1 }] : undefined
             }
           ]}
