@@ -1,21 +1,25 @@
-import React, { useState, useSyncExternalStore } from "react";
+import React, { useMemo, useState, useSyncExternalStore } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useRouter } from "expo-router";
-import { useGameContext } from "../src/context/GameContext";
-import { computeStatoCielo } from "../src/game/cicloCielo";
-import { abitantiPresentiNelBarOra } from "../src/game/orariLavoroMappa";
+import { useLocalSearchParams, useRouter } from "expo-router";
+import { useGameContext } from "../../src/context/GameContext";
+import { computeStatoCielo } from "../../src/game/cicloCielo";
+import { abitantiPresentiNelBarOra } from "../../src/game/orariLavoroMappa";
 import {
-  getBarArrivatiMappaSnapshot,
+  getBarArrivatiMappaSnapshotForEdificio,
   subscribeBarArrivatiMappa
-} from "../src/game/mappaBarArrivatiStore";
-import { formatOrologioGioco } from "../src/game/orologioGiocoSession";
-import { useOrologioGioco } from "../src/hooks/useOrologioGioco";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
-import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
-import type { Abitante } from "../src/types";
+} from "../../src/game/mappaBarArrivatiStore";
+import { formatOrologioGioco } from "../../src/game/orologioGiocoSession";
+import { useOrologioGioco } from "../../src/hooks/useOrologioGioco";
+import { getEmojiAbitante } from "../../src/utils/getEmojiAbitante";
+import { modalBackdropFullscreen, modalContentFullscreen } from "../../src/ui/modalFullscreenStyles";
+import type { Abitante } from "../../src/types";
 
-export default function BarScreen() {
+export default function BarScreenById() {
   const router = useRouter();
+  const raw = useLocalSearchParams<{ id: string | string[] }>().id;
+  const idStr = Array.isArray(raw) ? raw[0] : raw;
+  const edificioId = Number(idStr);
+
   const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const orologioMinuti = useOrologioGioco();
@@ -23,8 +27,8 @@ export default function BarScreen() {
 
   const barArrivatiMappa = useSyncExternalStore(
     subscribeBarArrivatiMappa,
-    getBarArrivatiMappaSnapshot,
-    getBarArrivatiMappaSnapshot
+    () => getBarArrivatiMappaSnapshotForEdificio(edificioId),
+    () => getBarArrivatiMappaSnapshotForEdificio(edificioId)
   );
 
   const { width } = Dimensions.get("window");
@@ -32,11 +36,24 @@ export default function BarScreen() {
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
 
-  const bar = edifici.find((e) => e.nome === "Bar");
-  if (!bar) return null;
+  const bar = useMemo(
+    () => edifici.find((e) => e.id === edificioId && e.nome === "Bar"),
+    [edifici, edificioId]
+  );
+
+  if (!Number.isFinite(edificioId) || !bar) {
+    return (
+      <SafeAreaView style={styles.safe}>
+        <Text style={styles.title}>Bar non trovato</Text>
+        <Text style={styles.back} onPress={() => router.back()}>
+          ← Indietro
+        </Text>
+      </SafeAreaView>
+    );
+  }
 
   const candidatiBar = abitantiPresentiNelBarOra(abitanti, orologioMinuti, statoCielo.buio, edifici);
-  /** Allineato alla mappa: solo dopo essere “entrati” al Bar (fine passeggiata). Se la mappa non ha ancora sincronizzato, mostriamo comunque i candidati orari. */
+  /** Allineato alla mappa: solo dopo essere “entrati” a questo Bar (fine passeggiata). */
   const presentiOraDisoccupati =
     barArrivatiMappa.size > 0
       ? candidatiBar.filter((a) => barArrivatiMappa.has(a.id))
@@ -50,11 +67,13 @@ export default function BarScreen() {
     (a) => a.razza !== "Robot" && !addettiIds.includes(a.id) && (bar.capacità ?? 20) > addettiIds.length
   );
 
+  const titoloBar = edificioId === 17 ? "🍺 Bar" : `🍺 Bar (#${edificioId})`;
+
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
-        <Text style={styles.title}>🍺 Bar</Text>
+        <Text style={styles.title}>{titoloBar}</Text>
         <View style={{ width: 50 }} />
       </View>
 

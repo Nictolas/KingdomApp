@@ -1,10 +1,12 @@
-/** Sincronizza chi è “entrato” al Bar (stesso stato della mappa) per la schermata /bar. */
+/** Sincronizza chi è “entrato” a ciascun Bar (stesso stato della mappa) per le schermate `/bar/[id]`. */
 
-let barArrivatiSnapshot = new Set<number>();
+let barArrivatiSnapshot = new Map<number, Set<number>>();
 const listeners = new Set<() => void>();
 
-export function setBarArrivatiMappaSnapshot(ids: Set<number>): void {
-  barArrivatiSnapshot = new Set(ids);
+const EMPTY_BAR_ARRIVATI = new Set<number>();
+
+export function setBarArrivatiMappaSnapshot(m: Map<number, Set<number>>): void {
+  barArrivatiSnapshot = new Map([...m.entries()].map(([k, v]) => [k, new Set(v)]));
   listeners.forEach((l) => l());
 }
 
@@ -13,6 +15,9 @@ export function subscribeBarArrivatiMappa(listener: () => void): () => void {
   return () => listeners.delete(listener);
 }
 
-export function getBarArrivatiMappaSnapshot(): Set<number> {
-  return barArrivatiSnapshot;
+/**
+ * Riferimento stabile fino al prossimo aggiornamento (richiesto da useSyncExternalStore).
+ */
+export function getBarArrivatiMappaSnapshotForEdificio(edificioId: number): Set<number> {
+  return barArrivatiSnapshot.get(edificioId) ?? EMPTY_BAR_ARRIVATI;
 }

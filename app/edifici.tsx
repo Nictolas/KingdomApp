@@ -34,6 +34,8 @@ function getEdificiPerColonna(edifici: Edificio[], nomi: string[]): Edificio[] {
   for (const nome of nomi) {
     if (nome === "Serra") {
       out.push(...edifici.filter((e) => e.nome === "Serra"));
+    } else if (nome === "Bar") {
+      out.push(...edifici.filter((e) => e.nome === "Bar"));
     } else {
       const e = edifici.find((x) => x.nome === nome);
       if (e) out.push(e);
@@ -52,7 +54,9 @@ function CardEdificio({
   titleOverride?: string;
   onPress: () => void;
 }) {
-  const competenza = EDIFICIO_COMPETENZA_RICHIESTA[e.id];
+  const competenza =
+    EDIFICIO_COMPETENZA_RICHIESTA[e.id] ??
+    (e.nome === "Bar" ? EDIFICIO_COMPETENZA_RICHIESTA[17] : undefined);
   return (
     <Pressable style={styles.card} onPress={onPress}>
       <Text style={styles.emoji}>{e.emoji}</Text>
@@ -107,7 +111,7 @@ export default function EdificiScreen() {
     } else if (e.nome === "Laboratorio di Ricerca") {
       router.push("/laboratorio");
     } else if (e.nome === "Bar") {
-      router.push("/bar");
+      router.push(`/bar/${e.id}`);
     } else if (e.nome === "Caserma") {
       router.push("/caserma");
     } else if (e.nome === "Spazioporto") {

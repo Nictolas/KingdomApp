@@ -91,3 +91,31 @@ export function scegliCellaPartenzaWalkable(
   });
   return cands[0] ?? null;
 }
+
+/**
+ * Prima cella percorribile raggiungibile da `seed` con BFS (anche attraverso celle non walkable:
+ * serve per “uscire” da anchor su edificio / footprint).
+ */
+export function trovaCellaWalkablePiuVicina(
+  seed: number,
+  cols: number,
+  rows: number,
+  isWalkable: (i: number) => boolean,
+  maxIter = 20000
+): number | null {
+  if (isWalkable(seed)) return seed;
+  const visited = new Set<number>([seed]);
+  const q: number[] = [seed];
+  let iter = 0;
+  while (q.length > 0 && iter < maxIter) {
+    iter++;
+    const cur = q.shift()!;
+    for (const nb of orthogonalNeighbors(cur, cols, rows)) {
+      if (visited.has(nb)) continue;
+      visited.add(nb);
+      if (isWalkable(nb)) return nb;
+      q.push(nb);
+    }
+  }
+  return null;
+}

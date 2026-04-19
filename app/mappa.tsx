@@ -53,7 +53,8 @@ import {
   pianificaCommuteMattina,
   pianificaCommuteSeraACasa,
   pianificaCommuteVersoBarDaCella,
-  pianificaCommuteVersoEdificioGlobaleDaCella
+  pianificaCommuteVersoEdificioGlobaleDaCella,
+  scegliBarEdificioIdPiuVicino
 } from "../src/game/commutePathsMappa";
 import { setBarArrivatiMappaSnapshot } from "../src/game/mappaBarArrivatiStore";
 import { computeStatoCielo } from "../src/game/cicloCielo";
@@ -1079,6 +1080,29 @@ function getStradeIniziali(edificiInMappa: Record<number, EdificioInCella>): [nu
   return out;
 }
 
+function rimuoviAbitanteDaTuttiBar(
+  prev: Record<number, number[]>,
+  abitanteId: number
+): Record<number, number[]> {
+  const next: Record<number, number[]> = {};
+  for (const [k, ids] of Object.entries(prev)) {
+    const filt = ids.filter((id) => id !== abitanteId);
+    if (filt.length > 0) next[Number(k)] = filt;
+  }
+  return next;
+}
+
+function aggiungiAbitanteAlBarEdificio(
+  prev: Record<number, number[]>,
+  barEdificioId: number,
+  abitanteId: number
+): Record<number, number[]> {
+  const cleaned = rimuoviAbitanteDaTuttiBar(prev, abitanteId);
+  const cur = cleaned[barEdificioId] ?? [];
+  if (cur.includes(abitanteId)) return cleaned;
+  return { ...cleaned, [barEdificioId]: [...cur, abitanteId] };
+}
+
 /** Angolo in alto a sinistra della cella in px (per overlay edifici multi-cella). */
 function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: number): { left: number; top: number } {
   const col = cellIndex % cols;
@@ -1534,14 +1558,19 @@ export function MappaScreen() {
 
   const [dormonoACasaIds, setDormonoACasaIds] = useState<Set<number>>(() => new Set());
   const [lavoroArrivatiIds, setLavoroArrivatiIds] = useState<Set<number>>(() => new Set());
-  const [barArrivatiIds, setBarArrivatiIds] = useState<Set<number>>(() => new Set());
+  /** id edificio Bar (globale) → abitanti considerati “dentro” quel locale sulla mappa. */
+  const [barArrivatiByEdificio, setBarArrivatiByEdificio] = useState<Record<number, number[]>>({});
   const [commuteByAbitanteId, setCommuteByAbitanteId] = useState<
-    Record<number, { path: number[]; token: number; purpose: "work" | "bar" | "home" }>
+    Record<number, { path: number[]; token: number; purpose: "work" | "bar" | "home"; barEdificioId?: number }>
   >({});
 
   useEffect(() => {
-    setBarArrivatiMappaSnapshot(barArrivatiIds);
-  }, [barArrivatiIds]);
+    const m = new Map<number, Set<number>>();
+    for (const [k, ids] of Object.entries(barArrivatiByEdificio)) {
+      m.set(Number(k), new Set(ids));
+    }
+    setBarArrivatiMappaSnapshot(m);
+  }, [barArrivatiByEdificio]);
 
   /** 8:00 → Bar / casa → lavoro; 17:00 → lavoro → Bar. */
   useEffect(() => {
@@ -1564,7 +1593,9 @@ export function MappaScreen() {
           if (!lav) continue;
           const fascia = fasciaPerEdificio(lav);
           if (!fascia || !minutiInFascia(cur, fascia)) continue;
-          const from = ultimaCellaAbitanteRef.current.get(a.id) ?? null;
+          const homeCell = cellaCasaPerAbitanteId.get(a.id) ?? null;
+          const from =
+            ultimaCellaAbitanteRef.current.get(a.id) ?? (homeCell != null ? homeCell : null);
           if (from == null) continue;
           const path = pianificaCommuteVersoEdificioGlobaleDaCella(
             from,
@@ -1580,17 +1611,17 @@ export function MappaScreen() {
         }
         return out;
       });
-      setBarArrivatiIds((s0) => {
-        const s = new Set(s0);
+      setBarArrivatiByEdificio((prev0) => {
+        let acc = prev0;
         for (const a of abitanti) {
           if (a.razza === "Robot") continue;
           const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
           if (!lav) continue;
           const fascia = fasciaPerEdificio(lav);
           if (!fascia || !minutiInFascia(cur, fascia)) continue;
-          s.delete(a.id);
+          acc = rimuoviAbitanteDaTuttiBar(acc, a.id);
         }
-        return s;
+        return acc;
       });
     }
 
@@ -1600,11 +1631,15 @@ export function MappaScreen() {
         const out = { ...prevComm };
         for (const id of toPath) {
           if (out[id]) continue;
-          const from = ultimaCellaAbitanteRef.current.get(id) ?? null;
+          const homeCell = cellaCasaPerAbitanteId.get(id) ?? null;
+          const from =
+            ultimaCellaAbitanteRef.current.get(id) ?? (homeCell != null ? homeCell : null);
           if (from == null) continue;
-          const path = pianificaCommuteVersoBarDaCella(from, edificiInMappa, cols, rows, isWalkableCell);
+          const barId = scegliBarEdificioIdPiuVicino(from, edifici, edificiInMappa, cols, rows, isWalkableCell);
+          if (barId == null) continue;
+          const path = pianificaCommuteVersoBarDaCella(from, barId, edificiInMappa, cols, rows, isWalkableCell);
           if (path && path.length >= 2) {
-            out[id] = { path, token: Date.now(), purpose: "bar" };
+            out[id] = { path, token: Date.now(), purpose: "bar", barEdificioId: barId };
           }
         }
         return out;
@@ -1620,26 +1655,31 @@ export function MappaScreen() {
     cols,
     rows,
     isWalkableCell,
-    lavoroArrivatiIds
+    lavoroArrivatiIds,
+    cellaCasaPerAbitanteId
   ]);
 
-  const handleCommuteFinita = useCallback((abitanteId: number, purpose: "work" | "bar" | "home") => {
-    setCommuteByAbitanteId((prev) => {
-      const cur = prev[abitanteId];
-      if (cur?.path?.length) {
-        ultimaCellaAbitanteRef.current.set(abitanteId, cur.path[cur.path.length - 1]!);
+  const handleCommuteFinita = useCallback(
+    (abitanteId: number, purpose: "work" | "bar" | "home", barEdificioId?: number) => {
+      setCommuteByAbitanteId((prev) => {
+        const cur = prev[abitanteId];
+        if (cur?.path?.length) {
+          ultimaCellaAbitanteRef.current.set(abitanteId, cur.path[cur.path.length - 1]!);
+        }
+        const { [abitanteId]: _removed, ...rest } = prev;
+        return rest;
+      });
+      if (purpose === "home") {
+        setDormonoACasaIds((s) => new Set(s).add(abitanteId));
+      } else if (purpose === "work") {
+        setLavoroArrivatiIds((s) => new Set(s).add(abitanteId));
+        setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
+      } else if (purpose === "bar" && barEdificioId != null) {
+        setBarArrivatiByEdificio((p) => aggiungiAbitanteAlBarEdificio(p, barEdificioId, abitanteId));
       }
-      const { [abitanteId]: _removed, ...rest } = prev;
-      return rest;
-    });
-    if (purpose === "home") {
-      setDormonoACasaIds((s) => new Set(s).add(abitanteId));
-    } else if (purpose === "work") {
-      setLavoroArrivatiIds((s) => new Set(s).add(abitanteId));
-    } else if (purpose === "bar") {
-      setBarArrivatiIds((s) => new Set(s).add(abitanteId));
-    }
-  }, []);
+    },
+    []
+  );
 
   const handleCellAbitante = useCallback((abitanteId: number, cell: number) => {
     ultimaCellaAbitanteRef.current.set(abitanteId, cell);
@@ -1670,13 +1710,15 @@ export function MappaScreen() {
     if (eraNotte && !notte) {
       setDormonoACasaIds(new Set());
       setLavoroArrivatiIds(new Set());
-      setBarArrivatiIds(new Set());
-      const next: Record<number, { path: number[]; token: number; purpose: "work" | "bar" }> = {};
+      const next: Record<
+        number,
+        { path: number[]; token: number; purpose: "work" | "bar"; barEdificioId?: number }
+      > = {};
       for (const a of abitanti) {
         if (a.razza === "Robot") continue;
         const home = cellaCasaPerAbitanteId.get(a.id) ?? null;
         const ult = ultimaCellaAbitanteRef.current.get(a.id) ?? null;
-        const path = pianificaCommuteMattina(
+        const mattina = pianificaCommuteMattina(
           a,
           home,
           ult,
@@ -1687,12 +1729,18 @@ export function MappaScreen() {
           isWalkableCell,
           orologioMinuti
         );
+        const path = mattina.path;
         if (!path || path.length < 2) continue;
         const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
         const fascia = lav ? fasciaPerEdificio(lav) : null;
         const purpose: "work" | "bar" =
           lav && fascia && minutiInFascia(orologioMinuti, fascia) ? "work" : "bar";
-        next[a.id] = { path, token: Date.now(), purpose };
+        next[a.id] = {
+          path,
+          token: Date.now(),
+          purpose,
+          barEdificioId: purpose === "bar" ? mattina.barEdificioId : undefined
+        };
       }
       setCommuteByAbitanteId(next);
       setLavoroArrivatiIds((prev) => {
@@ -1704,22 +1752,25 @@ export function MappaScreen() {
         }
         return s;
       });
-      setBarArrivatiIds((prev) => {
-        const s = new Set(prev);
+      setBarArrivatiByEdificio(() => {
+        let acc: Record<number, number[]> = {};
         for (const a of abitanti) {
           if (a.razza === "Robot") continue;
           const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
           const fascia = lav ? fasciaPerEdificio(lav) : null;
           if (lav && fascia && minutiInFascia(orologioMinuti, fascia)) continue;
-          if (!next[a.id]) s.add(a.id);
+          if (next[a.id]) continue;
+          const from = ultimaCellaAbitanteRef.current.get(a.id) ?? cellaCasaPerAbitanteId.get(a.id) ?? null;
+          const barId = scegliBarEdificioIdPiuVicino(from, edifici, edificiInMappa, cols, rows, isWalkableCell);
+          if (barId != null) acc = aggiungiAbitanteAlBarEdificio(acc, barId, a.id);
         }
-        return s;
+        return acc;
       });
     }
 
     if (!eraNotte && notte) {
       setLavoroArrivatiIds(new Set());
-      setBarArrivatiIds(new Set());
+      setBarArrivatiByEdificio({});
       const next: Record<number, { path: number[]; token: number; purpose: "home" }> = {};
       const dormiSenzaPercorso: number[] = [];
       for (const a of abitanti) {
@@ -1784,6 +1835,10 @@ export function MappaScreen() {
       if (!route) return;
       if (nome === "Serra" && edificioId != null) {
         router.push(`/serra/${edificioId}`);
+        return;
+      }
+      if (nome === "Bar" && edificioId != null) {
+        router.push(`/bar/${edificioId}`);
         return;
       }
       router.push(route);
@@ -2369,7 +2424,7 @@ export function MappaScreen() {
 
                     const nascostoBar =
                       abitanteAlBarRoutineOra(abitante, orologioMinuti, statoCielo.buio, edifici) &&
-                      barArrivatiIds.has(abitante.id) &&
+                      Object.values(barArrivatiByEdificio).some((ids) => ids.includes(abitante.id)) &&
                       !inCommute;
 
                     if (nascostoLavoro) return null;
@@ -2396,7 +2451,10 @@ export function MappaScreen() {
                         commutePath={infoCommute?.path ?? null}
                         commuteToken={infoCommute?.token ?? 0}
                         commutePurpose={infoCommute?.purpose ?? null}
-                        onCommuteComplete={(purpose) => handleCommuteFinita(abitante.id, purpose)}
+                        onCommuteComplete={(purpose) => {
+                          const meta = commuteByAbitanteId[abitante.id];
+                          handleCommuteFinita(abitante.id, purpose, meta?.barEdificioId);
+                        }}
                         onCellSettled={(cell) => handleCellAbitante(abitante.id, cell)}
                         onDoublePress={() => {
                           const a = abitanti.find((x) => x.id === abitante.id);
