@@ -700,6 +700,49 @@ function vietatoFootprintECuscinoDaEdificiIniziali(
   return vietato;
 }
 
+/** Anteprima piazzamento in modalità Costruisci (stessa logica di `handleScegliEdificio`). */
+type SelezioneCostruzioneAnteprima =
+  | { tipo: "strada" }
+  | { tipo: "edificio"; edificio: Edificio };
+
+function calcolaPreviewPiazzamento(
+  selezione: SelezioneCostruzioneAnteprima,
+  hoverCell: number | null,
+  edificiInMappa: Record<number, EdificioInCella>,
+  terrenoInMappa: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): { celle: number[]; valido: boolean } | null {
+  if (hoverCell == null) return null;
+  if (selezione.tipo === "strada") {
+    const t = terrenoInMappa[hoverCell] ?? "erba";
+    const occupato = !!edificiInMappa[hoverCell];
+    const valido = t === "erba" && !occupato && !isAcqua(hoverCell, cols, rows);
+    return { celle: [hoverCell], valido };
+  }
+  const e = selezione.edificio;
+  const riverSet = riverSetDaTerreno(terrenoInMappa);
+  const vietato = vietatoFootprintECuscinoDaEdificiIniziali(edificiInMappa, cols, rows);
+  const dim = FOOTPRINT_COSTRUZIONE[e.nome] ?? { w: 1, h: 1 };
+  const w = dim.w;
+  const h = dim.h;
+  let anchor: number | null = null;
+  if (puòPiazzareFootprintConCuscino(hoverCell, w, h, cols, rows, riverSet, vietato)) {
+    anchor = hoverCell;
+  } else {
+    anchor = trovaAnchorFootprintLibero(w, h, hoverCell, cols, rows, riverSet, vietato);
+  }
+  if (anchor == null) {
+    const ac = hoverCell % cols;
+    const ar = Math.floor(hoverCell / cols);
+    if (ac + w > cols || ar + h > rows) {
+      return { celle: [hoverCell], valido: false };
+    }
+    return { celle: getIndiciFootprint(hoverCell, w, h, cols), valido: false };
+  }
+  return { celle: getIndiciFootprint(anchor, w, h, cols), valido: true };
+}
+
 /** Capanne 2×1 (o 1×1 se non c’è spazio) e giacimenti 1×1 senza sovrapposizioni al buffer d’erba. */
 function piazzaCapanneEgiacimentiProcedurali(
   cols: number,
@@ -1184,7 +1227,12 @@ export function MappaScreen() {
   const terrenoInMappa = mappaState.terrenoInMappa;
   const decorazioniInMappa = mappaState.decorazioniInMappa;
   const residenzeMappa = mappaState.residenzeMappa;
-  const [selectedCellForDialog, setSelectedCellForDialog] = useState<number | null>(null);
+  /** Modal elenco edifici (pulsante Costruisci). */
+  const [mostraModalCostruisci, setMostraModalCostruisci] = useState(false);
+  /** Edifico scelto: anteprima sulla mappa e tap per piazzare. */
+  const [costruzioneSelezione, setCostruzioneSelezione] = useState<SelezioneCostruzioneAnteprima | null>(null);
+  /** Cella sotto il puntatore (web hover / press mobile) per l’anteprima footprint. */
+  const [previewCellHover, setPreviewCellHover] = useState<number | null>(null);
   const [selectedCellForTransformDialog, setSelectedCellForTransformDialog] = useState<number | null>(null);
   /** Cella anchor della residenza aperta dal doppio tocco (Baracca, Capanna, Dormitorio). */
   const [selectedResidenzaAnchor, setSelectedResidenzaAnchor] = useState<number | null>(null);
@@ -1264,6 +1312,35 @@ export function MappaScreen() {
   const cellH = CELL_SIZE_PX;
   const contentWidth = cols * CELL_SIZE_PX + (cols - 1) * GAP;
   const contentHeight = rows * CELL_SIZE_PX + (rows - 1) * GAP;
+
+  const uscitaCostruzione = useCallback(() => {
+    setCostruzioneSelezione(null);
+    setPreviewCellHover(null);
+  }, []);
+
+  const previewPiazzamento = useMemo(
+    () =>
+      costruzioneSelezione
+        ? calcolaPreviewPiazzamento(
+            costruzioneSelezione,
+            previewCellHover,
+            edificiInMappa,
+            terrenoInMappa,
+            cols,
+            rows
+          )
+        : null,
+    [costruzioneSelezione, previewCellHover, edificiInMappa, terrenoInMappa, cols, rows]
+  );
+
+  useEffect(() => {
+    if (typeof document === "undefined" || !costruzioneSelezione) return;
+    const onKey = (ev: KeyboardEvent) => {
+      if (ev.key === "Escape") uscitaCostruzione();
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [costruzioneSelezione, uscitaCostruzione]);
 
   /**
    * Web + zoom (CSS transform): i bordi per-cella (hairline) si allineano male ai pixel dello schermo e
@@ -1497,40 +1574,15 @@ export function MappaScreen() {
     ]
   );
 
-  const onCellPress = useCallback(
-    (cellIndex: number) => {
-      const now = Date.now();
-      const edificio = edificiInMappa[cellIndex];
-      const terreno = terrenoInMappa[cellIndex] ?? "erba";
-      const isDoubleTap = lastTapCell.current === cellIndex && now - lastTapTime.current < DOPPIO_TAP_MS;
-      if (isDoubleTap) {
-        lastTapCell.current = null;
-        if (edificio) {
-          if (edificio.nome === "Giacimento") {
-            setSelectedCellForTransformDialog(cellIndex);
-          } else if (èResidenzaMappa(edificio.nome)) {
-            setSelectedResidenzaAnchor(getAnchorCellPerEdificio(cellIndex, edificiInMappa));
-          } else {
-            openRouteForEdificio(edificio.nome, edificio.id);
-          }
-        } else if (terreno !== "river") {
-          setSelectedCellForDialog(cellIndex);
-        }
-        return;
-      }
-      lastTapCell.current = cellIndex;
-      lastTapTime.current = now;
-    },
-    [edificiInMappa, terrenoInMappa, openRouteForEdificio]
-  );
-
   const handleScegliEdificio = useCallback(
     (cellIndex: number, e: Edificio) => {
       if (e.nome === "Strada") {
+        const cur = mappaStateRef.current;
+        if ((cur.terrenoInMappa[cellIndex] ?? "erba") !== "erba") {
+          Alert.alert("Non qui", "La strada si può posizionare solo su erba.");
+          return;
+        }
         setMappaStatePersistente((s) => {
-          if ((s.terrenoInMappa[cellIndex] ?? "erba") !== "erba") {
-            return s;
-          }
           const nextEdifici = {
             ...s.edificiInMappa,
             [cellIndex]: { id: STRADA_OPZIONE.id, nome: STRADA_OPZIONE.nome, emoji: STRADA_OPZIONE.emoji }
@@ -1544,7 +1596,7 @@ export function MappaScreen() {
           );
           return { ...s, edificiInMappa: nextEdifici };
         });
-        setSelectedCellForDialog(null);
+        uscitaCostruzione();
         return;
       }
 
@@ -1574,14 +1626,12 @@ export function MappaScreen() {
           "Spazio insufficiente",
           "Non c'è spazio adatto (terreno, cuscino d'erba o distanza dagli altri edifici)."
         );
-        setSelectedCellForDialog(null);
         return;
       }
 
       const newId = aggiungiEdificioDaTemplate(e.id);
       if (newId == null) {
         Alert.alert("Errore", "Impossibile creare questo tipo di edificio.");
-        setSelectedCellForDialog(null);
         return;
       }
 
@@ -1606,9 +1656,54 @@ export function MappaScreen() {
         }
         return { ...prev, edificiInMappa: nextEdifici, residenzeMappa: nextResidenze };
       });
-      setSelectedCellForDialog(null);
+      uscitaCostruzione();
     },
-    [setMappaStatePersistente, aggiungiEdificioDaTemplate]
+    [setMappaStatePersistente, aggiungiEdificioDaTemplate, uscitaCostruzione]
+  );
+
+  const onCellPress = useCallback(
+    (cellIndex: number) => {
+      if (costruzioneSelezione) {
+        const edificio = edificiInMappa[cellIndex];
+        const terreno = terrenoInMappa[cellIndex] ?? "erba";
+        if (edificio) return;
+        if (terreno === "river" || isAcqua(cellIndex, cols, rows)) return;
+        if (costruzioneSelezione.tipo === "strada") {
+          handleScegliEdificio(cellIndex, STRADA_OPZIONE as unknown as Edificio);
+        } else {
+          handleScegliEdificio(cellIndex, costruzioneSelezione.edificio);
+        }
+        return;
+      }
+      const now = Date.now();
+      const edificio = edificiInMappa[cellIndex];
+      const terreno = terrenoInMappa[cellIndex] ?? "erba";
+      const isDoubleTap = lastTapCell.current === cellIndex && now - lastTapTime.current < DOPPIO_TAP_MS;
+      if (isDoubleTap) {
+        lastTapCell.current = null;
+        if (edificio) {
+          if (edificio.nome === "Giacimento") {
+            setSelectedCellForTransformDialog(cellIndex);
+          } else if (èResidenzaMappa(edificio.nome)) {
+            setSelectedResidenzaAnchor(getAnchorCellPerEdificio(cellIndex, edificiInMappa));
+          } else {
+            openRouteForEdificio(edificio.nome, edificio.id);
+          }
+        }
+        return;
+      }
+      lastTapCell.current = cellIndex;
+      lastTapTime.current = now;
+    },
+    [
+      costruzioneSelezione,
+      edificiInMappa,
+      terrenoInMappa,
+      openRouteForEdificio,
+      cols,
+      rows,
+      handleScegliEdificio
+    ]
   );
 
   const handleTrasformaGiacimento = useCallback((cellIndex: number) => {
@@ -1727,6 +1822,19 @@ export function MappaScreen() {
         </View>
       </View>
 
+      {costruzioneSelezione != null ? (
+        <View style={styles.costruzioneBanner}>
+          <Text style={styles.costruzioneBannerText} numberOfLines={2}>
+            {costruzioneSelezione.tipo === "strada"
+              ? "🛤️ Strada — verde = cella valida; tocca per piazzare."
+              : `🔨 ${costruzioneSelezione.edificio.emoji} ${costruzioneSelezione.edificio.nome} — l’anteprima segue il puntatore; tocca per confermare.`}
+          </Text>
+          <Pressable style={styles.costruzioneBannerBtn} onPress={uscitaCostruzione} accessibilityRole="button">
+            <Text style={styles.costruzioneBannerBtnText}>Annulla</Text>
+          </Pressable>
+        </View>
+      ) : null}
+
       {/* Contenitore mappa: viewport sfondo nero, griglia gestita da react-zoom-pan-pinch */}
       <View style={styles.mapContainer}>
         <View style={styles.viewport}>
@@ -1829,13 +1937,52 @@ export function MappaScreen() {
                           </View>
                         );
                       }
+                      const hoverPreviewProps =
+                        costruzioneSelezione != null
+                          ? Platform.OS === "web"
+                            ? {
+                                onPressIn: () => setPreviewCellHover(i),
+                                onPointerEnter: () => setPreviewCellHover(i)
+                              }
+                            : { onPressIn: () => setPreviewCellHover(i) }
+                          : {};
                       return (
-                        <Pressable key={i} style={cellStyle} onPress={() => onCellPress(i)}>
+                        <Pressable
+                          key={i}
+                          style={cellStyle}
+                          onPress={() => onCellPress(i)}
+                          {...hoverPreviewProps}
+                        >
                           {spriteTerreno}
                         </Pressable>
                       );
                     })}
                   </View>
+                  {costruzioneSelezione != null && previewPiazzamento != null ? (
+                    <View
+                      style={[styles.previewFootprintLayer, { width: contentWidth, height: contentHeight }]}
+                      pointerEvents="none"
+                    >
+                      {previewPiazzamento.celle.map((idx) => (
+                        <View
+                          key={`pv-${idx}`}
+                          style={[
+                            styles.previewCell,
+                            {
+                              width: CELL_SIZE_PX,
+                              height: CELL_SIZE_PX,
+                              left: (idx % cols) * CELL_SIZE_PX,
+                              top: Math.floor(idx / cols) * CELL_SIZE_PX,
+                              backgroundColor: previewPiazzamento.valido
+                                ? "rgba(34,197,94,0.3)"
+                                : "rgba(239,68,68,0.38)",
+                              borderColor: previewPiazzamento.valido ? "rgba(22,163,74,0.9)" : "rgba(220,38,38,0.95)"
+                            }
+                          ]}
+                        />
+                      ))}
+                    </View>
+                  ) : null}
                   {Platform.OS === "web" && mostraGrigliaMappa && (
                     <View style={grigliaOverlayWebStyle} pointerEvents="none" />
                   )}
@@ -1951,17 +2098,30 @@ export function MappaScreen() {
                     )}
                   </Pressable>
                   {r.nome === "Rifiuti" && (
-                    <Pressable
-                      style={[styles.grigliaMapToggle, mostraGrigliaMappa && styles.grigliaMapToggleOn]}
-                      onPress={() => setMostraGrigliaMappa((v) => !v)}
-                      accessibilityRole="button"
-                      accessibilityLabel={mostraGrigliaMappa ? "Nascondi griglia sulla mappa" : "Mostra griglia sulla mappa"}
-                    >
-                      <Text style={styles.grigliaMapToggleEmoji}>#</Text>
-                      <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                        Griglia
-                      </Text>
-                    </Pressable>
+                    <>
+                      <Pressable
+                        style={[styles.grigliaMapToggle, mostraGrigliaMappa && styles.grigliaMapToggleOn]}
+                        onPress={() => setMostraGrigliaMappa((v) => !v)}
+                        accessibilityRole="button"
+                        accessibilityLabel={mostraGrigliaMappa ? "Nascondi griglia sulla mappa" : "Mostra griglia sulla mappa"}
+                      >
+                        <Text style={styles.grigliaMapToggleEmoji}>#</Text>
+                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
+                          Griglia
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.grigliaMapToggle, costruzioneSelezione != null && styles.grigliaMapToggleOn]}
+                        onPress={() => setMostraModalCostruisci(true)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Apri costruzione edifici"
+                      >
+                        <Text style={styles.grigliaMapToggleEmoji}>🔨</Text>
+                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
+                          Costruisci
+                        </Text>
+                      </Pressable>
+                    </>
                   )}
                 </React.Fragment>
               );
@@ -1971,21 +2131,26 @@ export function MappaScreen() {
       </View>
 
       <Modal
-        visible={selectedCellForDialog !== null}
+        visible={mostraModalCostruisci}
         transparent
         animationType="fade"
-        onRequestClose={() => setSelectedCellForDialog(null)}
+        onRequestClose={() => setMostraModalCostruisci(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setSelectedCellForDialog(null)}>
+        <Pressable style={styles.modalBackdrop} onPress={() => setMostraModalCostruisci(false)}>
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>Quale edificio vuoi inserire qui?</Text>
+            <Text style={styles.modalTitle}>Cosa vuoi costruire?</Text>
+            <Text style={styles.modalSubtitle}>
+              Scegli un tipo, poi sposta il puntatore sulla mappa: l’anteprima colorata mostra dove andrà l’edificio. Tocca per
+              confermare.
+            </Text>
             <ScrollView style={styles.modalList} nestedScrollEnabled>
               <Pressable
                 style={styles.modalOption}
-                onPress={() =>
-                  selectedCellForDialog !== null &&
-                  handleScegliEdificio(selectedCellForDialog, STRADA_OPZIONE as unknown as Edificio)
-                }
+                onPress={() => {
+                  setCostruzioneSelezione({ tipo: "strada" });
+                  setMostraModalCostruisci(false);
+                  setMostraGrigliaMappa(true);
+                }}
               >
                 <Text style={styles.modalOptionEmoji}>{STRADA_OPZIONE.emoji}</Text>
                 <Text style={styles.modalOptionNome}>{STRADA_OPZIONE.nome}</Text>
@@ -1994,15 +2159,19 @@ export function MappaScreen() {
                 <Pressable
                   key={e.id}
                   style={styles.modalOption}
-                  onPress={() => selectedCellForDialog !== null && handleScegliEdificio(selectedCellForDialog, e)}
+                  onPress={() => {
+                    setCostruzioneSelezione({ tipo: "edificio", edificio: e });
+                    setMostraModalCostruisci(false);
+                    setMostraGrigliaMappa(true);
+                  }}
                 >
                   <Text style={styles.modalOptionEmoji}>{e.emoji}</Text>
                   <Text style={styles.modalOptionNome}>{e.nome}</Text>
                 </Pressable>
               ))}
             </ScrollView>
-            <Pressable style={styles.modalCancel} onPress={() => setSelectedCellForDialog(null)}>
-              <Text style={styles.modalCancelText}>Annulla</Text>
+            <Pressable style={styles.modalCancel} onPress={() => setMostraModalCostruisci(false)}>
+              <Text style={styles.modalCancelText}>Chiudi</Text>
             </Pressable>
           </Pressable>
         </Pressable>
@@ -2356,6 +2525,36 @@ const styles = StyleSheet.create({
     color: "rgba(248,250,252,0.85)",
     fontWeight: "600"
   },
+  costruzioneBanner: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(30,58,138,0.5)",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(148,163,184,0.35)",
+    zIndex: 50
+  },
+  costruzioneBannerText: {
+    flex: 1,
+    fontSize: 11,
+    color: "#e2e8f0",
+    marginRight: 8
+  },
+  costruzioneBannerBtn: {
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 8,
+    backgroundColor: "rgba(239,68,68,0.3)",
+    borderWidth: 1,
+    borderColor: "rgba(248,113,113,0.55)"
+  },
+  costruzioneBannerBtnText: {
+    color: "#fecaca",
+    fontSize: 11,
+    fontWeight: "600"
+  },
   menuBtn: {
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -2445,6 +2644,16 @@ const styles = StyleSheet.create({
     left: 0,
     top: 0,
     zIndex: 3
+  },
+  previewFootprintLayer: {
+    position: "absolute",
+    left: 0,
+    top: 0,
+    zIndex: 2
+  },
+  previewCell: {
+    position: "absolute",
+    borderWidth: 1
   },
   footprintAbsolute: {
     position: "absolute"
