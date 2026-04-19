@@ -851,12 +851,13 @@ export function MappaScreen() {
     (i: number) => {
       if (isAcqua(i, cols, rows)) return false;
       if ((terrenoInMappa[i] ?? "erba") === "river") return false;
+      if (decorazioniInMappa[i]) return false;
       const e = edificiInMappa[i];
       if (!e) return true;
       if (e.nome === "Strada") return true;
       return false;
     },
-    [terrenoInMappa, edificiInMappa, cols, rows]
+    [terrenoInMappa, edificiInMappa, decorazioniInMappa, cols, rows]
   );
 
   const edificiFootprintOverlay = useMemo(() => {

@@ -7,8 +7,9 @@ const CHARACTER_SHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld
 const FRAME_PX = 64;
 const FRAMES = 12;
 
-const MOVE_DURATION_MS = 380;
-const IDLE_BEFORE_NEXT_MS = 520;
+/** Spostamento tra celle: durata e pausa prima del prossimo passo. */
+const MOVE_DURATION_MS = 620;
+const IDLE_BEFORE_NEXT_MS = 2200;
 
 export type WanderDirection = "n" | "s" | "e" | "w";
 
@@ -61,8 +62,8 @@ function walkIndexInGroup(direction: WanderDirection, walkFrame: number, isMovin
   return k;
 }
 
-function easeInOutQuad(t: number): number {
-  return t < 0.5 ? 2 * t * t : 1 - (-2 * t + 2) ** 2 / 2;
+function easeInOutCubic(t: number): number {
+  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
 }
 
 type MapWandererCharacterProps = {
@@ -127,13 +128,13 @@ export function MapWandererCharacter({ cols, rows, cellSizePx, isWalkable }: Map
 
     const step = (now: number) => {
       const t = Math.min(1, (now - start) / MOVE_DURATION_MS);
-      const e = easeInOutQuad(t);
+      const e = easeInOutCubic(t);
       setPixelPos({
         x: fromX + (toX - fromX) * e,
         y: fromY + (toY - fromY) * e
       });
       if (t < 1) {
-        setWalkFrame(Math.min(2, Math.floor(t * 3)));
+        setWalkFrame(Math.min(2, Math.floor(e * 2.99)));
         rafRef.current = requestAnimationFrame(step);
       } else {
         setPixelPos({ x: toX, y: toY });
