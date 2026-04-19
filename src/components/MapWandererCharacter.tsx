@@ -75,6 +75,11 @@ type MapWandererCharacterProps = {
   isWalkable: (cellIndex: number) => boolean;
   /** Per più personaggi sulla stessa mappa: spawn e z-index distinti. */
   instanceId?: number;
+  /**
+   * Se impostato, il personaggio resta fermo su quella cella (idle), senza camminare.
+   * Usato di notte sulla cella della residenza; z-index sotto gli edifici per effetto “dentro casa”.
+   */
+  fixedCell?: number | null;
   /** Doppio tocco: apre la scheda abitante (mappa). */
   onDoublePress?: () => void;
   /** Etichetta accessibilità per il target tocco (es. nome abitante). */
@@ -91,6 +96,7 @@ export function MapWandererCharacter({
   cellSizePx,
   isWalkable,
   instanceId = 0,
+  fixedCell = null,
   onDoublePress,
   doubleTapAccessibilityLabel
 }: MapWandererCharacterProps) {
@@ -102,6 +108,7 @@ export function MapWandererCharacter({
   const [isMoving, setIsMoving] = useState(false);
 
   const inited = useRef(false);
+  const prevFixedCellRef = useRef<number | null | undefined>(undefined);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rafRef = useRef<number | null>(null);
   const lastTapTimeRef = useRef(0);
@@ -129,6 +136,7 @@ export function MapWandererCharacter({
   }, []);
 
   const pickNextMove = useCallback(() => {
+    if (fixedCell != null) return;
     const prev = cellRef.current;
     if (prev === null) return;
 
@@ -174,9 +182,46 @@ export function MapWandererCharacter({
       }
     };
     rafRef.current = requestAnimationFrame(step);
-  }, [cols, rows, cellSizePx, isWalkable]);
+  }, [cols, rows, cellSizePx, isWalkable, fixedCell]);
+
+  /** Di notte sulla residenza: fermo, sotto il layer edifici. */
+  useEffect(() => {
+    if (fixedCell == null) return;
+    clearIdle();
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    inited.current = true;
+    const cx = (fixedCell % cols) * cellSizePx;
+    const cy = Math.floor(fixedCell / cols) * cellSizePx;
+    setLogicalCell(fixedCell);
+    cellRef.current = fixedCell;
+    setPixelPos({ x: cx, y: cy });
+    setIsMoving(false);
+    setWalkFrame(0);
+    setDirection("s");
+  }, [fixedCell, cols, cellSizePx, clearIdle]);
+
+  /** Fine notte in casa → ripristina il girovago (re-inizializza spawn su strade). */
+  useEffect(() => {
+    if (fixedCell != null) {
+      prevFixedCellRef.current = fixedCell;
+      return;
+    }
+    if (prevFixedCellRef.current != null) {
+      clearIdle();
+      if (rafRef.current != null) {
+        cancelAnimationFrame(rafRef.current);
+        rafRef.current = null;
+      }
+      inited.current = false;
+    }
+    prevFixedCellRef.current = fixedCell;
+  }, [fixedCell, clearIdle]);
 
   useEffect(() => {
+    if (fixedCell != null) return;
     if (inited.current) return;
     const ok: number[] = [];
     const tot = cols * rows;
@@ -192,7 +237,7 @@ export function MapWandererCharacter({
     cellRef.current = idx;
     setPixelPos({ x: cx, y: cy });
     idleTimerRef.current = setTimeout(pickNextMove, IDLE_BEFORE_NEXT_MS);
-  }, [cols, rows, isWalkable, instanceId, pickNextMove]);
+  }, [cols, rows, isWalkable, instanceId, pickNextMove, fixedCell]);
 
   useEffect(
     () => () => {
@@ -225,7 +270,7 @@ export function MapWandererCharacter({
       width: cellSizePx,
       height: cellSizePx,
       overflow: "visible" as const,
-      zIndex: 10 + instanceId
+      zIndex: fixedCell != null ? 1 : 10 + instanceId
     }
   ];
 

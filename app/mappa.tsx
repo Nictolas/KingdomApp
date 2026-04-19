@@ -173,6 +173,34 @@ function residenzaGlobaleDi(abitanteId: number, edificiList: Edificio[]): Edific
   return edificiList.find((e) => e.tipo === "Residenza" && (e.abitantiAssegnati ?? []).includes(abitanteId));
 }
 
+/**
+ * Cella anchor della residenza sulla mappa (override `residenzeMappa` o edificio globale tipo Residenza).
+ * `null` se non ha casa mappata (es. solo prigione / senza edificio).
+ */
+function trovaCellaAnchorCasaSuMappa(
+  abitanteId: number,
+  edificiList: Edificio[],
+  edificiInMappa: Record<number, EdificioInCella>,
+  residenzeMappa: Record<number, number[]>
+): number | null {
+  for (const [anchorStr, ids] of Object.entries(residenzeMappa)) {
+    if (ids.includes(abitanteId)) return Number(anchorStr);
+  }
+  const res = residenzaGlobaleDi(abitanteId, edificiList);
+  if (!res || res.tipo !== "Residenza") return null;
+  const targetId = res.id;
+  for (const k of Object.keys(edificiInMappa)) {
+    const idx = Number(k);
+    const e = edificiInMappa[idx];
+    if (!e || !èResidenzaMappa(e.nome)) continue;
+    const anchor = getAnchorCellPerEdificio(idx, edificiInMappa);
+    if (anchor !== idx) continue;
+    const gid = idGlobalePerResidenzaInCella(e, e.nome);
+    if (gid === targetId) return anchor;
+  }
+  return null;
+}
+
 function idEdificioGlobalePerNomeResidenza(nome: string): number | undefined {
   const found = edificiData.find((e) => e.nome === nome && e.tipo === "Residenza");
   return found?.id;
@@ -1172,6 +1200,8 @@ export function MappaScreen() {
   }, []);
 
   const statoCielo = useMemo(() => computeStatoCielo(orologioMinuti), [orologioMinuti]);
+  /** Allineato al buio del cielo: con buio > 0.5 i personaggi con casa si posizionano sulla residenza. */
+  const èNottePersonaggiInCasa = statoCielo.buio > 0.5;
 
   const cols = FIXED_MAP_COLS;
   const rows = FIXED_MAP_ROWS;
@@ -1240,6 +1270,14 @@ export function MappaScreen() {
     },
     [terrenoInMappa, edificiInMappa, decorazioniInMappa, cols, rows]
   );
+
+  const cellaCasaPerAbitanteId = useMemo(() => {
+    const m = new Map<number, number | null>();
+    for (const a of abitanti) {
+      m.set(a.id, trovaCellaAnchorCasaSuMappa(a.id, edifici, edificiInMappa, residenzeMappa));
+    }
+    return m;
+  }, [abitanti, edifici, edificiInMappa, residenzeMappa]);
 
   const edificiFootprintOverlay = useMemo(() => {
     const list: { anchor: number; fp: { w: number; h: number }; variant: FootprintVariant }[] = [];
@@ -1787,21 +1825,27 @@ export function MappaScreen() {
                       );
                     })}
                   </View>
-                  {abitantiPerOverlayMappa.map((abitante: Abitante) => (
-                    <MapWandererCharacter
-                      key={`wanderer-${abitante.id}`}
-                      cols={cols}
-                      rows={rows}
-                      cellSizePx={CELL_SIZE_PX}
-                      isWalkable={isWalkableCell}
-                      instanceId={abitante.id}
-                      onDoublePress={() => {
-                        const a = abitanti.find((x) => x.id === abitante.id);
-                        if (a) setSchedaWandererAbitante(a);
-                      }}
-                      doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitante.id)}`}
-                    />
-                  ))}
+                  {abitantiPerOverlayMappa.map((abitante: Abitante) => {
+                    const homeCell = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
+                    const fixedCellNotte =
+                      èNottePersonaggiInCasa && homeCell !== null ? homeCell : null;
+                    return (
+                      <MapWandererCharacter
+                        key={`wanderer-${abitante.id}`}
+                        cols={cols}
+                        rows={rows}
+                        cellSizePx={CELL_SIZE_PX}
+                        isWalkable={isWalkableCell}
+                        instanceId={abitante.id}
+                        fixedCell={fixedCellNotte}
+                        onDoublePress={() => {
+                          const a = abitanti.find((x) => x.id === abitante.id);
+                          if (a) setSchedaWandererAbitante(a);
+                        }}
+                        doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitante.id)}`}
+                      />
+                    );
+                  })}
                 </View>
               </TransformComponent>
             </TransformWrapper>
