@@ -804,6 +804,8 @@ export function MappaScreen() {
   const [selectedCellForDialog, setSelectedCellForDialog] = useState<number | null>(null);
   const [selectedCellForTransformDialog, setSelectedCellForTransformDialog] = useState<number | null>(null);
   const [showCapannaAbitantiModal, setShowCapannaAbitantiModal] = useState(false);
+  /** Bordi neri tra le celle della mappa (toggle dalla barra risorse). */
+  const [mostraGrigliaMappa, setMostraGrigliaMappa] = useState(true);
   const lastTapCell = useRef<number | null>(null);
   const lastTapTime = useRef<number>(0);
 
@@ -1051,6 +1053,7 @@ export function MappaScreen() {
                       const acquaAnimata = acqua || terreno === "river";
                       const cellStyle = [
                         styles.cella,
+                        mostraGrigliaMappa && styles.cellaGrigliaVisibile,
                         styles.cellaFixed,
                         styles.cellaTextureTerreno,
                         { width: CELL_SIZE_PX, height: CELL_SIZE_PX },
@@ -1127,7 +1130,15 @@ export function MappaScreen() {
                           : (decorazioniInMappa[i] ?? null);
                       const mostraEmoji = !!emoji;
                       return (
-                        <View key={i} style={[styles.cella, styles.cellaFixed, { width: CELL_SIZE_PX, height: CELL_SIZE_PX }]}>
+                        <View
+                          key={i}
+                          style={[
+                            styles.cella,
+                            mostraGrigliaMappa && styles.cellaGrigliaVisibile,
+                            styles.cellaFixed,
+                            { width: CELL_SIZE_PX, height: CELL_SIZE_PX }
+                          ]}
+                        >
                           {mostraEmoji ? (
                             <Text style={[styles.edificioEmoji, { fontSize: Math.max(10, Math.min(22, CELL_SIZE_PX - 4)) }]}>{emoji}</Text>
                           ) : null}
@@ -1154,24 +1165,38 @@ export function MappaScreen() {
               const delta = (variazioni[r.nome] || 0) + (deltaOrdini[r.nome] ?? 0);
               const route = getResourceRoute(r);
               return (
-                <Pressable
-                  key={r.id}
-                  style={[styles.risorseCard, route && styles.risorseCardClickable]}
-                  onPress={route ? () => router.push(route) : undefined}
-                  disabled={!route}
-                >
-                  <Text style={styles.risorseEmoji}>{getResourceEmoji(r)}</Text>
-                  <Text style={styles.risorseName} numberOfLines={1}>{r.nome}</Text>
-                  <View style={styles.risorseValueRow}>
-                    <Text style={styles.risorseValue}>{r.quantità}</Text>
-                    <Text style={styles.risorseUnit}> {r.unità}</Text>
-                  </View>
-                  {delta !== 0 && (
-                    <Text style={[styles.risorseDelta, delta > 0 ? styles.risorseDeltaPos : styles.risorseDeltaNeg]}>
-                      {delta > 0 ? "+" : ""}{delta}
-                    </Text>
+                <React.Fragment key={r.id}>
+                  <Pressable
+                    style={[styles.risorseCard, route && styles.risorseCardClickable]}
+                    onPress={route ? () => router.push(route) : undefined}
+                    disabled={!route}
+                  >
+                    <Text style={styles.risorseEmoji}>{getResourceEmoji(r)}</Text>
+                    <Text style={styles.risorseName} numberOfLines={1}>{r.nome}</Text>
+                    <View style={styles.risorseValueRow}>
+                      <Text style={styles.risorseValue}>{r.quantità}</Text>
+                      <Text style={styles.risorseUnit}> {r.unità}</Text>
+                    </View>
+                    {delta !== 0 && (
+                      <Text style={[styles.risorseDelta, delta > 0 ? styles.risorseDeltaPos : styles.risorseDeltaNeg]}>
+                        {delta > 0 ? "+" : ""}{delta}
+                      </Text>
+                    )}
+                  </Pressable>
+                  {r.nome === "Rifiuti" && (
+                    <Pressable
+                      style={[styles.grigliaMapToggle, mostraGrigliaMappa && styles.grigliaMapToggleOn]}
+                      onPress={() => setMostraGrigliaMappa((v) => !v)}
+                      accessibilityRole="button"
+                      accessibilityLabel={mostraGrigliaMappa ? "Nascondi griglia sulla mappa" : "Mostra griglia sulla mappa"}
+                    >
+                      <Text style={styles.grigliaMapToggleEmoji}>#</Text>
+                      <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
+                        Griglia
+                      </Text>
+                    </Pressable>
                   )}
-                </Pressable>
+                </React.Fragment>
               );
             })}
           </ScrollView>
@@ -1462,6 +1487,32 @@ const styles = StyleSheet.create({
   risorseDelta: { fontSize: 9, fontWeight: "700", marginTop: 1 },
   risorseDeltaPos: { color: "#4ade80" },
   risorseDeltaNeg: { color: "#f87171" },
+  grigliaMapToggle: {
+    minWidth: 64,
+    backgroundColor: "rgba(15,23,42,0.8)",
+    borderRadius: 10,
+    paddingVertical: 8,
+    paddingHorizontal: 8,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.15)",
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  grigliaMapToggleOn: {
+    borderColor: "rgba(59,130,246,0.45)",
+    backgroundColor: "rgba(30,58,138,0.35)"
+  },
+  grigliaMapToggleEmoji: {
+    fontSize: 16,
+    marginBottom: 2,
+    color: "rgba(248,250,252,0.9)",
+    fontWeight: "700"
+  },
+  grigliaMapToggleLabel: {
+    fontSize: 9,
+    color: "rgba(248,250,252,0.85)",
+    fontWeight: "600"
+  },
   menuBtn: {
     paddingVertical: 6,
     paddingHorizontal: 12,
@@ -1599,10 +1650,12 @@ const styles = StyleSheet.create({
   },
   cella: {
     borderRadius: 2,
-    borderWidth: StyleSheet.hairlineWidth,
-    borderColor: "rgba(0,0,0,0.15)",
     justifyContent: "center",
     alignItems: "center"
+  },
+  cellaGrigliaVisibile: {
+    borderWidth: StyleSheet.hairlineWidth,
+    borderColor: "rgba(0,0,0,0.15)"
   },
   /** Erba / sabbia / acqua: texture da spritesheet (TerrainSheetSprite). */
   cellaTextureTerreno: {
