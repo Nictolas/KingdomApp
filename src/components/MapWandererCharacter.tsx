@@ -39,18 +39,25 @@ function frameGroupStart(dir: WanderDirection): number {
       return 6;
     case "e":
     case "w":
-      /** 3/4 verso est (SE nello sheet); con Ovest si applica flip orizzontale. */
-      return 9;
+      /**
+       * Gruppo NE (3–5): movimento E/O su griglia; il gruppo SE (9–11) è pensato per diagonale
+       * e spesso dà sensazione di moonwalk su spostamento solo orizzontale.
+       */
+      return 3;
     default:
       return 0;
   }
 }
 
-/** Ordine dei 3 frame di camminata nel gruppo: per Est serve invertito rispetto al disegno SE; per Ovest avanti + flip. */
+/**
+ * Ordine dei 3 frame nel gruppo SE (9–11): camminata “in avanti” sullo sheet = 0→1→2.
+ * - Est: ordine normale (coerente con lo spostamento a destra).
+ * - Ovest: stesso gruppo + flip orizzontale → per non avere moonwalk serve ciclo invertito 2→1→0.
+ */
 function walkIndexInGroup(direction: WanderDirection, walkFrame: number, isMoving: boolean): number {
   if (!isMoving) return 0;
   const k = Math.min(2, walkFrame % 3);
-  if (direction === "e") return 2 - k;
+  if (direction === "w") return 2 - k;
   return k;
 }
 
