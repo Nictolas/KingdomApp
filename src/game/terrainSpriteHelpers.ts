@@ -143,7 +143,9 @@ export type StradaTileAsset1x1 =
   | "incrocio_nord_est_ovest"
   | "incrocio_nord_est_sud"
   | "incrocio_est_sud_ovest"
-  | "incrocio_est_sud_nord";
+  | "incrocio_est_sud_nord"
+  /** Incrocio a quattro vie (N, S, E, O tutti strada). */
+  | "incrocio_centro";
 
 /**
  * Sceglie lo sprite 1×1 in base ai vicini strada: più connessioni E–O → orizzontale, N–S → verticale.
@@ -179,7 +181,8 @@ const HORIZONTAL_OK_WEST = new Set<StradaTileAsset1x1>([
   "ovest",
   "est",
   "curva_nord_est",
-  "curva_sud_est"
+  "curva_sud_est",
+  "incrocio_centro"
 ]);
 
 /** Vicino a destra (E) ammesso per strada_orizzontale1x1. */
@@ -188,7 +191,8 @@ const HORIZONTAL_OK_EAST = new Set<StradaTileAsset1x1>([
   "curva_nord_ovest",
   "curva_sud_ovest",
   "ovest",
-  "est"
+  "est",
+  "incrocio_centro"
 ]);
 
 function cardinalStrada(
@@ -288,6 +292,7 @@ function getStradaAsset1x1Grezzo(
     if (n && s && w && !e) return "incrocio_est_sud_nord";
     return getOrientamentoStrada1x1(index, cols, rows, edificiInMappa);
   }
+  if (count === 4) return "incrocio_centro";
   if (count === 0) return "orizzontale";
   return getOrientamentoStrada1x1(index, cols, rows, edificiInMappa);
 }
