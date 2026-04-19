@@ -2,12 +2,14 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
-  View
+  View,
+  type ViewStyle
 } from "react-native";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { Redirect, useRouter } from "expo-router";
@@ -61,6 +63,26 @@ const SERRA_FOOTPRINT_H = 1;
 const CELL_SIZE_PX = 40;
 /** Gap tra le celle (0 = griglia compatta 2000x2000). */
 const GAP = 0;
+
+/**
+ * Celle senza griglia: bordi azzerati in modo esplicito (su web anche outline/focus su Pressable).
+ * Il layer emoji non deve mai ridisegnare i bordi sopra al terreno (altrimenti linee doppie / punti agli incroci).
+ */
+const CELLA_SENZA_GRIGLIA: ViewStyle = Platform.select<ViewStyle>({
+  web: {
+    borderWidth: 0,
+    borderColor: "transparent",
+    borderRadius: 0,
+    outlineWidth: 0,
+    outlineStyle: "none",
+    boxShadow: "none"
+  },
+  default: {
+    borderWidth: 0,
+    borderColor: "transparent",
+    borderRadius: 0
+  }
+}) as ViewStyle;
 const DOPPIO_TAP_MS = 400;
 
 /** Calcola indici edifici iniziali in funzione di cols/rows (centro griglia). */
@@ -1116,7 +1138,7 @@ export function MappaScreen() {
                       const acquaAnimata = acqua || terreno === "river";
                       const cellStyle = [
                         styles.cella,
-                        mostraGrigliaMappa && styles.cellaGrigliaVisibile,
+                        mostraGrigliaMappa ? styles.cellaGrigliaOn : CELLA_SENZA_GRIGLIA,
                         styles.cellaFixed,
                         styles.cellaTextureTerreno,
                         { width: CELL_SIZE_PX, height: CELL_SIZE_PX },
@@ -1194,12 +1216,7 @@ export function MappaScreen() {
                       return (
                         <View
                           key={i}
-                          style={[
-                            styles.cella,
-                            mostraGrigliaMappa && styles.cellaGrigliaVisibile,
-                            styles.cellaFixed,
-                            { width: CELL_SIZE_PX, height: CELL_SIZE_PX }
-                          ]}
+                          style={[styles.cella, CELLA_SENZA_GRIGLIA, styles.cellaFixed, { width: CELL_SIZE_PX, height: CELL_SIZE_PX }]}
                         >
                           {mostraEmoji ? (
                             <Text style={[styles.edificioEmoji, { fontSize: Math.max(10, Math.min(22, CELL_SIZE_PX - 4)) }]}>{emoji}</Text>
@@ -1736,11 +1753,11 @@ const styles = StyleSheet.create({
     alignContent: "flex-start"
   },
   cella: {
-    borderRadius: 2,
     justifyContent: "center",
     alignItems: "center"
   },
-  cellaGrigliaVisibile: {
+  cellaGrigliaOn: {
+    borderRadius: 2,
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: "rgba(0,0,0,0.15)"
   },
