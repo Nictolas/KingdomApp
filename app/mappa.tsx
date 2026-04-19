@@ -27,6 +27,7 @@ import {
   RpgFootprintSerra2x1,
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
+import { StradaTile1x1 } from "../src/components/StradaTile1x1";
 import { TerrainSheetSprite } from "../src/components/TerrainSheetSprite";
 import {
   assicuraEdificiCollegatiDaStrada,
@@ -36,8 +37,8 @@ import {
   getGrass2x2Index,
   getGrassRoadBorderSubtileIfAny,
   getGrassSandBorderSubtileIfAny,
-  getRoadDirtSubtile,
-  getSandBeachSubtile
+  getSandBeachSubtile,
+  getStradaAsset1x1
 } from "../src/game/terrainSpriteHelpers";
 
 /** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
@@ -1064,10 +1065,9 @@ export function MappaScreen() {
                           beachSubtile={getSandBeachSubtile(i, cols, rows, terrenoInMappa)}
                         />
                       ) : èStrada ? (
-                        <TerrainSheetSprite
+                        <StradaTile1x1
                           cellSize={CELL_SIZE_PX}
-                          terrain="road"
-                          roadSubtile={getRoadDirtSubtile(i, cols, rows, edificiInMappa)}
+                          asset={getStradaAsset1x1(i, cols, rows, edificiInMappa)}
                         />
                       ) : (
                         <TerrainSheetSprite

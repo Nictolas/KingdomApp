@@ -123,6 +123,76 @@ export function getRoadDirtSubtile(
   return subtile9FromMask(mask);
 }
 
+export type OrientamentoStrada1x1 = "orizzontale" | "verticale";
+
+/**
+ * Sprite strada 1×1: tratti dritti, punti ciechi (un solo vicino strada) per direzione cardinale.
+ */
+export type StradaTileAsset1x1 =
+  | OrientamentoStrada1x1
+  | "nord"
+  | "sud"
+  | "est"
+  | "ovest";
+
+/**
+ * Sceglie lo sprite 1×1 in base ai vicini strada: più connessioni E–O → orizzontale, N–S → verticale.
+ * Incroci / pareggio: default orizzontale.
+ */
+export function getOrientamentoStrada1x1(
+  index: number,
+  cols: number,
+  rows: number,
+  edificiInMappa: Record<number, { nome?: string }>
+): OrientamentoStrada1x1 {
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  const n = isStradaCell(row - 1, col, cols, rows, edificiInMappa);
+  const s = isStradaCell(row + 1, col, cols, rows, edificiInMappa);
+  const w = isStradaCell(row, col - 1, cols, rows, edificiInMappa);
+  const e = isStradaCell(row, col + 1, cols, rows, edificiInMappa);
+  const h = (w ? 1 : 0) + (e ? 1 : 0);
+  const v = (n ? 1 : 0) + (s ? 1 : 0);
+  if (h > v) return "orizzontale";
+  if (v > h) return "verticale";
+  if (v > 0 && h === 0) return "verticale";
+  if (h > 0 && v === 0) return "orizzontale";
+  return "orizzontale";
+}
+
+/**
+ * Sceglie quale PNG 1×1 usare: tratti dritti (2 vicini opposti), punti ciechi (1 vicino → direzione verso quel vicino),
+ * angoli/incroci come in {@link getOrientamentoStrada1x1}.
+ */
+export function getStradaAsset1x1(
+  index: number,
+  cols: number,
+  rows: number,
+  edificiInMappa: Record<number, { nome?: string }>
+): StradaTileAsset1x1 {
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  const n = isStradaCell(row - 1, col, cols, rows, edificiInMappa);
+  const s = isStradaCell(row + 1, col, cols, rows, edificiInMappa);
+  const w = isStradaCell(row, col - 1, cols, rows, edificiInMappa);
+  const e = isStradaCell(row, col + 1, cols, rows, edificiInMappa);
+  const count = (n ? 1 : 0) + (s ? 1 : 0) + (w ? 1 : 0) + (e ? 1 : 0);
+
+  if (count === 1) {
+    if (n) return "nord";
+    if (s) return "sud";
+    if (e) return "est";
+    return "ovest";
+  }
+  if (count === 2) {
+    if (n && s) return "verticale";
+    if (w && e) return "orizzontale";
+    return getOrientamentoStrada1x1(index, cols, rows, edificiInMappa);
+  }
+  if (count === 0) return "orizzontale";
+  return getOrientamentoStrada1x1(index, cols, rows, edificiInMappa);
+}
+
 /**
  * Quale quarto del motivo erba 2×2 usare (ripetizione a scacchiera sulla mappa).
  */
