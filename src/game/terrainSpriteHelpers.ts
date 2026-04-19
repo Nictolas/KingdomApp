@@ -138,7 +138,12 @@ export type StradaTileAsset1x1 =
   | "curva_nord_est"
   | "curva_nord_ovest"
   | "curva_sud_est"
-  | "curva_sud_ovest";
+  | "curva_sud_ovest"
+  /** Incrocio a T (3 vicini): il nome elenca le direzioni con strada; manca quella opposta al “vuoto”. */
+  | "incrocio_nord_est_ovest"
+  | "incrocio_nord_est_sud"
+  | "incrocio_est_sud_ovest"
+  | "incrocio_est_sud_nord";
 
 /**
  * Sceglie lo sprite 1×1 in base ai vicini strada: più connessioni E–O → orizzontale, N–S → verticale.
@@ -273,6 +278,14 @@ function getStradaAsset1x1Grezzo(
     if (n && w) return "curva_nord_ovest";
     if (s && e) return "curva_sud_est";
     if (s && w) return "curva_sud_ovest";
+    return getOrientamentoStrada1x1(index, cols, rows, edificiInMappa);
+  }
+  /** T: 3 bracci; il nome asset elenca le tre direzioni collegate (quella assente è il “dorso” della T). */
+  if (count === 3) {
+    if (n && e && w && !s) return "incrocio_nord_est_ovest";
+    if (n && e && s && !w) return "incrocio_nord_est_sud";
+    if (e && s && w && !n) return "incrocio_est_sud_ovest";
+    if (n && s && w && !e) return "incrocio_est_sud_nord";
     return getOrientamentoStrada1x1(index, cols, rows, edificiInMappa);
   }
   if (count === 0) return "orizzontale";
