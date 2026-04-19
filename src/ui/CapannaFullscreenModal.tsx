@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo } from "react";
 import {
   Modal,
   Pressable,
@@ -32,11 +32,6 @@ export type CapannaFullscreenModalProps = {
   commuteByAbitanteId: Record<number, CommuteEntry & { path: number[]; token: number }>;
   barArrivatiByEdificio: Record<number, number[]>;
   postiPerCasa: number;
-  postiLiberi: number;
-  candidati: Abitante[];
-  onRimuovi: (id: number) => void;
-  onAggiungi: (id: number) => void;
-  onGoResidenze: () => void;
 };
 
 function sortByNome(a: Abitante, b: Abitante): number {
@@ -57,15 +52,8 @@ export function CapannaFullscreenModal({
   lavoroArrivatiIds,
   commuteByAbitanteId,
   barArrivatiByEdificio,
-  postiPerCasa,
-  postiLiberi,
-  candidati,
-  onRimuovi,
-  onAggiungi,
-  onGoResidenze
+  postiPerCasa
 }: CapannaFullscreenModalProps) {
-  const [mostraGestione, setMostraGestione] = useState(false);
-
   const occupanti = useMemo(() => {
     const set = new Set(occupantiIds);
     return abitanti.filter((a) => set.has(a.id)).sort(sortByNome);
@@ -177,78 +165,6 @@ export function CapannaFullscreenModal({
               ))
             )}
           </View>
-
-          <Pressable
-            onPress={() => setMostraGestione((v) => !v)}
-            style={({ pressed }) => [styles.toggleGestione, pressed && styles.toggleGestionePressed]}
-          >
-            <Text style={styles.toggleGestioneText}>
-              {mostraGestione ? "▼" : "▶"} Gestione posti e assegnazioni
-            </Text>
-          </Pressable>
-
-          {mostraGestione ? (
-            <View style={styles.gestioneBox}>
-              <Text style={styles.gestioneNote}>
-                L&apos;assegnazione qui aggiorna anche la Capanna globale in colonia.
-              </Text>
-              <Text style={styles.gestioneTitolo}>Posti</Text>
-              {Array.from({ length: postiPerCasa }, (_, slot) => {
-                const id = occupantiIds[slot];
-                const occ = id != null ? abitanti.find((x) => x.id === id) : null;
-                return (
-                  <View key={`slot-${slot}`} style={styles.slotRow}>
-                    <Text style={styles.slotLabel}>{slot + 1}</Text>
-                    {occ ? (
-                      <>
-                        <Text style={styles.slotEmoji}>{getEmojiAbitante(occ)}</Text>
-                        <Text style={styles.slotNome} numberOfLines={1}>
-                          {occ.nome}
-                        </Text>
-                        <Pressable style={styles.slotRimuovi} onPress={() => onRimuovi(occ.id)}>
-                          <Text style={styles.slotRimuoviText}>Esci</Text>
-                        </Pressable>
-                      </>
-                    ) : (
-                      <Text style={styles.slotVuoto}>Libero</Text>
-                    )}
-                  </View>
-                );
-              })}
-              <Text style={styles.gestioneTitolo}>
-                Può entrare {postiLiberi === 0 ? "(pieno)" : `(${postiLiberi} liberi)`}
-              </Text>
-              <ScrollView
-                nestedScrollEnabled
-                style={styles.candidatiScroll}
-                showsVerticalScrollIndicator={false}
-              >
-                {candidati.length === 0 ? (
-                  <Text style={styles.candidatiEmpty}>
-                    Nessun abitante disponibile con le regole attuali.
-                  </Text>
-                ) : (
-                  candidati.map((a) => (
-                    <Pressable
-                      key={a.id}
-                      style={styles.candidatoRow}
-                      onPress={() => onAggiungi(a.id)}
-                      disabled={postiLiberi === 0}
-                    >
-                      <Text style={styles.candidatoEmoji}>{getEmojiAbitante(a)}</Text>
-                      <Text style={styles.candidatoNome} numberOfLines={1}>
-                        {a.nome}
-                      </Text>
-                      <Text style={styles.candidatoHint}>Aggiungi</Text>
-                    </Pressable>
-                  ))
-                )}
-              </ScrollView>
-              <Pressable style={styles.btnSecondario} onPress={onGoResidenze}>
-                <Text style={styles.btnSecondarioText}>Schermata Residenze (prezzi)</Text>
-              </Pressable>
-            </View>
-          ) : null}
         </ScrollView>
       </SafeAreaView>
     </Modal>
@@ -414,130 +330,5 @@ const styles = StyleSheet.create({
     color: "rgba(203,213,225,0.88)",
     fontWeight: "600",
     textAlign: "right"
-  },
-  toggleGestione: {
-    marginTop: 4,
-    marginBottom: 12,
-    paddingVertical: 12,
-    paddingHorizontal: 14,
-    borderRadius: 12,
-    backgroundColor: "rgba(30,41,59,0.6)",
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.25)"
-  },
-  toggleGestionePressed: {
-    backgroundColor: "rgba(51,65,85,0.7)"
-  },
-  toggleGestioneText: {
-    color: "#93c5fd",
-    fontSize: 14,
-    fontWeight: "700"
-  },
-  gestioneBox: {
-    paddingBottom: 8
-  },
-  gestioneNote: {
-    fontSize: 12,
-    color: "rgba(203,213,225,0.85)",
-    marginBottom: 12,
-    lineHeight: 18
-  },
-  gestioneTitolo: {
-    color: "rgba(203,213,245,0.95)",
-    fontSize: 12,
-    fontWeight: "700",
-    marginTop: 8,
-    marginBottom: 6
-  },
-  slotRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    borderRadius: 8,
-    marginBottom: 4,
-    backgroundColor: "rgba(15,23,42,0.9)",
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.2)"
-  },
-  slotLabel: {
-    color: "rgba(148,163,184,0.95)",
-    fontSize: 12,
-    width: 22,
-    fontWeight: "700"
-  },
-  slotEmoji: { fontSize: 20, marginRight: 8 },
-  slotNome: {
-    flex: 1,
-    color: "#e5e7eb",
-    fontSize: 14,
-    fontWeight: "600"
-  },
-  slotVuoto: {
-    color: "rgba(148,163,184,0.7)",
-    fontSize: 13,
-    fontStyle: "italic",
-    flex: 1
-  },
-  slotRimuovi: {
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-    borderRadius: 6,
-    backgroundColor: "rgba(239,68,68,0.35)"
-  },
-  slotRimuoviText: {
-    color: "#fecaca",
-    fontSize: 12,
-    fontWeight: "600"
-  },
-  candidatiScroll: {
-    maxHeight: 220
-  },
-  candidatiEmpty: {
-    color: "rgba(203,213,245,0.9)",
-    fontSize: 13,
-    fontStyle: "italic",
-    textAlign: "center",
-    paddingVertical: 12
-  },
-  candidatoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingVertical: 10,
-    paddingHorizontal: 12,
-    borderRadius: 8,
-    marginBottom: 4,
-    backgroundColor: "rgba(15,23,42,0.8)",
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.3)"
-  },
-  candidatoEmoji: {
-    fontSize: 22,
-    marginRight: 10
-  },
-  candidatoNome: {
-    color: "#e5e7eb",
-    fontSize: 14,
-    fontWeight: "600",
-    flex: 1
-  },
-  candidatoHint: {
-    color: "#93c5fd",
-    fontSize: 12,
-    fontWeight: "600"
-  },
-  btnSecondario: {
-    marginTop: 14,
-    paddingVertical: 12,
-    alignItems: "center",
-    borderRadius: 12,
-    backgroundColor: "rgba(59,130,246,0.25)",
-    borderWidth: 1,
-    borderColor: "rgba(96,165,250,0.4)"
-  },
-  btnSecondarioText: {
-    color: "#bfdbfe",
-    fontSize: 14,
-    fontWeight: "700"
   }
 });

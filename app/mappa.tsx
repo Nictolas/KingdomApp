@@ -2769,14 +2769,6 @@ export function MappaScreen() {
           commuteByAbitanteId={commuteByAbitanteId}
           barArrivatiByEdificio={barArrivatiByEdificio}
           postiPerCasa={POSTI_PER_CASA_MAPPA}
-          postiLiberi={postiLiberiCasaMappa}
-          candidati={candidatiPerCasaMappa}
-          onRimuovi={handleRimuoviDaCasaMappa}
-          onAggiungi={handleAggiungiACasaMappa}
-          onGoResidenze={() => {
-            setSelectedResidenzaAnchor(null);
-            router.push("/residenze");
-          }}
         />
       ) : (
         <Modal
