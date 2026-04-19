@@ -719,6 +719,20 @@ type MappaRuntimeState = ReturnType<typeof getInitialMappaWithRivers>;
  */
 let mappaSessione: MappaRuntimeState | null = null;
 
+/**
+ * Orologio di gioco: 1 secondo reale = 1 minuto in-game (24 h di gioco = 24 minuti reali).
+ * Stesso modello della mappa: persiste nella sessione se si esce e si torna alla schermata.
+ */
+let orologioGiocoMinutiDaMezzanotte = 6 * 60;
+let orologioGiocoLastRealMs: number | null = null;
+
+function formatOrologioGioco(minutiDaMezzanotte: number): string {
+  const m = ((minutiDaMezzanotte % 1440) + 1440) % 1440;
+  const h = Math.floor(m / 60);
+  const min = m % 60;
+  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
+}
+
 /** Quattro abitanti casuali per i passeggiatori sulla mappa (stabile per sessione, come la generazione terreno). */
 let wandererAbitanteIdsSession: number[] | null = null;
 
@@ -992,6 +1006,28 @@ export function MappaScreen() {
   const [waterAnimFrame, setWaterAnimFrame] = useState(0);
   useEffect(() => {
     const id = setInterval(() => setWaterAnimFrame((n) => (n + 1) % 4), 180);
+    return () => clearInterval(id);
+  }, []);
+
+  const [orologioMinuti, setOrologioMinuti] = useState(() => {
+    if (orologioGiocoLastRealMs == null) {
+      orologioGiocoLastRealMs = Date.now();
+      return orologioGiocoMinutiDaMezzanotte;
+    }
+    const catchUp = Math.floor((Date.now() - orologioGiocoLastRealMs) / 1000);
+    orologioGiocoMinutiDaMezzanotte = (orologioGiocoMinutiDaMezzanotte + catchUp) % 1440;
+    orologioGiocoLastRealMs = Date.now();
+    return orologioGiocoMinutiDaMezzanotte;
+  });
+  useEffect(() => {
+    const id = setInterval(() => {
+      const now = Date.now();
+      const deltaSec = Math.floor((now - (orologioGiocoLastRealMs ?? now)) / 1000);
+      if (deltaSec <= 0) return;
+      orologioGiocoLastRealMs = now;
+      orologioGiocoMinutiDaMezzanotte = (orologioGiocoMinutiDaMezzanotte + deltaSec) % 1440;
+      setOrologioMinuti(orologioGiocoMinutiDaMezzanotte);
+    }, 1000);
     return () => clearInterval(id);
   }, []);
 
@@ -1324,8 +1360,13 @@ export function MappaScreen() {
             </View>
           </View>
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>📅 Mese {mese}</Text>
-            <Text style={styles.badgeText}>· Anno {anno}</Text>
+            <View style={styles.badgeDateColumn}>
+              <View style={styles.badgeDateRow}>
+                <Text style={styles.badgeText}>📅 Mese {mese}</Text>
+                <Text style={styles.badgeText}>· Anno {anno}</Text>
+              </View>
+              <Text style={styles.badgeClock}>🕐 {formatOrologioGioco(orologioMinuti)}</Text>
+            </View>
           </View>
           <Pressable style={styles.diarioBtn} onPress={() => router.push("/diario")}>
             <Text style={styles.diarioBtnEmoji}>📖</Text>
@@ -1851,10 +1892,27 @@ const styles = StyleSheet.create({
     borderRadius: 20,
     gap: 4
   },
+  badgeDateColumn: {
+    flexDirection: "column",
+    gap: 2,
+    justifyContent: "center",
+    alignItems: "flex-start"
+  },
+  badgeDateRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    flexWrap: "wrap",
+    gap: 4
+  },
   badgeText: {
     fontSize: 11,
     color: "rgba(248,250,252,0.85)",
     fontWeight: "600"
+  },
+  badgeClock: {
+    fontSize: 10,
+    color: "rgba(248,250,252,0.72)",
+    fontWeight: "500"
   },
   diarioBtn: {
     flexDirection: "row",
