@@ -7,8 +7,13 @@ const ASSETS: Record<StradaTileAsset1x1, number> = {
   verticale: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/strada_verticale1x1.png"),
   nord: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/strada_nord1x1.png"),
   sud: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/strada_sud1x1.png"),
-  est: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/strada_est1x1.png"),
-  ovest: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/strada_ovest1x1.png"),
+  /**
+   * Allineamento nomi file ↔ topologia:
+   * - `est` = unico vicino strada a **Est** (sei il cappio a Ovest del tratto: a **destra** continua la strada) → file `strada_ovest1x1`.
+   * - `ovest` = unico vicino strada a **Ovest** (cappio a Est: a destra erba) → file `strada_est1x1`.
+   */
+  est: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/strada_ovest1x1.png"),
+  ovest: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/strada_est1x1.png"),
   curva_nord_est: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/curva_nord_est_1x1.png"),
   curva_nord_ovest: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/curva_nord_ovest_1x1.png"),
   curva_sud_est: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/curva_sud_est_1x1.png"),
