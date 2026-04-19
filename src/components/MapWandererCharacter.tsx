@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { Image, Pressable, StyleSheet, View } from "react-native";
+
+const DOPPIO_TAP_MS = 400;
 
 const CHARACTER_SHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/character.png");
 
@@ -73,6 +75,10 @@ type MapWandererCharacterProps = {
   isWalkable: (cellIndex: number) => boolean;
   /** Per più personaggi sulla stessa mappa: spawn e z-index distinti. */
   instanceId?: number;
+  /** Doppio tocco: apre la scheda abitante (mappa). */
+  onDoublePress?: () => void;
+  /** Etichetta accessibilità per il target tocco (es. nome abitante). */
+  doubleTapAccessibilityLabel?: string;
 };
 
 /**
@@ -84,7 +90,9 @@ export function MapWandererCharacter({
   rows,
   cellSizePx,
   isWalkable,
-  instanceId = 0
+  instanceId = 0,
+  onDoublePress,
+  doubleTapAccessibilityLabel
 }: MapWandererCharacterProps) {
   const [logicalCell, setLogicalCell] = useState<number | null>(null);
   const cellRef = useRef<number | null>(null);
@@ -96,6 +104,18 @@ export function MapWandererCharacter({
   const inited = useRef(false);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rafRef = useRef<number | null>(null);
+  const lastTapTimeRef = useRef(0);
+
+  const handlePress = useCallback(() => {
+    if (!onDoublePress) return;
+    const now = Date.now();
+    if (lastTapTimeRef.current > 0 && now - lastTapTimeRef.current < DOPPIO_TAP_MS) {
+      lastTapTimeRef.current = 0;
+      onDoublePress();
+    } else {
+      lastTapTimeRef.current = now;
+    }
+  }, [onDoublePress]);
 
   useEffect(() => {
     cellRef.current = logicalCell;
@@ -197,22 +217,20 @@ export function MapWandererCharacter({
   const sheetH = frameH;
   const offsetX = -frameIndex * frameW;
 
-  return (
-    <View
-      style={[
-        styles.anchor,
-        {
-          left: pixelPos.x,
-          top: pixelPos.y,
-          width: cellSizePx,
-          height: cellSizePx,
-          overflow: "visible",
-          zIndex: 10 + instanceId
-        }
-      ]}
-      pointerEvents="none"
-    >
-      <View style={[styles.spriteColumn, { height: cellSizePx, width: cellSizePx }]}>
+  const shellStyle = [
+    styles.anchor,
+    {
+      left: pixelPos.x,
+      top: pixelPos.y,
+      width: cellSizePx,
+      height: cellSizePx,
+      overflow: "visible" as const,
+      zIndex: 10 + instanceId
+    }
+  ];
+
+  const sprite = (
+    <View style={[styles.spriteColumn, { height: cellSizePx, width: cellSizePx }]}>
         <View
           style={[
             styles.clip,
@@ -236,6 +254,24 @@ export function MapWandererCharacter({
           />
         </View>
       </View>
+  );
+
+  if (onDoublePress) {
+    return (
+      <Pressable
+        style={shellStyle}
+        onPress={handlePress}
+        accessibilityRole="button"
+        accessibilityLabel={doubleTapAccessibilityLabel ?? "Apri scheda abitante"}
+      >
+        {sprite}
+      </Pressable>
+    );
+  }
+
+  return (
+    <View style={shellStyle} pointerEvents="none">
+      {sprite}
     </View>
   );
 }

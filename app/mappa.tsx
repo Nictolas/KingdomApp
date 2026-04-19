@@ -19,7 +19,8 @@ import {
   generateRivers,
   type TerrenoType
 } from "../src/game/riverGeneration";
-import type { Edificio, Risorsa } from "../src/types";
+import type { Abitante, Edificio, Risorsa } from "../src/types";
+import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import {
   RpgFootprintAdmin3x2,
@@ -586,6 +587,22 @@ type MappaRuntimeState = ReturnType<typeof getInitialMappaWithRivers>;
  */
 let mappaSessione: MappaRuntimeState | null = null;
 
+/** Quattro abitanti casuali per i passeggiatori sulla mappa (stabile per sessione, come la generazione terreno). */
+let wandererAbitanteIdsSession: number[] | null = null;
+
+function pickFourAbitanteIds(abitantiList: Abitante[]): number[] {
+  if (abitantiList.length === 0) return [];
+  const shuffled = [...abitantiList].sort(() => Math.random() - 0.5);
+  if (abitantiList.length >= 4) {
+    return shuffled.slice(0, 4).map((a) => a.id);
+  }
+  const out: number[] = [];
+  for (let i = 0; i < 4; i++) {
+    out.push(shuffled[i % shuffled.length]!.id);
+  }
+  return out;
+}
+
 /** Coppie [indiceA, indiceB] per strade iniziali (anchor centro → spazioporto, serra); usa le posizioni effettive degli edifici. */
 function getStradeIniziali(edificiInMappa: Record<number, EdificioInCella>): [number, number][] {
   let centro: number | null = null;
@@ -772,7 +789,20 @@ function getResourceRoute(r: Risorsa): string | null {
 
 export function MappaScreen() {
   const router = useRouter();
-  const { risorse, abitanti, edifici, mese, anno, isLoading, avanzaMese, calcolaProduzioneConsumo, calcolaDeltaOrdiniMercato, calcolaFelicitàModificata } = useGameContext();
+  const {
+    risorse,
+    abitanti,
+    edifici,
+    mese,
+    anno,
+    isLoading,
+    avanzaMese,
+    calcolaProduzioneConsumo,
+    calcolaDeltaOrdiniMercato,
+    calcolaFelicitàModificata,
+    etaMinimaLavoro,
+    redditoCittadinanza
+  } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
 
@@ -804,6 +834,8 @@ export function MappaScreen() {
   const [selectedCellForDialog, setSelectedCellForDialog] = useState<number | null>(null);
   const [selectedCellForTransformDialog, setSelectedCellForTransformDialog] = useState<number | null>(null);
   const [showCapannaAbitantiModal, setShowCapannaAbitantiModal] = useState(false);
+  /** Scheda abitante aperta dal doppio tocco su un passeggiatore sulla mappa. */
+  const [schedaWandererAbitante, setSchedaWandererAbitante] = useState<Abitante | null>(null);
   /** Bordi neri tra le celle della mappa (toggle dalla barra risorse). */
   const [mostraGrigliaMappa, setMostraGrigliaMappa] = useState(true);
   const lastTapCell = useRef<number | null>(null);
@@ -815,6 +847,19 @@ export function MappaScreen() {
     const id = setInterval(() => setWaterAnimFrame((n) => (n + 1) % 4), 180);
     return () => clearInterval(id);
   }, []);
+
+  const wandererAbitanteIds = useMemo(() => {
+    if (abitanti.length === 0) return [];
+    if (wandererAbitanteIdsSession === null) {
+      wandererAbitanteIdsSession = pickFourAbitanteIds(abitanti);
+    }
+    return wandererAbitanteIdsSession;
+  }, [abitanti]);
+
+  const getAbitanteNome = useCallback(
+    (id: number) => abitanti.find((a) => a.id === id)?.nome ?? `ID ${id}`,
+    [abitanti]
+  );
 
   const capannaEdificio = edifici.find((e) => e.nome === "Capanna");
   const abitantiCapanna = (capannaEdificio?.abitantiAssegnati ?? [])
@@ -1163,14 +1208,19 @@ export function MappaScreen() {
                       );
                     })}
                   </View>
-                  {[0, 1, 2, 3].map((id) => (
+                  {wandererAbitanteIds.map((abitanteId, idx) => (
                     <MapWandererCharacter
-                      key={id}
+                      key={`wanderer-${abitanteId}-${idx}`}
                       cols={cols}
                       rows={rows}
                       cellSizePx={CELL_SIZE_PX}
                       isWalkable={isWalkableCell}
-                      instanceId={id}
+                      instanceId={idx}
+                      onDoublePress={() => {
+                        const a = abitanti.find((x) => x.id === abitanteId);
+                        if (a) setSchedaWandererAbitante(a);
+                      }}
+                      doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitanteId)}`}
                     />
                   ))}
                 </View>
@@ -1305,6 +1355,16 @@ export function MappaScreen() {
           </Pressable>
         </Pressable>
       </Modal>
+
+      <AbitanteInfoModal
+        visible={schedaWandererAbitante !== null}
+        abitante={schedaWandererAbitante}
+        onClose={() => setSchedaWandererAbitante(null)}
+        getAbitanteNome={getAbitanteNome}
+        calcolaFelicitàModificata={calcolaFelicitàModificata}
+        etaMinimaLavoro={etaMinimaLavoro}
+        redditoCittadinanza={redditoCittadinanza ?? 0}
+      />
 
       <Modal
         visible={showCapannaAbitantiModal}
