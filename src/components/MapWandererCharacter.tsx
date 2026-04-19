@@ -92,6 +92,11 @@ type MapWandererCharacterProps = {
   onCellSettled?: (cellIndex: number) => void;
   /** Doppio tocco: apre la scheda abitante (mappa). */
   onDoublePress?: () => void;
+  /**
+   * Se true per la cella corrente, il personaggio non intercetta i tocchi: passano alla griglia sotto
+   * (es. doppio tap sulla residenza → elenco in casa invece della scheda abitante).
+   */
+  passTouchesToMapOnCell?: (cellIndex: number) => boolean;
   /** Etichetta accessibilità per il target tocco (es. nome abitante). */
   doubleTapAccessibilityLabel?: string;
 };
@@ -113,6 +118,7 @@ export function MapWandererCharacter({
   onCommuteComplete,
   onCellSettled,
   onDoublePress,
+  passTouchesToMapOnCell,
   doubleTapAccessibilityLabel
 }: MapWandererCharacterProps) {
   const [logicalCell, setLogicalCell] = useState<number | null>(null);
@@ -367,6 +373,10 @@ export function MapWandererCharacter({
 
   if (logicalCell === null) return null;
 
+  const passTouchesToGrid =
+    passTouchesToMapOnCell != null && passTouchesToMapOnCell(logicalCell) === true;
+  const apriSchedaConDoppioTap = !!onDoublePress && !passTouchesToGrid;
+
   const group = frameGroupStart(direction);
   const frameInGroup = walkIndexInGroup(direction, walkFrame, isMoving);
   const frameIndex = Math.min(group + frameInGroup, FRAMES - 1);
@@ -419,7 +429,7 @@ export function MapWandererCharacter({
       </View>
   );
 
-  if (onDoublePress) {
+  if (apriSchedaConDoppioTap) {
     return (
       <Pressable
         style={shellStyle}

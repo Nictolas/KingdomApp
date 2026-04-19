@@ -380,6 +380,25 @@ function getIndiciFootprint(anchor: number, w: number, h: number, cols: number):
   return out;
 }
 
+/**
+ * True se la cella fa parte dell’impronta di una residenza (Baracca, Capanna, Dormitorio).
+ * Il passeggiatore sopra non deve rubare il doppio tap alla griglia (elenco residenti).
+ */
+function cellaÈNelFootprintResidenzaMappa(
+  cellIndex: number,
+  edificiInMappa: Record<number, EdificioInCella>,
+  cols: number
+): boolean {
+  const e = edificiInMappa[cellIndex];
+  if (!e || !èResidenzaMappa(e.nome)) return false;
+  const anchor = getAnchorCellPerEdificio(cellIndex, edificiInMappa);
+  const cap = edificiInMappa[anchor];
+  if (!cap || !èResidenzaMappa(cap.nome)) return false;
+  const w = cap.footprint?.w ?? 1;
+  const h = cap.footprint?.h ?? 1;
+  return getIndiciFootprint(anchor, w, h, cols).includes(cellIndex);
+}
+
 /** 8 vicini (ortogonali + diagonali). */
 function getVicini8(index: number, cols: number, rows: number): number[] {
   const c = index % cols;
@@ -1491,6 +1510,11 @@ export function MappaScreen() {
     ultimaCellaAbitanteRef.current.set(abitanteId, cell);
   }, []);
 
+  const passTouchesToMapOnCellPerWanderer = useCallback(
+    (cell: number) => cellaÈNelFootprintResidenzaMappa(cell, edificiInMappa, cols),
+    [edificiInMappa, cols]
+  );
+
   useEffect(() => {
     const notte = statoCielo.buio > 0.5;
     if (prevBuioNotteTransitRef.current === undefined) {
@@ -2227,6 +2251,7 @@ export function MappaScreen() {
                           const a = abitanti.find((x) => x.id === abitante.id);
                           if (a) setSchedaWandererAbitante(a);
                         }}
+                        passTouchesToMapOnCell={passTouchesToMapOnCellPerWanderer}
                         doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitante.id)}`}
                       />
                     );
