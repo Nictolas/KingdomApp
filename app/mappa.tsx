@@ -43,7 +43,6 @@ import {
   buildStradaAssetLookup,
   erbaExtraDecorCasuale,
   getGrass2x2Index,
-  getGrassRoadBorderSubtileIfAny,
   getGrassSandBorderSubtileIfAny,
   getSandBeachSubtile
 } from "../src/game/terrainSpriteHelpers";
@@ -1279,13 +1278,6 @@ export function MappaScreen() {
                         hasEdificio && !èStrada && styles.cellaEdificio,
                         Platform.OS === "web" && webCellAbsolutePosition(i, cols, CELL_SIZE_PX)
                       ];
-                      const grassRoadBorderSubtile = getGrassRoadBorderSubtileIfAny(
-                        i,
-                        cols,
-                        rows,
-                        terrenoInMappa,
-                        edificiInMappa
-                      );
                       const grassSandBorderSubtile = getGrassSandBorderSubtileIfAny(
                         i,
                         cols,
@@ -1295,11 +1287,14 @@ export function MappaScreen() {
                       );
                       const edificioBloccaErbaDecor =
                         !!edificio && edificio.nome !== "Strada";
+                      /**
+                       * Non usiamo `getGrassRoadBorderSubtileIfAny` sullo spritesheet: le strade sono PNG 1×1
+                       * (`StradaTile1x1`); il bordo menta 3×3 sul foglio crea piastrelle incoerenti accanto alla strada.
+                       */
                       const erbaDecor =
                         terreno === "erba" &&
                         !èStrada &&
                         !edificioBloccaErbaDecor &&
-                        grassRoadBorderSubtile == null &&
                         grassSandBorderSubtile == null
                           ? erbaExtraDecorCasuale(i, cols)
                           : null;
@@ -1323,7 +1318,6 @@ export function MappaScreen() {
                             cellSize={CELL_SIZE_PX}
                             terrain="grass"
                             grass2x2Index={getGrass2x2Index(i, cols)}
-                            grassRoadBorderSubtile={grassRoadBorderSubtile}
                             grassSandBorderSubtile={grassSandBorderSubtile}
                           />
                           {erbaDecor ? (
