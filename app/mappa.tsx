@@ -36,7 +36,6 @@ import {
 } from "../src/game/roadConnectivity";
 import {
   getGrass2x2Index,
-  getGrassRoadBorderSubtileIfAny,
   getGrassSandBorderSubtileIfAny,
   getSandBeachSubtile,
   getStradaAsset1x1
@@ -1090,7 +1089,6 @@ export function MappaScreen() {
                           cellSize={CELL_SIZE_PX}
                           terrain="grass"
                           grass2x2Index={getGrass2x2Index(i, cols)}
-                          grassRoadBorderSubtile={getGrassRoadBorderSubtileIfAny(i, cols, rows, terrenoInMappa, edificiInMappa)}
                           grassSandBorderSubtile={getGrassSandBorderSubtileIfAny(i, cols, rows, terrenoInMappa, edificiInMappa)}
                         />
                       );
