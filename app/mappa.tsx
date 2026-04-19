@@ -30,6 +30,7 @@ import {
   RpgFootprintCapanna2x1,
   RpgFootprintDorm2x2,
   RpgFootprintBar2x2,
+  RpgFootprintTribunale2x2,
   RpgFootprintSerra2x1,
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
@@ -42,13 +43,17 @@ import {
   indiciViciniOrtogonaliStrada
 } from "../src/game/roadConnectivity";
 import {
-  abitanteDisoccupatoAlBarOra,
+  abitanteAlBarRoutineOra,
   abitanteInOrarioLavoroEdificio,
+  fasciaPerEdificio,
+  minutiInFascia,
   primoEdificioLavoroOrarioPerAbitante
 } from "../src/game/orariLavoroMappa";
 import {
   pianificaCommuteMattina,
-  pianificaCommuteSeraACasa
+  pianificaCommuteSeraACasa,
+  pianificaCommuteVersoBarDaCella,
+  pianificaCommuteVersoEdificioGlobaleDaCella
 } from "../src/game/commutePathsMappa";
 import { setBarArrivatiMappaSnapshot } from "../src/game/mappaBarArrivatiStore";
 import { computeStatoCielo } from "../src/game/cicloCielo";
@@ -74,6 +79,9 @@ const DORMITORIO_FOOTPRINT_H = 2;
 /** Bar: stesso ingombro 2×2 del dormitorio. */
 const BAR_FOOTPRINT_W = 2;
 const BAR_FOOTPRINT_H = 2;
+/** Tribunale: 2×2 (emoji bilancia ⚖️ sul catalogo). */
+const TRIBUNALE_FOOTPRINT_W = 2;
+const TRIBUNALE_FOOTPRINT_H = 2;
 /** Spazioporto: edificio + area lancio (sprite orizzontale). */
 const SPAZIOPORTO_FOOTPRINT_W = 4;
 const SPAZIOPORTO_FOOTPRINT_H = 3;
@@ -292,6 +300,7 @@ const FOOTPRINT_COSTRUZIONE: Record<string, { w: number; h: number }> = {
   Capanna: { w: CAPANNA_FOOTPRINT_W, h: CAPANNA_FOOTPRINT_H },
   Dormitorio: { w: DORMITORIO_FOOTPRINT_W, h: DORMITORIO_FOOTPRINT_H },
   Bar: { w: BAR_FOOTPRINT_W, h: BAR_FOOTPRINT_H },
+  Tribunale: { w: TRIBUNALE_FOOTPRINT_W, h: TRIBUNALE_FOOTPRINT_H },
   Spazioporto: { w: SPAZIOPORTO_FOOTPRINT_W, h: SPAZIOPORTO_FOOTPRINT_H }
 };
 
@@ -360,6 +369,7 @@ const STRADA_OPZIONE: EdificioInCella = { id: -1, nome: "Strada", emoji: "🛤�
 
 const DORMITORIO: EdificioInCella = { id: 14, nome: "Dormitorio", emoji: "🛏️" };
 const BAR_EDIFICIO: EdificioInCella = { id: 17, nome: "Bar", emoji: "🍺" };
+const TRIBUNALE_EDIFICIO: EdificioInCella = { id: 12, nome: "Tribunale", emoji: "⚖️" };
 const SERRA_EDIFICIO: EdificioInCella = { id: 2, nome: "Serra", emoji: "🌱" };
 const SERRA_2_EDIFICIO: EdificioInCella = { id: 21, nome: "Serra", emoji: "🌱" };
 const CAPANNA: EdificioInCella = { id: 20, nome: "Capanna", emoji: "⛺" };
@@ -649,6 +659,44 @@ function aggiungiBarFootprint(
   estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
 }
 
+function aggiungiTribunaleFootprint(
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  vietato: Set<number>,
+  out: Record<number, EdificioInCella>,
+  preferred: number
+): void {
+  const w = TRIBUNALE_FOOTPRINT_W;
+  const h = TRIBUNALE_FOOTPRINT_H;
+  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, vietato);
+  if (anchor == null) {
+    const cell = trovaCellaSingolaConCuscino(preferred, cols, rows, riverSet, vietato);
+    if (cell != null) {
+      out[cell] = { ...TRIBUNALE_EDIFICIO };
+      estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, vietato);
+    }
+    return;
+  }
+  const celle = getIndiciFootprint(anchor, w, h, cols);
+  out[anchor] = {
+    id: TRIBUNALE_EDIFICIO.id,
+    nome: TRIBUNALE_EDIFICIO.nome,
+    emoji: "",
+    footprint: { w, h }
+  };
+  for (const i of celle) {
+    if (i === anchor) continue;
+    out[i] = {
+      id: TRIBUNALE_EDIFICIO.id,
+      nome: TRIBUNALE_EDIFICIO.nome,
+      emoji: "",
+      footprintRef: anchor
+    };
+  }
+  estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
+}
+
 function aggiungiSerraFootprint(
   cols: number,
   rows: number,
@@ -751,6 +799,8 @@ function getEdificiIniziali(
   aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_1_INDEX);
   aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_2_INDEX);
   aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_3_INDEX);
+
+  aggiungiTribunaleFootprint(cols, rows, riverSet, vietato, out, idx.TRIBUNALE_INDEX);
 
   aggiungiBarFootprint(cols, rows, riverSet, vietato, out, idx.BAR_INDEX);
 
@@ -1009,6 +1059,7 @@ function getStradeIniziali(edificiInMappa: Record<number, EdificioInCella>): [nu
   let centro: number | null = null;
   let spazioporto: number | null = null;
   let bar: number | null = null;
+  let tribunale: number | null = null;
   const serre: number[] = [];
   for (const [i, e] of Object.entries(edificiInMappa)) {
     const idx = Number(i);
@@ -1016,12 +1067,14 @@ function getStradeIniziali(edificiInMappa: Record<number, EdificioInCella>): [nu
     if (e.nome === "Spazioporto" && e.footprint && !e.footprintRef) spazioporto = idx;
     if (e.nome === "Serra" && e.footprint && !e.footprintRef) serre.push(idx);
     if (e.nome === "Bar" && e.footprint && !e.footprintRef) bar = idx;
+    if (e.nome === "Tribunale" && e.footprint && !e.footprintRef) tribunale = idx;
   }
   const out: [number, number][] = [];
   if (centro != null && spazioporto != null) out.push([centro, spazioporto]);
   if (centro != null) {
     for (const sa of serre) out.push([centro, sa]);
   }
+  if (centro != null && tribunale != null) out.push([centro, tribunale]);
   if (centro != null && bar != null) out.push([centro, bar]);
   return out;
 }
@@ -1033,7 +1086,14 @@ function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: n
   return { left: col * (cellW + GAP), top: row * (cellH + GAP) };
 }
 
-type FootprintVariant = "amministrazione" | "dormitorio" | "bar" | "spazioporto" | "serra" | "capanna";
+type FootprintVariant =
+  | "amministrazione"
+  | "dormitorio"
+  | "bar"
+  | "tribunale"
+  | "spazioporto"
+  | "serra"
+  | "capanna";
 
 function EdificioFootprintGfx({
   anchor,
@@ -1068,6 +1128,14 @@ function EdificioFootprintGfx({
     return (
       <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
         <RpgFootprintBar2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "tribunale" && w === TRIBUNALE_FOOTPRINT_W && h === TRIBUNALE_FOOTPRINT_H) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintTribunale2x2 width={width} height={height} />
       </View>
     );
   }
@@ -1462,7 +1530,7 @@ export function MappaScreen() {
 
   const ultimaCellaAbitanteRef = useRef<Map<number, number>>(new Map());
   const prevBuioNotteTransitRef = useRef<boolean | undefined>(undefined);
-  const prevWindowLavoroRef = useRef(false);
+  const orologioPrevTickRef = useRef(orologioMinuti);
 
   const [dormonoACasaIds, setDormonoACasaIds] = useState<Set<number>>(() => new Set());
   const [lavoroArrivatiIds, setLavoroArrivatiIds] = useState<Set<number>>(() => new Set());
@@ -1471,22 +1539,89 @@ export function MappaScreen() {
     Record<number, { path: number[]; token: number; purpose: "work" | "bar" | "home" }>
   >({});
 
-  const inFinestraOrarioLavoroGlobale = useMemo(
-    () => abitanti.some((a) => abitanteInOrarioLavoroEdificio(a.id, orologioMinuti, edifici)),
-    [abitanti, edifici, orologioMinuti]
-  );
-
-  useEffect(() => {
-    const pw = inFinestraOrarioLavoroGlobale;
-    if (prevWindowLavoroRef.current && !pw) {
-      setLavoroArrivatiIds(new Set());
-    }
-    prevWindowLavoroRef.current = pw;
-  }, [inFinestraOrarioLavoroGlobale]);
-
   useEffect(() => {
     setBarArrivatiMappaSnapshot(barArrivatiIds);
   }, [barArrivatiIds]);
+
+  /** 8:00 → Bar / casa → lavoro; 17:00 → lavoro → Bar. */
+  useEffect(() => {
+    const prev = orologioPrevTickRef.current;
+    const cur = orologioMinuti;
+    orologioPrevTickRef.current = cur;
+    if (prev === cur) return;
+    if (statoCielo.buio > 0.5) return;
+
+    const LAVORO_INIZIO = 8 * 60;
+    const LAVORO_FINE = 17 * 60;
+
+    if (prev < LAVORO_INIZIO && cur >= LAVORO_INIZIO) {
+      setCommuteByAbitanteId((prevComm) => {
+        const out = { ...prevComm };
+        for (const a of abitanti) {
+          if (a.razza === "Robot") continue;
+          if (out[a.id]) continue;
+          const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
+          if (!lav) continue;
+          const fascia = fasciaPerEdificio(lav);
+          if (!fascia || !minutiInFascia(cur, fascia)) continue;
+          const from = ultimaCellaAbitanteRef.current.get(a.id) ?? null;
+          if (from == null) continue;
+          const path = pianificaCommuteVersoEdificioGlobaleDaCella(
+            from,
+            lav.id,
+            edificiInMappa,
+            cols,
+            rows,
+            isWalkableCell
+          );
+          if (path && path.length >= 2) {
+            out[a.id] = { path, token: Date.now(), purpose: "work" };
+          }
+        }
+        return out;
+      });
+      setBarArrivatiIds((s0) => {
+        const s = new Set(s0);
+        for (const a of abitanti) {
+          if (a.razza === "Robot") continue;
+          const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
+          if (!lav) continue;
+          const fascia = fasciaPerEdificio(lav);
+          if (!fascia || !minutiInFascia(cur, fascia)) continue;
+          s.delete(a.id);
+        }
+        return s;
+      });
+    }
+
+    if (prev < LAVORO_FINE && cur >= LAVORO_FINE && lavoroArrivatiIds.size > 0) {
+      const toPath = [...lavoroArrivatiIds];
+      setCommuteByAbitanteId((prevComm) => {
+        const out = { ...prevComm };
+        for (const id of toPath) {
+          if (out[id]) continue;
+          const from = ultimaCellaAbitanteRef.current.get(id) ?? null;
+          if (from == null) continue;
+          const path = pianificaCommuteVersoBarDaCella(from, edificiInMappa, cols, rows, isWalkableCell);
+          if (path && path.length >= 2) {
+            out[id] = { path, token: Date.now(), purpose: "bar" };
+          }
+        }
+        return out;
+      });
+      setLavoroArrivatiIds(new Set());
+    }
+  }, [
+    orologioMinuti,
+    statoCielo.buio,
+    abitanti,
+    edifici,
+    edificiInMappa,
+    cols,
+    rows,
+    isWalkableCell,
+    lavoroArrivatiIds
+  ]);
 
   const handleCommuteFinita = useCallback((abitanteId: number, purpose: "work" | "bar" | "home") => {
     setCommuteByAbitanteId((prev) => {
@@ -1541,10 +1676,22 @@ export function MappaScreen() {
         if (a.razza === "Robot") continue;
         const home = cellaCasaPerAbitanteId.get(a.id) ?? null;
         const ult = ultimaCellaAbitanteRef.current.get(a.id) ?? null;
-        const path = pianificaCommuteMattina(a, home, ult, edifici, edificiInMappa, cols, rows, isWalkableCell);
+        const path = pianificaCommuteMattina(
+          a,
+          home,
+          ult,
+          edifici,
+          edificiInMappa,
+          cols,
+          rows,
+          isWalkableCell,
+          orologioMinuti
+        );
         if (!path || path.length < 2) continue;
         const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
-        const purpose: "work" | "bar" = lav ? "work" : "bar";
+        const fascia = lav ? fasciaPerEdificio(lav) : null;
+        const purpose: "work" | "bar" =
+          lav && fascia && minutiInFascia(orologioMinuti, fascia) ? "work" : "bar";
         next[a.id] = { path, token: Date.now(), purpose };
       }
       setCommuteByAbitanteId(next);
@@ -1561,8 +1708,9 @@ export function MappaScreen() {
         const s = new Set(prev);
         for (const a of abitanti) {
           if (a.razza === "Robot") continue;
-          if (a.lavoro !== "Disoccupato") continue;
-          if (primoEdificioLavoroOrarioPerAbitante(a.id, edifici)) continue;
+          const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
+          const fascia = lav ? fasciaPerEdificio(lav) : null;
+          if (lav && fascia && minutiInFascia(orologioMinuti, fascia)) continue;
           if (!next[a.id]) s.add(a.id);
         }
         return s;
@@ -1602,7 +1750,8 @@ export function MappaScreen() {
     edificiInMappa,
     cols,
     rows,
-    isWalkableCell
+    isWalkableCell,
+    orologioMinuti
   ]);
 
   const edificiFootprintOverlay = useMemo(() => {
@@ -1614,13 +1763,15 @@ export function MappaScreen() {
             ? "dormitorio"
             : e.nome === "Bar"
               ? "bar"
-              : e.nome === "Spazioporto"
-                ? "spazioporto"
-                : e.nome === "Serra"
-                  ? "serra"
-                  : e.nome === "Capanna"
-                    ? "capanna"
-                    : "amministrazione";
+              : e.nome === "Tribunale"
+                ? "tribunale"
+                : e.nome === "Spazioporto"
+                  ? "spazioporto"
+                  : e.nome === "Serra"
+                    ? "serra"
+                    : e.nome === "Capanna"
+                      ? "capanna"
+                      : "amministrazione";
         list.push({ anchor: Number(i), fp: e.footprint, variant });
       }
     }
@@ -2217,7 +2368,7 @@ export function MappaScreen() {
                       !inCommute;
 
                     const nascostoBar =
-                      abitanteDisoccupatoAlBarOra(abitante, orologioMinuti, statoCielo.buio, edifici) &&
+                      abitanteAlBarRoutineOra(abitante, orologioMinuti, statoCielo.buio, edifici) &&
                       barArrivatiIds.has(abitante.id) &&
                       !inCommute;
 
@@ -2252,6 +2403,7 @@ export function MappaScreen() {
                           if (a) setSchedaWandererAbitante(a);
                         }}
                         passTouchesToMapOnCell={passTouchesToMapOnCellPerWanderer}
+                        disableIdleRoam={!èNottePersonaggiInCasa && abitante.razza !== "Robot"}
                         doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitante.id)}`}
                       />
                     );

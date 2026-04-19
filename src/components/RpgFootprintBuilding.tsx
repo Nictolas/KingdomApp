@@ -1,5 +1,5 @@
 import React from "react";
-import { StyleSheet, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
 type Props = {
   width: number;
@@ -327,6 +327,34 @@ export function RpgFootprintBar2x2({ width, height }: Props) {
           </View>
         </View>
         <View style={[styles.trimBand, { height: bandH, backgroundColor: "#1c1917" }]} />
+      </View>
+    </View>
+  );
+}
+
+/** Tribunale 2×2 — facciata in pietra con emoji bilancia (stesso ingombro del dormitorio). */
+export function RpgFootprintTribunale2x2({ width, height }: Props) {
+  const roofH = Math.round(height * 0.44);
+  const grondaH = 3;
+  const wallH = height - roofH - grondaH;
+  const bandH = Math.max(3, Math.floor(wallH * 0.1));
+  const emojiSize = Math.max(14, Math.min(32, Math.floor(Math.min(width, height) * 0.22)));
+
+  return (
+    <View style={[styles.wrap, { width, height }]} pointerEvents="none">
+      <RoofStripes
+        roofH={roofH}
+        stripeEvery={5}
+        colors={{ base: "#475569", dark: "#334155", light: "#64748b" }}
+      />
+      <View style={[styles.gronda, { height: grondaH }]} />
+      <View style={[styles.wallBlockFlex, { backgroundColor: "#e7e5e4" }]}>
+        <View style={[styles.trimBand, { height: bandH, backgroundColor: "#1e293b" }]} />
+        <View style={[styles.wallInnerFlex, { backgroundColor: "#d6d3d1", justifyContent: "center", alignItems: "center" }]}>
+          <WallBrickTexture wallH={wallH - bandH * 2} />
+          <Text style={{ fontSize: emojiSize, lineHeight: emojiSize + 2, textAlign: "center" }}>⚖️</Text>
+        </View>
+        <View style={[styles.trimBand, { height: bandH, backgroundColor: "#0f172a" }]} />
       </View>
     </View>
   );

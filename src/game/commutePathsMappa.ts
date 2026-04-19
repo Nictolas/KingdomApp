@@ -1,5 +1,5 @@
 import type { Abitante, Edificio } from "../types";
-import { primoEdificioLavoroOrarioPerAbitante } from "./orariLavoroMappa";
+import { fasciaPerEdificio, minutiInFascia, primoEdificioLavoroOrarioPerAbitante } from "./orariLavoroMappa";
 import {
   celleIngressoWalkableAttornoAdAnchor,
   orthogonalNeighbors,
@@ -81,6 +81,34 @@ export function calcolaPercorsoVersoAnchorEdificio(
   return trovaPercorsoVersoCelle(start, goals, cols, rows, isWalkable);
 }
 
+export function pianificaCommuteVersoBarDaCella(
+  fromCellPreferita: number,
+  edificiInMappa: Record<number, EdificioInCellaLike>,
+  cols: number,
+  rows: number,
+  isWalkable: (i: number) => boolean
+): number[] | null {
+  const bAnchor = trovaAnchorBarSuMappa(edificiInMappa);
+  if (bAnchor == null) return null;
+  return calcolaPercorsoVersoAnchorEdificio(fromCellPreferita, bAnchor, cols, rows, isWalkable);
+}
+
+export function pianificaCommuteVersoEdificioGlobaleDaCella(
+  fromCellPreferita: number,
+  edificioGlobaleId: number,
+  edificiInMappa: Record<number, EdificioInCellaLike>,
+  cols: number,
+  rows: number,
+  isWalkable: (i: number) => boolean
+): number[] | null {
+  const wAnchor = trovaAnchorEdificioGlobaleSuMappa(edificioGlobaleId, edificiInMappa);
+  if (wAnchor == null) return null;
+  return calcolaPercorsoVersoAnchorEdificio(fromCellPreferita, wAnchor, cols, rows, isWalkable);
+}
+
+/**
+ * All’alba: fuori fascia lavoro → Bar; in fascia (es. dopo le 8:00) → primo edificio con orario.
+ */
 export function pianificaCommuteMattina(
   abitante: Abitante,
   homeAnchor: number | null,
@@ -89,26 +117,39 @@ export function pianificaCommuteMattina(
   edificiInMappa: Record<number, EdificioInCellaLike>,
   cols: number,
   rows: number,
-  isWalkable: (i: number) => boolean
+  isWalkable: (i: number) => boolean,
+  minutiDaMezzanotte: number
 ): number[] | null {
   if (abitante.razza === "Robot") return null;
 
-  const lavoro = primoEdificioLavoroOrarioPerAbitante(abitante.id, edificiList);
-  if (lavoro) {
-    const wAnchor = trovaAnchorEdificioGlobaleSuMappa(lavoro.id, edificiInMappa);
-    if (wAnchor == null) return null;
-    const from = homeAnchor ?? ultimaCellaNota ?? wAnchor;
-    return calcolaPercorsoVersoAnchorEdificio(from, wAnchor, cols, rows, isWalkable);
-  }
+  const fromBase = homeAnchor ?? ultimaCellaNota;
 
-  if (abitante.lavoro === "Disoccupato") {
+  const pathVersoBar = (): number[] | null => {
     const bAnchor = trovaAnchorBarSuMappa(edificiInMappa);
     if (bAnchor == null) return null;
-    const from = homeAnchor ?? ultimaCellaNota ?? bAnchor;
+    const from = fromBase ?? bAnchor;
     return calcolaPercorsoVersoAnchorEdificio(from, bAnchor, cols, rows, isWalkable);
+  };
+
+  const pathVersoLavoro = (): number[] | null => {
+    const lavoro = primoEdificioLavoroOrarioPerAbitante(abitante.id, edificiList);
+    if (!lavoro) return null;
+    const wAnchor = trovaAnchorEdificioGlobaleSuMappa(lavoro.id, edificiInMappa);
+    if (wAnchor == null) return null;
+    const from = fromBase ?? wAnchor;
+    return calcolaPercorsoVersoAnchorEdificio(from, wAnchor, cols, rows, isWalkable);
+  };
+
+  const lavoro = primoEdificioLavoroOrarioPerAbitante(abitante.id, edificiList);
+  if (lavoro) {
+    const fascia = fasciaPerEdificio(lavoro);
+    if (fascia && minutiInFascia(minutiDaMezzanotte, fascia)) {
+      return pathVersoLavoro() ?? pathVersoBar();
+    }
+    return pathVersoBar() ?? pathVersoLavoro();
   }
 
-  return null;
+  return pathVersoBar();
 }
 
 export function pianificaCommuteSeraACasa(

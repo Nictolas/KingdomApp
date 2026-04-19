@@ -21,6 +21,7 @@ const NOMI_CON_ORARIO_LAVORO = new Set<string>([
   "Ospedale Coloniale",
   "Hangar di Manutenzione",
   "Scuola",
+  "Tribunale",
   "Caserma",
   "Centrale",
   "Spazioporto"
@@ -95,11 +96,27 @@ export function abitanteDisoccupatoAlBarOra(
   return true;
 }
 
+/**
+ * Di giorno, fuori fascia lavoro: tutti i non-Robot (anche assegnati a Serra, ecc.) sono “al Bar”
+ * sulla mappa, non in passeggio a caso. In fascia lavoro restano in edificio.
+ */
+export function abitanteAlBarRoutineOra(
+  abitante: Abitante,
+  minutiDaMezzanotte: number,
+  buioCielo: number,
+  edificiList: Edificio[]
+): boolean {
+  if (abitante.razza === "Robot") return false;
+  if (èNotteRoutineMappaDaBuio(buioCielo)) return false;
+  if (abitanteInOrarioLavoroEdificio(abitante.id, minutiDaMezzanotte, edificiList)) return false;
+  return true;
+}
+
 export function abitantiPresentiNelBarOra(
   abitantiList: Abitante[],
   minutiDaMezzanotte: number,
   buioCielo: number,
   edificiList: Edificio[]
 ): Abitante[] {
-  return abitantiList.filter((a) => abitanteDisoccupatoAlBarOra(a, minutiDaMezzanotte, buioCielo, edificiList));
+  return abitantiList.filter((a) => abitanteAlBarRoutineOra(a, minutiDaMezzanotte, buioCielo, edificiList));
 }

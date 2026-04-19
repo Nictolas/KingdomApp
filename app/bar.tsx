@@ -72,9 +72,10 @@ export default function BarScreen() {
         </View>
 
         <View style={styles.visitatoriCard}>
-          <Text style={styles.sectionTitle}>Ora al Bar (disoccupati)</Text>
+          <Text style={styles.sectionTitle}>Ora al Bar (visitatori)</Text>
           <Text style={styles.infoSubtext}>
-            Fuori dall’orario di riposo notturno, i disoccupati si trovano qui; di notte sono a casa.
+            Di giorno, fuori dall’orario di lavoro (es. prima delle 8 o dopo le 17), colonisti e lavoratori
+            in pausa si trovano qui; di notte sono a casa.
           </Text>
           {visitatoriDisoccupati.length > 0 ? (
             <View style={styles.cardsContainer}>

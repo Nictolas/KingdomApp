@@ -97,6 +97,8 @@ type MapWandererCharacterProps = {
    * (es. doppio tap sulla residenza → elenco in casa invece della scheda abitante).
    */
   passTouchesToMapOnCell?: (cellIndex: number) => boolean;
+  /** Se true, niente passeggio casuale tra le celle (solo percorsi commute / notte in casa). */
+  disableIdleRoam?: boolean;
   /** Etichetta accessibilità per il target tocco (es. nome abitante). */
   doubleTapAccessibilityLabel?: string;
 };
@@ -119,6 +121,7 @@ export function MapWandererCharacter({
   onCellSettled,
   onDoublePress,
   passTouchesToMapOnCell,
+  disableIdleRoam = false,
   doubleTapAccessibilityLabel
 }: MapWandererCharacterProps) {
   const [logicalCell, setLogicalCell] = useState<number | null>(null);
@@ -163,6 +166,7 @@ export function MapWandererCharacter({
   }, []);
 
   const pickNextMove = useCallback(() => {
+    if (disableIdleRoam) return;
     if (fixedCell != null) return;
     if (commutePath != null && commutePath.length >= 2) return;
     const prev = cellRef.current;
@@ -210,7 +214,7 @@ export function MapWandererCharacter({
       }
     };
     rafRef.current = requestAnimationFrame(step);
-  }, [cols, rows, cellSizePx, isWalkable, fixedCell, commutePath]);
+  }, [cols, rows, cellSizePx, isWalkable, fixedCell, commutePath, disableIdleRoam]);
 
   pickNextMoveRef.current = pickNextMove;
 
@@ -360,8 +364,10 @@ export function MapWandererCharacter({
     cellRef.current = idx;
     setPixelPos({ x: cx, y: cy });
     onCellSettledRef.current?.(idx);
-    idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
-  }, [cols, rows, isWalkable, instanceId, fixedCell, commutePath]);
+    if (!disableIdleRoam) {
+      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+    }
+  }, [cols, rows, isWalkable, instanceId, fixedCell, commutePath, disableIdleRoam]);
 
   useEffect(
     () => () => {
