@@ -382,16 +382,7 @@ function trovaAnchorDissalatore(
   for (const an of sortedNear) {
     if (footprintDissalatoreMareSabbiaValido(an, cols, rows, terrenoInMappa, edificiInMappa)) return an;
   }
-  const tutti: number[] = [];
-  for (let ar = 0; ar <= rows - h; ar++) {
-    for (let ac = 0; ac <= cols - w; ac++) {
-      tutti.push(ar * cols + ac);
-    }
-  }
-  tutti.sort((a, b) => dist(a) - dist(b));
-  for (const an of tutti) {
-    if (footprintDissalatoreMareSabbiaValido(an, cols, rows, terrenoInMappa, edificiInMappa)) return an;
-  }
+  /** Solo ancore che includono la cella toccata: coerente con anteprima verde/rossa. */
   return null;
 }
 
@@ -923,6 +914,25 @@ type SelezioneCostruzioneAnteprima =
   | { tipo: "strada" }
   | { tipo: "edificio"; edificio: Edificio };
 
+/** Verifica che l’anchor rispetti le stesse regole usate per costruire (anteprima verde solo se true). */
+function edificioRispettaCriteriPiazzamento(
+  nomeEdificio: string,
+  anchor: number,
+  w: number,
+  h: number,
+  edificiInMappa: Record<number, EdificioInCella>,
+  terrenoInMappa: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): boolean {
+  if (nomeEdificio === "Dissalatore") {
+    return footprintDissalatoreMareSabbiaValido(anchor, cols, rows, terrenoInMappa, edificiInMappa);
+  }
+  const riverSet = riverSetDaTerreno(terrenoInMappa);
+  const vietato = vietatoFootprintECuscinoDaEdificiIniziali(edificiInMappa, cols, rows);
+  return puòPiazzareFootprintConCuscino(anchor, w, h, cols, rows, riverSet, vietato);
+}
+
 /** Stessa ricerca anchor usata in `handleScegliEdificio` per edifici multi-cella. */
 function calcolaAnchorEdificioMultiCella(
   cellIndex: number,
@@ -982,8 +992,18 @@ function calcolaPreviewPiazzamento(
     }
     return { celle: getIndiciFootprint(hoverCell, w, h, cols), valido: false };
   }
-  /** Verde: il gioco può piazzare (anchor trovato). Rosso: nessuno spazio valido. */
-  return { celle: getIndiciFootprint(anchor, w, h, cols), valido: true };
+  const celle = getIndiciFootprint(anchor, w, h, cols);
+  const valido = edificioRispettaCriteriPiazzamento(
+    e.nome,
+    anchor,
+    w,
+    h,
+    edificiInMappa,
+    terrenoInMappa,
+    cols,
+    rows
+  );
+  return { celle, valido };
 }
 
 /** Capanne 2×1 (o 1×1 se non c’è spazio) e giacimenti 1×1 senza sovrapposizioni al buffer d’erba. */
@@ -2105,6 +2125,27 @@ export function MappaScreen() {
         FIXED_MAP_ROWS
       );
       if (anchor == null) {
+        Alert.alert(
+          "Spazio insufficiente",
+          e.nome === "Dissalatore"
+            ? "Il Dissalatore richiede un’area 2×2 con esattamente 2 celle sulla sabbia e 2 sul mare (bordo acqua)."
+            : "Non c'è spazio adatto (terreno, cuscino d'erba o distanza dagli altri edifici)."
+        );
+        return;
+      }
+
+      if (
+        !edificioRispettaCriteriPiazzamento(
+          e.nome,
+          anchor,
+          w,
+          h,
+          s.edificiInMappa,
+          s.terrenoInMappa,
+          FIXED_MAP_COLS,
+          FIXED_MAP_ROWS
+        )
+      ) {
         Alert.alert(
           "Spazio insufficiente",
           e.nome === "Dissalatore"
