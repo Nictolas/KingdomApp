@@ -303,7 +303,11 @@ function getStradaAsset1x1Grezzo(
       }
       return "nord";
     }
-    if (s) return "sud";
+    /**
+     * `strada_sud1x1` richiede sempre strada a nord (connessione verso l’alto).
+     * Un solo vicino a sud = cappio verso il basso → altro sprite (nord), non `sud`.
+     */
+    if (s) return "nord";
     if (e) return "est";
     return "ovest";
   }
@@ -401,7 +405,7 @@ function clampSouthOfVerticalOrNord(
   if (count === 1 && n) {
     return "sud";
   }
-  if (count === 1 && s) return "sud";
+  if (count === 1 && s) return "nord";
   if (count === 3) {
     if (n && e && w && !s) return "incrocio_nord_est_ovest";
     if (n && e && s && !w) return "incrocio_nord_est_sud";
@@ -434,6 +438,30 @@ function fixAssetIfIncrocioNordEstSudMismatch(
 }
 
 /**
+ * Vincoli PNG ↔ vicini strada: `strada_sud` e `incrocio_nord_est_ovest` richiedono strada a nord;
+ * `curva_sud_ovest` richiede strada a sud.
+ */
+function fixCardinalSpriteConstraints(
+  index: number,
+  cols: number,
+  rows: number,
+  edificiInMappa: Record<number, { nome?: string }>,
+  asset: StradaTileAsset1x1
+): StradaTileAsset1x1 {
+  const { n, s } = cardinalStrada(index, cols, rows, edificiInMappa);
+  if (asset === "sud" && !n) {
+    return getStradaAsset1x1Base(index, cols, rows, edificiInMappa);
+  }
+  if (asset === "curva_sud_ovest" && !s) {
+    return getStradaAsset1x1Base(index, cols, rows, edificiInMappa);
+  }
+  if (asset === "incrocio_nord_est_ovest" && !n) {
+    return getStradaAsset1x1Base(index, cols, rows, edificiInMappa);
+  }
+  return asset;
+}
+
+/**
  * Lookup per indice cella: applica la whitelist “sotto strada_verticale / strada_nord” in ordine per righe (nord → sud).
  */
 export function buildStradaAssetLookup(
@@ -462,6 +490,7 @@ export function buildStradaAssetLookup(
       }
 
       asset = fixAssetIfIncrocioNordEstSudMismatch(index, cols, rows, edificiInMappa, asset);
+      asset = fixCardinalSpriteConstraints(index, cols, rows, edificiInMappa, asset);
 
       final.set(index, asset);
     }
