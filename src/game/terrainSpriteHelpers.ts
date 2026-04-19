@@ -166,21 +166,98 @@ export function getOrientamentoStrada1x1(
 }
 
 /**
- * Sceglie quale PNG 1×1 usare: tratti dritti (2 vicini opposti), punti ciechi (1 vicino),
- * curve a L (2 vicini ortogonali: N+E → curva_nord_est, …), T/incroci come in {@link getOrientamentoStrada1x1}.
+ * Vicino a sinistra (O) ammesso per strada_orizzontale1x1.
+ * Include `est`/`ovest` per cappucci (file tipo strada_ovest / strada_est vs direzione verso il tratto).
  */
-export function getStradaAsset1x1(
+const HORIZONTAL_OK_WEST = new Set<StradaTileAsset1x1>([
+  "orizzontale",
+  "ovest",
+  "est",
+  "curva_nord_est",
+  "curva_sud_est"
+]);
+
+/** Vicino a destra (E) ammesso per strada_orizzontale1x1. */
+const HORIZONTAL_OK_EAST = new Set<StradaTileAsset1x1>([
+  "orizzontale",
+  "curva_nord_ovest",
+  "curva_sud_ovest",
+  "ovest",
+  "est"
+]);
+
+function cardinalStrada(
+  index: number,
+  cols: number,
+  rows: number,
+  edificiInMappa: Record<number, { nome?: string }>
+): { n: boolean; s: boolean; w: boolean; e: boolean } {
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  return {
+    n: isStradaCell(row - 1, col, cols, rows, edificiInMappa),
+    s: isStradaCell(row + 1, col, cols, rows, edificiInMappa),
+    w: isStradaCell(row, col - 1, cols, rows, edificiInMappa),
+    e: isStradaCell(row, col + 1, cols, rows, edificiInMappa)
+  };
+}
+
+/** Tratto E–O “puro”: vicini strada solo a W ed E (nessun N/S). */
+function isStradaSoloOrizzontale(
+  index: number,
+  cols: number,
+  rows: number,
+  edificiInMappa: Record<number, { nome?: string }>
+): boolean {
+  const { n, s, w, e } = cardinalStrada(index, cols, rows, edificiInMappa);
+  return w && e && !n && !s;
+}
+
+function walkWestStradaOrizzontale(
+  index: number,
+  cols: number,
+  rows: number,
+  edificiInMappa: Record<number, { nome?: string }>
+): number {
+  const row = Math.floor(index / cols);
+  let lo = index;
+  while (true) {
+    const w = lo - 1;
+    if (w < 0 || Math.floor(w / cols) !== row) break;
+    if (!isStradaSoloOrizzontale(w, cols, rows, edificiInMappa)) break;
+    lo = w;
+  }
+  return lo;
+}
+
+function walkEastStradaOrizzontale(
+  index: number,
+  cols: number,
+  rows: number,
+  edificiInMappa: Record<number, { nome?: string }>
+): number {
+  const row = Math.floor(index / cols);
+  let hi = index;
+  while (true) {
+    const e = hi + 1;
+    if (e >= cols * rows || Math.floor(e / cols) !== row) break;
+    if (!isStradaSoloOrizzontale(e, cols, rows, edificiInMappa)) break;
+    hi = e;
+  }
+  return hi;
+}
+
+/**
+ * Asset “grezzo” dalla sola topologia (senza validare incastri E–O degli orizzontali).
+ * Usato per cappi di segmento e per ricorsioni interne.
+ */
+function getStradaAsset1x1Grezzo(
   index: number,
   cols: number,
   rows: number,
   edificiInMappa: Record<number, { nome?: string }>
 ): StradaTileAsset1x1 {
-  const col = index % cols;
-  const row = Math.floor(index / cols);
-  const n = isStradaCell(row - 1, col, cols, rows, edificiInMappa);
-  const s = isStradaCell(row + 1, col, cols, rows, edificiInMappa);
-  const w = isStradaCell(row, col - 1, cols, rows, edificiInMappa);
-  const e = isStradaCell(row, col + 1, cols, rows, edificiInMappa);
+  const { n, s, w, e } = cardinalStrada(index, cols, rows, edificiInMappa);
   const count = (n ? 1 : 0) + (s ? 1 : 0) + (w ? 1 : 0) + (e ? 1 : 0);
 
   if (count === 1) {
@@ -200,6 +277,55 @@ export function getStradaAsset1x1(
   }
   if (count === 0) return "orizzontale";
   return getOrientamentoStrada1x1(index, cols, rows, edificiInMappa);
+}
+
+/**
+ * Sceglie quale PNG 1×1 usare: tratti dritti (2 vicini opposti), punti ciechi (1 vicino),
+ * curve a L (2 vicini ortogonali), T/incroci come in {@link getOrientamentoStrada1x1}.
+ * Per `strada_orizzontale1x1` richiede che a Ovest ci sia solo un asset tra
+ * ovest / curva_nord_est / curva_sud_est / orizzontale, e a Est solo tra
+ * orizzontale / curva_nord_ovest / curva_sud_ovest (incastro del segmento E–O).
+ */
+export function getStradaAsset1x1(
+  index: number,
+  cols: number,
+  rows: number,
+  edificiInMappa: Record<number, { nome?: string }>
+): StradaTileAsset1x1 {
+  if (!isStradaSoloOrizzontale(index, cols, rows, edificiInMappa)) {
+    return getStradaAsset1x1Grezzo(index, cols, rows, edificiInMappa);
+  }
+
+  const lo = walkWestStradaOrizzontale(index, cols, rows, edificiInMappa);
+  const hi = walkEastStradaOrizzontale(index, cols, rows, edificiInMappa);
+
+  const westOfLo = lo - 1;
+  const eastOfHi = hi + 1;
+  const row = Math.floor(index / cols);
+
+  const tipoWestEstremo =
+    westOfLo >= 0 && Math.floor(westOfLo / cols) === row && edificiInMappa[westOfLo]?.nome === "Strada"
+      ? getStradaAsset1x1Grezzo(westOfLo, cols, rows, edificiInMappa)
+      : null;
+  const tipoEastEstremo =
+    eastOfHi < cols * rows && Math.floor(eastOfHi / cols) === row && edificiInMappa[eastOfHi]?.nome === "Strada"
+      ? getStradaAsset1x1Grezzo(eastOfHi, cols, rows, edificiInMappa)
+      : null;
+
+  const assetOvest =
+    index === lo ? tipoWestEstremo : "orizzontale";
+  const assetEst =
+    index === hi ? tipoEastEstremo : "orizzontale";
+
+  const ok =
+    assetOvest != null &&
+    assetEst != null &&
+    HORIZONTAL_OK_WEST.has(assetOvest) &&
+    HORIZONTAL_OK_EAST.has(assetEst);
+
+  if (ok) return "orizzontale";
+  /** Incastro E–O non valido rispetto alle regole: fallback al tipo grezzo (stesso tratto, sprite eventualmente da correggere in generazione). */
+  return getStradaAsset1x1Grezzo(index, cols, rows, edificiInMappa);
 }
 
 /**
