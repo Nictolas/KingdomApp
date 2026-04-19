@@ -71,13 +71,21 @@ type MapWandererCharacterProps = {
   rows: number;
   cellSizePx: number;
   isWalkable: (cellIndex: number) => boolean;
+  /** Per più personaggi sulla stessa mappa: spawn e z-index distinti. */
+  instanceId?: number;
 };
 
 /**
  * Personaggio da `character.png`: spostamento fluido tra celle, camminata solo durante il movimento,
  * idle sul primo frame a riposo; sprite più alto della cella, piedi sulla casella.
  */
-export function MapWandererCharacter({ cols, rows, cellSizePx, isWalkable }: MapWandererCharacterProps) {
+export function MapWandererCharacter({
+  cols,
+  rows,
+  cellSizePx,
+  isWalkable,
+  instanceId = 0
+}: MapWandererCharacterProps) {
   const [logicalCell, setLogicalCell] = useState<number | null>(null);
   const cellRef = useRef<number | null>(null);
   const [pixelPos, setPixelPos] = useState({ x: 0, y: 0 });
@@ -157,14 +165,14 @@ export function MapWandererCharacter({ cols, rows, cellSizePx, isWalkable }: Map
     }
     if (ok.length === 0) return;
     inited.current = true;
-    const idx = ok[Math.floor(Math.random() * ok.length)]!;
+    const idx = ok[(instanceId * 9973) % ok.length]!;
     const cx = (idx % cols) * cellSizePx;
     const cy = Math.floor(idx / cols) * cellSizePx;
     setLogicalCell(idx);
     cellRef.current = idx;
     setPixelPos({ x: cx, y: cy });
     idleTimerRef.current = setTimeout(pickNextMove, IDLE_BEFORE_NEXT_MS);
-  }, [cols, rows, isWalkable, pickNextMove]);
+  }, [cols, rows, isWalkable, instanceId, pickNextMove]);
 
   useEffect(
     () => () => {
@@ -198,7 +206,8 @@ export function MapWandererCharacter({ cols, rows, cellSizePx, isWalkable }: Map
           top: pixelPos.y,
           width: cellSizePx,
           height: cellSizePx,
-          overflow: "visible"
+          overflow: "visible",
+          zIndex: 10 + instanceId
         }
       ]}
       pointerEvents="none"

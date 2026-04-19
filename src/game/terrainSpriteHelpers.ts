@@ -204,7 +204,12 @@ const ALLOWED_SOUTH_OF_VERTICAL_OR_NORD = new Set<StradaTileAsset1x1>([
   "incrocio_nord_est_ovest",
   "incrocio_nord_est_sud",
   "sud",
-  "verticale"
+  "verticale",
+  /** Sotto un verticale, una curva a L è valida; non va sostituita con una T `incrocio_nord_est_sud`. */
+  "curva_nord_est",
+  "curva_nord_ovest",
+  "curva_sud_est",
+  "curva_sud_ovest"
 ]);
 
 function cardinalStrada(
@@ -404,12 +409,28 @@ function clampSouthOfVerticalOrNord(
     if (n && s && w && !e) return "incrocio_est_sud_nord";
   }
   if (count === 2) {
-    if (n && e) return "incrocio_nord_est_sud";
-    if (n && w) return "incrocio_est_sud_nord";
-    if (s && e) return "incrocio_nord_est_sud";
-    if (s && w) return "incrocio_est_sud_nord";
+    if (n && e) return "curva_nord_est";
+    if (n && w) return "curva_nord_ovest";
+    if (s && e) return "curva_sud_est";
+    if (s && w) return "curva_sud_ovest";
   }
   return "verticale";
+}
+
+/**
+ * `incrocio_nord_est_sud` (T senza ovest) richiede strada a N, E e S e non a O.
+ */
+function fixAssetIfIncrocioNordEstSudMismatch(
+  index: number,
+  cols: number,
+  rows: number,
+  edificiInMappa: Record<number, { nome?: string }>,
+  asset: StradaTileAsset1x1
+): StradaTileAsset1x1 {
+  if (asset !== "incrocio_nord_est_sud") return asset;
+  const { n, s, w, e } = cardinalStrada(index, cols, rows, edificiInMappa);
+  if (n && e && s && !w) return asset;
+  return getStradaAsset1x1Base(index, cols, rows, edificiInMappa);
 }
 
 /**
@@ -439,6 +460,8 @@ export function buildStradaAssetLookup(
           asset = clampSouthOfVerticalOrNord(index, cols, rows, edificiInMappa);
         }
       }
+
+      asset = fixAssetIfIncrocioNordEstSudMismatch(index, cols, rows, edificiInMappa, asset);
 
       final.set(index, asset);
     }

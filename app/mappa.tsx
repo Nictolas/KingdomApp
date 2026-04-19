@@ -1163,7 +1163,16 @@ export function MappaScreen() {
                       );
                     })}
                   </View>
-                  <MapWandererCharacter cols={cols} rows={rows} cellSizePx={CELL_SIZE_PX} isWalkable={isWalkableCell} />
+                  {[0, 1, 2, 3].map((id) => (
+                    <MapWandererCharacter
+                      key={id}
+                      cols={cols}
+                      rows={rows}
+                      cellSizePx={CELL_SIZE_PX}
+                      isWalkable={isWalkableCell}
+                      instanceId={id}
+                    />
+                  ))}
                 </View>
               </TransformComponent>
             </TransformWrapper>
