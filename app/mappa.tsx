@@ -41,7 +41,10 @@ import {
   assicuraEdificiCollegatiDaStrada,
   indiciViciniOrtogonaliStrada
 } from "../src/game/roadConnectivity";
-import { abitanteInOrarioLavoroEdificio } from "../src/game/orariLavoroMappa";
+import { abitanteDisoccupatoAlBarOra, abitanteInOrarioLavoroEdificio } from "../src/game/orariLavoroMappa";
+import { computeStatoCielo } from "../src/game/cicloCielo";
+import { formatOrologioGioco } from "../src/game/orologioGiocoSession";
+import { useOrologioGioco } from "../src/hooks/useOrologioGioco";
 import {
   buildStradaAssetLookup,
   erbaExtraDecorCasuale,
@@ -970,56 +973,8 @@ type MappaRuntimeState = ReturnType<typeof getInitialMappaWithRivers>;
  */
 let mappaSessione: MappaRuntimeState | null = null;
 
-/**
- * Orologio di gioco: 1 secondo reale = 1 minuto in-game (24 h di gioco = 24 minuti reali).
- * Stesso modello della mappa: persiste nella sessione se si esce e si torna alla schermata.
- */
-let orologioGiocoMinutiDaMezzanotte = 6 * 60;
-let orologioGiocoLastRealMs: number | null = null;
-
-function formatOrologioGioco(minutiDaMezzanotte: number): string {
-  const m = ((minutiDaMezzanotte % 1440) + 1440) % 1440;
-  const h = Math.floor(m / 60);
-  const min = m % 60;
-  return `${String(h).padStart(2, "0")}:${String(min).padStart(2, "0")}`;
-}
-
-/**
- * Ciclo giorno/notte (solo tempo di gioco, orari fissi — non configurabili dal giocatore).
- * Alba 5:30–8:00 · Giorno 8:00–17:00 · Tramonto 17:00–20:00 · Notte 20:00–5:30
- */
-const CIELO_ALBA_INIZIO = 5 * 60 + 30;
-const CIELO_ALBA_FINE = 8 * 60;
-const CIELO_TRAMONTO_INIZIO = 17 * 60;
-const CIELO_TRAMONTO_FINE = 20 * 60;
 const CIELO_ALPHA_NOTTE_MAX = 0.52;
 const CIELO_ALPHA_CALORE_TRAMONTO_MAX = 0.26;
-
-function smoothstep01(t: number): number {
-  const x = Math.max(0, Math.min(1, t));
-  return x * x * (3 - 2 * x);
-}
-
-function computeStatoCielo(minutiDaMezzanotte: number): { buio: number; caloreTramonto: number } {
-  const m = ((minutiDaMezzanotte % 1440) + 1440) % 1440;
-  let buio = 0;
-  let caloreTramonto = 0;
-
-  if (m >= CIELO_TRAMONTO_FINE || m < CIELO_ALBA_INIZIO) {
-    buio = 1;
-  } else if (m >= CIELO_ALBA_INIZIO && m < CIELO_ALBA_FINE) {
-    const t = (m - CIELO_ALBA_INIZIO) / (CIELO_ALBA_FINE - CIELO_ALBA_INIZIO);
-    buio = 1 - smoothstep01(t);
-  } else if (m >= CIELO_ALBA_FINE && m < CIELO_TRAMONTO_INIZIO) {
-    buio = 0;
-  } else if (m >= CIELO_TRAMONTO_INIZIO && m < CIELO_TRAMONTO_FINE) {
-    const t = (m - CIELO_TRAMONTO_INIZIO) / (CIELO_TRAMONTO_FINE - CIELO_TRAMONTO_INIZIO);
-    buio = smoothstep01(t);
-    caloreTramonto = Math.sin(Math.PI * t);
-  }
-
-  return { buio, caloreTramonto };
-}
 
 /** Coppie [indiceA, indiceB] per strade iniziali (anchor centro → spazioporto, serra); usa le posizioni effettive degli edifici. */
 function getStradeIniziali(edificiInMappa: Record<number, EdificioInCella>): [number, number][] {
@@ -1336,27 +1291,7 @@ export function MappaScreen() {
     return () => clearInterval(id);
   }, []);
 
-  const [orologioMinuti, setOrologioMinuti] = useState(() => {
-    if (orologioGiocoLastRealMs == null) {
-      orologioGiocoLastRealMs = Date.now();
-      return orologioGiocoMinutiDaMezzanotte;
-    }
-    const catchUp = Math.floor((Date.now() - orologioGiocoLastRealMs) / 1000);
-    orologioGiocoMinutiDaMezzanotte = (orologioGiocoMinutiDaMezzanotte + catchUp) % 1440;
-    orologioGiocoLastRealMs = Date.now();
-    return orologioGiocoMinutiDaMezzanotte;
-  });
-  useEffect(() => {
-    const id = setInterval(() => {
-      const now = Date.now();
-      const deltaSec = Math.floor((now - (orologioGiocoLastRealMs ?? now)) / 1000);
-      if (deltaSec <= 0) return;
-      orologioGiocoLastRealMs = now;
-      orologioGiocoMinutiDaMezzanotte = (orologioGiocoMinutiDaMezzanotte + deltaSec) % 1440;
-      setOrologioMinuti(orologioGiocoMinutiDaMezzanotte);
-    }, 1000);
-    return () => clearInterval(id);
-  }, []);
+  const orologioMinuti = useOrologioGioco();
 
   /** Ordine stabile per overlay: ogni abitante ha un personaggio che cammina sulla mappa. */
   const abitantiPerOverlayMappa = useMemo(
@@ -1505,6 +1440,16 @@ export function MappaScreen() {
     }
     return s;
   }, [abitanti, edifici, orologioMinuti]);
+
+  /** Disoccupati di giorno: “dentro il Bar” (non in giro), tranne in orario notte (dormono a casa). */
+  const abitantiNascostiAlBarDisoccupati = useMemo(() => {
+    const s = new Set<number>();
+    const buio = statoCielo.buio;
+    for (const a of abitanti) {
+      if (abitanteDisoccupatoAlBarOra(a, orologioMinuti, buio, edifici)) s.add(a.id);
+    }
+    return s;
+  }, [abitanti, edifici, orologioMinuti, statoCielo.buio]);
 
   const edificiFootprintOverlay = useMemo(() => {
     const list: { anchor: number; fp: { w: number; h: number }; variant: FootprintVariant }[] = [];
@@ -2110,6 +2055,7 @@ export function MappaScreen() {
                   </View>
                   {abitantiPerOverlayMappa.map((abitante: Abitante) => {
                     if (abitantiNascostiPerTurnoLavoro.has(abitante.id)) return null;
+                    if (abitantiNascostiAlBarDisoccupati.has(abitante.id)) return null;
                     const homeCell = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
                     const fixedCellNotte =
                       èNottePersonaggiInCasa && homeCell !== null ? homeCell : null;

@@ -2,6 +2,10 @@ import React, { useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { computeStatoCielo } from "../src/game/cicloCielo";
+import { abitantiPresentiNelBarOra } from "../src/game/orariLavoroMappa";
+import { formatOrologioGioco } from "../src/game/orologioGiocoSession";
+import { useOrologioGioco } from "../src/hooks/useOrologioGioco";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
@@ -10,6 +14,8 @@ export default function BarScreen() {
   const router = useRouter();
   const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
   const [dropdownVisible, setDropdownVisible] = useState(false);
+  const orologioMinuti = useOrologioGioco();
+  const statoCielo = computeStatoCielo(orologioMinuti);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -19,7 +25,16 @@ export default function BarScreen() {
   const bar = edifici.find((e) => e.nome === "Bar");
   if (!bar) return null;
 
+  const presentiOraDisoccupati = abitantiPresentiNelBarOra(
+    abitanti,
+    orologioMinuti,
+    statoCielo.buio,
+    edifici
+  );
+
   const addettiIds = bar.abitantiAssegnati ?? [];
+  /** Disoccupati in sala: gli addetti di ruolo sono elencati sotto nella sezione Addetti. */
+  const visitatoriDisoccupati = presentiOraDisoccupati.filter((a) => !addettiIds.includes(a.id));
   const addetti = addettiIds.map((id) => abitanti.find((a) => a.id === id)).filter((a): a is Abitante => a != null);
   const abitantiDisponibili = abitanti.filter(
     (a) => a.razza !== "Robot" && !addettiIds.includes(a.id) && (bar.capacità ?? 20) > addettiIds.length
@@ -37,12 +52,36 @@ export default function BarScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Stato Bar</Text>
+          <Text style={styles.clockLine}>🕐 Ora di gioco: {formatOrologioGioco(orologioMinuti)}</Text>
           <Text style={styles.infoText}>
             Addetti: {addetti.length}/{bar.capacità ?? 20}
           </Text>
           <Text style={styles.infoSubtext}>
             Luogo di ritrovo per bere, socializzare e rilassarsi dopo il lavoro.
           </Text>
+        </View>
+
+        <View style={styles.visitatoriCard}>
+          <Text style={styles.sectionTitle}>Ora al Bar (disoccupati)</Text>
+          <Text style={styles.infoSubtext}>
+            Fuori dall’orario di riposo notturno, i disoccupati si trovano qui; di notte sono a casa.
+          </Text>
+          {visitatoriDisoccupati.length > 0 ? (
+            <View style={styles.cardsContainer}>
+              {visitatoriDisoccupati.map((a) => (
+                <View key={a.id} style={styles.visitatoreRow}>
+                  <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+                  <Text style={styles.visitatoreNome} numberOfLines={1}>
+                    {a.nome}
+                  </Text>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyVisitatori}>
+              Nessuno in questo momento (notte o nessun disoccupato in visita).
+            </Text>
+          )}
         </View>
 
         <View style={styles.stipendioCard}>
@@ -169,6 +208,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
+  clockLine: { color: "rgba(203,213,245,0.85)", fontSize: 10, marginBottom: 6 },
   infoText: { color: "#ffffff", fontSize: 11, fontWeight: "600", marginBottom: 2 },
   infoSubtext: { color: "rgba(203,213,245,0.7)", fontSize: 9, marginTop: 2 },
   stipendioCard: {
@@ -189,6 +229,27 @@ const styles = StyleSheet.create({
     color: "#e5e7eb",
     fontSize: 14,
     minWidth: 80
+  },
+  visitatoriCard: {
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.6)"
+  },
+  visitatoreRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    paddingVertical: 4
+  },
+  visitatoreNome: { color: "#e5e7eb", fontSize: 11, fontWeight: "600", flex: 1 },
+  emptyVisitatori: {
+    color: "rgba(203,213,245,0.55)",
+    fontSize: 9,
+    fontStyle: "italic",
+    marginTop: 4
   },
   section: { marginTop: 12 },
   sectionTitle: { color: "#ffffff", fontSize: 11, fontWeight: "700", marginBottom: 6 },

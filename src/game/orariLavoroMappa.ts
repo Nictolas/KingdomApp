@@ -1,4 +1,5 @@
-import type { Edificio } from "../types";
+import type { Abitante, Edificio } from "../types";
+import { èNotteRoutineMappaDaBuio } from "./cicloCielo";
 
 /** Fascia in minuti da mezzanotte [0, 1440). */
 export type FasciaOrariaMinuti = { inizio: number; fine: number };
@@ -63,4 +64,30 @@ export function abitanteInOrarioLavoroEdificio(
     if (fascia && minutiInFascia(minutiDaMezzanotte, fascia)) return true;
   }
   return false;
+}
+
+/**
+ * Disoccupati (non Robot) di giorno: “al Bar” sulla mappa (nascosti come in edificio).
+ * Di notte (stessa soglia buio delle residenze) non contano: vanno a casa / non al bar.
+ */
+export function abitanteDisoccupatoAlBarOra(
+  abitante: Abitante,
+  minutiDaMezzanotte: number,
+  buioCielo: number,
+  edificiList: Edificio[]
+): boolean {
+  if (abitante.razza === "Robot") return false;
+  if (abitante.lavoro !== "Disoccupato") return false;
+  if (èNotteRoutineMappaDaBuio(buioCielo)) return false;
+  if (abitanteInOrarioLavoroEdificio(abitante.id, minutiDaMezzanotte, edificiList)) return false;
+  return true;
+}
+
+export function abitantiPresentiNelBarOra(
+  abitantiList: Abitante[],
+  minutiDaMezzanotte: number,
+  buioCielo: number,
+  edificiList: Edificio[]
+): Abitante[] {
+  return abitantiList.filter((a) => abitanteDisoccupatoAlBarOra(a, minutiDaMezzanotte, buioCielo, edificiList));
 }
