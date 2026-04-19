@@ -119,6 +119,63 @@ export function RpgFootprintAdmin3x2({ width, height }: Props) {
   );
 }
 
+/** Serra 2×1 (due campate affiancate, tetto di vetro). */
+export function RpgFootprintSerra2x1({ width, height }: Props) {
+  const frame = 3;
+  const roofH = Math.round(height * 0.38);
+  const baseH = height - roofH;
+  const midX = width / 2;
+
+  return (
+    <View style={[styles.wrap, { width, height }]} pointerEvents="none">
+      <View
+        style={{
+          height: roofH,
+          flexDirection: "row",
+          borderBottomWidth: 2,
+          borderBottomColor: OUTLINE,
+          overflow: "hidden"
+        }}
+      >
+        <View style={{ flex: 1, backgroundColor: "#7dd3fc", borderRightWidth: 2, borderRightColor: OUTLINE }}>
+          <View style={[styles.serraRoofRib, { left: "18%" }]} />
+          <View style={[styles.serraRoofRib, { left: "48%" }]} />
+          <View style={[styles.serraRoofRib, { left: "78%" }]} />
+        </View>
+        <View style={{ flex: 1, backgroundColor: "#38bdf8" }}>
+          <View style={[styles.serraRoofRib, { left: "22%" }]} />
+          <View style={[styles.serraRoofRib, { left: "52%" }]} />
+          <View style={[styles.serraRoofRib, { left: "82%" }]} />
+        </View>
+        <View
+          style={{
+            position: "absolute",
+            left: midX - 1,
+            top: 0,
+            bottom: 0,
+            width: 2,
+            backgroundColor: OUTLINE
+          }}
+        />
+        <View style={styles.serraRoofCap} />
+      </View>
+      <View style={[styles.serraBase, { height: baseH }]}>
+        <View style={styles.serraBaseInner}>
+          <View style={styles.serraBay}>
+            <View style={styles.serraPlant} />
+            <View style={[styles.serraPlant, { opacity: 0.85 }]} />
+          </View>
+          <View style={[styles.serraMullion, { height: baseH - frame * 2 }]} />
+          <View style={styles.serraBay}>
+            <View style={[styles.serraPlant, { alignSelf: "flex-end" }]} />
+            <View style={[styles.serraPlant, { opacity: 0.9 }]} />
+          </View>
+        </View>
+      </View>
+    </View>
+  );
+}
+
 /** Dormitorio 2×2 */
 export function RpgFootprintDorm2x2({ width, height }: Props) {
   const roofH = Math.round(height * 0.46);
@@ -220,6 +277,57 @@ export function RpgFootprintSpazioporto4x3({ width, height }: Props) {
 }
 
 const styles = StyleSheet.create({
+  serraRoofRib: {
+    position: "absolute",
+    top: 0,
+    bottom: 0,
+    width: 2,
+    backgroundColor: "rgba(12,12,12,0.35)"
+  },
+  serraRoofCap: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    top: 0,
+    height: 3,
+    backgroundColor: "#e2e8f0",
+    borderBottomWidth: 1,
+    borderBottomColor: OUTLINE
+  },
+  serraBase: {
+    width: "100%",
+    backgroundColor: "#ecfdf5",
+    padding: 3
+  },
+  serraBaseInner: {
+    flex: 1,
+    flexDirection: "row",
+    borderWidth: 2,
+    borderColor: OUTLINE,
+    backgroundColor: "#d1fae5",
+    overflow: "hidden"
+  },
+  serraBay: {
+    flex: 1,
+    flexDirection: "row",
+    alignItems: "flex-end",
+    justifyContent: "center",
+    gap: 4,
+    paddingBottom: 2
+  },
+  serraMullion: {
+    width: 2,
+    alignSelf: "center",
+    backgroundColor: OUTLINE
+  },
+  serraPlant: {
+    width: 5,
+    height: Math.max(10, 14),
+    borderRadius: 2,
+    backgroundColor: "#15803d",
+    borderWidth: 1,
+    borderColor: "#14532d"
+  },
   wrap: {
     borderRadius: 2,
     borderWidth: 2,

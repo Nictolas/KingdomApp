@@ -24,6 +24,7 @@ import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import {
   RpgFootprintAdmin3x2,
   RpgFootprintDorm2x2,
+  RpgFootprintSerra2x1,
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
 import { TerrainSheetSprite } from "../src/components/TerrainSheetSprite";
@@ -51,6 +52,9 @@ const DORMITORIO_FOOTPRINT_H = 2;
 /** Spazioporto: edificio + area lancio (sprite orizzontale). */
 const SPAZIOPORTO_FOOTPRINT_W = 4;
 const SPAZIOPORTO_FOOTPRINT_H = 3;
+/** Serra: due celle in orizzontale × una in verticale. */
+const SERRA_FOOTPRINT_W = 2;
+const SERRA_FOOTPRINT_H = 1;
 /** Dimensione fissa di ogni cella in pixel (nessuna percentuale, solo px). */
 const CELL_SIZE_PX = 40;
 /** Gap tra le celle (0 = griglia compatta 2000x2000). */
@@ -128,6 +132,7 @@ const RAFFINERIA_MINERARIA: EdificioInCella = { id: 3, nome: "Raffineria Minerar
 const STRADA_OPZIONE: EdificioInCella = { id: -1, nome: "Strada", emoji: "🛤️" };
 
 const DORMITORIO: EdificioInCella = { id: 14, nome: "Dormitorio", emoji: "🛏️" };
+const SERRA_EDIFICIO: EdificioInCella = { id: 2, nome: "Serra", emoji: "🌱" };
 const CAPANNA: EdificioInCella = { id: 20, nome: "Capanna", emoji: "⛺" };
 
 /** Emoji per decorazioni procedurali sulla mappa (alberi, palme, cactus, vulcano). */
@@ -363,6 +368,44 @@ function aggiungiDormitorioFootprint(
   estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
 }
 
+function aggiungiSerraFootprint(
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  vietato: Set<number>,
+  out: Record<number, EdificioInCella>,
+  preferred: number
+): void {
+  const w = SERRA_FOOTPRINT_W;
+  const h = SERRA_FOOTPRINT_H;
+  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, vietato);
+  if (anchor == null) {
+    const cell = trovaCellaSingolaConCuscino(preferred, cols, rows, riverSet, vietato);
+    if (cell != null) {
+      out[cell] = { ...SERRA_EDIFICIO };
+      estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, vietato);
+    }
+    return;
+  }
+  const celle = getIndiciFootprint(anchor, w, h, cols);
+  out[anchor] = {
+    id: SERRA_EDIFICIO.id,
+    nome: SERRA_EDIFICIO.nome,
+    emoji: "",
+    footprint: { w, h }
+  };
+  for (const i of celle) {
+    if (i === anchor) continue;
+    out[i] = {
+      id: SERRA_EDIFICIO.id,
+      nome: SERRA_EDIFICIO.nome,
+      emoji: "",
+      footprintRef: anchor
+    };
+  }
+  estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
+}
+
 const SPAZIOPORTO_EDIFICIO: EdificioInCella = { id: 19, nome: "Spazioporto", emoji: "🚀" };
 
 function aggiungiSpazioportoFootprint(
@@ -420,11 +463,7 @@ function getEdificiIniziali(
 
   aggiungiSpazioportoFootprint(cols, rows, riverSet, vietato, out, idx.SPAZIOPORTO_INDEX);
 
-  const cellaSerra = trovaCellaSingolaConCuscino(idx.SERRA_INDEX, cols, rows, riverSet, vietato);
-  if (cellaSerra != null) {
-    out[cellaSerra] = { id: 2, nome: "Serra", emoji: "🌱" };
-    estendiVietatoConFootprintECuscino(cellaSerra, 1, 1, cols, rows, vietato);
-  }
+  aggiungiSerraFootprint(cols, rows, riverSet, vietato, out, idx.SERRA_INDEX);
 
   aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_1_INDEX);
   aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_2_INDEX);
@@ -555,7 +594,7 @@ function getStradeIniziali(edificiInMappa: Record<number, EdificioInCella>): [nu
     const idx = Number(i);
     if (e.nome === "Centro di Comando" && e.footprint && !e.footprintRef) centro = idx;
     if (e.nome === "Spazioporto" && e.footprint && !e.footprintRef) spazioporto = idx;
-    if (e.nome === "Serra") serra = idx;
+    if (e.nome === "Serra" && e.footprint && !e.footprintRef) serra = idx;
   }
   const out: [number, number][] = [];
   if (centro != null && spazioporto != null) out.push([centro, spazioporto]);
@@ -570,7 +609,7 @@ function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: n
   return { left: col * (cellW + GAP), top: row * (cellH + GAP) };
 }
 
-type FootprintVariant = "amministrazione" | "dormitorio" | "spazioporto";
+type FootprintVariant = "amministrazione" | "dormitorio" | "spazioporto" | "serra";
 
 function EdificioFootprintGfx({
   anchor,
@@ -605,6 +644,14 @@ function EdificioFootprintGfx({
     return (
       <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
         <RpgFootprintSpazioporto4x3 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "serra" && w === SERRA_FOOTPRINT_W && h === SERRA_FOOTPRINT_H) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintSerra2x1 width={width} height={height} />
       </View>
     );
   }
@@ -806,7 +853,9 @@ export function MappaScreen() {
             ? "dormitorio"
             : e.nome === "Spazioporto"
               ? "spazioporto"
-              : "amministrazione";
+              : e.nome === "Serra"
+                ? "serra"
+                : "amministrazione";
         list.push({ anchor: Number(i), fp: e.footprint, variant });
       }
     }
