@@ -839,22 +839,6 @@ function computeStatoCielo(minutiDaMezzanotte: number): { buio: number; caloreTr
   return { buio, caloreTramonto };
 }
 
-/** Quattro abitanti casuali per i passeggiatori sulla mappa (stabile per sessione, come la generazione terreno). */
-let wandererAbitanteIdsSession: number[] | null = null;
-
-function pickFourAbitanteIds(abitantiList: Abitante[]): number[] {
-  if (abitantiList.length === 0) return [];
-  const shuffled = [...abitantiList].sort(() => Math.random() - 0.5);
-  if (abitantiList.length >= 4) {
-    return shuffled.slice(0, 4).map((a) => a.id);
-  }
-  const out: number[] = [];
-  for (let i = 0; i < 4; i++) {
-    out.push(shuffled[i % shuffled.length]!.id);
-  }
-  return out;
-}
-
 /** Coppie [indiceA, indiceB] per strade iniziali (anchor centro → spazioporto, serra); usa le posizioni effettive degli edifici. */
 function getStradeIniziali(edificiInMappa: Record<number, EdificioInCella>): [number, number][] {
   let centro: number | null = null;
@@ -1157,13 +1141,11 @@ export function MappaScreen() {
     return () => clearInterval(id);
   }, []);
 
-  const wandererAbitanteIds = useMemo(() => {
-    if (abitanti.length === 0) return [];
-    if (wandererAbitanteIdsSession === null) {
-      wandererAbitanteIdsSession = pickFourAbitanteIds(abitanti);
-    }
-    return wandererAbitanteIdsSession;
-  }, [abitanti]);
+  /** Ordine stabile per overlay: ogni abitante ha un personaggio che cammina sulla mappa. */
+  const abitantiPerOverlayMappa = useMemo(
+    () => [...abitanti].sort((a, b) => a.id - b.id),
+    [abitanti]
+  );
 
   const getAbitanteNome = useCallback(
     (id: number) => abitanti.find((a) => a.id === id)?.nome ?? `ID ${id}`,
@@ -1317,7 +1299,6 @@ export function MappaScreen() {
     if (selectedResidenzaAnchor === null || !edificioResidenzaAperta) return [];
     const nome = edificioResidenzaAperta.nome;
     const anchor = selectedResidenzaAnchor;
-    const wandererSet = new Set(wandererAbitanteIds);
     const out: Abitante[] = [];
     for (const a of abitanti) {
       if (altreCaseMappaTengonoId(a.id, anchor)) continue;
@@ -1334,7 +1315,6 @@ export function MappaScreen() {
       } else continue;
       out.push(a);
     }
-    out.sort((a, b) => Number(wandererSet.has(b.id)) - Number(wandererSet.has(a.id)));
     return out;
   }, [
     selectedResidenzaAnchor,
@@ -1342,7 +1322,6 @@ export function MappaScreen() {
     abitanti,
     edifici,
     residenzeMappa,
-    wandererAbitanteIds,
     altreCaseMappaTengonoId
   ]);
 
@@ -1808,19 +1787,19 @@ export function MappaScreen() {
                       );
                     })}
                   </View>
-                  {wandererAbitanteIds.map((abitanteId, idx) => (
+                  {abitantiPerOverlayMappa.map((abitante: Abitante) => (
                     <MapWandererCharacter
-                      key={`wanderer-${abitanteId}-${idx}`}
+                      key={`wanderer-${abitante.id}`}
                       cols={cols}
                       rows={rows}
                       cellSizePx={CELL_SIZE_PX}
                       isWalkable={isWalkableCell}
-                      instanceId={idx}
+                      instanceId={abitante.id}
                       onDoublePress={() => {
-                        const a = abitanti.find((x) => x.id === abitanteId);
+                        const a = abitanti.find((x) => x.id === abitante.id);
                         if (a) setSchedaWandererAbitante(a);
                       }}
-                      doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitanteId)}`}
+                      doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitante.id)}`}
                     />
                   ))}
                 </View>
@@ -2017,7 +1996,7 @@ export function MappaScreen() {
             <ScrollView style={[styles.modalList, styles.modalListCompact]} nestedScrollEnabled>
               {candidatiPerCasaMappa.length === 0 ? (
                 <Text style={styles.capannaEmpty}>
-                  Nessun abitante disponibile (passeggiatori senza casa, o regole fazione non soddisfatte).
+                  Nessun abitante disponibile (nessuno può entrare qui con le regole attuali o sono già assegnati altrove).
                 </Text>
               ) : (
                 candidatiPerCasaMappa.map((a) => (
@@ -2030,7 +2009,6 @@ export function MappaScreen() {
                     <Text style={styles.modalOptionEmoji}>{getEmojiAbitante(a)}</Text>
                     <Text style={styles.modalOptionNome} numberOfLines={1}>
                       {a.nome}
-                      {wandererAbitanteIds.includes(a.id) ? " · passeggiatore" : ""}
                     </Text>
                     <Text style={styles.casaAggiungiHint}>Aggiungi</Text>
                   </Pressable>
