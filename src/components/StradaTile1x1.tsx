@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { Image, StyleSheet, View } from "react-native";
+import { Image, Platform, StyleSheet, View } from "react-native";
 import type { StradaTileAsset1x1 } from "../game/terrainSpriteHelpers";
 
 const ASSETS: Record<StradaTileAsset1x1, number> = {
@@ -35,9 +35,20 @@ type Props = {
  */
 export const StradaTile1x1 = memo(function StradaTile1x1({ cellSize, asset }: Props) {
   const source = ASSETS[asset];
+  const bleed = Platform.OS === "web" ? 1 : 0;
   return (
     <View style={[styles.clip, { width: cellSize, height: cellSize }]} pointerEvents="none">
-      <Image source={source} style={{ width: cellSize, height: cellSize }} resizeMode="cover" />
+      <Image
+        source={source}
+        style={{
+          position: "absolute",
+          left: -bleed,
+          top: -bleed,
+          width: cellSize + bleed * 2,
+          height: cellSize + bleed * 2
+        }}
+        resizeMode="cover"
+      />
     </View>
   );
 });

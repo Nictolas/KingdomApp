@@ -1,5 +1,5 @@
 import React, { memo } from "react";
-import { View, Image, StyleSheet } from "react-native";
+import { View, Image, StyleSheet, Platform } from "react-native";
 import {
   OVERWORLD_SHEET_PX,
   beachSubtileOriginPx,
@@ -66,9 +66,23 @@ function TerrainSheetSpriteInner(props: Props) {
   const left = -ox * scale;
   const top = -oy * scale;
 
+  /**
+   * Web + zoom CSS: piccole fessure tra celle o campionamento bilineare sul bordo dello sheet
+   * possono mostrare righe scure. Leggero zoom della texture (stesso clip) copre i seam.
+   */
+  const webBleedK = Platform.OS === "web" ? (props.cellSize + 2) / props.cellSize : 1;
+  const imgWb = imgW * webBleedK;
+  const imgHb = imgH * webBleedK;
+  const leftB = left * webBleedK;
+  const topB = top * webBleedK;
+
   return (
     <View style={[styles.clip, { width: props.cellSize, height: props.cellSize }]} pointerEvents="none">
-      <Image source={SPRITESHEET} style={[styles.sheet, { width: imgW, height: imgH, left, top }]} resizeMode="stretch" />
+      <Image
+        source={SPRITESHEET}
+        style={[styles.sheet, { width: imgWb, height: imgHb, left: leftB, top: topB }]}
+        resizeMode="stretch"
+      />
     </View>
   );
 }

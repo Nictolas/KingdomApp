@@ -89,6 +89,19 @@ const CELLA_SENZA_GRIGLIA: ViewStyle = Platform.select<ViewStyle>({
 }) as ViewStyle;
 const DOPPIO_TAP_MS = 400;
 
+/**
+ * Su web, `display: grid` + `transform: scale()` (zoom mappa) fa posizionare le celle su coordinate
+ * subpixel: compaiono fessure di 1px e si vede lo sfondo nero (#000) — tipicamente righe orizzontali.
+ * Posizionamento assoluto con left/top interi elimina quelle crepe.
+ */
+function webCellAbsolutePosition(index: number, cols: number, cellPx: number): ViewStyle {
+  return {
+    position: "absolute",
+    left: (index % cols) * cellPx,
+    top: Math.floor(index / cols) * cellPx
+  };
+}
+
 /** Calcola indici edifici iniziali in funzione di cols/rows (centro griglia). */
 function getIndiciEdificiIniziali(cols: number, rows: number) {
   const centro = Math.floor((cols * rows) / 2) - Math.floor(cols / 2);
@@ -1007,11 +1020,33 @@ export function MappaScreen() {
       height: contentHeight,
       zIndex: 1,
       pointerEvents: "none",
+      backfaceVisibility: "hidden",
       backgroundImage: `linear-gradient(to right, ${line} 1px, transparent 1px), linear-gradient(to bottom, ${line} 1px, transparent 1px)`,
       backgroundSize: `${CELL_SIZE_PX}px ${CELL_SIZE_PX}px`,
       backgroundRepeat: "repeat"
     } as ViewStyle;
   }, [contentWidth, contentHeight]);
+
+  const gridContainerStyle = useMemo(() => {
+    const base = {
+      width: contentWidth,
+      height: contentHeight,
+      position: "relative" as const
+    };
+    if (Platform.OS === "web") {
+      return {
+        ...base,
+        overflow: "hidden" as const,
+        backfaceVisibility: "hidden" as const
+      };
+    }
+    return {
+      ...base,
+      display: "grid" as const,
+      gridTemplateColumns: `repeat(${cols}, ${CELL_SIZE_PX}px)`,
+      gridTemplateRows: `repeat(${rows}, ${CELL_SIZE_PX}px)`
+    };
+  }, [cols, rows, contentWidth, contentHeight]);
 
   const stradaAssetAt = useMemo(
     () => buildStradaAssetLookup(cols, rows, edificiInMappa),
@@ -1050,15 +1085,6 @@ export function MappaScreen() {
     }
     return list;
   }, [edificiInMappa]);
-
-  const gridContainerStyle = {
-    display: "grid" as const,
-    gridTemplateColumns: `repeat(${cols}, ${CELL_SIZE_PX}px)`,
-    gridTemplateRows: `repeat(${rows}, ${CELL_SIZE_PX}px)`,
-    width: contentWidth,
-    height: contentHeight,
-    position: "relative" as const
-  };
 
   const openRouteForEdificio = useCallback(
     (nome: string) => {
@@ -1247,7 +1273,8 @@ export function MappaScreen() {
                         styles.cellaFixed,
                         styles.cellaTextureTerreno,
                         { width: CELL_SIZE_PX, height: CELL_SIZE_PX },
-                        hasEdificio && !èStrada && styles.cellaEdificio
+                        hasEdificio && !èStrada && styles.cellaEdificio,
+                        Platform.OS === "web" && webCellAbsolutePosition(i, cols, CELL_SIZE_PX)
                       ];
                       const spriteTerreno = acquaAnimata ? (
                         <TerrainSheetSprite cellSize={CELL_SIZE_PX} terrain="water" frame={waterAnimFrame} />
@@ -1324,7 +1351,13 @@ export function MappaScreen() {
                       return (
                         <View
                           key={i}
-                          style={[styles.cella, CELLA_SENZA_GRIGLIA, styles.cellaFixed, { width: CELL_SIZE_PX, height: CELL_SIZE_PX }]}
+                          style={[
+                            styles.cella,
+                            CELLA_SENZA_GRIGLIA,
+                            styles.cellaFixed,
+                            { width: CELL_SIZE_PX, height: CELL_SIZE_PX },
+                            Platform.OS === "web" && webCellAbsolutePosition(i, cols, CELL_SIZE_PX)
+                          ]}
                         >
                           {mostraEmoji ? (
                             <Text style={[styles.edificioEmoji, { fontSize: Math.max(10, Math.min(22, CELL_SIZE_PX - 4)) }]}>{emoji}</Text>
