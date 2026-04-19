@@ -508,6 +508,22 @@ export function getGrass2x2Index(index: number, cols: number): Tile2x2Index {
   return ((((row & 1) << 1) | (col & 1)) as Tile2x2Index);
 }
 
+/** Decorazioni opzionali su erba piena (`tallGrass.png` / `sprout.png`). */
+export type ErbaExtraDecorKind = "tallGrass" | "sprout";
+
+/**
+ * Sceglie in modo stabile (stesso indice → stesso risultato) se mostrare erba alta o germoglio.
+ * Solo ~5% + ~5% delle celle idonee, così il verde resta leggibile.
+ */
+export function erbaExtraDecorCasuale(index: number, cols: number): ErbaExtraDecorKind | null {
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  const h = ((row * 1337 + col * 4243 + index * 17) >>> 0) % 100;
+  if (h < 5) return "tallGrass";
+  if (h < 10) return "sprout";
+  return null;
+}
+
 /**
  * Celle erba confinanti con strada: maschera come spiaggia/sabbia (strada = “feature” nel bitmask).
  * Ha priorità sulla fascia erba–sabbia se un vicino è strada.

@@ -32,6 +32,7 @@ import {
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
 import { MapWandererCharacter } from "../src/components/MapWandererCharacter";
+import { GrassDecorOverlay } from "../src/components/GrassDecorOverlay";
 import { StradaTile1x1 } from "../src/components/StradaTile1x1";
 import { TerrainSheetSprite } from "../src/components/TerrainSheetSprite";
 import {
@@ -40,7 +41,9 @@ import {
 } from "../src/game/roadConnectivity";
 import {
   buildStradaAssetLookup,
+  erbaExtraDecorCasuale,
   getGrass2x2Index,
+  getGrassRoadBorderSubtileIfAny,
   getGrassSandBorderSubtileIfAny,
   getSandBeachSubtile
 } from "../src/game/terrainSpriteHelpers";
@@ -1276,6 +1279,31 @@ export function MappaScreen() {
                         hasEdificio && !èStrada && styles.cellaEdificio,
                         Platform.OS === "web" && webCellAbsolutePosition(i, cols, CELL_SIZE_PX)
                       ];
+                      const grassRoadBorderSubtile = getGrassRoadBorderSubtileIfAny(
+                        i,
+                        cols,
+                        rows,
+                        terrenoInMappa,
+                        edificiInMappa
+                      );
+                      const grassSandBorderSubtile = getGrassSandBorderSubtileIfAny(
+                        i,
+                        cols,
+                        rows,
+                        terrenoInMappa,
+                        edificiInMappa
+                      );
+                      const edificioBloccaErbaDecor =
+                        !!edificio && edificio.nome !== "Strada";
+                      const erbaDecor =
+                        terreno === "erba" &&
+                        !èStrada &&
+                        !edificioBloccaErbaDecor &&
+                        grassRoadBorderSubtile == null &&
+                        grassSandBorderSubtile == null
+                          ? erbaExtraDecorCasuale(i, cols)
+                          : null;
+
                       const spriteTerreno = acquaAnimata ? (
                         <TerrainSheetSprite cellSize={CELL_SIZE_PX} terrain="water" frame={waterAnimFrame} />
                       ) : terreno === "sabbia" ? (
@@ -1290,12 +1318,18 @@ export function MappaScreen() {
                           asset={stradaAssetAt(i)}
                         />
                       ) : (
-                        <TerrainSheetSprite
-                          cellSize={CELL_SIZE_PX}
-                          terrain="grass"
-                          grass2x2Index={getGrass2x2Index(i, cols)}
-                          grassSandBorderSubtile={getGrassSandBorderSubtileIfAny(i, cols, rows, terrenoInMappa, edificiInMappa)}
-                        />
+                        <>
+                          <TerrainSheetSprite
+                            cellSize={CELL_SIZE_PX}
+                            terrain="grass"
+                            grass2x2Index={getGrass2x2Index(i, cols)}
+                            grassRoadBorderSubtile={grassRoadBorderSubtile}
+                            grassSandBorderSubtile={grassSandBorderSubtile}
+                          />
+                          {erbaDecor ? (
+                            <GrassDecorOverlay cellSize={CELL_SIZE_PX} kind={erbaDecor} />
+                          ) : null}
+                        </>
                       );
                       if (acqua) {
                         return (
