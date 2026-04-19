@@ -1,5 +1,6 @@
 import type { Abitante, Edificio } from "../types";
-import { EDIFICIO_COMPETENZA_RICHIESTA } from "../data/edificiCompetenze";
+import { edificiData } from "../data/edificiData";
+import { EDIFICIO_COMPETENZA_RICHIESTA, type CompetenzaEdificio } from "../data/edificiCompetenze";
 
 /** Mappa edificioId → nome lavoro. Usata per sincronizzare lavoro abitante e per auto-assign Skip Mese. */
 export const EDIFICIO_TO_LAVORO: Record<number, string> = {
@@ -20,6 +21,22 @@ export const EDIFICIO_TO_LAVORO: Record<number, string> = {
 
 const LAVORI_DA_EDIFICIO = new Set(Object.values(EDIFICIO_TO_LAVORO));
 
+/** Lavoro associato a un edificio (istanza): lookup per id catalogo o per nome del template). */
+export function getLavoroPerEdificio(edificio: Edificio): string | undefined {
+  const direct = EDIFICIO_TO_LAVORO[edificio.id];
+  if (direct) return direct;
+  const template = edificiData.find((t) => t.nome === edificio.nome);
+  return template ? EDIFICIO_TO_LAVORO[template.id] : undefined;
+}
+
+/** Competenza richiesta per auto-assign (istanze con id nuovo → stesso nome del catalogo). */
+export function getCompetenzaMinimaPerEdificio(edificio: Edificio): CompetenzaEdificio | undefined {
+  const direct = EDIFICIO_COMPETENZA_RICHIESTA[edificio.id];
+  if (direct) return direct;
+  const template = edificiData.find((t) => t.nome === edificio.nome);
+  return template ? EDIFICIO_COMPETENZA_RICHIESTA[template.id] : undefined;
+}
+
 /**
  * Restituisce gli abitanti con "lavoro" sincronizzato alle assegnazioni agli edifici.
  * Pensionati non toccati; chi è in un edificio-lavoro prende quel lavoro, chi era in edificio-lavoro ma non più assegnato diventa Disoccupato.
@@ -30,7 +47,7 @@ export function sincronizzaLavoroDaEdifici(
 ): Abitante[] {
   const idToLavoroFromEdifici = new Map<number, string>();
   edifici.forEach((edificio) => {
-    const job = EDIFICIO_TO_LAVORO[edificio.id];
+    const job = getLavoroPerEdificio(edificio);
     if (!job) return;
     (edificio.abitantiAssegnati ?? []).forEach((id) => idToLavoroFromEdifici.set(id, job));
   });
@@ -60,18 +77,18 @@ export function sincronizzaLavoroDaEdifici(
  * Restituisce i nuovi edifici (con abitantiAssegnati aggiornati).
  */
 export function autoAssegnaDisoccupati(abitanti: Abitante[], edifici: Edificio[]): Edificio[] {
-  const reqIds = Object.keys(EDIFICIO_COMPETENZA_RICHIESTA).map(Number).sort((a, b) => a - b);
   const disoccupati = abitanti
     .filter((a) => a.lavoro === "Disoccupato" && a.razza !== "Robot")
     .sort((a, b) => b.competenza - a.competenza);
   const assigned = new Set<number>();
   const edificiOut = edifici.map((e) => ({ ...e, abitantiAssegnati: [...(e.abitantiAssegnati ?? [])] }));
 
-  for (const edificioId of reqIds) {
-    const req = EDIFICIO_COMPETENZA_RICHIESTA[edificioId];
-    if (!req) continue;
-    const edificio = edificiOut.find((x) => x.id === edificioId);
-    if (!edificio) continue;
+  const conReq = edificiOut
+    .map((edificio) => ({ edificio, req: getCompetenzaMinimaPerEdificio(edificio) }))
+    .filter((x): x is { edificio: Edificio; req: CompetenzaEdificio } => x.req != null)
+    .sort((a, b) => a.edificio.id - b.edificio.id);
+
+  for (const { edificio, req } of conReq) {
     const cap = edificio.capacità ?? 0;
     const current = edificio.abitantiAssegnati!.length;
     const slotLiberi = cap - current;

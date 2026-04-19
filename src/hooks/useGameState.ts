@@ -15,7 +15,7 @@ import { generaAssimilati } from "../game/assimilazione";
 import { calcolaProduzioneConsumoPuro } from "../game/produzioneConsumo";
 import { calcolaFelicitàModificataPuro } from "../game/felicita";
 import { generaImmigratiProposti } from "../game/immigrazione";
-import { EDIFICIO_TO_LAVORO, sincronizzaLavoroDaEdifici } from "../game/edificiLavoro";
+import { getLavoroPerEdificio, sincronizzaLavoroDaEdifici } from "../game/edificiLavoro";
 import { syncResidenzeBaraccaSenzatetto } from "../game/avanzaMese";
 
 const statoIniziale = generaColoniaIniziale();
@@ -329,34 +329,39 @@ export function useGameState() {
   const assegnaAbitanteAEdificio = useCallback((abitanteId: number, edificioId: number) => {
     const abitante = abitanti.find((a) => a.id === abitanteId);
     if (abitante?.lavoro === "Pensionato") return;
+    const edificioCorrente = edifici.find((e) => e.id === edificioId);
+    if (!edificioCorrente) return;
+    if (edificioCorrente.nome === "Capanna" && !abitante?.fazioni?.includes("Nativi")) return;
+    if (
+      edificioCorrente.abitantiAssegnati.includes(abitanteId) ||
+      edificioCorrente.abitantiAssegnati.length >= edificioCorrente.capacità ||
+      edificioCorrente.stato !== "Operativo"
+    )
+      return;
+
     setEdifici((prevEdifici) =>
       prevEdifici.map((edificio) => {
         if (edificio.id === edificioId) {
-          if (edificio.nome === "Capanna" && !abitante?.fazioni?.includes("Nativi")) return edificio;
-          if (
-            !edificio.abitantiAssegnati.includes(abitanteId) &&
-            edificio.abitantiAssegnati.length < edificio.capacità &&
-            edificio.stato === "Operativo"
-          ) {
-            return {
-              ...edificio,
-              abitantiAssegnati: [...edificio.abitantiAssegnati, abitanteId],
-              occupazione: edificio.abitantiAssegnati.length + 1
-            };
-          }
+          return {
+            ...edificio,
+            abitantiAssegnati: [...edificio.abitantiAssegnati, abitanteId],
+            occupazione: edificio.abitantiAssegnati.length + 1
+          };
         }
         return edificio;
       })
     );
-    const lavoroAssociato = EDIFICIO_TO_LAVORO[edificioId];
+    const lavoroAssociato = getLavoroPerEdificio(edificioCorrente);
     if (lavoroAssociato) {
       setAbitanti((prev) =>
         prev.map((a) => (a.id === abitanteId ? { ...a, lavoro: lavoroAssociato } : a))
       );
     }
-  }, [abitanti]);
+  }, [abitanti, edifici]);
 
   const rimuoviAbitanteDaEdificio = useCallback((abitanteId: number, edificioId: number) => {
+    const edificioCorrente = edifici.find((e) => e.id === edificioId);
+    const avevaLavoroEdificio = edificioCorrente ? getLavoroPerEdificio(edificioCorrente) : undefined;
     setEdifici((prevEdifici) =>
       prevEdifici.map((edificio) => {
         if (edificio.id === edificioId) {
@@ -370,18 +375,42 @@ export function useGameState() {
         return edificio;
       })
     );
-    if (EDIFICIO_TO_LAVORO[edificioId]) {
+    if (avevaLavoroEdificio) {
       setAbitanti((prev) =>
         prev.map((a) => (a.id === abitanteId ? { ...a, lavoro: "Disoccupato" } : a))
       );
     }
-  }, []);
+  }, [edifici]);
 
   const setStipendioEdificio = useCallback((edificioId: number, stipendioPerLavoratore: number) => {
     const value = Math.max(0, Math.floor(stipendioPerLavoratore));
     setEdifici((prev) =>
       prev.map((e) => (e.id === edificioId ? { ...e, stipendioPerLavoratore: value } : e))
     );
+  }, []);
+
+  /** Crea un nuovo edificio nel modello di gioco a partire da una riga del catalogo (nuovo id univoco). */
+  const aggiungiEdificioDaTemplate = useCallback((templateId: number): number | null => {
+    const template = edificiData.find((x) => x.id === templateId);
+    if (!template) return null;
+    let createdId: number | null = null;
+    setEdifici((prev) => {
+      const newId = Math.max(0, ...prev.map((x) => x.id)) + 1;
+      createdId = newId;
+      const nuovo: Edificio = {
+        ...template,
+        id: newId,
+        abitantiAssegnati: [],
+        occupazione: 0,
+        stato: "Operativo"
+      };
+      return [...prev, nuovo];
+    });
+    return createdId;
+  }, []);
+
+  const rimuoviEdificioPerId = useCallback((id: number) => {
+    setEdifici((prev) => prev.filter((x) => x.id !== id));
   }, []);
 
   /** Aggiunge al Campo di Lavoro tutti gli abitanti che soddisfano i filtri (Personalità, Razza, Religione).
@@ -657,6 +686,8 @@ export function useGameState() {
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,
     setStipendioEdificio,
+    aggiungiEdificioDaTemplate,
+    rimuoviEdificioPerId,
     prezzoResidenze,
     setPrezzoResidenza,
     aggiungiAlCampoDiLavoroTuttiQuelliChe,

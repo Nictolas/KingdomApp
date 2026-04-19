@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ActivityIndicator,
+  Alert,
   Modal,
   Platform,
   Pressable,
@@ -145,6 +146,8 @@ type EdificioInCella = {
   id: number;
   nome: string;
   emoji: string;
+  /** Istanza in useGameState (edifici) per residenze costruite o edifici con id non di catalogo. */
+  edificioGlobaleId?: number;
   /** Indice dell'angolo in alto a sinistra dell'edificio multi-cella (solo sulle celle "schiena"). */
   footprintRef?: number;
   /** Solo sulla cella anchor: larghezza/altezza in celle del rettangolo. */
@@ -173,6 +176,67 @@ function residenzaGlobaleDi(abitanteId: number, edificiList: Edificio[]): Edific
 function idEdificioGlobalePerNomeResidenza(nome: string): number | undefined {
   const found = edificiData.find((e) => e.nome === nome && e.tipo === "Residenza");
   return found?.id;
+}
+
+function idGlobalePerResidenzaInCella(e: EdificioInCella | null, nome: string): number | undefined {
+  if (!e) return undefined;
+  if (e.edificioGlobaleId != null) return e.edificioGlobaleId;
+  return idEdificioGlobalePerNomeResidenza(nome);
+}
+
+/** Fiumi come insieme di indici (per regole di piazzamento con cuscino). */
+function riverSetDaTerreno(terreno: Record<number, TerrenoType>): Set<number> {
+  const s = new Set<number>();
+  for (const [k, v] of Object.entries(terreno)) {
+    if (v === "river") s.add(Number(k));
+  }
+  return s;
+}
+
+/** Footprint costruzioni giocatore (allineato agli edifici procedurali iniziali). */
+const FOOTPRINT_COSTRUZIONE: Record<string, { w: number; h: number }> = {
+  Serra: { w: SERRA_FOOTPRINT_W, h: SERRA_FOOTPRINT_H },
+  Capanna: { w: CAPANNA_FOOTPRINT_W, h: CAPANNA_FOOTPRINT_H },
+  Dormitorio: { w: DORMITORIO_FOOTPRINT_W, h: DORMITORIO_FOOTPRINT_H },
+  Spazioporto: { w: SPAZIOPORTO_FOOTPRINT_W, h: SPAZIOPORTO_FOOTPRINT_H }
+};
+
+/** Scrive l'occupazione multi-cella sulla griglia (come aggiungiSerraFootprint ma con anchor già scelto). */
+function applicaEdificioFootprintCostruzione(
+  out: Record<number, EdificioInCella>,
+  anchor: number,
+  w: number,
+  h: number,
+  cols: number,
+  base: { id: number; nome: string; emoji: string; edificioGlobaleId?: number }
+): void {
+  const celle = getIndiciFootprint(anchor, w, h, cols);
+  if (w === 1 && h === 1) {
+    out[anchor] = {
+      id: base.id,
+      nome: base.nome,
+      emoji: base.emoji,
+      edificioGlobaleId: base.edificioGlobaleId
+    };
+    return;
+  }
+  out[anchor] = {
+    id: base.id,
+    nome: base.nome,
+    emoji: "",
+    footprint: { w, h },
+    edificioGlobaleId: base.edificioGlobaleId
+  };
+  for (const i of celle) {
+    if (i === anchor) continue;
+    out[i] = {
+      id: base.id,
+      nome: base.nome,
+      emoji: "",
+      footprintRef: anchor,
+      edificioGlobaleId: base.edificioGlobaleId
+    };
+  }
 }
 
 /** Cella è acqua (blu) se true, altrimenti erba (verde). Bordi della mappa = mare. */
@@ -1001,7 +1065,8 @@ export function MappaScreen() {
     etaMinimaLavoro,
     redditoCittadinanza,
     assegnaAbitanteAEdificio,
-    rimuoviAbitanteDaEdificio
+    rimuoviAbitanteDaEdificio,
+    aggiungiEdificioDaTemplate
   } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
@@ -1014,6 +1079,21 @@ export function MappaScreen() {
   const pauraMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.paura, 0) / nConLealtàPaura) : 0;
   const nDisoccupati = abitantiConFelicità.filter((a) => a.lavoro === "Disoccupato").length;
   const disoccupazionePercent = nConFelicità ? Math.round((nDisoccupati / nConFelicità) * 100) : 0;
+
+  /** Una voce per nome (es. una sola "Serra") con id template del catalogo. */
+  const edificiCatalogoModal = useMemo(() => {
+    const seen = new Set<string>();
+    const out: Edificio[] = [];
+    for (const row of edificiData) {
+      if (row.nome === "Centro di Comando") continue;
+      /** Una sola Baracca è supportata dalla sync globale Senzatetto → edificio. */
+      if (row.nome === "Baracca") continue;
+      if (seen.has(row.nome)) continue;
+      seen.add(row.nome);
+      out.push(row);
+    }
+    return out;
+  }, []);
 
   const [mappaState, setMappaState] = useState<MappaRuntimeState>(() => {
     if (!mappaSessione) {
@@ -1031,6 +1111,8 @@ export function MappaScreen() {
       return next;
     });
   }, []);
+  const mappaStateRef = useRef(mappaState);
+  mappaStateRef.current = mappaState;
   const edificiInMappa = mappaState.edificiInMappa;
   const terrenoInMappa = mappaState.terrenoInMappa;
   const decorazioniInMappa = mappaState.decorazioniInMappa;
@@ -1041,8 +1123,8 @@ export function MappaScreen() {
   const [selectedResidenzaAnchor, setSelectedResidenzaAnchor] = useState<number | null>(null);
   /** Scheda abitante aperta dal doppio tocco su un passeggiatore sulla mappa. */
   const [schedaWandererAbitante, setSchedaWandererAbitante] = useState<Abitante | null>(null);
-  /** Bordi neri tra le celle della mappa (toggle dalla barra risorse). */
-  const [mostraGrigliaMappa, setMostraGrigliaMappa] = useState(true);
+  /** Bordi tra le celle: di default nascosti; il toggle nella barra risorse li attiva. */
+  const [mostraGrigliaMappa, setMostraGrigliaMappa] = useState(false);
   const lastTapCell = useRef<number | null>(null);
   const lastTapTime = useRef<number>(0);
 
@@ -1290,7 +1372,7 @@ export function MappaScreen() {
       if (selectedResidenzaAnchor === null || !edificioResidenzaAperta || postiLiberiCasaMappa <= 0) return;
       const nome = edificioResidenzaAperta.nome;
       const anchor = selectedResidenzaAnchor;
-      const globId = idEdificioGlobalePerNomeResidenza(nome);
+      const globId = idGlobalePerResidenzaInCella(edificioResidenzaAperta, nome);
       if (!abitanti.some((x) => x.id === abitanteId)) return;
 
       if (nome === "Capanna" || nome === "Dormitorio") {
@@ -1361,26 +1443,89 @@ export function MappaScreen() {
 
   const handleScegliEdificio = useCallback(
     (cellIndex: number, e: Edificio) => {
-      setMappaStatePersistente((s) => {
-        if (e.nome === "Strada" && (s.terrenoInMappa[cellIndex] ?? "erba") !== "erba") {
-          return s;
-        }
-        const nextEdifici = {
-          ...s.edificiInMappa,
-          [cellIndex]: { id: e.id, nome: e.nome, emoji: e.emoji }
-        };
+      if (e.nome === "Strada") {
+        setMappaStatePersistente((s) => {
+          if ((s.terrenoInMappa[cellIndex] ?? "erba") !== "erba") {
+            return s;
+          }
+          const nextEdifici = {
+            ...s.edificiInMappa,
+            [cellIndex]: { id: STRADA_OPZIONE.id, nome: STRADA_OPZIONE.nome, emoji: STRADA_OPZIONE.emoji }
+          };
+          assicuraEdificiCollegatiDaStrada(
+            nextEdifici,
+            s.terrenoInMappa,
+            FIXED_MAP_COLS,
+            FIXED_MAP_ROWS,
+            STRADA_OPZIONE
+          );
+          return { ...s, edificiInMappa: nextEdifici };
+        });
+        setSelectedCellForDialog(null);
+        return;
+      }
+
+      const s = mappaStateRef.current;
+      const riverSet = riverSetDaTerreno(s.terrenoInMappa);
+      const vietato = vietatoFootprintECuscinoDaEdificiIniziali(s.edificiInMappa, FIXED_MAP_COLS, FIXED_MAP_ROWS);
+      const dim = FOOTPRINT_COSTRUZIONE[e.nome] ?? { w: 1, h: 1 };
+      const w = dim.w;
+      const h = dim.h;
+
+      let anchor: number | null = null;
+      if (puòPiazzareFootprintConCuscino(cellIndex, w, h, FIXED_MAP_COLS, FIXED_MAP_ROWS, riverSet, vietato)) {
+        anchor = cellIndex;
+      } else {
+        anchor = trovaAnchorFootprintLibero(
+          w,
+          h,
+          cellIndex,
+          FIXED_MAP_COLS,
+          FIXED_MAP_ROWS,
+          riverSet,
+          vietato
+        );
+      }
+      if (anchor == null) {
+        Alert.alert(
+          "Spazio insufficiente",
+          "Non c'è spazio adatto (terreno, cuscino d'erba o distanza dagli altri edifici)."
+        );
+        setSelectedCellForDialog(null);
+        return;
+      }
+
+      const newId = aggiungiEdificioDaTemplate(e.id);
+      if (newId == null) {
+        Alert.alert("Errore", "Impossibile creare questo tipo di edificio.");
+        setSelectedCellForDialog(null);
+        return;
+      }
+
+      setMappaStatePersistente((prev) => {
+        const nextEdifici = { ...prev.edificiInMappa };
+        applicaEdificioFootprintCostruzione(nextEdifici, anchor!, w, h, FIXED_MAP_COLS, {
+          id: newId,
+          nome: e.nome,
+          emoji: e.emoji,
+          edificioGlobaleId: èResidenzaMappa(e.nome) ? newId : undefined
+        });
         assicuraEdificiCollegatiDaStrada(
           nextEdifici,
-          s.terrenoInMappa,
+          prev.terrenoInMappa,
           FIXED_MAP_COLS,
           FIXED_MAP_ROWS,
           STRADA_OPZIONE
         );
-        return { ...s, edificiInMappa: nextEdifici };
+        let nextResidenze = prev.residenzeMappa;
+        if (èResidenzaMappa(e.nome)) {
+          nextResidenze = { ...prev.residenzeMappa, [anchor!]: prev.residenzeMappa[anchor!] ?? [] };
+        }
+        return { ...prev, edificiInMappa: nextEdifici, residenzeMappa: nextResidenze };
       });
       setSelectedCellForDialog(null);
     },
-    [setMappaStatePersistente]
+    [setMappaStatePersistente, aggiungiEdificioDaTemplate]
   );
 
   const handleTrasformaGiacimento = useCallback((cellIndex: number) => {
@@ -1755,9 +1900,7 @@ export function MappaScreen() {
                 <Text style={styles.modalOptionEmoji}>{STRADA_OPZIONE.emoji}</Text>
                 <Text style={styles.modalOptionNome}>{STRADA_OPZIONE.nome}</Text>
               </Pressable>
-              {edificiData
-                .filter((e) => e.nome !== "Centro di Comando")
-                .map((e) => (
+              {edificiCatalogoModal.map((e) => (
                 <Pressable
                   key={e.id}
                   style={styles.modalOption}

@@ -63,10 +63,15 @@ export type AvanzaMeseOutput = {
 export function syncResidenzeBaraccaSenzatetto(edifici: Edificio[], abitanti: Abitante[]): Edificio[] {
   const senzatettoIds = new Set(abitanti.filter((a) => a.fazioni?.includes("Senzatetto")).map((a) => a.id));
   const nativiIds = new Set(abitanti.filter((a) => a.fazioni?.includes("Nativi")).map((a) => a.id));
+  const baraccaIdsOrdinati = edifici
+    .filter((x) => x.nome === "Baracca")
+    .map((x) => x.id)
+    .sort((a, b) => a - b);
+  const baraccaPrimariaId = baraccaIdsOrdinati[0];
   return edifici.map((e) => {
     if (e.tipo !== "Residenza") return e;
     if (e.nome === "Baracca") {
-      const ids = [...senzatettoIds];
+      const ids = e.id === baraccaPrimariaId ? [...senzatettoIds] : [];
       return { ...e, abitantiAssegnati: ids, occupazione: ids.length };
     }
     let nuovi = (e.abitantiAssegnati ?? []).filter((id) => !senzatettoIds.has(id));
