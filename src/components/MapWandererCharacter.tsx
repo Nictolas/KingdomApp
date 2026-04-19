@@ -10,7 +10,7 @@ const FRAME_PX = 64;
 const FRAMES = 12;
 
 /** Spostamento tra celle: durata e pausa prima del prossimo passo. */
-const MOVE_DURATION_MS = 620;
+const MOVE_DURATION_MS = 560;
 const IDLE_BEFORE_NEXT_MS = 2200;
 
 export type WanderDirection = "n" | "s" | "e" | "w";
@@ -64,8 +64,10 @@ function walkIndexInGroup(direction: WanderDirection, walkFrame: number, isMovin
   return k;
 }
 
-function easeInOutCubic(t: number): number {
-  return t < 0.5 ? 4 * t * t * t : 1 - (-2 * t + 2) ** 3 / 2;
+/** Frame camminata (0–2) sincronizzati sul tempo lineare: ritmo costante, non sull’easing della posizione. */
+function walkFrameFromLinearMoveT(t: number): number {
+  if (t >= 1) return 0;
+  return Math.min(2, Math.floor(t * 3));
 }
 
 type MapWandererCharacterProps = {
@@ -196,13 +198,12 @@ export function MapWandererCharacter({
 
     const step = (now: number) => {
       const t = Math.min(1, (now - start) / MOVE_DURATION_MS);
-      const e = easeInOutCubic(t);
       setPixelPos({
-        x: fromX + (toX - fromX) * e,
-        y: fromY + (toY - fromY) * e
+        x: fromX + (toX - fromX) * t,
+        y: fromY + (toY - fromY) * t
       });
       if (t < 1) {
-        setWalkFrame(Math.min(2, Math.floor(e * 2.99)));
+        setWalkFrame(walkFrameFromLinearMoveT(t));
         rafRef.current = requestAnimationFrame(step);
       } else {
         setPixelPos({ x: toX, y: toY });
@@ -219,7 +220,7 @@ export function MapWandererCharacter({
   pickNextMoveRef.current = pickNextMove;
 
   const runOneSegment = useCallback(
-    (from: number, to: number, onDone: () => void) => {
+    (from: number, to: number, onDone: () => void, isLastSegment: boolean) => {
       setDirection(directionBetween(from, to, cols));
       if (rafRef.current != null) {
         cancelAnimationFrame(rafRef.current);
@@ -233,18 +234,19 @@ export function MapWandererCharacter({
       const start = performance.now();
       const step = (now: number) => {
         const t = Math.min(1, (now - start) / MOVE_DURATION_MS);
-        const e = easeInOutCubic(t);
         setPixelPos({
-          x: fromX + (toX - fromX) * e,
-          y: fromY + (toY - fromY) * e
+          x: fromX + (toX - fromX) * t,
+          y: fromY + (toY - fromY) * t
         });
         if (t < 1) {
-          setWalkFrame(Math.min(2, Math.floor(e * 2.99)));
+          setWalkFrame(walkFrameFromLinearMoveT(t));
           rafRef.current = requestAnimationFrame(step);
         } else {
           setPixelPos({ x: toX, y: toY });
           setWalkFrame(0);
-          setIsMoving(false);
+          if (isLastSegment) {
+            setIsMoving(false);
+          }
           setLogicalCell(to);
           cellRef.current = to;
           onCellSettledRef.current?.(to);
@@ -287,8 +289,9 @@ export function MapWandererCharacter({
       }
       const from = path[seg]!;
       const to = path[seg + 1]!;
+      const isLastSegment = seg + 1 >= path.length - 1;
       seg++;
-      runOneSegment(from, to, stepChain);
+      runOneSegment(from, to, stepChain, isLastSegment);
     };
     stepChain();
     return () => {
