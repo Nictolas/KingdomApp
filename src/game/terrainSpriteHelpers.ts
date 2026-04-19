@@ -195,6 +195,18 @@ const HORIZONTAL_OK_EAST = new Set<StradaTileAsset1x1>([
   "incrocio_centro"
 ]);
 
+/**
+ * Sotto `strada_verticale1x1` o `strada_nord1x1` è ammesso solo un incastro verso sud coerente con i PNG.
+ */
+const ALLOWED_SOUTH_OF_VERTICAL_OR_NORD = new Set<StradaTileAsset1x1>([
+  "incrocio_centro",
+  "incrocio_est_sud_nord",
+  "incrocio_nord_est_ovest",
+  "incrocio_nord_est_sud",
+  "sud",
+  "verticale"
+]);
+
 function cardinalStrada(
   index: number,
   cols: number,
@@ -270,7 +282,22 @@ function getStradaAsset1x1Grezzo(
   const count = (n ? 1 : 0) + (s ? 1 : 0) + (w ? 1 : 0) + (e ? 1 : 0);
 
   if (count === 1) {
-    if (n) return "nord";
+    if (n) {
+      const row = Math.floor(index / cols);
+      const col = index % cols;
+      /**
+       * Un solo vicino a nord: sei il cappio a valle di un tratto verticale se sopra di te c’è ancora strada.
+       * In quel caso lo sprite corretto è `strada_sud1x1` (connessione verso nord), non `strada_nord1x1`.
+       */
+      if (
+        row >= 2 &&
+        isStradaCell(row - 2, col, cols, rows, edificiInMappa) &&
+        isStradaCell(row - 1, col, cols, rows, edificiInMappa)
+      ) {
+        return "sud";
+      }
+      return "nord";
+    }
     if (s) return "sud";
     if (e) return "est";
     return "ovest";
@@ -303,8 +330,11 @@ function getStradaAsset1x1Grezzo(
  * Per `strada_orizzontale1x1` richiede che a Ovest ci sia solo un asset tra
  * ovest / curva_nord_est / curva_sud_est / orizzontale, e a Est solo tra
  * orizzontale / curva_nord_ovest / curva_sud_ovest (incastro del segmento E–O).
+ *
+ * La regola “sotto verticale / strada_nord” (whitelist sprite verso sud) si applica in
+ * {@link buildStradaAssetLookup}.
  */
-export function getStradaAsset1x1(
+function getStradaAsset1x1Base(
   index: number,
   cols: number,
   rows: number,
@@ -344,6 +374,77 @@ export function getStradaAsset1x1(
   if (ok) return "orizzontale";
   /** Incastro E–O non valido rispetto alle regole: fallback al tipo grezzo (stesso tratto, sprite eventualmente da correggere in generazione). */
   return getStradaAsset1x1Grezzo(index, cols, rows, edificiInMappa);
+}
+
+/**
+ * Se a nord c’è `verticale` o `nord`, la cella corrente deve usare solo asset compatibili con l’incastro verso sud.
+ */
+function clampSouthOfVerticalOrNord(
+  index: number,
+  cols: number,
+  rows: number,
+  edificiInMappa: Record<number, { nome?: string }>
+): StradaTileAsset1x1 {
+  const g = getStradaAsset1x1Grezzo(index, cols, rows, edificiInMappa);
+  if (ALLOWED_SOUTH_OF_VERTICAL_OR_NORD.has(g)) return g;
+
+  const { n, s, w, e } = cardinalStrada(index, cols, rows, edificiInMappa);
+  const count = (n ? 1 : 0) + (s ? 1 : 0) + (w ? 1 : 0) + (e ? 1 : 0);
+
+  if (count === 4) return "incrocio_centro";
+  if (count === 2 && n && s) return "verticale";
+  if (count === 1 && n) {
+    return "sud";
+  }
+  if (count === 1 && s) return "sud";
+  if (count === 3) {
+    if (n && e && w && !s) return "incrocio_nord_est_ovest";
+    if (n && e && s && !w) return "incrocio_nord_est_sud";
+    if (e && s && w && !n) return "incrocio_est_sud_ovest";
+    if (n && s && w && !e) return "incrocio_est_sud_nord";
+  }
+  if (count === 2) {
+    if (n && e) return "incrocio_nord_est_sud";
+    if (n && w) return "incrocio_est_sud_nord";
+    if (s && e) return "incrocio_nord_est_sud";
+    if (s && w) return "incrocio_est_sud_nord";
+  }
+  return "verticale";
+}
+
+/**
+ * Lookup per indice cella: applica la whitelist “sotto strada_verticale / strada_nord” in ordine per righe (nord → sud).
+ */
+export function buildStradaAssetLookup(
+  cols: number,
+  rows: number,
+  edificiInMappa: Record<number, { nome?: string }>
+): (index: number) => StradaTileAsset1x1 {
+  const final = new Map<number, StradaTileAsset1x1>();
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const index = row * cols + col;
+      if (edificiInMappa[index]?.nome !== "Strada") continue;
+
+      let asset = getStradaAsset1x1Base(index, cols, rows, edificiInMappa);
+
+      if (row > 0 && edificiInMappa[index - cols]?.nome === "Strada") {
+        const northAsset = final.get(index - cols);
+        if (
+          northAsset != null &&
+          (northAsset === "verticale" || northAsset === "nord") &&
+          !ALLOWED_SOUTH_OF_VERTICAL_OR_NORD.has(asset)
+        ) {
+          asset = clampSouthOfVerticalOrNord(index, cols, rows, edificiInMappa);
+        }
+      }
+
+      final.set(index, asset);
+    }
+  }
+
+  return (index: number) => final.get(index) ?? "orizzontale";
 }
 
 /**

@@ -35,10 +35,10 @@ import {
   indiciViciniOrtogonaliStrada
 } from "../src/game/roadConnectivity";
 import {
+  buildStradaAssetLookup,
   getGrass2x2Index,
   getGrassSandBorderSubtileIfAny,
-  getSandBeachSubtile,
-  getStradaAsset1x1
+  getSandBeachSubtile
 } from "../src/game/terrainSpriteHelpers";
 
 /** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
@@ -847,6 +847,11 @@ export function MappaScreen() {
   const contentWidth = cols * CELL_SIZE_PX + (cols - 1) * GAP;
   const contentHeight = rows * CELL_SIZE_PX + (rows - 1) * GAP;
 
+  const stradaAssetAt = useMemo(
+    () => buildStradaAssetLookup(cols, rows, edificiInMappa),
+    [cols, rows, edificiInMappa]
+  );
+
   const isWalkableCell = useCallback(
     (i: number) => {
       if (isAcqua(i, cols, rows)) return false;
@@ -1083,7 +1088,7 @@ export function MappaScreen() {
                       ) : èStrada ? (
                         <StradaTile1x1
                           cellSize={CELL_SIZE_PX}
-                          asset={getStradaAsset1x1(i, cols, rows, edificiInMappa)}
+                          asset={stradaAssetAt(i)}
                         />
                       ) : (
                         <TerrainSheetSprite
