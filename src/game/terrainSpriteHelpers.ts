@@ -1,4 +1,4 @@
-import type { TerrenoType } from "./riverGeneration";
+import { isTerrenoAcqua, type TerrenoType } from "./riverGeneration";
 
 function isAcquaCell(index: number, cols: number, rows: number): boolean {
   const row = Math.floor(index / cols);
@@ -6,6 +6,7 @@ function isAcquaCell(index: number, cols: number, rows: number): boolean {
   return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
 }
 
+/** Acqua reale per autotile spiaggia: fiume o mare disegnato, mai sabbia adiacente. */
 function isWaterAt(
   row: number,
   col: number,
@@ -15,8 +16,8 @@ function isWaterAt(
 ): boolean {
   if (row < 0 || row >= rows || col < 0 || col >= cols) return false;
   const index = row * cols + col;
-  if (isAcquaCell(index, cols, rows)) return true;
-  return (terrenoInMappa[index] ?? "erba") === "river";
+  if ((terrenoInMappa[index] ?? "erba") === "sabbia") return false;
+  return isTerrenoAcqua(index, terrenoInMappa, cols, rows);
 }
 
 function isSandAt(
@@ -944,10 +945,11 @@ export function getGrassSandBorderSubtileIfAny(
   return undefined;
 }
 
-const SPIAGGIA_OK_NORD = new Set<SpiaggiaTileAsset1x1>(["centro", "nord"]);
-const SPIAGGIA_OK_SUD = new Set<SpiaggiaTileAsset1x1>(["centro", "sud"]);
-const SPIAGGIA_OK_EST = new Set<SpiaggiaTileAsset1x1>(["centro", "est"]);
-const SPIAGGIA_OK_OVEST = new Set<SpiaggiaTileAsset1x1>(["centro", "ovest"]);
+/**
+ * Lato sabbia verso erba: la transizione è sul tile `erba_spiaggia_*` (erba).
+ * La sabbia adiacente resta `centro` (piena) salvo autotile verso mare/fiume.
+ */
+const SPIAGGIA_OK_VERSO_ERBA = new Set<SpiaggiaTileAsset1x1>(["centro"]);
 
 /** Lati verso sabbia di ogni `erba_spiaggia_*`: solo `spiaggia_centro` o il bordo coerente. */
 function erbaSpiaggiaSandSideWhitelist(
@@ -956,28 +958,28 @@ function erbaSpiaggiaSandSideWhitelist(
 ): Set<SpiaggiaTileAsset1x1> | null {
   switch (asset) {
     case "nord":
-      return side === "n" ? SPIAGGIA_OK_NORD : null;
+      return side === "n" ? SPIAGGIA_OK_VERSO_ERBA : null;
     case "sud":
-      return side === "s" ? SPIAGGIA_OK_SUD : null;
+      return side === "s" ? SPIAGGIA_OK_VERSO_ERBA : null;
     case "est":
-      return side === "e" ? SPIAGGIA_OK_EST : null;
+      return side === "e" ? SPIAGGIA_OK_VERSO_ERBA : null;
     case "ovest":
-      return side === "w" ? SPIAGGIA_OK_OVEST : null;
+      return side === "w" ? SPIAGGIA_OK_VERSO_ERBA : null;
     case "nord_est":
-      if (side === "n") return SPIAGGIA_OK_NORD;
-      if (side === "e") return SPIAGGIA_OK_EST;
+      if (side === "n") return SPIAGGIA_OK_VERSO_ERBA;
+      if (side === "e") return SPIAGGIA_OK_VERSO_ERBA;
       return null;
     case "nord_ovest":
-      if (side === "n") return SPIAGGIA_OK_NORD;
-      if (side === "w") return SPIAGGIA_OK_OVEST;
+      if (side === "n") return SPIAGGIA_OK_VERSO_ERBA;
+      if (side === "w") return SPIAGGIA_OK_VERSO_ERBA;
       return null;
     case "sud_est":
-      if (side === "s") return SPIAGGIA_OK_SUD;
-      if (side === "e") return SPIAGGIA_OK_EST;
+      if (side === "s") return SPIAGGIA_OK_VERSO_ERBA;
+      if (side === "e") return SPIAGGIA_OK_VERSO_ERBA;
       return null;
     case "sud_ovest":
-      if (side === "s") return SPIAGGIA_OK_SUD;
-      if (side === "w") return SPIAGGIA_OK_OVEST;
+      if (side === "s") return SPIAGGIA_OK_VERSO_ERBA;
+      if (side === "w") return SPIAGGIA_OK_VERSO_ERBA;
       return null;
     default:
       return null;
@@ -1058,6 +1060,10 @@ function clampSpiaggiaAssetToWaterNeighbors(
   terrenoInMappa: Record<number, TerrenoType>,
   asset: SpiaggiaTileAsset1x1
 ): SpiaggiaTileAsset1x1 {
+  const waterMask = waterNeighborMaskAt(index, cols, rows, terrenoInMappa);
+  if (waterMask === 0) {
+    return "centro";
+  }
   if (spiaggiaAssetMatchesWaterNeighbors(index, cols, rows, terrenoInMappa, asset)) {
     return asset;
   }
