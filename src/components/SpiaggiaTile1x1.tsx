@@ -10,7 +10,8 @@ const ASSETS: Record<SpiaggiaTileAsset1x1, number> = {
   nord_est: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_nord_est.png"),
   nord_ovest: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_nord_ovest.png"),
   sud_est: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_sud_est.png"),
-  sud_ovest: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_sud_ovest.png")
+  sud_ovest: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_sud_ovest.png"),
+  centro: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_centro.png")
 };
 
 type Props = {
@@ -19,7 +20,7 @@ type Props = {
 };
 
 /**
- * Una cella mappa = un tile spiaggia/sabbia 1×1 (PNG dedicati, non spritesheet).
+ * Una cella mappa = un tile spiaggia/sabbia 1×1 (PNG dedicati).
  */
 export const SpiaggiaTile1x1 = memo(function SpiaggiaTile1x1({ cellSize, asset }: Props) {
   const source = ASSETS[asset];

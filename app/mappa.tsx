@@ -39,6 +39,7 @@ import {
 } from "../src/components/RpgFootprintBuilding";
 import { MapWandererCharacter } from "../src/components/MapWandererCharacter";
 import { GrassDecorOverlay } from "../src/components/GrassDecorOverlay";
+import { ErbaSpiaggiaTile1x1 } from "../src/components/ErbaSpiaggiaTile1x1";
 import { ErbaTile1x1 } from "../src/components/ErbaTile1x1";
 import { SpiaggiaTile1x1 } from "../src/components/SpiaggiaTile1x1";
 import { StradaTile1x1 } from "../src/components/StradaTile1x1";
@@ -70,7 +71,8 @@ import {
   buildStradaAssetLookup,
   erbaExtraDecorCasuale,
   getGrass2x2Index,
-  getGrassSandBorderSubtileIfAny,
+  getErbaSpiaggiaAsset1x1,
+  getGrass2x2Index,
   getSpiaggiaAsset1x1
 } from "../src/game/terrainSpriteHelpers";
 
@@ -2445,13 +2447,10 @@ export function MappaScreen() {
                         hasEdificio && !èStrada && styles.cellaEdificio,
                         Platform.OS === "web" && webCellAbsolutePosition(i, cols, CELL_SIZE_PX)
                       ];
-                      const grassSandBorderSubtile = getGrassSandBorderSubtileIfAny(
-                        i,
-                        cols,
-                        rows,
-                        terrenoInMappa,
-                        edificiInMappa
-                      );
+                      const erbaSpiaggiaAsset =
+                        terreno === "erba" && !èStrada
+                          ? getErbaSpiaggiaAsset1x1(i, cols, rows, terrenoInMappa, edificiInMappa)
+                          : undefined;
                       const edificioBloccaErbaDecor =
                         !!edificio && edificio.nome !== "Strada";
                       /**
@@ -2464,7 +2463,7 @@ export function MappaScreen() {
                         !èStrada &&
                         !edificioBloccaErbaDecor &&
                         erba1x1 == null &&
-                        grassSandBorderSubtile == null
+                        erbaSpiaggiaAsset == null
                           ? erbaExtraDecorCasuale(i, cols)
                           : null;
 
@@ -2480,6 +2479,8 @@ export function MappaScreen() {
                           cellSize={CELL_SIZE_PX}
                           asset={stradaAssetAt(i)}
                         />
+                      ) : erbaSpiaggiaAsset ? (
+                        <ErbaSpiaggiaTile1x1 cellSize={CELL_SIZE_PX} asset={erbaSpiaggiaAsset} />
                       ) : erba1x1 ? (
                         <ErbaTile1x1 cellSize={CELL_SIZE_PX} asset={erba1x1} />
                       ) : (
@@ -2488,7 +2489,6 @@ export function MappaScreen() {
                             cellSize={CELL_SIZE_PX}
                             terrain="grass"
                             grass2x2Index={getGrass2x2Index(i, cols)}
-                            grassSandBorderSubtile={grassSandBorderSubtile}
                           />
                           {erbaDecor ? (
                             <GrassDecorOverlay cellSize={CELL_SIZE_PX} kind={erbaDecor} />

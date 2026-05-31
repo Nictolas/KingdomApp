@@ -102,11 +102,49 @@ export type SpiaggiaTileAsset1x1 =
   | "nord_est"
   | "nord_ovest"
   | "sud_est"
+  | "sud_ovest"
+  /** Sabbia piena (nessun lato verso acqua). */
+  | "centro";
+
+/** Transizione erba ↔ spiaggia 1×1 (`erba_spiaggia_*.png`). */
+export type ErbaSpiaggiaTileAsset1x1 =
+  | "nord"
+  | "sud"
+  | "est"
+  | "ovest"
+  | "nord_est"
+  | "nord_ovest"
+  | "sud_est"
   | "sud_ovest";
 
+function spiaggiaAssetFromBeachSubtile(subtile: Tile3x3Index): SpiaggiaTileAsset1x1 {
+  switch (subtile) {
+    case 0:
+      return "nord_ovest";
+    case 1:
+      return "nord";
+    case 2:
+      return "nord_est";
+    case 3:
+      return "ovest";
+    case 4:
+      return "centro";
+    case 5:
+      return "est";
+    case 6:
+      return "sud_ovest";
+    case 7:
+      return "sud";
+    case 8:
+      return "sud_est";
+    default:
+      return "centro";
+  }
+}
+
 /**
- * Sceglie il PNG spiaggia 1×1 in base ai vicini acqua (mare o fiume).
- * Il nome indica da quale lato o angolo arriva l’acqua.
+ * Sceglie il PNG spiaggia 1×1: stessa maschera acqua del blocco 3×3 sullo spritesheet,
+ * mappata sui file `spiaggia_*.png` (angoli, lati, centro sabbia).
  */
 export function getSpiaggiaAsset1x1(
   index: number,
@@ -114,46 +152,45 @@ export function getSpiaggiaAsset1x1(
   rows: number,
   terrenoInMappa: Record<number, TerrenoType>
 ): SpiaggiaTileAsset1x1 {
-  const col = index % cols;
-  const row = Math.floor(index / cols);
-  const n = isWaterAt(row - 1, col, cols, rows, terrenoInMappa);
-  const e = isWaterAt(row, col + 1, cols, rows, terrenoInMappa);
-  const s = isWaterAt(row + 1, col, cols, rows, terrenoInMappa);
-  const w = isWaterAt(row, col - 1, cols, rows, terrenoInMappa);
-  const mask = (n ? 1 : 0) | (e ? 2 : 0) | (s ? 4 : 0) | (w ? 8 : 0);
+  return spiaggiaAssetFromBeachSubtile(getSandBeachSubtile(index, cols, rows, terrenoInMappa));
+}
 
-  switch (mask) {
+function erbaSpiaggiaAssetFromGrassSandSubtile(subtile: Tile3x3Index): ErbaSpiaggiaTileAsset1x1 {
+  switch (subtile) {
+    case 0:
+      return "nord_ovest";
     case 1:
       return "nord";
     case 2:
-      return "est";
-    case 4:
-      return "sud";
-    case 8:
-      return "ovest";
-    case 3:
       return "nord_est";
-    case 6:
-      return "sud_est";
-    case 9:
-      return "nord_ovest";
-    case 12:
-      return "sud_ovest";
+    case 3:
+      return "ovest";
     case 5:
       return "est";
-    case 10:
-      return "nord";
+    case 6:
+      return "sud_ovest";
     case 7:
-      return "ovest";
-    case 11:
       return "sud";
-    case 13:
-      return "nord";
-    case 14:
-      return "est";
+    case 8:
+      return "sud_est";
     default:
-      return "sud";
+      return "nord";
   }
+}
+
+/**
+ * Celle erba confinanti con sabbia: PNG `erba_spiaggia_*` (stessa maschera del blocco 3×3 erba–sabbia).
+ */
+export function getErbaSpiaggiaAsset1x1(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  edificiInMappa: Record<number, { nome?: string }>
+): ErbaSpiaggiaTileAsset1x1 | undefined {
+  const subtile = getGrassSandBorderSubtileIfAny(index, cols, rows, terrenoInMappa, edificiInMappa);
+  if (subtile == null || subtile === 4) return undefined;
+  return erbaSpiaggiaAssetFromGrassSandSubtile(subtile);
 }
 
 export function isStradaCell(
