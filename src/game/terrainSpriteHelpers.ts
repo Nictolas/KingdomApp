@@ -150,7 +150,8 @@ function getSpiaggiaAsset1x1Grezzo(
   rows: number,
   terrenoInMappa: Record<number, TerrenoType>
 ): SpiaggiaTileAsset1x1 {
-  return spiaggiaAssetFromBeachSubtile(getSandBeachSubtile(index, cols, rows, terrenoInMappa));
+  const mask = sandWaterEdgeMaskAt(index, cols, rows, terrenoInMappa);
+  return pickBestSpiaggiaAssetForWaterMask(mask);
 }
 
 function erbaSpiaggiaAssetFromGrassSandSubtile(subtile: Tile3x3Index): ErbaSpiaggiaTileAsset1x1 {
@@ -1010,7 +1011,24 @@ const SPIAGGIA_WATER_EDGE_MASK: Record<SpiaggiaTileAsset1x1, number> = {
   sud_ovest: 12
 };
 
-function waterNeighborMaskAt(
+const SPIAGGIA_ASSETS_BY_WATER_MASK = (
+  Object.entries(SPIAGGIA_WATER_EDGE_MASK) as [SpiaggiaTileAsset1x1, number][]
+).reduce(
+  (acc, [asset, mask]) => {
+    acc[mask] = asset;
+    return acc;
+  },
+  {} as Partial<Record<number, SpiaggiaTileAsset1x1>>
+);
+
+function popcountMask(mask: number): number {
+  let n = 0;
+  for (let m = mask; m; m >>= 1) n += m & 1;
+  return n;
+}
+
+/** Maschera N=1, E=2, S=4, O=8 dei vicini cardinali con mare/fiume. */
+export function sandWaterEdgeMaskAt(
   index: number,
   cols: number,
   rows: number,
@@ -1026,6 +1044,31 @@ function waterNeighborMaskAt(
   );
 }
 
+/**
+ * Tile esatto se la maschera coincide con uno dei 9 PNG spiaggia; altrimenti il miglior
+ * approssimazione (es. T a tre lati → angolo con 2 lati verso acqua, mai sabbia piatta).
+ */
+export function pickBestSpiaggiaAssetForWaterMask(mask: number): SpiaggiaTileAsset1x1 {
+  const exact = SPIAGGIA_ASSETS_BY_WATER_MASK[mask];
+  if (exact != null) return exact;
+
+  let best: SpiaggiaTileAsset1x1 = "centro";
+  let bestScore = -1;
+  for (const [asset, tileMask] of Object.entries(SPIAGGIA_WATER_EDGE_MASK) as [
+    SpiaggiaTileAsset1x1,
+    number
+  ][]) {
+    const correct = popcountMask(mask & tileMask);
+    const wrong = popcountMask(tileMask & ~mask);
+    const score = correct * 10 - wrong * 100 + popcountMask(tileMask);
+    if (score > bestScore) {
+      bestScore = score;
+      best = asset;
+    }
+  }
+  return best;
+}
+
 /** Il tile spiaggia deve mostrare acqua solo dove c’è mare/fiume adiacente. */
 function spiaggiaAssetMatchesWaterNeighbors(
   index: number,
@@ -1034,7 +1077,7 @@ function spiaggiaAssetMatchesWaterNeighbors(
   terrenoInMappa: Record<number, TerrenoType>,
   asset: SpiaggiaTileAsset1x1
 ): boolean {
-  return SPIAGGIA_WATER_EDGE_MASK[asset] === waterNeighborMaskAt(index, cols, rows, terrenoInMappa);
+  return SPIAGGIA_WATER_EDGE_MASK[asset] === sandWaterEdgeMaskAt(index, cols, rows, terrenoInMappa);
 }
 
 function filterSpiaggiaByWaterMask(
@@ -1060,18 +1103,14 @@ function clampSpiaggiaAssetToWaterNeighbors(
   terrenoInMappa: Record<number, TerrenoType>,
   asset: SpiaggiaTileAsset1x1
 ): SpiaggiaTileAsset1x1 {
-  const waterMask = waterNeighborMaskAt(index, cols, rows, terrenoInMappa);
+  const waterMask = sandWaterEdgeMaskAt(index, cols, rows, terrenoInMappa);
   if (waterMask === 0) {
     return "centro";
   }
   if (spiaggiaAssetMatchesWaterNeighbors(index, cols, rows, terrenoInMappa, asset)) {
     return asset;
   }
-  const grezzo = getSpiaggiaAsset1x1Grezzo(index, cols, rows, terrenoInMappa);
-  if (spiaggiaAssetMatchesWaterNeighbors(index, cols, rows, terrenoInMappa, grezzo)) {
-    return grezzo;
-  }
-  return "centro";
+  return pickBestSpiaggiaAssetForWaterMask(waterMask);
 }
 
 function pickSpiaggiaFromAllowed(
@@ -1084,16 +1123,20 @@ function pickSpiaggiaFromAllowed(
   const waterOk = filterSpiaggiaByWaterMask(allowed, index, cols, rows, terrenoInMappa);
   const pool = waterOk.size > 0 ? waterOk : allowed;
   const preferred = getSpiaggiaAsset1x1Grezzo(index, cols, rows, terrenoInMappa);
-  if (pool.has(preferred) && spiaggiaAssetMatchesWaterNeighbors(index, cols, rows, terrenoInMappa, preferred)) {
-    return preferred;
-  }
-  if (pool.has("centro")) return "centro";
+  if (pool.has(preferred)) return preferred;
+  const waterMask = sandWaterEdgeMaskAt(index, cols, rows, terrenoInMappa);
+  let best: SpiaggiaTileAsset1x1 | null = null;
+  let bestScore = -1;
   for (const asset of pool) {
-    if (spiaggiaAssetMatchesWaterNeighbors(index, cols, rows, terrenoInMappa, asset)) {
-      return asset;
+    const tileMask = SPIAGGIA_WATER_EDGE_MASK[asset];
+    const score = popcountMask(waterMask & tileMask) * 10 - popcountMask(tileMask & ~waterMask) * 100;
+    if (score > bestScore) {
+      bestScore = score;
+      best = asset;
     }
   }
-  return clampSpiaggiaAssetToWaterNeighbors(index, cols, rows, terrenoInMappa, "centro");
+  if (best != null) return best;
+  return pickBestSpiaggiaAssetForWaterMask(waterMask);
 }
 
 function isValidErbaSpiaggiaPlacement(

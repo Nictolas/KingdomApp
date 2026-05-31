@@ -5,14 +5,13 @@ import {
   getErbaDecorSheetCoord,
   getErbaSheetCoord,
   getErbaSpiaggiaSheetCoord,
-  getSpiaggiaSheetCoord,
+  getSpiaggiaSheetCoordForWaterMask,
   getStradaSheetCoord
 } from "../game/overworldSpritesheetLayout";
 import type {
   ErbaExtraDecorKind,
   ErbaSpiaggiaTileAsset1x1,
   ErbaTileAsset1x1,
-  SpiaggiaTileAsset1x1,
   StradaTileAsset1x1
 } from "../game/terrainSpriteHelpers";
 import { MissingTile1x1 } from "./MissingTile1x1";
@@ -59,7 +58,7 @@ export type MapTerrainCellProps = {
   erbaAsset: ErbaTileAsset1x1 | undefined;
   erbaSpiaggiaAsset: ErbaSpiaggiaTileAsset1x1 | undefined;
   stradaAsset: StradaTileAsset1x1 | undefined;
-  spiaggiaAsset: SpiaggiaTileAsset1x1 | undefined;
+  sandWaterMask: number | undefined;
   erbaDecor: ErbaExtraDecorKind | null;
   mostraGrigliaMappa: boolean;
   costruzioneActive: boolean;
@@ -77,7 +76,7 @@ function MapTerrainCellInner({
   erbaAsset,
   erbaSpiaggiaAsset,
   stradaAsset,
-  spiaggiaAsset,
+  sandWaterMask,
   erbaDecor,
   mostraGrigliaMappa,
   costruzioneActive,
@@ -105,7 +104,7 @@ function MapTerrainCellInner({
     terreno === "sabbia" ? (
       <TerrainSheetSprite
         cellSize={cellSizePx}
-        coord={getSpiaggiaSheetCoord(spiaggiaAsset ?? "centro")}
+        coord={getSpiaggiaSheetCoordForWaterMask(sandWaterMask ?? 0)}
       />
     ) : èStrada && stradaAsset ? (
       <TerrainSheetSprite cellSize={cellSizePx} coord={getStradaSheetCoord(stradaAsset)} />

@@ -1,9 +1,10 @@
-import type {
-  ErbaExtraDecorKind,
-  ErbaSpiaggiaTileAsset1x1,
-  ErbaTileAsset1x1,
-  SpiaggiaTileAsset1x1,
-  StradaTileAsset1x1
+import {
+  pickBestSpiaggiaAssetForWaterMask,
+  type ErbaExtraDecorKind,
+  type ErbaSpiaggiaTileAsset1x1,
+  type ErbaTileAsset1x1,
+  type SpiaggiaTileAsset1x1,
+  type StradaTileAsset1x1
 } from "./terrainSpriteHelpers";
 
 /**
@@ -85,6 +86,10 @@ export function getErbaSheetCoord(asset: ErbaTileAsset1x1): SheetCoord {
 
 export function getSpiaggiaSheetCoord(asset: SpiaggiaTileAsset1x1): SheetCoord {
   return SPIAGGIA[asset];
+}
+
+export function getSpiaggiaSheetCoordForWaterMask(mask: number): SheetCoord {
+  return getSpiaggiaSheetCoord(pickBestSpiaggiaAssetForWaterMask(mask));
 }
 
 export function getErbaSpiaggiaSheetCoord(asset: ErbaSpiaggiaTileAsset1x1): SheetCoord {
