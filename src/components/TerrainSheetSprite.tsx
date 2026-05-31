@@ -1,30 +1,24 @@
 import React, { memo } from "react";
 import { View, Image, StyleSheet, Platform } from "react-native";
-import { OVERWORLD_SHEET_PX } from "../game/overworldSpritesheetLayout";
+import { OVERWORLD_SHEET_PX, type SheetCoord } from "../game/overworldSpritesheetLayout";
 
 const SPRITESHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spritesheet-full.png");
 
 type Props = {
   cellSize: number;
-  terrain: "water";
-  frame: number;
+  /** Origine tile nello spritesheet (px). */
+  coord: SheetCoord;
 };
 
-/** Acqua animata dallo spritesheet (unico terreno ancora sul foglio). */
-function TerrainSheetSpriteInner({ cellSize, frame }: Props) {
+/** Ritaglia un tile 64×64 da spritesheet-full.png. */
+function TerrainSheetSpriteInner({ cellSize, coord }: Props) {
   const { w: sw, h: sh, tile: t } = OVERWORLD_SHEET_PX;
   const scale = cellSize / t;
   const imgW = sw * scale;
   const imgH = sh * scale;
 
-  const f =
-    ((frame % OVERWORLD_SHEET_PX.waterFrames) + OVERWORLD_SHEET_PX.waterFrames) %
-    OVERWORLD_SHEET_PX.waterFrames;
-  const ox = OVERWORLD_SHEET_PX.waterAnimX + f * t;
-  const oy = OVERWORLD_SHEET_PX.waterAnimY;
-
-  const left = -ox * scale;
-  const top = -oy * scale;
+  const left = -coord.x * scale;
+  const top = -coord.y * scale;
 
   /**
    * Web + zoom CSS: piccole fessure tra celle o campionamento bilineare sul bordo dello sheet

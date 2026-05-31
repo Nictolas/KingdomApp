@@ -43,14 +43,15 @@ import {
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
 import { MapWandererCharacter } from "../src/components/MapWandererCharacter";
+import { MapTerrainCell } from "../src/components/MapTerrainCell";
+import { MapWaterCellsLayer } from "../src/components/MapWaterCellsLayer";
 import { MondoLoadingScreen } from "../src/components/MondoLoadingScreen";
-import { GrassDecorOverlay } from "../src/components/GrassDecorOverlay";
-import { ErbaSpiaggiaTile1x1 } from "../src/components/ErbaSpiaggiaTile1x1";
-import { MissingTile1x1 } from "../src/components/MissingTile1x1";
-import { ErbaTile1x1 } from "../src/components/ErbaTile1x1";
-import { SpiaggiaTile1x1 } from "../src/components/SpiaggiaTile1x1";
-import { StradaTile1x1 } from "../src/components/StradaTile1x1";
-import { TerrainSheetSprite } from "../src/components/TerrainSheetSprite";
+import {
+  buildVisibleCellIndices,
+  computeVisibleCellRange,
+  footprintIntersectsRange,
+  type MapTransformState
+} from "../src/game/mapViewportCulling";
 import {
   assicuraEdificiCollegatiDaStrada,
   buildExcludeSandByRoads,
@@ -1644,14 +1645,33 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const lastTapCell = useRef<number | null>(null);
   const lastTapTime = useRef<number>(0);
 
-  /** Frame condiviso per mare + fiumi: ciclo 0…3 sullo spritesheet (simile a GIF). */
-  const [waterAnimFrame, setWaterAnimFrame] = useState(0);
-  useEffect(() => {
-    const id = setInterval(() => setWaterAnimFrame((n) => (n + 1) % 4), 180);
-    return () => clearInterval(id);
+  const orologioMinuti = useOrologioGioco();
+
+  /** Dimensioni viewport mappa (per culling celle visibili durante pan/zoom). */
+  const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
+  const [mapTransform, setMapTransform] = useState<MapTransformState>({
+    positionX: 0,
+    positionY: 0,
+    scale: 1
+  });
+  const transformRafRef = useRef<number | null>(null);
+  const pendingTransformRef = useRef<MapTransformState | null>(null);
+
+  const scheduleMapTransformUpdate = useCallback((state: MapTransformState) => {
+    pendingTransformRef.current = state;
+    if (transformRafRef.current != null) return;
+    transformRafRef.current = requestAnimationFrame(() => {
+      transformRafRef.current = null;
+      if (pendingTransformRef.current) setMapTransform(pendingTransformRef.current);
+    });
   }, []);
 
-  const orologioMinuti = useOrologioGioco();
+  useEffect(
+    () => () => {
+      if (transformRafRef.current != null) cancelAnimationFrame(transformRafRef.current);
+    },
+    []
+  );
 
   /** Ordine stabile per overlay: ogni abitante ha un personaggio che cammina sulla mappa. */
   const abitantiPerOverlayMappa = useMemo(
@@ -1779,6 +1799,46 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const { erbaSpiaggiaAssetAt, spiaggiaAssetAt } = useMemo(
     () => buildCoastalAssetLookups(cols, rows, terrenoInMappa, edificiInMappa),
     [cols, rows, terrenoInMappa, edificiInMappa]
+  );
+
+  const visibleCellRange = useMemo(
+    () =>
+      computeVisibleCellRange(
+        viewportSize.width,
+        viewportSize.height,
+        mapTransform,
+        cols,
+        rows,
+        CELL_SIZE_PX
+      ),
+    [viewportSize.width, viewportSize.height, mapTransform, cols, rows]
+  );
+
+  const { visibleTerrainIndices, visibleWaterIndices } = useMemo(() => {
+    const terrain: number[] = [];
+    const water: number[] = [];
+    for (const i of buildVisibleCellIndices(visibleCellRange, cols)) {
+      if (isTerrenoAcqua(i, terrenoInMappa, cols, rows)) water.push(i);
+      else terrain.push(i);
+    }
+    return { visibleTerrainIndices: terrain, visibleWaterIndices: water };
+  }, [visibleCellRange, cols, terrenoInMappa, rows]);
+
+  const costruzioneDissalatore = Boolean(
+    costruzioneSelezione?.tipo === "edificio" &&
+      costruzioneSelezione.edificio.nome === "Dissalatore"
+  );
+
+  const overlayEmojiAt = useCallback(
+    (cellIndex: number): string | null => {
+      const edificio = edificiInMappa[cellIndex];
+      const èStrada = edificio?.nome === "Strada";
+      const edificioMulticella =
+        !!edificio && !èStrada && (edificio.footprintRef != null || edificio.footprint != null);
+      if (edificio && !èStrada && !edificioMulticella) return edificio.emoji;
+      return decorazioniInMappa[cellIndex] ?? null;
+    },
+    [edificiInMappa, decorazioniInMappa]
   );
 
   const isWalkableCell = useCallback(
@@ -2080,6 +2140,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     }
     return list;
   }, [edificiInMappa]);
+
+  const visibleFootprintOverlay = useMemo(
+    () =>
+      edificiFootprintOverlay.filter(({ anchor, fp }) =>
+        footprintIntersectsRange(anchor, fp, cols, visibleCellRange)
+      ),
+    [edificiFootprintOverlay, cols, visibleCellRange]
+  );
 
   const openRouteForEdificio = useCallback(
     (nome: string, edificioId?: number) => {
@@ -2500,7 +2568,15 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
       {/* Contenitore mappa: viewport sfondo nero, griglia gestita da react-zoom-pan-pinch */}
       <View style={styles.mapContainer}>
-        <View style={styles.viewport}>
+        <View
+          style={styles.viewport}
+          onLayout={(e) => {
+            const { width, height } = e.nativeEvent.layout;
+            setViewportSize((prev) =>
+              prev.width === width && prev.height === height ? prev : { width, height }
+            );
+          }}
+        >
           <View style={styles.viewportCenterWrap} pointerEvents="box-none">
             <TransformWrapper
               limitToBounds={false}
@@ -2509,6 +2585,16 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               minScale={0.5}
               maxScale={3}
               doubleClick={{ disabled: true }}
+              onInit={(ref) => {
+                scheduleMapTransformUpdate({
+                  positionX: ref.state.positionX,
+                  positionY: ref.state.positionY,
+                  scale: ref.state.scale
+                });
+              }}
+              onTransformed={(_ref, state) => {
+                scheduleMapTransformUpdate(state);
+              }}
             >
               <TransformComponent
                 wrapperStyle={{
@@ -2526,26 +2612,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               >
                 <View style={[styles.gridWrap, { width: contentWidth, height: contentHeight }]} pointerEvents="box-none">
                   <View style={[styles.gridTerrain, gridContainerStyle]}>
-                    {Array.from({ length: rows * cols }, (_, i) => {
-                      const acqua = isAcqua(i, cols, rows);
+                    {visibleTerrainIndices.map((i) => {
                       const terreno = terrenoInMappa[i] ?? "erba";
                       const edificio = edificiInMappa[i];
-                      const hasEdificio = !!edificio;
                       const èStrada = edificio?.nome === "Strada";
-                      const acquaAnimata = isTerrenoAcqua(i, terrenoInMappa, cols, rows);
-                      const cellStyle = [
-                        styles.cella,
-                        Platform.OS === "web"
-                          ? CELLA_SENZA_GRIGLIA
-                          : mostraGrigliaMappa
-                            ? styles.cellaGrigliaOn
-                            : CELLA_SENZA_GRIGLIA,
-                        styles.cellaFixed,
-                        styles.cellaTextureTerreno,
-                        { width: CELL_SIZE_PX, height: CELL_SIZE_PX },
-                        hasEdificio && !èStrada && styles.cellaEdificio,
-                        Platform.OS === "web" && webCellAbsolutePosition(i, cols, CELL_SIZE_PX)
-                      ];
                       const erbaSpiaggiaAsset =
                         terreno === "erba" && !èStrada ? erbaSpiaggiaAssetAt(i) : undefined;
                       const erbaAsset =
@@ -2561,61 +2631,37 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                           ? erbaExtraDecorCasuale(i, cols)
                           : null;
 
-                      const spriteTerreno = acquaAnimata ? (
-                        <TerrainSheetSprite cellSize={CELL_SIZE_PX} terrain="water" frame={waterAnimFrame} />
-                      ) : terreno === "sabbia" ? (
-                        <SpiaggiaTile1x1 cellSize={CELL_SIZE_PX} asset={spiaggiaAssetAt(i)} />
-                      ) : èStrada ? (
-                        <StradaTile1x1
-                          cellSize={CELL_SIZE_PX}
-                          asset={stradaAssetAt(i)}
-                        />
-                      ) : erbaSpiaggiaAsset ? (
-                        <ErbaSpiaggiaTile1x1 cellSize={CELL_SIZE_PX} asset={erbaSpiaggiaAsset} />
-                      ) : terreno === "erba" && !èStrada ? (
-                        <>
-                          {erbaAsset ? (
-                            <ErbaTile1x1 cellSize={CELL_SIZE_PX} asset={erbaAsset} />
-                          ) : (
-                            <MissingTile1x1 cellSize={CELL_SIZE_PX} />
-                          )}
-                          {erbaDecor ? (
-                            <GrassDecorOverlay cellSize={CELL_SIZE_PX} kind={erbaDecor} />
-                          ) : null}
-                        </>
-                      ) : (
-                        <MissingTile1x1 cellSize={CELL_SIZE_PX} />
-                      );
-                      const costruzioneDissalatore =
-                        costruzioneSelezione?.tipo === "edificio" &&
-                        costruzioneSelezione.edificio.nome === "Dissalatore";
-                      if (acqua && !costruzioneDissalatore) {
-                        return (
-                          <View key={i} style={cellStyle}>
-                            {spriteTerreno}
-                          </View>
-                        );
-                      }
-                      const hoverPreviewProps =
-                        costruzioneSelezione != null
-                          ? Platform.OS === "web"
-                            ? {
-                                onPressIn: () => setPreviewCellHover(i),
-                                onPointerEnter: () => setPreviewCellHover(i)
-                              }
-                            : { onPressIn: () => setPreviewCellHover(i) }
-                          : {};
                       return (
-                        <Pressable
+                        <MapTerrainCell
                           key={i}
-                          style={cellStyle}
-                          onPress={() => onCellPress(i)}
-                          {...hoverPreviewProps}
-                        >
-                          {spriteTerreno}
-                        </Pressable>
+                          cellIndex={i}
+                          cols={cols}
+                          cellSizePx={CELL_SIZE_PX}
+                          terreno={terreno}
+                          edificio={edificio}
+                          overlayEmoji={overlayEmojiAt(i)}
+                          erbaAsset={erbaAsset}
+                          erbaSpiaggiaAsset={erbaSpiaggiaAsset}
+                          stradaAsset={èStrada ? stradaAssetAt(i) : undefined}
+                          spiaggiaAsset={terreno === "sabbia" ? spiaggiaAssetAt(i) : undefined}
+                          erbaDecor={erbaDecor}
+                          mostraGrigliaMappa={mostraGrigliaMappa}
+                          costruzioneActive={costruzioneSelezione != null}
+                          onCellPress={onCellPress}
+                          setPreviewCellHover={setPreviewCellHover}
+                        />
                       );
                     })}
+                    <MapWaterCellsLayer
+                      indices={visibleWaterIndices}
+                      cols={cols}
+                      cellSizePx={CELL_SIZE_PX}
+                      isBorderSea={(index) => isAcqua(index, cols, rows)}
+                      costruzioneDissalatore={costruzioneDissalatore}
+                      costruzioneActive={costruzioneSelezione != null}
+                      onCellPress={onCellPress}
+                      setPreviewCellHover={setPreviewCellHover}
+                    />
                   </View>
                   {costruzioneSelezione != null && previewPiazzamento != null ? (
                     <View
@@ -2646,7 +2692,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                     style={[styles.footprintsLayer, { width: contentWidth, height: contentHeight }]}
                     pointerEvents="none"
                   >
-                    {edificiFootprintOverlay.map(({ anchor, fp, variant }) => (
+                    {visibleFootprintOverlay.map(({ anchor, fp, variant }) => (
                       <EdificioFootprintGfx
                         key={`footprint-${anchor}`}
                         anchor={anchor}
@@ -2657,42 +2703,6 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                         cellH={cellH}
                       />
                     ))}
-                  </View>
-                  <View
-                    style={[
-                      styles.grigliaEmoji,
-                      { ...gridContainerStyle, position: "absolute" as const, left: 0, top: 0, zIndex: 2 },
-                      { width: contentWidth, height: contentHeight }
-                    ]}
-                    pointerEvents="none"
-                  >
-                    {Array.from({ length: rows * cols }, (_, i) => {
-                      const edificio = edificiInMappa[i];
-                      const èStrada = edificio?.nome === "Strada";
-                      const edificioMulticella =
-                        !!edificio && !èStrada && (edificio.footprintRef != null || edificio.footprint != null);
-                      const emoji =
-                        edificio && !èStrada && !edificioMulticella
-                          ? edificio.emoji
-                          : (decorazioniInMappa[i] ?? null);
-                      const mostraEmoji = !!emoji;
-                      return (
-                        <View
-                          key={i}
-                          style={[
-                            styles.cella,
-                            CELLA_SENZA_GRIGLIA,
-                            styles.cellaFixed,
-                            { width: CELL_SIZE_PX, height: CELL_SIZE_PX },
-                            Platform.OS === "web" && webCellAbsolutePosition(i, cols, CELL_SIZE_PX)
-                          ]}
-                        >
-                          {mostraEmoji ? (
-                            <Text style={[styles.edificioEmoji, { fontSize: Math.max(10, Math.min(22, CELL_SIZE_PX - 4)) }]}>{emoji}</Text>
-                          ) : null}
-                        </View>
-                      );
-                    })}
                   </View>
                   {abitantiPerOverlayMappa.map((abitante: Abitante) => {
                     const infoCommute = commuteByAbitanteId[abitante.id];
