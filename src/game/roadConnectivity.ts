@@ -1,5 +1,10 @@
 import type { TerrenoType } from "./riverGeneration";
-import { hasOrthogonalSandNeighbor, hasOrthogonalWaterNeighbor } from "./riverGeneration";
+import { hasOrthogonalSandNeighbor, hasOrthogonalWaterNeighbor, isMareCell } from "./riverGeneration";
+import {
+  getIndiciFootprint,
+  piazzaStrada2x2CheContiene,
+  puoPiazzareStrada2x2CheContiene
+} from "./stradaFootprint";
 
 const DELTA: [number, number][] = [
   [-1, 0],
@@ -17,10 +22,8 @@ export type EdificioMappa = {
   emoji?: string;
 };
 
-function isMareCell(index: number, cols: number, rows: number): boolean {
-  const row = Math.floor(index / cols);
-  const col = index % cols;
-  return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
+function isMareCellLocal(index: number, cols: number, rows: number): boolean {
+  return isMareCell(index, cols, rows);
 }
 
 /** Solo erba (implicita o esplicita): niente sabbia né fiume. */
@@ -42,7 +45,7 @@ function passabilePerAttraversamento(
   terreno: Record<number, TerrenoType>,
   edifici: Record<number, EdificioMappa>
 ): boolean {
-  if (isMareCell(index, cols, rows)) return false;
+  if (isMareCellLocal(index, cols, rows)) return false;
   if (hasOrthogonalWaterNeighbor(index, terreno, cols, rows)) return false;
   if (hasOrthogonalSandNeighbor(index, terreno, cols, rows)) return false;
   if (!isTerrenoErba(index, terreno)) return false;
@@ -51,7 +54,7 @@ function passabilePerAttraversamento(
   return true;
 }
 
-/** Cella vuota dove si può piazzare una nuova strada. */
+/** Cella adiacente a un edificio dove si può ancora piazzare un blocco strada 2×2. */
 function puoRicevereStrada(
   index: number,
   cols: number,
@@ -59,20 +62,7 @@ function puoRicevereStrada(
   terreno: Record<number, TerrenoType>,
   edifici: Record<number, EdificioMappa>
 ): boolean {
-  if (!passabilePerAttraversamento(index, cols, rows, terreno, edifici)) return false;
-  return !edifici[index];
-}
-
-function getIndiciFootprint(anchor: number, w: number, h: number, cols: number): number[] {
-  const ac = anchor % cols;
-  const ar = Math.floor(anchor / cols);
-  const out: number[] = [];
-  for (let dr = 0; dr < h; dr++) {
-    for (let dc = 0; dc < w; dc++) {
-      out.push((ar + dr) * cols + (ac + dc));
-    }
-  }
-  return out;
+  return puoPiazzareStrada2x2CheContiene(index, cols, rows, terreno, edifici);
 }
 
 function celleFootprintEdificio(anchor: number, edifici: Record<number, EdificioMappa>, cols: number): number[] {
@@ -245,9 +235,7 @@ function pavimentaPercorsoDaReteStradaVersoObiettivi(
   let p = raggiunto;
   for (let guard = 0; guard < cols * rows; guard++) {
     if (edifici[p]?.nome === "Strada") break;
-    if (puoRicevereStrada(p, cols, rows, terreno, edifici)) {
-      edifici[p] = { ...stradaTemplate };
-    }
+    piazzaStrada2x2CheContiene(p, cols, rows, terreno, edifici, stradaTemplate);
     const pr = parent.get(p);
     if (pr === undefined || p === pr) break;
     p = pr;
@@ -276,9 +264,7 @@ function pavimentaPercorsoTra(
     if (cur === a) {
       let x = a;
       while (x !== da) {
-        if (puoRicevereStrada(x, cols, rows, terreno, edifici)) {
-          edifici[x] = { ...stradaTemplate };
-        }
+        piazzaStrada2x2CheContiene(x, cols, rows, terreno, edifici, stradaTemplate);
         const px = parent.get(x);
         if (px === undefined) return false;
         x = px;
@@ -353,7 +339,7 @@ export function assicuraEdificiCollegatiDaStrada(
     for (const anchor of anchors) {
       const goals = obiettiviAggancioStrada(anchor, edifici, terreno, cols, rows);
       if (goals.length > 0) {
-        edifici[goals[0]!] = { ...stradaCell };
+        piazzaStrada2x2CheContiene(goals[0]!, cols, rows, terreno, edifici, stradaCell);
         break;
       }
     }
@@ -367,9 +353,7 @@ export function assicuraEdificiCollegatiDaStrada(
       const goalSet = new Set(goals);
       if (!pavimentaPercorsoDaReteStradaVersoObiettivi(goalSet, edifici, terreno, cols, rows, stradaCell)) {
         const g0 = goals[0]!;
-        if (puoRicevereStrada(g0, cols, rows, terreno, edifici)) {
-          edifici[g0] = { ...stradaCell };
-        }
+        piazzaStrada2x2CheContiene(g0, cols, rows, terreno, edifici, stradaCell);
       }
     }
 

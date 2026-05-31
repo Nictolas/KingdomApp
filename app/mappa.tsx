@@ -76,6 +76,15 @@ import { computeStatoCielo } from "../src/game/cicloCielo";
 import { formatOrologioGioco } from "../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../src/hooks/useOrologioGioco";
 import {
+  applicaStradaFootprint2x2,
+  calcolaAnchorStrada2x2,
+  footprintStrada2x2Valido,
+  isCellaOkPerStrada,
+  piazzaStrada2x2CheContiene,
+  STRADA_FOOTPRINT_H,
+  STRADA_FOOTPRINT_W
+} from "../src/game/stradaFootprint";
+import {
   buildCoastalAssetLookups,
   buildErbaAssetLookup,
   buildStradaAssetLookup,
@@ -318,7 +327,7 @@ function riverSetDaTerreno(terreno: Record<number, TerrenoType>): Set<number> {
 
 /** Footprint costruzioni giocatore (allineato agli edifici procedurali iniziali). */
 const FOOTPRINT_COSTRUZIONE: Record<string, { w: number; h: number }> = {
-  Strada: { w: COSTRUZIONE_TERRENO_FOOTPRINT_W, h: COSTRUZIONE_TERRENO_FOOTPRINT_H },
+  Strada: { w: STRADA_FOOTPRINT_W, h: STRADA_FOOTPRINT_H },
   Serra: { w: SERRA_FOOTPRINT_W, h: SERRA_FOOTPRINT_H },
   Capanna: { w: CAPANNA_FOOTPRINT_W, h: CAPANNA_FOOTPRINT_H },
   Dormitorio: { w: DORMITORIO_FOOTPRINT_W, h: DORMITORIO_FOOTPRINT_H },
@@ -448,20 +457,7 @@ function isAcqua(index: number, cols: number, rows: number): boolean {
   return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
 }
 
-/** Mare, fiume, sabbia o confine con acqua: nessuna cella strada. */
-function isCellaOkPerStrada(
-  index: number,
-  cols: number,
-  rows: number,
-  terrenoInMappa: Record<number, TerrenoType>
-): boolean {
-  if (isAcqua(index, cols, rows)) return false;
-  const t = terrenoInMappa[index] ?? "erba";
-  if (t !== "erba") return false;
-  if (hasOrthogonalWaterNeighbor(index, terrenoInMappa, cols, rows)) return false;
-  if (hasOrthogonalSandNeighbor(index, terrenoInMappa, cols, rows)) return false;
-  return true;
-}
+/** Mare, fiume, sabbia o confine con acqua: nessuna cella strada (vedi {@link isCellaOkPerStrada}). */
 
 function giacimentoIndicesDaEdifici(edificiInMappa: Record<number, EdificioInCella>): Set<number> {
   return new Set(
@@ -980,50 +976,18 @@ type SelezioneCostruzioneAnteprima =
   | { tipo: "terreno"; kind: TerrenoCostruzioneKind }
   | { tipo: "edificio"; edificio: Edificio };
 
-/** Anchor 2×2 che contiene `cellIndex` (preferisce angolo in alto a sinistra vicino al puntatore). */
+/** Strada / Acqua / Spiaggia / Erba: la modalità resta attiva fino a un secondo tap su Costruisci. */
+function costruzioneTerrenoPersistente(selezione: SelezioneCostruzioneAnteprima | null): boolean {
+  return selezione?.tipo === "strada" || selezione?.tipo === "terreno";
+}
+
+/** Anchor 2×2 che contiene `cellIndex` (Acqua / Spiaggia / Erba). */
 function calcolaAnchorCostruzione2x2(
   cellIndex: number,
   cols: number,
   rows: number
 ): { anchor: number | null; w: number; h: number } {
-  const w = COSTRUZIONE_TERRENO_FOOTPRINT_W;
-  const h = COSTRUZIONE_TERRENO_FOOTPRINT_H;
-  const ac = cellIndex % cols;
-  const ar = Math.floor(cellIndex / cols);
-  const candidati: number[] = [];
-  for (const dr of [0, -1] as const) {
-    for (const dc of [0, -1] as const) {
-      const anchor = (ar + dr) * cols + (ac + dc);
-      if (anchor < 0) continue;
-      const aac = anchor % cols;
-      const aar = Math.floor(anchor / cols);
-      if (aac + w > cols || aar + h > rows) continue;
-      const celle = getIndiciFootprint(anchor, w, h, cols);
-      if (celle.includes(cellIndex)) candidati.push(anchor);
-    }
-  }
-  candidati.sort((a, b) => {
-    const da = Math.abs(a - cellIndex);
-    const db = Math.abs(b - cellIndex);
-    if (da !== db) return da - db;
-    return a - b;
-  });
-  return { anchor: candidati[0] ?? null, w, h };
-}
-
-function footprintStrada2x2Valido(
-  anchor: number,
-  cols: number,
-  rows: number,
-  terrenoInMappa: Record<number, TerrenoType>,
-  edificiInMappa: Record<number, EdificioInCella>
-): boolean {
-  const celle = getIndiciFootprint(anchor, COSTRUZIONE_TERRENO_FOOTPRINT_W, COSTRUZIONE_TERRENO_FOOTPRINT_H, cols);
-  for (const i of celle) {
-    if (edificiInMappa[i]) return false;
-    if (!isCellaOkPerStrada(i, cols, rows, terrenoInMappa)) return false;
-  }
-  return true;
+  return calcolaAnchorStrada2x2(cellIndex, cols, rows);
 }
 
 function footprintTerreno2x2Valido(
@@ -1575,9 +1539,7 @@ function piazzaStradeInizialiTraEdifici(
       touch.add(b);
     }
     for (const i of touch) {
-      if (!isCellaOkPerStrada(i, cols, rows, terrenoInMappa)) continue;
-      if (edificiInMappa[i]) continue;
-      edificiInMappa[i] = { ...STRADA_OPZIONE };
+      piazzaStrada2x2CheContiene(i, cols, rows, terrenoInMappa, edificiInMappa, STRADA_OPZIONE);
     }
   }
 }
@@ -1824,6 +1786,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     setCostruzioneSelezione(null);
     setPreviewCellHover(null);
   }, []);
+
+  const onCostruisciPress = useCallback(() => {
+    if (costruzioneTerrenoPersistente(costruzioneSelezione)) {
+      uscitaCostruzione();
+      return;
+    }
+    setMostraModalCostruisci(true);
+  }, [costruzioneSelezione, uscitaCostruzione]);
 
   const previewPiazzamento = useMemo(
     () =>
@@ -2399,7 +2369,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     (cellIndex: number, e: Edificio) => {
       if (e.nome === "Strada") {
         const cur = mappaStateRef.current;
-        const { anchor } = calcolaAnchorCostruzione2x2(cellIndex, FIXED_MAP_COLS, FIXED_MAP_ROWS);
+        const { anchor } = calcolaAnchorStrada2x2(cellIndex, FIXED_MAP_COLS, FIXED_MAP_ROWS);
         if (
           anchor == null ||
           !footprintStrada2x2Valido(anchor, FIXED_MAP_COLS, FIXED_MAP_ROWS, cur.terrenoInMappa, cur.edificiInMappa)
@@ -2410,18 +2380,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           );
           return;
         }
-        const celle = getIndiciFootprint(anchor, COSTRUZIONE_TERRENO_FOOTPRINT_W, COSTRUZIONE_TERRENO_FOOTPRINT_H, FIXED_MAP_COLS);
         setMappaStatePersistente((s) => {
           const nextEdifici = { ...s.edificiInMappa };
-          for (const i of celle) {
-            nextEdifici[i] = { id: STRADA_OPZIONE.id, nome: STRADA_OPZIONE.nome, emoji: STRADA_OPZIONE.emoji };
-          }
+          applicaStradaFootprint2x2(anchor, FIXED_MAP_COLS, nextEdifici, STRADA_OPZIONE);
           applicaRegoleConfineTerreno(nextEdifici, s.terrenoInMappa, FIXED_MAP_COLS, FIXED_MAP_ROWS, {
             collegaEdificiAllaStrada: false
           });
           return { ...s, edificiInMappa: nextEdifici };
         });
-        uscitaCostruzione();
         return;
       }
 
@@ -2534,9 +2500,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         });
         return { ...s, terrenoInMappa: nextTerreno };
       });
-      uscitaCostruzione();
     },
-    [setMappaStatePersistente, uscitaCostruzione]
+    [setMappaStatePersistente]
   );
 
   const onCellPress = useCallback(
@@ -2723,13 +2688,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         <View style={styles.costruzioneBanner}>
           <Text style={styles.costruzioneBannerText} numberOfLines={2}>
             {costruzioneSelezione.tipo === "strada"
-              ? "🛤️ Strada — area 2×2 su erba; verde = posizione valida, tocca per piazzare."
+              ? "🛤️ Strada — area 2×2 su erba; tocca per piazzare. Riclicca Costruisci per uscire."
               : costruzioneSelezione.tipo === "terreno"
                 ? costruzioneSelezione.kind === "acqua"
-                  ? "🌊 Acqua — area 2×2; tocca per creare un blocco d'acqua (fiume)."
+                  ? "🌊 Acqua — area 2×2; tocca per piazzare. Riclicca Costruisci per uscire."
                   : costruzioneSelezione.kind === "spiaggia"
-                    ? "🏖️ Spiaggia — area 2×2 su terraferma; tocca per piazzare."
-                    : "🌿 Erba — area 2×2 su terraferma; tocca per piazzare."
+                    ? "🏖️ Spiaggia — area 2×2; tocca per piazzare. Riclicca Costruisci per uscire."
+                    : "🌿 Erba — area 2×2; tocca per piazzare. Riclicca Costruisci per uscire."
                 : costruzioneSelezione.edificio.nome === "Dissalatore"
                 ? `🔨 ${costruzioneSelezione.edificio.emoji} Dissalatore — serve un 2×2 con 2 celle sabbia e 2 sul mare; tocca sabbia o acqua.`
                 : `🔨 ${costruzioneSelezione.edificio.emoji} ${costruzioneSelezione.edificio.nome} — l’anteprima segue il puntatore; tocca per confermare.`}
@@ -2986,7 +2951,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                       </Pressable>
                       <Pressable
                         style={[styles.grigliaMapToggle, costruzioneSelezione != null && styles.grigliaMapToggleOn]}
-                        onPress={() => setMostraModalCostruisci(true)}
+                        onPress={onCostruisciPress}
                         accessibilityRole="button"
                         accessibilityLabel="Apri costruzione edifici"
                       >
