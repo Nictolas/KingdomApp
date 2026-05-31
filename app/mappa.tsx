@@ -1695,7 +1695,6 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     calcolaDeltaOrdiniMercato,
     calcolaFelicitàModificata,
     etaMinimaLavoro,
-    redditoCittadinanza,
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,
     aggiungiEdificioDaTemplate,
@@ -3299,7 +3298,6 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         getAbitanteNome={getAbitanteNome}
         calcolaFelicitàModificata={calcolaFelicitàModificata}
         etaMinimaLavoro={etaMinimaLavoro}
-        redditoCittadinanza={redditoCittadinanza ?? 0}
       />
 
       {edificioSerraPerModal != null ? (

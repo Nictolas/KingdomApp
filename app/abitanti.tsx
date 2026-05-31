@@ -605,7 +605,6 @@ export default function AbitantiScreen() {
         getAbitanteNome={getAbitanteNome}
         calcolaFelicitàModificata={calcolaFelicitàModificata}
         etaMinimaLavoro={etaMinimaLavoro}
-        redditoCittadinanza={redditoCittadinanza ?? 0}
       />
     </SafeAreaView>
   );

@@ -15,7 +15,6 @@ type AbitanteInfoModalProps = {
   getAbitanteNome: (id: number) => string;
   calcolaFelicitàModificata?: (abitante: Abitante) => number;
   etaMinimaLavoro?: number;
-  redditoCittadinanza?: number;
 };
 
 function Row({ emoji, value, muted }: { emoji: string; value: string; muted?: boolean }) {
@@ -87,8 +86,7 @@ export function AbitanteInfoModal({
   onClose,
   getAbitanteNome,
   calcolaFelicitàModificata,
-  etaMinimaLavoro = 18,
-  redditoCittadinanza = 0
+  etaMinimaLavoro = 18
 }: AbitanteInfoModalProps) {
   if (!abitante) return null;
 
@@ -97,12 +95,6 @@ export function AbitanteInfoModal({
   const emojiDisplay = maggiorenne && lavoroDaMinore ? "👤" : getEmojiAbitante(abitante);
   const lavoroDisplay = maggiorenne && lavoroDaMinore ? "Disoccupato" : abitante.lavoro;
 
-  const èBeneficiario =
-    abitante.razza !== "Robot" &&
-    lavoroDisplay === "Disoccupato" &&
-    !(abitante.fazioni?.includes("Schiavi") ?? false) &&
-    redditoCittadinanza > 0;
-  const redditoEffettivo = abitante.razza === "Robot" ? 0 : abitante.reddito + (èBeneficiario ? redditoCittadinanza : 0);
   const felicitàModificata = calcolaFelicitàModificata ? calcolaFelicitàModificata(abitante) : abitante.felicità;
   const felicitàCambiata = abitante.razza !== "Robot" && felicitàModificata !== abitante.felicità;
 
@@ -172,11 +164,6 @@ export function AbitanteInfoModal({
             </View>
 
             <View style={styles.twoCol}>
-              <Block title="💰 Economia">
-                <Row emoji="💵" value={abitante.razza === "Robot" ? "—" : `${abitante.crediti} cr`} />
-                <Row emoji="📈" value={abitante.razza === "Robot" ? "—" : `${redditoEffettivo} cr/mese`} />
-                <Row emoji="📉" value={abitante.razza === "Robot" ? "—" : `${abitante.spese} cr/mese`} />
-              </Block>
               <Block title="❤️ Sentimenti">
                 <Row emoji="❤️" value={abitante.razza === "Robot" ? "—" : `${abitante.lealtà}%`} />
                 <Row emoji="😨" value={abitante.razza === "Robot" ? "—" : `${abitante.paura}%`} />

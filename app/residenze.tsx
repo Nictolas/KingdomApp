@@ -9,7 +9,7 @@ import type { Abitante } from "../src/types";
 
 export default function ResidenzeScreen() {
   const router = useRouter();
-  const { edifici, abitanti, prezzoResidenze, setPrezzoResidenza, calcolaFelicitàModificata, etaMinimaLavoro, redditoCittadinanza } = useGameContext();
+  const { edifici, abitanti, prezzoResidenze, setPrezzoResidenza, calcolaFelicitàModificata, etaMinimaLavoro } = useGameContext();
   const [selectedAbitante, setSelectedAbitante] = useState<Abitante | null>(null);
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -137,7 +137,6 @@ export default function ResidenzeScreen() {
         getAbitanteNome={getAbitanteNome}
         calcolaFelicitàModificata={calcolaFelicitàModificata}
         etaMinimaLavoro={etaMinimaLavoro}
-        redditoCittadinanza={redditoCittadinanza ?? 0}
       />
       <View style={styles.footer}>
         <Text style={styles.back} onPress={() => router.back()}>← Edifici</Text>
