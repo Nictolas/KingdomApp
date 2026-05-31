@@ -146,7 +146,7 @@ function spiaggiaAssetFromBeachSubtile(subtile: Tile3x3Index): SpiaggiaTileAsset
  * Sceglie il PNG spiaggia 1×1: stessa maschera acqua del blocco 3×3 sullo spritesheet,
  * mappata sui file `spiaggia_*.png` (angoli, lati, centro sabbia).
  */
-export function getSpiaggiaAsset1x1(
+function getSpiaggiaAsset1x1Grezzo(
   index: number,
   cols: number,
   rows: number,
@@ -176,21 +176,6 @@ function erbaSpiaggiaAssetFromGrassSandSubtile(subtile: Tile3x3Index): ErbaSpiag
     default:
       return "nord";
   }
-}
-
-/**
- * Celle erba confinanti con sabbia: PNG `erba_spiaggia_*` (stessa maschera del blocco 3×3 erba–sabbia).
- */
-export function getErbaSpiaggiaAsset1x1(
-  index: number,
-  cols: number,
-  rows: number,
-  terrenoInMappa: Record<number, TerrenoType>,
-  edificiInMappa: Record<number, { nome?: string }>
-): ErbaSpiaggiaTileAsset1x1 | undefined {
-  const subtile = getGrassSandBorderSubtileIfAny(index, cols, rows, terrenoInMappa, edificiInMappa);
-  if (subtile == null || subtile === 4) return undefined;
-  return erbaSpiaggiaAssetFromGrassSandSubtile(subtile);
 }
 
 export function isStradaCell(
@@ -1066,4 +1051,321 @@ export function getGrassSandBorderSubtileIfAny(
   if (sw) return 7;
   if (se) return 8;
   return undefined;
+}
+
+const SPIAGGIA_OK_NORD = new Set<SpiaggiaTileAsset1x1>(["centro", "nord"]);
+const SPIAGGIA_OK_SUD = new Set<SpiaggiaTileAsset1x1>(["centro", "sud"]);
+const SPIAGGIA_OK_EST = new Set<SpiaggiaTileAsset1x1>(["centro", "est"]);
+const SPIAGGIA_OK_OVEST = new Set<SpiaggiaTileAsset1x1>(["centro", "ovest"]);
+
+/** Lati verso sabbia di ogni `erba_spiaggia_*`: solo `spiaggia_centro` o il bordo coerente. */
+function erbaSpiaggiaSandSideWhitelist(
+  asset: ErbaSpiaggiaTileAsset1x1,
+  side: "n" | "s" | "e" | "w"
+): Set<SpiaggiaTileAsset1x1> | null {
+  switch (asset) {
+    case "nord":
+      return side === "n" ? SPIAGGIA_OK_NORD : null;
+    case "sud":
+      return side === "s" ? SPIAGGIA_OK_SUD : null;
+    case "est":
+      return side === "e" ? SPIAGGIA_OK_EST : null;
+    case "ovest":
+      return side === "w" ? SPIAGGIA_OK_OVEST : null;
+    case "nord_est":
+      if (side === "n") return SPIAGGIA_OK_NORD;
+      if (side === "e") return SPIAGGIA_OK_EST;
+      return null;
+    case "nord_ovest":
+      if (side === "n") return SPIAGGIA_OK_NORD;
+      if (side === "w") return SPIAGGIA_OK_OVEST;
+      return null;
+    case "sud_est":
+      if (side === "s") return SPIAGGIA_OK_SUD;
+      if (side === "e") return SPIAGGIA_OK_EST;
+      return null;
+    case "sud_ovest":
+      if (side === "s") return SPIAGGIA_OK_SUD;
+      if (side === "w") return SPIAGGIA_OK_OVEST;
+      return null;
+    default:
+      return null;
+  }
+}
+
+function intersectSpiaggiaAllowed(
+  a: Set<SpiaggiaTileAsset1x1>,
+  b: Set<SpiaggiaTileAsset1x1>
+): Set<SpiaggiaTileAsset1x1> {
+  const out = new Set<SpiaggiaTileAsset1x1>();
+  for (const x of a) {
+    if (b.has(x)) out.add(x);
+  }
+  return out;
+}
+
+function pickSpiaggiaFromAllowed(
+  allowed: Set<SpiaggiaTileAsset1x1>,
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>
+): SpiaggiaTileAsset1x1 {
+  const preferred = getSpiaggiaAsset1x1Grezzo(index, cols, rows, terrenoInMappa);
+  if (allowed.has(preferred)) return preferred;
+  if (allowed.has("centro")) return "centro";
+  return allowed.values().next().value ?? "centro";
+}
+
+function isValidErbaSpiaggiaPlacement(
+  index: number,
+  cols: number,
+  rows: number,
+  asset: ErbaSpiaggiaTileAsset1x1,
+  terrenoInMappa: Record<number, TerrenoType>,
+  edificiInMappa: Record<number, { nome?: string }>,
+  spiaggiaAssetAt: (index: number) => SpiaggiaTileAsset1x1
+): boolean {
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+
+  const checkSide = (
+    side: "n" | "s" | "e" | "w",
+    sandIndex: number
+  ): boolean => {
+    const wl = erbaSpiaggiaSandSideWhitelist(asset, side);
+    if (wl == null) return true;
+    if (!isSandAt(Math.floor(sandIndex / cols), sandIndex % cols, cols, rows, terrenoInMappa)) {
+      return false;
+    }
+    return wl.has(spiaggiaAssetAt(sandIndex));
+  };
+
+  if (row > 0 && !checkSide("n", index - cols)) return false;
+  if (row < rows - 1 && !checkSide("s", index + cols)) return false;
+  if (col < cols - 1 && !checkSide("e", index + 1)) return false;
+  if (col > 0 && !checkSide("w", index - 1)) return false;
+  return true;
+}
+
+function fixSpiaggiaAdjacentToErbaSpiaggia(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  edificiInMappa: Record<number, { nome?: string }>,
+  asset: SpiaggiaTileAsset1x1,
+  erbaSpiaggiaLookup: Map<number, ErbaSpiaggiaTileAsset1x1>
+): SpiaggiaTileAsset1x1 {
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  let allowed: Set<SpiaggiaTileAsset1x1> | null = null;
+
+  const addFromErba = (erbaIndex: number, sandSideFromErba: "n" | "s" | "e" | "w") => {
+    if (!isErbaPlainCell(erbaIndex, cols, rows, terrenoInMappa, edificiInMappa)) return;
+    const erbaAsset = erbaSpiaggiaLookup.get(erbaIndex);
+    if (erbaAsset == null) return;
+    const req = erbaSpiaggiaSandSideWhitelist(erbaAsset, sandSideFromErba);
+    if (req == null) return;
+    allowed = allowed == null ? new Set(req) : intersectSpiaggiaAllowed(allowed, req);
+  };
+
+  if (row > 0) addFromErba(index - cols, "s");
+  if (row < rows - 1) addFromErba(index + cols, "n");
+  if (col < cols - 1) addFromErba(index + 1, "w");
+  if (col > 0) addFromErba(index - 1, "e");
+
+  if (allowed == null || allowed.size === 0) return asset;
+  if (allowed.has(asset)) return asset;
+  return pickSpiaggiaFromAllowed(allowed, index, cols, rows, terrenoInMappa);
+}
+
+/**
+ * Lookup sabbia/spiaggia: autotile acqua + vincoli da `erba_spiaggia_*` adiacenti.
+ */
+export function buildSpiaggiaAssetLookup(
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  edificiInMappa: Record<number, { nome?: string }>,
+  erbaSpiaggiaLookup: Map<number, ErbaSpiaggiaTileAsset1x1>
+): (index: number) => SpiaggiaTileAsset1x1 {
+  const final = new Map<number, SpiaggiaTileAsset1x1>();
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const index = row * cols + col;
+      if ((terrenoInMappa[index] ?? "erba") !== "sabbia") continue;
+      final.set(index, getSpiaggiaAsset1x1Grezzo(index, cols, rows, terrenoInMappa));
+    }
+  }
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const index = row * cols + col;
+        if ((terrenoInMappa[index] ?? "erba") !== "sabbia") continue;
+        const next = fixSpiaggiaAdjacentToErbaSpiaggia(
+          index,
+          cols,
+          rows,
+          terrenoInMappa,
+          edificiInMappa,
+          final.get(index) ?? "centro",
+          erbaSpiaggiaLookup
+        );
+        if (final.get(index) !== next) {
+          final.set(index, next);
+          changed = true;
+        }
+      }
+    }
+  }
+
+  return (index: number) => final.get(index) ?? "centro";
+}
+
+/**
+ * Celle erba confinanti con sabbia: PNG `erba_spiaggia_*` con vicini sabbia ammessi.
+ */
+export function buildErbaSpiaggiaAssetLookup(
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  edificiInMappa: Record<number, { nome?: string }>,
+  spiaggiaAssetAt: (index: number) => SpiaggiaTileAsset1x1
+): (index: number) => ErbaSpiaggiaTileAsset1x1 | undefined {
+  const final = new Map<number, ErbaSpiaggiaTileAsset1x1>();
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const index = row * cols + col;
+        if (!isErbaPlainCell(index, cols, rows, terrenoInMappa, edificiInMappa)) continue;
+
+        const subtile = getGrassSandBorderSubtileIfAny(index, cols, rows, terrenoInMappa, edificiInMappa);
+        if (subtile == null || subtile === 4) {
+          if (final.has(index)) {
+            final.delete(index);
+            changed = true;
+          }
+          continue;
+        }
+
+        const candidate = erbaSpiaggiaAssetFromGrassSandSubtile(subtile);
+        const valid = isValidErbaSpiaggiaPlacement(
+          index,
+          cols,
+          rows,
+          candidate,
+          terrenoInMappa,
+          edificiInMappa,
+          spiaggiaAssetAt
+        );
+        const had = final.get(index);
+
+        if (valid && had !== candidate) {
+          final.set(index, candidate);
+          changed = true;
+        } else if (!valid && had != null) {
+          final.delete(index);
+          changed = true;
+        }
+      }
+    }
+  }
+
+  return (index: number) => final.get(index);
+}
+
+/** Lookup congiunti erba–spiaggia / spiaggia (convergenza a punti fissi). */
+export function buildCoastalAssetLookups(
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  edificiInMappa: Record<number, { nome?: string }>
+): {
+  erbaSpiaggiaAssetAt: (index: number) => ErbaSpiaggiaTileAsset1x1 | undefined;
+  spiaggiaAssetAt: (index: number) => SpiaggiaTileAsset1x1;
+} {
+  const erbaSpiaggiaMap = new Map<number, ErbaSpiaggiaTileAsset1x1>();
+  const spiaggiaMap = new Map<number, SpiaggiaTileAsset1x1>();
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const index = row * cols + col;
+      if ((terrenoInMappa[index] ?? "erba") !== "sabbia") continue;
+      spiaggiaMap.set(index, getSpiaggiaAsset1x1Grezzo(index, cols, rows, terrenoInMappa));
+    }
+  }
+
+  for (let round = 0; round < 16; round++) {
+    let changed = false;
+
+    const erbaLookupFn = buildErbaSpiaggiaAssetLookup(
+      cols,
+      rows,
+      terrenoInMappa,
+      edificiInMappa,
+      (i) => spiaggiaMap.get(i) ?? "centro"
+    );
+    const nextErba = new Map<number, ErbaSpiaggiaTileAsset1x1>();
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const index = row * cols + col;
+        const asset = erbaLookupFn(index);
+        if (asset != null) nextErba.set(index, asset);
+      }
+    }
+    if (nextErba.size !== erbaSpiaggiaMap.size) {
+      changed = true;
+    } else {
+      for (const [k, v] of nextErba) {
+        if (erbaSpiaggiaMap.get(k) !== v) {
+          changed = true;
+          break;
+        }
+      }
+      if (!changed) {
+        for (const k of erbaSpiaggiaMap.keys()) {
+          if (!nextErba.has(k)) {
+            changed = true;
+            break;
+          }
+        }
+      }
+    }
+    erbaSpiaggiaMap.clear();
+    for (const [k, v] of nextErba) erbaSpiaggiaMap.set(k, v);
+
+    const spiaggiaLookupFn = buildSpiaggiaAssetLookup(
+      cols,
+      rows,
+      terrenoInMappa,
+      edificiInMappa,
+      erbaSpiaggiaMap
+    );
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const index = row * cols + col;
+        if ((terrenoInMappa[index] ?? "erba") !== "sabbia") continue;
+        const next = spiaggiaLookupFn(index);
+        if (spiaggiaMap.get(index) !== next) {
+          spiaggiaMap.set(index, next);
+          changed = true;
+        }
+      }
+    }
+
+    if (!changed) break;
+  }
+
+  return {
+    erbaSpiaggiaAssetAt: (index: number) => erbaSpiaggiaMap.get(index),
+    spiaggiaAssetAt: (index: number) => spiaggiaMap.get(index) ?? "centro"
+  };
 }

@@ -67,12 +67,11 @@ import { computeStatoCielo } from "../src/game/cicloCielo";
 import { formatOrologioGioco } from "../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../src/hooks/useOrologioGioco";
 import {
+  buildCoastalAssetLookups,
   buildErbaAssetLookup,
   buildStradaAssetLookup,
   erbaExtraDecorCasuale,
-  getErbaSpiaggiaAsset1x1,
-  getGrass2x2Index,
-  getSpiaggiaAsset1x1
+  getGrass2x2Index
 } from "../src/game/terrainSpriteHelpers";
 
 /** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
@@ -1666,6 +1665,11 @@ export function MappaScreen() {
     [cols, rows, terrenoInMappa, edificiInMappa, stradaAssetAt]
   );
 
+  const { erbaSpiaggiaAssetAt, spiaggiaAssetAt } = useMemo(
+    () => buildCoastalAssetLookups(cols, rows, terrenoInMappa, edificiInMappa),
+    [cols, rows, terrenoInMappa, edificiInMappa]
+  );
+
   const isWalkableCell = useCallback(
     (i: number) => {
       if (isAcqua(i, cols, rows)) return false;
@@ -2447,9 +2451,7 @@ export function MappaScreen() {
                         Platform.OS === "web" && webCellAbsolutePosition(i, cols, CELL_SIZE_PX)
                       ];
                       const erbaSpiaggiaAsset =
-                        terreno === "erba" && !èStrada
-                          ? getErbaSpiaggiaAsset1x1(i, cols, rows, terrenoInMappa, edificiInMappa)
-                          : undefined;
+                        terreno === "erba" && !èStrada ? erbaSpiaggiaAssetAt(i) : undefined;
                       const edificioBloccaErbaDecor =
                         !!edificio && edificio.nome !== "Strada";
                       /**
@@ -2469,10 +2471,7 @@ export function MappaScreen() {
                       const spriteTerreno = acquaAnimata ? (
                         <TerrainSheetSprite cellSize={CELL_SIZE_PX} terrain="water" frame={waterAnimFrame} />
                       ) : terreno === "sabbia" ? (
-                        <SpiaggiaTile1x1
-                          cellSize={CELL_SIZE_PX}
-                          asset={getSpiaggiaAsset1x1(i, cols, rows, terrenoInMappa)}
-                        />
+                        <SpiaggiaTile1x1 cellSize={CELL_SIZE_PX} asset={spiaggiaAssetAt(i)} />
                       ) : èStrada ? (
                         <StradaTile1x1
                           cellSize={CELL_SIZE_PX}
