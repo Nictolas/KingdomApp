@@ -545,6 +545,44 @@ function getIndiciFootprint(anchor: number, w: number, h: number, cols: number):
   return out;
 }
 
+function dimensioniFootprintEdificioInMappa(
+  anchor: number,
+  edificiInMappa: Record<number, EdificioInCella>
+): { w: number; h: number } {
+  const cap = edificiInMappa[anchor];
+  if (!cap) return { w: 1, h: 1 };
+  if (cap.footprint) return cap.footprint;
+  return FOOTPRINT_COSTRUZIONE[cap.nome] ?? { w: 1, h: 1 };
+}
+
+function rimuoviFootprintEdificioDaMappa(
+  out: Record<number, EdificioInCella>,
+  anchor: number,
+  w: number,
+  h: number,
+  cols: number
+): void {
+  for (const i of getIndiciFootprint(anchor, w, h, cols)) {
+    delete out[i];
+  }
+}
+
+/** Celle occupate dagli edifici presenti allo stato iniziale della mappa (non demolibili). */
+function indiciFootprintProtettiIniziali(
+  edificiIniziali: Record<number, EdificioInCella>,
+  cols: number
+): Set<number> {
+  const protetti = new Set<number>();
+  for (const idxStr of Object.keys(edificiIniziali)) {
+    const idx = Number(idxStr);
+    const e = edificiIniziali[idx];
+    if (!e || e.footprintRef != null) continue;
+    const { w, h } = dimensioniFootprintEdificioInMappa(idx, edificiIniziali);
+    for (const i of getIndiciFootprint(idx, w, h, cols)) protetti.add(i);
+  }
+  return protetti;
+}
+
 /**
  * True se la cella fa parte dell’impronta di una residenza (Baracca, Capanna, Dormitorio).
  * Il passeggiatore sopra non deve rubare il doppio tap alla griglia (elenco residenti).
@@ -1660,7 +1698,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     redditoCittadinanza,
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,
-    aggiungiEdificioDaTemplate
+    aggiungiEdificioDaTemplate,
+    rimuoviEdificioPerId
   } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
@@ -1727,8 +1766,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   /** Modal elenco edifici (pulsante Costruisci). */
   const [mostraModalCostruisci, setMostraModalCostruisci] = useState(false);
+  /** Tap sulla mappa per rimuovere edifici costruiti dal giocatore. */
+  const [modalitaDemolisci, setModalitaDemolisci] = useState(false);
   /** Edifico scelto: anteprima sulla mappa e tap per piazzare. */
   const [costruzioneSelezione, setCostruzioneSelezione] = useState<SelezioneCostruzioneAnteprima | null>(null);
+  const celleProtetteIniziali = useMemo(
+    () => indiciFootprintProtettiIniziali(initialMappaState.edificiInMappa, FIXED_MAP_COLS),
+    [initialMappaState]
+  );
   /** Cella sotto il puntatore (web hover / press mobile) per l’anteprima footprint. */
   const [previewCellHover, setPreviewCellHover] = useState<number | null>(null);
   const [selectedCellForTransformDialog, setSelectedCellForTransformDialog] = useState<number | null>(null);
@@ -1743,7 +1788,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const lastTapCell = useRef<number | null>(null);
   const lastTapTime = useRef<number>(0);
 
-  const orologioMinuti = useOrologioGioco();
+  const { minuti: orologioMinuti, inPausa: orologioInPausa, togglePausa: toggleOrologioPausa } =
+    useOrologioGioco();
 
   /** Dimensioni viewport mappa (per culling celle visibili durante pan/zoom). */
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
@@ -1817,7 +1863,23 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     setPreviewCellHover(null);
   }, []);
 
+  const uscitaDemolizione = useCallback(() => {
+    setModalitaDemolisci(false);
+  }, []);
+
+  const onDemolisciPress = useCallback(() => {
+    if (modalitaDemolisci) {
+      uscitaDemolizione();
+      return;
+    }
+    uscitaCostruzione();
+    setMostraModalCostruisci(false);
+    setModalitaDemolisci(true);
+    setMostraGrigliaMappa(true);
+  }, [modalitaDemolisci, uscitaDemolizione, uscitaCostruzione]);
+
   const onCostruisciPress = useCallback(() => {
+    setModalitaDemolisci(false);
     if (costruzioneTerrenoPersistente(costruzioneSelezione)) {
       uscitaCostruzione();
       return;
@@ -1841,13 +1903,16 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   );
 
   useEffect(() => {
-    if (typeof document === "undefined" || !costruzioneSelezione) return;
+    if (typeof document === "undefined" || (!costruzioneSelezione && !modalitaDemolisci)) return;
     const onKey = (ev: KeyboardEvent) => {
-      if (ev.key === "Escape") uscitaCostruzione();
+      if (ev.key === "Escape") {
+        uscitaCostruzione();
+        uscitaDemolizione();
+      }
     };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
-  }, [costruzioneSelezione, uscitaCostruzione]);
+  }, [costruzioneSelezione, modalitaDemolisci, uscitaCostruzione, uscitaDemolizione]);
 
   /**
    * Web + zoom (CSS transform): i bordi per-cella (hairline) si allineano male ai pixel dello schermo e
@@ -2493,6 +2558,65 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     [setMappaStatePersistente, aggiungiEdificioDaTemplate, uscitaCostruzione]
   );
 
+  const handleDemolisci = useCallback(
+    (cellIndex: number) => {
+      const e = edificiInMappa[cellIndex];
+      if (!e) {
+        Alert.alert("Niente da demolire", "Non c'è un edificio su questa cella.");
+        return;
+      }
+      let anchor: number;
+      let w: number;
+      let h: number;
+      if (e.nome === "Strada") {
+        const r = calcolaAnchorStrada2x2(cellIndex, cols, rows);
+        if (r.anchor == null) return;
+        anchor = r.anchor;
+        w = r.w;
+        h = r.h;
+      } else {
+        anchor = getAnchorCellPerEdificio(cellIndex, edificiInMappa);
+        ({ w, h } = dimensioniFootprintEdificioInMappa(anchor, edificiInMappa));
+      }
+      const celle = getIndiciFootprint(anchor, w, h, cols);
+      if (celle.some((i) => celleProtetteIniziali.has(i))) {
+        Alert.alert(
+          "Non demolibile",
+          "Questo edificio fa parte della colonia iniziale e non può essere rimosso."
+        );
+        return;
+      }
+      const cap = edificiInMappa[anchor];
+      if (!cap) return;
+      const globalId =
+        cap.edificioGlobaleId ?? (edifici.some((x) => x.id === cap.id) ? cap.id : undefined);
+
+      setMappaStatePersistente((s) => {
+        const nextEdifici = { ...s.edificiInMappa };
+        rimuoviFootprintEdificioDaMappa(nextEdifici, anchor, w, h, cols);
+        applicaRegoleConfineTerreno(nextEdifici, s.terrenoInMappa, cols, rows, {
+          collegaEdificiAllaStrada: false
+        });
+        let nextResidenze = s.residenzeMappa;
+        if (èResidenzaMappa(cap.nome)) {
+          nextResidenze = { ...s.residenzeMappa };
+          delete nextResidenze[anchor];
+        }
+        return { ...s, edificiInMappa: nextEdifici, residenzeMappa: nextResidenze };
+      });
+      if (globalId != null) rimuoviEdificioPerId(globalId);
+    },
+    [
+      edificiInMappa,
+      cols,
+      rows,
+      celleProtetteIniziali,
+      edifici,
+      setMappaStatePersistente,
+      rimuoviEdificioPerId
+    ]
+  );
+
   const handlePiazzaTerreno = useCallback(
     (cellIndex: number, kind: TerrenoCostruzioneKind) => {
       const cur = mappaStateRef.current;
@@ -2540,6 +2664,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const onCellPress = useCallback(
     (cellIndex: number) => {
+      if (modalitaDemolisci) {
+        handleDemolisci(cellIndex);
+        return;
+      }
       if (costruzioneSelezione) {
         const edificio = edificiInMappa[cellIndex];
         const terreno = terrenoInMappa[cellIndex] ?? "erba";
@@ -2595,6 +2723,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       lastTapTime.current = now;
     },
     [
+      modalitaDemolisci,
+      handleDemolisci,
       costruzioneSelezione,
       edificiInMappa,
       terrenoInMappa,
@@ -2663,7 +2793,19 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                 <Text style={styles.badgeText}>📅 Mese {mese}</Text>
                 <Text style={styles.badgeText}>· Anno {anno}</Text>
               </View>
-              <Text style={styles.badgeClock}>🕐 {formatOrologioGioco(orologioMinuti)}</Text>
+              <View style={styles.badgeClockRow}>
+                <Text style={styles.badgeClock}>
+                  🕐 {formatOrologioGioco(orologioMinuti)}
+                  {orologioInPausa ? " · in pausa" : ""}
+                </Text>
+                <Pressable
+                  style={[styles.orologioPausaBtn, orologioInPausa && styles.orologioPausaBtnAttivo]}
+                  onPress={toggleOrologioPausa}
+                  accessibilityLabel={orologioInPausa ? "Riprendi il tempo" : "Metti in pausa il tempo"}
+                >
+                  <Text style={styles.orologioPausaBtnText}>{orologioInPausa ? "▶️" : "⏸️"}</Text>
+                </Pressable>
+              </View>
             </View>
           </View>
           <Pressable style={styles.diarioBtn} onPress={() => router.push("/diario")}>
@@ -2718,7 +2860,16 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         </View>
       </View>
 
-      {costruzioneSelezione != null ? (
+      {modalitaDemolisci ? (
+        <View style={[styles.costruzioneBanner, styles.demolizioneBanner]}>
+          <Text style={styles.costruzioneBannerText} numberOfLines={2}>
+            🧨 Demolisci — tocca un edificio o una strada costruita da te. Riclicca Demolisci per uscire.
+          </Text>
+          <Pressable style={styles.costruzioneBannerBtn} onPress={uscitaDemolizione} accessibilityRole="button">
+            <Text style={styles.costruzioneBannerBtnText}>Annulla</Text>
+          </Pressable>
+        </View>
+      ) : costruzioneSelezione != null ? (
         <View style={styles.costruzioneBanner}>
           <Text style={styles.costruzioneBannerText} numberOfLines={2}>
             {costruzioneSelezione.tipo === "strada"
@@ -2822,7 +2973,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                           }
                           erbaDecor={erbaDecor}
                           mostraGrigliaMappa={mostraGrigliaMappa}
-                          costruzioneActive={costruzioneSelezione != null}
+                          costruzioneActive={costruzioneSelezione != null || modalitaDemolisci}
                           onCellPress={onCellPress}
                           setPreviewCellHover={setPreviewCellHover}
                         />
@@ -2834,7 +2985,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                       cellSizePx={CELL_SIZE_PX}
                       isBorderSea={(index) => isAcqua(index, cols, rows)}
                       costruzioneDissalatore={costruzioneDissalatore}
-                      costruzioneActive={costruzioneSelezione != null}
+                      costruzioneActive={costruzioneSelezione != null || modalitaDemolisci}
                       onCellPress={onCellPress}
                       setPreviewCellHover={setPreviewCellHover}
                     />
@@ -2992,6 +3143,17 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                         <Text style={styles.grigliaMapToggleEmoji}>🔨</Text>
                         <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
                           Costruisci
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        style={[styles.grigliaMapToggle, modalitaDemolisci && styles.grigliaMapToggleDemolisciOn]}
+                        onPress={onDemolisciPress}
+                        accessibilityRole="button"
+                        accessibilityLabel={modalitaDemolisci ? "Esci dalla modalità demolizione" : "Demolisci edifici sulla mappa"}
+                      >
+                        <Text style={styles.grigliaMapToggleEmoji}>🧨</Text>
+                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
+                          Demolisci
                         </Text>
                       </Pressable>
                     </>
@@ -3321,10 +3483,31 @@ const styles = StyleSheet.create({
     color: "rgba(248,250,252,0.85)",
     fontWeight: "600"
   },
+  badgeClockRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 2
+  },
   badgeClock: {
     fontSize: 10,
     color: "rgba(248,250,252,0.72)",
     fontWeight: "500"
+  },
+  orologioPausaBtn: {
+    paddingHorizontal: 4,
+    paddingVertical: 1,
+    borderRadius: 6,
+    backgroundColor: "rgba(30,41,59,0.5)",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.25)"
+  },
+  orologioPausaBtnAttivo: {
+    backgroundColor: "rgba(37,99,235,0.35)",
+    borderColor: "rgba(96,165,250,0.45)"
+  },
+  orologioPausaBtnText: {
+    fontSize: 11
   },
   diarioBtn: {
     flexDirection: "row",
@@ -3439,6 +3622,13 @@ const styles = StyleSheet.create({
   grigliaMapToggleOn: {
     borderColor: "rgba(59,130,246,0.45)",
     backgroundColor: "rgba(30,58,138,0.35)"
+  },
+  grigliaMapToggleDemolisciOn: {
+    borderColor: "rgba(248,113,113,0.55)",
+    backgroundColor: "rgba(127,29,29,0.4)"
+  },
+  demolizioneBanner: {
+    backgroundColor: "rgba(127,29,29,0.45)"
   },
   grigliaMapToggleEmoji: {
     fontSize: 16,

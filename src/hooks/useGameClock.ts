@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { MINUTI_GIOCO_PER_SECONDO_REALE } from "../game/orologioGiocoSession";
 
 export function formatGameTime(h: number, m: number): string {
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
@@ -24,11 +25,11 @@ export function useGameClock(initialMinutes: number = 6 * 60): UseGameClockRetur
   const [isClockModalOpen, setIsClockModalOpen] = useState(false);
   const [clockDraftMinutes, setClockDraftMinutes] = useState(initialMinutes);
 
-  // Orologio: 1s reale = 1 min gioco
+  // Orologio: 1s reale = 30 min gioco
   useEffect(() => {
     const interval = setInterval(() => {
       const elapsedSeconds = Math.floor((Date.now() - gameTimeStartRef.current) / 1000);
-      const totalMinutes = gameTimeBaseMinutes + elapsedSeconds;
+      const totalMinutes = gameTimeBaseMinutes + elapsedSeconds * MINUTI_GIOCO_PER_SECONDO_REALE;
       const hours = Math.floor(totalMinutes / 60) % 24;
       const minutes = totalMinutes % 60;
       setGameTime({ hours, minutes });

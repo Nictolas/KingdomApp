@@ -22,7 +22,8 @@ export default function BarScreenById() {
 
   const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
   const [dropdownVisible, setDropdownVisible] = useState(false);
-  const orologioMinuti = useOrologioGioco();
+  const { minuti: orologioMinuti, inPausa: orologioInPausa, togglePausa: toggleOrologioPausa } =
+    useOrologioGioco();
   const statoCielo = computeStatoCielo(orologioMinuti);
 
   const barArrivatiMappa = useSyncExternalStore(
@@ -81,7 +82,19 @@ export default function BarScreenById() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Stato Bar</Text>
-          <Text style={styles.clockLine}>🕐 Ora di gioco: {formatOrologioGioco(orologioMinuti)}</Text>
+          <View style={styles.clockRow}>
+            <Text style={styles.clockLine}>
+              🕐 Ora di gioco: {formatOrologioGioco(orologioMinuti)}
+              {orologioInPausa ? " (in pausa)" : ""}
+            </Text>
+            <Pressable
+              style={[styles.orologioPausaBtn, orologioInPausa && styles.orologioPausaBtnAttivo]}
+              onPress={toggleOrologioPausa}
+              accessibilityLabel={orologioInPausa ? "Riprendi il tempo" : "Metti in pausa il tempo"}
+            >
+              <Text style={styles.orologioPausaBtnText}>{orologioInPausa ? "▶️" : "⏸️"}</Text>
+            </Pressable>
+          </View>
           <Text style={styles.infoText}>
             Addetti: {addetti.length}/{bar.capacità ?? 20}
           </Text>
@@ -238,7 +251,27 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
-  clockLine: { color: "rgba(203,213,245,0.85)", fontSize: 10, marginBottom: 6 },
+  clockRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 6
+  },
+  clockLine: { flex: 1, color: "rgba(203,213,245,0.85)", fontSize: 10 },
+  orologioPausaBtn: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 8,
+    backgroundColor: "rgba(30,41,59,0.6)",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.3)"
+  },
+  orologioPausaBtnAttivo: {
+    backgroundColor: "rgba(37,99,235,0.35)",
+    borderColor: "rgba(96,165,250,0.45)"
+  },
+  orologioPausaBtnText: { fontSize: 14 },
   infoText: { color: "#ffffff", fontSize: 11, fontWeight: "600", marginBottom: 2 },
   infoSubtext: { color: "rgba(203,213,245,0.7)", fontSize: 9, marginTop: 2 },
   stipendioCard: {
