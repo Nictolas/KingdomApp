@@ -70,7 +70,6 @@ import {
   buildErbaAssetLookup,
   buildStradaAssetLookup,
   erbaExtraDecorCasuale,
-  getGrass2x2Index,
   getErbaSpiaggiaAsset1x1,
   getGrass2x2Index,
   getSpiaggiaAsset1x1
