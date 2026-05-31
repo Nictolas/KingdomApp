@@ -102,19 +102,21 @@ function MapTerrainCellInner({
   ];
 
   const spriteTerreno =
-    terreno === "sabbia" && spiaggiaAsset ? (
-      <TerrainSheetSprite cellSize={cellSizePx} coord={getSpiaggiaSheetCoord(spiaggiaAsset)} />
+    terreno === "sabbia" ? (
+      <TerrainSheetSprite
+        cellSize={cellSizePx}
+        coord={getSpiaggiaSheetCoord(spiaggiaAsset ?? "centro")}
+      />
     ) : èStrada && stradaAsset ? (
       <TerrainSheetSprite cellSize={cellSizePx} coord={getStradaSheetCoord(stradaAsset)} />
     ) : erbaSpiaggiaAsset ? (
       <TerrainSheetSprite cellSize={cellSizePx} coord={getErbaSpiaggiaSheetCoord(erbaSpiaggiaAsset)} />
     ) : terreno === "erba" && !èStrada ? (
       <>
-        {erbaAsset ? (
-          <TerrainSheetSprite cellSize={cellSizePx} coord={getErbaSheetCoord(erbaAsset)} />
-        ) : (
-          <MissingTile1x1 cellSize={cellSizePx} />
-        )}
+        <TerrainSheetSprite
+          cellSize={cellSizePx}
+          coord={getErbaSheetCoord(erbaAsset ?? "centro")}
+        />
         {erbaDecor ? (
           <View style={[styles.decorWrap, { width: cellSizePx, height: cellSizePx }]} pointerEvents="none">
             <TerrainSheetSprite

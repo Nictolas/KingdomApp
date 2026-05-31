@@ -995,6 +995,79 @@ function intersectSpiaggiaAllowed(
   return out;
 }
 
+/** Lati con grafica acqua sui PNG spiaggia (allineati allo sheet 768–896, 128–256). */
+const SPIAGGIA_WATER_EDGE_MASK: Record<SpiaggiaTileAsset1x1, number> = {
+  centro: 0,
+  nord: 1,
+  sud: 4,
+  est: 2,
+  ovest: 8,
+  nord_est: 3,
+  nord_ovest: 9,
+  sud_est: 6,
+  sud_ovest: 12
+};
+
+function waterNeighborMaskAt(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>
+): number {
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  return (
+    (isWaterAt(row - 1, col, cols, rows, terrenoInMappa) ? 1 : 0) |
+    (isWaterAt(row, col + 1, cols, rows, terrenoInMappa) ? 2 : 0) |
+    (isWaterAt(row + 1, col, cols, rows, terrenoInMappa) ? 4 : 0) |
+    (isWaterAt(row, col - 1, cols, rows, terrenoInMappa) ? 8 : 0)
+  );
+}
+
+/** Il tile spiaggia deve mostrare acqua solo dove c’è mare/fiume adiacente. */
+function spiaggiaAssetMatchesWaterNeighbors(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  asset: SpiaggiaTileAsset1x1
+): boolean {
+  return SPIAGGIA_WATER_EDGE_MASK[asset] === waterNeighborMaskAt(index, cols, rows, terrenoInMappa);
+}
+
+function filterSpiaggiaByWaterMask(
+  allowed: Set<SpiaggiaTileAsset1x1>,
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>
+): Set<SpiaggiaTileAsset1x1> {
+  const out = new Set<SpiaggiaTileAsset1x1>();
+  for (const asset of allowed) {
+    if (spiaggiaAssetMatchesWaterNeighbors(index, cols, rows, terrenoInMappa, asset)) {
+      out.add(asset);
+    }
+  }
+  return out;
+}
+
+function clampSpiaggiaAssetToWaterNeighbors(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  asset: SpiaggiaTileAsset1x1
+): SpiaggiaTileAsset1x1 {
+  if (spiaggiaAssetMatchesWaterNeighbors(index, cols, rows, terrenoInMappa, asset)) {
+    return asset;
+  }
+  const grezzo = getSpiaggiaAsset1x1Grezzo(index, cols, rows, terrenoInMappa);
+  if (spiaggiaAssetMatchesWaterNeighbors(index, cols, rows, terrenoInMappa, grezzo)) {
+    return grezzo;
+  }
+  return "centro";
+}
+
 function pickSpiaggiaFromAllowed(
   allowed: Set<SpiaggiaTileAsset1x1>,
   index: number,
@@ -1002,10 +1075,19 @@ function pickSpiaggiaFromAllowed(
   rows: number,
   terrenoInMappa: Record<number, TerrenoType>
 ): SpiaggiaTileAsset1x1 {
+  const waterOk = filterSpiaggiaByWaterMask(allowed, index, cols, rows, terrenoInMappa);
+  const pool = waterOk.size > 0 ? waterOk : allowed;
   const preferred = getSpiaggiaAsset1x1Grezzo(index, cols, rows, terrenoInMappa);
-  if (allowed.has(preferred)) return preferred;
-  if (allowed.has("centro")) return "centro";
-  return allowed.values().next().value ?? "centro";
+  if (pool.has(preferred) && spiaggiaAssetMatchesWaterNeighbors(index, cols, rows, terrenoInMappa, preferred)) {
+    return preferred;
+  }
+  if (pool.has("centro")) return "centro";
+  for (const asset of pool) {
+    if (spiaggiaAssetMatchesWaterNeighbors(index, cols, rows, terrenoInMappa, asset)) {
+      return asset;
+    }
+  }
+  return clampSpiaggiaAssetToWaterNeighbors(index, cols, rows, terrenoInMappa, "centro");
 }
 
 function isValidErbaSpiaggiaPlacement(
@@ -1066,9 +1148,17 @@ function fixSpiaggiaAdjacentToErbaSpiaggia(
   if (col < cols - 1) addFromErba(index + 1, "w");
   if (col > 0) addFromErba(index - 1, "e");
 
-  if (allowed == null || allowed.size === 0) return asset;
-  if (allowed.has(asset)) return asset;
-  return pickSpiaggiaFromAllowed(allowed, index, cols, rows, terrenoInMappa);
+  if (allowed == null || allowed.size === 0) {
+    return clampSpiaggiaAssetToWaterNeighbors(index, cols, rows, terrenoInMappa, asset);
+  }
+  const waterOk = filterSpiaggiaByWaterMask(allowed, index, cols, rows, terrenoInMappa);
+  if (waterOk.size === 0) {
+    return clampSpiaggiaAssetToWaterNeighbors(index, cols, rows, terrenoInMappa, asset);
+  }
+  if (waterOk.has(asset) && spiaggiaAssetMatchesWaterNeighbors(index, cols, rows, terrenoInMappa, asset)) {
+    return asset;
+  }
+  return pickSpiaggiaFromAllowed(waterOk, index, cols, rows, terrenoInMappa);
 }
 
 /**
@@ -1115,7 +1205,10 @@ export function buildSpiaggiaAssetLookup(
     }
   }
 
-  return (index: number) => final.get(index) ?? "centro";
+  return (index: number) => {
+    const asset = final.get(index) ?? "centro";
+    return clampSpiaggiaAssetToWaterNeighbors(index, cols, rows, terrenoInMappa, asset);
+  };
 }
 
 /**
@@ -1268,8 +1361,18 @@ export function buildCoastalAssetLookups(
     }
   }
 
+  for (const [index, asset] of spiaggiaMap) {
+    spiaggiaMap.set(
+      index,
+      clampSpiaggiaAssetToWaterNeighbors(index, cols, rows, terrenoInMappa, asset)
+    );
+  }
+
   return {
     erbaSpiaggiaAssetAt: (index: number) => erbaSpiaggiaMap.get(index),
-    spiaggiaAssetAt: (index: number) => spiaggiaMap.get(index) ?? "centro"
+    spiaggiaAssetAt: (index: number) => {
+      const asset = spiaggiaMap.get(index) ?? "centro";
+      return clampSpiaggiaAssetToWaterNeighbors(index, cols, rows, terrenoInMappa, asset);
+    }
   };
 }

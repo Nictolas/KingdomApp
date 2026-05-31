@@ -2626,7 +2626,6 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                         terreno === "erba" &&
                         !èStrada &&
                         !edificioBloccaErbaDecor &&
-                        erbaAsset != null &&
                         erbaSpiaggiaAsset == null
                           ? erbaExtraDecorCasuale(i, cols)
                           : null;
