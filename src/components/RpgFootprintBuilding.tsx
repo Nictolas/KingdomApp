@@ -332,6 +332,50 @@ export function RpgFootprintBar2x2({ width, height }: Props) {
   );
 }
 
+/** Mercato 2×2 — tenda verde/rossa, facciata chiara con emoji negozio. */
+export function RpgFootprintMercato2x2({ width, height }: Props) {
+  const roofH = Math.round(height * 0.28);
+  const awningH = Math.max(6, Math.round(height * 0.12));
+  const grondaH = 2;
+  const bandH = Math.max(3, Math.floor((height - roofH - awningH - grondaH) * 0.09));
+  const nStripes = Math.max(6, Math.floor(width / 10));
+  const emojiSize = Math.max(14, Math.min(28, Math.floor(Math.min(width, height) * 0.2)));
+
+  return (
+    <View style={[styles.wrap, { width, height }]} pointerEvents="none">
+      <View
+        style={{
+          height: roofH,
+          backgroundColor: "#78716c",
+          borderBottomWidth: 2,
+          borderBottomColor: OUTLINE
+        }}
+      />
+      <View style={{ height: awningH, flexDirection: "row", overflow: "hidden" }}>
+        {Array.from({ length: nStripes }, (_, i) => (
+          <View
+            key={`mk-${i}`}
+            style={{
+              flex: 1,
+              backgroundColor: i % 2 === 0 ? "#16a34a" : "#dc2626",
+              borderRightWidth: i < nStripes - 1 ? 1 : 0,
+              borderRightColor: OUTLINE
+            }}
+          />
+        ))}
+      </View>
+      <View style={[styles.gronda, { height: grondaH }]} />
+      <View style={[styles.wallBlockFlex, { backgroundColor: "#fef3c7" }]}>
+        <View style={[styles.trimBand, { height: bandH, backgroundColor: "#92400e" }]} />
+        <View style={[styles.wallInnerFlex, { backgroundColor: "#fde68a", justifyContent: "center", alignItems: "center" }]}>
+          <Text style={{ fontSize: emojiSize, lineHeight: emojiSize + 2, textAlign: "center" }}>🏪</Text>
+        </View>
+        <View style={[styles.trimBand, { height: bandH, backgroundColor: "#78350f" }]} />
+      </View>
+    </View>
+  );
+}
+
 /** Dissalatore 2×2 — impianto a riva (due zone mare + due sabbia in gioco); emoji 💧. */
 export function RpgFootprintDissalatore2x2({ width, height }: Props) {
   const halfW = width / 2;
@@ -359,8 +403,8 @@ export function RpgFootprintDissalatore2x2({ width, height }: Props) {
   );
 }
 
-/** Tribunale 2×2 — facciata in pietra con emoji bilancia (stesso ingombro del dormitorio). */
-export function RpgFootprintTribunale2x2({ width, height }: Props) {
+/** Facciata istituzionale 2×2 in pietra (Tribunale, Ufficio Immigrazione, …). */
+function RpgFootprintEdificioPietra2x2({ width, height, emoji }: Props & { emoji: string }) {
   const roofH = Math.round(height * 0.44);
   const grondaH = 3;
   const wallH = height - roofH - grondaH;
@@ -379,12 +423,22 @@ export function RpgFootprintTribunale2x2({ width, height }: Props) {
         <View style={[styles.trimBand, { height: bandH, backgroundColor: "#1e293b" }]} />
         <View style={[styles.wallInnerFlex, { backgroundColor: "#d6d3d1", justifyContent: "center", alignItems: "center" }]}>
           <WallBrickTexture wallH={wallH - bandH * 2} />
-          <Text style={{ fontSize: emojiSize, lineHeight: emojiSize + 2, textAlign: "center" }}>⚖️</Text>
+          <Text style={{ fontSize: emojiSize, lineHeight: emojiSize + 2, textAlign: "center" }}>{emoji}</Text>
         </View>
         <View style={[styles.trimBand, { height: bandH, backgroundColor: "#0f172a" }]} />
       </View>
     </View>
   );
+}
+
+/** Tribunale 2×2 — facciata in pietra con emoji bilancia (stesso ingombro del dormitorio). */
+export function RpgFootprintTribunale2x2(props: Props) {
+  return <RpgFootprintEdificioPietra2x2 {...props} emoji="⚖️" />;
+}
+
+/** Ufficio Immigrazione 2×2 — stesso stile del Tribunale con emoji passaporto. */
+export function RpgFootprintUfficioImmigrazione2x2(props: Props) {
+  return <RpgFootprintEdificioPietra2x2 {...props} emoji="🛂" />;
 }
 
 /** Vetrata centrale larga (hangar / sala controllo). */

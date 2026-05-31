@@ -25,7 +25,9 @@ const COLONNA_SERVIZI: string[] = [
   "Ospedale Coloniale", // Ospedale
   "Centrale",   // Polizia
   "Caserma",   // Militari
-  "Spazioporto"
+  "Spazioporto",
+  "Ufficio Immigrazione",
+  "Mercato"
 ];
 const COLONNA_PUNIZIONE: string[] = ["Tribunale", "Campo di Lavoro", "Campo di Sterminio"];
 
@@ -116,6 +118,10 @@ export default function EdificiScreen() {
       router.push("/caserma");
     } else if (e.nome === "Spazioporto") {
       router.push("/spazioporto");
+    } else if (e.nome === "Ufficio Immigrazione") {
+      router.push("/immigrazione");
+    } else if (e.nome === "Mercato") {
+      router.push("/mercato");
     } else {
       setSelectedEdificio(e);
     }

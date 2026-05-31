@@ -22,6 +22,8 @@ const NOMI_CON_ORARIO_LAVORO = new Set<string>([
   "Hangar di Manutenzione",
   "Scuola",
   "Tribunale",
+  "Ufficio Immigrazione",
+  "Mercato",
   "Caserma",
   "Centrale",
   "Spazioporto"

@@ -38,6 +38,8 @@ import {
   RpgFootprintDorm2x2,
   RpgFootprintBar2x2,
   RpgFootprintTribunale2x2,
+  RpgFootprintUfficioImmigrazione2x2,
+  RpgFootprintMercato2x2,
   RpgFootprintDissalatore2x2,
   RpgFootprintSerra2x1,
   RpgFootprintSpazioporto4x3
@@ -107,6 +109,12 @@ const BAR_FOOTPRINT_H = 2;
 /** Tribunale: 2×2 (emoji bilancia ⚖️ sul catalogo). */
 const TRIBUNALE_FOOTPRINT_W = 2;
 const TRIBUNALE_FOOTPRINT_H = 2;
+/** Ufficio Immigrazione: 2×2 (stesso stile del Tribunale). */
+const UFFICIO_IMMIGRAZIONE_FOOTPRINT_W = 2;
+const UFFICIO_IMMIGRAZIONE_FOOTPRINT_H = 2;
+/** Mercato: 2×2 (tenda verde/rossa, facciata commerciale). */
+const MERCATO_FOOTPRINT_W = 2;
+const MERCATO_FOOTPRINT_H = 2;
 /** Dissalatore: 2×2 con 2 celle sabbia + 2 celle mare (confine `isAcqua`). */
 const DISSALATORE_FOOTPRINT_W = 2;
 const DISSALATORE_FOOTPRINT_H = 2;
@@ -193,6 +201,8 @@ const EDIFICIO_TO_ROUTE: Record<string, string> = {
   "Ospedale Coloniale": "/ospedale",
   "Centrale": "/centrale",
   "Tribunale": "/tribunale",
+  "Ufficio Immigrazione": "/immigrazione",
+  "Mercato": "/mercato",
   "Dissalatore": "/dissalatore",
   "Laboratorio di Ricerca": "/laboratorio",
   "Bar": "/bar",
@@ -333,6 +343,8 @@ const FOOTPRINT_COSTRUZIONE: Record<string, { w: number; h: number }> = {
   Dormitorio: { w: DORMITORIO_FOOTPRINT_W, h: DORMITORIO_FOOTPRINT_H },
   Bar: { w: BAR_FOOTPRINT_W, h: BAR_FOOTPRINT_H },
   Tribunale: { w: TRIBUNALE_FOOTPRINT_W, h: TRIBUNALE_FOOTPRINT_H },
+  "Ufficio Immigrazione": { w: UFFICIO_IMMIGRAZIONE_FOOTPRINT_W, h: UFFICIO_IMMIGRAZIONE_FOOTPRINT_H },
+  Mercato: { w: MERCATO_FOOTPRINT_W, h: MERCATO_FOOTPRINT_H },
   Dissalatore: { w: DISSALATORE_FOOTPRINT_W, h: DISSALATORE_FOOTPRINT_H },
   Spazioporto: { w: SPAZIOPORTO_FOOTPRINT_W, h: SPAZIOPORTO_FOOTPRINT_H }
 };
@@ -1374,6 +1386,8 @@ type FootprintVariant =
   | "dormitorio"
   | "bar"
   | "tribunale"
+  | "ufficio_immigrazione"
+  | "mercato"
   | "dissalatore"
   | "spazioporto"
   | "serra"
@@ -1420,6 +1434,22 @@ function EdificioFootprintGfx({
     return (
       <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
         <RpgFootprintTribunale2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "ufficio_immigrazione" && w === UFFICIO_IMMIGRAZIONE_FOOTPRINT_W && h === UFFICIO_IMMIGRAZIONE_FOOTPRINT_H) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintUfficioImmigrazione2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "mercato" && w === MERCATO_FOOTPRINT_W && h === MERCATO_FOOTPRINT_H) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintMercato2x2 width={width} height={height} />
       </View>
     );
   }
@@ -2202,7 +2232,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               ? "bar"
               : e.nome === "Tribunale"
                 ? "tribunale"
-                : e.nome === "Dissalatore"
+                : e.nome === "Ufficio Immigrazione"
+                  ? "ufficio_immigrazione"
+                  : e.nome === "Mercato"
+                    ? "mercato"
+                    : e.nome === "Dissalatore"
                   ? "dissalatore"
                   : e.nome === "Spazioporto"
                     ? "spazioporto"
