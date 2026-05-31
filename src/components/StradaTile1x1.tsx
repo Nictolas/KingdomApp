@@ -22,7 +22,9 @@ const ASSETS: Record<StradaTileAsset1x1, number> = {
   incrocio_nord_est_sud: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/incrocio_nord_est_sud_1x1.png"),
   incrocio_est_sud_ovest: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/incrocio_est_sud_ovest_1x1.png"),
   incrocio_est_sud_nord: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/incrocio_est_sud_nord_1x1.png"),
-  incrocio_centro: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/incrocio_centro_1x1.png")
+  incrocio_centro: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/incrocio_centro_1x1.png"),
+  centro: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/strada_centro_1x1.png"),
+  generica: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/strada1x1.png")
 };
 
 type Props = {

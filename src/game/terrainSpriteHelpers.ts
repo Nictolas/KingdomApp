@@ -145,7 +145,14 @@ export type StradaTileAsset1x1 =
   | "incrocio_est_sud_ovest"
   | "incrocio_est_sud_nord"
   /** Incrocio a quattro vie (N, S, E, O tutti strada). */
-  | "incrocio_centro";
+  | "incrocio_centro"
+  /**
+   * Tratto centrale 1×1 (`strada_centro_1x1`): quattro vicini strada, ciascuno solo
+   * `incrocio_centro` o la T coerente con la direzione (vedi {@link isValidStradaCentroNeighbors}).
+   */
+  | "centro"
+  /** Tile strada generico (`strada1x1.png`), es. isolato senza vicini strada. */
+  | "generica";
 
 /**
  * Sceglie lo sprite 1×1 in base ai vicini strada: più connessioni E–O → orizzontale, N–S → verticale.
@@ -217,6 +224,7 @@ const ALLOWED_SOUTH_OF_VERTICAL_OR_NORD = new Set<StradaTileAsset1x1>([
  */
 const ALLOWED_SOUTH_OF_CURVA_SUD_OVEST_OR_INCROCIO_EST_SUD_OVEST = new Set<StradaTileAsset1x1>([
   "curva_nord_ovest",
+  "centro",
   "incrocio_centro",
   "incrocio_est_sud_nord",
   "incrocio_nord_est_ovest",
@@ -224,6 +232,36 @@ const ALLOWED_SOUTH_OF_CURVA_SUD_OVEST_OR_INCROCIO_EST_SUD_OVEST = new Set<Strad
   "sud",
   "verticale"
 ]);
+
+/** Sopra `strada_centro_1x1`: incrocio ammesso, altra `strada_centro_1x1`, o T con bracci E+S+O. */
+const CENTRO_OK_NORTH = new Set<StradaTileAsset1x1>(["centro", "incrocio_centro", "incrocio_est_sud_ovest"]);
+
+/** A destra di `strada_centro_1x1`: incrocio ammesso, altra `strada_centro_1x1`, o T con bracci E+S+N. */
+const CENTRO_OK_EAST = new Set<StradaTileAsset1x1>(["centro", "incrocio_centro", "incrocio_est_sud_nord"]);
+
+/** Sotto `strada_centro_1x1`: incrocio ammesso, altra `strada_centro_1x1`, o T con bracci N+E+O. */
+const CENTRO_OK_SOUTH = new Set<StradaTileAsset1x1>(["centro", "incrocio_centro", "incrocio_nord_est_ovest"]);
+
+/** A sinistra di `strada_centro_1x1`: incrocio ammesso, altra `strada_centro_1x1`, o T con bracci N+E+S. */
+const CENTRO_OK_WEST = new Set<StradaTileAsset1x1>(["centro", "incrocio_centro", "incrocio_nord_est_sud"]);
+
+function isValidStradaCentroNeighbors(
+  north: StradaTileAsset1x1 | null | undefined,
+  east: StradaTileAsset1x1 | null | undefined,
+  south: StradaTileAsset1x1 | null | undefined,
+  west: StradaTileAsset1x1 | null | undefined
+): boolean {
+  return (
+    north != null &&
+    CENTRO_OK_NORTH.has(north) &&
+    east != null &&
+    CENTRO_OK_EAST.has(east) &&
+    south != null &&
+    CENTRO_OK_SOUTH.has(south) &&
+    west != null &&
+    CENTRO_OK_WEST.has(west)
+  );
+}
 
 function cardinalStrada(
   index: number,
@@ -342,7 +380,7 @@ function getStradaAsset1x1Grezzo(
     return getOrientamentoStrada1x1(index, cols, rows, edificiInMappa);
   }
   if (count === 4) return "incrocio_centro";
-  if (count === 0) return "orizzontale";
+  if (count === 0) return "generica";
   return getOrientamentoStrada1x1(index, cols, rows, edificiInMappa);
 }
 
@@ -512,6 +550,32 @@ function fixCardinalSpriteConstraints(
 }
 
 /**
+ * Celle con strada a N, E, S e O: `centro` se ogni vicino è un incrocio ammesso, un'altra
+ * `strada_centro_1x1`, o la T coerente per quella direzione; altrimenti `incrocio_centro`.
+ */
+function resolveCentroVsIncrocioCentro(
+  index: number,
+  cols: number,
+  rows: number,
+  edificiInMappa: Record<number, { nome?: string }>,
+  lookup: Map<number, StradaTileAsset1x1>
+): StradaTileAsset1x1 {
+  const { n, s, w, e } = cardinalStrada(index, cols, rows, edificiInMappa);
+  const count = (n ? 1 : 0) + (s ? 1 : 0) + (w ? 1 : 0) + (e ? 1 : 0);
+  if (count !== 4) return lookup.get(index) ?? "orizzontale";
+
+  const northAsset = n ? lookup.get(index - cols) : null;
+  const eastAsset = e ? lookup.get(index + 1) : null;
+  const southAsset = s ? lookup.get(index + cols) : null;
+  const westAsset = w ? lookup.get(index - 1) : null;
+
+  if (isValidStradaCentroNeighbors(northAsset, eastAsset, southAsset, westAsset)) {
+    return "centro";
+  }
+  return "incrocio_centro";
+}
+
+/**
  * Lookup per indice cella: whitelist verso sud (sotto verticale/nord, sotto curva_sud_ovest o incrocio_est_sud_ovest) in ordine per righe.
  */
 export function buildStradaAssetLookup(
@@ -553,7 +617,186 @@ export function buildStradaAssetLookup(
     }
   }
 
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const index = row * cols + col;
+      if (edificiInMappa[index]?.nome !== "Strada") continue;
+      const asset = final.get(index);
+      if (asset === "centro" || asset === "incrocio_centro") {
+        final.set(index, resolveCentroVsIncrocioCentro(index, cols, rows, edificiInMappa, final));
+      }
+    }
+  }
+
+  let changed = true;
+  while (changed) {
+    changed = false;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const index = row * cols + col;
+        if (edificiInMappa[index]?.nome !== "Strada") continue;
+        const { n, s, w, e } = cardinalStrada(index, cols, rows, edificiInMappa);
+        const count = (n ? 1 : 0) + (s ? 1 : 0) + (w ? 1 : 0) + (e ? 1 : 0);
+        if (count !== 4) continue;
+        const next = resolveCentroVsIncrocioCentro(index, cols, rows, edificiInMappa, final);
+        if (final.get(index) !== next) {
+          final.set(index, next);
+          changed = true;
+        }
+      }
+    }
+  }
+
   return (index: number) => final.get(index) ?? "orizzontale";
+}
+
+/** Sprite erba 1×1 (sostituisce il motivo 2×2 del foglio quando applicabile). */
+export type ErbaTileAsset1x1 = "centro" | "campo_nord_est";
+
+/** Tipo di cella ammessa come vicino di `erba_centro_1x1` (erba 1×1 o asset strada). */
+export type ErbaCentroNeighborKind = ErbaTileAsset1x1 | StradaTileAsset1x1;
+
+/**
+ * Sopra `erba_centro_1x1` (bordo sud del vicino verso erba piena).
+ * File strada: `strada_est1x1` → asset `ovest`, `strada_ovest1x1` → asset `est`.
+ */
+const ERBA_CENTRO_OK_NORTH = new Set<ErbaCentroNeighborKind>([
+  "centro",
+  "curva_nord_est",
+  "campo_nord_est",
+  "incrocio_nord_est_ovest",
+  "ovest",
+  "orizzontale",
+  "est",
+  "sud",
+  "generica"
+]);
+
+/** A destra (bordo ovest del vicino): rotazione 90° oraria rispetto al nord. */
+const ERBA_CENTRO_OK_EAST = new Set<ErbaCentroNeighborKind>([
+  "centro",
+  "curva_sud_est",
+  "incrocio_est_sud_nord",
+  "sud",
+  "verticale",
+  "nord",
+  "est",
+  "generica"
+]);
+
+/** Sotto (bordo nord del vicino): rotazione 180° rispetto al nord. */
+const ERBA_CENTRO_OK_SOUTH = new Set<ErbaCentroNeighborKind>([
+  "centro",
+  "curva_sud_ovest",
+  "incrocio_est_sud_ovest",
+  "est",
+  "orizzontale",
+  "ovest",
+  "nord",
+  "generica"
+]);
+
+/** A sinistra (bordo est del vicino): rotazione 270° oraria rispetto al nord. */
+const ERBA_CENTRO_OK_WEST = new Set<ErbaCentroNeighborKind>([
+  "centro",
+  "curva_nord_ovest",
+  "incrocio_nord_est_sud",
+  "nord",
+  "verticale",
+  "ovest",
+  "sud",
+  "generica"
+]);
+
+function isErbaCell(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  edificiInMappa: Record<number, { nome?: string }>
+): boolean {
+  if (index < 0 || index >= cols * rows) return false;
+  if (edificiInMappa[index]) return false;
+  return (terrenoInMappa[index] ?? "erba") === "erba";
+}
+
+function getErbaCentroNeighborKind(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  edificiInMappa: Record<number, { nome?: string }>,
+  stradaAssetAt: (index: number) => StradaTileAsset1x1,
+  erbaLookup: Map<number, ErbaTileAsset1x1>
+): ErbaCentroNeighborKind | null {
+  if (index < 0 || index >= cols * rows) return null;
+  const edificio = edificiInMappa[index];
+  if (edificio?.nome === "Strada") return stradaAssetAt(index);
+  if (edificio) return null;
+  if ((terrenoInMappa[index] ?? "erba") !== "erba") return null;
+  return erbaLookup.get(index) ?? null;
+}
+
+function isValidErbaCentroNeighbors(
+  north: ErbaCentroNeighborKind | null,
+  east: ErbaCentroNeighborKind | null,
+  south: ErbaCentroNeighborKind | null,
+  west: ErbaCentroNeighborKind | null
+): boolean {
+  return (
+    north != null &&
+    ERBA_CENTRO_OK_NORTH.has(north) &&
+    east != null &&
+    ERBA_CENTRO_OK_EAST.has(east) &&
+    south != null &&
+    ERBA_CENTRO_OK_SOUTH.has(south) &&
+    west != null &&
+    ERBA_CENTRO_OK_WEST.has(west)
+  );
+}
+
+/**
+ * Celle erba senza edificio: assegna `centro` (`erba_centro_1x1`) se tutti e quattro i vicini
+ * rispettano le whitelist per direzione (strada + altre erbe 1×1). Convergenza a punti fissi
+ * per pannelli di più celle `erba_centro` adiacenti.
+ */
+export function buildErbaAssetLookup(
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  edificiInMappa: Record<number, { nome?: string }>,
+  stradaAssetAt: (index: number) => StradaTileAsset1x1
+): (index: number) => ErbaTileAsset1x1 | undefined {
+  const final = new Map<number, ErbaTileAsset1x1>();
+  let changed = true;
+
+  while (changed) {
+    changed = false;
+    for (let row = 0; row < rows; row++) {
+      for (let col = 0; col < cols; col++) {
+        const index = row * cols + col;
+        if (!isErbaCell(index, cols, rows, terrenoInMappa, edificiInMappa)) continue;
+
+        const north = row > 0 ? getErbaCentroNeighborKind(index - cols, cols, rows, terrenoInMappa, edificiInMappa, stradaAssetAt, final) : null;
+        const east = col < cols - 1 ? getErbaCentroNeighborKind(index + 1, cols, rows, terrenoInMappa, edificiInMappa, stradaAssetAt, final) : null;
+        const south = row < rows - 1 ? getErbaCentroNeighborKind(index + cols, cols, rows, terrenoInMappa, edificiInMappa, stradaAssetAt, final) : null;
+        const west = col > 0 ? getErbaCentroNeighborKind(index - 1, cols, rows, terrenoInMappa, edificiInMappa, stradaAssetAt, final) : null;
+
+        const wantCentro = isValidErbaCentroNeighbors(north, east, south, west);
+        const hadCentro = final.get(index) === "centro";
+
+        if (wantCentro && !hadCentro) {
+          final.set(index, "centro");
+          changed = true;
+        } else if (!wantCentro && hadCentro) {
+          final.delete(index);
+          changed = true;
+        }
+      }
+    }
+  }
+
+  return (index: number) => final.get(index);
 }
 
 /**

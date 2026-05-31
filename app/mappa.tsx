@@ -39,6 +39,7 @@ import {
 } from "../src/components/RpgFootprintBuilding";
 import { MapWandererCharacter } from "../src/components/MapWandererCharacter";
 import { GrassDecorOverlay } from "../src/components/GrassDecorOverlay";
+import { ErbaTile1x1 } from "../src/components/ErbaTile1x1";
 import { StradaTile1x1 } from "../src/components/StradaTile1x1";
 import { TerrainSheetSprite } from "../src/components/TerrainSheetSprite";
 import {
@@ -64,6 +65,7 @@ import { computeStatoCielo } from "../src/game/cicloCielo";
 import { formatOrologioGioco } from "../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../src/hooks/useOrologioGioco";
 import {
+  buildErbaAssetLookup,
   buildStradaAssetLookup,
   erbaExtraDecorCasuale,
   getGrass2x2Index,
@@ -1657,6 +1659,11 @@ export function MappaScreen() {
     [cols, rows, edificiInMappa]
   );
 
+  const erbaAssetAt = useMemo(
+    () => buildErbaAssetLookup(cols, rows, terrenoInMappa, edificiInMappa, stradaAssetAt),
+    [cols, rows, terrenoInMappa, edificiInMappa, stradaAssetAt]
+  );
+
   const isWalkableCell = useCallback(
     (i: number) => {
       if (isAcqua(i, cols, rows)) return false;
@@ -2450,10 +2457,12 @@ export function MappaScreen() {
                        * Non usiamo `getGrassRoadBorderSubtileIfAny` sullo spritesheet: le strade sono PNG 1×1
                        * (`StradaTile1x1`); il bordo menta 3×3 sul foglio crea piastrelle incoerenti accanto alla strada.
                        */
+                      const erba1x1 = terreno === "erba" && !èStrada ? erbaAssetAt(i) : undefined;
                       const erbaDecor =
                         terreno === "erba" &&
                         !èStrada &&
                         !edificioBloccaErbaDecor &&
+                        erba1x1 == null &&
                         grassSandBorderSubtile == null
                           ? erbaExtraDecorCasuale(i, cols)
                           : null;
@@ -2471,6 +2480,8 @@ export function MappaScreen() {
                           cellSize={CELL_SIZE_PX}
                           asset={stradaAssetAt(i)}
                         />
+                      ) : erba1x1 ? (
+                        <ErbaTile1x1 cellSize={CELL_SIZE_PX} asset={erba1x1} />
                       ) : (
                         <>
                           <TerrainSheetSprite
