@@ -1,6 +1,7 @@
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso } from "../types";
 import { EVENTI_CATALOGO } from "./eventi/index";
 import { getConsumoCibo, getConsumoAcqua, getProduzioneCiboPerAbitante } from "./ciboConsumo";
+import { abitanteConInventarioIniziale } from "./inventario";
 import { RESIDENZE_CATALOGO, RESIDENZE_ENERGIA_PER_ABITANTE } from "../data/residenzeData";
 import { autoAssegnaDisoccupati, normalizzaLavoroEAgricoltura } from "./edificiLavoro";
 
@@ -631,7 +632,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       razza: razzaNeonato,
       sesso: sessoNeonato
     };
-    abitantiEv.push(neonato);
+    abitantiEv.push(abitanteConInventarioIniziale(neonato));
     const madreIdx = abitantiEv.findIndex((a) => a.id === madre.id);
     const padreIdx = padre ? abitantiEv.findIndex((a) => a.id === padre.id) : -1;
     if (madreIdx >= 0) {

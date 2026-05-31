@@ -9,8 +9,24 @@ export const MINUTI_GIOCO_PER_SECONDO_REALE = 30;
 let orologioGiocoMinutiDaMezzanotte = 6 * 60;
 let orologioGiocoLastRealMs: number | null = null;
 let orologioGiocoInPausa = false;
+/** Giorno di gioco (1 = primo giorno); avanza a ogni mezzanotte dell'orologio. */
+let orologioGiocoGiorno = 1;
 
 const pausaListeners = new Set<() => void>();
+const giornoListeners = new Set<() => void>();
+
+function notifyGiornoListeners(): void {
+  giornoListeners.forEach((l) => l());
+}
+
+export function subscribeGiornoGioco(listener: () => void): () => void {
+  giornoListeners.add(listener);
+  return () => giornoListeners.delete(listener);
+}
+
+export function getGiornoGiocoSnapshot(): number {
+  return orologioGiocoGiorno;
+}
 
 function notifyPausaListeners(): void {
   pausaListeners.forEach((l) => l());
@@ -48,9 +64,16 @@ export function syncOrologioGiocoDaWallClock(): number {
     orologioGiocoLastRealMs = Date.now();
     return orologioGiocoMinutiDaMezzanotte;
   }
+  const minutiPrima = orologioGiocoMinutiDaMezzanotte;
   const elapsedSeconds = Math.floor((Date.now() - orologioGiocoLastRealMs) / 1000);
   const catchUp = elapsedSeconds * MINUTI_GIOCO_PER_SECONDO_REALE;
-  orologioGiocoMinutiDaMezzanotte = (orologioGiocoMinutiDaMezzanotte + catchUp) % 1440;
+  const minutiTotali = minutiPrima + catchUp;
+  orologioGiocoMinutiDaMezzanotte = minutiTotali % 1440;
+  const giorniPassati = Math.floor(minutiTotali / 1440);
+  if (giorniPassati > 0) {
+    orologioGiocoGiorno += giorniPassati;
+    notifyGiornoListeners();
+  }
   orologioGiocoLastRealMs = Date.now();
   return orologioGiocoMinutiDaMezzanotte;
 }

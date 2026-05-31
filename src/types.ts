@@ -77,6 +77,10 @@ export type Abitante = {
   /** Mese/anno inizio gravidanza (per parto a 9 mesi). */
   gravidanzaIniziataMese?: number;
   gravidanzaIniziataAnno?: number;
+  /** Oggetti portati dall'abitante (monete, cibo, …). */
+  inventario?: { itemId: string; quantità: number }[];
+  /** Ultimo giorno di gioco in cui ha consumato un oggetto Cibo dall'inventario. */
+  ultimoGiornoCiboConsumato?: number;
 };
 
 // Razze trovabili tra gli abitanti (pianeti di origine o sintetici)

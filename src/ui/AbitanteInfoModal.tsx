@@ -2,6 +2,7 @@ import React from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Abitante } from "../types";
 import { getStatoSalute } from "../game/ciboConsumo";
+import { CATEGORIA_CIBO, getVociInventarioPerCategoria } from "../game/inventario";
 import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
@@ -37,6 +38,49 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
   );
 }
 
+function InventarioSlot({
+  emoji,
+  quantità,
+  nome
+}: {
+  emoji: string;
+  quantità: number;
+  nome?: string;
+}) {
+  return (
+    <View style={styles.inventarioSlot}>
+      <Text style={styles.inventarioEmoji}>{emoji}</Text>
+      {nome ? <Text style={styles.inventarioNome}>{nome}</Text> : null}
+      <Text style={styles.inventarioQty}>{quantità}</Text>
+    </View>
+  );
+}
+
+function InventarioCategoria({
+  titolo,
+  voci
+}: {
+  titolo: string;
+  voci: ReturnType<typeof getVociInventarioPerCategoria>;
+}) {
+  if (voci.length === 0) return null;
+  return (
+    <View style={styles.inventarioCategoria}>
+      <Text style={styles.inventarioCategoriaTitolo}>{titolo}</Text>
+      <View style={styles.inventarioGrid}>
+        {voci.map((v) => (
+          <InventarioSlot
+            key={v.def.id}
+            emoji={v.def.emoji}
+            nome={v.def.categoria === CATEGORIA_CIBO ? v.def.nome : undefined}
+            quantità={v.quantità}
+          />
+        ))}
+      </View>
+    </View>
+  );
+}
+
 export function AbitanteInfoModal({
   visible,
   abitante,
@@ -61,6 +105,9 @@ export function AbitanteInfoModal({
   const redditoEffettivo = abitante.razza === "Robot" ? 0 : abitante.reddito + (èBeneficiario ? redditoCittadinanza : 0);
   const felicitàModificata = calcolaFelicitàModificata ? calcolaFelicitàModificata(abitante) : abitante.felicità;
   const felicitàCambiata = abitante.razza !== "Robot" && felicitàModificata !== abitante.felicità;
+
+  const vociValuta = getVociInventarioPerCategoria(abitante.inventario, "Valuta");
+  const vociCibo = getVociInventarioPerCategoria(abitante.inventario, CATEGORIA_CIBO);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
@@ -141,6 +188,13 @@ export function AbitanteInfoModal({
                       : `${felicitàModificata}%${felicitàCambiata ? ` (base ${abitante.felicità})` : ""}`
                   }
                 />
+              </Block>
+            </View>
+
+            <View style={styles.inventarioRow}>
+              <Block title="Inventario">
+                <InventarioCategoria titolo="Valuta" voci={vociValuta} />
+                <InventarioCategoria titolo="Cibo" voci={vociCibo} />
               </Block>
             </View>
 
@@ -262,6 +316,51 @@ const styles = StyleSheet.create({
   rowMuted: {
     color: "rgba(226,232,240,0.5)",
     fontStyle: "italic"
+  },
+  inventarioRow: {
+    marginTop: 14
+  },
+  inventarioCategoria: {
+    marginBottom: 10
+  },
+  inventarioCategoriaTitolo: {
+    fontSize: 10,
+    fontWeight: "700",
+    color: "rgba(148,163,184,0.9)",
+    marginBottom: 6,
+    textTransform: "uppercase",
+    letterSpacing: 0.4
+  },
+  inventarioGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 12
+  },
+  inventarioSlot: {
+    minWidth: 56,
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    backgroundColor: "rgba(30,41,59,0.45)",
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.15)"
+  },
+  inventarioEmoji: {
+    fontSize: 26,
+    lineHeight: 32
+  },
+  inventarioNome: {
+    fontSize: 9,
+    fontWeight: "600",
+    color: "rgba(226,232,240,0.75)",
+    marginTop: 2
+  },
+  inventarioQty: {
+    marginTop: 4,
+    fontSize: 13,
+    fontWeight: "700",
+    color: "#e2e8f0"
   },
   closeBtn: {
     marginTop: 18,

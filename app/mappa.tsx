@@ -2025,6 +2025,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     [terrenoInMappa, edificiInMappa, decorazioniInMappa, cols, rows]
   );
 
+  const isRoadCell = useCallback(
+    (i: number) => edificiInMappa[i]?.nome === "Strada",
+    [edificiInMappa]
+  );
+
   const cellaCasaPerAbitanteId = useMemo(() => {
     const m = new Map<number, number | null>();
     for (const a of abitanti) {
@@ -2558,6 +2563,32 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     [setMappaStatePersistente, aggiungiEdificioDaTemplate, uscitaCostruzione]
   );
 
+  const eseguiDemolizione = useCallback(
+    (
+      anchor: number,
+      w: number,
+      h: number,
+      cap: EdificioInCella,
+      globalId: number | undefined
+    ) => {
+      setMappaStatePersistente((s) => {
+        const nextEdifici = { ...s.edificiInMappa };
+        rimuoviFootprintEdificioDaMappa(nextEdifici, anchor, w, h, cols);
+        applicaRegoleConfineTerreno(nextEdifici, s.terrenoInMappa, cols, rows, {
+          collegaEdificiAllaStrada: false
+        });
+        let nextResidenze = s.residenzeMappa;
+        if (èResidenzaMappa(cap.nome)) {
+          nextResidenze = { ...s.residenzeMappa };
+          delete nextResidenze[anchor];
+        }
+        return { ...s, edificiInMappa: nextEdifici, residenzeMappa: nextResidenze };
+      });
+      if (globalId != null) rimuoviEdificioPerId(globalId);
+    },
+    [cols, rows, setMappaStatePersistente, rimuoviEdificioPerId]
+  );
+
   const handleDemolisci = useCallback(
     (cellIndex: number) => {
       const e = edificiInMappa[cellIndex];
@@ -2587,24 +2618,23 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         return;
       }
       const cap = edificiInMappa[anchor];
-      if (!cap) return;
+      if (!cap?.nome) return;
       const globalId =
         cap.edificioGlobaleId ?? (edifici.some((x) => x.id === cap.id) ? cap.id : undefined);
+      const etichetta = cap.emoji ? `${cap.emoji} ${cap.nome}` : cap.nome;
 
-      setMappaStatePersistente((s) => {
-        const nextEdifici = { ...s.edificiInMappa };
-        rimuoviFootprintEdificioDaMappa(nextEdifici, anchor, w, h, cols);
-        applicaRegoleConfineTerreno(nextEdifici, s.terrenoInMappa, cols, rows, {
-          collegaEdificiAllaStrada: false
-        });
-        let nextResidenze = s.residenzeMappa;
-        if (èResidenzaMappa(cap.nome)) {
-          nextResidenze = { ...s.residenzeMappa };
-          delete nextResidenze[anchor];
-        }
-        return { ...s, edificiInMappa: nextEdifici, residenzeMappa: nextResidenze };
-      });
-      if (globalId != null) rimuoviEdificioPerId(globalId);
+      Alert.alert(
+        "Demolire?",
+        `Vuoi demolire ${etichetta}? L'operazione non si può annullare.`,
+        [
+          { text: "Annulla", style: "cancel" },
+          {
+            text: "Demolisci",
+            style: "destructive",
+            onPress: () => eseguiDemolizione(anchor, w, h, cap, globalId)
+          }
+        ]
+      );
     },
     [
       edificiInMappa,
@@ -2612,8 +2642,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       rows,
       celleProtetteIniziali,
       edifici,
-      setMappaStatePersistente,
-      rimuoviEdificioPerId
+      eseguiDemolizione
     ]
   );
 
@@ -3064,6 +3093,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                         rows={rows}
                         cellSizePx={CELL_SIZE_PX}
                         isWalkable={isWalkableCell}
+                        isRoadCell={isRoadCell}
                         instanceId={abitante.id}
                         fixedCell={fixedCellNotte}
                         commutePath={infoCommute?.path ?? null}

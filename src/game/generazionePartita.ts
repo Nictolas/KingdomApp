@@ -1,4 +1,5 @@
 import type { Abitante, Razza } from "../types";
+import { abitanteConInventarioIniziale } from "./inventario";
 import { pianetiData, getEmojiRazza } from "../kingdomData";
 import { generaNomeAlieno } from "./nomiAlieni";
 import { scegliNomeCognomeUmano } from "./nomiUmani";
@@ -330,5 +331,5 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     scelta.incinta = true;
   }
 
-  return { abitanti, razzaNativi };
+  return { abitanti: abitanti.map(abitanteConInventarioIniziale), razzaNativi };
 }

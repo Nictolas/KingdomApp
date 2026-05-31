@@ -1,4 +1,5 @@
 import type { Abitante, Razza } from "../types";
+import { abitanteConInventarioIniziale } from "./inventario";
 import { getEmojiRazza } from "../kingdomData";
 import { generaNomeAlieno } from "./nomiAlieni";
 import { scegliNomeCognomeUmano } from "./nomiUmani";
@@ -51,7 +52,7 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
         ? ["Robots", "Cittadini"]
         : [FAZIONI_RUOLO[Math.floor(Math.random() * FAZIONI_RUOLO.length)], "Immigrati"];
 
-    nuoviAbitanti.push({
+    nuoviAbitanti.push(abitanteConInventarioIniziale({
       id: nextId + i,
       nome,
       emoji,
@@ -76,7 +77,7 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
       razza,
       specie: isUmano ? "umano" : "alieno",
       ...(sesso != null && { sesso })
-    });
+    }));
   }
 
   return { nuoviAbitanti, nextIdDopo: nextId + numNuovi };

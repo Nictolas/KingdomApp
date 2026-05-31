@@ -17,6 +17,11 @@ import { calcolaFelicitàModificataPuro } from "../game/felicita";
 import { generaImmigratiProposti } from "../game/immigrazione";
 import { getLavoroPerEdificio, normalizzaLavoroEAgricoltura } from "../game/edificiLavoro";
 import { syncResidenzeBaraccaSenzatetto } from "../game/avanzaMese";
+import { normalizzaInventariAbitanti } from "../game/consumoCiboInventario";
+import {
+  getGiornoGiocoSnapshot,
+  subscribeGiornoGioco
+} from "../game/orologioGiocoSession";
 
 const statoIniziale = generaColoniaIniziale();
 
@@ -73,6 +78,15 @@ export function useGameState() {
   useEffect(() => {
     setEdifici((prev) => syncResidenzeBaraccaSenzatetto(prev, abitanti));
   }, [abitanti]);
+
+  /** Inventario iniziale + consumo giornaliero di un oggetto Cibo a ogni nuovo giorno di gioco. */
+  useEffect(() => {
+    setAbitanti((prev) => normalizzaInventariAbitanti(prev, getGiornoGiocoSnapshot()));
+    const unsub = subscribeGiornoGioco(() => {
+      setAbitanti((prev) => normalizzaInventariAbitanti(prev, getGiornoGiocoSnapshot()));
+    });
+    return unsub;
+  }, []);
 
   // Configurazione tassa sul reddito
   const [tipoTassaReddito, setTipoTassaReddito] = useState<"flat" | "scaglioni">("scaglioni");

@@ -1,5 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Image, Pressable, StyleSheet, View } from "react-native";
+import { getOrologioGiocoInPausaSnapshot } from "../game/orologioGiocoSession";
+import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
 
 const DOPPIO_TAP_MS = 400;
 
@@ -11,7 +13,17 @@ const FRAMES = 12;
 
 /** Spostamento tra celle: durata e pausa prima del prossimo passo. */
 const MOVE_DURATION_MS = 560;
+const MOVE_DURATION_ROAD_MS = 340;
 const IDLE_BEFORE_NEXT_MS = 2200;
+
+function segmentMoveDurationMs(
+  from: number,
+  to: number,
+  isRoadCell?: (cellIndex: number) => boolean
+): number {
+  if (isRoadCell?.(from) || isRoadCell?.(to)) return MOVE_DURATION_ROAD_MS;
+  return MOVE_DURATION_MS;
+}
 
 export type WanderDirection = "n" | "s" | "e" | "w";
 
@@ -75,6 +87,8 @@ type MapWandererCharacterProps = {
   rows: number;
   cellSizePx: number;
   isWalkable: (cellIndex: number) => boolean;
+  /** Se la cella è strada, il passo tra celle adiacenti è più rapido. */
+  isRoadCell?: (cellIndex: number) => boolean;
   /** Per più personaggi sulla stessa mappa: spawn e z-index distinti. */
   instanceId?: number;
   /**
@@ -114,6 +128,7 @@ export function MapWandererCharacter({
   rows,
   cellSizePx,
   isWalkable,
+  isRoadCell,
   instanceId = 0,
   fixedCell = null,
   commutePath = null,
@@ -132,8 +147,11 @@ export function MapWandererCharacter({
   const [direction, setDirection] = useState<WanderDirection>("s");
   const [walkFrame, setWalkFrame] = useState(0);
   const [isMoving, setIsMoving] = useState(false);
+  const giocoInPausa = useGiocoInPausa();
 
   const inited = useRef(false);
+  const isMovingRef = useRef(false);
+  const prevGiocoInPausaRef = useRef(giocoInPausa);
   const prevFixedCellRef = useRef<number | null | undefined>(undefined);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const rafRef = useRef<number | null>(null);
@@ -160,6 +178,10 @@ export function MapWandererCharacter({
     cellRef.current = logicalCell;
   }, [logicalCell]);
 
+  useEffect(() => {
+    isMovingRef.current = isMoving;
+  }, [isMoving]);
+
   const clearIdle = useCallback(() => {
     if (idleTimerRef.current != null) {
       clearTimeout(idleTimerRef.current);
@@ -168,6 +190,7 @@ export function MapWandererCharacter({
   }, []);
 
   const pickNextMove = useCallback(() => {
+    if (getOrologioGiocoInPausaSnapshot()) return;
     if (disableIdleRoam) return;
     if (fixedCell != null) return;
     if (commutePath != null && commutePath.length >= 2) return;
@@ -195,9 +218,14 @@ export function MapWandererCharacter({
 
     setIsMoving(true);
     const start = performance.now();
+    const durationMs = segmentMoveDurationMs(prev, next, isRoadCell);
 
     const step = (now: number) => {
-      const t = Math.min(1, (now - start) / MOVE_DURATION_MS);
+      if (getOrologioGiocoInPausaSnapshot()) {
+        rafRef.current = requestAnimationFrame(step);
+        return;
+      }
+      const t = Math.min(1, (now - start) / durationMs);
       setPixelPos({
         x: fromX + (toX - fromX) * t,
         y: fromY + (toY - fromY) * t
@@ -215,7 +243,7 @@ export function MapWandererCharacter({
       }
     };
     rafRef.current = requestAnimationFrame(step);
-  }, [cols, rows, cellSizePx, isWalkable, fixedCell, commutePath, disableIdleRoam]);
+  }, [cols, rows, cellSizePx, isWalkable, isRoadCell, fixedCell, commutePath, disableIdleRoam]);
 
   pickNextMoveRef.current = pickNextMove;
 
@@ -232,8 +260,13 @@ export function MapWandererCharacter({
       const toY = Math.floor(to / cols) * cellSizePx;
       setIsMoving(true);
       const start = performance.now();
+      const durationMs = segmentMoveDurationMs(from, to, isRoadCell);
       const step = (now: number) => {
-        const t = Math.min(1, (now - start) / MOVE_DURATION_MS);
+        if (getOrologioGiocoInPausaSnapshot()) {
+          rafRef.current = requestAnimationFrame(step);
+          return;
+        }
+        const t = Math.min(1, (now - start) / durationMs);
         setPixelPos({
           x: fromX + (toX - fromX) * t,
           y: fromY + (toY - fromY) * t
@@ -255,7 +288,7 @@ export function MapWandererCharacter({
       };
       rafRef.current = requestAnimationFrame(step);
     },
-    [cols, cellSizePx]
+    [cols, cellSizePx, isRoadCell]
   );
 
   /** Percorso casa → lavoro / lavoro → casa / … */
@@ -371,6 +404,23 @@ export function MapWandererCharacter({
       idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
     }
   }, [cols, rows, isWalkable, instanceId, fixedCell, commutePath, disableIdleRoam]);
+
+  /** Pausa globale: ferma timer idle; al ripristino riprende girovago se fermo. */
+  useEffect(() => {
+    if (prevGiocoInPausaRef.current === giocoInPausa) return;
+    prevGiocoInPausaRef.current = giocoInPausa;
+    if (giocoInPausa) {
+      clearIdle();
+      return;
+    }
+    if (fixedCell != null) return;
+    if (commutePath != null && commutePath.length >= 2) return;
+    if (disableIdleRoam) return;
+    if (cellRef.current == null || !inited.current) return;
+    if (isMovingRef.current) return;
+    clearIdle();
+    idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+  }, [giocoInPausa, fixedCell, commutePath, disableIdleRoam, clearIdle]);
 
   useEffect(
     () => () => {

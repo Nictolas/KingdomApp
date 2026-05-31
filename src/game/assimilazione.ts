@@ -1,4 +1,5 @@
 import type { Abitante, Razza } from "../types";
+import { abitanteConInventarioIniziale } from "./inventario";
 import { generaNomeAlieno } from "./nomiAlieni";
 
 export type GeneraAssimilatiInput = {
@@ -30,7 +31,7 @@ export function generaAssimilati({
   const nuoviAbitanti: Abitante[] = [];
 
   for (let i = 0; i < count; i++) {
-    nuoviAbitanti.push({
+    nuoviAbitanti.push(abitanteConInventarioIniziale({
       id: nextId + i,
       nome: generaNomeAlieno(razzaNativi),
       emoji: emojiNativo,
@@ -54,7 +55,7 @@ export function generaAssimilati({
       religione: religioni[Math.floor(Math.random() * religioni.length)],
       razza: razzaNativi,
       specie: "alieno"
-    });
+    }));
   }
 
   return { nuoviAbitanti, nextIdDopo: nextId + count };
