@@ -40,6 +40,7 @@ import {
 import { MapWandererCharacter } from "../src/components/MapWandererCharacter";
 import { GrassDecorOverlay } from "../src/components/GrassDecorOverlay";
 import { ErbaTile1x1 } from "../src/components/ErbaTile1x1";
+import { SpiaggiaTile1x1 } from "../src/components/SpiaggiaTile1x1";
 import { StradaTile1x1 } from "../src/components/StradaTile1x1";
 import { TerrainSheetSprite } from "../src/components/TerrainSheetSprite";
 import {
@@ -70,7 +71,7 @@ import {
   erbaExtraDecorCasuale,
   getGrass2x2Index,
   getGrassSandBorderSubtileIfAny,
-  getSandBeachSubtile
+  getSpiaggiaAsset1x1
 } from "../src/game/terrainSpriteHelpers";
 
 /** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
@@ -1655,8 +1656,8 @@ export function MappaScreen() {
   }, [cols, rows, contentWidth, contentHeight]);
 
   const stradaAssetAt = useMemo(
-    () => buildStradaAssetLookup(cols, rows, edificiInMappa),
-    [cols, rows, edificiInMappa]
+    () => buildStradaAssetLookup(cols, rows, terrenoInMappa, edificiInMappa),
+    [cols, rows, terrenoInMappa, edificiInMappa]
   );
 
   const erbaAssetAt = useMemo(
@@ -2470,10 +2471,9 @@ export function MappaScreen() {
                       const spriteTerreno = acquaAnimata ? (
                         <TerrainSheetSprite cellSize={CELL_SIZE_PX} terrain="water" frame={waterAnimFrame} />
                       ) : terreno === "sabbia" ? (
-                        <TerrainSheetSprite
+                        <SpiaggiaTile1x1
                           cellSize={CELL_SIZE_PX}
-                          terrain="sand"
-                          beachSubtile={getSandBeachSubtile(i, cols, rows, terrenoInMappa)}
+                          asset={getSpiaggiaAsset1x1(i, cols, rows, terrenoInMappa)}
                         />
                       ) : èStrada ? (
                         <StradaTile1x1

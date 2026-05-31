@@ -93,6 +93,69 @@ export function getSandBeachSubtile(
   return subtile9FromMask(mask);
 }
 
+/** Sprite spiaggia/sabbia 1×1 (`spiaggia_*.png`): lato o angolo verso acqua. */
+export type SpiaggiaTileAsset1x1 =
+  | "nord"
+  | "sud"
+  | "est"
+  | "ovest"
+  | "nord_est"
+  | "nord_ovest"
+  | "sud_est"
+  | "sud_ovest";
+
+/**
+ * Sceglie il PNG spiaggia 1×1 in base ai vicini acqua (mare o fiume).
+ * Il nome indica da quale lato o angolo arriva l’acqua.
+ */
+export function getSpiaggiaAsset1x1(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>
+): SpiaggiaTileAsset1x1 {
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  const n = isWaterAt(row - 1, col, cols, rows, terrenoInMappa);
+  const e = isWaterAt(row, col + 1, cols, rows, terrenoInMappa);
+  const s = isWaterAt(row + 1, col, cols, rows, terrenoInMappa);
+  const w = isWaterAt(row, col - 1, cols, rows, terrenoInMappa);
+  const mask = (n ? 1 : 0) | (e ? 2 : 0) | (s ? 4 : 0) | (w ? 8 : 0);
+
+  switch (mask) {
+    case 1:
+      return "nord";
+    case 2:
+      return "est";
+    case 4:
+      return "sud";
+    case 8:
+      return "ovest";
+    case 3:
+      return "nord_est";
+    case 6:
+      return "sud_est";
+    case 9:
+      return "nord_ovest";
+    case 12:
+      return "sud_ovest";
+    case 5:
+      return "est";
+    case 10:
+      return "nord";
+    case 7:
+      return "ovest";
+    case 11:
+      return "sud";
+    case 13:
+      return "nord";
+    case 14:
+      return "est";
+    default:
+      return "sud";
+  }
+}
+
 export function isStradaCell(
   row: number,
   col: number,
@@ -102,6 +165,49 @@ export function isStradaCell(
 ): boolean {
   if (row < 0 || row >= rows || col < 0 || col >= cols) return false;
   return edificiInMappa[row * cols + col]?.nome === "Strada";
+}
+
+/** Cella erba libera (no edificio, terreno erba). */
+function isErbaPlainCell(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  edificiInMappa: Record<number, { nome?: string }>
+): boolean {
+  if (index < 0 || index >= cols * rows) return false;
+  if (edificiInMappa[index]) return false;
+  return (terrenoInMappa[index] ?? "erba") === "erba";
+}
+
+function hasErbaCardinalNeighbor(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  edificiInMappa: Record<number, { nome?: string }>
+): boolean {
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  if (row > 0 && isErbaPlainCell(index - cols, cols, rows, terrenoInMappa, edificiInMappa)) return true;
+  if (row < rows - 1 && isErbaPlainCell(index + cols, cols, rows, terrenoInMappa, edificiInMappa)) return true;
+  if (col > 0 && isErbaPlainCell(index - 1, cols, rows, terrenoInMappa, edificiInMappa)) return true;
+  if (col < cols - 1 && isErbaPlainCell(index + 1, cols, rows, terrenoInMappa, edificiInMappa)) return true;
+  return false;
+}
+
+/** `strada_centro_1x1` / incrocio a 4 vie non possono confinare con erba (max 3 bracci strada). */
+function fixStradaCentroAdjacentToErba(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  edificiInMappa: Record<number, { nome?: string }>,
+  asset: StradaTileAsset1x1
+): StradaTileAsset1x1 {
+  if (asset !== "centro" && asset !== "incrocio_centro") return asset;
+  if (!hasErbaCardinalNeighbor(index, cols, rows, terrenoInMappa, edificiInMappa)) return asset;
+  return getStradaAsset1x1Grezzo(index, cols, rows, edificiInMappa);
 }
 
 /**
@@ -581,6 +687,7 @@ function resolveCentroVsIncrocioCentro(
 export function buildStradaAssetLookup(
   cols: number,
   rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
   edificiInMappa: Record<number, { nome?: string }>
 ): (index: number) => StradaTileAsset1x1 {
   const final = new Map<number, StradaTileAsset1x1>();
@@ -644,6 +751,17 @@ export function buildStradaAssetLookup(
           changed = true;
         }
       }
+    }
+  }
+
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const index = row * cols + col;
+      if (edificiInMappa[index]?.nome !== "Strada") continue;
+      final.set(
+        index,
+        fixStradaCentroAdjacentToErba(index, cols, rows, terrenoInMappa, edificiInMappa, final.get(index) ?? "orizzontale")
+      );
     }
   }
 
@@ -715,9 +833,7 @@ function isErbaCell(
   terrenoInMappa: Record<number, TerrenoType>,
   edificiInMappa: Record<number, { nome?: string }>
 ): boolean {
-  if (index < 0 || index >= cols * rows) return false;
-  if (edificiInMappa[index]) return false;
-  return (terrenoInMappa[index] ?? "erba") === "erba";
+  return isErbaPlainCell(index, cols, rows, terrenoInMappa, edificiInMappa);
 }
 
 function getErbaCentroNeighborKind(
@@ -731,10 +847,16 @@ function getErbaCentroNeighborKind(
 ): ErbaCentroNeighborKind | null {
   if (index < 0 || index >= cols * rows) return null;
   const edificio = edificiInMappa[index];
-  if (edificio?.nome === "Strada") return stradaAssetAt(index);
+  if (edificio?.nome === "Strada") {
+    const asset = stradaAssetAt(index);
+    /** `strada_centro_1x1` ≠ `erba_centro_1x1`: stesso id `"centro"`, escluso dai vicini erba. */
+    if (asset === "centro") return null;
+    return asset;
+  }
   if (edificio) return null;
   if ((terrenoInMappa[index] ?? "erba") !== "erba") return null;
-  return erbaLookup.get(index) ?? null;
+  /** Erba non ancora risolta ≡ `erba_centro_1x1` per l’incastro tra celle erba adiacenti. */
+  return erbaLookup.get(index) ?? "centro";
 }
 
 function isValidErbaCentroNeighbors(
@@ -743,22 +865,19 @@ function isValidErbaCentroNeighbors(
   south: ErbaCentroNeighborKind | null,
   west: ErbaCentroNeighborKind | null
 ): boolean {
+  if (north == null || east == null || south == null || west == null) return false;
   return (
-    north != null &&
     ERBA_CENTRO_OK_NORTH.has(north) &&
-    east != null &&
     ERBA_CENTRO_OK_EAST.has(east) &&
-    south != null &&
     ERBA_CENTRO_OK_SOUTH.has(south) &&
-    west != null &&
     ERBA_CENTRO_OK_WEST.has(west)
   );
 }
 
 /**
  * Celle erba senza edificio: assegna `centro` (`erba_centro_1x1`) se tutti e quattro i vicini
- * rispettano le whitelist per direzione (strada + altre erbe 1×1). Convergenza a punti fissi
- * per pannelli di più celle `erba_centro` adiacenti.
+ * rispettano le whitelist per direzione. L’erba al centro di un incrocio usa sempre questo tile,
+ * non il motivo 2×2 del foglio; le strade vicine non devono essere `strada_centro_1x1`.
  */
 export function buildErbaAssetLookup(
   cols: number,
