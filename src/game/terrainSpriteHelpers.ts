@@ -33,9 +33,6 @@ function isSandAt(
 /** Indice 0…8 nel blocco 3×3 (TL,T,TR / L,C,R / BL,B,BR). */
 export type Tile3x3Index = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
 
-/** Indice 0…3 nel blocco 2×2 (TL,TR,BL,BR). */
-export type Tile2x2Index = 0 | 1 | 2 | 3;
-
 function subtile9FromMask(mask: number): Tile3x3Index {
   switch (mask) {
     case 0:
@@ -202,6 +199,22 @@ function isErbaPlainCell(
   return (terrenoInMappa[index] ?? "erba") === "erba";
 }
 
+function hasWaterCardinalNeighbor(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>
+): boolean {
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  return (
+    isWaterAt(row - 1, col, cols, rows, terrenoInMappa) ||
+    isWaterAt(row + 1, col, cols, rows, terrenoInMappa) ||
+    isWaterAt(row, col - 1, cols, rows, terrenoInMappa) ||
+    isWaterAt(row, col + 1, cols, rows, terrenoInMappa)
+  );
+}
+
 function hasErbaCardinalNeighbor(
   index: number,
   cols: number,
@@ -230,6 +243,18 @@ function fixStradaCentroAdjacentToErba(
   if (asset !== "centro" && asset !== "incrocio_centro") return asset;
   if (!hasErbaCardinalNeighbor(index, cols, rows, terrenoInMappa, edificiInMappa)) return asset;
   return getStradaAsset1x1Grezzo(index, cols, rows, edificiInMappa);
+}
+
+/** Strada adiacente all’acqua: usa tile generico (non orizzontale/verticale con bordi erba). */
+function fixStradaAdjacentToAcqua(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  asset: StradaTileAsset1x1
+): StradaTileAsset1x1 {
+  if (!hasWaterCardinalNeighbor(index, cols, rows, terrenoInMappa)) return asset;
+  return "generica";
 }
 
 /**
@@ -782,7 +807,13 @@ export function buildStradaAssetLookup(
       if (edificiInMappa[index]?.nome !== "Strada") continue;
       final.set(
         index,
-        fixStradaCentroAdjacentToErba(index, cols, rows, terrenoInMappa, edificiInMappa, final.get(index) ?? "orizzontale")
+        fixStradaAdjacentToAcqua(
+          index,
+          cols,
+          rows,
+          terrenoInMappa,
+          fixStradaCentroAdjacentToErba(index, cols, rows, terrenoInMappa, edificiInMappa, final.get(index) ?? "orizzontale")
+        )
       );
     }
   }
@@ -813,17 +844,11 @@ export function buildErbaAssetLookup(
   edificiInMappa: Record<number, { nome?: string }>,
   _stradaAssetAt: (index: number) => StradaTileAsset1x1
 ): (index: number) => ErbaTileAsset1x1 | undefined {
-  return (index: number) =>
-    isErbaCell(index, cols, rows, terrenoInMappa, edificiInMappa) ? "centro" : undefined;
-}
-
-/**
- * Quale quarto del motivo erba 2×2 usare (ripetizione a scacchiera sulla mappa).
- */
-export function getGrass2x2Index(index: number, cols: number): Tile2x2Index {
-  const col = index % cols;
-  const row = Math.floor(index / cols);
-  return ((((row & 1) << 1) | (col & 1)) as Tile2x2Index);
+  return (index: number) => {
+    if (!isErbaCell(index, cols, rows, terrenoInMappa, edificiInMappa)) return undefined;
+    if (hasWaterCardinalNeighbor(index, cols, rows, terrenoInMappa)) return undefined;
+    return "centro";
+  };
 }
 
 /** Decorazioni opzionali su erba piena (`tallGrass.png` / `sprout.png`). */
@@ -843,31 +868,7 @@ export function erbaExtraDecorCasuale(index: number, cols: number): ErbaExtraDec
 }
 
 /**
- * Celle erba confinanti con strada: maschera come spiaggia/sabbia (strada = “feature” nel bitmask).
- * Ha priorità sulla fascia erba–sabbia se un vicino è strada.
- */
-export function getGrassRoadBorderSubtileIfAny(
-  index: number,
-  cols: number,
-  rows: number,
-  terrenoInMappa: Record<number, TerrenoType>,
-  edificiInMappa: Record<number, { nome?: string }>
-): Tile3x3Index | undefined {
-  if ((terrenoInMappa[index] ?? "erba") !== "erba") return undefined;
-  const col = index % cols;
-  const row = Math.floor(index / cols);
-  const n = isStradaCell(row - 1, col, cols, rows, edificiInMappa);
-  const e = isStradaCell(row, col + 1, cols, rows, edificiInMappa);
-  const s = isStradaCell(row + 1, col, cols, rows, edificiInMappa);
-  const w = isStradaCell(row, col - 1, cols, rows, edificiInMappa);
-  if (!n && !e && !s && !w) return undefined;
-  const mask = (n ? 1 : 0) | (e ? 2 : 0) | (s ? 4 : 0) | (w ? 8 : 0);
-  return subtile9FromMask(mask);
-}
-
-/**
- * Celle erba confinanti con sabbia: stesso schema maschera della spiaggia (sabbia = “acqua” nel bitmask).
- * Se nessun vicino è sabbia, l’erba usa solo il motivo 2×2.
+ * Celle erba confinanti con sabbia: maschera autotile 3×3 → asset PNG `erba_spiaggia_*`.
  */
 export function getGrassSandBorderSubtileIfAny(
   index: number,
@@ -889,8 +890,7 @@ export function getGrassSandBorderSubtileIfAny(
   }
   /**
    * Sopra la fascia “erba buffer → strada”: il vicino sotto è ancora erba, non Strada, quindi
-   * non si applica il bordo erba–strada; senza questa regola la sabbia in diagonale attiva
-   * l’angolo erba–sabbia al posto dell’erba centrale 2×2.
+   * senza questa regola la sabbia in diagonale attiva l’angolo erba–sabbia al posto di `erba_centro`.
    * Se a nord c’è già sabbia (costa), il bordo sabbia resta consentito.
    */
   let stradaDueRigheSotto = false;
@@ -914,8 +914,8 @@ export function getGrassSandBorderSubtileIfAny(
     return subtile9FromMask(mask);
   }
   /**
-   * Solo sabbia in diagonale (nessun vicino ortogonale sabbia): “angolo interno” nel blocco 3×3.
-   * Indici nel foglio grass–sabbia (320,128): NW→6, NE→5, SW→7, SE→8.
+   * Solo sabbia in diagonale (nessun vicino ortogonale sabbia): angolo interno autotile.
+   * NW→6, NE→5, SW→7, SE→8.
    */
   const nw = isSandAt(row - 1, col - 1, cols, rows, terrenoInMappa);
   const ne = isSandAt(row - 1, col + 1, cols, rows, terrenoInMappa);

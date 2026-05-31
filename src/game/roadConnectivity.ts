@@ -1,4 +1,5 @@
 import type { TerrenoType } from "./riverGeneration";
+import { hasOrthogonalWaterNeighbor } from "./riverGeneration";
 
 const DELTA: [number, number][] = [
   [-1, 0],
@@ -42,6 +43,7 @@ function passabilePerAttraversamento(
   edifici: Record<number, EdificioMappa>
 ): boolean {
   if (isMareCell(index, cols, rows)) return false;
+  if (hasOrthogonalWaterNeighbor(index, terreno, cols, rows)) return false;
   if (!isTerrenoErba(index, terreno)) return false;
   const e = edifici[index];
   if (e && e.nome !== "Strada") return false;
@@ -167,6 +169,23 @@ export function indiciViciniOrtogonaliStrada(
     }
   }
   return out;
+}
+
+/** Sabbia vietata su Giacimento; i vicini strada restano erba salvo se confinano con acqua. */
+export function buildExcludeSandByRoads(
+  edifici: Record<number, EdificioMappa>,
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number,
+  neverSand: Set<number>
+): Set<number> {
+  const ex = new Set<number>(neverSand);
+  for (const j of indiciViciniOrtogonaliStrada(edifici, cols, rows)) {
+    if (!hasOrthogonalWaterNeighbor(j, terreno, cols, rows)) {
+      ex.add(j);
+    }
+  }
+  return ex;
 }
 
 /**

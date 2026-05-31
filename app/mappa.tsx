@@ -19,7 +19,9 @@ import { useGameContext } from "../src/context/GameContext";
 import {
   applyTerrenoGrassAndSandContinuity,
   buildTerrenoFromRivers,
+  ensureNoDirectWaterAdjacencyForStradaAndErba,
   generateRivers,
+  hasOrthogonalWaterNeighbor,
   type TerrenoType
 } from "../src/game/riverGeneration";
 import type { Abitante, Edificio, Risorsa } from "../src/types";
@@ -38,6 +40,7 @@ import {
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
 import { MapWandererCharacter } from "../src/components/MapWandererCharacter";
+import { MondoLoadingScreen } from "../src/components/MondoLoadingScreen";
 import { GrassDecorOverlay } from "../src/components/GrassDecorOverlay";
 import { ErbaSpiaggiaTile1x1 } from "../src/components/ErbaSpiaggiaTile1x1";
 import { MissingTile1x1 } from "../src/components/MissingTile1x1";
@@ -47,6 +50,7 @@ import { StradaTile1x1 } from "../src/components/StradaTile1x1";
 import { TerrainSheetSprite } from "../src/components/TerrainSheetSprite";
 import {
   assicuraEdificiCollegatiDaStrada,
+  buildExcludeSandByRoads,
   indiciViciniOrtogonaliStrada
 } from "../src/game/roadConnectivity";
 import {
@@ -435,7 +439,7 @@ function isAcqua(index: number, cols: number, rows: number): boolean {
   return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
 }
 
-/** Mare, fiume, sabbia: nessuna cella strada (le strade si agganciano solo all’erba). */
+/** Mare, fiume, sabbia o confine con acqua: nessuna cella strada. */
 function isCellaOkPerStrada(
   index: number,
   cols: number,
@@ -445,7 +449,35 @@ function isCellaOkPerStrada(
   if (isAcqua(index, cols, rows)) return false;
   const t = terrenoInMappa[index] ?? "erba";
   if (t !== "erba") return false;
+  if (hasOrthogonalWaterNeighbor(index, terrenoInMappa, cols, rows)) return false;
   return true;
+}
+
+function giacimentoIndicesDaEdifici(edificiInMappa: Record<number, EdificioInCella>): Set<number> {
+  return new Set(
+    Object.keys(edificiInMappa)
+      .map(Number)
+      .filter((i) => edificiInMappa[i]?.nome === "Giacimento")
+  );
+}
+
+/** Dopo strade/fiumi: niente strada/erba adiacente all’acqua; erba costiera → sabbia. */
+function applicaRegoleConfineAcqua(
+  edificiInMappa: Record<number, EdificioInCella>,
+  terrenoInMappa: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): void {
+  const giacimenti = giacimentoIndicesDaEdifici(edificiInMappa);
+  ensureNoDirectWaterAdjacencyForStradaAndErba(edificiInMappa, terrenoInMappa, cols, rows, giacimenti);
+  assicuraEdificiCollegatiDaStrada(edificiInMappa, terrenoInMappa, cols, rows, STRADA_OPZIONE);
+  ensureNoDirectWaterAdjacencyForStradaAndErba(edificiInMappa, terrenoInMappa, cols, rows, giacimenti);
+  applyTerrenoGrassAndSandContinuity(
+    terrenoInMappa,
+    cols,
+    rows,
+    buildExcludeSandByRoads(edificiInMappa, terrenoInMappa, cols, rows, giacimenti)
+  );
 }
 
 const GIACIMENTO: EdificioInCella = { id: 0, nome: "Giacimento", emoji: "⛰️" };
@@ -974,9 +1006,7 @@ function calcolaPreviewPiazzamento(
 ): { celle: number[]; valido: boolean } | null {
   if (hoverCell == null) return null;
   if (selezione.tipo === "strada") {
-    const t = terrenoInMappa[hoverCell] ?? "erba";
-    const occupato = !!edificiInMappa[hoverCell];
-    const valido = t === "erba" && !occupato && !isAcqua(hoverCell, cols, rows);
+    const valido = isCellaOkPerStrada(hoverCell, cols, rows, terrenoInMappa) && !edificiInMappa[hoverCell];
     return { celle: [hoverCell], valido };
   }
   const e = selezione.edificio;
@@ -1103,26 +1133,52 @@ function getInitialEdificiInMappa(
 }
 
 /**
- * Stato iniziale mappa. Ordine: edifici → strade che li collegano → erba (implicita) →
- * fiumi e sabbia → continuità erba/sabbia → acqua (mare ai bordi già implicito) → decorazioni.
+ * Stato iniziale mappa. Ordine: edifici → strade → fiumi/sabbia → confini acqua → decorazioni.
+ * Eseguito in fasi async così la UI può mostrare l’avanzamento.
  */
-function getInitialMappaWithRivers(cols: number, rows: number): {
+export type MappaRuntimeState = {
   edificiInMappa: Record<number, EdificioInCella>;
   terrenoInMappa: Record<number, TerrenoType>;
   decorazioniInMappa: Record<number, string>;
   residenzeMappa: Record<number, number[]>;
-} {
+};
+
+function yieldToUi(): Promise<void> {
+  return new Promise((resolve) => {
+    if (typeof requestAnimationFrame === "function") {
+      requestAnimationFrame(() => resolve());
+    } else {
+      setTimeout(resolve, 0);
+    }
+  });
+}
+
+async function buildInitialMappa(
+  cols: number,
+  rows: number,
+  onProgress: (progress: number, label: string) => void
+): Promise<MappaRuntimeState> {
+  const report = async (progress: number, label: string) => {
+    onProgress(progress, label);
+    await yieldToUi();
+  };
+
+  await report(0, "Preparazione del mondo…");
+
   const totaleCelle = cols * rows;
   const borderIndices = new Set<number>();
   for (let i = 0; i < totaleCelle; i++) if (isAcqua(i, cols, rows)) borderIndices.add(i);
   const adminAnchor = scegliAnchorComplessoAmministrativo(cols, rows);
 
+  await report(12, "Posizionamento edifici…");
   const edificiInMappa = getInitialEdificiInMappa(cols, rows, new Set(), adminAnchor);
   const terrenoInMappa: Record<number, TerrenoType> = {};
 
+  await report(28, "Costruzione della rete stradale…");
   piazzaStradeInizialiTraEdifici(edificiInMappa, terrenoInMappa, cols, rows);
   assicuraEdificiCollegatiDaStrada(edificiInMappa, terrenoInMappa, cols, rows, STRADA_OPZIONE);
 
+  await report(48, "Generazione fiumi e coste…");
   const vietatoPerFiumi = new Set<number>([...borderIndices, ...Object.keys(edificiInMappa).map(Number)]);
   const { riverIndices, sandIndices } = generateRivers({
     cols,
@@ -1144,8 +1200,12 @@ function getInitialMappaWithRivers(cols: number, rows: number): {
     excludeSand.add(j);
   }
   Object.assign(terrenoInMappa, buildTerrenoFromRivers(riverIndices, sandIndices, excludeSand));
-  applyTerrenoGrassAndSandContinuity(terrenoInMappa, cols, rows, excludeSand);
 
+  await report(68, "Rifinitura terreno e confini…");
+  applyTerrenoGrassAndSandContinuity(terrenoInMappa, cols, rows, excludeSand);
+  applicaRegoleConfineAcqua(edificiInMappa, terrenoInMappa, cols, rows);
+
+  await report(86, "Distribuzione decorazioni…");
   const celleLibere: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {
     if (isAcqua(i, cols, rows) || riverSet.has(i) || edificiInMappa[i]) continue;
@@ -1159,10 +1219,9 @@ function getInitialMappaWithRivers(cols: number, rows: number): {
     decorazioniInMappa[idx] = DECORAZIONI_EMOJI[Math.floor(Math.random() * DECORAZIONI_EMOJI.length)]!;
   }
 
-  return { edificiInMappa, terrenoInMappa, decorazioniInMappa, residenzeMappa: {} as Record<number, number[]> };
+  await report(100, "Mondo pronto!");
+  return { edificiInMappa, terrenoInMappa, decorazioniInMappa, residenzeMappa: {} };
 }
-
-type MappaRuntimeState = ReturnType<typeof getInitialMappaWithRivers>;
 
 /**
  * Cache fuori dal ciclo di vita di React: quando si esce dalla mappa (es. /amministrazione) e si torna
@@ -1428,7 +1487,53 @@ function getResourceRoute(r: Risorsa): string | null {
   return null;
 }
 
+function normalizeMappaSessione(state: MappaRuntimeState): MappaRuntimeState {
+  if (state.residenzeMappa) return state;
+  return { ...state, residenzeMappa: {} };
+}
+
 export function MappaScreen() {
+  const [boot, setBoot] = useState<
+    | { status: "loading"; progress: number; label: string }
+    | { status: "ready"; state: MappaRuntimeState }
+  >(() => {
+    if (mappaSessione) {
+      return { status: "ready", state: normalizeMappaSessione(mappaSessione) };
+    }
+    return { status: "loading", progress: 0, label: "Avvio…" };
+  });
+
+  useEffect(() => {
+    if (boot.status === "ready") return;
+    let cancelled = false;
+    void (async () => {
+      try {
+        const state = await buildInitialMappa(FIXED_MAP_COLS, FIXED_MAP_ROWS, (progress, label) => {
+          if (!cancelled) setBoot({ status: "loading", progress, label });
+        });
+        if (cancelled) return;
+        mappaSessione = state;
+        setBoot({ status: "ready", state });
+      } catch (err) {
+        console.error("Generazione mappa fallita:", err);
+        if (!cancelled) {
+          setBoot({ status: "loading", progress: 0, label: "Errore durante la creazione. Ricarica la pagina." });
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [boot.status]);
+
+  if (boot.status === "loading") {
+    return <MondoLoadingScreen progress={boot.progress} label={boot.label} />;
+  }
+
+  return <MappaScreenInner initialMappaState={boot.state} />;
+}
+
+function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRuntimeState }) {
   const router = useRouter();
   const {
     risorse,
@@ -1475,13 +1580,8 @@ export function MappaScreen() {
   }, []);
 
   const [mappaState, setMappaState] = useState<MappaRuntimeState>(() => {
-    if (!mappaSessione) {
-      mappaSessione = getInitialMappaWithRivers(FIXED_MAP_COLS, FIXED_MAP_ROWS);
-    }
-    if (!mappaSessione.residenzeMappa) {
-      mappaSessione = { ...mappaSessione, residenzeMappa: {} };
-    }
-    return mappaSessione;
+    mappaSessione = initialMappaState;
+    return initialMappaState;
   });
   const setMappaStatePersistente = useCallback((action: React.SetStateAction<MappaRuntimeState>) => {
     setMappaState((prev) => {
@@ -2114,8 +2214,11 @@ export function MappaScreen() {
     (cellIndex: number, e: Edificio) => {
       if (e.nome === "Strada") {
         const cur = mappaStateRef.current;
-        if ((cur.terrenoInMappa[cellIndex] ?? "erba") !== "erba") {
-          Alert.alert("Non qui", "La strada si può posizionare solo su erba.");
+        if (!isCellaOkPerStrada(cellIndex, FIXED_MAP_COLS, FIXED_MAP_ROWS, cur.terrenoInMappa)) {
+          Alert.alert(
+            "Non qui",
+            "La strada si può posizionare solo su erba lontana dall'acqua (mare e fiumi)."
+          );
           return;
         }
         setMappaStatePersistente((s) => {
@@ -2123,13 +2226,7 @@ export function MappaScreen() {
             ...s.edificiInMappa,
             [cellIndex]: { id: STRADA_OPZIONE.id, nome: STRADA_OPZIONE.nome, emoji: STRADA_OPZIONE.emoji }
           };
-          assicuraEdificiCollegatiDaStrada(
-            nextEdifici,
-            s.terrenoInMappa,
-            FIXED_MAP_COLS,
-            FIXED_MAP_ROWS,
-            STRADA_OPZIONE
-          );
+          applicaRegoleConfineAcqua(nextEdifici, s.terrenoInMappa, FIXED_MAP_COLS, FIXED_MAP_ROWS);
           return { ...s, edificiInMappa: nextEdifici };
         });
         uscitaCostruzione();
@@ -2190,13 +2287,7 @@ export function MappaScreen() {
           emoji: e.emoji,
           edificioGlobaleId: èResidenzaMappa(e.nome) ? newId : undefined
         });
-        assicuraEdificiCollegatiDaStrada(
-          nextEdifici,
-          prev.terrenoInMappa,
-          FIXED_MAP_COLS,
-          FIXED_MAP_ROWS,
-          STRADA_OPZIONE
-        );
+        applicaRegoleConfineAcqua(nextEdifici, prev.terrenoInMappa, FIXED_MAP_COLS, FIXED_MAP_ROWS);
         let nextResidenze = prev.residenzeMappa;
         if (èResidenzaMappa(e.nome)) {
           nextResidenze = { ...prev.residenzeMappa, [anchor!]: prev.residenzeMappa[anchor!] ?? [] };
@@ -2274,13 +2365,7 @@ export function MappaScreen() {
   const handleTrasformaGiacimento = useCallback((cellIndex: number) => {
     setMappaStatePersistente((s) => {
       const nextEdifici = { ...s.edificiInMappa, [cellIndex]: RAFFINERIA_MINERARIA };
-      assicuraEdificiCollegatiDaStrada(
-        nextEdifici,
-        s.terrenoInMappa,
-        FIXED_MAP_COLS,
-        FIXED_MAP_ROWS,
-        STRADA_OPZIONE
-      );
+      applicaRegoleConfineAcqua(nextEdifici, s.terrenoInMappa, FIXED_MAP_COLS, FIXED_MAP_ROWS);
       return { ...s, edificiInMappa: nextEdifici };
     });
     setSelectedCellForTransformDialog(null);
@@ -2452,16 +2537,15 @@ export function MappaScreen() {
                       ];
                       const erbaSpiaggiaAsset =
                         terreno === "erba" && !èStrada ? erbaSpiaggiaAssetAt(i) : undefined;
+                      const erbaAsset =
+                        terreno === "erba" && !èStrada ? erbaAssetAt(i) : undefined;
                       const edificioBloccaErbaDecor =
                         !!edificio && edificio.nome !== "Strada";
-                      /**
-                       * Non usiamo `getGrassRoadBorderSubtileIfAny` sullo spritesheet: le strade sono PNG 1×1
-                       * (`StradaTile1x1`); il bordo menta 3×3 sul foglio crea piastrelle incoerenti accanto alla strada.
-                       */
                       const erbaDecor =
                         terreno === "erba" &&
                         !èStrada &&
                         !edificioBloccaErbaDecor &&
+                        erbaAsset != null &&
                         erbaSpiaggiaAsset == null
                           ? erbaExtraDecorCasuale(i, cols)
                           : null;
@@ -2479,7 +2563,11 @@ export function MappaScreen() {
                         <ErbaSpiaggiaTile1x1 cellSize={CELL_SIZE_PX} asset={erbaSpiaggiaAsset} />
                       ) : terreno === "erba" && !èStrada ? (
                         <>
-                          <ErbaTile1x1 cellSize={CELL_SIZE_PX} asset={erbaAssetAt(i) ?? "centro"} />
+                          {erbaAsset ? (
+                            <ErbaTile1x1 cellSize={CELL_SIZE_PX} asset={erbaAsset} />
+                          ) : (
+                            <MissingTile1x1 cellSize={CELL_SIZE_PX} />
+                          )}
                           {erbaDecor ? (
                             <GrassDecorOverlay cellSize={CELL_SIZE_PX} kind={erbaDecor} />
                           ) : null}

@@ -371,7 +371,7 @@ export function isMareCell(index: number, cols: number, rows: number): boolean {
 }
 
 /** Vicino ortogonale è solo acqua (mare o fiume). */
-function isAcquaOrtogonale(
+export function isAcquaOrtogonale(
   index: number,
   terreno: Record<number, TerrenoType>,
   cols: number,
@@ -379,6 +379,56 @@ function isAcquaOrtogonale(
 ): boolean {
   if (isMareCell(index, cols, rows)) return true;
   return (terreno[index] ?? "erba") === "river";
+}
+
+/** Almeno un vicino ortogonale è mare o fiume. */
+export function hasOrthogonalWaterNeighbor(
+  index: number,
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): boolean {
+  const [r, c] = indexToRowCol(index, cols);
+  for (const [dr, dc] of DELTA) {
+    const r2 = r + dr;
+    const c2 = c + dc;
+    if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) continue;
+    const j = rowColToIndex(r2, c2, cols);
+    if (isAcquaOrtogonale(j, terreno, cols, rows)) return true;
+  }
+  return false;
+}
+
+/**
+ * Nessuna strada né erba piana (`erba_centro`) adiacente all’acqua: rimuove strade invalide e
+ * converte l’erba confinante in sabbia (fascia costiera).
+ */
+export function ensureNoDirectWaterAdjacencyForStradaAndErba(
+  edifici: Record<number, { nome?: string }>,
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number,
+  neverSand: Set<number> = new Set()
+): void {
+  for (const ks of Object.keys(edifici)) {
+    const i = Number(ks);
+    if (edifici[i]?.nome !== "Strada") continue;
+    if (hasOrthogonalWaterNeighbor(i, terreno, cols, rows)) {
+      delete edifici[i];
+    }
+  }
+
+  const tot = cols * rows;
+  for (let i = 0; i < tot; i++) {
+    if (neverSand.has(i)) continue;
+    if (edifici[i]) continue;
+    if (isMareCell(i, cols, rows)) continue;
+    if ((terreno[i] ?? "erba") === "river") continue;
+    if ((terreno[i] ?? "erba") !== "erba") continue;
+    if (hasOrthogonalWaterNeighbor(i, terreno, cols, rows)) {
+      terreno[i] = "sabbia";
+    }
+  }
 }
 
 /**
