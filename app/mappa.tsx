@@ -40,6 +40,7 @@ import {
 import { MapWandererCharacter } from "../src/components/MapWandererCharacter";
 import { GrassDecorOverlay } from "../src/components/GrassDecorOverlay";
 import { ErbaSpiaggiaTile1x1 } from "../src/components/ErbaSpiaggiaTile1x1";
+import { MissingTile1x1 } from "../src/components/MissingTile1x1";
 import { ErbaTile1x1 } from "../src/components/ErbaTile1x1";
 import { SpiaggiaTile1x1 } from "../src/components/SpiaggiaTile1x1";
 import { StradaTile1x1 } from "../src/components/StradaTile1x1";
@@ -70,8 +71,7 @@ import {
   buildCoastalAssetLookups,
   buildErbaAssetLookup,
   buildStradaAssetLookup,
-  erbaExtraDecorCasuale,
-  getGrass2x2Index
+  erbaExtraDecorCasuale
 } from "../src/game/terrainSpriteHelpers";
 
 /** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
@@ -2458,12 +2458,10 @@ export function MappaScreen() {
                        * Non usiamo `getGrassRoadBorderSubtileIfAny` sullo spritesheet: le strade sono PNG 1×1
                        * (`StradaTile1x1`); il bordo menta 3×3 sul foglio crea piastrelle incoerenti accanto alla strada.
                        */
-                      const erba1x1 = terreno === "erba" && !èStrada ? erbaAssetAt(i) : undefined;
                       const erbaDecor =
                         terreno === "erba" &&
                         !èStrada &&
                         !edificioBloccaErbaDecor &&
-                        erba1x1 == null &&
                         erbaSpiaggiaAsset == null
                           ? erbaExtraDecorCasuale(i, cols)
                           : null;
@@ -2479,19 +2477,15 @@ export function MappaScreen() {
                         />
                       ) : erbaSpiaggiaAsset ? (
                         <ErbaSpiaggiaTile1x1 cellSize={CELL_SIZE_PX} asset={erbaSpiaggiaAsset} />
-                      ) : erba1x1 ? (
-                        <ErbaTile1x1 cellSize={CELL_SIZE_PX} asset={erba1x1} />
-                      ) : (
+                      ) : terreno === "erba" && !èStrada ? (
                         <>
-                          <TerrainSheetSprite
-                            cellSize={CELL_SIZE_PX}
-                            terrain="grass"
-                            grass2x2Index={getGrass2x2Index(i, cols)}
-                          />
+                          <ErbaTile1x1 cellSize={CELL_SIZE_PX} asset={erbaAssetAt(i) ?? "centro"} />
                           {erbaDecor ? (
                             <GrassDecorOverlay cellSize={CELL_SIZE_PX} kind={erbaDecor} />
                           ) : null}
                         </>
+                      ) : (
+                        <MissingTile1x1 cellSize={CELL_SIZE_PX} />
                       );
                       const costruzioneDissalatore =
                         costruzioneSelezione?.tipo === "edificio" &&
@@ -3352,7 +3346,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: "rgba(0,0,0,0.15)"
   },
-  /** Erba / sabbia / acqua: texture da spritesheet (TerrainSheetSprite). */
+  /** Terreno: PNG 1×1 (erba, strada, spiaggia) o acqua animata dallo spritesheet. */
   cellaTextureTerreno: {
     backgroundColor: "transparent",
     overflow: "hidden",

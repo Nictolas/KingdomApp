@@ -1,17 +1,36 @@
 import React, { memo } from "react";
-import { Image, Platform, StyleSheet, View } from "react-native";
 import type { SpiaggiaTileAsset1x1 } from "../game/terrainSpriteHelpers";
+import { optionalTileAsset, tileAssetFromMap } from "../game/tileAssetSource";
+import { Tile1x1Image } from "./Tile1x1Image";
 
-const ASSETS: Record<SpiaggiaTileAsset1x1, number> = {
-  nord: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_nord.png"),
-  sud: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_sud.png"),
-  est: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_est.png"),
-  ovest: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_ovest.png"),
-  nord_est: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_nord_est.png"),
-  nord_ovest: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_nord_ovest.png"),
-  sud_est: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_sud_est.png"),
-  sud_ovest: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_sud_ovest.png"),
-  centro: require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_centro.png")
+const ASSETS: Partial<Record<SpiaggiaTileAsset1x1, number | null>> = {
+  nord: optionalTileAsset(
+    () => require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_nord.png")
+  ),
+  sud: optionalTileAsset(
+    () => require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_sud.png")
+  ),
+  est: optionalTileAsset(
+    () => require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_est.png")
+  ),
+  ovest: optionalTileAsset(
+    () => require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_ovest.png")
+  ),
+  nord_est: optionalTileAsset(
+    () => require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_nord_est.png")
+  ),
+  nord_ovest: optionalTileAsset(
+    () => require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_nord_ovest.png")
+  ),
+  sud_est: optionalTileAsset(
+    () => require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_sud_est.png")
+  ),
+  sud_ovest: optionalTileAsset(
+    () => require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_sud_ovest.png")
+  ),
+  centro: optionalTileAsset(
+    () => require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spiaggia_centro.png")
+  )
 };
 
 type Props = {
@@ -23,30 +42,5 @@ type Props = {
  * Una cella mappa = un tile spiaggia/sabbia 1×1 (PNG dedicati).
  */
 export const SpiaggiaTile1x1 = memo(function SpiaggiaTile1x1({ cellSize, asset }: Props) {
-  const source = ASSETS[asset];
-  const bleed = Platform.OS === "web" ? 1 : 0;
-  return (
-    <View style={[styles.clip, { width: cellSize, height: cellSize }]} pointerEvents="none">
-      <Image
-        source={source}
-        style={{
-          position: "absolute",
-          left: -bleed,
-          top: -bleed,
-          width: cellSize + bleed * 2,
-          height: cellSize + bleed * 2
-        }}
-        resizeMode="cover"
-      />
-    </View>
-  );
-});
-
-const styles = StyleSheet.create({
-  clip: {
-    overflow: "hidden",
-    position: "absolute",
-    left: 0,
-    top: 0
-  }
+  return <Tile1x1Image cellSize={cellSize} source={tileAssetFromMap(ASSETS, asset)} />;
 });

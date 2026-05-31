@@ -790,63 +790,8 @@ export function buildStradaAssetLookup(
   return (index: number) => final.get(index) ?? "orizzontale";
 }
 
-/** Sprite erba 1×1 (sostituisce il motivo 2×2 del foglio quando applicabile). */
+/** Sprite erba 1×1 (sostituisce il motivo 2×2 del foglio). */
 export type ErbaTileAsset1x1 = "centro" | "campo_nord_est";
-
-/** Tipo di cella ammessa come vicino di `erba_centro_1x1` (erba 1×1 o asset strada). */
-export type ErbaCentroNeighborKind = ErbaTileAsset1x1 | StradaTileAsset1x1;
-
-/**
- * Sopra `erba_centro_1x1` (bordo sud del vicino verso erba piena).
- * File strada: `strada_est1x1` → asset `ovest`, `strada_ovest1x1` → asset `est`.
- */
-const ERBA_CENTRO_OK_NORTH = new Set<ErbaCentroNeighborKind>([
-  "centro",
-  "curva_nord_est",
-  "campo_nord_est",
-  "incrocio_nord_est_ovest",
-  "ovest",
-  "orizzontale",
-  "est",
-  "sud",
-  "generica"
-]);
-
-/** A destra (bordo ovest del vicino): rotazione 90° oraria rispetto al nord. */
-const ERBA_CENTRO_OK_EAST = new Set<ErbaCentroNeighborKind>([
-  "centro",
-  "curva_sud_est",
-  "incrocio_est_sud_nord",
-  "sud",
-  "verticale",
-  "nord",
-  "est",
-  "generica"
-]);
-
-/** Sotto (bordo nord del vicino): rotazione 180° rispetto al nord. */
-const ERBA_CENTRO_OK_SOUTH = new Set<ErbaCentroNeighborKind>([
-  "centro",
-  "curva_sud_ovest",
-  "incrocio_est_sud_ovest",
-  "est",
-  "orizzontale",
-  "ovest",
-  "nord",
-  "generica"
-]);
-
-/** A sinistra (bordo est del vicino): rotazione 270° oraria rispetto al nord. */
-const ERBA_CENTRO_OK_WEST = new Set<ErbaCentroNeighborKind>([
-  "centro",
-  "curva_nord_ovest",
-  "incrocio_nord_est_sud",
-  "nord",
-  "verticale",
-  "ovest",
-  "sud",
-  "generica"
-]);
 
 function isErbaCell(
   index: number,
@@ -858,86 +803,18 @@ function isErbaCell(
   return isErbaPlainCell(index, cols, rows, terrenoInMappa, edificiInMappa);
 }
 
-function getErbaCentroNeighborKind(
-  index: number,
-  cols: number,
-  rows: number,
-  terrenoInMappa: Record<number, TerrenoType>,
-  edificiInMappa: Record<number, { nome?: string }>,
-  stradaAssetAt: (index: number) => StradaTileAsset1x1,
-  erbaLookup: Map<number, ErbaTileAsset1x1>
-): ErbaCentroNeighborKind | null {
-  if (index < 0 || index >= cols * rows) return null;
-  const edificio = edificiInMappa[index];
-  if (edificio?.nome === "Strada") {
-    const asset = stradaAssetAt(index);
-    /** `strada_centro_1x1` ≠ `erba_centro_1x1`: stesso id `"centro"`, escluso dai vicini erba. */
-    if (asset === "centro") return null;
-    return asset;
-  }
-  if (edificio) return null;
-  if ((terrenoInMappa[index] ?? "erba") !== "erba") return null;
-  /** Erba non ancora risolta ≡ `erba_centro_1x1` per l’incastro tra celle erba adiacenti. */
-  return erbaLookup.get(index) ?? "centro";
-}
-
-function isValidErbaCentroNeighbors(
-  north: ErbaCentroNeighborKind | null,
-  east: ErbaCentroNeighborKind | null,
-  south: ErbaCentroNeighborKind | null,
-  west: ErbaCentroNeighborKind | null
-): boolean {
-  if (north == null || east == null || south == null || west == null) return false;
-  return (
-    ERBA_CENTRO_OK_NORTH.has(north) &&
-    ERBA_CENTRO_OK_EAST.has(east) &&
-    ERBA_CENTRO_OK_SOUTH.has(south) &&
-    ERBA_CENTRO_OK_WEST.has(west)
-  );
-}
-
 /**
- * Celle erba senza edificio: assegna `centro` (`erba_centro_1x1`) se tutti e quattro i vicini
- * rispettano le whitelist per direzione. L’erba al centro di un incrocio usa sempre questo tile,
- * non il motivo 2×2 del foglio; le strade vicine non devono essere `strada_centro_1x1`.
+ * Celle erba senza edificio: sempre `erba_centro_1x1` (niente spritesheet 2×2).
  */
 export function buildErbaAssetLookup(
   cols: number,
   rows: number,
   terrenoInMappa: Record<number, TerrenoType>,
   edificiInMappa: Record<number, { nome?: string }>,
-  stradaAssetAt: (index: number) => StradaTileAsset1x1
+  _stradaAssetAt: (index: number) => StradaTileAsset1x1
 ): (index: number) => ErbaTileAsset1x1 | undefined {
-  const final = new Map<number, ErbaTileAsset1x1>();
-  let changed = true;
-
-  while (changed) {
-    changed = false;
-    for (let row = 0; row < rows; row++) {
-      for (let col = 0; col < cols; col++) {
-        const index = row * cols + col;
-        if (!isErbaCell(index, cols, rows, terrenoInMappa, edificiInMappa)) continue;
-
-        const north = row > 0 ? getErbaCentroNeighborKind(index - cols, cols, rows, terrenoInMappa, edificiInMappa, stradaAssetAt, final) : null;
-        const east = col < cols - 1 ? getErbaCentroNeighborKind(index + 1, cols, rows, terrenoInMappa, edificiInMappa, stradaAssetAt, final) : null;
-        const south = row < rows - 1 ? getErbaCentroNeighborKind(index + cols, cols, rows, terrenoInMappa, edificiInMappa, stradaAssetAt, final) : null;
-        const west = col > 0 ? getErbaCentroNeighborKind(index - 1, cols, rows, terrenoInMappa, edificiInMappa, stradaAssetAt, final) : null;
-
-        const wantCentro = isValidErbaCentroNeighbors(north, east, south, west);
-        const hadCentro = final.get(index) === "centro";
-
-        if (wantCentro && !hadCentro) {
-          final.set(index, "centro");
-          changed = true;
-        } else if (!wantCentro && hadCentro) {
-          final.delete(index);
-          changed = true;
-        }
-      }
-    }
-  }
-
-  return (index: number) => final.get(index);
+  return (index: number) =>
+    isErbaCell(index, cols, rows, terrenoInMappa, edificiInMappa) ? "centro" : undefined;
 }
 
 /**
