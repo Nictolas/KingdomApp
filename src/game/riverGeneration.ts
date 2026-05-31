@@ -345,6 +345,7 @@ export function applyTerrenoGrassAndSandContinuity(
     const iso = pruneSandOrthogonallySurroundedByWaterOnly(terreno, cols, rows);
     if (!g && !s && !w && !iso) break;
   }
+  fillErbaEnclosedByWater(terreno, cols, rows);
 }
 
 /** Restituisce un Record indice → tipo terreno (solo per celle non erba). */
@@ -368,6 +369,57 @@ export function isMareCell(index: number, cols: number, rows: number): boolean {
   const row = Math.floor(index / cols);
   const col = index % cols;
   return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
+}
+
+/** Cella mare (bordo) o fiume. */
+export function isTerrenoAcqua(
+  index: number,
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): boolean {
+  if (isMareCell(index, cols, rows)) return true;
+  return (terreno[index] ?? "erba") === "river";
+}
+
+/** Tutti e quattro i vicini ortogonali sono mare o fiume. */
+export function isOrthogonallySurroundedByWater(
+  index: number,
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): boolean {
+  const [r, c] = indexToRowCol(index, cols);
+  for (const [dr, dc] of DELTA) {
+    const r2 = r + dr;
+    const c2 = c + dc;
+    if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) return false;
+    const j = rowColToIndex(r2, c2, cols);
+    if (!isTerrenoAcqua(j, terreno, cols, rows)) return false;
+  }
+  return true;
+}
+
+/**
+ * Celle erba “intrappolate” tra acqua → fiume (evita tile rossi al centro di laghi/fiumi).
+ */
+export function fillErbaEnclosedByWater(
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): void {
+  let changed = true;
+  while (changed) {
+    changed = false;
+    const tot = cols * rows;
+    for (let i = 0; i < tot; i++) {
+      if (isMareCell(i, cols, rows)) continue;
+      if ((terreno[i] ?? "erba") !== "erba") continue;
+      if (!isOrthogonallySurroundedByWater(i, terreno, cols, rows)) continue;
+      terreno[i] = "river";
+      changed = true;
+    }
+  }
 }
 
 /** Vicino ortogonale è solo acqua (mare o fiume). */
@@ -397,6 +449,40 @@ export function hasOrthogonalWaterNeighbor(
     if (isAcquaOrtogonale(j, terreno, cols, rows)) return true;
   }
   return false;
+}
+
+/** Almeno un vicino ortogonale è sabbia/spiaggia. */
+export function hasOrthogonalSandNeighbor(
+  index: number,
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): boolean {
+  const [r, c] = indexToRowCol(index, cols);
+  for (const [dr, dc] of DELTA) {
+    const r2 = r + dr;
+    const c2 = c + dc;
+    if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) continue;
+    const j = rowColToIndex(r2, c2, cols);
+    if ((terreno[j] ?? "erba") === "sabbia") return true;
+  }
+  return false;
+}
+
+/** Rimuove celle strada adiacenti alla sabbia (niente contatto diretto strada ↔ spiaggia). */
+export function removeStradeAdjacentToSand(
+  edifici: Record<number, { nome?: string }>,
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): void {
+  for (const ks of Object.keys(edifici)) {
+    const i = Number(ks);
+    if (edifici[i]?.nome !== "Strada") continue;
+    if (hasOrthogonalSandNeighbor(i, terreno, cols, rows)) {
+      delete edifici[i];
+    }
+  }
 }
 
 /**
@@ -429,6 +515,29 @@ export function ensureNoDirectWaterAdjacencyForStradaAndErba(
       terreno[i] = "sabbia";
     }
   }
+}
+
+/**
+ * Regole di confine per strade ed erba: niente contatto con acqua né sabbia; ricollega la rete.
+ */
+export function ensureStradaErbaTerrainBoundaryRules(
+  edifici: Record<number, { nome?: string }>,
+  terreno: Record<number, TerrenoType>,
+  cols: number,
+  rows: number,
+  neverSand: Set<number>,
+  reconnectStrada: (
+    edifici: Record<number, { nome?: string }>,
+    terreno: Record<number, TerrenoType>,
+    cols: number,
+    rows: number
+  ) => void
+): void {
+  ensureNoDirectWaterAdjacencyForStradaAndErba(edifici, terreno, cols, rows, neverSand);
+  removeStradeAdjacentToSand(edifici, terreno, cols, rows);
+  reconnectStrada(edifici, terreno, cols, rows);
+  ensureNoDirectWaterAdjacencyForStradaAndErba(edifici, terreno, cols, rows, neverSand);
+  removeStradeAdjacentToSand(edifici, terreno, cols, rows);
 }
 
 /**
@@ -484,7 +593,7 @@ function pruneSandOrthogonallySurroundedByWaterOnly(
         }
       }
       if (tuttiAcqua) {
-        delete terreno[i];
+        terreno[i] = "river";
         any = true;
         changed = true;
       }

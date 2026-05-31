@@ -19,9 +19,12 @@ import { useGameContext } from "../src/context/GameContext";
 import {
   applyTerrenoGrassAndSandContinuity,
   buildTerrenoFromRivers,
-  ensureNoDirectWaterAdjacencyForStradaAndErba,
+  ensureStradaErbaTerrainBoundaryRules,
+  fillErbaEnclosedByWater,
   generateRivers,
+  hasOrthogonalSandNeighbor,
   hasOrthogonalWaterNeighbor,
+  isTerrenoAcqua,
   type TerrenoType
 } from "../src/game/riverGeneration";
 import type { Abitante, Edificio, Risorsa } from "../src/types";
@@ -450,6 +453,7 @@ function isCellaOkPerStrada(
   const t = terrenoInMappa[index] ?? "erba";
   if (t !== "erba") return false;
   if (hasOrthogonalWaterNeighbor(index, terrenoInMappa, cols, rows)) return false;
+  if (hasOrthogonalSandNeighbor(index, terrenoInMappa, cols, rows)) return false;
   return true;
 }
 
@@ -461,23 +465,30 @@ function giacimentoIndicesDaEdifici(edificiInMappa: Record<number, EdificioInCel
   );
 }
 
-/** Dopo strade/fiumi: niente strada/erba adiacente all’acqua; erba costiera → sabbia. */
-function applicaRegoleConfineAcqua(
+/** Dopo strade/fiumi: niente strada adiacente ad acqua o sabbia; erba costiera → sabbia. */
+function applicaRegoleConfineTerreno(
   edificiInMappa: Record<number, EdificioInCella>,
   terrenoInMappa: Record<number, TerrenoType>,
   cols: number,
   rows: number
 ): void {
   const giacimenti = giacimentoIndicesDaEdifici(edificiInMappa);
-  ensureNoDirectWaterAdjacencyForStradaAndErba(edificiInMappa, terrenoInMappa, cols, rows, giacimenti);
-  assicuraEdificiCollegatiDaStrada(edificiInMappa, terrenoInMappa, cols, rows, STRADA_OPZIONE);
-  ensureNoDirectWaterAdjacencyForStradaAndErba(edificiInMappa, terrenoInMappa, cols, rows, giacimenti);
+  ensureStradaErbaTerrainBoundaryRules(
+    edificiInMappa,
+    terrenoInMappa,
+    cols,
+    rows,
+    giacimenti,
+    (edifici, terreno, c, r) =>
+      assicuraEdificiCollegatiDaStrada(edifici, terreno, c, r, STRADA_OPZIONE)
+  );
   applyTerrenoGrassAndSandContinuity(
     terrenoInMappa,
     cols,
     rows,
     buildExcludeSandByRoads(edificiInMappa, terrenoInMappa, cols, rows, giacimenti)
   );
+  fillErbaEnclosedByWater(terrenoInMappa, cols, rows);
 }
 
 const GIACIMENTO: EdificioInCella = { id: 0, nome: "Giacimento", emoji: "⛰️" };
@@ -1203,7 +1214,7 @@ async function buildInitialMappa(
 
   await report(68, "Rifinitura terreno e confini…");
   applyTerrenoGrassAndSandContinuity(terrenoInMappa, cols, rows, excludeSand);
-  applicaRegoleConfineAcqua(edificiInMappa, terrenoInMappa, cols, rows);
+  applicaRegoleConfineTerreno(edificiInMappa, terrenoInMappa, cols, rows);
 
   await report(86, "Distribuzione decorazioni…");
   const celleLibere: number[] = [];
@@ -2217,7 +2228,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         if (!isCellaOkPerStrada(cellIndex, FIXED_MAP_COLS, FIXED_MAP_ROWS, cur.terrenoInMappa)) {
           Alert.alert(
             "Non qui",
-            "La strada si può posizionare solo su erba lontana dall'acqua (mare e fiumi)."
+            "La strada si può posizionare solo su erba, lontana da acqua, fiumi e spiaggia."
           );
           return;
         }
@@ -2226,7 +2237,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             ...s.edificiInMappa,
             [cellIndex]: { id: STRADA_OPZIONE.id, nome: STRADA_OPZIONE.nome, emoji: STRADA_OPZIONE.emoji }
           };
-          applicaRegoleConfineAcqua(nextEdifici, s.terrenoInMappa, FIXED_MAP_COLS, FIXED_MAP_ROWS);
+          applicaRegoleConfineTerreno(nextEdifici, s.terrenoInMappa, FIXED_MAP_COLS, FIXED_MAP_ROWS);
           return { ...s, edificiInMappa: nextEdifici };
         });
         uscitaCostruzione();
@@ -2287,7 +2298,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           emoji: e.emoji,
           edificioGlobaleId: èResidenzaMappa(e.nome) ? newId : undefined
         });
-        applicaRegoleConfineAcqua(nextEdifici, prev.terrenoInMappa, FIXED_MAP_COLS, FIXED_MAP_ROWS);
+        applicaRegoleConfineTerreno(nextEdifici, prev.terrenoInMappa, FIXED_MAP_COLS, FIXED_MAP_ROWS);
         let nextResidenze = prev.residenzeMappa;
         if (èResidenzaMappa(e.nome)) {
           nextResidenze = { ...prev.residenzeMappa, [anchor!]: prev.residenzeMappa[anchor!] ?? [] };
@@ -2365,7 +2376,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const handleTrasformaGiacimento = useCallback((cellIndex: number) => {
     setMappaStatePersistente((s) => {
       const nextEdifici = { ...s.edificiInMappa, [cellIndex]: RAFFINERIA_MINERARIA };
-      applicaRegoleConfineAcqua(nextEdifici, s.terrenoInMappa, FIXED_MAP_COLS, FIXED_MAP_ROWS);
+      applicaRegoleConfineTerreno(nextEdifici, s.terrenoInMappa, FIXED_MAP_COLS, FIXED_MAP_ROWS);
       return { ...s, edificiInMappa: nextEdifici };
     });
     setSelectedCellForTransformDialog(null);
@@ -2521,7 +2532,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                       const edificio = edificiInMappa[i];
                       const hasEdificio = !!edificio;
                       const èStrada = edificio?.nome === "Strada";
-                      const acquaAnimata = acqua || terreno === "river";
+                      const acquaAnimata = isTerrenoAcqua(i, terrenoInMappa, cols, rows);
                       const cellStyle = [
                         styles.cella,
                         Platform.OS === "web"

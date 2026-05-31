@@ -1,5 +1,5 @@
 import type { TerrenoType } from "./riverGeneration";
-import { hasOrthogonalWaterNeighbor } from "./riverGeneration";
+import { hasOrthogonalSandNeighbor, hasOrthogonalWaterNeighbor } from "./riverGeneration";
 
 const DELTA: [number, number][] = [
   [-1, 0],
@@ -44,6 +44,7 @@ function passabilePerAttraversamento(
 ): boolean {
   if (isMareCell(index, cols, rows)) return false;
   if (hasOrthogonalWaterNeighbor(index, terreno, cols, rows)) return false;
+  if (hasOrthogonalSandNeighbor(index, terreno, cols, rows)) return false;
   if (!isTerrenoErba(index, terreno)) return false;
   const e = edifici[index];
   if (e && e.nome !== "Strada") return false;

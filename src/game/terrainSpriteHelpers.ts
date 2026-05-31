@@ -245,15 +245,36 @@ function fixStradaCentroAdjacentToErba(
   return getStradaAsset1x1Grezzo(index, cols, rows, edificiInMappa);
 }
 
-/** Strada adiacente all’acqua: usa tile generico (non orizzontale/verticale con bordi erba). */
-function fixStradaAdjacentToAcqua(
+function hasSandCardinalNeighbor(
+  index: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>
+): boolean {
+  const col = index % cols;
+  const row = Math.floor(index / cols);
+  return (
+    isSandAt(row - 1, col, cols, rows, terrenoInMappa) ||
+    isSandAt(row + 1, col, cols, rows, terrenoInMappa) ||
+    isSandAt(row, col - 1, cols, rows, terrenoInMappa) ||
+    isSandAt(row, col + 1, cols, rows, terrenoInMappa)
+  );
+}
+
+/** Strada adiacente ad acqua o sabbia: tile generico di fallback. */
+function fixStradaAdjacentToInvalidTerrain(
   index: number,
   cols: number,
   rows: number,
   terrenoInMappa: Record<number, TerrenoType>,
   asset: StradaTileAsset1x1
 ): StradaTileAsset1x1 {
-  if (!hasWaterCardinalNeighbor(index, cols, rows, terrenoInMappa)) return asset;
+  if (
+    !hasWaterCardinalNeighbor(index, cols, rows, terrenoInMappa) &&
+    !hasSandCardinalNeighbor(index, cols, rows, terrenoInMappa)
+  ) {
+    return asset;
+  }
   return "generica";
 }
 
@@ -807,7 +828,7 @@ export function buildStradaAssetLookup(
       if (edificiInMappa[index]?.nome !== "Strada") continue;
       final.set(
         index,
-        fixStradaAdjacentToAcqua(
+        fixStradaAdjacentToInvalidTerrain(
           index,
           cols,
           rows,
@@ -835,7 +856,7 @@ function isErbaCell(
 }
 
 /**
- * Celle erba senza edificio: sempre `erba_centro_1x1` (niente spritesheet 2×2).
+ * Celle erba interne: `erba_centro_1x1` solo lontano da acqua e sabbia (bordi → `erba_spiaggia_*`).
  */
 export function buildErbaAssetLookup(
   cols: number,
@@ -847,6 +868,7 @@ export function buildErbaAssetLookup(
   return (index: number) => {
     if (!isErbaCell(index, cols, rows, terrenoInMappa, edificiInMappa)) return undefined;
     if (hasWaterCardinalNeighbor(index, cols, rows, terrenoInMappa)) return undefined;
+    if (hasSandCardinalNeighbor(index, cols, rows, terrenoInMappa)) return undefined;
     return "centro";
   };
 }
@@ -880,14 +902,6 @@ export function getGrassSandBorderSubtileIfAny(
   if ((terrenoInMappa[index] ?? "erba") !== "erba") return undefined;
   const col = index % cols;
   const row = Math.floor(index / cols);
-  if (
-    isStradaCell(row - 1, col, cols, rows, edificiInMappa) ||
-    isStradaCell(row, col + 1, cols, rows, edificiInMappa) ||
-    isStradaCell(row + 1, col, cols, rows, edificiInMappa) ||
-    isStradaCell(row, col - 1, cols, rows, edificiInMappa)
-  ) {
-    return undefined;
-  }
   /**
    * Sopra la fascia “erba buffer → strada”: il vicino sotto è ancora erba, non Strada, quindi
    * senza questa regola la sabbia in diagonale attiva l’angolo erba–sabbia al posto di `erba_centro`.
@@ -1239,6 +1253,19 @@ export function buildCoastalAssetLookups(
     }
 
     if (!changed) break;
+  }
+
+  /** Erba confinante con sabbia: sempre `erba_spiaggia_*`, mai `erba_centro_1x1`. */
+  for (let row = 0; row < rows; row++) {
+    for (let col = 0; col < cols; col++) {
+      const index = row * cols + col;
+      if (!isErbaPlainCell(index, cols, rows, terrenoInMappa, edificiInMappa)) continue;
+      if (!hasSandCardinalNeighbor(index, cols, rows, terrenoInMappa)) continue;
+      if (erbaSpiaggiaMap.has(index)) continue;
+      const subtile = getGrassSandBorderSubtileIfAny(index, cols, rows, terrenoInMappa, edificiInMappa);
+      if (subtile == null || subtile === 4) continue;
+      erbaSpiaggiaMap.set(index, erbaSpiaggiaAssetFromGrassSandSubtile(subtile));
+    }
   }
 
   return {
