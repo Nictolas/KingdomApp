@@ -1,4 +1,5 @@
 import type { Abitante, Edificio } from "../types";
+import { abitanteHaBisognoMensa } from "./mensaPubblica";
 import { fasciaPerEdificio, minutiInFascia, primoEdificioLavoroOrarioPerAbitante } from "./orariLavoroMappa";
 import {
   celleIngressoWalkableAttornoAdAnchor,
@@ -58,7 +59,11 @@ export function trovaAnchorBarSuMappa(edificiInMappa: Record<number, EdificioInC
  * Tra i Bar operativi presenti sulla mappa, sceglie quello col percorso più breve dalla cella di partenza.
  * Se `fromCellPreferita` è null, per ogni Bar usa l’anchor del Bar come punto di partenza (stesso criterio della vecchia logica “un solo Bar”).
  */
-export function scegliBarEdificioIdPiuVicino(
+/**
+ * Tra gli edifici operativi con `nome`, sceglie quello col percorso più breve dalla cella di partenza.
+ */
+export function scegliEdificioIdPiuVicinoPerNome(
+  nome: string,
   fromCellPreferita: number | null,
   edificiList: Edificio[],
   edificiInMappa: Record<number, EdificioInCellaLike>,
@@ -66,11 +71,11 @@ export function scegliBarEdificioIdPiuVicino(
   rows: number,
   isWalkable: (i: number) => boolean
 ): number | null {
-  const barEdifici = edificiList.filter((e) => e.nome === "Bar" && e.stato === "Operativo");
-  if (barEdifici.length === 0) return null;
+  const candidati = edificiList.filter((e) => e.nome === nome && e.stato === "Operativo");
+  if (candidati.length === 0) return null;
   let bestId: number | null = null;
   let bestLen = Infinity;
-  for (const e of barEdifici) {
+  for (const e of candidati) {
     const anchor = trovaAnchorEdificioGlobaleSuMappa(e.id, edificiInMappa);
     if (anchor == null) continue;
     const from = fromCellPreferita ?? anchor;
@@ -82,6 +87,44 @@ export function scegliBarEdificioIdPiuVicino(
     }
   }
   return bestId;
+}
+
+export function scegliBarEdificioIdPiuVicino(
+  fromCellPreferita: number | null,
+  edificiList: Edificio[],
+  edificiInMappa: Record<number, EdificioInCellaLike>,
+  cols: number,
+  rows: number,
+  isWalkable: (i: number) => boolean
+): number | null {
+  return scegliEdificioIdPiuVicinoPerNome(
+    "Bar",
+    fromCellPreferita,
+    edificiList,
+    edificiInMappa,
+    cols,
+    rows,
+    isWalkable
+  );
+}
+
+export function scegliMensaEdificioIdPiuVicino(
+  fromCellPreferita: number | null,
+  edificiList: Edificio[],
+  edificiInMappa: Record<number, EdificioInCellaLike>,
+  cols: number,
+  rows: number,
+  isWalkable: (i: number) => boolean
+): number | null {
+  return scegliEdificioIdPiuVicinoPerNome(
+    "Mensa Pubblica",
+    fromCellPreferita,
+    edificiList,
+    edificiInMappa,
+    cols,
+    rows,
+    isWalkable
+  );
 }
 
 export function calcolaPercorsoVersoAnchorEdificio(
@@ -141,6 +184,8 @@ export type RisultatoCommuteMattina = {
   path: number[] | null;
   /** Presente se il percorso è verso un Bar (istanza in `edificiList`). */
   barEdificioId?: number;
+  /** Presente se il percorso è verso la Mensa Pubblica. */
+  mensaEdificioId?: number;
 };
 
 /**
@@ -160,6 +205,17 @@ export function pianificaCommuteMattina(
   if (abitante.razza === "Robot") return { path: null };
 
   const fromBase = homeAnchor ?? ultimaCellaNota;
+  const bisognoMensa = abitanteHaBisognoMensa(abitante, edificiList);
+
+  const pathVersoMensa = (): RisultatoCommuteMattina => {
+    const mensaId = scegliMensaEdificioIdPiuVicino(fromBase, edificiList, edificiInMappa, cols, rows, isWalkable);
+    if (mensaId == null) return { path: null };
+    const mAnchor = trovaAnchorEdificioGlobaleSuMappa(mensaId, edificiInMappa);
+    if (mAnchor == null) return { path: null };
+    const from = fromBase ?? mAnchor;
+    const path = calcolaPercorsoVersoAnchorEdificio(from, mAnchor, cols, rows, isWalkable);
+    return path != null ? { path, mensaEdificioId: mensaId } : { path: null };
+  };
 
   const pathVersoBar = (): RisultatoCommuteMattina => {
     const barId = scegliBarEdificioIdPiuVicino(fromBase, edificiList, edificiInMappa, cols, rows, isWalkable);
@@ -186,12 +242,25 @@ export function pianificaCommuteMattina(
     if (fascia && minutiInFascia(minutiDaMezzanotte, fascia)) {
       const w = pathVersoLavoro();
       if (w != null && w.length >= 2) return { path: w };
+      if (bisognoMensa) {
+        const m = pathVersoMensa();
+        if (m.path != null && m.path.length >= 2) return m;
+      }
       return pathVersoBar();
+    }
+    if (bisognoMensa) {
+      const m = pathVersoMensa();
+      if (m.path != null && m.path.length >= 2) return m;
     }
     const b = pathVersoBar();
     if (b.path != null && b.path.length >= 2) return b;
     const w2 = pathVersoLavoro();
     return { path: w2 };
+  }
+
+  if (bisognoMensa) {
+    const m = pathVersoMensa();
+    if (m.path != null && m.path.length >= 2) return m;
   }
 
   return pathVersoBar();

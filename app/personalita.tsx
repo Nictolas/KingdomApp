@@ -30,7 +30,9 @@ export default function PersonalitaScreen() {
     { nome: "Stakanovista", emoji: "⚒️", effetto: "+15% produttività" },
     { nome: "Tiepido", emoji: "🌡️", effetto: "Nessun bonus né malus" },
     { nome: "Omofobo", emoji: "😤", effetto: "Stesso Lavoro con Omo/Bi: a ogni Skip solo +0–5 Rivalità" },
-    { nome: "Razzista", emoji: "😠", effetto: "Stesso Lavoro con Razza diversa: a ogni Skip solo +0–5 Rivalità" }
+    { nome: "Razzista", emoji: "😠", effetto: "Stesso Lavoro con Razza diversa: a ogni Skip solo +0–5 Rivalità" },
+    { nome: "Vegetariano", emoji: "🥬", effetto: "Non consuma carne dall'inventario (es. Bistecca)" },
+    { nome: "Vegano", emoji: "🌿", effetto: "Non consuma carne, latte né uova dall'inventario" }
   ];
 
   const nomiCatalogo = new Set(catalogoPersonalita.map((p) => p.nome));

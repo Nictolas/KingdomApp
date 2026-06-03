@@ -22,7 +22,9 @@ export const EDIFICIO_TO_LAVORO: Record<number, string> = {
   24: "Insegnante",      // Asilo
   25: "Insegnante",      // Scuola Elementare
   26: "Insegnante",      // Scuola Superiore
-  27: "Insegnante"       // Università
+  27: "Insegnante",      // Università
+  28: "Commerciante",    // Negozio
+  29: "Cuoco"             // Mensa Pubblica
 };
 
 const LAVORI_DA_EDIFICIO = new Set(Object.values(EDIFICIO_TO_LAVORO));

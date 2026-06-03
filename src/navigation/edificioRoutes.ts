@@ -43,6 +43,8 @@ export function getRouteForEdificio(edificio: Edificio): string | null {
       return "/immigrazione";
     case "Mercato":
       return "/mercato";
+    case "Mensa Pubblica":
+      return `/mensa/${edificio.id}`;
     default:
       return null;
   }

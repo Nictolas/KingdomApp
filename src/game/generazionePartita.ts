@@ -26,8 +26,8 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
   {
     titolo: "Personalità",
     punti: [
-      "Solo personalità del catalogo: Pollice Verde, Salutista, Empatico, Depresso, Carismatico, Psicopatico, Stakanovista, Tiepido, Omofobo, Razzista.",
-      "Distribuzione: circa 35% Tiepido, il resto distribuito in modo uniforme tra le altre sette."
+      "Solo personalità del catalogo: Pollice Verde, Salutista, Empatico, Depresso, Carismatico, Psicopatico, Stakanovista, Tiepido, Omofobo, Razzista, Vegetariano, Vegano.",
+      "Distribuzione: circa 35% Tiepido, il resto distribuito in modo uniforme tra le altre."
     ]
   },
   {
@@ -106,7 +106,9 @@ const PERSONALITÀ_POOL: { nome: string; peso: number }[] = [
   { nome: "Psicopatico", peso: 5 },
   { nome: "Stakanovista", peso: 10 },
   { nome: "Omofobo", peso: 5 },
-  { nome: "Razzista", peso: 5 }
+  { nome: "Razzista", peso: 5 },
+  { nome: "Vegetariano", peso: 5 },
+  { nome: "Vegano", peso: 5 }
 ];
 
 function pesaScelta<T>(pool: { nome: T; peso: number }[]): T {

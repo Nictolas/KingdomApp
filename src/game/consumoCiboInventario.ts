@@ -37,7 +37,7 @@ export function applicaConsumoCiboGiornalieroAbitante(
   let ultimoConsumo = ultimo;
 
   for (let g = ultimo + 1; g <= giornoGioco; g++) {
-    const dopo = consumaUnOggettoCibo(inv);
+    const dopo = consumaUnOggettoCibo(inv, next.personalità);
     if (dopo == null) break;
     inv = dopo;
     ultimoConsumo = g;

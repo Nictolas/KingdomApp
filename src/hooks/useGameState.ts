@@ -19,6 +19,12 @@ import { getLavoroPerEdificio, normalizzaLavoroEAgricoltura } from "../game/edif
 import { syncResidenzeBaraccaSenzatetto } from "../game/avanzaMese";
 import { normalizzaInventariAbitanti } from "../game/consumoCiboInventario";
 import {
+  creaInventarioGiocatoreIniziale,
+  normalizzaInventarioGiocatore,
+  type VoceInventario
+} from "../game/inventario";
+import { applicaPastoMensaCompletato } from "../game/mensaPubblica";
+import {
   getGiornoGiocoSnapshot,
   subscribeGiornoGioco
 } from "../game/orologioGiocoSession";
@@ -28,6 +34,9 @@ const statoIniziale = generaColoniaIniziale();
 export function useGameState() {
   const [abitanti, setAbitanti] = useState<Abitante[]>(statoIniziale.abitanti);
   const [razzaNativi] = useState<Razza>(statoIniziale.razzaNativi);
+  const [inventarioGiocatore, setInventarioGiocatore] = useState<VoceInventario[]>(() =>
+    creaInventarioGiocatoreIniziale()
+  );
   const [risorse, setRisorse] = useState<Risorsa[]>(risorseData);
   const [edifici, setEdifici] = useState<Edificio[]>(() => {
     const tuttiId = statoIniziale.abitanti.map((a) => a.id);
@@ -82,6 +91,7 @@ export function useGameState() {
   /** Inventario iniziale + consumo giornaliero di un oggetto Cibo a ogni nuovo giorno di gioco. */
   useEffect(() => {
     setAbitanti((prev) => normalizzaInventariAbitanti(prev, getGiornoGiocoSnapshot()));
+    setInventarioGiocatore((prev) => normalizzaInventarioGiocatore(prev));
     const unsub = subscribeGiornoGioco(() => {
       setAbitanti((prev) => normalizzaInventariAbitanti(prev, getGiornoGiocoSnapshot()));
     });
@@ -518,6 +528,14 @@ export function useGameState() {
     );
   }, []);
 
+  const serviPastoMensaAbitante = useCallback((abitanteId: number) => {
+    setAbitanti((prev) =>
+      prev.map((a) =>
+        a.id === abitanteId ? applicaPastoMensaCompletato(a, getGiornoGiocoSnapshot()) : a
+      )
+    );
+  }, []);
+
   // Calcola produzione/consumo mensile per ogni risorsa (usa funzione pura in src/game)
   const calcolaProduzioneConsumo = useCallback(
     () =>
@@ -649,6 +667,7 @@ export function useGameState() {
 
   return {
     abitanti,
+    inventarioGiocatore,
     risorse,
     edifici,
     mese,
@@ -700,6 +719,7 @@ export function useGameState() {
     setRedditoCittadinanza,
     setModalitaSanita,
     setAbitanteIncinta,
+    serviPastoMensaAbitante,
     calcolaFelicitàModificata,
     avanzaMese,
     assegnaAbitanteAEdificio,

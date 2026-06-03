@@ -90,8 +90,11 @@ import {
   pianificaCommuteSeraACasa,
   pianificaCommuteVersoBarDaCella,
   pianificaCommuteVersoEdificioGlobaleDaCella,
-  scegliBarEdificioIdPiuVicino
+  scegliBarEdificioIdPiuVicino,
+  scegliMensaEdificioIdPiuVicino
 } from "../src/game/commutePathsMappa";
+import { abitanteHaBisognoMensa } from "../src/game/mensaPubblica";
+import { getTotaleOggettiInventarioGiocatore } from "../src/game/inventario";
 import { setBarArrivatiMappaSnapshot } from "../src/game/mappaBarArrivatiStore";
 import { computeStatoCielo } from "../src/game/cicloCielo";
 import { formatOrologioGioco } from "../src/game/orologioGiocoSession";
@@ -229,6 +232,7 @@ const EDIFICIO_TO_ROUTE: Record<string, string> = {
   "Dissalatore": "/dissalatore",
   "Laboratorio di Ricerca": "/laboratorio",
   "Bar": "/bar",
+  "Mensa Pubblica": "/mensa",
   "Caserma": "/caserma",
   "Spazioporto": "/spazioporto"
 };
@@ -264,6 +268,7 @@ const FOOTPRINT_COSTRUZIONE: Record<string, { w: number; h: number }> = {
   Tribunale: { w: TRIBUNALE_FOOTPRINT_W, h: TRIBUNALE_FOOTPRINT_H },
   "Ufficio Immigrazione": { w: UFFICIO_IMMIGRAZIONE_FOOTPRINT_W, h: UFFICIO_IMMIGRAZIONE_FOOTPRINT_H },
   Mercato: { w: MERCATO_FOOTPRINT_W, h: MERCATO_FOOTPRINT_H },
+  "Mensa Pubblica": { w: MERCATO_FOOTPRINT_W, h: MERCATO_FOOTPRINT_H },
   Dissalatore: { w: DISSALATORE_FOOTPRINT_W, h: DISSALATORE_FOOTPRINT_H },
   Spazioporto: { w: SPAZIOPORTO_FOOTPRINT_W, h: SPAZIOPORTO_FOOTPRINT_H }
 };
@@ -1332,6 +1337,16 @@ function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: n
   return { left: col * (cellW + GAP), top: row * (cellH + GAP) };
 }
 
+type CommutePurpose = "work" | "bar" | "home" | "mensa";
+
+type CommuteInfo = {
+  path: number[];
+  token: number;
+  purpose: CommutePurpose;
+  barEdificioId?: number;
+  mensaEdificioId?: number;
+};
+
 type FootprintVariant =
   | "amministrazione"
   | "dormitorio"
@@ -1339,6 +1354,7 @@ type FootprintVariant =
   | "tribunale"
   | "ufficio_immigrazione"
   | "mercato"
+  | "mensa"
   | "dissalatore"
   | "spazioporto"
   | "serra"
@@ -1398,6 +1414,14 @@ function EdificioFootprintGfx({
   }
 
   if (variant === "mercato" && w === MERCATO_FOOTPRINT_W && h === MERCATO_FOOTPRINT_H) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintMercato2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "mensa" && w === MERCATO_FOOTPRINT_W && h === MERCATO_FOOTPRINT_H) {
     return (
       <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
         <RpgFootprintMercato2x2 width={width} height={height} />
@@ -1600,6 +1624,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const {
     risorse,
     abitanti,
+    inventarioGiocatore,
     edifici,
     mese,
     anno,
@@ -1612,7 +1637,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,
     aggiungiEdificioDaTemplate,
-    rimuoviEdificioPerId
+    rimuoviEdificioPerId,
+    serviPastoMensaAbitante
   } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
@@ -1983,9 +2009,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const [lavoroArrivatiIds, setLavoroArrivatiIds] = useState<Set<number>>(() => new Set());
   /** id edificio Bar (globale) → abitanti considerati “dentro” quel locale sulla mappa. */
   const [barArrivatiByEdificio, setBarArrivatiByEdificio] = useState<Record<number, number[]>>({});
-  const [commuteByAbitanteId, setCommuteByAbitanteId] = useState<
-    Record<number, { path: number[]; token: number; purpose: "work" | "bar" | "home"; barEdificioId?: number }>
-  >({});
+  const [commuteByAbitanteId, setCommuteByAbitanteId] = useState<Record<number, CommuteInfo>>({});
 
   useEffect(() => {
     const m = new Map<number, Set<number>>();
@@ -2054,10 +2078,35 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         const out = { ...prevComm };
         for (const id of toPath) {
           if (out[id]) continue;
+          const ab = abitanti.find((a) => a.id === id);
           const homeCell = cellaCasaPerAbitanteId.get(id) ?? null;
           const from =
             ultimaCellaAbitanteRef.current.get(id) ?? (homeCell != null ? homeCell : null);
           if (from == null) continue;
+          if (ab && abitanteHaBisognoMensa(ab, edifici)) {
+            const mensaId = scegliMensaEdificioIdPiuVicino(
+              from,
+              edifici,
+              edificiInMappa,
+              cols,
+              rows,
+              isWalkableCell
+            );
+            if (mensaId != null) {
+              const pathMensa = pianificaCommuteVersoEdificioGlobaleDaCella(
+                from,
+                mensaId,
+                edificiInMappa,
+                cols,
+                rows,
+                isWalkableCell
+              );
+              if (pathMensa && pathMensa.length >= 2) {
+                out[id] = { path: pathMensa, token: Date.now(), purpose: "mensa", mensaEdificioId: mensaId };
+                continue;
+              }
+            }
+          }
           const barId = scegliBarEdificioIdPiuVicino(from, edifici, edificiInMappa, cols, rows, isWalkableCell);
           if (barId == null) continue;
           const path = pianificaCommuteVersoBarDaCella(from, barId, edificiInMappa, cols, rows, isWalkableCell);
@@ -2083,7 +2132,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   ]);
 
   const handleCommuteFinita = useCallback(
-    (abitanteId: number, purpose: "work" | "bar" | "home", barEdificioId?: number) => {
+    (abitanteId: number, purpose: CommutePurpose, barEdificioId?: number) => {
       setCommuteByAbitanteId((prev) => {
         const cur = prev[abitanteId];
         if (cur?.path?.length) {
@@ -2099,10 +2148,78 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
       } else if (purpose === "bar" && barEdificioId != null) {
         setBarArrivatiByEdificio((p) => aggiungiAbitanteAlBarEdificio(p, barEdificioId, abitanteId));
+      } else if (purpose === "mensa") {
+        serviPastoMensaAbitante(abitanteId);
+        setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
       }
     },
-    []
+    [serviPastoMensaAbitante]
   );
+
+  /** Senza cibo in inventario → percorso verso la Mensa Pubblica più vicina (se presente sulla mappa). */
+  useEffect(() => {
+    if (statoCielo.buio > 0.5) return;
+
+    const nuoveCommuteById: Record<number, CommuteInfo> = {};
+
+    for (const a of abitanti) {
+      if (a.razza === "Robot") continue;
+      if (!abitanteHaBisognoMensa(a, edifici)) continue;
+      if (commuteByAbitanteId[a.id]) continue;
+      if (abitanteInOrarioLavoroEdificio(a.id, orologioMinuti, edifici) && lavoroArrivatiIds.has(a.id)) {
+        continue;
+      }
+      const from =
+        ultimaCellaAbitanteRef.current.get(a.id) ?? cellaCasaPerAbitanteId.get(a.id) ?? null;
+      if (from == null) continue;
+      const mensaId = scegliMensaEdificioIdPiuVicino(
+        from,
+        edifici,
+        edificiInMappa,
+        cols,
+        rows,
+        isWalkableCell
+      );
+      if (mensaId == null) continue;
+      const path = pianificaCommuteVersoEdificioGlobaleDaCella(
+        from,
+        mensaId,
+        edificiInMappa,
+        cols,
+        rows,
+        isWalkableCell
+      );
+      if (!path || path.length < 2) continue;
+      nuoveCommuteById[a.id] = {
+        path,
+        token: Date.now(),
+        purpose: "mensa",
+        mensaEdificioId: mensaId
+      };
+    }
+
+    const ids = Object.keys(nuoveCommuteById).map(Number);
+    if (ids.length === 0) return;
+
+    setCommuteByAbitanteId((prevComm) => ({ ...prevComm, ...nuoveCommuteById }));
+    setBarArrivatiByEdificio((prevBar) => {
+      let acc = prevBar;
+      for (const id of ids) acc = rimuoviAbitanteDaTuttiBar(acc, id);
+      return acc;
+    });
+  }, [
+    abitanti,
+    edifici,
+    edificiInMappa,
+    statoCielo.buio,
+    orologioMinuti,
+    lavoroArrivatiIds,
+    cols,
+    rows,
+    isWalkableCell,
+    cellaCasaPerAbitanteId,
+    commuteByAbitanteId
+  ]);
 
   const handleCellAbitante = useCallback((abitanteId: number, cell: number) => {
     ultimaCellaAbitanteRef.current.set(abitanteId, cell);
@@ -2133,10 +2250,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     if (eraNotte && !notte) {
       setDormonoACasaIds(new Set());
       setLavoroArrivatiIds(new Set());
-      const next: Record<
-        number,
-        { path: number[]; token: number; purpose: "work" | "bar"; barEdificioId?: number }
-      > = {};
+      const next: Record<number, CommuteInfo> = {};
       for (const a of abitanti) {
         if (a.razza === "Robot") continue;
         const home = cellaCasaPerAbitanteId.get(a.id) ?? null;
@@ -2156,13 +2270,17 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         if (!path || path.length < 2) continue;
         const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
         const fascia = lav ? fasciaPerEdificio(lav) : null;
-        const purpose: "work" | "bar" =
-          lav && fascia && minutiInFascia(orologioMinuti, fascia) ? "work" : "bar";
+        const purpose: CommutePurpose = mattina.mensaEdificioId
+          ? "mensa"
+          : lav && fascia && minutiInFascia(orologioMinuti, fascia)
+            ? "work"
+            : "bar";
         next[a.id] = {
           path,
           token: Date.now(),
           purpose,
-          barEdificioId: purpose === "bar" ? mattina.barEdificioId : undefined
+          barEdificioId: purpose === "bar" ? mattina.barEdificioId : undefined,
+          mensaEdificioId: purpose === "mensa" ? mattina.mensaEdificioId : undefined
         };
       }
       setCommuteByAbitanteId(next);
@@ -2182,6 +2300,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
           const fascia = lav ? fasciaPerEdificio(lav) : null;
           if (lav && fascia && minutiInFascia(orologioMinuti, fascia)) continue;
+          if (next[a.id]?.purpose === "mensa") continue;
           if (next[a.id]) continue;
           const from = ultimaCellaAbitanteRef.current.get(a.id) ?? cellaCasaPerAbitanteId.get(a.id) ?? null;
           const barId = scegliBarEdificioIdPiuVicino(from, edifici, edificiInMappa, cols, rows, isWalkableCell);
@@ -2243,7 +2362,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                   ? "ufficio_immigrazione"
                   : e.nome === "Mercato"
                     ? "mercato"
-                    : e.nome === "Dissalatore"
+                    : e.nome === "Mensa Pubblica"
+                      ? "mensa"
+                      : e.nome === "Dissalatore"
                   ? "dissalatore"
                   : e.nome === "Spazioporto"
                     ? "spazioporto"
@@ -2276,6 +2397,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       }
       if (nome === "Bar" && edificioId != null) {
         router.push(`/bar/${edificioId}`);
+        return;
+      }
+      if (nome === "Mensa Pubblica" && edificioId != null) {
+        router.push(`/mensa/${edificioId}`);
         return;
       }
       router.push(route);
@@ -3079,8 +3204,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             contentContainerStyle={styles.risorseRow}
           >
             {risorse.map((r: Risorsa) => {
-              const delta = (variazioni[r.nome] || 0) + (deltaOrdini[r.nome] ?? 0);
+              const isCibo = r.nome.toLowerCase().includes("cibo");
+              const delta = isCibo ? 0 : (variazioni[r.nome] || 0) + (deltaOrdini[r.nome] ?? 0);
               const route = getResourceRoute(r);
+              const displayQty = isCibo
+                ? getTotaleOggettiInventarioGiocatore(inventarioGiocatore)
+                : r.quantità;
+              const displayUnit = isCibo ? "oggetti" : r.unità;
               return (
                 <React.Fragment key={r.id}>
                   <Pressable
@@ -3091,8 +3221,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                     <Text style={styles.risorseEmoji}>{getResourceEmoji(r)}</Text>
                     <Text style={styles.risorseName} numberOfLines={1}>{r.nome}</Text>
                     <View style={styles.risorseValueRow}>
-                      <Text style={styles.risorseValue}>{r.quantità}</Text>
-                      <Text style={styles.risorseUnit}> {r.unità}</Text>
+                      <Text style={styles.risorseValue}>{displayQty}</Text>
+                      <Text style={styles.risorseUnit}> {displayUnit}</Text>
                     </View>
                     {delta !== 0 && (
                       <Text style={[styles.risorseDelta, delta > 0 ? styles.risorseDeltaPos : styles.risorseDeltaNeg]}>
