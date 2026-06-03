@@ -28,6 +28,25 @@ import {
   type TerrenoType
 } from "../src/game/riverGeneration";
 import type { Abitante, Edificio, Risorsa } from "../src/types";
+import {
+  azzeraAperturaResidenzaPending,
+  getAperturaResidenzaPending
+} from "../src/game/mappaAperturaPending";
+import { getMappaSessione, setMappaSessione } from "../src/game/mappaSessione";
+import type { MappaRuntimeState } from "../src/game/mappaTypes";
+import {
+  distribuisciAbitantiSuAnchorCapanne,
+  elencoAnchorCelleCapanne,
+  getAnchorCellPerEdificio,
+  idGlobalePerResidenzaInCella,
+  NOMI_RESIDENZE_MAPPA,
+  POSTI_PER_CASA_MAPPA,
+  preparaResidenzeMappaPerLookup,
+  residenzaGlobaleDi,
+  risolviAnchorCasaAbitante,
+  trovaCellaAnchorCasaSuMappa,
+  èResidenzaMappa
+} from "../src/game/residenzaMappa";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 import { CapannaFullscreenModal } from "../src/ui/CapannaFullscreenModal";
 import { SerraFullscreenModal } from "../src/ui/SerraFullscreenModal";
@@ -225,110 +244,6 @@ type EdificioInCella = {
   /** Solo sulla cella anchor: larghezza/altezza in celle del rettangolo. */
   footprint?: { w: number; h: number };
 };
-
-/** Case sulla mappa con posti limitati (UI). */
-const NOMI_RESIDENZE_MAPPA = new Set(["Baracca", "Capanna", "Dormitorio"]);
-const POSTI_PER_CASA_MAPPA = 6;
-
-function getAnchorCellPerEdificio(cellIndex: number, edificiInMappa: Record<number, EdificioInCella>): number {
-  const e = edificiInMappa[cellIndex];
-  if (!e) return cellIndex;
-  if (e.footprintRef != null) return e.footprintRef;
-  return cellIndex;
-}
-
-function èResidenzaMappa(nome: string | undefined): boolean {
-  return nome != null && NOMI_RESIDENZE_MAPPA.has(nome);
-}
-
-function residenzaGlobaleDi(abitanteId: number, edificiList: Edificio[]): Edificio | undefined {
-  return edificiList.find((e) => e.tipo === "Residenza" && (e.abitantiAssegnati ?? []).includes(abitanteId));
-}
-
-/**
- * Cella anchor della residenza sulla mappa (override `residenzeMappa` o edificio globale tipo Residenza).
- * `null` se non ha casa mappata (es. solo prigione / senza edificio).
- */
-function trovaCellaAnchorCasaSuMappa(
-  abitanteId: number,
-  edificiList: Edificio[],
-  edificiInMappa: Record<number, EdificioInCella>,
-  residenzeMappa: Record<number, number[]>
-): number | null {
-  for (const [anchorStr, ids] of Object.entries(residenzeMappa)) {
-    if (ids.includes(abitanteId)) return Number(anchorStr);
-  }
-  const res = residenzaGlobaleDi(abitanteId, edificiList);
-  if (!res || res.tipo !== "Residenza") return null;
-  const targetId = res.id;
-  for (const k of Object.keys(edificiInMappa)) {
-    const idx = Number(k);
-    const e = edificiInMappa[idx];
-    if (!e || !èResidenzaMappa(e.nome)) continue;
-    const anchor = getAnchorCellPerEdificio(idx, edificiInMappa);
-    if (anchor !== idx) continue;
-    const gid = idGlobalePerResidenzaInCella(e, e.nome);
-    if (gid === targetId) return anchor;
-  }
-  return null;
-}
-
-/** Celle anchor delle Capanne procedurali (un edificio 2×1 per anchor). */
-function elencoAnchorCelleCapanne(edificiInMappa: Record<number, EdificioInCella>): number[] {
-  const anchors: number[] = [];
-  for (const k of Object.keys(edificiInMappa)) {
-    const idx = Number(k);
-    const e = edificiInMappa[idx];
-    if (!e || e.nome !== "Capanna") continue;
-    const anchor = getAnchorCellPerEdificio(idx, edificiInMappa);
-    if (anchor !== idx) continue;
-    anchors.push(anchor);
-  }
-  anchors.sort((a, b) => a - b);
-  return anchors;
-}
-
-/** Riparti i colonisti tra le capanne sulla mappa (max `postiPerCapanna` per anchor). */
-function distribuisciAbitantiSuAnchorCapanne(
-  idsOrdinati: number[],
-  anchors: number[],
-  postiPerCapanna: number
-): Record<number, number[]> {
-  if (anchors.length === 0) return {};
-  const out: Record<number, number[]> = {};
-  for (const a of anchors) out[a] = [];
-  let round = 0;
-  for (const id of idsOrdinati) {
-    let pos = -1;
-    for (let t = 0; t < anchors.length; t++) {
-      const i = (round + t) % anchors.length;
-      const a = anchors[i]!;
-      if (out[a]!.length < postiPerCapanna) {
-        pos = i;
-        break;
-      }
-    }
-    if (pos < 0) {
-      out[anchors[0]!]!.push(id);
-    } else {
-      const a = anchors[pos]!;
-      out[a]!.push(id);
-      round = (pos + 1) % anchors.length;
-    }
-  }
-  return out;
-}
-
-function idEdificioGlobalePerNomeResidenza(nome: string): number | undefined {
-  const found = edificiData.find((e) => e.nome === nome && e.tipo === "Residenza");
-  return found?.id;
-}
-
-function idGlobalePerResidenzaInCella(e: EdificioInCella | null, nome: string): number | undefined {
-  if (!e) return undefined;
-  if (e.edificioGlobaleId != null) return e.edificioGlobaleId;
-  return idEdificioGlobalePerNomeResidenza(nome);
-}
 
 /** Fiumi come insieme di indici (per regole di piazzamento con cuscino). */
 function riverSetDaTerreno(terreno: Record<number, TerrenoType>): Set<number> {
@@ -1272,12 +1187,7 @@ function getInitialEdificiInMappa(
  * Stato iniziale mappa. Ordine: edifici → strade → fiumi/sabbia → confini acqua → decorazioni.
  * Eseguito in fasi async così la UI può mostrare l’avanzamento.
  */
-export type MappaRuntimeState = {
-  edificiInMappa: Record<number, EdificioInCella>;
-  terrenoInMappa: Record<number, TerrenoType>;
-  decorazioniInMappa: Record<number, string>;
-  residenzeMappa: Record<number, number[]>;
-};
+export type { MappaRuntimeState } from "../src/game/mappaTypes";
 
 function yieldToUi(): Promise<void> {
   return new Promise((resolve) => {
@@ -1363,7 +1273,6 @@ async function buildInitialMappa(
  * Cache fuori dal ciclo di vita di React: quando si esce dalla mappa (es. /amministrazione) e si torna
  * con `replace("/")`, il componente si rimonta; senza questo, `useState` rigenererebbe fiumi e decorazioni.
  */
-let mappaSessione: MappaRuntimeState | null = null;
 
 const CIELO_ALPHA_NOTTE_MAX = 0.52;
 const CIELO_ALPHA_CALORE_TRAMONTO_MAX = 0.26;
@@ -1649,8 +1558,9 @@ export function MappaScreen() {
     | { status: "loading"; progress: number; label: string }
     | { status: "ready"; state: MappaRuntimeState }
   >(() => {
-    if (mappaSessione) {
-      return { status: "ready", state: normalizeMappaSessione(mappaSessione) };
+    const session = getMappaSessione();
+    if (session) {
+      return { status: "ready", state: normalizeMappaSessione(session) };
     }
     return { status: "loading", progress: 0, label: "Avvio…" };
   });
@@ -1664,7 +1574,7 @@ export function MappaScreen() {
           if (!cancelled) setBoot({ status: "loading", progress, label });
         });
         if (cancelled) return;
-        mappaSessione = state;
+        setMappaSessione(state);
         setBoot({ status: "ready", state });
       } catch (err) {
         console.error("Generazione mappa fallita:", err);
@@ -1732,13 +1642,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   }, []);
 
   const [mappaState, setMappaState] = useState<MappaRuntimeState>(() => {
-    mappaSessione = initialMappaState;
+    setMappaSessione(initialMappaState);
     return initialMappaState;
   });
   const setMappaStatePersistente = useCallback((action: React.SetStateAction<MappaRuntimeState>) => {
     setMappaState((prev) => {
       const next = typeof action === "function" ? (action as (p: MappaRuntimeState) => MappaRuntimeState)(prev) : action;
-      mappaSessione = next;
+      setMappaSessione(next);
       return next;
     });
   }, []);
@@ -1782,6 +1692,30 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const [selectedCellForTransformDialog, setSelectedCellForTransformDialog] = useState<number | null>(null);
   /** Cella anchor della residenza aperta dal doppio tocco (Baracca, Capanna, Dormitorio). */
   const [selectedResidenzaAnchor, setSelectedResidenzaAnchor] = useState<number | null>(null);
+
+  /** Apertura residenza richiesta dal profilo abitante (Capanna / Baracca / Dormitorio specifici). */
+  useEffect(() => {
+    const pending = getAperturaResidenzaPending();
+    if (!pending) return;
+
+    let residenzeEff = residenzeMappa;
+    const prepared = preparaResidenzeMappaPerLookup(edifici, edificiInMappa, residenzeMappa);
+    if (prepared !== residenzeMappa) {
+      setMappaStatePersistente((s) => ({ ...s, residenzeMappa: prepared }));
+      residenzeEff = prepared;
+    }
+
+    const anchor: number | null =
+      pending.tipo === "anchor"
+        ? pending.anchor
+        : risolviAnchorCasaAbitante(pending.abitanteId, edifici, edificiInMappa, residenzeEff);
+
+    if (anchor != null && edificiInMappa[anchor] && èResidenzaMappa(edificiInMappa[anchor].nome)) {
+      azzeraAperturaResidenzaPending();
+      setSelectedResidenzaAnchor(anchor);
+    }
+  }, [edifici, edificiInMappa, residenzeMappa, setMappaStatePersistente]);
+
   /** Id edificio globale della Serra il cui pannello presenze è aperto (tap sulla mappa). */
   const [selectedSerraEdificioId, setSelectedSerraEdificioId] = useState<number | null>(null);
   /** Scheda abitante aperta dal doppio tocco su un passeggiatore sulla mappa. */
@@ -2363,6 +2297,17 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     if (selectedSerraEdificioId == null) return null;
     return edifici.find((e) => e.id === selectedSerraEdificioId && e.nome === "Serra") ?? null;
   }, [selectedSerraEdificioId, edifici]);
+
+  const handleApriResidenzaMappa = useCallback(
+    (anchor: number) => {
+      const prepared = preparaResidenzeMappaPerLookup(edifici, edificiInMappa, residenzeMappa);
+      if (prepared !== residenzeMappa) {
+        setMappaStatePersistente((s) => ({ ...s, residenzeMappa: prepared }));
+      }
+      setSelectedResidenzaAnchor(anchor);
+    },
+    [edifici, edificiInMappa, residenzeMappa, setMappaStatePersistente]
+  );
 
   const altreCaseMappaTengonoId = useCallback(
     (abitanteId: number, anchorEscluso: number) => {
@@ -3303,6 +3248,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         getAbitanteNome={getAbitanteNome}
         calcolaFelicitàModificata={calcolaFelicitàModificata}
         etaMinimaLavoro={etaMinimaLavoro}
+        onApriResidenzaMappa={handleApriResidenzaMappa}
       />
 
       {edificioSerraPerModal != null ? (

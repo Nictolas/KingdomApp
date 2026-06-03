@@ -8,6 +8,7 @@ import {
   getEdificiOccupazione
 } from "../game/abitanteEdifici";
 import { getRouteForEdificio } from "../navigation/edificioRoutes";
+import { apriResidenzaAbitante, isResidenzaSuMappa } from "../navigation/apriResidenzaMappa";
 import { getStatoSalute } from "../game/ciboConsumo";
 import { CATEGORIA_CIBO, getVociInventarioPerCategoria } from "../game/inventario";
 import { getEmojiAbitante } from "../utils/getEmojiAbitante";
@@ -25,6 +26,8 @@ type AbitanteInfoModalProps = {
   getAbitanteNome: (id: number) => string;
   calcolaFelicitàModificata?: (abitante: Abitante) => number;
   etaMinimaLavoro?: number;
+  /** Se fornito (es. dalla mappa), apre la residenza senza navigare. */
+  onApriResidenzaMappa?: (anchor: number) => void;
 };
 
 function Row({
@@ -32,12 +35,14 @@ function Row({
   label,
   value,
   muted,
+  disoccupato,
   onPress
 }: {
   emoji: string;
   label?: string;
   value: string;
   muted?: boolean;
+  disoccupato?: boolean;
   onPress?: () => void;
 }) {
   const content = (
@@ -49,7 +54,9 @@ function Row({
           style={[
             styles.rowValue,
             muted && styles.rowMuted,
-            onPress && styles.rowValueLink
+            disoccupato && styles.rowValueDisoccupato,
+            onPress && !disoccupato && styles.rowValueLink,
+            onPress && disoccupato && styles.rowValueDisoccupatoLink
           ]}
           numberOfLines={2}
         >
@@ -133,7 +140,8 @@ export function AbitanteInfoModal({
   onClose,
   getAbitanteNome,
   calcolaFelicitàModificata,
-  etaMinimaLavoro = 18
+  etaMinimaLavoro = 18,
+  onApriResidenzaMappa
 }: AbitanteInfoModalProps) {
   const router = useRouter();
   const { abitanti, aggiungiAlCampoDiLavoroTuttiQuelliChe } = useGameContext();
@@ -149,6 +157,10 @@ export function AbitanteInfoModal({
   const edificiOccupazione = getEdificiOccupazione(abitante.id, edifici);
 
   const apriEdificio = (edificio: Edificio) => {
+    if (edificio.tipo === "Residenza" && isResidenzaSuMappa(edificio.nome)) {
+      apriResidenzaAbitante(router, abitante.id, edificio, edifici, onClose, onApriResidenzaMappa);
+      return;
+    }
     const route = getRouteForEdificio(edificio);
     if (route) {
       onClose();
@@ -156,6 +168,11 @@ export function AbitanteInfoModal({
       return;
     }
     setEdificioDettaglio(edificio);
+  };
+
+  const apriPostazioniLavoro = () => {
+    onClose();
+    router.push("/postazioni-lavoro");
   };
 
   const maggiorenne = abitante.eta >= etaMinimaLavoro;
@@ -203,7 +220,13 @@ export function AbitanteInfoModal({
                   onPress={edificioAbitazione ? () => apriEdificio(edificioAbitazione) : undefined}
                 />
                 {edificiOccupazione.length === 0 ? (
-                  <Row emoji="🏢" label="Occupazione" value="—" muted />
+                  <Row
+                    emoji="🏢"
+                    label="Occupazione"
+                    value="Disoccupato"
+                    disoccupato
+                    onPress={apriPostazioniLavoro}
+                  />
                 ) : (
                   edificiOccupazione.map((ed, idx) => (
                     <Row
@@ -427,6 +450,15 @@ const styles = StyleSheet.create({
   rowValueLink: {
     color: "#93c5fd",
     fontWeight: "600",
+    textDecorationLine: "underline"
+  },
+  rowValueDisoccupato: {
+    color: "#ef4444",
+    fontWeight: "700"
+  },
+  rowValueDisoccupatoLink: {
+    color: "#ef4444",
+    fontWeight: "700",
     textDecorationLine: "underline"
   },
   rowMuted: {

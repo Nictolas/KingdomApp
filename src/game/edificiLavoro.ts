@@ -43,6 +43,38 @@ export function getCompetenzaMinimaPerEdificio(edificio: Edificio): CompetenzaEd
   return template ? EDIFICIO_COMPETENZA_RICHIESTA[template.id] : undefined;
 }
 
+export type PostazioneLavoroRiga = {
+  edificioId: number;
+  nome: string;
+  emoji: string;
+  coperti: number;
+  massimi: number;
+  postiLiberi: number;
+};
+
+/** Edifici con posti lavoro (lavoro associato), ordinati per posti liberi decrescenti. */
+export function elencoPostazioniLavoroOrdinato(edifici: Edificio[]): PostazioneLavoroRiga[] {
+  return edifici
+    .filter((e) => getLavoroPerEdificio(e) != null && e.stato === "Operativo")
+    .map((e) => {
+      const coperti = (e.abitantiAssegnati ?? []).length;
+      const massimi = e.capacità ?? 0;
+      return {
+        edificioId: e.id,
+        nome: e.nome,
+        emoji: e.emoji,
+        coperti,
+        massimi,
+        postiLiberi: massimi - coperti
+      };
+    })
+    .sort((a, b) => {
+      if (b.postiLiberi !== a.postiLiberi) return b.postiLiberi - a.postiLiberi;
+      if (a.coperti !== b.coperti) return a.coperti - b.coperti;
+      return a.edificioId - b.edificioId;
+    });
+}
+
 /**
  * Restituisce gli abitanti con "lavoro" sincronizzato alle assegnazioni agli edifici.
  * Pensionati non toccati; chi è in un edificio-lavoro prende quel lavoro, chi era in edificio-lavoro ma non più assegnato diventa Disoccupato.
