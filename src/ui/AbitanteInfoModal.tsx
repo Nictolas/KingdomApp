@@ -10,6 +10,7 @@ import {
 import { getRouteForEdificio } from "../navigation/edificioRoutes";
 import { apriResidenzaAbitante, isResidenzaSuMappa } from "../navigation/apriResidenzaMappa";
 import { getStatoSalute } from "../game/ciboConsumo";
+import { getTitoloStudioAbitante } from "../game/titoloStudio";
 import { CATEGORIA_CIBO, getVociInventarioPerCategoria } from "../game/inventario";
 import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import { CampoDiLavoroModal } from "./CampoDiLavoroModal";
@@ -175,6 +176,13 @@ export function AbitanteInfoModal({
     router.push("/postazioni-lavoro");
   };
 
+  const apriPagina = (path: "/religione" | "/personalita" | "/pianeti" | "/scuola") => {
+    onClose();
+    router.push(path);
+  };
+
+  const titoloStudio = getTitoloStudioAbitante(abitante, etaMinimaLavoro);
+
   const maggiorenne = abitante.eta >= etaMinimaLavoro;
   const lavoroDaMinore = LAVORI_DA_MINORE.includes(abitante.lavoro);
   const emojiDisplay = maggiorenne && lavoroDaMinore ? "👤" : getEmojiAbitante(abitante);
@@ -212,7 +220,12 @@ export function AbitanteInfoModal({
             <View style={styles.twoCol}>
               <Block title="📋 Anagrafica">
                 <Row emoji="🎂" value={`${abitante.eta} anni`} />
-                <Row emoji="🪐" value={abitante.razza ?? "Umano"} />
+                <Row
+                  emoji="🪐"
+                  label="Razza"
+                  value={abitante.razza ?? "Umano"}
+                  onPress={() => apriPagina("/pianeti")}
+                />
                 <Row
                   emoji="🏠"
                   label="Abitazione"
@@ -239,8 +252,27 @@ export function AbitanteInfoModal({
                   ))
                 )}
                 <Row emoji="⚔️" value={abitante.fazioni?.join(", ") ?? "—"} />
-                <Row emoji="🧠" value={abitante.personalità} />
-                <Row emoji="⛪" value={abitante.religione} />
+                <Row
+                  emoji="🧠"
+                  label="Personalità"
+                  value={abitante.personalità?.trim() ? abitante.personalità : "—"}
+                  muted={!abitante.personalità?.trim()}
+                  onPress={abitante.personalità?.trim() ? () => apriPagina("/personalita") : undefined}
+                />
+                <Row
+                  emoji="⛪"
+                  label="Religione"
+                  value={abitante.religione?.trim() ? abitante.religione : "—"}
+                  muted={!abitante.religione?.trim()}
+                  onPress={abitante.religione?.trim() ? () => apriPagina("/religione") : undefined}
+                />
+                <Row
+                  emoji="🎓"
+                  label="Titolo di Studio"
+                  value={titoloStudio ?? "—"}
+                  muted={titoloStudio == null}
+                  onPress={titoloStudio ? () => apriPagina("/scuola") : undefined}
+                />
               </Block>
               <Block title="📊 Prestazioni & Salute">
                 <Row emoji="⭐" value={`${abitante.competenza}%`} />

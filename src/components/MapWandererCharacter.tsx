@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Image, Pressable, StyleSheet, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { getOrologioGiocoInPausaSnapshot } from "../game/orologioGiocoSession";
 import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
 
@@ -117,6 +117,8 @@ type MapWandererCharacterProps = {
   disableIdleRoam?: boolean;
   /** Etichetta accessibilità per il target tocco (es. nome abitante). */
   doubleTapAccessibilityLabel?: string;
+  /** Se impostata, mostra questa emoji al posto dello sprite RPG (es. Robot 🤖). */
+  markerEmoji?: string | null;
 };
 
 /**
@@ -139,7 +141,8 @@ export function MapWandererCharacter({
   onDoublePress,
   passTouchesToMapOnCell,
   disableIdleRoam = false,
-  doubleTapAccessibilityLabel
+  doubleTapAccessibilityLabel,
+  markerEmoji = null
 }: MapWandererCharacterProps) {
   const [logicalCell, setLogicalCell] = useState<number | null>(null);
   const cellRef = useRef<number | null>(null);
@@ -436,19 +439,6 @@ export function MapWandererCharacter({
     passTouchesToMapOnCell != null && passTouchesToMapOnCell(logicalCell) === true;
   const apriSchedaConDoppioTap = !!onDoublePress && !passTouchesToGrid;
 
-  const group = frameGroupStart(direction);
-  const frameInGroup = walkIndexInGroup(direction, walkFrame, isMoving);
-  const frameIndex = Math.min(group + frameInGroup, FRAMES - 1);
-
-  const flipW = direction === "w";
-
-  /** Larghezza = una cella; altezza maggiore (nessun allargamento orizzontale). */
-  const frameW = cellSizePx;
-  const frameH = cellSizePx * 1.22;
-  const sheetW = FRAMES * frameW;
-  const sheetH = frameH;
-  const offsetX = -frameIndex * frameW;
-
   const shellStyle = [
     styles.anchor,
     {
@@ -461,31 +451,47 @@ export function MapWandererCharacter({
     }
   ];
 
-  const sprite = (
+  const usaEmojiMarker = markerEmoji != null && markerEmoji !== "";
+
+  const group = frameGroupStart(direction);
+  const frameInGroup = walkIndexInGroup(direction, walkFrame, isMoving);
+  const frameIndex = Math.min(group + frameInGroup, FRAMES - 1);
+  const flipW = direction === "w";
+  const frameW = cellSizePx;
+  const frameH = cellSizePx * 1.22;
+  const sheetW = FRAMES * frameW;
+  const sheetH = frameH;
+  const offsetX = -frameIndex * frameW;
+
+  const sprite = usaEmojiMarker ? (
     <View style={[styles.spriteColumn, { height: cellSizePx, width: cellSizePx }]}>
-        <View
-          style={[
-            styles.clip,
-            {
-              width: frameW,
-              height: frameH,
-              transform: flipW ? [{ scaleX: -1 }] : undefined
-            }
-          ]}
-        >
-          <Image
-            source={CHARACTER_SHEET}
-            resizeMode="stretch"
-            style={{
-              position: "absolute",
-              width: sheetW,
-              height: sheetH,
-              left: offsetX,
-              top: 0
-            }}
-          />
-        </View>
+      <Text style={[styles.markerEmoji, { fontSize: cellSizePx * 0.72 }]}>{markerEmoji}</Text>
+    </View>
+  ) : (
+    <View style={[styles.spriteColumn, { height: cellSizePx, width: cellSizePx }]}>
+      <View
+        style={[
+          styles.clip,
+          {
+            width: frameW,
+            height: frameH,
+            transform: flipW ? [{ scaleX: -1 }] : undefined
+          }
+        ]}
+      >
+        <Image
+          source={CHARACTER_SHEET}
+          resizeMode="stretch"
+          style={{
+            position: "absolute",
+            width: sheetW,
+            height: sheetH,
+            left: offsetX,
+            top: 0
+          }}
+        />
       </View>
+    </View>
   );
 
   if (apriSchedaConDoppioTap) {
@@ -519,5 +525,9 @@ const styles = StyleSheet.create({
   },
   clip: {
     overflow: "hidden"
+  },
+  markerEmoji: {
+    textAlign: "center",
+    lineHeight: undefined
   }
 });

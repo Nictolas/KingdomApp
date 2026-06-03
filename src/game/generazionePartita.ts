@@ -1,5 +1,6 @@
 import type { Abitante, Razza } from "../types";
 import { abitanteConInventarioIniziale } from "./inventario";
+import { inferTitoloStudioPerEta } from "./titoloStudio";
 import { pianetiData, getEmojiRazza } from "../kingdomData";
 import { generaNomeAlieno } from "./nomiAlieni";
 import { scegliNomeCognomeUmano } from "./nomiUmani";
@@ -170,11 +171,13 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     const crediti = èSchiavo ? 0 : 500 + Math.floor(Math.random() * 1001);
     const spese = èSchiavo ? 0 : 50 + Math.floor(Math.random() * 451);
 
+    const eta = 18 + Math.floor(Math.random() * 48);
+
     const ab: Abitante = {
       id: i,
       nome,
       emoji,
-      eta: 18 + Math.floor(Math.random() * 48),
+      eta,
       lavoro,
       competenza,
       produttività: 40 + Math.floor(Math.random() * 56),
@@ -197,6 +200,8 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
       sesso,
       orientamento: "Etero"
     };
+    const titolo = inferTitoloStudioPerEta(ab.eta, 18, ab.razza);
+    if (titolo) ab.titoloStudio = titolo;
     if (èSchiavo) {
       ab.ruoloSchiavitu = "schiavo";
     }

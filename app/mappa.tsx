@@ -3058,6 +3058,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                         }}
                         passTouchesToMapOnCell={passTouchesToMapOnCellPerWanderer}
                         disableIdleRoam={!èNottePersonaggiInCasa && abitante.razza !== "Robot"}
+                        markerEmoji={abitante.razza === "Robot" ? getEmojiAbitante(abitante) : null}
                         doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitante.id)}`}
                       />
                     );

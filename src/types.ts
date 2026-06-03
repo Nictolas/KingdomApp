@@ -36,6 +36,9 @@ export type Character = {
 // Nuovi tipi per il gestionale del regno
 export type Reato = "Omicidio" | "Stupro" | "Furto" | "Spaccio" | "Evasione" | "Ex Governatore";
 
+/** Livello di istruzione completato o in corso. */
+export type TitoloDiStudio = "Asilo" | "Elementare" | "Superiore" | "Università";
+
 /** Relazione con punteggio 1-100 (amicizia o rivalità). */
 export type RelazionePunteggio = { id: number; punteggio: number };
 
@@ -68,6 +71,8 @@ export type Abitante = {
   ruoloSchiavitu?: "schiavista" | "schiavo"; // Ruolo nella schiavitù
   schiavistaId?: number; // ID dello schiavista (se è schiavo)
   religione: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni"; // Religione dell'abitante
+  /** Livello scolastico (Asilo → Università). */
+  titoloStudio?: TitoloDiStudio;
   specie?: "umano" | "alieno"; // Specie dell'abitante (alieno = non Umano)
   razza?: Razza; // Razza/Pianeta di origine dell'abitante
   reati?: Reato[]; // Se presente e non vuoto, l'abitante è considerato "criminale"
