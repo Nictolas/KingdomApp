@@ -22,6 +22,10 @@ const COLONNA_SERVIZI: string[] = [
   "Capanna", // Capanne coloniali (residenza)
   "Bar",
   "Scuola",
+  "Asilo",
+  "Scuola Elementare",
+  "Scuola Superiore",
+  "Università",
   "Ospedale Coloniale", // Ospedale
   "Centrale",   // Polizia
   "Caserma",   // Militari
@@ -98,7 +102,7 @@ export default function EdificiScreen() {
       router.push("/impianto-riciclo");
     } else if (e.nome === "Baracca" || e.nome === "Capanna") {
       router.push("/residenze");
-    } else if (e.nome === "Scuola") {
+    } else if (e.nome === "Scuola" || e.nome === "Asilo" || e.nome === "Scuola Elementare" || e.nome === "Scuola Superiore" || e.nome === "Università") {
       router.push("/scuola");
     } else if (e.nome === "Ospedale Coloniale") {
       router.push("/ospedale");

@@ -23,5 +23,9 @@ export const EDIFICIO_COMPETENZA_RICHIESTA: Record<number, CompetenzaEdificio> =
   17: { competenzaMinima: 20, nomeCompetenza: "Competenza Generale" },           // Bar
   18: { competenzaMinima: 30, nomeCompetenza: "Competenza Generale" },          // Centrale (polizia)
   22: { competenzaMinima: 35, nomeCompetenza: "Competenza Generale" },           // Ufficio Immigrazione
-  23: { competenzaMinima: 20, nomeCompetenza: "Competenza Generale" }            // Mercato
+  23: { competenzaMinima: 20, nomeCompetenza: "Competenza Generale" },           // Mercato
+  24: { competenzaMinima: 25, nomeCompetenza: "Competenza Educativa" },          // Asilo
+  25: { competenzaMinima: 35, nomeCompetenza: "Competenza Educativa" },          // Scuola Elementare
+  26: { competenzaMinima: 40, nomeCompetenza: "Competenza Educativa" },          // Scuola Superiore
+  27: { competenzaMinima: 50, nomeCompetenza: "Competenza Educativa" }           // Università
 };

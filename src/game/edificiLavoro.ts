@@ -18,7 +18,11 @@ export const EDIFICIO_TO_LAVORO: Record<number, string> = {
   17: "Barista",        // Bar
   18: "Polizia",        // Centrale (polizia)
   22: "Funzionario",     // Ufficio Immigrazione
-  23: "Commerciante"     // Mercato
+  23: "Commerciante",    // Mercato
+  24: "Insegnante",      // Asilo
+  25: "Insegnante",      // Scuola Elementare
+  26: "Insegnante",      // Scuola Superiore
+  27: "Insegnante"       // Università
 };
 
 const LAVORI_DA_EDIFICIO = new Set(Object.values(EDIFICIO_TO_LAVORO));

@@ -1,10 +1,18 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { useRouter } from "expo-router";
 import type { Abitante, Edificio } from "../types";
-import { getAbitazioneAbitante, getOccupazioneAbitante } from "../game/abitanteEdifici";
+import { useGameContext } from "../context/GameContext";
+import {
+  getEdificioAbitazione,
+  getEdificiOccupazione
+} from "../game/abitanteEdifici";
+import { getRouteForEdificio } from "../navigation/edificioRoutes";
 import { getStatoSalute } from "../game/ciboConsumo";
 import { CATEGORIA_CIBO, getVociInventarioPerCategoria } from "../game/inventario";
 import { getEmojiAbitante } from "../utils/getEmojiAbitante";
+import { CampoDiLavoroModal } from "./CampoDiLavoroModal";
+import { EdificioInfoModal } from "./EdificioInfoModal";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
@@ -19,17 +27,50 @@ type AbitanteInfoModalProps = {
   etaMinimaLavoro?: number;
 };
 
-function Row({ emoji, label, value, muted }: { emoji: string; label?: string; value: string; muted?: boolean }) {
-  return (
-    <View style={styles.rowWrap}>
+function Row({
+  emoji,
+  label,
+  value,
+  muted,
+  onPress
+}: {
+  emoji: string;
+  label?: string;
+  value: string;
+  muted?: boolean;
+  onPress?: () => void;
+}) {
+  const content = (
+    <>
       <Text style={styles.rowEmoji}>{emoji}</Text>
       <View style={styles.rowTextCol}>
         {label ? <Text style={styles.rowLabel}>{label}</Text> : null}
-        <Text style={[styles.rowValue, muted && styles.rowMuted]} numberOfLines={2}>
+        <Text
+          style={[
+            styles.rowValue,
+            muted && styles.rowMuted,
+            onPress && styles.rowValueLink
+          ]}
+          numberOfLines={2}
+        >
           {value}
         </Text>
       </View>
-    </View>
+    </>
+  );
+
+  if (!onPress) {
+    return <View style={styles.rowWrap}>{content}</View>;
+  }
+
+  return (
+    <Pressable
+      style={({ pressed }) => [styles.rowWrap, styles.rowPressable, pressed && styles.rowPressed]}
+      onPress={onPress}
+      accessibilityRole="link"
+    >
+      {content}
+    </Pressable>
   );
 }
 
@@ -94,7 +135,28 @@ export function AbitanteInfoModal({
   calcolaFelicitàModificata,
   etaMinimaLavoro = 18
 }: AbitanteInfoModalProps) {
+  const router = useRouter();
+  const { abitanti, aggiungiAlCampoDiLavoroTuttiQuelliChe } = useGameContext();
+  const [edificioDettaglio, setEdificioDettaglio] = useState<Edificio | null>(null);
+
+  useEffect(() => {
+    if (!visible) setEdificioDettaglio(null);
+  }, [visible]);
+
   if (!abitante) return null;
+
+  const edificioAbitazione = getEdificioAbitazione(abitante.id, edifici);
+  const edificiOccupazione = getEdificiOccupazione(abitante.id, edifici);
+
+  const apriEdificio = (edificio: Edificio) => {
+    const route = getRouteForEdificio(edificio);
+    if (route) {
+      onClose();
+      router.push(route);
+      return;
+    }
+    setEdificioDettaglio(edificio);
+  };
 
   const maggiorenne = abitante.eta >= etaMinimaLavoro;
   const lavoroDaMinore = LAVORI_DA_MINORE.includes(abitante.lavoro);
@@ -111,10 +173,11 @@ export function AbitanteInfoModal({
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-      <Pressable style={[styles.backdrop, isDesktop && modalBackdropFullscreen]} onPress={onClose}>
-        <Pressable style={[styles.card, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
-          <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
+    <>
+      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
+        <Pressable style={[styles.backdrop, isDesktop && modalBackdropFullscreen]} onPress={onClose}>
+          <Pressable style={[styles.card, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
+            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
             {/* Header con accento */}
             <View style={styles.headerAccent} />
             <View style={styles.header}>
@@ -133,8 +196,25 @@ export function AbitanteInfoModal({
               <Block title="📋 Anagrafica">
                 <Row emoji="🎂" value={`${abitante.eta} anni`} />
                 <Row emoji="🪐" value={abitante.razza ?? "Umano"} />
-                <Row emoji="🏠" label="Abitazione" value={getAbitazioneAbitante(abitante.id, edifici)} />
-                <Row emoji="🏢" label="Occupazione" value={getOccupazioneAbitante(abitante.id, edifici)} />
+                <Row
+                  emoji="🏠"
+                  label="Abitazione"
+                  value={edificioAbitazione?.nome ?? "—"}
+                  onPress={edificioAbitazione ? () => apriEdificio(edificioAbitazione) : undefined}
+                />
+                {edificiOccupazione.length === 0 ? (
+                  <Row emoji="🏢" label="Occupazione" value="—" muted />
+                ) : (
+                  edificiOccupazione.map((ed, idx) => (
+                    <Row
+                      key={ed.id}
+                      emoji="🏢"
+                      label={idx === 0 ? "Occupazione" : undefined}
+                      value={ed.nome}
+                      onPress={() => apriEdificio(ed)}
+                    />
+                  ))
+                )}
                 <Row emoji="⚔️" value={abitante.fazioni?.join(", ") ?? "—"} />
                 <Row emoji="🧠" value={abitante.personalità} />
                 <Row emoji="⛪" value={abitante.religione} />
@@ -199,7 +279,24 @@ export function AbitanteInfoModal({
           </ScrollView>
         </Pressable>
       </Pressable>
-    </Modal>
+      </Modal>
+
+      {edificioDettaglio?.nome === "Campo di Lavoro" ? (
+        <CampoDiLavoroModal
+          visible={edificioDettaglio != null}
+          edificio={edificioDettaglio}
+          abitanti={abitanti}
+          aggiungiAlCampoDiLavoroTuttiQuelliChe={aggiungiAlCampoDiLavoroTuttiQuelliChe}
+          onClose={() => setEdificioDettaglio(null)}
+        />
+      ) : (
+        <EdificioInfoModal
+          visible={edificioDettaglio != null}
+          edificio={edificioDettaglio}
+          onClose={() => setEdificioDettaglio(null)}
+        />
+      )}
+    </>
   );
 }
 
@@ -301,6 +398,14 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     gap: 8
   },
+  rowPressable: {
+    borderRadius: 6,
+    marginHorizontal: -4,
+    paddingHorizontal: 4
+  },
+  rowPressed: {
+    backgroundColor: "rgba(59,130,246,0.15)"
+  },
   rowEmoji: { fontSize: 14, lineHeight: 20 },
   rowTextCol: {
     flex: 1,
@@ -318,6 +423,11 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: "#e2e8f0",
     lineHeight: 20
+  },
+  rowValueLink: {
+    color: "#93c5fd",
+    fontWeight: "600",
+    textDecorationLine: "underline"
   },
   rowMuted: {
     color: "rgba(226,232,240,0.5)",
