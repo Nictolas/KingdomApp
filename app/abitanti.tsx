@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import type { Edificio } from "../src/types";
 import { getStatoSalute } from "../src/game/ciboConsumo";
+import { getAbitazioneAbitante } from "../src/game/abitanteEdifici";
 import { getEmojiRazza, fazioniData } from "../src/kingdomData";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
@@ -51,10 +52,7 @@ function EmojiWithTooltip({ emoji, nome }: { emoji: string; nome: string }) {
 
 /** Restituisce il nome dell’edificio di residenza dell’abitante o "—" se nessuno. */
 function getResidenzaAbitante(abitanteId: number, edifici: Edificio[]): string {
-  const residenza = edifici.find(
-    (e) => e.tipo === "Residenza" && (e.abitantiAssegnati ?? []).includes(abitanteId)
-  );
-  return residenza?.nome ?? "—";
+  return getAbitazioneAbitante(abitanteId, edifici);
 }
 
 type SortField = "nome" | "eta" | "lavoro" | "razza" | "sesso" | "orientamento" | "residenza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "fazioni" | null;
@@ -601,6 +599,7 @@ export default function AbitantiScreen() {
       <AbitanteInfoModal
         visible={selectedAbitante !== null}
         abitante={selectedAbitante}
+        edifici={edifici}
         onClose={() => setSelectedAbitante(null)}
         getAbitanteNome={getAbitanteNome}
         calcolaFelicitàModificata={calcolaFelicitàModificata}

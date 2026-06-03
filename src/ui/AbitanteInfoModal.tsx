@@ -1,6 +1,7 @@
 import React from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import type { Abitante } from "../types";
+import type { Abitante, Edificio } from "../types";
+import { getAbitazioneAbitante, getOccupazioneAbitante } from "../game/abitanteEdifici";
 import { getStatoSalute } from "../game/ciboConsumo";
 import { CATEGORIA_CIBO, getVociInventarioPerCategoria } from "../game/inventario";
 import { getEmojiAbitante } from "../utils/getEmojiAbitante";
@@ -11,19 +12,23 @@ const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
 type AbitanteInfoModalProps = {
   visible: boolean;
   abitante: Abitante | null;
+  edifici: Edificio[];
   onClose: () => void;
   getAbitanteNome: (id: number) => string;
   calcolaFelicitàModificata?: (abitante: Abitante) => number;
   etaMinimaLavoro?: number;
 };
 
-function Row({ emoji, value, muted }: { emoji: string; value: string; muted?: boolean }) {
+function Row({ emoji, label, value, muted }: { emoji: string; label?: string; value: string; muted?: boolean }) {
   return (
     <View style={styles.rowWrap}>
       <Text style={styles.rowEmoji}>{emoji}</Text>
-      <Text style={[styles.rowValue, muted && styles.rowMuted]} numberOfLines={2}>
-        {value}
-      </Text>
+      <View style={styles.rowTextCol}>
+        {label ? <Text style={styles.rowLabel}>{label}</Text> : null}
+        <Text style={[styles.rowValue, muted && styles.rowMuted]} numberOfLines={2}>
+          {value}
+        </Text>
+      </View>
     </View>
   );
 }
@@ -83,6 +88,7 @@ function InventarioCategoria({
 export function AbitanteInfoModal({
   visible,
   abitante,
+  edifici,
   onClose,
   getAbitanteNome,
   calcolaFelicitàModificata,
@@ -127,6 +133,8 @@ export function AbitanteInfoModal({
               <Block title="📋 Anagrafica">
                 <Row emoji="🎂" value={`${abitante.eta} anni`} />
                 <Row emoji="🪐" value={abitante.razza ?? "Umano"} />
+                <Row emoji="🏠" label="Abitazione" value={getAbitazioneAbitante(abitante.id, edifici)} />
+                <Row emoji="🏢" label="Occupazione" value={getOccupazioneAbitante(abitante.id, edifici)} />
                 <Row emoji="⚔️" value={abitante.fazioni?.join(", ") ?? "—"} />
                 <Row emoji="🧠" value={abitante.personalità} />
                 <Row emoji="⛪" value={abitante.religione} />
@@ -294,8 +302,19 @@ const styles = StyleSheet.create({
     gap: 8
   },
   rowEmoji: { fontSize: 14, lineHeight: 20 },
-  rowValue: {
+  rowTextCol: {
     flex: 1,
+    minWidth: 0
+  },
+  rowLabel: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "rgba(148,163,184,0.85)",
+    textTransform: "uppercase",
+    letterSpacing: 0.3,
+    marginBottom: 1
+  },
+  rowValue: {
     fontSize: 12,
     color: "#e2e8f0",
     lineHeight: 20

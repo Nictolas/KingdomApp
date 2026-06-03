@@ -3294,6 +3294,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       <AbitanteInfoModal
         visible={schedaWandererAbitante !== null}
         abitante={schedaWandererAbitante}
+        edifici={edifici}
         onClose={() => setSchedaWandererAbitante(null)}
         getAbitanteNome={getAbitanteNome}
         calcolaFelicitàModificata={calcolaFelicitàModificata}

@@ -133,6 +133,7 @@ export default function ResidenzeScreen() {
       <AbitanteInfoModal
         visible={selectedAbitante !== null}
         abitante={selectedAbitante}
+        edifici={edifici}
         onClose={() => setSelectedAbitante(null)}
         getAbitanteNome={getAbitanteNome}
         calcolaFelicitàModificata={calcolaFelicitàModificata}
