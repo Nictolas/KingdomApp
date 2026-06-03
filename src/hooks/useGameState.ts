@@ -21,9 +21,10 @@ import { normalizzaInventariAbitanti } from "../game/consumoCiboInventario";
 import {
   creaInventarioGiocatoreIniziale,
   normalizzaInventarioGiocatore,
+  normalizzaInventarioMensa,
   type VoceInventario
 } from "../game/inventario";
-import { applicaPastoMensaCompletato } from "../game/mensaPubblica";
+import { serviPastoMensaTransaction, trasferisciCiboGiocatoreAMensaPuro } from "../game/mensaPubblica";
 import {
   getGiornoGiocoSnapshot,
   subscribeGiornoGioco
@@ -37,6 +38,13 @@ export function useGameState() {
   const [inventarioGiocatore, setInventarioGiocatore] = useState<VoceInventario[]>(() =>
     creaInventarioGiocatoreIniziale()
   );
+  const [inventarioMensaByEdificioId, setInventarioMensaByEdificioId] = useState<
+    Record<number, VoceInventario[]>
+  >({});
+  const inventarioGiocatoreRef = useRef(inventarioGiocatore);
+  const inventarioMensaRef = useRef(inventarioMensaByEdificioId);
+  inventarioGiocatoreRef.current = inventarioGiocatore;
+  inventarioMensaRef.current = inventarioMensaByEdificioId;
   const [risorse, setRisorse] = useState<Risorsa[]>(risorseData);
   const [edifici, setEdifici] = useState<Edificio[]>(() => {
     const tuttiId = statoIniziale.abitanti.map((a) => a.id);
@@ -528,13 +536,40 @@ export function useGameState() {
     );
   }, []);
 
-  const serviPastoMensaAbitante = useCallback((abitanteId: number) => {
+  const serviPastoMensaAbitante = useCallback((abitanteId: number, edificioId: number) => {
+    const mensaInv = normalizzaInventarioMensa(inventarioMensaRef.current[edificioId]);
+    const giorno = getGiornoGiocoSnapshot();
     setAbitanti((prev) =>
-      prev.map((a) =>
-        a.id === abitanteId ? applicaPastoMensaCompletato(a, getGiornoGiocoSnapshot()) : a
-      )
+      prev.map((a) => {
+        if (a.id !== abitanteId) return a;
+        const { abitante, inventarioMensa } = serviPastoMensaTransaction(a, mensaInv, giorno);
+        setInventarioMensaByEdificioId((prevM) => ({
+          ...prevM,
+          [edificioId]: inventarioMensa
+        }));
+        return abitante;
+      })
     );
   }, []);
+
+  const trasferisciCiboGiocatoreAMensa = useCallback(
+    (edificioId: number, itemId: string, quantità: number): boolean => {
+      const result = trasferisciCiboGiocatoreAMensaPuro(
+        inventarioGiocatoreRef.current,
+        inventarioMensaRef.current[edificioId],
+        itemId,
+        quantità
+      );
+      if (!result) return false;
+      setInventarioGiocatore(result.inventarioGiocatore);
+      setInventarioMensaByEdificioId((prev) => ({
+        ...prev,
+        [edificioId]: result.inventarioMensa
+      }));
+      return true;
+    },
+    []
+  );
 
   // Calcola produzione/consumo mensile per ogni risorsa (usa funzione pura in src/game)
   const calcolaProduzioneConsumo = useCallback(
@@ -668,6 +703,7 @@ export function useGameState() {
   return {
     abitanti,
     inventarioGiocatore,
+    inventarioMensaByEdificioId,
     risorse,
     edifici,
     mese,
@@ -720,6 +756,7 @@ export function useGameState() {
     setModalitaSanita,
     setAbitanteIncinta,
     serviPastoMensaAbitante,
+    trasferisciCiboGiocatoreAMensa,
     calcolaFelicitàModificata,
     avanzaMese,
     assegnaAbitanteAEdificio,

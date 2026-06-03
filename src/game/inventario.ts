@@ -23,6 +23,9 @@ export const OGGETTI_INVENTARIO: Record<string, OggettoInventarioDef> = {
   uovo: { id: "uovo", nome: "Uovo", emoji: "🥚", categoria: CATEGORIA_CIBO, tagCibo: ["uova"] }
 };
 
+/** Voci cibo condivise (giocatore, mensa, pasti). */
+export const VOCI_CIBO_IDS = ["mela", "bistecca", "latte", "uovo"] as const;
+
 export type VoceInventario = { itemId: string; quantità: number };
 
 const INVENTARIO_INIZIALE: VoceInventario[] = [
@@ -68,6 +71,44 @@ export function normalizzaInventarioGiocatore(inventario?: VoceInventario[]): Vo
 
 export function getTotaleOggettiInventarioGiocatore(inventario: VoceInventario[] | undefined): number {
   return normalizzaInventarioGiocatore(inventario).reduce((s, v) => s + v.quantità, 0);
+}
+
+/** Inventario cibo della Mensa Pubblica (parte vuoto). */
+export function creaInventarioMensaVuoto(): VoceInventario[] {
+  return VOCI_CIBO_IDS.map((id) => ({ itemId: id, quantità: 0 }));
+}
+
+export function normalizzaInventarioMensa(inventario?: VoceInventario[]): VoceInventario[] {
+  const map = new Map<string, number>();
+  for (const v of inventario ?? []) {
+    if (!OGGETTI_INVENTARIO[v.itemId] || !isOggettoCibo(v.itemId)) continue;
+    map.set(v.itemId, Math.max(0, v.quantità));
+  }
+  return VOCI_CIBO_IDS.map((id) => ({ itemId: id, quantità: map.get(id) ?? 0 }));
+}
+
+export function getTotaleOggettiInventarioMensa(inventario: VoceInventario[] | undefined): number {
+  return normalizzaInventarioMensa(inventario).reduce((s, v) => s + v.quantità, 0);
+}
+
+/** Sposta cibo da un inventario normalizzato a un altro; null se quantità insufficiente. */
+export function trasferisciCiboTraInventari(
+  da: VoceInventario[],
+  a: VoceInventario[],
+  itemId: string,
+  quantità: number,
+  normalizzaDa: (inv?: VoceInventario[]) => VoceInventario[],
+  normalizzaA: (inv?: VoceInventario[]) => VoceInventario[]
+): { da: VoceInventario[]; a: VoceInventario[] } | null {
+  if (quantità <= 0 || !isOggettoCibo(itemId)) return null;
+  const src = normalizzaDa(da);
+  const dst = normalizzaA(a);
+  const voce = src.find((v) => v.itemId === itemId);
+  if (!voce || voce.quantità < quantità) return null;
+  return {
+    da: src.map((v) => (v.itemId === itemId ? { ...v, quantità: v.quantità - quantità } : v)),
+    a: dst.map((v) => (v.itemId === itemId ? { ...v, quantità: v.quantità + quantità } : v))
+  };
 }
 
 export function isOggettoCibo(itemId: string): boolean {

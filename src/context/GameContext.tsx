@@ -14,6 +14,8 @@ type GameContextType = {
   abitanti: Abitante[];
   /** Inventario cibo del giocatore (colonia). */
   inventarioGiocatore: { itemId: string; quantità: number }[];
+  /** Scorte cibo per edificio Mensa Pubblica (chiave = id edificio). */
+  inventarioMensaByEdificioId: Record<number, { itemId: string; quantità: number }[]>;
   risorse: Risorsa[];
   edifici: Edificio[];
   mese: number;
@@ -99,7 +101,8 @@ type GameContextType = {
   rimuoviMinistro: (abitanteId: number) => void;
   setNomeAbitante: (abitanteId: number, nuovoNome: string) => void;
   setAbitanteIncinta: (abitanteId: number, incinta: boolean) => void;
-  serviPastoMensaAbitante: (abitanteId: number) => void;
+  serviPastoMensaAbitante: (abitanteId: number, edificioId: number) => void;
+  trasferisciCiboGiocatoreAMensa: (edificioId: number, itemId: string, quantità: number) => boolean;
   calcolaProduzioneConsumo: () => Record<string, number>;
   accettaImmigrante: (abitanteId: number) => void;
   rifiutaImmigrante: (abitanteId: number) => void;

@@ -1707,6 +1707,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const [mostraModalCostruisci, setMostraModalCostruisci] = useState(false);
   /** Tap sulla mappa per rimuovere edifici costruiti dal giocatore. */
   const [modalitaDemolisci, setModalitaDemolisci] = useState(false);
+  /** Conferma demolizione dopo tap su edificio in modalità Demolisci. */
+  const [confermaDemolizionePending, setConfermaDemolizionePending] = useState<{
+    anchor: number;
+    w: number;
+    h: number;
+    cap: EdificioInCella;
+    globalId: number | undefined;
+  } | null>(null);
   /** Edifico scelto: anteprima sulla mappa e tap per piazzare. */
   const [costruzioneSelezione, setCostruzioneSelezione] = useState<SelezioneCostruzioneAnteprima | null>(null);
   const celleProtetteIniziali = useMemo(
@@ -1828,6 +1836,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const uscitaDemolizione = useCallback(() => {
     setModalitaDemolisci(false);
+    setConfermaDemolizionePending(null);
   }, []);
 
   const onDemolisciPress = useCallback(() => {
@@ -2132,7 +2141,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   ]);
 
   const handleCommuteFinita = useCallback(
-    (abitanteId: number, purpose: CommutePurpose, barEdificioId?: number) => {
+    (abitanteId: number, purpose: CommutePurpose, barEdificioId?: number, mensaEdificioId?: number) => {
       setCommuteByAbitanteId((prev) => {
         const cur = prev[abitanteId];
         if (cur?.path?.length) {
@@ -2148,8 +2157,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
       } else if (purpose === "bar" && barEdificioId != null) {
         setBarArrivatiByEdificio((p) => aggiungiAbitanteAlBarEdificio(p, barEdificioId, abitanteId));
-      } else if (purpose === "mensa") {
-        serviPastoMensaAbitante(abitanteId);
+      } else if (purpose === "mensa" && mensaEdificioId != null) {
+        serviPastoMensaAbitante(abitanteId, mensaEdificioId);
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
       }
     },
@@ -2226,8 +2235,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   }, []);
 
   const passTouchesToMapOnCellPerWanderer = useCallback(
-    (cell: number) => cellaÈNelFootprintResidenzaMappa(cell, edificiInMappa, cols),
-    [edificiInMappa, cols]
+    (cell: number) => {
+      if (modalitaDemolisci || costruzioneSelezione != null) return true;
+      return cellaÈNelFootprintResidenzaMappa(cell, edificiInMappa, cols);
+    },
+    [modalitaDemolisci, costruzioneSelezione, edificiInMappa, cols]
   );
 
   useEffect(() => {
@@ -2694,29 +2706,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (!cap?.nome) return;
       const globalId =
         cap.edificioGlobaleId ?? (edifici.some((x) => x.id === cap.id) ? cap.id : undefined);
-      const etichetta = cap.emoji ? `${cap.emoji} ${cap.nome}` : cap.nome;
 
-      Alert.alert(
-        "Demolire?",
-        `Vuoi demolire ${etichetta}? L'operazione non si può annullare.`,
-        [
-          { text: "Annulla", style: "cancel" },
-          {
-            text: "Demolisci",
-            style: "destructive",
-            onPress: () => eseguiDemolizione(anchor, w, h, cap, globalId)
-          }
-        ]
-      );
+      setConfermaDemolizionePending({ anchor, w, h, cap, globalId });
     },
-    [
-      edificiInMappa,
-      cols,
-      rows,
-      celleProtetteIniziali,
-      edifici,
-      eseguiDemolizione
-    ]
+    [edificiInMappa, cols, rows, celleProtetteIniziali, edifici]
   );
 
   const handlePiazzaTerreno = useCallback(
@@ -3174,7 +3167,12 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                         commutePurpose={infoCommute?.purpose ?? null}
                         onCommuteComplete={(purpose) => {
                           const meta = commuteByAbitanteId[abitante.id];
-                          handleCommuteFinita(abitante.id, purpose, meta?.barEdificioId);
+                          handleCommuteFinita(
+                            abitante.id,
+                            purpose,
+                            meta?.barEdificioId,
+                            meta?.mensaEdificioId
+                          );
                         }}
                         onCellSettled={(cell) => handleCellAbitante(abitante.id, cell)}
                         onDoublePress={() => {
@@ -3365,6 +3363,41 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                 }
               >
                 <Text style={styles.modalButtonText}>Conferma</Text>
+              </Pressable>
+            </View>
+          </Pressable>
+        </Pressable>
+      </Modal>
+
+      <Modal
+        visible={confermaDemolizionePending !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setConfermaDemolizionePending(null)}
+      >
+        <Pressable
+          style={styles.modalBackdrop}
+          onPress={() => setConfermaDemolizionePending(null)}
+        >
+          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+            <Text style={styles.modalTitle}>Vuoi demolire questo edificio?</Text>
+            <View style={styles.modalButtonsRow}>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonCancel]}
+                onPress={() => setConfermaDemolizionePending(null)}
+              >
+                <Text style={styles.modalButtonText}>Annulla</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalButtonConfirm]}
+                onPress={() => {
+                  const p = confermaDemolizionePending;
+                  if (!p) return;
+                  eseguiDemolizione(p.anchor, p.w, p.h, p.cap, p.globalId);
+                  setConfermaDemolizionePending(null);
+                }}
+              >
+                <Text style={styles.modalButtonText}>Sì</Text>
               </Pressable>
             </View>
           </Pressable>

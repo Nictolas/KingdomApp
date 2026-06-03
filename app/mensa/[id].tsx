@@ -3,6 +3,13 @@ import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Tex
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useGameContext } from "../../src/context/GameContext";
 import { abitanteHaBisognoMensa } from "../../src/game/mensaPubblica";
+import {
+  getTotaleOggettiInventarioGiocatore,
+  getTotaleOggettiInventarioMensa,
+  normalizzaInventarioGiocatore,
+  normalizzaInventarioMensa,
+  OGGETTI_INVENTARIO
+} from "../../src/game/inventario";
 import { formatOrologioGioco } from "../../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../../src/hooks/useOrologioGioco";
 import { getEmojiAbitante } from "../../src/utils/getEmojiAbitante";
@@ -15,8 +22,16 @@ export default function MensaScreenById() {
   const idStr = Array.isArray(raw) ? raw[0] : raw;
   const edificioId = Number(idStr);
 
-  const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } =
-    useGameContext();
+  const {
+    abitanti,
+    edifici,
+    inventarioGiocatore,
+    inventarioMensaByEdificioId,
+    trasferisciCiboGiocatoreAMensa,
+    assegnaAbitanteAEdificio,
+    rimuoviAbitanteDaEdificio,
+    setStipendioEdificio
+  } = useGameContext();
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const { minuti: orologioMinuti, inPausa: orologioInPausa, togglePausa: toggleOrologioPausa } =
     useOrologioGioco();
@@ -51,6 +66,15 @@ export default function MensaScreenById() {
 
   const titolo = `🍽️ Mensa Pubblica (#${edificioId})`;
 
+  const invGiocatore = normalizzaInventarioGiocatore(inventarioGiocatore);
+  const invMensa = normalizzaInventarioMensa(inventarioMensaByEdificioId[edificioId]);
+  const totaleGiocatore = getTotaleOggettiInventarioGiocatore(invGiocatore);
+  const totaleMensa = getTotaleOggettiInventarioMensa(invMensa);
+
+  const sposta = (itemId: string, quantità: number) => {
+    trasferisciCiboGiocatoreAMensa(edificioId, itemId, quantità);
+  };
+
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
@@ -73,8 +97,56 @@ export default function MensaScreenById() {
           </Text>
           <Text style={styles.infoSubtext}>
             Gli abitanti senza cibo in inventario si recano qui sulla mappa per ricevere un pasto compatibile con
-            la dieta (Vegetariano / Vegano inclusi).
+            la dieta (Vegetariano / Vegano inclusi). Deposita cibo dal tuo inventario nelle scorte mensa.
           </Text>
+        </View>
+
+        <View style={styles.sectionCard}>
+          <Text style={styles.sectionTitle}>Scorte cibo</Text>
+          <Text style={styles.inventarioHint}>
+            Tuo inventario: {totaleGiocatore} oggetti · Mensa: {totaleMensa} oggetti
+          </Text>
+          {invGiocatore.map((voceG) => {
+            const voceM = invMensa.find((v) => v.itemId === voceG.itemId)!;
+            const def = OGGETTI_INVENTARIO[voceG.itemId]!;
+            const maxSposta = voceG.quantità;
+            return (
+              <View key={voceG.itemId} style={styles.inventarioRow}>
+                <Text style={styles.inventarioEmoji}>{def.emoji}</Text>
+                <View style={styles.inventarioCol}>
+                  <Text style={styles.inventarioNome}>{def.nome}</Text>
+                  <Text style={styles.inventarioQtyLine}>
+                    Tu: <Text style={styles.qtyGiocatore}>{voceG.quantità}</Text>
+                    {"  →  "}
+                    Mensa: <Text style={styles.qtyMensa}>{voceM.quantità}</Text>
+                  </Text>
+                </View>
+                <View style={styles.transferBtns}>
+                  <Pressable
+                    style={[styles.transferBtn, maxSposta < 1 && styles.transferBtnDisabled]}
+                    disabled={maxSposta < 1}
+                    onPress={() => sposta(voceG.itemId, 1)}
+                  >
+                    <Text style={styles.transferBtnText}>+1</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.transferBtn, maxSposta < 5 && styles.transferBtnDisabled]}
+                    disabled={maxSposta < 5}
+                    onPress={() => sposta(voceG.itemId, 5)}
+                  >
+                    <Text style={styles.transferBtnText}>+5</Text>
+                  </Pressable>
+                  <Pressable
+                    style={[styles.transferBtnWide, maxSposta < 1 && styles.transferBtnDisabled]}
+                    disabled={maxSposta < 1}
+                    onPress={() => sposta(voceG.itemId, maxSposta)}
+                  >
+                    <Text style={styles.transferBtnText}>Tutto</Text>
+                  </Pressable>
+                </View>
+              </View>
+            );
+          })}
         </View>
 
         <View style={styles.sectionCard}>
@@ -213,5 +285,38 @@ const styles = StyleSheet.create({
     marginTop: 8
   },
   modalTitle: { fontSize: 17, fontWeight: "700", color: "#fff", marginBottom: 12 },
-  modalRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#333" }
+  modalRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#333" },
+  inventarioHint: { color: "#aaa", fontSize: 12, marginBottom: 12 },
+  inventarioRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(255,255,255,0.08)"
+  },
+  inventarioEmoji: { fontSize: 28, width: 36, textAlign: "center" },
+  inventarioCol: { flex: 1, minWidth: 0 },
+  inventarioNome: { color: "#fff", fontWeight: "600", fontSize: 14 },
+  inventarioQtyLine: { color: "#aaa", fontSize: 12, marginTop: 2 },
+  qtyGiocatore: { color: "#93c5fd", fontWeight: "700" },
+  qtyMensa: { color: "#86efac", fontWeight: "700" },
+  transferBtns: { flexDirection: "row", gap: 4, flexWrap: "wrap", justifyContent: "flex-end" },
+  transferBtn: {
+    backgroundColor: "#3a5a8a",
+    borderRadius: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    minWidth: 36,
+    alignItems: "center"
+  },
+  transferBtnWide: {
+    backgroundColor: "#3a5a8a",
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    alignItems: "center"
+  },
+  transferBtnDisabled: { opacity: 0.35 },
+  transferBtnText: { color: "#fff", fontSize: 12, fontWeight: "600" }
 });
