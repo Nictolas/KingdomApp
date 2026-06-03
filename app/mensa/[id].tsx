@@ -83,6 +83,7 @@ export default function MensaScreenById() {
         <View style={{ width: 50 }} />
       </View>
 
+      <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Stato Mensa</Text>
@@ -199,6 +200,13 @@ export default function MensaScreenById() {
           />
         </View>
       </ScrollView>
+      </View>
+
+      <View style={styles.footer}>
+        <Pressable onPress={() => router.back()} accessibilityLabel="Esci dalla Mensa Pubblica">
+          <Text style={styles.back}>← Indietro</Text>
+        </Pressable>
+      </View>
 
       <Modal visible={dropdownVisible} transparent animationType="fade">
         <Pressable style={modalBackdropFullscreen} onPress={() => setDropdownVisible(false)}>
@@ -237,7 +245,15 @@ const styles = StyleSheet.create({
     paddingVertical: 12
   },
   title: { fontSize: 18, fontWeight: "700", color: "#fff", textAlign: "center", flex: 1 },
-  back: { color: "#8af", padding: 16 },
+  footer: {
+    flexDirection: "row",
+    alignItems: "center",
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(255,255,255,0.12)"
+  },
+  back: { color: "#93c5fd", fontSize: 15, fontWeight: "600" },
   content: { padding: 16, paddingBottom: 32 },
   infoCard: {
     backgroundColor: "#252545",
