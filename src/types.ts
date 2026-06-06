@@ -85,7 +85,9 @@ export type Abitante = {
   titoloStudio?: TitoloDiStudio;
   specie?: "umano" | "alieno"; // Specie dell'abitante (alieno = non Umano)
   razza?: Razza; // Razza/Pianeta di origine dell'abitante
-  reati?: Reato[]; // Se presente e non vuoto, l'abitante è considerato "criminale"
+  reati?: Reato[]; // Se presente e non vuoto, l'abitante è considerato imputato
+  /** Mesi/anni di carcere residui dopo sentenza del giudice (1 unità = 1 mese di gioco). */
+  anniCarcereResidui?: number;
   sesso?: "M" | "F"; // Sesso dell'abitante
   orientamento?: "Etero" | "Omo" | "Bi"; // Orientamento sessuale (per matrimonio)
   incinta?: boolean; // Gravidanza (stato salute "Incinta")

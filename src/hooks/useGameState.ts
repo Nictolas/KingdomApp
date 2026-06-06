@@ -10,7 +10,15 @@ import {
   aggiungiOrdineMercatoPuro,
   calcolaDeltaOrdiniMercatoPuro
 } from "../game/mercato";
-import { graziaCriminalePuro, condannaAMortePuro } from "../game/tribunale";
+import {
+  avanzaCarcereResiduoPuro,
+  condannaAlCampoDiLavoroPuro,
+  condannaAMortePuro,
+  graziaCriminalePuro,
+  valutaSentenzaGiudice,
+  type RisultatoGiudizio
+} from "../game/tribunale";
+import { PENA_REATI_INIZIALE, type PenaReatiConfig, type ReatoPunibile } from "../game/reati";
 import { generaAssimilati } from "../game/assimilazione";
 import { calcolaProduzioneConsumoPuro } from "../game/produzioneConsumo";
 import { calcolaFelicitàModificataPuro } from "../game/felicita";
@@ -170,6 +178,7 @@ export function useGameState() {
   // Sistema sanzioni (punteggio da 1 a 10)
   const [punteggioSanzioni, setPunteggioSanzioni] = useState(1);
   const [penaDiMorteAttiva, setPenaDiMorteAttiva] = useState(true);
+  const [penaReati, setPenaReati] = useState<PenaReatiConfig>(PENA_REATI_INIZIALE);
   
   // Configurazione politica religiosa
   const [politicaReligiosa, setPoliticaReligiosa] = useState<"ateismo-stato" | "religione-stato" | "liberta-culto">("liberta-culto");
@@ -349,8 +358,9 @@ export function useGameState() {
     if (result.pendingMatrimonio != null) setPendingMatrimonio(result.pendingMatrimonio);
     if (result.newIdNascita != null) setNextId(result.newIdNascita + 1);
     setEventiInCorso(result.eventiInCorso);
-    setAbitanti(result.abitanti);
-    setEdifici(result.edifici);
+    const dopoCarcere = avanzaCarcereResiduoPuro(result.abitanti, result.edifici);
+    setAbitanti(dopoCarcere.abitanti);
+    setEdifici(dopoCarcere.edifici);
     setRisorse(result.risorse);
     setMese(result.nuovoMese);
     setAnno(result.nuovoAnno);
@@ -828,6 +838,47 @@ export function useGameState() {
     [abitanti, modificaSoddisfazioneFazione]
   );
 
+  const setPenaReato = useCallback((reato: ReatoPunibile, anni: number) => {
+    const value = Math.max(0, Math.floor(anni));
+    setPenaReati((prev) => ({ ...prev, [reato]: value }));
+  }, []);
+
+  const faiDecidereAlGiudice = useCallback(
+    (abitanteId: number): RisultatoGiudizio => {
+      const imputato = abitanti.find((a) => a.id === abitanteId);
+      const tribunaleEd = edifici.find((e) => e.nome === "Tribunale");
+      const giudicePresente = (tribunaleEd?.abitantiAssegnati?.length ?? 0) > 0;
+      const esito = valutaSentenzaGiudice(imputato, giudicePresente, penaReati);
+      if (!esito.ok) return esito;
+
+      if (esito.anni > 0) {
+        const r = condannaAlCampoDiLavoroPuro(abitanti, edifici, abitanteId, esito.anni);
+        if (!r.ok) return { ok: false, messaggio: r.messaggio };
+        setAbitanti(r.abitanti);
+        setEdifici(r.edifici);
+        return esito;
+      }
+
+      setAbitanti((prev) =>
+        prev.map((a) => (a.id === abitanteId ? { ...a, reati: [] } : a))
+      );
+      return esito;
+    },
+    [abitanti, edifici, penaReati]
+  );
+
+  const condannaLavoriForzati = useCallback(
+    (abitanteId: number): { ok: boolean; messaggio: string } => {
+      const r = condannaAlCampoDiLavoroPuro(abitanti, edifici, abitanteId);
+      if (r.ok) {
+        setAbitanti(r.abitanti);
+        setEdifici(r.edifici);
+      }
+      return { ok: r.ok, messaggio: r.messaggio };
+    },
+    [abitanti, edifici]
+  );
+
   // Tribunale: condanna a morte → rimuove l'abitante da colonia e edifici (logica pura in src/game/tribunale).
   const condannaAMorte = useCallback(
     (abitanteId: number) => {
@@ -954,6 +1005,10 @@ export function useGameState() {
     politicaNascite,
     punteggioSanzioni,
     penaDiMorteAttiva,
+    penaReati,
+    setPenaReato,
+    faiDecidereAlGiudice,
+    condannaLavoriForzati,
     politicaReligiosa,
     leggeRazzialeAttiva,
     razzaCampoLavoro,

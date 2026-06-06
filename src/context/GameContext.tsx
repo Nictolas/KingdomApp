@@ -6,6 +6,8 @@ import { DialogInizioPartitaModal } from "../ui/DialogInizioPartitaModal";
 import { RichiestaLuogoCultoModal } from "../ui/RichiestaLuogoCultoModal";
 import type { ReligioneConCulto } from "../game/luogoCulto";
 import type { RichiestaInAttesa } from "../game/richieste";
+import type { PenaReatiConfig, ReatoPunibile } from "../game/reati";
+import type { RisultatoGiudizio } from "../game/tribunale";
 
 type ScaglioneConfig = {
   min: number;
@@ -123,6 +125,10 @@ type GameContextType = {
   calcolaDeltaOrdiniMercato: () => Record<string, number>;
   graziaCriminale: (abitanteId: number) => void;
   condannaAMorte: (abitanteId: number) => void;
+  penaReati: PenaReatiConfig;
+  setPenaReato: (reato: ReatoPunibile, anni: number) => void;
+  faiDecidereAlGiudice: (abitanteId: number) => RisultatoGiudizio;
+  condannaLavoriForzati: (abitanteId: number) => { ok: boolean; messaggio: string };
   soddisfazioneFazioni: Record<string, number>;
   modificaSoddisfazioneFazione: (fazione: string, delta: number) => void;
   nativiNonIntegrati: number;
