@@ -13,7 +13,7 @@ export const CASTA_CATALOGO: CastaInfo[] = [
     emoji: "⛓️",
     regole: [
       "Può essere comprato o venduto tra gli abitanti e con il giocatore.",
-      "Appare nell'inventario.",
+      "Il padrone deve fornirgli il cibo dal proprio inventario.",
       "Un abitante può uccidere il proprio schiavo senza conseguenze legali.",
       "Se uno Schiavo lavora, il denaro che guadagna va al suo padrone."
     ]
@@ -23,7 +23,8 @@ export const CASTA_CATALOGO: CastaInfo[] = [
     emoji: "🌾",
     regole: [
       "Sono gli schiavi del giocatore (proprietà della colonia).",
-      "Quando un posto ha posti di lavoro vacanti, il giocatore può assegnare un Servo della gleba a quel lavoro (es. Serra, Bar, Ospedale, Tribunale)."
+      "Quando un posto ha posti di lavoro vacanti, il giocatore può assegnare un Servo della gleba a quel lavoro (es. Serra, Bar, Ospedale, Tribunale).",
+      "Riceve il cibo dalla Mensa pubblica."
     ]
   },
   {
@@ -71,6 +72,11 @@ export function getEmojiCasta(casta: Casta): string {
 /** Schiavo o Servo della gleba: non hanno reddito di cittadinanza e possono essere assegnati coattivamente. */
 export function isCastaCoercibile(casta: Casta): boolean {
   return casta === "Schiavo" || casta === "Servo della gleba";
+}
+
+/** Schiavi e Servi della gleba non hanno inventario personale. */
+export function abitanteHaInventarioPersonale(abitante: Abitante): boolean {
+  return !isCastaCoercibile(getCastaAbitante(abitante));
 }
 
 /** Cittadino o Nobile: non possono essere messi per forza a lavorare. */

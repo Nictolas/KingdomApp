@@ -10,7 +10,7 @@ import {
 import { getRouteForEdificio } from "../navigation/edificioRoutes";
 import { apriResidenzaAbitante, isResidenzaSuMappa } from "../navigation/apriResidenzaMappa";
 import { getStatoSalute } from "../game/ciboConsumo";
-import { getCastaAbitante, getEmojiCasta, isCastaLibera } from "../game/casta";
+import { getCastaAbitante, getEmojiCasta, isCastaCoercibile, isCastaLibera } from "../game/casta";
 import {
   getEmojiSpecializzazione,
   getSpecializzazioneAbitante
@@ -404,6 +404,7 @@ export function AbitanteInfoModal({
               </Block>
             </View>
 
+            {!isCastaCoercibile(casta) && (
             <View style={styles.inventarioRow}>
               <Block title="Inventario">
                 <InventarioCategoria titolo="Valuta" voci={vociValuta} />
@@ -425,6 +426,7 @@ export function AbitanteInfoModal({
                 )}
               </Block>
             </View>
+            )}
 
             {isSchiavoCommerciabile(abitante) && padroneNome && (
               <View style={styles.azioniSchiavo}>

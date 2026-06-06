@@ -43,7 +43,8 @@ import {
   puoEssereAssegnatoForzatamente
 } from "../game/schiavituCommercio";
 import { syncResidenzeBaraccaSenzatetto } from "../game/avanzaMese";
-import { normalizzaInventariAbitanti } from "../game/consumoCiboInventario";
+import { attivaEventoCarestia } from "../game/eventi/attivaCarestia";
+import { applicaPastiGiornalieriPerPeriodo, normalizzaEAplicaPastiAbitanti } from "../game/pastoGiornaliero";
 import {
   creaInventarioGiocatoreIniziale,
   normalizzaInventarioGiocatore,
@@ -145,13 +146,20 @@ export function useGameState() {
   edificiRef.current = edifici;
   const ultimoGiornoProduzioneSerraRef = useRef(getGiornoGiocoSnapshot());
   const ultimoGiornoEconomiaPubblicaRef = useRef(getGiornoGiocoSnapshot());
+  const ultimoGiornoPastiRef = useRef(0);
   const [mese, setMese] = useState(1);
   const [anno, setAnno] = useState(0);
+  const meseRef = useRef(mese);
+  const annoRef = useRef(anno);
+  meseRef.current = mese;
+  annoRef.current = anno;
   const [isLoading, setIsLoading] = useState(false);
   const [abitantiProposti, setAbitantiProposti] = useState<Abitante[]>([]);
   const [nextId, setNextId] = useState(statoIniziale.abitanti.length + 100); // ID iniziale per nuovi abitanti
   const [ordiniMercato, setOrdiniMercato] = useState<OrdineMercato[]>([]);
   const [eventiInCorso, setEventiInCorso] = useState<EventoInCorso[]>([]);
+  const eventiInCorsoRef = useRef(eventiInCorso);
+  eventiInCorsoRef.current = eventiInCorso;
   const [nativiNonIntegrati, setNativiNonIntegrati] = useState(() => 100 + Math.floor(Math.random() * 101));
   const [pendingAssimilazione, setPendingAssimilazione] = useState<number | null>(null);
   const [pendingMatrimonio, setPendingMatrimonio] = useState<{ idA: number; idB: number; nomeA: string; nomeB: string } | null>(null);
@@ -176,13 +184,32 @@ export function useGameState() {
     setEdifici((prev) => syncResidenzeBaraccaSenzatetto(prev, abitanti));
   }, [abitanti]);
 
-  /** Inventario iniziale + consumo giornaliero di un oggetto Cibo a ogni nuovo giorno di gioco. */
+  /** Inventario iniziale + pasti giornalieri (inventario, padrone, mensa). */
   useEffect(() => {
-    setAbitanti((prev) => normalizzaInventariAbitanti(prev, getGiornoGiocoSnapshot()));
+    const applicaPasti = () => {
+      const giorno = getGiornoGiocoSnapshot();
+      const ultimo = ultimoGiornoPastiRef.current;
+      if (giorno <= ultimo) return;
+
+      const result = normalizzaEAplicaPastiAbitanti(
+        abitantiRef.current,
+        edificiRef.current,
+        inventarioMensaRef.current,
+        giorno,
+        ultimo
+      );
+      ultimoGiornoPastiRef.current = giorno;
+
+      setAbitanti(result.abitanti);
+      setInventarioMensaByEdificioId(result.inventarioMensaByEdificioId);
+      if (result.carestiaMensa) {
+        setEventiInCorso((prev) => attivaEventoCarestia(prev, meseRef.current, annoRef.current));
+      }
+    };
+
+    applicaPasti();
     setInventarioGiocatore((prev) => normalizzaInventarioGiocatore(prev));
-    const unsub = subscribeGiornoGioco(() => {
-      setAbitanti((prev) => normalizzaInventariAbitanti(prev, getGiornoGiocoSnapshot()));
-    });
+    const unsub = subscribeGiornoGioco(applicaPasti);
     return unsub;
   }, []);
 
@@ -452,7 +479,21 @@ export function useGameState() {
       GIORNI_STIPENDIO_EDIFICIO_PUBBLICO_MESE
     );
     setMoneteGiocatore(stipendiMese.moneteGiocatore);
-    setAbitanti(stipendiMese.abitanti);
+    const giornoPastiDa = ultimoGiornoPastiRef.current;
+    const giornoPastiA = giornoPastiDa + GIORNI_PRODUZIONE_SERRA_PER_MESE;
+    const pastiMese = applicaPastiGiornalieriPerPeriodo(
+      stipendiMese.abitanti,
+      dopoCarcere.edifici,
+      inventarioMensaRef.current,
+      giornoPastiDa,
+      giornoPastiA
+    );
+    ultimoGiornoPastiRef.current = giornoPastiA;
+    setAbitanti(pastiMese.abitanti);
+    setInventarioMensaByEdificioId(pastiMese.inventarioMensaByEdificioId);
+    if (pastiMese.carestiaMensa) {
+      setEventiInCorso((prev) => attivaEventoCarestia(prev, result.nuovoMese, result.nuovoAnno));
+    }
     setMese(result.nuovoMese);
     setAnno(result.nuovoAnno);
     setOrdiniMercato([]);
@@ -782,17 +823,23 @@ export function useGameState() {
   const serviPastoMensaAbitante = useCallback((abitanteId: number, edificioId: number) => {
     const mensaInv = normalizzaInventarioMensa(inventarioMensaRef.current[edificioId]);
     const giorno = getGiornoGiocoSnapshot();
-    setAbitanti((prev) =>
-      prev.map((a) => {
+    setAbitanti((prev) => {
+      let carestia = false;
+      const next = prev.map((a) => {
         if (a.id !== abitanteId) return a;
-        const { abitante, inventarioMensa } = serviPastoMensaTransaction(a, mensaInv, giorno);
+        const { abitante, inventarioMensa, carestiaMensa } = serviPastoMensaTransaction(a, mensaInv, giorno);
+        if (carestiaMensa) carestia = true;
         setInventarioMensaByEdificioId((prevM) => ({
           ...prevM,
           [edificioId]: inventarioMensa
         }));
         return abitante;
-      })
-    );
+      });
+      if (carestia) {
+        setEventiInCorso((ev) => attivaEventoCarestia(ev, meseRef.current, annoRef.current));
+      }
+      return next;
+    });
   }, []);
 
   const trasferisciCiboGiocatoreAMensa = useCallback(

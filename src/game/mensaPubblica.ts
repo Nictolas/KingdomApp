@@ -1,9 +1,9 @@
 import type { Abitante, Edificio } from "../types";
-import { applicaConsumoCiboGiornalieroAbitante, abitanteDeveConsumareCiboGiornaliero } from "./consumoCiboInventario";
+import { abitanteHaInventarioPersonale, getCastaAbitante } from "./casta";
+import { abitanteDeveConsumareCiboGiornaliero } from "./consumoCiboInventario";
 import {
   abitantePuòConsumareOggettoCibo,
   isOggettoCibo,
-  normalizzaInventarioAbitante,
   normalizzaInventarioGiocatore,
   normalizzaInventarioMensa,
   trasferisciCiboTraInventari,
@@ -13,14 +13,13 @@ import {
 
 export const NOME_MENSA_PUBBLICA = "Mensa Pubblica";
 
-const MENU_MENSA = VOCI_CIBO_IDS;
-
 /** True se l'inventario ha almeno un oggetto Cibo compatibile con la dieta. */
 export function haCiboCompatibileInInventario(
   inventario: VoceInventario[] | undefined,
   personalità: string
 ): boolean {
-  return normalizzaInventarioAbitante(inventario).some(
+  if (!inventario?.length) return false;
+  return inventario.some(
     (v) =>
       isOggettoCibo(v.itemId) &&
       v.quantità > 0 &&
@@ -42,11 +41,15 @@ export function mensaOperativaInColonia(edifici: Edificio[]): boolean {
   return edifici.some((e) => e.nome === NOME_MENSA_PUBBLICA && e.stato === "Operativo");
 }
 
-/** True se l'abitante deve recarsi in mensa (niente cibo compatibile e mensa operativa). */
+/** True se l'abitante deve recarsi in mensa (Servi della gleba o senza cibo compatibile). */
 export function abitanteHaBisognoMensa(abitante: Abitante, edifici: Edificio[]): boolean {
   if (!abitanteDeveConsumareCiboGiornaliero(abitante)) return false;
-  if (haCiboCompatibileInInventario(abitante.inventario, abitante.personalità)) return false;
-  return mensaOperativaInColonia(edifici);
+  if (!mensaOperativaInColonia(edifici)) return false;
+  const casta = getCastaAbitante(abitante);
+  if (casta === "Schiavo") return false;
+  if (casta === "Servo della gleba") return true;
+  if (!abitanteHaInventarioPersonale(abitante)) return true;
+  return !haCiboCompatibileInInventario(abitante.inventario, abitante.personalità);
 }
 
 export function trasferisciCiboGiocatoreAMensaPuro(
@@ -67,14 +70,8 @@ export function trasferisciCiboGiocatoreAMensaPuro(
   return { inventarioGiocatore: result.da, inventarioMensa: result.a };
 }
 
-function itemPastoMensaPerPersonalità(personalità: string): string {
-  const compat = MENU_MENSA.filter((id) => abitantePuòConsumareOggettoCibo(personalità, id));
-  if (compat.length === 0) return "mela";
-  return compat[Math.floor(Math.random() * compat.length)]!;
-}
-
 /** Preleva 1 pasto compatibile dalle scorte mensa; null se nessuno disponibile. */
-function consumaPastoDaInventarioMensa(
+export function consumaPastoDaInventarioMensa(
   inventarioMensa: VoceInventario[],
   personalità: string
 ): { inventarioMensa: VoceInventario[]; itemId: string } | null {
@@ -88,36 +85,36 @@ function consumaPastoDaInventarioMensa(
   return { inventarioMensa: nextMensa, itemId };
 }
 
-function aggiungiOggettoCiboAInventarioAbitante(abitante: Abitante, itemId: string): Abitante {
-  const inv = normalizzaInventarioAbitante(abitante.inventario);
-  const next = inv.map((v) => (v.itemId === itemId ? { ...v, quantità: v.quantità + 1 } : v));
-  return { ...abitante, inventario: next };
-}
+export type PastoMensaResult = {
+  abitante: Abitante;
+  inventarioMensa: VoceInventario[];
+  /** True se il pasto è stato servito; false se la mensa non aveva cibo. */
+  servito: boolean;
+  /** True se la mensa non aveva cibo sufficiente. */
+  carestiaMensa: boolean;
+};
 
-/** Aggiunge 1 pasto compatibile con la dieta all'inventario (generato se scorte mensa esaurite). */
-export function aggiungiPastoMensaAInventario(abitante: Abitante): Abitante {
-  const itemId = itemPastoMensaPerPersonalità(abitante.personalità);
-  return aggiungiOggettoCiboAInventarioAbitante(abitante, itemId);
-}
-
-/** Pasto servito in mensa: usa scorte mensa se disponibili, altrimenti genera cibo. */
+/** Pasto servito in mensa: preleva dalle scorte mensa senza generare cibo. */
 export function serviPastoMensaTransaction(
   abitante: Abitante,
   inventarioMensa: VoceInventario[],
   giornoGioco: number
-): { abitante: Abitante; inventarioMensa: VoceInventario[] } {
+): PastoMensaResult {
+  const mensaNorm = normalizzaInventarioMensa(inventarioMensa);
   if (!abitanteDeveConsumareCiboGiornaliero(abitante)) {
-    return { abitante, inventarioMensa: normalizzaInventarioMensa(inventarioMensa) };
+    return { abitante, inventarioMensa: mensaNorm, servito: false, carestiaMensa: false };
   }
 
-  const pasto = consumaPastoDaInventarioMensa(inventarioMensa, abitante.personalità);
-  const conCibo = pasto
-    ? aggiungiOggettoCiboAInventarioAbitante(abitante, pasto.itemId)
-    : aggiungiPastoMensaAInventario(abitante);
+  const pasto = consumaPastoDaInventarioMensa(mensaNorm, abitante.personalità);
+  if (!pasto) {
+    return { abitante, inventarioMensa: mensaNorm, servito: false, carestiaMensa: true };
+  }
 
   return {
-    abitante: applicaConsumoCiboGiornalieroAbitante(conCibo, giornoGioco),
-    inventarioMensa: pasto?.inventarioMensa ?? normalizzaInventarioMensa(inventarioMensa)
+    abitante: { ...abitante, ultimoGiornoCiboConsumato: giornoGioco },
+    inventarioMensa: pasto.inventarioMensa,
+    servito: true,
+    carestiaMensa: false
   };
 }
 

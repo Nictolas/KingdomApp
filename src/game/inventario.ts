@@ -1,4 +1,5 @@
 import type { Abitante } from "../types";
+import { abitanteHaInventarioPersonale } from "./casta";
 import { COLTURE_SERRA } from "./colturaSerra";
 
 export type CategoriaInventario = "Valuta" | "Cibo";
@@ -99,7 +100,7 @@ export function isOggettoValuta(itemId: string): boolean {
 }
 
 export function aggiungiMoneteInventarioAbitante(abitante: Abitante, quantità: number): Abitante {
-  if (quantità <= 0) return abitante;
+  if (quantità <= 0 || !abitanteHaInventarioPersonale(abitante)) return abitante;
   const inv = normalizzaInventarioAbitante(abitante.inventario);
   const next = inv.map((v) =>
     v.itemId === "monete" ? { ...v, quantità: v.quantità + quantità } : v
@@ -108,6 +109,7 @@ export function aggiungiMoneteInventarioAbitante(abitante: Abitante, quantità: 
 }
 
 export function getMoneteInventarioAbitante(inventario?: VoceInventario[]): number {
+  if (!inventario?.length) return 0;
   return normalizzaInventarioAbitante(inventario).find((v) => v.itemId === "monete")?.quantità ?? 0;
 }
 
@@ -188,11 +190,23 @@ export function normalizzaInventarioAbitante(inventario?: VoceInventario[]): Voc
 }
 
 export function abitanteConInventarioIniziale<T extends Abitante>(abitante: T): T {
+  if (!abitanteHaInventarioPersonale(abitante)) {
+    return { ...abitante, inventario: undefined, ultimoGiornoCiboConsumato: undefined };
+  }
   return {
     ...abitante,
     inventario: creaInventarioIniziale(),
     ultimoGiornoCiboConsumato: undefined
   };
+}
+
+/** Rimuove l'inventario dagli schiavi/servi e normalizza gli altri. */
+export function normalizzaAbitanteInventario(abitante: Abitante): Abitante {
+  if (!abitanteHaInventarioPersonale(abitante)) {
+    const { inventario: _inv, ...rest } = abitante;
+    return { ...rest, inventario: undefined };
+  }
+  return { ...abitante, inventario: normalizzaInventarioAbitante(abitante.inventario) };
 }
 
 /** Consuma 1 unità del primo oggetto Cibo disponibile e compatibile con la dieta; null se nessuno. */
@@ -221,6 +235,7 @@ export function getVociInventarioPerCategoria(
   inventario: VoceInventario[] | undefined,
   categoria: CategoriaInventario
 ): VoceInventarioDisplay[] {
+  if (!inventario?.length) return [];
   return normalizzaInventarioAbitante(inventario)
     .filter((v) => OGGETTI_INVENTARIO[v.itemId]?.categoria === categoria)
     .map((v) => ({

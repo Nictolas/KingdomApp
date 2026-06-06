@@ -1,4 +1,4 @@
-import type { Abitante } from "../../types";
+import type { Abitante, Edificio, Risorsa } from "../../types";
 import type { EventoDef } from "./eventoTypes";
 import { modificaRisorsa } from "./eventoTypes";
 
@@ -6,8 +6,7 @@ export const eventoCarestia: EventoDef = {
   id: "carestia",
   nome: "Carestia",
   emoji: "🌾",
-  descrizione:
-    "Raccolti falliti o scorte di cibo insufficienti. La colonia deve gestire la distribuzione.",
+  descrizione: "Carestia: il popolo non ha abbastanza cibo.",
   durataMesi: 2,
   probabilità: 0.3,
   condizione: (_a, risorse) => {
