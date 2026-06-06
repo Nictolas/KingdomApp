@@ -117,6 +117,7 @@ import {
   scegliMensaEdificioIdPiuVicino
 } from "../src/game/commutePathsMappa";
 import { abitanteHaBisognoMensa } from "../src/game/mensaPubblica";
+import { getTotaleOggettiInventarioGiocatore } from "../src/game/inventario";
 import { SEZIONE_AMBIENTE, SEZIONI_COSTRUZIONE, type TerrenoCostruzioneKind } from "../src/game/costruzioneSezioni";
 import { setBarArrivatiMappaSnapshot } from "../src/game/mappaBarArrivatiStore";
 import { computeStatoCielo } from "../src/game/cicloCielo";
