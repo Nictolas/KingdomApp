@@ -40,7 +40,7 @@ export default function RivoluzionariScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Chi Sono</Text>
           <Text style={styles.text}>
-            I Rivoluzionari sono il Comandante e i tre abitanti che hanno sostenuto la Rivoluzione contro la Madre
+            I Rivoluzionari sono il Re e i tre abitanti che hanno sostenuto la Rivoluzione contro la Madre
             Patria. La loro soddisfazione parte da 80 e riflette il consenso sulle tue scelte.
           </Text>
         </View>

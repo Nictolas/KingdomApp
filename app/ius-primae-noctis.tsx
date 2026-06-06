@@ -31,7 +31,7 @@ export default function IusPrimaeNoctisScreen() {
           </Text>
           {iusPrimaeNoctisAttivo && (
             <Text style={styles.warningText}>
-              Questa legge aggiunge +1 al punteggio sanzioni. In caso di evento Matrimonio potrai scegliere di esercitare il diritto su uno dei due sposi; se di sesso opposto al Comandante c'è il 50% di possibilità che rimanga incinta.
+              Questa legge aggiunge +1 al punteggio sanzioni. In caso di evento Matrimonio potrai scegliere di esercitare il diritto su uno dei due sposi; se di sesso opposto al Re c'è il 50% di possibilità che rimanga incinta.
             </Text>
           )}
         </View>
@@ -51,7 +51,7 @@ export default function IusPrimaeNoctisScreen() {
         <View style={styles.descCard}>
           <Text style={styles.descTitle}>Descrizione</Text>
           <Text style={styles.descText}>
-            Lo Ius primae noctis conferisce al Comandante il diritto di passare la prima notte con uno degli sposi prima delle nozze. Se attivo, in occasione dell'evento Matrimonio compare l'opzione "Utilizza Ius primae noctis": puoi scegliere su quale dei due abitanti esercitarlo. Se la persona scelta è di sesso opposto al Comandante, c'è il 50% di possibilità che rimanga incinta.
+            Lo Ius primae noctis conferisce al Re il diritto di passare la prima notte con uno degli sposi prima delle nozze. Se attivo, in occasione dell'evento Matrimonio compare l'opzione "Utilizza Ius primae noctis": puoi scegliere su quale dei due abitanti esercitarlo. Se la persona scelta è di sesso opposto al Re, c'è il 50% di possibilità che rimanga incinta.
           </Text>
         </View>
 
@@ -63,7 +63,7 @@ export default function IusPrimaeNoctisScreen() {
           </View>
           <View style={styles.effettoRow}>
             <Text style={styles.effettoEmoji}>🤰</Text>
-            <Text style={styles.effettoText}>Se sesso opposto al Comandante: 50% possibilità che rimanga incinta</Text>
+            <Text style={styles.effettoText}>Se sesso opposto al Re: 50% possibilità che rimanga incinta</Text>
           </View>
           <View style={styles.effettoRow}>
             <Text style={styles.effettoEmoji}>⚠️</Text>

@@ -5,6 +5,7 @@ import { specializzazioneCasuale } from "./specializzazione";
 import { pianetiData, getEmojiRazza } from "../kingdomData";
 import { generaNomeAlieno } from "./nomiAlieni";
 import { scegliNomeCognomeUmano } from "./nomiUmani";
+import { LAVORO_GIOCATORE } from "./schiavituCommercio";
 
 /** Regole di generazione casuale della colonia iniziale (per la pagina "Generazione Partita"). */
 export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] = [
@@ -17,7 +18,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
   {
     titolo: "Razza",
     punti: [
-      "Il Comandante della Colonia è sempre di razza umana.",
+      "Il Re è sempre di razza umana.",
       "A parte 2-3 Nativi iniziali, tutti gli abitanti sono a inizio partita di razza umana.",
       "La razza dei Nativi (per l’evento Assimilazione) è scelta a caso tra le razze non umane.",
       "Ogni partita deve partire con 2-3 Nativi tra gli abitanti (razza = razza Nativi del pianeta). Tutti i colonisti non Senzatetto sono assegnati alle Capanne.",
@@ -44,14 +45,14 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
       "Ogni abitante ha sempre la fazione «Cittadini» più una di: Amministrazione, Lavoratori, Scienziati, Esploratori (scelta a caso).",
       "Almeno 4 abitanti sono «Schiavi»: hanno fazione Schiavi (e non Cittadini), ruoloSchiavitu «schiavo», crediti/reddito/spese a 0.",
       "4 abitanti hanno la fazione «Lealisti», tra cui l'ex governatore (prigioniero in Tribunale).",
-      "Il Comandante e 3 altri abitanti (escluso l'Ex Governatore) hanno la fazione «Rivoluzionari»: chi ha fatto la Rivoluzione.",
+      "Il Re e 3 altri abitanti (escluso l'Ex Governatore) hanno la fazione «Rivoluzionari»: chi ha fatto la Rivoluzione.",
       "Ci sono alcuni Immigrati fin da inizio partita."
     ]
   },
   {
     titolo: "Casta",
     punti: [
-      "Il Comandante della Colonia ha casta «Nobile».",
+      "Il Re ha casta «Nobile».",
       "Gli abitanti con ruoloSchiavitu «schiavo» hanno casta «Servo della gleba» (schiavi della colonia).",
       "Tutti gli altri abitanti hanno casta «Cittadino»."
     ]
@@ -75,7 +76,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
   {
     titolo: "Lavoro",
     punti: [
-      "Il primo abitante (id 1) è «Comandante della Colonia» con competenza alta.",
+      `Il primo abitante (id 1) è «${LAVORO_GIOCATORE}» con competenza alta.`,
       "Il 50% degli abitanti deve avere come Lavoro «Disoccupato»; il restante a caso tra: Tecnico, Ricercatore, Ingegnere, Medico, Agricoltore, Meccanico, Esploratore, Comunicatore, Sicurezza, Amministratore.",
       "A inizio partita c'è almeno 1 lavoratore assegnato alla Serra: un abitante con Lavoro «Agricoltore».",
       "A inizio partita c'è almeno 1 abitante con Lavoro «Prigioniero»: è l'Ex Governatore (Razza Umano, reato «Ex Governatore»), assegnato al Campo di Lavoro; compare in Tribunale."
@@ -150,16 +151,16 @@ function normalizzaFazioni(fazioni: string[]): string[] {
 export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Razza } {
   const razzaNativi = RAZZE_ALIENE[Math.floor(Math.random() * RAZZE_ALIENE.length)];
   const n = NUM_ABITANTI_MIN + Math.floor(Math.random() * (NUM_ABITANTI_MAX - NUM_ABITANTI_MIN + 1));
-  const numSchiavi = 4 + Math.floor(Math.random() * Math.max(0, n - 1 - 4)); // almeno 4, massimo n-1 (Comandante id 1 escluso)
+  const numSchiavi = 4 + Math.floor(Math.random() * Math.max(0, n - 1 - 4)); // almeno 4, massimo n-1 (Re id 1 escluso)
   const abitanti: Abitante[] = [];
   const indicesSchiavi = new Set<number>();
   while (indicesSchiavi.size < numSchiavi && n > 1) {
-    indicesSchiavi.add(2 + Math.floor(Math.random() * (n - 1))); // id 2..n (id 1 = Comandante, mai schiavo)
+    indicesSchiavi.add(2 + Math.floor(Math.random() * (n - 1))); // id 2..n (id 1 = Re, mai schiavo)
   }
 
   for (let i = 1; i <= n; i++) {
     const èSchiavo = indicesSchiavi.has(i);
-    // Comandante sempre umano; tutti gli altri umani a inizio partita (1 Nativo verrà impostato dopo il loop).
+    // Re sempre umano; tutti gli altri umani a inizio partita (1 Nativo verrà impostato dopo il loop).
     const razza: Razza = "Umano";
     const isUmano = true;
     const specie: "umano" | "alieno" = "umano";
@@ -172,10 +173,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     const fazioni = èSchiavo ? [fazioneRuolo, "Schiavi"] : [fazioneRuolo, "Cittadini"];
     const fazioniNorm = normalizzaFazioni(fazioni);
 
-    const lavoro =
-      i === 1
-        ? "Comandante della Colonia"
-        : LAVORI[Math.floor(Math.random() * LAVORI.length)];
+    const lavoro = i === 1 ? LAVORO_GIOCATORE : LAVORI[Math.floor(Math.random() * LAVORI.length)];
     const competenzaBase = i === 1 ? 85 + Math.floor(Math.random() * 11) : 30 + Math.floor(Math.random() * 66);
     const competenza = Math.min(100, competenzaBase);
     const redditoBase = i === 1 ? 1500 + Math.floor(Math.random() * 501) : lavoro === "Disoccupato" ? 0 : 100 + Math.floor(Math.random() * 500);
@@ -262,7 +260,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     bot.lealtà = 0;
   }
 
-  // Regola: 50% con Lavoro "Disoccupato" (il Comandante id 1 resta Comandante). Scegliamo floor(n/2) tra id 2..n.
+  // Regola: 50% con Lavoro "Disoccupato" (il Re id 1 resta Re). Scegliamo floor(n/2) tra id 2..n.
   const numDisoccupati = Math.floor(n / 2);
   const indicesPerDisoccupato = abitanti.map((_, idx) => idx).filter((idx) => abitanti[idx].id !== 1);
   for (let k = indicesPerDisoccupato.length - 1; k > 0; k--) {
@@ -314,7 +312,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     }
   });
 
-  // Regola: Rivoluzionari = Comandante (id 1) + 3 abitanti che hanno aiutato la Rivoluzione (escluso l'Ex Governatore).
+  // Regola: Rivoluzionari = Re (id 1) + 3 abitanti che hanno aiutato la Rivoluzione (escluso l'Ex Governatore).
   const candidatiRivoluzionari = abitanti.filter((a) => a.id !== 1 && a.id !== exGovernatoreId);
   for (let k = candidatiRivoluzionari.length - 1; k > 0; k--) {
     const j = Math.floor(Math.random() * (k + 1));

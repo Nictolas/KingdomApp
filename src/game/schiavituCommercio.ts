@@ -5,8 +5,11 @@ import { getCastaAbitante, isCastaCoercibile } from "./casta";
 /** Prezzo di riferimento per compravendita schiavi (monete). */
 export const PREZZO_SCHIAVO_DEFAULT = 500;
 
-/** ID del Comandante = rappresentante del giocatore per azioni sulla colonia. */
-export const ID_COMANDANTE = 1;
+/** ID del giocatore (Re) per azioni sulla colonia. */
+export const ID_GIOCATORE = 1;
+/** @deprecated Usa ID_GIOCATORE */
+export const ID_COMANDANTE = ID_GIOCATORE;
+export const LAVORO_GIOCATORE = "Re";
 
 export function isSchiavoCommerciabile(abitante: Abitante): boolean {
   const casta = getCastaAbitante(abitante);
@@ -142,7 +145,7 @@ export function trasferisciProprietaSchiavoPuro(
   return { ok: true, abitanti, risorse };
 }
 
-/** L'uccisione di un proprio schiavo non genera reati. Il Comandante può uccidere i Servi della gleba senza reato. */
+/** L'uccisione di un proprio schiavo non genera reati. Il Re può uccidere i Servi della gleba senza reato. */
 export function isOmicidioSchiavoImmune(uccisore: Abitante, vittima: Abitante): boolean {
   if (!isSchiavoCommerciabile(vittima)) return false;
   const casta = getCastaAbitante(vittima);

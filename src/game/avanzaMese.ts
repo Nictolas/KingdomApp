@@ -5,7 +5,7 @@ import { abitanteConInventarioIniziale } from "./inventario";
 import { RESIDENZE_CATALOGO, RESIDENZE_ENERGIA_PER_ABITANTE } from "../data/residenzeData";
 import { getCastaAbitante, isCastaCoercibile } from "./casta";
 import { autoAssegnaDisoccupati, normalizzaLavoroEAgricoltura } from "./edificiLavoro";
-import { applicaRedditoSchiaviAlPadroni, isOmicidioSchiavoImmune } from "./schiavituCommercio";
+import { applicaRedditoSchiaviAlPadroni, isOmicidioSchiavoImmune, LAVORO_GIOCATORE } from "./schiavituCommercio";
 import { specializzazioneCasuale } from "./specializzazione";
 
 export type AvanzaMeseInput = {
@@ -355,7 +355,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     const etaNext = avanzaAnno ? a.eta + 1 : a.eta;
     if (
       etaNext >= etaPensionabile &&
-      a.lavoro !== "Comandante della Colonia" &&
+      a.lavoro !== LAVORO_GIOCATORE &&
       a.lavoro !== "Neonato" &&
       a.lavoro !== "Pensionato"
     ) {
@@ -416,7 +416,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     let reddito = abitante.reddito;
     if (
       eta >= etaPensionabile &&
-      lavoro !== "Comandante della Colonia" &&
+      lavoro !== LAVORO_GIOCATORE &&
       lavoro !== "Neonato" &&
       lavoro !== "Pensionato"
     ) {

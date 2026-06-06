@@ -205,7 +205,7 @@ export default function MinistriScreen() {
         <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={() => setShowEditNome(false)}>
           <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
             <Text style={styles.modalTitle}>Modifica nome e cognome</Text>
-            <Text style={styles.modalSubtitle}>Comandante della Colonia</Text>
+            <Text style={styles.modalSubtitle}>Re</Text>
 
             <View style={styles.modalSection}>
               <Text style={styles.modalLabel}>Nome</Text>

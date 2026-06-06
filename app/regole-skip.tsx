@@ -41,7 +41,7 @@ const REGOLE_SKIP: { titolo: string; punti: string[] }[] = [
       "Casta coercibile (Schiavo, Servo della gleba): crediti e spese restano 0; stanchezza + random 0–9; peso e salute ±2 (entro 0–100).",
       "Schiavi privati che lavorano: il reddito va al padrone (non al bilancio colonia).",
       "Altri abitanti: crediti = crediti + reddito − spese (reddito = 0 se Disoccupato, salvo reddito di cittadinanza); stanchezza + random 0–9; peso e salute ±2 (entro 0–100).",
-      "Omicidio per rivalità: genera reato «Omicidio» salvo se la vittima è schiavo del killer (o Servo della gleba ucciso dal Comandante)."
+      "Omicidio per rivalità: genera reato «Omicidio» salvo se la vittima è schiavo del killer (o Servo della gleba ucciso dal Re)."
     ]
   },
   {

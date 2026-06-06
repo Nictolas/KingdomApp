@@ -14,7 +14,7 @@ export const leggiData: Legge[] = [
   { id: 11, titolo: "Legge sulle Famiglie", descrizione: "Politiche per regolare la struttura e i diritti delle famiglie nella colonia.", stato: "In vigore" },
   { id: 12, titolo: "Legge sulle Droghe", descrizione: "Regolamentazione sulla produzione, vendita e consumo di sostanze psicoattive.", stato: "Proposta" },
   { id: 13, titolo: "Divieto di espatrio", descrizione: "Impedisce agli abitanti di lasciare la colonia.", stato: "Proposta" },
-  { id: 14, titolo: "Ius primae noctis", descrizione: "Diritto del Comandante sulla prima notte di nozze. Se attivo: +1 sanzione; in evento Matrimonio puoi esercitarlo su uno dei due sposi (50% incinta se sesso opposto).", stato: "Proposta" },
+  { id: 14, titolo: "Ius primae noctis", descrizione: "Diritto del Re sulla prima notte di nozze. Se attivo: +1 sanzione; in evento Matrimonio puoi esercitarlo su uno dei due sposi (50% incinta se sesso opposto).", stato: "Proposta" },
   { id: 15, titolo: "Età pensionabile", descrizione: "Stabilisce a quale età gli abitanti vanno in pensione. I pensionati non lavorano e ricevono un assegno mensile. Età 61-70: +1 sanzione, 71-80: +2, 81+: +3.", stato: "In vigore" },
   { id: 16, titolo: "Reddito di Cittadinanza", descrizione: "Garantisce un reddito mensile minimo scelto dal giocatore a tutti i cittadini disoccupati non schiavi.", stato: "In vigore" },
   { id: 17, titolo: "Sanità", descrizione: "Definisce se il sistema sanitario della colonia è Privato o Pubblico, influenzando i costi dell'Ospedale e l'accesso alle cure.", stato: "In vigore" }

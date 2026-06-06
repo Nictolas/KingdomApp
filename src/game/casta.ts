@@ -1,4 +1,5 @@
 import type { Abitante, Casta } from "../types";
+import { LAVORO_GIOCATORE } from "./schiavituCommercio";
 
 export type CastaInfo = {
   nome: Casta;
@@ -52,7 +53,7 @@ export function getCastaAbitante(abitante: Abitante): Casta {
 
   if (
     abitante.id === 1 ||
-    abitante.lavoro === "Comandante della Colonia" ||
+    abitante.lavoro === LAVORO_GIOCATORE ||
     abitante.ministero != null ||
     (abitante.fazioni ?? []).includes("Élite")
   ) {

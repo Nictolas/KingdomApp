@@ -5,6 +5,7 @@ import { risorseData, edificiData, pianetiData } from "../kingdomData";
 import { runAvanzaMese } from "../game/avanzaMese";
 import { EVENTI_CATALOGO } from "../game/eventi/index";
 import { generaColoniaIniziale } from "../game/generazionePartita";
+import { DIARIO_APERTURA, DIARIO_EX_GOVERNATORE } from "../game/diarioContenuto";
 import { calcolaPunteggioSanzioni as calcolaPunteggioSanzioniPuro } from "../game/sanzioni";
 import {
   aggiungiOrdineMercatoPuro,
@@ -460,25 +461,24 @@ export function useGameState() {
     );
   }, [pendingMatrimonio, confermaMatrimonio, rifiutaMatrimonio, iusPrimaeNoctisAttivo, esercitaIusPrimaeNoctis]);
 
-  /** Dialog in-game a inizio partita: prima riga del Diario + ex governatore in Tribunale (niente alert browser). */
+  /** Dialog in-game a inizio partita: Diario prima degli eventi (niente alert browser). */
   const [alertInizioPartita, setAlertInizioPartita] = useState<{
     titolo: string;
     messaggio: string;
   } | null>(null);
+  const [diarioInizioVisto, setDiarioInizioVisto] = useState(false);
   const haMostratoAlertInizioRef = useRef(false);
   useEffect(() => {
     if (haMostratoAlertInizioRef.current) return;
-    if (pendingRichiestaLuogoCulto != null) return;
     haMostratoAlertInizioRef.current = true;
-    const primaRigaDiario = "Complimenti, hai appena concluso la Rivoluzione contro la Madre Patria.";
-    const messaggioExGovernatore =
-      "L'ex governatore è in Tribunale, puoi sceglierlo di graziarlo, condannarlo a morte o pensarci più tardi.";
-    const titolo = "Diario";
-    const messaggio = `${primaRigaDiario}\n\n${messaggioExGovernatore}`;
-    const t = setTimeout(() => setAlertInizioPartita({ titolo, messaggio }), 100);
+    const messaggio = `${DIARIO_APERTURA}\n\n${DIARIO_EX_GOVERNATORE}`;
+    const t = setTimeout(() => setAlertInizioPartita({ titolo: "Diario", messaggio }), 100);
     return () => clearTimeout(t);
-  }, [pendingRichiestaLuogoCulto]);
-  const chiudiAlertInizioPartita = useCallback(() => setAlertInizioPartita(null), []);
+  }, []);
+  const chiudiAlertInizioPartita = useCallback(() => {
+    setAlertInizioPartita(null);
+    setDiarioInizioVisto(true);
+  }, []);
   const chiudiMessaggioEmigrazione = useCallback(() => setMessaggioEmigrazione(null), []);
 
   /**
@@ -1087,6 +1087,7 @@ export function useGameState() {
     eventiCatalogo: EVENTI_CATALOGO,
     alertInizioPartita,
     chiudiAlertInizioPartita,
+    diarioInizioVisto,
     messaggioEmigrazione,
     chiudiMessaggioEmigrazione,
     diarioRighe,

@@ -21,7 +21,7 @@ const EMOJI_PER_LAVORO: Record<string, string> = {
   Barista: "👨‍🍳",
   Cuoca: "👩‍🍳",
   Esploratore: "👨‍🚀",
-  "Comandante della Colonia": "👩‍🚀",
+  "Re": "👑",
   Comunicatore: "👨‍💻",
   "Tecnica Comunicazioni": "👩‍💻",
   Studente: "👨‍🎓",

@@ -2,6 +2,7 @@ import React from "react";
 import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { DIARIO_APERTURA, DIARIO_EX_GOVERNATORE } from "../src/game/diarioContenuto";
 
 export default function DiarioScreen() {
   const router = useRouter();
@@ -23,12 +24,8 @@ export default function DiarioScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.card}>
-          <Text style={styles.text}>
-            Complimenti, hai appena concluso la Rivoluzione contro la Madre Patria. Adesso sei il capo di questo pianeta. E' compito tuo farlo progredire.
-          </Text>
-          <Text style={[styles.text, styles.textMargin]}>
-            L'ex governatore è in Tribunale, puoi sceglierlo di graziarlo, condannarlo a morte o pensarci più tardi.
-          </Text>
+          <Text style={styles.text}>{DIARIO_APERTURA}</Text>
+          <Text style={[styles.text, styles.textMargin]}>{DIARIO_EX_GOVERNATORE}</Text>
         </View>
         {diarioRighe.length > 0 && (
           <View style={styles.card}>

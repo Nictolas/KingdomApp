@@ -142,6 +142,7 @@ type GameContextType = {
   eventiCatalogo: EventoDef[];
   alertInizioPartita: { titolo: string; messaggio: string } | null;
   chiudiAlertInizioPartita: () => void;
+  diarioInizioVisto: boolean;
   messaggioEmigrazione: string | null;
   chiudiMessaggioEmigrazione: () => void;
   diarioRighe: string[];
@@ -169,6 +170,7 @@ function DialogInizioPartitaWrapper() {
       titolo={alertInizioPartita?.titolo ?? ""}
       messaggio={alertInizioPartita?.messaggio ?? ""}
       onClose={chiudiAlertInizioPartita}
+      emoji="📖"
     />
   );
 }
@@ -189,13 +191,14 @@ function EmigrazioneDialogWrapper() {
 function RichiestaLuogoCultoDialogWrapper() {
   const {
     pendingRichiestaLuogoCulto,
+    diarioInizioVisto,
     accettaRichiestaLuogoCulto,
     rifiutaRichiestaLuogoCulto,
     rimandaRichiestaLuogoCulto
   } = useGameContext();
   return (
     <RichiestaLuogoCultoModal
-      visible={pendingRichiestaLuogoCulto != null}
+      visible={diarioInizioVisto && pendingRichiestaLuogoCulto != null}
       nomeCapo={pendingRichiestaLuogoCulto?.nome ?? ""}
       religione={pendingRichiestaLuogoCulto?.religione ?? "Culto del Sole"}
       onAccetta={accettaRichiestaLuogoCulto}
@@ -211,8 +214,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   return (
     <GameContext.Provider value={gameState}>
       {children}
-      <RichiestaLuogoCultoDialogWrapper />
       <DialogInizioPartitaWrapper />
+      <RichiestaLuogoCultoDialogWrapper />
       <EmigrazioneDialogWrapper />
     </GameContext.Provider>
   );
