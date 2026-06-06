@@ -10,7 +10,11 @@ import {
 import { getRouteForEdificio } from "../navigation/edificioRoutes";
 import { apriResidenzaAbitante, isResidenzaSuMappa } from "../navigation/apriResidenzaMappa";
 import { getStatoSalute } from "../game/ciboConsumo";
-import { getCastaAbitante, getEmojiCasta } from "../game/casta";
+import { getCastaAbitante, getEmojiCasta, isCastaLibera } from "../game/casta";
+import {
+  getEmojiSpecializzazione,
+  getSpecializzazioneAbitante
+} from "../game/specializzazione";
 import {
   getProprietarioSchiavoId,
   getSchiaviColonia,
@@ -229,6 +233,16 @@ export function AbitanteInfoModal({
     isSchiavoCommerciabile(abitante) && proprietarioSchiavo != null && proprietarioSchiavo !== null;
   const puoUccidereColonia = puoUccidereSchiavo(null, abitante, abitanti);
 
+  const schiaviPerProfiloCittadinoNobile = isCastaLibera(casta)
+    ? abitante.id === ID_COMANDANTE
+      ? getSchiaviColonia(abitanti)
+      : getSchiaviPrivatiDi(abitanti, abitante.id)
+    : [];
+  const schiaviNomiLabel =
+    schiaviPerProfiloCittadinoNobile.length > 0
+      ? schiaviPerProfiloCittadinoNobile.map((s) => s.nome).join(", ")
+      : "—";
+
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
 
@@ -267,6 +281,22 @@ export function AbitanteInfoModal({
                   value={casta}
                   onPress={() => apriPagina("/casta")}
                 />
+                {isCastaLibera(casta) && (
+                  <Row
+                    emoji="⛓️"
+                    label="Schiavi"
+                    value={schiaviNomiLabel}
+                    muted={schiaviPerProfiloCittadinoNobile.length === 0}
+                  />
+                )}
+                {casta === "Schiavo" && (
+                  <Row
+                    emoji="👤"
+                    label="Padrone"
+                    value={padroneNome ?? "—"}
+                    muted={!padroneNome}
+                  />
+                )}
                 <Row
                   emoji="🏠"
                   label="Abitazione"
@@ -316,7 +346,11 @@ export function AbitanteInfoModal({
                 />
               </Block>
               <Block title="📊 Prestazioni & Salute">
-                <Row emoji="⭐" value={`${abitante.competenza}%`} />
+                <Row
+                  emoji={getEmojiSpecializzazione(getSpecializzazioneAbitante(abitante))}
+                  label="Specializzazione"
+                  value={getSpecializzazioneAbitante(abitante)}
+                />
                 <Row emoji="⚡" value={`${abitante.produttività}%`} />
                 <Row emoji="😴" value={`${abitante.stanchezza}%`} />
                 <Row emoji="⚖️" value={abitante.razza === "Robot" ? "—" : `${abitante.peso ?? 50}`} />

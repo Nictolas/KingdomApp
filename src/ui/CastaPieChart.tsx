@@ -1,7 +1,8 @@
 import React from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { G, Path } from "react-native-svg";
 import type { Casta } from "../types";
+import { formattaConteggioPercentuale } from "../utils/formatPercentuale";
 
 export type CastaPieSlice = {
   nome: Casta;
@@ -39,9 +40,10 @@ function describeSlice(cx: number, cy: number, r: number, startAngle: number, en
 type CastaPieChartProps = {
   slices: CastaPieSlice[];
   size?: number;
+  onCastaPress?: (casta: Casta) => void;
 };
 
-export function CastaPieChart({ slices, size = 180 }: CastaPieChartProps) {
+export function CastaPieChart({ slices, size = 180, onCastaPress }: CastaPieChartProps) {
   const totale = slices.reduce((s, x) => s + x.count, 0);
   const cx = size / 2;
   const cy = size / 2;
@@ -78,19 +80,32 @@ export function CastaPieChart({ slices, size = 180 }: CastaPieChartProps) {
 
         <View style={styles.legenda}>
           {slices.map((s) => {
-            const pct = totale > 0 ? Math.round((s.count / totale) * 100) : 0;
-            return (
-              <View key={s.nome} style={styles.legendaRow}>
+            const meta = formattaConteggioPercentuale(s.count, totale);
+            const row = (
+              <>
                 <View style={[styles.legendaDot, { backgroundColor: s.color }]} />
                 <Text style={styles.legendaEmoji}>{s.emoji}</Text>
                 <View style={styles.legendaTesto}>
                   <Text style={styles.legendaNome} numberOfLines={1}>
                     {s.nome}
                   </Text>
-                  <Text style={styles.legendaMeta}>
-                    {s.count} · {pct}%
-                  </Text>
+                  <Text style={styles.legendaMeta}>{meta}</Text>
                 </View>
+              </>
+            );
+            return onCastaPress ? (
+              <Pressable
+                key={s.nome}
+                style={({ pressed }) => [styles.legendaRow, pressed && styles.legendaRowPressed]}
+                onPress={() => onCastaPress(s.nome)}
+                accessibilityRole="button"
+                accessibilityLabel={`Apri elenco casta ${s.nome}`}
+              >
+                {row}
+              </Pressable>
+            ) : (
+              <View key={s.nome} style={styles.legendaRow}>
+                {row}
               </View>
             );
           })}
@@ -140,7 +155,13 @@ const styles = StyleSheet.create({
   legendaRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 6
+    gap: 6,
+    borderRadius: 6,
+    paddingVertical: 2,
+    paddingHorizontal: 2
+  },
+  legendaRowPressed: {
+    backgroundColor: "rgba(59,130,246,0.15)"
   },
   legendaDot: {
     width: 10,

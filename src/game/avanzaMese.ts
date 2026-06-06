@@ -6,6 +6,7 @@ import { RESIDENZE_CATALOGO, RESIDENZE_ENERGIA_PER_ABITANTE } from "../data/resi
 import { getCastaAbitante, isCastaCoercibile } from "./casta";
 import { autoAssegnaDisoccupati, normalizzaLavoroEAgricoltura } from "./edificiLavoro";
 import { applicaRedditoSchiaviAlPadroni, isOmicidioSchiavoImmune } from "./schiavituCommercio";
+import { specializzazioneCasuale } from "./specializzazione";
 
 export type AvanzaMeseInput = {
   abitanti: Abitante[];
@@ -657,7 +658,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       felicità: 70 + Math.floor(Math.random() * 25),
       religione: madre.religione,
       razza: razzaNeonato,
-      sesso: sessoNeonato
+      sesso: sessoNeonato,
+      specializzazione: specializzazioneCasuale()
     };
     abitantiEv.push(abitanteConInventarioIniziale(neonato));
     const madreIdx = abitantiEv.findIndex((a) => a.id === madre.id);

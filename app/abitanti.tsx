@@ -9,6 +9,7 @@ import { getEmojiRazza, fazioniData } from "../src/kingdomData";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 import { getCastaAbitante, getEmojiCasta, isCastaCoercibile } from "../src/game/casta";
+import { getSpecializzazioneAbitante } from "../src/game/specializzazione";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 
 type FazioneItem = { emoji: string; nome: string };
@@ -56,7 +57,7 @@ function getResidenzaAbitante(abitanteId: number, edifici: Edificio[]): string {
   return getAbitazioneAbitante(abitanteId, edifici);
 }
 
-type SortField = "nome" | "eta" | "lavoro" | "razza" | "casta" | "sesso" | "orientamento" | "residenza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "fazioni" | null;
+type SortField = "nome" | "eta" | "lavoro" | "razza" | "casta" | "sesso" | "orientamento" | "residenza" | "specializzazione" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "fazioni" | null;
 type SortDirection = "asc" | "desc";
 
 type MacroKey = "anagrafica" | "prestazioni" | "benessere" | "economia" | "lealta" | "sociale" | "religioneFazioni";
@@ -183,6 +184,9 @@ export default function AbitantiScreen() {
       } else if (sortField === "orientamento") {
         aValue = a.orientamento ?? "—";
         bValue = b.orientamento ?? "—";
+      } else if (sortField === "specializzazione") {
+        aValue = getSpecializzazioneAbitante(a);
+        bValue = getSpecializzazioneAbitante(b);
       } else if (sortField === "salute") {
         aValue = getStatoSalute(a);
         bValue = getStatoSalute(b);
@@ -360,9 +364,9 @@ export default function AbitantiScreen() {
             )}
             {macroOpen.prestazioni && (
               <>
-                <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "competenza" && styles.headerCellActive]} onPress={() => handleSort("competenza")}>
-                  <Text style={styles.headerText}>⭐ Comp.</Text>
-                  {sortField === "competenza" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "specializzazione" && styles.headerCellActive]} onPress={() => handleSort("specializzazione")}>
+                  <Text style={styles.headerText}>🎓 Spec.</Text>
+                  {sortField === "specializzazione" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
                 </Pressable>
                 <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "produttività" && styles.headerCellActive]} onPress={() => handleSort("produttività")}>
                   <Text style={styles.headerText}>⚡ Prod.</Text>
@@ -508,7 +512,7 @@ export default function AbitantiScreen() {
                 )}
                 {macroOpen.prestazioni && (
                   <>
-                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.competenza}%</Text></View>
+                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{getSpecializzazioneAbitante(a)}</Text></View>
                     <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.produttività}%</Text></View>
                     <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.stanchezza}%</Text></View>
                   </>

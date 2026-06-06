@@ -1,5 +1,6 @@
 import type { Abitante, Razza } from "../types";
 import { abitanteConInventarioIniziale } from "./inventario";
+import { specializzazioneCasuale } from "./specializzazione";
 import { getEmojiRazza } from "../kingdomData";
 import { generaNomeAlieno } from "./nomiAlieni";
 import { scegliNomeCognomeUmano } from "./nomiUmani";
@@ -76,7 +77,8 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
       religione: RELIGIONI[Math.floor(Math.random() * RELIGIONI.length)],
       razza,
       specie: isUmano ? "umano" : "alieno",
-      ...(sesso != null && { sesso })
+      ...(sesso != null && { sesso }),
+      specializzazione: specializzazioneCasuale()
     }));
   }
 

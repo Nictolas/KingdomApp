@@ -1,6 +1,7 @@
 import type { Abitante, Razza } from "../types";
 import { abitanteConInventarioIniziale } from "./inventario";
 import { inferTitoloStudioPerEta } from "./titoloStudio";
+import { specializzazioneCasuale } from "./specializzazione";
 import { pianetiData, getEmojiRazza } from "../kingdomData";
 import { generaNomeAlieno } from "./nomiAlieni";
 import { scegliNomeCognomeUmano } from "./nomiUmani";
@@ -209,7 +210,8 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
       razza,
       specie,
       sesso,
-      orientamento: "Etero"
+      orientamento: "Etero",
+      specializzazione: specializzazioneCasuale()
     };
     const titolo = inferTitoloStudioPerEta(ab.eta, 18, ab.razza);
     if (titolo) ab.titoloStudio = titolo;

@@ -1,6 +1,7 @@
 import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import Svg, { G, Path } from "react-native-svg";
+import { formattaConteggioPercentuale } from "../utils/formatPercentuale";
 
 export type ReligionePieSlice = {
   nome: string;
@@ -79,7 +80,7 @@ export function ReligionePieChart({ slices, size = 160 }: ReligionePieChartProps
 
         <View style={styles.legenda}>
           {slices.map((s) => {
-            const pct = totale > 0 ? Math.round((s.count / totale) * 100) : 0;
+            const meta = formattaConteggioPercentuale(s.count, totale);
             return (
               <View key={s.nome} style={styles.legendaRow}>
                 <View style={[styles.legendaDot, { backgroundColor: s.color }]} />
@@ -88,9 +89,7 @@ export function ReligionePieChart({ slices, size = 160 }: ReligionePieChartProps
                   <Text style={styles.legendaNome} numberOfLines={1}>
                     {s.nome}
                   </Text>
-                  <Text style={styles.legendaMeta}>
-                    {s.count} · {pct}%
-                  </Text>
+                  <Text style={styles.legendaMeta}>{meta}</Text>
                 </View>
               </View>
             );

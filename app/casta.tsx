@@ -1,14 +1,16 @@
-import React, { useMemo } from "react";
-import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useMemo, useState } from "react";
+import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { CASTA_CATALOGO, getCastaAbitante } from "../src/game/casta";
-import type { Abitante } from "../src/types";
+import type { Abitante, Casta } from "../src/types";
+import { CastaMembriModal } from "../src/ui/CastaMembriModal";
 import { CastaPieChart, coloriCasta } from "../src/ui/CastaPieChart";
 
 export default function CastaScreen() {
   const router = useRouter();
   const { abitanti } = useGameContext();
+  const [selectedCasta, setSelectedCasta] = useState<Casta | null>(null);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -50,27 +52,48 @@ export default function CastaScreen() {
             Compravendita e uccisione dalla pagina Schiavi; assegnazione lavoro forzata dei Servi della gleba da Postazioni di lavoro.
           </Text>
 
-          <CastaPieChart slices={fetteTorta} size={isDesktop ? 200 : 160} />
+          <CastaPieChart
+            slices={fetteTorta}
+            size={isDesktop ? 200 : 160}
+            onCastaPress={(casta) => setSelectedCasta(casta)}
+          />
 
           <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
             {conteggi.map((c) => (
-              <View key={c.nome} style={[styles.card, isDesktop && styles.cardDesktop]}>
+              <Pressable
+                key={c.nome}
+                style={({ pressed }) => [
+                  styles.card,
+                  isDesktop && styles.cardDesktop,
+                  pressed && styles.cardPressed
+                ]}
+                onPress={() => setSelectedCasta(c.nome)}
+                accessibilityRole="button"
+                accessibilityLabel={`Apri elenco abitanti casta ${c.nome}`}
+              >
                 <Text style={styles.emoji}>{c.emoji}</Text>
                 <Text style={styles.cardTitle}>{c.nome}</Text>
                 <Text style={styles.cardCount}>
                   Presenti: <Text style={styles.bold}>{c.count}</Text>
                 </Text>
+                <Text style={styles.cardHint}>Tocca per vedere l'elenco</Text>
                 {c.regole.map((regola, idx) => (
                   <View key={idx} style={styles.regolaRow}>
                     <Text style={styles.bullet}>•</Text>
                     <Text style={styles.regolaTesto}>{regola}</Text>
                   </View>
                 ))}
-              </View>
+              </Pressable>
             ))}
           </View>
         </ScrollView>
       </View>
+      <CastaMembriModal
+        visible={selectedCasta !== null}
+        casta={selectedCasta}
+        abitanti={abitanti}
+        onClose={() => setSelectedCasta(null)}
+      />
       <View style={styles.footer}>
         <Text style={styles.back} onPress={() => router.back()}>← Home</Text>
       </View>
@@ -131,6 +154,16 @@ const styles = StyleSheet.create({
     width: "48%",
     minWidth: 260,
     maxWidth: 400
+  },
+  cardPressed: {
+    opacity: 0.88,
+    borderColor: "rgba(147,197,253,0.75)"
+  },
+  cardHint: {
+    color: "rgba(147,197,253,0.85)",
+    fontSize: 9,
+    fontStyle: "italic",
+    marginBottom: 6
   },
   emoji: { fontSize: 22, marginBottom: 4 },
   cardTitle: { color: "#e5e7eb", fontSize: 12, fontWeight: "700", marginBottom: 4 },

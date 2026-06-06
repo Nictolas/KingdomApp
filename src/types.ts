@@ -39,6 +39,9 @@ export type Reato = "Omicidio" | "Stupro" | "Furto" | "Spaccio" | "Evasione" | "
 /** Livello di istruzione completato o in corso. */
 export type TitoloDiStudio = "Asilo" | "Elementare" | "Superiore" | "Università";
 
+/** Area di competenza professionale dell'abitante. */
+export type Specializzazione = "Legge" | "Medicina" | "Educazione" | "Agraria";
+
 /** Classe sociale dell'abitante (casta). */
 export type Casta = "Schiavo" | "Servo della gleba" | "Cittadino" | "Nobile";
 
@@ -54,9 +57,11 @@ export type Abitante = {
   emoji: string;
   eta: number;
   lavoro: string;
-  competenza: number; // 0-100
+  competenza: number; // 0-100 (uso interno; non mostrato in UI)
   produttività: number; // 0-100
   stanchezza: number; // 0-100
+  /** Legge, Medicina, Educazione o Agraria. */
+  specializzazione?: Specializzazione;
   personalità: string;
   amici: RelazionePunteggio[]; // ID + punteggio amicizia 1-100
   rivali: RelazionePunteggio[]; // ID + punteggio rivalità 1-100

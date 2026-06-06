@@ -1,5 +1,6 @@
 import type { Abitante, Razza } from "../types";
 import { abitanteConInventarioIniziale } from "./inventario";
+import { specializzazioneCasuale } from "./specializzazione";
 import { generaNomeAlieno } from "./nomiAlieni";
 
 export type GeneraAssimilatiInput = {
@@ -54,7 +55,8 @@ export function generaAssimilati({
       felicità: 50 + Math.floor(Math.random() * 40),
       religione: religioni[Math.floor(Math.random() * religioni.length)],
       razza: razzaNativi,
-      specie: "alieno"
+      specie: "alieno",
+      specializzazione: specializzazioneCasuale()
     }));
   }
 
