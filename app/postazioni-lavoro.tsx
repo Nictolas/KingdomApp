@@ -3,7 +3,7 @@ import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Tex
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { elencoPostazioniLavoroOrdinato } from "../src/game/edificiLavoro";
-import { getServiDellaGlebaAssegnabili } from "../src/game/schiavituCommercio";
+import { getServiDellaGlebaAssegnabili } from "../src/game/edificiLavoro";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 
 function titoloEdificio(nome: string, edificioId: number, duplicatiPerNome: Map<string, number>): string {

@@ -212,19 +212,6 @@ export function applicaRedditoSchiaviAlPadroni(
   return { abitanti: aggiornati, redditoEsclusoDaColonia };
 }
 
-/** Servi della gleba disoccupati assegnabili coattivamente dal giocatore. */
-export function getServiDellaGlebaAssegnabili(abitanti: Abitante[], edifici: Edificio[]): Abitante[] {
-  const giàAssegnati = new Set<number>();
-  edifici.forEach((e) => (e.abitantiAssegnati ?? []).forEach((id) => giàAssegnati.add(id)));
-
-  return abitanti.filter((a) => {
-    if (getCastaAbitante(a) !== "Servo della gleba") return false;
-    if (a.lavoro === "Pensionato" || a.razza === "Robot") return false;
-    if (giàAssegnati.has(a.id)) return false;
-    return true;
-  });
-}
-
 export function puoEssereAssegnatoForzatamente(abitante: Abitante): boolean {
   return isCastaCoercibile(getCastaAbitante(abitante));
 }

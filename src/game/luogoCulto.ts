@@ -22,6 +22,30 @@ export function emojiLuogoCulto(religione: ReligioneConCulto): string {
   return religione === "Culto del Sole" ? "☀️" : "👽";
 }
 
+/** Istanze costruite nel modello edifici ma ancora assenti dalla mappa. */
+export function trovaLuoghiCultoDaPiazzareSuMappa(
+  edifici: Edificio[],
+  mappa?: MappaRuntimeState | null
+): { religione: ReligioneConCulto; edificioGlobaleId: number }[] {
+  const session = mappa ?? getMappaSessione();
+  const idsSuMappa = new Set<number>();
+  if (session) {
+    for (const e of Object.values(session.edificiInMappa)) {
+      if (e.edificioGlobaleId != null) idsSuMappa.add(e.edificioGlobaleId);
+    }
+  }
+  const out: { religione: ReligioneConCulto; edificioGlobaleId: number }[] = [];
+  for (const religione of RELIGIONI_CON_CULTO) {
+    const nome = nomeEdificioLuogoCulto(religione);
+    const templateId = TEMPLATE_ID_LUOGO_CULTO[religione];
+    const istanza = edifici.find((e) => e.nome === nome && e.id !== templateId);
+    if (istanza && !idsSuMappa.has(istanza.id)) {
+      out.push({ religione, edificioGlobaleId: istanza.id });
+    }
+  }
+  return out;
+}
+
 /** True se esiste un'istanza costruita (non il solo template di catalogo) o il blocco sulla mappa. */
 export function haLuogoCulto(
   religione: ReligioneConCulto,

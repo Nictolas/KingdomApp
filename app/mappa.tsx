@@ -33,7 +33,7 @@ import {
   getAperturaResidenzaPending
 } from "../src/game/mappaAperturaPending";
 import { getMappaSessione, setMappaSessione } from "../src/game/mappaSessione";
-import { piazzaLuogoCultoSuMappa } from "../src/game/luogoCulto";
+import { piazzaLuogoCultoSuMappa, trovaLuoghiCultoDaPiazzareSuMappa } from "../src/game/luogoCulto";
 import type { MappaRuntimeState } from "../src/game/mappaTypes";
 import {
   distribuisciAbitantiSuAnchorCapanne,
@@ -1727,16 +1727,33 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const mappaStateRef = useRef(mappaState);
   mappaStateRef.current = mappaState;
 
+  /** Ripara edifici culto costruiti ma non ancora visibili sulla mappa (es. accettati da Richieste). */
+  useEffect(() => {
+    const mancanti = trovaLuoghiCultoDaPiazzareSuMappa(edifici, mappaStateRef.current);
+    if (mancanti.length === 0) return;
+    setLuoghiCultoPendentiMappa((prev) => {
+      const next = [...prev];
+      for (const m of mancanti) {
+        if (!next.some((p) => p.edificioGlobaleId === m.edificioGlobaleId)) next.push(m);
+      }
+      return next.length === prev.length ? prev : next;
+    });
+  }, [edifici, setLuoghiCultoPendentiMappa]);
+
   useEffect(() => {
     if (luoghiCultoPendentiMappa.length === 0) return;
     const ancoraPendenti: typeof luoghiCultoPendentiMappa = [];
+    let piazzatoAlmenoUno = false;
     for (const pending of luoghiCultoPendentiMappa) {
       const ok = piazzaLuogoCultoSuMappa(pending.religione, pending.edificioGlobaleId, mappaStateRef.current);
-      if (!ok) ancoraPendenti.push(pending);
+      if (ok) piazzatoAlmenoUno = true;
+      else ancoraPendenti.push(pending);
     }
-    if (ancoraPendenti.length !== luoghiCultoPendentiMappa.length) {
+    if (piazzatoAlmenoUno) {
       const session = getMappaSessione();
       if (session) setMappaStatePersistente(session);
+    }
+    if (ancoraPendenti.length !== luoghiCultoPendentiMappa.length) {
       setLuoghiCultoPendentiMappa(ancoraPendenti);
     }
   }, [luoghiCultoPendentiMappa, setLuoghiCultoPendentiMappa, setMappaStatePersistente]);

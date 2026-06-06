@@ -1,18 +1,8 @@
 import type { Abitante, Edificio } from "../types";
 import { edificiData } from "../data/edificiData";
 import { EDIFICIO_COMPETENZA_RICHIESTA, type CompetenzaEdificio } from "../data/edificiCompetenze";
-import { getServiDellaGlebaAssegnabili, puoEssereAssegnatoForzatamente } from "./schiavituCommercio";
-
-/** Servi della gleba che il giocatore può assegnare a un edificio-lavoro con posti liberi. */
-export function getServiDellaGlebaPerAssegnazioneEdificio(
-  abitanti: Abitante[],
-  edifici: Edificio[],
-  edificio: Edificio
-): Abitante[] {
-  const postiLiberi = (edificio.capacità ?? 0) - (edificio.abitantiAssegnati ?? []).length;
-  if (postiLiberi <= 0) return [];
-  return getServiDellaGlebaAssegnabili(abitanti, edifici);
-}
+import { getCastaAbitante } from "./casta";
+import { puoEssereAssegnatoForzatamente } from "./schiavituCommercio";
 
 /** Mappa edificioId → nome lavoro. Usata per sincronizzare lavoro abitante e per auto-assign Skip Mese. */
 export const EDIFICIO_TO_LAVORO: Record<number, string> = {
@@ -47,6 +37,36 @@ export function getLavoroPerEdificio(edificio: Edificio): string | undefined {
   if (direct) return direct;
   const template = edificiData.find((t) => t.nome === edificio.nome);
   return template ? EDIFICIO_TO_LAVORO[template.id] : undefined;
+}
+
+/**
+ * Servi della gleba assegnabili a un posto di lavoro dal giocatore.
+ * Esclude solo chi è già in un edificio-lavoro (non le residenze Capanna/Baracca/Dormitorio).
+ */
+export function getServiDellaGlebaAssegnabili(abitanti: Abitante[], edifici: Edificio[]): Abitante[] {
+  const giàAssegnatiLavoro = new Set<number>();
+  edifici.forEach((e) => {
+    if (getLavoroPerEdificio(e) == null) return;
+    (e.abitantiAssegnati ?? []).forEach((id) => giàAssegnatiLavoro.add(id));
+  });
+
+  return abitanti.filter((a) => {
+    if (getCastaAbitante(a) !== "Servo della gleba") return false;
+    if (a.lavoro === "Pensionato" || a.lavoro === "Prigioniero" || a.razza === "Robot") return false;
+    if (giàAssegnatiLavoro.has(a.id)) return false;
+    return true;
+  });
+}
+
+/** Servi della gleba che il giocatore può assegnare a un edificio-lavoro con posti liberi. */
+export function getServiDellaGlebaPerAssegnazioneEdificio(
+  abitanti: Abitante[],
+  edifici: Edificio[],
+  edificio: Edificio
+): Abitante[] {
+  const postiLiberi = (edificio.capacità ?? 0) - (edificio.abitantiAssegnati ?? []).length;
+  if (postiLiberi <= 0) return [];
+  return getServiDellaGlebaAssegnabili(abitanti, edifici);
 }
 
 /** Competenza richiesta per auto-assign (istanze con id nuovo → stesso nome del catalogo). */

@@ -46,7 +46,6 @@ import {
 } from "../game/orologioGiocoSession";
 import {
   haLuogoCulto,
-  piazzaLuogoCultoSuMappa,
   TEMPLATE_ID_LUOGO_CULTO,
   trovaCapoReligiosoSenzaLuogo,
   type ReligioneConCulto
@@ -766,10 +765,11 @@ export function useGameState() {
         }
       ]);
 
-      const piazzato = piazzaLuogoCultoSuMappa(religione, newId);
-      if (!piazzato) {
-        setLuoghiCultoPendentiMappa((prev) => [...prev, { religione, edificioGlobaleId: newId }]);
-      }
+      // Il piazzamento 2×2 avviene sulla pagina Mappa (sincronizza sessione + stato React).
+      setLuoghiCultoPendentiMappa((prev) => {
+        if (prev.some((p) => p.religione === religione)) return prev;
+        return [...prev, { religione, edificioGlobaleId: newId }];
+      });
     },
     [edifici]
   );
