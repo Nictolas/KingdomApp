@@ -22,7 +22,9 @@ import {
   isSchiavoCommerciabile,
   PREZZO_SCHIAVO_DEFAULT,
   puoUccidereSchiavo,
-  ID_COMANDANTE
+  ID_COMANDANTE,
+  isGiocatore,
+  LAVORO_GIOCATORE
 } from "../game/schiavituCommercio";
 import { getTitoloStudioAbitante } from "../game/titoloStudio";
 import { CATEGORIA_CIBO, getVociInventarioPerCategoria } from "../game/inventario";
@@ -206,7 +208,11 @@ export function AbitanteInfoModal({
   const maggiorenne = abitante.eta >= etaMinimaLavoro;
   const lavoroDaMinore = LAVORI_DA_MINORE.includes(abitante.lavoro);
   const emojiDisplay = maggiorenne && lavoroDaMinore ? "👤" : getEmojiAbitante(abitante);
-  const lavoroDisplay = maggiorenne && lavoroDaMinore ? "Disoccupato" : abitante.lavoro;
+  const lavoroDisplay = isGiocatore(abitante)
+    ? LAVORO_GIOCATORE
+    : maggiorenne && lavoroDaMinore
+      ? "Disoccupato"
+      : abitante.lavoro;
 
   const felicitàModificata = calcolaFelicitàModificata ? calcolaFelicitàModificata(abitante) : abitante.felicità;
   const felicitàCambiata = abitante.razza !== "Robot" && felicitàModificata !== abitante.felicità;
@@ -303,7 +309,9 @@ export function AbitanteInfoModal({
                   value={edificioAbitazione?.nome ?? "—"}
                   onPress={edificioAbitazione ? () => apriEdificio(edificioAbitazione) : undefined}
                 />
-                {edificiOccupazione.length === 0 ? (
+                {isGiocatore(abitante) ? (
+                  <Row emoji="👑" label="Occupazione" value={LAVORO_GIOCATORE} />
+                ) : edificiOccupazione.length === 0 ? (
                   <Row
                     emoji="🏢"
                     label="Occupazione"

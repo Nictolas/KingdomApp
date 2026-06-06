@@ -2,7 +2,7 @@ import type { Abitante, Edificio } from "../types";
 import { edificiData } from "../data/edificiData";
 import { EDIFICIO_COMPETENZA_RICHIESTA, type CompetenzaEdificio } from "../data/edificiCompetenze";
 import { getCastaAbitante } from "./casta";
-import { puoEssereAssegnatoForzatamente } from "./schiavituCommercio";
+import { isGiocatore, puoEssereAssegnatoForzatamente } from "./schiavituCommercio";
 
 /** Mappa edificioId → nome lavoro. Usata per sincronizzare lavoro abitante e per auto-assign Skip Mese. */
 export const EDIFICIO_TO_LAVORO: Record<number, string> = {
@@ -126,7 +126,7 @@ export function sincronizzaLavoroDaEdifici(
 
   let changed = false;
   const next = abitanti.map((a) => {
-    if (a.lavoro === "Pensionato") return a;
+    if (a.lavoro === "Pensionato" || isGiocatore(a)) return a;
     const jobFromEdificio = idToLavoroFromEdifici.get(a.id);
     if (jobFromEdificio) {
       if (a.lavoro === jobFromEdificio) return a;

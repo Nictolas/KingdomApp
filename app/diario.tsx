@@ -2,7 +2,7 @@ import React from "react";
 import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
-import { DIARIO_APERTURA, DIARIO_EX_GOVERNATORE } from "../src/game/diarioContenuto";
+import { DIARIO_APERTURA } from "../src/game/diarioContenuto";
 
 export default function DiarioScreen() {
   const router = useRouter();
@@ -25,7 +25,6 @@ export default function DiarioScreen() {
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.card}>
           <Text style={styles.text}>{DIARIO_APERTURA}</Text>
-          <Text style={[styles.text, styles.textMargin]}>{DIARIO_EX_GOVERNATORE}</Text>
         </View>
         {diarioRighe.length > 0 && (
           <View style={styles.card}>
@@ -95,9 +94,6 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 18,
     textAlign: "justify"
-  },
-  textMargin: {
-    marginTop: 12
   },
   avvisiTitle: {
     color: "#93c5fd",

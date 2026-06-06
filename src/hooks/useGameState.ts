@@ -5,7 +5,12 @@ import { risorseData, edificiData, pianetiData } from "../kingdomData";
 import { runAvanzaMese } from "../game/avanzaMese";
 import { EVENTI_CATALOGO } from "../game/eventi/index";
 import { generaColoniaIniziale } from "../game/generazionePartita";
-import { DIARIO_APERTURA, DIARIO_EX_GOVERNATORE } from "../game/diarioContenuto";
+import {
+  ID_GIOCATORE,
+  LAVORO_GIOCATORE,
+  ETA_GIOCATORE_INIZIALE
+} from "../game/schiavituCommercio";
+import type { DatiCreazioneGiocatore } from "../ui/CreazioneGiocatoreModal";
 import { calcolaPunteggioSanzioni as calcolaPunteggioSanzioniPuro } from "../game/sanzioni";
 import {
   aggiungiOrdineMercatoPuro,
@@ -461,22 +466,35 @@ export function useGameState() {
     );
   }, [pendingMatrimonio, confermaMatrimonio, rifiutaMatrimonio, iusPrimaeNoctisAttivo, esercitaIusPrimaeNoctis]);
 
-  /** Dialog in-game a inizio partita: Diario prima degli eventi (niente alert browser). */
-  const [alertInizioPartita, setAlertInizioPartita] = useState<{
-    titolo: string;
-    messaggio: string;
-  } | null>(null);
+  /** Creazione personaggio Re a inizio partita (prima degli eventi). */
+  const [creazioneGiocatoreAperta, setCreazioneGiocatoreAperta] = useState(false);
   const [diarioInizioVisto, setDiarioInizioVisto] = useState(false);
-  const haMostratoAlertInizioRef = useRef(false);
+  const haAvviatoCreazioneGiocatoreRef = useRef(false);
   useEffect(() => {
-    if (haMostratoAlertInizioRef.current) return;
-    haMostratoAlertInizioRef.current = true;
-    const messaggio = `${DIARIO_APERTURA}\n\n${DIARIO_EX_GOVERNATORE}`;
-    const t = setTimeout(() => setAlertInizioPartita({ titolo: "Diario", messaggio }), 100);
+    if (haAvviatoCreazioneGiocatoreRef.current) return;
+    haAvviatoCreazioneGiocatoreRef.current = true;
+    const t = setTimeout(() => setCreazioneGiocatoreAperta(true), 100);
     return () => clearTimeout(t);
   }, []);
-  const chiudiAlertInizioPartita = useCallback(() => {
-    setAlertInizioPartita(null);
+  const configuraGiocatore = useCallback((dati: DatiCreazioneGiocatore) => {
+    const nomeCompleto = [dati.nome.trim(), dati.cognome.trim()].filter(Boolean).join(" ");
+    if (!nomeCompleto) return;
+    setAbitanti((prev) =>
+      prev.map((a) =>
+        a.id === ID_GIOCATORE
+          ? {
+              ...a,
+              nome: nomeCompleto,
+              sesso: dati.sesso,
+              orientamento: dati.orientamento,
+              lavoro: LAVORO_GIOCATORE,
+              eta: ETA_GIOCATORE_INIZIALE,
+              emoji: "👑"
+            }
+          : a
+      )
+    );
+    setCreazioneGiocatoreAperta(false);
     setDiarioInizioVisto(true);
   }, []);
   const chiudiMessaggioEmigrazione = useCallback(() => setMessaggioEmigrazione(null), []);
@@ -1085,8 +1103,8 @@ export function useGameState() {
     rifiutaMatrimonio,
     eventiInCorso,
     eventiCatalogo: EVENTI_CATALOGO,
-    alertInizioPartita,
-    chiudiAlertInizioPartita,
+    creazioneGiocatoreAperta,
+    configuraGiocatore,
     diarioInizioVisto,
     messaggioEmigrazione,
     chiudiMessaggioEmigrazione,

@@ -5,7 +5,7 @@ import { specializzazioneCasuale } from "./specializzazione";
 import { pianetiData, getEmojiRazza } from "../kingdomData";
 import { generaNomeAlieno } from "./nomiAlieni";
 import { scegliNomeCognomeUmano } from "./nomiUmani";
-import { LAVORO_GIOCATORE } from "./schiavituCommercio";
+import { LAVORO_GIOCATORE, ETA_GIOCATORE_INIZIALE } from "./schiavituCommercio";
 
 /** Regole di generazione casuale della colonia iniziale (per la pagina "Generazione Partita"). */
 export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] = [
@@ -76,7 +76,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
   {
     titolo: "Lavoro",
     punti: [
-      `Il primo abitante (id 1) è «${LAVORO_GIOCATORE}» con competenza alta.`,
+      `Il primo abitante (id 1) è «${LAVORO_GIOCATORE}» con ${ETA_GIOCATORE_INIZIALE} anni e competenza alta.`,
       "Il 50% degli abitanti deve avere come Lavoro «Disoccupato»; il restante a caso tra: Tecnico, Ricercatore, Ingegnere, Medico, Agricoltore, Meccanico, Esploratore, Comunicatore, Sicurezza, Amministratore.",
       "A inizio partita c'è almeno 1 lavoratore assegnato alla Serra: un abitante con Lavoro «Agricoltore».",
       "A inizio partita c'è almeno 1 abitante con Lavoro «Prigioniero»: è l'Ex Governatore (Razza Umano, reato «Ex Governatore»), assegnato al Campo di Lavoro; compare in Tribunale."
@@ -164,24 +164,29 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     const razza: Razza = "Umano";
     const isUmano = true;
     const specie: "umano" | "alieno" = "umano";
-    const { nomeCompleto: nome, sesso } = scegliNomeCognomeUmano();
-    const emoji = sesso === "M"
-      ? EMOJI_UMANI_M[Math.floor(Math.random() * EMOJI_UMANI_M.length)]
-      : EMOJI_UMANI_F[Math.floor(Math.random() * EMOJI_UMANI_F.length)];
+    const isRe = i === 1;
+    const picked = isRe ? null : scegliNomeCognomeUmano();
+    const nome = isRe ? "—" : picked!.nomeCompleto;
+    const sesso = isRe ? undefined : picked!.sesso;
+    const emoji = isRe
+      ? "👑"
+      : sesso === "M"
+        ? EMOJI_UMANI_M[Math.floor(Math.random() * EMOJI_UMANI_M.length)]
+        : EMOJI_UMANI_F[Math.floor(Math.random() * EMOJI_UMANI_F.length)];
 
     const fazioneRuolo = FAZIONI_RUOLO[Math.floor(Math.random() * FAZIONI_RUOLO.length)];
     const fazioni = èSchiavo ? [fazioneRuolo, "Schiavi"] : [fazioneRuolo, "Cittadini"];
     const fazioniNorm = normalizzaFazioni(fazioni);
 
-    const lavoro = i === 1 ? LAVORO_GIOCATORE : LAVORI[Math.floor(Math.random() * LAVORI.length)];
-    const competenzaBase = i === 1 ? 85 + Math.floor(Math.random() * 11) : 30 + Math.floor(Math.random() * 66);
+    const lavoro = isRe ? LAVORO_GIOCATORE : LAVORI[Math.floor(Math.random() * LAVORI.length)];
+    const competenzaBase = isRe ? 85 + Math.floor(Math.random() * 11) : 30 + Math.floor(Math.random() * 66);
     const competenza = Math.min(100, competenzaBase);
-    const redditoBase = i === 1 ? 1500 + Math.floor(Math.random() * 501) : lavoro === "Disoccupato" ? 0 : 100 + Math.floor(Math.random() * 500);
+    const redditoBase = isRe ? 1500 + Math.floor(Math.random() * 501) : lavoro === "Disoccupato" ? 0 : 100 + Math.floor(Math.random() * 500);
     const reddito = èSchiavo ? 0 : redditoBase;
     const crediti = èSchiavo ? 0 : 500 + Math.floor(Math.random() * 1001);
     const spese = èSchiavo ? 0 : 50 + Math.floor(Math.random() * 451);
 
-    const eta = 18 + Math.floor(Math.random() * 48);
+    const eta = isRe ? ETA_GIOCATORE_INIZIALE : 18 + Math.floor(Math.random() * 48);
 
     const ab: Abitante = {
       id: i,
@@ -208,7 +213,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
       razza,
       specie,
       sesso,
-      orientamento: "Etero",
+      orientamento: isRe ? undefined : "Etero",
       specializzazione: specializzazioneCasuale()
     };
     const titolo = inferTitoloStudioPerEta(ab.eta, 18, ab.razza);

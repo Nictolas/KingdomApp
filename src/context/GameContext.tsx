@@ -3,6 +3,7 @@ import { useGameState } from "../hooks/useGameState";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
 import type { EventoDef } from "../game/eventi";
 import { DialogInizioPartitaModal } from "../ui/DialogInizioPartitaModal";
+import { CreazioneGiocatoreModal } from "../ui/CreazioneGiocatoreModal";
 import { RichiestaLuogoCultoModal } from "../ui/RichiestaLuogoCultoModal";
 import type { ReligioneConCulto } from "../game/luogoCulto";
 import type { RichiestaInAttesa } from "../game/richieste";
@@ -140,8 +141,13 @@ type GameContextType = {
   rifiutaMatrimonio: () => void;
   eventiInCorso: EventoInCorso[];
   eventiCatalogo: EventoDef[];
-  alertInizioPartita: { titolo: string; messaggio: string } | null;
-  chiudiAlertInizioPartita: () => void;
+  creazioneGiocatoreAperta: boolean;
+  configuraGiocatore: (dati: {
+    nome: string;
+    cognome: string;
+    sesso: "M" | "F";
+    orientamento: "Etero" | "Omo" | "Bi";
+  }) => void;
   diarioInizioVisto: boolean;
   messaggioEmigrazione: string | null;
   chiudiMessaggioEmigrazione: () => void;
@@ -162,16 +168,10 @@ type GameContextType = {
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
 
-function DialogInizioPartitaWrapper() {
-  const { alertInizioPartita, chiudiAlertInizioPartita } = useGameContext();
+function CreazioneGiocatoreWrapper() {
+  const { creazioneGiocatoreAperta, configuraGiocatore } = useGameContext();
   return (
-    <DialogInizioPartitaModal
-      visible={!!alertInizioPartita}
-      titolo={alertInizioPartita?.titolo ?? ""}
-      messaggio={alertInizioPartita?.messaggio ?? ""}
-      onClose={chiudiAlertInizioPartita}
-      emoji="📖"
-    />
+    <CreazioneGiocatoreModal visible={creazioneGiocatoreAperta} onConferma={configuraGiocatore} />
   );
 }
 
@@ -214,7 +214,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   return (
     <GameContext.Provider value={gameState}>
       {children}
-      <DialogInizioPartitaWrapper />
+      <CreazioneGiocatoreWrapper />
       <RichiestaLuogoCultoDialogWrapper />
       <EmigrazioneDialogWrapper />
     </GameContext.Provider>

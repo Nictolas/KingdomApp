@@ -10,6 +10,11 @@ export const ID_GIOCATORE = 1;
 /** @deprecated Usa ID_GIOCATORE */
 export const ID_COMANDANTE = ID_GIOCATORE;
 export const LAVORO_GIOCATORE = "Re";
+export const ETA_GIOCATORE_INIZIALE = 10;
+
+export function isGiocatore(abitante: Abitante): boolean {
+  return abitante.id === ID_GIOCATORE || abitante.lavoro === LAVORO_GIOCATORE;
+}
 
 export function isSchiavoCommerciabile(abitante: Abitante): boolean {
   const casta = getCastaAbitante(abitante);

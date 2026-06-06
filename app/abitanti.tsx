@@ -9,6 +9,7 @@ import { getEmojiRazza, fazioniData } from "../src/kingdomData";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 import { getCastaAbitante, getEmojiCasta, isCastaCoercibile } from "../src/game/casta";
+import { isGiocatore, LAVORO_GIOCATORE } from "../src/game/schiavituCommercio";
 import { getSpecializzazioneAbitante } from "../src/game/specializzazione";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 
@@ -81,6 +82,7 @@ function getEmojiDisplay(abitante: Abitante, etaMinimaLavoro: number): string {
 }
 
 function getLavoroDisplay(abitante: Abitante, etaMinimaLavoro: number): string {
+  if (isGiocatore(abitante)) return LAVORO_GIOCATORE;
   const maggiorenne = abitante.eta >= etaMinimaLavoro;
   const lavoroDaMinore = LAVORI_DA_MINORE.includes(abitante.lavoro);
   if (maggiorenne && lavoroDaMinore) return "Disoccupato";
