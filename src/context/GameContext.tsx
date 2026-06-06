@@ -48,6 +48,7 @@ type GameContextType = {
     arcobaleno: boolean;
     monogenitoriale: boolean;
     matrimonioUmanoRobot: boolean;
+    matrimonioIntercasta: boolean;
   };
   /** Modalità del sistema sanitario: influisce sui costi dell'Ospedale. */
   modalitaSanita: "privata" | "pubblica";
@@ -76,6 +77,7 @@ type GameContextType = {
     arcobaleno: boolean;
     monogenitoriale: boolean;
     matrimonioUmanoRobot: boolean;
+    matrimonioIntercasta: boolean;
   }) => void;
   /** Importo mensile del Reddito di Cittadinanza per ogni disoccupato non schiavo. */
   redditoCittadinanza: number;
@@ -97,6 +99,12 @@ type GameContextType = {
     razza?: string;
     religione?: string;
   }) => void;
+  /** Assegna un Servo della gleba a un edificio con posto libero (assegnazione coattiva del giocatore). */
+  assegnaServoDellaGlebaAEdificio: (abitanteId: number, edificioId: number) => void;
+  /** Compra/vende/trasferisce uno schiavo. `nuovoProprietarioId: null` = colonia. Restituisce true se riuscito. */
+  trasferisciProprietaSchiavo: (schiavoId: number, nuovoProprietarioId: number | null, prezzo?: number) => boolean;
+  /** Uccide uno schiavo di proprietà (`uccisoreId: null` = colonia). Senza conseguenze legali. */
+  uccidiSchiavo: (uccisoreId: number | null, schiavoId: number) => boolean;
   nominaMinistro: (abitanteId: number, ministero: string) => void;
   rimuoviMinistro: (abitanteId: number) => void;
   setNomeAbitante: (abitanteId: number, nuovoNome: string) => void;

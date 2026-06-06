@@ -10,6 +10,16 @@ import {
 import { getRouteForEdificio } from "../navigation/edificioRoutes";
 import { apriResidenzaAbitante, isResidenzaSuMappa } from "../navigation/apriResidenzaMappa";
 import { getStatoSalute } from "../game/ciboConsumo";
+import { getCastaAbitante, getEmojiCasta } from "../game/casta";
+import {
+  getProprietarioSchiavoId,
+  getSchiaviColonia,
+  getSchiaviPrivatiDi,
+  isSchiavoCommerciabile,
+  PREZZO_SCHIAVO_DEFAULT,
+  puoUccidereSchiavo,
+  ID_COMANDANTE
+} from "../game/schiavituCommercio";
 import { getTitoloStudioAbitante } from "../game/titoloStudio";
 import { CATEGORIA_CIBO, getVociInventarioPerCategoria } from "../game/inventario";
 import { getEmojiAbitante } from "../utils/getEmojiAbitante";
@@ -145,7 +155,12 @@ export function AbitanteInfoModal({
   onApriResidenzaMappa
 }: AbitanteInfoModalProps) {
   const router = useRouter();
-  const { abitanti, aggiungiAlCampoDiLavoroTuttiQuelliChe } = useGameContext();
+  const {
+    abitanti,
+    aggiungiAlCampoDiLavoroTuttiQuelliChe,
+    trasferisciProprietaSchiavo,
+    uccidiSchiavo
+  } = useGameContext();
   const [edificioDettaglio, setEdificioDettaglio] = useState<Edificio | null>(null);
 
   useEffect(() => {
@@ -176,12 +191,13 @@ export function AbitanteInfoModal({
     router.push("/postazioni-lavoro");
   };
 
-  const apriPagina = (path: "/religione" | "/personalita" | "/pianeti" | "/scuola") => {
+  const apriPagina = (path: "/religione" | "/personalita" | "/pianeti" | "/scuola" | "/casta") => {
     onClose();
     router.push(path);
   };
 
   const titoloStudio = getTitoloStudioAbitante(abitante, etaMinimaLavoro);
+  const casta = getCastaAbitante(abitante);
 
   const maggiorenne = abitante.eta >= etaMinimaLavoro;
   const lavoroDaMinore = LAVORI_DA_MINORE.includes(abitante.lavoro);
@@ -193,6 +209,25 @@ export function AbitanteInfoModal({
 
   const vociValuta = getVociInventarioPerCategoria(abitante.inventario, "Valuta");
   const vociCibo = getVociInventarioPerCategoria(abitante.inventario, CATEGORIA_CIBO);
+
+  const schiaviInInventario =
+    abitante.id === ID_COMANDANTE
+      ? getSchiaviColonia(abitanti)
+      : getSchiaviPrivatiDi(abitanti, abitante.id);
+
+  const proprietarioSchiavo = isSchiavoCommerciabile(abitante)
+    ? getProprietarioSchiavoId(abitante)
+    : undefined;
+  const padroneNome =
+    proprietarioSchiavo === undefined
+      ? undefined
+      : proprietarioSchiavo === null
+        ? "Colonia"
+        : getAbitanteNome(proprietarioSchiavo);
+
+  const puoComprareColonia =
+    isSchiavoCommerciabile(abitante) && proprietarioSchiavo != null && proprietarioSchiavo !== null;
+  const puoUccidereColonia = puoUccidereSchiavo(null, abitante, abitanti);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
@@ -225,6 +260,12 @@ export function AbitanteInfoModal({
                   label="Razza"
                   value={abitante.razza ?? "Umano"}
                   onPress={() => apriPagina("/pianeti")}
+                />
+                <Row
+                  emoji={getEmojiCasta(casta)}
+                  label="Casta"
+                  value={casta}
+                  onPress={() => apriPagina("/casta")}
                 />
                 <Row
                   emoji="🏠"
@@ -325,8 +366,60 @@ export function AbitanteInfoModal({
               <Block title="Inventario">
                 <InventarioCategoria titolo="Valuta" voci={vociValuta} />
                 <InventarioCategoria titolo="Cibo" voci={vociCibo} />
+                {schiaviInInventario.length > 0 && (
+                  <View style={styles.inventarioCategoria}>
+                    <Text style={styles.inventarioCategoriaTitolo}>Schiavi</Text>
+                    <View style={styles.inventarioGrid}>
+                      {schiaviInInventario.map((s) => (
+                        <InventarioSlot
+                          key={s.id}
+                          emoji={getEmojiAbitante(s)}
+                          nome={s.nome}
+                          quantità={1}
+                        />
+                      ))}
+                    </View>
+                  </View>
+                )}
               </Block>
             </View>
+
+            {isSchiavoCommerciabile(abitante) && padroneNome && (
+              <View style={styles.azioniSchiavo}>
+                <Text style={styles.azioniSchiavoTitolo}>⛓️ Proprietà: {padroneNome}</Text>
+                {puoComprareColonia && (
+                  <Pressable
+                    style={styles.azioneBtn}
+                    onPress={() => trasferisciProprietaSchiavo(abitante.id, null, PREZZO_SCHIAVO_DEFAULT)}
+                  >
+                    <Text style={styles.azioneBtnText}>
+                      Colonia compra ({PREZZO_SCHIAVO_DEFAULT} 💰)
+                    </Text>
+                  </Pressable>
+                )}
+                {puoUccidereColonia && (
+                  <Pressable
+                    style={[styles.azioneBtn, styles.azioneBtnPericolo]}
+                    onPress={() => uccidiSchiavo(null, abitante.id)}
+                  >
+                    <Text style={styles.azioneBtnTextPericolo}>Colonia uccide (senza reato)</Text>
+                  </Pressable>
+                )}
+                {abitanti
+                  .filter((a) => puoUccidereSchiavo(a.id, abitante, abitanti))
+                  .map((padrone) => (
+                    <Pressable
+                      key={padrone.id}
+                      style={[styles.azioneBtn, styles.azioneBtnPericolo]}
+                      onPress={() => uccidiSchiavo(padrone.id, abitante.id)}
+                    >
+                      <Text style={styles.azioneBtnTextPericolo}>
+                        {padrone.nome} uccide (senza reato)
+                      </Text>
+                    </Pressable>
+                  ))}
+              </View>
+            )}
 
             <Pressable style={styles.closeBtn} onPress={onClose}>
               <Text style={styles.closeBtnText}>Chiudi</Text>
@@ -556,5 +649,44 @@ const styles = StyleSheet.create({
     color: "#fff",
     fontSize: 14,
     fontWeight: "700"
+  },
+  azioniSchiavo: {
+    marginTop: 14,
+    padding: 10,
+    backgroundColor: "rgba(30,41,59,0.5)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.15)",
+    gap: 8
+  },
+  azioniSchiavoTitolo: {
+    color: "rgba(226,232,240,0.9)",
+    fontSize: 11,
+    fontWeight: "700",
+    marginBottom: 4
+  },
+  azioneBtn: {
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    backgroundColor: "rgba(59,130,246,0.25)",
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(59,130,246,0.4)"
+  },
+  azioneBtnPericolo: {
+    backgroundColor: "rgba(239,68,68,0.15)",
+    borderColor: "rgba(239,68,68,0.4)"
+  },
+  azioneBtnText: {
+    color: "#93c5fd",
+    fontSize: 11,
+    fontWeight: "600",
+    textAlign: "center"
+  },
+  azioneBtnTextPericolo: {
+    color: "#fca5a5",
+    fontSize: 11,
+    fontWeight: "600",
+    textAlign: "center"
   }
 });

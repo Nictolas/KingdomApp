@@ -39,6 +39,12 @@ export type Reato = "Omicidio" | "Stupro" | "Furto" | "Spaccio" | "Evasione" | "
 /** Livello di istruzione completato o in corso. */
 export type TitoloDiStudio = "Asilo" | "Elementare" | "Superiore" | "Università";
 
+/** Classe sociale dell'abitante (casta). */
+export type Casta = "Schiavo" | "Servo della gleba" | "Cittadino" | "Nobile";
+
+/** @deprecated Usare Casta */
+export type Ceto = Casta;
+
 /** Relazione con punteggio 1-100 (amicizia o rivalità). */
 export type RelazionePunteggio = { id: number; punteggio: number };
 
@@ -68,6 +74,10 @@ export type Abitante = {
   paura: number; // 0-100
   felicità: number; // 1-100
   ministero?: string; // Ministero assegnato (se è ministro)
+  /** Classe sociale: Schiavo, Servo della gleba, Cittadino o Nobile. */
+  casta?: Casta;
+  /** @deprecated Usare casta */
+  ceto?: Casta;
   ruoloSchiavitu?: "schiavista" | "schiavo"; // Ruolo nella schiavitù
   schiavistaId?: number; // ID dello schiavista (se è schiavo)
   religione: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni"; // Religione dell'abitante

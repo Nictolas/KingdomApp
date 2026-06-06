@@ -3,7 +3,9 @@ import { EVENTI_CATALOGO } from "./eventi/index";
 import { getConsumoCibo, getConsumoAcqua, getProduzioneCiboPerAbitante } from "./ciboConsumo";
 import { abitanteConInventarioIniziale } from "./inventario";
 import { RESIDENZE_CATALOGO, RESIDENZE_ENERGIA_PER_ABITANTE } from "../data/residenzeData";
+import { getCastaAbitante, isCastaCoercibile } from "./casta";
 import { autoAssegnaDisoccupati, normalizzaLavoroEAgricoltura } from "./edificiLavoro";
+import { applicaRedditoSchiaviAlPadroni, isOmicidioSchiavoImmune } from "./schiavituCommercio";
 
 export type AvanzaMeseInput = {
   abitanti: Abitante[];
@@ -31,8 +33,11 @@ export type AvanzaMeseInput = {
   redditoCittadinanza?: number;
   /** Modalità del sistema sanitario (Privata/Pubblica) per i costi dell'Ospedale. */
   modalitaSanita?: "privata" | "pubblica";
-  /** Configurazione legge famiglie: se matrimonioUmanoRobot è false, coppie umano+robot non possono sposarsi. */
-  tipologieFamigliaAccettate?: { matrimonioUmanoRobot: boolean };
+  /** Configurazione legge famiglie (matrimonio umano-robot, intercasta, …). */
+  tipologieFamigliaAccettate?: {
+    matrimonioUmanoRobot: boolean;
+    matrimonioIntercasta?: boolean;
+  };
 };
 
 export type AvanzaMeseOutput = {
@@ -94,16 +99,21 @@ export function canMarry(a: Abitante, b: Abitante): boolean {
 
 const SOGLIA_AMICIZIA_MATRIMONIO = 90;
 
-/** True se la coppia (a,b) è consentita dalla legge (es. matrimonio umano-robot se abilitato). */
+/** True se la coppia (a,b) è consentita dalla legge (robot, casta diversa, …). */
 function coppiaConsentitaLegge(
   a: Abitante,
   b: Abitante,
-  tipologie?: { matrimonioUmanoRobot: boolean }
+  tipologie?: { matrimonioUmanoRobot: boolean; matrimonioIntercasta?: boolean }
 ): boolean {
   const unoRobot = (a.razza ?? "Umano") === "Robot";
   const altroRobot = (b.razza ?? "Umano") === "Robot";
   if (unoRobot !== altroRobot) {
     return tipologie?.matrimonioUmanoRobot === true;
+  }
+  const castaA = getCastaAbitante(a);
+  const castaB = getCastaAbitante(b);
+  if (castaA !== castaB) {
+    return tipologie?.matrimonioIntercasta === true;
   }
   return true;
 }
@@ -111,7 +121,7 @@ function coppiaConsentitaLegge(
 /** True se esiste almeno una coppia (non sposata, amicizia ≥90, compatibile) che può generare pendingMatrimonio allo Skip Mese. */
 export function esisteCoppiaMatrimonioPossibile(
   abitanti: Abitante[],
-  tipologieFamigliaAccettate?: { matrimonioUmanoRobot: boolean }
+  tipologieFamigliaAccettate?: { matrimonioUmanoRobot: boolean; matrimonioIntercasta?: boolean }
 ): boolean {
   for (const a of abitanti) {
     if (a.coniugeId != null) continue;
@@ -167,6 +177,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   const SOGLIA_PSICOPATICO = 60;
   const vittimeOmicidi: { nome: string }[] = [];
   const idsVittime = new Set<number>();
+  const reatiOmicidioPerKiller = new Map<number, number>();
   const coppieElaborate = new Set<string>();
   for (const A of abitantiRimasti) {
     for (const rivale of A.rivali ?? []) {
@@ -179,11 +190,23 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       coppieElaborate.add(key);
       if (Math.random() >= 0.5) continue; // 50% probabilità che avvenga l'omicidio
       const vittima = Math.random() < 0.5 ? A : B;
+      const uccisore = vittima.id === A.id ? B : A;
       vittimeOmicidi.push({ nome: vittima.nome });
       idsVittime.add(vittima.id);
+      if (!isOmicidioSchiavoImmune(uccisore, vittima)) {
+        reatiOmicidioPerKiller.set(uccisore.id, (reatiOmicidioPerKiller.get(uccisore.id) ?? 0) + 1);
+      }
     }
   }
-  abitantiRimasti = abitantiRimasti.filter((a) => !idsVittime.has(a.id));
+  abitantiRimasti = abitantiRimasti
+    .filter((a) => !idsVittime.has(a.id))
+    .map((a) => {
+      const n = reatiOmicidioPerKiller.get(a.id);
+      if (!n) return a;
+      const reati = [...(a.reati ?? [])];
+      for (let i = 0; i < n; i++) reati.push("Omicidio");
+      return { ...a, reati };
+    });
 
   // Rimuovi riferimenti ai morti (amici, rivali, coniugeId, figliIds, genitoriIds, nonniIds)
   const idsVivi = new Set(abitantiRimasti.map((a) => a.id));
@@ -402,8 +425,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       reddito = idToStipendio.get(abitante.id) ?? abitante.reddito;
     }
 
-    const èSchiavo = abitante.fazioni?.includes("Schiavi") ?? false;
-    if (èSchiavo) {
+    const èCoercibile = isCastaCoercibile(getCastaAbitante(abitante));
+    if (èCoercibile) {
       const nuovaStanchezza = Math.min(100, abitante.stanchezza + Math.floor(Math.random() * 10));
       const variazionePeso = Math.floor(Math.random() * 6) - 2;
       const nuovoPeso = Math.max(0, Math.min(100, abitante.peso + variazionePeso));
@@ -421,8 +444,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
         salute: nuovaSalute
       };
     }
-    // Reddito di cittadinanza per disoccupati non schiavi
-    if (lavoro === "Disoccupato" && !èSchiavo && redditoCittadinanza > 0) {
+    // Reddito di cittadinanza per disoccupati non in casta coercibile
+    if (lavoro === "Disoccupato" && !èCoercibile && redditoCittadinanza > 0) {
       reddito = redditoCittadinanza;
     }
 
@@ -470,16 +493,20 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     };
   });
 
+  const { abitanti: abitantiConRedditoPadroni, redditoEsclusoDaColonia } =
+    applicaRedditoSchiaviAlPadroni(nuoviAbitanti);
+
   // Aggiorna risorse (crediti, produzione/consumo edifici, consumo cibo, bonus ministro agricoltura)
   const nuoveRisorse = risorse.map((risorsa) => {
     let nuovaQuantità = risorsa.quantità;
     let totaleCiboProdotto = 0;
 
     if (risorsa.nome === "Crediti") {
-      const totaleRedditi = nuoviAbitanti
-        .filter((a) => a.lavoro !== "Pensionato")
-        .reduce((sum, a) => sum + a.reddito, 0);
-      const totaleSpese = nuoviAbitanti.reduce((sum, a) => sum + a.spese, 0);
+      const totaleRedditi =
+        abitantiConRedditoPadroni
+          .filter((a) => a.lavoro !== "Pensionato")
+          .reduce((sum, a) => sum + a.reddito, 0) - redditoEsclusoDaColonia;
+      const totaleSpese = abitantiConRedditoPadroni.reduce((sum, a) => sum + a.spese, 0);
       const totaleStipendiEdifici = edificiConAuto
         .filter((e) => e.stato === "Operativo")
         .reduce((sum, e) => {
@@ -489,7 +516,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
           }
           return sum + (e.stipendioPerLavoratore ?? 0) * (e.abitantiAssegnati?.length ?? 0);
         }, 0);
-      const numPensionati = nuoviAbitanti.filter((a) => a.lavoro === "Pensionato").length;
+      const numPensionati = abitantiConRedditoPadroni.filter((a) => a.lavoro === "Pensionato").length;
       const costoPensioni = numPensionati * assegnoPensionati;
       const entrateResidenze = edificiConAuto
         .filter((e) => e.tipo === "Residenza" && e.stato === "Operativo")
@@ -525,7 +552,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
               } else {
                 const produttivitàMedia =
                   edificio.abitantiAssegnati.reduce((sum, id) => {
-                    const abitante = nuoviAbitanti.find((a) => a.id === id);
+                    const abitante = abitantiConRedditoPadroni.find((a) => a.id === id);
                     return sum + (abitante?.produttività || 0);
                   }, 0) / numAbitanti;
                 nuovaQuantità += Math.floor(numAbitanti * (produttivitàMedia / 10));
@@ -547,7 +574,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
 
     // Fazione Robots: 2 energia per ogni membro Robot
     if (risorsa.nome === "Energia") {
-      const numRobots = nuoviAbitanti.filter((a) => a.razza === "Robot").length;
+      const numRobots = abitantiConRedditoPadroni.filter((a) => a.razza === "Robot").length;
       nuovaQuantità -= numRobots * 2;
       // Residenze: consumo energia per abitante (es. Baracca 0, Dormitorio 1 MW/abitante)
       edificiConAuto.forEach((edificio) => {
@@ -559,20 +586,20 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     }
 
     if (risorsa.nome.toLowerCase().includes("cibo") && totaleCiboProdotto > 0) {
-      const ministroAgricoltura = nuoviAbitanti.find((a) => a.ministero === "Ministero dell'Agricoltura");
+      const ministroAgricoltura = abitantiConRedditoPadroni.find((a) => a.ministero === "Ministero dell'Agricoltura");
       if (ministroAgricoltura?.personalità === "Pollice Verde") {
         nuovaQuantità += Math.floor(totaleCiboProdotto * 0.1);
       }
     }
 
     if (risorsa.nome.toLowerCase().includes("cibo")) {
-      nuoviAbitanti.forEach((abitante) => {
+      abitantiConRedditoPadroni.forEach((abitante) => {
         nuovaQuantità -= getConsumoCibo(abitante);
       });
     }
 
     if (risorsa.nome.toLowerCase().includes("acqua")) {
-      nuoviAbitanti.forEach((abitante) => {
+      abitantiConRedditoPadroni.forEach((abitante) => {
         if (abitante.razza === "Robot") return;
         nuovaQuantità -= getConsumoAcqua(abitante);
       });
@@ -584,7 +611,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   const deltaNativiNonIntegrati = Math.floor(Math.random() * 6);
 
   const risorseEv = nuoveRisorse.map((r) => ({ ...r }));
-  const abitantiEv = nuoviAbitanti.map((a) => ({ ...a }));
+  const abitantiEv = abitantiConRedditoPadroni.map((a) => ({ ...a }));
   const edificiEv = edificiConAuto.map((e) => ({
     ...e,
     abitantiAssegnati: (e.abitantiAssegnati ?? []).filter((id) => !idsVittime.has(id))

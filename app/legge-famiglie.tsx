@@ -42,6 +42,12 @@ export default function LeggeFamiglieScreen() {
       emoji: "🤖💒",
       titolo: "Matrimonio Umano-Robot",
       descrizione: "Consenti il matrimonio tra abitanti umani (o altre razze) e Robot: le coppie miste possono sposarsi."
+    },
+    {
+      chiave: "matrimonioIntercasta" as const,
+      emoji: "🏛️💒",
+      titolo: "Matrimonio Intercasta",
+      descrizione: "Consenti il matrimonio tra abitanti di casta diversa (es. Nobile e Cittadino, Schiavo e Cittadino). Se disattivato, possono sposarsi solo abitanti della stessa casta."
     }
   ];
 

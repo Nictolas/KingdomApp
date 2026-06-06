@@ -8,6 +8,7 @@ import { getAbitazioneAbitante } from "../src/game/abitanteEdifici";
 import { getEmojiRazza, fazioniData } from "../src/kingdomData";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
+import { getCastaAbitante, getEmojiCasta, isCastaCoercibile } from "../src/game/casta";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 
 type FazioneItem = { emoji: string; nome: string };
@@ -55,7 +56,7 @@ function getResidenzaAbitante(abitanteId: number, edifici: Edificio[]): string {
   return getAbitazioneAbitante(abitanteId, edifici);
 }
 
-type SortField = "nome" | "eta" | "lavoro" | "razza" | "sesso" | "orientamento" | "residenza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "fazioni" | null;
+type SortField = "nome" | "eta" | "lavoro" | "razza" | "casta" | "sesso" | "orientamento" | "residenza" | "competenza" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "fazioni" | null;
 type SortDirection = "asc" | "desc";
 
 type MacroKey = "anagrafica" | "prestazioni" | "benessere" | "economia" | "lealta" | "sociale" | "religioneFazioni";
@@ -85,12 +86,12 @@ function getLavoroDisplay(abitante: Abitante, etaMinimaLavoro: number): string {
   return abitante.lavoro;
 }
 
-/** Reddito da mostrare: per beneficiari (Disoccupato non schiavo) include il reddito di cittadinanza. */
+/** Reddito da mostrare: per beneficiari (Disoccupato non in casta coercibile) include il reddito di cittadinanza. */
 function getRedditoDisplay(abitante: Abitante, etaMinimaLavoro: number, redditoCittadinanza: number): number {
   if (abitante.razza === "Robot") return 0;
   const lavoroDisplay = getLavoroDisplay(abitante, etaMinimaLavoro);
-  const èSchiavo = abitante.fazioni?.includes("Schiavi") ?? false;
-  const beneficiario = lavoroDisplay === "Disoccupato" && !èSchiavo && redditoCittadinanza > 0;
+  const castaCoercibile = isCastaCoercibile(getCastaAbitante(abitante));
+  const beneficiario = lavoroDisplay === "Disoccupato" && !castaCoercibile && redditoCittadinanza > 0;
   return beneficiario ? abitante.reddito + redditoCittadinanza : abitante.reddito;
 }
 
@@ -170,6 +171,9 @@ export default function AbitantiScreen() {
       } else if (sortField === "razza") {
         aValue = a.razza ?? "Umano";
         bValue = b.razza ?? "Umano";
+      } else if (sortField === "casta") {
+        aValue = getCastaAbitante(a);
+        bValue = getCastaAbitante(b);
       } else if (sortField === "residenza") {
         aValue = getResidenzaAbitante(a.id, edifici);
         bValue = getResidenzaAbitante(b.id, edifici);
@@ -336,6 +340,10 @@ export default function AbitantiScreen() {
                   <Text style={styles.headerText}>🪐 Razza</Text>
                   {sortField === "razza" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
                 </Pressable>
+                <Pressable style={[styles.headerCell, styles.cellCasta, sortField === "casta" && styles.headerCellActive]} onPress={() => handleSort("casta")}>
+                  <Text style={styles.headerText}>🏛️ Casta</Text>
+                  {sortField === "casta" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                </Pressable>
                 <Pressable style={[styles.headerCell, styles.cellResidenza, sortField === "residenza" && styles.headerCellActive]} onPress={() => handleSort("residenza")}>
                   <Text style={styles.headerText}>🏠 Residenza</Text>
                   {sortField === "residenza" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
@@ -474,6 +482,9 @@ export default function AbitantiScreen() {
                     </View>
                     <View style={[styles.cell, styles.cellRazza]}>
                       <Text style={styles.cellEmojiText}>{getEmojiRazza(a.razza ?? "Umano")}</Text>
+                    </View>
+                    <View style={[styles.cell, styles.cellCasta]}>
+                      <Text style={styles.cellEmojiText}>{getEmojiCasta(getCastaAbitante(a))}</Text>
                     </View>
                     <View style={[styles.cell, styles.cellResidenza]}>
                       <Text style={styles.cellTextSmall}>{getResidenzaAbitante(a.id, edifici)}</Text>
@@ -690,8 +701,8 @@ const styles = StyleSheet.create({
     minWidth: 40
   },
   superAnagrafica: {
-    width: 520,
-    minWidth: 520
+    width: 580,
+    minWidth: 580
   },
   superPrestazioni: {
     width: 150,
@@ -776,6 +787,10 @@ const styles = StyleSheet.create({
     minWidth: 120
   },
   cellRazza: {
+    width: 40,
+    minWidth: 40
+  },
+  cellCasta: {
     width: 40,
     minWidth: 40
   },

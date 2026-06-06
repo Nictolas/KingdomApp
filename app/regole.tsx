@@ -4,7 +4,8 @@ import { useRouter } from "expo-router";
 
 const VOCI: { emoji: string; label: string; route: string }[] = [
   { emoji: "🎲", label: "Generazione Partita", route: "/generazione-partita" },
-  { emoji: "⏭️", label: "Regole Skip", route: "/regole-skip" }
+  { emoji: "⏭️", label: "Regole Skip", route: "/regole-skip" },
+  { emoji: "🏛️", label: "Casta", route: "/casta" }
 ];
 
 export default function RegoleScreen() {

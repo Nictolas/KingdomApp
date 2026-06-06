@@ -16,6 +16,13 @@ import { calcolaProduzioneConsumoPuro } from "../game/produzioneConsumo";
 import { calcolaFelicitàModificataPuro } from "../game/felicita";
 import { generaImmigratiProposti } from "../game/immigrazione";
 import { getLavoroPerEdificio, normalizzaLavoroEAgricoltura } from "../game/edificiLavoro";
+import { getCastaAbitante } from "../game/casta";
+import {
+  PREZZO_SCHIAVO_DEFAULT,
+  trasferisciProprietaSchiavoPuro,
+  uccidiSchiavoPuro,
+  puoEssereAssegnatoForzatamente
+} from "../game/schiavituCommercio";
 import { syncResidenzeBaraccaSenzatetto } from "../game/avanzaMese";
 import { normalizzaInventariAbitanti } from "../game/consumoCiboInventario";
 import {
@@ -159,12 +166,14 @@ export function useGameState() {
     arcobaleno: boolean;
     monogenitoriale: boolean;
     matrimonioUmanoRobot: boolean;
+    matrimonioIntercasta: boolean;
   }>({
     tradizionale: true,
     interrazziale: true,
     arcobaleno: true,
     monogenitoriale: true,
-    matrimonioUmanoRobot: false
+    matrimonioUmanoRobot: false,
+    matrimonioIntercasta: false
   });
 
   // Reddito di cittadinanza: importo mensile dato a disoccupati non schiavi
@@ -458,6 +467,7 @@ export function useGameState() {
       if (!campoLavoro || campoLavoro.stato !== "Operativo") return;
 
       let candidati = abitanti.filter((a) => {
+        if (!puoEssereAssegnatoForzatamente(a)) return false;
         if (filtro.personalità != null && filtro.personalità !== "" && a.personalità !== filtro.personalità)
           return false;
         const razza = a.razza ?? "Umano";
@@ -642,6 +652,43 @@ export function useGameState() {
     [abitanti, edifici]
   );
 
+  const assegnaServoDellaGlebaAEdificio = useCallback(
+    (abitanteId: number, edificioId: number) => {
+      const abitante = abitanti.find((a) => a.id === abitanteId);
+      if (!abitante || getCastaAbitante(abitante) !== "Servo della gleba") return;
+      assegnaAbitanteAEdificio(abitanteId, edificioId);
+    },
+    [abitanti, assegnaAbitanteAEdificio]
+  );
+
+  const trasferisciProprietaSchiavo = useCallback(
+    (schiavoId: number, nuovoProprietarioId: number | null, prezzo: number = PREZZO_SCHIAVO_DEFAULT) => {
+      const result = trasferisciProprietaSchiavoPuro({
+        abitanti,
+        risorse,
+        schiavoId,
+        nuovoProprietarioId,
+        prezzo
+      });
+      if (!result.ok) return false;
+      setAbitanti(result.abitanti);
+      setRisorse(result.risorse);
+      return true;
+    },
+    [abitanti, risorse]
+  );
+
+  const uccidiSchiavo = useCallback(
+    (uccisoreId: number | null, schiavoId: number) => {
+      const result = uccidiSchiavoPuro({ abitanti, edifici, uccisoreId, schiavoId });
+      if (!result.ok) return false;
+      setAbitanti(result.abitanti);
+      setEdifici(result.edifici);
+      return true;
+    },
+    [abitanti, edifici]
+  );
+
   // Mercato: ordini di acquisto/vendita; si eseguono solo al cambio mese (Skip Mese)
   const aggiungiOrdineMercato = useCallback(
     (tipo: "compra" | "vendi", risorsaId: number, quantità: number, prezzoUnitario: number): boolean => {
@@ -767,6 +814,9 @@ export function useGameState() {
     prezzoResidenze,
     setPrezzoResidenza,
     aggiungiAlCampoDiLavoroTuttiQuelliChe,
+    assegnaServoDellaGlebaAEdificio,
+    trasferisciProprietaSchiavo,
+    uccidiSchiavo,
     nominaMinistro,
     rimuoviMinistro,
     setNomeAbitante,

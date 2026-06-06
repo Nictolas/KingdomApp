@@ -70,6 +70,10 @@ export default function GridGame() {
             <Text style={styles.navLabel}>Personalità</Text>
             <Text style={styles.navMeta}>{personalitàUniche.length}</Text>
           </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/casta")}>
+            <Text style={styles.navEmoji}>🏛️</Text>
+            <Text style={styles.navLabel}>Casta</Text>
+          </Pressable>
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/competenze")}>
             <Text style={styles.navEmoji}>📊</Text>
             <Text style={styles.navLabel}>Competenze</Text>

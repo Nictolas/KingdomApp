@@ -1,28 +1,88 @@
 import React from "react";
-import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getCastaAbitante } from "../src/game/casta";
+import {
+  getProprietarioSchiavoId,
+  PREZZO_SCHIAVO_DEFAULT,
+  puoUccidereSchiavo
+} from "../src/game/schiavituCommercio";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
 export default function SchiaviScreen() {
   const router = useRouter();
-  const { abitanti } = useGameContext();
+  const { abitanti, trasferisciProprietaSchiavo, uccidiSchiavo } = useGameContext();
 
-  const schiavi = abitanti.filter((a: Abitante) => a.ruoloSchiavitu === "schiavo");
-  const schiaviDiStato = schiavi.filter((s) => s.schiavistaId == null || s.schiavistaId === undefined);
-  const schiaviPrivati = schiavi.filter((s) => s.schiavistaId != null);
+  const serviDellaGleba = abitanti.filter((a) => getCastaAbitante(a) === "Servo della gleba");
+  const schiaviPrivati = abitanti.filter((a) => getCastaAbitante(a) === "Schiavo");
+
+  const compratori = [
+    { id: null as number | null, nome: "Colonia" },
+    ...abitanti
+      .filter((a) => getCastaAbitante(a) !== "Schiavo" && getCastaAbitante(a) !== "Servo della gleba" && a.razza !== "Robot")
+      .map((a) => ({ id: a.id as number | null, nome: a.nome }))
+  ];
 
   const getPadroneNome = (schiavistaId?: number): string => {
-    if (schiavistaId == null || schiavistaId === undefined) return "Stato";
+    if (schiavistaId == null) return "Colonia";
     const padrone = abitanti.find((a) => a.id === schiavistaId);
     return padrone ? padrone.nome : `ID ${schiavistaId}`;
+  };
+
+  const handleCompra = (schiavoId: number, acquirenteId: number | null) => {
+    trasferisciProprietaSchiavo(schiavoId, acquirenteId, PREZZO_SCHIAVO_DEFAULT);
+  };
+
+  const handleUccidi = (uccisoreId: number | null, schiavoId: number) => {
+    uccidiSchiavo(uccisoreId, schiavoId);
   };
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
+
+  const renderCard = (schiavo: Abitante, variant: "stato" | "privato") => {
+    const prop = getProprietarioSchiavoId(schiavo);
+    const acquirentiValidi = compratori.filter((c) => c.id !== prop);
+    const padroniUccisori = abitanti.filter((a) => puoUccidereSchiavo(a.id, schiavo, abitanti));
+
+    return (
+      <View key={schiavo.id} style={[styles.card, variant === "stato" ? styles.cardStato : styles.cardPrivato]}>
+        <Text style={styles.emoji}>{getEmojiAbitante(schiavo)}</Text>
+        <Text style={styles.cardTitle}>{schiavo.nome}</Text>
+        <Text style={styles.cardLavoro}>{schiavo.lavoro}</Text>
+        <Text style={variant === "stato" ? styles.badgeStato : styles.cardPadrone}>
+          Padrone: {variant === "stato" ? "Colonia" : getPadroneNome(schiavo.schiavistaId)}
+        </Text>
+        {acquirentiValidi.length > 0 && (
+          <View style={styles.azioni}>
+            {acquirentiValidi.slice(0, 3).map((c) => (
+              <Pressable key={c.id ?? "colonia"} style={styles.btnCompra} onPress={() => handleCompra(schiavo.id, c.id)}>
+                <Text style={styles.btnCompraText}>{c.nome} ({PREZZO_SCHIAVO_DEFAULT}💰)</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+        {(puoUccidereSchiavo(null, schiavo, abitanti) || padroniUccisori.length > 0) && (
+          <View style={styles.azioni}>
+            {puoUccidereSchiavo(null, schiavo, abitanti) && (
+              <Pressable style={styles.btnUccidi} onPress={() => handleUccidi(null, schiavo.id)}>
+                <Text style={styles.btnUccidiText}>Colonia uccide</Text>
+              </Pressable>
+            )}
+            {padroniUccisori.map((p) => (
+              <Pressable key={p.id} style={styles.btnUccidi} onPress={() => handleUccidi(p.id, schiavo.id)}>
+                <Text style={styles.btnUccidiText}>{p.nome} uccide</Text>
+              </Pressable>
+            ))}
+          </View>
+        )}
+      </View>
+    );
+  };
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
@@ -33,57 +93,36 @@ export default function SchiaviScreen() {
       </View>
 
       <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.content}>
-        <Text style={styles.subtitle}>
-          Lista degli schiavi della colonia e dei loro padroni. Gli schiavi di Stato sono di proprietà della colonia (il giocatore); gli schiavi privati appartengono a un abitante.
-        </Text>
+        <ScrollView contentContainerStyle={styles.content}>
+          <Text style={styles.subtitle}>
+            Servi della gleba (colonia) e Schiavi privati. Compravendita a {PREZZO_SCHIAVO_DEFAULT} monete.
+            Il reddito degli Schiavi privati va al padrone; uccidere il proprio schiavo non genera reati.
+          </Text>
 
-        {/* Schiavi di Stato */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Schiavi di Stato ({schiaviDiStato.length})</Text>
-          <Text style={styles.sectionDesc}>Di proprietà della colonia (padrone: il giocatore)</Text>
-          {schiaviDiStato.length > 0 ? (
-            <View style={styles.grid}>
-              {schiaviDiStato.map((schiavo: Abitante) => (
-                <View key={schiavo.id} style={[styles.card, styles.cardStato]}>
-                  <Text style={styles.emoji}>{getEmojiAbitante(schiavo)}</Text>
-                  <Text style={styles.cardTitle}>{schiavo.nome}</Text>
-                  <Text style={styles.cardLavoro}>{schiavo.lavoro}</Text>
-                  <Text style={styles.badgeStato}>Padrone: Stato</Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.emptyText}>Nessuno schiavo di Stato</Text>
-          )}
-        </View>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Servi della gleba ({serviDellaGleba.length})</Text>
+            <Text style={styles.sectionDesc}>Proprietà della colonia · assegnabili da Postazioni di lavoro</Text>
+            {serviDellaGleba.length > 0 ? (
+              <View style={styles.grid}>{serviDellaGleba.map((s) => renderCard(s, "stato"))}</View>
+            ) : (
+              <Text style={styles.emptyText}>Nessun Servo della gleba</Text>
+            )}
+          </View>
 
-        {/* Schiavi privati */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Schiavi privati ({schiaviPrivati.length})</Text>
-          <Text style={styles.sectionDesc}>Di proprietà di un abitante</Text>
-          {schiaviPrivati.length > 0 ? (
-            <View style={styles.grid}>
-              {schiaviPrivati.map((schiavo: Abitante) => (
-                <View key={schiavo.id} style={[styles.card, styles.cardPrivato]}>
-                  <Text style={styles.emoji}>{getEmojiAbitante(schiavo)}</Text>
-                  <Text style={styles.cardTitle}>{schiavo.nome}</Text>
-                  <Text style={styles.cardLavoro}>{schiavo.lavoro}</Text>
-                  <Text style={styles.cardPadrone}>
-                    Padrone: {getPadroneNome(schiavo.schiavistaId)}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.emptyText}>Nessuno schiavo privato</Text>
-          )}
-        </View>
-      </ScrollView>
-    </View>
-    <View style={styles.footer}>
-      <Text style={styles.back} onPress={() => router.back()}>← Fazioni</Text>
-    </View>
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Schiavi privati ({schiaviPrivati.length})</Text>
+            <Text style={styles.sectionDesc}>Proprietà di un abitante · compaiono nel suo inventario</Text>
+            {schiaviPrivati.length > 0 ? (
+              <View style={styles.grid}>{schiaviPrivati.map((s) => renderCard(s, "privato"))}</View>
+            ) : (
+              <Text style={styles.emptyText}>Nessuno schiavo privato</Text>
+            )}
+          </View>
+        </ScrollView>
+      </View>
+      <View style={styles.footer}>
+        <Text style={styles.back} onPress={() => router.back()}>← Fazioni</Text>
+      </View>
     </SafeAreaView>
   );
 }
@@ -152,11 +191,46 @@ const styles = StyleSheet.create({
   badgeStato: {
     color: "#3b82f6",
     fontSize: 9,
-    fontWeight: "600"
+    fontWeight: "600",
+    marginBottom: 6
   },
   cardPadrone: {
     color: "rgba(203,213,245,0.7)",
     fontSize: 9,
+    textAlign: "center",
+    marginBottom: 6
+  },
+  azioni: {
+    width: "100%",
+    gap: 4,
+    marginTop: 4
+  },
+  btnCompra: {
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+    backgroundColor: "rgba(59,130,246,0.2)",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(59,130,246,0.35)"
+  },
+  btnCompraText: {
+    color: "#93c5fd",
+    fontSize: 8,
+    fontWeight: "600",
+    textAlign: "center"
+  },
+  btnUccidi: {
+    paddingVertical: 5,
+    paddingHorizontal: 6,
+    backgroundColor: "rgba(239,68,68,0.12)",
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(239,68,68,0.3)"
+  },
+  btnUccidiText: {
+    color: "#fca5a5",
+    fontSize: 8,
+    fontWeight: "600",
     textAlign: "center"
   },
   emptyText: {

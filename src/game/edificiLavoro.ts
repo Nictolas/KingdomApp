@@ -1,6 +1,7 @@
 import type { Abitante, Edificio } from "../types";
 import { edificiData } from "../data/edificiData";
 import { EDIFICIO_COMPETENZA_RICHIESTA, type CompetenzaEdificio } from "../data/edificiCompetenze";
+import { puoEssereAssegnatoForzatamente } from "./schiavituCommercio";
 
 /** Mappa edificioId → nome lavoro. Usata per sincronizzare lavoro abitante e per auto-assign Skip Mese. */
 export const EDIFICIO_TO_LAVORO: Record<number, string> = {
@@ -174,7 +175,12 @@ export function normalizzaLavoroEAgricoltura(abitanti: Abitante[], edifici: Edif
  */
 export function autoAssegnaDisoccupati(abitanti: Abitante[], edifici: Edificio[]): Edificio[] {
   const disoccupati = abitanti
-    .filter((a) => a.lavoro === "Disoccupato" && a.razza !== "Robot")
+    .filter(
+      (a) =>
+        a.lavoro === "Disoccupato" &&
+        a.razza !== "Robot" &&
+        puoEssereAssegnatoForzatamente(a)
+    )
     .sort((a, b) => b.competenza - a.competenza);
   const assigned = new Set<number>();
   const edificiOut = edifici.map((e) => ({ ...e, abitantiAssegnati: [...(e.abitantiAssegnati ?? [])] }));

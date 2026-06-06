@@ -47,6 +47,14 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     ]
   },
   {
+    titolo: "Casta",
+    punti: [
+      "Il Comandante della Colonia ha casta «Nobile».",
+      "Gli abitanti con ruoloSchiavitu «schiavo» hanno casta «Servo della gleba» (schiavi della colonia).",
+      "Tutti gli altri abitanti hanno casta «Cittadino»."
+    ]
+  },
+  {
     titolo: "Nome ed emoji",
     punti: [
       "Umani: nome e cognome da liste fisse (es. Marco Rossi, Anna Bianchi).",
@@ -206,6 +214,11 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     if (titolo) ab.titoloStudio = titolo;
     if (èSchiavo) {
       ab.ruoloSchiavitu = "schiavo";
+      ab.casta = "Servo della gleba";
+    } else if (i === 1) {
+      ab.casta = "Nobile";
+    } else {
+      ab.casta = "Cittadino";
     }
     abitanti.push(ab);
   }
