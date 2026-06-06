@@ -33,6 +33,7 @@ import {
   getAperturaResidenzaPending
 } from "../src/game/mappaAperturaPending";
 import { getMappaSessione, setMappaSessione } from "../src/game/mappaSessione";
+import { piazzaLuogoCultoSuMappa } from "../src/game/luogoCulto";
 import type { MappaRuntimeState } from "../src/game/mappaTypes";
 import {
   distribuisciAbitantiSuAnchorCapanne,
@@ -58,6 +59,8 @@ import {
   RpgFootprintBar2x2,
   RpgFootprintTribunale2x2,
   RpgFootprintUfficioImmigrazione2x2,
+  RpgFootprintLuogoCultoSole2x2,
+  RpgFootprintLuogoCultoAlieni2x2,
   RpgFootprintMercato2x2,
   RpgFootprintDissalatore2x2,
   RpgFootprintSerra2x1,
@@ -270,7 +273,9 @@ const FOOTPRINT_COSTRUZIONE: Record<string, { w: number; h: number }> = {
   Mercato: { w: MERCATO_FOOTPRINT_W, h: MERCATO_FOOTPRINT_H },
   "Mensa Pubblica": { w: MERCATO_FOOTPRINT_W, h: MERCATO_FOOTPRINT_H },
   Dissalatore: { w: DISSALATORE_FOOTPRINT_W, h: DISSALATORE_FOOTPRINT_H },
-  Spazioporto: { w: SPAZIOPORTO_FOOTPRINT_W, h: SPAZIOPORTO_FOOTPRINT_H }
+  Spazioporto: { w: SPAZIOPORTO_FOOTPRINT_W, h: SPAZIOPORTO_FOOTPRINT_H },
+  "Luogo di Culto del Sole": { w: 2, h: 2 },
+  "Luogo di Culto degli Alieni": { w: 2, h: 2 }
 };
 
 /** Sabbia = terreno sabbia su terraferma (non mare). */
@@ -1358,7 +1363,9 @@ type FootprintVariant =
   | "dissalatore"
   | "spazioporto"
   | "serra"
-  | "capanna";
+  | "capanna"
+  | "luogo_culto_sole"
+  | "luogo_culto_alieni";
 
 function EdificioFootprintGfx({
   anchor,
@@ -1401,6 +1408,22 @@ function EdificioFootprintGfx({
     return (
       <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
         <RpgFootprintTribunale2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "luogo_culto_sole" && w === 2 && h === 2) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintLuogoCultoSole2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "luogo_culto_alieni" && w === 2 && h === 2) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintLuogoCultoAlieni2x2 width={width} height={height} />
       </View>
     );
   }
@@ -1638,7 +1661,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     rimuoviAbitanteDaEdificio,
     aggiungiEdificioDaTemplate,
     rimuoviEdificioPerId,
-    serviPastoMensaAbitante
+    serviPastoMensaAbitante,
+    luoghiCultoPendentiMappa,
+    setLuoghiCultoPendentiMappa
   } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
@@ -1668,9 +1693,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   }, []);
 
   const [mappaState, setMappaState] = useState<MappaRuntimeState>(() => {
-    setMappaSessione(initialMappaState);
-    return initialMappaState;
+    const session = getMappaSessione() ?? initialMappaState;
+    setMappaSessione(session);
+    return session;
   });
+
   const setMappaStatePersistente = useCallback((action: React.SetStateAction<MappaRuntimeState>) => {
     setMappaState((prev) => {
       const next = typeof action === "function" ? (action as (p: MappaRuntimeState) => MappaRuntimeState)(prev) : action;
@@ -1678,8 +1705,23 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       return next;
     });
   }, []);
+
   const mappaStateRef = useRef(mappaState);
   mappaStateRef.current = mappaState;
+
+  useEffect(() => {
+    if (luoghiCultoPendentiMappa.length === 0) return;
+    const ancoraPendenti: typeof luoghiCultoPendentiMappa = [];
+    for (const pending of luoghiCultoPendentiMappa) {
+      const ok = piazzaLuogoCultoSuMappa(pending.religione, pending.edificioGlobaleId, mappaStateRef.current);
+      if (!ok) ancoraPendenti.push(pending);
+    }
+    if (ancoraPendenti.length !== luoghiCultoPendentiMappa.length) {
+      const session = getMappaSessione();
+      if (session) setMappaStatePersistente(session);
+      setLuoghiCultoPendentiMappa(ancoraPendenti);
+    }
+  }, [luoghiCultoPendentiMappa, setLuoghiCultoPendentiMappa, setMappaStatePersistente]);
   const edificiInMappa = mappaState.edificiInMappa;
   const terrenoInMappa = mappaState.terrenoInMappa;
   const decorazioniInMappa = mappaState.decorazioniInMappa;
@@ -2384,7 +2426,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                       ? "serra"
                       : e.nome === "Capanna"
                         ? "capanna"
-                        : "amministrazione";
+                        : e.nome === "Luogo di Culto del Sole"
+                          ? "luogo_culto_sole"
+                          : e.nome === "Luogo di Culto degli Alieni"
+                            ? "luogo_culto_alieni"
+                            : "amministrazione";
         list.push({ anchor: Number(i), fp: e.footprint, variant });
       }
     }

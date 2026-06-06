@@ -36,8 +36,15 @@ import {
   getGiornoGiocoSnapshot,
   subscribeGiornoGioco
 } from "../game/orologioGiocoSession";
+import {
+  piazzaLuogoCultoSuMappa,
+  TEMPLATE_ID_LUOGO_CULTO,
+  type ReligioneConCulto
+} from "../game/luogoCulto";
 
 const statoIniziale = generaColoniaIniziale();
+const capoReligiosoSoleIniziale =
+  statoIniziale.abitanti.find((a) => a.lavoro === "Capo Religioso" && a.religione === "Culto del Sole")?.id ?? null;
 
 export function useGameState() {
   const [abitanti, setAbitanti] = useState<Abitante[]>(statoIniziale.abitanti);
@@ -135,9 +142,40 @@ export function useGameState() {
   const [religioneDiStato, setReligioneDiStato] = useState<"Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni" | null>(null);
   
   // Capo religioso e fedeli per ogni culto
-  const [capoReligiosoSole, setCapoReligiosoSole] = useState<number | null>(null); // ID abitante
-  const [capoReligiosoAlieni, setCapoReligiosoAlieni] = useState<number | null>(null); // ID abitante
-  
+  const [capoReligiosoSole, setCapoReligiosoSole] = useState<number | null>(capoReligiosoSoleIniziale);
+  const [capoReligiosoAlieni, setCapoReligiosoAlieni] = useState<number | null>(null);
+  const [pendingRichiestaLuogoCulto, setPendingRichiestaLuogoCulto] = useState<{
+    id: number;
+    nome: string;
+    religione: ReligioneConCulto;
+  } | null>(null);
+  const [luoghiCultoPendentiMappa, setLuoghiCultoPendentiMappa] = useState<
+    { religione: ReligioneConCulto; edificioGlobaleId: number }[]
+  >([]);
+
+  // Sincronizza lavoro «Capo Religioso» con la nomina nei culti.
+  useEffect(() => {
+    setAbitanti((prev) =>
+      prev.map((a) => {
+        if (capoReligiosoSole != null && a.id === capoReligiosoSole) {
+          return { ...a, lavoro: "Capo Religioso", religione: "Culto del Sole" as const };
+        }
+        if (capoReligiosoAlieni != null && a.id === capoReligiosoAlieni) {
+          return { ...a, lavoro: "Capo Religioso", religione: "Culto degli Alieni" as const };
+        }
+        if (a.lavoro === "Capo Religioso") {
+          if (a.religione === "Culto del Sole" && a.id !== capoReligiosoSole) {
+            return { ...a, lavoro: "Disoccupato", reddito: a.ruoloSchiavitu ? 0 : 0 };
+          }
+          if (a.religione === "Culto degli Alieni" && a.id !== capoReligiosoAlieni) {
+            return { ...a, lavoro: "Disoccupato", reddito: a.ruoloSchiavitu ? 0 : 0 };
+          }
+        }
+        return a;
+      })
+    );
+  }, [capoReligiosoSole, capoReligiosoAlieni]);
+
   // Configurazione legge razziale
   const [leggeRazzialeAttiva, setLeggeRazzialeAttiva] = useState(false);
   const [razzaCampoLavoro, setRazzaCampoLavoro] = useState<Razza | null>(null);
@@ -233,11 +271,15 @@ export function useGameState() {
       prezzoResidenze,
       redditoCittadinanza,
       modalitaSanita,
-      tipologieFamigliaAccettate
+      tipologieFamigliaAccettate,
+      haPendingRichiestaLuogoCulto: pendingRichiestaLuogoCulto != null
     });
 
     setNativiNonIntegrati((prev) => prev + result.deltaNativiNonIntegrati);
     if (result.pendingAssimilazione != null) setPendingAssimilazione(result.pendingAssimilazione);
+    if (result.pendingRichiestaLuogoCulto != null) {
+      setPendingRichiestaLuogoCulto(result.pendingRichiestaLuogoCulto);
+    }
     if (result.pendingMatrimonio != null) setPendingMatrimonio(result.pendingMatrimonio);
     if (result.newIdNascita != null) setNextId(result.newIdNascita + 1);
     setEventiInCorso(result.eventiInCorso);
@@ -264,7 +306,7 @@ export function useGameState() {
     if (result.avvisoDiario) {
       setDiarioRighe((prev) => [...prev, result.avvisoDiario!]);
     }
-  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate]);
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, pendingRichiestaLuogoCulto]);
 
   const confermaMatrimonio = useCallback((idA: number, idB: number) => {
     setAbitanti((prev) =>
@@ -626,6 +668,37 @@ export function useGameState() {
     setPendingAssimilazione(null);
   }, []);
 
+  const accettaRichiestaLuogoCulto = useCallback(() => {
+    const richiesta = pendingRichiestaLuogoCulto;
+    setPendingRichiestaLuogoCulto(null);
+    if (!richiesta) return;
+
+    const templateId = TEMPLATE_ID_LUOGO_CULTO[richiesta.religione];
+    const template = edificiData.find((x) => x.id === templateId);
+    if (!template) return;
+
+    const newId = Math.max(0, ...edifici.map((x) => x.id)) + 1;
+    setEdifici((prev) => [
+      ...prev,
+      {
+        ...template,
+        id: newId,
+        abitantiAssegnati: [],
+        occupazione: 0,
+        stato: "Operativo" as const
+      }
+    ]);
+
+    const piazzato = piazzaLuogoCultoSuMappa(richiesta.religione, newId);
+    if (!piazzato) {
+      setLuoghiCultoPendentiMappa((prev) => [...prev, { religione: richiesta.religione, edificioGlobaleId: newId }]);
+    }
+  }, [pendingRichiestaLuogoCulto, edifici]);
+
+  const rifiutaRichiestaLuogoCulto = useCallback(() => {
+    setPendingRichiestaLuogoCulto(null);
+  }, []);
+
   // Tribunale: grazia un criminale (logica pura in src/game/tribunale); se Ex Governatore → Rivoluzionari -20.
   const graziaCriminale = useCallback(
     (abitanteId: number) => {
@@ -844,6 +917,11 @@ export function useGameState() {
     chiudiAlertInizioPartita,
     messaggioEmigrazione,
     chiudiMessaggioEmigrazione,
-    diarioRighe
+    diarioRighe,
+    pendingRichiestaLuogoCulto,
+    accettaRichiestaLuogoCulto,
+    rifiutaRichiestaLuogoCulto,
+    luoghiCultoPendentiMappa,
+    setLuoghiCultoPendentiMappa
   };
 }

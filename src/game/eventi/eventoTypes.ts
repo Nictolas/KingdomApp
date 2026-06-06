@@ -15,7 +15,8 @@ export type EventoDef = {
     punteggioSanzioni: number,
     divietoEspatrioAttivo?: boolean,
     calcolaFelicitàModificata?: (a: Abitante) => number,
-    soddisfazioneFazioni?: Record<string, number>
+    soddisfazioneFazioni?: Record<string, number>,
+    haPendingRichiestaLuogoCulto?: boolean
   ) => boolean;
   /** Effetto all'attivazione (modifica risorse/abitanti/edifici in place). Può restituire messaggio extra per il dialog. */
   applicaAttivazione: (

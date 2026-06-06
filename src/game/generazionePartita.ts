@@ -33,7 +33,8 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
   {
     titolo: "Religione",
     punti: [
-      "Distribuzione uniforme tra: Ateo, Deista, Agnostico, Culto del Sole, Culto degli Alieni."
+      "Distribuzione uniforme tra: Ateo, Deista, Agnostico, Culto del Sole, Culto degli Alieni.",
+      "A inizio partita c'è sempre un abitante con Occupazione «Capo Religioso» e Religione «Culto del Sole»."
     ]
   },
   {
@@ -341,6 +342,15 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
   for (let i = 3; i < candidatiOrientamento.length; i++) {
     const idx = candidatiOrientamento[i];
     if (idx != null) abitanti[idx]!.orientamento = "Etero";
+  }
+
+  // Regola: almeno 1 Capo Religioso con religione Culto del Sole a inizio partita.
+  const candidatiCapoReligioso = abitanti.filter((a) => a.id !== 1 && a.razza !== "Robot");
+  if (candidatiCapoReligioso.length > 0) {
+    const capo = candidatiCapoReligioso[Math.floor(Math.random() * candidatiCapoReligioso.length)]!;
+    capo.religione = "Culto del Sole";
+    capo.lavoro = "Capo Religioso";
+    if (!capo.ruoloSchiavitu) capo.reddito = 150 + Math.floor(Math.random() * 201);
   }
 
   // Regola: 1 abitante con stato "Incinta" a inizio partita (preferibilmente donna, non Comandante, non Robot)

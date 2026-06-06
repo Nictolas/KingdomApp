@@ -1,9 +1,10 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import type { Abitante } from "../src/types";
 import { ReligioneFedeliModal } from "../src/ui/ReligioneFedeliModal";
+import { ReligionePieChart, coloriReligione } from "../src/ui/ReligionePieChart";
 
 export default function ReligioneScreen() {
   const router = useRouter();
@@ -55,6 +56,17 @@ export default function ReligioneScreen() {
   });
 
   const religioniDisponibili = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto degli Alieni"] as const;
+
+  const fetteTorta = useMemo(
+    () =>
+      religioniConPercentuali.map((r) => ({
+        nome: r.nome,
+        emoji: r.emoji,
+        count: r.count,
+        color: coloriReligione(r.nome)
+      })),
+    [religioniConPercentuali]
+  );
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
@@ -140,6 +152,8 @@ export default function ReligioneScreen() {
 
           {/* Colonna destra */}
           <View style={styles.rightColumn}>
+            <ReligionePieChart slices={fetteTorta} size={isDesktop ? 150 : 130} />
+
             {/* Religioni disponibili */}
             <View style={styles.section}>
               <Text style={styles.sectionTitle}>Religioni Disponibili</Text>

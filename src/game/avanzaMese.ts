@@ -5,6 +5,7 @@ import { abitanteConInventarioIniziale } from "./inventario";
 import { RESIDENZE_CATALOGO, RESIDENZE_ENERGIA_PER_ABITANTE } from "../data/residenzeData";
 import { getCastaAbitante, isCastaCoercibile } from "./casta";
 import { autoAssegnaDisoccupati, normalizzaLavoroEAgricoltura } from "./edificiLavoro";
+import { trovaCapoReligiosoSenzaLuogo, type ReligioneConCulto } from "./luogoCulto";
 import { applicaRedditoSchiaviAlPadroni, isOmicidioSchiavoImmune } from "./schiavituCommercio";
 
 export type AvanzaMeseInput = {
@@ -38,6 +39,8 @@ export type AvanzaMeseInput = {
     matrimonioUmanoRobot: boolean;
     matrimonioIntercasta?: boolean;
   };
+  /** True se c'è già una richiesta luogo di culto in attesa di risposta. */
+  haPendingRichiestaLuogoCulto?: boolean;
 };
 
 export type AvanzaMeseOutput = {
@@ -63,6 +66,8 @@ export type AvanzaMeseOutput = {
   newIdNascita: number | null;
   /** Avviso da appendere al Diario (es. rischio Guerra Civile). */
   avvisoDiario: string | null;
+  /** Capo religioso che chiede di costruire un luogo di culto (dialog Accetta/Rifiuta). */
+  pendingRichiestaLuogoCulto: { id: number; nome: string; religione: ReligioneConCulto } | null;
 };
 
 /** Sincronizza le residenze: Baracca = tutti e solo i Senzatetto; le altre residenze non ospitano Senzatetto. */
@@ -160,7 +165,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     soddisfazioneFazioni = {},
     prezzoResidenze = {},
     redditoCittadinanza = 0,
-    modalitaSanita = "privata"
+    modalitaSanita = "privata",
+    haPendingRichiestaLuogoCulto = false
   } = input;
 
   // Baracca contiene tutti e solo i Senzatetto; sincronizza prima di procedere.
@@ -725,9 +731,22 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   });
 
   let messaggioEmigrazione: string | null = null;
+  const avevaRichiestaLuogoCulto = eventiInCorso.some((e) => e.id === "richiesta-luogo-culto");
   EVENTI_CATALOGO.forEach((def) => {
     if (nuoviEventiInCorso.some((e) => e.id === def.id)) return;
-    if (!def.condizione(abitantiEv, risorseEv, edificiEv, punteggioSanzioni, divietoEspatrioAttivo, calcolaFelicitàModificata, soddisfazioneFazioni)) return;
+    if (
+      !def.condizione(
+        abitantiEv,
+        risorseEv,
+        edificiEv,
+        punteggioSanzioni,
+        divietoEspatrioAttivo,
+        calcolaFelicitàModificata,
+        soddisfazioneFazioni,
+        haPendingRichiestaLuogoCulto
+      )
+    )
+      return;
     if (Math.random() >= def.probabilità) return;
     nuoviEventiInCorso = [
       ...nuoviEventiInCorso,
@@ -740,6 +759,20 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   const assimilazioneAppenaAggiunto =
     nuoviEventiInCorso.some((e) => e.id === "assimilazione") && !avevaAssimilazione;
   const pendingAssimilazione = assimilazioneAppenaAggiunto ? 1 + Math.floor(Math.random() * 3) : null;
+
+  const richiestaLuogoCultoAppenaAggiunto =
+    nuoviEventiInCorso.some((e) => e.id === "richiesta-luogo-culto") && !avevaRichiestaLuogoCulto;
+  let pendingRichiestaLuogoCulto: AvanzaMeseOutput["pendingRichiestaLuogoCulto"] = null;
+  if (richiestaLuogoCultoAppenaAggiunto) {
+    const capo = trovaCapoReligiosoSenzaLuogo(abitantiEv, edificiEv);
+    if (capo && (capo.religione === "Culto del Sole" || capo.religione === "Culto degli Alieni")) {
+      pendingRichiestaLuogoCulto = {
+        id: capo.id,
+        nome: capo.nome,
+        religione: capo.religione as ReligioneConCulto
+      };
+    }
+  }
 
   // Applica ordini mercato (acquisti/vendite)
   let risorseDopoOrdini = risorseEv.map((r) => ({ ...r }));
@@ -815,6 +848,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     pendingGravidanza,
     messaggioNascita,
     newIdNascita,
-    avvisoDiario
+    avvisoDiario,
+    pendingRichiestaLuogoCulto
   };
 }

@@ -441,6 +441,16 @@ export function RpgFootprintUfficioImmigrazione2x2(props: Props) {
   return <RpgFootprintEdificioPietra2x2 {...props} emoji="🛂" />;
 }
 
+/** Luogo di Culto del Sole 2×2. */
+export function RpgFootprintLuogoCultoSole2x2(props: Props) {
+  return <RpgFootprintEdificioPietra2x2 {...props} emoji="☀️" />;
+}
+
+/** Luogo di Culto degli Alieni 2×2. */
+export function RpgFootprintLuogoCultoAlieni2x2(props: Props) {
+  return <RpgFootprintEdificioPietra2x2 {...props} emoji="👽" />;
+}
+
 /** Vetrata centrale larga (hangar / sala controllo). */
 function HangarGlassPane() {
   return (

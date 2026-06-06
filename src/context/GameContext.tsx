@@ -3,6 +3,8 @@ import { useGameState } from "../hooks/useGameState";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
 import type { EventoDef } from "../game/eventi";
 import { DialogInizioPartitaModal } from "../ui/DialogInizioPartitaModal";
+import { RichiestaLuogoCultoModal } from "../ui/RichiestaLuogoCultoModal";
+import type { ReligioneConCulto } from "../game/luogoCulto";
 
 type ScaglioneConfig = {
   min: number;
@@ -136,6 +138,13 @@ type GameContextType = {
   messaggioEmigrazione: string | null;
   chiudiMessaggioEmigrazione: () => void;
   diarioRighe: string[];
+  pendingRichiestaLuogoCulto: { id: number; nome: string; religione: ReligioneConCulto } | null;
+  accettaRichiestaLuogoCulto: () => void;
+  rifiutaRichiestaLuogoCulto: () => void;
+  luoghiCultoPendentiMappa: { religione: ReligioneConCulto; edificioGlobaleId: number }[];
+  setLuoghiCultoPendentiMappa: React.Dispatch<
+    React.SetStateAction<{ religione: ReligioneConCulto; edificioGlobaleId: number }[]>
+  >;
 };
 
 const GameContext = createContext<GameContextType | undefined>(undefined);
@@ -165,6 +174,23 @@ function EmigrazioneDialogWrapper() {
   );
 }
 
+function RichiestaLuogoCultoDialogWrapper() {
+  const {
+    pendingRichiestaLuogoCulto,
+    accettaRichiestaLuogoCulto,
+    rifiutaRichiestaLuogoCulto
+  } = useGameContext();
+  return (
+    <RichiestaLuogoCultoModal
+      visible={pendingRichiestaLuogoCulto != null}
+      nomeCapo={pendingRichiestaLuogoCulto?.nome ?? ""}
+      religione={pendingRichiestaLuogoCulto?.religione ?? "Culto del Sole"}
+      onAccetta={accettaRichiestaLuogoCulto}
+      onRifiuta={rifiutaRichiestaLuogoCulto}
+    />
+  );
+}
+
 export function GameProvider({ children }: { children: ReactNode }) {
   const gameState = useGameState();
 
@@ -173,6 +199,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       {children}
       <DialogInizioPartitaWrapper />
       <EmigrazioneDialogWrapper />
+      <RichiestaLuogoCultoDialogWrapper />
     </GameContext.Provider>
   );
 }

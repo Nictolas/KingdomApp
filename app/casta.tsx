@@ -1,9 +1,10 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { CASTA_CATALOGO, getCastaAbitante } from "../src/game/casta";
 import type { Abitante } from "../src/types";
+import { CastaPieChart, coloriCasta } from "../src/ui/CastaPieChart";
 
 export default function CastaScreen() {
   const router = useRouter();
@@ -14,10 +15,25 @@ export default function CastaScreen() {
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
 
-  const conteggi = CASTA_CATALOGO.map((c) => ({
-    ...c,
-    count: abitanti.filter((a: Abitante) => getCastaAbitante(a) === c.nome).length
-  }));
+  const conteggi = useMemo(
+    () =>
+      CASTA_CATALOGO.map((c) => ({
+        ...c,
+        count: abitanti.filter((a: Abitante) => getCastaAbitante(a) === c.nome).length
+      })),
+    [abitanti]
+  );
+
+  const fetteTorta = useMemo(
+    () =>
+      conteggi.map((c) => ({
+        nome: c.nome,
+        emoji: c.emoji,
+        count: c.count,
+        color: coloriCasta(c.nome)
+      })),
+    [conteggi]
+  );
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
@@ -33,6 +49,8 @@ export default function CastaScreen() {
             La casta definisce lo status sociale di ogni abitante e quali vincoli o privilegi ha rispetto al lavoro, alla proprietà e alla legge.
             Compravendita e uccisione dalla pagina Schiavi; assegnazione lavoro forzata dei Servi della gleba da Postazioni di lavoro.
           </Text>
+
+          <CastaPieChart slices={fetteTorta} size={isDesktop ? 200 : 160} />
 
           <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
             {conteggi.map((c) => (
