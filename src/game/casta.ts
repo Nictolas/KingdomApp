@@ -23,7 +23,7 @@ export const CASTA_CATALOGO: CastaInfo[] = [
     emoji: "🌾",
     regole: [
       "Sono gli schiavi del giocatore (proprietà della colonia).",
-      "Quando un posto ha posti di lavoro vacanti, il giocatore può assegnare un Servo della gleba a quel lavoro."
+      "Quando un posto ha posti di lavoro vacanti, il giocatore può assegnare un Servo della gleba a quel lavoro (es. Serra, Bar, Ospedale, Tribunale)."
     ]
   },
   {

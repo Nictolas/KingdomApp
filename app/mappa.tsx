@@ -3631,18 +3631,23 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
       <Modal
         visible={mostraModalCostruisci}
-        transparent
-        animationType="fade"
+        animationType="slide"
+        presentationStyle="fullScreen"
         onRequestClose={() => setMostraModalCostruisci(false)}
       >
-        <Pressable style={styles.modalBackdrop} onPress={() => setMostraModalCostruisci(false)}>
-          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
+        <SafeAreaView style={styles.modalCostruisciRoot}>
+          <View style={styles.modalCostruisciBody}>
             <Text style={styles.modalTitle}>Cosa vuoi costruire?</Text>
             <Text style={styles.modalSubtitle}>
               Scegli un tipo, poi sposta il puntatore sulla mappa: l’anteprima colorata mostra dove andrà l’edificio. Tocca per
               confermare.
             </Text>
-            <ScrollView style={styles.modalList} nestedScrollEnabled>
+            <ScrollView
+              style={styles.modalCostruisciList}
+              contentContainerStyle={styles.modalCostruisciListContent}
+              nestedScrollEnabled
+              showsVerticalScrollIndicator={false}
+            >
               <Pressable
                 style={styles.modalOption}
                 onPress={() => {
@@ -3709,8 +3714,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             <Pressable style={styles.modalCancel} onPress={() => setMostraModalCostruisci(false)}>
               <Text style={styles.modalCancelText}>Chiudi</Text>
             </Pressable>
-          </Pressable>
-        </Pressable>
+          </View>
+        </SafeAreaView>
       </Modal>
 
       <Modal
@@ -4469,6 +4474,21 @@ const styles = StyleSheet.create({
   },
   modalList: {
     maxHeight: 320
+  },
+  modalCostruisciRoot: {
+    flex: 1,
+    backgroundColor: "#050816"
+  },
+  modalCostruisciBody: {
+    flex: 1,
+    paddingHorizontal: 16,
+    paddingVertical: 12
+  },
+  modalCostruisciList: {
+    flex: 1
+  },
+  modalCostruisciListContent: {
+    paddingBottom: 12
   },
   modalListCompact: {
     maxHeight: 200

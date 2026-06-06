@@ -21,7 +21,7 @@ export default function BarScreenById() {
   const idStr = Array.isArray(raw) ? raw[0] : raw;
   const edificioId = Number(idStr);
 
-  const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
+  const { abitanti, edifici, assegnaServoDellaGlebaAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
   const [dropdownVisible, setDropdownVisible] = useState(false);
   const { minuti: orologioMinuti, inPausa: orologioInPausa, togglePausa: toggleOrologioPausa } =
     useOrologioGioco();
@@ -144,6 +144,7 @@ export default function BarScreenById() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Addetti</Text>
+          <Text style={styles.sectionHint}>Solo abitanti con casta «Servo della gleba».</Text>
           {addettiIds.length < (bar.capacità ?? 20) && (
             <Pressable style={styles.addButton} onPress={() => setDropdownVisible(true)}>
               <Text style={styles.addButtonText}>+ Aggiungi addetto</Text>
@@ -179,6 +180,7 @@ export default function BarScreenById() {
                   <Text style={styles.modalClose}>✕</Text>
                 </Pressable>
               </View>
+              <Text style={styles.modalHint}>Solo abitanti con casta «Servo della gleba».</Text>
               <ScrollView style={styles.modalScrollView}>
                 {abitantiDisponibili.length > 0 ? (
                   abitantiDisponibili.map((a) => (
@@ -186,7 +188,7 @@ export default function BarScreenById() {
                       key={a.id}
                       style={styles.dropdownItem}
                       onPress={() => {
-                        assegnaAbitanteAEdificio(a.id, bar.id);
+                        assegnaServoDellaGlebaAEdificio(a.id, bar.id);
                         setDropdownVisible(false);
                       }}
                     >
@@ -198,7 +200,7 @@ export default function BarScreenById() {
                     </Pressable>
                   ))
                 ) : (
-                  <Text style={styles.emptyText}>Nessun abitante disponibile</Text>
+                  <Text style={styles.emptyText}>Nessun Servo della gleba disponibile</Text>
                 )}
               </ScrollView>
             </Pressable>
@@ -314,6 +316,12 @@ const styles = StyleSheet.create({
     marginTop: 4
   },
   section: { marginTop: 12 },
+  sectionHint: {
+    color: "rgba(203,213,245,0.65)",
+    fontSize: 9,
+    marginBottom: 6,
+    fontStyle: "italic"
+  },
   sectionTitle: { color: "#ffffff", fontSize: 11, fontWeight: "700", marginBottom: 6 },
   addButton: {
     backgroundColor: "#3b82f6",
@@ -361,6 +369,13 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(148,163,184,0.6)"
   },
   modalTitle: { color: "#ffffff", fontSize: 12, fontWeight: "700" },
+  modalHint: {
+    color: "rgba(203,213,245,0.65)",
+    fontSize: 9,
+    fontStyle: "italic",
+    paddingHorizontal: 12,
+    paddingBottom: 8
+  },
   modalClose: { color: "rgba(203,213,245,0.7)", fontSize: 18, fontWeight: "700" },
   modalScrollView: { maxHeight: 300 },
   dropdownItem: {

@@ -2,6 +2,7 @@ import React from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Abitante, Edificio } from "../types";
 import { getConsumoCibo, getStatoSalute } from "../game/ciboConsumo";
+import { calcolaProduzioneSerraMensile } from "../game/produzioneSerra";
 import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
@@ -22,19 +23,7 @@ export function CiboConsumoModal({ visible, abitanti, edifici, onClose }: CiboCo
   // Calcola il totale consumato
   const totaleConsumo = consumiAbitanti.reduce((sum, c) => sum + c.consumo, 0);
 
-  // Produzione fissa di cibo per abitante assegnato alla Serra (10-20, stessa logica di gioco)
-  const getProduzioneCiboPerAbitante = (abitanteId: number): number => {
-    const seed = abitanteId * 31;
-    return 10 + (seed % 11); // 10-20
-  };
-
-  const totaleProduzione = edifici
-    .filter((e) => e.nome === "Serra")
-    .reduce(
-      (sum, serra) =>
-        sum + serra.abitantiAssegnati.reduce((s, id) => s + getProduzioneCiboPerAbitante(id), 0),
-      0
-    );
+  const totaleProduzione = calcolaProduzioneSerraMensile(edifici);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
@@ -69,9 +58,9 @@ export function CiboConsumoModal({ visible, abitanti, edifici, onClose }: CiboCo
           </View>
 
           <View style={styles.totaleContainer}>
-            <Text style={styles.totaleLabel}>Totale mensile prodotto dalla Serra:</Text>
+            <Text style={styles.totaleLabel}>Totale mensile prodotto dalle Serre (inventario):</Text>
             <Text style={styles.totaleValueProduzione}>
-              {totaleProduzione} <Text style={styles.unitàProduzione}>razioni</Text>
+              {totaleProduzione} <Text style={styles.unitàProduzione}>unità vegetali</Text>
             </Text>
           </View>
 

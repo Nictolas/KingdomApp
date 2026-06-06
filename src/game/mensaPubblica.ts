@@ -7,12 +7,13 @@ import {
   normalizzaInventarioGiocatore,
   normalizzaInventarioMensa,
   trasferisciCiboTraInventari,
+  VOCI_CIBO_IDS,
   type VoceInventario
 } from "./inventario";
 
 export const NOME_MENSA_PUBBLICA = "Mensa Pubblica";
 
-const MENU_MENSA = ["mela", "latte", "uovo", "bistecca"] as const;
+const MENU_MENSA = VOCI_CIBO_IDS;
 
 /** True se l'inventario ha almeno un oggetto Cibo compatibile con la dieta. */
 export function haCiboCompatibileInInventario(

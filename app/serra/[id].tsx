@@ -5,6 +5,7 @@ import { useGameContext } from "../../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../../src/game/edificiLavoro";
 import { getEmojiAbitante } from "../../src/utils/getEmojiAbitante";
 import type { Abitante } from "../../src/types";
+import { COLTURE_SERRA, getColturaSerraDef, PRODUZIONE_SERRA_GIORNALIERA, GIORNI_PRODUZIONE_SERRA_PER_MESE } from "../../src/game/colturaSerra";
 
 export default function SerraScreenById() {
   const router = useRouter();
@@ -12,7 +13,7 @@ export default function SerraScreenById() {
   const idStr = Array.isArray(raw) ? raw[0] : raw;
   const edificioId = Number(idStr);
 
-  const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
+  const { abitanti, edifici, assegnaServoDellaGlebaAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio, setColturaSerra } = useGameContext();
 
   const serra = useMemo(
     () => edifici.find((e) => e.id === edificioId && e.nome === "Serra"),
@@ -41,17 +42,11 @@ export default function SerraScreenById() {
     );
   }
 
-  const getProduzioneCiboPerAbitante = (abitante: Abitante): number => {
-    const seed = abitante.id * 31;
-    return 10 + (seed % 11);
-  };
-
-  const calcolaProduzione = () => {
-    if (abitantiAssegnati.length === 0) return 0;
-    return abitantiAssegnati.reduce((sum, a) => sum + getProduzioneCiboPerAbitante(a), 0);
-  };
-
-  const produzioneMensile = calcolaProduzione();
+  const coltura = getColturaSerraDef(serra.colturaItemId);
+  const colturaSelezionata = serra.colturaItemId ?? coltura?.id ?? "mela";
+  const produzioneGiornaliera =
+    serra.stato === "Operativo" ? PRODUZIONE_SERRA_GIORNALIERA : 0;
+  const produzioneMensile = produzioneGiornaliera * GIORNI_PRODUZIONE_SERRA_PER_MESE;
   const puòAssegnare = abitantiDisponibili.length > 0 && abitantiAssegnati.length < serra.capacità;
 
   const titoloSerra =
@@ -61,16 +56,20 @@ export default function SerraScreenById() {
     <View key="produzione" style={styles.column}>
       <Text style={styles.sectionTitle}>Produzione</Text>
       <View style={styles.infoCard}>
-        <Text style={styles.infoTitle}>Produzione Mensile</Text>
+        <Text style={styles.infoTitle}>Coltura attiva</Text>
+        <Text style={styles.colturaEmoji}>{coltura?.emoji ?? "🌱"}</Text>
+        <Text style={styles.colturaNome}>{coltura?.nome ?? "—"}</Text>
         <Text style={styles.produzioneValue}>
-          {produzioneMensile} <Text style={styles.produzioneUnit}>razioni di cibo</Text>
+          {produzioneGiornaliera}{" "}
+          <Text style={styles.produzioneUnit}>
+            {coltura?.nome?.toLowerCase() ?? "prodotto"}/giorno
+          </Text>
         </Text>
         <Text style={styles.infoSubtext}>
-          {abitantiAssegnati.length} abitante{abitantiAssegnati.length !== 1 ? "i" : ""} assegnato
-          {abitantiAssegnati.length !== 1 ? "i" : ""}
+          ≈ {produzioneMensile} unità/mese (Skip Mese)
         </Text>
         <Text style={styles.infoSubtext}>
-          Posti: {abitantiAssegnati.length}/{serra.capacità}
+          L&apos;inventario cibo del giocatore riceve la produzione
         </Text>
       </View>
       <View style={styles.stipendioCard}>
@@ -87,7 +86,33 @@ export default function SerraScreenById() {
         <Text style={styles.infoSubtext}>
           Totale: {(serra.stipendioPerLavoratore ?? 0) * abitantiAssegnati.length} crediti/mese
         </Text>
+        <Text style={styles.infoSubtext}>
+          Posti lavoro: {abitantiAssegnati.length}/{serra.capacità}
+        </Text>
       </View>
+    </View>,
+    <View key="coltura" style={styles.column}>
+      <Text style={styles.sectionTitle}>Scegli coltura</Text>
+      <Text style={styles.sectionSubtitle}>1 prodotto al giorno per Serra operativa</Text>
+      <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
+        <View style={styles.colturaGrid}>
+          {COLTURE_SERRA.map((c) => {
+            const selezionata = colturaSelezionata === c.id;
+            return (
+              <Pressable
+                key={c.id}
+                style={[styles.colturaChip, selezionata && styles.colturaChipSelezionata]}
+                onPress={() => setColturaSerra(serra.id, c.id)}
+              >
+                <Text style={styles.colturaChipEmoji}>{c.emoji}</Text>
+                <Text style={[styles.colturaChipNome, selezionata && styles.colturaChipNomeSelezionata]}>
+                  {c.nome}
+                </Text>
+              </Pressable>
+            );
+          })}
+        </View>
+      </ScrollView>
     </View>,
     <View key="assegnati" style={styles.column}>
       <Text style={styles.sectionTitle}>Abitanti Assegnati</Text>
@@ -112,8 +137,8 @@ export default function SerraScreenById() {
       )}
     </View>,
     <View key="disponibili" style={styles.column}>
-      <Text style={styles.sectionTitle}>Abitanti Disponibili</Text>
-      <Text style={styles.sectionSubtitle}>Lavoro: Disoccupato</Text>
+      <Text style={styles.sectionTitle}>Assegna lavoratori</Text>
+      <Text style={styles.sectionSubtitle}>Servi della gleba disponibili</Text>
       {abitantiDisponibili.length > 0 ? (
         <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
           {abitantiDisponibili.map((a: Abitante) => (
@@ -126,7 +151,7 @@ export default function SerraScreenById() {
                 <Text style={styles.cardExtra}>Personalità: {a.personalità}</Text>
               </View>
               {puòAssegnare && (
-                <Pressable style={styles.addButton} onPress={() => assegnaAbitanteAEdificio(a.id, serra.id)}>
+                <Pressable style={styles.addButton} onPress={() => assegnaServoDellaGlebaAEdificio(a.id, serra.id)}>
                   <Text style={styles.addButtonText}>Assegna</Text>
                 </Pressable>
               )}
@@ -134,7 +159,7 @@ export default function SerraScreenById() {
           ))}
         </ScrollView>
       ) : (
-        <Text style={styles.emptyText}>Nessun disoccupato disponibile</Text>
+        <Text style={styles.emptyText}>Nessun Servo della gleba disponibile</Text>
       )}
     </View>
   ];
@@ -257,6 +282,49 @@ const styles = StyleSheet.create({
     color: "rgba(203,213,245,0.7)",
     fontSize: 9,
     marginTop: 1
+  },
+  colturaEmoji: {
+    fontSize: 28,
+    marginBottom: 2
+  },
+  colturaNome: {
+    color: "#e5e7eb",
+    fontSize: 12,
+    fontWeight: "700",
+    marginBottom: 4
+  },
+  colturaGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    justifyContent: "center"
+  },
+  colturaChip: {
+    width: 88,
+    alignItems: "center",
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 6,
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.35)"
+  },
+  colturaChipSelezionata: {
+    borderColor: "#4ade80",
+    backgroundColor: "rgba(34,197,94,0.12)"
+  },
+  colturaChipEmoji: {
+    fontSize: 20,
+    marginBottom: 2
+  },
+  colturaChipNome: {
+    color: "rgba(203,213,245,0.85)",
+    fontSize: 8,
+    textAlign: "center",
+    fontWeight: "600"
+  },
+  colturaChipNomeSelezionata: {
+    color: "#4ade80"
   },
   stipendioCard: {
     backgroundColor: "rgba(15,23,42,0.95)",

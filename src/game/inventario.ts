@@ -1,4 +1,5 @@
 import type { Abitante } from "../types";
+import { COLTURE_SERRA } from "./colturaSerra";
 
 export type CategoriaInventario = "Valuta" | "Cibo";
 
@@ -15,16 +16,29 @@ export type OggettoInventarioDef = {
 
 export const CATEGORIA_CIBO: CategoriaInventario = "Cibo";
 
-export const OGGETTI_INVENTARIO: Record<string, OggettoInventarioDef> = {
-  monete: { id: "monete", nome: "Monete", emoji: "💰", categoria: "Valuta" },
-  mela: { id: "mela", nome: "Mela", emoji: "🍎", categoria: CATEGORIA_CIBO },
+const OGGETTI_CIBO_ANIMALE: Record<string, OggettoInventarioDef> = {
   bistecca: { id: "bistecca", nome: "Bistecca", emoji: "🥩", categoria: CATEGORIA_CIBO, tagCibo: ["carne"] },
   latte: { id: "latte", nome: "Latte", emoji: "🥛", categoria: CATEGORIA_CIBO, tagCibo: ["latticini"] },
   uovo: { id: "uovo", nome: "Uovo", emoji: "🥚", categoria: CATEGORIA_CIBO, tagCibo: ["uova"] }
 };
 
+const OGGETTI_CIBO_VEGETALE: Record<string, OggettoInventarioDef> = Object.fromEntries(
+  COLTURE_SERRA.map((c) => [c.id, { id: c.id, nome: c.nome, emoji: c.emoji, categoria: CATEGORIA_CIBO }])
+);
+
+export const OGGETTI_INVENTARIO: Record<string, OggettoInventarioDef> = {
+  monete: { id: "monete", nome: "Monete", emoji: "💰", categoria: "Valuta" },
+  ...OGGETTI_CIBO_VEGETALE,
+  ...OGGETTI_CIBO_ANIMALE
+};
+
 /** Voci cibo condivise (giocatore, mensa, pasti). */
-export const VOCI_CIBO_IDS = ["mela", "bistecca", "latte", "uovo"] as const;
+export const VOCI_CIBO_IDS = [
+  ...COLTURE_SERRA.map((c) => c.id),
+  "bistecca",
+  "latte",
+  "uovo"
+] as const;
 
 export type VoceInventario = { itemId: string; quantità: number };
 
@@ -63,10 +77,21 @@ export function normalizzaInventarioGiocatore(inventario?: VoceInventario[]): Vo
   for (const base of INVENTARIO_GIOCATORE_INIZIALE) {
     if (!map.has(base.itemId)) map.set(base.itemId, base.quantità);
   }
-  return INVENTARIO_GIOCATORE_INIZIALE.map((b) => ({
-    itemId: b.itemId,
-    quantità: map.get(b.itemId) ?? 0
-  }));
+  return [...map.entries()].map(([itemId, quantità]) => ({ itemId, quantità }));
+}
+
+export function aggiungiCiboAInventarioGiocatore(
+  inventario: VoceInventario[],
+  itemId: string,
+  quantità: number
+): VoceInventario[] {
+  if (quantità <= 0 || !isOggettoCibo(itemId)) return inventario;
+  const norm = normalizzaInventarioGiocatore(inventario);
+  const idx = norm.findIndex((v) => v.itemId === itemId);
+  if (idx >= 0) {
+    return norm.map((v, i) => (i === idx ? { ...v, quantità: v.quantità + quantità } : v));
+  }
+  return [...norm, { itemId, quantità }];
 }
 
 export function getTotaleOggettiInventarioGiocatore(inventario: VoceInventario[] | undefined): number {

@@ -85,12 +85,13 @@ export function syncResidenzeBaraccaSenzatetto(edifici: Edificio[], abitanti: Ab
   });
 }
 
-/** Compatibilità matrimonio: Omo solo con Omo/Bi stesso sesso; Etero con Etero/Bi sesso opposto; Bi con chiunque. */
+/** Compatibilità matrimonio: Omo solo con Omo/Bi stesso sesso; Etero con Etero/Bi sesso opposto; Bi con chiunque; Asessuale con nessuno. */
 export function canMarry(a: Abitante, b: Abitante): boolean {
   const sessoA = a.sesso ?? "M";
   const sessoB = b.sesso ?? "M";
   const orA = a.orientamento ?? "Etero";
   const orB = b.orientamento ?? "Etero";
+  if (orA === "Asessuale" || orB === "Asessuale") return false;
   const stessoSesso = sessoA === sessoB;
   if (orA === "Omo") return (orB === "Omo" || orB === "Bi") && stessoSesso;
   if (orA === "Etero") return (orB === "Etero" || orB === "Bi") && !stessoSesso;
@@ -544,6 +545,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
             const numAbitanti = edificio.abitantiAssegnati.length;
             if (numAbitanti > 0) {
               if (risorsa.nome.toLowerCase().includes("cibo")) {
+                // Il cibo vegetale della Serra va nell'inventario (produzione giornaliera / Skip Mese).
+                if (edificio.nome === "Serra") return;
                 const produzioneTotale = edificio.abitantiAssegnati.reduce(
                   (sum, id) => sum + getProduzioneCiboPerAbitante(id),
                   0

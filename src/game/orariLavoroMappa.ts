@@ -33,6 +33,7 @@ const NOMI_CON_ORARIO_LAVORO = new Set<string>([
   "Mercato",
   "Caserma",
   "Centrale",
+  "Bar",
   "Spazioporto"
 ]);
 

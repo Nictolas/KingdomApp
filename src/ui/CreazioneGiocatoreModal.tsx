@@ -16,7 +16,7 @@ export type DatiCreazioneGiocatore = {
   nome: string;
   cognome: string;
   sesso: "M" | "F";
-  orientamento: "Etero" | "Omo" | "Bi";
+  orientamento: "Etero" | "Omo" | "Bi" | "Asessuale";
 };
 
 type CreazioneGiocatoreModalProps = {
@@ -29,17 +29,18 @@ const GENERI: { id: "M" | "F"; label: string }[] = [
   { id: "F", label: "Donna" }
 ];
 
-const ORIENTAMENTI: { id: "Etero" | "Omo" | "Bi"; label: string }[] = [
+const ORIENTAMENTI: { id: "Etero" | "Omo" | "Bi" | "Asessuale"; label: string }[] = [
   { id: "Etero", label: "Eterosessuale" },
   { id: "Omo", label: "Omosessuale" },
-  { id: "Bi", label: "Bisessuale" }
+  { id: "Bi", label: "Bisessuale" },
+  { id: "Asessuale", label: "Asessuale" }
 ];
 
 export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocatoreModalProps) {
   const [nome, setNome] = useState("");
   const [cognome, setCognome] = useState("");
   const [sesso, setSesso] = useState<"M" | "F" | null>(null);
-  const [orientamento, setOrientamento] = useState<"Etero" | "Omo" | "Bi" | null>(null);
+  const [orientamento, setOrientamento] = useState<"Etero" | "Omo" | "Bi" | "Asessuale" | null>(null);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;

@@ -504,7 +504,8 @@ export default function AbitantiScreen() {
                           styles.cellTextSmall,
                           a.orientamento === "Etero" && styles.cellTextOrientamentoEtero,
                           a.orientamento === "Bi" && styles.cellTextOrientamentoBi,
-                          a.orientamento === "Omo" && styles.cellTextOrientamentoOmo
+                          a.orientamento === "Omo" && styles.cellTextOrientamentoOmo,
+                          a.orientamento === "Asessuale" && styles.cellTextOrientamentoAsessuale
                         ]}
                       >
                         {a.orientamento ?? "—"}
@@ -913,6 +914,10 @@ const styles = StyleSheet.create({
   },
   cellTextOrientamentoOmo: {
     color: "#ef4444",
+    fontWeight: "700"
+  },
+  cellTextOrientamentoAsessuale: {
+    color: "#94a3b8",
     fontWeight: "700"
   }
 });

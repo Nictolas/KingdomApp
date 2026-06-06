@@ -1,5 +1,6 @@
 import type { Abitante, Edificio, Risorsa } from "../types";
-import { getConsumoCibo, getConsumoAcqua, getProduzioneCiboPerAbitante } from "./ciboConsumo";
+import { getConsumoCibo, getConsumoAcqua } from "./ciboConsumo";
+import { calcolaProduzioneSerraMensile } from "./produzioneSerra";
 
 export type CalcolaProduzioneConsumoInput = {
   abitanti: Abitante[];
@@ -33,13 +34,7 @@ export function calcolaProduzioneConsumoPuro({
           risorse.forEach((r) => {
             if (prod === r.nome || r.nome.includes(prod) || prod.includes(r.nome)) {
               if (r.nome.toLowerCase().includes("cibo")) {
-                // Cibo: anteprima produzione fissa 10-20 per abitante (stessa logica della Serra)
-                const produzioneTotale = edificio.abitantiAssegnati.reduce((sum, id) => {
-                  return sum + getProduzioneCiboPerAbitante(id);
-                }, 0);
-                variazioni[r.nome] = (variazioni[r.nome] || 0) + produzioneTotale;
-                // Traccia totale Cibo per bonus Ministero Agricoltura (applicato dopo il loop)
-                variazioni["__ciboProdotto"] = (variazioni["__ciboProdotto"] || 0) + produzioneTotale;
+                if (edificio.nome === "Serra") return;
               } else {
                 // Altre risorse: produzione basata sulla produttività media (logica originale)
                 const produttivitàMedia =
@@ -57,6 +52,8 @@ export function calcolaProduzioneConsumoPuro({
       });
     }
   });
+
+  variazioni["__ciboInventarioSerra"] = calcolaProduzioneSerraMensile(edifici);
 
   // Bonus +10% Cibo se il ministro dell'Agricoltura ha personalità "Pollice Verde"
   const totaleCiboProdotto = variazioni["__ciboProdotto"];

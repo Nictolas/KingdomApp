@@ -13,10 +13,12 @@ export default function CiboScreen() {
   const { inventarioGiocatore } = useGameContext();
 
   const inventario = normalizzaInventarioGiocatore(inventarioGiocatore);
-  const vociCibo = inventario.map((v) => ({
-    def: OGGETTI_INVENTARIO[v.itemId]!,
-    quantità: v.quantità
-  }));
+  const vociCibo = inventario
+    .filter((v) => v.quantità > 0)
+    .map((v) => ({
+      def: OGGETTI_INVENTARIO[v.itemId]!,
+      quantità: v.quantità
+    }));
   const totale = getTotaleOggettiInventarioGiocatore(inventario);
 
   const { width } = Dimensions.get("window");

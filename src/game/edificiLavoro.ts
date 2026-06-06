@@ -31,6 +31,21 @@ export const EDIFICIO_TO_LAVORO: Record<number, string> = {
 
 const LAVORI_DA_EDIFICIO = new Set(Object.values(EDIFICIO_TO_LAVORO));
 
+/** Edifici in cui il giocatore può assegnare manualmente Servi della gleba (include Serra e Bar). */
+const NOMI_EDIFICIO_SERVI_DELLA_GLEBA: Set<string> = (() => {
+  const nomi = new Set<string>(["Serra", "Bar"]);
+  for (const idStr of Object.keys(EDIFICIO_TO_LAVORO)) {
+    const tpl = edificiData.find((e) => e.id === Number(idStr));
+    if (tpl) nomi.add(tpl.nome);
+  }
+  return nomi;
+})();
+
+export function edificioAccettaServiDellaGleba(edificio: Edificio): boolean {
+  if (edificio.stato !== "Operativo") return false;
+  return NOMI_EDIFICIO_SERVI_DELLA_GLEBA.has(edificio.nome);
+}
+
 /** Lavoro associato a un edificio (istanza): lookup per id catalogo o per nome del template). */
 export function getLavoroPerEdificio(edificio: Edificio): string | undefined {
   const direct = EDIFICIO_TO_LAVORO[edificio.id];
@@ -64,6 +79,7 @@ export function getServiDellaGlebaPerAssegnazioneEdificio(
   edifici: Edificio[],
   edificio: Edificio
 ): Abitante[] {
+  if (!edificioAccettaServiDellaGleba(edificio)) return [];
   const postiLiberi = (edificio.capacità ?? 0) - (edificio.abitantiAssegnati ?? []).length;
   if (postiLiberi <= 0) return [];
   return getServiDellaGlebaAssegnabili(abitanti, edifici);
@@ -89,7 +105,7 @@ export type PostazioneLavoroRiga = {
 /** Edifici con posti lavoro (lavoro associato), ordinati per posti liberi decrescenti. */
 export function elencoPostazioniLavoroOrdinato(edifici: Edificio[]): PostazioneLavoroRiga[] {
   return edifici
-    .filter((e) => getLavoroPerEdificio(e) != null && e.stato === "Operativo")
+    .filter((e) => edificioAccettaServiDellaGleba(e) && getLavoroPerEdificio(e) != null)
     .map((e) => {
       const coperti = (e.abitantiAssegnati ?? []).length;
       const massimi = e.capacità ?? 0;

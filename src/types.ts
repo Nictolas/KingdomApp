@@ -94,7 +94,7 @@ export type Abitante = {
   /** Mesi/anni di carcere residui dopo sentenza del giudice (1 unità = 1 mese di gioco). */
   anniCarcereResidui?: number;
   sesso?: "M" | "F"; // Sesso dell'abitante
-  orientamento?: "Etero" | "Omo" | "Bi"; // Orientamento sessuale (per matrimonio)
+  orientamento?: "Etero" | "Omo" | "Bi" | "Asessuale"; // Orientamento sessuale (per matrimonio)
   incinta?: boolean; // Gravidanza (stato salute "Incinta")
   /** Mese/anno inizio gravidanza (per parto a 9 mesi). */
   gravidanzaIniziataMese?: number;
@@ -178,4 +178,6 @@ export type Edificio = {
   consumo?: string; // Cosa consuma (se applicabile)
   /** Stipendio mensile per ogni lavoratore assegnato (configurabile dall'utente). Costo edificio = stipendioPerLavoratore × numero lavoratori. */
   stipendioPerLavoratore?: number;
+  /** Solo Serra: id oggetto Cibo vegetale prodotto (1 unità/giorno). */
+  colturaItemId?: string;
 };

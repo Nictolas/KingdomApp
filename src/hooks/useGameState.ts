@@ -29,7 +29,7 @@ import { generaAssimilati } from "../game/assimilazione";
 import { calcolaProduzioneConsumoPuro } from "../game/produzioneConsumo";
 import { calcolaFelicitàModificataPuro } from "../game/felicita";
 import { generaImmigratiProposti } from "../game/immigrazione";
-import { getLavoroPerEdificio, normalizzaLavoroEAgricoltura } from "../game/edificiLavoro";
+import { getLavoroPerEdificio, normalizzaLavoroEAgricoltura, edificioAccettaServiDellaGleba } from "../game/edificiLavoro";
 import { getCastaAbitante } from "../game/casta";
 import {
   PREZZO_SCHIAVO_DEFAULT,
@@ -50,6 +50,11 @@ import {
   getGiornoGiocoSnapshot,
   subscribeGiornoGioco
 } from "../game/orologioGiocoSession";
+import { GIORNI_PRODUZIONE_SERRA_PER_MESE, isColturaSerraValida } from "../game/colturaSerra";
+import {
+  applicaProduzioneSerraInventarioGiocatore,
+  calcolaProduzioneSerraPerPeriodo
+} from "../game/produzioneSerra";
 import {
   haLuogoCulto,
   TEMPLATE_ID_LUOGO_CULTO,
@@ -126,6 +131,9 @@ export function useGameState() {
   inventarioMensaRef.current = inventarioMensaByEdificioId;
   const [risorse, setRisorse] = useState<Risorsa[]>(risorseData);
   const [edifici, setEdifici] = useState<Edificio[]>(edificiIniziali);
+  const edificiRef = useRef(edifici);
+  edificiRef.current = edifici;
+  const ultimoGiornoProduzioneSerraRef = useRef(getGiornoGiocoSnapshot());
   const [mese, setMese] = useState(1);
   const [anno, setAnno] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -164,6 +172,24 @@ export function useGameState() {
     const unsub = subscribeGiornoGioco(() => {
       setAbitanti((prev) => normalizzaInventariAbitanti(prev, getGiornoGiocoSnapshot()));
     });
+    return unsub;
+  }, []);
+
+  /** Produzione Serra: 1 unità/giorno per ogni Serra operativa → inventario cibo giocatore. */
+  useEffect(() => {
+    const applicaProduzioneSerra = () => {
+      const giorno = getGiornoGiocoSnapshot();
+      const ultimo = ultimoGiornoProduzioneSerraRef.current;
+      if (giorno <= ultimo) return;
+      const giorni = giorno - ultimo;
+      ultimoGiornoProduzioneSerraRef.current = giorno;
+      const produzione = calcolaProduzioneSerraPerPeriodo(edificiRef.current, giorni);
+      if (produzione.size === 0) return;
+      setInventarioGiocatore((prev) =>
+        applicaProduzioneSerraInventarioGiocatore(prev, produzione)
+      );
+    };
+    const unsub = subscribeGiornoGioco(applicaProduzioneSerra);
     return unsub;
   }, []);
 
@@ -367,6 +393,15 @@ export function useGameState() {
     setAbitanti(dopoCarcere.abitanti);
     setEdifici(dopoCarcere.edifici);
     setRisorse(result.risorse);
+    const produzioneSerraMese = calcolaProduzioneSerraPerPeriodo(
+      dopoCarcere.edifici,
+      GIORNI_PRODUZIONE_SERRA_PER_MESE
+    );
+    if (produzioneSerraMese.size > 0) {
+      setInventarioGiocatore((prev) =>
+        applicaProduzioneSerraInventarioGiocatore(prev, produzioneSerraMese)
+      );
+    }
     setMese(result.nuovoMese);
     setAnno(result.nuovoAnno);
     setOrdiniMercato([]);
@@ -570,6 +605,15 @@ export function useGameState() {
     const value = Math.max(0, Math.floor(stipendioPerLavoratore));
     setEdifici((prev) =>
       prev.map((e) => (e.id === edificioId ? { ...e, stipendioPerLavoratore: value } : e))
+    );
+  }, []);
+
+  const setColturaSerra = useCallback((edificioId: number, colturaItemId: string) => {
+    if (!isColturaSerraValida(colturaItemId)) return;
+    setEdifici((prev) =>
+      prev.map((e) =>
+        e.id === edificioId && e.nome === "Serra" ? { ...e, colturaItemId } : e
+      )
     );
   }, []);
 
@@ -914,10 +958,12 @@ export function useGameState() {
   const assegnaServoDellaGlebaAEdificio = useCallback(
     (abitanteId: number, edificioId: number) => {
       const abitante = abitanti.find((a) => a.id === abitanteId);
-      if (!abitante || getCastaAbitante(abitante) !== "Servo della gleba") return;
+      const edificio = edifici.find((e) => e.id === edificioId);
+      if (!abitante || !edificio || getCastaAbitante(abitante) !== "Servo della gleba") return;
+      if (!edificioAccettaServiDellaGleba(edificio)) return;
       assegnaAbitanteAEdificio(abitanteId, edificioId);
     },
-    [abitanti, assegnaAbitanteAEdificio]
+    [abitanti, edifici, assegnaAbitanteAEdificio]
   );
 
   const trasferisciProprietaSchiavo = useCallback(
@@ -1072,6 +1118,7 @@ export function useGameState() {
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,
     setStipendioEdificio,
+    setColturaSerra,
     aggiungiEdificioDaTemplate,
     rimuoviEdificioPerId,
     prezzoResidenze,
