@@ -108,6 +108,26 @@ export function scegliBarEdificioIdPiuVicino(
   );
 }
 
+export function scegliLuogoCultoEdificioIdPiuVicino(
+  nomeLuogoCulto: string,
+  fromCellPreferita: number | null,
+  edificiList: Edificio[],
+  edificiInMappa: Record<number, EdificioInCellaLike>,
+  cols: number,
+  rows: number,
+  isWalkable: (i: number) => boolean
+): number | null {
+  return scegliEdificioIdPiuVicinoPerNome(
+    nomeLuogoCulto,
+    fromCellPreferita,
+    edificiList,
+    edificiInMappa,
+    cols,
+    rows,
+    isWalkable
+  );
+}
+
 export function scegliMensaEdificioIdPiuVicino(
   fromCellPreferita: number | null,
   edificiList: Edificio[],

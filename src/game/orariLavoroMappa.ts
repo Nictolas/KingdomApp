@@ -7,6 +7,9 @@ export type FasciaOrariaMinuti = { inizio: number; fine: number };
 /** Giornata tipo ufficio / produzione (8:00–17:00). */
 const LAVORO_STANDARD: FasciaOrariaMinuti = { inizio: 8 * 60, fine: 17 * 60 };
 
+/** Preghiera collettiva nei Luoghi di Culto (10:00–11:00). */
+export const FASCIA_PREGHIERA_CULTO: FasciaOrariaMinuti = { inizio: 10 * 60, fine: 11 * 60 };
+
 /**
  * Edifici assegnabili con lavoratori: durante la fascia non mostriamo il personaggio in giro sulla mappa.
  * Stesso orario per tutti (personalizzabile per nome in seguito).
@@ -125,4 +128,12 @@ export function abitantiPresentiNelBarOra(
   edificiList: Edificio[]
 ): Abitante[] {
   return abitantiList.filter((a) => abitanteAlBarRoutineOra(a, minutiDaMezzanotte, buioCielo, edificiList));
+}
+
+export function abitanteInOrarioPreghieraCulto(
+  minutiDaMezzanotte: number,
+  buioCielo: number
+): boolean {
+  if (èNotteRoutineMappaDaBuio(buioCielo)) return false;
+  return minutiInFascia(minutiDaMezzanotte, FASCIA_PREGHIERA_CULTO);
 }

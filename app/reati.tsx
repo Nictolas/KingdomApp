@@ -24,8 +24,8 @@ export default function ReatiScreen() {
       <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.subtitle}>
-            Imposta gli anni di carcere per ogni reato. Il Giudice applica queste pene quando scegli «Fai decidere al
-            Giudice». Zero anni = nessuna legge che punisce quel reato.
+            Ogni reato parte da 10 anni di carcere; puoi modificare il valore. Il Giudice applica queste pene quando
+            scegli «Fai decidere al Giudice». Zero anni = nessuna legge che punisce quel reato.
           </Text>
 
           {REATI_PUNIBILI_INFO.map((r) => (

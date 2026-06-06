@@ -7,9 +7,9 @@ export type ReatoPunibile = (typeof REATI_PUNIBILI)[number];
 export type PenaReatiConfig = Record<ReatoPunibile, number>;
 
 export const PENA_REATI_INIZIALE: PenaReatiConfig = {
-  Omicidio: 0,
-  Furto: 0,
-  Stupro: 0
+  Omicidio: 10,
+  Furto: 10,
+  Stupro: 10
 };
 
 export const REATI_PUNIBILI_INFO: {

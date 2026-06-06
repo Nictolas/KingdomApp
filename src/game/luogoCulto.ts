@@ -22,6 +22,44 @@ export function emojiLuogoCulto(religione: ReligioneConCulto): string {
   return religione === "Culto del Sole" ? "☀️" : "👽";
 }
 
+const NOMI_LUOGHI_CULTO = new Set<string>([
+  "Luogo di Culto del Sole",
+  "Luogo di Culto degli Alieni"
+]);
+
+export function èNomeLuogoCulto(nome: string): boolean {
+  return NOMI_LUOGHI_CULTO.has(nome);
+}
+
+export function religioneDaNomeEdificioLuogoCulto(nome: string): ReligioneConCulto | null {
+  if (nome === "Luogo di Culto del Sole") return "Culto del Sole";
+  if (nome === "Luogo di Culto degli Alieni") return "Culto degli Alieni";
+  return null;
+}
+
+export function rimuoviAbitanteDaTuttiCulti(
+  prev: Record<number, number[]>,
+  abitanteId: number
+): Record<number, number[]> {
+  const next: Record<number, number[]> = {};
+  for (const [k, ids] of Object.entries(prev)) {
+    const filt = ids.filter((id) => id !== abitanteId);
+    if (filt.length > 0) next[Number(k)] = filt;
+  }
+  return next;
+}
+
+export function aggiungiAbitanteAlCultoEdificio(
+  prev: Record<number, number[]>,
+  cultoEdificioId: number,
+  abitanteId: number
+): Record<number, number[]> {
+  const cleaned = rimuoviAbitanteDaTuttiCulti(prev, abitanteId);
+  const cur = cleaned[cultoEdificioId] ?? [];
+  if (cur.includes(abitanteId)) return cleaned;
+  return { ...cleaned, [cultoEdificioId]: [...cur, abitanteId] };
+}
+
 /** Istanze costruite nel modello edifici ma ancora assenti dalla mappa. */
 export function trovaLuoghiCultoDaPiazzareSuMappa(
   edifici: Edificio[],

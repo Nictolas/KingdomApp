@@ -33,7 +33,16 @@ import {
   getAperturaResidenzaPending
 } from "../src/game/mappaAperturaPending";
 import { getMappaSessione, setMappaSessione } from "../src/game/mappaSessione";
-import { piazzaLuogoCultoSuMappa, trovaLuoghiCultoDaPiazzareSuMappa } from "../src/game/luogoCulto";
+import {
+  aggiungiAbitanteAlCultoEdificio,
+  èNomeLuogoCulto,
+  nomeEdificioLuogoCulto,
+  piazzaLuogoCultoSuMappa,
+  religioneDaNomeEdificioLuogoCulto,
+  rimuoviAbitanteDaTuttiCulti,
+  trovaLuoghiCultoDaPiazzareSuMappa,
+  type ReligioneConCulto
+} from "../src/game/luogoCulto";
 import type { MappaRuntimeState } from "../src/game/mappaTypes";
 import {
   distribuisciAbitantiSuAnchorCapanne,
@@ -50,7 +59,9 @@ import {
 } from "../src/game/residenzaMappa";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 import { CapannaFullscreenModal } from "../src/ui/CapannaFullscreenModal";
+import { LuogoCultoFullscreenModal } from "../src/ui/LuogoCultoFullscreenModal";
 import { SerraFullscreenModal } from "../src/ui/SerraFullscreenModal";
+import { abitanteDeveAndareAlCultoOra, abitanteNascostoNelCultoOra } from "../src/game/presenzaLuogoCulto";
 import { RichiesteModal } from "../src/ui/RichiesteModal";
 import { EventiModal } from "../src/ui/EventiModal";
 import { calcolaEventiUI } from "../src/game/eventiDisponibili";
@@ -97,6 +108,7 @@ import {
   pianificaCommuteVersoBarDaCella,
   pianificaCommuteVersoEdificioGlobaleDaCella,
   scegliBarEdificioIdPiuVicino,
+  scegliLuogoCultoEdificioIdPiuVicino,
   scegliMensaEdificioIdPiuVicino
 } from "../src/game/commutePathsMappa";
 import { abitanteHaBisognoMensa } from "../src/game/mensaPubblica";
@@ -1345,7 +1357,7 @@ function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: n
   return { left: col * (cellW + GAP), top: row * (cellH + GAP) };
 }
 
-type CommutePurpose = "work" | "bar" | "home" | "mensa";
+type CommutePurpose = "work" | "bar" | "home" | "mensa" | "culto";
 
 type CommuteInfo = {
   path: number[];
@@ -1353,6 +1365,7 @@ type CommuteInfo = {
   purpose: CommutePurpose;
   barEdificioId?: number;
   mensaEdificioId?: number;
+  cultoEdificioId?: number;
 };
 
 type FootprintVariant =
@@ -1879,6 +1892,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   /** Id edificio globale della Serra il cui pannello presenze è aperto (tap sulla mappa). */
   const [selectedSerraEdificioId, setSelectedSerraEdificioId] = useState<number | null>(null);
+  /** Cella anchor del Luogo di Culto aperto dal doppio tocco. */
+  const [selectedLuogoCultoAnchor, setSelectedLuogoCultoAnchor] = useState<number | null>(null);
   /** Scheda abitante aperta dal doppio tocco su un passeggiatore sulla mappa. */
   const [schedaWandererAbitante, setSchedaWandererAbitante] = useState<Abitante | null>(null);
   /** Bordi tra le celle: di default nascosti; il toggle nella barra risorse li attiva. */
@@ -2145,6 +2160,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const [lavoroArrivatiIds, setLavoroArrivatiIds] = useState<Set<number>>(() => new Set());
   /** id edificio Bar (globale) → abitanti considerati “dentro” quel locale sulla mappa. */
   const [barArrivatiByEdificio, setBarArrivatiByEdificio] = useState<Record<number, number[]>>({});
+  /** id edificio Luogo di Culto (globale) → fedeli considerati “dentro” quel tempio. */
+  const [cultoArrivatiByEdificio, setCultoArrivatiByEdificio] = useState<Record<number, number[]>>({});
   const [commuteByAbitanteId, setCommuteByAbitanteId] = useState<Record<number, CommuteInfo>>({});
 
   useEffect(() => {
@@ -2165,6 +2182,58 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
     const LAVORO_INIZIO = 8 * 60;
     const LAVORO_FINE = 17 * 60;
+    const PREGHIERA_INIZIO = 10 * 60;
+    const PREGHIERA_FINE = 11 * 60;
+
+    if (prev < PREGHIERA_INIZIO && cur >= PREGHIERA_INIZIO) {
+      setCommuteByAbitanteId((prevComm) => {
+        const out = { ...prevComm };
+        for (const a of abitanti) {
+          if (!abitanteDeveAndareAlCultoOra(a, cur, statoCielo.buio, edifici)) continue;
+          if (out[a.id]) continue;
+          const religione = a.religione as ReligioneConCulto;
+          const nomeCulto = nomeEdificioLuogoCulto(religione);
+          const homeCell = cellaCasaPerAbitanteId.get(a.id) ?? null;
+          const from =
+            ultimaCellaAbitanteRef.current.get(a.id) ?? (homeCell != null ? homeCell : null);
+          if (from == null) continue;
+          const cultoId = scegliLuogoCultoEdificioIdPiuVicino(
+            nomeCulto,
+            from,
+            edifici,
+            edificiInMappa,
+            cols,
+            rows,
+            isWalkableCell
+          );
+          if (cultoId == null) continue;
+          const path = pianificaCommuteVersoEdificioGlobaleDaCella(
+            from,
+            cultoId,
+            edificiInMappa,
+            cols,
+            rows,
+            isWalkableCell
+          );
+          if (path && path.length >= 2) {
+            out[a.id] = { path, token: Date.now(), purpose: "culto", cultoEdificioId: cultoId };
+          }
+        }
+        return out;
+      });
+      setBarArrivatiByEdificio((prev0) => {
+        let acc = prev0;
+        for (const a of abitanti) {
+          if (!abitanteDeveAndareAlCultoOra(a, cur, statoCielo.buio, edifici)) continue;
+          acc = rimuoviAbitanteDaTuttiBar(acc, a.id);
+        }
+        return acc;
+      });
+    }
+
+    if (prev < PREGHIERA_FINE && cur >= PREGHIERA_FINE) {
+      setCultoArrivatiByEdificio({});
+    }
 
     if (prev < LAVORO_INIZIO && cur >= LAVORO_INIZIO) {
       setCommuteByAbitanteId((prevComm) => {
@@ -2268,7 +2337,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   ]);
 
   const handleCommuteFinita = useCallback(
-    (abitanteId: number, purpose: CommutePurpose, barEdificioId?: number, mensaEdificioId?: number) => {
+    (
+      abitanteId: number,
+      purpose: CommutePurpose,
+      barEdificioId?: number,
+      mensaEdificioId?: number,
+      cultoEdificioId?: number
+    ) => {
       setCommuteByAbitanteId((prev) => {
         const cur = prev[abitanteId];
         if (cur?.path?.length) {
@@ -2282,10 +2357,16 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       } else if (purpose === "work") {
         setLavoroArrivatiIds((s) => new Set(s).add(abitanteId));
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
+        setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
       } else if (purpose === "bar" && barEdificioId != null) {
         setBarArrivatiByEdificio((p) => aggiungiAbitanteAlBarEdificio(p, barEdificioId, abitanteId));
+        setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
       } else if (purpose === "mensa" && mensaEdificioId != null) {
         serviPastoMensaAbitante(abitanteId, mensaEdificioId);
+        setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
+        setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
+      } else if (purpose === "culto" && cultoEdificioId != null) {
+        setCultoArrivatiByEdificio((p) => aggiungiAbitanteAlCultoEdificio(p, cultoEdificioId, abitanteId));
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
       }
     },
@@ -2452,6 +2533,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     if (!eraNotte && notte) {
       setLavoroArrivatiIds(new Set());
       setBarArrivatiByEdificio({});
+      setCultoArrivatiByEdificio({});
       const next: Record<number, { path: number[]; token: number; purpose: "home" }> = {};
       const dormiSenzaPercorso: number[] = [];
       for (const a of abitanti) {
@@ -2565,6 +2647,23 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     if (selectedSerraEdificioId == null) return null;
     return edifici.find((e) => e.id === selectedSerraEdificioId && e.nome === "Serra") ?? null;
   }, [selectedSerraEdificioId, edifici]);
+
+  const luogoCultoModalCtx = useMemo(() => {
+    if (selectedLuogoCultoAnchor === null) return null;
+    const e = edificiInMappa[selectedLuogoCultoAnchor];
+    if (!e || !èNomeLuogoCulto(e.nome)) return null;
+    const religione = religioneDaNomeEdificioLuogoCulto(e.nome);
+    if (!religione) return null;
+    const edificioGlobaleId = e.edificioGlobaleId ?? e.id;
+    const capoId = religione === "Culto del Sole" ? capoReligiosoSole : capoReligiosoAlieni;
+    return {
+      anchor: selectedLuogoCultoAnchor,
+      nome: e.nome,
+      religione,
+      edificioGlobaleId,
+      capoId
+    };
+  }, [selectedLuogoCultoAnchor, edificiInMappa, capoReligiosoSole, capoReligiosoAlieni]);
 
   const handleApriResidenzaMappa = useCallback(
     (anchor: number) => {
@@ -2939,6 +3038,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             setSelectedCellForTransformDialog(cellIndex);
           } else if (èResidenzaMappa(edificio.nome)) {
             setSelectedResidenzaAnchor(getAnchorCellPerEdificio(cellIndex, edificiInMappa));
+          } else if (èNomeLuogoCulto(edificio.nome)) {
+            setSelectedLuogoCultoAnchor(getAnchorCellPerEdificio(cellIndex, edificiInMappa));
           } else {
             openRouteForEdificio(edificio.nome, edificio.id);
           }
@@ -3271,8 +3372,17 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                       Object.values(barArrivatiByEdificio).some((ids) => ids.includes(abitante.id)) &&
                       !inCommute;
 
+                    const nascostoCulto =
+                      abitanteNascostoNelCultoOra(
+                        abitante,
+                        orologioMinuti,
+                        statoCielo.buio,
+                        cultoArrivatiByEdificio
+                      ) && !inCommute;
+
                     if (nascostoLavoro) return null;
                     if (nascostoBar) return null;
+                    if (nascostoCulto) return null;
 
                     const homeCell = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
                     const fixedCellNotte =
@@ -3302,7 +3412,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                             abitante.id,
                             purpose,
                             meta?.barEdificioId,
-                            meta?.mensaEdificioId
+                            meta?.mensaEdificioId,
+                            meta?.cultoEdificioId
                           );
                         }}
                         onCellSettled={(cell) => handleCellAbitante(abitante.id, cell)}
@@ -3587,6 +3698,34 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         etaMinimaLavoro={etaMinimaLavoro}
         onApriResidenzaMappa={handleApriResidenzaMappa}
       />
+
+      {luogoCultoModalCtx != null ? (
+        <LuogoCultoFullscreenModal
+          visible
+          onClose={() => setSelectedLuogoCultoAnchor(null)}
+          nomeEdificio={luogoCultoModalCtx.nome}
+          religione={luogoCultoModalCtx.religione}
+          edificioGlobaleId={luogoCultoModalCtx.edificioGlobaleId}
+          anchor={luogoCultoModalCtx.anchor}
+          capoReligiosoId={luogoCultoModalCtx.capoId}
+          abitanti={abitanti}
+          edifici={edifici}
+          cellaCasaPerAbitanteId={cellaCasaPerAbitanteId}
+          orologioMinuti={orologioMinuti}
+          buioCielo={statoCielo.buio}
+          dormonoACasaIds={dormonoACasaIds}
+          lavoroArrivatiIds={lavoroArrivatiIds}
+          commuteByAbitanteId={commuteByAbitanteId}
+          barArrivatiByEdificio={barArrivatiByEdificio}
+          cultoArrivatiByEdificio={cultoArrivatiByEdificio}
+          onApriGestioneCulto={() => {
+            const route =
+              luogoCultoModalCtx.religione === "Culto del Sole" ? "/culto-sole" : "/culto-alieni";
+            setSelectedLuogoCultoAnchor(null);
+            router.push(route);
+          }}
+        />
+      ) : null}
 
       {edificioSerraPerModal != null ? (
         <SerraFullscreenModal

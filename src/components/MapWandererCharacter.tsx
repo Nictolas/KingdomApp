@@ -102,8 +102,8 @@ type MapWandererCharacterProps = {
    */
   commutePath?: number[] | null;
   commuteToken?: number;
-  commutePurpose?: "work" | "bar" | "home" | "mensa" | null;
-  onCommuteComplete?: (purpose: "work" | "bar" | "home" | "mensa") => void;
+  commutePurpose?: "work" | "bar" | "home" | "mensa" | "culto" | null;
+  onCommuteComplete?: (purpose: "work" | "bar" | "home" | "mensa" | "culto") => void;
   /** Chiamato quando il personaggio “arriva” su una cella (fine passo o snap). */
   onCellSettled?: (cellIndex: number) => void;
   /** Doppio tocco: apre la scheda abitante (mappa). */
