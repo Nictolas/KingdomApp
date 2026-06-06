@@ -37,10 +37,13 @@ import {
   subscribeGiornoGioco
 } from "../game/orologioGiocoSession";
 import {
+  haLuogoCulto,
   piazzaLuogoCultoSuMappa,
   TEMPLATE_ID_LUOGO_CULTO,
+  trovaCapoReligiosoSenzaLuogo,
   type ReligioneConCulto
 } from "../game/luogoCulto";
+import { creaRichiestaLuogoCulto, type RichiestaInAttesa } from "../game/richieste";
 
 const statoIniziale = generaColoniaIniziale();
 const capoReligiosoSoleIniziale =
@@ -152,6 +155,8 @@ export function useGameState() {
   const [luoghiCultoPendentiMappa, setLuoghiCultoPendentiMappa] = useState<
     { religione: ReligioneConCulto; edificioGlobaleId: number }[]
   >([]);
+  const [richiesteInAttesa, setRichiesteInAttesa] = useState<RichiestaInAttesa[]>([]);
+  const [luoghiCultoRifiutati, setLuoghiCultoRifiutati] = useState<ReligioneConCulto[]>([]);
 
   // Sincronizza lavoro «Capo Religioso» con la nomina nei culti.
   useEffect(() => {
@@ -175,6 +180,17 @@ export function useGameState() {
       })
     );
   }, [capoReligiosoSole, capoReligiosoAlieni]);
+
+  // Richiesta Luogo di Culto: si attiva appena i requisiti sono soddisfatti (non allo Skip Mese).
+  useEffect(() => {
+    if (pendingRichiestaLuogoCulto != null) return;
+    const capo = trovaCapoReligiosoSenzaLuogo(abitanti, edifici);
+    if (!capo || (capo.religione !== "Culto del Sole" && capo.religione !== "Culto degli Alieni")) return;
+    const religione = capo.religione as ReligioneConCulto;
+    if (richiesteInAttesa.some((r) => r.tipo === "luogo-culto" && r.religione === religione)) return;
+    if (luoghiCultoRifiutati.includes(religione)) return;
+    setPendingRichiestaLuogoCulto({ id: capo.id, nome: capo.nome, religione });
+  }, [abitanti, edifici, pendingRichiestaLuogoCulto, richiesteInAttesa, luoghiCultoRifiutati]);
 
   // Configurazione legge razziale
   const [leggeRazzialeAttiva, setLeggeRazzialeAttiva] = useState(false);
@@ -271,15 +287,11 @@ export function useGameState() {
       prezzoResidenze,
       redditoCittadinanza,
       modalitaSanita,
-      tipologieFamigliaAccettate,
-      haPendingRichiestaLuogoCulto: pendingRichiestaLuogoCulto != null
+      tipologieFamigliaAccettate
     });
 
     setNativiNonIntegrati((prev) => prev + result.deltaNativiNonIntegrati);
     if (result.pendingAssimilazione != null) setPendingAssimilazione(result.pendingAssimilazione);
-    if (result.pendingRichiestaLuogoCulto != null) {
-      setPendingRichiestaLuogoCulto(result.pendingRichiestaLuogoCulto);
-    }
     if (result.pendingMatrimonio != null) setPendingMatrimonio(result.pendingMatrimonio);
     if (result.newIdNascita != null) setNextId(result.newIdNascita + 1);
     setEventiInCorso(result.eventiInCorso);
@@ -306,7 +318,7 @@ export function useGameState() {
     if (result.avvisoDiario) {
       setDiarioRighe((prev) => [...prev, result.avvisoDiario!]);
     }
-  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, pendingRichiestaLuogoCulto]);
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate]);
 
   const confermaMatrimonio = useCallback((idA: number, idB: number) => {
     setAbitanti((prev) =>
@@ -668,35 +680,83 @@ export function useGameState() {
     setPendingAssimilazione(null);
   }, []);
 
+  const costruisciLuogoCulto = useCallback(
+    (religione: ReligioneConCulto) => {
+      if (haLuogoCulto(religione, edifici)) return;
+      const templateId = TEMPLATE_ID_LUOGO_CULTO[religione];
+      const template = edificiData.find((x) => x.id === templateId);
+      if (!template) return;
+
+      const newId = Math.max(0, ...edifici.map((x) => x.id)) + 1;
+      setEdifici((prev) => [
+        ...prev,
+        {
+          ...template,
+          id: newId,
+          abitantiAssegnati: [],
+          occupazione: 0,
+          stato: "Operativo" as const
+        }
+      ]);
+
+      const piazzato = piazzaLuogoCultoSuMappa(religione, newId);
+      if (!piazzato) {
+        setLuoghiCultoPendentiMappa((prev) => [...prev, { religione, edificioGlobaleId: newId }]);
+      }
+    },
+    [edifici]
+  );
+
   const accettaRichiestaLuogoCulto = useCallback(() => {
     const richiesta = pendingRichiestaLuogoCulto;
     setPendingRichiestaLuogoCulto(null);
     if (!richiesta) return;
-
-    const templateId = TEMPLATE_ID_LUOGO_CULTO[richiesta.religione];
-    const template = edificiData.find((x) => x.id === templateId);
-    if (!template) return;
-
-    const newId = Math.max(0, ...edifici.map((x) => x.id)) + 1;
-    setEdifici((prev) => [
-      ...prev,
-      {
-        ...template,
-        id: newId,
-        abitantiAssegnati: [],
-        occupazione: 0,
-        stato: "Operativo" as const
-      }
-    ]);
-
-    const piazzato = piazzaLuogoCultoSuMappa(richiesta.religione, newId);
-    if (!piazzato) {
-      setLuoghiCultoPendentiMappa((prev) => [...prev, { religione: richiesta.religione, edificioGlobaleId: newId }]);
-    }
-  }, [pendingRichiestaLuogoCulto, edifici]);
+    costruisciLuogoCulto(richiesta.religione);
+  }, [pendingRichiestaLuogoCulto, costruisciLuogoCulto]);
 
   const rifiutaRichiestaLuogoCulto = useCallback(() => {
+    const richiesta = pendingRichiestaLuogoCulto;
     setPendingRichiestaLuogoCulto(null);
+    if (!richiesta) return;
+    setLuoghiCultoRifiutati((prev) =>
+      prev.includes(richiesta.religione) ? prev : [...prev, richiesta.religione]
+    );
+  }, [pendingRichiestaLuogoCulto]);
+
+  const rimandaRichiestaLuogoCulto = useCallback(() => {
+    const richiesta = pendingRichiestaLuogoCulto;
+    setPendingRichiestaLuogoCulto(null);
+    if (!richiesta) return;
+    setRichiesteInAttesa((prev) => {
+      if (prev.some((r) => r.tipo === "luogo-culto" && r.religione === richiesta.religione)) return prev;
+      const nuova = creaRichiestaLuogoCulto(richiesta.id, richiesta.nome, richiesta.religione, mese, anno);
+      if (prev.some((r) => r.id === nuova.id)) return prev;
+      return [...prev, nuova];
+    });
+  }, [pendingRichiestaLuogoCulto, mese, anno]);
+
+  const accettaRichiestaInAttesa = useCallback(
+    (richiestaId: string) => {
+      const richiesta = richiesteInAttesa.find((r) => r.id === richiestaId);
+      if (!richiesta) return;
+      if (richiesta.tipo === "luogo-culto") {
+        costruisciLuogoCulto(richiesta.religione);
+      }
+      setRichiesteInAttesa((prev) => prev.filter((r) => r.id !== richiestaId));
+    },
+    [richiesteInAttesa, costruisciLuogoCulto]
+  );
+
+  const rifiutaRichiestaInAttesa = useCallback((richiestaId: string) => {
+    setRichiesteInAttesa((prev) => {
+      const richiesta = prev.find((r) => r.id === richiestaId);
+      if (richiesta?.tipo === "luogo-culto") {
+        setLuoghiCultoRifiutati((rifiutati) =>
+          rifiutati.includes(richiesta.religione) ? rifiutati : [...rifiutati, richiesta.religione]
+        );
+      }
+      return prev.filter((r) => r.id !== richiestaId);
+    });
   }, []);
 
   // Tribunale: grazia un criminale (logica pura in src/game/tribunale); se Ex Governatore → Rivoluzionari -20.
@@ -921,6 +981,11 @@ export function useGameState() {
     pendingRichiestaLuogoCulto,
     accettaRichiestaLuogoCulto,
     rifiutaRichiestaLuogoCulto,
+    rimandaRichiestaLuogoCulto,
+    richiesteInAttesa,
+    accettaRichiestaInAttesa,
+    rifiutaRichiestaInAttesa,
+    luoghiCultoRifiutati,
     luoghiCultoPendentiMappa,
     setLuoghiCultoPendentiMappa
   };

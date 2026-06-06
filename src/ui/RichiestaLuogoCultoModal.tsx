@@ -10,6 +10,7 @@ type RichiestaLuogoCultoModalProps = {
   religione: ReligioneConCulto;
   onAccetta: () => void;
   onRifiuta: () => void;
+  onRimanda: () => void;
 };
 
 export function RichiestaLuogoCultoModal({
@@ -17,15 +18,16 @@ export function RichiestaLuogoCultoModal({
   nomeCapo,
   religione,
   onAccetta,
-  onRifiuta
+  onRifiuta,
+  onRimanda
 }: RichiestaLuogoCultoModalProps) {
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
   const emoji = emojiLuogoCulto(religione);
 
   return (
-    <Modal visible={visible} transparent animationType="fade" onRequestClose={onRifiuta}>
-      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={onRifiuta}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onRimanda}>
+      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={onRimanda}>
         <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={(e) => e.stopPropagation()}>
           <View style={styles.accentLine} />
           <View style={styles.header}>
@@ -41,12 +43,17 @@ export function RichiestaLuogoCultoModal({
               comunità dei fedeli. Accetti di finanziare la costruzione (2×2 sulla mappa)?
             </Text>
           </View>
-          <View style={styles.buttonsRow}>
-            <Pressable style={[styles.btn, styles.btnAccetta]} onPress={onAccetta}>
-              <Text style={styles.btnText}>Accetta</Text>
-            </Pressable>
-            <Pressable style={[styles.btn, styles.btnRifiuta]} onPress={onRifiuta}>
-              <Text style={styles.btnText}>Rifiuta</Text>
+          <View style={styles.buttonsCol}>
+            <View style={styles.buttonsRow}>
+              <Pressable style={[styles.btn, styles.btnAccetta]} onPress={onAccetta}>
+                <Text style={styles.btnText}>Accetta</Text>
+              </Pressable>
+              <Pressable style={[styles.btn, styles.btnRifiuta]} onPress={onRifiuta}>
+                <Text style={styles.btnText}>Rifiuta</Text>
+              </Pressable>
+            </View>
+            <Pressable style={[styles.btn, styles.btnRimanda]} onPress={onRimanda}>
+              <Text style={styles.btnText}>Devo pensarci</Text>
             </Pressable>
           </View>
         </Pressable>
@@ -118,6 +125,9 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     textAlign: "center"
   },
+  buttonsCol: {
+    gap: 10
+  },
   buttonsRow: {
     flexDirection: "row",
     gap: 10
@@ -127,6 +137,11 @@ const styles = StyleSheet.create({
     paddingVertical: 12,
     borderRadius: 10,
     alignItems: "center"
+  },
+  btnRimanda: {
+    backgroundColor: "rgba(59, 130, 246, 0.2)",
+    borderWidth: 1,
+    borderColor: "#3b82f6"
   },
   btnAccetta: {
     backgroundColor: "rgba(34, 197, 94, 0.25)",

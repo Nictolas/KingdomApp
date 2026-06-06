@@ -5,6 +5,7 @@ import type { EventoDef } from "../game/eventi";
 import { DialogInizioPartitaModal } from "../ui/DialogInizioPartitaModal";
 import { RichiestaLuogoCultoModal } from "../ui/RichiestaLuogoCultoModal";
 import type { ReligioneConCulto } from "../game/luogoCulto";
+import type { RichiestaInAttesa } from "../game/richieste";
 
 type ScaglioneConfig = {
   min: number;
@@ -141,6 +142,11 @@ type GameContextType = {
   pendingRichiestaLuogoCulto: { id: number; nome: string; religione: ReligioneConCulto } | null;
   accettaRichiestaLuogoCulto: () => void;
   rifiutaRichiestaLuogoCulto: () => void;
+  rimandaRichiestaLuogoCulto: () => void;
+  richiesteInAttesa: RichiestaInAttesa[];
+  accettaRichiestaInAttesa: (richiestaId: string) => void;
+  rifiutaRichiestaInAttesa: (richiestaId: string) => void;
+  luoghiCultoRifiutati: ReligioneConCulto[];
   luoghiCultoPendentiMappa: { religione: ReligioneConCulto; edificioGlobaleId: number }[];
   setLuoghiCultoPendentiMappa: React.Dispatch<
     React.SetStateAction<{ religione: ReligioneConCulto; edificioGlobaleId: number }[]>
@@ -178,7 +184,8 @@ function RichiestaLuogoCultoDialogWrapper() {
   const {
     pendingRichiestaLuogoCulto,
     accettaRichiestaLuogoCulto,
-    rifiutaRichiestaLuogoCulto
+    rifiutaRichiestaLuogoCulto,
+    rimandaRichiestaLuogoCulto
   } = useGameContext();
   return (
     <RichiestaLuogoCultoModal
@@ -187,6 +194,7 @@ function RichiestaLuogoCultoDialogWrapper() {
       religione={pendingRichiestaLuogoCulto?.religione ?? "Culto del Sole"}
       onAccetta={accettaRichiestaLuogoCulto}
       onRifiuta={rifiutaRichiestaLuogoCulto}
+      onRimanda={rimandaRichiestaLuogoCulto}
     />
   );
 }

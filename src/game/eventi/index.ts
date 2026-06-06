@@ -12,9 +12,8 @@ import { eventoAssimilazione } from "./assimilazione";
 import { eventoEmigrazione } from "./emigrazione";
 import { eventoRivoluzionariDelusi } from "./rivoluzionariDelusi";
 import { eventoGuerraCivile } from "./guerraCivile";
-import { eventoRichiestaLuogoCulto } from "./richiestaLuogoCulto";
 
-/** Catalogo di tutti gli eventi: aggiungi qui i nuovi eventi. */
+/** Catalogo eventi attivati allo Skip Mese. La Richiesta Luogo di Culto è immediata (vedi useGameState). */
 export const EVENTI_CATALOGO: EventoDef[] = [
   eventoProtesteAutoctoni,
   eventoAttentato,
@@ -25,6 +24,7 @@ export const EVENTI_CATALOGO: EventoDef[] = [
   eventoAssimilazione,
   eventoEmigrazione,
   eventoRivoluzionariDelusi,
-  eventoGuerraCivile,
-  eventoRichiestaLuogoCulto
+  eventoGuerraCivile
 ];
+
+export { eventoRichiestaLuogoCulto } from "./richiestaLuogoCulto";

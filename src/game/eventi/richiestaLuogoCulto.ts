@@ -6,13 +6,10 @@ export const eventoRichiestaLuogoCulto: EventoDef = {
   nome: "Richiesta Luogo di Culto",
   emoji: "⛪",
   descrizione:
-    "Un Capo Religioso chiede al giocatore di costruire un Luogo di Culto per la sua fede, se non ne esiste ancora uno sulla mappa.",
-  durataMesi: 1,
-  probabilità: 0.6,
-  condizione: (abitanti, _r, edifici, _p, _d, _f, _s, haPendingRichiestaLuogoCulto) => {
-    if (haPendingRichiestaLuogoCulto) return false;
-    return trovaCapoReligiosoSenzaLuogo(abitanti, edifici) != null;
-  },
+    "Si attiva appena c'è un Capo Religioso senza Luogo di Culto della sua fede. Accetta, Rifiuta o «Devo pensarci» (in Richieste sulla mappa).",
+  durataMesi: 0,
+  probabilità: 1,
+  condizione: (abitanti, _r, edifici) => trovaCapoReligiosoSenzaLuogo(abitanti, edifici) != null,
   applicaAttivazione: () => {},
   applicaMensile: () => {}
 };

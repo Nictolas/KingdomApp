@@ -51,6 +51,9 @@ import {
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 import { CapannaFullscreenModal } from "../src/ui/CapannaFullscreenModal";
 import { SerraFullscreenModal } from "../src/ui/SerraFullscreenModal";
+import { RichiesteModal } from "../src/ui/RichiesteModal";
+import { EventiModal } from "../src/ui/EventiModal";
+import { calcolaEventiUI } from "../src/game/eventiDisponibili";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import {
   RpgFootprintAdmin3x2,
@@ -1663,7 +1666,20 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     rimuoviEdificioPerId,
     serviPastoMensaAbitante,
     luoghiCultoPendentiMappa,
-    setLuoghiCultoPendentiMappa
+    setLuoghiCultoPendentiMappa,
+    richiesteInAttesa,
+    accettaRichiestaInAttesa,
+    rifiutaRichiestaInAttesa,
+    eventiInCorso,
+    eventiCatalogo,
+    punteggioSanzioni,
+    divietoEspatrioAttivo,
+    soddisfazioneFazioni,
+    politicaNascite,
+    tipologieFamigliaAccettate,
+    pendingAssimilazione,
+    pendingRichiestaLuogoCulto,
+    luoghiCultoRifiutati
   } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
@@ -1747,6 +1763,52 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   /** Modal elenco edifici (pulsante Costruisci). */
   const [mostraModalCostruisci, setMostraModalCostruisci] = useState(false);
+  /** Modal richieste rimandate (pulsante Richieste). */
+  const [mostraModalRichieste, setMostraModalRichieste] = useState(false);
+  /** Modal catalogo eventi (pulsante Eventi). */
+  const [mostraModalEventi, setMostraModalEventi] = useState(false);
+
+  const eventiUIInput = useMemo(
+    () => ({
+      abitanti,
+      edifici,
+      risorse,
+      eventiInCorso,
+      eventiCatalogo,
+      punteggioSanzioni,
+      divietoEspatrioAttivo,
+      calcolaFelicitàModificata,
+      soddisfazioneFazioni,
+      politicaNascite,
+      tipologieFamigliaAccettate,
+      pendingAssimilazione,
+      pendingRichiestaLuogoCulto,
+      richiesteInAttesa,
+      luoghiCultoRifiutati
+    }),
+    [
+      abitanti,
+      edifici,
+      risorse,
+      eventiInCorso,
+      eventiCatalogo,
+      punteggioSanzioni,
+      divietoEspatrioAttivo,
+      calcolaFelicitàModificata,
+      soddisfazioneFazioni,
+      politicaNascite,
+      tipologieFamigliaAccettate,
+      pendingAssimilazione,
+      pendingRichiestaLuogoCulto,
+      richiesteInAttesa,
+      luoghiCultoRifiutati
+    ]
+  );
+
+  const eventiAttiviCount = useMemo(() => {
+    const { inCorso, disponibili } = calcolaEventiUI(eventiUIInput);
+    return inCorso.length + disponibili.length;
+  }, [eventiUIInput]);
   /** Tap sulla mappa per rimuovere edifici costruiti dal giocatore. */
   const [modalitaDemolisci, setModalitaDemolisci] = useState(false);
   /** Conferma demolizione dopo tap su edificio in modalità Demolisci. */
@@ -3309,6 +3371,34 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                           Demolisci
                         </Text>
                       </Pressable>
+                      <Pressable
+                        style={[
+                          styles.grigliaMapToggle,
+                          richiesteInAttesa.length > 0 && styles.grigliaMapToggleRichiesteOn
+                        ]}
+                        onPress={() => setMostraModalRichieste(true)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Apri richieste in sospeso"
+                      >
+                        <Text style={styles.grigliaMapToggleEmoji}>📋</Text>
+                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
+                          Richieste{richiesteInAttesa.length > 0 ? ` (${richiesteInAttesa.length})` : ""}
+                        </Text>
+                      </Pressable>
+                      <Pressable
+                        style={[
+                          styles.grigliaMapToggle,
+                          eventiAttiviCount > 0 && styles.grigliaMapToggleEventiOn
+                        ]}
+                        onPress={() => setMostraModalEventi(true)}
+                        accessibilityRole="button"
+                        accessibilityLabel="Apri elenco eventi disponibili"
+                      >
+                        <Text style={styles.grigliaMapToggleEmoji}>📌</Text>
+                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
+                          Eventi{eventiAttiviCount > 0 ? ` (${eventiAttiviCount})` : ""}
+                        </Text>
+                      </Pressable>
                     </>
                   )}
                 </React.Fragment>
@@ -3317,6 +3407,20 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           </ScrollView>
         </View>
       </View>
+
+      <RichiesteModal
+        visible={mostraModalRichieste}
+        richieste={richiesteInAttesa}
+        onClose={() => setMostraModalRichieste(false)}
+        onAccetta={accettaRichiestaInAttesa}
+        onRifiuta={rifiutaRichiestaInAttesa}
+      />
+
+      <EventiModal
+        visible={mostraModalEventi}
+        input={eventiUIInput}
+        onClose={() => setMostraModalEventi(false)}
+      />
 
       <Modal
         visible={mostraModalCostruisci}
@@ -3815,6 +3919,14 @@ const styles = StyleSheet.create({
   grigliaMapToggleDemolisciOn: {
     borderColor: "rgba(248,113,113,0.55)",
     backgroundColor: "rgba(127,29,29,0.4)"
+  },
+  grigliaMapToggleRichiesteOn: {
+    borderColor: "rgba(59,130,246,0.55)",
+    backgroundColor: "rgba(30,58,138,0.4)"
+  },
+  grigliaMapToggleEventiOn: {
+    borderColor: "rgba(245,158,11,0.55)",
+    backgroundColor: "rgba(120,53,15,0.35)"
   },
   demolizioneBanner: {
     backgroundColor: "rgba(127,29,29,0.45)"
