@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import {
   ActivityIndicator,
   Alert,
+  Dimensions,
   Modal,
   Platform,
   Pressable,
@@ -60,7 +61,6 @@ import {
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 import { CapannaFullscreenModal } from "../src/ui/CapannaFullscreenModal";
 import { LuogoCultoFullscreenModal } from "../src/ui/LuogoCultoFullscreenModal";
-import { SerraFullscreenModal } from "../src/ui/SerraFullscreenModal";
 import { abitanteDeveAndareAlCultoOra, abitanteNascostoNelCultoOra } from "../src/game/presenzaLuogoCulto";
 import { RichiesteModal } from "../src/ui/RichiesteModal";
 import { EventiModal } from "../src/ui/EventiModal";
@@ -1786,6 +1786,16 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     return { sections, altri };
   }, [edificiCatalogoModal]);
 
+  const costruisciLayout = useMemo(() => {
+    const { width } = Dimensions.get("window");
+    const paddingX = 32;
+    const gap = 10;
+    const columns =
+      width >= 1200 ? 6 : width >= 960 ? 5 : width >= 720 ? 4 : width >= 480 ? 3 : 2;
+    const tileWidth = Math.floor((width - paddingX - gap * (columns - 1)) / columns);
+    return { columns, tileWidth, gap };
+  }, []);
+
   const [mappaState, setMappaState] = useState<MappaRuntimeState>(() => {
     const session = getMappaSessione() ?? initialMappaState;
     setMappaSessione(session);
@@ -1953,8 +1963,6 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     }
   }, [edifici, edificiInMappa, residenzeMappa, setMappaStatePersistente]);
 
-  /** Id edificio globale della Serra il cui pannello presenze è aperto (tap sulla mappa). */
-  const [selectedSerraEdificioId, setSelectedSerraEdificioId] = useState<number | null>(null);
   /** Cella anchor del Luogo di Culto aperto dal doppio tocco. */
   const [selectedLuogoCultoAnchor, setSelectedLuogoCultoAnchor] = useState<number | null>(null);
   /** Scheda abitante aperta dal doppio tocco su un passeggiatore sulla mappa. */
@@ -2716,11 +2724,6 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     return residenzeMappa[selectedResidenzaAnchor] ?? [];
   }, [selectedResidenzaAnchor, residenzeMappa]);
 
-  const edificioSerraPerModal = useMemo(() => {
-    if (selectedSerraEdificioId == null) return null;
-    return edifici.find((e) => e.id === selectedSerraEdificioId && e.nome === "Serra") ?? null;
-  }, [selectedSerraEdificioId, edifici]);
-
   const luogoCultoModalCtx = useMemo(() => {
     if (selectedLuogoCultoAnchor === null) return null;
     const e = edificiInMappa[selectedLuogoCultoAnchor];
@@ -3096,9 +3099,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         lastTapCell.current = null;
         return;
       }
-      /** Serra: stesso schema — elenco lavoratori e dentro/fuori. */
+      /** Serra: apre subito la pagina produzione / assegnazioni. */
       if (edificio?.nome === "Serra") {
-        setSelectedSerraEdificioId(edificio.id);
+        openRouteForEdificio(edificio.nome, edificio.id);
         lastTapCell.current = null;
         return;
       }
@@ -3648,68 +3651,86 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               nestedScrollEnabled
               showsVerticalScrollIndicator={false}
             >
-              <Pressable
-                style={styles.modalOption}
-                onPress={() => {
-                  setCostruzioneSelezione({ tipo: "strada" });
-                  setMostraModalCostruisci(false);
-                  setMostraGrigliaMappa(true);
-                }}
-              >
-                <Text style={styles.modalOptionEmoji}>{STRADA_OPZIONE.emoji}</Text>
-                <Text style={styles.modalOptionNome}>{STRADA_OPZIONE.nome}</Text>
-              </Pressable>
-              <Text style={styles.modalSectionTitle}>{SEZIONE_AMBIENTE.titolo}</Text>
-              {SEZIONE_AMBIENTE.opzioni.map((opzione) => (
+              <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
                 <Pressable
-                  key={opzione.kind}
-                  style={styles.modalOption}
+                  style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
                   onPress={() => {
-                    setCostruzioneSelezione({ tipo: "terreno", kind: opzione.kind });
+                    setCostruzioneSelezione({ tipo: "strada" });
                     setMostraModalCostruisci(false);
                     setMostraGrigliaMappa(true);
                   }}
                 >
-                  <Text style={styles.modalOptionEmoji}>{opzione.emoji}</Text>
-                  <Text style={styles.modalOptionNome}>{opzione.nome}</Text>
+                  <Text style={styles.modalOptionCostruisciEmoji}>{STRADA_OPZIONE.emoji}</Text>
+                  <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
+                    {STRADA_OPZIONE.nome}
+                  </Text>
                 </Pressable>
-              ))}
+              </View>
+              <Text style={styles.modalSectionTitle}>{SEZIONE_AMBIENTE.titolo}</Text>
+              <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
+                {SEZIONE_AMBIENTE.opzioni.map((opzione) => (
+                  <Pressable
+                    key={opzione.kind}
+                    style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
+                    onPress={() => {
+                      setCostruzioneSelezione({ tipo: "terreno", kind: opzione.kind });
+                      setMostraModalCostruisci(false);
+                      setMostraGrigliaMappa(true);
+                    }}
+                  >
+                    <Text style={styles.modalOptionCostruisciEmoji}>{opzione.emoji}</Text>
+                    <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
+                      {opzione.nome}
+                    </Text>
+                  </Pressable>
+                ))}
+              </View>
               {edificiCostruzionePerSezione.sections.map((sezione) => (
                 <View key={sezione.titolo}>
                   <Text style={styles.modalSectionTitle}>{sezione.titolo}</Text>
-                  {sezione.edifici.map((e) => (
+                  <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
+                    {sezione.edifici.map((e) => (
+                      <Pressable
+                        key={e.id}
+                        style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
+                        onPress={() => {
+                          setCostruzioneSelezione({ tipo: "edificio", edificio: e });
+                          setMostraModalCostruisci(false);
+                          setMostraGrigliaMappa(true);
+                        }}
+                      >
+                        <Text style={styles.modalOptionCostruisciEmoji}>{e.emoji}</Text>
+                        <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
+                          {e.nome}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              ))}
+              {edificiCostruzionePerSezione.altri.length > 0 ? (
+                <Text style={styles.modalSectionTitle}>Altro</Text>
+              ) : null}
+              {edificiCostruzionePerSezione.altri.length > 0 ? (
+                <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
+                  {edificiCostruzionePerSezione.altri.map((e) => (
                     <Pressable
                       key={e.id}
-                      style={styles.modalOption}
+                      style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
                       onPress={() => {
                         setCostruzioneSelezione({ tipo: "edificio", edificio: e });
                         setMostraModalCostruisci(false);
                         setMostraGrigliaMappa(true);
                       }}
                     >
-                      <Text style={styles.modalOptionEmoji}>{e.emoji}</Text>
-                      <Text style={styles.modalOptionNome}>{e.nome}</Text>
+                      <Text style={styles.modalOptionCostruisciEmoji}>{e.emoji}</Text>
+                      <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
+                        {e.nome}
+                      </Text>
                     </Pressable>
                   ))}
                 </View>
-              ))}
-              {edificiCostruzionePerSezione.altri.length > 0 ? (
-                <Text style={styles.modalSectionTitle}>Altro</Text>
               ) : null}
-              {edificiCostruzionePerSezione.altri.map((e) => (
-                <Pressable
-                  key={e.id}
-                  style={styles.modalOption}
-                  onPress={() => {
-                    setCostruzioneSelezione({ tipo: "edificio", edificio: e });
-                    setMostraModalCostruisci(false);
-                    setMostraGrigliaMappa(true);
-                  }}
-                >
-                  <Text style={styles.modalOptionEmoji}>{e.emoji}</Text>
-                  <Text style={styles.modalOptionNome}>{e.nome}</Text>
-                </Pressable>
-              ))}
             </ScrollView>
             <Pressable style={styles.modalCancel} onPress={() => setMostraModalCostruisci(false)}>
               <Text style={styles.modalCancelText}>Chiudi</Text>
@@ -3824,28 +3845,6 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               luogoCultoModalCtx.religione === "Culto del Sole" ? "/culto-sole" : "/culto-alieni";
             setSelectedLuogoCultoAnchor(null);
             router.push(route);
-          }}
-        />
-      ) : null}
-
-      {edificioSerraPerModal != null ? (
-        <SerraFullscreenModal
-          visible
-          onClose={() => setSelectedSerraEdificioId(null)}
-          edificio={edificioSerraPerModal}
-          abitanti={abitanti}
-          edifici={edifici}
-          cellaCasaPerAbitanteId={cellaCasaPerAbitanteId}
-          orologioMinuti={orologioMinuti}
-          buioCielo={statoCielo.buio}
-          dormonoACasaIds={dormonoACasaIds}
-          lavoroArrivatiIds={lavoroArrivatiIds}
-          commuteByAbitanteId={commuteByAbitanteId}
-          barArrivatiByEdificio={barArrivatiByEdificio}
-          onApriProduzione={() => {
-            const id = edificioSerraPerModal.id;
-            setSelectedSerraEdificioId(null);
-            router.push(`/serra/${id}`);
           }}
         />
       ) : null}
@@ -4538,6 +4537,33 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(15,23,42,0.8)",
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.3)"
+  },
+  modalOptionGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginBottom: 4
+  },
+  modalOptionCostruisci: {
+    alignItems: "center",
+    justifyContent: "center",
+    minHeight: 88,
+    paddingVertical: 10,
+    paddingHorizontal: 6,
+    borderRadius: 10,
+    backgroundColor: "rgba(15,23,42,0.8)",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.3)"
+  },
+  modalOptionCostruisciEmoji: {
+    fontSize: 28,
+    marginBottom: 6
+  },
+  modalOptionCostruisciNome: {
+    color: "#e5e7eb",
+    fontSize: 11,
+    fontWeight: "600",
+    textAlign: "center",
+    lineHeight: 14
   },
   modalOptionEmoji: {
     fontSize: 22,
