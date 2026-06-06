@@ -451,6 +451,26 @@ export function RpgFootprintLuogoCultoAlieni2x2(props: Props) {
   return <RpgFootprintEdificioPietra2x2 {...props} emoji="👽" />;
 }
 
+export function RpgFootprintCarcere2x2(props: Props) {
+  return <RpgFootprintEdificioPietra2x2 {...props} emoji="🔒" />;
+}
+
+export function RpgFootprintCampoLavoro2x2(props: Props) {
+  return <RpgFootprintEdificioPietra2x2 {...props} emoji="⛓️" />;
+}
+
+export function RpgFootprintCampoSterminio2x2(props: Props) {
+  return <RpgFootprintEdificioPietra2x2 {...props} emoji="💀" />;
+}
+
+export function RpgFootprintCaserma2x2(props: Props) {
+  return <RpgFootprintEdificioPietra2x2 {...props} emoji="🏰" />;
+}
+
+export function RpgFootprintCentralePolizia2x2(props: Props) {
+  return <RpgFootprintEdificioPietra2x2 {...props} emoji="🚔" />;
+}
+
 /** Vetrata centrale larga (hangar / sala controllo). */
 function HangarGlassPane() {
   return (

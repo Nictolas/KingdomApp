@@ -75,6 +75,11 @@ import {
   RpgFootprintUfficioImmigrazione2x2,
   RpgFootprintLuogoCultoSole2x2,
   RpgFootprintLuogoCultoAlieni2x2,
+  RpgFootprintCarcere2x2,
+  RpgFootprintCampoLavoro2x2,
+  RpgFootprintCampoSterminio2x2,
+  RpgFootprintCaserma2x2,
+  RpgFootprintCentralePolizia2x2,
   RpgFootprintMercato2x2,
   RpgFootprintDissalatore2x2,
   RpgFootprintSerra2x1,
@@ -112,7 +117,7 @@ import {
   scegliMensaEdificioIdPiuVicino
 } from "../src/game/commutePathsMappa";
 import { abitanteHaBisognoMensa } from "../src/game/mensaPubblica";
-import { getTotaleOggettiInventarioGiocatore } from "../src/game/inventario";
+import { SEZIONE_AMBIENTE, SEZIONI_COSTRUZIONE, type TerrenoCostruzioneKind } from "../src/game/costruzioneSezioni";
 import { setBarArrivatiMappaSnapshot } from "../src/game/mappaBarArrivatiStore";
 import { computeStatoCielo } from "../src/game/cicloCielo";
 import { formatOrologioGioco } from "../src/game/orologioGiocoSession";
@@ -252,6 +257,7 @@ const EDIFICIO_TO_ROUTE: Record<string, string> = {
   "Bar": "/bar",
   "Mensa Pubblica": "/mensa",
   "Caserma": "/caserma",
+  "Carcere": "/carcere",
   "Spazioporto": "/spazioporto"
 };
 
@@ -290,7 +296,10 @@ const FOOTPRINT_COSTRUZIONE: Record<string, { w: number; h: number }> = {
   Dissalatore: { w: DISSALATORE_FOOTPRINT_W, h: DISSALATORE_FOOTPRINT_H },
   Spazioporto: { w: SPAZIOPORTO_FOOTPRINT_W, h: SPAZIOPORTO_FOOTPRINT_H },
   "Luogo di Culto del Sole": { w: 2, h: 2 },
-  "Luogo di Culto degli Alieni": { w: 2, h: 2 }
+  "Luogo di Culto degli Alieni": { w: 2, h: 2 },
+  Carcere: { w: 2, h: 2 },
+  "Campo di Lavoro": { w: 2, h: 2 },
+  "Campo di Sterminio": { w: 2, h: 2 }
 };
 
 /** Sabbia = terreno sabbia su terraferma (non mare). */
@@ -457,14 +466,6 @@ const GIACIMENTO: EdificioInCella = { id: 0, nome: "Giacimento", emoji: "⛰️"
 const RAFFINERIA_MINERARIA: EdificioInCella = { id: 3, nome: "Raffineria Mineraria", emoji: "⚙️" };
 /** Opzione "Strada" per il dialog costruzione (cella diventa lastricato strada). */
 const STRADA_OPZIONE: EdificioInCella = { id: -1, nome: "Strada", emoji: "🛤️" };
-
-type TerrenoCostruzioneKind = "acqua" | "spiaggia" | "erba";
-
-const TERRENO_COSTRUZIONE_OPZIONI: { kind: TerrenoCostruzioneKind; emoji: string; nome: string }[] = [
-  { kind: "acqua", emoji: "🌊", nome: "Acqua" },
-  { kind: "spiaggia", emoji: "🏖️", nome: "Spiaggia" },
-  { kind: "erba", emoji: "🌿", nome: "Erba" }
-];
 
 const DORMITORIO: EdificioInCella = { id: 14, nome: "Dormitorio", emoji: "🛏️" };
 const BAR_EDIFICIO: EdificioInCella = { id: 17, nome: "Bar", emoji: "🍺" };
@@ -1381,7 +1382,12 @@ type FootprintVariant =
   | "serra"
   | "capanna"
   | "luogo_culto_sole"
-  | "luogo_culto_alieni";
+  | "luogo_culto_alieni"
+  | "carcere"
+  | "campo_lavoro"
+  | "campo_sterminio"
+  | "caserma"
+  | "centrale_polizia";
 
 function EdificioFootprintGfx({
   anchor,
@@ -1440,6 +1446,46 @@ function EdificioFootprintGfx({
     return (
       <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
         <RpgFootprintLuogoCultoAlieni2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "carcere" && w === 2 && h === 2) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintCarcere2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "campo_lavoro" && w === 2 && h === 2) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintCampoLavoro2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "campo_sterminio" && w === 2 && h === 2) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintCampoSterminio2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "caserma" && w === 2 && h === 2) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintCaserma2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "centrale_polizia" && w === 2 && h === 2) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintCentralePolizia2x2 width={width} height={height} />
       </View>
     );
   }
@@ -1722,6 +1768,22 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     }
     return out;
   }, []);
+
+  const edificiCostruzionePerSezione = useMemo(() => {
+    const byNome = new Map(edificiCatalogoModal.map((e) => [e.nome, e]));
+    const used = new Set<string>();
+    const sections = SEZIONI_COSTRUZIONE.map((s) => ({
+      titolo: s.titolo,
+      edifici: s.nomi
+        .map((nome) => {
+          used.add(nome);
+          return byNome.get(nome);
+        })
+        .filter((e): e is Edificio => e != null)
+    }));
+    const altri = edificiCatalogoModal.filter((e) => !used.has(e.nome));
+    return { sections, altri };
+  }, [edificiCatalogoModal]);
 
   const [mappaState, setMappaState] = useState<MappaRuntimeState>(() => {
     const session = getMappaSessione() ?? initialMappaState;
@@ -2597,7 +2659,17 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                           ? "luogo_culto_sole"
                           : e.nome === "Luogo di Culto degli Alieni"
                             ? "luogo_culto_alieni"
-                            : "amministrazione";
+                            : e.nome === "Carcere"
+                              ? "carcere"
+                              : e.nome === "Campo di Lavoro"
+                                ? "campo_lavoro"
+                                : e.nome === "Campo di Sterminio"
+                                  ? "campo_sterminio"
+                                  : e.nome === "Caserma"
+                                    ? "caserma"
+                                    : e.nome === "Centrale"
+                                      ? "centrale_polizia"
+                                      : "amministrazione";
         list.push({ anchor: Number(i), fp: e.footprint, variant });
       }
     }
@@ -3581,7 +3653,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                 <Text style={styles.modalOptionEmoji}>{STRADA_OPZIONE.emoji}</Text>
                 <Text style={styles.modalOptionNome}>{STRADA_OPZIONE.nome}</Text>
               </Pressable>
-              {TERRENO_COSTRUZIONE_OPZIONI.map((opzione) => (
+              <Text style={styles.modalSectionTitle}>{SEZIONE_AMBIENTE.titolo}</Text>
+              {SEZIONE_AMBIENTE.opzioni.map((opzione) => (
                 <Pressable
                   key={opzione.kind}
                   style={styles.modalOption}
@@ -3595,7 +3668,29 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                   <Text style={styles.modalOptionNome}>{opzione.nome}</Text>
                 </Pressable>
               ))}
-              {edificiCatalogoModal.map((e) => (
+              {edificiCostruzionePerSezione.sections.map((sezione) => (
+                <View key={sezione.titolo}>
+                  <Text style={styles.modalSectionTitle}>{sezione.titolo}</Text>
+                  {sezione.edifici.map((e) => (
+                    <Pressable
+                      key={e.id}
+                      style={styles.modalOption}
+                      onPress={() => {
+                        setCostruzioneSelezione({ tipo: "edificio", edificio: e });
+                        setMostraModalCostruisci(false);
+                        setMostraGrigliaMappa(true);
+                      }}
+                    >
+                      <Text style={styles.modalOptionEmoji}>{e.emoji}</Text>
+                      <Text style={styles.modalOptionNome}>{e.nome}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+              ))}
+              {edificiCostruzionePerSezione.altri.length > 0 ? (
+                <Text style={styles.modalSectionTitle}>Altro</Text>
+              ) : null}
+              {edificiCostruzionePerSezione.altri.map((e) => (
                 <Pressable
                   key={e.id}
                   style={styles.modalOption}
@@ -4337,6 +4432,16 @@ const styles = StyleSheet.create({
     fontSize: 13,
     marginBottom: 16,
     textAlign: "center"
+  },
+  modalSectionTitle: {
+    color: "#93c5fd",
+    fontSize: 12,
+    fontWeight: "800",
+    letterSpacing: 0.4,
+    textTransform: "uppercase",
+    marginTop: 10,
+    marginBottom: 6,
+    paddingHorizontal: 4
   },
   modalButtonsRow: {
     flexDirection: "row",

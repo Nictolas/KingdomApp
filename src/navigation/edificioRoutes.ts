@@ -37,6 +37,8 @@ export function getRouteForEdificio(edificio: Edificio): string | null {
       return "/laboratorio";
     case "Caserma":
       return "/caserma";
+    case "Carcere":
+      return "/carcere";
     case "Spazioporto":
       return "/spazioporto";
     case "Ufficio Immigrazione":

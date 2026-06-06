@@ -33,7 +33,7 @@ const COLONNA_SERVIZI: string[] = [
   "Ufficio Immigrazione",
   "Mercato"
 ];
-const COLONNA_PUNIZIONE: string[] = ["Tribunale", "Campo di Lavoro", "Campo di Sterminio"];
+const COLONNA_PUNIZIONE: string[] = ["Tribunale", "Carcere", "Campo di Lavoro", "Campo di Sterminio"];
 
 function getEdificiPerColonna(edifici: Edificio[], nomi: string[]): Edificio[] {
   const out: Edificio[] = [];
@@ -110,6 +110,8 @@ export default function EdificiScreen() {
       router.push("/centrale");
     } else if (e.nome === "Tribunale") {
       router.push("/tribunale");
+    } else if (e.nome === "Carcere") {
+      router.push("/carcere");
     } else if (e.nome === "Centro di Comando") {
       router.push("/ministri");
     } else if (e.nome === "Dissalatore") {
@@ -172,7 +174,7 @@ export default function EdificiScreen() {
           </View>
           <View style={styles.column}>
             <Text style={styles.columnTitle}>Punizione</Text>
-            <Text style={styles.columnSubtitle}>Tribunale, Campo di Lavoro, Campo di Sterminio</Text>
+            <Text style={styles.columnSubtitle}>Tribunale, Carcere, Campo di Lavoro, Campo di Sterminio</Text>
             <View style={styles.cardGrid}>
               {punizione.map((e) => (
                 <CardEdificio key={e.id} e={e} onPress={() => handlePress(e)} />
