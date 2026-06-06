@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
@@ -17,13 +18,14 @@ export default function CentraleScreen() {
   const maxHeight = isDesktop ? containerHeight : undefined;
 
   const centrale = edifici.find((e) => e.nome === "Centrale");
-  if (!centrale) return null;
-
-  const addettiIds = centrale.abitantiAssegnati ?? [];
+  const addettiIds = centrale?.abitantiAssegnati ?? [];
   const addetti = addettiIds.map((id) => abitanti.find((a) => a.id === id)).filter((a): a is Abitante => a != null);
-  const abitantiDisponibili = abitanti.filter(
-    (a) => a.razza !== "Robot" && !addettiIds.includes(a.id) && (centrale.capacità ?? 10) > addettiIds.length
-  );
+  const abitantiDisponibili = useMemo(() => {
+    if (!centrale) return [];
+    return getServiDellaGlebaPerAssegnazioneEdificio(abitanti, edifici, centrale);
+  }, [abitanti, edifici, centrale]);
+
+  if (!centrale) return null;
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>

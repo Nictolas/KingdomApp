@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
@@ -19,13 +20,14 @@ export default function CasermaScreen() {
   const maxHeight = isDesktop ? containerHeight : undefined;
 
   const caserma = edifici.find((e) => e.nome === "Caserma");
-  if (!caserma) return null;
-
-  const addettiIds = caserma.abitantiAssegnati ?? [];
+  const addettiIds = caserma?.abitantiAssegnati ?? [];
   const addetti = addettiIds.map((id) => abitanti.find((a) => a.id === id)).filter((a): a is Abitante => a != null);
-  const abitantiDisponibili = abitanti.filter(
-    (a) => a.razza !== "Robot" && !addettiIds.includes(a.id) && (caserma.capacità ?? 10) > addettiIds.length
-  );
+  const abitantiDisponibili = useMemo(() => {
+    if (!caserma) return [];
+    return getServiDellaGlebaPerAssegnazioneEdificio(abitanti, edifici, caserma);
+  }, [abitanti, edifici, caserma]);
+
+  if (!caserma) return null;
   const soddisfazioneSicurezza = soddisfazioneFazioni["Sicurezza"] ?? 80;
   const bloccaGuerraCivile = addettiIds.length >= 3 && soddisfazioneSicurezza >= SOGLIA_SODDISFAZIONE_BLOCCO_GUERRA;
 

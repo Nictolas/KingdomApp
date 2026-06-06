@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
@@ -16,25 +17,23 @@ export default function ScuolaScreen() {
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
 
-  // Trova la Scuola
   const scuola = edifici.find((e) => e.nome === "Scuola");
+  const professoreId = scuola && scuola.abitantiAssegnati.length > 0 ? scuola.abitantiAssegnati[0] : null;
+  const professore = professoreId ? abitanti.find((a) => a.id === professoreId) : null;
+  const bambini = abitanti.filter((a) => a.eta < etaMinimaLavoro);
+
+  const abitantiDisponibiliProfessore = useMemo(() => {
+    if (!scuola || professore) return [];
+    return getServiDellaGlebaPerAssegnazioneEdificio(abitanti, edifici, scuola).filter(
+      (a) => a.eta >= etaMinimaLavoro
+    );
+  }, [abitanti, edifici, scuola, professore, etaMinimaLavoro]);
+
+  const puòAssegnareProfessore = abitantiDisponibiliProfessore.length > 0 && !professore;
+
   if (!scuola) {
     return null;
   }
-
-  // Il professore è il primo (e unico) abitante assegnato alla scuola
-  const professoreId = scuola.abitantiAssegnati.length > 0 ? scuola.abitantiAssegnati[0] : null;
-  const professore = professoreId ? abitanti.find((a) => a.id === professoreId) : null;
-
-  // I bambini sono tutti gli abitanti con età < etaMinimaLavoro
-  const bambini = abitanti.filter((a) => a.eta < etaMinimaLavoro);
-
-  // Abitanti disponibili per essere professore (non bambini, non già professore)
-  const abitantiDisponibiliProfessore = abitanti.filter(
-    (a) => a.eta >= etaMinimaLavoro && a.id !== professoreId
-  );
-
-  const puòAssegnareProfessore = abitantiDisponibiliProfessore.length > 0 && !professore;
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>

@@ -35,7 +35,7 @@ export default function SanitaScreen() {
           >
             <Text style={styles.optionTitle}>Sanità Privata</Text>
             <Text style={styles.optionText}>
-              Gli stipendi dell&apos;Ospedale Coloniale non pesano sul bilancio della colonia. Le cure sono a carico
+              Gli stipendi dell&apos;Ospedale non pesano sul bilancio della colonia. Le cure sono a carico
               dei singoli (potrai in futuro modellare costi Salute sugli abitanti).
             </Text>
           </Pressable>
@@ -46,7 +46,7 @@ export default function SanitaScreen() {
           >
             <Text style={styles.optionTitle}>Sanità Pubblica</Text>
             <Text style={styles.optionText}>
-              Gli stipendi dell&apos;Ospedale Coloniale vengono pagati dalla colonia e compaiono tra i costi in
+              Gli stipendi dell&apos;Ospedale vengono pagati dalla colonia e compaiono tra i costi in
               Crediti. In cambio, le cure possono essere considerate gratuite per gli abitanti.
             </Text>
           </Pressable>

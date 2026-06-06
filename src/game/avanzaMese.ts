@@ -511,7 +511,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
         .filter((e) => e.stato === "Operativo")
         .reduce((sum, e) => {
           // Se la sanità è privata, gli stipendi dell'Ospedale non pesano sul bilancio della colonia
-          if (modalitaSanita === "privata" && e.nome === "Ospedale Coloniale") {
+          if (modalitaSanita === "privata" && e.nome === "Ospedale") {
             return sum;
           }
           return sum + (e.stipendioPerLavoratore ?? 0) * (e.abitantiAssegnati?.length ?? 0);

@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
@@ -15,14 +16,15 @@ export default function CentraleEnergeticaScreen() {
   const maxHeight = isDesktop ? containerHeight : undefined;
 
   const centrale = edifici.find((e) => e.nome === "Centrale Energetica");
+  const abitantiAssegnati = centrale ? abitanti.filter((a) => centrale.abitantiAssegnati.includes(a.id)) : [];
+  const abitantiDisponibili = useMemo(() => {
+    if (!centrale) return [];
+    return getServiDellaGlebaPerAssegnazioneEdificio(abitanti, edifici, centrale);
+  }, [abitanti, edifici, centrale]);
+
   if (!centrale) {
     return null;
   }
-
-  const abitantiAssegnati = abitanti.filter((a) => centrale.abitantiAssegnati.includes(a.id));
-  const abitantiDisponibili = abitanti.filter(
-    (a) => !centrale.abitantiAssegnati.includes(a.id) && a.lavoro === "Disoccupato"
-  );
 
   // Produzione energia: come in avanzaMese, floor(numAbitanti * produttivitàMedia/10)
   const produttivitàMedia =

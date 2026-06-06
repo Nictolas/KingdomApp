@@ -35,6 +35,8 @@ export type EventiUIInput = {
   pendingRichiestaLuogoCulto: { id: number; nome: string; religione: string } | null;
   richiesteInAttesa: RichiestaInAttesa[];
   luoghiCultoRifiutati: ReligioneConCulto[];
+  capoReligiosoSole: number | null;
+  capoReligiosoAlieni: number | null;
 };
 
 function esisteCoppiaSposata(abitanti: Abitante[]): boolean {
@@ -61,7 +63,9 @@ export function calcolaEventiUI(input: EventiUIInput): {
     pendingAssimilazione,
     pendingRichiestaLuogoCulto,
     richiesteInAttesa,
-    luoghiCultoRifiutati
+    luoghiCultoRifiutati,
+    capoReligiosoSole,
+    capoReligiosoAlieni
   } = input;
 
   const idsInCorso = new Set(eventiInCorso.map((e) => e.id));
@@ -121,7 +125,10 @@ export function calcolaEventiUI(input: EventiUIInput): {
       stato: "rimandato"
     });
   } else {
-    const capo = trovaCapoReligiosoSenzaLuogo(abitanti, edifici);
+    const capo = trovaCapoReligiosoSenzaLuogo(abitanti, edifici, undefined, {
+      sole: capoReligiosoSole,
+      alieni: capoReligiosoAlieni
+    });
     if (
       capo &&
       (capo.religione === "Culto del Sole" || capo.religione === "Culto degli Alieni") &&

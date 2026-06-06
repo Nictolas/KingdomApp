@@ -1,8 +1,9 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getStatoSalute } from "../src/game/ciboConsumo";
+import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
@@ -17,44 +18,44 @@ export default function OspedaleScreen() {
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
 
-  // Trova l'Ospedale
-  const ospedale = edifici.find((e) => e.nome === "Ospedale Coloniale");
-  if (!ospedale) {
-    return null;
-  }
-
-  // Il dottore è il primo (e unico) abitante assegnato all'ospedale
-  const dottoreId = ospedale.abitantiAssegnati.length > 0 ? ospedale.abitantiAssegnati[0] : null;
+  const ospedale = edifici.find((e) => e.nome === "Ospedale");
+  const dottoreId = ospedale && ospedale.abitantiAssegnati.length > 0 ? ospedale.abitantiAssegnati[0] : null;
   const dottore = dottoreId ? abitanti.find((a) => a.id === dottoreId) : null;
 
-  // Malati = abitanti con Salute diversa da "Sano" e da "Incinta" (esclusi Robot; Incinta non è una malattia)
   const malati = abitanti.filter(
     (a) => a.razza !== "Robot" && getStatoSalute(a) !== "Sano" && getStatoSalute(a) !== "Incinta"
   );
 
-  // Abitanti disponibili per essere dottore (non già dottore)
-  const abitantiDisponibiliDottore = abitanti.filter((a) => a.id !== dottoreId);
+  const incinte = abitanti.filter((a) => a.razza !== "Robot" && a.incinta === true);
+
+  const abitantiDisponibiliDottore = useMemo(() => {
+    if (!ospedale || dottore) return [];
+    return getServiDellaGlebaPerAssegnazioneEdificio(abitanti, edifici, ospedale);
+  }, [abitanti, edifici, ospedale, dottore]);
 
   const puòAssegnareDottore = abitantiDisponibiliDottore.length > 0 && !dottore;
+
+  if (!ospedale) {
+    return null;
+  }
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
-        <Text style={styles.title}>🏥 Ospedale Coloniale</Text>
+        <Text style={styles.title}>🏥 Ospedale</Text>
         <View style={{ width: 50 }} />
       </View>
 
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
-        {/* Informazioni */}
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Stato Ospedale</Text>
           <Text style={styles.infoText}>
             {dottore ? `Dottore: ${dottore.nome}` : "Nessun dottore assegnato"}
           </Text>
           <Text style={styles.infoSubtext}>
-            Malati nella colonia: {malati.length}
+            Malati nella colonia: {malati.length} · Incinte: {incinte.length}
           </Text>
         </View>
 
@@ -74,12 +75,12 @@ export default function OspedaleScreen() {
           </Text>
         </View>
 
-        {/* Dottore */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Dottore</Text>
           <Pressable
             style={styles.dropdownButton}
-            onPress={() => setDropdownDottoreVisible(true)}
+            onPress={() => puòAssegnareDottore && setDropdownDottoreVisible(true)}
+            disabled={!puòAssegnareDottore && !dottore}
           >
             {dottore ? (
               <View style={styles.dropdownContent}>
@@ -103,7 +104,6 @@ export default function OspedaleScreen() {
             </Pressable>
           )}
 
-          {/* Modal dropdown */}
           <Modal
             visible={dropdownDottoreVisible}
             transparent
@@ -121,6 +121,7 @@ export default function OspedaleScreen() {
                     <Text style={styles.modalClose}>✕</Text>
                   </Pressable>
                 </View>
+                <Text style={styles.modalHint}>Solo abitanti con casta «Servo della gleba».</Text>
                 <ScrollView style={styles.modalScrollView}>
                   {abitantiDisponibiliDottore.length > 0 ? (
                     abitantiDisponibiliDottore.map((a: Abitante) => (
@@ -140,7 +141,7 @@ export default function OspedaleScreen() {
                       </Pressable>
                     ))
                   ) : (
-                    <Text style={styles.emptyText}>Nessun abitante disponibile</Text>
+                    <Text style={styles.emptyText}>Nessun Servo della gleba disponibile</Text>
                   )}
                 </ScrollView>
               </Pressable>
@@ -148,7 +149,6 @@ export default function OspedaleScreen() {
           </Modal>
         </View>
 
-        {/* Lista Malati */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Malati ({malati.length})</Text>
           {malati.length > 0 ? (
@@ -167,6 +167,27 @@ export default function OspedaleScreen() {
             </View>
           ) : (
             <Text style={styles.emptyText}>Nessun malato nella colonia</Text>
+          )}
+        </View>
+
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Incinte ({incinte.length})</Text>
+          {incinte.length > 0 ? (
+            <View style={styles.cardsContainer}>
+              {incinte.map((persona: Abitante) => (
+                <View key={persona.id} style={styles.incintaCard}>
+                  <Text style={styles.cardEmoji}>{getEmojiAbitante(persona)}</Text>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardTitle}>{persona.nome}</Text>
+                    <Text style={styles.cardInfo}>Età: {persona.eta} anni</Text>
+                    <Text style={styles.incintaSalute}>Salute: Incinta</Text>
+                    <Text style={styles.cardInfo}>Felicità: {persona.felicità}/100</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>Nessuna persona incinta nella colonia</Text>
           )}
         </View>
       </ScrollView>
@@ -271,6 +292,12 @@ const styles = StyleSheet.create({
     fontSize: 9,
     marginTop: 2
   },
+  incintaSalute: {
+    color: "#f9a8d4",
+    fontSize: 9,
+    marginTop: 2,
+    fontWeight: "600"
+  },
   section: {
     marginTop: 4
   },
@@ -280,39 +307,10 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     marginBottom: 4
   },
-  subsection: {
-    marginTop: 6
-  },
-  subsectionTitle: {
-    color: "rgba(203,213,245,0.8)",
-    fontSize: 10,
-    fontWeight: "600",
-    marginBottom: 4
-  },
-  dottoreCard: {
-    backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 6,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: "#ef4444",
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 8
-  },
   cardsContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     gap: 4
-  },
-  card: {
-    backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 6,
-    padding: 6,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.6)",
-    alignItems: "center",
-    width: "48%",
-    minWidth: 120
   },
   malatoCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
@@ -320,6 +318,16 @@ const styles = StyleSheet.create({
     padding: 6,
     borderWidth: 1,
     borderColor: "#f97316",
+    alignItems: "center",
+    width: "48%",
+    minWidth: 120
+  },
+  incintaCard: {
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 6,
+    padding: 6,
+    borderWidth: 1,
+    borderColor: "#ec4899",
     alignItems: "center",
     width: "48%",
     minWidth: 120
@@ -339,31 +347,11 @@ const styles = StyleSheet.create({
     marginBottom: 1,
     textAlign: "center"
   },
-  cardLavoro: {
-    color: "#93c5fd",
-    fontSize: 9,
-    marginBottom: 1,
-    textAlign: "center"
-  },
   cardInfo: {
     color: "rgba(203,213,245,0.7)",
     fontSize: 8,
     textAlign: "center",
     marginBottom: 1
-  },
-  addButton: {
-    backgroundColor: "#3b82f6",
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 4,
-    marginTop: 4,
-    width: "100%",
-    alignItems: "center"
-  },
-  addButtonText: {
-    color: "#ffffff",
-    fontSize: 9,
-    fontWeight: "600"
   },
   removeButton: {
     backgroundColor: "#ef4444",
@@ -454,6 +442,12 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 12,
     fontWeight: "700"
+  },
+  modalHint: {
+    color: "rgba(203,213,245,0.65)",
+    fontSize: 9,
+    paddingHorizontal: 12,
+    paddingTop: 8
   },
   modalClose: {
     color: "rgba(203,213,245,0.7)",

@@ -230,7 +230,7 @@ const EDIFICIO_TO_ROUTE: Record<string, string> = {
   "Scuola Elementare": "/scuola",
   "Scuola Superiore": "/scuola",
   "Università": "/scuola",
-  "Ospedale Coloniale": "/ospedale",
+  "Ospedale": "/ospedale",
   "Centrale": "/centrale",
   "Tribunale": "/tribunale",
   "Ufficio Immigrazione": "/immigrazione",
@@ -1679,7 +1679,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     tipologieFamigliaAccettate,
     pendingAssimilazione,
     pendingRichiestaLuogoCulto,
-    luoghiCultoRifiutati
+    luoghiCultoRifiutati,
+    capoReligiosoSole,
+    capoReligiosoAlieni
   } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
@@ -1784,7 +1786,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       pendingAssimilazione,
       pendingRichiestaLuogoCulto,
       richiesteInAttesa,
-      luoghiCultoRifiutati
+      luoghiCultoRifiutati,
+      capoReligiosoSole,
+      capoReligiosoAlieni
     }),
     [
       abitanti,
@@ -1801,7 +1805,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       pendingAssimilazione,
       pendingRichiestaLuogoCulto,
       richiesteInAttesa,
-      luoghiCultoRifiutati
+      luoghiCultoRifiutati,
+      capoReligiosoSole,
+      capoReligiosoAlieni
     ]
   );
 

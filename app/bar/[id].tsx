@@ -10,6 +10,7 @@ import {
 } from "../../src/game/mappaBarArrivatiStore";
 import { formatOrologioGioco } from "../../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../../src/hooks/useOrologioGioco";
+import { getServiDellaGlebaPerAssegnazioneEdificio } from "../../src/game/edificiLavoro";
 import { getEmojiAbitante } from "../../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../../src/types";
@@ -42,6 +43,19 @@ export default function BarScreenById() {
     [edifici, edificioId]
   );
 
+  const candidatiBar = abitantiPresentiNelBarOra(abitanti, orologioMinuti, statoCielo.buio, edifici);
+  const presentiOraDisoccupati =
+    barArrivatiMappa.size > 0
+      ? candidatiBar.filter((a) => barArrivatiMappa.has(a.id))
+      : candidatiBar;
+  const addettiIds = bar?.abitantiAssegnati ?? [];
+  const visitatoriDisoccupati = presentiOraDisoccupati.filter((a) => !addettiIds.includes(a.id));
+  const addetti = addettiIds.map((id) => abitanti.find((a) => a.id === id)).filter((a): a is Abitante => a != null);
+  const abitantiDisponibili = useMemo(() => {
+    if (!bar) return [];
+    return getServiDellaGlebaPerAssegnazioneEdificio(abitanti, edifici, bar);
+  }, [abitanti, edifici, bar]);
+
   if (!Number.isFinite(edificioId) || !bar) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -52,21 +66,6 @@ export default function BarScreenById() {
       </SafeAreaView>
     );
   }
-
-  const candidatiBar = abitantiPresentiNelBarOra(abitanti, orologioMinuti, statoCielo.buio, edifici);
-  /** Allineato alla mappa: solo dopo essere “entrati” a questo Bar (fine passeggiata). */
-  const presentiOraDisoccupati =
-    barArrivatiMappa.size > 0
-      ? candidatiBar.filter((a) => barArrivatiMappa.has(a.id))
-      : candidatiBar;
-
-  const addettiIds = bar.abitantiAssegnati ?? [];
-  /** Disoccupati in sala: gli addetti di ruolo sono elencati sotto nella sezione Addetti. */
-  const visitatoriDisoccupati = presentiOraDisoccupati.filter((a) => !addettiIds.includes(a.id));
-  const addetti = addettiIds.map((id) => abitanti.find((a) => a.id === id)).filter((a): a is Abitante => a != null);
-  const abitantiDisponibili = abitanti.filter(
-    (a) => a.razza !== "Robot" && !addettiIds.includes(a.id) && (bar.capacità ?? 20) > addettiIds.length
-  );
 
   const titoloBar = edificioId === 17 ? "🍺 Bar" : `🍺 Bar (#${edificioId})`;
 

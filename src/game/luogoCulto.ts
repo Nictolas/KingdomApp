@@ -22,28 +22,59 @@ export function emojiLuogoCulto(religione: ReligioneConCulto): string {
   return religione === "Culto del Sole" ? "☀️" : "👽";
 }
 
+/** True se esiste un'istanza costruita (non il solo template di catalogo) o il blocco sulla mappa. */
 export function haLuogoCulto(
   religione: ReligioneConCulto,
   edifici: Edificio[],
   mappa?: MappaRuntimeState | null
 ): boolean {
   const nome = nomeEdificioLuogoCulto(religione);
-  if (edifici.some((e) => e.nome === nome)) return true;
+  const templateId = TEMPLATE_ID_LUOGO_CULTO[religione];
+  if (edifici.some((e) => e.nome === nome && e.id !== templateId)) return true;
   const session = mappa ?? getMappaSessione();
   if (!session) return false;
-  return Object.values(session.edificiInMappa).some((e) => e.nome === nome && e.footprintRef == null);
+  return Object.values(session.edificiInMappa).some((e) => e.nome === nome);
+}
+
+export type CapiReligiosiIds = {
+  sole: number | null;
+  alieni: number | null;
+};
+
+function raccogliCapiReligiosi(abitanti: Abitante[], capiIds?: CapiReligiosiIds): Abitante[] {
+  const visti = new Set<number>();
+  const out: Abitante[] = [];
+  const aggiungi = (a: Abitante | undefined) => {
+    if (!a || visti.has(a.id)) return;
+    visti.add(a.id);
+    out.push(a);
+  };
+
+  for (const a of abitanti) {
+    if (a.lavoro === "Capo Religioso") aggiungi(a);
+  }
+  if (capiIds?.sole != null) aggiungi(abitanti.find((a) => a.id === capiIds.sole));
+  if (capiIds?.alieni != null) aggiungi(abitanti.find((a) => a.id === capiIds.alieni));
+
+  return out;
 }
 
 export function trovaCapoReligiosoSenzaLuogo(
   abitanti: Abitante[],
   edifici: Edificio[],
-  mappa?: MappaRuntimeState | null
+  mappa?: MappaRuntimeState | null,
+  capiIds?: CapiReligiosiIds
 ): Abitante | null {
-  for (const a of abitanti) {
-    if (a.lavoro !== "Capo Religioso") continue;
-    if (!RELIGIONI_CON_CULTO.includes(a.religione as ReligioneConCulto)) continue;
-    const religione = a.religione as ReligioneConCulto;
-    if (!haLuogoCulto(religione, edifici, mappa)) return a;
+  for (const a of raccogliCapiReligiosi(abitanti, capiIds)) {
+    const religione =
+      a.id === capiIds?.sole
+        ? "Culto del Sole"
+        : a.id === capiIds?.alieni
+          ? "Culto degli Alieni"
+          : a.religione;
+    if (!RELIGIONI_CON_CULTO.includes(religione as ReligioneConCulto)) continue;
+    const religioneCulto = religione as ReligioneConCulto;
+    if (!haLuogoCulto(religioneCulto, edifici, mappa)) return { ...a, religione: religioneCulto };
   }
   return null;
 }

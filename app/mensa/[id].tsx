@@ -12,6 +12,7 @@ import {
 } from "../../src/game/inventario";
 import { formatOrologioGioco } from "../../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../../src/hooks/useOrologioGioco";
+import { getServiDellaGlebaPerAssegnazioneEdificio } from "../../src/game/edificiLavoro";
 import { getEmojiAbitante } from "../../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../../src/types";
@@ -46,6 +47,14 @@ export default function MensaScreenById() {
     [edifici, edificioId]
   );
 
+  const addettiIds = mensa?.abitantiAssegnati ?? [];
+  const affamati = abitanti.filter((a) => abitanteHaBisognoMensa(a, edifici));
+  const addetti = addettiIds.map((id) => abitanti.find((a) => a.id === id)).filter((a): a is Abitante => a != null);
+  const abitantiDisponibili = useMemo(() => {
+    if (!mensa) return [];
+    return getServiDellaGlebaPerAssegnazioneEdificio(abitanti, edifici, mensa);
+  }, [abitanti, edifici, mensa]);
+
   if (!Number.isFinite(edificioId) || !mensa) {
     return (
       <SafeAreaView style={styles.safe}>
@@ -56,13 +65,6 @@ export default function MensaScreenById() {
       </SafeAreaView>
     );
   }
-
-  const addettiIds = mensa.abitantiAssegnati ?? [];
-  const affamati = abitanti.filter((a) => abitanteHaBisognoMensa(a, edifici));
-  const addetti = addettiIds.map((id) => abitanti.find((a) => a.id === id)).filter((a): a is Abitante => a != null);
-  const abitantiDisponibili = abitanti.filter(
-    (a) => a.razza !== "Robot" && !addettiIds.includes(a.id) && (mensa.capacità ?? 40) > addettiIds.length
-  );
 
   const titolo = `🍽️ Mensa Pubblica (#${edificioId})`;
 

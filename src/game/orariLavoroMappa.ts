@@ -18,7 +18,7 @@ const NOMI_CON_ORARIO_LAVORO = new Set<string>([
   "Centrale Energetica",
   "Impianto di Riciclo",
   "Dissalatore",
-  "Ospedale Coloniale",
+  "Ospedale",
   "Hangar di Manutenzione",
   "Scuola",
   "Asilo",

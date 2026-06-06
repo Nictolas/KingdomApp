@@ -1,7 +1,18 @@
 import type { Abitante, Edificio } from "../types";
 import { edificiData } from "../data/edificiData";
 import { EDIFICIO_COMPETENZA_RICHIESTA, type CompetenzaEdificio } from "../data/edificiCompetenze";
-import { puoEssereAssegnatoForzatamente } from "./schiavituCommercio";
+import { getServiDellaGlebaAssegnabili, puoEssereAssegnatoForzatamente } from "./schiavituCommercio";
+
+/** Servi della gleba che il giocatore può assegnare a un edificio-lavoro con posti liberi. */
+export function getServiDellaGlebaPerAssegnazioneEdificio(
+  abitanti: Abitante[],
+  edifici: Edificio[],
+  edificio: Edificio
+): Abitante[] {
+  const postiLiberi = (edificio.capacità ?? 0) - (edificio.abitantiAssegnati ?? []).length;
+  if (postiLiberi <= 0) return [];
+  return getServiDellaGlebaAssegnabili(abitanti, edifici);
+}
 
 /** Mappa edificioId → nome lavoro. Usata per sincronizzare lavoro abitante e per auto-assign Skip Mese. */
 export const EDIFICIO_TO_LAVORO: Record<number, string> = {
@@ -10,7 +21,7 @@ export const EDIFICIO_TO_LAVORO: Record<number, string> = {
   3: "Tecnico",         // Raffineria Mineraria
   5: "Ricercatore",     // Laboratorio di Ricerca
   6: "Operatore",       // Centrale Energetica
-  7: "Medico",          // Ospedale Coloniale
+  7: "Medico",          // Ospedale
   11: "Insegnante",     // Scuola
   12: "Giudice",        // Tribunale
   13: "Operatore",      // Impianto di Riciclo

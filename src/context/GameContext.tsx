@@ -205,9 +205,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   return (
     <GameContext.Provider value={gameState}>
       {children}
+      <RichiestaLuogoCultoDialogWrapper />
       <DialogInizioPartitaWrapper />
       <EmigrazioneDialogWrapper />
-      <RichiestaLuogoCultoDialogWrapper />
     </GameContext.Provider>
   );
 }

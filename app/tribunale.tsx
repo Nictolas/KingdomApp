@@ -1,7 +1,8 @@
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
@@ -25,13 +26,15 @@ export default function TribunaleScreen() {
   const maxHeight = isDesktop ? containerHeight : undefined;
 
   const tribunale = edifici.find((e) => e.nome === "Tribunale");
-  if (!tribunale) return null;
-
-  const giudiceId = tribunale.abitantiAssegnati.length > 0 ? tribunale.abitantiAssegnati[0] : null;
+  const giudiceId = tribunale && tribunale.abitantiAssegnati.length > 0 ? tribunale.abitantiAssegnati[0] : null;
   const giudice = giudiceId ? abitanti.find((a) => a.id === giudiceId) : null;
-
   const criminali = abitanti.filter((a: Abitante) => (a.reati?.length ?? 0) > 0);
-  const abitantiDisponibiliGiudice = abitanti.filter((a) => a.id !== giudiceId);
+  const abitantiDisponibiliGiudice = useMemo(() => {
+    if (!tribunale || giudice) return [];
+    return getServiDellaGlebaPerAssegnazioneEdificio(abitanti, edifici, tribunale);
+  }, [abitanti, edifici, tribunale, giudice]);
+
+  if (!tribunale) return null;
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>

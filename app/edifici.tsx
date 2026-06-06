@@ -26,7 +26,7 @@ const COLONNA_SERVIZI: string[] = [
   "Scuola Elementare",
   "Scuola Superiore",
   "Università",
-  "Ospedale Coloniale", // Ospedale
+  "Ospedale",
   "Centrale",   // Polizia
   "Caserma",   // Militari
   "Spazioporto",
@@ -104,7 +104,7 @@ export default function EdificiScreen() {
       router.push("/residenze");
     } else if (e.nome === "Scuola" || e.nome === "Asilo" || e.nome === "Scuola Elementare" || e.nome === "Scuola Superiore" || e.nome === "Università") {
       router.push("/scuola");
-    } else if (e.nome === "Ospedale Coloniale") {
+    } else if (e.nome === "Ospedale") {
       router.push("/ospedale");
     } else if (e.nome === "Centrale") {
       router.push("/centrale");

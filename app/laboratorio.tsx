@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
@@ -15,12 +16,15 @@ export default function LaboratorioScreen() {
   const maxHeight = isDesktop ? containerHeight : undefined;
 
   const laboratorio = edifici.find((e) => e.nome === "Laboratorio di Ricerca");
-  if (!laboratorio) return null;
+  const abitantiAssegnati = laboratorio
+    ? abitanti.filter((a) => (laboratorio.abitantiAssegnati ?? []).includes(a.id))
+    : [];
+  const abitantiDisponibili = useMemo(() => {
+    if (!laboratorio) return [];
+    return getServiDellaGlebaPerAssegnazioneEdificio(abitanti, edifici, laboratorio);
+  }, [abitanti, edifici, laboratorio]);
 
-  const abitantiAssegnati = abitanti.filter((a) => (laboratorio.abitantiAssegnati ?? []).includes(a.id));
-  const abitantiDisponibili = abitanti.filter(
-    (a) => !(laboratorio.abitantiAssegnati ?? []).includes(a.id) && a.lavoro === "Disoccupato" && a.razza !== "Robot"
-  );
+  if (!laboratorio) return null;
   const puòAssegnare = abitantiDisponibili.length > 0 && abitantiAssegnati.length < laboratorio.capacità;
 
   const colContent = [
@@ -72,7 +76,7 @@ export default function LaboratorioScreen() {
     </View>,
     <View key="disponibili" style={styles.column}>
       <Text style={styles.sectionTitle}>➕ Assegna ricercatori</Text>
-      <Text style={styles.sectionSubtitle}>Disoccupati disponibili</Text>
+      <Text style={styles.sectionSubtitle}>Servi della gleba disponibili</Text>
       {abitantiDisponibili.length > 0 ? (
         <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
           {abitantiDisponibili.map((a: Abitante) => (

@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
@@ -15,14 +16,15 @@ export default function DissalatoreScreen() {
   const maxHeight = isDesktop ? containerHeight : undefined;
 
   const dissalatore = edifici.find((e) => e.nome === "Dissalatore");
+  const abitantiAssegnati = dissalatore ? abitanti.filter((a) => dissalatore.abitantiAssegnati.includes(a.id)) : [];
+  const abitantiDisponibili = useMemo(() => {
+    if (!dissalatore) return [];
+    return getServiDellaGlebaPerAssegnazioneEdificio(abitanti, edifici, dissalatore);
+  }, [abitanti, edifici, dissalatore]);
+
   if (!dissalatore) {
     return null;
   }
-
-  const abitantiAssegnati = abitanti.filter((a) => dissalatore.abitantiAssegnati.includes(a.id));
-  const abitantiDisponibili = abitanti.filter(
-    (a) => !dissalatore.abitantiAssegnati.includes(a.id) && a.lavoro === "Disoccupato"
-  );
 
   const produttivitàMedia =
     abitantiAssegnati.length > 0

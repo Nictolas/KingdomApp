@@ -23,7 +23,7 @@ export function getRouteForEdificio(edificio: Edificio): string | null {
     case "Scuola Superiore":
     case "Università":
       return "/scuola";
-    case "Ospedale Coloniale":
+    case "Ospedale":
       return "/ospedale";
     case "Centrale":
       return "/centrale";

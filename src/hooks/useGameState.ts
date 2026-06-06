@@ -49,6 +49,55 @@ const statoIniziale = generaColoniaIniziale();
 const capoReligiosoSoleIniziale =
   statoIniziale.abitanti.find((a) => a.lavoro === "Capo Religioso" && a.religione === "Culto del Sole")?.id ?? null;
 
+function creaEdificiIniziali(abitantiIniziali: Abitante[]): Edificio[] {
+  const tuttiId = abitantiIniziali.map((a) => a.id);
+  const baraccaIds = abitantiIniziali.filter((a) => a.fazioni?.includes("Senzatetto")).map((a) => a.id);
+  const dormitorioIds: number[] = [];
+  const agricoltore = abitantiIniziali.find((a) => a.lavoro === "Agricoltore");
+  const serraIds = agricoltore ? [agricoltore.id] : [];
+  const prigionieriIds = abitantiIniziali.filter((a) => a.lavoro === "Prigioniero").map((a) => a.id);
+  const capannaIds = tuttiId.filter((id) => !baraccaIds.includes(id));
+  return edificiData
+    .filter((e) => e.tipo !== "Luogo di Culto")
+    .map((e) => {
+      if (e.id === 4) return { ...e, abitantiAssegnati: baraccaIds, occupazione: baraccaIds.length };
+      if (e.id === 14) return { ...e, abitantiAssegnati: dormitorioIds, occupazione: dormitorioIds.length };
+      if (e.id === 2) return { ...e, abitantiAssegnati: serraIds, occupazione: serraIds.length };
+      if (e.id === 21) return { ...e, abitantiAssegnati: [], occupazione: 0 };
+      if (e.id === 9) return { ...e, abitantiAssegnati: prigionieriIds, occupazione: prigionieriIds.length };
+      if (e.id === 20) return { ...e, abitantiAssegnati: capannaIds, occupazione: capannaIds.length };
+      return e;
+    });
+}
+
+const edificiIniziali = creaEdificiIniziali(statoIniziale.abitanti);
+
+function calcolaPendingRichiestaLuogoCulto(
+  abitantiCorrenti: Abitante[],
+  edificiCorrenti: Edificio[],
+  capoSole: number | null,
+  capoAlieni: number | null,
+  richiesteInAttesa: RichiestaInAttesa[] = [],
+  luoghiCultoRifiutati: ReligioneConCulto[] = []
+): { id: number; nome: string; religione: ReligioneConCulto } | null {
+  const capo = trovaCapoReligiosoSenzaLuogo(abitantiCorrenti, edificiCorrenti, undefined, {
+    sole: capoSole,
+    alieni: capoAlieni
+  });
+  if (!capo || (capo.religione !== "Culto del Sole" && capo.religione !== "Culto degli Alieni")) return null;
+  const religione = capo.religione as ReligioneConCulto;
+  if (richiesteInAttesa.some((r) => r.tipo === "luogo-culto" && r.religione === religione)) return null;
+  if (luoghiCultoRifiutati.includes(religione)) return null;
+  return { id: capo.id, nome: capo.nome, religione };
+}
+
+const pendingRichiestaLuogoCultoIniziale = calcolaPendingRichiestaLuogoCulto(
+  statoIniziale.abitanti,
+  edificiIniziali,
+  capoReligiosoSoleIniziale,
+  null
+);
+
 export function useGameState() {
   const [abitanti, setAbitanti] = useState<Abitante[]>(statoIniziale.abitanti);
   const [razzaNativi] = useState<Razza>(statoIniziale.razzaNativi);
@@ -63,25 +112,7 @@ export function useGameState() {
   inventarioGiocatoreRef.current = inventarioGiocatore;
   inventarioMensaRef.current = inventarioMensaByEdificioId;
   const [risorse, setRisorse] = useState<Risorsa[]>(risorseData);
-  const [edifici, setEdifici] = useState<Edificio[]>(() => {
-    const tuttiId = statoIniziale.abitanti.map((a) => a.id);
-    const baraccaIds = statoIniziale.abitanti.filter((a) => a.fazioni?.includes("Senzatetto")).map((a) => a.id);
-    /** A inizio partita tutti (tranne Senzatetto in Baracca) stanno nelle Capanne; Dormitorio vuoto. */
-    const dormitorioIds: number[] = [];
-    const agricoltore = statoIniziale.abitanti.find((a) => a.lavoro === "Agricoltore");
-    const serraIds = agricoltore ? [agricoltore.id] : [];
-    const prigionieriIds = statoIniziale.abitanti.filter((a) => a.lavoro === "Prigioniero").map((a) => a.id);
-    const capannaIds = tuttiId.filter((id) => !baraccaIds.includes(id));
-    return edificiData.map((e) => {
-      if (e.id === 4) return { ...e, abitantiAssegnati: baraccaIds, occupazione: baraccaIds.length };
-      if (e.id === 14) return { ...e, abitantiAssegnati: dormitorioIds, occupazione: dormitorioIds.length };
-      if (e.id === 2) return { ...e, abitantiAssegnati: serraIds, occupazione: serraIds.length };
-      if (e.id === 21) return { ...e, abitantiAssegnati: [], occupazione: 0 };
-      if (e.id === 9) return { ...e, abitantiAssegnati: prigionieriIds, occupazione: prigionieriIds.length };
-      if (e.id === 20) return { ...e, abitantiAssegnati: capannaIds, occupazione: capannaIds.length };
-      return e;
-    });
-  });
+  const [edifici, setEdifici] = useState<Edificio[]>(edificiIniziali);
   const [mese, setMese] = useState(1);
   const [anno, setAnno] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -151,7 +182,7 @@ export function useGameState() {
     id: number;
     nome: string;
     religione: ReligioneConCulto;
-  } | null>(null);
+  } | null>(pendingRichiestaLuogoCultoIniziale);
   const [luoghiCultoPendentiMappa, setLuoghiCultoPendentiMappa] = useState<
     { religione: ReligioneConCulto; edificioGlobaleId: number }[]
   >([]);
@@ -181,16 +212,39 @@ export function useGameState() {
     );
   }, [capoReligiosoSole, capoReligiosoAlieni]);
 
+  // Rimuove i template di catalogo (id 30/31) se finiti per errore nell'elenco edifici.
+  useEffect(() => {
+    setEdifici((prev) =>
+      prev.filter(
+        (e) =>
+          e.tipo !== "Luogo di Culto" ||
+          (e.id !== TEMPLATE_ID_LUOGO_CULTO["Culto del Sole"] &&
+            e.id !== TEMPLATE_ID_LUOGO_CULTO["Culto degli Alieni"])
+      )
+    );
+  }, []);
+
   // Richiesta Luogo di Culto: si attiva appena i requisiti sono soddisfatti (non allo Skip Mese).
   useEffect(() => {
     if (pendingRichiestaLuogoCulto != null) return;
-    const capo = trovaCapoReligiosoSenzaLuogo(abitanti, edifici);
-    if (!capo || (capo.religione !== "Culto del Sole" && capo.religione !== "Culto degli Alieni")) return;
-    const religione = capo.religione as ReligioneConCulto;
-    if (richiesteInAttesa.some((r) => r.tipo === "luogo-culto" && r.religione === religione)) return;
-    if (luoghiCultoRifiutati.includes(religione)) return;
-    setPendingRichiestaLuogoCulto({ id: capo.id, nome: capo.nome, religione });
-  }, [abitanti, edifici, pendingRichiestaLuogoCulto, richiesteInAttesa, luoghiCultoRifiutati]);
+    const next = calcolaPendingRichiestaLuogoCulto(
+      abitanti,
+      edifici,
+      capoReligiosoSole,
+      capoReligiosoAlieni,
+      richiesteInAttesa,
+      luoghiCultoRifiutati
+    );
+    if (next) setPendingRichiestaLuogoCulto(next);
+  }, [
+    abitanti,
+    edifici,
+    capoReligiosoSole,
+    capoReligiosoAlieni,
+    pendingRichiestaLuogoCulto,
+    richiesteInAttesa,
+    luoghiCultoRifiutati
+  ]);
 
   // Configurazione legge razziale
   const [leggeRazzialeAttiva, setLeggeRazzialeAttiva] = useState(false);
@@ -405,6 +459,7 @@ export function useGameState() {
   const haMostratoAlertInizioRef = useRef(false);
   useEffect(() => {
     if (haMostratoAlertInizioRef.current) return;
+    if (pendingRichiestaLuogoCulto != null) return;
     haMostratoAlertInizioRef.current = true;
     const primaRigaDiario = "Complimenti, hai appena concluso la Rivoluzione contro la Madre Patria.";
     const messaggioExGovernatore =
@@ -413,7 +468,7 @@ export function useGameState() {
     const messaggio = `${primaRigaDiario}\n\n${messaggioExGovernatore}`;
     const t = setTimeout(() => setAlertInizioPartita({ titolo, messaggio }), 100);
     return () => clearTimeout(t);
-  }, []);
+  }, [pendingRichiestaLuogoCulto]);
   const chiudiAlertInizioPartita = useCallback(() => setAlertInizioPartita(null), []);
   const chiudiMessaggioEmigrazione = useCallback(() => setMessaggioEmigrazione(null), []);
 
@@ -429,9 +484,11 @@ export function useGameState() {
 
   const assegnaAbitanteAEdificio = useCallback((abitanteId: number, edificioId: number) => {
     const abitante = abitanti.find((a) => a.id === abitanteId);
-    if (abitante?.lavoro === "Pensionato") return;
+    if (!abitante || abitante.lavoro === "Pensionato") return;
     const edificioCorrente = edifici.find((e) => e.id === edificioId);
     if (!edificioCorrente) return;
+    const lavoroEdificio = getLavoroPerEdificio(edificioCorrente);
+    if (lavoroEdificio && getCastaAbitante(abitante) !== "Servo della gleba") return;
     if (
       edificioCorrente.abitantiAssegnati.includes(abitanteId) ||
       edificioCorrente.abitantiAssegnati.length >= edificioCorrente.capacità ||

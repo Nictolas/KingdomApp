@@ -14,7 +14,7 @@ export const EDIFICIO_COMPETENZA_RICHIESTA: Record<number, CompetenzaEdificio> =
   3: { competenzaMinima: 35, nomeCompetenza: "Competenza Tecnica" },            // Raffineria Mineraria
   5: { competenzaMinima: 50, nomeCompetenza: "Competenza Scientifica" },       // Laboratorio di Ricerca
   6: { competenzaMinima: 30, nomeCompetenza: "Competenza Tecnica" },            // Centrale Energetica
-  7: { competenzaMinima: 40, nomeCompetenza: "Competenza Medica" },             // Ospedale Coloniale
+  7: { competenzaMinima: 40, nomeCompetenza: "Competenza Medica" },             // Ospedale
   11: { competenzaMinima: 35, nomeCompetenza: "Competenza Educativa" },        // Scuola
   12: { competenzaMinima: 45, nomeCompetenza: "Competenza Giuridica" },         // Tribunale
   13: { competenzaMinima: 25, nomeCompetenza: "Competenza Tecnica" },            // Impianto di Riciclo

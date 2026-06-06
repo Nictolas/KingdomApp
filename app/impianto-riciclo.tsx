@@ -1,7 +1,8 @@
-import React from "react";
+import React, { useMemo } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
@@ -15,14 +16,15 @@ export default function ImpiantoRicicloScreen() {
   const maxHeight = isDesktop ? containerHeight : undefined;
 
   const impianto = edifici.find((e) => e.nome === "Impianto di Riciclo");
+  const abitantiAssegnati = impianto ? abitanti.filter((a) => impianto.abitantiAssegnati.includes(a.id)) : [];
+  const abitantiDisponibili = useMemo(() => {
+    if (!impianto) return [];
+    return getServiDellaGlebaPerAssegnazioneEdificio(abitanti, edifici, impianto);
+  }, [abitanti, edifici, impianto]);
+
   if (!impianto) {
     return null;
   }
-
-  const abitantiAssegnati = abitanti.filter((a) => impianto.abitantiAssegnati.includes(a.id));
-  const abitantiDisponibili = abitanti.filter(
-    (a) => !impianto.abitantiAssegnati.includes(a.id) && a.lavoro === "Disoccupato"
-  );
 
   const puòAssegnare = abitantiDisponibili.length > 0 && abitantiAssegnati.length < impianto.capacità;
 
