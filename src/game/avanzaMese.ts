@@ -4,7 +4,7 @@ import { getConsumoCibo, getConsumoAcqua, getProduzioneCiboPerAbitante } from ".
 import { abitanteConInventarioIniziale } from "./inventario";
 import { RESIDENZE_CATALOGO, RESIDENZE_ENERGIA_PER_ABITANTE } from "../data/residenzeData";
 import { getCastaAbitante, isCastaCoercibile } from "./casta";
-import { autoAssegnaDisoccupati, normalizzaLavoroEAgricoltura } from "./edificiLavoro";
+import { autoAssegnaCittadiniDisoccupati, autoAssegnaDisoccupati, isEdificioPubblicoConPostazioniLavoro, normalizzaLavoroEAgricoltura } from "./edificiLavoro";
 import { applicaRedditoSchiaviAlPadroni, isOmicidioSchiavoImmune, LAVORO_GIOCATORE } from "./schiavituCommercio";
 import { specializzazioneCasuale } from "./specializzazione";
 
@@ -388,13 +388,15 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   // Auto-assign: Disoccupati (non Robot) con competenza sufficiente vanno in edifici con posti liberi;
   // poi Agricoltori nelle Serre e lavoro allineato alle assegnazioni.
   let edificiConAuto = autoAssegnaDisoccupati(abitantiRimasti, nuoviEdifici);
+  edificiConAuto = autoAssegnaCittadiniDisoccupati(abitantiRimasti, edificiConAuto);
   const normLavoro = normalizzaLavoroEAgricoltura(abitantiRimasti, edificiConAuto);
   edificiConAuto = normLavoro.edifici;
   const abitantiConLavoro = normLavoro.abitanti;
-  const idToStipendio = new Map<number, number>();
+
+  const idLavoratoreEdificioPubblico = new Set<number>();
   edificiConAuto.forEach((e) => {
-    const stipendio = e.stipendioPerLavoratore ?? 0;
-    (e.abitantiAssegnati ?? []).forEach((id) => idToStipendio.set(id, stipendio));
+    if (!isEdificioPubblicoConPostazioniLavoro(e)) return;
+    (e.abitantiAssegnati ?? []).forEach((id) => idLavoratoreEdificioPubblico.add(id));
   });
 
   // Costo abitazione per abitante (dalla residenza assegnata). Usato per Senzatetto e per entrateResidenze.
@@ -424,7 +426,9 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       lavoro = "Pensionato";
       reddito = assegnoPensionati;
     } else if (lavoro !== "Disoccupato") {
-      reddito = idToStipendio.get(abitante.id) ?? abitante.reddito;
+      if (idLavoratoreEdificioPubblico.has(abitante.id)) {
+        reddito = 0;
+      }
     }
 
     const èCoercibile = isCastaCoercibile(getCastaAbitante(abitante));
@@ -509,15 +513,6 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
           .filter((a) => a.lavoro !== "Pensionato")
           .reduce((sum, a) => sum + a.reddito, 0) - redditoEsclusoDaColonia;
       const totaleSpese = abitantiConRedditoPadroni.reduce((sum, a) => sum + a.spese, 0);
-      const totaleStipendiEdifici = edificiConAuto
-        .filter((e) => e.stato === "Operativo")
-        .reduce((sum, e) => {
-          // Se la sanità è privata, gli stipendi dell'Ospedale non pesano sul bilancio della colonia
-          if (modalitaSanita === "privata" && e.nome === "Ospedale") {
-            return sum;
-          }
-          return sum + (e.stipendioPerLavoratore ?? 0) * (e.abitantiAssegnati?.length ?? 0);
-        }, 0);
       const numPensionati = abitantiConRedditoPadroni.filter((a) => a.lavoro === "Pensionato").length;
       const costoPensioni = numPensionati * assegnoPensionati;
       const entrateResidenze = edificiConAuto
@@ -533,7 +528,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
           }
           return sum;
         }, 0);
-      nuovaQuantità = risorsa.quantità + totaleRedditi + entrateResidenze - totaleSpese - totaleStipendiEdifici - costoPensioni;
+      nuovaQuantità = risorsa.quantità + totaleRedditi + entrateResidenze - totaleSpese - costoPensioni;
     }
 
     edificiConAuto.forEach((edificio) => {

@@ -29,7 +29,12 @@ import { generaAssimilati } from "../game/assimilazione";
 import { calcolaProduzioneConsumoPuro } from "../game/produzioneConsumo";
 import { calcolaFelicitàModificataPuro } from "../game/felicita";
 import { generaImmigratiProposti } from "../game/immigrazione";
-import { getLavoroPerEdificio, normalizzaLavoroEAgricoltura, edificioAccettaServiDellaGleba } from "../game/edificiLavoro";
+import { getLavoroPerEdificio, autoAssegnaCittadiniDisoccupati, normalizzaLavoroEAgricoltura, edificioAccettaServiDellaGleba } from "../game/edificiLavoro";
+import {
+  creaMoneteGiocatoreIniziali,
+  GIORNI_STIPENDIO_EDIFICIO_PUBBLICO_MESE,
+  pagaStipendiEdificiPubblici
+} from "../game/edificiPubblici";
 import { getCastaAbitante } from "../game/casta";
 import {
   PREZZO_SCHIAVO_DEFAULT,
@@ -122,18 +127,24 @@ export function useGameState() {
   const [inventarioGiocatore, setInventarioGiocatore] = useState<VoceInventario[]>(() =>
     creaInventarioGiocatoreIniziale()
   );
+  const [moneteGiocatore, setMoneteGiocatore] = useState(() => creaMoneteGiocatoreIniziali());
   const [inventarioMensaByEdificioId, setInventarioMensaByEdificioId] = useState<
     Record<number, VoceInventario[]>
   >({});
   const inventarioGiocatoreRef = useRef(inventarioGiocatore);
   const inventarioMensaRef = useRef(inventarioMensaByEdificioId);
+  const moneteGiocatoreRef = useRef(moneteGiocatore);
+  const abitantiRef = useRef(abitanti);
   inventarioGiocatoreRef.current = inventarioGiocatore;
   inventarioMensaRef.current = inventarioMensaByEdificioId;
+  moneteGiocatoreRef.current = moneteGiocatore;
+  abitantiRef.current = abitanti;
   const [risorse, setRisorse] = useState<Risorsa[]>(risorseData);
   const [edifici, setEdifici] = useState<Edificio[]>(edificiIniziali);
   const edificiRef = useRef(edifici);
   edificiRef.current = edifici;
   const ultimoGiornoProduzioneSerraRef = useRef(getGiornoGiocoSnapshot());
+  const ultimoGiornoEconomiaPubblicaRef = useRef(getGiornoGiocoSnapshot());
   const [mese, setMese] = useState(1);
   const [anno, setAnno] = useState(0);
   const [isLoading, setIsLoading] = useState(false);
@@ -190,6 +201,39 @@ export function useGameState() {
       );
     };
     const unsub = subscribeGiornoGioco(applicaProduzioneSerra);
+    return unsub;
+  }, []);
+
+  /** Cittadini disoccupati cercano lavoro; stipendi edifici pubblici dal tesoro del giocatore. */
+  useEffect(() => {
+    const applicaEconomiaPubblica = () => {
+      const giorno = getGiornoGiocoSnapshot();
+      const ultimo = ultimoGiornoEconomiaPubblicaRef.current;
+      if (giorno <= ultimo) return;
+      const giorni = giorno - ultimo;
+      ultimoGiornoEconomiaPubblicaRef.current = giorno;
+
+      let edificiNext = edificiRef.current;
+      let abitantiNext = abitantiRef.current;
+      for (let g = 0; g < giorni; g++) {
+        edificiNext = autoAssegnaCittadiniDisoccupati(abitantiNext, edificiNext);
+        const norm = normalizzaLavoroEAgricoltura(abitantiNext, edificiNext);
+        edificiNext = norm.edifici;
+        abitantiNext = norm.abitanti;
+      }
+
+      const pagato = pagaStipendiEdificiPubblici(
+        moneteGiocatoreRef.current,
+        abitantiNext,
+        edificiNext,
+        giorni
+      );
+
+      setMoneteGiocatore(pagato.moneteGiocatore);
+      setAbitanti(pagato.abitanti);
+      setEdifici(edificiNext);
+    };
+    const unsub = subscribeGiornoGioco(applicaEconomiaPubblica);
     return unsub;
   }, []);
 
@@ -390,7 +434,6 @@ export function useGameState() {
     if (result.newIdNascita != null) setNextId(result.newIdNascita + 1);
     setEventiInCorso(result.eventiInCorso);
     const dopoCarcere = avanzaCarcereResiduoPuro(result.abitanti, result.edifici);
-    setAbitanti(dopoCarcere.abitanti);
     setEdifici(dopoCarcere.edifici);
     setRisorse(result.risorse);
     const produzioneSerraMese = calcolaProduzioneSerraPerPeriodo(
@@ -402,6 +445,14 @@ export function useGameState() {
         applicaProduzioneSerraInventarioGiocatore(prev, produzioneSerraMese)
       );
     }
+    const stipendiMese = pagaStipendiEdificiPubblici(
+      moneteGiocatore,
+      dopoCarcere.abitanti,
+      dopoCarcere.edifici,
+      GIORNI_STIPENDIO_EDIFICIO_PUBBLICO_MESE
+    );
+    setMoneteGiocatore(stipendiMese.moneteGiocatore);
+    setAbitanti(stipendiMese.abitanti);
     setMese(result.nuovoMese);
     setAnno(result.nuovoAnno);
     setOrdiniMercato([]);
@@ -422,7 +473,7 @@ export function useGameState() {
     if (result.avvisoDiario) {
       setDiarioRighe((prev) => [...prev, result.avvisoDiario!]);
     }
-  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate]);
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore]);
 
   const confermaMatrimonio = useCallback((idA: number, idB: number) => {
     setAbitanti((prev) =>
@@ -1055,6 +1106,7 @@ export function useGameState() {
   return {
     abitanti,
     inventarioGiocatore,
+    moneteGiocatore,
     inventarioMensaByEdificioId,
     risorse,
     edifici,

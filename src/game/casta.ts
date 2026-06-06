@@ -30,7 +30,8 @@ export const CASTA_CATALOGO: CastaInfo[] = [
     nome: "Cittadino",
     emoji: "🏘️",
     regole: [
-      "Non può essere messo per forza a lavorare in un posto."
+      "Se è Disoccupato, cerca autonomamente un posto negli edifici pubblici con postazioni libere.",
+      "Lo stipendio degli edifici pubblici (1 moneta/giorno) viene pagato dal tesoro del giocatore."
     ]
   },
   {

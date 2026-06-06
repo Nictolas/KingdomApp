@@ -26,10 +26,77 @@ export const EDIFICIO_TO_LAVORO: Record<number, string> = {
   26: "Insegnante",      // Scuola Superiore
   27: "Insegnante",      // Università
   28: "Commerciante",    // Negozio
-  29: "Cuoco"             // Mensa Pubblica
+  29: "Cuoco",             // Mensa Pubblica
+  30: "Religioso",          // Luogo di Culto del Sole
+  31: "Religioso"           // Luogo di Culto degli Alieni
 };
 
 const LAVORI_DA_EDIFICIO = new Set(Object.values(EDIFICIO_TO_LAVORO));
+
+const EDIFICI_PUBBLICI_ESCLUSI = new Set(["Campo di Lavoro", "Campo di Sterminio"]);
+
+/** Edificio pubblico con postazioni lavoro (stipendi pagati dal tesoro del giocatore). */
+export function isEdificioPubblicoConPostazioniLavoro(edificio: Edificio): boolean {
+  if (edificio.stato !== "Operativo") return false;
+  if (edificio.tipo === "Residenza") return false;
+  if (EDIFICI_PUBBLICI_ESCLUSI.has(edificio.nome)) return false;
+  const cap = edificio.capacità ?? 0;
+  if (cap <= 0) return false;
+  return (
+    getLavoroPerEdificio(edificio) != null ||
+    getCompetenzaMinimaPerEdificio(edificio) != null ||
+    edificio.tipo === "Luogo di Culto"
+  );
+}
+
+function assegnaDisoccupatiAEdificiPubblici(candidati: Abitante[], edifici: Edificio[]): Edificio[] {
+  const assigned = new Set<number>();
+  const edificiOut = edifici.map((e) => ({ ...e, abitantiAssegnati: [...(e.abitantiAssegnati ?? [])] }));
+
+  const conReq = edificiOut
+    .filter(isEdificioPubblicoConPostazioniLavoro)
+    .map((edificio) => ({
+      edificio,
+      req: getCompetenzaMinimaPerEdificio(edificio) ?? {
+        competenzaMinima: 0,
+        nomeCompetenza: "Competenza Generale"
+      }
+    }))
+    .sort((a, b) => a.edificio.id - b.edificio.id);
+
+  for (const { edificio, req } of conReq) {
+    const cap = edificio.capacità ?? 0;
+    const slotLiberi = cap - edificio.abitantiAssegnati!.length;
+    if (slotLiberi <= 0) continue;
+
+    let aggiunti = 0;
+    for (const a of candidati) {
+      if (aggiunti >= slotLiberi) break;
+      if (assigned.has(a.id)) continue;
+      if (a.competenza < req.competenzaMinima) continue;
+      edificio.abitantiAssegnati!.push(a.id);
+      edificio.occupazione = edificio.abitantiAssegnati!.length;
+      assigned.add(a.id);
+      aggiunti++;
+    }
+  }
+
+  return edificiOut;
+}
+
+/** Cittadini disoccupati cercano autonomamente posti vacanti negli edifici pubblici. */
+export function autoAssegnaCittadiniDisoccupati(abitanti: Abitante[], edifici: Edificio[]): Edificio[] {
+  const candidati = abitanti
+    .filter((a) => {
+      if (isGiocatore(a)) return false;
+      if (a.lavoro !== "Disoccupato") return false;
+      if (a.lavoro === "Pensionato" || a.lavoro === "Prigioniero") return false;
+      if (a.razza === "Robot") return false;
+      return getCastaAbitante(a) === "Cittadino";
+    })
+    .sort((a, b) => b.competenza - a.competenza);
+  return assegnaDisoccupatiAEdificiPubblici(candidati, edifici);
+}
 
 /** Edifici in cui il giocatore può assegnare manualmente Servi della gleba (include Serra e Bar). */
 const NOMI_EDIFICIO_SERVI_DELLA_GLEBA: Set<string> = (() => {
@@ -102,10 +169,10 @@ export type PostazioneLavoroRiga = {
   postiLiberi: number;
 };
 
-/** Edifici con posti lavoro (lavoro associato), ordinati per posti liberi decrescenti. */
+/** Edifici con posti lavoro (edifici pubblici), ordinati per posti liberi decrescenti. */
 export function elencoPostazioniLavoroOrdinato(edifici: Edificio[]): PostazioneLavoroRiga[] {
   return edifici
-    .filter((e) => edificioAccettaServiDellaGleba(e) && getLavoroPerEdificio(e) != null)
+    .filter((e) => isEdificioPubblicoConPostazioniLavoro(e))
     .map((e) => {
       const coperti = (e.abitantiAssegnati ?? []).length;
       const massimi = e.capacità ?? 0;
@@ -215,13 +282,10 @@ export function normalizzaLavoroEAgricoltura(abitanti: Abitante[], edifici: Edif
 }
 
 /**
- * Assegna automaticamente i Disoccupati (non Robot) agli edifici con posti liberi,
- * se la competenza dell'abitante è >= competenzaMinima dell'edificio.
- * Ordine edifici per id; per ogni edificio si riempiono i posti con i disoccupati migliori (competenza più alta).
- * Restituisce i nuovi edifici (con abitantiAssegnati aggiornati).
+ * Assegna automaticamente i Disoccupati coercibili (Servi della gleba, Schiavi) agli edifici pubblici con posti liberi.
  */
 export function autoAssegnaDisoccupati(abitanti: Abitante[], edifici: Edificio[]): Edificio[] {
-  const disoccupati = abitanti
+  const candidati = abitanti
     .filter(
       (a) =>
         a.lavoro === "Disoccupato" &&
@@ -229,30 +293,5 @@ export function autoAssegnaDisoccupati(abitanti: Abitante[], edifici: Edificio[]
         puoEssereAssegnatoForzatamente(a)
     )
     .sort((a, b) => b.competenza - a.competenza);
-  const assigned = new Set<number>();
-  const edificiOut = edifici.map((e) => ({ ...e, abitantiAssegnati: [...(e.abitantiAssegnati ?? [])] }));
-
-  const conReq = edificiOut
-    .map((edificio) => ({ edificio, req: getCompetenzaMinimaPerEdificio(edificio) }))
-    .filter((x): x is { edificio: Edificio; req: CompetenzaEdificio } => x.req != null)
-    .sort((a, b) => a.edificio.id - b.edificio.id);
-
-  for (const { edificio, req } of conReq) {
-    const cap = edificio.capacità ?? 0;
-    const current = edificio.abitantiAssegnati!.length;
-    const slotLiberi = cap - current;
-    if (slotLiberi <= 0) continue;
-
-    let aggiunti = 0;
-    for (const a of disoccupati) {
-      if (aggiunti >= slotLiberi) break;
-      if (assigned.has(a.id)) continue;
-      if (a.competenza < req.competenzaMinima) continue;
-      edificio.abitantiAssegnati!.push(a.id);
-      assigned.add(a.id);
-      aggiunti++;
-    }
-  }
-
-  return edificiOut;
+  return assegnaDisoccupatiAEdificiPubblici(candidati, edifici);
 }

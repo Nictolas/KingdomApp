@@ -1711,6 +1711,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     risorse,
     abitanti,
     inventarioGiocatore,
+    moneteGiocatore,
     edifici,
     mese,
     anno,
@@ -3519,6 +3520,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.risorseRow}
           >
+            <View style={styles.risorseCard}>
+              <Text style={styles.risorseEmoji}>💰</Text>
+              <Text style={styles.risorseName} numberOfLines={1}>Tesoro</Text>
+              <View style={styles.risorseValueRow}>
+                <Text style={styles.risorseValue}>{moneteGiocatore}</Text>
+                <Text style={styles.risorseUnit}> monete</Text>
+              </View>
+            </View>
             {risorse.map((r: Risorsa) => {
               const isCibo = r.nome.toLowerCase().includes("cibo");
               const delta = isCibo ? 0 : (variazioni[r.nome] || 0) + (deltaOrdini[r.nome] ?? 0);

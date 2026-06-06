@@ -94,6 +94,23 @@ export function aggiungiCiboAInventarioGiocatore(
   return [...norm, { itemId, quantità }];
 }
 
+export function isOggettoValuta(itemId: string): boolean {
+  return OGGETTI_INVENTARIO[itemId]?.categoria === "Valuta";
+}
+
+export function aggiungiMoneteInventarioAbitante(abitante: Abitante, quantità: number): Abitante {
+  if (quantità <= 0) return abitante;
+  const inv = normalizzaInventarioAbitante(abitante.inventario);
+  const next = inv.map((v) =>
+    v.itemId === "monete" ? { ...v, quantità: v.quantità + quantità } : v
+  );
+  return { ...abitante, inventario: next };
+}
+
+export function getMoneteInventarioAbitante(inventario?: VoceInventario[]): number {
+  return normalizzaInventarioAbitante(inventario).find((v) => v.itemId === "monete")?.quantità ?? 0;
+}
+
 export function getTotaleOggettiInventarioGiocatore(inventario: VoceInventario[] | undefined): number {
   return normalizzaInventarioGiocatore(inventario).reduce((s, v) => s + v.quantità, 0);
 }

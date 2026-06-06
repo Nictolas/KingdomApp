@@ -124,12 +124,7 @@ export function calcolaProduzioneConsumoPuro({
     .filter((a) => a.lavoro !== "Pensionato")
     .reduce((sum, a) => sum + a.reddito, 0);
   const totaleSpese = abitanti.reduce((sum, a) => sum + a.spese, 0);
-  const totaleStipendiEdifici = edifici
-    .filter((e) => e.stato === "Operativo")
-    .reduce(
-      (sum, e) => sum + (e.stipendioPerLavoratore ?? 0) * (e.abitantiAssegnati?.length ?? 0),
-      0
-    );
+  const totaleStipendiEdifici = 0;
   const numPensionati = abitanti.filter((a) => a.lavoro === "Pensionato").length;
   const costoPensioni = numPensionati * assegnoPensionati;
 

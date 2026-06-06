@@ -20,6 +20,8 @@ type GameContextType = {
   abitanti: Abitante[];
   /** Inventario cibo del giocatore (colonia). */
   inventarioGiocatore: { itemId: string; quantità: number }[];
+  /** Tesoro del giocatore (monete per stipendi edifici pubblici). */
+  moneteGiocatore: number;
   /** Scorte cibo per edificio Mensa Pubblica (chiave = id edificio). */
   inventarioMensaByEdificioId: Record<number, { itemId: string; quantità: number }[]>;
   risorse: Risorsa[];
