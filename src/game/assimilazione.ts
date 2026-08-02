@@ -2,6 +2,7 @@ import type { Abitante, Razza } from "../types";
 import { abitanteConInventarioIniziale } from "./inventario";
 import { specializzazioneCasuale } from "./specializzazione";
 import { generaNomeAlieno } from "./nomiAlieni";
+import { redditoMensileLavoroDefault } from "./economiaPrezzi";
 
 export type GeneraAssimilatiInput = {
   razzaNativi: Razza;
@@ -47,9 +48,9 @@ export function generaAssimilati({
       fazioni: ["Nativi", "Cittadini"],
       peso: 41 + Math.floor(Math.random() * 40),
       salute: 60 + Math.floor(Math.random() * 35),
-      crediti: 800 + Math.floor(Math.random() * 401),
-      reddito: 100 + Math.floor(Math.random() * 300),
-      spese: 50 + Math.floor(Math.random() * 150),
+      crediti: 0,
+      reddito: redditoMensileLavoroDefault(),
+      spese: 0,
       lealtà: 40 + Math.floor(Math.random() * 40),
       paura: Math.floor(Math.random() * 30),
       felicità: 50 + Math.floor(Math.random() * 40),

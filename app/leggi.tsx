@@ -41,7 +41,8 @@ export default function LeggiScreen() {
       "Legge sulle Droghe": "💊",
       "Divieto di espatrio": "🚧",
       "Ius primae noctis": "👑",
-      "Sanità": "🏥"
+      "Sanità": "🏥",
+      "Coprifuoco": "🌙"
     };
     return emojiMap[titolo] || "📋";
   };
@@ -69,7 +70,8 @@ export default function LeggiScreen() {
       legge.titolo === "Legge sulle Nascite" ||
       legge.titolo === "Divieto di espatrio" ||
       legge.titolo === "Ius primae noctis" ||
-      legge.titolo === "Sanità"
+      legge.titolo === "Sanità" ||
+      legge.titolo === "Coprifuoco"
     ) {
       leggiPerTema["Società"].push({ ...legge, tema: "Società" });
     } else if (
@@ -102,6 +104,7 @@ export default function LeggiScreen() {
     if (titolo === "Divieto di espatrio") return "/divieto-espatrio";
     if (titolo === "Ius primae noctis") return "/ius-primae-noctis";
     if (titolo === "Schiavitu") return "/schiavitu";
+    if (titolo === "Coprifuoco") return "/coprifuoco";
     return null;
   };
 

@@ -77,8 +77,8 @@ export type Abitante = {
    * Tenuto opzionale solo per migrazione; viene azzerato in normalizza.
    */
   crediti?: number;
-  reddito: number; // Monete al mese
-  spese: number; // Monete al mese
+  reddito: number; // Monete/mese (display; allineato allo stipendio base)
+  spese: number; // Legacy display; saldo monete usa solo costi reali (affitto, bar, negozio)
   lealtà: number; // 0-100
   paura: number; // 0-100
   felicità: number; // 1-100
@@ -183,7 +183,7 @@ export type Edificio = {
   occupazione: number; // Numero attuale di persone
   abitantiAssegnati: number[]; // Array di ID degli abitanti assegnati
   efficienza: number; // 0-100
-  manutenzione: number; // Obsoleto: non usato per crediti; costo mensile = stipendioPerLavoratore × lavoratori
+  manutenzione: number; // Obsoleto: non usato; costo mensile = stipendioPerLavoratore × lavoratori (monete tesoro)
   stato: "Operativo" | "In costruzione" | "In manutenzione" | "Danneggiato";
   livello: number; // Livello dell'edificio
   produzione?: string; // Cosa produce (se applicabile)

@@ -14,11 +14,12 @@ import {
   type VoceInventario
 } from "./inventario";
 import { haCiboCompatibileInInventario } from "./mensaPubblica";
+import { PREZZO_CIBO_NEGOZIO as PREZZO_CIBO_NEGOZIO_CANONICO } from "./economiaPrezzi";
 
 export const NOME_NEGOZIO = "Negozio";
 
 /** Prezzo in monete per 1 unità di cibo base al Negozio. */
-export const PREZZO_CIBO_NEGOZIO = 3;
+export const PREZZO_CIBO_NEGOZIO = PREZZO_CIBO_NEGOZIO_CANONICO;
 
 /** Item venduto di default (vegetale, compatibile con quasi tutte le diete). */
 export const ITEM_CIBO_NEGOZIO = "mela";

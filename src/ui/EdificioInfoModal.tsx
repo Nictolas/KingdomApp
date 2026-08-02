@@ -3,6 +3,8 @@ import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from
 import type { Edificio } from "../types";
 import { EDIFICIO_COMPETENZA_RICHIESTA } from "../data/edificiCompetenze";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
+import { getStipendioMensileEdificio } from "../game/edificiPubblici";
+import { isEdificioPubblicoConPostazioniLavoro } from "../game/edificiLavoro";
 
 type EdificioInfoModalProps = {
   visible: boolean;
@@ -28,9 +30,12 @@ export function EdificioInfoModal({ visible, edificio, onClose }: EdificioInfoMo
     }
   };
 
-  const formatCrediti = (valore: number) => `${valore} crediti`;
+  const formatMonete = (valore: number) => `${valore} monete`;
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
+  const nLav = edificio.abitantiAssegnati?.length ?? 0;
+  const costoStipendi =
+    isEdificioPubblicoConPostazioniLavoro(edificio) ? getStipendioMensileEdificio(edificio) * nLav : 0;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -64,7 +69,7 @@ export function EdificioInfoModal({ visible, edificio, onClose }: EdificioInfoMo
               </Text>
               <Text style={styles.line}>Efficienza: {edificio.efficienza}%</Text>
               <Text style={styles.line}>
-                Costo mensile: {formatCrediti((edificio.stipendioPerLavoratore ?? 0) * (edificio.abitantiAssegnati?.length ?? 0))} (stipendio × lavoratori)
+                Costo mensile: {formatMonete(costoStipendi)} (stipendio × lavoratori)
               </Text>
             </View>
 

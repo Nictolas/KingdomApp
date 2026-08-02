@@ -3,6 +3,11 @@ import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { RESIDENZE_CATALOGO } from "../src/data/residenzeData";
+import {
+  calcolaTotaleStipendiMensiliEdificiPubblici,
+  getStipendioMensileEdificio
+} from "../src/game/edificiPubblici";
+import { isEdificioPubblicoConPostazioniLavoro } from "../src/game/edificiLavoro";
 
 /** Route per le voci del bilancio (clic sulla riga). */
 function getRoutePerVoceBilancio(label: string): string | null {
@@ -45,15 +50,16 @@ export default function CreditiScreen() {
   const totaleRedditi = abitanti.filter((a) => a.razza !== "Robot").reduce((sum, a) => sum + a.reddito, 0);
   const totaleSpese = abitanti.filter((a) => a.razza !== "Robot").reduce((sum, a) => sum + a.spese, 0);
 
-  // Costi per edificio: stipendio × lavoratori; raggruppa per nome edificio (una riga per tipo)
+  // Stipendi pubblici: costo in monete tesoro (non Crediti colonia)
   const spesePerTipoEdificio = useMemo(() => {
-    const operativi = edifici.filter((e) => e.stato === "Operativo");
+    const operativi = edifici.filter(
+      (e) => e.stato === "Operativo" && isEdificioPubblicoConPostazioniLavoro(e)
+    );
     const map = new Map<string, { nome: string; emoji: string; costo: number }>();
     for (const e of operativi) {
-      const stipendio = e.stipendioPerLavoratore ?? 0;
       const lavoratori = e.abitantiAssegnati?.length ?? 0;
-      const costo = stipendio * lavoratori;
-      if (costo <= 0 && e.tipo === "Residenza") continue; // Residenze non compaiono come uscita
+      const costo = getStipendioMensileEdificio(e) * lavoratori;
+      if (costo <= 0) continue;
       const key = e.nome;
       const existing = map.get(key);
       if (existing) {
@@ -65,7 +71,7 @@ export default function CreditiScreen() {
     return Array.from(map.values()).sort((a, b) => b.costo - a.costo);
   }, [edifici]);
 
-  const totaleStipendiEdifici = spesePerTipoEdificio.reduce((sum, s) => sum + s.costo, 0);
+  const totaleStipendiEdifici = calcolaTotaleStipendiMensiliEdificiPubblici(edifici);
 
   const beneficiariRedditoCittadinanza = abitanti.filter(
     (a) => a.razza !== "Robot" && a.lavoro === "Disoccupato" && !(a.fazioni?.includes("Schiavi") ?? false)
@@ -81,7 +87,7 @@ export default function CreditiScreen() {
   }
 
   const totaleNetto =
-    totaleRedditi + totaleEntrateResidenze - totaleSpese - totaleStipendiEdifici - spesaRedditoCittadinanza;
+    totaleRedditi + totaleEntrateResidenze - totaleSpese - spesaRedditoCittadinanza;
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -188,7 +194,7 @@ export default function CreditiScreen() {
                     onPress={() => route && router.push(route)}
                   >
                     <Text style={styles.bilancioEmoji}>{emoji}</Text>
-                    <Text style={styles.bilancioLabel}>{nome}</Text>
+                    <Text style={styles.bilancioLabel}>{nome} (monete)</Text>
                     <Text style={[styles.bilancioValore, styles.valoreNegativo]}>-{costo}</Text>
                   </Pressable>
                 );

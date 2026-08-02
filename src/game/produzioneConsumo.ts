@@ -120,18 +120,17 @@ export function calcolaProduzioneConsumoPuro({
     });
   }
 
-  // Calcola variazioni per i crediti: stipendio per lavoratore × numero lavoratori (niente costo fisso edifici)
+  // Calcola variazioni Crediti colonia (macro). Gli stipendi pubblici escono da moneteGiocatore, non da qui.
   const totaleRedditi = abitanti
     .filter((a) => a.lavoro !== "Pensionato")
     .reduce((sum, a) => sum + a.reddito, 0);
   const totaleSpese = abitanti.reduce((sum, a) => sum + a.spese, 0);
-  const totaleStipendiEdifici = 0;
   const numPensionati = abitanti.filter((a) => a.lavoro === "Pensionato").length;
   const costoPensioni = numPensionati * assegnoPensionati;
 
   risorse.forEach((r) => {
     if (r.nome === "Crediti") {
-      variazioni[r.nome] = totaleRedditi - totaleSpese - totaleStipendiEdifici - costoPensioni;
+      variazioni[r.nome] = totaleRedditi - totaleSpese - costoPensioni;
     }
   });
 

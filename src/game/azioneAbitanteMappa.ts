@@ -4,6 +4,7 @@ import {
   abitanteCercaLavoroPerSoldi,
   getBisogniAbitante
 } from "./bisogni";
+import { abitanteSoggettoACoprifuoco, type ConfigCoprifuoco } from "./coprifuoco";
 import { getMoneteInventarioAbitante } from "./inventario";
 import {
   abitanteAlBarRoutineOra,
@@ -68,6 +69,7 @@ export function descriviAzioneCorrenteAbitante(
     cultoArrivatiByEdificio: Record<number, number[]>;
     commuteInfo?: CommuteInfoAzione;
     haCasa?: boolean;
+    coprifuoco?: ConfigCoprifuoco;
   }
 ): string {
   const {
@@ -79,7 +81,8 @@ export function descriviAzioneCorrenteAbitante(
     barArrivatiByEdificio,
     cultoArrivatiByEdificio,
     commuteInfo,
-    haCasa = true
+    haCasa = true,
+    coprifuoco
   } = opts;
 
   if (commuteInfo != null) {
@@ -129,7 +132,22 @@ export function descriviAzioneCorrenteAbitante(
     return culto ? `Sta pregando presso ${culto.nome}` : "Sta pregando";
   }
 
-  if (abitante.razza === "Robot") return "Sta girando per la colonia";
+  if (abitante.razza === "Robot") {
+    if (
+      coprifuoco &&
+      abitanteSoggettoACoprifuoco(abitante, edifici, coprifuoco, orologioMinuti)
+    ) {
+      return "Rispetta il coprifuoco";
+    }
+    return "Sta girando per la colonia";
+  }
+
+  if (
+    coprifuoco &&
+    abitanteSoggettoACoprifuoco(abitante, edifici, coprifuoco, orologioMinuti)
+  ) {
+    return "Rispetta il coprifuoco";
+  }
 
   const monete = getMoneteInventarioAbitante(abitante.inventario);
   if (abitanteCercaLavoroPerSoldi(abitante, monete)) return "Cerca lavoro";

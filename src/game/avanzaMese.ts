@@ -12,6 +12,8 @@ import { autoAssegnaCittadiniDisoccupati, autoAssegnaDisoccupati, isEdificioPubb
 import { applicaRedditoSchiaviAlPadroni, isOmicidioSchiavoImmune, LAVORO_GIOCATORE } from "./schiavituCommercio";
 import { specializzazioneCasuale } from "./specializzazione";
 import { getProduttivitaEffettiva, normalizzaAbitanteBisogni } from "./bisogni";
+import { getStipendioMensileEdificio } from "./edificiPubblici";
+import { redditoMensileLavoroDefault } from "./economiaPrezzi";
 
 export type AvanzaMeseInput = {
   abitanti: Abitante[];
@@ -29,13 +31,13 @@ export type AvanzaMeseInput = {
   nextId: number;
   /** Età alla quale l'abitante diventa Pensionato (non lavora, riceve assegno mensile). */
   etaPensionabile: number;
-  /** Assegno mensile in crediti dato a ogni pensionato. */
+  /** Assegno mensile in monete dato a ogni pensionato. */
   assegnoPensionati: number;
   /** Soddisfazione 1-100 per fazioni tracciate (es. Rivoluzionari). */
   soddisfazioneFazioni?: Record<string, number>;
-  /** Prezzo mensile (crediti) per tipo di residenza. Se assente si usa il default del catalogo. */
+  /** Prezzo mensile (monete) per tipo di residenza. Se assente si usa il default del catalogo. */
   prezzoResidenze?: Record<string, number>;
-  /** Importo mensile del Reddito di Cittadinanza per ogni disoccupato non schiavo. */
+  /** Importo mensile del Reddito di Cittadinanza (monete) per ogni disoccupato non schiavo. */
   redditoCittadinanza?: number;
   /** Modalità del sistema sanitario (Privata/Pubblica) per i costi dell'Ospedale. */
   modalitaSanita?: "privata" | "pubblica";
@@ -399,9 +401,13 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   const abitantiConLavoro = normLavoro.abitanti;
 
   const idLavoratoreEdificioPubblico = new Set<number>();
+  const idToEdificioPubblico = new Map<number, Edificio>();
   edificiConAuto.forEach((e) => {
     if (!isEdificioPubblicoConPostazioniLavoro(e)) return;
-    (e.abitantiAssegnati ?? []).forEach((id) => idLavoratoreEdificioPubblico.add(id));
+    (e.abitantiAssegnati ?? []).forEach((id) => {
+      idLavoratoreEdificioPubblico.add(id);
+      idToEdificioPubblico.set(id, e);
+    });
   });
 
   // Costo abitazione per abitante (dalla residenza assegnata). Usato per Senzatetto e per entrateResidenze.
@@ -415,13 +421,15 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     (edificio.abitantiAssegnati ?? []).forEach((id) => idToCostoAbitazione.set(id, prezzo));
   });
 
+  /** Affitti pagati questo mese → accreditati alla risorsa Crediti colonia (non al tesoro moneteGiocatore). */
+  let totaleAffittiPagati = 0;
+
   // Aggiorna abitanti (invecchiamento, pensionamento, monete inventario, stanchezza/bisogni, peso, salute)
   const nuoviAbitanti = abitantiConLavoro.map((abitante) => {
     let eta = abitante.eta;
     if (avanzaAnno) eta += 1;
 
     let lavoro = abitante.lavoro;
-    let reddito = abitante.reddito;
     if (
       eta >= etaPensionabile &&
       lavoro !== LAVORO_GIOCATORE &&
@@ -429,20 +437,33 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       lavoro !== "Pensionato"
     ) {
       lavoro = "Pensionato";
-      reddito = assegnoPensionati;
-    } else if (lavoro !== "Disoccupato") {
-      if (idLavoratoreEdificioPubblico.has(abitante.id)) {
-        reddito = 0;
-      }
     }
 
     const èCoercibile = isCastaCoercibile(getCastaAbitante(abitante));
+    const pubblico = idLavoratoreEdificioPubblico.has(abitante.id);
+
+    // Reddito = display / bilanci; spese fisse = 0 (costi reali: affitto + bar/negozio).
+    let reddito = 0;
+    const spese = 0;
+    if (lavoro === "Pensionato") {
+      reddito = assegnoPensionati;
+    } else if (lavoro === "Disoccupato") {
+      reddito = !èCoercibile && redditoCittadinanza > 0 ? redditoCittadinanza : 0;
+    } else if (pubblico) {
+      const ed = idToEdificioPubblico.get(abitante.id);
+      reddito = ed ? getStipendioMensileEdificio(ed) : redditoMensileLavoroDefault();
+    } else if (lavoro === LAVORO_GIOCATORE) {
+      reddito = redditoMensileLavoroDefault() * 2;
+    } else {
+      reddito = redditoMensileLavoroDefault();
+    }
+
     if (èCoercibile) {
       const base = normalizzaAbitanteBisogni({
         ...abitante,
         eta,
         lavoro,
-        reddito,
+        reddito: 0,
         crediti: 0,
         spese: 0
       });
@@ -456,30 +477,13 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
         salute: nuovaSalute
       };
     }
-    // Reddito di cittadinanza per disoccupati non in casta coercibile
-    if (lavoro === "Disoccupato" && !èCoercibile && redditoCittadinanza > 0) {
-      reddito = redditoCittadinanza;
-    }
 
-    const redditoEffettivo = lavoro === "Disoccupato" ? 0 : reddito;
-
-    // Risparmio: di base 10% del reddito, 0 se Spendaccione, 50% se Tirchio
-    let risparmio = 0;
-    if (redditoEffettivo > 0) {
-      if (abitante.personalità === "Spendaccione") {
-        risparmio = 0;
-      } else if (abitante.personalità === "Tirchio") {
-        risparmio = Math.floor(redditoEffettivo * 0.5);
-      } else {
-        risparmio = Math.floor(redditoEffettivo * 0.1);
-      }
-    }
-
-    // Costo abitazione dalla residenza assegnata. Se non può permettersela paga 0 e entra in Senzatetto.
     const moneteAttuali = getMoneteInventarioAbitante(abitante.inventario);
     const costoAbitazione = idToCostoAbitazione.get(abitante.id) ?? 0;
     const puòPermettersiAbitazione = moneteAttuali >= costoAbitazione;
     const spesaAbitazioneEffettiva = costoAbitazione > 0 && puòPermettersiAbitazione ? costoAbitazione : 0;
+    if (spesaAbitazioneEffettiva > 0) totaleAffittiPagati += spesaAbitazioneEffettiva;
+
     let fazioni = abitante.fazioni ?? [];
     if (costoAbitazione > 0 && !puòPermettersiAbitazione) {
       fazioni = [...fazioni.filter((f) => f !== "Senzatetto"), "Senzatetto"];
@@ -487,8 +491,12 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       fazioni = fazioni.filter((f) => f !== "Senzatetto");
     }
 
-    const nuovoSaldo =
-      moneteAttuali + redditoEffettivo - abitante.spese - spesaAbitazioneEffettiva + risparmio;
+    // Monete: affitto reale; stipendio mensile solo se non già pagato dagli edifici pubblici (giornaliero).
+    let nuovoSaldo = moneteAttuali - spesaAbitazioneEffettiva;
+    if (!pubblico && reddito > 0) {
+      nuovoSaldo += reddito;
+    }
+
     const variazionePeso = Math.floor(Math.random() * 6) - 2;
     const nuovoPeso = Math.max(0, Math.min(100, abitante.peso + variazionePeso));
     const variazioneSalute = Math.floor(Math.random() * 6) - 2;
@@ -497,7 +505,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       ...abitante,
       eta,
       lavoro,
-      reddito: lavoro === "Disoccupato" ? 0 : reddito,
+      reddito,
+      spese,
       crediti: 0,
       fazioni,
       peso: nuovoPeso,
@@ -522,19 +531,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       const totaleSpese = abitantiConRedditoPadroni.reduce((sum, a) => sum + a.spese, 0);
       const numPensionati = abitantiConRedditoPadroni.filter((a) => a.lavoro === "Pensionato").length;
       const costoPensioni = numPensionati * assegnoPensionati;
-      const entrateResidenze = edificiConAuto
-        .filter((e) => e.tipo === "Residenza" && e.stato === "Operativo")
-        .reduce((sum, e) => {
-          const prezzo =
-            e.nome === "Baracca"
-              ? 0
-              : (prezzoResidenze[e.nome] ?? RESIDENZE_CATALOGO.find((r) => r.nome === e.nome)?.costoMensile ?? 0);
-          for (const id of e.abitantiAssegnati ?? []) {
-            const ab = abitantiRimasti.find((a) => a.id === id);
-            if (ab && getMoneteInventarioAbitante(ab.inventario) >= prezzo) sum += prezzo;
-          }
-          return sum;
-        }, 0);
+      // Affitti: già sottratti dalle monete inventario; qui entrano in Crediti colonia (ponte macro).
+      const entrateResidenze = totaleAffittiPagati;
       nuovaQuantità = risorsa.quantità + totaleRedditi + entrateResidenze - totaleSpese - costoPensioni;
     }
 

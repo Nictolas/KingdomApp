@@ -4,6 +4,7 @@ import { specializzazioneCasuale } from "./specializzazione";
 import { getEmojiRazza } from "../kingdomData";
 import { generaNomeAlieno } from "./nomiAlieni";
 import { scegliNomeCognomeUmano } from "./nomiUmani";
+import { redditoMensileLavoroDefault } from "./economiaPrezzi";
 
 export type GeneraImmigratiPropostiResult = {
   nuoviAbitanti: Abitante[];
@@ -53,12 +54,13 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
         ? ["Robots", "Cittadini"]
         : [FAZIONI_RUOLO[Math.floor(Math.random() * FAZIONI_RUOLO.length)], "Immigrati"];
 
+    const lavoro = LAVORI[Math.floor(Math.random() * LAVORI.length)];
     nuoviAbitanti.push(abitanteConInventarioIniziale({
       id: nextId + i,
       nome,
       emoji,
       eta: 20 + Math.floor(Math.random() * 50),
-      lavoro: LAVORI[Math.floor(Math.random() * LAVORI.length)],
+      lavoro,
       competenza: 30 + Math.floor(Math.random() * 70),
       produttività: 40 + Math.floor(Math.random() * 60),
       stanchezza: Math.floor(Math.random() * 50),
@@ -68,9 +70,9 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
       fazioni: fazioniIniziali,
       peso: 41 + Math.floor(Math.random() * 40),
       salute: 50 + Math.floor(Math.random() * 50),
-      crediti: 800 + Math.floor(Math.random() * 401),
-      reddito: 100 + Math.floor(Math.random() * 500),
-      spese: 50 + Math.floor(Math.random() * 300),
+      crediti: 0,
+      reddito: lavoro === "Disoccupato" ? 0 : redditoMensileLavoroDefault(),
+      spese: 0,
       lealtà: 30 + Math.floor(Math.random() * 50),
       paura: Math.floor(Math.random() * 40),
       felicità: 40 + Math.floor(Math.random() * 50),

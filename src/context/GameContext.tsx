@@ -50,6 +50,10 @@ type GameContextType = {
   leggeDroghe: "vietate" | "legali" | "parziali";
   divietoEspatrioAttivo: boolean;
   iusPrimaeNoctisAttivo: boolean;
+  /** Coprifuoco: divieto di stare «In giro» in una fascia oraria. */
+  coprifuocoAttivo: boolean;
+  coprifuocoInizioMinuti: number;
+  coprifuocoFineMinuti: number;
   tipologieFamigliaAccettate: {
     tradizionale: boolean;
     interrazziale: boolean;
@@ -79,6 +83,9 @@ type GameContextType = {
   setLeggeDroghe: (legge: "vietate" | "legali" | "parziali") => void;
   setDivietoEspatrioAttivo: (attivo: boolean) => void;
   setIusPrimaeNoctisAttivo: (attivo: boolean) => void;
+  setCoprifuocoAttivo: (attivo: boolean) => void;
+  setCoprifuocoInizioMinuti: (minuti: number) => void;
+  setCoprifuocoFineMinuti: (minuti: number) => void;
   setTipologieFamigliaAccettate: (tipologie: {
     tradizionale: boolean;
     interrazziale: boolean;
@@ -100,7 +107,7 @@ type GameContextType = {
   /** Aggiunge un edificio reale (istanza con id nuovo) dal catalogo; restituisce l'id creato o null. */
   aggiungiEdificioDaTemplate: (templateId: number) => number | null;
   rimuoviEdificioPerId: (id: number) => void;
-  /** Prezzo mensile (crediti) per tipo di residenza. Chiave = nome residenza (es. "Baracca"). Se assente si usa il default del catalogo. */
+  /** Prezzo mensile (monete) per tipo di residenza. Chiave = nome residenza (es. "Baracca"). Se assente si usa il default del catalogo. */
   prezzoResidenze: Record<string, number>;
   setPrezzoResidenza: (nomeResidenza: string, prezzo: number) => void;
   aggiungiAlCampoDiLavoroTuttiQuelliChe: (filtro: {
@@ -119,6 +126,8 @@ type GameContextType = {
   setNomeAbitante: (abitanteId: number, nuovoNome: string) => void;
   /** Aggiorna un abitante (es. effetti bisogni da mappa). */
   aggiornaAbitanteById: (abitanteId: number, fn: (a: Abitante) => Abitante) => void;
+  /** Accredita monete al tesoro del giocatore (es. pagamenti bar/negozio). */
+  accreditaMoneteGiocatore: (quantità: number) => void;
   setAbitanteIncinta: (abitanteId: number, incinta: boolean) => void;
   serviPastoMensaAbitante: (abitanteId: number, edificioId: number) => void;
   trasferisciCiboGiocatoreAMensa: (edificioId: number, itemId: string, quantità: number) => boolean;

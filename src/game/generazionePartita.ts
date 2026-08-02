@@ -6,6 +6,7 @@ import { pianetiData, getEmojiRazza } from "../kingdomData";
 import { generaNomeAlieno } from "./nomiAlieni";
 import { scegliNomeCognomeUmano } from "./nomiUmani";
 import { LAVORO_GIOCATORE, ETA_GIOCATORE_INIZIALE } from "./schiavituCommercio";
+import { redditoMensileLavoroDefault, STIPENDIO_BASE_MONETE_MESE } from "./economiaPrezzi";
 
 /** Regole di generazione casuale della colonia iniziale (per la pagina "Generazione Partita"). */
 export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] = [
@@ -69,7 +70,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     punti: [
       "Età: 18–65 anni.",
       "Competenza: 30–95. Produttività: 40–95. Stanchezza: 0–60.",
-      "Peso: 41–90. Salute: 40–90. Crediti: 500–1500 (0 se schiavo). Reddito e spese: 0–500 (0 se schiavo).",
+      "Peso: 41–90. Salute: 40–90. Monete inventario: 20–40 (0 se schiavo). Reddito display ≈ stipendio mensile base; spese 0 (costi reali a parte).",
       "Lealtà: 30–95. Paura: 0–40. Felicità: 40–90."
     ]
   },
@@ -181,10 +182,15 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     const lavoro = isRe ? LAVORO_GIOCATORE : LAVORI[Math.floor(Math.random() * LAVORI.length)];
     const competenzaBase = isRe ? 85 + Math.floor(Math.random() * 11) : 30 + Math.floor(Math.random() * 66);
     const competenza = Math.min(100, competenzaBase);
-    const redditoBase = isRe ? 1500 + Math.floor(Math.random() * 501) : lavoro === "Disoccupato" ? 0 : 100 + Math.floor(Math.random() * 500);
+    const redditoBase =
+      isRe
+        ? STIPENDIO_BASE_MONETE_MESE * 2
+        : lavoro === "Disoccupato"
+          ? 0
+          : redditoMensileLavoroDefault();
     const reddito = èSchiavo ? 0 : redditoBase;
-    const crediti = èSchiavo ? 0 : 500 + Math.floor(Math.random() * 1001);
-    const spese = èSchiavo ? 0 : 50 + Math.floor(Math.random() * 451);
+    const crediti = 0;
+    const spese = 0;
 
     const eta = isRe ? ETA_GIOCATORE_INIZIALE : 18 + Math.floor(Math.random() * 48);
 
@@ -283,7 +289,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
   if (candidatiAgricoltore.length > 0) {
     const agr = candidatiAgricoltore[Math.floor(Math.random() * candidatiAgricoltore.length)];
     agr.lavoro = "Agricoltore";
-    if (!agr.ruoloSchiavitu) agr.reddito = 100 + Math.floor(Math.random() * 400);
+    if (!agr.ruoloSchiavitu) agr.reddito = redditoMensileLavoroDefault();
   }
 
   // Regola: almeno 1 Prigioniero a inizio partita = Ex Governatore (Umano, reato "Ex Governatore"), assegnato al Campo di Lavoro; compare in Tribunale.
@@ -355,7 +361,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     const capo = candidatiCapoReligioso[Math.floor(Math.random() * candidatiCapoReligioso.length)]!;
     capo.religione = "Culto del Sole";
     capo.lavoro = "Capo Religioso";
-    if (!capo.ruoloSchiavitu) capo.reddito = 150 + Math.floor(Math.random() * 201);
+    if (!capo.ruoloSchiavitu) capo.reddito = redditoMensileLavoroDefault();
   }
 
   // Regola: 1 abitante con stato "Incinta" a inizio partita (preferibilmente donna, non Comandante, non Robot)

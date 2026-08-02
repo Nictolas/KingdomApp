@@ -30,12 +30,17 @@ import { calcolaProduzioneConsumoPuro } from "../game/produzioneConsumo";
 import { calcolaFelicitàModificataPuro } from "../game/felicita";
 import { getEdificioAbitazione } from "../game/abitanteEdifici";
 import { generaImmigratiProposti } from "../game/immigrazione";
-import { getLavoroPerEdificio, autoAssegnaCittadiniDisoccupati, normalizzaLavoroEAgricoltura, edificioAccettaServiDellaGleba } from "../game/edificiLavoro";
+import { getLavoroPerEdificio, autoAssegnaCittadiniDisoccupati, normalizzaLavoroEAgricoltura, edificioAccettaServiDellaGleba, isEdificioPubblicoConPostazioniLavoro } from "../game/edificiLavoro";
 import {
   creaMoneteGiocatoreIniziali,
   GIORNI_STIPENDIO_EDIFICIO_PUBBLICO_MESE,
   pagaStipendiEdificiPubblici
 } from "../game/edificiPubblici";
+import {
+  ASSEGNO_PENSIONATI_DEFAULT,
+  REDDITO_CITTADINANZA_DEFAULT,
+  STIPENDIO_BASE_MONETE_MESE
+} from "../game/economiaPrezzi";
 import { getCastaAbitante } from "../game/casta";
 import {
   PREZZO_SCHIAVO_DEFAULT,
@@ -368,13 +373,26 @@ export function useGameState() {
 
   // Età pensionabile: oltre questa età l'abitante diventa "Pensionato" e riceve assegno mensile; non lavora
   const [etaPensionabile, setEtaPensionabile] = useState(65);
-  const [assegnoPensionati, setAssegnoPensionati] = useState(200);
+  const [assegnoPensionati, setAssegnoPensionati] = useState(ASSEGNO_PENSIONATI_DEFAULT);
   
   // Configurazione legge sulle droghe
   const [leggeDroghe, setLeggeDroghe] = useState<"vietate" | "legali" | "parziali">("vietate"); // Stato delle droghe
   
   // Configurazione divieto di espatrio
   const [divietoEspatrioAttivo, setDivietoEspatrioAttivo] = useState(false);
+  const [coprifuocoAttivo, setCoprifuocoAttivo] = useState(false);
+  const [coprifuocoInizioMinuti, setCoprifuocoInizioMinutiState] = useState(22 * 60);
+  const [coprifuocoFineMinuti, setCoprifuocoFineMinutiState] = useState(6 * 60);
+  const setCoprifuocoInizioMinuti = useCallback((minuti: number) => {
+    const m = Math.floor(minuti);
+    const day = ((m % (24 * 60)) + 24 * 60) % (24 * 60);
+    setCoprifuocoInizioMinutiState(day);
+  }, []);
+  const setCoprifuocoFineMinuti = useCallback((minuti: number) => {
+    const m = Math.floor(minuti);
+    const day = ((m % (24 * 60)) + 24 * 60) % (24 * 60);
+    setCoprifuocoFineMinutiState(day);
+  }, []);
 
   // Ius primae noctis: se attivo aggiunge +1 alle sanzioni; in evento Matrimonio permette di scegliere uno dei due e 50% incinta se sesso opposto al Comandante
   const [iusPrimaeNoctisAttivo, setIusPrimaeNoctisAttivo] = useState(false);
@@ -397,7 +415,7 @@ export function useGameState() {
   });
 
   // Reddito di cittadinanza: importo mensile dato a disoccupati non schiavi
-  const [redditoCittadinanza, setRedditoCittadinanza] = useState(0);
+  const [redditoCittadinanza, setRedditoCittadinanza] = useState(REDDITO_CITTADINANZA_DEFAULT);
 
   // Modalità sistema sanitario: influenza i costi dell'Ospedale
   const [modalitaSanita, setModalitaSanita] = useState<"privata" | "pubblica">("privata");
@@ -724,7 +742,10 @@ export function useGameState() {
         id: newId,
         abitantiAssegnati: [],
         occupazione: 0,
-        stato: "Operativo"
+        stato: "Operativo",
+        stipendioPerLavoratore:
+          template.stipendioPerLavoratore ??
+          (isEdificioPubblicoConPostazioniLavoro(template) ? STIPENDIO_BASE_MONETE_MESE : undefined)
       };
       return [...prev, nuovo];
     });
@@ -818,6 +839,13 @@ export function useGameState() {
 
   const aggiornaAbitanteById = useCallback((abitanteId: number, fn: (a: Abitante) => Abitante) => {
     setAbitanti((prev) => prev.map((a) => (a.id === abitanteId ? fn(a) : a)));
+  }, []);
+
+  /** Accredita monete al tesoro (sink bar/negozio → stipendi). */
+  const accreditaMoneteGiocatore = useCallback((quantità: number) => {
+    const q = Math.floor(quantità);
+    if (q <= 0) return;
+    setMoneteGiocatore((prev) => prev + q);
   }, []);
 
   const setAbitanteIncinta = useCallback((abitanteId: number, incinta: boolean) => {
@@ -1190,6 +1218,9 @@ export function useGameState() {
     assegnoPensionati,
     leggeDroghe,
     divietoEspatrioAttivo,
+    coprifuocoAttivo,
+    coprifuocoInizioMinuti,
+    coprifuocoFineMinuti,
     iusPrimaeNoctisAttivo,
     tipologieFamigliaAccettate,
     modalitaSanita,
@@ -1211,6 +1242,9 @@ export function useGameState() {
     setAssegnoPensionati,
     setLeggeDroghe,
     setDivietoEspatrioAttivo,
+    setCoprifuocoAttivo,
+    setCoprifuocoInizioMinuti,
+    setCoprifuocoFineMinuti,
     setIusPrimaeNoctisAttivo,
     setTipologieFamigliaAccettate,
     setRedditoCittadinanza,
@@ -1236,6 +1270,7 @@ export function useGameState() {
     rimuoviMinistro,
     setNomeAbitante,
     aggiornaAbitanteById,
+    accreditaMoneteGiocatore,
     calcolaProduzioneConsumo,
     accettaImmigrante,
     rifiutaImmigrante,

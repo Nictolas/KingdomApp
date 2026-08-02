@@ -87,7 +87,7 @@ import {
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
 import { MapWandererCharacter } from "../src/components/MapWandererCharacter";
-import { descriviAzioneCorrenteAbitante } from "../src/game/azioneAbitanteMappa";
+import { abitanteSoggettoACoprifuoco } from "../src/game/coprifuoco";
 import {
   applicaRecuperoBar,
   applicaRecuperoCulto,
@@ -99,6 +99,7 @@ import {
 import { getEdificioAbitazione } from "../src/game/abitanteEdifici";
 import {
   getTotaleOggettiInventarioGiocatore,
+  getMoneteInventarioAbitante,
   provaSpendiMoneteInventarioAbitante
 } from "../src/game/inventario";
 import { abitanteHaBisognoMensa } from "../src/game/mensaPubblica";
@@ -1757,6 +1758,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     rimuoviEdificioPerId,
     serviPastoMensaAbitante,
     aggiornaAbitanteById,
+    accreditaMoneteGiocatore,
     luoghiCultoPendentiMappa,
     setLuoghiCultoPendentiMappa,
     richiesteInAttesa,
@@ -1773,7 +1775,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     pendingRichiestaLuogoCulto,
     luoghiCultoRifiutati,
     capoReligiosoSole,
-    capoReligiosoAlieni
+    capoReligiosoAlieni,
+    coprifuocoAttivo,
+    coprifuocoInizioMinuti,
+    coprifuocoFineMinuti
   } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
@@ -2419,6 +2424,21 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           ultimaCellaAbitanteRef.current.get(id) ?? (homeCell != null ? homeCell : null);
         if (from == null || !ab) continue;
 
+        const cfgCoprifuoco = {
+          attivo: coprifuocoAttivo,
+          inizioMinuti: coprifuocoInizioMinuti,
+          fineMinuti: coprifuocoFineMinuti
+        };
+        if (abitanteSoggettoACoprifuoco(ab, edifici, cfgCoprifuoco, cur)) {
+          if (homeCell != null && from !== homeCell) {
+            const pathHome = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell);
+            if (pathHome && pathHome.length >= 2) {
+              nuove[id] = { path: pathHome, token: Date.now(), purpose: "home" };
+            }
+          }
+          continue;
+        }
+
         const snack = tentaSnackDaInventario(ab);
         if (snack) {
           aggiornaAbitanteById(id, () => snack);
@@ -2521,7 +2541,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     isWalkableCell,
     lavoroArrivatiIds,
     cellaCasaPerAbitanteId,
-    aggiornaAbitanteById
+    aggiornaAbitanteById,
+    coprifuocoAttivo,
+    coprifuocoInizioMinuti,
+    coprifuocoFineMinuti
   ]);
 
   const handleCommuteFinita = useCallback(
@@ -2558,20 +2581,33 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         ).length;
         setBarArrivatiByEdificio((p) => aggiungiAbitanteAlBarEdificio(p, barEdificioId, abitanteId));
         setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
+        let spesaBar = 0;
         aggiornaAbitanteById(abitanteId, (a) => {
           const pagato = provaSpendiMoneteInventarioAbitante(a, COSTO_BAR_MONETE);
-          if (pagato) return applicaRecuperoBar(pagato, altriGiaNelBar);
+          if (pagato) {
+            spesaBar = COSTO_BAR_MONETE;
+            return applicaRecuperoBar(pagato, altriGiaNelBar);
+          }
           return patchBisogni(a, {
             divertimento: 8,
             socialita: 5 + Math.min(10, altriGiaNelBar * 2)
           });
         });
+        if (spesaBar > 0) accreditaMoneteGiocatore(spesaBar);
       } else if (purpose === "mensa" && mensaEdificioId != null) {
         serviPastoMensaAbitante(abitanteId, mensaEdificioId);
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
         setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
       } else if (purpose === "negozio" && negozioEdificioId != null) {
-        aggiornaAbitanteById(abitanteId, (a) => compraEMangiaAlNegozio(a) ?? a);
+        let spesaNegozio = 0;
+        aggiornaAbitanteById(abitanteId, (a) => {
+          const prima = getMoneteInventarioAbitante(a.inventario);
+          const dopo = compraEMangiaAlNegozio(a);
+          if (!dopo) return a;
+          spesaNegozio = Math.max(0, prima - getMoneteInventarioAbitante(dopo.inventario));
+          return dopo;
+        });
+        if (spesaNegozio > 0) accreditaMoneteGiocatore(spesaNegozio);
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
         setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
       } else if (purpose === "culto" && cultoEdificioId != null) {
@@ -2580,13 +2616,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         aggiornaAbitanteById(abitanteId, applicaRecuperoCulto);
       }
     },
-    [serviPastoMensaAbitante, aggiornaAbitanteById, edifici, barArrivatiByEdificio]
+    [serviPastoMensaAbitante, aggiornaAbitanteById, accreditaMoneteGiocatore, edifici, barArrivatiByEdificio]
   );
 
   /** Tempo libero: bisogni spingono snack / mensa / negozio / bar / casa (se non già in commute o al lavoro). */
   useEffect(() => {
     if (statoCielo.buio > 0.5) return;
 
+    const cfgCoprifuoco = {
+      attivo: coprifuocoAttivo,
+      inizioMinuti: coprifuocoInizioMinuti,
+      fineMinuti: coprifuocoFineMinuti
+    };
     const nuoveCommuteById: Record<number, CommuteInfo> = {};
 
     for (const a of abitanti) {
@@ -2601,6 +2642,17 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       const from =
         ultimaCellaAbitanteRef.current.get(a.id) ?? (homeCell != null ? homeCell : null);
       if (from == null) continue;
+
+      // Coprifuoco: solo rientro a casa (esenti Centrale).
+      if (abitanteSoggettoACoprifuoco(a, edifici, cfgCoprifuoco, orologioMinuti)) {
+        if (homeCell != null && from !== homeCell) {
+          const path = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell);
+          if (path && path.length >= 2) {
+            nuoveCommuteById[a.id] = { path, token: Date.now(), purpose: "home" };
+          }
+        }
+        continue;
+      }
 
       const snack = tentaSnackDaInventario(a);
       if (snack) {
@@ -2715,7 +2767,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     isWalkableCell,
     cellaCasaPerAbitanteId,
     commuteByAbitanteId,
-    aggiornaAbitanteById
+    aggiornaAbitanteById,
+    coprifuocoAttivo,
+    coprifuocoInizioMinuti,
+    coprifuocoFineMinuti
   ]);
 
   /** Chi è al bar ma non ha più bisogno di Divertimento/Socialità esce. */
@@ -3704,15 +3759,25 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                         }}
                         passTouchesToMapOnCell={passTouchesToMapOnCellPerWanderer}
                         disableIdleRoam={
-                          abitante.razza !== "Robot" &&
-                          (inCommute ||
-                            abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) ||
-                            abitanteAlBarRoutineOra(
-                              abitante,
-                              orologioMinuti,
-                              statoCielo.buio,
-                              edifici
-                            ))
+                          abitanteSoggettoACoprifuoco(
+                            abitante,
+                            edifici,
+                            {
+                              attivo: coprifuocoAttivo,
+                              inizioMinuti: coprifuocoInizioMinuti,
+                              fineMinuti: coprifuocoFineMinuti
+                            },
+                            orologioMinuti
+                          ) ||
+                          (abitante.razza !== "Robot" &&
+                            (inCommute ||
+                              abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) ||
+                              abitanteAlBarRoutineOra(
+                                abitante,
+                                orologioMinuti,
+                                statoCielo.buio,
+                                edifici
+                              )))
                         }
                         markerEmoji={abitante.razza === "Robot" ? getEmojiAbitante(abitante) : null}
                         doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitante.id)}`}
@@ -4083,7 +4148,12 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                 barArrivatiByEdificio,
                 cultoArrivatiByEdificio,
                 commuteInfo: commuteByAbitanteId[schedaWandererAbitante.id],
-                haCasa: (cellaCasaPerAbitanteId.get(schedaWandererAbitante.id) ?? null) != null
+                haCasa: (cellaCasaPerAbitanteId.get(schedaWandererAbitante.id) ?? null) != null,
+                coprifuoco: {
+                  attivo: coprifuocoAttivo,
+                  inizioMinuti: coprifuocoInizioMinuti,
+                  fineMinuti: coprifuocoFineMinuti
+                }
               })
             : null
         }

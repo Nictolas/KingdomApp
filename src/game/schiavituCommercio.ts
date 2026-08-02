@@ -5,9 +5,10 @@ import {
   aggiungiMoneteInventarioAbitante,
   provaSpendiMoneteInventarioAbitante
 } from "./inventario";
+import { PREZZO_SCHIAVO_DEFAULT as PREZZO_SCHIAVO_CANONICO } from "./economiaPrezzi";
 
 /** Prezzo di riferimento per compravendita schiavi (monete). */
-export const PREZZO_SCHIAVO_DEFAULT = 500;
+export const PREZZO_SCHIAVO_DEFAULT = PREZZO_SCHIAVO_CANONICO;
 
 /** ID del giocatore (Re) per azioni sulla colonia. */
 export const ID_GIOCATORE = 1;

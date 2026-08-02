@@ -1,19 +1,39 @@
 import type { Abitante, Edificio } from "../types";
-import { getCastaAbitante } from "./casta";
 import { aggiungiMoneteInventarioAbitante } from "./inventario";
-import { isGiocatore, puoEssereAssegnatoForzatamente } from "./schiavituCommercio";
+import { isGiocatore } from "./schiavituCommercio";
 import {
   isEdificioPubblicoConPostazioniLavoro
 } from "./edificiLavoro";
+import {
+  GIORNI_MESE_ECONOMIA,
+  MONETE_GIOCATORE_INIZIALI,
+  STIPENDIO_BASE_MONETE_GIORNO,
+  STIPENDIO_BASE_MONETE_MESE
+} from "./economiaPrezzi";
 
 /** Stipendio base: 1 moneta al giorno per ogni lavoratore negli edifici pubblici. */
-export const STIPENDIO_BASE_MONETE_GIORNO = 1;
+export { STIPENDIO_BASE_MONETE_GIORNO };
 
 /** Giorni simulati per stipendi allo Skip Mese. */
-export const GIORNI_STIPENDIO_EDIFICIO_PUBBLICO_MESE = 30;
+export const GIORNI_STIPENDIO_EDIFICIO_PUBBLICO_MESE = GIORNI_MESE_ECONOMIA;
 
-export function getStipendioMoneteGiornaliero(_edificio: Edificio): number {
-  return STIPENDIO_BASE_MONETE_GIORNO;
+/**
+ * Stipendio mensile configurato sull'edificio (monete/mese per lavoratore).
+ * Se assente → default base.
+ */
+export function getStipendioMensileEdificio(edificio: Edificio): number {
+  const raw = edificio.stipendioPerLavoratore;
+  if (raw == null || !Number.isFinite(raw) || raw < 0) return STIPENDIO_BASE_MONETE_MESE;
+  return Math.floor(raw);
+}
+
+/**
+ * Pagamento giornaliero da mensile: max(1, round(mensile/30)), oppure 0 se mensile 0.
+ */
+export function getStipendioMoneteGiornaliero(edificio: Edificio): number {
+  const mensile = getStipendioMensileEdificio(edificio);
+  if (mensile <= 0) return 0;
+  return Math.max(1, Math.round(mensile / GIORNI_MESE_ECONOMIA));
 }
 
 export function calcolaTotaleStipendiMonetePeriodo(edifici: Edificio[], giorni: number): number {
@@ -23,6 +43,18 @@ export function calcolaTotaleStipendiMonetePeriodo(edifici: Edificio[], giorni: 
     if (!isEdificioPubblicoConPostazioniLavoro(edificio)) continue;
     const n = (edificio.abitantiAssegnati ?? []).length;
     tot += n * getStipendioMoneteGiornaliero(edificio) * giorni;
+  }
+  return tot;
+}
+
+/** Totale stipendi mensili previsti (monete) per edifici pubblici operativi. */
+export function calcolaTotaleStipendiMensiliEdificiPubblici(edifici: Edificio[]): number {
+  let tot = 0;
+  for (const edificio of edifici) {
+    if (!isEdificioPubblicoConPostazioniLavoro(edificio)) continue;
+    if (edificio.stato !== "Operativo") continue;
+    const n = (edificio.abitantiAssegnati ?? []).length;
+    tot += n * getStipendioMensileEdificio(edificio);
   }
   return tot;
 }
@@ -61,7 +93,7 @@ export function pagaStipendiEdificiPubblici(
 
 /** Tesoro iniziale del giocatore per stipendi edifici pubblici. */
 export function creaMoneteGiocatoreIniziali(): number {
-  return 500;
+  return MONETE_GIOCATORE_INIZIALI;
 }
 
 export function normalizzaMoneteGiocatore(quantità?: number): number {

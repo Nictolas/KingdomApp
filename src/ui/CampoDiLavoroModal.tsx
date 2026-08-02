@@ -2,6 +2,8 @@ import React, { useState, useMemo } from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Edificio, Razza } from "../types";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
+import { getStipendioMensileEdificio } from "../game/edificiPubblici";
+import { isEdificioPubblicoConPostazioniLavoro } from "../game/edificiLavoro";
 
 const RAZZE: Razza[] = [
   "Umano",
@@ -74,7 +76,7 @@ export function CampoDiLavoroModal({
     }
   };
 
-  const formatCrediti = (valore: number) => `${valore} crediti`;
+  const formatMonete = (valore: number) => `${valore} monete`;
 
   const handleAggiungi = () => {
     aggiungiAlCampoDiLavoroTuttiQuelliChe({
@@ -120,7 +122,13 @@ export function CampoDiLavoroModal({
               </Text>
               <Text style={styles.line}>Efficienza: {edificio.efficienza}%</Text>
               <Text style={styles.line}>
-                Costo mensile: {formatCrediti((edificio.stipendioPerLavoratore ?? 0) * (edificio.abitantiAssegnati?.length ?? 0))} (stipendio × lavoratori)
+                Costo mensile:{" "}
+                {formatMonete(
+                  isEdificioPubblicoConPostazioniLavoro(edificio)
+                    ? getStipendioMensileEdificio(edificio) * (edificio.abitantiAssegnati?.length ?? 0)
+                    : 0
+                )}{" "}
+                (stipendio × lavoratori)
               </Text>
             </View>
 

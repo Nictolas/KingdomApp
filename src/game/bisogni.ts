@@ -1,4 +1,7 @@
 import type { Abitante } from "../types";
+import { COSTO_BAR_MONETE } from "./economiaPrezzi";
+
+export { COSTO_BAR_MONETE };
 
 /** Bisogni individuali 0–100 (100 = soddisfatto). */
 export type BisogniAbitante = {
@@ -176,9 +179,6 @@ export function getProduttivitaEffettiva(abitante: Abitante): number {
 export function normalizzaAbitanteBisogni(abitante: Abitante): Abitante {
   return syncStanchezzaDaEnergia(abitante, getBisogniAbitante(abitante));
 }
-
-/** Costo monete per entrare al bar. */
-export const COSTO_BAR_MONETE = 2;
 
 export const SOGLIA_BISOGNO_AZIONE = 45;
 export const SOGLIA_BISOGNO_CRITICO = 28;

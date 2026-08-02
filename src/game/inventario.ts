@@ -1,5 +1,10 @@
 import type { Abitante } from "../types";
 import { abitanteHaInventarioPersonale } from "./casta";
+import {
+  MONETE_INVENTARIO_SEED_DEFAULT,
+  moneteDaCreditiLegacy,
+  moneteInventarioSeedCasuali
+} from "./economiaPrezzi";
 import { COLTURE_SERRA } from "./colturaSerra";
 
 export type CategoriaInventario = "Valuta" | "Cibo";
@@ -44,7 +49,7 @@ export const VOCI_CIBO_IDS = [
 export type VoceInventario = { itemId: string; quantità: number };
 
 const INVENTARIO_INIZIALE: VoceInventario[] = [
-  { itemId: "monete", quantità: 100 },
+  { itemId: "monete", quantità: MONETE_INVENTARIO_SEED_DEFAULT },
   { itemId: "mela", quantità: 5 },
   { itemId: "bistecca", quantità: 5 },
   { itemId: "latte", quantità: 5 },
@@ -60,8 +65,14 @@ const INVENTARIO_GIOCATORE_INIZIALE: VoceInventario[] = [
 ];
 
 /** Inventario di partenza per ogni abitante. */
-export function creaInventarioIniziale(): VoceInventario[] {
-  return INVENTARIO_INIZIALE.map((v) => ({ ...v }));
+export function creaInventarioIniziale(moneteQuantità?: number): VoceInventario[] {
+  const monete = Math.max(
+    0,
+    Math.floor(moneteQuantità ?? MONETE_INVENTARIO_SEED_DEFAULT)
+  );
+  return INVENTARIO_INIZIALE.map((v) =>
+    v.itemId === "monete" ? { ...v, quantità: monete } : { ...v }
+  );
 }
 
 /** Inventario cibo iniziale del giocatore. */
@@ -217,7 +228,7 @@ export function abitanteConInventarioIniziale<T extends Abitante>(abitante: T): 
   }
   return {
     ...abitante,
-    inventario: creaInventarioIniziale(),
+    inventario: creaInventarioIniziale(moneteInventarioSeedCasuali()),
     ultimoGiornoCiboConsumato: undefined
   };
 }
@@ -232,9 +243,10 @@ export function normalizzaAbitanteInventario(abitante: Abitante): Abitante {
   }
   let inv = normalizzaInventarioAbitante(abitante.inventario);
   if (legacyCrediti > 0) {
-    inv = inv.map((v) =>
-      v.itemId === "monete" ? { ...v, quantità: v.quantità + legacyCrediti } : v
-    );
+    const convertite = moneteDaCreditiLegacy(legacyCrediti);
+    const attuali = inv.find((v) => v.itemId === "monete")?.quantità ?? 0;
+    const target = Math.max(attuali, convertite);
+    inv = inv.map((v) => (v.itemId === "monete" ? { ...v, quantità: target } : v));
   }
   return { ...abitante, inventario: inv, crediti: 0 };
 }
