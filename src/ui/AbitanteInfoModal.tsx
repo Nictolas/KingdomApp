@@ -307,22 +307,21 @@ export function AbitanteInfoModal({
               </View>
             </View>
 
-            <View style={styles.bisogniPanel}>
-              <Text style={styles.bisogniTitle}>Bisogni</Text>
-              {abitanteUsaBisogniUmani(abitante) ? (
-                <>
-                  <BisognoBar label="Fame" emoji="🍽️" value={bisogni.fame} />
-                  <BisognoBar label="Energia" emoji="⚡" value={bisogni.energia} />
-                  <BisognoBar label="Divertimento" emoji="🎉" value={bisogni.divertimento} />
-                  <BisognoBar label="Socialità" emoji="💬" value={bisogni.socialita} />
-                  <BisognoBar label="Igiene" emoji="🧼" value={bisogni.igiene} />
-                </>
-              ) : (
-                <BisognoBar label="Energia" emoji="🔋" value={bisogni.energia} />
-              )}
-            </View>
+            <View style={styles.sixCol}>
+              <Block title="Bisogni">
+                {abitanteUsaBisogniUmani(abitante) ? (
+                  <>
+                    <BisognoBar label="Fame" emoji="🍽️" value={bisogni.fame} />
+                    <BisognoBar label="Energia" emoji="⚡" value={bisogni.energia} />
+                    <BisognoBar label="Divertimento" emoji="🎉" value={bisogni.divertimento} />
+                    <BisognoBar label="Socialità" emoji="💬" value={bisogni.socialita} />
+                    <BisognoBar label="Igiene" emoji="🧼" value={bisogni.igiene} />
+                  </>
+                ) : (
+                  <BisognoBar label="Energia" emoji="🔋" value={bisogni.energia} />
+                )}
+              </Block>
 
-            <View style={styles.fiveCol}>
               <Block title="📋 Anagrafica">
                 <Row emoji="🎂" value={`${abitante.eta} anni`} />
                 <Row
@@ -450,31 +449,29 @@ export function AbitanteInfoModal({
                   }
                 />
               </Block>
-            </View>
 
-            {!isCastaCoercibile(casta) && (
-            <View style={styles.inventarioRow}>
-              <Block title="Inventario">
-                <InventarioCategoria titolo="Valuta" voci={vociValuta} />
-                <InventarioCategoria titolo="Cibo" voci={vociCibo} />
-                {schiaviInInventario.length > 0 && (
-                  <View style={styles.inventarioCategoria}>
-                    <Text style={styles.inventarioCategoriaTitolo}>Schiavi</Text>
-                    <View style={styles.inventarioGrid}>
-                      {schiaviInInventario.map((s) => (
-                        <InventarioSlot
-                          key={s.id}
-                          emoji={getEmojiAbitante(s)}
-                          nome={s.nome}
-                          quantità={1}
-                        />
-                      ))}
+              {!isCastaCoercibile(casta) && (
+                <Block title="Inventario">
+                  <InventarioCategoria titolo="Valuta" voci={vociValuta} />
+                  <InventarioCategoria titolo="Cibo" voci={vociCibo} />
+                  {schiaviInInventario.length > 0 && (
+                    <View style={styles.inventarioCategoria}>
+                      <Text style={styles.inventarioCategoriaTitolo}>Schiavi</Text>
+                      <View style={styles.inventarioGrid}>
+                        {schiaviInInventario.map((s) => (
+                          <InventarioSlot
+                            key={s.id}
+                            emoji={getEmojiAbitante(s)}
+                            nome={s.nome}
+                            quantità={1}
+                          />
+                        ))}
+                      </View>
                     </View>
-                  </View>
-                )}
-              </Block>
+                  )}
+                </Block>
+              )}
             </View>
-            )}
 
             {isSchiavoCommerciabile(abitante) && padroneNome && (
               <View style={styles.azioniSchiavo}>
@@ -552,7 +549,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 0,
     minWidth: 320,
-    maxWidth: 1180,
+    maxWidth: 1520,
     width: "96%",
     maxHeight: "88%",
     borderWidth: 1,
@@ -623,37 +620,23 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#93c5fd"
   },
-  fiveCol: {
+  sixCol: {
     flexDirection: "row",
     alignItems: "stretch",
     gap: 10,
     marginTop: 14
   },
-  bisogniPanel: {
-    marginTop: 14,
-    backgroundColor: "rgba(15,23,42,0.5)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.12)",
-    padding: 10
-  },
-  bisogniTitle: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "rgba(248,250,252,0.9)",
-    marginBottom: 8,
-    textTransform: "uppercase",
-    letterSpacing: 0.4
-  },
   bisognoRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
+    gap: 4,
     marginBottom: 6
   },
   bisognoLabel: {
-    width: 110,
-    fontSize: 11,
+    flexShrink: 1,
+    minWidth: 0,
+    maxWidth: 88,
+    fontSize: 10,
     color: "#e2e8f0",
     fontWeight: "600"
   },
@@ -662,16 +645,17 @@ const styles = StyleSheet.create({
     height: 8,
     borderRadius: 4,
     backgroundColor: "rgba(51,65,85,0.8)",
-    overflow: "hidden"
+    overflow: "hidden",
+    minWidth: 24
   },
   bisognoFill: {
     height: "100%",
     borderRadius: 4
   },
   bisognoValue: {
-    width: 28,
+    width: 24,
     textAlign: "right",
-    fontSize: 11,
+    fontSize: 10,
     color: "#94a3b8",
     fontWeight: "600"
   },
@@ -746,9 +730,6 @@ const styles = StyleSheet.create({
   rowMuted: {
     color: "rgba(226,232,240,0.5)",
     fontStyle: "italic"
-  },
-  inventarioRow: {
-    marginTop: 14
   },
   inventarioCategoria: {
     marginBottom: 10
