@@ -3153,34 +3153,6 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   return (
     <SafeAreaView style={styles.safe}>
-      {(statoCielo.buio > 0.004 || statoCielo.caloreTramonto > 0.004) && (
-        <>
-          {statoCielo.buio > 0.004 ? (
-            <View
-              style={[
-                styles.overlayCielo,
-                {
-                  zIndex: 1000,
-                  backgroundColor: `rgba(2,6,24,${CIELO_ALPHA_NOTTE_MAX * statoCielo.buio})`
-                }
-              ]}
-              pointerEvents="none"
-            />
-          ) : null}
-          {statoCielo.caloreTramonto > 0.004 ? (
-            <View
-              style={[
-                styles.overlayCielo,
-                {
-                  zIndex: 1001,
-                  backgroundColor: `rgba(255,88,42,${CIELO_ALPHA_CALORE_TRAMONTO_MAX * statoCielo.caloreTramonto})`
-                }
-              ]}
-              pointerEvents="none"
-            />
-          ) : null}
-        </>
-      )}
       {/* Banner in alto: MyKingdom, Mese/Anno, Diario, Skip Mese, Felicità, Lealtà, Paura, Menu */}
       <View style={styles.topBanner}>
         <View style={styles.topBannerInner}>
@@ -3510,6 +3482,33 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             </TransformWrapper>
           </View>
         </View>
+        {/* Overlay giorno/notte solo sulla mappa (non sui menu top/bottom). */}
+        {(statoCielo.buio > 0.004 || statoCielo.caloreTramonto > 0.004) && (
+          <>
+            {statoCielo.buio > 0.004 ? (
+              <View
+                style={[
+                  styles.overlayCielo,
+                  {
+                    backgroundColor: `rgba(2,6,24,${CIELO_ALPHA_NOTTE_MAX * statoCielo.buio})`
+                  }
+                ]}
+                pointerEvents="none"
+              />
+            ) : null}
+            {statoCielo.caloreTramonto > 0.004 ? (
+              <View
+                style={[
+                  styles.overlayCielo,
+                  {
+                    backgroundColor: `rgba(255,88,42,${CIELO_ALPHA_CALORE_TRAMONTO_MAX * statoCielo.caloreTramonto})`
+                  }
+                ]}
+                pointerEvents="none"
+              />
+            ) : null}
+          </>
+        )}
       </View>
 
       {/* Menu fisso in basso: Risorse (ancorato al fondo schermo) */}
@@ -4109,7 +4108,8 @@ const styles = StyleSheet.create({
     minHeight: 120,
     overflow: "hidden",
     width: "100%",
-    backgroundColor: "#000000"
+    backgroundColor: "#000000",
+    position: "relative"
   },
   indCard: {
     flex: 1,
