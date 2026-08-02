@@ -128,6 +128,13 @@ type GameContextType = {
   aggiornaAbitanteById: (abitanteId: number, fn: (a: Abitante) => Abitante) => void;
   /** Accredita monete al tesoro del giocatore (es. pagamenti bar/negozio). */
   accreditaMoneteGiocatore: (quantità: number) => void;
+  /** Appende una riga al diario (avvisi soft). */
+  appendDiarioRiga: (riga: string) => void;
+  /** Aggiorna scorte cibo di una Mensa Pubblica. */
+  setInventarioMensaEdificio: (
+    edificioId: number,
+    inventario: { itemId: string; quantità: number }[]
+  ) => void;
   setAbitanteIncinta: (abitanteId: number, incinta: boolean) => void;
   serviPastoMensaAbitante: (abitanteId: number, edificioId: number) => void;
   trasferisciCiboGiocatoreAMensa: (edificioId: number, itemId: string, quantità: number) => boolean;

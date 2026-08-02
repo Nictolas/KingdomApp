@@ -14,7 +14,7 @@ import {
 import { abitanteNascostoNelCultoOra } from "./presenzaLuogoCulto";
 
 export type CommuteInfoAzione = {
-  purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio";
+  purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina";
   barEdificioId?: number;
   mensaEdificioId?: number;
   cultoEdificioId?: number;
@@ -70,6 +70,8 @@ export function descriviAzioneCorrenteAbitante(
     commuteInfo?: CommuteInfoAzione;
     haCasa?: boolean;
     coprifuoco?: ConfigCoprifuoco;
+    /** Esito recente di una rapina (es. «Ha rubato»). */
+    esitoRapinaRecente?: string | null;
   }
 ): string {
   const {
@@ -82,7 +84,8 @@ export function descriviAzioneCorrenteAbitante(
     cultoArrivatiByEdificio,
     commuteInfo,
     haCasa = true,
-    coprifuoco
+    coprifuoco,
+    esitoRapinaRecente
   } = opts;
 
   if (commuteInfo != null) {
@@ -101,8 +104,12 @@ export function descriviAzioneCorrenteAbitante(
         return "Sta andando al negozio";
       case "culto":
         return "Sta andando al luogo di culto";
+      case "rapina":
+        return "Sta andando a rubare";
     }
   }
+
+  if (esitoRapinaRecente) return esitoRapinaRecente;
 
   const èNotte = buioCielo > 0.5;
   if (èNotte && haCasa && dormonoACasaIds.has(abitante.id)) {

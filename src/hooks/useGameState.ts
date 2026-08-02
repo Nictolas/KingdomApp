@@ -848,6 +848,24 @@ export function useGameState() {
     setMoneteGiocatore((prev) => prev + q);
   }, []);
 
+  /** Appende una riga al diario di gioco (avvisi soft, es. furto scoperto). */
+  const appendDiarioRiga = useCallback((riga: string) => {
+    const t = (riga ?? "").trim();
+    if (!t) return;
+    setDiarioRighe((prev) => [...prev, t]);
+  }, []);
+
+  /** Aggiorna le scorte di una Mensa (es. furto). */
+  const setInventarioMensaEdificio = useCallback(
+    (edificioId: number, inventario: { itemId: string; quantità: number }[]) => {
+      setInventarioMensaByEdificioId((prev) => ({
+        ...prev,
+        [edificioId]: normalizzaInventarioMensa(inventario)
+      }));
+    },
+    []
+  );
+
   const setAbitanteIncinta = useCallback((abitanteId: number, incinta: boolean) => {
     setAbitanti((prev) =>
       prev.map((a) => (a.id === abitanteId ? { ...a, incinta } : a))
@@ -1271,6 +1289,8 @@ export function useGameState() {
     setNomeAbitante,
     aggiornaAbitanteById,
     accreditaMoneteGiocatore,
+    appendDiarioRiga,
+    setInventarioMensaEdificio,
     calcolaProduzioneConsumo,
     accettaImmigrante,
     rifiutaImmigrante,

@@ -268,6 +268,42 @@ export function consumaUnOggettoCibo(
   return next;
 }
 
+/** Trasferisce monete tra due abitanti con inventario; null se saldo insufficiente. */
+export function trasferisciMoneteTraAbitanti(
+  da: Abitante,
+  a: Abitante,
+  quantità: number
+): { da: Abitante; a: Abitante } | null {
+  const q = Math.floor(quantità);
+  if (q <= 0) return { da, a };
+  if (!abitanteHaInventarioPersonale(da) || !abitanteHaInventarioPersonale(a)) return null;
+  const dopoSpesa = provaSpendiMoneteInventarioAbitante(da, q);
+  if (!dopoSpesa) return null;
+  return { da: dopoSpesa, a: aggiungiMoneteInventarioAbitante(a, q) };
+}
+
+/**
+ * Preleva 1 cibo dalla vittima compatibile con la dieta del ladro.
+ * Restituisce anche l'`itemId` tolto.
+ */
+export function prelevaCiboCompatibileDaAbitante(
+  vittima: Abitante,
+  personalitàLadro: string
+): { vittima: Abitante; itemId: string } | null {
+  if (!abitanteHaInventarioPersonale(vittima) || !vittima.inventario?.length) return null;
+  const inv = normalizzaInventarioAbitante(vittima.inventario);
+  const idx = inv.findIndex(
+    (v) =>
+      isOggettoCibo(v.itemId) &&
+      v.quantità > 0 &&
+      abitantePuòConsumareOggettoCibo(personalitàLadro, v.itemId)
+  );
+  if (idx < 0) return null;
+  const itemId = inv[idx]!.itemId;
+  const next = inv.map((v, i) => (i === idx ? { ...v, quantità: v.quantità - 1 } : v));
+  return { vittima: { ...vittima, inventario: next }, itemId };
+}
+
 export type VoceInventarioDisplay = {
   def: OggettoInventarioDef;
   quantità: number;

@@ -183,7 +183,7 @@ export function normalizzaAbitanteBisogni(abitante: Abitante): Abitante {
 export const SOGLIA_BISOGNO_AZIONE = 45;
 export const SOGLIA_BISOGNO_CRITICO = 28;
 
-export type AzioneTempoLibero = "mensa" | "negozio" | "bar" | "home" | "nessuna";
+export type AzioneTempoLibero = "mensa" | "negozio" | "bar" | "home" | "rapina" | "nessuna";
 
 function deficitSottoSoglia(valore: number, soglia: number): number {
   if (valore >= soglia) return 0;
@@ -210,16 +210,23 @@ export function abitanteCercaLavoroPerSoldi(abitante: Abitante, moneteDisponibil
 }
 
 /**
- * Tempo libero: Fame (mensa/negozio) → bar → casa.
+ * Tempo libero: Fame (mensa/negozio) → rapina se critica senza alternative → bar → casa.
  * `puòUsareNegozio` se ha monete e Negozio operativo senza cibo personale.
+ * `puòRapinare` se Fame critica e nessuna alternativa legale (vedi rapina.ts).
  */
 export function scegliAzioneTempoLibero(
   abitante: Abitante,
-  opts: { puòUsareMensa: boolean; puòUsareNegozio?: boolean; haCasa: boolean }
+  opts: {
+    puòUsareMensa: boolean;
+    puòUsareNegozio?: boolean;
+    puòRapinare?: boolean;
+    haCasa: boolean;
+  }
 ): AzioneTempoLibero {
   if (!abitanteUsaBisogniUmani(abitante)) return "nessuna";
   const b = getBisogniAbitante(abitante);
   const puòNegozio = opts.puòUsareNegozio === true;
+  const puòRapinare = opts.puòRapinare === true;
 
   const scoreFameMensa = opts.puòUsareMensa ? deficitSottoSoglia(b.fame, SOGLIA_BISOGNO_AZIONE) : 0;
   const scoreFameNegozio = puòNegozio ? deficitSottoSoglia(b.fame, SOGLIA_BISOGNO_AZIONE) : 0;
@@ -232,12 +239,16 @@ export function scegliAzioneTempoLibero(
   if (b.fame < SOGLIA_BISOGNO_CRITICO) {
     if (opts.puòUsareMensa) return "mensa";
     if (puòNegozio) return "negozio";
+    if (puòRapinare) return "rapina";
   }
   if (opts.haCasa && b.energia < SOGLIA_BISOGNO_CRITICO) return "home";
 
   const bestFame = Math.max(scoreFameMensa, scoreFameNegozio);
   const best = Math.max(bestFame, scoreBar, scoreCasa);
-  if (best <= 0) return "nessuna";
+  if (best <= 0) {
+    if (b.fame < SOGLIA_BISOGNO_CRITICO && puòRapinare) return "rapina";
+    return "nessuna";
+  }
   if (bestFame >= scoreBar && bestFame >= scoreCasa) {
     if (scoreFameMensa >= scoreFameNegozio && opts.puòUsareMensa) return "mensa";
     if (puòNegozio) return "negozio";

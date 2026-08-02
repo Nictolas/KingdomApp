@@ -126,6 +126,7 @@ import {
   primoEdificioLavoroOrarioPerAbitante
 } from "../src/game/orariLavoroMappa";
 import {
+  calcolaPercorsoVersoAnchorEdificio,
   pianificaCommuteMattina,
   pianificaCommuteSeraACasa,
   pianificaCommuteVersoBarDaCella,
@@ -133,13 +134,21 @@ import {
   scegliBarEdificioIdPiuVicino,
   scegliEdificioIdPiuVicinoPerNome,
   scegliLuogoCultoEdificioIdPiuVicino,
-  scegliMensaEdificioIdPiuVicino
+  scegliMensaEdificioIdPiuVicino,
+  trovaAnchorEdificioGlobaleSuMappa
 } from "../src/game/commutePathsMappa";
 import { SEZIONE_AMBIENTE, SEZIONI_COSTRUZIONE, type TerrenoCostruzioneKind } from "../src/game/costruzioneSezioni";
 import { setBarArrivatiMappaSnapshot } from "../src/game/mappaBarArrivatiStore";
 import { computeStatoCielo } from "../src/game/cicloCielo";
-import { formatOrologioGioco } from "../src/game/orologioGiocoSession";
+import { formatOrologioGioco, getGiornoGiocoSnapshot } from "../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../src/hooks/useOrologioGioco";
+import { descriviAzioneCorrenteAbitante } from "../src/game/azioneAbitanteMappa";
+import {
+  abitantePuòTentareRapina,
+  resolveRapina,
+  scegliBersaglioRapina,
+  type RapinaTarget
+} from "../src/game/rapina";
 import {
   applicaStradaFootprint2x2,
   calcolaAnchorStrada2x2,
@@ -1380,7 +1389,7 @@ function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: n
   return { left: col * (cellW + GAP), top: row * (cellH + GAP) };
 }
 
-type CommutePurpose = "work" | "bar" | "home" | "mensa" | "culto" | "negozio";
+type CommutePurpose = "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina";
 
 type CommuteInfo = {
   path: number[];
@@ -1390,6 +1399,7 @@ type CommuteInfo = {
   mensaEdificioId?: number;
   cultoEdificioId?: number;
   negozioEdificioId?: number;
+  rapinaTarget?: RapinaTarget;
 };
 
 type FootprintVariant =
@@ -1759,6 +1769,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     serviPastoMensaAbitante,
     aggiornaAbitanteById,
     accreditaMoneteGiocatore,
+    appendDiarioRiga,
+    setInventarioMensaEdificio,
+    inventarioMensaByEdificioId,
     luoghiCultoPendentiMappa,
     setLuoghiCultoPendentiMappa,
     richiesteInAttesa,
@@ -2261,6 +2274,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   }, [abitanti, edifici, edificiInMappa, residenzeMappa]);
 
   const ultimaCellaAbitanteRef = useRef<Map<number, number>>(new Map());
+  /** Minuti assoluti (giorno*1440 + ora) dell’ultimo tentativo di rapina per abitante. */
+  const ultimoTentativoRapinaAbsRef = useRef<Map<number, number>>(new Map());
+  /** Esito testo scheda dopo una rapina risolta. */
+  const [esitoRapinaByAbitanteId, setEsitoRapinaByAbitanteId] = useState<Record<number, string>>({});
   /** Cella → abitante che la occupa (solo mentre è visibile in strada; non in casa di notte). */
   const cellaOccupataDaAbitanteRef = useRef<Map<number, number>>(new Map());
   const abitanteSuCellaRef = useRef<Map<number, number>>(new Map());
@@ -2300,6 +2317,86 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   /** id edificio Luogo di Culto (globale) → fedeli considerati “dentro” quel tempio. */
   const [cultoArrivatiByEdificio, setCultoArrivatiByEdificio] = useState<Record<number, number[]>>({});
   const [commuteByAbitanteId, setCommuteByAbitanteId] = useState<Record<number, CommuteInfo>>({});
+
+  const minutiAbsGioco = useCallback(
+    () => getGiornoGiocoSnapshot() * 1440 + orologioMinuti,
+    [orologioMinuti]
+  );
+
+  const findEdificioCellRapina = useCallback(
+    (edificioId: number) => trovaAnchorEdificioGlobaleSuMappa(edificioId, edificiInMappa),
+    [edificiInMappa]
+  );
+
+  const idsNascostiPerRapina = useCallback((): Set<number> => {
+    const s = new Set<number>();
+    for (const id of lavoroArrivatiIds) s.add(id);
+    for (const ids of Object.values(barArrivatiByEdificio)) {
+      for (const id of ids) s.add(id);
+    }
+    for (const ids of Object.values(cultoArrivatiByEdificio)) {
+      for (const id of ids) s.add(id);
+    }
+    return s;
+  }, [lavoroArrivatiIds, barArrivatiByEdificio, cultoArrivatiByEdificio]);
+
+  /** Se eleggibile, costruisce una commute purpose rapina verso persona o edificio. */
+  const provaCommuteRapina = useCallback(
+    (ab: Abitante, from: number): CommuteInfo | null => {
+      const oraAbs = minutiAbsGioco();
+      if (
+        !abitantePuòTentareRapina(ab, {
+          edifici,
+          inventarioMensaByEdificioId,
+          ultimoTentativoAbsMinuti: ultimoTentativoRapinaAbsRef.current.get(ab.id) ?? null,
+          oraAbsMinuti: oraAbs
+        })
+      ) {
+        return null;
+      }
+
+      const celleNote = new Map(ultimaCellaAbitanteRef.current);
+      if (!celleNote.has(ab.id)) celleNote.set(ab.id, from);
+      for (const [id, home] of cellaCasaPerAbitanteId) {
+        if (!celleNote.has(id) && home != null) celleNote.set(id, home);
+      }
+
+      const target = scegliBersaglioRapina(ab, abitanti, celleNote, edifici, inventarioMensaByEdificioId, {
+        cols,
+        dormonoACasaIds,
+        nascostiIds: idsNascostiPerRapina(),
+        findEdificioCell: findEdificioCellRapina
+      });
+      if (!target) return null;
+
+      let dest: number | null = null;
+      if (target.tipo === "abitante") {
+        dest = celleNote.get(target.id) ?? null;
+      } else {
+        dest = findEdificioCellRapina(target.id);
+      }
+      if (dest == null) return null;
+
+      const path = calcolaPercorsoVersoAnchorEdificio(from, dest, cols, rows, isWalkableCell);
+      if (!path || path.length < 2) return null;
+
+      ultimoTentativoRapinaAbsRef.current.set(ab.id, oraAbs);
+      return { path, token: Date.now(), purpose: "rapina", rapinaTarget: target };
+    },
+    [
+      minutiAbsGioco,
+      edifici,
+      inventarioMensaByEdificioId,
+      abitanti,
+      cols,
+      rows,
+      isWalkableCell,
+      cellaCasaPerAbitanteId,
+      dormonoACasaIds,
+      idsNascostiPerRapina,
+      findEdificioCellRapina
+    ]
+  );
 
   useEffect(() => {
     const m = new Map<number, Set<number>>();
@@ -2445,9 +2542,16 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           continue;
         }
 
+        const puòRapinare = abitantePuòTentareRapina(ab, {
+          edifici,
+          inventarioMensaByEdificioId,
+          ultimoTentativoAbsMinuti: ultimoTentativoRapinaAbsRef.current.get(id) ?? null,
+          oraAbsMinuti: minutiAbsGioco()
+        });
         const azione = scegliAzioneTempoLibero(ab, {
           puòUsareMensa: abitanteHaBisognoMensa(ab, edifici),
           puòUsareNegozio: abitanteVuoleNegozio(ab, edifici),
+          puòRapinare,
           haCasa: homeCell != null
         });
 
@@ -2507,6 +2611,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           }
         }
 
+        if (azione === "rapina") {
+          const rapina = provaCommuteRapina(ab, from);
+          if (rapina) {
+            nuove[id] = rapina;
+            continue;
+          }
+        }
+
         if (azione === "bar") {
           const barId = scegliBarEdificioIdPiuVicino(from, edifici, edificiInMappa, cols, rows, isWalkableCell);
           if (barId != null) {
@@ -2544,7 +2656,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     aggiornaAbitanteById,
     coprifuocoAttivo,
     coprifuocoInizioMinuti,
-    coprifuocoFineMinuti
+    coprifuocoFineMinuti,
+    inventarioMensaByEdificioId,
+    minutiAbsGioco,
+    provaCommuteRapina
   ]);
 
   const handleCommuteFinita = useCallback(
@@ -2554,13 +2669,19 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       barEdificioId?: number,
       mensaEdificioId?: number,
       cultoEdificioId?: number,
-      negozioEdificioId?: number
+      negozioEdificioId?: number,
+      rapinaTarget?: RapinaTarget
     ) => {
+      const pathCorrente = commuteByAbitanteId[abitanteId]?.path;
+      const cellaArrivo =
+        pathCorrente && pathCorrente.length > 0
+          ? pathCorrente[pathCorrente.length - 1]!
+          : (ultimaCellaAbitanteRef.current.get(abitanteId) ?? null);
+      if (cellaArrivo != null) {
+        ultimaCellaAbitanteRef.current.set(abitanteId, cellaArrivo);
+      }
+
       setCommuteByAbitanteId((prev) => {
-        const cur = prev[abitanteId];
-        if (cur?.path?.length) {
-          ultimaCellaAbitanteRef.current.set(abitanteId, cur.path[cur.path.length - 1]!);
-        }
         const { [abitanteId]: _removed, ...rest } = prev;
         return rest;
       });
@@ -2614,9 +2735,55 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         setCultoArrivatiByEdificio((p) => aggiungiAbitanteAlCultoEdificio(p, cultoEdificioId, abitanteId));
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
         aggiornaAbitanteById(abitanteId, applicaRecuperoCulto);
+      } else if (purpose === "rapina" && rapinaTarget != null) {
+        const ladro = abitanti.find((a) => a.id === abitanteId);
+        if (ladro) {
+          const esito = resolveRapina(ladro, rapinaTarget, {
+            abitanti,
+            edifici,
+            inventarioMensaByEdificioId,
+            minutiDaMezzanotte: orologioMinuti,
+            èNotte: statoCielo.buio > 0.5,
+            suStrada: cellaArrivo != null ? isRoadCell(cellaArrivo) : false
+          });
+          aggiornaAbitanteById(abitanteId, () => esito.nextLadro);
+          if (esito.nextVittima) {
+            aggiornaAbitanteById(esito.nextVittima.id, () => esito.nextVittima!);
+          }
+          if (esito.nextInventarioMensa) {
+            setInventarioMensaEdificio(
+              esito.nextInventarioMensa.edificioId,
+              esito.nextInventarioMensa.inventario
+            );
+          }
+          setEsitoRapinaByAbitanteId((prev) => ({
+            ...prev,
+            [abitanteId]: esito.testoAzione
+          }));
+          if (esito.scoperto && esito.messaggioScoperta) {
+            appendDiarioRiga(esito.messaggioScoperta);
+            Alert.alert("Furto scoperto", esito.messaggioScoperta);
+          }
+        }
+        setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
+        setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
       }
     },
-    [serviPastoMensaAbitante, aggiornaAbitanteById, accreditaMoneteGiocatore, edifici, barArrivatiByEdificio]
+    [
+      serviPastoMensaAbitante,
+      aggiornaAbitanteById,
+      accreditaMoneteGiocatore,
+      edifici,
+      barArrivatiByEdificio,
+      abitanti,
+      inventarioMensaByEdificioId,
+      orologioMinuti,
+      statoCielo.buio,
+      isRoadCell,
+      setInventarioMensaEdificio,
+      appendDiarioRiga,
+      commuteByAbitanteId
+    ]
   );
 
   /** Tempo libero: bisogni spingono snack / mensa / negozio / bar / casa (se non già in commute o al lavoro). */
@@ -2660,9 +2827,16 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         continue;
       }
 
+      const puòRapinare = abitantePuòTentareRapina(a, {
+        edifici,
+        inventarioMensaByEdificioId,
+        ultimoTentativoAbsMinuti: ultimoTentativoRapinaAbsRef.current.get(a.id) ?? null,
+        oraAbsMinuti: minutiAbsGioco()
+      });
       const azione = scegliAzioneTempoLibero(a, {
         puòUsareMensa: abitanteHaBisognoMensa(a, edifici),
         puòUsareNegozio: abitanteVuoleNegozio(a, edifici),
+        puòRapinare,
         haCasa: homeCell != null
       });
       if (azione === "nessuna") continue;
@@ -2724,6 +2898,12 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         continue;
       }
 
+      if (azione === "rapina") {
+        const rapina = provaCommuteRapina(a, from);
+        if (rapina) nuoveCommuteById[a.id] = rapina;
+        continue;
+      }
+
       if (azione === "bar") {
         const barId = scegliBarEdificioIdPiuVicino(from, edifici, edificiInMappa, cols, rows, isWalkableCell);
         if (barId == null) continue;
@@ -2770,7 +2950,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     aggiornaAbitanteById,
     coprifuocoAttivo,
     coprifuocoInizioMinuti,
-    coprifuocoFineMinuti
+    coprifuocoFineMinuti,
+    inventarioMensaByEdificioId,
+    minutiAbsGioco,
+    provaCommuteRapina
   ]);
 
   /** Chi è al bar ma non ha più bisogno di Divertimento/Socialità esce. */
@@ -2837,6 +3020,15 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         if (a.razza === "Robot") continue;
         const home = cellaCasaPerAbitanteId.get(a.id) ?? null;
         const ult = ultimaCellaAbitanteRef.current.get(a.id) ?? null;
+        const fromBase = ult ?? home;
+        const puòRapinare =
+          fromBase != null &&
+          abitantePuòTentareRapina(a, {
+            edifici,
+            inventarioMensaByEdificioId,
+            ultimoTentativoAbsMinuti: ultimoTentativoRapinaAbsRef.current.get(a.id) ?? null,
+            oraAbsMinuti: minutiAbsGioco()
+          });
         const mattina = pianificaCommuteMattina(
           a,
           home,
@@ -2846,19 +3038,30 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           cols,
           rows,
           isWalkableCell,
-          orologioMinuti
+          orologioMinuti,
+          { puòRapinare }
         );
+
+        if (mattina.purpose === "rapina" && fromBase != null) {
+          const rapina = provaCommuteRapina(a, fromBase);
+          if (rapina) {
+            next[a.id] = rapina;
+            continue;
+          }
+        }
+
         const path = mattina.path;
         if (!path || path.length < 2) continue;
         const purpose: CommutePurpose =
-          mattina.purpose ??
-          (mattina.mensaEdificioId
-            ? "mensa"
-            : mattina.negozioEdificioId
-              ? "negozio"
-              : mattina.barEdificioId
-                ? "bar"
-                : "work");
+          mattina.purpose && mattina.purpose !== "rapina"
+            ? mattina.purpose
+            : mattina.mensaEdificioId
+              ? "mensa"
+              : mattina.negozioEdificioId
+                ? "negozio"
+                : mattina.barEdificioId
+                  ? "bar"
+                  : "work";
         next[a.id] = {
           path,
           token: Date.now(),
@@ -2873,6 +3076,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         const s = new Set(prev);
         for (const a of abitanti) {
           if (a.razza === "Robot") continue;
+          if (next[a.id]?.purpose === "rapina") continue;
+          // Fame critica eleggibile a rapina: non teletrasportare al lavoro.
+          if (
+            abitantePuòTentareRapina(a, {
+              edifici,
+              inventarioMensaByEdificioId,
+              ultimoTentativoAbsMinuti: ultimoTentativoRapinaAbsRef.current.get(a.id) ?? null,
+              oraAbsMinuti: minutiAbsGioco()
+            })
+          ) {
+            continue;
+          }
           const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
           if (lav && !next[a.id]) {
             const fascia = fasciaPerEdificio(lav);
@@ -2921,7 +3136,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     cols,
     rows,
     isWalkableCell,
-    orologioMinuti
+    orologioMinuti,
+    inventarioMensaByEdificioId,
+    minutiAbsGioco,
+    provaCommuteRapina
   ]);
 
   const edificiFootprintOverlay = useMemo(() => {
@@ -3749,7 +3967,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                             meta?.barEdificioId,
                             meta?.mensaEdificioId,
                             meta?.cultoEdificioId,
-                            meta?.negozioEdificioId
+                            meta?.negozioEdificioId,
+                            meta?.rapinaTarget
                           );
                         }}
                         onCellSettled={(cell) => handleCellAbitante(abitante.id, cell)}
@@ -4153,7 +4372,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                   attivo: coprifuocoAttivo,
                   inizioMinuti: coprifuocoInizioMinuti,
                   fineMinuti: coprifuocoFineMinuti
-                }
+                },
+                esitoRapinaRecente: esitoRapinaByAbitanteId[schedaWandererAbitante.id] ?? null
               })
             : null
         }

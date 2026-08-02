@@ -204,7 +204,7 @@ export function pianificaCommuteVersoEdificioGlobaleDaCella(
 
 export type RisultatoCommuteMattina = {
   path: number[] | null;
-  purpose?: "work" | "bar" | "mensa" | "home" | "negozio";
+  purpose?: "work" | "bar" | "mensa" | "home" | "negozio" | "rapina";
   barEdificioId?: number;
   mensaEdificioId?: number;
   negozioEdificioId?: number;
@@ -222,7 +222,8 @@ export function pianificaCommuteMattina(
   cols: number,
   rows: number,
   isWalkable: (i: number) => boolean,
-  minutiDaMezzanotte: number
+  minutiDaMezzanotte: number,
+  optsExtra?: { puòRapinare?: boolean }
 ): RisultatoCommuteMattina {
   if (abitante.razza === "Robot") return { path: null };
 
@@ -233,6 +234,7 @@ export function pianificaCommuteMattina(
   const azioneLibera = scegliAzioneTempoLibero(abitante, {
     puòUsareMensa: puòMensa,
     puòUsareNegozio: puòNegozio,
+    puòRapinare: optsExtra?.puòRapinare === true,
     haCasa
   });
 
@@ -301,6 +303,8 @@ export function pianificaCommuteMattina(
       const n = pathVersoNegozio();
       if (n.path != null && n.path.length >= 2) return n;
     }
+    // Rapina: path scelto dallo scheduler mappa (serve bersaglio dinamico).
+    if (azioneLibera === "rapina") return { path: null, purpose: "rapina" };
     if (azioneLibera === "bar") {
       const b = pathVersoBar();
       if (b.path != null && b.path.length >= 2) return b;
@@ -324,6 +328,8 @@ export function pianificaCommuteMattina(
         const n = pathVersoNegozio();
         if (n.path != null && n.path.length >= 2) return n;
       }
+      // Fame critica → rapina: non forzare il lavoro (lo scheduler mappa avvia il furto).
+      if (azioneLibera === "rapina") return { path: null, purpose: "rapina" };
       const w = pathVersoLavoro();
       if (w.path != null && w.path.length >= 2) return w;
       return provaAzioneLibera();
