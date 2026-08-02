@@ -2,6 +2,8 @@ import type { Abitante, Edificio } from "../types";
 import { edificiData } from "../data/edificiData";
 import { EDIFICIO_COMPETENZA_RICHIESTA, type CompetenzaEdificio } from "../data/edificiCompetenze";
 import { getCastaAbitante } from "./casta";
+import { abitanteCercaLavoroPerSoldi } from "./bisogni";
+import { getMoneteInventarioAbitante } from "./inventario";
 import { isGiocatore, puoEssereAssegnatoForzatamente } from "./schiavituCommercio";
 
 /** Mappa edificioId → nome lavoro. Usata per sincronizzare lavoro abitante e per auto-assign Skip Mese. */
@@ -84,7 +86,8 @@ function assegnaDisoccupatiAEdificiPubblici(candidati: Abitante[], edifici: Edif
   return edificiOut;
 }
 
-/** Cittadini disoccupati cercano autonomamente posti vacanti negli edifici pubblici. */
+/** Cittadini disoccupati cercano autonomamente posti vacanti negli edifici pubblici.
+ *  Priorità a chi ha bisogni a pagamento e poche monete. */
 export function autoAssegnaCittadiniDisoccupati(abitanti: Abitante[], edifici: Edificio[]): Edificio[] {
   const candidati = abitanti
     .filter((a) => {
@@ -94,7 +97,15 @@ export function autoAssegnaCittadiniDisoccupati(abitanti: Abitante[], edifici: E
       if (a.razza === "Robot") return false;
       return getCastaAbitante(a) === "Cittadino";
     })
-    .sort((a, b) => b.competenza - a.competenza);
+    .sort((a, b) => {
+      const moneteA = getMoneteInventarioAbitante(a.inventario);
+      const moneteB = getMoneteInventarioAbitante(b.inventario);
+      const urgeA = abitanteCercaLavoroPerSoldi(a, moneteA) ? 1 : 0;
+      const urgeB = abitanteCercaLavoroPerSoldi(b, moneteB) ? 1 : 0;
+      if (urgeB !== urgeA) return urgeB - urgeA;
+      if (moneteA !== moneteB) return moneteA - moneteB;
+      return b.competenza - a.competenza;
+    });
   return assegnaDisoccupatiAEdificiPubblici(candidati, edifici);
 }
 

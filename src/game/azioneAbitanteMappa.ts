@@ -1,6 +1,11 @@
 import type { Abitante, Edificio } from "../types";
 import { getEdificiOccupazione } from "./abitanteEdifici";
 import {
+  abitanteCercaLavoroPerSoldi,
+  getBisogniAbitante
+} from "./bisogni";
+import { getMoneteInventarioAbitante } from "./inventario";
+import {
   abitanteAlBarRoutineOra,
   abitanteInOrarioLavoroEdificio,
   primoEdificioLavoroOrarioPerAbitante
@@ -8,10 +13,11 @@ import {
 import { abitanteNascostoNelCultoOra } from "./presenzaLuogoCulto";
 
 export type CommuteInfoAzione = {
-  purpose: "work" | "bar" | "home" | "mensa" | "culto";
+  purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio";
   barEdificioId?: number;
   mensaEdificioId?: number;
   cultoEdificioId?: number;
+  negozioEdificioId?: number;
 };
 
 function nomeEdificio(edifici: Edificio[], id: number | undefined): string | null {
@@ -88,6 +94,8 @@ export function descriviAzioneCorrenteAbitante(
       }
       case "mensa":
         return "Sta andando a mangiare";
+      case "negozio":
+        return "Sta andando al negozio";
       case "culto":
         return "Sta andando al luogo di culto";
     }
@@ -122,5 +130,14 @@ export function descriviAzioneCorrenteAbitante(
   }
 
   if (abitante.razza === "Robot") return "Sta girando per la colonia";
+
+  const monete = getMoneteInventarioAbitante(abitante.inventario);
+  if (abitanteCercaLavoroPerSoldi(abitante, monete)) return "Cerca lavoro";
+
+  const b = getBisogniAbitante(abitante);
+  if (b.fame < 45) return "Ha fame";
+  if (b.divertimento < 45 || b.socialita < 45) return "Cerca svago";
+  if (b.energia < 45) return "È stanco";
+  if (b.igiene < 45) return "Ha bisogno di igiene";
   return "È in giro";
 }

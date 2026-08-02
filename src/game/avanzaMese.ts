@@ -1,12 +1,17 @@
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso } from "../types";
 import { EVENTI_CATALOGO } from "./eventi/index";
 import { getConsumoCibo, getConsumoAcqua, getProduzioneCiboPerAbitante } from "./ciboConsumo";
-import { abitanteConInventarioIniziale } from "./inventario";
+import {
+  abitanteConInventarioIniziale,
+  getMoneteInventarioAbitante,
+  setMoneteInventarioAbitante
+} from "./inventario";
 import { RESIDENZE_CATALOGO, RESIDENZE_ENERGIA_PER_ABITANTE } from "../data/residenzeData";
 import { getCastaAbitante, isCastaCoercibile } from "./casta";
 import { autoAssegnaCittadiniDisoccupati, autoAssegnaDisoccupati, isEdificioPubblicoConPostazioniLavoro, normalizzaLavoroEAgricoltura } from "./edificiLavoro";
 import { applicaRedditoSchiaviAlPadroni, isOmicidioSchiavoImmune, LAVORO_GIOCATORE } from "./schiavituCommercio";
 import { specializzazioneCasuale } from "./specializzazione";
+import { getProduttivitaEffettiva, normalizzaAbitanteBisogni } from "./bisogni";
 
 export type AvanzaMeseInput = {
   abitanti: Abitante[];
@@ -410,7 +415,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     (edificio.abitantiAssegnati ?? []).forEach((id) => idToCostoAbitazione.set(id, prezzo));
   });
 
-  // Aggiorna abitanti (invecchiamento, pensionamento, schiavi vs non-schiavi, crediti, stanchezza, peso, salute)
+  // Aggiorna abitanti (invecchiamento, pensionamento, monete inventario, stanchezza/bisogni, peso, salute)
   const nuoviAbitanti = abitantiConLavoro.map((abitante) => {
     let eta = abitante.eta;
     if (avanzaAnno) eta += 1;
@@ -433,19 +438,20 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
 
     const èCoercibile = isCastaCoercibile(getCastaAbitante(abitante));
     if (èCoercibile) {
-      const nuovaStanchezza = Math.min(100, abitante.stanchezza + Math.floor(Math.random() * 10));
-      const variazionePeso = Math.floor(Math.random() * 6) - 2;
-      const nuovoPeso = Math.max(0, Math.min(100, abitante.peso + variazionePeso));
-      const variazioneSalute = Math.floor(Math.random() * 6) - 2;
-      const nuovaSalute = Math.max(0, Math.min(100, abitante.salute + variazioneSalute));
-      return {
+      const base = normalizzaAbitanteBisogni({
         ...abitante,
         eta,
         lavoro,
         reddito,
         crediti: 0,
-        spese: 0,
-        stanchezza: nuovaStanchezza,
+        spese: 0
+      });
+      const variazionePeso = Math.floor(Math.random() * 6) - 2;
+      const nuovoPeso = Math.max(0, Math.min(100, base.peso + variazionePeso));
+      const variazioneSalute = Math.floor(Math.random() * 6) - 2;
+      const nuovaSalute = Math.max(0, Math.min(100, base.salute + variazioneSalute));
+      return {
+        ...base,
         peso: nuovoPeso,
         salute: nuovaSalute
       };
@@ -470,8 +476,9 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     }
 
     // Costo abitazione dalla residenza assegnata. Se non può permettersela paga 0 e entra in Senzatetto.
+    const moneteAttuali = getMoneteInventarioAbitante(abitante.inventario);
     const costoAbitazione = idToCostoAbitazione.get(abitante.id) ?? 0;
-    const puòPermettersiAbitazione = abitante.crediti >= costoAbitazione;
+    const puòPermettersiAbitazione = moneteAttuali >= costoAbitazione;
     const spesaAbitazioneEffettiva = costoAbitazione > 0 && puòPermettersiAbitazione ? costoAbitazione : 0;
     let fazioni = abitante.fazioni ?? [];
     if (costoAbitazione > 0 && !puòPermettersiAbitazione) {
@@ -480,23 +487,23 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       fazioni = fazioni.filter((f) => f !== "Senzatetto");
     }
 
-    const nuovoSaldo = abitante.crediti + redditoEffettivo - abitante.spese - spesaAbitazioneEffettiva + risparmio;
-    const nuovaStanchezza = Math.min(100, abitante.stanchezza + Math.floor(Math.random() * 10));
+    const nuovoSaldo =
+      moneteAttuali + redditoEffettivo - abitante.spese - spesaAbitazioneEffettiva + risparmio;
     const variazionePeso = Math.floor(Math.random() * 6) - 2;
     const nuovoPeso = Math.max(0, Math.min(100, abitante.peso + variazionePeso));
     const variazioneSalute = Math.floor(Math.random() * 6) - 2;
     const nuovaSalute = Math.max(0, Math.min(100, abitante.salute + variazioneSalute));
-    return {
+    const aggiornato = normalizzaAbitanteBisogni({
       ...abitante,
       eta,
       lavoro,
       reddito: lavoro === "Disoccupato" ? 0 : reddito,
-      crediti: Math.max(0, nuovoSaldo),
+      crediti: 0,
       fazioni,
-      stanchezza: nuovaStanchezza,
       peso: nuovoPeso,
       salute: nuovaSalute
-    };
+    });
+    return setMoneteInventarioAbitante(aggiornato, Math.max(0, nuovoSaldo));
   });
 
   const { abitanti: abitantiConRedditoPadroni, redditoEsclusoDaColonia } =
@@ -524,7 +531,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
               : (prezzoResidenze[e.nome] ?? RESIDENZE_CATALOGO.find((r) => r.nome === e.nome)?.costoMensile ?? 0);
           for (const id of e.abitantiAssegnati ?? []) {
             const ab = abitantiRimasti.find((a) => a.id === id);
-            if (ab && ab.crediti >= prezzo) sum += prezzo;
+            if (ab && getMoneteInventarioAbitante(ab.inventario) >= prezzo) sum += prezzo;
           }
           return sum;
         }, 0);
@@ -552,7 +559,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
                 const produttivitàMedia =
                   edificio.abitantiAssegnati.reduce((sum, id) => {
                     const abitante = abitantiConRedditoPadroni.find((a) => a.id === id);
-                    return sum + (abitante?.produttività || 0);
+                    return sum + (abitante ? getProduttivitaEffettiva(abitante) : 0);
                   }, 0) / numAbitanti;
                 nuovaQuantità += Math.floor(numAbitanti * (produttivitàMedia / 10));
               }
@@ -657,7 +664,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       religione: madre.religione,
       razza: razzaNeonato,
       sesso: sessoNeonato,
-      specializzazione: specializzazioneCasuale()
+      specializzazione: specializzazioneCasuale(),
+      bisogni: { fame: 80, energia: 90, divertimento: 70, socialita: 70, igiene: 80 }
     };
     abitantiEv.push(abitanteConInventarioIniziale(neonato));
     const madreIdx = abitantiEv.findIndex((a) => a.id === madre.id);

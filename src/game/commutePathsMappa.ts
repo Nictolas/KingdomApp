@@ -1,5 +1,7 @@
 import type { Abitante, Edificio } from "../types";
 import { abitanteHaBisognoMensa } from "./mensaPubblica";
+import { abitanteVuoleNegozio } from "./negozio";
+import { scegliAzioneTempoLibero } from "./bisogni";
 import { fasciaPerEdificio, minutiInFascia, primoEdificioLavoroOrarioPerAbitante } from "./orariLavoroMappa";
 import {
   celleIngressoWalkableAttornoAdAnchor,
@@ -202,14 +204,14 @@ export function pianificaCommuteVersoEdificioGlobaleDaCella(
 
 export type RisultatoCommuteMattina = {
   path: number[] | null;
-  /** Presente se il percorso è verso un Bar (istanza in `edificiList`). */
+  purpose?: "work" | "bar" | "mensa" | "home" | "negozio";
   barEdificioId?: number;
-  /** Presente se il percorso è verso la Mensa Pubblica. */
   mensaEdificioId?: number;
+  negozioEdificioId?: number;
 };
 
 /**
- * All’alba: fuori fascia lavoro → Bar; in fascia (es. dopo le 8:00) → primo edificio con orario.
+ * All’alba / tempo libero: priorità da bisogni (mensa/negozio → bar → casa), poi lavoro se in fascia.
  */
 export function pianificaCommuteMattina(
   abitante: Abitante,
@@ -225,7 +227,14 @@ export function pianificaCommuteMattina(
   if (abitante.razza === "Robot") return { path: null };
 
   const fromBase = homeAnchor ?? ultimaCellaNota;
-  const bisognoMensa = abitanteHaBisognoMensa(abitante, edificiList);
+  const haCasa = homeAnchor != null;
+  const puòMensa = abitanteHaBisognoMensa(abitante, edificiList);
+  const puòNegozio = abitanteVuoleNegozio(abitante, edificiList);
+  const azioneLibera = scegliAzioneTempoLibero(abitante, {
+    puòUsareMensa: puòMensa,
+    puòUsareNegozio: puòNegozio,
+    haCasa
+  });
 
   const pathVersoMensa = (): RisultatoCommuteMattina => {
     const mensaId = scegliMensaEdificioIdPiuVicino(fromBase, edificiList, edificiInMappa, cols, rows, isWalkable);
@@ -234,7 +243,25 @@ export function pianificaCommuteMattina(
     if (mAnchor == null) return { path: null };
     const from = fromBase ?? mAnchor;
     const path = calcolaPercorsoVersoAnchorEdificio(from, mAnchor, cols, rows, isWalkable);
-    return path != null ? { path, mensaEdificioId: mensaId } : { path: null };
+    return path != null ? { path, purpose: "mensa", mensaEdificioId: mensaId } : { path: null };
+  };
+
+  const pathVersoNegozio = (): RisultatoCommuteMattina => {
+    const negozioId = scegliEdificioIdPiuVicinoPerNome(
+      "Negozio",
+      fromBase,
+      edificiList,
+      edificiInMappa,
+      cols,
+      rows,
+      isWalkable
+    );
+    if (negozioId == null) return { path: null };
+    const nAnchor = trovaAnchorEdificioGlobaleSuMappa(negozioId, edificiInMappa);
+    if (nAnchor == null) return { path: null };
+    const from = fromBase ?? nAnchor;
+    const path = calcolaPercorsoVersoAnchorEdificio(from, nAnchor, cols, rows, isWalkable);
+    return path != null ? { path, purpose: "negozio", negozioEdificioId: negozioId } : { path: null };
   };
 
   const pathVersoBar = (): RisultatoCommuteMattina => {
@@ -244,46 +271,69 @@ export function pianificaCommuteMattina(
     if (bAnchor == null) return { path: null };
     const from = fromBase ?? bAnchor;
     const path = calcolaPercorsoVersoAnchorEdificio(from, bAnchor, cols, rows, isWalkable);
-    return path != null ? { path, barEdificioId: barId } : { path: null };
+    return path != null ? { path, purpose: "bar", barEdificioId: barId } : { path: null };
   };
 
-  const pathVersoLavoro = (): number[] | null => {
+  const pathVersoCasa = (): RisultatoCommuteMattina => {
+    if (homeAnchor == null) return { path: null };
+    const from = fromBase ?? homeAnchor;
+    if (from === homeAnchor) return { path: null };
+    const path = calcolaPercorsoVersoAnchorEdificio(from, homeAnchor, cols, rows, isWalkable);
+    return path != null ? { path, purpose: "home" } : { path: null };
+  };
+
+  const pathVersoLavoro = (): RisultatoCommuteMattina => {
     const lavoro = primoEdificioLavoroOrarioPerAbitante(abitante.id, edificiList);
-    if (!lavoro) return null;
+    if (!lavoro) return { path: null };
     const wAnchor = trovaAnchorEdificioGlobaleSuMappa(lavoro.id, edificiInMappa);
-    if (wAnchor == null) return null;
+    if (wAnchor == null) return { path: null };
     const from = fromBase ?? wAnchor;
-    return calcolaPercorsoVersoAnchorEdificio(from, wAnchor, cols, rows, isWalkable);
+    const path = calcolaPercorsoVersoAnchorEdificio(from, wAnchor, cols, rows, isWalkable);
+    return path != null ? { path, purpose: "work" } : { path: null };
+  };
+
+  const provaAzioneLibera = (): RisultatoCommuteMattina => {
+    if (azioneLibera === "mensa") {
+      const m = pathVersoMensa();
+      if (m.path != null && m.path.length >= 2) return m;
+    }
+    if (azioneLibera === "negozio") {
+      const n = pathVersoNegozio();
+      if (n.path != null && n.path.length >= 2) return n;
+    }
+    if (azioneLibera === "bar") {
+      const b = pathVersoBar();
+      if (b.path != null && b.path.length >= 2) return b;
+    }
+    if (azioneLibera === "home") {
+      const h = pathVersoCasa();
+      if (h.path != null && h.path.length >= 2) return h;
+    }
+    return { path: null };
   };
 
   const lavoro = primoEdificioLavoroOrarioPerAbitante(abitante.id, edificiList);
   if (lavoro) {
     const fascia = fasciaPerEdificio(lavoro);
     if (fascia && minutiInFascia(minutiDaMezzanotte, fascia)) {
-      const w = pathVersoLavoro();
-      if (w != null && w.length >= 2) return { path: w };
-      if (bisognoMensa) {
+      if (azioneLibera === "mensa" && puòMensa) {
         const m = pathVersoMensa();
         if (m.path != null && m.path.length >= 2) return m;
       }
-      return pathVersoBar();
+      if (azioneLibera === "negozio" && puòNegozio) {
+        const n = pathVersoNegozio();
+        if (n.path != null && n.path.length >= 2) return n;
+      }
+      const w = pathVersoLavoro();
+      if (w.path != null && w.path.length >= 2) return w;
+      return provaAzioneLibera();
     }
-    if (bisognoMensa) {
-      const m = pathVersoMensa();
-      if (m.path != null && m.path.length >= 2) return m;
-    }
-    const b = pathVersoBar();
-    if (b.path != null && b.path.length >= 2) return b;
-    const w2 = pathVersoLavoro();
-    return { path: w2 };
   }
 
-  if (bisognoMensa) {
-    const m = pathVersoMensa();
-    if (m.path != null && m.path.length >= 2) return m;
-  }
+  const libera = provaAzioneLibera();
+  if (libera.path != null && libera.path.length >= 2) return libera;
 
-  return pathVersoBar();
+  return { path: null };
 }
 
 export function pianificaCommuteSeraACasa(

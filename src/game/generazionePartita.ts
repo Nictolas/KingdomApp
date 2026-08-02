@@ -43,7 +43,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     titolo: "Fazioni e ruoli",
     punti: [
       "Ogni abitante ha sempre la fazione «Cittadini» più una di: Amministrazione, Lavoratori, Scienziati, Esploratori (scelta a caso).",
-      "Almeno 4 abitanti sono «Schiavi»: hanno fazione Schiavi (e non Cittadini), ruoloSchiavitu «schiavo», crediti/reddito/spese a 0.",
+      "Almeno 4 abitanti sono «Schiavi»: hanno fazione Schiavi (e non Cittadini), ruoloSchiavitu «schiavo», monete/reddito/spese a 0.",
       "4 abitanti hanno la fazione «Lealisti», tra cui l'ex governatore (prigioniero in Tribunale).",
       "Il Re e 3 altri abitanti (escluso l'Ex Governatore) hanno la fazione «Rivoluzionari»: chi ha fatto la Rivoluzione.",
       "Ci sono alcuni Immigrati fin da inizio partita."

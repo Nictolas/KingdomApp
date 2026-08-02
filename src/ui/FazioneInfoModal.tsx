@@ -2,6 +2,8 @@ import React from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Abitante, Fazione } from "../types";
 import { getEmojiAbitante } from "../utils/getEmojiAbitante";
+import { getMoneteInventarioAbitante } from "../game/inventario";
+import { abitanteHaInventarioPersonale } from "../game/casta";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 
 type FazioneInfoModalProps = {
@@ -11,18 +13,22 @@ type FazioneInfoModalProps = {
   onClose: () => void;
 };
 
+function moneteDi(a: Abitante): number {
+  return abitanteHaInventarioPersonale(a) ? getMoneteInventarioAbitante(a.inventario) : 0;
+}
+
 export function FazioneInfoModal({ visible, fazione, abitanti = [], onClose }: FazioneInfoModalProps) {
   if (!fazione) return null;
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
   // "Robots": membri = tutti gli abitanti con razza Robot (fazione automatica)
-  // "Élite": membri = i 3 abitanti con più crediti (fazione automatica)
+  // "Élite": membri = i 3 abitanti con più monete in inventario (fazione automatica)
   // "Immigrati": membri = abitanti che non sono Cittadini né Robots (fazione automatica)
   const membri =
     fazione.nome === "Robots"
       ? abitanti.filter((a) => a.razza === "Robot")
       : fazione.nome === "Élite"
-        ? [...abitanti].sort((a, b) => (b.crediti ?? 0) - (a.crediti ?? 0)).slice(0, 3)
+        ? [...abitanti].sort((a, b) => moneteDi(b) - moneteDi(a)).slice(0, 3)
         : fazione.nome === "Immigrati"
           ? abitanti.filter((a) => !(a.fazioni?.includes("Cittadini") ?? false) && !(a.fazioni?.includes("Robots") ?? false))
           : abitanti.filter((a) => a.fazioni?.includes(fazione.nome));

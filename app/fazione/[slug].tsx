@@ -5,6 +5,8 @@ import { useGameContext } from "../../src/context/GameContext";
 import { fazioniData } from "../../src/kingdomData";
 import { getEmojiAbitante } from "../../src/utils/getEmojiAbitante";
 import type { Abitante, Fazione } from "../../src/types";
+import { getMoneteInventarioAbitante } from "../../src/game/inventario";
+import { abitanteHaInventarioPersonale } from "../../src/game/casta";
 
 /** Slug (URL) → nome fazione in fazioniData. Usato per le fazioni senza pagina dedicata. */
 const SLUG_TO_NOME: Record<string, string> = {
@@ -21,9 +23,13 @@ const SLUG_TO_NOME: Record<string, string> = {
   immigrati: "Immigrati"
 };
 
+function moneteDi(a: Abitante): number {
+  return abitanteHaInventarioPersonale(a) ? getMoneteInventarioAbitante(a.inventario) : 0;
+}
+
 function getMembri(fazione: Fazione, abitanti: Abitante[]): Abitante[] {
   if (fazione.nome === "Robots") return abitanti.filter((a) => a.razza === "Robot");
-  if (fazione.nome === "Élite") return [...abitanti].sort((a, b) => (b.crediti ?? 0) - (a.crediti ?? 0)).slice(0, 3);
+  if (fazione.nome === "Élite") return [...abitanti].sort((a, b) => moneteDi(b) - moneteDi(a)).slice(0, 3);
   if (fazione.nome === "Immigrati") return abitanti.filter((a) => !(a.fazioni?.includes("Cittadini") ?? false) && !(a.fazioni?.includes("Robots") ?? false));
   return abitanti.filter((a) => a.fazioni?.includes(fazione.nome));
 }

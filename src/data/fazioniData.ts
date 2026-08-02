@@ -15,8 +15,8 @@ export const fazioniData: Fazione[] = [
   { id: 12, nome: "Robots", emoji: "🤖", descrizione: "Tutti gli abitanti di razza Robot. Fazione automatica: ogni Robot ne fa parte." },
   { id: 13, nome: "Sicurezza", emoji: "🚔", descrizione: "Forze di sicurezza e difesa della colonia. Vigilano sull'ordine e sulla protezione." },
   { id: 14, nome: "Rivoluzionari", emoji: "🔴", descrizione: "Chi ha sostenuto la Rivoluzione: il Re e tre alleati. La loro soddisfazione cala se grazi l'Ex Governatore." },
-  { id: 15, nome: "Élite", emoji: "💎", descrizione: "I 3 abitanti più ricchi della colonia (per crediti). Fazione automatica: si aggiorna in base alla ricchezza." },
-  { id: 16, nome: "Senzatetto", emoji: "🏚️", descrizione: "Abitanti che non possono permettersi il costo dell'abitazione: pagano 0 crediti per la residenza e entrano in questa fazione finché non tornano in grado di pagare." },
+  { id: 15, nome: "Élite", emoji: "💎", descrizione: "I 3 abitanti più ricchi della colonia (per monete in inventario). Fazione automatica: si aggiorna in base alla ricchezza." },
+  { id: 16, nome: "Senzatetto", emoji: "🏚️", descrizione: "Abitanti che non possono permettersi il costo dell'abitazione: pagano 0 monete per la residenza e entrano in questa fazione finché non tornano in grado di pagare." },
   { id: 17, nome: "Immigrati", emoji: "🛂", descrizione: "Tutti gli abitanti che non sono Cittadini né Robots: senza pieni diritti di cittadinanza o di razza sintetica." },
   { id: 18, nome: "Intellettuali", emoji: "📚", descrizione: "Accademici, artisti e pensatori che valorizzano cultura, istruzione e dibattito delle idee." },
   { id: 19, nome: "Ambientalisti", emoji: "🌱", descrizione: "Difendono l'ambiente e la sostenibilità: riduzione rifiuti, tutela delle risorse e del pianeta." }

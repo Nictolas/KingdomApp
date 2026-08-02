@@ -17,7 +17,7 @@ export type StatoPresenzaLuogoCulto =
   | "a_casa_notte"
   | "in_giro";
 
-type CommutePurposeCulto = "work" | "bar" | "home" | "mensa" | "culto";
+type CommutePurposeCulto = "work" | "bar" | "home" | "mensa" | "culto" | "negozio";
 
 export function statoPresenzaFedeleLuogoCulto(
   abitante: Abitante,

@@ -19,7 +19,7 @@ import {
 } from "../game/presenzaLuogoCulto";
 
 type CommuteEntry = {
-  purpose: "work" | "bar" | "home" | "mensa" | "culto";
+  purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio";
   cultoEdificioId?: number;
 };
 

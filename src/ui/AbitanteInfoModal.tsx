@@ -29,6 +29,11 @@ import {
 import { getTitoloStudioAbitante } from "../game/titoloStudio";
 import { CATEGORIA_CIBO, getVociInventarioPerCategoria } from "../game/inventario";
 import { getEmojiAbitante } from "../utils/getEmojiAbitante";
+import {
+  abitanteUsaBisogniUmani,
+  getBisogniAbitante,
+  getProduttivitaEffettiva
+} from "../game/bisogni";
 import { CampoDiLavoroModal } from "./CampoDiLavoroModal";
 import { EdificioInfoModal } from "./EdificioInfoModal";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
@@ -105,6 +110,22 @@ function Block({ title, children }: { title: string; children: React.ReactNode }
     <View style={styles.block}>
       <Text style={styles.blockTitle}>{title}</Text>
       <View style={styles.blockContent}>{children}</View>
+    </View>
+  );
+}
+
+function BisognoBar({ label, emoji, value }: { label: string; emoji: string; value: number }) {
+  const v = Math.max(0, Math.min(100, value));
+  const color = v >= 60 ? "#4ade80" : v >= 35 ? "#fbbf24" : "#f87171";
+  return (
+    <View style={styles.bisognoRow}>
+      <Text style={styles.bisognoLabel}>
+        {emoji} {label}
+      </Text>
+      <View style={styles.bisognoTrack}>
+        <View style={[styles.bisognoFill, { width: `${v}%`, backgroundColor: color }]} />
+      </View>
+      <Text style={styles.bisognoValue}>{v}</Text>
     </View>
   );
 }
@@ -219,6 +240,8 @@ export function AbitanteInfoModal({
 
   const felicitàModificata = calcolaFelicitàModificata ? calcolaFelicitàModificata(abitante) : abitante.felicità;
   const felicitàCambiata = abitante.razza !== "Robot" && felicitàModificata !== abitante.felicità;
+  const bisogni = getBisogniAbitante(abitante);
+  const produttivitàEff = getProduttivitaEffettiva(abitante);
 
   const vociValuta = getVociInventarioPerCategoria(abitante.inventario, "Valuta");
   const vociCibo = getVociInventarioPerCategoria(abitante.inventario, CATEGORIA_CIBO);
@@ -282,6 +305,21 @@ export function AbitanteInfoModal({
                   <Text style={styles.lavoroBadgeText}>💼 {lavoroDisplay}</Text>
                 </View>
               </View>
+            </View>
+
+            <View style={styles.bisogniPanel}>
+              <Text style={styles.bisogniTitle}>Bisogni</Text>
+              {abitanteUsaBisogniUmani(abitante) ? (
+                <>
+                  <BisognoBar label="Fame" emoji="🍽️" value={bisogni.fame} />
+                  <BisognoBar label="Energia" emoji="⚡" value={bisogni.energia} />
+                  <BisognoBar label="Divertimento" emoji="🎉" value={bisogni.divertimento} />
+                  <BisognoBar label="Socialità" emoji="💬" value={bisogni.socialita} />
+                  <BisognoBar label="Igiene" emoji="🧼" value={bisogni.igiene} />
+                </>
+              ) : (
+                <BisognoBar label="Energia" emoji="🔋" value={bisogni.energia} />
+              )}
             </View>
 
             <View style={styles.fiveCol}>
@@ -372,8 +410,8 @@ export function AbitanteInfoModal({
                   label="Specializzazione"
                   value={getSpecializzazioneAbitante(abitante)}
                 />
-                <Row emoji="⚡" value={`${abitante.produttività}%`} />
-                <Row emoji="😴" value={`${abitante.stanchezza}%`} />
+                <Row emoji="⚡" label="Produttività" value={`${produttivitàEff}%${produttivitàEff !== abitante.produttività ? ` (base ${abitante.produttività})` : ""}`} />
+                <Row emoji="😴" label="Stanchezza" value={`${abitante.stanchezza}%`} />
                 <Row emoji="⚖️" value={abitante.razza === "Robot" ? "—" : `${abitante.peso ?? 50}`} />
                 <Row emoji="🏥" value={abitante.razza === "Robot" ? "—" : getStatoSalute(abitante)} />
               </Block>
@@ -590,6 +628,52 @@ const styles = StyleSheet.create({
     alignItems: "stretch",
     gap: 10,
     marginTop: 14
+  },
+  bisogniPanel: {
+    marginTop: 14,
+    backgroundColor: "rgba(15,23,42,0.5)",
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.12)",
+    padding: 10
+  },
+  bisogniTitle: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "rgba(248,250,252,0.9)",
+    marginBottom: 8,
+    textTransform: "uppercase",
+    letterSpacing: 0.4
+  },
+  bisognoRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 8,
+    marginBottom: 6
+  },
+  bisognoLabel: {
+    width: 110,
+    fontSize: 11,
+    color: "#e2e8f0",
+    fontWeight: "600"
+  },
+  bisognoTrack: {
+    flex: 1,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: "rgba(51,65,85,0.8)",
+    overflow: "hidden"
+  },
+  bisognoFill: {
+    height: "100%",
+    borderRadius: 4
+  },
+  bisognoValue: {
+    width: 28,
+    textAlign: "right",
+    fontSize: 11,
+    color: "#94a3b8",
+    fontWeight: "600"
   },
   block: {
     flex: 1,

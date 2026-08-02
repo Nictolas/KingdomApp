@@ -72,7 +72,11 @@ export type Abitante = {
   fazioni: string[]; // Ogni abitante può far parte di più fazioni (es. Cittadini, Nativi, Schiavi, Amministrazione, …)
   peso: number; // 0-100: indicatore peso (Denutrito 0-40, Normopeso 41-80, Sovrappeso 81-95, Obeso 96+)
   salute: number; // 0-100: salute fisica (usata da eventi/ferite)
-  crediti: number; // Monete
+  /**
+   * @deprecated Usa monete nell'inventario (`itemId: "monete"`).
+   * Tenuto opzionale solo per migrazione; viene azzerato in normalizza.
+   */
+  crediti?: number;
   reddito: number; // Monete al mese
   spese: number; // Monete al mese
   lealtà: number; // 0-100
@@ -103,6 +107,14 @@ export type Abitante = {
   inventario?: { itemId: string; quantità: number }[];
   /** Ultimo giorno di gioco in cui ha consumato un oggetto Cibo dall'inventario. */
   ultimoGiornoCiboConsumato?: number;
+  /** Bisogni 0–100 (Fame, Energia, Divertimento, Socialità, Igiene). */
+  bisogni?: {
+    fame: number;
+    energia: number;
+    divertimento: number;
+    socialita: number;
+    igiene: number;
+  };
 };
 
 // Razze trovabili tra gli abitanti (pianeti di origine o sintetici)

@@ -117,6 +117,8 @@ type GameContextType = {
   nominaMinistro: (abitanteId: number, ministero: string) => void;
   rimuoviMinistro: (abitanteId: number) => void;
   setNomeAbitante: (abitanteId: number, nuovoNome: string) => void;
+  /** Aggiorna un abitante (es. effetti bisogni da mappa). */
+  aggiornaAbitanteById: (abitanteId: number, fn: (a: Abitante) => Abitante) => void;
   setAbitanteIncinta: (abitanteId: number, incinta: boolean) => void;
   serviPastoMensaAbitante: (abitanteId: number, edificioId: number) => void;
   trasferisciCiboGiocatoreAMensa: (edificioId: number, itemId: string, quantità: number) => boolean;

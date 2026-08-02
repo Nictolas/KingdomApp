@@ -25,7 +25,7 @@ export default function RicchezzaScreen() {
 
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={false}>
         <Text style={styles.subtitle}>
-          Classifica per patrimonio totale (crediti + monete in inventario), dal più ricco al più povero.
+          Classifica per monete in inventario, dal più ricco al più povero.
         </Text>
 
         {classifica.map((voce, index) => (
@@ -36,9 +36,7 @@ export default function RicchezzaScreen() {
               <Text style={styles.nome} numberOfLines={1}>
                 {voce.abitante.nome}
               </Text>
-              <Text style={styles.dettaglio}>
-                {voce.crediti} crediti · {voce.monete} monete
-              </Text>
+              <Text style={styles.dettaglio}>{voce.monete} monete</Text>
             </View>
             <Text style={styles.totale}>{voce.totale}</Text>
           </View>

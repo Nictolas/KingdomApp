@@ -332,7 +332,7 @@ export function RpgFootprintBar2x2({ width, height }: Props) {
   );
 }
 
-/** Mercato 2×2 — tenda verde/rossa, facciata chiara con emoji negozio. */
+/** Mercato 2×2 — tenda verde/rossa, facciata chiara con emoji mercato. */
 export function RpgFootprintMercato2x2({ width, height }: Props) {
   const roofH = Math.round(height * 0.28);
   const awningH = Math.max(6, Math.round(height * 0.12));
@@ -371,6 +371,50 @@ export function RpgFootprintMercato2x2({ width, height }: Props) {
           <Text style={{ fontSize: emojiSize, lineHeight: emojiSize + 2, textAlign: "center" }}>🏪</Text>
         </View>
         <View style={[styles.trimBand, { height: bandH, backgroundColor: "#78350f" }]} />
+      </View>
+    </View>
+  );
+}
+
+/** Negozio 2×2 — stessa lettura del Mercato, emoji 🏬. */
+export function RpgFootprintNegozio2x2({ width, height }: Props) {
+  const roofH = Math.round(height * 0.28);
+  const awningH = Math.max(6, Math.round(height * 0.12));
+  const grondaH = 2;
+  const bandH = Math.max(3, Math.floor((height - roofH - awningH - grondaH) * 0.09));
+  const nStripes = Math.max(6, Math.floor(width / 10));
+  const emojiSize = Math.max(14, Math.min(28, Math.floor(Math.min(width, height) * 0.2)));
+
+  return (
+    <View style={[styles.wrap, { width, height }]} pointerEvents="none">
+      <View
+        style={{
+          height: roofH,
+          backgroundColor: "#57534e",
+          borderBottomWidth: 2,
+          borderBottomColor: OUTLINE
+        }}
+      />
+      <View style={{ height: awningH, flexDirection: "row", overflow: "hidden" }}>
+        {Array.from({ length: nStripes }, (_, i) => (
+          <View
+            key={`ng-${i}`}
+            style={{
+              flex: 1,
+              backgroundColor: i % 2 === 0 ? "#2563eb" : "#e2e8f0",
+              borderRightWidth: i < nStripes - 1 ? 1 : 0,
+              borderRightColor: OUTLINE
+            }}
+          />
+        ))}
+      </View>
+      <View style={[styles.gronda, { height: grondaH }]} />
+      <View style={[styles.wallBlockFlex, { backgroundColor: "#e0f2fe" }]}>
+        <View style={[styles.trimBand, { height: bandH, backgroundColor: "#0369a1" }]} />
+        <View style={[styles.wallInnerFlex, { backgroundColor: "#bae6fd", justifyContent: "center", alignItems: "center" }]}>
+          <Text style={{ fontSize: emojiSize, lineHeight: emojiSize + 2, textAlign: "center" }}>🏬</Text>
+        </View>
+        <View style={[styles.trimBand, { height: bandH, backgroundColor: "#0c4a6e" }]} />
       </View>
     </View>
   );

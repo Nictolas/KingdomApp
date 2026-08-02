@@ -28,6 +28,7 @@ import { PENA_REATI_INIZIALE, type PenaReatiConfig, type ReatoPunibile } from ".
 import { generaAssimilati } from "../game/assimilazione";
 import { calcolaProduzioneConsumoPuro } from "../game/produzioneConsumo";
 import { calcolaFelicitàModificataPuro } from "../game/felicita";
+import { getEdificioAbitazione } from "../game/abitanteEdifici";
 import { generaImmigratiProposti } from "../game/immigrazione";
 import { getLavoroPerEdificio, autoAssegnaCittadiniDisoccupati, normalizzaLavoroEAgricoltura, edificioAccettaServiDellaGleba } from "../game/edificiLavoro";
 import {
@@ -418,15 +419,16 @@ export function useGameState() {
     });
   }, []);
 
-  // Felicità modificata per politica religiosa e legge droghe (logica in src/game/felicita)
+  // Felicità modificata per politica religiosa, legge droghe, bisogni e abitazione
   const calcolaFelicitàModificata = useCallback(
     (abitante: Abitante): number =>
       calcolaFelicitàModificataPuro(abitante, {
         politicaReligiosa,
         religioneDiStato,
-        leggeDroghe
+        leggeDroghe,
+        nomeResidenza: getEdificioAbitazione(abitante.id, edifici)?.nome ?? null
       }),
-    [politicaReligiosa, religioneDiStato, leggeDroghe]
+    [politicaReligiosa, religioneDiStato, leggeDroghe, edifici]
   );
 
   const avanzaMese = useCallback(async () => {
@@ -812,6 +814,10 @@ export function useGameState() {
     setAbitanti((prev) =>
       prev.map((a) => (a.id === abitanteId ? { ...a, nome } : a))
     );
+  }, []);
+
+  const aggiornaAbitanteById = useCallback((abitanteId: number, fn: (a: Abitante) => Abitante) => {
+    setAbitanti((prev) => prev.map((a) => (a.id === abitanteId ? fn(a) : a)));
   }, []);
 
   const setAbitanteIncinta = useCallback((abitanteId: number, incinta: boolean) => {
@@ -1229,6 +1235,7 @@ export function useGameState() {
     nominaMinistro,
     rimuoviMinistro,
     setNomeAbitante,
+    aggiornaAbitanteById,
     calcolaProduzioneConsumo,
     accettaImmigrante,
     rifiutaImmigrante,

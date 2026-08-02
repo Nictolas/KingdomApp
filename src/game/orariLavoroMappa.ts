@@ -1,5 +1,6 @@
 import type { Abitante, Edificio } from "../types";
 import { èNotteRoutineMappaDaBuio } from "./cicloCielo";
+import { abitanteVuoleBarPerBisogni } from "./bisogni";
 
 /** Fascia in minuti da mezzanotte [0, 1440). */
 export type FasciaOrariaMinuti = { inizio: number; fine: number };
@@ -90,8 +91,7 @@ export function abitanteInOrarioLavoroEdificio(
 }
 
 /**
- * Disoccupati (non Robot) di giorno: “al Bar” sulla mappa (nascosti come in edificio).
- * Di notte (stessa soglia buio delle residenze) non contano: vanno a casa / non al bar.
+ * Disoccupati (non Robot) di giorno: al Bar solo se Divertimento/Socialità lo richiedono.
  */
 export function abitanteDisoccupatoAlBarOra(
   abitante: Abitante,
@@ -103,12 +103,11 @@ export function abitanteDisoccupatoAlBarOra(
   if (abitante.lavoro !== "Disoccupato") return false;
   if (èNotteRoutineMappaDaBuio(buioCielo)) return false;
   if (abitanteInOrarioLavoroEdificio(abitante.id, minutiDaMezzanotte, edificiList)) return false;
-  return true;
+  return abitanteVuoleBarPerBisogni(abitante);
 }
 
 /**
- * Di giorno, fuori fascia lavoro: tutti i non-Robot (anche assegnati a Serra, ecc.) sono “al Bar”
- * sulla mappa, non in passeggio a caso. In fascia lavoro restano in edificio.
+ * Di giorno, fuori fascia lavoro: al Bar solo se i bisogni Divertimento/Socialità lo richiedono.
  */
 export function abitanteAlBarRoutineOra(
   abitante: Abitante,
@@ -119,7 +118,7 @@ export function abitanteAlBarRoutineOra(
   if (abitante.razza === "Robot") return false;
   if (èNotteRoutineMappaDaBuio(buioCielo)) return false;
   if (abitanteInOrarioLavoroEdificio(abitante.id, minutiDaMezzanotte, edificiList)) return false;
-  return true;
+  return abitanteVuoleBarPerBisogni(abitante);
 }
 
 export function abitantiPresentiNelBarOra(

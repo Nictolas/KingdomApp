@@ -44,7 +44,7 @@ export const VOCI_CIBO_IDS = [
 export type VoceInventario = { itemId: string; quantità: number };
 
 const INVENTARIO_INIZIALE: VoceInventario[] = [
-  { itemId: "monete", quantità: 10 },
+  { itemId: "monete", quantità: 100 },
   { itemId: "mela", quantità: 5 },
   { itemId: "bistecca", quantità: 5 },
   { itemId: "latte", quantità: 5 },
@@ -105,7 +105,29 @@ export function aggiungiMoneteInventarioAbitante(abitante: Abitante, quantità: 
   const next = inv.map((v) =>
     v.itemId === "monete" ? { ...v, quantità: v.quantità + quantità } : v
   );
-  return { ...abitante, inventario: next };
+  return { ...abitante, inventario: next, crediti: 0 };
+}
+
+export function setMoneteInventarioAbitante(abitante: Abitante, quantità: number): Abitante {
+  if (!abitanteHaInventarioPersonale(abitante)) {
+    return { ...abitante, inventario: undefined, crediti: 0 };
+  }
+  const inv = normalizzaInventarioAbitante(abitante.inventario);
+  const q = Math.max(0, Math.floor(quantità));
+  const next = inv.map((v) => (v.itemId === "monete" ? { ...v, quantità: q } : v));
+  return { ...abitante, inventario: next, crediti: 0 };
+}
+
+/** Sottrae monete; `null` se saldo insufficiente o senza inventario. */
+export function provaSpendiMoneteInventarioAbitante(
+  abitante: Abitante,
+  quantità: number
+): Abitante | null {
+  if (quantità <= 0) return abitante;
+  if (!abitanteHaInventarioPersonale(abitante)) return null;
+  const monete = getMoneteInventarioAbitante(abitante.inventario);
+  if (monete < quantità) return null;
+  return setMoneteInventarioAbitante(abitante, monete - quantità);
 }
 
 export function getMoneteInventarioAbitante(inventario?: VoceInventario[]): number {
@@ -200,13 +222,21 @@ export function abitanteConInventarioIniziale<T extends Abitante>(abitante: T): 
   };
 }
 
-/** Rimuove l'inventario dagli schiavi/servi e normalizza gli altri. */
+/** Rimuove l'inventario dagli schiavi/servi e normalizza gli altri.
+ *  Migra eventuali `crediti` legacy nelle monete in inventario. */
 export function normalizzaAbitanteInventario(abitante: Abitante): Abitante {
+  const legacyCrediti = Math.max(0, Math.floor(abitante.crediti ?? 0));
   if (!abitanteHaInventarioPersonale(abitante)) {
     const { inventario: _inv, ...rest } = abitante;
-    return { ...rest, inventario: undefined };
+    return { ...rest, inventario: undefined, crediti: 0 };
   }
-  return { ...abitante, inventario: normalizzaInventarioAbitante(abitante.inventario) };
+  let inv = normalizzaInventarioAbitante(abitante.inventario);
+  if (legacyCrediti > 0) {
+    inv = inv.map((v) =>
+      v.itemId === "monete" ? { ...v, quantità: v.quantità + legacyCrediti } : v
+    );
+  }
+  return { ...abitante, inventario: inv, crediti: 0 };
 }
 
 /** Consuma 1 unità del primo oggetto Cibo disponibile e compatibile con la dieta; null se nessuno. */

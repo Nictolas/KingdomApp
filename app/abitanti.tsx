@@ -8,10 +8,11 @@ import { getAbitazioneAbitante } from "../src/game/abitanteEdifici";
 import { getEmojiRazza, fazioniData } from "../src/kingdomData";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
-import { getCastaAbitante, getEmojiCasta, isCastaCoercibile } from "../src/game/casta";
+import { getCastaAbitante, getEmojiCasta, isCastaCoercibile, abitanteHaInventarioPersonale } from "../src/game/casta";
 import { isGiocatore, LAVORO_GIOCATORE } from "../src/game/schiavituCommercio";
 import { getSpecializzazioneAbitante } from "../src/game/specializzazione";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
+import { getMoneteInventarioAbitante } from "../src/game/inventario";
 
 type FazioneItem = { emoji: string; nome: string };
 
@@ -58,7 +59,7 @@ function getResidenzaAbitante(abitanteId: number, edifici: Edificio[]): string {
   return getAbitazioneAbitante(abitanteId, edifici);
 }
 
-type SortField = "nome" | "eta" | "lavoro" | "razza" | "casta" | "sesso" | "orientamento" | "residenza" | "specializzazione" | "produttività" | "stanchezza" | "peso" | "salute" | "crediti" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "fazioni" | null;
+type SortField = "nome" | "eta" | "lavoro" | "razza" | "casta" | "sesso" | "orientamento" | "residenza" | "specializzazione" | "produttività" | "stanchezza" | "peso" | "salute" | "monete" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "fazioni" | null;
 type SortDirection = "asc" | "desc";
 
 type MacroKey = "anagrafica" | "prestazioni" | "benessere" | "economia" | "lealta" | "sociale" | "religioneFazioni";
@@ -207,6 +208,9 @@ export default function AbitantiScreen() {
       } else if (sortField === "reddito") {
         aValue = getRedditoDisplay(a, etaMinimaLavoro, redditoCittadinanza ?? 0);
         bValue = getRedditoDisplay(b, etaMinimaLavoro, redditoCittadinanza ?? 0);
+      } else if (sortField === "monete") {
+        aValue = abitanteHaInventarioPersonale(a) ? getMoneteInventarioAbitante(a.inventario) : -1;
+        bValue = abitanteHaInventarioPersonale(b) ? getMoneteInventarioAbitante(b.inventario) : -1;
       } else {
         aValue = a[sortField as keyof Abitante] as number;
         bValue = b[sortField as keyof Abitante] as number;
@@ -402,9 +406,9 @@ export default function AbitantiScreen() {
             )}
             {macroOpen.economia && (
               <>
-                <Pressable style={[styles.headerCell, styles.cellMedium, sortField === "crediti" && styles.headerCellActive]} onPress={() => handleSort("crediti")}>
-                  <Text style={styles.headerText}>💰 Patrimonio</Text>
-                  {sortField === "crediti" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                <Pressable style={[styles.headerCell, styles.cellMedium, sortField === "monete" && styles.headerCellActive]} onPress={() => handleSort("monete")}>
+                  <Text style={styles.headerText}>💰 Monete</Text>
+                  {sortField === "monete" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
                 </Pressable>
                 <Pressable style={[styles.headerCell, styles.cellMedium, sortField === "reddito" && styles.headerCellActive]} onPress={() => handleSort("reddito")}>
                   <Text style={styles.headerText}>📈 Reddito</Text>
@@ -532,7 +536,13 @@ export default function AbitantiScreen() {
                 )}
                 {macroOpen.economia && (
                   <>
-                    <View style={[styles.cell, styles.cellMedium]}><Text style={styles.cellText}>{a.razza === "Robot" ? "—" : a.crediti}</Text></View>
+                    <View style={[styles.cell, styles.cellMedium]}>
+                      <Text style={styles.cellText}>
+                        {a.razza === "Robot" || !abitanteHaInventarioPersonale(a)
+                          ? "—"
+                          : getMoneteInventarioAbitante(a.inventario)}
+                      </Text>
+                    </View>
                     <View style={[styles.cell, styles.cellMedium]}>
                       {a.razza === "Robot" ? (
                         <Text style={styles.cellText}>—</Text>

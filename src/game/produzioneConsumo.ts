@@ -1,6 +1,7 @@
 import type { Abitante, Edificio, Risorsa } from "../types";
 import { getConsumoCibo, getConsumoAcqua } from "./ciboConsumo";
 import { calcolaProduzioneSerraMensile } from "./produzioneSerra";
+import { getProduttivitaEffettiva } from "./bisogni";
 
 export type CalcolaProduzioneConsumoInput = {
   abitanti: Abitante[];
@@ -40,7 +41,7 @@ export function calcolaProduzioneConsumoPuro({
                 const produttivitàMedia =
                   edificio.abitantiAssegnati.reduce((sum, id) => {
                     const abitante = abitanti.find((a) => a.id === id);
-                    return sum + (abitante?.produttività || 0);
+                    return sum + (abitante ? getProduttivitaEffettiva(abitante) : 0);
                   }, 0) / numAbitanti;
 
                 const produzione = Math.floor(numAbitanti * (produttivitàMedia / 10));

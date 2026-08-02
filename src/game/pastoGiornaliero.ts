@@ -11,6 +11,14 @@ import {
   haCiboCompatibileInInventario,
   NOME_MENSA_PUBBLICA
 } from "./mensaPubblica";
+import {
+  applicaDecayBisogniGiornaliero,
+  applicaDrainEnergiaLavoro,
+  applicaRecuperoFamePasto,
+  normalizzaAbitanteBisogni
+} from "./bisogni";
+import { getEdificioAbitazione } from "./abitanteEdifici";
+import { tentaSnackDaInventario } from "./negozio";
 
 export type PastiGiornalieriResult = {
   abitanti: Abitante[];
@@ -104,7 +112,9 @@ function applicaPastoSingoloGiorno(
     }
 
     if (nutrito) {
-      nextAbitanti[i] = { ...a, ultimoGiornoCiboConsumato: giorno };
+      nextAbitanti[i] = applicaRecuperoFamePasto({ ...a, ultimoGiornoCiboConsumato: giorno });
+    } else {
+      nextAbitanti[i] = a;
     }
   }
 
@@ -125,7 +135,14 @@ export function applicaPastiGiornalieriPerPeriodo(
 
   for (let g = giornoDa + 1; g <= giornoA; g++) {
     const res = applicaPastoSingoloGiorno(nextAbitanti, edifici, nextMensa, g);
-    nextAbitanti = res.abitanti;
+    nextAbitanti = res.abitanti.map((a) => {
+      let next = applicaDecayBisogniGiornaliero(a, {
+        nomeResidenza: getEdificioAbitazione(a.id, edifici)?.nome ?? null
+      });
+      next = applicaDrainEnergiaLavoro(next);
+      const snack = tentaSnackDaInventario(next);
+      return snack ?? next;
+    });
     nextMensa = res.inventarioMensaByEdificioId;
     if (res.carestiaMensa) carestiaMensa = true;
   }
@@ -141,7 +158,7 @@ export function normalizzaEAplicaPastiAbitanti(
   giornoGioco: number,
   ultimoGiornoPasti: number
 ): PastiGiornalieriResult {
-  const base = abitanti.map(normalizzaAbitanteInventario);
+  const base = abitanti.map((a) => normalizzaAbitanteBisogni(normalizzaAbitanteInventario(a)));
   if (giornoGioco <= ultimoGiornoPasti) {
     return { abitanti: base, inventarioMensaByEdificioId, carestiaMensa: false };
   }

@@ -1,6 +1,7 @@
 import type { Abitante, Edificio } from "../types";
 import { abitanteHaInventarioPersonale, getCastaAbitante } from "./casta";
 import { abitanteDeveConsumareCiboGiornaliero } from "./consumoCiboInventario";
+import { applicaRecuperoFamePasto } from "./bisogni";
 import {
   abitantePuòConsumareOggettoCibo,
   isOggettoCibo,
@@ -41,7 +42,11 @@ export function mensaOperativaInColonia(edifici: Edificio[]): boolean {
   return edifici.some((e) => e.nome === NOME_MENSA_PUBBLICA && e.stato === "Operativo");
 }
 
-/** True se l'abitante deve recarsi in mensa (Servi della gleba o senza cibo compatibile). */
+/**
+ * True se l'abitante deve recarsi in mensa:
+ * Servo / senza cibo personale compatibile (e mensa operativa).
+ * La Fame urgente alza la priorità nello scheduler, ma la mensa resta per chi non può mangiare da solo.
+ */
 export function abitanteHaBisognoMensa(abitante: Abitante, edifici: Edificio[]): boolean {
   if (!abitanteDeveConsumareCiboGiornaliero(abitante)) return false;
   if (!mensaOperativaInColonia(edifici)) return false;
@@ -111,7 +116,7 @@ export function serviPastoMensaTransaction(
   }
 
   return {
-    abitante: { ...abitante, ultimoGiornoCiboConsumato: giornoGioco },
+    abitante: applicaRecuperoFamePasto({ ...abitante, ultimoGiornoCiboConsumato: giornoGioco }),
     inventarioMensa: pasto.inventarioMensa,
     servito: true,
     carestiaMensa: false

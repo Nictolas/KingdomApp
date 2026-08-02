@@ -1,6 +1,10 @@
 import type { Abitante, Edificio, Risorsa } from "../types";
 import { condannaAMortePuro } from "./tribunale";
 import { getCastaAbitante, isCastaCoercibile } from "./casta";
+import {
+  aggiungiMoneteInventarioAbitante,
+  provaSpendiMoneteInventarioAbitante
+} from "./inventario";
 
 /** Prezzo di riferimento per compravendita schiavi (monete). */
 export const PREZZO_SCHIAVO_DEFAULT = 500;
@@ -82,10 +86,12 @@ function addebita(
     return { ok: true, abitanti, risorse: setCreditiColonia(risorse, saldo - importo) };
   }
   const pagatore = abitanti.find((a) => a.id === pagatoreId);
-  if (!pagatore || pagatore.crediti < importo) return { ok: false, abitanti, risorse };
+  if (!pagatore) return { ok: false, abitanti, risorse };
+  const dopoSpesa = provaSpendiMoneteInventarioAbitante(pagatore, importo);
+  if (!dopoSpesa) return { ok: false, abitanti, risorse };
   return {
     ok: true,
-    abitanti: abitanti.map((a) => (a.id === pagatoreId ? { ...a, crediti: a.crediti - importo } : a)),
+    abitanti: abitanti.map((a) => (a.id === pagatoreId ? dopoSpesa : a)),
     risorse
   };
 }
@@ -102,7 +108,9 @@ function accredita(
     return { abitanti, risorse: setCreditiColonia(risorse, saldo + importo) };
   }
   return {
-    abitanti: abitanti.map((a) => (a.id === beneficiarioId ? { ...a, crediti: a.crediti + importo } : a)),
+    abitanti: abitanti.map((a) =>
+      a.id === beneficiarioId ? aggiungiMoneteInventarioAbitante(a, importo) : a
+    ),
     risorse
   };
 }
@@ -214,7 +222,7 @@ export function applicaRedditoSchiaviAlPadroni(
   const aggiornati = abitanti.map((a) => {
     const bonus = redditoPerPadrone.get(a.id);
     if (!bonus) return a;
-    return { ...a, crediti: a.crediti + bonus };
+    return aggiungiMoneteInventarioAbitante(a, bonus);
   });
 
   return { abitanti: aggiornati, redditoEsclusoDaColonia };
