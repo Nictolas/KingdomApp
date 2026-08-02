@@ -86,6 +86,7 @@ import {
   RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
 import { MapWandererCharacter } from "../src/components/MapWandererCharacter";
+import { descriviAzioneCorrenteAbitante } from "../src/game/azioneAbitanteMappa";
 import { MapTerrainCell } from "../src/components/MapTerrainCell";
 import { MapWaterCellsLayer } from "../src/components/MapWaterCellsLayer";
 import { MondoLoadingScreen } from "../src/components/MondoLoadingScreen";
@@ -2225,8 +2226,37 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   }, [abitanti, edifici, edificiInMappa, residenzeMappa]);
 
   const ultimaCellaAbitanteRef = useRef<Map<number, number>>(new Map());
+  /** Cella → abitante che la occupa (solo mentre è visibile in strada; non in casa di notte). */
+  const cellaOccupataDaAbitanteRef = useRef<Map<number, number>>(new Map());
+  const abitanteSuCellaRef = useRef<Map<number, number>>(new Map());
   const prevBuioNotteTransitRef = useRef<boolean | undefined>(undefined);
   const orologioPrevTickRef = useRef(orologioMinuti);
+
+  const isCellFreeForAbitante = useCallback((abitanteId: number, cell: number) => {
+    const occupant = cellaOccupataDaAbitanteRef.current.get(cell);
+    return occupant == null || occupant === abitanteId;
+  }, []);
+
+  const tryClaimCellAbitante = useCallback((abitanteId: number, cell: number) => {
+    const occupant = cellaOccupataDaAbitanteRef.current.get(cell);
+    if (occupant != null && occupant !== abitanteId) return false;
+    const prev = abitanteSuCellaRef.current.get(abitanteId);
+    if (prev != null && prev !== cell && cellaOccupataDaAbitanteRef.current.get(prev) === abitanteId) {
+      cellaOccupataDaAbitanteRef.current.delete(prev);
+    }
+    cellaOccupataDaAbitanteRef.current.set(cell, abitanteId);
+    abitanteSuCellaRef.current.set(abitanteId, cell);
+    return true;
+  }, []);
+
+  const releaseCellAbitante = useCallback((abitanteId: number) => {
+    const cell = abitanteSuCellaRef.current.get(abitanteId);
+    if (cell == null) return;
+    if (cellaOccupataDaAbitanteRef.current.get(cell) === abitanteId) {
+      cellaOccupataDaAbitanteRef.current.delete(cell);
+    }
+    abitanteSuCellaRef.current.delete(abitanteId);
+  }, []);
 
   const [dormonoACasaIds, setDormonoACasaIds] = useState<Set<number>>(() => new Set());
   const [lavoroArrivatiIds, setLavoroArrivatiIds] = useState<Set<number>>(() => new Set());
@@ -3474,6 +3504,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                         disableIdleRoam={!èNottePersonaggiInCasa && abitante.razza !== "Robot"}
                         markerEmoji={abitante.razza === "Robot" ? getEmojiAbitante(abitante) : null}
                         doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitante.id)}`}
+                        isCellFreeForMe={(cell) => isCellFreeForAbitante(abitante.id, cell)}
+                        tryClaimCell={(cell) => tryClaimCellAbitante(abitante.id, cell)}
+                        releaseMyCell={() => releaseCellAbitante(abitante.id)}
                       />
                     );
                   })}
@@ -3827,6 +3860,21 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         calcolaFelicitàModificata={calcolaFelicitàModificata}
         etaMinimaLavoro={etaMinimaLavoro}
         onApriResidenzaMappa={handleApriResidenzaMappa}
+        azioneCorrente={
+          schedaWandererAbitante
+            ? descriviAzioneCorrenteAbitante(schedaWandererAbitante, {
+                edifici,
+                buioCielo: statoCielo.buio,
+                orologioMinuti,
+                dormonoACasaIds,
+                lavoroArrivatiIds,
+                barArrivatiByEdificio,
+                cultoArrivatiByEdificio,
+                commuteInfo: commuteByAbitanteId[schedaWandererAbitante.id],
+                haCasa: (cellaCasaPerAbitanteId.get(schedaWandererAbitante.id) ?? null) != null
+              })
+            : null
+        }
       />
 
       {luogoCultoModalCtx != null ? (

@@ -45,6 +45,8 @@ type AbitanteInfoModalProps = {
   etaMinimaLavoro?: number;
   /** Se fornito (es. dalla mappa), apre la residenza senza navigare. */
   onApriResidenzaMappa?: (anchor: number) => void;
+  /** Azione in corso sulla mappa, mostrata a destra del nome (es. “Sta andando a lavoro”). */
+  azioneCorrente?: string | null;
 };
 
 function Row({
@@ -158,7 +160,8 @@ export function AbitanteInfoModal({
   getAbitanteNome,
   calcolaFelicitàModificata,
   etaMinimaLavoro = 18,
-  onApriResidenzaMappa
+  onApriResidenzaMappa,
+  azioneCorrente = null
 }: AbitanteInfoModalProps) {
   const router = useRouter();
   const {
@@ -265,14 +268,23 @@ export function AbitanteInfoModal({
                 <Text style={styles.avatarEmoji}>{emojiDisplay}</Text>
               </View>
               <View style={styles.headerText}>
-                <Text style={styles.title}>{abitante.nome}</Text>
+                <View style={styles.titleRow}>
+                  <Text style={styles.title} numberOfLines={1}>
+                    {abitante.nome}
+                  </Text>
+                  {azioneCorrente ? (
+                    <Text style={styles.azioneCorrente} numberOfLines={2}>
+                      {azioneCorrente}
+                    </Text>
+                  ) : null}
+                </View>
                 <View style={styles.lavoroBadge}>
                   <Text style={styles.lavoroBadgeText}>💼 {lavoroDisplay}</Text>
                 </View>
               </View>
             </View>
 
-            <View style={styles.twoCol}>
+            <View style={styles.fiveCol}>
               <Block title="📋 Anagrafica">
                 <Row emoji="🎂" value={`${abitante.eta} anni`} />
                 <Row
@@ -353,6 +365,7 @@ export function AbitanteInfoModal({
                   onPress={titoloStudio ? () => apriPagina("/scuola") : undefined}
                 />
               </Block>
+
               <Block title="📊 Prestazioni & Salute">
                 <Row
                   emoji={getEmojiSpecializzazione(getSpecializzazioneAbitante(abitante))}
@@ -364,9 +377,7 @@ export function AbitanteInfoModal({
                 <Row emoji="⚖️" value={abitante.razza === "Robot" ? "—" : `${abitante.peso ?? 50}`} />
                 <Row emoji="🏥" value={abitante.razza === "Robot" ? "—" : getStatoSalute(abitante)} />
               </Block>
-            </View>
 
-            <View style={styles.twoCol}>
               <Block title="👥 Relazioni">
                 {abitante.razza === "Robot" ? (
                   <Row emoji="—" value="—" muted />
@@ -377,6 +388,7 @@ export function AbitanteInfoModal({
                   </>
                 )}
               </Block>
+
               <Block title="👨‍👩‍👧 Famiglia">
                 {abitante.razza === "Robot" ? (
                   <Row emoji="—" value="—" muted />
@@ -387,9 +399,7 @@ export function AbitanteInfoModal({
                   </>
                 )}
               </Block>
-            </View>
 
-            <View style={styles.twoCol}>
               <Block title="❤️ Sentimenti">
                 <Row emoji="❤️" value={abitante.razza === "Robot" ? "—" : `${abitante.lealtà}%`} />
                 <Row emoji="😨" value={abitante.razza === "Robot" ? "—" : `${abitante.paura}%`} />
@@ -504,7 +514,8 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     padding: 0,
     minWidth: 320,
-    maxWidth: 440,
+    maxWidth: 1180,
+    width: "96%",
     maxHeight: "88%",
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.2)",
@@ -538,11 +549,28 @@ const styles = StyleSheet.create({
   },
   avatarEmoji: { fontSize: 30 },
   headerText: { flex: 1, minWidth: 0 },
+  titleRow: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 8
+  },
   title: {
     fontSize: 18,
     fontWeight: "800",
     color: "#f8fafc",
-    letterSpacing: 0.2
+    letterSpacing: 0.2,
+    flexShrink: 1,
+    maxWidth: "48%"
+  },
+  azioneCorrente: {
+    flex: 1,
+    minWidth: 0,
+    fontSize: 12,
+    fontWeight: "600",
+    color: "#86efac",
+    textAlign: "right",
+    lineHeight: 16,
+    paddingTop: 3
   },
   lavoroBadge: {
     alignSelf: "flex-start",
@@ -557,9 +585,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     color: "#93c5fd"
   },
-  twoCol: {
+  fiveCol: {
     flexDirection: "row",
-    gap: 12,
+    alignItems: "stretch",
+    gap: 10,
     marginTop: 14
   },
   block: {
@@ -576,35 +605,35 @@ const styles = StyleSheet.create({
     fontWeight: "700",
     color: "rgba(248,250,252,0.9)",
     paddingVertical: 8,
-    paddingHorizontal: 12,
+    paddingHorizontal: 10,
     backgroundColor: "rgba(30,41,59,0.5)",
     borderBottomWidth: 1,
     borderBottomColor: "rgba(148,163,184,0.1)"
   },
   blockContent: {
-    padding: 10
+    padding: 8
   },
   rowWrap: {
     flexDirection: "row",
     alignItems: "flex-start",
     marginBottom: 6,
-    gap: 8
+    gap: 6
   },
   rowPressable: {
     borderRadius: 6,
-    marginHorizontal: -4,
-    paddingHorizontal: 4
+    marginHorizontal: -2,
+    paddingHorizontal: 2
   },
   rowPressed: {
     backgroundColor: "rgba(59,130,246,0.15)"
   },
-  rowEmoji: { fontSize: 14, lineHeight: 20 },
+  rowEmoji: { fontSize: 13, lineHeight: 18 },
   rowTextCol: {
     flex: 1,
     minWidth: 0
   },
   rowLabel: {
-    fontSize: 9,
+    fontSize: 8,
     fontWeight: "700",
     color: "rgba(148,163,184,0.85)",
     textTransform: "uppercase",
@@ -612,9 +641,9 @@ const styles = StyleSheet.create({
     marginBottom: 1
   },
   rowValue: {
-    fontSize: 12,
+    fontSize: 11,
     color: "#e2e8f0",
-    lineHeight: 20
+    lineHeight: 16
   },
   rowValueLink: {
     color: "#93c5fd",

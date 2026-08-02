@@ -119,6 +119,13 @@ type MapWandererCharacterProps = {
   doubleTapAccessibilityLabel?: string;
   /** Se impostata, mostra questa emoji al posto dello sprite RPG (es. Robot 🤖). */
   markerEmoji?: string | null;
+  /**
+   * Occupancy: evita che due personaggi condividano la stessa casella mentre camminano.
+   * `isCellFreeForMe` = libera o già mia; `tryClaimCell` prenota atomicamente; `releaseMyCell` in uscita.
+   */
+  isCellFreeForMe?: (cellIndex: number) => boolean;
+  tryClaimCell?: (cellIndex: number) => boolean;
+  releaseMyCell?: () => void;
 };
 
 /**
@@ -142,7 +149,10 @@ export function MapWandererCharacter({
   passTouchesToMapOnCell,
   disableIdleRoam = false,
   doubleTapAccessibilityLabel,
-  markerEmoji = null
+  markerEmoji = null,
+  isCellFreeForMe,
+  tryClaimCell,
+  releaseMyCell
 }: MapWandererCharacterProps) {
   const [logicalCell, setLogicalCell] = useState<number | null>(null);
   const cellRef = useRef<number | null>(null);
@@ -163,8 +173,14 @@ export function MapWandererCharacter({
   const onCommuteCompleteRef = useRef(onCommuteComplete);
   const onCellSettledRef = useRef(onCellSettled);
   const pickNextMoveRef = useRef<() => void>(() => {});
+  const isCellFreeForMeRef = useRef(isCellFreeForMe);
+  const tryClaimCellRef = useRef(tryClaimCell);
+  const releaseMyCellRef = useRef(releaseMyCell);
   onCommuteCompleteRef.current = onCommuteComplete;
   onCellSettledRef.current = onCellSettled;
+  isCellFreeForMeRef.current = isCellFreeForMe;
+  tryClaimCellRef.current = tryClaimCell;
+  releaseMyCellRef.current = releaseMyCell;
 
   const handlePress = useCallback(() => {
     if (!onDoublePress) return;
@@ -200,13 +216,36 @@ export function MapWandererCharacter({
     const prev = cellRef.current;
     if (prev === null) return;
 
-    const cand = orthogonalNeighbors(prev, cols, rows).filter((j) => isWalkable(j));
+    const isFree = isCellFreeForMeRef.current;
+    const cand = orthogonalNeighbors(prev, cols, rows).filter(
+      (j) => isWalkable(j) && (isFree?.(j) ?? true)
+    );
     if (cand.length === 0) {
       idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
       return;
     }
 
-    const next = cand[Math.floor(Math.random() * cand.length)]!;
+    // Prova le celle candidate in ordine casuale finché una non viene prenotata.
+    for (let i = cand.length - 1; i > 0; i--) {
+      const j = Math.floor(Math.random() * (i + 1));
+      const tmp = cand[i]!;
+      cand[i] = cand[j]!;
+      cand[j] = tmp;
+    }
+
+    let next: number | null = null;
+    const claim = tryClaimCellRef.current;
+    for (const c of cand) {
+      if (!claim || claim(c)) {
+        next = c;
+        break;
+      }
+    }
+    if (next == null) {
+      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+      return;
+    }
+
     setDirection(directionBetween(prev, next, cols));
 
     if (rafRef.current != null) {
@@ -222,6 +261,7 @@ export function MapWandererCharacter({
     setIsMoving(true);
     const start = performance.now();
     const durationMs = segmentMoveDurationMs(prev, next, isRoadCell);
+    const dest = next;
 
     const step = (now: number) => {
       if (getOrologioGiocoInPausaSnapshot()) {
@@ -240,8 +280,9 @@ export function MapWandererCharacter({
         setPixelPos({ x: toX, y: toY });
         setWalkFrame(0);
         setIsMoving(false);
-        setLogicalCell(next);
-        cellRef.current = next;
+        setLogicalCell(dest);
+        cellRef.current = dest;
+        onCellSettledRef.current?.(dest);
         idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
       }
     };
@@ -252,6 +293,15 @@ export function MapWandererCharacter({
 
   const runOneSegment = useCallback(
     (from: number, to: number, onDone: () => void, isLastSegment: boolean) => {
+      const claim = tryClaimCellRef.current;
+      if (claim && !claim(to)) {
+        // Destinazione occupata: aspetta e riprova lo stesso segmento.
+        idleTimerRef.current = setTimeout(() => {
+          runOneSegment(from, to, onDone, isLastSegment);
+        }, IDLE_BEFORE_NEXT_MS);
+        return;
+      }
+
       setDirection(directionBetween(from, to, cols));
       if (rafRef.current != null) {
         cancelAnimationFrame(rafRef.current);
@@ -313,6 +363,7 @@ export function MapWandererCharacter({
     setPixelPos({ x: cx, y: cy });
     setIsMoving(false);
     setWalkFrame(0);
+    // Partenza spesso condivisa (casa): non claim esclusivo; claim al primo passo verso `to`.
     onCellSettledRef.current?.(start);
 
     let seg = 0;
@@ -357,6 +408,8 @@ export function MapWandererCharacter({
       rafRef.current = null;
     }
     inited.current = true;
+    // In casa più abitanti possono condividere la stessa cella: libera la casella strada.
+    releaseMyCellRef.current?.();
     const cx = (fixedCell % cols) * cellSizePx;
     const cy = Math.floor(fixedCell / cols) * cellSizePx;
     setLogicalCell(fixedCell);
@@ -391,12 +444,31 @@ export function MapWandererCharacter({
     if (inited.current) return;
     const ok: number[] = [];
     const tot = cols * rows;
+    const isFree = isCellFreeForMeRef.current;
     for (let i = 0; i < tot; i++) {
-      if (isWalkable(i)) ok.push(i);
+      if (isWalkable(i) && (isFree?.(i) ?? true)) ok.push(i);
+    }
+    // Se tutte le celle walkable sono occupate, ripiega su qualsiasi walkable (claim proverà).
+    if (ok.length === 0) {
+      for (let i = 0; i < tot; i++) {
+        if (isWalkable(i)) ok.push(i);
+      }
     }
     if (ok.length === 0) return;
+
+    const preferred = (instanceId * 9973) % ok.length;
+    let idx: number | null = null;
+    const claim = tryClaimCellRef.current;
+    for (let offset = 0; offset < ok.length; offset++) {
+      const candidate = ok[(preferred + offset) % ok.length]!;
+      if (!claim || claim(candidate)) {
+        idx = candidate;
+        break;
+      }
+    }
+    if (idx == null) return;
+
     inited.current = true;
-    const idx = ok[(instanceId * 9973) % ok.length]!;
     const cx = (idx % cols) * cellSizePx;
     const cy = Math.floor(idx / cols) * cellSizePx;
     setLogicalCell(idx);
@@ -429,6 +501,7 @@ export function MapWandererCharacter({
     () => () => {
       clearIdle();
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      releaseMyCellRef.current?.();
     },
     [clearIdle]
   );
