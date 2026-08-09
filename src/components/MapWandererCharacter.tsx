@@ -101,6 +101,11 @@ type MapWandererCharacterProps = {
    */
   fixedCell?: number | null;
   /**
+   * Cella preferita al primo spawn / dopo un remount (ultima posizione nota o casa).
+   * Evita teletrasporti casuali sulla mappa.
+   */
+  preferredSpawnCell?: number | null;
+  /**
    * Percorso determinato (celle inclusive). Se length ≥ 2, ha priorità su girovago e fixedCell.
    * Il genitore incrementa `commuteToken` per forzare un nuovo run con lo stesso path se serve.
    */
@@ -157,6 +162,7 @@ export function MapWandererCharacter({
   isRoadCell,
   instanceId = 0,
   fixedCell = null,
+  preferredSpawnCell = null,
   commutePath = null,
   commuteToken = 0,
   commutePurpose = null,
@@ -472,49 +478,79 @@ export function MapWandererCharacter({
     onCellSettledRef.current?.(fixedCell);
   }, [fixedCell, cols, cellSizePx, clearIdle]);
 
-  /** Fine notte in casa → ripristina il girovago (re-inizializza spawn su strade). */
+  /** Fine notte in casa → resta sulla stessa cella (casa), niente teletrasporto a caso sulla mappa. */
   useEffect(() => {
     if (fixedCell != null) {
       prevFixedCellRef.current = fixedCell;
       return;
     }
-    if (prevFixedCellRef.current != null) {
-      clearIdle();
-      if (rafRef.current != null) {
-        cancelAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-      inited.current = false;
-    }
+    const prevHome = prevFixedCellRef.current;
     prevFixedCellRef.current = fixedCell;
-  }, [fixedCell, clearIdle]);
+    if (prevHome == null) return;
+
+    clearIdle();
+    if (rafRef.current != null) {
+      cancelAnimationFrame(rafRef.current);
+      rafRef.current = null;
+    }
+    const claim = tryClaimCellRef.current;
+    claim?.(prevHome);
+    const cx = (prevHome % cols) * cellSizePx;
+    const cy = Math.floor(prevHome / cols) * cellSizePx;
+    inited.current = true;
+    setLogicalCell(prevHome);
+    cellRef.current = prevHome;
+    setPixelPos({ x: cx, y: cy });
+    setIsMoving(false);
+    setWalkFrame(0);
+    onCellSettledRef.current?.(prevHome);
+    if (!disableIdleRoam) {
+      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+    }
+  }, [fixedCell, clearIdle, cols, cellSizePx, disableIdleRoam]);
 
   useEffect(() => {
     if (commutePath != null && commutePath.length >= 2) return;
     if (fixedCell != null) return;
     if (inited.current) return;
-    const ok: number[] = [];
     const tot = cols * rows;
     const isFree = isCellFreeForMeRef.current;
-    for (let i = 0; i < tot; i++) {
-      if (isWalkable(i) && (isFree?.(i) ?? true)) ok.push(i);
-    }
-    // Se tutte le celle walkable sono occupate, ripiega su qualsiasi walkable (claim proverà).
-    if (ok.length === 0) {
-      for (let i = 0; i < tot; i++) {
-        if (isWalkable(i)) ok.push(i);
-      }
-    }
-    if (ok.length === 0) return;
-
-    const preferred = (instanceId * 9973) % ok.length;
-    let idx: number | null = null;
     const claim = tryClaimCellRef.current;
-    for (let offset = 0; offset < ok.length; offset++) {
-      const candidate = ok[(preferred + offset) % ok.length]!;
-      if (!claim || claim(candidate)) {
-        idx = candidate;
-        break;
+
+    const provaCella = (c: number): boolean => {
+      if (c < 0 || c >= tot) return false;
+      if (!isWalkable(c)) return false;
+      if (!(isFree?.(c) ?? true)) return false;
+      return !claim || claim(c);
+    };
+
+    let idx: number | null = null;
+    if (preferredSpawnCell != null && provaCella(preferredSpawnCell)) {
+      idx = preferredSpawnCell;
+    } else if (preferredSpawnCell != null && isWalkable(preferredSpawnCell)) {
+      // Preferita occupata: claim forzato se walkable (casa condivisa / uscita lavoro).
+      claim?.(preferredSpawnCell);
+      idx = preferredSpawnCell;
+    }
+
+    if (idx == null) {
+      const ok: number[] = [];
+      for (let i = 0; i < tot; i++) {
+        if (isWalkable(i) && (isFree?.(i) ?? true)) ok.push(i);
+      }
+      if (ok.length === 0) {
+        for (let i = 0; i < tot; i++) {
+          if (isWalkable(i)) ok.push(i);
+        }
+      }
+      if (ok.length === 0) return;
+      const preferred = (instanceId * 9973) % ok.length;
+      for (let offset = 0; offset < ok.length; offset++) {
+        const candidate = ok[(preferred + offset) % ok.length]!;
+        if (!claim || claim(candidate)) {
+          idx = candidate;
+          break;
+        }
       }
     }
     if (idx == null) return;
@@ -529,7 +565,17 @@ export function MapWandererCharacter({
     if (!disableIdleRoam) {
       idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
     }
-  }, [cols, rows, isWalkable, instanceId, fixedCell, commutePath, disableIdleRoam]);
+  }, [
+    cols,
+    rows,
+    isWalkable,
+    instanceId,
+    fixedCell,
+    preferredSpawnCell,
+    commutePath,
+    disableIdleRoam,
+    cellSizePx
+  ]);
 
   /** Pausa globale: ferma timer idle; al ripristino riprende girovago se fermo. */
   useEffect(() => {

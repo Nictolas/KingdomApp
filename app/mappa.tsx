@@ -4164,7 +4164,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
                     return (
                       <MapWandererCharacter
-                        key={`wanderer-${abitante.id}-${infoCommute?.token ?? 0}-${fixedCellNotte ?? "x"}`}
+                        key={`wanderer-${abitante.id}`}
                         cols={cols}
                         rows={rows}
                         cellSizePx={CELL_SIZE_PX}
@@ -4172,6 +4172,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                         isRoadCell={isRoadCell}
                         instanceId={abitante.id}
                         fixedCell={fixedCellNotte}
+                        preferredSpawnCell={
+                          ultimaCellaAbitanteRef.current.get(abitante.id) ?? homeCell ?? null
+                        }
                         commutePath={infoCommute?.path ?? null}
                         commuteToken={infoCommute?.token ?? 0}
                         commutePurpose={infoCommute?.purpose ?? null}

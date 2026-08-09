@@ -70,6 +70,8 @@ export default function BarScreenById() {
   }
 
   const titoloBar = edificioId === 17 ? "🍺 Bar" : `🍺 Bar (#${edificioId})`;
+  const clienti = visitatoriDisoccupati;
+  const cap = bar.capacità ?? 20;
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
@@ -101,87 +103,90 @@ export default function BarScreenById() {
           </Text>
         </View>
 
-        <View style={styles.lavoratoriCard}>
-          <Text style={styles.sectionTitle}>Lavoratori</Text>
-          <Text style={styles.lavoratoriCount}>
-            {addetti.length}/{bar.capacità ?? 20} posti occupati
-          </Text>
-          <Text style={styles.infoSubtext}>
-            I cittadini disoccupati si assumono da soli (lavoro: Barista). Puoi anche assegnare Servi
-            della gleba.
-          </Text>
-          {addetti.length > 0 ? (
-            <View style={styles.cardsContainer}>
-              {addetti.map((a) => (
-                <View key={a.id} style={styles.personCard}>
-                  <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
-                  <View style={styles.cardContent}>
-                    <Text style={styles.cardTitle}>{a.nome}</Text>
-                    <Text style={styles.cardInfo}>
-                      {a.lavoro} · {getCastaAbitante(a)} · Competenza {a.competenza}%
-                    </Text>
+        <View style={styles.dueColonne}>
+          <View style={[styles.colonna, styles.lavoratoriCard]}>
+            <Text style={styles.sectionTitle}>Lavoratori</Text>
+            <Text style={styles.lavoratoriCount}>
+              {addetti.length}/{cap} posti
+            </Text>
+            <Text style={styles.infoSubtext}>
+              Cittadini disoccupati si assumono da soli (Barista). Puoi assegnare Servi della gleba.
+            </Text>
+            {addetti.length > 0 ? (
+              <View style={styles.cardsContainer}>
+                {addetti.map((a) => (
+                  <View key={a.id} style={styles.personCard}>
+                    <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+                    <View style={styles.cardContent}>
+                      <Text style={styles.cardTitle}>{a.nome}</Text>
+                      <Text style={styles.cardInfo}>
+                        {a.lavoro} · {getCastaAbitante(a)} · {a.competenza}%
+                      </Text>
+                    </View>
+                    <Pressable
+                      style={styles.removeButton}
+                      onPress={() => rimuoviAbitanteDaEdificio(a.id, bar.id)}
+                    >
+                      <Text style={styles.removeButtonText}>Rimuovi</Text>
+                    </Pressable>
                   </View>
-                  <Pressable
-                    style={styles.removeButton}
-                    onPress={() => rimuoviAbitanteDaEdificio(a.id, bar.id)}
-                  >
-                    <Text style={styles.removeButtonText}>Rimuovi</Text>
-                  </Pressable>
-                </View>
-              ))}
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.emptyVisitatori}>Nessun lavoratore assegnato.</Text>
+            )}
+            {addettiIds.length < cap && (
+              <Pressable style={styles.addButton} onPress={() => setDropdownVisible(true)}>
+                <Text style={styles.addButtonText}>+ Aggiungi Servo della gleba</Text>
+              </Pressable>
+            )}
+            <View style={styles.stipendioInline}>
+              <Text style={styles.stipendioLabel}>
+                Stipendio mensile ({STIPENDIO_BASE_MONETE_GIORNO} moneta/giorno)
+              </Text>
+              <TextInput
+                style={styles.stipendioInput}
+                value={String(getStipendioMensileEdificio(bar))}
+                keyboardType="number-pad"
+                onChangeText={(text) => {
+                  const n = parseInt(text.replace(/[^0-9]/g, ""), 10);
+                  setStipendioEdificio(bar.id, isNaN(n) ? 0 : Math.max(0, n));
+                }}
+              />
+              <Text style={styles.infoSubtext}>
+                Totale: {getStipendioMensileEdificio(bar) * addettiIds.length} monete/mese
+              </Text>
             </View>
-          ) : (
-            <Text style={styles.emptyVisitatori}>
-              Nessun lavoratore. I disoccupati cittadini con «Cerca lavoro» verranno qui se c’è posto.
-            </Text>
-          )}
-          {addettiIds.length < (bar.capacità ?? 20) && (
-            <Pressable style={styles.addButton} onPress={() => setDropdownVisible(true)}>
-              <Text style={styles.addButtonText}>+ Aggiungi Servo della gleba</Text>
-            </Pressable>
-          )}
-        </View>
+          </View>
 
-        <View style={styles.visitatoriCard}>
-          <Text style={styles.sectionTitle}>Ora al Bar (visitatori)</Text>
-          <Text style={styles.infoSubtext}>
-            Di giorno, fuori dall’orario di lavoro (es. prima delle 8 o dopo le 17), colonisti e lavoratori
-            in pausa si trovano qui; di notte sono a casa.
-          </Text>
-          {visitatoriDisoccupati.length > 0 ? (
-            <View style={styles.cardsContainer}>
-              {visitatoriDisoccupati.map((a) => (
-                <View key={a.id} style={styles.visitatoreRow}>
-                  <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
-                  <Text style={styles.visitatoreNome} numberOfLines={1}>
-                    {a.nome}
-                  </Text>
-                </View>
-              ))}
-            </View>
-          ) : (
-            <Text style={styles.emptyVisitatori}>
-              Nessuno in questo momento (notte o nessun visitatore).
+          <View style={[styles.colonna, styles.clientiCard]}>
+            <Text style={styles.sectionTitle}>Clienti</Text>
+            <Text style={styles.lavoratoriCount}>{clienti.length} presenti</Text>
+            <Text style={styles.infoSubtext}>
+              Di giorno, fuori orario di lavoro, colonisti in visita; di notte sono a casa.
             </Text>
-          )}
-        </View>
-
-        <View style={styles.stipendioCard}>
-          <Text style={styles.stipendioLabel}>
-            Stipendio mensile per lavoratore ({STIPENDIO_BASE_MONETE_GIORNO} moneta/giorno)
-          </Text>
-          <TextInput
-            style={styles.stipendioInput}
-            value={String(getStipendioMensileEdificio(bar))}
-            keyboardType="number-pad"
-            onChangeText={(text) => {
-              const n = parseInt(text.replace(/[^0-9]/g, ""), 10);
-              setStipendioEdificio(bar.id, isNaN(n) ? 0 : Math.max(0, n));
-            }}
-          />
-          <Text style={styles.infoSubtext}>
-            Totale: {getStipendioMensileEdificio(bar) * addettiIds.length} monete/mese
-          </Text>
+            {clienti.length > 0 ? (
+              <View style={styles.cardsContainer}>
+                {clienti.map((a) => (
+                  <View key={a.id} style={styles.visitatoreRow}>
+                    <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+                    <View style={styles.cardContent}>
+                      <Text style={styles.visitatoreNome} numberOfLines={1}>
+                        {a.nome}
+                      </Text>
+                      <Text style={styles.cardInfo} numberOfLines={1}>
+                        {a.lavoro} · {getCastaAbitante(a)}
+                      </Text>
+                    </View>
+                  </View>
+                ))}
+              </View>
+            ) : (
+              <Text style={styles.emptyVisitatori}>
+                Nessun cliente in questo momento.
+              </Text>
+            )}
+          </View>
         </View>
 
         <Modal visible={dropdownVisible} transparent animationType="fade" onRequestClose={() => setDropdownVisible(false)}>
@@ -296,6 +301,12 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)"
   },
+  stipendioInline: {
+    marginTop: 10,
+    paddingTop: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(148,163,184,0.35)"
+  },
   stipendioLabel: { color: "#93c5fd", fontSize: 10, fontWeight: "600", marginBottom: 4 },
   stipendioInput: {
     backgroundColor: "rgba(30,41,59,0.9)",
@@ -307,11 +318,20 @@ const styles = StyleSheet.create({
     fontSize: 14,
     minWidth: 80
   },
-  visitatoriCard: {
+  dueColonne: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 10,
+    marginTop: 10
+  },
+  colonna: {
+    flex: 1,
+    minWidth: 0
+  },
+  clientiCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 8,
     padding: 10,
-    marginTop: 10,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)"
   },
@@ -319,7 +339,6 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 8,
     padding: 10,
-    marginTop: 10,
     borderWidth: 1,
     borderColor: "rgba(96,165,250,0.45)"
   },
@@ -333,9 +352,12 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     alignItems: "center",
     gap: 8,
-    paddingVertical: 4
+    paddingVertical: 4,
+    backgroundColor: "rgba(30,41,59,0.45)",
+    borderRadius: 6,
+    paddingHorizontal: 6
   },
-  visitatoreNome: { color: "#e5e7eb", fontSize: 11, fontWeight: "600", flex: 1 },
+  visitatoreNome: { color: "#e5e7eb", fontSize: 11, fontWeight: "600" },
   emptyVisitatori: {
     color: "rgba(203,213,245,0.55)",
     fontSize: 9,
