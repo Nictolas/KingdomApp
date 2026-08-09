@@ -31,6 +31,7 @@ const COLONNA_SERVIZI: string[] = [
   "Caserma",   // Militari
   "Spazioporto",
   "Ufficio Immigrazione",
+  "Ufficio Edile",
   "Mercato"
 ];
 const COLONNA_PUNIZIONE: string[] = ["Tribunale", "Carcere", "Campo di Lavoro", "Campo di Sterminio"];
@@ -126,6 +127,8 @@ export default function EdificiScreen() {
       router.push("/spazioporto");
     } else if (e.nome === "Ufficio Immigrazione") {
       router.push("/immigrazione");
+    } else if (e.nome === "Ufficio Edile") {
+      router.push("/ufficio-edile");
     } else if (e.nome === "Mercato") {
       router.push("/mercato");
     } else {

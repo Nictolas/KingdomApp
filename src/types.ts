@@ -192,4 +192,6 @@ export type Edificio = {
   stipendioPerLavoratore?: number;
   /** Solo Serra: id oggetto Cibo vegetale prodotto (1 unità/giorno). */
   colturaItemId?: string;
+  /** 0–100: avanzamento cantiere (solo se stato === "In costruzione"). Completato dagli edili dell'Ufficio Edile. */
+  progressoCostruzione?: number;
 };

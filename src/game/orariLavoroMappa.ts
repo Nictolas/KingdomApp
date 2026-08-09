@@ -31,6 +31,7 @@ const NOMI_CON_ORARIO_LAVORO = new Set<string>([
   "Università",
   "Tribunale",
   "Ufficio Immigrazione",
+  "Ufficio Edile",
   "Mercato",
   "Caserma",
   "Centrale",

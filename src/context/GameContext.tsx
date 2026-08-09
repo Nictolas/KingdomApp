@@ -105,7 +105,10 @@ type GameContextType = {
   setStipendioEdificio: (edificioId: number, stipendioPerLavoratore: number) => void;
   setColturaSerra: (edificioId: number, colturaItemId: string) => void;
   /** Aggiunge un edificio reale (istanza con id nuovo) dal catalogo; restituisce l'id creato o null. */
-  aggiungiEdificioDaTemplate: (templateId: number) => number | null;
+  aggiungiEdificioDaTemplate: (
+    templateId: number,
+    options?: { costoMateriale?: number; stato?: Edificio["stato"] }
+  ) => number | null;
   rimuoviEdificioPerId: (id: number) => void;
   /** Prezzo mensile (monete) per tipo di residenza. Chiave = nome residenza (es. "Baracca"). Se assente si usa il default del catalogo. */
   prezzoResidenze: Record<string, number>;

@@ -73,6 +73,8 @@ import {
   RpgFootprintBar2x2,
   RpgFootprintTribunale2x2,
   RpgFootprintUfficioImmigrazione2x2,
+  RpgFootprintUfficioEdile2x2,
+  RpgFootprintCantiere,
   RpgFootprintLuogoCultoSole2x2,
   RpgFootprintLuogoCultoAlieni2x2,
   RpgFootprintCarcere2x2,
@@ -144,6 +146,11 @@ import {
 } from "../src/game/commutePathsMappa";
 import { celleIngressoWalkableAttornoAdAnchor } from "../src/game/mappaPathfinding";
 import { SEZIONE_AMBIENTE, SEZIONI_COSTRUZIONE, type TerrenoCostruzioneKind } from "../src/game/costruzioneSezioni";
+import {
+  costoMaterialeEdilePerFootprint,
+  haMaterialeEdileSufficiente,
+  quantitaMaterialeEdile
+} from "../src/game/costruzioneEdifici";
 import { setBarArrivatiMappaSnapshot } from "../src/game/mappaBarArrivatiStore";
 import { computeStatoCielo } from "../src/game/cicloCielo";
 import { formatOrologioGioco, getGiornoGiocoSnapshot } from "../src/game/orologioGiocoSession";
@@ -190,6 +197,9 @@ const TRIBUNALE_FOOTPRINT_H = 2;
 /** Ufficio Immigrazione: 2×2 (stesso stile del Tribunale). */
 const UFFICIO_IMMIGRAZIONE_FOOTPRINT_W = 2;
 const UFFICIO_IMMIGRAZIONE_FOOTPRINT_H = 2;
+/** Ufficio Edile: 2×2 (stesso stile istituzionale). */
+const UFFICIO_EDILE_FOOTPRINT_W = 2;
+const UFFICIO_EDILE_FOOTPRINT_H = 2;
 /** Mercato: 2×2 (tenda verde/rossa, facciata commerciale). */
 const MERCATO_FOOTPRINT_W = 2;
 const MERCATO_FOOTPRINT_H = 2;
@@ -287,6 +297,7 @@ const EDIFICIO_TO_ROUTE: Record<string, string> = {
   "Centrale": "/centrale",
   "Tribunale": "/tribunale",
   "Ufficio Immigrazione": "/immigrazione",
+  "Ufficio Edile": "/ufficio-edile",
   "Mercato": "/mercato",
   "Dissalatore": "/dissalatore",
   "Laboratorio di Ricerca": "/laboratorio",
@@ -327,6 +338,7 @@ const FOOTPRINT_COSTRUZIONE: Record<string, { w: number; h: number }> = {
   Bar: { w: BAR_FOOTPRINT_W, h: BAR_FOOTPRINT_H },
   Tribunale: { w: TRIBUNALE_FOOTPRINT_W, h: TRIBUNALE_FOOTPRINT_H },
   "Ufficio Immigrazione": { w: UFFICIO_IMMIGRAZIONE_FOOTPRINT_W, h: UFFICIO_IMMIGRAZIONE_FOOTPRINT_H },
+  "Ufficio Edile": { w: UFFICIO_EDILE_FOOTPRINT_W, h: UFFICIO_EDILE_FOOTPRINT_H },
   Mercato: { w: MERCATO_FOOTPRINT_W, h: MERCATO_FOOTPRINT_H },
   Negozio: { w: NEGOZIO_FOOTPRINT_W, h: NEGOZIO_FOOTPRINT_H },
   "Mensa Pubblica": { w: MERCATO_FOOTPRINT_W, h: MERCATO_FOOTPRINT_H },
@@ -1415,6 +1427,7 @@ type FootprintVariant =
   | "bar"
   | "tribunale"
   | "ufficio_immigrazione"
+  | "ufficio_edile"
   | "mercato"
   | "negozio"
   | "mensa"
@@ -1428,7 +1441,8 @@ type FootprintVariant =
   | "campo_lavoro"
   | "campo_sterminio"
   | "caserma"
-  | "centrale_polizia";
+  | "centrale_polizia"
+  | "cantiere";
 
 function EdificioFootprintGfx({
   anchor,
@@ -1436,7 +1450,8 @@ function EdificioFootprintGfx({
   variant,
   cols,
   cellW,
-  cellH
+  cellH,
+  progressoCostruzione
 }: {
   anchor: number;
   footprint: { w: number; h: number };
@@ -1444,12 +1459,21 @@ function EdificioFootprintGfx({
   cols: number;
   cellW: number;
   cellH: number;
+  progressoCostruzione?: number;
 }) {
   const { left, top } = getCellTopLeft(anchor, cellW, cellH, cols);
   const { w, h } = footprint;
   const width = w * cellW + (w - 1) * GAP;
   const height = h * cellH + (h - 1) * GAP;
   const porticoH = Math.max(6, Math.floor(cellH * 0.22));
+
+  if (variant === "cantiere") {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintCantiere width={width} height={height} progresso={progressoCostruzione} />
+      </View>
+    );
+  }
 
   if (variant === "dormitorio" && w === DORMITORIO_FOOTPRINT_W && h === DORMITORIO_FOOTPRINT_H) {
     return (
@@ -1535,6 +1559,14 @@ function EdificioFootprintGfx({
     return (
       <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
         <RpgFootprintUfficioImmigrazione2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "ufficio_edile" && w === UFFICIO_EDILE_FOOTPRINT_W && h === UFFICIO_EDILE_FOOTPRINT_H) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintUfficioEdile2x2 width={width} height={height} />
       </View>
     );
   }
@@ -2031,6 +2063,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const [mostraGrigliaMappa, setMostraGrigliaMappa] = useState(false);
   const lastTapCell = useRef<number | null>(null);
   const lastTapTime = useRef<number>(0);
+  /** True se l’ultimo gesto sulla mappa è stato un trascinamento (pan): non chiudere la sintesi. */
+  const mapDraggedRef = useRef(false);
+  const panStartPosRef = useRef<{ x: number; y: number } | null>(null);
 
   const { minuti: orologioMinuti, inPausa: orologioInPausa, togglePausa: toggleOrologioPausa } =
     useOrologioGioco();
@@ -3322,10 +3357,19 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   ]);
 
   const edificiFootprintOverlay = useMemo(() => {
-    const list: { anchor: number; fp: { w: number; h: number }; variant: FootprintVariant }[] = [];
+    const list: {
+      anchor: number;
+      fp: { w: number; h: number };
+      variant: FootprintVariant;
+      progressoCostruzione?: number;
+    }[] = [];
     for (const [i, e] of Object.entries(edificiInMappa)) {
       if (e.footprint && !e.footprintRef) {
-        const variant: FootprintVariant =
+        const globaleId = e.edificioGlobaleId ?? e.id;
+        const edificioGlobale = edifici.find((x) => x.id === globaleId);
+        const inCostruzione = edificioGlobale?.stato === "In costruzione";
+
+        const variantFinale: FootprintVariant =
           e.nome === "Dormitorio"
             ? "dormitorio"
             : e.nome === "Bar"
@@ -3334,40 +3378,47 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                 ? "tribunale"
                 : e.nome === "Ufficio Immigrazione"
                   ? "ufficio_immigrazione"
-                  : e.nome === "Mercato"
-                    ? "mercato"
-                    : e.nome === "Negozio"
-                      ? "negozio"
-                    : e.nome === "Mensa Pubblica"
-                      ? "mensa"
-                      : e.nome === "Dissalatore"
-                  ? "dissalatore"
-                  : e.nome === "Spazioporto"
-                    ? "spazioporto"
-                    : e.nome === "Serra"
-                      ? "serra"
-                      : e.nome === "Capanna"
-                        ? "capanna"
-                        : e.nome === "Luogo di Culto del Sole"
-                          ? "luogo_culto_sole"
-                          : e.nome === "Luogo di Culto degli Alieni"
-                            ? "luogo_culto_alieni"
-                            : e.nome === "Carcere"
-                              ? "carcere"
-                              : e.nome === "Campo di Lavoro"
-                                ? "campo_lavoro"
-                                : e.nome === "Campo di Sterminio"
-                                  ? "campo_sterminio"
-                                  : e.nome === "Caserma"
-                                    ? "caserma"
-                                    : e.nome === "Centrale"
-                                      ? "centrale_polizia"
-                                      : "amministrazione";
-        list.push({ anchor: Number(i), fp: e.footprint, variant });
+                  : e.nome === "Ufficio Edile"
+                    ? "ufficio_edile"
+                    : e.nome === "Mercato"
+                      ? "mercato"
+                      : e.nome === "Negozio"
+                        ? "negozio"
+                        : e.nome === "Mensa Pubblica"
+                          ? "mensa"
+                          : e.nome === "Dissalatore"
+                            ? "dissalatore"
+                            : e.nome === "Spazioporto"
+                              ? "spazioporto"
+                              : e.nome === "Serra"
+                                ? "serra"
+                                : e.nome === "Capanna"
+                                  ? "capanna"
+                                  : e.nome === "Luogo di Culto del Sole"
+                                    ? "luogo_culto_sole"
+                                    : e.nome === "Luogo di Culto degli Alieni"
+                                      ? "luogo_culto_alieni"
+                                      : e.nome === "Carcere"
+                                        ? "carcere"
+                                        : e.nome === "Campo di Lavoro"
+                                          ? "campo_lavoro"
+                                          : e.nome === "Campo di Sterminio"
+                                            ? "campo_sterminio"
+                                            : e.nome === "Caserma"
+                                              ? "caserma"
+                                              : e.nome === "Centrale"
+                                                ? "centrale_polizia"
+                                                : "amministrazione";
+        list.push({
+          anchor: Number(i),
+          fp: e.footprint,
+          variant: inCostruzione ? "cantiere" : variantFinale,
+          progressoCostruzione: inCostruzione ? (edificioGlobale?.progressoCostruzione ?? 0) : undefined
+        });
       }
     }
     return list;
-  }, [edificiInMappa]);
+  }, [edificiInMappa, edifici]);
 
   const visibleFootprintOverlay = useMemo(
     () =>
@@ -3610,7 +3661,16 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         return;
       }
 
-      const newId = aggiungiEdificioDaTemplate(e.id);
+      const costoMateriale = costoMaterialeEdilePerFootprint(e.nome, w, h);
+      if (!haMaterialeEdileSufficiente(risorse, costoMateriale)) {
+        Alert.alert(
+          "Materiale insufficiente",
+          `Servono ${costoMateriale} tonnellate di Materiale Edile (disponibili: ${quantitaMaterialeEdile(risorse)}).`
+        );
+        return;
+      }
+
+      const newId = aggiungiEdificioDaTemplate(e.id, { costoMateriale });
       if (newId == null) {
         Alert.alert("Errore", "Impossibile creare questo tipo di edificio.");
         return;
@@ -3622,7 +3682,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           id: newId,
           nome: e.nome,
           emoji: e.emoji,
-          edificioGlobaleId: èResidenzaMappa(e.nome) ? newId : undefined
+          edificioGlobaleId: newId
         });
         applicaRegoleConfineTerreno(nextEdifici, prev.terrenoInMappa, FIXED_MAP_COLS, FIXED_MAP_ROWS, {
           collegaEdificiAllaStrada: false
@@ -3635,7 +3695,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       });
       uscitaCostruzione();
     },
-    [setMappaStatePersistente, aggiungiEdificioDaTemplate, uscitaCostruzione]
+    [setMappaStatePersistente, aggiungiEdificioDaTemplate, uscitaCostruzione, risorse]
   );
 
   const eseguiDemolizione = useCallback(
@@ -3749,6 +3809,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const onCellPress = useCallback(
     (cellIndex: number) => {
+      // Dopo un pan/trascinamento la libreria può comunque emettere onPress: ignoralo.
+      if (mapDraggedRef.current) {
+        mapDraggedRef.current = false;
+        return;
+      }
       setSintesiMappaAbitanteId(null);
       if (modalitaDemolisci) {
         handleDemolisci(cellIndex);
@@ -4012,6 +4077,30 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                   scale: ref.state.scale
                 });
               }}
+              onPanningStart={(ref) => {
+                panStartPosRef.current = {
+                  x: ref.state.positionX,
+                  y: ref.state.positionY
+                };
+                mapDraggedRef.current = false;
+              }}
+              onPanning={(ref) => {
+                const start = panStartPosRef.current;
+                if (!start || mapDraggedRef.current) return;
+                const dx = ref.state.positionX - start.x;
+                const dy = ref.state.positionY - start.y;
+                // ~5px in spazio trasformato (stessa soglia tipica della libreria).
+                if (dx * dx + dy * dy > 25) mapDraggedRef.current = true;
+              }}
+              onPanningStop={() => {
+                panStartPosRef.current = null;
+                // Se non arriva un onPress “fantasma”, sblocca i tap successivi.
+                if (mapDraggedRef.current) {
+                  setTimeout(() => {
+                    mapDraggedRef.current = false;
+                  }, 320);
+                }
+              }}
               onTransformed={(_ref, state) => {
                 scheduleMapTransformUpdate(state);
               }}
@@ -4115,7 +4204,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                     style={[styles.footprintsLayer, { width: contentWidth, height: contentHeight }]}
                     pointerEvents="none"
                   >
-                    {visibleFootprintOverlay.map(({ anchor, fp, variant }) => (
+                    {visibleFootprintOverlay.map(({ anchor, fp, variant, progressoCostruzione }) => (
                       <EdificioFootprintGfx
                         key={`footprint-${anchor}`}
                         anchor={anchor}
@@ -4124,6 +4213,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                         cols={cols}
                         cellW={cellW}
                         cellH={cellH}
+                        progressoCostruzione={progressoCostruzione}
                       />
                     ))}
                   </View>
@@ -4277,9 +4367,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               <View style={styles.sintesiMain}>
                 <Text style={styles.sintesiNome} numberOfLines={1}>
                   {sintesiMappaAbitante.nome}
-                </Text>
-                <Text style={styles.sintesiAzione} numberOfLines={1}>
-                  {azioneSintesiMappa ?? "—"}
+                  <Text style={styles.sintesiAzioneInline}>
+                    {" · "}
+                    {azioneSintesiMappa ?? "—"}
+                  </Text>
                 </Text>
                 <Text style={styles.sintesiAnagrafica} numberOfLines={1}>
                   {sintesiMappaAbitante.eta} anni · {sintesiMappaAbitante.razza ?? "Umano"}
@@ -4313,6 +4404,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
+            style={styles.bottomBarScroll}
             contentContainerStyle={styles.risorseRow}
           >
             <Pressable
@@ -4972,74 +5064,86 @@ const styles = StyleSheet.create({
   },
   bottomBarInner: {
     width: "100%",
-    minHeight: 56,
+    height: 78,
+    minHeight: 78,
+    maxHeight: 78,
+    overflow: "hidden",
+    justifyContent: "center",
     backgroundColor: "rgba(5,8,22,0.92)",
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
     borderWidth: 1,
     borderBottomWidth: 0,
     borderColor: "rgba(148,163,184,0.25)",
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 12
+  },
+  bottomBarScroll: {
+    flexGrow: 0,
+    height: 66
   },
   sintesiAbitanteRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 10,
-    minHeight: 64
+    gap: 8,
+    height: 66
   },
   sintesiEmoji: {
-    fontSize: 28,
-    width: 36,
+    fontSize: 22,
+    width: 28,
     textAlign: "center"
   },
   sintesiMain: {
     flex: 1,
     minWidth: 0,
-    gap: 1
+    justifyContent: "center",
+    gap: 0
   },
   sintesiNome: {
     color: "#f8fafc",
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: "800"
   },
-  sintesiAzione: {
+  sintesiAzioneInline: {
     color: "#93c5fd",
     fontSize: 11,
     fontWeight: "600"
   },
   sintesiAnagrafica: {
     color: "rgba(203,213,245,0.85)",
-    fontSize: 10
+    fontSize: 9
   },
   sintesiBisogni: {
     color: "rgba(226,232,240,0.9)",
-    fontSize: 10,
+    fontSize: 9,
     fontVariant: ["tabular-nums"]
   },
   sintesiSchedaBtn: {
     backgroundColor: "#3b82f6",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
     borderRadius: 8,
     alignSelf: "center"
   },
   sintesiSchedaBtnText: {
     color: "#ffffff",
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: "700"
   },
   risorseRow: {
     flexDirection: "row",
     gap: 8,
     alignItems: "center",
-    paddingHorizontal: 0
+    paddingHorizontal: 0,
+    height: 66
   },
   risorseCard: {
     minWidth: 72,
+    height: 62,
+    justifyContent: "center",
     backgroundColor: "rgba(15,23,42,0.8)",
     borderRadius: 10,
-    paddingVertical: 8,
+    paddingVertical: 6,
     paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.15)"

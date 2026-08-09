@@ -68,6 +68,11 @@ export function EdificioInfoModal({ visible, edificio, onClose }: EdificioInfoMo
                 Occupazione: {edificio.occupazione}/{edificio.capacità}
               </Text>
               <Text style={styles.line}>Efficienza: {edificio.efficienza}%</Text>
+              {edificio.stato === "In costruzione" && (
+                <Text style={styles.line}>
+                  Avanzamento cantiere: {edificio.progressoCostruzione ?? 0}/100
+                </Text>
+              )}
               <Text style={styles.line}>
                 Costo mensile: {formatMonete(costoStipendi)} (stipendio × lavoratori)
               </Text>

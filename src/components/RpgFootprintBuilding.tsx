@@ -485,6 +485,11 @@ export function RpgFootprintUfficioImmigrazione2x2(props: Props) {
   return <RpgFootprintEdificioPietra2x2 {...props} emoji="🛂" />;
 }
 
+/** Ufficio Edile 2×2 — facciata in pietra con emoji cantiere. */
+export function RpgFootprintUfficioEdile2x2(props: Props) {
+  return <RpgFootprintEdificioPietra2x2 {...props} emoji="🏗️" />;
+}
+
 /** Luogo di Culto del Sole 2×2. */
 export function RpgFootprintLuogoCultoSole2x2(props: Props) {
   return <RpgFootprintEdificioPietra2x2 {...props} emoji="☀️" />;
@@ -513,6 +518,83 @@ export function RpgFootprintCaserma2x2(props: Props) {
 
 export function RpgFootprintCentralePolizia2x2(props: Props) {
   return <RpgFootprintEdificioPietra2x2 {...props} emoji="🚔" />;
+}
+
+/**
+ * Cantiere in costruzione — estetico solo, non è un edificio piazzabile.
+ * Si adatta a footprint variabili (1×1, 2×1, 2×2, 3×2, 4×3, …).
+ */
+export function RpgFootprintCantiere({
+  width,
+  height,
+  progresso
+}: Props & { progresso?: number }) {
+  const roofH = Math.max(8, Math.round(height * 0.28));
+  const groundH = Math.max(6, Math.round(height * 0.18));
+  const midH = Math.max(10, height - roofH - groundH);
+  const poleW = Math.max(2, Math.min(4, Math.floor(width * 0.04)));
+  const emojiSize = Math.max(12, Math.min(28, Math.floor(Math.min(width, height) * 0.28)));
+  const prog = Math.max(0, Math.min(100, progresso ?? 0));
+  const poles = Math.max(2, Math.min(6, Math.round(width / 28)));
+
+  return (
+    <View style={[styles.wrap, { width, height }]} pointerEvents="none">
+      {/* Telo / copertura cantiere */}
+      <View style={[styles.cantiereRoof, { height: roofH }]}>
+        {Array.from({ length: Math.max(3, Math.floor(roofH / 4)) }, (_, i) => (
+          <View
+            key={`tr-${i}`}
+            style={{
+              position: "absolute",
+              left: 0,
+              right: 0,
+              top: i * (roofH / Math.max(3, Math.floor(roofH / 4))),
+              height: roofH / Math.max(3, Math.floor(roofH / 4)),
+              backgroundColor: i % 2 === 0 ? "#b45309" : "#d97706",
+              opacity: 0.92
+            }}
+          />
+        ))}
+        <View style={styles.cantiereRoofRim} />
+      </View>
+
+      {/* Impalcatura */}
+      <View style={[styles.cantiereMid, { height: midH, backgroundColor: "#78716c" }]}>
+        <View style={styles.cantiereScaffold}>
+          {Array.from({ length: poles }, (_, i) => (
+            <View
+              key={`p-${i}`}
+              style={[
+                styles.cantierePole,
+                {
+                  width: poleW,
+                  left: `${(i / Math.max(1, poles - 1)) * 88 + 6}%`,
+                  backgroundColor: i % 2 === 0 ? "#a8a29e" : "#d6d3d1"
+                }
+              ]}
+            />
+          ))}
+          {/* Traverse orizzontali */}
+          <View style={[styles.cantiereBeam, { top: "28%" }]} />
+          <View style={[styles.cantiereBeam, { top: "58%" }]} />
+        </View>
+        <View style={styles.cantiereEmojiWrap}>
+          <Text style={{ fontSize: emojiSize, lineHeight: emojiSize + 2 }}>🚧</Text>
+        </View>
+      </View>
+
+      {/* Terreno / macerie */}
+      <View style={[styles.cantiereGround, { height: groundH }]}>
+        <View style={styles.cantiereDirtPatch} />
+        <View style={[styles.cantiereDirtPatch, { left: "55%", width: "28%", backgroundColor: "#a8a29e" }]} />
+        {prog > 0 && (
+          <View style={styles.cantiereProgressTrack}>
+            <View style={[styles.cantiereProgressFill, { width: `${prog}%` }]} />
+          </View>
+        )}
+      </View>
+    </View>
+  );
 }
 
 /** Vetrata centrale larga (hangar / sala controllo). */
@@ -586,6 +668,87 @@ const styles = StyleSheet.create({
     width: "100%",
     backgroundColor: "#44403c",
     padding: 3
+  },
+  cantiereRoof: {
+    width: "100%",
+    position: "relative",
+    overflow: "hidden",
+    borderBottomWidth: 2,
+    borderBottomColor: OUTLINE
+  },
+  cantiereRoofRim: {
+    position: "absolute",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 3,
+    backgroundColor: "#78350f"
+  },
+  cantiereMid: {
+    width: "100%",
+    position: "relative",
+    overflow: "hidden",
+    borderLeftWidth: 2,
+    borderRightWidth: 2,
+    borderColor: OUTLINE
+  },
+  cantiereScaffold: {
+    ...StyleSheet.absoluteFillObject
+  },
+  cantierePole: {
+    position: "absolute",
+    top: 2,
+    bottom: 2,
+    borderWidth: 1,
+    borderColor: OUTLINE
+  },
+  cantiereBeam: {
+    position: "absolute",
+    left: "4%",
+    right: "4%",
+    height: 3,
+    backgroundColor: "#e7e5e4",
+    borderWidth: 1,
+    borderColor: OUTLINE
+  },
+  cantiereEmojiWrap: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: "center",
+    alignItems: "center",
+    zIndex: 2
+  },
+  cantiereGround: {
+    width: "100%",
+    backgroundColor: "#57534e",
+    borderTopWidth: 2,
+    borderColor: OUTLINE,
+    position: "relative",
+    overflow: "hidden"
+  },
+  cantiereDirtPatch: {
+    position: "absolute",
+    left: "12%",
+    top: "25%",
+    width: "32%",
+    height: "45%",
+    backgroundColor: "#92400e",
+    borderRadius: 2,
+    opacity: 0.85
+  },
+  cantiereProgressTrack: {
+    position: "absolute",
+    left: "8%",
+    right: "8%",
+    bottom: 2,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: "rgba(0,0,0,0.45)",
+    overflow: "hidden"
+  },
+  cantiereProgressFill: {
+    height: "100%",
+    backgroundColor: "#facc15",
+    borderRadius: 2
   },
   capBaseInner: {
     flex: 1,

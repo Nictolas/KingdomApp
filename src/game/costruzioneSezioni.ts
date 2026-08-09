@@ -2,7 +2,7 @@
 export const SEZIONI_COSTRUZIONE: { titolo: string; nomi: string[] }[] = [
   {
     titolo: "Ordine",
-    nomi: ["Tribunale", "Campo di Lavoro", "Campo di Sterminio", "Centrale", "Caserma"]
+    nomi: ["Ufficio Edile", "Tribunale", "Campo di Lavoro", "Campo di Sterminio", "Centrale", "Caserma"]
   }
 ];
 

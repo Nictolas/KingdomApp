@@ -9,6 +9,7 @@ import {
 import { RESIDENZE_CATALOGO, RESIDENZE_ENERGIA_PER_ABITANTE } from "../data/residenzeData";
 import { getCastaAbitante, isCastaCoercibile } from "./casta";
 import { autoAssegnaCittadiniDisoccupati, autoAssegnaDisoccupati, isEdificioPubblicoConPostazioniLavoro, normalizzaLavoroEAgricoltura } from "./edificiLavoro";
+import { avanzaCostruzioniEdifici } from "./costruzioneEdifici";
 import { applicaRedditoSchiaviAlPadroni, isOmicidioSchiavoImmune, LAVORO_GIOCATORE } from "./schiavituCommercio";
 import { specializzazioneCasuale } from "./specializzazione";
 import { getProduttivitaEffettiva, normalizzaAbitanteBisogni } from "./bisogni";
@@ -408,6 +409,9 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   const normLavoro = normalizzaLavoroEAgricoltura(abitantiRimasti, edificiConAuto);
   edificiConAuto = normLavoro.edifici;
   const abitantiConLavoro = normLavoro.abitanti;
+
+  const avanzamentoCantieri = avanzaCostruzioniEdifici(edificiConAuto, abitantiConLavoro);
+  edificiConAuto = avanzamentoCantieri.edifici;
 
   const idLavoratoreEdificioPubblico = new Set<number>();
   const idToEdificioPubblico = new Map<number, Edificio>();
@@ -822,6 +826,12 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     if (lealisti >= maggioranza - 1 || percentuale >= 40) {
       avvisoDiario = `Rischio Guerra Civile: i Lealisti sono ${lealisti}/${abitantiEv.length} (${percentuale}%). Rafforza la Caserma (almeno 3 addetti) e mantieni alta la Soddisfazione della fazione Sicurezza per bloccare o mitigare il conflitto.`;
     }
+  }
+  if (avanzamentoCantieri.completati.length > 0) {
+    const msgCantieri = avanzamentoCantieri.completati
+      .map((c) => `${c.nome} è stato completato.`)
+      .join(" ");
+    avvisoDiario = avvisoDiario ? `${avvisoDiario}\n${msgCantieri}` : msgCantieri;
   }
 
   // Sincronizza di nuovo Baracca con i Senzatetto (dopo aggiornamento fazioni in nuoviAbitanti)

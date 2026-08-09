@@ -34,6 +34,11 @@ import { getEdificioAbitazione } from "../game/abitanteEdifici";
 import { generaImmigratiProposti } from "../game/immigrazione";
 import { getLavoroPerEdificio, autoAssegnaCittadiniDisoccupati, normalizzaLavoroEAgricoltura, edificioAccettaServiDellaGleba, isEdificioPubblicoConPostazioniLavoro, assumiCittadinoDisoccupatoInEdificio } from "../game/edificiLavoro";
 import {
+  consumaMaterialeEdile,
+  edificioParteInCostruzione,
+  haMaterialeEdileSufficiente
+} from "../game/costruzioneEdifici";
+import {
   creaMoneteGiocatoreIniziali,
   GIORNI_STIPENDIO_EDIFICIO_PUBBLICO_MESE,
   pagaStipendiEdificiPubblici
@@ -749,28 +754,49 @@ export function useGameState() {
     );
   }, []);
 
-  /** Crea un nuovo edificio nel modello di gioco a partire da una riga del catalogo (nuovo id univoco). */
-  const aggiungiEdificioDaTemplate = useCallback((templateId: number): number | null => {
-    const template = edificiData.find((x) => x.id === templateId);
-    if (!template) return null;
-    let createdId: number | null = null;
-    setEdifici((prev) => {
-      const newId = Math.max(0, ...prev.map((x) => x.id)) + 1;
-      createdId = newId;
-      const nuovo: Edificio = {
-        ...template,
-        id: newId,
-        abitantiAssegnati: [],
-        occupazione: 0,
-        stato: "Operativo",
-        stipendioPerLavoratore:
-          template.stipendioPerLavoratore ??
-          (isEdificioPubblicoConPostazioniLavoro(template) ? STIPENDIO_BASE_MONETE_MESE : undefined)
-      };
-      return [...prev, nuovo];
-    });
-    return createdId;
-  }, []);
+  /** Crea un nuovo edificio nel modello di gioco a partire da una riga del catalogo (nuovo id univoco).
+   *  Se `costoMateriale` > 0 e non c'è abbastanza Materiale Edile, restituisce null.
+   *  Di default gli edifici partono «In costruzione» (tranne Ufficio Edile e Capanna). */
+  const aggiungiEdificioDaTemplate = useCallback(
+    (
+      templateId: number,
+      options?: { costoMateriale?: number; stato?: Edificio["stato"] }
+    ): number | null => {
+      const template = edificiData.find((x) => x.id === templateId);
+      if (!template) return null;
+      const costo = options?.costoMateriale ?? 0;
+      if (!haMaterialeEdileSufficiente(risorse, costo)) return null;
+
+      const stato =
+        options?.stato ??
+        (edificioParteInCostruzione(template.nome) ? "In costruzione" : "Operativo");
+
+      let createdId: number | null = null;
+      if (costo > 0) {
+        setRisorse((prev) => consumaMaterialeEdile(prev, costo));
+      }
+      setEdifici((prev) => {
+        const newId = Math.max(0, ...prev.map((x) => x.id)) + 1;
+        createdId = newId;
+        const nuovo: Edificio = {
+          ...template,
+          id: newId,
+          abitantiAssegnati: [],
+          occupazione: 0,
+          stato,
+          progressoCostruzione: stato === "In costruzione" ? 0 : undefined,
+          stipendioPerLavoratore:
+            template.stipendioPerLavoratore ??
+            (isEdificioPubblicoConPostazioniLavoro({ ...template, stato: "Operativo" })
+              ? STIPENDIO_BASE_MONETE_MESE
+              : undefined)
+        };
+        return [...prev, nuovo];
+      });
+      return createdId;
+    },
+    [risorse]
+  );
 
   const rimuoviEdificioPerId = useCallback((id: number) => {
     setEdifici((prev) => prev.filter((x) => x.id !== id));

@@ -30,7 +30,8 @@ export const EDIFICIO_TO_LAVORO: Record<number, string> = {
   28: "Commerciante",    // Negozio
   29: "Cuoco",             // Mensa Pubblica
   30: "Religioso",          // Luogo di Culto del Sole
-  31: "Religioso"           // Luogo di Culto degli Alieni
+  31: "Religioso",          // Luogo di Culto degli Alieni
+  33: "Edile"               // Ufficio Edile
 };
 
 const LAVORI_DA_EDIFICIO = new Set(Object.values(EDIFICIO_TO_LAVORO));
