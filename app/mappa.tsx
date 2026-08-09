@@ -92,13 +92,14 @@ import {
   applicaRecuperoBar,
   applicaRecuperoCulto,
   applicaRecuperoEnergiaSonno,
-  abitanteCercaLavoroPerSoldi,
+  abitanteUsaBisogniUmani,
   abitanteVuolePrendereLavoro,
   COSTO_BAR_MONETE,
+  getBisogniAbitante,
   patchBisogni,
   scegliAzioneTempoLibero
 } from "../src/game/bisogni";
-import { getCastaAbitante } from "../src/game/casta";
+import { getCastaAbitante, getEmojiCasta } from "../src/game/casta";
 import { elencoEdificiConPostoPerDisoccupato } from "../src/game/edificiLavoro";
 import { getEdificioAbitazione } from "../src/game/abitanteEdifici";
 import {
@@ -2024,6 +2025,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const [selectedLuogoCultoAnchor, setSelectedLuogoCultoAnchor] = useState<number | null>(null);
   /** Scheda abitante aperta dal doppio tocco su un passeggiatore sulla mappa. */
   const [schedaWandererAbitante, setSchedaWandererAbitante] = useState<Abitante | null>(null);
+  /** Selezione mappa: sintesi in barra inferiore al posto dei pulsanti risorse. */
+  const [sintesiMappaAbitanteId, setSintesiMappaAbitanteId] = useState<number | null>(null);
   /** Bordi tra le celle: di default nascosti; il toggle nella barra risorse li attiva. */
   const [mostraGrigliaMappa, setMostraGrigliaMappa] = useState(false);
   const lastTapCell = useRef<number | null>(null);
@@ -2068,6 +2071,17 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     (id: number) => abitanti.find((a) => a.id === id)?.nome ?? `ID ${id}`,
     [abitanti]
   );
+
+  const sintesiMappaAbitante = useMemo(() => {
+    if (sintesiMappaAbitanteId == null) return null;
+    return abitanti.find((a) => a.id === sintesiMappaAbitanteId) ?? null;
+  }, [abitanti, sintesiMappaAbitanteId]);
+
+  useEffect(() => {
+    if (sintesiMappaAbitanteId != null && sintesiMappaAbitante == null) {
+      setSintesiMappaAbitanteId(null);
+    }
+  }, [sintesiMappaAbitanteId, sintesiMappaAbitante]);
 
   useEffect(() => {
     if (typeof document === "undefined") return;
@@ -2959,12 +2973,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         haCasa: homeCell != null
       });
 
-      const monete = getMoneteInventarioAbitante(a.inventario);
-      const urgeLavoro = abitanteCercaLavoroPerSoldi(a, monete);
       const puòCercareLavoro =
-        getCastaAbitante(a) === "Cittadino" &&
-        abitanteVuolePrendereLavoro(a) &&
-        (urgeLavoro || azione === "nessuna");
+        getCastaAbitante(a) === "Cittadino" && abitanteVuolePrendereLavoro(a);
 
       if (azione === "mensa") {
         const mensaId = scegliMensaEdificioIdPiuVicino(
@@ -3739,6 +3749,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const onCellPress = useCallback(
     (cellIndex: number) => {
+      setSintesiMappaAbitanteId(null);
       if (modalitaDemolisci) {
         handleDemolisci(cellIndex);
         return;
@@ -3823,6 +3834,42 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     });
     setSelectedCellForTransformDialog(null);
   }, [setMappaStatePersistente]);
+
+  const azioneSintesiMappa = useMemo(() => {
+    if (!sintesiMappaAbitante) return null;
+    return descriviAzioneCorrenteAbitante(sintesiMappaAbitante, {
+      edifici,
+      buioCielo: statoCielo.buio,
+      orologioMinuti,
+      dormonoACasaIds,
+      lavoroArrivatiIds,
+      barArrivatiByEdificio,
+      cultoArrivatiByEdificio,
+      commuteInfo: commuteByAbitanteId[sintesiMappaAbitante.id],
+      haCasa: (cellaCasaPerAbitanteId.get(sintesiMappaAbitante.id) ?? null) != null,
+      coprifuoco: {
+        attivo: coprifuocoAttivo,
+        inizioMinuti: coprifuocoInizioMinuti,
+        fineMinuti: coprifuocoFineMinuti
+      },
+      esitoRapinaRecente: esitoRapinaByAbitanteId[sintesiMappaAbitante.id] ?? null
+    });
+  }, [
+    sintesiMappaAbitante,
+    edifici,
+    statoCielo.buio,
+    orologioMinuti,
+    dormonoACasaIds,
+    lavoroArrivatiIds,
+    barArrivatiByEdificio,
+    cultoArrivatiByEdificio,
+    commuteByAbitanteId,
+    cellaCasaPerAbitanteId,
+    coprifuocoAttivo,
+    coprifuocoInizioMinuti,
+    coprifuocoFineMinuti,
+    esitoRapinaByAbitanteId
+  ]);
 
   return (
     <SafeAreaView style={styles.safe}>
@@ -4143,9 +4190,15 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                         }}
                         onCommuteBlocked={(info) => handleCommuteBloccata(abitante.id, info)}
                         onCellSettled={(cell) => handleCellAbitante(abitante.id, cell)}
+                        onPress={() => {
+                          setSintesiMappaAbitanteId(abitante.id);
+                        }}
                         onDoublePress={() => {
                           const a = abitanti.find((x) => x.id === abitante.id);
-                          if (a) setSchedaWandererAbitante(a);
+                          if (a) {
+                            setSintesiMappaAbitanteId(a.id);
+                            setSchedaWandererAbitante(a);
+                          }
                         }}
                         passTouchesToMapOnCell={passTouchesToMapOnCellPerWanderer}
                         disableIdleRoam={
@@ -4170,6 +4223,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                               )))
                         }
                         markerEmoji={abitante.razza === "Robot" ? getEmojiAbitante(abitante) : null}
+                        pressAccessibilityLabel={`Seleziona ${getAbitanteNome(abitante.id)}`}
                         doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitante.id)}`}
                         isCellFreeForMe={(cell) => isCellFreeForAbitante(abitante.id, cell)}
                         tryClaimCell={(cell) => tryClaimCellAbitante(abitante.id, cell)}
@@ -4211,9 +4265,48 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         )}
       </View>
 
-      {/* Menu fisso in basso: Risorse (ancorato al fondo schermo) */}
+      {/* Menu fisso in basso: risorse/pulsanti, oppure sintesi abitante selezionato */}
       <View style={styles.bottomBar} pointerEvents="box-none">
         <View style={styles.bottomBarInner}>
+          {sintesiMappaAbitante ? (
+            <View style={styles.sintesiAbitanteRow}>
+              <Text style={styles.sintesiEmoji}>{getEmojiAbitante(sintesiMappaAbitante)}</Text>
+              <View style={styles.sintesiMain}>
+                <Text style={styles.sintesiNome} numberOfLines={1}>
+                  {sintesiMappaAbitante.nome}
+                </Text>
+                <Text style={styles.sintesiAzione} numberOfLines={1}>
+                  {azioneSintesiMappa ?? "—"}
+                </Text>
+                <Text style={styles.sintesiAnagrafica} numberOfLines={1}>
+                  {sintesiMappaAbitante.eta} anni · {sintesiMappaAbitante.razza ?? "Umano"}
+                  {sintesiMappaAbitante.sesso ? ` · ${sintesiMappaAbitante.sesso}` : ""} ·{" "}
+                  {getEmojiCasta(getCastaAbitante(sintesiMappaAbitante))}{" "}
+                  {getCastaAbitante(sintesiMappaAbitante)} · {sintesiMappaAbitante.lavoro}
+                </Text>
+                {abitanteUsaBisogniUmani(sintesiMappaAbitante) ? (
+                  <Text style={styles.sintesiBisogni} numberOfLines={1}>
+                    {(() => {
+                      const b = getBisogniAbitante(sintesiMappaAbitante);
+                      return `🍽️${b.fame}  ⚡${b.energia}  🎉${b.divertimento}  💬${b.socialita}  🧼${b.igiene}`;
+                    })()}
+                  </Text>
+                ) : (
+                  <Text style={styles.sintesiBisogni} numberOfLines={1}>
+                    🔋 Energia {getBisogniAbitante(sintesiMappaAbitante).energia}
+                  </Text>
+                )}
+              </View>
+              <Pressable
+                style={styles.sintesiSchedaBtn}
+                onPress={() => setSchedaWandererAbitante(sintesiMappaAbitante)}
+                accessibilityRole="button"
+                accessibilityLabel="Apri scheda completa"
+              >
+                <Text style={styles.sintesiSchedaBtnText}>Scheda</Text>
+              </Pressable>
+            </View>
+          ) : (
           <ScrollView
             horizontal
             showsHorizontalScrollIndicator={false}
@@ -4341,6 +4434,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               );
             })}
           </ScrollView>
+          )}
         </View>
       </View>
 
@@ -4884,6 +4978,53 @@ const styles = StyleSheet.create({
     borderColor: "rgba(148,163,184,0.25)",
     paddingVertical: 8,
     paddingHorizontal: 12
+  },
+  sintesiAbitanteRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    minHeight: 64
+  },
+  sintesiEmoji: {
+    fontSize: 28,
+    width: 36,
+    textAlign: "center"
+  },
+  sintesiMain: {
+    flex: 1,
+    minWidth: 0,
+    gap: 1
+  },
+  sintesiNome: {
+    color: "#f8fafc",
+    fontSize: 13,
+    fontWeight: "800"
+  },
+  sintesiAzione: {
+    color: "#93c5fd",
+    fontSize: 11,
+    fontWeight: "600"
+  },
+  sintesiAnagrafica: {
+    color: "rgba(203,213,245,0.85)",
+    fontSize: 10
+  },
+  sintesiBisogni: {
+    color: "rgba(226,232,240,0.9)",
+    fontSize: 10,
+    fontVariant: ["tabular-nums"]
+  },
+  sintesiSchedaBtn: {
+    backgroundColor: "#3b82f6",
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    borderRadius: 8,
+    alignSelf: "center"
+  },
+  sintesiSchedaBtnText: {
+    color: "#ffffff",
+    fontSize: 12,
+    fontWeight: "700"
   },
   risorseRow: {
     flexDirection: "row",

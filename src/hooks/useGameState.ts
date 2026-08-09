@@ -247,6 +247,15 @@ export function useGameState() {
     return unsub;
   }, []);
 
+  /** All’avvio: i cittadini disoccupati prendono subito i posti vacanti (Bar, Serra, …). */
+  useEffect(() => {
+    let edificiNext = autoAssegnaCittadiniDisoccupati(abitantiRef.current, edificiRef.current);
+    const norm = normalizzaLavoroEAgricoltura(abitantiRef.current, edificiNext);
+    setEdifici(norm.edifici);
+    if (norm.abitanti !== abitantiRef.current) setAbitanti(norm.abitanti);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- solo bootstrap partita
+  }, []);
+
   /** Cittadini disoccupati cercano lavoro; stipendi edifici pubblici dal tesoro del giocatore. */
   useEffect(() => {
     const applicaEconomiaPubblica = () => {

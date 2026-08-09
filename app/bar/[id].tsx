@@ -11,6 +11,7 @@ import {
 import { formatOrologioGioco } from "../../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../../src/hooks/useOrologioGioco";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../../src/game/edificiLavoro";
+import { getCastaAbitante } from "../../src/game/casta";
 import { getStipendioMensileEdificio, STIPENDIO_BASE_MONETE_GIORNO } from "../../src/game/edificiPubblici";
 import { getEmojiAbitante } from "../../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../../src/ui/modalFullscreenStyles";
@@ -95,12 +96,50 @@ export default function BarScreenById() {
               <Text style={styles.orologioPausaBtnText}>{orologioInPausa ? "▶️" : "⏸️"}</Text>
             </Pressable>
           </View>
-          <Text style={styles.infoText}>
-            Addetti: {addetti.length}/{bar.capacità ?? 20}
-          </Text>
           <Text style={styles.infoSubtext}>
             Luogo di ritrovo per bere, socializzare e rilassarsi dopo il lavoro.
           </Text>
+        </View>
+
+        <View style={styles.lavoratoriCard}>
+          <Text style={styles.sectionTitle}>Lavoratori</Text>
+          <Text style={styles.lavoratoriCount}>
+            {addetti.length}/{bar.capacità ?? 20} posti occupati
+          </Text>
+          <Text style={styles.infoSubtext}>
+            I cittadini disoccupati si assumono da soli (lavoro: Barista). Puoi anche assegnare Servi
+            della gleba.
+          </Text>
+          {addetti.length > 0 ? (
+            <View style={styles.cardsContainer}>
+              {addetti.map((a) => (
+                <View key={a.id} style={styles.personCard}>
+                  <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+                  <View style={styles.cardContent}>
+                    <Text style={styles.cardTitle}>{a.nome}</Text>
+                    <Text style={styles.cardInfo}>
+                      {a.lavoro} · {getCastaAbitante(a)} · Competenza {a.competenza}%
+                    </Text>
+                  </View>
+                  <Pressable
+                    style={styles.removeButton}
+                    onPress={() => rimuoviAbitanteDaEdificio(a.id, bar.id)}
+                  >
+                    <Text style={styles.removeButtonText}>Rimuovi</Text>
+                  </Pressable>
+                </View>
+              ))}
+            </View>
+          ) : (
+            <Text style={styles.emptyVisitatori}>
+              Nessun lavoratore. I disoccupati cittadini con «Cerca lavoro» verranno qui se c’è posto.
+            </Text>
+          )}
+          {addettiIds.length < (bar.capacità ?? 20) && (
+            <Pressable style={styles.addButton} onPress={() => setDropdownVisible(true)}>
+              <Text style={styles.addButtonText}>+ Aggiungi Servo della gleba</Text>
+            </Pressable>
+          )}
         </View>
 
         <View style={styles.visitatoriCard}>
@@ -122,7 +161,7 @@ export default function BarScreenById() {
             </View>
           ) : (
             <Text style={styles.emptyVisitatori}>
-              Nessuno in questo momento (notte o nessun disoccupato in visita).
+              Nessuno in questo momento (notte o nessun visitatore).
             </Text>
           )}
         </View>
@@ -143,35 +182,6 @@ export default function BarScreenById() {
           <Text style={styles.infoSubtext}>
             Totale: {getStipendioMensileEdificio(bar) * addettiIds.length} monete/mese
           </Text>
-        </View>
-
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Addetti</Text>
-          <Text style={styles.sectionHint}>Solo abitanti con casta «Servo della gleba».</Text>
-          {addettiIds.length < (bar.capacità ?? 20) && (
-            <Pressable style={styles.addButton} onPress={() => setDropdownVisible(true)}>
-              <Text style={styles.addButtonText}>+ Aggiungi addetto</Text>
-            </Pressable>
-          )}
-          {addetti.length > 0 && (
-            <View style={styles.cardsContainer}>
-              {addetti.map((a) => (
-                <View key={a.id} style={styles.personCard}>
-                  <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
-                  <View style={styles.cardContent}>
-                    <Text style={styles.cardTitle}>{a.nome}</Text>
-                    <Text style={styles.cardInfo}>Competenza: {a.competenza}%</Text>
-                  </View>
-                  <Pressable
-                    style={styles.removeButton}
-                    onPress={() => rimuoviAbitanteDaEdificio(a.id, bar.id)}
-                  >
-                    <Text style={styles.removeButtonText}>Rimuovi</Text>
-                  </Pressable>
-                </View>
-              ))}
-            </View>
-          )}
         </View>
 
         <Modal visible={dropdownVisible} transparent animationType="fade" onRequestClose={() => setDropdownVisible(false)}>
@@ -305,6 +315,20 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.6)"
   },
+  lavoratoriCard: {
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderRadius: 8,
+    padding: 10,
+    marginTop: 10,
+    borderWidth: 1,
+    borderColor: "rgba(96,165,250,0.45)"
+  },
+  lavoratoriCount: {
+    color: "#ffffff",
+    fontSize: 14,
+    fontWeight: "700",
+    marginBottom: 4
+  },
   visitatoreRow: {
     flexDirection: "row",
     alignItems: "center",
@@ -331,7 +355,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 8,
     borderRadius: 4,
-    marginBottom: 8,
+    marginTop: 8,
+    marginBottom: 4,
     alignItems: "center"
   },
   addButtonText: { color: "#ffffff", fontSize: 10, fontWeight: "600" },

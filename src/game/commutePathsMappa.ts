@@ -2,13 +2,11 @@ import type { Abitante, Edificio } from "../types";
 import { abitanteHaBisognoMensa } from "./mensaPubblica";
 import { abitanteVuoleNegozio } from "./negozio";
 import {
-  abitanteCercaLavoroPerSoldi,
   abitanteVuolePrendereLavoro,
   scegliAzioneTempoLibero
 } from "./bisogni";
 import { getCastaAbitante } from "./casta";
 import { elencoEdificiConPostoPerDisoccupato } from "./edificiLavoro";
-import { getMoneteInventarioAbitante } from "./inventario";
 import { fasciaPerEdificio, minutiInFascia, primoEdificioLavoroOrarioPerAbitante } from "./orariLavoroMappa";
 import {
   celleIngressoWalkableAttornoAdAnchor,
@@ -307,12 +305,6 @@ export function pianificaCommuteMattina(
     if (!abitanteVuolePrendereLavoro(abitante)) return { path: null };
     const posti = elencoEdificiConPostoPerDisoccupato(abitante, edificiList);
     if (posti.length === 0) return { path: null };
-    const monete = getMoneteInventarioAbitante(abitante.inventario);
-    const urgeSoldi = abitanteCercaLavoroPerSoldi(abitante, monete);
-    // Con monete sufficienti lascia spazio a bar/casa; idle o senza soldi → posto di lavoro.
-    if (!urgeSoldi && azioneLibera !== "nessuna") {
-      return { path: null };
-    }
     let bestId: number | null = null;
     let bestLen = Infinity;
     let bestPath: number[] | null = null;

@@ -119,7 +119,9 @@ type MapWandererCharacterProps = {
   }) => void;
   /** Chiamato quando il personaggio “arriva” su una cella (fine passo o snap). */
   onCellSettled?: (cellIndex: number) => void;
-  /** Doppio tocco: apre la scheda abitante (mappa). */
+  /** Singolo tocco: seleziona l’abitante (sintesi in barra mappa). */
+  onPress?: () => void;
+  /** Doppio tocco: apre la scheda abitante completa. */
   onDoublePress?: () => void;
   /**
    * Se true per la cella corrente, il personaggio non intercetta i tocchi: passano alla griglia sotto
@@ -129,6 +131,8 @@ type MapWandererCharacterProps = {
   /** Se true, niente passeggio casuale tra le celle (solo percorsi commute / notte in casa). */
   disableIdleRoam?: boolean;
   /** Etichetta accessibilità per il target tocco (es. nome abitante). */
+  pressAccessibilityLabel?: string;
+  /** Etichetta accessibilità alternativa (doppio tocco / legacy). */
   doubleTapAccessibilityLabel?: string;
   /** Se impostata, mostra questa emoji al posto dello sprite RPG (es. Robot 🤖). */
   markerEmoji?: string | null;
@@ -159,9 +163,11 @@ export function MapWandererCharacter({
   onCommuteComplete,
   onCommuteBlocked,
   onCellSettled,
+  onPress,
   onDoublePress,
   passTouchesToMapOnCell,
   disableIdleRoam = false,
+  pressAccessibilityLabel,
   doubleTapAccessibilityLabel,
   markerEmoji = null,
   isCellFreeForMe,
@@ -203,15 +209,20 @@ export function MapWandererCharacter({
   commutePurposeRef.current = commutePurpose;
 
   const handlePress = useCallback(() => {
-    if (!onDoublePress) return;
+    if (!onPress && !onDoublePress) return;
     const now = Date.now();
-    if (lastTapTimeRef.current > 0 && now - lastTapTimeRef.current < DOPPIO_TAP_MS) {
+    if (onDoublePress && lastTapTimeRef.current > 0 && now - lastTapTimeRef.current < DOPPIO_TAP_MS) {
       lastTapTimeRef.current = 0;
       onDoublePress();
-    } else {
-      lastTapTimeRef.current = now;
+      return;
     }
-  }, [onDoublePress]);
+    lastTapTimeRef.current = now;
+    if (onPress) {
+      onPress();
+    } else if (onDoublePress) {
+      // Solo doppio tocco configurato: primo tap arma, secondo apre.
+    }
+  }, [onPress, onDoublePress]);
 
   useEffect(() => {
     cellRef.current = logicalCell;
@@ -550,7 +561,7 @@ export function MapWandererCharacter({
 
   const passTouchesToGrid =
     passTouchesToMapOnCell != null && passTouchesToMapOnCell(logicalCell) === true;
-  const apriSchedaConDoppioTap = !!onDoublePress && !passTouchesToGrid;
+  const intercettaTocco = (!!onPress || !!onDoublePress) && !passTouchesToGrid;
 
   const shellStyle = [
     styles.anchor,
@@ -607,13 +618,17 @@ export function MapWandererCharacter({
     </View>
   );
 
-  if (apriSchedaConDoppioTap) {
+  if (intercettaTocco) {
     return (
       <Pressable
         style={shellStyle}
         onPress={handlePress}
         accessibilityRole="button"
-        accessibilityLabel={doubleTapAccessibilityLabel ?? "Apri scheda abitante"}
+        accessibilityLabel={
+          pressAccessibilityLabel ??
+          doubleTapAccessibilityLabel ??
+          "Seleziona abitante"
+        }
       >
         {sprite}
       </Pressable>

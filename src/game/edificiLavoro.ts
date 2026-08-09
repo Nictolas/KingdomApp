@@ -64,7 +64,13 @@ function assegnaDisoccupatiAEdificiPubblici(candidati: Abitante[], edifici: Edif
         nomeCompetenza: "Competenza Generale"
       }
     }))
-    .sort((a, b) => a.edificio.id - b.edificio.id);
+    // Posti entry-level prima (Bar, Negozio, Serra…), così i disoccupati non finiscono tutti in edifici «difficili» assenti dalla mappa.
+    .sort((a, b) => {
+      if (a.req.competenzaMinima !== b.req.competenzaMinima) {
+        return a.req.competenzaMinima - b.req.competenzaMinima;
+      }
+      return a.edificio.id - b.edificio.id;
+    });
 
   for (const { edificio, req } of conReq) {
     const cap = edificio.capacità ?? 0;
