@@ -11,6 +11,7 @@ import {
 import { formatOrologioGioco } from "../../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../../src/hooks/useOrologioGioco";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../../src/game/edificiLavoro";
+import { getStipendioMensileEdificio, STIPENDIO_BASE_MONETE_GIORNO } from "../../src/game/edificiPubblici";
 import { getEmojiAbitante } from "../../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../../src/types";
@@ -127,10 +128,12 @@ export default function BarScreenById() {
         </View>
 
         <View style={styles.stipendioCard}>
-          <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (crediti)</Text>
+          <Text style={styles.stipendioLabel}>
+            Stipendio mensile per lavoratore ({STIPENDIO_BASE_MONETE_GIORNO} moneta/giorno)
+          </Text>
           <TextInput
             style={styles.stipendioInput}
-            value={String(bar.stipendioPerLavoratore ?? 0)}
+            value={String(getStipendioMensileEdificio(bar))}
             keyboardType="number-pad"
             onChangeText={(text) => {
               const n = parseInt(text.replace(/[^0-9]/g, ""), 10);
@@ -138,7 +141,7 @@ export default function BarScreenById() {
             }}
           />
           <Text style={styles.infoSubtext}>
-            Totale: {(bar.stipendioPerLavoratore ?? 0) * addettiIds.length} crediti/mese
+            Totale: {getStipendioMensileEdificio(bar) * addettiIds.length} monete/mese
           </Text>
         </View>
 

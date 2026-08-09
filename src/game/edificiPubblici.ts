@@ -91,7 +91,7 @@ export function pagaStipendiEdificiPubblici(
   };
 }
 
-/** Tesoro iniziale del giocatore per stipendi edifici pubblici. */
+/** Tesoro iniziale del giocatore (unica cassa colonia). */
 export function creaMoneteGiocatoreIniziali(): number {
   return MONETE_GIOCATORE_INIZIALI;
 }

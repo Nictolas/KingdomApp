@@ -15,6 +15,10 @@ const FRAMES = 12;
 const MOVE_DURATION_MS = 560;
 const MOVE_DURATION_ROAD_MS = 340;
 const IDLE_BEFORE_NEXT_MS = 2200;
+/** Retry più rapido se la cella davanti è occupata durante una commute. */
+const CLAIM_RETRY_MS = 900;
+/** Dopo N fallimenti di claim, chiede al genitore un nuovo percorso. */
+const MAX_CLAIM_FAILS_BEFORE_REPATH = 3;
 
 function segmentMoveDurationMs(
   from: number,
@@ -103,7 +107,16 @@ type MapWandererCharacterProps = {
   commutePath?: number[] | null;
   commuteToken?: number;
   commutePurpose?: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | null;
-  onCommuteComplete?: (purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina") => void;
+  onCommuteComplete?: (purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro") => void;
+  /**
+   * Coda bloccata (cella occupata): il genitore dovrebbe ripianificare da `fromCell`
+   * evitando gli altri abitanti.
+   */
+  onCommuteBlocked?: (info: {
+    fromCell: number;
+    blockedCell: number;
+    purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro";
+  }) => void;
   /** Chiamato quando il personaggio “arriva” su una cella (fine passo o snap). */
   onCellSettled?: (cellIndex: number) => void;
   /** Doppio tocco: apre la scheda abitante (mappa). */
@@ -144,6 +157,7 @@ export function MapWandererCharacter({
   commuteToken = 0,
   commutePurpose = null,
   onCommuteComplete,
+  onCommuteBlocked,
   onCellSettled,
   onDoublePress,
   passTouchesToMapOnCell,
@@ -171,16 +185,22 @@ export function MapWandererCharacter({
   const lastTapTimeRef = useRef(0);
   /** Evita di rieseguire effetti a ogni render (es. tick orologio sul genitore → callback nuove). */
   const onCommuteCompleteRef = useRef(onCommuteComplete);
+  const onCommuteBlockedRef = useRef(onCommuteBlocked);
   const onCellSettledRef = useRef(onCellSettled);
   const pickNextMoveRef = useRef<() => void>(() => {});
   const isCellFreeForMeRef = useRef(isCellFreeForMe);
   const tryClaimCellRef = useRef(tryClaimCell);
   const releaseMyCellRef = useRef(releaseMyCell);
+  const commutePurposeRef = useRef(commutePurpose);
+  /** Fallimenti consecutivi di claim sul segmento corrente. */
+  const claimFailCountRef = useRef(0);
   onCommuteCompleteRef.current = onCommuteComplete;
+  onCommuteBlockedRef.current = onCommuteBlocked;
   onCellSettledRef.current = onCellSettled;
   isCellFreeForMeRef.current = isCellFreeForMe;
   tryClaimCellRef.current = tryClaimCell;
   releaseMyCellRef.current = releaseMyCell;
+  commutePurposeRef.current = commutePurpose;
 
   const handlePress = useCallback(() => {
     if (!onDoublePress) return;
@@ -294,14 +314,33 @@ export function MapWandererCharacter({
   const runOneSegment = useCallback(
     (from: number, to: number, onDone: () => void, isLastSegment: boolean) => {
       const claim = tryClaimCellRef.current;
-      if (claim && !claim(to)) {
-        // Destinazione occupata: aspetta e riprova lo stesso segmento.
+      const purpose = commutePurposeRef.current;
+      /** Ultimo passo verso casa: più abitanti possono condividere l’ingresso. */
+      const softHomeEntry = isLastSegment && purpose === "home";
+
+      if (claim && !softHomeEntry && !claim(to)) {
+        claimFailCountRef.current += 1;
+        if (
+          claimFailCountRef.current >= MAX_CLAIM_FAILS_BEFORE_REPATH &&
+          purpose != null &&
+          onCommuteBlockedRef.current
+        ) {
+          claimFailCountRef.current = 0;
+          onCommuteBlockedRef.current({ fromCell: from, blockedCell: to, purpose });
+          return;
+        }
         idleTimerRef.current = setTimeout(() => {
           runOneSegment(from, to, onDone, isLastSegment);
-        }, IDLE_BEFORE_NEXT_MS);
+        }, CLAIM_RETRY_MS);
         return;
       }
 
+      // Soft entry casa: prova claim, ma prosegui anche se fallisce.
+      if (claim && softHomeEntry) {
+        claim(to);
+      }
+
+      claimFailCountRef.current = 0;
       setDirection(directionBetween(from, to, cols));
       if (rafRef.current != null) {
         cancelAnimationFrame(rafRef.current);
@@ -354,6 +393,7 @@ export function MapWandererCharacter({
       rafRef.current = null;
     }
     inited.current = true;
+    claimFailCountRef.current = 0;
     const path = commutePath;
     const start = path[0]!;
     const cx = (start % cols) * cellSizePx;

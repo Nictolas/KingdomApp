@@ -1,5 +1,5 @@
 import type { Abitante } from "../types";
-import { COSTO_BAR_MONETE } from "./economiaPrezzi";
+import { COSTO_BAR_MONETE, PREZZO_CIBO_NEGOZIO } from "./economiaPrezzi";
 
 export { COSTO_BAR_MONETE };
 
@@ -201,12 +201,24 @@ export function abitanteHaFameUrgente(abitante: Abitante): boolean {
   return getBisogniAbitante(abitante).fame < SOGLIA_BISOGNO_AZIONE;
 }
 
-/** Disoccupato senza monete e con bisogni a pagamento → cerca lavoro. */
+/**
+ * Disoccupato che deve guadagnare monete per i bisogni (sopravvivenza / svago a pagamento)
+ * → vuole prendere un posto di lavoro.
+ */
 export function abitanteCercaLavoroPerSoldi(abitante: Abitante, moneteDisponibili: number): boolean {
   if (!abitanteUsaBisogniUmani(abitante)) return false;
   if (abitante.lavoro !== "Disoccupato") return false;
-  if (moneteDisponibili >= COSTO_BAR_MONETE) return false;
-  return abitanteVuoleBarPerBisogni(abitante) || getBisogniAbitante(abitante).fame < SOGLIA_BISOGNO_CRITICO;
+  const b = getBisogniAbitante(abitante);
+  if (moneteDisponibili < PREZZO_CIBO_NEGOZIO) return true;
+  if (abitanteVuoleBarPerBisogni(abitante) && moneteDisponibili < COSTO_BAR_MONETE) return true;
+  if (b.fame < SOGLIA_BISOGNO_CRITICO) return true;
+  return false;
+}
+
+/** Disoccupato cittadino che vuole un posto (anche preventivo, per avere monete per i bisogni). */
+export function abitanteVuolePrendereLavoro(abitante: Abitante): boolean {
+  if (!abitanteUsaBisogniUmani(abitante)) return false;
+  return abitante.lavoro === "Disoccupato";
 }
 
 /**

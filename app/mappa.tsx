@@ -92,10 +92,14 @@ import {
   applicaRecuperoBar,
   applicaRecuperoCulto,
   applicaRecuperoEnergiaSonno,
+  abitanteCercaLavoroPerSoldi,
+  abitanteVuolePrendereLavoro,
   COSTO_BAR_MONETE,
   patchBisogni,
   scegliAzioneTempoLibero
 } from "../src/game/bisogni";
+import { getCastaAbitante } from "../src/game/casta";
+import { elencoEdificiConPostoPerDisoccupato } from "../src/game/edificiLavoro";
 import { getEdificioAbitazione } from "../src/game/abitanteEdifici";
 import {
   getTotaleOggettiInventarioGiocatore,
@@ -137,6 +141,7 @@ import {
   scegliMensaEdificioIdPiuVicino,
   trovaAnchorEdificioGlobaleSuMappa
 } from "../src/game/commutePathsMappa";
+import { celleIngressoWalkableAttornoAdAnchor } from "../src/game/mappaPathfinding";
 import { SEZIONE_AMBIENTE, SEZIONI_COSTRUZIONE, type TerrenoCostruzioneKind } from "../src/game/costruzioneSezioni";
 import { setBarArrivatiMappaSnapshot } from "../src/game/mappaBarArrivatiStore";
 import { computeStatoCielo } from "../src/game/cicloCielo";
@@ -1389,7 +1394,7 @@ function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: n
   return { left: col * (cellW + GAP), top: row * (cellH + GAP) };
 }
 
-type CommutePurpose = "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina";
+type CommutePurpose = "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro";
 
 type CommuteInfo = {
   path: number[];
@@ -1399,6 +1404,7 @@ type CommuteInfo = {
   mensaEdificioId?: number;
   cultoEdificioId?: number;
   negozioEdificioId?: number;
+  lavoroCercaEdificioId?: number;
   rapinaTarget?: RapinaTarget;
 };
 
@@ -1678,7 +1684,6 @@ function piazzaStradeInizialiTraEdifici(
 
 function getResourceEmoji(r: Risorsa): string {
   const n = r.nome.toLowerCase();
-  if (n.includes("crediti")) return "💰";
   if (n.includes("cibo")) return "🍱";
   if (n.includes("energia")) return "⚡";
   if (n.includes("acqua")) return "💧";
@@ -1692,7 +1697,6 @@ function getResourceEmoji(r: Risorsa): string {
 function getResourceRoute(r: Risorsa): string | null {
   const n = r.nome.toLowerCase();
   if (n.includes("cibo")) return "/cibo";
-  if (n.includes("crediti")) return "/crediti";
   if (n.includes("energia")) return "/energia";
   if (n.includes("acqua")) return "/acqua";
   if (n.includes("rifiuti")) return "/rifiuti";
@@ -1760,6 +1764,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     avanzaMese,
     calcolaProduzioneConsumo,
     calcolaDeltaOrdiniMercato,
+    calcolaDeltaTesoroMercato,
     calcolaFelicitàModificata,
     etaMinimaLavoro,
     assegnaAbitanteAEdificio,
@@ -1769,6 +1774,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     serviPastoMensaAbitante,
     aggiornaAbitanteById,
     accreditaMoneteGiocatore,
+    assumiCittadinoDisoccupatoAEdificio,
     appendDiarioRiga,
     setInventarioMensaEdificio,
     inventarioMensaByEdificioId,
@@ -1795,6 +1801,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
+  const deltaTesoroMercato = calcolaDeltaTesoroMercato();
 
   const abitantiConFelicità = abitanti.filter((a) => a.razza !== "Robot");
   const nConFelicità = abitantiConFelicità.length;
@@ -2670,7 +2677,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       mensaEdificioId?: number,
       cultoEdificioId?: number,
       negozioEdificioId?: number,
-      rapinaTarget?: RapinaTarget
+      rapinaTarget?: RapinaTarget,
+      lavoroCercaEdificioId?: number
     ) => {
       const pathCorrente = commuteByAbitanteId[abitanteId]?.path;
       const cellaArrivo =
@@ -2693,6 +2701,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           })
         );
       } else if (purpose === "work") {
+        setLavoroArrivatiIds((s) => new Set(s).add(abitanteId));
+        setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
+        setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
+      } else if (purpose === "cerca_lavoro" && lavoroCercaEdificioId != null) {
+        assumiCittadinoDisoccupatoAEdificio(abitanteId, lavoroCercaEdificioId);
         setLavoroArrivatiIds((s) => new Set(s).add(abitanteId));
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
         setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
@@ -2773,6 +2786,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       serviPastoMensaAbitante,
       aggiornaAbitanteById,
       accreditaMoneteGiocatore,
+      assumiCittadinoDisoccupatoAEdificio,
       edifici,
       barArrivatiByEdificio,
       abitanti,
@@ -2783,6 +2797,111 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       setInventarioMensaEdificio,
       appendDiarioRiga,
       commuteByAbitanteId
+    ]
+  );
+
+  /**
+   * Commute bloccata da occupancy: ripianifica evitando celle occupate da altri.
+   * Se fallisce e purpose è home → completa comunque (entra in casa).
+   */
+  const handleCommuteBloccata = useCallback(
+    (
+      abitanteId: number,
+      info: {
+        fromCell: number;
+        blockedCell: number;
+        purpose: CommutePurpose;
+      }
+    ) => {
+      const meta = commuteByAbitanteId[abitanteId];
+      const from = info.fromCell;
+      ultimaCellaAbitanteRef.current.set(abitanteId, from);
+
+      const goalLiberi = new Set<number>();
+      const registraGoalsDaAnchor = (anchor: number | null) => {
+        if (anchor == null) return;
+        for (const g of celleIngressoWalkableAttornoAdAnchor(anchor, cols, rows, isWalkableCell)) {
+          goalLiberi.add(g);
+        }
+      };
+
+      let anchorDest: number | null = null;
+      if (info.purpose === "home") {
+        anchorDest = cellaCasaPerAbitanteId.get(abitanteId) ?? null;
+      } else if (info.purpose === "work") {
+        const lav = primoEdificioLavoroOrarioPerAbitante(abitanteId, edifici);
+        anchorDest = lav ? trovaAnchorEdificioGlobaleSuMappa(lav.id, edificiInMappa) : null;
+      } else if (info.purpose === "cerca_lavoro" && meta?.lavoroCercaEdificioId != null) {
+        anchorDest = trovaAnchorEdificioGlobaleSuMappa(meta.lavoroCercaEdificioId, edificiInMappa);
+      } else if (info.purpose === "bar" && meta?.barEdificioId != null) {
+        anchorDest = trovaAnchorEdificioGlobaleSuMappa(meta.barEdificioId, edificiInMappa);
+      } else if (info.purpose === "mensa" && meta?.mensaEdificioId != null) {
+        anchorDest = trovaAnchorEdificioGlobaleSuMappa(meta.mensaEdificioId, edificiInMappa);
+      } else if (info.purpose === "negozio" && meta?.negozioEdificioId != null) {
+        anchorDest = trovaAnchorEdificioGlobaleSuMappa(meta.negozioEdificioId, edificiInMappa);
+      } else if (info.purpose === "culto" && meta?.cultoEdificioId != null) {
+        anchorDest = trovaAnchorEdificioGlobaleSuMappa(meta.cultoEdificioId, edificiInMappa);
+      }
+      registraGoalsDaAnchor(anchorDest);
+
+      const isWalkableEvitandoAltri = (i: number) => {
+        if (!isWalkableCell(i)) return false;
+        if (goalLiberi.has(i)) return true;
+        const occ = cellaOccupataDaAbitanteRef.current.get(i);
+        if (occ != null && occ !== abitanteId) return false;
+        return true;
+      };
+
+      let path: number[] | null = null;
+      if (anchorDest != null) {
+        path = calcolaPercorsoVersoAnchorEdificio(
+          from,
+          anchorDest,
+          cols,
+          rows,
+          isWalkableEvitandoAltri
+        );
+        if (!path || path.length < 2) {
+          path = calcolaPercorsoVersoAnchorEdificio(from, anchorDest, cols, rows, isWalkableCell);
+        }
+      }
+
+      if (path && path.length >= 2) {
+        const idxFrom = path.indexOf(from);
+        const pathNorm =
+          idxFrom >= 0 ? path.slice(idxFrom) : path[0] === from ? path : [from, ...path];
+        if (pathNorm.length >= 2) {
+          setCommuteByAbitanteId((prev) => ({
+            ...prev,
+            [abitanteId]: {
+              path: pathNorm,
+              token: Date.now(),
+              purpose: info.purpose,
+              barEdificioId: meta?.barEdificioId,
+              mensaEdificioId: meta?.mensaEdificioId,
+              cultoEdificioId: meta?.cultoEdificioId,
+              negozioEdificioId: meta?.negozioEdificioId,
+              lavoroCercaEdificioId: meta?.lavoroCercaEdificioId,
+              rapinaTarget: meta?.rapinaTarget
+            }
+          }));
+          return;
+        }
+      }
+
+      if (info.purpose === "home") {
+        handleCommuteFinita(abitanteId, "home");
+      }
+    },
+    [
+      commuteByAbitanteId,
+      cellaCasaPerAbitanteId,
+      cols,
+      rows,
+      isWalkableCell,
+      edifici,
+      edificiInMappa,
+      handleCommuteFinita
     ]
   );
 
@@ -2839,7 +2958,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         puòRapinare,
         haCasa: homeCell != null
       });
-      if (azione === "nessuna") continue;
+
+      const monete = getMoneteInventarioAbitante(a.inventario);
+      const urgeLavoro = abitanteCercaLavoroPerSoldi(a, monete);
+      const puòCercareLavoro =
+        getCastaAbitante(a) === "Cittadino" &&
+        abitanteVuolePrendereLavoro(a) &&
+        (urgeLavoro || azione === "nessuna");
 
       if (azione === "mensa") {
         const mensaId = scegliMensaEdificioIdPiuVicino(
@@ -2850,23 +2975,27 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           rows,
           isWalkableCell
         );
-        if (mensaId == null) continue;
-        const path = pianificaCommuteVersoEdificioGlobaleDaCella(
-          from,
-          mensaId,
-          edificiInMappa,
-          cols,
-          rows,
-          isWalkableCell
-        );
-        if (!path || path.length < 2) continue;
-        nuoveCommuteById[a.id] = {
-          path,
-          token: Date.now(),
-          purpose: "mensa",
-          mensaEdificioId: mensaId
-        };
-        continue;
+        if (mensaId == null) {
+          /* fall through */
+        } else {
+          const path = pianificaCommuteVersoEdificioGlobaleDaCella(
+            from,
+            mensaId,
+            edificiInMappa,
+            cols,
+            rows,
+            isWalkableCell
+          );
+          if (path && path.length >= 2) {
+            nuoveCommuteById[a.id] = {
+              path,
+              token: Date.now(),
+              purpose: "mensa",
+              mensaEdificioId: mensaId
+            };
+            continue;
+          }
+        }
       }
 
       if (azione === "negozio") {
@@ -2879,23 +3008,25 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           rows,
           isWalkableCell
         );
-        if (negozioId == null) continue;
-        const path = pianificaCommuteVersoEdificioGlobaleDaCella(
-          from,
-          negozioId,
-          edificiInMappa,
-          cols,
-          rows,
-          isWalkableCell
-        );
-        if (!path || path.length < 2) continue;
-        nuoveCommuteById[a.id] = {
-          path,
-          token: Date.now(),
-          purpose: "negozio",
-          negozioEdificioId: negozioId
-        };
-        continue;
+        if (negozioId != null) {
+          const path = pianificaCommuteVersoEdificioGlobaleDaCella(
+            from,
+            negozioId,
+            edificiInMappa,
+            cols,
+            rows,
+            isWalkableCell
+          );
+          if (path && path.length >= 2) {
+            nuoveCommuteById[a.id] = {
+              path,
+              token: Date.now(),
+              purpose: "negozio",
+              negozioEdificioId: negozioId
+            };
+            continue;
+          }
+        }
       }
 
       if (azione === "rapina") {
@@ -2903,6 +3034,40 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         if (rapina) nuoveCommuteById[a.id] = rapina;
         continue;
       }
+
+      if (puòCercareLavoro) {
+        const posti = elencoEdificiConPostoPerDisoccupato(a, edifici);
+        let bestId: number | null = null;
+        let bestPath: number[] | null = null;
+        let bestLen = Infinity;
+        for (const e of posti) {
+          const path = pianificaCommuteVersoEdificioGlobaleDaCella(
+            from,
+            e.id,
+            edificiInMappa,
+            cols,
+            rows,
+            isWalkableCell
+          );
+          if (!path || path.length < 2) continue;
+          if (path.length < bestLen) {
+            bestLen = path.length;
+            bestId = e.id;
+            bestPath = path;
+          }
+        }
+        if (bestId != null && bestPath != null) {
+          nuoveCommuteById[a.id] = {
+            path: bestPath,
+            token: Date.now(),
+            purpose: "cerca_lavoro",
+            lavoroCercaEdificioId: bestId
+          };
+          continue;
+        }
+      }
+
+      if (azione === "nessuna") continue;
 
       if (azione === "bar") {
         const barId = scegliBarEdificioIdPiuVicino(from, edifici, edificiInMappa, cols, rows, isWalkableCell);
@@ -3061,14 +3226,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                 ? "negozio"
                 : mattina.barEdificioId
                   ? "bar"
-                  : "work";
+                  : mattina.lavoroCercaEdificioId
+                    ? "cerca_lavoro"
+                    : "work";
         next[a.id] = {
           path,
           token: Date.now(),
           purpose,
           barEdificioId: purpose === "bar" ? mattina.barEdificioId : undefined,
           mensaEdificioId: purpose === "mensa" ? mattina.mensaEdificioId : undefined,
-          negozioEdificioId: purpose === "negozio" ? mattina.negozioEdificioId : undefined
+          negozioEdificioId: purpose === "negozio" ? mattina.negozioEdificioId : undefined,
+          lavoroCercaEdificioId:
+            purpose === "cerca_lavoro" ? mattina.lavoroCercaEdificioId : undefined
         };
       }
       setCommuteByAbitanteId(next);
@@ -3968,9 +4137,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                             meta?.mensaEdificioId,
                             meta?.cultoEdificioId,
                             meta?.negozioEdificioId,
-                            meta?.rapinaTarget
+                            meta?.rapinaTarget,
+                            meta?.lavoroCercaEdificioId
                           );
                         }}
+                        onCommuteBlocked={(info) => handleCommuteBloccata(abitante.id, info)}
                         onCellSettled={(cell) => handleCellAbitante(abitante.id, cell)}
                         onDoublePress={() => {
                           const a = abitanti.find((x) => x.id === abitante.id);
@@ -4048,15 +4219,33 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             showsHorizontalScrollIndicator={false}
             contentContainerStyle={styles.risorseRow}
           >
-            <View style={styles.risorseCard}>
+            <Pressable
+              style={[styles.risorseCard, styles.risorseCardClickable]}
+              onPress={() => router.push("/crediti")}
+              accessibilityRole="button"
+              accessibilityLabel="Apri bilancio Tesoro"
+            >
               <Text style={styles.risorseEmoji}>💰</Text>
               <Text style={styles.risorseName} numberOfLines={1}>Tesoro</Text>
               <View style={styles.risorseValueRow}>
                 <Text style={styles.risorseValue}>{moneteGiocatore}</Text>
                 <Text style={styles.risorseUnit}> monete</Text>
               </View>
-            </View>
-            {risorse.map((r: Risorsa) => {
+              {deltaTesoroMercato !== 0 && (
+                <Text
+                  style={[
+                    styles.risorseDelta,
+                    deltaTesoroMercato > 0 ? styles.risorseDeltaPos : styles.risorseDeltaNeg
+                  ]}
+                >
+                  {deltaTesoroMercato > 0 ? "+" : ""}
+                  {deltaTesoroMercato}
+                </Text>
+              )}
+            </Pressable>
+            {risorse
+              .filter((r: Risorsa) => r.nome !== "Crediti")
+              .map((r: Risorsa) => {
               const isCibo = r.nome.toLowerCase().includes("cibo");
               const delta = isCibo ? 0 : (variazioni[r.nome] || 0) + (deltaOrdini[r.nome] ?? 0);
               const route = getResourceRoute(r);

@@ -14,8 +14,6 @@ import { useGameContext } from "../src/context/GameContext";
 import { pianetiData } from "../src/kingdomData";
 import type { Risorsa } from "../src/types";
 
-const CREDITI_ID = 1;
-
 /** Emoji per risorsa (per UI). */
 const RESOURCE_EMOJI: Record<string, string> = {
   Cibo: "🍱",
@@ -34,7 +32,8 @@ function getEmojiRisorsa(risorsa: Risorsa | undefined): string {
 
 export default function MercatoScreen() {
   const router = useRouter();
-  const { risorse, ordiniMercato, aggiungiOrdineMercato, rimuoviOrdineMercato } = useGameContext();
+  const { risorse, ordiniMercato, aggiungiOrdineMercato, rimuoviOrdineMercato, moneteGiocatore } =
+    useGameContext();
   const [quantitàInput, setQuantitàInput] = useState<Record<string, string>>({});
 
   const { width } = Dimensions.get("window");
@@ -47,11 +46,10 @@ export default function MercatoScreen() {
   const numCols = width >= 720 ? 6 : width >= 480 ? 3 : 2;
   const colWidth = (width - padding - gap * (numCols - 1)) / numCols;
 
-  const crediti = risorse.find((r) => r.id === CREDITI_ID);
-  const creditiImpegnati = ordiniMercato
+  const moneteImpegnate = ordiniMercato
     .filter((o) => o.tipo === "compra")
     .reduce((s, o) => s + o.quantità * o.prezzoUnitario, 0);
-  const creditiDisponibili = crediti ? crediti.quantità - creditiImpegnati : 0;
+  const moneteDisponibili = moneteGiocatore - moneteImpegnate;
 
   const handleOrdinePianeta = (
     tipo: "compra" | "vendi",
@@ -80,10 +78,8 @@ export default function MercatoScreen() {
       >
         <View style={styles.saldoRow}>
           <View style={styles.saldoBadge}>
-            <Text style={styles.saldoLabel}>Crediti</Text>
-            <Text style={styles.saldoValue}>
-              {crediti ? `${crediti.quantità}` : "—"}
-            </Text>
+            <Text style={styles.saldoLabel}>Tesoro</Text>
+            <Text style={styles.saldoValue}>{moneteGiocatore}</Text>
           </View>
           <Text style={styles.saldoHint}>Ordini eseguiti al Skip Mese</Text>
         </View>
@@ -141,8 +137,7 @@ export default function MercatoScreen() {
           const costoCompra = qCompra * pianeta.prezzoAcquisto;
           const puòComprare =
             risorsaCheVende &&
-            crediti != null &&
-            creditiDisponibili >= costoCompra &&
+            moneteDisponibili >= costoCompra &&
             qCompra > 0;
 
           return (

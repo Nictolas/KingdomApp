@@ -1,4 +1,4 @@
-import type { Abitante, Edificio, Risorsa } from "../types";
+import type { Abitante, Edificio } from "../types";
 import { condannaAMortePuro } from "./tribunale";
 import { getCastaAbitante, isCastaCoercibile } from "./casta";
 import {
@@ -66,59 +66,49 @@ export function applicaProprietaSchiavo(schiavo: Abitante, nuovoProprietarioId: 
   };
 }
 
-function getCreditiColonia(risorse: Risorsa[]): number {
-  return risorse.find((r) => r.nome === "Crediti")?.quantità ?? 0;
-}
-
-function setCreditiColonia(risorse: Risorsa[], quantità: number): Risorsa[] {
-  return risorse.map((r) => (r.nome === "Crediti" ? { ...r, quantità: Math.max(0, quantità) } : r));
-}
-
 function addebita(
   abitanti: Abitante[],
-  risorse: Risorsa[],
+  moneteGiocatore: number,
   pagatoreId: number | null,
   importo: number
-): { ok: boolean; abitanti: Abitante[]; risorse: Risorsa[] } {
-  if (importo <= 0) return { ok: true, abitanti, risorse };
+): { ok: boolean; abitanti: Abitante[]; moneteGiocatore: number } {
+  if (importo <= 0) return { ok: true, abitanti, moneteGiocatore };
   if (pagatoreId === null) {
-    const saldo = getCreditiColonia(risorse);
-    if (saldo < importo) return { ok: false, abitanti, risorse };
-    return { ok: true, abitanti, risorse: setCreditiColonia(risorse, saldo - importo) };
+    if (moneteGiocatore < importo) return { ok: false, abitanti, moneteGiocatore };
+    return { ok: true, abitanti, moneteGiocatore: moneteGiocatore - importo };
   }
   const pagatore = abitanti.find((a) => a.id === pagatoreId);
-  if (!pagatore) return { ok: false, abitanti, risorse };
+  if (!pagatore) return { ok: false, abitanti, moneteGiocatore };
   const dopoSpesa = provaSpendiMoneteInventarioAbitante(pagatore, importo);
-  if (!dopoSpesa) return { ok: false, abitanti, risorse };
+  if (!dopoSpesa) return { ok: false, abitanti, moneteGiocatore };
   return {
     ok: true,
     abitanti: abitanti.map((a) => (a.id === pagatoreId ? dopoSpesa : a)),
-    risorse
+    moneteGiocatore
   };
 }
 
 function accredita(
   abitanti: Abitante[],
-  risorse: Risorsa[],
+  moneteGiocatore: number,
   beneficiarioId: number | null,
   importo: number
-): { abitanti: Abitante[]; risorse: Risorsa[] } {
-  if (importo <= 0) return { abitanti, risorse };
+): { abitanti: Abitante[]; moneteGiocatore: number } {
+  if (importo <= 0) return { abitanti, moneteGiocatore };
   if (beneficiarioId === null) {
-    const saldo = getCreditiColonia(risorse);
-    return { abitanti, risorse: setCreditiColonia(risorse, saldo + importo) };
+    return { abitanti, moneteGiocatore: moneteGiocatore + importo };
   }
   return {
     abitanti: abitanti.map((a) =>
       a.id === beneficiarioId ? aggiungiMoneteInventarioAbitante(a, importo) : a
     ),
-    risorse
+    moneteGiocatore
   };
 }
 
 export type TrasferisciProprietaSchiavoInput = {
   abitanti: Abitante[];
-  risorse: Risorsa[];
+  moneteGiocatore: number;
   schiavoId: number;
   /** `null` = colonia/giocatore. */
   nuovoProprietarioId: number | null;
@@ -128,35 +118,37 @@ export type TrasferisciProprietaSchiavoInput = {
 /** Compra/vende/trasferisce la proprietà di uno schiavo con pagamento. */
 export function trasferisciProprietaSchiavoPuro(
   input: TrasferisciProprietaSchiavoInput
-): { ok: boolean; abitanti: Abitante[]; risorse: Risorsa[] } {
+): { ok: boolean; abitanti: Abitante[]; moneteGiocatore: number } {
   const { schiavoId, nuovoProprietarioId, prezzo } = input;
-  let { abitanti, risorse } = input;
+  let { abitanti, moneteGiocatore } = input;
 
   const schiavo = abitanti.find((a) => a.id === schiavoId);
-  if (!schiavo || !isSchiavoCommerciabile(schiavo)) return { ok: false, abitanti, risorse };
-
-  const venditoreId = getProprietarioSchiavoId(schiavo);
-  if (venditoreId === undefined) return { ok: false, abitanti, risorse };
-  if (venditoreId === nuovoProprietarioId) return { ok: false, abitanti, risorse };
-
-  if (nuovoProprietarioId != null && !abitanti.some((a) => a.id === nuovoProprietarioId)) {
-    return { ok: false, abitanti, risorse };
+  if (!schiavo || !isSchiavoCommerciabile(schiavo)) {
+    return { ok: false, abitanti, moneteGiocatore };
   }
 
-  const pagamento = addebita(abitanti, risorse, nuovoProprietarioId, prezzo);
-  if (!pagamento.ok) return { ok: false, abitanti, risorse };
-  abitanti = pagamento.abitanti;
-  risorse = pagamento.risorse;
+  const venditoreId = getProprietarioSchiavoId(schiavo);
+  if (venditoreId === undefined) return { ok: false, abitanti, moneteGiocatore };
+  if (venditoreId === nuovoProprietarioId) return { ok: false, abitanti, moneteGiocatore };
 
-  const incasso = accredita(abitanti, risorse, venditoreId, prezzo);
+  if (nuovoProprietarioId != null && !abitanti.some((a) => a.id === nuovoProprietarioId)) {
+    return { ok: false, abitanti, moneteGiocatore };
+  }
+
+  const pagamento = addebita(abitanti, moneteGiocatore, nuovoProprietarioId, prezzo);
+  if (!pagamento.ok) return { ok: false, abitanti, moneteGiocatore };
+  abitanti = pagamento.abitanti;
+  moneteGiocatore = pagamento.moneteGiocatore;
+
+  const incasso = accredita(abitanti, moneteGiocatore, venditoreId, prezzo);
   abitanti = incasso.abitanti;
-  risorse = incasso.risorse;
+  moneteGiocatore = incasso.moneteGiocatore;
 
   abitanti = abitanti.map((a) =>
     a.id === schiavoId ? applicaProprietaSchiavo(a, nuovoProprietarioId) : a
   );
 
-  return { ok: true, abitanti, risorse };
+  return { ok: true, abitanti, moneteGiocatore };
 }
 
 /** L'uccisione di un proprio schiavo non genera reati. Il Re può uccidere i Servi della gleba senza reato. */

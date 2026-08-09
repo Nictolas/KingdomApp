@@ -51,9 +51,9 @@ const REGOLE_SKIP: { titolo: string; punti: string[] }[] = [
     ]
   },
   {
-    titolo: "Risorse – Crediti",
+    titolo: "Risorse – Tesoro",
     punti: [
-      "Crediti colonia = crediti precedenti + (somma redditi di tutti gli abitanti) − (somma spese) − (somma manutenzione edifici operativi)."
+      "Il Tesoro (monete colonia) è l’unica cassa: +affitti pagati, −pensioni e reddito di cittadinanza, ±ordini di mercato, −stipendi edifici pubblici, ±eventi."
     ]
   },
   {
@@ -109,7 +109,7 @@ const REGOLE_SKIP: { titolo: string; punti: string[] }[] = [
   {
     titolo: "Ordini mercato",
     punti: [
-      "Tutti gli ordini di acquisto/vendita inseriti nel Mercato vengono eseguiti: acquisti sottraggono crediti e aggiungono risorse, vendite sottraggono risorse e aggiungono crediti.",
+      "Tutti gli ordini di acquisto/vendita inseriti nel Mercato vengono eseguiti: acquisti sottraggono monete dal Tesoro e aggiungono risorse, vendite sottraggono risorse e aggiungono monete al Tesoro.",
       "Dopo l’esecuzione la lista ordini viene svuotata."
     ]
   },

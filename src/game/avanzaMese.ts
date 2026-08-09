@@ -46,12 +46,16 @@ export type AvanzaMeseInput = {
     matrimonioUmanoRobot: boolean;
     matrimonioIntercasta?: boolean;
   };
+  /** Tesoro colonia (unica cassa monete). */
+  moneteGiocatore: number;
 };
 
 export type AvanzaMeseOutput = {
   abitanti: Abitante[];
   edifici: Edificio[];
   risorse: Risorsa[];
+  /** Tesoro dopo affitti, pensioni/cittadinanza, eventi, mercato. */
+  moneteGiocatore: number;
   eventiInCorso: EventoInCorso[];
   nuovoMese: number;
   nuovoAnno: number;
@@ -169,8 +173,13 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     soddisfazioneFazioni = {},
     prezzoResidenze = {},
     redditoCittadinanza = 0,
-    modalitaSanita = "privata"
+    modalitaSanita = "privata",
+    moneteGiocatore: moneteGiocatoreIn
   } = input;
+
+  let moneteGiocatore = Math.max(0, Math.floor(moneteGiocatoreIn));
+  // Scarta legacy Crediti se ancora presenti nell'array.
+  const risorseSenzaCrediti = risorse.filter((r) => r.nome !== "Crediti");
 
   // Baracca contiene tutti e solo i Senzatetto; sincronizza prima di procedere.
   let edificiSync = syncResidenzeBaraccaSenzatetto(edifici, abitanti);
@@ -515,26 +524,26 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     return setMoneteInventarioAbitante(aggiornato, Math.max(0, nuovoSaldo));
   });
 
-  const { abitanti: abitantiConRedditoPadroni, redditoEsclusoDaColonia } =
-    applicaRedditoSchiaviAlPadroni(nuoviAbitanti);
+  const { abitanti: abitantiConRedditoPadroni } = applicaRedditoSchiaviAlPadroni(nuoviAbitanti);
 
-  // Aggiorna risorse (crediti, produzione/consumo edifici, consumo cibo, bonus ministro agricoltura)
-  const nuoveRisorse = risorse.map((risorsa) => {
+  // Tesoro: +affitti; −assegni pensioni e reddito cittadinanza già accreditati agli inventari.
+  moneteGiocatore += totaleAffittiPagati;
+  const numPensionati = abitantiConRedditoPadroni.filter((a) => a.lavoro === "Pensionato").length;
+  moneteGiocatore -= numPensionati * assegnoPensionati;
+  const beneficiariCittadinanza = abitantiConRedditoPadroni.filter(
+    (a) =>
+      a.razza !== "Robot" &&
+      a.lavoro === "Disoccupato" &&
+      !isCastaCoercibile(getCastaAbitante(a)) &&
+      redditoCittadinanza > 0
+  ).length;
+  moneteGiocatore -= beneficiariCittadinanza * redditoCittadinanza;
+  moneteGiocatore = Math.max(0, moneteGiocatore);
+
+  // Aggiorna risorse materiali (produzione/consumo edifici, cibo, ecc.)
+  const nuoveRisorse = risorseSenzaCrediti.map((risorsa) => {
     let nuovaQuantità = risorsa.quantità;
     let totaleCiboProdotto = 0;
-
-    if (risorsa.nome === "Crediti") {
-      const totaleRedditi =
-        abitantiConRedditoPadroni
-          .filter((a) => a.lavoro !== "Pensionato")
-          .reduce((sum, a) => sum + a.reddito, 0) - redditoEsclusoDaColonia;
-      const totaleSpese = abitantiConRedditoPadroni.reduce((sum, a) => sum + a.spese, 0);
-      const numPensionati = abitantiConRedditoPadroni.filter((a) => a.lavoro === "Pensionato").length;
-      const costoPensioni = numPensionati * assegnoPensionati;
-      // Affitti: già sottratti dalle monete inventario; qui entrano in Crediti colonia (ponte macro).
-      const entrateResidenze = totaleAffittiPagati;
-      nuovaQuantità = risorsa.quantità + totaleRedditi + entrateResidenze - totaleSpese - costoPensioni;
-    }
 
     edificiConAuto.forEach((edificio) => {
       if (edificio.stato !== "Operativo") return;
@@ -750,7 +759,12 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       ...nuoviEventiInCorso,
       { id: def.id, iniziatoMese: nuovoMese, iniziatoAnno: nuovoAnno, durataMesi: def.durataMesi }
     ];
-    const ret = def.applicaAttivazione(risorseEv, abitantiEv, edificiEv, { calcolaFelicitàModificata });
+    const tesoroBag = { monete: moneteGiocatore };
+    const ret = def.applicaAttivazione(risorseEv, abitantiEv, edificiEv, {
+      calcolaFelicitàModificata,
+      tesoro: tesoroBag
+    });
+    moneteGiocatore = tesoroBag.monete;
     if (def.id === "emigrazione" && ret?.messaggioExtra) messaggioEmigrazione = ret.messaggioExtra;
   });
 
@@ -758,32 +772,28 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     nuoviEventiInCorso.some((e) => e.id === "assimilazione") && !avevaAssimilazione;
   const pendingAssimilazione = assimilazioneAppenaAggiunto ? 1 + Math.floor(Math.random() * 3) : null;
 
-  // Applica ordini mercato (acquisti/vendite)
-  let risorseDopoOrdini = risorseEv.map((r) => ({ ...r }));
-  const creditiId = 1;
+  // Applica ordini mercato (acquisti/vendite) — pagati dal Tesoro
+  let risorseDopoOrdini = risorseEv.map((r) => ({ ...r })).filter((r) => r.nome !== "Crediti");
   ordiniMercato.forEach((ordine) => {
-    if (ordine.risorsaId === creditiId || ordine.quantità <= 0 || ordine.prezzoUnitario <= 0) return;
+    if (ordine.quantità <= 0 || ordine.prezzoUnitario <= 0) return;
     const costo = ordine.quantità * ordine.prezzoUnitario;
-    const crediti = risorseDopoOrdini.find((r) => r.id === creditiId);
     const risorsa = risorseDopoOrdini.find((r) => r.id === ordine.risorsaId);
-    if (!crediti || !risorsa) return;
+    if (!risorsa) return;
     if (ordine.tipo === "compra") {
-      if (crediti.quantità < costo) return;
-      risorseDopoOrdini = risorseDopoOrdini.map((r) => {
-        if (r.id === creditiId) return { ...r, quantità: r.quantità - costo };
-        if (r.id === ordine.risorsaId) return { ...r, quantità: r.quantità + ordine.quantità };
-        return r;
-      });
+      if (moneteGiocatore < costo) return;
+      moneteGiocatore -= costo;
+      risorseDopoOrdini = risorseDopoOrdini.map((r) =>
+        r.id === ordine.risorsaId ? { ...r, quantità: r.quantità + ordine.quantità } : r
+      );
     } else {
       if (risorsa.quantità < ordine.quantità) return;
-      const ricavo = ordine.quantità * ordine.prezzoUnitario;
-      risorseDopoOrdini = risorseDopoOrdini.map((r) => {
-        if (r.id === creditiId) return { ...r, quantità: r.quantità + ricavo };
-        if (r.id === ordine.risorsaId) return { ...r, quantità: r.quantità - ordine.quantità };
-        return r;
-      });
+      moneteGiocatore += costo;
+      risorseDopoOrdini = risorseDopoOrdini.map((r) =>
+        r.id === ordine.risorsaId ? { ...r, quantità: r.quantità - ordine.quantità } : r
+      );
     }
   });
+  moneteGiocatore = Math.max(0, moneteGiocatore);
 
   // Matrimonio: coppie con amicizia >= 90, non già sposate, compatibili (orientamento/sesso) e consentite dalla legge (es. umano-robot)
   const tipologie = input.tipologieFamigliaAccettate;
@@ -821,6 +831,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     abitanti: abitantiEv,
     edifici: edificiEvSync,
     risorse: risorseDopoOrdini,
+    moneteGiocatore,
     eventiInCorso: nuoviEventiInCorso,
     nuovoMese,
     nuovoAnno,

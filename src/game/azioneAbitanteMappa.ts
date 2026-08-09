@@ -2,8 +2,10 @@ import type { Abitante, Edificio } from "../types";
 import { getEdificiOccupazione } from "./abitanteEdifici";
 import {
   abitanteCercaLavoroPerSoldi,
+  abitanteVuolePrendereLavoro,
   getBisogniAbitante
 } from "./bisogni";
+import { getCastaAbitante } from "./casta";
 import { abitanteSoggettoACoprifuoco, type ConfigCoprifuoco } from "./coprifuoco";
 import { getMoneteInventarioAbitante } from "./inventario";
 import {
@@ -14,11 +16,12 @@ import {
 import { abitanteNascostoNelCultoOra } from "./presenzaLuogoCulto";
 
 export type CommuteInfoAzione = {
-  purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina";
+  purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro";
   barEdificioId?: number;
   mensaEdificioId?: number;
   cultoEdificioId?: number;
   negozioEdificioId?: number;
+  lavoroCercaEdificioId?: number;
 };
 
 function nomeEdificio(edifici: Edificio[], id: number | undefined): string | null {
@@ -92,6 +95,10 @@ export function descriviAzioneCorrenteAbitante(
     switch (commuteInfo.purpose) {
       case "work":
         return "Sta andando a lavoro";
+      case "cerca_lavoro": {
+        const nome = nomeEdificio(edifici, commuteInfo.lavoroCercaEdificioId);
+        return nome ? `Sta andando a chiedere lavoro (${nome})` : "Sta andando a chiedere lavoro";
+      }
       case "home":
         return "Sta andando a casa sua";
       case "bar": {
@@ -158,6 +165,12 @@ export function descriviAzioneCorrenteAbitante(
 
   const monete = getMoneteInventarioAbitante(abitante.inventario);
   if (abitanteCercaLavoroPerSoldi(abitante, monete)) return "Cerca lavoro";
+  if (
+    abitanteVuolePrendereLavoro(abitante) &&
+    getCastaAbitante(abitante) === "Cittadino"
+  ) {
+    return "Cerca lavoro";
+  }
 
   const b = getBisogniAbitante(abitante);
   if (b.fame < 45) return "Ha fame";

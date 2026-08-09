@@ -39,18 +39,19 @@ function getRoutePerVoceBilancio(label: string): string | null {
 
 export default function CreditiScreen() {
   const router = useRouter();
-  const { abitanti, edifici, risorse, calcolaDeltaOrdiniMercato, prezzoResidenze, redditoCittadinanza } = useGameContext();
+  const {
+    abitanti,
+    edifici,
+    moneteGiocatore,
+    calcolaDeltaTesoroMercato,
+    prezzoResidenze,
+    redditoCittadinanza,
+    assegnoPensionati
+  } = useGameContext();
 
-  const saldoCrediti = risorse.find((r) => r.nome === "Crediti")?.quantità ?? 0;
+  const deltaMercato = calcolaDeltaTesoroMercato();
+  const saldoDopoMercato = moneteGiocatore + deltaMercato;
 
-  const deltaMercato = calcolaDeltaOrdiniMercato();
-  const deltaCrediti = deltaMercato["Crediti"] ?? 0;
-  const saldoDopoMercato = saldoCrediti + deltaCrediti;
-
-  const totaleRedditi = abitanti.filter((a) => a.razza !== "Robot").reduce((sum, a) => sum + a.reddito, 0);
-  const totaleSpese = abitanti.filter((a) => a.razza !== "Robot").reduce((sum, a) => sum + a.spese, 0);
-
-  // Stipendi pubblici: costo in monete tesoro (non Crediti colonia)
   const spesePerTipoEdificio = useMemo(() => {
     const operativi = edifici.filter(
       (e) => e.stato === "Operativo" && isEdificioPubblicoConPostazioniLavoro(e)
@@ -78,6 +79,9 @@ export default function CreditiScreen() {
   ).length;
   const spesaRedditoCittadinanza = (redditoCittadinanza ?? 0) * beneficiariRedditoCittadinanza;
 
+  const numPensionati = abitanti.filter((a) => a.lavoro === "Pensionato").length;
+  const spesaPensioni = numPensionati * (assegnoPensionati ?? 0);
+
   let totaleEntrateResidenze = 0;
   for (const e of edifici) {
     if (e.tipo !== "Residenza" || e.stato !== "Operativo") continue;
@@ -87,20 +91,25 @@ export default function CreditiScreen() {
   }
 
   const totaleNetto =
-    totaleRedditi + totaleEntrateResidenze - totaleSpese - spesaRedditoCittadinanza;
+    totaleEntrateResidenze +
+    Math.max(0, deltaMercato) -
+    totaleStipendiEdifici -
+    spesaRedditoCittadinanza -
+    spesaPensioni -
+    Math.max(0, -deltaMercato);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
   const contentMaxWidth = isDesktop ? 1000 : undefined;
 
-  const haOrdiniEntrata = deltaCrediti > 0;
-  const haOrdiniUscita = deltaCrediti < 0;
+  const haOrdiniEntrata = deltaMercato > 0;
+  const haOrdiniUscita = deltaMercato < 0;
 
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
-        <Text style={styles.title}>Crediti</Text>
+        <Text style={styles.title}>Tesoro</Text>
         <View style={{ width: 50 }} />
       </View>
 
@@ -113,14 +122,14 @@ export default function CreditiScreen() {
         <View style={styles.summaryRow}>
           <View style={styles.summaryCard}>
             <Text style={styles.summaryLabel}>Saldo attuale</Text>
-            <Text style={styles.summaryValore}>{saldoCrediti.toLocaleString("it-IT")}</Text>
-            <Text style={styles.summaryUnita}>crediti</Text>
+            <Text style={styles.summaryValore}>{moneteGiocatore.toLocaleString("it-IT")}</Text>
+            <Text style={styles.summaryUnita}>monete</Text>
             <Text style={styles.summaryHint}>
               Dopo ordini mercato:{" "}
-              <Text style={deltaCrediti >= 0 ? styles.valorePositivo : styles.valoreNegativo}>
+              <Text style={deltaMercato >= 0 ? styles.valorePositivo : styles.valoreNegativo}>
                 {saldoDopoMercato.toLocaleString("it-IT")}
-                {deltaCrediti !== 0
-                  ? ` (${deltaCrediti > 0 ? "+" : ""}${deltaCrediti.toLocaleString("it-IT")})`
+                {deltaMercato !== 0
+                  ? ` (${deltaMercato > 0 ? "+" : ""}${deltaMercato.toLocaleString("it-IT")})`
                   : ""}
               </Text>
             </Text>
@@ -130,7 +139,7 @@ export default function CreditiScreen() {
             <Text style={[styles.summaryValore, totaleNetto >= 0 ? styles.valorePositivo : styles.valoreNegativo]}>
               {totaleNetto >= 0 ? "+" : ""}{totaleNetto.toLocaleString("it-IT")}
             </Text>
-            <Text style={styles.summaryUnita}>crediti/mese</Text>
+            <Text style={styles.summaryUnita}>monete/mese</Text>
           </View>
         </View>
 
@@ -157,10 +166,10 @@ export default function CreditiScreen() {
                 >
                   <Text style={styles.bilancioEmoji}>📦</Text>
                   <Text style={styles.bilancioLabel}>Ordini di Mercato</Text>
-                  <Text style={[styles.bilancioValore, styles.valorePositivo]}>+{deltaCrediti}</Text>
+                  <Text style={[styles.bilancioValore, styles.valorePositivo]}>+{deltaMercato}</Text>
                 </Pressable>
               )}
-              {!haOrdiniEntrata && deltaCrediti === 0 && (
+              {!haOrdiniEntrata && deltaMercato === 0 && (
                 <Pressable
                   style={styles.bilancioRow}
                   onPress={() => getRoutePerVoceBilancio("Ordini di Mercato") && router.push(getRoutePerVoceBilancio("Ordini di Mercato")!)}
@@ -185,6 +194,13 @@ export default function CreditiScreen() {
                   <Text style={[styles.bilancioValore, styles.valoreNegativo]}>-{spesaRedditoCittadinanza}</Text>
                 </Pressable>
               )}
+              {spesaPensioni > 0 && (
+                <View style={styles.bilancioRow}>
+                  <Text style={styles.bilancioEmoji}>🧓</Text>
+                  <Text style={styles.bilancioLabel}>Pensioni</Text>
+                  <Text style={[styles.bilancioValore, styles.valoreNegativo]}>-{spesaPensioni}</Text>
+                </View>
+              )}
               {spesePerTipoEdificio.map(({ nome, emoji, costo }) => {
                 const route = getRoutePerVoceBilancio(nome);
                 return (
@@ -194,7 +210,7 @@ export default function CreditiScreen() {
                     onPress={() => route && router.push(route)}
                   >
                     <Text style={styles.bilancioEmoji}>{emoji}</Text>
-                    <Text style={styles.bilancioLabel}>{nome} (monete)</Text>
+                    <Text style={styles.bilancioLabel}>{nome}</Text>
                     <Text style={[styles.bilancioValore, styles.valoreNegativo]}>-{costo}</Text>
                   </Pressable>
                 );
@@ -206,7 +222,7 @@ export default function CreditiScreen() {
                 >
                   <Text style={styles.bilancioEmoji}>📦</Text>
                   <Text style={styles.bilancioLabel}>Ordini di Mercato</Text>
-                  <Text style={[styles.bilancioValore, styles.valoreNegativo]}>{deltaCrediti}</Text>
+                  <Text style={[styles.bilancioValore, styles.valoreNegativo]}>{deltaMercato}</Text>
                 </Pressable>
               )}
             </View>

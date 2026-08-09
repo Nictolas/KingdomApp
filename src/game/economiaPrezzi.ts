@@ -1,7 +1,7 @@
 /**
- * Tabella prezzi canonica (scala monete inventario).
+ * Tabella prezzi canonica (scala monete).
  * Unità: 1 moneta ≈ 1 giorno di stipendio base pubblico.
- * La risorsa Crediti colonia resta separata (mercato / bilancio macro).
+ * Unica cassa colonia = Tesoro (`moneteGiocatore`): stipendi, mercato, affitti, eventi.
  */
 
 /** Giorni di lavoro simulati per mese (stipendi). */
@@ -27,8 +27,10 @@ export const MONETE_INVENTARIO_SEED_MIN = 20;
 export const MONETE_INVENTARIO_SEED_MAX = 40;
 export const MONETE_INVENTARIO_SEED_DEFAULT = 30;
 
-/** Tesoro iniziale giocatore (stipendi edifici pubblici). */
-export const MONETE_GIOCATORE_INIZIALI = 500;
+/**
+ * Tesoro iniziale (ex monete stipendi 500 + ex Crediti colonia 1250).
+ */
+export const MONETE_GIOCATORE_INIZIALI = 1750;
 
 /** Assegno pensionati default (monete/mese). */
 export const ASSEGNO_PENSIONATI_DEFAULT = 12;

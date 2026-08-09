@@ -7,6 +7,8 @@ export type AggiungiOrdineMercatoInput = {
   prezzoUnitario: number;
   ordiniCorrenti: OrdineMercato[];
   risorse: Risorsa[];
+  /** Saldo Tesoro (monete colonia). */
+  moneteGiocatore: number;
 };
 
 export type AggiungiOrdineMercatoResult =
@@ -20,25 +22,24 @@ export function aggiungiOrdineMercatoPuro({
   quantità,
   prezzoUnitario,
   ordiniCorrenti,
-  risorse
+  risorse,
+  moneteGiocatore
 }: AggiungiOrdineMercatoInput): AggiungiOrdineMercatoResult {
-  const creditiId = 1;
-  if (risorsaId === creditiId || quantità <= 0 || prezzoUnitario <= 0) {
+  if (quantità <= 0 || prezzoUnitario <= 0) {
     return { success: false };
   }
 
-  const crediti = risorse.find((r) => r.id === creditiId);
   const risorsa = risorse.find((r) => r.id === risorsaId);
-  if (!crediti || !risorsa) {
+  if (!risorsa || risorsa.nome === "Crediti") {
     return { success: false };
   }
 
   if (tipo === "compra") {
     const costo = quantità * prezzoUnitario;
-    const creditiImpegnati = ordiniCorrenti
+    const moneteImpegnate = ordiniCorrenti
       .filter((o) => o.tipo === "compra")
       .reduce((s, o) => s + o.quantità * o.prezzoUnitario, 0);
-    if (crediti.quantità - creditiImpegnati < costo) {
+    if (moneteGiocatore - moneteImpegnate < costo) {
       return { success: false };
     }
   } else {
@@ -59,7 +60,7 @@ export function aggiungiOrdineMercatoPuro({
   };
 }
 
-/** Calcola il delta delle risorse dovuto agli ordini di mercato (anteprima). */
+/** Delta risorse materiali dovuto agli ordini (anteprima; il Tesoro è a parte). */
 export function calcolaDeltaOrdiniMercatoPuro(
   ordiniMercato: OrdineMercato[],
   risorse: Risorsa[]
@@ -67,21 +68,26 @@ export function calcolaDeltaOrdiniMercatoPuro(
   const delta: Record<string, number> = {};
 
   ordiniMercato.forEach((ordine) => {
-    const creditiId = 1;
     const risorsa = risorse.find((r) => r.id === ordine.risorsaId);
-    const nomeRisorsa = risorsa?.nome ?? "";
-    const nomeCrediti = risorse.find((r) => r.id === creditiId)?.nome ?? "Crediti";
+    if (!risorsa || risorsa.nome === "Crediti") return;
+    const nomeRisorsa = risorsa.nome;
     if (ordine.tipo === "compra") {
-      const costo = ordine.quantità * ordine.prezzoUnitario;
       delta[nomeRisorsa] = (delta[nomeRisorsa] ?? 0) + ordine.quantità;
-      delta[nomeCrediti] = (delta[nomeCrediti] ?? 0) - costo;
     } else {
-      const ricavo = ordine.quantità * ordine.prezzoUnitario;
       delta[nomeRisorsa] = (delta[nomeRisorsa] ?? 0) - ordine.quantità;
-      delta[nomeCrediti] = (delta[nomeCrediti] ?? 0) + ricavo;
     }
   });
 
   return delta;
 }
 
+/** Delta Tesoro (monete) dagli ordini di mercato in coda. */
+export function calcolaDeltaTesoroOrdiniMercato(ordiniMercato: OrdineMercato[]): number {
+  let delta = 0;
+  for (const ordine of ordiniMercato) {
+    const importo = ordine.quantità * ordine.prezzoUnitario;
+    if (ordine.tipo === "compra") delta -= importo;
+    else delta += importo;
+  }
+  return delta;
+}

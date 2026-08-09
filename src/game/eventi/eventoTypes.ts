@@ -1,5 +1,11 @@
 import type { Abitante, Risorsa, Edificio } from "../../types";
 
+export type EventoAttivazioneCtx = {
+  calcolaFelicitàModificata?: (a: Abitante) => number;
+  /** Bag mutabile: eventi che toccano soldi colonia aggiornano il Tesoro qui. */
+  tesoro?: { monete: number };
+};
+
 export type EventoDef = {
   id: string;
   nome: string;
@@ -22,7 +28,7 @@ export type EventoDef = {
     risorse: Risorsa[],
     abitanti: Abitante[],
     edifici: Edificio[],
-    ctx?: { calcolaFelicitàModificata?: (a: Abitante) => number }
+    ctx?: EventoAttivazioneCtx
   ) => void | { messaggioExtra?: string };
   /** Effetto ogni mese mentre l'evento è in corso */
   applicaMensile: (risorse: Risorsa[], abitanti: Abitante[], edifici: Edificio[]) => void;
@@ -30,8 +36,15 @@ export type EventoDef = {
 
 /** Helper usato da vari eventi per modificare una risorsa per nome. */
 export function modificaRisorsa(risorse: Risorsa[], nome: string, delta: number): void {
+  if (nome === "Crediti" || nome.toLowerCase() === "crediti") return;
   const r = risorse.find(
     (x) => x.nome === nome || x.nome.toLowerCase().includes(nome.toLowerCase())
   );
   if (r) r.quantità = Math.max(0, r.quantità + delta);
+}
+
+/** Modifica il Tesoro colonia (monete) negli eventi. */
+export function modificaTesoro(ctx: EventoAttivazioneCtx | undefined, delta: number): void {
+  if (!ctx?.tesoro) return;
+  ctx.tesoro.monete = Math.max(0, ctx.tesoro.monete + delta);
 }

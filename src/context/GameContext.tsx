@@ -117,6 +117,8 @@ type GameContextType = {
   }) => void;
   /** Assegna un Servo della gleba a un edificio con posto libero (assegnazione coattiva del giocatore). */
   assegnaServoDellaGlebaAEdificio: (abitanteId: number, edificioId: number) => void;
+  /** Cittadino disoccupato assunto autonomamente in un edificio pubblico (es. mappa). */
+  assumiCittadinoDisoccupatoAEdificio: (abitanteId: number, edificioId: number) => boolean;
   /** Compra/vende/trasferisce uno schiavo. `nuovoProprietarioId: null` = colonia. Restituisce true se riuscito. */
   trasferisciProprietaSchiavo: (schiavoId: number, nuovoProprietarioId: number | null, prezzo?: number) => boolean;
   /** Uccide uno schiavo di proprietà (`uccisoreId: null` = colonia). Senza conseguenze legali. */
@@ -145,6 +147,8 @@ type GameContextType = {
   aggiungiOrdineMercato: (tipo: "compra" | "vendi", risorsaId: number, quantità: number, prezzoUnitario: number) => boolean;
   rimuoviOrdineMercato: (ordineId: number) => void;
   calcolaDeltaOrdiniMercato: () => Record<string, number>;
+  /** Delta Tesoro previsto dagli ordini di mercato in coda. */
+  calcolaDeltaTesoroMercato: () => number;
   graziaCriminale: (abitanteId: number) => void;
   condannaAMorte: (abitanteId: number) => void;
   penaReati: PenaReatiConfig;

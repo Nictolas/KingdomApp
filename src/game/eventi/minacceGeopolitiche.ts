@@ -1,5 +1,5 @@
 import type { EventoDef } from "./eventoTypes";
-import { modificaRisorsa } from "./eventoTypes";
+import { modificaTesoro } from "./eventoTypes";
 
 export const eventoMinacceGeopolitiche: EventoDef = {
   id: "minacce-geopolitiche",
@@ -9,6 +9,6 @@ export const eventoMinacceGeopolitiche: EventoDef = {
   durataMesi: 1,
   probabilità: 0.25,
   condizione: (_a, _r, _e, punteggioSanzioni) => punteggioSanzioni >= 6,
-  applicaAttivazione: (risorse) => modificaRisorsa(risorse, "Crediti", -150),
+  applicaAttivazione: (_risorse, _a, _e, ctx) => modificaTesoro(ctx, -150),
   applicaMensile: () => {}
 };

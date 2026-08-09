@@ -2,6 +2,7 @@ import { useState, useCallback, useEffect, useRef } from "react";
 import { Alert } from "react-native";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
 import { risorseData, edificiData, pianetiData } from "../kingdomData";
+import { estraiCreditiLegacyDaRisorse } from "../data/risorseData";
 import { runAvanzaMese } from "../game/avanzaMese";
 import { EVENTI_CATALOGO } from "../game/eventi/index";
 import { generaColoniaIniziale } from "../game/generazionePartita";
@@ -14,7 +15,8 @@ import type { DatiCreazioneGiocatore } from "../ui/CreazioneGiocatoreModal";
 import { calcolaPunteggioSanzioni as calcolaPunteggioSanzioniPuro } from "../game/sanzioni";
 import {
   aggiungiOrdineMercatoPuro,
-  calcolaDeltaOrdiniMercatoPuro
+  calcolaDeltaOrdiniMercatoPuro,
+  calcolaDeltaTesoroOrdiniMercato
 } from "../game/mercato";
 import {
   avanzaCarcereResiduoPuro,
@@ -30,7 +32,7 @@ import { calcolaProduzioneConsumoPuro } from "../game/produzioneConsumo";
 import { calcolaFelicitàModificataPuro } from "../game/felicita";
 import { getEdificioAbitazione } from "../game/abitanteEdifici";
 import { generaImmigratiProposti } from "../game/immigrazione";
-import { getLavoroPerEdificio, autoAssegnaCittadiniDisoccupati, normalizzaLavoroEAgricoltura, edificioAccettaServiDellaGleba, isEdificioPubblicoConPostazioniLavoro } from "../game/edificiLavoro";
+import { getLavoroPerEdificio, autoAssegnaCittadiniDisoccupati, normalizzaLavoroEAgricoltura, edificioAccettaServiDellaGleba, isEdificioPubblicoConPostazioniLavoro, assumiCittadinoDisoccupatoInEdificio } from "../game/edificiLavoro";
 import {
   creaMoneteGiocatoreIniziali,
   GIORNI_STIPENDIO_EDIFICIO_PUBBLICO_MESE,
@@ -90,13 +92,21 @@ function creaEdificiIniziali(abitantiIniziali: Abitante[]): Edificio[] {
   return edificiData
     .filter((e) => e.tipo !== "Luogo di Culto")
     .map((e) => {
-      if (e.id === 4) return { ...e, abitantiAssegnati: baraccaIds, occupazione: baraccaIds.length };
-      if (e.id === 14) return { ...e, abitantiAssegnati: dormitorioIds, occupazione: dormitorioIds.length };
-      if (e.id === 2) return { ...e, abitantiAssegnati: serraIds, occupazione: serraIds.length };
-      if (e.id === 21) return { ...e, abitantiAssegnati: [], occupazione: 0 };
-      if (e.id === 9) return { ...e, abitantiAssegnati: prigionieriIds, occupazione: prigionieriIds.length };
-      if (e.id === 20) return { ...e, abitantiAssegnati: capannaIds, occupazione: capannaIds.length };
-      return e;
+      let next: Edificio = e;
+      if (e.id === 4) next = { ...e, abitantiAssegnati: baraccaIds, occupazione: baraccaIds.length };
+      else if (e.id === 14) next = { ...e, abitantiAssegnati: dormitorioIds, occupazione: dormitorioIds.length };
+      else if (e.id === 2) next = { ...e, abitantiAssegnati: serraIds, occupazione: serraIds.length };
+      else if (e.id === 21) next = { ...e, abitantiAssegnati: [], occupazione: 0 };
+      else if (e.id === 9) next = { ...e, abitantiAssegnati: prigionieriIds, occupazione: prigionieriIds.length };
+      else if (e.id === 20) next = { ...e, abitantiAssegnati: capannaIds, occupazione: capannaIds.length };
+      // Attività iniziali con posti lavoro: stipendio base 1 moneta/giorno (30/mese).
+      if (
+        next.stipendioPerLavoratore == null &&
+        isEdificioPubblicoConPostazioniLavoro({ ...next, stato: "Operativo" })
+      ) {
+        next = { ...next, stipendioPerLavoratore: STIPENDIO_BASE_MONETE_MESE };
+      }
+      return next;
     });
 }
 
@@ -146,7 +156,7 @@ export function useGameState() {
   inventarioMensaRef.current = inventarioMensaByEdificioId;
   moneteGiocatoreRef.current = moneteGiocatore;
   abitantiRef.current = abitanti;
-  const [risorse, setRisorse] = useState<Risorsa[]>(risorseData);
+  const [risorse, setRisorse] = useState<Risorsa[]>(() => estraiCreditiLegacyDaRisorse(risorseData).risorse);
   const [edifici, setEdifici] = useState<Edificio[]>(edificiIniziali);
   const edificiRef = useRef(edifici);
   edificiRef.current = edifici;
@@ -472,7 +482,8 @@ export function useGameState() {
       prezzoResidenze,
       redditoCittadinanza,
       modalitaSanita,
-      tipologieFamigliaAccettate
+      tipologieFamigliaAccettate,
+      moneteGiocatore
     });
 
     setNativiNonIntegrati((prev) => prev + result.deltaNativiNonIntegrati);
@@ -482,7 +493,7 @@ export function useGameState() {
     setEventiInCorso(result.eventiInCorso);
     const dopoCarcere = avanzaCarcereResiduoPuro(result.abitanti, result.edifici);
     setEdifici(dopoCarcere.edifici);
-    setRisorse(result.risorse);
+    setRisorse(estraiCreditiLegacyDaRisorse(result.risorse).risorse);
     const produzioneSerraMese = calcolaProduzioneSerraPerPeriodo(
       dopoCarcere.edifici,
       GIORNI_PRODUZIONE_SERRA_PER_MESE
@@ -493,7 +504,7 @@ export function useGameState() {
       );
     }
     const stipendiMese = pagaStipendiEdificiPubblici(
-      moneteGiocatore,
+      result.moneteGiocatore,
       dopoCarcere.abitanti,
       dopoCarcere.edifici,
       GIORNI_STIPENDIO_EDIFICIO_PUBBLICO_MESE
@@ -1116,21 +1127,33 @@ export function useGameState() {
     [abitanti, edifici, assegnaAbitanteAEdificio]
   );
 
+  /** Cittadino disoccupato che sulla mappa raggiunge un posto vacante → assunto. */
+  const assumiCittadinoDisoccupatoAEdificio = useCallback(
+    (abitanteId: number, edificioId: number): boolean => {
+      const r = assumiCittadinoDisoccupatoInEdificio(abitanti, edifici, abitanteId, edificioId);
+      if (!r.ok) return false;
+      setAbitanti(r.abitanti);
+      setEdifici(r.edifici);
+      return true;
+    },
+    [abitanti, edifici]
+  );
+
   const trasferisciProprietaSchiavo = useCallback(
     (schiavoId: number, nuovoProprietarioId: number | null, prezzo: number = PREZZO_SCHIAVO_DEFAULT) => {
       const result = trasferisciProprietaSchiavoPuro({
         abitanti,
-        risorse,
+        moneteGiocatore,
         schiavoId,
         nuovoProprietarioId,
         prezzo
       });
       if (!result.ok) return false;
       setAbitanti(result.abitanti);
-      setRisorse(result.risorse);
+      setMoneteGiocatore(result.moneteGiocatore);
       return true;
     },
-    [abitanti, risorse]
+    [abitanti, moneteGiocatore]
   );
 
   const uccidiSchiavo = useCallback(
@@ -1153,13 +1176,14 @@ export function useGameState() {
         quantità,
         prezzoUnitario,
         ordiniCorrenti: ordiniMercato,
-        risorse
+        risorse,
+        moneteGiocatore
       });
       if (!result.success) return false;
       setOrdiniMercato((prev) => [...prev, result.nuovoOrdine]);
       return true;
     },
-    [risorse, ordiniMercato]
+    [risorse, ordiniMercato, moneteGiocatore]
   );
 
   const rimuoviOrdineMercato = useCallback((ordineId: number) => {
@@ -1170,6 +1194,10 @@ export function useGameState() {
   const calcolaDeltaOrdiniMercato = useCallback((): Record<string, number> => {
     return calcolaDeltaOrdiniMercatoPuro(ordiniMercato, risorse);
   }, [ordiniMercato, risorse]);
+
+  const calcolaDeltaTesoroMercato = useCallback((): number => {
+    return calcolaDeltaTesoroOrdiniMercato(ordiniMercato);
+  }, [ordiniMercato]);
 
   // Calcola il punteggio sanzioni basato sulle leggi attive (usa funzione pura in src/game)
   const calcolaPunteggioSanzioni = useCallback(
@@ -1282,6 +1310,7 @@ export function useGameState() {
     setPrezzoResidenza,
     aggiungiAlCampoDiLavoroTuttiQuelliChe,
     assegnaServoDellaGlebaAEdificio,
+    assumiCittadinoDisoccupatoAEdificio,
     trasferisciProprietaSchiavo,
     uccidiSchiavo,
     nominaMinistro,
@@ -1298,6 +1327,7 @@ export function useGameState() {
     aggiungiOrdineMercato,
     rimuoviOrdineMercato,
     calcolaDeltaOrdiniMercato,
+    calcolaDeltaTesoroMercato,
     graziaCriminale,
     condannaAMorte,
     soddisfazioneFazioni,

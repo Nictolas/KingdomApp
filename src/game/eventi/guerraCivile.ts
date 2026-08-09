@@ -1,6 +1,6 @@
 import type { Abitante, Edificio } from "../../types";
 import type { EventoDef } from "./eventoTypes";
-import { modificaRisorsa } from "./eventoTypes";
+import { modificaTesoro } from "./eventoTypes";
 
 const CASERMA_MIN_BLOCCO = 3;
 const SOGLIA_SODDISFAZIONE_SICUREZZA_BLOCCO = 70;
@@ -42,8 +42,8 @@ export const eventoGuerraCivile: EventoDef = {
     if (inCaserma >= CASERMA_MIN_BLOCCO && soddSicurezza >= SOGLIA_SODDISFAZIONE_SICUREZZA_BLOCCO) return false;
     return true;
   },
-  applicaAttivazione: (risorse) => {
-    modificaRisorsa(risorse, "Crediti", -200);
+  applicaAttivazione: (_risorse, _a, _e, ctx) => {
+    modificaTesoro(ctx, -200);
   },
   applicaMensile: (_r, abitanti, edifici) => {
     const caserma = edifici.find((e) => e.nome === "Caserma");

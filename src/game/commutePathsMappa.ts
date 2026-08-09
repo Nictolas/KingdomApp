@@ -1,7 +1,14 @@
 import type { Abitante, Edificio } from "../types";
 import { abitanteHaBisognoMensa } from "./mensaPubblica";
 import { abitanteVuoleNegozio } from "./negozio";
-import { scegliAzioneTempoLibero } from "./bisogni";
+import {
+  abitanteCercaLavoroPerSoldi,
+  abitanteVuolePrendereLavoro,
+  scegliAzioneTempoLibero
+} from "./bisogni";
+import { getCastaAbitante } from "./casta";
+import { elencoEdificiConPostoPerDisoccupato } from "./edificiLavoro";
+import { getMoneteInventarioAbitante } from "./inventario";
 import { fasciaPerEdificio, minutiInFascia, primoEdificioLavoroOrarioPerAbitante } from "./orariLavoroMappa";
 import {
   celleIngressoWalkableAttornoAdAnchor,
@@ -204,10 +211,11 @@ export function pianificaCommuteVersoEdificioGlobaleDaCella(
 
 export type RisultatoCommuteMattina = {
   path: number[] | null;
-  purpose?: "work" | "bar" | "mensa" | "home" | "negozio" | "rapina";
+  purpose?: "work" | "bar" | "mensa" | "home" | "negozio" | "rapina" | "cerca_lavoro";
   barEdificioId?: number;
   mensaEdificioId?: number;
   negozioEdificioId?: number;
+  lavoroCercaEdificioId?: number;
 };
 
 /**
@@ -294,6 +302,36 @@ export function pianificaCommuteMattina(
     return path != null ? { path, purpose: "work" } : { path: null };
   };
 
+  const pathVersoCercaLavoro = (): RisultatoCommuteMattina => {
+    if (getCastaAbitante(abitante) !== "Cittadino") return { path: null };
+    if (!abitanteVuolePrendereLavoro(abitante)) return { path: null };
+    const posti = elencoEdificiConPostoPerDisoccupato(abitante, edificiList);
+    if (posti.length === 0) return { path: null };
+    const monete = getMoneteInventarioAbitante(abitante.inventario);
+    const urgeSoldi = abitanteCercaLavoroPerSoldi(abitante, monete);
+    // Con monete sufficienti lascia spazio a bar/casa; idle o senza soldi → posto di lavoro.
+    if (!urgeSoldi && azioneLibera !== "nessuna") {
+      return { path: null };
+    }
+    let bestId: number | null = null;
+    let bestLen = Infinity;
+    let bestPath: number[] | null = null;
+    for (const e of posti) {
+      const anchor = trovaAnchorEdificioGlobaleSuMappa(e.id, edificiInMappa);
+      if (anchor == null) continue;
+      const from = fromBase ?? anchor;
+      const path = calcolaPercorsoVersoAnchorEdificio(from, anchor, cols, rows, isWalkable);
+      if (path == null || path.length < 2) continue;
+      if (path.length < bestLen) {
+        bestLen = path.length;
+        bestId = e.id;
+        bestPath = path;
+      }
+    }
+    if (bestId == null || bestPath == null) return { path: null };
+    return { path: bestPath, purpose: "cerca_lavoro", lavoroCercaEdificioId: bestId };
+  };
+
   const provaAzioneLibera = (): RisultatoCommuteMattina => {
     if (azioneLibera === "mensa") {
       const m = pathVersoMensa();
@@ -335,6 +373,16 @@ export function pianificaCommuteMattina(
       return provaAzioneLibera();
     }
   }
+
+  // Fame critica: prima cibo/rapina, poi cerca lavoro per guadagnare monete.
+  if (azioneLibera === "mensa" || azioneLibera === "negozio" || azioneLibera === "rapina") {
+    const urgente = provaAzioneLibera();
+    if (urgente.path != null && urgente.path.length >= 2) return urgente;
+    if (urgente.purpose === "rapina") return urgente;
+  }
+
+  const cerca = pathVersoCercaLavoro();
+  if (cerca.path != null && cerca.path.length >= 2) return cerca;
 
   const libera = provaAzioneLibera();
   if (libera.path != null && libera.path.length >= 2) return libera;

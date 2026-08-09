@@ -3,6 +3,7 @@ import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, Text
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useGameContext } from "../../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../../src/game/edificiLavoro";
+import { getStipendioMensileEdificio, STIPENDIO_BASE_MONETE_GIORNO } from "../../src/game/edificiPubblici";
 import { getEmojiAbitante } from "../../src/utils/getEmojiAbitante";
 import type { Abitante } from "../../src/types";
 import { COLTURE_SERRA, getColturaSerraDef, PRODUZIONE_SERRA_GIORNALIERA, GIORNI_PRODUZIONE_SERRA_PER_MESE } from "../../src/game/colturaSerra";
@@ -73,10 +74,12 @@ export default function SerraScreenById() {
         </Text>
       </View>
       <View style={styles.stipendioCard}>
-        <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (crediti)</Text>
+        <Text style={styles.stipendioLabel}>
+          Stipendio mensile per lavoratore ({STIPENDIO_BASE_MONETE_GIORNO} moneta/giorno)
+        </Text>
         <TextInput
           style={styles.stipendioInput}
-          value={String(serra.stipendioPerLavoratore ?? 0)}
+          value={String(getStipendioMensileEdificio(serra))}
           keyboardType="number-pad"
           onChangeText={(text) => {
             const n = parseInt(text.replace(/[^0-9]/g, ""), 10);
@@ -84,7 +87,7 @@ export default function SerraScreenById() {
           }}
         />
         <Text style={styles.infoSubtext}>
-          Totale: {(serra.stipendioPerLavoratore ?? 0) * abitantiAssegnati.length} crediti/mese
+          Totale: {getStipendioMensileEdificio(serra) * abitantiAssegnati.length} monete/mese
         </Text>
         <Text style={styles.infoSubtext}>
           Posti lavoro: {abitantiAssegnati.length}/{serra.capacità}

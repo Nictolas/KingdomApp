@@ -2,7 +2,7 @@ import type { Abitante, Edificio } from "../types";
 import { edificiData } from "../data/edificiData";
 import { EDIFICIO_COMPETENZA_RICHIESTA, type CompetenzaEdificio } from "../data/edificiCompetenze";
 import { getCastaAbitante } from "./casta";
-import { abitanteCercaLavoroPerSoldi } from "./bisogni";
+import { abitanteCercaLavoroPerSoldi, abitanteVuolePrendereLavoro } from "./bisogni";
 import { getMoneteInventarioAbitante } from "./inventario";
 import { isGiocatore, puoEssereAssegnatoForzatamente } from "./schiavituCommercio";
 
@@ -92,7 +92,7 @@ export function autoAssegnaCittadiniDisoccupati(abitanti: Abitante[], edifici: E
   const candidati = abitanti
     .filter((a) => {
       if (isGiocatore(a)) return false;
-      if (a.lavoro !== "Disoccupato") return false;
+      if (!abitanteVuolePrendereLavoro(a)) return false;
       if (a.lavoro === "Pensionato" || a.lavoro === "Prigioniero") return false;
       if (a.razza === "Robot") return false;
       return getCastaAbitante(a) === "Cittadino";
@@ -107,6 +107,55 @@ export function autoAssegnaCittadiniDisoccupati(abitanti: Abitante[], edifici: E
       return b.competenza - a.competenza;
     });
   return assegnaDisoccupatiAEdificiPubblici(candidati, edifici);
+}
+
+/** True se il cittadino disoccupato può essere assunto in quell'edificio (posti + competenza). */
+export function edificioAccettaDisoccupatoCittadino(abitante: Abitante, edificio: Edificio): boolean {
+  if (isGiocatore(abitante)) return false;
+  if (!abitanteVuolePrendereLavoro(abitante)) return false;
+  if (abitante.razza === "Robot") return false;
+  if (getCastaAbitante(abitante) !== "Cittadino") return false;
+  if (!isEdificioPubblicoConPostazioniLavoro(edificio)) return false;
+  const cap = edificio.capacità ?? 0;
+  const assegnati = edificio.abitantiAssegnati ?? [];
+  if (assegnati.length >= cap) return false;
+  if (assegnati.includes(abitante.id)) return false;
+  const req = getCompetenzaMinimaPerEdificio(edificio);
+  const min = req?.competenzaMinima ?? 0;
+  return abitante.competenza >= min;
+}
+
+/** Edifici pubblici con posto libero per cui il disoccupato cittadino è idoneo. */
+export function elencoEdificiConPostoPerDisoccupato(abitante: Abitante, edifici: Edificio[]): Edificio[] {
+  return edifici
+    .filter((e) => edificioAccettaDisoccupatoCittadino(abitante, e))
+    .sort((a, b) => a.id - b.id);
+}
+
+/**
+ * Assume un cittadino disoccupato in un edificio pubblico (es. arrivo sulla mappa «cerca lavoro»).
+ */
+export function assumiCittadinoDisoccupatoInEdificio(
+  abitanti: Abitante[],
+  edifici: Edificio[],
+  abitanteId: number,
+  edificioId: number
+): { abitanti: Abitante[]; edifici: Edificio[]; ok: boolean } {
+  const ab = abitanti.find((a) => a.id === abitanteId);
+  const ed = edifici.find((e) => e.id === edificioId);
+  if (!ab || !ed || !edificioAccettaDisoccupatoCittadino(ab, ed)) {
+    return { abitanti, edifici, ok: false };
+  }
+  const edificiNext = edifici.map((e) => {
+    if (e.id !== edificioId) return e;
+    const ids = [...(e.abitantiAssegnati ?? []), abitanteId];
+    return { ...e, abitantiAssegnati: ids, occupazione: ids.length };
+  });
+  const lavoro = getLavoroPerEdificio(ed);
+  const abitantiNext = lavoro
+    ? abitanti.map((a) => (a.id === abitanteId ? { ...a, lavoro } : a))
+    : abitanti;
+  return { abitanti: abitantiNext, edifici: edificiNext, ok: true };
 }
 
 /** Edifici in cui il giocatore può assegnare manualmente Servi della gleba (include Serra e Bar). */
