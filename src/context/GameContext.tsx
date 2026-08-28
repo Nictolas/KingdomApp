@@ -9,6 +9,7 @@ import type { ReligioneConCulto } from "../game/luogoCulto";
 import type { RichiestaInAttesa } from "../game/richieste";
 import type { PenaReatiConfig, ReatoPunibile } from "../game/reati";
 import type { RisultatoGiudizio } from "../game/tribunale";
+import type { GamePhase } from "../game/gamePhase";
 
 type ScaglioneConfig = {
   min: number;
@@ -17,6 +18,8 @@ type ScaglioneConfig = {
 };
 
 type GameContextType = {
+  gamePhase: GamePhase;
+  simulationEnabled: boolean;
   abitanti: Abitante[];
   /** Inventario cibo del giocatore (colonia). */
   inventarioGiocatore: { itemId: string; quantità: number }[];

@@ -81,6 +81,8 @@ import {
   type ReligioneConCulto
 } from "../game/luogoCulto";
 import { creaRichiestaLuogoCulto, type RichiestaInAttesa } from "../game/richieste";
+import { isSimulationRunning, type GamePhase } from "../game/gamePhase";
+import { setOrologioGiocoBloccatoDallaFase } from "../game/orologioGiocoSession";
 
 const statoIniziale = generaColoniaIniziale();
 const capoReligiosoSoleIniziale =
@@ -136,14 +138,11 @@ function calcolaPendingRichiestaLuogoCulto(
   return { id: capo.id, nome: capo.nome, religione };
 }
 
-const pendingRichiestaLuogoCultoIniziale = calcolaPendingRichiestaLuogoCulto(
-  statoIniziale.abitanti,
-  edificiIniziali,
-  capoReligiosoSoleIniziale,
-  null
-);
-
 export function useGameState() {
+  const [gamePhase, setGamePhase] = useState<GamePhase>("commander-creation");
+  const gamePhaseRef = useRef<GamePhase>(gamePhase);
+  gamePhaseRef.current = gamePhase;
+  const simulationEnabled = isSimulationRunning(gamePhase);
   const [abitanti, setAbitanti] = useState<Abitante[]>(statoIniziale.abitanti);
   const [razzaNativi] = useState<Razza>(statoIniziale.razzaNativi);
   const [inventarioGiocatore, setInventarioGiocatore] = useState<VoceInventario[]>(() =>
@@ -202,12 +201,14 @@ export function useGameState() {
 
   // Baracca = tutti e solo i Senzatetto: sincronizza quando cambiano gli abitanti (es. nuovo immigrato approvato)
   useEffect(() => {
+    if (!simulationEnabled) return;
     setEdifici((prev) => syncResidenzeBaraccaSenzatetto(prev, abitanti));
-  }, [abitanti]);
+  }, [abitanti, simulationEnabled]);
 
   /** Inventario iniziale + pasti giornalieri (inventario, padrone, mensa). */
   useEffect(() => {
     const applicaPasti = () => {
+      if (!isSimulationRunning(gamePhaseRef.current)) return;
       const giorno = getGiornoGiocoSnapshot();
       const ultimo = ultimoGiornoPastiRef.current;
       if (giorno <= ultimo) return;
@@ -237,6 +238,7 @@ export function useGameState() {
   /** Produzione Serra: 1 unità/giorno per ogni Serra operativa → inventario cibo giocatore. */
   useEffect(() => {
     const applicaProduzioneSerra = () => {
+      if (!isSimulationRunning(gamePhaseRef.current)) return;
       const giorno = getGiornoGiocoSnapshot();
       const ultimo = ultimoGiornoProduzioneSerraRef.current;
       if (giorno <= ultimo) return;
@@ -254,16 +256,18 @@ export function useGameState() {
 
   /** All’avvio: i cittadini disoccupati prendono subito i posti vacanti (Bar, Serra, …). */
   useEffect(() => {
+    if (!simulationEnabled) return;
     let edificiNext = autoAssegnaCittadiniDisoccupati(abitantiRef.current, edificiRef.current);
     const norm = normalizzaLavoroEAgricoltura(abitantiRef.current, edificiNext);
     setEdifici(norm.edifici);
     if (norm.abitanti !== abitantiRef.current) setAbitanti(norm.abitanti);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo bootstrap partita
-  }, []);
+  }, [simulationEnabled]);
 
   /** Cittadini disoccupati cercano lavoro; stipendi edifici pubblici dal tesoro del giocatore. */
   useEffect(() => {
     const applicaEconomiaPubblica = () => {
+      if (!isSimulationRunning(gamePhaseRef.current)) return;
       const giorno = getGiornoGiocoSnapshot();
       const ultimo = ultimoGiornoEconomiaPubblicaRef.current;
       if (giorno <= ultimo) return;
@@ -323,7 +327,7 @@ export function useGameState() {
     id: number;
     nome: string;
     religione: ReligioneConCulto;
-  } | null>(pendingRichiestaLuogoCultoIniziale);
+  } | null>(null);
   const [luoghiCultoPendentiMappa, setLuoghiCultoPendentiMappa] = useState<
     { religione: ReligioneConCulto; edificioGlobaleId: number }[]
   >([]);
@@ -332,6 +336,7 @@ export function useGameState() {
 
   // Sincronizza lavoro «Capo Religioso» con la nomina nei culti.
   useEffect(() => {
+    if (!simulationEnabled) return;
     setAbitanti((prev) =>
       prev.map((a) => {
         if (capoReligiosoSole != null && a.id === capoReligiosoSole) {
@@ -351,7 +356,7 @@ export function useGameState() {
         return a;
       })
     );
-  }, [capoReligiosoSole, capoReligiosoAlieni]);
+  }, [capoReligiosoSole, capoReligiosoAlieni, simulationEnabled]);
 
   // Rimuove i template di catalogo (id 30/31) se finiti per errore nell'elenco edifici.
   useEffect(() => {
@@ -367,6 +372,7 @@ export function useGameState() {
 
   // Richiesta Luogo di Culto: si attiva appena i requisiti sono soddisfatti (non allo Skip Mese).
   useEffect(() => {
+    if (!simulationEnabled) return;
     if (pendingRichiestaLuogoCulto != null) return;
     const next = calcolaPendingRichiestaLuogoCulto(
       abitanti,
@@ -384,7 +390,8 @@ export function useGameState() {
     capoReligiosoAlieni,
     pendingRichiestaLuogoCulto,
     richiesteInAttesa,
-    luoghiCultoRifiutati
+    luoghiCultoRifiutati,
+    simulationEnabled
   ]);
 
   // Configurazione legge razziale
@@ -474,6 +481,7 @@ export function useGameState() {
   );
 
   const avanzaMese = useCallback(async () => {
+    if (!isSimulationRunning(gamePhaseRef.current)) return;
     setIsLoading(true);
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -668,7 +676,19 @@ export function useGameState() {
     );
     setCreazioneGiocatoreAperta(false);
     setDiarioInizioVisto(true);
+    setGamePhase("activating");
   }, []);
+
+  // Un ciclo separato chiude l'introduzione prima di permettere qualunque effetto automatico.
+  useEffect(() => {
+    if (gamePhase !== "activating") return;
+    const id = setTimeout(() => setGamePhase("running"), 0);
+    return () => clearTimeout(id);
+  }, [gamePhase]);
+
+  useEffect(() => {
+    setOrologioGiocoBloccatoDallaFase(!simulationEnabled);
+  }, [simulationEnabled]);
   const chiudiMessaggioEmigrazione = useCallback(() => setMessaggioEmigrazione(null), []);
 
   /**
@@ -676,10 +696,11 @@ export function useGameState() {
    * Eseguito in un solo passaggio per evitare stati intermedi (es. immigrato Agricoltore demotato a Disoccupato).
    */
   useEffect(() => {
+    if (!simulationEnabled) return;
     const { abitanti: nextA, edifici: nextE } = normalizzaLavoroEAgricoltura(abitanti, edifici);
     if (nextA !== abitanti) setAbitanti(nextA);
     if (nextE !== edifici) setEdifici(nextE);
-  }, [abitanti, edifici]);
+  }, [abitanti, edifici, simulationEnabled]);
 
   const assegnaAbitanteAEdificio = useCallback((abitanteId: number, edificioId: number) => {
     const abitante = abitanti.find((a) => a.id === abitanteId);
@@ -1261,11 +1282,14 @@ export function useGameState() {
 
   // Aggiorna il punteggio quando cambiano le condizioni
   useEffect(() => {
+    if (!simulationEnabled) return;
     const nuovoPunteggio = calcolaPunteggioSanzioni();
     setPunteggioSanzioni(nuovoPunteggio);
-  }, [calcolaPunteggioSanzioni]);
+  }, [calcolaPunteggioSanzioni, simulationEnabled]);
 
   return {
+    gamePhase,
+    simulationEnabled,
     abitanti,
     inventarioGiocatore,
     moneteGiocatore,

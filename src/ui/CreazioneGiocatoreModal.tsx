@@ -74,7 +74,7 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
               <View style={styles.emojiWrap}>
                 <Text style={styles.emoji}>📖</Text>
               </View>
-              <Text style={styles.title}>Diario</Text>
+              <Text style={styles.title}>MyKingdom · Diario della colonia</Text>
               <View style={styles.titleUnderline} />
             </View>
 
@@ -150,7 +150,7 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
             onPress={handleConferma}
             disabled={!valido}
           >
-            <Text style={styles.confirmButtonText}>Inizia il regno</Text>
+            <Text style={styles.confirmButtonText}>Assumi il comando</Text>
           </Pressable>
         </Pressable>
       </Pressable>
