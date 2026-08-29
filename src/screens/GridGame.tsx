@@ -7,7 +7,7 @@ import type { Abitante } from "../types";
 
 export default function GridGame() {
   const router = useRouter();
-  const { abitanti, edifici, abitantiProposti } = useGameContext();
+  const { abitanti, edifici, abitantiProposti, salvaPartita, saveStatus } = useGameContext();
 
   const criminali = abitanti.filter((a: Abitante) => (a.reati?.length ?? 0) > 0);
   const personalitàUniche = Array.from(new Set(abitanti.map((a: Abitante) => a.personalità))).filter(Boolean);
@@ -88,6 +88,15 @@ export default function GridGame() {
             <Text style={styles.navLabel}>Eventi</Text>
           </Pressable>
         </View>
+      </View>
+      <View style={[styles.block, styles.blockLast]}>
+        <Text style={styles.blockTitle}>💾 Partita</Text>
+        <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => void salvaPartita()} disabled={saveStatus === "saving"}>
+          <Text style={styles.navEmoji}>💾</Text>
+          <Text style={styles.navLabel}>{saveStatus === "saving" ? "Salvataggio…" : "Salva"}</Text>
+          {saveStatus === "saved" && <Text style={styles.navMeta}>Partita salvata</Text>}
+          {saveStatus === "error" && <Text style={[styles.navMeta, { color: "#fca5a5" }]}>Errore non bloccante</Text>}
+        </Pressable>
       </View>
     </ScrollView>
   );

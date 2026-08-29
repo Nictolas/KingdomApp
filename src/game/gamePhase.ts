@@ -1,4 +1,4 @@
-export type GamePhase = "commander-creation" | "activating" | "running";
+export type GamePhase = "loading" | "commander-creation" | "activating" | "restoring" | "running";
 
 /** La simulazione può mutare il mondo soltanto dopo che l'introduzione è terminata. */
 export function isSimulationRunning(phase: GamePhase): boolean {

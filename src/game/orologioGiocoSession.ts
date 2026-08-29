@@ -51,6 +51,23 @@ export function setOrologioGiocoBloccatoDallaFase(bloccato: boolean): void {
   notifyPausaListeners();
 }
 
+export function restoreOrologioGioco(input: { giorno: number; minutiDaMezzanotte: number; pausaManuale: boolean }): void {
+  orologioGiocoGiorno = Math.max(1, Math.trunc(input.giorno));
+  orologioGiocoMinutiDaMezzanotte = ((Math.trunc(input.minutiDaMezzanotte) % 1440) + 1440) % 1440;
+  orologioGiocoInPausa = input.pausaManuale;
+  orologioGiocoLastRealMs = Date.now();
+  notifyGiornoListeners();
+  notifyPausaListeners();
+}
+
+export function getOrologioPersistableSnapshot() {
+  return {
+    giorno: orologioGiocoGiorno,
+    minutiDaMezzanotte: orologioGiocoMinutiDaMezzanotte,
+    pausaManuale: orologioGiocoInPausa
+  };
+}
+
 export function setOrologioGiocoInPausa(pausa: boolean): void {
   if (orologioGiocoInPausa === pausa) return;
   orologioGiocoInPausa = pausa;
