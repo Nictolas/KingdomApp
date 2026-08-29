@@ -16,6 +16,9 @@ export class KingdomMapScene extends Phaser.Scene {
   private unsubscribe: (() => void) | null = null;
   private tileLayer: Phaser.GameObjects.Container | null = null;
   private renderedRevision = -1;
+  private waterSprites: Phaser.GameObjects.Image[] = [];
+  private waterFrame = 0;
+  private nextWaterFrameAt = 0;
   private dragPointerId: number | null = null;
   private dragged = false;
 
@@ -43,6 +46,13 @@ export class KingdomMapScene extends Phaser.Scene {
 
   private configureTextureFrames(snapshot: PhaserMapSnapshot): void {
     const texture = this.textures.get(SHEET_KEY);
+    for (let frame = 0; frame < OVERWORLD_SHEET_PX.waterFrames; frame++) {
+      const x = OVERWORLD_SHEET_PX.waterAnimX + frame * OVERWORLD_SHEET_PX.tile;
+      const key = frameKey(x, OVERWORLD_SHEET_PX.waterAnimY);
+      if (!texture.has(key)) {
+        texture.add(key, 0, x, OVERWORLD_SHEET_PX.waterAnimY, OVERWORLD_SHEET_PX.tile, OVERWORLD_SHEET_PX.tile);
+      }
+    }
     for (const tile of snapshot.tiles) {
       const key = frameKey(tile.frameX, tile.frameY);
       if (!texture.has(key)) {
@@ -55,6 +65,19 @@ export class KingdomMapScene extends Phaser.Scene {
           OVERWORLD_SHEET_PX.tile
         );
       }
+      if (tile.overlayFrameX != null && tile.overlayFrameY != null) {
+        const overlayKey = frameKey(tile.overlayFrameX, tile.overlayFrameY);
+        if (!texture.has(overlayKey)) {
+          texture.add(
+            overlayKey,
+            0,
+            tile.overlayFrameX,
+            tile.overlayFrameY,
+            OVERWORLD_SHEET_PX.tile,
+            OVERWORLD_SHEET_PX.tile
+          );
+        }
+      }
     }
   }
 
@@ -62,6 +85,7 @@ export class KingdomMapScene extends Phaser.Scene {
     if (!this.tileLayer) return;
     this.configureTextureFrames(snapshot);
     this.tileLayer.removeAll(true);
+    this.waterSprites = [];
 
     const bleed = 1;
     for (const tile of snapshot.tiles) {
@@ -76,6 +100,18 @@ export class KingdomMapScene extends Phaser.Scene {
         )
         .setDisplaySize(snapshot.cellSize + bleed, snapshot.cellSize + bleed);
       this.tileLayer.add(sprite);
+      if (tile.animation === "water") this.waterSprites.push(sprite);
+      if (tile.overlayFrameX != null && tile.overlayFrameY != null) {
+        const overlay = this.add
+          .image(
+            col * snapshot.cellSize + snapshot.cellSize / 2,
+            row * snapshot.cellSize + snapshot.cellSize / 2,
+            SHEET_KEY,
+            frameKey(tile.overlayFrameX, tile.overlayFrameY)
+          )
+          .setDisplaySize(snapshot.cellSize, snapshot.cellSize);
+        this.tileLayer.add(overlay);
+      }
     }
 
     const worldW = snapshot.cols * snapshot.cellSize;
@@ -83,6 +119,17 @@ export class KingdomMapScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, worldW, worldH);
     this.physics?.world?.setBounds(0, 0, worldW, worldH);
     this.renderedRevision = snapshot.revision;
+  }
+
+  update(time: number): void {
+    if (time < this.nextWaterFrameAt || this.waterSprites.length === 0) return;
+    this.nextWaterFrameAt = time + 420;
+    this.waterFrame = (this.waterFrame + 1) % OVERWORLD_SHEET_PX.waterFrames;
+    const key = frameKey(
+      OVERWORLD_SHEET_PX.waterAnimX + this.waterFrame * OVERWORLD_SHEET_PX.tile,
+      OVERWORLD_SHEET_PX.waterAnimY
+    );
+    for (const sprite of this.waterSprites) sprite.setFrame(key);
   }
 
   private configureCameraAndInput(): void {

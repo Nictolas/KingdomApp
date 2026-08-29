@@ -10,7 +10,8 @@
     "web": "expo start --web",
     "build:web": "expo export -p web",
     "typecheck": "tsc --noEmit",
-    "test": "node --test --experimental-strip-types tests/*.test.mjs tests/*.test.ts"
+    "test": "node --test --experimental-strip-types tests/*.test.mjs tests/*.test.ts",
+    "test:phaser": "tsx --test tests/map-scene-bridge.test.ts tests/phaser-map-snapshot.test.ts"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",
@@ -35,6 +36,7 @@
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@types/react": "~18.3.12",
+    "tsx": "^4.20.0",
     "typescript": "^5.6.3"
   }
 }

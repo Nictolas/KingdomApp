@@ -1,39 +1,45 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { SafeAreaView, StyleSheet, Text, View } from "react-native";
 
 import { PhaserMapSurface } from "../src/components/PhaserMapSurface";
-import { OVERWORLD_SHEET_PX } from "../src/game/overworldSpritesheetLayout";
-import type { PhaserMapSnapshot } from "../src/phaser/adapters/mapSceneBridge";
+import { getMappaSessione, subscribeMappaSessione } from "../src/game/mappaSessione";
+import type { MappaRuntimeState } from "../src/game/mappaTypes";
+import { buildPhaserMapSnapshot } from "../src/phaser/adapters/buildPhaserMapSnapshot";
 
 const COLS = 50;
 const ROWS = 50;
 const CELL_SIZE = 40;
+const EMPTY_PREVIEW_MAP: MappaRuntimeState = {
+  edificiInMappa: {},
+  terrenoInMappa: {},
+  decorazioniInMappa: {},
+  residenzeMappa: {}
+};
 
 /** Route tecnica temporanea per validare il renderer prima del passaggio della mappa principale. */
 export default function MappaPhaserPreviewScreen() {
   const [selectedCell, setSelectedCell] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
+  const session = useSyncExternalStore(subscribeMappaSessione, getMappaSessione, getMappaSessione);
+  const revisionRef = useRef(0);
 
-  const snapshot = useMemo<PhaserMapSnapshot>(() => {
-    const tiles = Array.from({ length: COLS * ROWS }, (_, index) => {
-      const col = index % COLS;
-      const row = Math.floor(index / COLS);
-      const border = col === 0 || row === 0 || col === COLS - 1 || row === ROWS - 1;
-      return {
-        index,
-        frameX: border ? OVERWORLD_SHEET_PX.waterAnimX : 64,
-        frameY: border ? OVERWORLD_SHEET_PX.waterAnimY : 128
-      };
-    });
-    return { cols: COLS, rows: ROWS, cellSize: CELL_SIZE, tiles, revision: 1 };
-  }, []);
+  const snapshot = useMemo(
+    () => buildPhaserMapSnapshot(session ?? EMPTY_PREVIEW_MAP, COLS, ROWS, CELL_SIZE, ++revisionRef.current),
+    [session]
+  );
 
   return (
     <SafeAreaView style={styles.root}>
       <View style={styles.header}>
         <Text style={styles.title}>Anteprima renderer Phaser/WebGL</Text>
         <Text style={styles.status}>
-          {dragging ? "Camera in movimento" : selectedCell == null ? "Seleziona una cella" : `Cella ${selectedCell}`}
+          {dragging
+            ? "Camera in movimento"
+            : selectedCell == null
+              ? session
+                ? "Mappa reale collegata · seleziona una cella"
+                : "Mappa dimostrativa · seleziona una cella"
+              : `Cella ${selectedCell}`}
         </Text>
       </View>
       <View style={styles.map}>
