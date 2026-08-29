@@ -4,6 +4,7 @@ import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
 import type { MapSceneBridge, PhaserMapSnapshot } from "../adapters/mapSceneBridge";
 
 const SHEET_KEY = "overworld";
+const CHARACTER_KEY = "characters";
 const TILE_LAYER_DEPTH = 0;
 const BUILDING_LAYER_DEPTH = 10;
 
@@ -23,9 +24,12 @@ function frameKey(x: number, y: number): string {
 export class KingdomMapScene extends Phaser.Scene {
   private readonly bridge: MapSceneBridge;
   private readonly sheetUrl: string;
+  private readonly characterSheetUrl: string;
   private unsubscribe: (() => void) | null = null;
   private tileLayer: Phaser.GameObjects.Container | null = null;
   private buildingLayer: Phaser.GameObjects.Container | null = null;
+  private characterLayer: Phaser.GameObjects.Container | null = null;
+  private readonly characterViews = new Map<number, { root: Phaser.GameObjects.Container; token: number }>();
   private renderedRevision = -1;
   private waterSprites: Phaser.GameObjects.Image[] = [];
   private waterFrame = 0;
@@ -33,19 +37,22 @@ export class KingdomMapScene extends Phaser.Scene {
   private dragPointerId: number | null = null;
   private dragged = false;
 
-  constructor(bridge: MapSceneBridge, sheetUrl: string) {
+  constructor(bridge: MapSceneBridge, sheetUrl: string, characterSheetUrl: string) {
     super({ key: "kingdom-map" });
     this.bridge = bridge;
     this.sheetUrl = sheetUrl;
+    this.characterSheetUrl = characterSheetUrl;
   }
 
   preload(): void {
     this.load.image(SHEET_KEY, this.sheetUrl);
+    this.load.spritesheet(CHARACTER_KEY, this.characterSheetUrl, { frameWidth: 64, frameHeight: 64 });
   }
 
   create(): void {
     this.tileLayer = this.add.container(0, 0).setDepth(TILE_LAYER_DEPTH);
     this.buildingLayer = this.add.container(0, 0).setDepth(BUILDING_LAYER_DEPTH);
+    this.characterLayer = this.add.container(0, 0).setDepth(BUILDING_LAYER_DEPTH + 1);
     this.configureTextureFrames(this.bridge.getSnapshot());
     this.renderSnapshot(this.bridge.getSnapshot());
     this.configureCameraAndInput();
@@ -132,6 +139,65 @@ export class KingdomMapScene extends Phaser.Scene {
     this.physics?.world?.setBounds(0, 0, worldW, worldH);
     this.renderedRevision = snapshot.revision;
     this.renderBuildings(snapshot);
+    this.reconcileCharacters(snapshot);
+  }
+
+  private reconcileCharacters(snapshot: PhaserMapSnapshot): void {
+    if (!this.characterLayer) return;
+    const active = new Set(snapshot.characters.map((character) => character.id));
+    for (const [id, view] of this.characterViews) {
+      if (active.has(id)) continue;
+      view.root.destroy(true);
+      this.characterViews.delete(id);
+    }
+
+    for (const character of snapshot.characters) {
+      const token = character.pathToken ?? 0;
+      let view = this.characterViews.get(character.id);
+      if (!view) {
+        const root = this.add.container(0, 0);
+        const sprite = this.add.sprite(0, -snapshot.cellSize * 0.2, CHARACTER_KEY, 0)
+          .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
+        if (character.markerEmoji) {
+          sprite.setVisible(false);
+          root.add(this.add.text(0, -snapshot.cellSize * 0.2, character.markerEmoji, { fontSize: "26px" }).setOrigin(0.5));
+        }
+        root.add(sprite);
+        root.add(this.add.text(0, snapshot.cellSize * 0.34, character.name, {
+          fontSize: "9px", color: "#ffffff", backgroundColor: "rgba(2,6,23,0.7)", padding: { x: 2, y: 1 }
+        }).setOrigin(0.5));
+        this.characterLayer.add(root);
+        view = { root, token: -1 };
+        this.characterViews.set(character.id, view);
+      }
+      if (view.token === token) continue;
+      this.tweens.killTweensOf(view.root);
+      const start = character.path?.[0] ?? character.cell;
+      this.placeCharacter(view.root, start, snapshot);
+      view.token = token;
+      const path = character.path?.slice(1) ?? [];
+      if (path.length > 0) {
+        this.tweens.chain({
+          targets: view.root,
+          tweens: path.map((cell) => {
+            const pos = this.characterPosition(cell, snapshot);
+            return { x: pos.x, y: pos.y, duration: 360, ease: "Linear" };
+          })
+        });
+      }
+    }
+  }
+
+  private characterPosition(cell: number, snapshot: PhaserMapSnapshot): { x: number; y: number } {
+    return {
+      x: (cell % snapshot.cols) * snapshot.cellSize + snapshot.cellSize / 2,
+      y: Math.floor(cell / snapshot.cols) * snapshot.cellSize + snapshot.cellSize / 2
+    };
+  }
+
+  private placeCharacter(root: Phaser.GameObjects.Container, cell: number, snapshot: PhaserMapSnapshot): void {
+    const pos = this.characterPosition(cell, snapshot);
+    root.setPosition(pos.x, pos.y);
   }
 
   private renderBuildings(snapshot: PhaserMapSnapshot): void {

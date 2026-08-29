@@ -77,6 +77,14 @@ test("costruzione e demolizione cambiano soltanto i descriptor derivati", () => 
   assert.equal(buildPhaserMapSnapshot(empty, 5, 5, 40, 3).buildings.length, 0);
 });
 
+test("personaggi e percorsi attraversano il bridge senza entrare nello stato mappa", () => {
+  const state: MappaRuntimeState = { edificiInMappa: {}, terrenoInMappa: {}, decorazioniInMappa: {}, residenzeMappa: {} };
+  const characters = [{ id: 7, name: "Ada", cell: 6, path: [6, 7, 12], pathToken: 4 }];
+  const snapshot = buildPhaserMapSnapshot(state, 5, 5, 40, 1, characters);
+  assert.deepEqual(snapshot.characters, characters);
+  assert.equal("characters" in state, false);
+});
+
 test("una nuova revisione riflette le modifiche del terreno senza stato Phaser salvabile", () => {
   const base: MappaRuntimeState = {
     edificiInMappa: {},

@@ -5,6 +5,7 @@ import { PhaserMapSurface } from "../src/components/PhaserMapSurface";
 import { getMappaSessione, subscribeMappaSessione } from "../src/game/mappaSessione";
 import type { MappaRuntimeState } from "../src/game/mappaTypes";
 import { buildPhaserMapSnapshot } from "../src/phaser/adapters/buildPhaserMapSnapshot";
+import { useGameContext } from "../src/context/GameContext";
 
 const COLS = 50;
 const ROWS = 50;
@@ -27,13 +28,32 @@ const EMPTY_PREVIEW_MAP: MappaRuntimeState = {
 export default function MappaPhaserPreviewScreen() {
   const [selectedCell, setSelectedCell] = useState<number | null>(null);
   const [dragging, setDragging] = useState(false);
+  const { abitanti } = useGameContext();
   const session = useSyncExternalStore(subscribeMappaSessione, getMappaSessione, getMappaSessione);
   const revisionRef = useRef(0);
 
-  const snapshot = useMemo(
-    () => buildPhaserMapSnapshot(session ?? EMPTY_PREVIEW_MAP, COLS, ROWS, CELL_SIZE, ++revisionRef.current),
-    [session]
-  );
+  const snapshot = useMemo(() => {
+    const source = abitanti.length > 0 ? abitanti.slice(0, 24) : [{ id: 1, nome: "Esploratore", razza: "Umano" as const }];
+    const characters = source.map((abitante, order) => {
+      const start = (6 + Math.floor(order / 6) * 2) * COLS + 3 + (order % 6) * 3;
+      return {
+        id: abitante.id,
+        name: abitante.nome,
+        cell: start,
+        path: order < 6 ? [start, start + 1, start + 2, start + COLS + 2] : undefined,
+        pathToken: 1,
+        markerEmoji: abitante.razza === "Robot" ? "🤖" : undefined
+      };
+    });
+    return buildPhaserMapSnapshot(
+      session ?? EMPTY_PREVIEW_MAP,
+      COLS,
+      ROWS,
+      CELL_SIZE,
+      ++revisionRef.current,
+      characters
+    );
+  }, [session, abitanti]);
 
   return (
     <SafeAreaView style={styles.root}>

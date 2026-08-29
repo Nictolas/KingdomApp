@@ -16,12 +16,22 @@ export type PhaserMapBuilding = {
   category: "residence" | "industry" | "service" | "security" | "religion" | "special";
 };
 
+export type PhaserMapCharacter = {
+  id: number;
+  name: string;
+  cell: number;
+  path?: readonly number[];
+  pathToken?: number;
+  markerEmoji?: string;
+};
+
 export type PhaserMapSnapshot = {
   cols: number;
   rows: number;
   cellSize: number;
   tiles: readonly PhaserMapTile[];
   buildings: readonly PhaserMapBuilding[];
+  characters: readonly PhaserMapCharacter[];
   revision: number;
 };
 
