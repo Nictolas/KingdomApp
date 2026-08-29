@@ -15,7 +15,7 @@ import {
   sandWaterEdgeMaskAt
 } from "../../game/terrainSpriteHelpers";
 import type { MappaRuntimeState } from "../../game/mappaTypes";
-import type { PhaserMapBuilding, PhaserMapSnapshot, PhaserMapTile } from "./mapSceneBridge";
+import type { PhaserMapBuilding, PhaserMapCharacter, PhaserMapSnapshot, PhaserMapTile } from "./mapSceneBridge";
 
 const BUILDING_EMOJI: Record<string, string> = {
   "Centro di Comando": "🏛️",
@@ -85,7 +85,8 @@ export function buildPhaserMapSnapshot(
   cols: number,
   rows: number,
   cellSize: number,
-  revision: number
+  revision: number,
+  characters: readonly PhaserMapCharacter[] = []
 ): PhaserMapSnapshot {
   const stradaAssetAt = buildStradaAssetLookup(cols, rows, state.terrenoInMappa, state.edificiInMappa);
   const erbaAssetAt = buildErbaAssetLookup(
@@ -149,6 +150,7 @@ export function buildPhaserMapSnapshot(
     cellSize,
     tiles,
     buildings: buildPhaserBuildings(state, cols),
+    characters,
     revision
   };
 }

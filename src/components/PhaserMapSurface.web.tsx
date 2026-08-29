@@ -5,6 +5,7 @@ import { StyleSheet, View } from "react-native";
 import type { PhaserMapActions, PhaserMapSnapshot } from "../phaser/adapters/mapSceneBridge";
 
 const SPRITESHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spritesheet-full.png");
+const CHARACTER_SHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/character.png");
 
 type Props = PhaserMapActions & {
   snapshot: PhaserMapSnapshot;
@@ -28,6 +29,7 @@ export function PhaserMapSurface({ snapshot, onCellPress, onDragStateChange }: P
 
       const bridge = new MapSceneBridge(snapshot, { onCellPress, onDragStateChange });
       const sheetUrl = Asset.fromModule(SPRITESHEET).uri;
+      const characterSheetUrl = Asset.fromModule(CHARACTER_SHEET).uri;
       const game = new Phaser.Game({
         type: Phaser.WEBGL,
         parent: hostRef.current,
@@ -43,7 +45,7 @@ export function PhaserMapSurface({ snapshot, onCellPress, onDragStateChange }: P
           pixelArt: false,
           roundPixels: true
         },
-        scene: [new KingdomMapScene(bridge, sheetUrl)]
+        scene: [new KingdomMapScene(bridge, sheetUrl, characterSheetUrl)]
       });
       runtimeRef.current = { game, bridge };
     })();

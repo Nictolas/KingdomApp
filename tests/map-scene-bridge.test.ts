@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { MapSceneBridge, type PhaserMapSnapshot } from "../src/phaser/adapters/mapSceneBridge.ts";
 
-const first: PhaserMapSnapshot = { cols: 2, rows: 2, cellSize: 40, tiles: [], buildings: [], revision: 1 };
+const first: PhaserMapSnapshot = { cols: 2, rows: 2, cellSize: 40, tiles: [], buildings: [], characters: [], revision: 1 };
 
 test("il bridge notifica Phaser soltanto quando cambia lo snapshot", () => {
   const bridge = new MapSceneBridge(first, { onCellPress: () => {} });
