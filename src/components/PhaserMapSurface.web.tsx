@@ -12,7 +12,7 @@ type Props = PhaserMapActions & {
 };
 
 /** Superficie WebGL. React le passa dati e azioni, senza partecipare al render loop. */
-export function PhaserMapSurface({ snapshot, onCellPress, onDragStateChange }: Props) {
+export function PhaserMapSurface({ snapshot, onCellPress, onCellHover, onDragStateChange }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const runtimeRef = useRef<{
     game: import("phaser").Game;
@@ -27,7 +27,7 @@ export function PhaserMapSurface({ snapshot, onCellPress, onDragStateChange }: P
       const { KingdomMapScene } = await import("../phaser/scenes/KingdomMapScene");
       if (cancelled || !hostRef.current) return;
 
-      const bridge = new MapSceneBridge(snapshot, { onCellPress, onDragStateChange });
+      const bridge = new MapSceneBridge(snapshot, { onCellPress, onCellHover, onDragStateChange });
       const sheetUrl = Asset.fromModule(SPRITESHEET).uri;
       const characterSheetUrl = Asset.fromModule(CHARACTER_SHEET).uri;
       const game = new Phaser.Game({
@@ -62,8 +62,8 @@ export function PhaserMapSurface({ snapshot, onCellPress, onDragStateChange }: P
   }, [snapshot]);
 
   useEffect(() => {
-    runtimeRef.current?.bridge.setActions({ onCellPress, onDragStateChange });
-  }, [onCellPress, onDragStateChange]);
+    runtimeRef.current?.bridge.setActions({ onCellPress, onCellHover, onDragStateChange });
+  }, [onCellPress, onCellHover, onDragStateChange]);
 
   return (
     <View style={styles.root}>

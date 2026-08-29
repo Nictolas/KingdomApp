@@ -25,6 +25,13 @@ export type PhaserMapCharacter = {
   markerEmoji?: string;
 };
 
+export type PhaserMapInteraction = {
+  mode: "select" | "build" | "demolish";
+  hoverCell: number | null;
+  affectedCells: readonly number[];
+  valid: boolean;
+};
+
 export type PhaserMapSnapshot = {
   cols: number;
   rows: number;
@@ -32,11 +39,13 @@ export type PhaserMapSnapshot = {
   tiles: readonly PhaserMapTile[];
   buildings: readonly PhaserMapBuilding[];
   characters: readonly PhaserMapCharacter[];
+  interaction?: PhaserMapInteraction;
   revision: number;
 };
 
 export type PhaserMapActions = {
   onCellPress: (cellIndex: number) => void;
+  onCellHover?: (cellIndex: number | null) => void;
   onDragStateChange?: (dragging: boolean) => void;
 };
 
@@ -75,6 +84,10 @@ export class MapSceneBridge {
 
   pressCell(cellIndex: number): void {
     this.actions.onCellPress(cellIndex);
+  }
+
+  hoverCell(cellIndex: number | null): void {
+    this.actions.onCellHover?.(cellIndex);
   }
 
   setDragging(dragging: boolean): void {
