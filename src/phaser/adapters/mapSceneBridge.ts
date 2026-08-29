@@ -2,6 +2,9 @@ export type PhaserMapTile = {
   index: number;
   frameX: number;
   frameY: number;
+  animation?: "water";
+  overlayFrameX?: number;
+  overlayFrameY?: number;
 };
 
 export type PhaserMapSnapshot = {
