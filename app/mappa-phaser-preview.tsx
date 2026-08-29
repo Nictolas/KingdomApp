@@ -10,7 +10,14 @@ const COLS = 50;
 const ROWS = 50;
 const CELL_SIZE = 40;
 const EMPTY_PREVIEW_MAP: MappaRuntimeState = {
-  edificiInMappa: {},
+  edificiInMappa: {
+    612: { id: 1, nome: "Centro di Comando", emoji: "", footprint: { w: 3, h: 2 } },
+    616: { id: 2, nome: "Serra", emoji: "", footprint: { w: 2, h: 1 } },
+    712: { id: 14, nome: "Dormitorio", emoji: "", footprint: { w: 2, h: 2 } },
+    714: { id: 14, nome: "Dormitorio", emoji: "", footprintRef: 712 },
+    762: { id: 14, nome: "Dormitorio", emoji: "", footprintRef: 712 },
+    764: { id: 14, nome: "Dormitorio", emoji: "", footprintRef: 712 }
+  },
   terrenoInMappa: {},
   decorazioniInMappa: {},
   residenzeMappa: {}

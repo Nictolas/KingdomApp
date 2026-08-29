@@ -7,11 +7,21 @@ export type PhaserMapTile = {
   overlayFrameY?: number;
 };
 
+export type PhaserMapBuilding = {
+  anchor: number;
+  widthCells: number;
+  heightCells: number;
+  name: string;
+  emoji: string;
+  category: "residence" | "industry" | "service" | "security" | "religion" | "special";
+};
+
 export type PhaserMapSnapshot = {
   cols: number;
   rows: number;
   cellSize: number;
   tiles: readonly PhaserMapTile[];
+  buildings: readonly PhaserMapBuilding[];
   revision: number;
 };
 

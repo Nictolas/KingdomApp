@@ -15,7 +15,70 @@ import {
   sandWaterEdgeMaskAt
 } from "../../game/terrainSpriteHelpers";
 import type { MappaRuntimeState } from "../../game/mappaTypes";
-import type { PhaserMapSnapshot, PhaserMapTile } from "./mapSceneBridge";
+import type { PhaserMapBuilding, PhaserMapSnapshot, PhaserMapTile } from "./mapSceneBridge";
+
+const BUILDING_EMOJI: Record<string, string> = {
+  "Centro di Comando": "🏛️",
+  Dormitorio: "🛏️",
+  Capanna: "⛺",
+  Bar: "🍺",
+  Tribunale: "⚖️",
+  "Ufficio Immigrazione": "🛂",
+  "Ufficio Edile": "🏗️",
+  Mercato: "🏪",
+  Negozio: "🛍️",
+  "Mensa Pubblica": "🍲",
+  Dissalatore: "💧",
+  Spazioporto: "🚀",
+  Serra: "🌱",
+  "Luogo di Culto del Sole": "☀️",
+  "Luogo di Culto degli Alieni": "👽",
+  Carcere: "🔒",
+  "Campo di Lavoro": "⛏️",
+  "Campo di Sterminio": "☠️",
+  Caserma: "🛡️",
+  Centrale: "🚓",
+  Giacimento: "⛰️",
+  "Raffineria Mineraria": "⚙️"
+};
+
+function categoryForBuilding(name: string): PhaserMapBuilding["category"] {
+  if (["Dormitorio", "Capanna", "Baracca"].includes(name)) return "residence";
+  if (["Serra", "Dissalatore", "Raffineria Mineraria", "Giacimento"].includes(name)) return "industry";
+  if (["Carcere", "Campo di Lavoro", "Campo di Sterminio", "Caserma", "Centrale"].includes(name)) {
+    return "security";
+  }
+  if (name.includes("Culto")) return "religion";
+  if (["Spazioporto", "Centro di Comando"].includes(name)) return "special";
+  return "service";
+}
+
+export function buildPhaserBuildings(
+  state: MappaRuntimeState,
+  cols: number
+): PhaserMapBuilding[] {
+  const buildings: PhaserMapBuilding[] = [];
+  for (const [indexText, building] of Object.entries(state.edificiInMappa)) {
+    if (building.nome === "Strada" || building.footprintRef != null) continue;
+    const anchor = Number(indexText);
+    const footprint = building.footprint ?? { w: 1, h: 1 };
+    const col = anchor % cols;
+    if (col + footprint.w > cols) continue;
+    buildings.push({
+      anchor,
+      widthCells: footprint.w,
+      heightCells: footprint.h,
+      name: building.nome,
+      emoji: building.emoji || BUILDING_EMOJI[building.nome] || "🏢",
+      category: categoryForBuilding(building.nome)
+    });
+  }
+  return buildings.sort((a, b) => {
+    const bottomA = Math.floor(a.anchor / cols) + a.heightCells;
+    const bottomB = Math.floor(b.anchor / cols) + b.heightCells;
+    return bottomA - bottomB || a.anchor - b.anchor;
+  });
+}
 
 export function buildPhaserMapSnapshot(
   state: MappaRuntimeState,
@@ -80,5 +143,12 @@ export function buildPhaserMapSnapshot(
     });
   }
 
-  return { cols, rows, cellSize, tiles, revision };
+  return {
+    cols,
+    rows,
+    cellSize,
+    tiles,
+    buildings: buildPhaserBuildings(state, cols),
+    revision
+  };
 }
