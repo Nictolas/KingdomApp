@@ -1,4 +1,13 @@
-export const MAP_VIEWPORT_MARGIN_CELLS = 2;
+/**
+ * Celle prerenderizzate oltre il viewport.
+ *
+ * Il pan web viene applicato immediatamente tramite transform CSS, mentre React
+ * aggiorna il sottoinsieme di celle renderizzate nel frame seguente. Un margine
+ * troppo piccolo lascia quindi intravedere il fondo nero durante i drag rapidi.
+ * 16 celle corrispondono a 640 px con le celle attuali da 40 px: abbastanza per
+ * assorbire anche un gesto molto veloce senza rinunciare al culling della 50x50.
+ */
+export const MAP_VIEWPORT_MARGIN_CELLS = 16;
 
 export type MapTransformState = {
   positionX: number;
