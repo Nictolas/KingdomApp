@@ -9,6 +9,7 @@ export const MINUTI_GIOCO_PER_SECONDO_REALE = 30;
 let orologioGiocoMinutiDaMezzanotte = 6 * 60;
 let orologioGiocoLastRealMs: number | null = null;
 let orologioGiocoInPausa = false;
+let orologioGiocoBloccatoDallaFase = true;
 /** Giorno di gioco (1 = primo giorno); avanza a ogni mezzanotte dell'orologio. */
 let orologioGiocoGiorno = 1;
 
@@ -38,7 +39,31 @@ export function subscribeOrologioGiocoInPausa(listener: () => void): () => void 
 }
 
 export function getOrologioGiocoInPausaSnapshot(): boolean {
-  return orologioGiocoInPausa;
+  return orologioGiocoInPausa || orologioGiocoBloccatoDallaFase;
+}
+
+export function setOrologioGiocoBloccatoDallaFase(bloccato: boolean): void {
+  if (orologioGiocoBloccatoDallaFase === bloccato) return;
+  orologioGiocoBloccatoDallaFase = bloccato;
+  orologioGiocoLastRealMs = Date.now();
+  notifyPausaListeners();
+}
+
+export function restoreOrologioGioco(input: { giorno: number; minutiDaMezzanotte: number; pausaManuale: boolean }): void {
+  orologioGiocoGiorno = Math.max(1, Math.trunc(input.giorno));
+  orologioGiocoMinutiDaMezzanotte = ((Math.trunc(input.minutiDaMezzanotte) % 1440) + 1440) % 1440;
+  orologioGiocoInPausa = input.pausaManuale;
+  orologioGiocoLastRealMs = Date.now();
+  notifyGiornoListeners();
+  notifyPausaListeners();
+}
+
+export function getOrologioPersistableSnapshot() {
+  return {
+    giorno: orologioGiocoGiorno,
+    minutiDaMezzanotte: orologioGiocoMinutiDaMezzanotte,
+    pausaManuale: orologioGiocoInPausa
+  };
 }
 
 export function setOrologioGiocoInPausa(pausa: boolean): void {
@@ -60,7 +85,7 @@ export function syncOrologioGiocoDaWallClock(): number {
     orologioGiocoLastRealMs = Date.now();
     return orologioGiocoMinutiDaMezzanotte;
   }
-  if (orologioGiocoInPausa) {
+  if (getOrologioGiocoInPausaSnapshot()) {
     orologioGiocoLastRealMs = Date.now();
     return orologioGiocoMinutiDaMezzanotte;
   }

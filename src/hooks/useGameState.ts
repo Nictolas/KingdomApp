@@ -60,13 +60,15 @@ import { attivaEventoCarestia } from "../game/eventi/attivaCarestia";
 import { applicaPastiGiornalieriPerPeriodo, normalizzaEAplicaPastiAbitanti } from "../game/pastoGiornaliero";
 import {
   creaInventarioGiocatoreIniziale,
-  normalizzaInventarioGiocatore,
   normalizzaInventarioMensa,
   type VoceInventario
 } from "../game/inventario";
 import { serviPastoMensaTransaction, trasferisciCiboGiocatoreAMensaPuro } from "../game/mensaPubblica";
 import {
   getGiornoGiocoSnapshot,
+  getOrologioPersistableSnapshot,
+  restoreOrologioGioco,
+  setOrologioGiocoBloccatoDallaFase,
   subscribeGiornoGioco
 } from "../game/orologioGiocoSession";
 import { GIORNI_PRODUZIONE_SERRA_PER_MESE, isColturaSerraValida } from "../game/colturaSerra";
@@ -81,6 +83,10 @@ import {
   type ReligioneConCulto
 } from "../game/luogoCulto";
 import { creaRichiestaLuogoCulto, type RichiestaInAttesa } from "../game/richieste";
+import { isSimulationRunning, type GamePhase } from "../game/gamePhase";
+import type { PersistableGameState } from "../persistence/gameStateMapping";
+import type { MappaRuntimeState } from "../game/mappaTypes";
+import { setMappaSessione } from "../game/mappaSessione";
 
 const statoIniziale = generaColoniaIniziale();
 const capoReligiosoSoleIniziale =
@@ -136,16 +142,13 @@ function calcolaPendingRichiestaLuogoCulto(
   return { id: capo.id, nome: capo.nome, religione };
 }
 
-const pendingRichiestaLuogoCultoIniziale = calcolaPendingRichiestaLuogoCulto(
-  statoIniziale.abitanti,
-  edificiIniziali,
-  capoReligiosoSoleIniziale,
-  null
-);
-
 export function useGameState() {
+  const [gamePhase, setGamePhase] = useState<GamePhase>("loading");
+  const gamePhaseRef = useRef<GamePhase>(gamePhase);
+  gamePhaseRef.current = gamePhase;
+  const simulationEnabled = isSimulationRunning(gamePhase);
   const [abitanti, setAbitanti] = useState<Abitante[]>(statoIniziale.abitanti);
-  const [razzaNativi] = useState<Razza>(statoIniziale.razzaNativi);
+  const [razzaNativi, setRazzaNativi] = useState<Razza>(statoIniziale.razzaNativi);
   const [inventarioGiocatore, setInventarioGiocatore] = useState<VoceInventario[]>(() =>
     creaInventarioGiocatoreIniziale()
   );
@@ -202,12 +205,14 @@ export function useGameState() {
 
   // Baracca = tutti e solo i Senzatetto: sincronizza quando cambiano gli abitanti (es. nuovo immigrato approvato)
   useEffect(() => {
+    if (!simulationEnabled) return;
     setEdifici((prev) => syncResidenzeBaraccaSenzatetto(prev, abitanti));
-  }, [abitanti]);
+  }, [abitanti, simulationEnabled]);
 
   /** Inventario iniziale + pasti giornalieri (inventario, padrone, mensa). */
   useEffect(() => {
     const applicaPasti = () => {
+      if (!isSimulationRunning(gamePhaseRef.current)) return;
       const giorno = getGiornoGiocoSnapshot();
       const ultimo = ultimoGiornoPastiRef.current;
       if (giorno <= ultimo) return;
@@ -229,7 +234,6 @@ export function useGameState() {
     };
 
     applicaPasti();
-    setInventarioGiocatore((prev) => normalizzaInventarioGiocatore(prev));
     const unsub = subscribeGiornoGioco(applicaPasti);
     return unsub;
   }, []);
@@ -237,6 +241,7 @@ export function useGameState() {
   /** Produzione Serra: 1 unità/giorno per ogni Serra operativa → inventario cibo giocatore. */
   useEffect(() => {
     const applicaProduzioneSerra = () => {
+      if (!isSimulationRunning(gamePhaseRef.current)) return;
       const giorno = getGiornoGiocoSnapshot();
       const ultimo = ultimoGiornoProduzioneSerraRef.current;
       if (giorno <= ultimo) return;
@@ -254,16 +259,18 @@ export function useGameState() {
 
   /** All’avvio: i cittadini disoccupati prendono subito i posti vacanti (Bar, Serra, …). */
   useEffect(() => {
+    if (!simulationEnabled) return;
     let edificiNext = autoAssegnaCittadiniDisoccupati(abitantiRef.current, edificiRef.current);
     const norm = normalizzaLavoroEAgricoltura(abitantiRef.current, edificiNext);
     setEdifici(norm.edifici);
     if (norm.abitanti !== abitantiRef.current) setAbitanti(norm.abitanti);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- solo bootstrap partita
-  }, []);
+  }, [simulationEnabled]);
 
   /** Cittadini disoccupati cercano lavoro; stipendi edifici pubblici dal tesoro del giocatore. */
   useEffect(() => {
     const applicaEconomiaPubblica = () => {
+      if (!isSimulationRunning(gamePhaseRef.current)) return;
       const giorno = getGiornoGiocoSnapshot();
       const ultimo = ultimoGiornoEconomiaPubblicaRef.current;
       if (giorno <= ultimo) return;
@@ -323,7 +330,7 @@ export function useGameState() {
     id: number;
     nome: string;
     religione: ReligioneConCulto;
-  } | null>(pendingRichiestaLuogoCultoIniziale);
+  } | null>(null);
   const [luoghiCultoPendentiMappa, setLuoghiCultoPendentiMappa] = useState<
     { religione: ReligioneConCulto; edificioGlobaleId: number }[]
   >([]);
@@ -332,6 +339,7 @@ export function useGameState() {
 
   // Sincronizza lavoro «Capo Religioso» con la nomina nei culti.
   useEffect(() => {
+    if (!simulationEnabled) return;
     setAbitanti((prev) =>
       prev.map((a) => {
         if (capoReligiosoSole != null && a.id === capoReligiosoSole) {
@@ -351,10 +359,11 @@ export function useGameState() {
         return a;
       })
     );
-  }, [capoReligiosoSole, capoReligiosoAlieni]);
+  }, [capoReligiosoSole, capoReligiosoAlieni, simulationEnabled]);
 
   // Rimuove i template di catalogo (id 30/31) se finiti per errore nell'elenco edifici.
   useEffect(() => {
+    if (!simulationEnabled) return;
     setEdifici((prev) =>
       prev.filter(
         (e) =>
@@ -363,10 +372,11 @@ export function useGameState() {
             e.id !== TEMPLATE_ID_LUOGO_CULTO["Culto degli Alieni"])
       )
     );
-  }, []);
+  }, [simulationEnabled]);
 
   // Richiesta Luogo di Culto: si attiva appena i requisiti sono soddisfatti (non allo Skip Mese).
   useEffect(() => {
+    if (!simulationEnabled) return;
     if (pendingRichiestaLuogoCulto != null) return;
     const next = calcolaPendingRichiestaLuogoCulto(
       abitanti,
@@ -384,7 +394,8 @@ export function useGameState() {
     capoReligiosoAlieni,
     pendingRichiestaLuogoCulto,
     richiesteInAttesa,
-    luoghiCultoRifiutati
+    luoghiCultoRifiutati,
+    simulationEnabled
   ]);
 
   // Configurazione legge razziale
@@ -474,6 +485,7 @@ export function useGameState() {
   );
 
   const avanzaMese = useCallback(async () => {
+    if (!isSimulationRunning(gamePhaseRef.current)) return;
     setIsLoading(true);
     await new Promise((resolve) => setTimeout(resolve, 1000));
 
@@ -603,6 +615,7 @@ export function useGameState() {
 
   const pendingMatrimonioShownRef = useRef<string | null>(null);
   useEffect(() => {
+    if (!simulationEnabled) return;
     if (!pendingMatrimonio) {
       pendingMatrimonioShownRef.current = null;
       return;
@@ -636,17 +649,15 @@ export function useGameState() {
       `${pendingMatrimonio.nomeA} e ${pendingMatrimonio.nomeB} vogliono sposarsi. Glielo concedi?`,
       buttons
     );
-  }, [pendingMatrimonio, confermaMatrimonio, rifiutaMatrimonio, iusPrimaeNoctisAttivo, esercitaIusPrimaeNoctis]);
+  }, [pendingMatrimonio, confermaMatrimonio, rifiutaMatrimonio, iusPrimaeNoctisAttivo, esercitaIusPrimaeNoctis, simulationEnabled]);
 
   /** Creazione personaggio Re a inizio partita (prima degli eventi). */
   const [creazioneGiocatoreAperta, setCreazioneGiocatoreAperta] = useState(false);
   const [diarioInizioVisto, setDiarioInizioVisto] = useState(false);
-  const haAvviatoCreazioneGiocatoreRef = useRef(false);
-  useEffect(() => {
-    if (haAvviatoCreazioneGiocatoreRef.current) return;
-    haAvviatoCreazioneGiocatoreRef.current = true;
-    const t = setTimeout(() => setCreazioneGiocatoreAperta(true), 100);
-    return () => clearTimeout(t);
+  const startNewGame = useCallback(() => {
+    gamePhaseRef.current = "commander-creation";
+    setGamePhase("commander-creation");
+    setCreazioneGiocatoreAperta(true);
   }, []);
   const configuraGiocatore = useCallback((dati: DatiCreazioneGiocatore) => {
     const nomeCompleto = [dati.nome.trim(), dati.cognome.trim()].filter(Boolean).join(" ");
@@ -668,7 +679,116 @@ export function useGameState() {
     );
     setCreazioneGiocatoreAperta(false);
     setDiarioInizioVisto(true);
+    gamePhaseRef.current = "activating";
+    setGamePhase("activating");
   }, []);
+
+  useEffect(() => {
+    if (gamePhase !== "activating") return;
+    const id = setTimeout(() => setGamePhase("running"), 0);
+    return () => clearTimeout(id);
+  }, [gamePhase]);
+
+  useEffect(() => {
+    setOrologioGiocoBloccatoDallaFase(!simulationEnabled);
+  }, [simulationEnabled]);
+
+  const restorePersistableState = useCallback((state: PersistableGameState) => {
+    gamePhaseRef.current = "restoring";
+    setGamePhase("restoring");
+    setOrologioGiocoBloccatoDallaFase(true);
+    setAbitanti(state.abitanti);
+    setRazzaNativi(state.razzaNativi);
+    setInventarioGiocatore(state.inventarioGiocatore);
+    setMoneteGiocatore(state.moneteGiocatore);
+    setInventarioMensaByEdificioId(state.inventarioMensaByEdificioId);
+    setRisorse(state.risorse);
+    setEdifici(state.edifici);
+    setMese(state.mese);
+    setAnno(state.anno);
+    setAbitantiProposti(state.abitantiProposti);
+    setNextId(state.nextId);
+    setOrdiniMercato(state.ordiniMercato);
+    setEventiInCorso(state.eventiInCorso);
+    setNativiNonIntegrati(state.nativiNonIntegrati);
+    setPendingAssimilazione(state.pendingAssimilazione);
+    setPendingMatrimonio(state.pendingMatrimonio);
+    setMessaggioEmigrazione(state.messaggioEmigrazione);
+    setDiarioRighe(state.diarioRighe);
+    setSoddisfazioneFazioni(state.soddisfazioneFazioni);
+    setTipoTassaReddito(state.tipoTassaReddito);
+    setFlatTaxPercentuale(state.flatTaxPercentuale);
+    setScaglioniConfig(state.scaglioniConfig);
+    setPoliticaNascite(state.politicaNascite);
+    setPunteggioSanzioni(state.punteggioSanzioni);
+    setPenaDiMorteAttiva(state.penaDiMorteAttiva);
+    setPenaReati(state.penaReati);
+    setPoliticaReligiosa(state.politicaReligiosa);
+    setReligioneDiStato(state.religioneDiStato);
+    setCapoReligiosoSole(state.capoReligiosoSole);
+    setCapoReligiosoAlieni(state.capoReligiosoAlieni);
+    setPendingRichiestaLuogoCulto(state.pendingRichiestaLuogoCulto);
+    setLuoghiCultoPendentiMappa(state.luoghiCultoPendentiMappa);
+    setRichiesteInAttesa(state.richiesteInAttesa);
+    setLuoghiCultoRifiutati(state.luoghiCultoRifiutati);
+    setLeggeRazzialeAttiva(state.leggeRazzialeAttiva);
+    setRazzaCampoLavoro(state.razzaCampoLavoro);
+    setRazzaCampoSterminio(state.razzaCampoSterminio);
+    setEtaMinimaLavoro(state.etaMinimaLavoro);
+    setEtaPensionabile(state.etaPensionabile);
+    setAssegnoPensionati(state.assegnoPensionati);
+    setLeggeDroghe(state.leggeDroghe);
+    setDivietoEspatrioAttivo(state.divietoEspatrioAttivo);
+    setCoprifuocoAttivo(state.coprifuocoAttivo);
+    setCoprifuocoInizioMinutiState(state.coprifuocoInizioMinuti);
+    setCoprifuocoFineMinutiState(state.coprifuocoFineMinuti);
+    setIusPrimaeNoctisAttivo(state.iusPrimaeNoctisAttivo);
+    setTipologieFamigliaAccettate(state.tipologieFamigliaAccettate);
+    setRedditoCittadinanza(state.redditoCittadinanza);
+    setModalitaSanita(state.modalitaSanita);
+    setPrezzoResidenzeState(state.prezzoResidenze);
+    setDiarioInizioVisto(state.diarioInizioVisto);
+    ultimoGiornoPastiRef.current = state.ultimoGiornoPasti;
+    ultimoGiornoProduzioneSerraRef.current = state.ultimoGiornoProduzioneSerra;
+    ultimoGiornoEconomiaPubblicaRef.current = state.ultimoGiornoEconomiaPubblica;
+    restoreOrologioGioco(state);
+    setMappaSessione(state.mappa);
+    setCreazioneGiocatoreAperta(!state.introductionCompleted);
+    setTimeout(() => setGamePhase(state.introductionCompleted ? "running" : "commander-creation"), 0);
+  }, []);
+
+  const createPersistableState = useCallback((mappa: MappaRuntimeState): PersistableGameState => {
+    const clock = getOrologioPersistableSnapshot();
+    return {
+      gamePhase: gamePhase === "running" ? "running" : gamePhase === "activating" ? "activating" : "commander-creation",
+      introductionCompleted: diarioInizioVisto,
+      diarioInizioVisto,
+      abitanti, abitantiProposti, nextId, razzaNativi, nativiNonIntegrati,
+      edifici, risorse, inventarioGiocatore, inventarioMensaByEdificioId, moneteGiocatore, prezzoResidenze,
+      mese, anno, ...clock,
+      ultimoGiornoPasti: ultimoGiornoPastiRef.current,
+      ultimoGiornoProduzioneSerra: ultimoGiornoProduzioneSerraRef.current,
+      ultimoGiornoEconomiaPubblica: ultimoGiornoEconomiaPubblicaRef.current,
+      tipoTassaReddito, flatTaxPercentuale, scaglioniConfig, politicaNascite, punteggioSanzioni,
+      penaDiMorteAttiva, penaReati, politicaReligiosa, religioneDiStato, leggeRazzialeAttiva,
+      razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, etaPensionabile, assegnoPensionati,
+      leggeDroghe, divietoEspatrioAttivo, coprifuocoAttivo, coprifuocoInizioMinuti,
+      coprifuocoFineMinuti, iusPrimaeNoctisAttivo, tipologieFamigliaAccettate,
+      redditoCittadinanza, modalitaSanita, ordiniMercato, eventiInCorso, soddisfazioneFazioni,
+      pendingAssimilazione, pendingMatrimonio, messaggioEmigrazione, diarioRighe,
+      capoReligiosoSole, capoReligiosoAlieni, pendingRichiestaLuogoCulto, richiesteInAttesa,
+      luoghiCultoRifiutati, luoghiCultoPendentiMappa, mappa
+    };
+  }, [gamePhase, diarioInizioVisto, abitanti, abitantiProposti, nextId, razzaNativi, nativiNonIntegrati,
+    edifici, risorse, inventarioGiocatore, inventarioMensaByEdificioId, moneteGiocatore, prezzoResidenze,
+    mese, anno, tipoTassaReddito, flatTaxPercentuale, scaglioniConfig, politicaNascite, punteggioSanzioni,
+    penaDiMorteAttiva, penaReati, politicaReligiosa, religioneDiStato, leggeRazzialeAttiva,
+    razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, etaPensionabile, assegnoPensionati,
+    leggeDroghe, divietoEspatrioAttivo, coprifuocoAttivo, coprifuocoInizioMinuti, coprifuocoFineMinuti,
+    iusPrimaeNoctisAttivo, tipologieFamigliaAccettate, redditoCittadinanza, modalitaSanita,
+    ordiniMercato, eventiInCorso, soddisfazioneFazioni, pendingAssimilazione, pendingMatrimonio,
+    messaggioEmigrazione, diarioRighe, capoReligiosoSole, capoReligiosoAlieni,
+    pendingRichiestaLuogoCulto, richiesteInAttesa, luoghiCultoRifiutati, luoghiCultoPendentiMappa]);
   const chiudiMessaggioEmigrazione = useCallback(() => setMessaggioEmigrazione(null), []);
 
   /**
@@ -676,10 +796,11 @@ export function useGameState() {
    * Eseguito in un solo passaggio per evitare stati intermedi (es. immigrato Agricoltore demotato a Disoccupato).
    */
   useEffect(() => {
+    if (!simulationEnabled) return;
     const { abitanti: nextA, edifici: nextE } = normalizzaLavoroEAgricoltura(abitanti, edifici);
     if (nextA !== abitanti) setAbitanti(nextA);
     if (nextE !== edifici) setEdifici(nextE);
-  }, [abitanti, edifici]);
+  }, [abitanti, edifici, simulationEnabled]);
 
   const assegnaAbitanteAEdificio = useCallback((abitanteId: number, edificioId: number) => {
     const abitante = abitanti.find((a) => a.id === abitanteId);
@@ -1261,11 +1382,17 @@ export function useGameState() {
 
   // Aggiorna il punteggio quando cambiano le condizioni
   useEffect(() => {
+    if (!simulationEnabled) return;
     const nuovoPunteggio = calcolaPunteggioSanzioni();
     setPunteggioSanzioni(nuovoPunteggio);
-  }, [calcolaPunteggioSanzioni]);
+  }, [calcolaPunteggioSanzioni, simulationEnabled]);
 
   return {
+    gamePhase,
+    simulationEnabled,
+    startNewGame,
+    restorePersistableState,
+    createPersistableState,
     abitanti,
     inventarioGiocatore,
     moneteGiocatore,
