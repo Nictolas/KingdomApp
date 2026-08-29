@@ -1,4 +1,5 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore, ReactNode } from "react";
+import { usePathname } from "expo-router";
 import { Alert, AppState } from "react-native";
 import { useGameState } from "../hooks/useGameState";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
@@ -211,8 +212,12 @@ const GameContext = createContext<GameContextType | undefined>(undefined);
 
 function CreazioneGiocatoreWrapper() {
   const { creazioneGiocatoreAperta, configuraGiocatore } = useGameContext();
+  const pathname = usePathname();
   return (
-    <CreazioneGiocatoreModal visible={creazioneGiocatoreAperta} onConferma={configuraGiocatore} />
+    <CreazioneGiocatoreModal
+      visible={creazioneGiocatoreAperta && pathname !== "/mappa-phaser-preview"}
+      onConferma={configuraGiocatore}
+    />
   );
 }
 

@@ -5,6 +5,16 @@ import type { MapSceneBridge, PhaserMapSnapshot } from "../adapters/mapSceneBrid
 
 const SHEET_KEY = "overworld";
 const TILE_LAYER_DEPTH = 0;
+const BUILDING_LAYER_DEPTH = 10;
+
+const BUILDING_COLORS = {
+  residence: { fill: 0xb45309, roof: 0xf59e0b, border: 0x451a03 },
+  industry: { fill: 0x475569, roof: 0x94a3b8, border: 0x0f172a },
+  service: { fill: 0x1d4ed8, roof: 0x60a5fa, border: 0x172554 },
+  security: { fill: 0x991b1b, roof: 0xef4444, border: 0x450a0a },
+  religion: { fill: 0x7e22ce, roof: 0xc084fc, border: 0x3b0764 },
+  special: { fill: 0x0f766e, roof: 0x2dd4bf, border: 0x042f2e }
+} as const;
 
 function frameKey(x: number, y: number): string {
   return `${x}:${y}`;
@@ -15,6 +25,7 @@ export class KingdomMapScene extends Phaser.Scene {
   private readonly sheetUrl: string;
   private unsubscribe: (() => void) | null = null;
   private tileLayer: Phaser.GameObjects.Container | null = null;
+  private buildingLayer: Phaser.GameObjects.Container | null = null;
   private renderedRevision = -1;
   private waterSprites: Phaser.GameObjects.Image[] = [];
   private waterFrame = 0;
@@ -34,6 +45,7 @@ export class KingdomMapScene extends Phaser.Scene {
 
   create(): void {
     this.tileLayer = this.add.container(0, 0).setDepth(TILE_LAYER_DEPTH);
+    this.buildingLayer = this.add.container(0, 0).setDepth(BUILDING_LAYER_DEPTH);
     this.configureTextureFrames(this.bridge.getSnapshot());
     this.renderSnapshot(this.bridge.getSnapshot());
     this.configureCameraAndInput();
@@ -119,6 +131,51 @@ export class KingdomMapScene extends Phaser.Scene {
     this.cameras.main.setBounds(0, 0, worldW, worldH);
     this.physics?.world?.setBounds(0, 0, worldW, worldH);
     this.renderedRevision = snapshot.revision;
+    this.renderBuildings(snapshot);
+  }
+
+  private renderBuildings(snapshot: PhaserMapSnapshot): void {
+    if (!this.buildingLayer) return;
+    this.buildingLayer.removeAll(true);
+
+    for (const building of snapshot.buildings) {
+      const col = building.anchor % snapshot.cols;
+      const row = Math.floor(building.anchor / snapshot.cols);
+      const x = col * snapshot.cellSize;
+      const y = row * snapshot.cellSize;
+      const width = building.widthCells * snapshot.cellSize;
+      const height = building.heightCells * snapshot.cellSize;
+      const colors = BUILDING_COLORS[building.category];
+      const group = this.add.container(x, y);
+
+      const shadow = this.add
+        .rectangle(width / 2 + 3, height / 2 + 4, width - 5, height - 5, 0x000000, 0.28)
+        .setOrigin(0.5);
+      const body = this.add
+        .rectangle(width / 2, height / 2, width - 6, height - 8, colors.fill, 1)
+        .setStrokeStyle(2, colors.border, 1);
+      const roof = this.add
+        .rectangle(width / 2, Math.max(7, height * 0.2), width - 3, Math.max(10, height * 0.32), colors.roof, 1)
+        .setStrokeStyle(2, colors.border, 1);
+      const emoji = this.add
+        .text(width / 2, height / 2, building.emoji, {
+          fontFamily: "Arial, sans-serif",
+          fontSize: `${Math.max(18, Math.min(34, snapshot.cellSize * 0.72))}px`
+        })
+        .setOrigin(0.5);
+      const label = this.add
+        .text(width / 2, height - 5, building.name, {
+          fontFamily: "Arial, sans-serif",
+          fontSize: `${Math.max(8, Math.min(11, snapshot.cellSize * 0.24))}px`,
+          color: "#ffffff",
+          backgroundColor: "rgba(2,6,23,0.72)",
+          padding: { x: 3, y: 1 }
+        })
+        .setOrigin(0.5, 1);
+
+      group.add([shadow, body, roof, emoji, label]);
+      this.buildingLayer.add(group);
+    }
   }
 
   update(time: number): void {
@@ -146,9 +203,11 @@ export class KingdomMapScene extends Phaser.Scene {
 
     this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
       if (pointer.id !== this.dragPointerId || !pointer.isDown) return;
-      if (Math.abs(pointer.velocity.x) + Math.abs(pointer.velocity.y) > 2) this.dragged = true;
-      camera.scrollX -= pointer.velocity.x / camera.zoom;
-      camera.scrollY -= pointer.velocity.y / camera.zoom;
+      const dx = pointer.x - pointer.prevPosition.x;
+      const dy = pointer.y - pointer.prevPosition.y;
+      if (Math.abs(dx) + Math.abs(dy) > 2) this.dragged = true;
+      camera.scrollX -= dx / camera.zoom;
+      camera.scrollY -= dy / camera.zoom;
     });
 
     this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => {

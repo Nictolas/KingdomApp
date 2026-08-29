@@ -4,7 +4,10 @@ import test from "node:test";
 import { OVERWORLD_SHEET_PX, getStradaSheetCoord } from "../src/game/overworldSpritesheetLayout.ts";
 import type { MappaRuntimeState } from "../src/game/mappaTypes.ts";
 import { buildStradaAssetLookup } from "../src/game/terrainSpriteHelpers.ts";
-import { buildPhaserMapSnapshot } from "../src/phaser/adapters/buildPhaserMapSnapshot.ts";
+import {
+  buildPhaserBuildings,
+  buildPhaserMapSnapshot
+} from "../src/phaser/adapters/buildPhaserMapSnapshot.ts";
 
 test("lo snapshot Phaser traduce mare, terra, sabbia e strada reali", () => {
   const state: MappaRuntimeState = {
@@ -27,6 +30,51 @@ test("lo snapshot Phaser traduce mare, terra, sabbia e strada reali", () => {
     { x: snapshot.tiles[5].frameX, y: snapshot.tiles[5].frameY },
     stradaCoord
   );
+});
+
+test("gli edifici multicella vengono emessi una sola volta dal loro anchor", () => {
+  const state: MappaRuntimeState = {
+    edificiInMappa: {
+      6: { id: 14, nome: "Dormitorio", emoji: "", footprint: { w: 2, h: 2 } },
+      7: { id: 14, nome: "Dormitorio", emoji: "", footprintRef: 6 },
+      11: { id: 14, nome: "Dormitorio", emoji: "", footprintRef: 6 },
+      12: { id: 14, nome: "Dormitorio", emoji: "", footprintRef: 6 },
+      8: { id: -1, nome: "Strada", emoji: "🛤️" },
+      18: { id: 2, nome: "Serra", emoji: "🌱" }
+    },
+    terrenoInMappa: {},
+    decorazioniInMappa: {},
+    residenzeMappa: {}
+  };
+  const buildings = buildPhaserBuildings(state, 5);
+
+  assert.equal(buildings.length, 2);
+  assert.deepEqual(
+    buildings.map(({ anchor, widthCells, heightCells, name }) => ({ anchor, widthCells, heightCells, name })),
+    [
+      { anchor: 6, widthCells: 2, heightCells: 2, name: "Dormitorio" },
+      { anchor: 18, widthCells: 1, heightCells: 1, name: "Serra" }
+    ]
+  );
+  assert.equal(buildings[0].emoji, "🛏️");
+  assert.equal(buildings[0].category, "residence");
+});
+
+test("costruzione e demolizione cambiano soltanto i descriptor derivati", () => {
+  const empty: MappaRuntimeState = {
+    edificiInMappa: {},
+    terrenoInMappa: {},
+    decorazioniInMappa: {},
+    residenzeMappa: {}
+  };
+  const built: MappaRuntimeState = {
+    ...empty,
+    edificiInMappa: { 12: { id: 99, nome: "Mercato", emoji: "🏪", footprint: { w: 2, h: 2 } } }
+  };
+
+  assert.equal(buildPhaserMapSnapshot(empty, 5, 5, 40, 1).buildings.length, 0);
+  assert.equal(buildPhaserMapSnapshot(built, 5, 5, 40, 2).buildings[0].name, "Mercato");
+  assert.equal(buildPhaserMapSnapshot(empty, 5, 5, 40, 3).buildings.length, 0);
 });
 
 test("una nuova revisione riflette le modifiche del terreno senza stato Phaser salvabile", () => {
