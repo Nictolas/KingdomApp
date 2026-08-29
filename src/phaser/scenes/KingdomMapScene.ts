@@ -7,6 +7,7 @@ const SHEET_KEY = "overworld";
 const CHARACTER_KEY = "characters";
 const TILE_LAYER_DEPTH = 0;
 const BUILDING_LAYER_DEPTH = 10;
+const INTERACTION_LAYER_DEPTH = 30;
 
 const BUILDING_COLORS = {
   residence: { fill: 0xb45309, roof: 0xf59e0b, border: 0x451a03 },
@@ -29,6 +30,7 @@ export class KingdomMapScene extends Phaser.Scene {
   private tileLayer: Phaser.GameObjects.Container | null = null;
   private buildingLayer: Phaser.GameObjects.Container | null = null;
   private characterLayer: Phaser.GameObjects.Container | null = null;
+  private interactionLayer: Phaser.GameObjects.Container | null = null;
   private readonly characterViews = new Map<number, { root: Phaser.GameObjects.Container; token: number }>();
   private renderedRevision = -1;
   private waterSprites: Phaser.GameObjects.Image[] = [];
@@ -36,6 +38,7 @@ export class KingdomMapScene extends Phaser.Scene {
   private nextWaterFrameAt = 0;
   private dragPointerId: number | null = null;
   private dragged = false;
+  private hoveredCell: number | null = null;
 
   constructor(bridge: MapSceneBridge, sheetUrl: string, characterSheetUrl: string) {
     super({ key: "kingdom-map" });
@@ -53,12 +56,14 @@ export class KingdomMapScene extends Phaser.Scene {
     this.tileLayer = this.add.container(0, 0).setDepth(TILE_LAYER_DEPTH);
     this.buildingLayer = this.add.container(0, 0).setDepth(BUILDING_LAYER_DEPTH);
     this.characterLayer = this.add.container(0, 0).setDepth(BUILDING_LAYER_DEPTH + 1);
+    this.interactionLayer = this.add.container(0, 0).setDepth(INTERACTION_LAYER_DEPTH);
     this.configureTextureFrames(this.bridge.getSnapshot());
     this.renderSnapshot(this.bridge.getSnapshot());
     this.configureCameraAndInput();
     this.unsubscribe = this.bridge.subscribe(() => {
       const snapshot = this.bridge.getSnapshot();
       if (snapshot.revision !== this.renderedRevision) this.renderSnapshot(snapshot);
+      else this.renderInteraction(snapshot);
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unsubscribe?.());
   }
@@ -140,6 +145,31 @@ export class KingdomMapScene extends Phaser.Scene {
     this.renderedRevision = snapshot.revision;
     this.renderBuildings(snapshot);
     this.reconcileCharacters(snapshot);
+    this.renderInteraction(snapshot);
+  }
+
+  private renderInteraction(snapshot: PhaserMapSnapshot): void {
+    if (!this.interactionLayer) return;
+    this.interactionLayer.removeAll(true);
+    const interaction = snapshot.interaction;
+    if (!interaction || interaction.hoverCell == null) return;
+
+    const color = interaction.mode === "demolish"
+      ? (interaction.valid ? 0xf97316 : 0xef4444)
+      : (interaction.valid ? 0x22c55e : 0xef4444);
+    for (const cell of interaction.affectedCells) {
+      const col = cell % snapshot.cols;
+      const row = Math.floor(cell / snapshot.cols);
+      const marker = this.add.rectangle(
+        col * snapshot.cellSize + snapshot.cellSize / 2,
+        row * snapshot.cellSize + snapshot.cellSize / 2,
+        snapshot.cellSize - 3,
+        snapshot.cellSize - 3,
+        color,
+        0.32
+      ).setStrokeStyle(2, color, 0.95);
+      this.interactionLayer.add(marker);
+    }
   }
 
   private reconcileCharacters(snapshot: PhaserMapSnapshot): void {
@@ -268,12 +298,21 @@ export class KingdomMapScene extends Phaser.Scene {
     });
 
     this.input.on("pointermove", (pointer: Phaser.Input.Pointer) => {
-      if (pointer.id !== this.dragPointerId || !pointer.isDown) return;
+      if (!pointer.isDown) {
+        this.emitHoveredCell(pointer);
+        return;
+      }
+      if (pointer.id !== this.dragPointerId) return;
       const dx = pointer.x - pointer.prevPosition.x;
       const dy = pointer.y - pointer.prevPosition.y;
       if (Math.abs(dx) + Math.abs(dy) > 2) this.dragged = true;
       camera.scrollX -= dx / camera.zoom;
       camera.scrollY -= dy / camera.zoom;
+    });
+
+    this.input.on("pointerout", () => {
+      this.hoveredCell = null;
+      this.bridge.hoverCell(null);
     });
 
     this.input.on("pointerup", (pointer: Phaser.Input.Pointer) => {
@@ -301,5 +340,18 @@ export class KingdomMapScene extends Phaser.Scene {
         camera.scrollY += before.y - after.y;
       }
     );
+  }
+
+  private emitHoveredCell(pointer: Phaser.Input.Pointer): void {
+    const snapshot = this.bridge.getSnapshot();
+    const world = this.cameras.main.getWorldPoint(pointer.x, pointer.y);
+    const col = Math.floor(world.x / snapshot.cellSize);
+    const row = Math.floor(world.y / snapshot.cellSize);
+    const cell = col < 0 || col >= snapshot.cols || row < 0 || row >= snapshot.rows
+      ? null
+      : row * snapshot.cols + col;
+    if (cell === this.hoveredCell) return;
+    this.hoveredCell = cell;
+    this.bridge.hoverCell(cell);
   }
 }

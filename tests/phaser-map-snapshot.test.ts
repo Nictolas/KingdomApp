@@ -85,6 +85,20 @@ test("personaggi e percorsi attraversano il bridge senza entrare nello stato map
   assert.equal("characters" in state, false);
 });
 
+test("lo stato di piazzamento resta un overlay effimero dello snapshot", () => {
+  const state: MappaRuntimeState = {
+    edificiInMappa: {}, terrenoInMappa: {}, decorazioniInMappa: {}, residenzeMappa: {}
+  };
+  const snapshot = {
+    ...buildPhaserMapSnapshot(state, 4, 4, 40, 8),
+    interaction: { mode: "build" as const, hoverCell: 5, affectedCells: [5, 6, 9, 10], valid: true }
+  };
+
+  assert.deepEqual(snapshot.interaction.affectedCells, [5, 6, 9, 10]);
+  assert.equal(snapshot.interaction.valid, true);
+  assert.equal("interaction" in state, false);
+});
+
 test("una nuova revisione riflette le modifiche del terreno senza stato Phaser salvabile", () => {
   const base: MappaRuntimeState = {
     edificiInMappa: {},
