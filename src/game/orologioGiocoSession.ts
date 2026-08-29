@@ -9,6 +9,7 @@ export const MINUTI_GIOCO_PER_SECONDO_REALE = 30;
 let orologioGiocoMinutiDaMezzanotte = 6 * 60;
 let orologioGiocoLastRealMs: number | null = null;
 let orologioGiocoInPausa = false;
+// Parte bloccato: la creazione del Comandante non deve far avanzare il mondo.
 let orologioGiocoBloccatoDallaFase = true;
 /** Giorno di gioco (1 = primo giorno); avanza a ogni mezzanotte dell'orologio. */
 let orologioGiocoGiorno = 1;
@@ -45,6 +46,7 @@ export function getOrologioGiocoInPausaSnapshot(): boolean {
 export function setOrologioGiocoBloccatoDallaFase(bloccato: boolean): void {
   if (orologioGiocoBloccatoDallaFase === bloccato) return;
   orologioGiocoBloccatoDallaFase = bloccato;
+  // Il tempo reale trascorso durante il blocco non deve essere recuperato alla ripresa.
   orologioGiocoLastRealMs = Date.now();
   notifyPausaListeners();
 }

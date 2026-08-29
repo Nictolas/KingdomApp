@@ -683,6 +683,7 @@ export function useGameState() {
     setGamePhase("activating");
   }, []);
 
+  // Un ciclo separato chiude l'introduzione prima di permettere qualunque effetto automatico.
   useEffect(() => {
     if (gamePhase !== "activating") return;
     const id = setTimeout(() => setGamePhase("running"), 0);
