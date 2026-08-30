@@ -31,6 +31,7 @@ export class KingdomMapScene extends Phaser.Scene {
   private buildingLayer: Phaser.GameObjects.Container | null = null;
   private characterLayer: Phaser.GameObjects.Container | null = null;
   private interactionLayer: Phaser.GameObjects.Container | null = null;
+  private gridLayer: Phaser.GameObjects.Graphics | null = null;
   private readonly characterViews = new Map<number, { root: Phaser.GameObjects.Container; token: number }>();
   private renderedRevision = -1;
   private waterSprites: Phaser.GameObjects.Image[] = [];
@@ -39,6 +40,7 @@ export class KingdomMapScene extends Phaser.Scene {
   private dragPointerId: number | null = null;
   private dragged = false;
   private hoveredCell: number | null = null;
+  private readonly characterLastPressAt = new Map<number, number>();
 
   constructor(bridge: MapSceneBridge, sheetUrl: string, characterSheetUrl: string) {
     super({ key: "kingdom-map" });
@@ -57,13 +59,18 @@ export class KingdomMapScene extends Phaser.Scene {
     this.buildingLayer = this.add.container(0, 0).setDepth(BUILDING_LAYER_DEPTH);
     this.characterLayer = this.add.container(0, 0).setDepth(BUILDING_LAYER_DEPTH + 1);
     this.interactionLayer = this.add.container(0, 0).setDepth(INTERACTION_LAYER_DEPTH);
+    this.gridLayer = this.add.graphics().setDepth(INTERACTION_LAYER_DEPTH - 1);
     this.configureTextureFrames(this.bridge.getSnapshot());
     this.renderSnapshot(this.bridge.getSnapshot());
     this.configureCameraAndInput();
     this.unsubscribe = this.bridge.subscribe(() => {
       const snapshot = this.bridge.getSnapshot();
       if (snapshot.revision !== this.renderedRevision) this.renderSnapshot(snapshot);
-      else this.renderInteraction(snapshot);
+      else {
+        this.reconcileCharacters(snapshot);
+        this.renderGrid(snapshot);
+        this.renderInteraction(snapshot);
+      }
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unsubscribe?.());
   }
@@ -145,7 +152,25 @@ export class KingdomMapScene extends Phaser.Scene {
     this.renderedRevision = snapshot.revision;
     this.renderBuildings(snapshot);
     this.reconcileCharacters(snapshot);
+    this.renderGrid(snapshot);
     this.renderInteraction(snapshot);
+  }
+
+  private renderGrid(snapshot: PhaserMapSnapshot): void {
+    if (!this.gridLayer) return;
+    this.gridLayer.clear();
+    if (!snapshot.showGrid) return;
+    this.gridLayer.lineStyle(1, 0x0f172a, 0.24);
+    const width = snapshot.cols * snapshot.cellSize;
+    const height = snapshot.rows * snapshot.cellSize;
+    for (let col = 0; col <= snapshot.cols; col++) {
+      const x = col * snapshot.cellSize;
+      this.gridLayer.lineBetween(x, 0, x, height);
+    }
+    for (let row = 0; row <= snapshot.rows; row++) {
+      const y = row * snapshot.cellSize;
+      this.gridLayer.lineBetween(0, y, width, y);
+    }
   }
 
   private renderInteraction(snapshot: PhaserMapSnapshot): void {
@@ -197,6 +222,15 @@ export class KingdomMapScene extends Phaser.Scene {
           fontSize: "9px", color: "#ffffff", backgroundColor: "rgba(2,6,23,0.7)", padding: { x: 2, y: 1 }
         }).setOrigin(0.5));
         this.characterLayer.add(root);
+        root.setSize(snapshot.cellSize, snapshot.cellSize).setInteractive();
+        root.on("pointerup", (_pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
+          event.stopPropagation();
+          const now = this.time.now;
+          const last = this.characterLastPressAt.get(character.id) ?? 0;
+          const doublePress = now - last < 340;
+          this.characterLastPressAt.set(character.id, now);
+          this.bridge.pressCharacter(character.id, doublePress);
+        });
         view = { root, token: -1 };
         this.characterViews.set(character.id, view);
       }
@@ -212,7 +246,8 @@ export class KingdomMapScene extends Phaser.Scene {
           tweens: path.map((cell) => {
             const pos = this.characterPosition(cell, snapshot);
             return { x: pos.x, y: pos.y, duration: 360, ease: "Linear" };
-          })
+          }),
+          onComplete: () => this.bridge.completeCharacterPath(character.id, token)
         });
       }
     }

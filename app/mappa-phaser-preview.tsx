@@ -91,9 +91,9 @@ export default function MappaPhaserPreviewScreen() {
     });
   }, [interaction, mode, session]);
 
-  const baseSnapshot = useMemo(() => {
+  const characters = useMemo(() => {
     const source = abitanti.length > 0 ? abitanti.slice(0, 24) : [{ id: 1, nome: "Esploratore", razza: "Umano" as const }];
-    const characters = source.map((abitante, order) => {
+    return source.map((abitante, order) => {
       const start = (6 + Math.floor(order / 6) * 2) * COLS + 3 + (order % 6) * 3;
       return {
         id: abitante.id,
@@ -104,16 +104,18 @@ export default function MappaPhaserPreviewScreen() {
         markerEmoji: abitante.razza === "Robot" ? "🤖" : undefined
       };
     });
-    return buildPhaserMapSnapshot(
+  }, [abitanti]);
+  const baseSnapshot = useMemo(() => buildPhaserMapSnapshot(
       activeMap,
       COLS,
       ROWS,
       CELL_SIZE,
-      ++revisionRef.current,
-      characters
-    );
-  }, [activeMap, abitanti]);
-  const snapshot = useMemo(() => ({ ...baseSnapshot, interaction }), [baseSnapshot, interaction]);
+      ++revisionRef.current
+    ), [activeMap]);
+  const snapshot = useMemo(
+    () => ({ ...baseSnapshot, characters, interaction }),
+    [baseSnapshot, characters, interaction]
+  );
 
   return (
     <SafeAreaView style={styles.root}>

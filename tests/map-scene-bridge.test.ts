@@ -22,20 +22,30 @@ test("il bridge notifica Phaser soltanto quando cambia lo snapshot", () => {
 test("il bridge inoltra input senza trasferire regole dentro Phaser", () => {
   const pressed: number[] = [];
   const hovered: Array<number | null> = [];
+  const characterPresses: Array<[number, boolean]> = [];
+  const completedPaths: Array<[number, number]> = [];
   const dragStates: boolean[] = [];
   const bridge = new MapSceneBridge(first, {
     onCellPress: (index) => pressed.push(index),
     onCellHover: (index) => hovered.push(index),
+    onCharacterPress: (id) => characterPresses.push([id, false]),
+    onCharacterDoublePress: (id) => characterPresses.push([id, true]),
+    onCharacterPathComplete: (id, token) => completedPaths.push([id, token]),
     onDragStateChange: (dragging) => dragStates.push(dragging)
   });
 
   bridge.pressCell(3);
   bridge.hoverCell(2);
   bridge.hoverCell(null);
+  bridge.pressCharacter(7, false);
+  bridge.pressCharacter(7, true);
+  bridge.completeCharacterPath(7, 42);
   bridge.setDragging(true);
   bridge.setDragging(false);
 
   assert.deepEqual(pressed, [3]);
   assert.deepEqual(hovered, [2, null]);
+  assert.deepEqual(characterPresses, [[7, false], [7, true]]);
+  assert.deepEqual(completedPaths, [[7, 42]]);
   assert.deepEqual(dragStates, [true, false]);
 });
