@@ -53,6 +53,14 @@ function categoryForBuilding(name: string): PhaserMapBuilding["category"] {
   return "service";
 }
 
+function artKeyForBuilding(name: string): PhaserMapBuilding["artKey"] {
+  if (name === "Centro di Comando") return "command-center";
+  if (name === "Dormitorio") return "dormitory";
+  if (name === "Serra") return "greenhouse";
+  if (name === "Capanna") return "frontier-hut";
+  return undefined;
+}
+
 export function buildPhaserBuildings(
   state: MappaRuntimeState,
   cols: number
@@ -70,7 +78,8 @@ export function buildPhaserBuildings(
       heightCells: footprint.h,
       name: building.nome,
       emoji: building.emoji || BUILDING_EMOJI[building.nome] || "🏢",
-      category: categoryForBuilding(building.nome)
+      category: categoryForBuilding(building.nome),
+      artKey: artKeyForBuilding(building.nome)
     });
   }
   return buildings.sort((a, b) => {

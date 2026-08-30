@@ -58,6 +58,8 @@ test("gli edifici multicella vengono emessi una sola volta dal loro anchor", () 
   );
   assert.equal(buildings[0].emoji, "🛏️");
   assert.equal(buildings[0].category, "residence");
+  assert.equal(buildings[0].artKey, "dormitory");
+  assert.equal(buildings[1].artKey, "greenhouse");
 });
 
 test("costruzione e demolizione cambiano soltanto i descriptor derivati", () => {
@@ -79,7 +81,7 @@ test("costruzione e demolizione cambiano soltanto i descriptor derivati", () => 
 
 test("personaggi e percorsi attraversano il bridge senza entrare nello stato mappa", () => {
   const state: MappaRuntimeState = { edificiInMappa: {}, terrenoInMappa: {}, decorazioniInMappa: {}, residenzeMappa: {} };
-  const characters = [{ id: 7, name: "Ada", cell: 6, path: [6, 7, 12], pathToken: 4 }];
+  const characters = [{ id: 7, name: "Ada", cell: 6, path: [6, 7, 12], pathToken: 4, appearance: "human" as const }];
   const snapshot = buildPhaserMapSnapshot(state, 5, 5, 40, 1, characters);
   assert.deepEqual(snapshot.characters, characters);
   assert.equal("characters" in state, false);

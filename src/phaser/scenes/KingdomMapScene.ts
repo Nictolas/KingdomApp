@@ -1,10 +1,11 @@
 import Phaser from "phaser";
 
 import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
-import type { MapSceneBridge, PhaserMapSnapshot } from "../adapters/mapSceneBridge";
+import type { MapSceneBridge, PhaserMapBuilding, PhaserMapSnapshot } from "../adapters/mapSceneBridge";
 
 const SHEET_KEY = "overworld";
-const CHARACTER_KEY = "characters";
+const HUMAN_KEY = "human-colonist";
+const ROBOT_KEY = "service-robot";
 const TILE_LAYER_DEPTH = 0;
 const BUILDING_LAYER_DEPTH = 10;
 const INTERACTION_LAYER_DEPTH = 30;
@@ -22,17 +23,30 @@ function frameKey(x: number, y: number): string {
   return `${x}:${y}`;
 }
 
+export type PhaserArtAssetUrls = {
+  human: string;
+  robot: string;
+  buildings: Record<NonNullable<PhaserMapBuilding["artKey"]>, string>;
+};
+
+type CharacterView = {
+  root: Phaser.GameObjects.Container;
+  sprite: Phaser.GameObjects.Sprite;
+  token: number;
+  direction: 0 | 1 | 2 | 3;
+};
+
 export class KingdomMapScene extends Phaser.Scene {
   private readonly bridge: MapSceneBridge;
   private readonly sheetUrl: string;
-  private readonly characterSheetUrl: string;
+  private readonly artUrls: PhaserArtAssetUrls;
   private unsubscribe: (() => void) | null = null;
   private tileLayer: Phaser.GameObjects.Container | null = null;
   private buildingLayer: Phaser.GameObjects.Container | null = null;
   private characterLayer: Phaser.GameObjects.Container | null = null;
   private interactionLayer: Phaser.GameObjects.Container | null = null;
   private gridLayer: Phaser.GameObjects.Graphics | null = null;
-  private readonly characterViews = new Map<number, { root: Phaser.GameObjects.Container; token: number }>();
+  private readonly characterViews = new Map<number, CharacterView>();
   private renderedRevision = -1;
   private waterSprites: Phaser.GameObjects.Image[] = [];
   private waterFrame = 0;
@@ -42,16 +56,18 @@ export class KingdomMapScene extends Phaser.Scene {
   private hoveredCell: number | null = null;
   private readonly characterLastPressAt = new Map<number, number>();
 
-  constructor(bridge: MapSceneBridge, sheetUrl: string, characterSheetUrl: string) {
+  constructor(bridge: MapSceneBridge, sheetUrl: string, artUrls: PhaserArtAssetUrls) {
     super({ key: "kingdom-map" });
     this.bridge = bridge;
     this.sheetUrl = sheetUrl;
-    this.characterSheetUrl = characterSheetUrl;
+    this.artUrls = artUrls;
   }
 
   preload(): void {
     this.load.image(SHEET_KEY, this.sheetUrl);
-    this.load.spritesheet(CHARACTER_KEY, this.characterSheetUrl, { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet(HUMAN_KEY, this.artUrls.human, { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet(ROBOT_KEY, this.artUrls.robot, { frameWidth: 64, frameHeight: 64 });
+    for (const [key, url] of Object.entries(this.artUrls.buildings)) this.load.image(key, url);
   }
 
   create(): void {
@@ -60,6 +76,7 @@ export class KingdomMapScene extends Phaser.Scene {
     this.characterLayer = this.add.container(0, 0).setDepth(BUILDING_LAYER_DEPTH + 1);
     this.interactionLayer = this.add.container(0, 0).setDepth(INTERACTION_LAYER_DEPTH);
     this.gridLayer = this.add.graphics().setDepth(INTERACTION_LAYER_DEPTH - 1);
+    this.configureCharacterAnimations();
     this.configureTextureFrames(this.bridge.getSnapshot());
     this.renderSnapshot(this.bridge.getSnapshot());
     this.configureCameraAndInput();
@@ -73,6 +90,19 @@ export class KingdomMapScene extends Phaser.Scene {
       }
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unsubscribe?.());
+  }
+
+  private configureCharacterAnimations(): void {
+    for (const texture of [HUMAN_KEY, ROBOT_KEY]) {
+      for (const [name, direction] of [["down", 0], ["left", 1], ["right", 2], ["up", 3]] as const) {
+        this.anims.create({
+          key: `${texture}-walk-${name}`,
+          frames: [direction, 4 + direction, 8 + direction, 4 + direction].map((frame) => ({ key: texture, frame })),
+          frameRate: 8,
+          repeat: -1
+        });
+      }
+    }
   }
 
   private configureTextureFrames(snapshot: PhaserMapSnapshot): void {
@@ -211,9 +241,10 @@ export class KingdomMapScene extends Phaser.Scene {
       let view = this.characterViews.get(character.id);
       if (!view) {
         const root = this.add.container(0, 0);
-        const sprite = this.add.sprite(0, -snapshot.cellSize * 0.2, CHARACTER_KEY, 0)
+        const texture = character.appearance === "robot" ? ROBOT_KEY : HUMAN_KEY;
+        const sprite = this.add.sprite(0, -snapshot.cellSize * 0.2, texture, 0)
           .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
-        if (character.markerEmoji) {
+        if (!character.appearance && character.markerEmoji) {
           sprite.setVisible(false);
           root.add(this.add.text(0, -snapshot.cellSize * 0.2, character.markerEmoji, { fontSize: "26px" }).setOrigin(0.5));
         }
@@ -231,7 +262,7 @@ export class KingdomMapScene extends Phaser.Scene {
           this.characterLastPressAt.set(character.id, now);
           this.bridge.pressCharacter(character.id, doublePress);
         });
-        view = { root, token: -1 };
+        view = { root, sprite, token: -1, direction: 0 };
         this.characterViews.set(character.id, view);
       }
       if (view.token === token) continue;
@@ -241,16 +272,43 @@ export class KingdomMapScene extends Phaser.Scene {
       view.token = token;
       const path = character.path?.slice(1) ?? [];
       if (path.length > 0) {
+        const animatedView = view;
         this.tweens.chain({
           targets: view.root,
-          tweens: path.map((cell) => {
+          tweens: path.map((cell, index) => {
+            const previous = index === 0 ? start : path[index - 1];
             const pos = this.characterPosition(cell, snapshot);
-            return { x: pos.x, y: pos.y, duration: 360, ease: "Linear" };
+            const direction = this.directionForStep(previous, cell, snapshot.cols);
+            return {
+              x: pos.x,
+              y: pos.y,
+              duration: 320,
+              ease: "Linear",
+              onStart: () => {
+                animatedView.sprite.play(`${animatedView.sprite.texture.key}-walk-${this.directionName(direction)}`, true);
+                animatedView.direction = direction;
+              }
+            };
           }),
-          onComplete: () => this.bridge.completeCharacterPath(character.id, token)
+          onComplete: () => {
+            animatedView.sprite.stop().setFrame(animatedView.direction);
+            this.bridge.completeCharacterPath(character.id, token);
+          }
         });
       }
     }
+  }
+
+  private directionForStep(from: number, to: number, cols: number): 0 | 1 | 2 | 3 {
+    const delta = to - from;
+    if (delta === -1) return 1;
+    if (delta === 1) return 2;
+    if (delta === -cols) return 3;
+    return 0;
+  }
+
+  private directionName(direction: 0 | 1 | 2 | 3): "down" | "left" | "right" | "up" {
+    return (["down", "left", "right", "up"] as const)[direction];
   }
 
   private characterPosition(cell: number, snapshot: PhaserMapSnapshot): { x: number; y: number } {
@@ -278,6 +336,20 @@ export class KingdomMapScene extends Phaser.Scene {
       const height = building.heightCells * snapshot.cellSize;
       const colors = BUILDING_COLORS[building.category];
       const group = this.add.container(x, y);
+
+      if (building.artKey) {
+        const image = this.add.image(width / 2, height, building.artKey).setOrigin(0.5, 1);
+        const scale = Math.min((width * 1.12) / image.width, (height + snapshot.cellSize * 0.75) / image.height);
+        image.setScale(scale);
+        const shadow = this.add.ellipse(width / 2 + 2, height - 2, width * 0.82, snapshot.cellSize * 0.3, 0x000000, 0.25);
+        const label = this.add.text(width / 2, height - 3, building.name, {
+          fontFamily: "Arial, sans-serif", fontSize: `${Math.max(8, snapshot.cellSize * 0.22)}px`,
+          color: "#ffffff", backgroundColor: "rgba(2,6,23,0.72)", padding: { x: 3, y: 1 }
+        }).setOrigin(0.5, 1);
+        group.add([shadow, image, label]);
+        this.buildingLayer.add(group);
+        continue;
+      }
 
       const shadow = this.add
         .rectangle(width / 2 + 3, height / 2 + 4, width - 5, height - 5, 0x000000, 0.28)

@@ -5,7 +5,12 @@ import { StyleSheet, View } from "react-native";
 import type { PhaserMapActions, PhaserMapSnapshot } from "../phaser/adapters/mapSceneBridge";
 
 const SPRITESHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spritesheet-full.png");
-const CHARACTER_SHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/character.png");
+const HUMAN_SHEET = require("../../assets/pixel-art/characters/human-colonist.png");
+const ROBOT_SHEET = require("../../assets/pixel-art/characters/service-robot.png");
+const COMMAND_CENTER = require("../../assets/pixel-art/buildings/command-center.png");
+const DORMITORY = require("../../assets/pixel-art/buildings/dormitory.png");
+const GREENHOUSE = require("../../assets/pixel-art/buildings/greenhouse.png");
+const FRONTIER_HUT = require("../../assets/pixel-art/buildings/frontier-hut.png");
 
 type Props = PhaserMapActions & {
   snapshot: PhaserMapSnapshot;
@@ -40,7 +45,16 @@ export function PhaserMapSurface({
         onCharacterPathComplete, onDragStateChange
       });
       const sheetUrl = Asset.fromModule(SPRITESHEET).uri;
-      const characterSheetUrl = Asset.fromModule(CHARACTER_SHEET).uri;
+      const artUrls = {
+        human: Asset.fromModule(HUMAN_SHEET).uri,
+        robot: Asset.fromModule(ROBOT_SHEET).uri,
+        buildings: {
+          "command-center": Asset.fromModule(COMMAND_CENTER).uri,
+          dormitory: Asset.fromModule(DORMITORY).uri,
+          greenhouse: Asset.fromModule(GREENHOUSE).uri,
+          "frontier-hut": Asset.fromModule(FRONTIER_HUT).uri
+        }
+      };
       const game = new Phaser.Game({
         type: Phaser.WEBGL,
         parent: hostRef.current,
@@ -56,7 +70,7 @@ export function PhaserMapSurface({
           pixelArt: false,
           roundPixels: true
         },
-        scene: [new KingdomMapScene(bridge, sheetUrl, characterSheetUrl)]
+        scene: [new KingdomMapScene(bridge, sheetUrl, artUrls)]
       });
       runtimeRef.current = { game, bridge };
     })();
