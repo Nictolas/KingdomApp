@@ -113,6 +113,9 @@ import { abitanteHaBisognoMensa } from "../src/game/mensaPubblica";
 import { abitanteVuoleNegozio, compraEMangiaAlNegozio, tentaSnackDaInventario } from "../src/game/negozio";
 import { MapTerrainCell } from "../src/components/MapTerrainCell";
 import { MapWaterCellsLayer } from "../src/components/MapWaterCellsLayer";
+import { PhaserMapSurface } from "../src/components/PhaserMapSurface";
+import { buildPhaserMapSnapshot } from "../src/phaser/adapters/buildPhaserMapSnapshot";
+import type { PhaserMapCharacter, PhaserMapInteraction } from "../src/phaser/adapters/mapSceneBridge";
 import { MondoLoadingScreen } from "../src/components/MondoLoadingScreen";
 import {
   buildVisibleCellIndices,
@@ -1895,10 +1898,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const setMappaStatePersistente = useCallback((action: React.SetStateAction<MappaRuntimeState>) => {
     setMappaState((prev) => {
       const next = typeof action === "function" ? (action as (p: MappaRuntimeState) => MappaRuntimeState)(prev) : action;
-      setMappaSessione(next);
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    setMappaSessione(mappaState);
+  }, [mappaState]);
 
   const mappaStateRef = useRef(mappaState);
   mappaStateRef.current = mappaState;
@@ -3889,6 +3895,125 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     ]
   );
 
+  const phaserInteraction = useMemo<PhaserMapInteraction>(() => {
+    if (costruzioneSelezione) {
+      return {
+        mode: "build",
+        hoverCell: previewCellHover,
+        affectedCells: previewPiazzamento?.celle ?? (previewCellHover == null ? [] : [previewCellHover]),
+        valid: previewPiazzamento?.valido ?? false
+      };
+    }
+    if (modalitaDemolisci && previewCellHover != null) {
+      const target = edificiInMappa[previewCellHover];
+      if (!target) {
+        return { mode: "demolish", hoverCell: previewCellHover, affectedCells: [previewCellHover], valid: false };
+      }
+      let anchor: number;
+      let w: number;
+      let h: number;
+      if (target.nome === "Strada") {
+        const road = calcolaAnchorStrada2x2(previewCellHover, cols, rows);
+        anchor = road.anchor ?? previewCellHover;
+        w = road.w;
+        h = road.h;
+      } else {
+        anchor = getAnchorCellPerEdificio(previewCellHover, edificiInMappa);
+        ({ w, h } = dimensioniFootprintEdificioInMappa(anchor, edificiInMappa));
+      }
+      const affectedCells = getIndiciFootprint(anchor, w, h, cols);
+      return {
+        mode: "demolish",
+        hoverCell: previewCellHover,
+        affectedCells,
+        valid: !affectedCells.some((cell) => celleProtetteIniziali.has(cell))
+      };
+    }
+    return {
+      mode: "select",
+      hoverCell: previewCellHover,
+      affectedCells: previewCellHover == null ? [] : [previewCellHover],
+      valid: previewCellHover != null
+    };
+  }, [
+    costruzioneSelezione,
+    previewCellHover,
+    previewPiazzamento,
+    modalitaDemolisci,
+    edificiInMappa,
+    cols,
+    rows,
+    celleProtetteIniziali
+  ]);
+
+  const phaserCharacters = useMemo<PhaserMapCharacter[]>(() =>
+    abitantiPerOverlayMappa.map((abitante, order) => {
+      const commute = commuteByAbitanteId[abitante.id];
+      const home = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
+      const fallback = (6 + Math.floor(order / 10) * 2) * cols + 3 + (order % 10) * 3;
+      const cell = ultimaCellaAbitanteRef.current.get(abitante.id) ?? home ?? fallback;
+      return {
+        id: abitante.id,
+        name: abitante.nome,
+        cell,
+        path: commute?.path,
+        pathToken: commute?.token ?? 0,
+        markerEmoji: abitante.razza === "Robot" ? getEmojiAbitante(abitante) : undefined
+      };
+    }),
+  [abitantiPerOverlayMappa, commuteByAbitanteId, cellaCasaPerAbitanteId, cols]);
+
+  const phaserRevisionRef = useRef(0);
+  const phaserBaseSnapshot = useMemo(
+    () => buildPhaserMapSnapshot(
+      mappaState,
+      cols,
+      rows,
+      CELL_SIZE_PX,
+      ++phaserRevisionRef.current
+    ),
+    [mappaState, cols, rows]
+  );
+  const phaserSnapshot = useMemo(
+    () => ({
+      ...phaserBaseSnapshot,
+      characters: phaserCharacters,
+      interaction: phaserInteraction,
+      showGrid: mostraGrigliaMappa
+    }),
+    [phaserBaseSnapshot, phaserCharacters, phaserInteraction, mostraGrigliaMappa]
+  );
+
+  const handlePhaserCharacterPathComplete = useCallback((abitanteId: number, token: number) => {
+    const meta = commuteByAbitanteId[abitanteId];
+    if (!meta || meta.token !== token) return;
+    handleCommuteFinita(
+      abitanteId,
+      meta.purpose,
+      meta.barEdificioId,
+      meta.mensaEdificioId,
+      meta.cultoEdificioId,
+      meta.negozioEdificioId,
+      meta.rapinaTarget,
+      meta.lavoroCercaEdificioId
+    );
+  }, [commuteByAbitanteId, handleCommuteFinita]);
+
+  const handlePhaserCharacterPress = useCallback((abitanteId: number) => {
+    setSintesiMappaAbitanteId(abitanteId);
+  }, []);
+
+  const handlePhaserCharacterDoublePress = useCallback((abitanteId: number) => {
+    const abitante = abitanti.find((item) => item.id === abitanteId);
+    if (!abitante) return;
+    setSintesiMappaAbitanteId(abitanteId);
+    setSchedaWandererAbitante(abitante);
+  }, [abitanti]);
+
+  const handlePhaserDragStateChange = useCallback((dragging: boolean) => {
+    mapDraggedRef.current = dragging;
+  }, []);
+
   const handleTrasformaGiacimento = useCallback((cellIndex: number) => {
     setMappaStatePersistente((s) => {
       const nextEdifici = { ...s.edificiInMappa, [cellIndex]: RAFFINERIA_MINERARIA };
@@ -4053,6 +4178,19 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
       {/* Contenitore mappa: viewport sfondo nero, griglia gestita da react-zoom-pan-pinch */}
       <View style={styles.mapContainer}>
+        {Platform.OS === "web" ? (
+          <View style={styles.phaserMainSurface}>
+            <PhaserMapSurface
+              snapshot={phaserSnapshot}
+              onCellPress={onCellPress}
+              onCellHover={setPreviewCellHover}
+              onCharacterPress={handlePhaserCharacterPress}
+              onCharacterDoublePress={handlePhaserCharacterDoublePress}
+              onCharacterPathComplete={handlePhaserCharacterPathComplete}
+              onDragStateChange={handlePhaserDragStateChange}
+            />
+          </View>
+        ) : (
         <View
           style={styles.viewport}
           onLayout={(e) => {
@@ -4197,7 +4335,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                       ))}
                     </View>
                   ) : null}
-                  {Platform.OS === "web" && mostraGrigliaMappa && (
+                  {mostraGrigliaMappa && (
                     <View style={grigliaOverlayWebStyle} pointerEvents="none" />
                   )}
                   <View
@@ -4329,6 +4467,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             </TransformWrapper>
           </View>
         </View>
+        )}
         {/* Overlay giorno/notte solo sulla mappa (non sui menu top/bottom). */}
         {(statoCielo.buio > 0.004 || statoCielo.caloreTramonto > 0.004) && (
           <>
@@ -5038,6 +5177,13 @@ const styles = StyleSheet.create({
     width: "100%",
     backgroundColor: "#000000",
     position: "relative"
+  },
+  phaserMainSurface: {
+    flex: 1,
+    minHeight: 120,
+    width: "100%",
+    position: "relative",
+    overflow: "hidden"
   },
   indCard: {
     flex: 1,

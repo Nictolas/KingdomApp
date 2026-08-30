@@ -40,12 +40,16 @@ export type PhaserMapSnapshot = {
   buildings: readonly PhaserMapBuilding[];
   characters: readonly PhaserMapCharacter[];
   interaction?: PhaserMapInteraction;
+  showGrid?: boolean;
   revision: number;
 };
 
 export type PhaserMapActions = {
   onCellPress: (cellIndex: number) => void;
   onCellHover?: (cellIndex: number | null) => void;
+  onCharacterPress?: (characterId: number) => void;
+  onCharacterDoublePress?: (characterId: number) => void;
+  onCharacterPathComplete?: (characterId: number, pathToken: number) => void;
   onDragStateChange?: (dragging: boolean) => void;
 };
 
@@ -88,6 +92,15 @@ export class MapSceneBridge {
 
   hoverCell(cellIndex: number | null): void {
     this.actions.onCellHover?.(cellIndex);
+  }
+
+  pressCharacter(characterId: number, doublePress: boolean): void {
+    if (doublePress) this.actions.onCharacterDoublePress?.(characterId);
+    else this.actions.onCharacterPress?.(characterId);
+  }
+
+  completeCharacterPath(characterId: number, pathToken: number): void {
+    this.actions.onCharacterPathComplete?.(characterId, pathToken);
   }
 
   setDragging(dragging: boolean): void {
