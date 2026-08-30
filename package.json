@@ -11,7 +11,7 @@
     "build:web": "expo export -p web",
     "typecheck": "tsc --noEmit",
     "test": "node --test --experimental-strip-types tests/*.test.mjs tests/*.test.ts",
-    "test:phaser": "tsx --test tests/map-scene-bridge.test.ts tests/phaser-map-snapshot.test.ts"
+    "test:phaser": "tsx --test tests/map-scene-bridge.test.ts tests/phaser-map-snapshot.test.ts tests/commute-building-door.test.ts"
   },
   "dependencies": {
     "@react-native-async-storage/async-storage": "1.23.1",

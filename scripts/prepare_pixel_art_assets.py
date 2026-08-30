@@ -56,13 +56,16 @@ def normalize_character(source: Path, destination: Path) -> Image.Image:
 
 def normalize_building(source: Path, destination: Path) -> Image.Image:
     image = Image.open(source).convert("RGBA")
+    alpha = image.getchannel("A").point(lambda value: 255 if value >= 96 else 0)
+    image.putalpha(alpha)
     image = image.crop(visible_bbox(image))
-    max_side = 256
+    max_side = 128
     scale = min(max_side / image.width, max_side / image.height)
     resized = image.resize(
         (max(1, round(image.width * scale)), max(1, round(image.height * scale))),
-        Image.Resampling.NEAREST,
+        Image.Resampling.LANCZOS,
     )
+    resized = resized.quantize(colors=48, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).convert("RGBA")
     destination.parent.mkdir(parents=True, exist_ok=True)
     resized.save(destination, optimize=True)
     return resized

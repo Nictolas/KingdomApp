@@ -62,6 +62,25 @@ export function trovaAnchorBarSuMappa(edificiInMappa: Record<number, EdificioInC
   return null;
 }
 
+/** Unico accesso frontale: cella esterna sotto la porta centrale del footprint. */
+export function trovaCellaPortaEdificio(
+  anchor: number,
+  edificiInMappa: Record<number, EdificioInCellaLike>,
+  cols: number,
+  rows: number,
+  isWalkable: (i: number) => boolean
+): number | null {
+  const edificio = edificiInMappa[anchor];
+  const footprint = edificio?.footprint ?? { w: 1, h: 1 };
+  const anchorCol = anchor % cols;
+  const anchorRow = Math.floor(anchor / cols);
+  const doorCol = anchorCol + Math.floor(footprint.w / 2);
+  const doorRow = anchorRow + footprint.h;
+  if (doorCol < 0 || doorCol >= cols || doorRow < 0 || doorRow >= rows) return null;
+  const doorCell = doorRow * cols + doorCol;
+  return isWalkable(doorCell) ? doorCell : null;
+}
+
 /**
  * Tra i Bar operativi presenti sulla mappa, sceglie quello col percorso più breve dalla cella di partenza.
  * Se `fromCellPreferita` è null, per ogni Bar usa l’anchor del Bar come punto di partenza (stesso criterio della vecchia logica “un solo Bar”).
@@ -86,7 +105,7 @@ export function scegliEdificioIdPiuVicinoPerNome(
     const anchor = trovaAnchorEdificioGlobaleSuMappa(e.id, edificiInMappa);
     if (anchor == null) continue;
     const from = fromCellPreferita ?? anchor;
-    const path = calcolaPercorsoVersoAnchorEdificio(from, anchor, cols, rows, isWalkable);
+    const path = calcolaPercorsoVersoAnchorEdificio(from, anchor, cols, rows, isWalkable, edificiInMappa);
     if (path == null) continue;
     if (path.length < bestLen) {
       bestLen = path.length;
@@ -159,18 +178,34 @@ export function calcolaPercorsoVersoAnchorEdificio(
   anchorDest: number,
   cols: number,
   rows: number,
-  isWalkable: (i: number) => boolean
+  isWalkable: (i: number) => boolean,
+  edificiInMappa?: Record<number, EdificioInCellaLike>
 ): number[] | null {
-  const goals = new Set(
-    celleIngressoWalkableAttornoAdAnchor(anchorDest, cols, rows, isWalkable)
-  );
-  if (goals.size === 0) {
+  const portaDest = edificiInMappa
+    ? trovaCellaPortaEdificio(anchorDest, edificiInMappa, cols, rows, isWalkable)
+    : null;
+  const goals = new Set<number>();
+  if (portaDest != null) goals.add(portaDest);
+  if (!edificiInMappa) {
+    for (const cell of celleIngressoWalkableAttornoAdAnchor(anchorDest, cols, rows, isWalkable)) goals.add(cell);
+  }
+  if (goals.size === 0 && !edificiInMappa) {
     const nb = orthogonalNeighbors(anchorDest, cols, rows).filter(isWalkable);
     for (const n of nb) goals.add(n);
   }
   if (goals.size === 0) return null;
 
-  let start = scegliCellaPartenzaWalkable(fromCellPreferita, anchorDest, cols, rows, isWalkable);
+  let start: number | null = null;
+  const parteDaEdificio = !!(
+    edificiInMappa && !isWalkable(fromCellPreferita) && edificiInMappa[fromCellPreferita]
+  );
+  if (edificiInMappa && parteDaEdificio) {
+    const sourceAnchor = getAnchorCellPerEdificio(fromCellPreferita, edificiInMappa);
+    start = trovaCellaPortaEdificio(sourceAnchor, edificiInMappa, cols, rows, isWalkable);
+  } else {
+    start = scegliCellaPartenzaWalkable(fromCellPreferita, anchorDest, cols, rows, isWalkable);
+  }
+  if (parteDaEdificio && start == null) return null;
   if (start == null || !isWalkable(start)) {
     start =
       trovaCellaWalkablePiuVicina(fromCellPreferita, cols, rows, isWalkable) ??
@@ -191,7 +226,7 @@ export function pianificaCommuteVersoBarDaCella(
 ): number[] | null {
   const bAnchor = trovaAnchorEdificioGlobaleSuMappa(edificioBarGlobaleId, edificiInMappa);
   if (bAnchor == null) return null;
-  return calcolaPercorsoVersoAnchorEdificio(fromCellPreferita, bAnchor, cols, rows, isWalkable);
+  return calcolaPercorsoVersoAnchorEdificio(fromCellPreferita, bAnchor, cols, rows, isWalkable, edificiInMappa);
 }
 
 export function pianificaCommuteVersoEdificioGlobaleDaCella(
@@ -204,7 +239,7 @@ export function pianificaCommuteVersoEdificioGlobaleDaCella(
 ): number[] | null {
   const wAnchor = trovaAnchorEdificioGlobaleSuMappa(edificioGlobaleId, edificiInMappa);
   if (wAnchor == null) return null;
-  return calcolaPercorsoVersoAnchorEdificio(fromCellPreferita, wAnchor, cols, rows, isWalkable);
+  return calcolaPercorsoVersoAnchorEdificio(fromCellPreferita, wAnchor, cols, rows, isWalkable, edificiInMappa);
 }
 
 export type RisultatoCommuteMattina = {
@@ -250,7 +285,7 @@ export function pianificaCommuteMattina(
     const mAnchor = trovaAnchorEdificioGlobaleSuMappa(mensaId, edificiInMappa);
     if (mAnchor == null) return { path: null };
     const from = fromBase ?? mAnchor;
-    const path = calcolaPercorsoVersoAnchorEdificio(from, mAnchor, cols, rows, isWalkable);
+    const path = calcolaPercorsoVersoAnchorEdificio(from, mAnchor, cols, rows, isWalkable, edificiInMappa);
     return path != null ? { path, purpose: "mensa", mensaEdificioId: mensaId } : { path: null };
   };
 
@@ -268,7 +303,7 @@ export function pianificaCommuteMattina(
     const nAnchor = trovaAnchorEdificioGlobaleSuMappa(negozioId, edificiInMappa);
     if (nAnchor == null) return { path: null };
     const from = fromBase ?? nAnchor;
-    const path = calcolaPercorsoVersoAnchorEdificio(from, nAnchor, cols, rows, isWalkable);
+    const path = calcolaPercorsoVersoAnchorEdificio(from, nAnchor, cols, rows, isWalkable, edificiInMappa);
     return path != null ? { path, purpose: "negozio", negozioEdificioId: negozioId } : { path: null };
   };
 
@@ -278,7 +313,7 @@ export function pianificaCommuteMattina(
     const bAnchor = trovaAnchorEdificioGlobaleSuMappa(barId, edificiInMappa);
     if (bAnchor == null) return { path: null };
     const from = fromBase ?? bAnchor;
-    const path = calcolaPercorsoVersoAnchorEdificio(from, bAnchor, cols, rows, isWalkable);
+    const path = calcolaPercorsoVersoAnchorEdificio(from, bAnchor, cols, rows, isWalkable, edificiInMappa);
     return path != null ? { path, purpose: "bar", barEdificioId: barId } : { path: null };
   };
 
@@ -286,7 +321,7 @@ export function pianificaCommuteMattina(
     if (homeAnchor == null) return { path: null };
     const from = fromBase ?? homeAnchor;
     if (from === homeAnchor) return { path: null };
-    const path = calcolaPercorsoVersoAnchorEdificio(from, homeAnchor, cols, rows, isWalkable);
+    const path = calcolaPercorsoVersoAnchorEdificio(from, homeAnchor, cols, rows, isWalkable, edificiInMappa);
     return path != null ? { path, purpose: "home" } : { path: null };
   };
 
@@ -296,7 +331,7 @@ export function pianificaCommuteMattina(
     const wAnchor = trovaAnchorEdificioGlobaleSuMappa(lavoro.id, edificiInMappa);
     if (wAnchor == null) return { path: null };
     const from = fromBase ?? wAnchor;
-    const path = calcolaPercorsoVersoAnchorEdificio(from, wAnchor, cols, rows, isWalkable);
+    const path = calcolaPercorsoVersoAnchorEdificio(from, wAnchor, cols, rows, isWalkable, edificiInMappa);
     return path != null ? { path, purpose: "work" } : { path: null };
   };
 
@@ -312,7 +347,7 @@ export function pianificaCommuteMattina(
       const anchor = trovaAnchorEdificioGlobaleSuMappa(e.id, edificiInMappa);
       if (anchor == null) continue;
       const from = fromBase ?? anchor;
-      const path = calcolaPercorsoVersoAnchorEdificio(from, anchor, cols, rows, isWalkable);
+      const path = calcolaPercorsoVersoAnchorEdificio(from, anchor, cols, rows, isWalkable, edificiInMappa);
       if (path == null || path.length < 2) continue;
       if (path.length < bestLen) {
         bestLen = path.length;
@@ -387,7 +422,8 @@ export function pianificaCommuteSeraACasa(
   fromCell: number,
   cols: number,
   rows: number,
-  isWalkable: (i: number) => boolean
+  isWalkable: (i: number) => boolean,
+  edificiInMappa?: Record<number, EdificioInCellaLike>
 ): number[] | null {
-  return calcolaPercorsoVersoAnchorEdificio(fromCell, homeAnchor, cols, rows, isWalkable);
+  return calcolaPercorsoVersoAnchorEdificio(fromCell, homeAnchor, cols, rows, isWalkable, edificiInMappa);
 }

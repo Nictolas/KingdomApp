@@ -145,9 +145,9 @@ import {
   scegliEdificioIdPiuVicinoPerNome,
   scegliLuogoCultoEdificioIdPiuVicino,
   scegliMensaEdificioIdPiuVicino,
-  trovaAnchorEdificioGlobaleSuMappa
+  trovaAnchorEdificioGlobaleSuMappa,
+  trovaCellaPortaEdificio
 } from "../src/game/commutePathsMappa";
-import { celleIngressoWalkableAttornoAdAnchor } from "../src/game/mappaPathfinding";
 import { SEZIONE_AMBIENTE, SEZIONI_COSTRUZIONE, type TerrenoCostruzioneKind } from "../src/game/costruzioneSezioni";
 import {
   costoMaterialeEdilePerFootprint,
@@ -2439,7 +2439,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       }
       if (dest == null) return null;
 
-      const path = calcolaPercorsoVersoAnchorEdificio(from, dest, cols, rows, isWalkableCell);
+      const path = calcolaPercorsoVersoAnchorEdificio(
+        from,
+        dest,
+        cols,
+        rows,
+        isWalkableCell,
+        target.tipo === "edificio" ? edificiInMappa : undefined
+      );
       if (!path || path.length < 2) return null;
 
       ultimoTentativoRapinaAbsRef.current.set(ab.id, oraAbs);
@@ -2590,7 +2597,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         };
         if (abitanteSoggettoACoprifuoco(ab, edifici, cfgCoprifuoco, cur)) {
           if (homeCell != null && from !== homeCell) {
-            const pathHome = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell);
+            const pathHome = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell, edificiInMappa);
             if (pathHome && pathHome.length >= 2) {
               nuove[id] = { path: pathHome, token: Date.now(), purpose: "home" };
             }
@@ -2693,7 +2700,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         }
 
         if (azione === "home" && homeCell != null) {
-          const pathHome = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell);
+          const pathHome = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell, edificiInMappa);
           if (pathHome && pathHome.length >= 2) {
             nuove[id] = { path: pathHome, token: Date.now(), purpose: "home" };
           }
@@ -2875,9 +2882,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       const goalLiberi = new Set<number>();
       const registraGoalsDaAnchor = (anchor: number | null) => {
         if (anchor == null) return;
-        for (const g of celleIngressoWalkableAttornoAdAnchor(anchor, cols, rows, isWalkableCell)) {
-          goalLiberi.add(g);
-        }
+        const porta = trovaCellaPortaEdificio(anchor, edificiInMappa, cols, rows, isWalkableCell);
+        if (porta != null) goalLiberi.add(porta);
       };
 
       let anchorDest: number | null = null;
@@ -2914,10 +2920,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           anchorDest,
           cols,
           rows,
-          isWalkableEvitandoAltri
+          isWalkableEvitandoAltri,
+          edificiInMappa
         );
         if (!path || path.length < 2) {
-          path = calcolaPercorsoVersoAnchorEdificio(from, anchorDest, cols, rows, isWalkableCell);
+          path = calcolaPercorsoVersoAnchorEdificio(from, anchorDest, cols, rows, isWalkableCell, edificiInMappa);
         }
       }
 
@@ -2987,7 +2994,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       // Coprifuoco: solo rientro a casa (esenti Centrale).
       if (abitanteSoggettoACoprifuoco(a, edifici, cfgCoprifuoco, orologioMinuti)) {
         if (homeCell != null && from !== homeCell) {
-          const path = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell);
+          const path = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell, edificiInMappa);
           if (path && path.length >= 2) {
             nuoveCommuteById[a.id] = { path, token: Date.now(), purpose: "home" };
           }
@@ -3135,7 +3142,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       }
 
       if (azione === "home" && homeCell != null) {
-        const path = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell);
+        const path = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell, edificiInMappa);
         if (!path || path.length < 2) continue;
         nuoveCommuteById[a.id] = { path, token: Date.now(), purpose: "home" };
       }
@@ -3331,7 +3338,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         const home = cellaCasaPerAbitanteId.get(a.id);
         if (home == null) continue;
         const from = ultimaCellaAbitanteRef.current.get(a.id) ?? home;
-        const path = pianificaCommuteSeraACasa(home, from, cols, rows, isWalkableCell);
+        const path = pianificaCommuteSeraACasa(home, from, cols, rows, isWalkableCell, edificiInMappa);
         if (path && path.length >= 2) {
           next[a.id] = { path, token: Date.now(), purpose: "home" };
         } else {
