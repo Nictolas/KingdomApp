@@ -14,6 +14,7 @@ export type PhaserMapBuilding = {
   name: string;
   emoji: string;
   category: "residence" | "industry" | "service" | "security" | "religion" | "special";
+  artKey?: "command-center" | "dormitory" | "greenhouse" | "frontier-hut";
 };
 
 export type PhaserMapCharacter = {
@@ -23,6 +24,7 @@ export type PhaserMapCharacter = {
   path?: readonly number[];
   pathToken?: number;
   markerEmoji?: string;
+  appearance?: "human" | "robot";
 };
 
 export type PhaserMapInteraction = {

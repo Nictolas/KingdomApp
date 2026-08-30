@@ -3958,6 +3958,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         cell,
         path: commute?.path,
         pathToken: commute?.token ?? 0,
+        appearance: abitante.razza === "Robot" ? "robot" : "human",
         markerEmoji: abitante.razza === "Robot" ? getEmojiAbitante(abitante) : undefined
       };
     }),
