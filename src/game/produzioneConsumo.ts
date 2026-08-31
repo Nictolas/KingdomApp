@@ -84,7 +84,7 @@ export function calcolaProduzioneConsumoPuro({
 
   // Consumo acqua potabile: ogni abitante (esclusi i Robot) consuma 2-5 m³/mese
   abitanti.forEach((abitante) => {
-    if (abitante.razza === "Robot") return;
+    if (abitante.razza === "Golem") return;
     const consumoAcqua = getConsumoAcqua(abitante);
     risorse.forEach((r) => {
       if (r.nome.toLowerCase().includes("acqua")) {
@@ -111,7 +111,7 @@ export function calcolaProduzioneConsumoPuro({
   });
 
   // Fazione Robots: 2 energia per ogni membro Robot
-  const numRobots = abitanti.filter((a) => a.razza === "Robot").length;
+  const numRobots = abitanti.filter((a) => a.razza === "Golem").length;
   if (numRobots > 0) {
     risorse.forEach((r) => {
       if (r.nome === "Energia") {

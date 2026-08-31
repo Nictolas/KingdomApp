@@ -7,7 +7,7 @@ export default function LealtaScreen() {
   const router = useRouter();
   const { abitanti } = useGameContext();
 
-  const abitantiConLealtà = abitanti.filter((a) => a.razza !== "Robot");
+  const abitantiConLealtà = abitanti.filter((a) => a.razza !== "Golem");
   const n = abitantiConLealtà.length;
   const lealtàMedia = n ? Math.round(abitantiConLealtà.reduce((s, a) => s + a.lealtà, 0) / n) : 0;
 
@@ -30,7 +30,7 @@ export default function LealtaScreen() {
           <Text style={styles.mediaLabel}>Lealtà media (colonia)</Text>
           <Text style={styles.mediaValue}>{lealtàMedia}%</Text>
           <Text style={styles.mediaSubtext}>
-            Media della lealtà degli abitanti non Robot ({n} abitanti). Valore base 0–100, nessun modificatore applicato in tempo reale.
+            Media della lealtà degli abitanti non Golem ({n} abitanti). Valore base 0–100, nessun modificatore applicato in tempo reale.
           </Text>
         </View>
 

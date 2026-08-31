@@ -40,8 +40,8 @@ export default function LeggeFamiglieScreen() {
     {
       chiave: "matrimonioUmanoRobot" as const,
       emoji: "🤖💒",
-      titolo: "Matrimonio Umano-Robot",
-      descrizione: "Consenti il matrimonio tra abitanti umani (o altre razze) e Robot: le coppie miste possono sposarsi."
+      titolo: "Matrimonio con i Golem",
+      descrizione: "Consenti unioni tra abitanti mortali e Golem animati dalla magia."
     },
     {
       chiave: "matrimonioIntercasta" as const,

@@ -22,8 +22,8 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
       "Il Re è sempre di razza umana.",
       "A parte 2-3 Nativi iniziali, tutti gli abitanti sono a inizio partita di razza umana.",
       "La razza dei Nativi (per l’evento Assimilazione) è scelta a caso tra le razze non umane.",
-      "Ogni partita deve partire con 2-3 Nativi tra gli abitanti (razza = razza Nativi del pianeta). Tutti i colonisti non Senzatetto sono assegnati alle Capanne.",
-      "Ogni partita deve partire con 1 abitante di razza Robot. I Robot sono sempre bisessuali (orientamento «Bi»)."
+      "Ogni partita deve partire con 2-3 Nativi tra gli abitanti (razza = popolo nativo del territorio). Tutti gli abitanti non Senzatetto sono assegnati alle Capanne.",
+      "Ogni partita deve partire con 1 Golem. I Golem sono sempre bisessuali (orientamento «Bi»)."
     ]
   },
   {
@@ -62,7 +62,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     titolo: "Nome ed emoji",
     punti: [
       "Umani: nome e cognome da liste fisse (es. Marco Rossi, Anna Bianchi).",
-      "Alieni: nome tipo «Razza-XXXX» (numero casuale). Emoji: per razza (👤 umano, 👽 Grigi, ecc.)."
+      "Popoli fantasy: ogni razza usa nomi ed emoji coerenti con la propria cultura."
     ]
   },
   {
@@ -93,8 +93,8 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     titolo: "Sesso e orientamento",
     punti: [
       "Ogni abitante ha Sesso M o F coerente al nome (es. Alessandro sempre M, Anna sempre F).",
-      "I Robot hanno sempre orientamento «Bi» (bisessuali); è una regola fondamentale.",
-      "Per i non-Robot a inizio partita: 1 con Orientamento «Omo», 2 con «Bi», il resto con «Etero»."
+      "I Golem hanno sempre orientamento «Bi» (bisessuali); è una regola fondamentale.",
+      "Per i non-Golem a inizio partita: 1 con Orientamento «Omo», 2 con «Bi», il resto con «Etero»."
     ]
   },
   {
@@ -134,7 +134,7 @@ function pesaScelta<T>(pool: { nome: T; peso: number }[]): T {
 }
 
 const RELIGIONI: Abitante["religione"][] = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto degli Alieni"];
-const RAZZE_ALIENE: Razza[] = ["Grigi", "Nordici", "Rettiliani", "Insettoidi", "Marini", "Ferini"];
+const RAZZE_ALIENE: Razza[] = ["Elfo", "Nano", "Orco", "Goblin"];
 const FAZIONI_RUOLO = ["Amministrazione", "Lavoratori", "Scienziati", "Esploratori", "Intellettuali", "Ambientalisti"];
 const LAVORI = [
   "Disoccupato", "Tecnico", "Ricercatore", "Ingegnere", "Medico", "Agricoltore",
@@ -251,15 +251,15 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     nat.fazioni = normalizzaFazioni([...(nat.fazioni ?? []), "Nativi"]);
   }
 
-  // Regola: esattamente 1 Robot a inizio partita (razza "Robot", nome stile Unit-XXXX). Fazione "Robots" automatica.
+  // Regola: esattamente 1 Robot a inizio partita (razza "Golem", nome stile Unit-XXXX). Fazione "Golem" automatica.
   // Robot non hanno Crediti, Reddito, Spese, Sesso, Salute, Peso, Paura, Lealtà. Orientamento sempre «Bi» (regola fondamentale).
   const candidatiRobot = abitanti.filter((a) => a.id !== 1 && a.razza === "Umano");
   if (candidatiRobot.length > 0) {
     const bot = candidatiRobot[Math.floor(Math.random() * candidatiRobot.length)];
-    bot.razza = "Robot";
-    bot.nome = generaNomeAlieno("Robot");
-    bot.emoji = getEmojiRazza("Robot");
-    bot.fazioni = normalizzaFazioni([...(bot.fazioni ?? []), "Robots"]);
+    bot.razza = "Golem";
+    bot.nome = generaNomeAlieno("Golem");
+    bot.emoji = getEmojiRazza("Golem");
+    bot.fazioni = normalizzaFazioni([...(bot.fazioni ?? []), "Golem"]);
     bot.crediti = 0;
     bot.reddito = 0;
     bot.spese = 0;
@@ -342,7 +342,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
   // Regola: 1 Omo, 2 Bi, il resto Etero (solo non-Robot; i Robot hanno sempre Bi, vedi sopra).
   const candidatiOrientamento = abitanti
     .map((_, idx) => idx)
-    .filter((idx) => abitanti[idx]!.razza !== "Robot");
+    .filter((idx) => abitanti[idx]!.razza !== "Golem");
   for (let k = candidatiOrientamento.length - 1; k > 0; k--) {
     const j = Math.floor(Math.random() * (k + 1));
     [candidatiOrientamento[k], candidatiOrientamento[j]] = [candidatiOrientamento[j], candidatiOrientamento[k]];
@@ -356,7 +356,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
   }
 
   // Regola: almeno 1 Capo Religioso con religione Culto del Sole a inizio partita.
-  const candidatiCapoReligioso = abitanti.filter((a) => a.id !== 1 && a.razza !== "Robot");
+  const candidatiCapoReligioso = abitanti.filter((a) => a.id !== 1 && a.razza !== "Golem");
   if (candidatiCapoReligioso.length > 0) {
     const capo = candidatiCapoReligioso[Math.floor(Math.random() * candidatiCapoReligioso.length)]!;
     capo.religione = "Culto del Sole";
@@ -365,7 +365,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
   }
 
   // Regola: 1 abitante con stato "Incinta" a inizio partita (preferibilmente donna, non Comandante, non Robot)
-  const candidatiIncinta = abitanti.filter((a) => a.id !== 1 && a.razza !== "Robot");
+  const candidatiIncinta = abitanti.filter((a) => a.id !== 1 && a.razza !== "Golem");
   if (candidatiIncinta.length > 0) {
     const femmine = candidatiIncinta.filter((a) => a.sesso === "F");
     const scelta = femmine.length > 0 ? femmine[Math.floor(Math.random() * femmine.length)]! : candidatiIncinta[Math.floor(Math.random() * candidatiIncinta.length)]!;

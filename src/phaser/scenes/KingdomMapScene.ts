@@ -5,7 +5,7 @@ import type { MapSceneBridge, PhaserMapBuilding, PhaserMapSnapshot } from "../ad
 
 const SHEET_KEY = "overworld";
 const HUMAN_KEY = "human-colonist";
-const ROBOT_KEY = "service-robot";
+const GOLEM_KEY = "stone-golem";
 const TILE_LAYER_DEPTH = 0;
 const BUILDING_LAYER_DEPTH = 10;
 const INTERACTION_LAYER_DEPTH = 30;
@@ -25,7 +25,7 @@ function frameKey(x: number, y: number): string {
 
 export type PhaserArtAssetUrls = {
   human: string;
-  robot: string;
+  golem: string;
   buildings: Record<NonNullable<PhaserMapBuilding["artKey"]>, string>;
 };
 
@@ -66,7 +66,7 @@ export class KingdomMapScene extends Phaser.Scene {
   preload(): void {
     this.load.image(SHEET_KEY, this.sheetUrl);
     this.load.spritesheet(HUMAN_KEY, this.artUrls.human, { frameWidth: 64, frameHeight: 64 });
-    this.load.spritesheet(ROBOT_KEY, this.artUrls.robot, { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet(GOLEM_KEY, this.artUrls.golem, { frameWidth: 64, frameHeight: 64 });
     for (const [key, url] of Object.entries(this.artUrls.buildings)) this.load.image(key, url);
   }
 
@@ -93,7 +93,7 @@ export class KingdomMapScene extends Phaser.Scene {
   }
 
   private configureCharacterAnimations(): void {
-    for (const texture of [HUMAN_KEY, ROBOT_KEY]) {
+    for (const texture of [HUMAN_KEY, GOLEM_KEY]) {
       for (const [name, direction] of [["down", 0], ["left", 1], ["right", 2], ["up", 3]] as const) {
         this.anims.create({
           key: `${texture}-walk-${name}`,
@@ -241,7 +241,7 @@ export class KingdomMapScene extends Phaser.Scene {
       let view = this.characterViews.get(character.id);
       if (!view) {
         const root = this.add.container(0, 0);
-        const texture = character.appearance === "robot" ? ROBOT_KEY : HUMAN_KEY;
+        const texture = character.appearance === "golem" ? GOLEM_KEY : HUMAN_KEY;
         const sprite = this.add.sprite(0, -snapshot.cellSize * 0.2, texture, 0)
           .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
         if (!character.appearance && character.markerEmoji) {

@@ -101,7 +101,7 @@ export default function MappaPhaserPreviewScreen() {
         cell: start,
         path: order < 6 ? [start, start + 1, start + 2, start + COLS + 2] : undefined,
         pathToken: 1,
-        markerEmoji: abitante.razza === "Robot" ? "🤖" : undefined
+        markerEmoji: abitante.razza === "Golem" ? "🗿" : undefined
       };
     });
   }, [abitanti]);

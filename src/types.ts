@@ -1,3 +1,6 @@
+
+import type { AspettoPersonaggio } from "./game/personaggioAspetto";
+
 export type Point = { x: number; y: number };
 export type Placed = { x: number; y: number; id: number };
 export type Bridge = { x: number; y: number };
@@ -94,6 +97,8 @@ export type Abitante = {
   titoloStudio?: TitoloDiStudio;
   specie?: "umano" | "alieno"; // Specie dell'abitante (alieno = non Umano)
   razza?: Razza; // Razza/Pianeta di origine dell'abitante
+  /** Aspetto modulare scelto nell'editor del comandante. */
+  aspetto?: AspettoPersonaggio;
   reati?: Reato[]; // Se presente e non vuoto, l'abitante è considerato imputato
   /** Mesi/anni di carcere residui dopo sentenza del giudice (1 unità = 1 mese di gioco). */
   anniCarcereResidui?: number;
@@ -120,13 +125,11 @@ export type Abitante = {
 // Razze trovabili tra gli abitanti (pianeti di origine o sintetici)
 export type Razza =
   | "Umano"
-  | "Robot"
-  | "Grigi"
-  | "Nordici"
-  | "Rettiliani"
-  | "Insettoidi"
-  | "Marini"
-  | "Ferini";
+  | "Elfo"
+  | "Nano"
+  | "Orco"
+  | "Goblin"
+  | "Golem";
 
 export type Ministro = {
   id: number;

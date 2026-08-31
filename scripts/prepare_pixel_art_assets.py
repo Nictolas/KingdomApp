@@ -56,13 +56,16 @@ def normalize_character(source: Path, destination: Path) -> Image.Image:
 
 def normalize_building(source: Path, destination: Path) -> Image.Image:
     image = Image.open(source).convert("RGBA")
+    alpha = image.getchannel("A").point(lambda value: 255 if value >= 96 else 0)
+    image.putalpha(alpha)
     image = image.crop(visible_bbox(image))
-    max_side = 256
+    max_side = 128
     scale = min(max_side / image.width, max_side / image.height)
     resized = image.resize(
         (max(1, round(image.width * scale)), max(1, round(image.height * scale))),
-        Image.Resampling.NEAREST,
+        Image.Resampling.LANCZOS,
     )
+    resized = resized.quantize(colors=48, method=Image.Quantize.FASTOCTREE, dither=Image.Dither.NONE).convert("RGBA")
     destination.parent.mkdir(parents=True, exist_ok=True)
     resized.save(destination, optimize=True)
     return resized
@@ -95,7 +98,7 @@ def build_preview(characters: list[tuple[str, Image.Image]], buildings: list[tup
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--human", type=Path, required=True)
-    parser.add_argument("--robot", type=Path, required=True)
+    parser.add_argument("--golem", type=Path, required=True)
     parser.add_argument("--command-center", type=Path, required=True)
     parser.add_argument("--dormitory", type=Path, required=True)
     parser.add_argument("--greenhouse", type=Path, required=True)
@@ -105,7 +108,7 @@ def main() -> None:
 
     characters = [
         ("Human colonist", normalize_character(args.human, args.output / "characters/human-colonist.png")),
-        ("Service robot", normalize_character(args.robot, args.output / "characters/service-robot.png")),
+        ("Stone golem", normalize_character(args.golem, args.output / "characters/stone-golem.png")),
     ]
     buildings = [
         ("Command Center", normalize_building(args.command_center, args.output / "buildings/command-center.png")),

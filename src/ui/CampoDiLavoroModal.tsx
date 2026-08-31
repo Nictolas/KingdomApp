@@ -7,12 +7,11 @@ import { isEdificioPubblicoConPostazioniLavoro } from "../game/edificiLavoro";
 
 const RAZZE: Razza[] = [
   "Umano",
-  "Grigi",
-  "Nordici",
-  "Rettiliani",
-  "Insettoidi",
-  "Marini",
-  "Ferini"
+  "Elfo",
+  "Nano",
+  "Orco",
+  "Goblin",
+  "Golem"
 ];
 
 const RELIGIONI: string[] = [

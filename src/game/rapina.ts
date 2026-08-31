@@ -119,7 +119,7 @@ export function abitantePuòTentareRapina(
     oraAbsMinuti: number;
   }
 ): boolean {
-  if (abitante.razza === "Robot") return false;
+  if (abitante.razza === "Golem") return false;
   if (!abitanteHaInventarioPersonale(abitante)) return false;
   if (getBisogniAbitante(abitante).fame >= SOGLIA_BISOGNO_CRITICO) return false;
 
@@ -168,7 +168,7 @@ export function scegliBersaglioPersonaRapina(
 
   for (const v of abitanti) {
     if (v.id === ladro.id) continue;
-    if (v.razza === "Robot") continue;
+    if (v.razza === "Golem") continue;
     if (!abitanteHaInventarioPersonale(v)) continue;
     if (opts.dormonoACasaIds.has(v.id)) continue;
     if (opts.nascostiIds?.has(v.id)) continue;

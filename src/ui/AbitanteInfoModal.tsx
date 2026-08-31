@@ -239,7 +239,7 @@ export function AbitanteInfoModal({
       : abitante.lavoro;
 
   const felicitàModificata = calcolaFelicitàModificata ? calcolaFelicitàModificata(abitante) : abitante.felicità;
-  const felicitàCambiata = abitante.razza !== "Robot" && felicitàModificata !== abitante.felicità;
+  const felicitàCambiata = abitante.razza !== "Golem" && felicitàModificata !== abitante.felicità;
   const bisogni = getBisogniAbitante(abitante);
   const produttivitàEff = getProduttivitaEffettiva(abitante);
 
@@ -411,12 +411,12 @@ export function AbitanteInfoModal({
                 />
                 <Row emoji="⚡" label="Produttività" value={`${produttivitàEff}%${produttivitàEff !== abitante.produttività ? ` (base ${abitante.produttività})` : ""}`} />
                 <Row emoji="😴" label="Stanchezza" value={`${abitante.stanchezza}%`} />
-                <Row emoji="⚖️" value={abitante.razza === "Robot" ? "—" : `${abitante.peso ?? 50}`} />
-                <Row emoji="🏥" value={abitante.razza === "Robot" ? "—" : getStatoSalute(abitante)} />
+                <Row emoji="⚖️" value={abitante.razza === "Golem" ? "—" : `${abitante.peso ?? 50}`} />
+                <Row emoji="🏥" value={abitante.razza === "Golem" ? "—" : getStatoSalute(abitante)} />
               </Block>
 
               <Block title="👥 Relazioni">
-                {abitante.razza === "Robot" ? (
+                {abitante.razza === "Golem" ? (
                   <Row emoji="—" value="—" muted />
                 ) : (
                   <>
@@ -427,7 +427,7 @@ export function AbitanteInfoModal({
               </Block>
 
               <Block title="👨‍👩‍👧 Famiglia">
-                {abitante.razza === "Robot" ? (
+                {abitante.razza === "Golem" ? (
                   <Row emoji="—" value="—" muted />
                 ) : (
                   <>
@@ -438,12 +438,12 @@ export function AbitanteInfoModal({
               </Block>
 
               <Block title="❤️ Sentimenti">
-                <Row emoji="❤️" value={abitante.razza === "Robot" ? "—" : `${abitante.lealtà}%`} />
-                <Row emoji="😨" value={abitante.razza === "Robot" ? "—" : `${abitante.paura}%`} />
+                <Row emoji="❤️" value={abitante.razza === "Golem" ? "—" : `${abitante.lealtà}%`} />
+                <Row emoji="😨" value={abitante.razza === "Golem" ? "—" : `${abitante.paura}%`} />
                 <Row
                   emoji="😊"
                   value={
-                    abitante.razza === "Robot"
+                    abitante.razza === "Golem"
                       ? "—"
                       : `${felicitàModificata}%${felicitàCambiata ? ` (base ${abitante.felicità})` : ""}`
                   }

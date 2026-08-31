@@ -145,9 +145,9 @@ import {
   scegliEdificioIdPiuVicinoPerNome,
   scegliLuogoCultoEdificioIdPiuVicino,
   scegliMensaEdificioIdPiuVicino,
-  trovaAnchorEdificioGlobaleSuMappa
+  trovaAnchorEdificioGlobaleSuMappa,
+  trovaCellaPortaEdificio
 } from "../src/game/commutePathsMappa";
-import { celleIngressoWalkableAttornoAdAnchor } from "../src/game/mappaPathfinding";
 import { SEZIONE_AMBIENTE, SEZIONI_COSTRUZIONE, type TerrenoCostruzioneKind } from "../src/game/costruzioneSezioni";
 import {
   costoMaterialeEdilePerFootprint,
@@ -1839,7 +1839,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const deltaOrdini = calcolaDeltaOrdiniMercato();
   const deltaTesoroMercato = calcolaDeltaTesoroMercato();
 
-  const abitantiConFelicità = abitanti.filter((a) => a.razza !== "Robot");
+  const abitantiConFelicità = abitanti.filter((a) => a.razza !== "Golem");
   const nConFelicità = abitantiConFelicità.length;
   const felicitàMedia = nConFelicità ? Math.round(abitantiConFelicità.reduce((s, a) => s + calcolaFelicitàModificata(a), 0) / nConFelicità) : 0;
   const nConLealtàPaura = abitantiConFelicità.length;
@@ -2439,7 +2439,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       }
       if (dest == null) return null;
 
-      const path = calcolaPercorsoVersoAnchorEdificio(from, dest, cols, rows, isWalkableCell);
+      const path = calcolaPercorsoVersoAnchorEdificio(
+        from,
+        dest,
+        cols,
+        rows,
+        isWalkableCell,
+        target.tipo === "edificio" ? edificiInMappa : undefined
+      );
       if (!path || path.length < 2) return null;
 
       ultimoTentativoRapinaAbsRef.current.set(ab.id, oraAbs);
@@ -2535,7 +2542,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       setCommuteByAbitanteId((prevComm) => {
         const out = { ...prevComm };
         for (const a of abitanti) {
-          if (a.razza === "Robot") continue;
+          if (a.razza === "Golem") continue;
           if (out[a.id]) continue;
           const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
           if (!lav) continue;
@@ -2562,7 +2569,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       setBarArrivatiByEdificio((prev0) => {
         let acc = prev0;
         for (const a of abitanti) {
-          if (a.razza === "Robot") continue;
+          if (a.razza === "Golem") continue;
           const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
           if (!lav) continue;
           const fascia = fasciaPerEdificio(lav);
@@ -2590,7 +2597,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         };
         if (abitanteSoggettoACoprifuoco(ab, edifici, cfgCoprifuoco, cur)) {
           if (homeCell != null && from !== homeCell) {
-            const pathHome = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell);
+            const pathHome = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell, edificiInMappa);
             if (pathHome && pathHome.length >= 2) {
               nuove[id] = { path: pathHome, token: Date.now(), purpose: "home" };
             }
@@ -2693,7 +2700,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         }
 
         if (azione === "home" && homeCell != null) {
-          const pathHome = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell);
+          const pathHome = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell, edificiInMappa);
           if (pathHome && pathHome.length >= 2) {
             nuove[id] = { path: pathHome, token: Date.now(), purpose: "home" };
           }
@@ -2875,9 +2882,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       const goalLiberi = new Set<number>();
       const registraGoalsDaAnchor = (anchor: number | null) => {
         if (anchor == null) return;
-        for (const g of celleIngressoWalkableAttornoAdAnchor(anchor, cols, rows, isWalkableCell)) {
-          goalLiberi.add(g);
-        }
+        const porta = trovaCellaPortaEdificio(anchor, edificiInMappa, cols, rows, isWalkableCell);
+        if (porta != null) goalLiberi.add(porta);
       };
 
       let anchorDest: number | null = null;
@@ -2914,10 +2920,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           anchorDest,
           cols,
           rows,
-          isWalkableEvitandoAltri
+          isWalkableEvitandoAltri,
+          edificiInMappa
         );
         if (!path || path.length < 2) {
-          path = calcolaPercorsoVersoAnchorEdificio(from, anchorDest, cols, rows, isWalkableCell);
+          path = calcolaPercorsoVersoAnchorEdificio(from, anchorDest, cols, rows, isWalkableCell, edificiInMappa);
         }
       }
 
@@ -2972,7 +2979,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     const nuoveCommuteById: Record<number, CommuteInfo> = {};
 
     for (const a of abitanti) {
-      if (a.razza === "Robot") continue;
+      if (a.razza === "Golem") continue;
       if (commuteByAbitanteId[a.id]) continue;
       if (abitanteInOrarioLavoroEdificio(a.id, orologioMinuti, edifici) && lavoroArrivatiIds.has(a.id)) {
         continue;
@@ -2987,7 +2994,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       // Coprifuoco: solo rientro a casa (esenti Centrale).
       if (abitanteSoggettoACoprifuoco(a, edifici, cfgCoprifuoco, orologioMinuti)) {
         if (homeCell != null && from !== homeCell) {
-          const path = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell);
+          const path = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell, edificiInMappa);
           if (path && path.length >= 2) {
             nuoveCommuteById[a.id] = { path, token: Date.now(), purpose: "home" };
           }
@@ -3135,7 +3142,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       }
 
       if (azione === "home" && homeCell != null) {
-        const path = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell);
+        const path = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell, edificiInMappa);
         if (!path || path.length < 2) continue;
         nuoveCommuteById[a.id] = { path, token: Date.now(), purpose: "home" };
       }
@@ -3233,7 +3240,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       setLavoroArrivatiIds(new Set());
       const next: Record<number, CommuteInfo> = {};
       for (const a of abitanti) {
-        if (a.razza === "Robot") continue;
+        if (a.razza === "Golem") continue;
         const home = cellaCasaPerAbitanteId.get(a.id) ?? null;
         const ult = ultimaCellaAbitanteRef.current.get(a.id) ?? null;
         const fromBase = ult ?? home;
@@ -3295,7 +3302,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       setLavoroArrivatiIds((prev) => {
         const s = new Set(prev);
         for (const a of abitanti) {
-          if (a.razza === "Robot") continue;
+          if (a.razza === "Golem") continue;
           if (next[a.id]?.purpose === "rapina") continue;
           // Fame critica eleggibile a rapina: non teletrasportare al lavoro.
           if (
@@ -3331,7 +3338,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         const home = cellaCasaPerAbitanteId.get(a.id);
         if (home == null) continue;
         const from = ultimaCellaAbitanteRef.current.get(a.id) ?? home;
-        const path = pianificaCommuteSeraACasa(home, from, cols, rows, isWalkableCell);
+        const path = pianificaCommuteSeraACasa(home, from, cols, rows, isWalkableCell, edificiInMappa);
         if (path && path.length >= 2) {
           next[a.id] = { path, token: Date.now(), purpose: "home" };
         } else {
@@ -3958,8 +3965,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         cell,
         path: commute?.path,
         pathToken: commute?.token ?? 0,
-        appearance: abitante.razza === "Robot" ? "robot" : "human",
-        markerEmoji: abitante.razza === "Robot" ? getEmojiAbitante(abitante) : undefined
+        appearance: abitante.razza === "Golem" ? "golem" : "human",
+        markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined
       };
     }),
   [abitantiPerOverlayMappa, commuteByAbitanteId, cellaCasaPerAbitanteId, cols]);
@@ -4444,7 +4451,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                             },
                             orologioMinuti
                           ) ||
-                          (abitante.razza !== "Robot" &&
+                          (abitante.razza !== "Golem" &&
                             (inCommute ||
                               abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) ||
                               abitanteAlBarRoutineOra(
@@ -4454,7 +4461,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                                 edifici
                               )))
                         }
-                        markerEmoji={abitante.razza === "Robot" ? getEmojiAbitante(abitante) : null}
+                        markerEmoji={abitante.razza === "Golem" ? getEmojiAbitante(abitante) : null}
                         pressAccessibilityLabel={`Seleziona ${getAbitanteNome(abitante.id)}`}
                         doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitante.id)}`}
                         isCellFreeForMe={(cell) => isCellFreeForAbitante(abitante.id, cell)}

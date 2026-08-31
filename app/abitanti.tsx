@@ -92,7 +92,7 @@ function getLavoroDisplay(abitante: Abitante, etaMinimaLavoro: number): string {
 
 /** Reddito da mostrare: per beneficiari (Disoccupato non in casta coercibile) include il reddito di cittadinanza. */
 function getRedditoDisplay(abitante: Abitante, etaMinimaLavoro: number, redditoCittadinanza: number): number {
-  if (abitante.razza === "Robot") return 0;
+  if (abitante.razza === "Golem") return 0;
   const lavoroDisplay = getLavoroDisplay(abitante, etaMinimaLavoro);
   const castaCoercibile = isCastaCoercibile(getCastaAbitante(abitante));
   const beneficiario = lavoroDisplay === "Disoccupato" && !castaCoercibile && redditoCittadinanza > 0;
@@ -161,8 +161,8 @@ export default function AbitantiScreen() {
       let bValue: number | string;
 
       if (sortField === "felicità") {
-        aValue = a.razza === "Robot" ? -1 : calcolaFelicitàModificata(a);
-        bValue = b.razza === "Robot" ? -1 : calcolaFelicitàModificata(b);
+        aValue = a.razza === "Golem" ? -1 : calcolaFelicitàModificata(a);
+        bValue = b.razza === "Golem" ? -1 : calcolaFelicitàModificata(b);
       } else if (sortField === "fazioni") {
         aValue = getFazioniEmojiDisplay(a.fazioni, a.religione);
         bValue = getFazioniEmojiDisplay(b.fazioni, b.religione);
@@ -526,25 +526,25 @@ export default function AbitantiScreen() {
                 )}
                 {macroOpen.benessere && (
                   <>
-                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.razza === "Robot" ? "—" : String(a.peso ?? 50)}</Text></View>
-                    <View style={[styles.cell, styles.cellSmall]}><Text style={[styles.cellTextSmall, a.razza === "Robot" ? undefined : saluteStyle]}>{a.razza === "Robot" ? "—" : statoSalute}</Text></View>
+                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.razza === "Golem" ? "—" : String(a.peso ?? 50)}</Text></View>
+                    <View style={[styles.cell, styles.cellSmall]}><Text style={[styles.cellTextSmall, a.razza === "Golem" ? undefined : saluteStyle]}>{a.razza === "Golem" ? "—" : statoSalute}</Text></View>
                     <View style={[styles.cell, styles.cellSmall]}>
-                      <Text style={[styles.cellText, a.razza === "Robot" ? undefined : felicitàModificata >= 70 ? styles.cellTextPositive : felicitàModificata >= 40 ? styles.cellTextNeutral : styles.cellTextNegative]}>{a.razza === "Robot" ? "—" : `${felicitàModificata}%`}</Text>
+                      <Text style={[styles.cellText, a.razza === "Golem" ? undefined : felicitàModificata >= 70 ? styles.cellTextPositive : felicitàModificata >= 40 ? styles.cellTextNeutral : styles.cellTextNegative]}>{a.razza === "Golem" ? "—" : `${felicitàModificata}%`}</Text>
                     </View>
-                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.razza === "Robot" ? "—" : `${a.paura}%`}</Text></View>
+                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.razza === "Golem" ? "—" : `${a.paura}%`}</Text></View>
                   </>
                 )}
                 {macroOpen.economia && (
                   <>
                     <View style={[styles.cell, styles.cellMedium]}>
                       <Text style={styles.cellText}>
-                        {a.razza === "Robot" || !abitanteHaInventarioPersonale(a)
+                        {a.razza === "Golem" || !abitanteHaInventarioPersonale(a)
                           ? "—"
                           : getMoneteInventarioAbitante(a.inventario)}
                       </Text>
                     </View>
                     <View style={[styles.cell, styles.cellMedium]}>
-                      {a.razza === "Robot" ? (
+                      {a.razza === "Golem" ? (
                         <Text style={styles.cellText}>—</Text>
                       ) : a.fazioni?.includes("Schiavi") ? (
                         <Text style={styles.cellEmojiText}>{fazioniData.find((f) => f.nome === "Schiavi")?.emoji ?? "⛓️"}</Text>
@@ -552,16 +552,16 @@ export default function AbitantiScreen() {
                         <Text style={[styles.cellText, styles.cellTextPositive]}>{getRedditoDisplay(a, etaMinimaLavoro, redditoCittadinanza ?? 0)}</Text>
                       )}
                     </View>
-                    <View style={[styles.cell, styles.cellMedium]}><Text style={[styles.cellText, a.razza === "Robot" ? undefined : styles.cellTextNegative]}>{a.razza === "Robot" ? "—" : a.spese}</Text></View>
+                    <View style={[styles.cell, styles.cellMedium]}><Text style={[styles.cellText, a.razza === "Golem" ? undefined : styles.cellTextNegative]}>{a.razza === "Golem" ? "—" : a.spese}</Text></View>
                   </>
                 )}
                 {macroOpen.lealta && (
-                  <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.razza === "Robot" ? "—" : `${a.lealtà}%`}</Text></View>
+                  <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.razza === "Golem" ? "—" : `${a.lealtà}%`}</Text></View>
                 )}
                 {macroOpen.sociale && (
                   <>
                     <View style={[styles.cell, styles.cellSociale]}>
-                      {a.razza === "Robot" ? (
+                      {a.razza === "Golem" ? (
                         <Text style={styles.cellEmojiText}>—</Text>
                       ) : getAmiciItems(a).length > 0 ? (
                         <View style={styles.fazioneEmojiRow}>
@@ -574,7 +574,7 @@ export default function AbitantiScreen() {
                       )}
                     </View>
                     <View style={[styles.cell, styles.cellSociale]}>
-                      {a.razza === "Robot" ? (
+                      {a.razza === "Golem" ? (
                         <Text style={styles.cellEmojiText}>—</Text>
                       ) : getRivaliItems(a).length > 0 ? (
                         <View style={styles.fazioneEmojiRow}>
@@ -587,7 +587,7 @@ export default function AbitantiScreen() {
                       )}
                     </View>
                     <View style={[styles.cell, styles.cellFamiliari]}>
-                      {a.razza === "Robot" ? (
+                      {a.razza === "Golem" ? (
                         <Text style={styles.cellEmojiText}>—</Text>
                       ) : getFamiliariItems(a).length > 0 ? (
                         <View style={styles.fazioneEmojiRow}>

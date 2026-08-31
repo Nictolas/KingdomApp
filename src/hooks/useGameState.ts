@@ -591,7 +591,7 @@ export function useGameState() {
     (abitanteId: number) => {
       const comandante = abitanti.find((a) => a.id === 1);
       const scelto = abitanti.find((a) => a.id === abitanteId);
-      if (!scelto || scelto.razza === "Robot") {
+      if (!scelto || scelto.razza === "Golem") {
         setPendingMatrimonio(null);
         return;
       }
@@ -670,6 +670,8 @@ export function useGameState() {
               nome: nomeCompleto,
               sesso: dati.sesso,
               orientamento: dati.orientamento,
+              razza: dati.razza,
+              aspetto: dati.aspetto,
               lavoro: LAVORO_GIOCATORE,
               eta: ETA_GIOCATORE_INIZIALE,
               emoji: "👑"

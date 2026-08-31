@@ -18,7 +18,7 @@ const SLUG_TO_NOME: Record<string, string> = {
   esploratori: "Esploratori",
   intellettuali: "Intellettuali",
   ambientalisti: "Ambientalisti",
-  robots: "Robots",
+  robots: "Golem",
   senzatetto: "Senzatetto",
   immigrati: "Immigrati"
 };
@@ -28,9 +28,9 @@ function moneteDi(a: Abitante): number {
 }
 
 function getMembri(fazione: Fazione, abitanti: Abitante[]): Abitante[] {
-  if (fazione.nome === "Robots") return abitanti.filter((a) => a.razza === "Robot");
+  if (fazione.nome === "Golem") return abitanti.filter((a) => a.razza === "Golem");
   if (fazione.nome === "Élite") return [...abitanti].sort((a, b) => moneteDi(b) - moneteDi(a)).slice(0, 3);
-  if (fazione.nome === "Immigrati") return abitanti.filter((a) => !(a.fazioni?.includes("Cittadini") ?? false) && !(a.fazioni?.includes("Robots") ?? false));
+  if (fazione.nome === "Immigrati") return abitanti.filter((a) => !(a.fazioni?.includes("Cittadini") ?? false) && !(a.fazioni?.includes("Golem") ?? false));
   return abitanti.filter((a) => a.fazioni?.includes(fazione.nome));
 }
 

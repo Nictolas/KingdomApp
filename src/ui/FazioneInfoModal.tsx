@@ -21,16 +21,16 @@ export function FazioneInfoModal({ visible, fazione, abitanti = [], onClose }: F
   if (!fazione) return null;
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
-  // "Robots": membri = tutti gli abitanti con razza Robot (fazione automatica)
+  // "Golem": membri = tutti gli abitanti con razza Robot (fazione automatica)
   // "Élite": membri = i 3 abitanti con più monete in inventario (fazione automatica)
   // "Immigrati": membri = abitanti che non sono Cittadini né Robots (fazione automatica)
   const membri =
-    fazione.nome === "Robots"
-      ? abitanti.filter((a) => a.razza === "Robot")
+    fazione.nome === "Golem"
+      ? abitanti.filter((a) => a.razza === "Golem")
       : fazione.nome === "Élite"
         ? [...abitanti].sort((a, b) => moneteDi(b) - moneteDi(a)).slice(0, 3)
         : fazione.nome === "Immigrati"
-          ? abitanti.filter((a) => !(a.fazioni?.includes("Cittadini") ?? false) && !(a.fazioni?.includes("Robots") ?? false))
+          ? abitanti.filter((a) => !(a.fazioni?.includes("Cittadini") ?? false) && !(a.fazioni?.includes("Golem") ?? false))
           : abitanti.filter((a) => a.fazioni?.includes(fazione.nome));
 
   return (

@@ -21,7 +21,7 @@ export default function SchiaviScreen() {
   const compratori = [
     { id: null as number | null, nome: "Colonia" },
     ...abitanti
-      .filter((a) => getCastaAbitante(a) !== "Schiavo" && getCastaAbitante(a) !== "Servo della gleba" && a.razza !== "Robot")
+      .filter((a) => getCastaAbitante(a) !== "Schiavo" && getCastaAbitante(a) !== "Servo della gleba" && a.razza !== "Golem")
       .map((a) => ({ id: a.id as number | null, nome: a.nome }))
   ];
 

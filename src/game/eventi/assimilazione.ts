@@ -9,7 +9,7 @@ export const eventoAssimilazione: EventoDef = {
   durataMesi: 1,
   probabilità: 0.4,
   condizione: (abitanti) => {
-    const conFelicità = abitanti.filter((a) => a.razza !== "Robot");
+    const conFelicità = abitanti.filter((a) => a.razza !== "Golem");
     if (conFelicità.length === 0) return false;
     const felicitàMedia = conFelicità.reduce((s, a) => s + a.felicità, 0) / conFelicità.length;
     return felicitàMedia > 80;

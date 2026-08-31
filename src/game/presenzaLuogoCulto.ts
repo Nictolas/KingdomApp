@@ -116,7 +116,7 @@ export function abitanteDeveAndareAlCultoOra(
   buioCielo: number,
   edifici: Edificio[]
 ): boolean {
-  if (abitante.razza === "Robot") return false;
+  if (abitante.razza === "Golem") return false;
   if (abitante.religione !== "Culto del Sole" && abitante.religione !== "Culto degli Alieni") {
     return false;
   }

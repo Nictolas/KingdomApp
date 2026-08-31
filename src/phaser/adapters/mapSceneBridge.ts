@@ -24,7 +24,7 @@ export type PhaserMapCharacter = {
   path?: readonly number[];
   pathToken?: number;
   markerEmoji?: string;
-  appearance?: "human" | "robot";
+  appearance?: "human" | "golem";
 };
 
 export type PhaserMapInteraction = {

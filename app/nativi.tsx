@@ -28,7 +28,7 @@ export default function NativiScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.subtitle}>
-          Popolazione nativa del pianeta, integrata o in tensione con la colonia. A inizio partita viene scelta una razza non umana: tutti i Nativi di quella partita appartengono a quella razza.
+          Popolazione originaria del territorio, integrata o in tensione con il regno. A inizio partita viene scelto un popolo non umano: tutti i Nativi appartengono a quel popolo.
         </Text>
 
         <View style={[styles.infoCard, styles.razzaCard]}>

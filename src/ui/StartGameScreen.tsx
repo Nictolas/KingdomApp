@@ -14,7 +14,7 @@ export function StartGameScreen({ loading, hasSave, error, onContinue, onNewGame
     <SafeAreaView style={styles.safe}>
       <View style={styles.card}>
         <Text style={styles.title}>MyKingdom</Text>
-        <Text style={styles.subtitle}>Colonia spaziale</Text>
+        <Text style={styles.subtitle}>Regno Medievale Fantasy</Text>
         {loading ? <ActivityIndicator color="#93c5fd" /> : (
           <>
             {hasSave && <Pressable style={styles.primary} onPress={onContinue}><Text style={styles.buttonText}>Continua</Text></Pressable>}

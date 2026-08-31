@@ -5,7 +5,7 @@ import { useGameState } from "../hooks/useGameState";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
 import type { EventoDef } from "../game/eventi";
 import { DialogInizioPartitaModal } from "../ui/DialogInizioPartitaModal";
-import { CreazioneGiocatoreModal } from "../ui/CreazioneGiocatoreModal";
+import { CreazioneGiocatoreModal, type DatiCreazioneGiocatore } from "../ui/CreazioneGiocatoreModal";
 import { RichiestaLuogoCultoModal } from "../ui/RichiestaLuogoCultoModal";
 import type { ReligioneConCulto } from "../game/luogoCulto";
 import type { RichiestaInAttesa } from "../game/richieste";
@@ -184,12 +184,7 @@ type GameContextType = {
   eventiInCorso: EventoInCorso[];
   eventiCatalogo: EventoDef[];
   creazioneGiocatoreAperta: boolean;
-  configuraGiocatore: (dati: {
-    nome: string;
-    cognome: string;
-    sesso: "M" | "F";
-    orientamento: "Etero" | "Omo" | "Bi" | "Asessuale";
-  }) => void;
+  configuraGiocatore: (dati: DatiCreazioneGiocatore) => void;
   diarioInizioVisto: boolean;
   messaggioEmigrazione: string | null;
   chiudiMessaggioEmigrazione: () => void;

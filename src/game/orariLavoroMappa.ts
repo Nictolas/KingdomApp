@@ -100,7 +100,7 @@ export function abitanteDisoccupatoAlBarOra(
   buioCielo: number,
   edificiList: Edificio[]
 ): boolean {
-  if (abitante.razza === "Robot") return false;
+  if (abitante.razza === "Golem") return false;
   if (abitante.lavoro !== "Disoccupato") return false;
   if (èNotteRoutineMappaDaBuio(buioCielo)) return false;
   if (abitanteInOrarioLavoroEdificio(abitante.id, minutiDaMezzanotte, edificiList)) return false;
@@ -116,7 +116,7 @@ export function abitanteAlBarRoutineOra(
   buioCielo: number,
   edificiList: Edificio[]
 ): boolean {
-  if (abitante.razza === "Robot") return false;
+  if (abitante.razza === "Golem") return false;
   if (èNotteRoutineMappaDaBuio(buioCielo)) return false;
   if (abitanteInOrarioLavoroEdificio(abitante.id, minutiDaMezzanotte, edificiList)) return false;
   return abitanteVuoleBarPerBisogni(abitante);

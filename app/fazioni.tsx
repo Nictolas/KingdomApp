@@ -7,7 +7,7 @@ import type { Fazione } from "../src/types";
 /** Colonne tematiche: nome colonna + nomi fazioni (come in fazioniData). */
 const COLONNA_GOVERNO = ["Amministrazione", "Cittadini", "Lealisti", "Sicurezza", "Rivoluzionari", "Élite"];
 const COLONNA_LAVORO = ["Lavoratori", "Scienziati", "Esploratori", "Intellettuali", "Ambientalisti"];
-const COLONNA_MARGINI = ["Mafia", "Schiavi", "Nativi", "Robots", "Senzatetto", "Immigrati"];
+const COLONNA_MARGINI = ["Mafia", "Schiavi", "Nativi", "Golem", "Senzatetto", "Immigrati"];
 const COLONNA_RELIGIONE = ["Culto del Sole", "Culto degli Alieni"];
 
 /** Path per ogni fazione: pagina dedicata o /fazione/[slug]. */
@@ -26,7 +26,7 @@ const FAZIONE_TO_PATH: Record<string, string> = {
   Mafia: "/mafia",
   Schiavi: "/schiavi",
   Nativi: "/nativi",
-  Robots: "/fazione/robots",
+  Golem: "/fazione/robots",
   Senzatetto: "/fazione/senzatetto",
   Immigrati: "/fazione/immigrati",
   "Culto del Sole": "/culto-sole",
@@ -94,7 +94,7 @@ export default function FazioniScreen() {
         <View style={styles.columns}>
           {renderColumn("Governo e società", "Amministrazione, Cittadini, Lealisti, Sicurezza, Rivoluzionari, Élite", governo)}
           {renderColumn("Lavoro e professione", "Lavoratori, Scienziati, Esploratori, Intellettuali, Ambientalisti", lavoro)}
-          {renderColumn("Margini e coercizione", "Mafia, Schiavi, Nativi, Robots, Senzatetto, Immigrati", margini)}
+          {renderColumn("Margini e coercizione", "Mafia, Schiavi, Nativi, Golem, Senzatetto, Immigrati", margini)}
           {renderColumn("Religione", "Culto del Sole, Culto degli Alieni", religione)}
         </View>
       </ScrollView>

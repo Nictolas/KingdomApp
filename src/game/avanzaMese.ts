@@ -119,8 +119,8 @@ function coppiaConsentitaLegge(
   b: Abitante,
   tipologie?: { matrimonioUmanoRobot: boolean; matrimonioIntercasta?: boolean }
 ): boolean {
-  const unoRobot = (a.razza ?? "Umano") === "Robot";
-  const altroRobot = (b.razza ?? "Umano") === "Robot";
+  const unoRobot = (a.razza ?? "Umano") === "Golem";
+  const altroRobot = (b.razza ?? "Umano") === "Golem";
   if (unoRobot !== altroRobot) {
     return tipologie?.matrimonioUmanoRobot === true;
   }
@@ -536,7 +536,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   moneteGiocatore -= numPensionati * assegnoPensionati;
   const beneficiariCittadinanza = abitantiConRedditoPadroni.filter(
     (a) =>
-      a.razza !== "Robot" &&
+      a.razza !== "Golem" &&
       a.lavoro === "Disoccupato" &&
       !isCastaCoercibile(getCastaAbitante(a)) &&
       redditoCittadinanza > 0
@@ -591,7 +591,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
 
     // Fazione Robots: 2 energia per ogni membro Robot
     if (risorsa.nome === "Energia") {
-      const numRobots = abitantiConRedditoPadroni.filter((a) => a.razza === "Robot").length;
+      const numRobots = abitantiConRedditoPadroni.filter((a) => a.razza === "Golem").length;
       nuovaQuantità -= numRobots * 2;
       // Residenze: consumo energia per abitante (es. Baracca 0, Dormitorio 1 MW/abitante)
       edificiConAuto.forEach((edificio) => {
@@ -617,7 +617,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
 
     if (risorsa.nome.toLowerCase().includes("acqua")) {
       abitantiConRedditoPadroni.forEach((abitante) => {
-        if (abitante.razza === "Robot") return;
+        if (abitante.razza === "Golem") return;
         nuovaQuantità -= getConsumoAcqua(abitante);
       });
     }
@@ -639,7 +639,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   let messaggioNascita: string | null = null;
   let idUsato = nextId;
   for (const madre of abitantiEv) {
-    if (!madre.incinta || madre.razza === "Robot") continue;
+    if (!madre.incinta || madre.razza === "Golem") continue;
     const startMese = madre.gravidanzaIniziataMese ?? mese;
     const startAnno = madre.gravidanzaIniziataAnno ?? anno;
     const mesiTrascorsi =
@@ -708,9 +708,9 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       politicaNascite === "incentivi" ? 0.12 : 0.05;
     const coppieGiaElaborate = new Set<string>();
     for (const a of abitantiEv) {
-      if (a.coniugeId == null || a.incinta || a.razza === "Robot") continue;
+      if (a.coniugeId == null || a.incinta || a.razza === "Golem") continue;
       const b = abitantiEv.find((x) => x.id === a.coniugeId);
-      if (!b || b.incinta || b.razza === "Robot") continue;
+      if (!b || b.incinta || b.razza === "Golem") continue;
       const key = a.id < b.id ? `${a.id}-${b.id}` : `${b.id}-${a.id}`;
       if (coppieGiaElaborate.has(key)) continue;
       coppieGiaElaborate.add(key);

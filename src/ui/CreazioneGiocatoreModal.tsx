@@ -10,13 +10,27 @@ import {
   View
 } from "react-native";
 import { DIARIO_APERTURA } from "../game/diarioContenuto";
+import {
+  ASPETTO_GIOCATORE_DEFAULT,
+  COLORI_CAPELLI,
+  COLORI_PELLE,
+  type AspettoPersonaggio,
+  type CappelloPersonaggio,
+  type RazzaGiocatore,
+  type StileCapelli,
+  type StileOcchi,
+  type VestitiPersonaggio
+} from "../game/personaggioAspetto";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
+import { PixelAvatarPreview } from "./PixelAvatarPreview";
 
 export type DatiCreazioneGiocatore = {
   nome: string;
   cognome: string;
   sesso: "M" | "F";
   orientamento: "Etero" | "Omo" | "Bi" | "Asessuale";
+  razza: RazzaGiocatore;
+  aspetto: AspettoPersonaggio;
 };
 
 type CreazioneGiocatoreModalProps = {
@@ -36,11 +50,33 @@ const ORIENTAMENTI: { id: "Etero" | "Omo" | "Bi" | "Asessuale"; label: string }[
   { id: "Asessuale", label: "Asessuale" }
 ];
 
+const RAZZE: { id: RazzaGiocatore; label: string }[] = [
+  { id: "Umano", label: "Umano" }, { id: "Elfo", label: "Elfo · orecchie a punta" },
+  { id: "Nano", label: "Nano" }, { id: "Orco", label: "Orco" }
+];
+const CAPELLI: { id: StileCapelli; label: string }[] = [
+  { id: "corti", label: "Corti" }, { id: "spettinati", label: "Spettinati" },
+  { id: "lunghi", label: "Lunghi" }, { id: "trecce", label: "Trecce" }
+];
+const OCCHI: { id: StileOcchi; label: string }[] = [
+  { id: "tondi", label: "Tondi" }, { id: "determinati", label: "Determinati" }, { id: "allegri", label: "Allegri" }
+];
+const VESTITI: { id: VestitiPersonaggio; label: string }[] = [
+  { id: "viandante", label: "Viandante" }, { id: "nobile", label: "Nobile" },
+  { id: "ranger", label: "Ranger" }, { id: "mago", label: "Mago" }
+];
+const CAPPELLI: { id: CappelloPersonaggio; label: string }[] = [
+  { id: "nessuno", label: "Nessuno" }, { id: "cappuccio", label: "Cappuccio" },
+  { id: "berretto", label: "Berretto" }, { id: "corona", label: "Corona" }
+];
+
 export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocatoreModalProps) {
   const [nome, setNome] = useState("");
   const [cognome, setCognome] = useState("");
   const [sesso, setSesso] = useState<"M" | "F" | null>(null);
   const [orientamento, setOrientamento] = useState<"Etero" | "Omo" | "Bi" | "Asessuale" | null>(null);
+  const [razza, setRazza] = useState<RazzaGiocatore>("Umano");
+  const [aspetto, setAspetto] = useState<AspettoPersonaggio>(ASPETTO_GIOCATORE_DEFAULT);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
@@ -57,7 +93,9 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
       nome: nome.trim(),
       cognome: cognome.trim(),
       sesso,
-      orientamento
+      orientamento,
+      razza,
+      aspetto
     });
   };
 
@@ -83,6 +121,11 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
             </View>
 
             <Text style={styles.sectionTitle}>Chi sei?</Text>
+
+            <View style={styles.previewWrap}>
+              <PixelAvatarPreview razza={razza} aspetto={aspetto} />
+              <Text style={styles.previewHint}>Anteprima chibi · pixel art</Text>
+            </View>
 
             <View style={styles.field}>
               <Text style={styles.label}>Nome</Text>
@@ -139,6 +182,16 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
                 ))}
               </View>
             </View>
+
+            <Text style={styles.sectionTitle}>Aspetto del personaggio</Text>
+
+            <View style={styles.field}><Text style={styles.label}>Razza</Text><View style={styles.chipRowWrap}>{RAZZE.map((o) => <Pressable key={o.id} style={[styles.chip, razza === o.id && styles.chipSelected]} onPress={() => setRazza(o.id)}><Text style={[styles.chipText, razza === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
+            <View style={styles.field}><Text style={styles.label}>Colore della pelle</Text><View style={styles.swatchRow}>{COLORI_PELLE.map((color) => <Pressable accessibilityLabel={`Pelle ${color}`} key={color} onPress={() => setAspetto((v) => ({ ...v, colorePelle: color }))} style={[styles.swatch, { backgroundColor: color }, aspetto.colorePelle === color && styles.swatchSelected]} />)}</View></View>
+            <View style={styles.field}><Text style={styles.label}>Stile dei capelli</Text><View style={styles.chipRowWrap}>{CAPELLI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.stileCapelli === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, stileCapelli: o.id }))}><Text style={[styles.chipText, aspetto.stileCapelli === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
+            <View style={styles.field}><Text style={styles.label}>Colore dei capelli</Text><View style={styles.swatchRow}>{COLORI_CAPELLI.map((color) => <Pressable accessibilityLabel={`Capelli ${color}`} key={color} onPress={() => setAspetto((v) => ({ ...v, coloreCapelli: color }))} style={[styles.swatch, { backgroundColor: color }, aspetto.coloreCapelli === color && styles.swatchSelected]} />)}</View></View>
+            <View style={styles.field}><Text style={styles.label}>Stile degli occhi</Text><View style={styles.chipRowWrap}>{OCCHI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.stileOcchi === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, stileOcchi: o.id }))}><Text style={[styles.chipText, aspetto.stileOcchi === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
+            <View style={styles.field}><Text style={styles.label}>Vestiti</Text><View style={styles.chipRowWrap}>{VESTITI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.vestiti === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, vestiti: o.id }))}><Text style={[styles.chipText, aspetto.vestiti === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
+            <View style={styles.field}><Text style={styles.label}>Cappello</Text><View style={styles.chipRowWrap}>{CAPPELLI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.cappello === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, cappello: o.id }))}><Text style={[styles.chipText, aspetto.cappello === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
           </ScrollView>
 
           <Pressable
@@ -243,6 +296,8 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
+  previewWrap: { alignItems: "center", marginBottom: 18, gap: 8 },
+  previewHint: { color: "#93c5fd", fontSize: 11, fontWeight: "700" },
   field: {
     marginBottom: 14
   },
@@ -291,6 +346,9 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: "#e2e8f0"
   },
+  swatchRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  swatch: { width: 34, height: 34, borderRadius: 4, borderWidth: 3, borderColor: "#334155" },
+  swatchSelected: { borderColor: "#60a5fa", transform: [{ scale: 1.08 }] },
   confirmButton: {
     backgroundColor: "#2563eb",
     paddingHorizontal: 28,
