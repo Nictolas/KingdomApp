@@ -97,7 +97,7 @@ export type Abitante = {
   titoloStudio?: TitoloDiStudio;
   specie?: "umano" | "alieno"; // Specie dell'abitante (alieno = non Umano)
   razza?: Razza; // Razza/Pianeta di origine dell'abitante
-  /** Aspetto modulare scelto nell'editor del comandante. */
+  /** Aspetto modulare scelto nell'editor del Re o generato per l'abitante. */
   aspetto?: AspettoPersonaggio;
   reati?: Reato[]; // Se presente e non vuoto, l'abitante è considerato imputato
   /** Mesi/anni di carcere residui dopo sentenza del giudice (1 unità = 1 mese di gioco). */

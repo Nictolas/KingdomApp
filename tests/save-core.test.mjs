@@ -16,7 +16,7 @@ test("round trip completo stato → JSON → stato", () => {
   assert.deepEqual(restored.payload.simulationCursors, original.payload.simulationCursors);
 });
 
-test("l'aspetto del comandante sopravvive al salvataggio", () => {
+test("l'aspetto del Re sopravvive al salvataggio", () => {
   const save = createSaveEnvelope();
   const aspetto = {
     coloreCapelli: "#24170f",

@@ -365,7 +365,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     if (!capo.ruoloSchiavitu) capo.reddito = redditoMensileLavoroDefault();
   }
 
-  // Regola: 1 abitante con stato "Incinta" a inizio partita (preferibilmente donna, non Comandante, non Robot)
+  // Regola: 1 abitante con stato "Incinta" a inizio partita (preferibilmente donna, non Re, non Golem)
   const candidatiIncinta = abitanti.filter((a) => a.id !== 1 && a.razza !== "Golem");
   if (candidatiIncinta.length > 0) {
     const femmine = candidatiIncinta.filter((a) => a.sesso === "F");

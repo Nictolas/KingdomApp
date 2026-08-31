@@ -28,7 +28,8 @@ export const COLORI_PELLE = ["#f2cfb0", "#e9b38f", "#bd795d", "#87513d", "#5a382
 export const STILI_CAPELLI: StileCapelli[] = ["corti", "spettinati", "lunghi", "trecce"];
 export const STILI_OCCHI: StileOcchi[] = ["tondi", "determinati", "allegri"];
 export const VESTITI_PERSONAGGIO: VestitiPersonaggio[] = ["viandante", "nobile", "ranger", "mago"];
-export const CAPPELLI_PERSONAGGIO: CappelloPersonaggio[] = ["nessuno", "nessuno", "cappuccio", "berretto", "corona"];
+/** Copricapi assegnabili agli abitanti. La Corona è riservata al Re e resta fuori dal generatore. */
+export const CAPPELLI_PERSONAGGIO: CappelloPersonaggio[] = ["nessuno", "nessuno", "cappuccio", "berretto"];
 
 export const COLORI_VESTITI: Record<VestitiPersonaggio, { body: string; accent: string }> = {
   viandante: { body: "#8b5a2b", accent: "#d6b56f" },

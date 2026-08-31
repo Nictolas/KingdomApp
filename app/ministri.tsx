@@ -7,7 +7,7 @@ import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
-const ID_COMANDANTE = 1;
+const ID_RE = 1;
 
 /** Suddivide "Nome Cognome" in nome e cognome (ultimo spazio). */
 function splitNomeCognome(nome: string): { nome: string; cognome: string } {
@@ -27,7 +27,7 @@ export default function MinistriScreen() {
   const [editNome, setEditNome] = useState("");
   const [editCognome, setEditCognome] = useState("");
 
-  const comandante = abitanti.find((a) => a.id === ID_COMANDANTE);
+  const re = abitanti.find((a) => a.id === ID_RE);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -52,8 +52,8 @@ export default function MinistriScreen() {
   };
 
   const handleApriModificaNome = () => {
-    if (!comandante) return;
-    const { nome, cognome } = splitNomeCognome(comandante.nome);
+    if (!re) return;
+    const { nome, cognome } = splitNomeCognome(re.nome);
     setEditNome(nome);
     setEditCognome(cognome);
     setShowEditNome(true);
@@ -61,8 +61,8 @@ export default function MinistriScreen() {
 
   const handleSalvaNome = () => {
     const nomeCompleto = [editNome.trim(), editCognome.trim()].filter(Boolean).join(" ");
-    if (nomeCompleto && comandante) {
-      setNomeAbitante(comandante.id, nomeCompleto);
+    if (nomeCompleto && re) {
+      setNomeAbitante(re.id, nomeCompleto);
       setShowEditNome(false);
     }
   };
@@ -77,13 +77,13 @@ export default function MinistriScreen() {
 
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
-        {comandante && (
-          <View style={styles.comandanteSection}>
-            <Text style={styles.comandanteTitle}>Il tuo personaggio</Text>
-            <View style={[styles.card, styles.cardComandante]}>
-              <Text style={styles.cardEmoji}>{getEmojiAbitante(comandante)}</Text>
-              <Text style={styles.cardTitle}>{comandante.nome}</Text>
-              <Text style={styles.line}>{comandante.lavoro}</Text>
+        {re && (
+          <View style={styles.reSection}>
+            <Text style={styles.reTitle}>Il Re</Text>
+            <View style={[styles.card, styles.cardRe]}>
+              <Text style={styles.cardEmoji}>{getEmojiAbitante(re)}</Text>
+              <Text style={styles.cardTitle}>{re.nome}</Text>
+              <Text style={styles.line}>{re.lavoro}</Text>
               <Pressable style={styles.modificaNomeButton} onPress={handleApriModificaNome}>
                 <Text style={styles.modificaNomeButtonText}>Modifica nome e cognome</Text>
               </Pressable>
@@ -195,7 +195,7 @@ export default function MinistriScreen() {
         </Pressable>
       </Modal>
 
-      {/* Modal Modifica nome e cognome (Comandante) */}
+      {/* Modal Modifica nome e cognome (Re) */}
       <Modal
         visible={showEditNome}
         transparent
@@ -291,10 +291,10 @@ const styles = StyleSheet.create({
     paddingBottom: 8,
     flex: 1
   },
-  comandanteSection: {
+  reSection: {
     marginBottom: 14
   },
-  comandanteTitle: {
+  reTitle: {
     color: "#93c5fd",
     fontSize: 11,
     fontWeight: "700",
@@ -302,7 +302,7 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
-  cardComandante: {
+  cardRe: {
     borderColor: "rgba(234,179,8,0.5)",
     backgroundColor: "rgba(234,179,8,0.06)"
   },
@@ -552,4 +552,3 @@ const styles = StyleSheet.create({
     fontWeight: "600"
   }
 });
-

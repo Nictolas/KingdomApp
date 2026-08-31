@@ -6,7 +6,7 @@ export function createSaveEnvelope() {
     nome: "Ada Nova",
     emoji: "👑",
     eta: 30,
-    lavoro: "Comandante",
+    lavoro: "Re",
     competenza: 80,
     produttività: 75,
     stanchezza: 10,

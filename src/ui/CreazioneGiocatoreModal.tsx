@@ -67,7 +67,7 @@ const VESTITI: { id: VestitiPersonaggio; label: string }[] = [
 ];
 const CAPPELLI: { id: CappelloPersonaggio; label: string }[] = [
   { id: "nessuno", label: "Nessuno" }, { id: "cappuccio", label: "Cappuccio" },
-  { id: "berretto", label: "Berretto" }, { id: "corona", label: "Corona" }
+  { id: "berretto", label: "Berretto" }, { id: "corona", label: "👑 Corona del Re" }
 ];
 
 export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocatoreModalProps) {
@@ -119,7 +119,7 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
               <View style={styles.emojiWrap}>
                 <Text style={styles.emoji}>🛡️</Text>
               </View>
-              <Text style={styles.title}>Crea il tuo sovrano</Text>
+              <Text style={styles.title}>Crea il tuo Re</Text>
               <Text style={styles.subtitle}>Combina liberamente i pezzi in stile chibi pixel-art</Text>
               <View style={styles.titleUnderline} />
             </View>
@@ -204,7 +204,7 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
             <View style={styles.field}><Text style={styles.label}>Colore dei capelli</Text><View style={styles.swatchRow}>{COLORI_CAPELLI.map((color) => <Pressable accessibilityLabel={`Capelli ${color}`} key={color} onPress={() => setAspetto((v) => ({ ...v, coloreCapelli: color }))} style={[styles.swatch, { backgroundColor: color }, aspetto.coloreCapelli === color && styles.swatchSelected]} />)}</View></View>
             <View style={styles.field}><Text style={styles.label}>Stile degli occhi</Text><View style={styles.chipRowWrap}>{OCCHI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.stileOcchi === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, stileOcchi: o.id }))}><Text style={[styles.chipText, aspetto.stileOcchi === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
             <View style={styles.field}><Text style={styles.label}>Vestiti</Text><View style={styles.chipRowWrap}>{VESTITI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.vestiti === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, vestiti: o.id }))}><Text style={[styles.chipText, aspetto.vestiti === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Cappello</Text><View style={styles.chipRowWrap}>{CAPPELLI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.cappello === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, cappello: o.id }))}><Text style={[styles.chipText, aspetto.cappello === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
+            <View style={styles.field}><Text style={styles.label}>Copricapo <Text style={styles.kingOnly}>· la Corona appartiene solo al Re</Text></Text><View style={styles.chipRowWrap}>{CAPPELLI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.cappello === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, cappello: o.id }))}><Text style={[styles.chipText, aspetto.cappello === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
           </ScrollView>
 
           <Pressable
@@ -216,7 +216,7 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
             onPress={handleConferma}
             disabled={!valido}
           >
-            <Text style={styles.confirmButtonText}>Assumi il comando</Text>
+            <Text style={styles.confirmButtonText}>Inizia il tuo regno</Text>
           </Pressable>
         </Pressable>
       </Pressable>
@@ -326,6 +326,7 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 6
   },
+  kingOnly: { color: "#d6b56f", fontWeight: "800" },
   input: {
     backgroundColor: "rgba(30, 41, 59, 0.9)",
     borderRadius: 8,
