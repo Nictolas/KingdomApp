@@ -9,7 +9,7 @@ export const MINUTI_GIOCO_PER_SECONDO_REALE = 30;
 let orologioGiocoMinutiDaMezzanotte = 6 * 60;
 let orologioGiocoLastRealMs: number | null = null;
 let orologioGiocoInPausa = false;
-// Parte bloccato: la creazione del Comandante non deve far avanzare il mondo.
+// Parte bloccato: la creazione del Re non deve far avanzare il mondo.
 let orologioGiocoBloccatoDallaFase = true;
 /** Giorno di gioco (1 = primo giorno); avanza a ogni mezzanotte dell'orologio. */
 let orologioGiocoGiorno = 1;

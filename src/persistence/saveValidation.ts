@@ -240,6 +240,9 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
       aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
     }),
+    ...(a.id !== 1 && a.aspetto?.cappello === "corona" && {
+      aspetto: { ...a.aspetto, cappello: "nessuno" }
+    }),
     fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f),
     inventario: a.inventario ? normalizeInventario(a.inventario) : undefined
   }));
@@ -248,6 +251,9 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     razza: normalizzaRazzaFantasy(a.razza),
     ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
       aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
+    }),
+    ...(a.aspetto?.cappello === "corona" && {
+      aspetto: { ...a.aspetto, cappello: "nessuno" }
     }),
     fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f)
   }));

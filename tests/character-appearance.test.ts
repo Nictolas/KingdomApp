@@ -19,6 +19,7 @@ test("il generatore usa soltanto i pezzi disponibili nell'editor", () => {
   assert.ok(STILI_CAPELLI.includes(aspetto.stileCapelli));
   assert.ok(STILI_OCCHI.includes(aspetto.stileOcchi));
   assert.ok(VESTITI_PERSONAGGIO.includes(aspetto.vestiti));
+  assert.notEqual(aspetto.cappello, "corona");
   assert.notEqual(aspetto.colorePelle, "#79a86b");
 });
 

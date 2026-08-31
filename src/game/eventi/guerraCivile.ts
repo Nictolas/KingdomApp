@@ -59,7 +59,7 @@ export const eventoGuerraCivile: EventoDef = {
       (a as Abitante).lealtà = Math.max(0, (a as Abitante).lealtà + deltaLealtà);
     });
 
-    // Vittime: pool Lealisti e Sicurezza (escluso Comandante id 1)
+    // Vittime: pool Lealisti e Sicurezza (escluso il Re, id 1)
     const poolLealisti = abitanti.filter((a) => a.id !== 1 && a.fazioni?.includes("Lealisti"));
     const poolSicurezza = abitanti.filter((a) => a.id !== 1 && a.fazioni?.includes("Sicurezza"));
     const idsToRemove = new Set<number>();

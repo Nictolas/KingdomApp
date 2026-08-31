@@ -35,7 +35,9 @@ export function PixelAvatarPreview({
       {aspetto.stileCapelli === "trecce" && <><View style={[styles.braid, styles.braidLeft, { backgroundColor: aspetto.coloreCapelli }]} /><View style={[styles.braid, styles.braidRight, { backgroundColor: aspetto.coloreCapelli }]} /></>}
       {beard && <View style={[styles.beard, { backgroundColor: aspetto.coloreCapelli }]} />}
       {aspetto.cappello !== "nessuno" && (
-        <View style={[styles.hat, aspetto.cappello === "cappuccio" && styles.hood, aspetto.cappello === "berretto" && styles.cap, aspetto.cappello === "corona" && styles.crown]} />
+        <View style={[styles.hat, aspetto.cappello === "cappuccio" && styles.hood, aspetto.cappello === "berretto" && styles.cap, aspetto.cappello === "corona" && styles.crown]}>
+          {aspetto.cappello === "corona" && <><View style={[styles.crownPoint, styles.crownPointLeft]} /><View style={[styles.crownPoint, styles.crownPointCenter]} /><View style={[styles.crownPoint, styles.crownPointRight]} /></>}
+        </View>
       )}
     </View>
   );
@@ -50,15 +52,15 @@ const styles = StyleSheet.create({
   body: { position: "absolute", width: 66, height: 55, left: 31, bottom: 40, borderWidth: 5, borderColor: "#1c1511" },
   clothesAccent: { position: "absolute", width: 18, height: 38, left: 55, bottom: 51, borderWidth: 3, borderColor: "#1c1511" },
   belt: { position: "absolute", width: 66, height: 9, left: 31, bottom: 57 },
-  head: { position: "absolute", width: 72, height: 62, left: 28, top: 25, borderWidth: 5, borderColor: "#2a1b16" },
-  ear: { position: "absolute", width: 18, height: 13, top: 49, borderWidth: 4, borderColor: "#2a1b16" },
-  earLeft: { left: 14, transform: [{ rotate: "-18deg" }] }, earRight: { right: 14, transform: [{ rotate: "18deg" }] },
+  head: { position: "absolute", width: 72, height: 66, left: 28, top: 23, borderWidth: 5, borderColor: "#2a1b16", borderRadius: 33 },
+  ear: { position: "absolute", width: 20, height: 20, top: 47, borderWidth: 4, borderColor: "#2a1b16", borderRadius: 1 },
+  earLeft: { left: 14, transform: [{ rotate: "45deg" }, { skewX: "-18deg" }] }, earRight: { right: 14, transform: [{ rotate: "45deg" }, { skewY: "-18deg" }] },
   eye: { position: "absolute", width: 8, height: 13, top: 27, backgroundColor: "#172033" },
   eyeLeft: { left: 16 }, eyeRight: { right: 16 }, eyeAngled: { height: 8, transform: [{ rotate: "12deg" }] },
   smile: { position: "absolute", width: 18, height: 5, left: 22, bottom: 8, backgroundColor: "#9b4f42" },
   tusk: { position: "absolute", width: 5, height: 8, bottom: 5, backgroundColor: "#f1e5c5", borderWidth: 1, borderColor: "#5b4632" },
   tuskLeft: { left: 16 }, tuskRight: { right: 16 },
-  hair: { position: "absolute", width: 76, height: 29, left: 26, top: 20, backgroundColor: "#6b3f24", borderWidth: 5, borderColor: "#2a1b16" },
+  hair: { position: "absolute", width: 76, height: 31, left: 26, top: 18, backgroundColor: "#6b3f24", borderWidth: 5, borderColor: "#2a1b16", borderTopLeftRadius: 30, borderTopRightRadius: 30 },
   hairLong: { height: 57 }, hairBraids: { width: 88, left: 20, height: 48 },
   hairSpike: { position: "absolute", width: 22, height: 22, left: 52, top: 10, transform: [{ rotate: "45deg" }] },
   braid: { position: "absolute", width: 12, height: 38, top: 48, borderWidth: 3, borderColor: "#2a1b16" },
@@ -67,5 +69,7 @@ const styles = StyleSheet.create({
   hat: { position: "absolute", width: 78, height: 24, left: 25, top: 7, backgroundColor: "#315c3b", borderWidth: 5, borderColor: "#1b2c21" },
   hood: { height: 44, borderRadius: 20 },
   cap: { width: 70, left: 29, height: 20, borderTopLeftRadius: 12, borderTopRightRadius: 12, backgroundColor: "#7c2d3b" },
-  crown: { width: 62, left: 33, height: 27, backgroundColor: "#e4b84c", borderColor: "#6e4c16" }
+  crown: { width: 62, left: 33, height: 27, backgroundColor: "#e4b84c", borderColor: "#6e4c16" },
+  crownPoint: { position: "absolute", width: 13, height: 13, top: -11, backgroundColor: "#e4b84c", borderWidth: 3, borderColor: "#6e4c16", transform: [{ rotate: "45deg" }] },
+  crownPointLeft: { left: 2 }, crownPointCenter: { left: 20 }, crownPointRight: { right: 2 }
 });

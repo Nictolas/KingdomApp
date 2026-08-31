@@ -429,7 +429,7 @@ export function useGameState() {
     setCoprifuocoFineMinutiState(day);
   }, []);
 
-  // Ius primae noctis: se attivo aggiunge +1 alle sanzioni; in evento Matrimonio permette di scegliere uno dei due e 50% incinta se sesso opposto al Comandante
+  // Ius primae noctis: se attivo aggiunge +1 alle sanzioni; in evento Matrimonio permette di scegliere uno dei due e 50% incinta se sesso opposto al Re
   const [iusPrimaeNoctisAttivo, setIusPrimaeNoctisAttivo] = useState(false);
   
   // Configurazione legge sulle famiglie
@@ -586,18 +586,18 @@ export function useGameState() {
     setPendingMatrimonio(null);
   }, []);
 
-  /** Esercita Ius primae noctis su un abitante (evento Matrimonio): se sesso opposto al Comandante, 50% diventa incinta. Poi chiude il matrimonio. */
+  /** Esercita Ius primae noctis su un abitante (evento Matrimonio): se sesso opposto al Re, 50% diventa incinta. Poi chiude il matrimonio. */
   const esercitaIusPrimaeNoctis = useCallback(
     (abitanteId: number) => {
-      const comandante = abitanti.find((a) => a.id === 1);
+      const re = abitanti.find((a) => a.id === 1);
       const scelto = abitanti.find((a) => a.id === abitanteId);
       if (!scelto || scelto.razza === "Golem") {
         setPendingMatrimonio(null);
         return;
       }
-      const sessoComandante = comandante?.sesso ?? "M";
+      const sessoRe = re?.sesso ?? "M";
       const sessoScelto = scelto.sesso ?? "F";
-      const opposto = (sessoComandante === "M" && sessoScelto === "F") || (sessoComandante === "F" && sessoScelto === "M");
+      const opposto = (sessoRe === "M" && sessoScelto === "F") || (sessoRe === "F" && sessoScelto === "M");
       if (opposto && Math.random() < 0.5) {
         setAbitanti((prev) =>
           prev.map((a) =>
