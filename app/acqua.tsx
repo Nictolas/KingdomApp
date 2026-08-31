@@ -11,7 +11,7 @@ export default function AcquaScreen() {
   const { abitanti, edifici, risorse } = useGameContext();
 
   const consumatori = abitanti
-    .filter((a) => a.razza !== "Robot")
+    .filter((a) => a.razza !== "Golem")
     .map((a) => ({
       abitante: a,
       consumo: getConsumoAcqua(a)
@@ -94,7 +94,7 @@ export default function AcquaScreen() {
             <Text style={styles.sectionTitle}>Consumi individuali</Text>
             <View style={styles.colonna}>
               {consumatori.length === 0 ? (
-                <Text style={styles.colonnaVuota}>Nessun consumatore (solo Robot)</Text>
+                <Text style={styles.colonnaVuota}>Nessun consumatore (solo Golem)</Text>
               ) : (
                 <View style={styles.colonnaLista}>
                   {consumatori.map(({ abitante, consumo }) => (

@@ -16,6 +16,38 @@ test("round trip completo stato → JSON → stato", () => {
   assert.deepEqual(restored.payload.simulationCursors, original.payload.simulationCursors);
 });
 
+test("l'aspetto del comandante sopravvive al salvataggio", () => {
+  const save = createSaveEnvelope();
+  const aspetto = {
+    coloreCapelli: "#24170f",
+    stileCapelli: "trecce",
+    stileOcchi: "allegri",
+    colorePelle: "#87513d",
+    vestiti: "ranger",
+    cappello: "cappuccio"
+  };
+  save.payload.population.abitanti[0].razza = "Elfo";
+  save.payload.population.abitanti[0].aspetto = aspetto;
+
+  const restored = deserializeSave(serializeSave(save));
+
+  assert.equal(restored.payload.population.abitanti[0].razza, "Elfo");
+  assert.deepEqual(restored.payload.population.abitanti[0].aspetto, aspetto);
+});
+
+test("i vecchi salvataggi fantascientifici migrano ai popoli fantasy", () => {
+  const save = createSaveEnvelope();
+  save.payload.population.razzaNativi = "Nordici";
+  save.payload.population.abitanti[0].razza = "Robot";
+  save.payload.population.abitanti[0].fazioni = ["Robots"];
+
+  const restored = deserializeSave(serializeSave(save));
+
+  assert.equal(restored.payload.population.razzaNativi, "Elfo");
+  assert.equal(restored.payload.population.abitanti[0].razza, "Golem");
+  assert.deepEqual(restored.payload.population.abitanti[0].fazioni, ["Golem"]);
+});
+
 test("Infinity negli scaglioni fiscali sopravvive al round trip", () => {
   const restored = deserializeSave(serializeSave(createSaveEnvelope()));
   assert.equal(restored.payload.policies.scaglioniConfig.at(-1).max, Infinity);

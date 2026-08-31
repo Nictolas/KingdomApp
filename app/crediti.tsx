@@ -75,7 +75,7 @@ export default function CreditiScreen() {
   const totaleStipendiEdifici = calcolaTotaleStipendiMensiliEdificiPubblici(edifici);
 
   const beneficiariRedditoCittadinanza = abitanti.filter(
-    (a) => a.razza !== "Robot" && a.lavoro === "Disoccupato" && !(a.fazioni?.includes("Schiavi") ?? false)
+    (a) => a.razza !== "Golem" && a.lavoro === "Disoccupato" && !(a.fazioni?.includes("Schiavi") ?? false)
   ).length;
   const spesaRedditoCittadinanza = (redditoCittadinanza ?? 0) * beneficiariRedditoCittadinanza;
 

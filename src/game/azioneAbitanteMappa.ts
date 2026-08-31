@@ -146,7 +146,7 @@ export function descriviAzioneCorrenteAbitante(
     return culto ? `Sta pregando presso ${culto.nome}` : "Sta pregando";
   }
 
-  if (abitante.razza === "Robot") {
+  if (abitante.razza === "Golem") {
     if (
       coprifuoco &&
       abitanteSoggettoACoprifuoco(abitante, edifici, coprifuoco, orologioMinuti)

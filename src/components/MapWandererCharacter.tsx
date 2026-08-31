@@ -139,7 +139,7 @@ type MapWandererCharacterProps = {
   pressAccessibilityLabel?: string;
   /** Etichetta accessibilità alternativa (doppio tocco / legacy). */
   doubleTapAccessibilityLabel?: string;
-  /** Se impostata, mostra questa emoji al posto dello sprite RPG (es. Robot 🤖). */
+  /** Se impostata, mostra questa emoji al posto dello sprite RPG (es. Golem 🗿). */
   markerEmoji?: string | null;
   /**
    * Occupancy: evita che due personaggi condividano la stessa casella mentre camminano.

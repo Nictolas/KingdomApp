@@ -3,7 +3,7 @@ import { normalizzaAbitanteInventario } from "./inventario";
 
 /** I Robot non consumano cibo biologico. */
 export function abitanteDeveConsumareCiboGiornaliero(abitante: Abitante): boolean {
-  return abitante.razza !== "Robot";
+  return abitante.razza !== "Golem";
 }
 
 /** Normalizza inventari (senza inventario per schiavi/servi). */

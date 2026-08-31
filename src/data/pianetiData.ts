@@ -17,19 +17,18 @@ export type PianetaInfo = {
 };
 
 export const pianetiData: PianetaInfo[] = [
-  { id: 1, nome: "Pianeta dei Grigi", emoji: "👽", razza: "Grigi", compraRisorsaId: 7, vendiRisorsaId: 3, prezzoVendita: 9, prezzoAcquisto: 6 },
-  { id: 2, nome: "Pianeta dei Nordici", emoji: "🧝", razza: "Nordici", compraRisorsaId: 6, vendiRisorsaId: 4, prezzoVendita: 5, prezzoAcquisto: 10 },
-  { id: 3, nome: "Pianeta dei Rettiliani", emoji: "🦎", razza: "Rettiliani", compraRisorsaId: 2, vendiRisorsaId: 8, prezzoVendita: 4, prezzoAcquisto: 9 },
-  { id: 4, nome: "Pianeta degli Insettoidi", emoji: "🦟", razza: "Insettoidi", compraRisorsaId: 9, vendiRisorsaId: 2, prezzoVendita: 2, prezzoAcquisto: 4 },
-  { id: 5, nome: "Pianeta dei Marini", emoji: "🐙", razza: "Marini", compraRisorsaId: 3, vendiRisorsaId: 5, prezzoVendita: 6, prezzoAcquisto: 5 },
-  { id: 6, nome: "Pianeta dei Ferini", emoji: "🐺", razza: "Ferini", compraRisorsaId: 4, vendiRisorsaId: 6, prezzoVendita: 11, prezzoAcquisto: 5 }
+  { id: 1, nome: "Regni degli Elfi", emoji: "🧝", razza: "Elfo", compraRisorsaId: 7, vendiRisorsaId: 3, prezzoVendita: 9, prezzoAcquisto: 6 },
+  { id: 2, nome: "Clan dei Nani", emoji: "⛏️", razza: "Nano", compraRisorsaId: 6, vendiRisorsaId: 4, prezzoVendita: 5, prezzoAcquisto: 10 },
+  { id: 3, nome: "Tribù degli Orchi", emoji: "🪓", razza: "Orco", compraRisorsaId: 2, vendiRisorsaId: 8, prezzoVendita: 4, prezzoAcquisto: 9 },
+  { id: 4, nome: "Città dei Goblin", emoji: "👺", razza: "Goblin", compraRisorsaId: 9, vendiRisorsaId: 2, prezzoVendita: 2, prezzoAcquisto: 4 },
+  { id: 5, nome: "Custodi di Pietra", emoji: "🗿", razza: "Golem", compraRisorsaId: 3, vendiRisorsaId: 5, prezzoVendita: 6, prezzoAcquisto: 5 }
 ];
 
-/** Restituisce l'emoji associata alla razza (es. Rettiliani → 🦎, Robot → 🤖). */
+/** Restituisce l'emoji associata al popolo (es. Elfo → 🧝, Golem → 🗿). */
 export function getEmojiRazza(razza: Razza): string {
   const p = pianetiData.find((x) => x.razza === razza);
   if (p) return p.emoji;
   if (razza === "Umano") return "👤";
-  if (razza === "Robot") return "🤖";
-  return "🪐";
+  if (razza === "Golem") return "🗿";
+  return "🏰";
 }

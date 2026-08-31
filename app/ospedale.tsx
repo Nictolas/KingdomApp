@@ -23,10 +23,10 @@ export default function OspedaleScreen() {
   const dottore = dottoreId ? abitanti.find((a) => a.id === dottoreId) : null;
 
   const malati = abitanti.filter(
-    (a) => a.razza !== "Robot" && getStatoSalute(a) !== "Sano" && getStatoSalute(a) !== "Incinta"
+    (a) => a.razza !== "Golem" && getStatoSalute(a) !== "Sano" && getStatoSalute(a) !== "Incinta"
   );
 
-  const incinte = abitanti.filter((a) => a.razza !== "Robot" && a.incinta === true);
+  const incinte = abitanti.filter((a) => a.razza !== "Golem" && a.incinta === true);
 
   const abitantiDisponibiliDottore = useMemo(() => {
     if (!ospedale || dottore) return [];
@@ -159,8 +159,8 @@ export default function OspedaleScreen() {
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{malato.nome}</Text>
                     <Text style={styles.cardInfo}>Età: {malato.eta} anni</Text>
-                    <Text style={styles.malatoPesoSalute}>Peso: {malato.razza === "Robot" ? "—" : `${malato.peso ?? 50}/100`} · Salute: {malato.razza === "Robot" ? "—" : getStatoSalute(malato)}</Text>
-                    <Text style={styles.cardInfo}>Felicità: {malato.razza === "Robot" ? "—" : `${malato.felicità}/100`}</Text>
+                    <Text style={styles.malatoPesoSalute}>Peso: {malato.razza === "Golem" ? "—" : `${malato.peso ?? 50}/100`} · Salute: {malato.razza === "Golem" ? "—" : getStatoSalute(malato)}</Text>
+                    <Text style={styles.cardInfo}>Felicità: {malato.razza === "Golem" ? "—" : `${malato.felicità}/100`}</Text>
                   </View>
                 </View>
               ))}

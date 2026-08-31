@@ -63,7 +63,7 @@ export function EnergiaModal({ visible, edifici, abitanti = [], onClose }: Energ
     });
 
   // Fazione Robots: 2 energia per ogni membro Robot
-  const numRobots = abitanti.filter((a) => a.razza === "Robot").length;
+  const numRobots = abitanti.filter((a) => a.razza === "Golem").length;
   const consumoRobots = numRobots * ENERGIA_PER_ROBOT;
 
   const totaleConsumo =
@@ -160,13 +160,13 @@ export function EnergiaModal({ visible, edifici, abitanti = [], onClose }: Energ
                     <View style={styles.item}>
                       <Text style={styles.emoji}>🤖</Text>
                       <View style={styles.itemContent}>
-                        <Text style={styles.nome}>Fazione Robots</Text>
+                        <Text style={styles.nome}>Fazione Golem</Text>
                         <View style={styles.itemRow}>
                           <Text style={styles.label}>Consumo:</Text>
                           <Text style={styles.valoreNegativo}>-{consumoRobots} MW</Text>
                         </View>
                         <View style={styles.itemRow}>
-                          <Text style={styles.label}>Membri (Robot):</Text>
+                          <Text style={styles.label}>Membri (Golem):</Text>
                           <Text style={styles.dettaglio}>{numRobots} × {ENERGIA_PER_ROBOT} MW</Text>
                         </View>
                       </View>

@@ -101,7 +101,7 @@ export function autoAssegnaCittadiniDisoccupati(abitanti: Abitante[], edifici: E
       if (isGiocatore(a)) return false;
       if (!abitanteVuolePrendereLavoro(a)) return false;
       if (a.lavoro === "Pensionato" || a.lavoro === "Prigioniero") return false;
-      if (a.razza === "Robot") return false;
+      if (a.razza === "Golem") return false;
       return getCastaAbitante(a) === "Cittadino";
     })
     .sort((a, b) => {
@@ -120,7 +120,7 @@ export function autoAssegnaCittadiniDisoccupati(abitanti: Abitante[], edifici: E
 export function edificioAccettaDisoccupatoCittadino(abitante: Abitante, edificio: Edificio): boolean {
   if (isGiocatore(abitante)) return false;
   if (!abitanteVuolePrendereLavoro(abitante)) return false;
-  if (abitante.razza === "Robot") return false;
+  if (abitante.razza === "Golem") return false;
   if (getCastaAbitante(abitante) !== "Cittadino") return false;
   if (!isEdificioPubblicoConPostazioniLavoro(edificio)) return false;
   const cap = edificio.capacità ?? 0;
@@ -201,7 +201,7 @@ export function getServiDellaGlebaAssegnabili(abitanti: Abitante[], edifici: Edi
 
   return abitanti.filter((a) => {
     if (getCastaAbitante(a) !== "Servo della gleba") return false;
-    if (a.lavoro === "Pensionato" || a.lavoro === "Prigioniero" || a.razza === "Robot") return false;
+    if (a.lavoro === "Pensionato" || a.lavoro === "Prigioniero" || a.razza === "Golem") return false;
     if (giàAssegnatiLavoro.has(a.id)) return false;
     return true;
   });
@@ -356,7 +356,7 @@ export function autoAssegnaDisoccupati(abitanti: Abitante[], edifici: Edificio[]
     .filter(
       (a) =>
         a.lavoro === "Disoccupato" &&
-        a.razza !== "Robot" &&
+        a.razza !== "Golem" &&
         puoEssereAssegnatoForzatamente(a)
     )
     .sort((a, b) => b.competenza - a.competenza);

@@ -56,7 +56,7 @@ export function createSaveEnvelope() {
         abitanti: [abitante],
         abitantiProposti: [],
         nextId: 2,
-        razzaNativi: "Grigi",
+        razzaNativi: "Elfo",
         nativiNonIntegrati: 120
       },
       colony: {

@@ -54,7 +54,7 @@ export const eventoGuerraCivile: EventoDef = {
     const deltaFelicità = mitigazione ? -2 : -4;
     const deltaLealtà = mitigazione ? -1 : -3;
     abitanti.forEach((a) => {
-      if (a.razza === "Robot") return;
+      if (a.razza === "Golem") return;
       (a as Abitante).felicità = Math.max(1, (a as Abitante).felicità + deltaFelicità);
       (a as Abitante).lealtà = Math.max(0, (a as Abitante).lealtà + deltaLealtà);
     });

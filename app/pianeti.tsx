@@ -22,18 +22,18 @@ export default function PianetiScreen() {
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
-        <Text style={styles.title}>🪐 Pianeti</Text>
+        <Text style={styles.title}>🏰 Regni e popoli</Text>
         <View style={{ width: 50 }} />
       </View>
 
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.subtitle}>
-          Pianeti di origine delle razze presenti nella colonia. Gli abitanti possono provenire da questi mondi.
+          Terre d'origine dei popoli che abitano il regno e ne attraversano le frontiere.
         </Text>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Pianeti ({pianetiData.length})</Text>
+          <Text style={styles.sectionTitle}>Regni ({pianetiData.length})</Text>
           <View style={styles.grid}>
             {conteggioPerRazza.map((p) => (
               <View key={p.id} style={styles.card}>
@@ -49,7 +49,7 @@ export default function PianetiScreen() {
 
         <View style={styles.note}>
           <Text style={styles.noteText}>
-            Gli Umani sono originari della Terra. Le altre razze provengono dai pianeti elencati e possono essere trovate tra gli abitanti e gli immigrati.
+            Umani, Elfi, Nani, Orchi, Goblin e Golem possono vivere nel regno o arrivare come viandanti e immigrati.
           </Text>
         </View>
       </ScrollView>

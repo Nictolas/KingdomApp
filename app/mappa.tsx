@@ -1839,7 +1839,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const deltaOrdini = calcolaDeltaOrdiniMercato();
   const deltaTesoroMercato = calcolaDeltaTesoroMercato();
 
-  const abitantiConFelicità = abitanti.filter((a) => a.razza !== "Robot");
+  const abitantiConFelicità = abitanti.filter((a) => a.razza !== "Golem");
   const nConFelicità = abitantiConFelicità.length;
   const felicitàMedia = nConFelicità ? Math.round(abitantiConFelicità.reduce((s, a) => s + calcolaFelicitàModificata(a), 0) / nConFelicità) : 0;
   const nConLealtàPaura = abitantiConFelicità.length;
@@ -2542,7 +2542,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       setCommuteByAbitanteId((prevComm) => {
         const out = { ...prevComm };
         for (const a of abitanti) {
-          if (a.razza === "Robot") continue;
+          if (a.razza === "Golem") continue;
           if (out[a.id]) continue;
           const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
           if (!lav) continue;
@@ -2569,7 +2569,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       setBarArrivatiByEdificio((prev0) => {
         let acc = prev0;
         for (const a of abitanti) {
-          if (a.razza === "Robot") continue;
+          if (a.razza === "Golem") continue;
           const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
           if (!lav) continue;
           const fascia = fasciaPerEdificio(lav);
@@ -2979,7 +2979,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     const nuoveCommuteById: Record<number, CommuteInfo> = {};
 
     for (const a of abitanti) {
-      if (a.razza === "Robot") continue;
+      if (a.razza === "Golem") continue;
       if (commuteByAbitanteId[a.id]) continue;
       if (abitanteInOrarioLavoroEdificio(a.id, orologioMinuti, edifici) && lavoroArrivatiIds.has(a.id)) {
         continue;
@@ -3240,7 +3240,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       setLavoroArrivatiIds(new Set());
       const next: Record<number, CommuteInfo> = {};
       for (const a of abitanti) {
-        if (a.razza === "Robot") continue;
+        if (a.razza === "Golem") continue;
         const home = cellaCasaPerAbitanteId.get(a.id) ?? null;
         const ult = ultimaCellaAbitanteRef.current.get(a.id) ?? null;
         const fromBase = ult ?? home;
@@ -3302,7 +3302,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       setLavoroArrivatiIds((prev) => {
         const s = new Set(prev);
         for (const a of abitanti) {
-          if (a.razza === "Robot") continue;
+          if (a.razza === "Golem") continue;
           if (next[a.id]?.purpose === "rapina") continue;
           // Fame critica eleggibile a rapina: non teletrasportare al lavoro.
           if (
@@ -3965,8 +3965,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         cell,
         path: commute?.path,
         pathToken: commute?.token ?? 0,
-        appearance: abitante.razza === "Robot" ? "robot" : "human",
-        markerEmoji: abitante.razza === "Robot" ? getEmojiAbitante(abitante) : undefined
+        appearance: abitante.razza === "Golem" ? "golem" : "human",
+        markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined
       };
     }),
   [abitantiPerOverlayMappa, commuteByAbitanteId, cellaCasaPerAbitanteId, cols]);
@@ -4451,7 +4451,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                             },
                             orologioMinuti
                           ) ||
-                          (abitante.razza !== "Robot" &&
+                          (abitante.razza !== "Golem" &&
                             (inCommute ||
                               abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) ||
                               abitanteAlBarRoutineOra(
@@ -4461,7 +4461,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                                 edifici
                               )))
                         }
-                        markerEmoji={abitante.razza === "Robot" ? getEmojiAbitante(abitante) : null}
+                        markerEmoji={abitante.razza === "Golem" ? getEmojiAbitante(abitante) : null}
                         pressAccessibilityLabel={`Seleziona ${getAbitanteNome(abitante.id)}`}
                         doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitante.id)}`}
                         isCellFreeForMe={(cell) => isCellFreeForAbitante(abitante.id, cell)}

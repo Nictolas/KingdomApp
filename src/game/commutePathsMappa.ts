@@ -266,7 +266,7 @@ export function pianificaCommuteMattina(
   minutiDaMezzanotte: number,
   optsExtra?: { puòRapinare?: boolean }
 ): RisultatoCommuteMattina {
-  if (abitante.razza === "Robot") return { path: null };
+  if (abitante.razza === "Golem") return { path: null };
 
   const fromBase = homeAnchor ?? ultimaCellaNota;
   const haCasa = homeAnchor != null;

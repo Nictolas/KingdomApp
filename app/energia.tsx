@@ -29,7 +29,7 @@ function useBilancioEnergia() {
     return { edificio: e, consumo: perAbitante * numAbitanti };
   }).filter((c) => c.consumo > 0);
 
-  const numRobots = abitanti.filter((a) => a.razza === "Robot").length;
+  const numRobots = abitanti.filter((a) => a.razza === "Golem").length;
   const consumoRobots = numRobots * ENERGIA_PER_ROBOT;
 
   const produzioneEnergia = edifici
@@ -151,9 +151,9 @@ export default function EnergiaScreen() {
             <View style={styles.card}>
               <Text style={styles.emoji}>🤖</Text>
               <View style={styles.cardContent}>
-                <Text style={styles.nome}>Fazione Robots</Text>
+                <Text style={styles.nome}>Fazione Golem</Text>
                 <Text style={styles.valoreNegativo}>-{consumoRobots} MW</Text>
-                <Text style={styles.dettaglio}>{numRobots} × {ENERGIA_PER_ROBOT} MW</Text>
+                <Text style={styles.dettaglio}>{numRobots} × {ENERGIA_PER_ROBOT} energia runica</Text>
               </View>
             </View>
           )}

@@ -111,7 +111,7 @@ export default function MercatoScreen() {
         )}
 
         <View style={styles.sectionBar}>
-          <Text style={styles.sectionTitle}>🪐 Pianeti</Text>
+          <Text style={styles.sectionTitle}>🏰 Regni mercantili</Text>
           <Pressable onPress={() => router.push("/pianeti")} hitSlop={8}>
             <Text style={styles.link}>Tutti →</Text>
           </Pressable>

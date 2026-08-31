@@ -7,7 +7,7 @@ export default function PauraScreen() {
   const router = useRouter();
   const { abitanti } = useGameContext();
 
-  const abitantiConPaura = abitanti.filter((a) => a.razza !== "Robot");
+  const abitantiConPaura = abitanti.filter((a) => a.razza !== "Golem");
   const n = abitantiConPaura.length;
   const pauraMedia = n ? Math.round(abitantiConPaura.reduce((s, a) => s + a.paura, 0) / n) : 0;
 
@@ -30,7 +30,7 @@ export default function PauraScreen() {
           <Text style={styles.mediaLabel}>Paura media (colonia)</Text>
           <Text style={styles.mediaValue}>{pauraMedia}%</Text>
           <Text style={styles.mediaSubtext}>
-            Media della paura degli abitanti non Robot ({n} abitanti). Valore base 0–100.
+            Media della paura degli abitanti non Golem ({n} abitanti). Valore base 0–100.
           </Text>
         </View>
 

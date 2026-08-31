@@ -98,7 +98,7 @@ def build_preview(characters: list[tuple[str, Image.Image]], buildings: list[tup
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--human", type=Path, required=True)
-    parser.add_argument("--robot", type=Path, required=True)
+    parser.add_argument("--golem", type=Path, required=True)
     parser.add_argument("--command-center", type=Path, required=True)
     parser.add_argument("--dormitory", type=Path, required=True)
     parser.add_argument("--greenhouse", type=Path, required=True)
@@ -108,7 +108,7 @@ def main() -> None:
 
     characters = [
         ("Human colonist", normalize_character(args.human, args.output / "characters/human-colonist.png")),
-        ("Service robot", normalize_character(args.robot, args.output / "characters/service-robot.png")),
+        ("Stone golem", normalize_character(args.golem, args.output / "characters/stone-golem.png")),
     ]
     buildings = [
         ("Command Center", normalize_building(args.command_center, args.output / "buildings/command-center.png")),

@@ -202,12 +202,20 @@ function cloneSaveValue<T>(value: T): T {
 
 export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
   const next = cloneSaveValue(payload);
+  const normalizzaRazzaFantasy = (razza: unknown): Abitante["razza"] => {
+    if (razza === "Robot") return "Golem";
+    if (razza === "Grigi" || razza === "Insettoidi") return "Goblin";
+    if (razza === "Nordici" || razza === "Marini") return "Elfo";
+    if (razza === "Rettiliani" || razza === "Ferini") return "Orco";
+    return razza as Abitante["razza"];
+  };
   next.calendar.mese = Math.min(12, Math.max(1, Math.trunc(next.calendar.mese)));
   next.calendar.anno = clampNonNegative(Math.trunc(next.calendar.anno));
   next.calendar.giorno = Math.max(1, Math.trunc(next.calendar.giorno));
   next.calendar.minutiDaMezzanotte = ((Math.trunc(next.calendar.minutiDaMezzanotte) % 1440) + 1440) % 1440;
   next.population.nextId = Math.max(1, Math.trunc(next.population.nextId));
   next.population.nativiNonIntegrati = clampNonNegative(Math.trunc(next.population.nativiNonIntegrati));
+  next.population.razzaNativi = normalizzaRazzaFantasy(next.population.razzaNativi) ?? "Elfo";
   next.colony.moneteGiocatore = clampNonNegative(next.colony.moneteGiocatore);
   next.colony.risorse = next.colony.risorse.map((r: Risorsa) => ({ ...r, quantità: clampNonNegative(r.quantità) }));
   next.colony.edifici = next.colony.edifici.map((e: Edificio) => ({
@@ -227,7 +235,16 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
   });
   next.population.abitanti = next.population.abitanti.map((a: Abitante) => ({
     ...a,
+    razza: normalizzaRazzaFantasy(a.razza),
+    fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f),
     inventario: a.inventario ? normalizeInventario(a.inventario) : undefined
   }));
+  next.population.abitantiProposti = next.population.abitantiProposti.map((a: Abitante) => ({
+    ...a,
+    razza: normalizzaRazzaFantasy(a.razza),
+    fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f)
+  }));
+  next.policies.razzaCampoLavoro = normalizzaRazzaFantasy(next.policies.razzaCampoLavoro) ?? null;
+  next.policies.razzaCampoSterminio = normalizzaRazzaFantasy(next.policies.razzaCampoSterminio) ?? null;
   return next;
 }

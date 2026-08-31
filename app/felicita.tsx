@@ -8,12 +8,12 @@ export default function FelicitaScreen() {
   const router = useRouter();
   const { abitanti, calcolaFelicitàModificata } = useGameContext();
 
-  const abitantiConFelicità = abitanti.filter((a) => a.razza !== "Robot");
+  const abitantiConFelicità = abitanti.filter((a) => a.razza !== "Golem");
   const n = abitantiConFelicità.length;
   const felicitàMedia = n ? Math.round(abitantiConFelicità.reduce((s, a) => s + calcolaFelicitàModificata(a), 0) / n) : 0;
 
   const classificaAbitanti = [...abitanti]
-    .filter((a) => a.razza !== "Robot")
+    .filter((a) => a.razza !== "Golem")
     .map((a) => ({ abitante: a, felicità: calcolaFelicitàModificata(a) }))
     .sort((x, y) => y.felicità - x.felicità);
 
@@ -40,7 +40,7 @@ export default function FelicitaScreen() {
               <Text style={styles.totaleLabel}>Felicità media (colonia)</Text>
               <Text style={styles.totaleValue}>{felicitàMedia}%</Text>
               <Text style={styles.totaleSubtext}>
-                Calcolata sulla felicità modificata degli abitanti non Robot ({n} abitanti).
+                Calcolata sulla felicità modificata degli abitanti non Golem ({n} abitanti).
               </Text>
             </View>
 

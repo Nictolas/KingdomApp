@@ -74,7 +74,7 @@ export function patchBisogni(abitante: Abitante, delta: Partial<BisogniAbitante>
 }
 
 export function abitanteUsaBisogniUmani(abitante: Abitante): boolean {
-  return abitante.razza !== "Robot";
+  return abitante.razza !== "Golem";
 }
 
 /** Bonus igiene/giorno da qualità residenza (catalogo). */

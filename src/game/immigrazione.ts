@@ -20,7 +20,7 @@ const PERSONALITÀ = [
   "Curioso", "Lavoratore", "Analitico", "Creativo",
   "Pragmatico", "Idealista", "Deciso", "Collaborativo"
 ];
-const RAZZE_IMMIGRATI: Razza[] = ["Umano", "Grigi", "Nordici", "Rettiliani", "Insettoidi", "Marini", "Ferini"];
+const RAZZE_IMMIGRATI: Razza[] = ["Umano", "Elfo", "Nano", "Orco", "Goblin", "Golem"];
 const EMOJI_UMANI_M: string[] = ["👨", "👨‍🔬", "👨‍💼", "👨‍🔧", "👨‍🌾"];
 const EMOJI_UMANI_F: string[] = ["👩", "👩‍🔬", "👩‍💼", "👩‍🔧", "👩‍🌾"];
 const RELIGIONI: Abitante["religione"][] = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto degli Alieni"];
@@ -50,8 +50,8 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
       emoji = getEmojiRazza(razza);
     }
     const fazioniIniziali =
-      razza === "Robot"
-        ? ["Robots", "Cittadini"]
+      razza === "Golem"
+        ? ["Golem", "Cittadini"]
         : [FAZIONI_RUOLO[Math.floor(Math.random() * FAZIONI_RUOLO.length)], "Immigrati"];
 
     const lavoro = LAVORI[Math.floor(Math.random() * LAVORI.length)];
