@@ -37,6 +37,7 @@ import {
 import { CampoDiLavoroModal } from "./CampoDiLavoroModal";
 import { EdificioInfoModal } from "./EdificioInfoModal";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
+import { PixelAvatarPreview } from "./PixelAvatarPreview";
 
 const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
 
@@ -287,8 +288,12 @@ export function AbitanteInfoModal({
             {/* Header con accento */}
             <View style={styles.headerAccent} />
             <View style={styles.header}>
-              <View style={styles.avatarWrap}>
-                <Text style={styles.avatarEmoji}>{emojiDisplay}</Text>
+              <View style={[styles.avatarWrap, abitante.aspetto && abitante.razza !== "Golem" && styles.avatarWrapPixel]}>
+                {abitante.aspetto && abitante.razza !== "Golem" ? (
+                  <PixelAvatarPreview compatto razza={abitante.razza ?? "Umano"} aspetto={abitante.aspetto} />
+                ) : (
+                  <Text style={styles.avatarEmoji}>{emojiDisplay}</Text>
+                )}
               </View>
               <View style={styles.headerText}>
                 <View style={styles.titleRow}>
@@ -583,6 +588,7 @@ const styles = StyleSheet.create({
     marginRight: 14
   },
   avatarEmoji: { fontSize: 30 },
+  avatarWrapPixel: { width: 88, height: 96, borderRadius: 10, overflow: "hidden" },
   headerText: { flex: 1, minWidth: 0 },
   titleRow: {
     flexDirection: "row",

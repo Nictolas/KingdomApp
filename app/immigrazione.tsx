@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
+import { PixelAvatarPreview } from "../src/ui/PixelAvatarPreview";
 
 export default function ImmigrazioneScreen() {
   const router = useRouter();
@@ -32,7 +33,11 @@ export default function ImmigrazioneScreen() {
             <View style={styles.grid}>
               {abitantiProposti.map((a: Abitante) => (
                 <View key={a.id} style={styles.card}>
-                  <Text style={styles.emoji}>{getEmojiAbitante(a)}</Text>
+                  {a.aspetto && a.razza !== "Golem" ? (
+                    <PixelAvatarPreview compatto razza={a.razza ?? "Umano"} aspetto={a.aspetto} />
+                  ) : (
+                    <Text style={styles.emoji}>{getEmojiAbitante(a)}</Text>
+                  )}
                   <Text style={styles.cardTitle}>{a.nome}</Text>
                   <Text style={styles.cardLavoro}>{a.lavoro}</Text>
                   <Text style={styles.cardInfo}>Età: {a.eta}</Text>
