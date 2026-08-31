@@ -23,6 +23,14 @@ export function createSaveEnvelope() {
     felicità: 80,
     religione: "Ateo",
     razza: "Umano",
+    aspetto: {
+      coloreCapelli: "#6b3f24",
+      stileCapelli: "spettinati",
+      stileOcchi: "tondi",
+      colorePelle: "#e9b38f",
+      vestiti: "viandante",
+      cappello: "nessuno"
+    },
     inventario: [{ itemId: "monete", quantità: 25 }]
   };
   const edificio = {

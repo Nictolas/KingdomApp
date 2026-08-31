@@ -15,6 +15,7 @@ import { specializzazioneCasuale } from "./specializzazione";
 import { getProduttivitaEffettiva, normalizzaAbitanteBisogni } from "./bisogni";
 import { getStipendioMensileEdificio } from "./edificiPubblici";
 import { redditoMensileLavoroDefault } from "./economiaPrezzi";
+import { generaAspettoCasuale } from "./personaggioAspetto";
 
 export type AvanzaMeseInput = {
   abitanti: Abitante[];
@@ -674,6 +675,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       felicità: 70 + Math.floor(Math.random() * 25),
       religione: madre.religione,
       razza: razzaNeonato,
+      ...(razzaNeonato !== "Golem" && { aspetto: generaAspettoCasuale(razzaNeonato) }),
       sesso: sessoNeonato,
       specializzazione: specializzazioneCasuale(),
       bisogni: { fame: 80, energia: 90, divertimento: 70, socialita: 70, igiene: 80 }

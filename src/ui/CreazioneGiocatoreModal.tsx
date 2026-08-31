@@ -9,11 +9,11 @@ import {
   TextInput,
   View
 } from "react-native";
-import { DIARIO_APERTURA } from "../game/diarioContenuto";
 import {
   ASPETTO_GIOCATORE_DEFAULT,
   COLORI_CAPELLI,
   COLORI_PELLE,
+  generaAspettoCasuale,
   type AspettoPersonaggio,
   type CappelloPersonaggio,
   type RazzaGiocatore,
@@ -99,32 +99,45 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
     });
   };
 
+  const selezionaRazza = (next: RazzaGiocatore) => {
+    setRazza(next);
+    if (next === "Orco" && !["#79a86b", "#668f58", "#8aa66b"].includes(aspetto.colorePelle)) {
+      setAspetto((value) => ({ ...value, colorePelle: "#79a86b" }));
+    }
+  };
+
   return (
     <Modal visible={visible} transparent animationType="fade">
       <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]}>
         <Pressable
-          style={[styles.modalCard, isDesktop && modalContentFullscreen]}
+          style={[styles.modalCard, isDesktop && modalContentFullscreen, isDesktop && styles.modalCardDesktop]}
           onPress={(e) => e.stopPropagation()}
         >
           <View style={styles.accentLine} />
           <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
             <View style={styles.header}>
               <View style={styles.emojiWrap}>
-                <Text style={styles.emoji}>📖</Text>
+                <Text style={styles.emoji}>🛡️</Text>
               </View>
-              <Text style={styles.title}>MyKingdom · Diario della colonia</Text>
+              <Text style={styles.title}>Crea il tuo sovrano</Text>
+              <Text style={styles.subtitle}>Combina liberamente i pezzi in stile chibi pixel-art</Text>
               <View style={styles.titleUnderline} />
             </View>
 
             <View style={styles.messaggioWrap}>
-              <Text style={styles.messaggio}>{DIARIO_APERTURA}</Text>
+              <Text style={styles.messaggio}>Il tuo aspetto resterà legato al personaggio e verrà conservato nel salvataggio.</Text>
             </View>
 
             <Text style={styles.sectionTitle}>Chi sei?</Text>
 
-            <View style={styles.previewWrap}>
+            <View style={[styles.previewWrap, isDesktop && styles.previewWrapDesktop]}>
               <PixelAvatarPreview razza={razza} aspetto={aspetto} />
-              <Text style={styles.previewHint}>Anteprima chibi · pixel art</Text>
+              <View style={styles.previewMeta}>
+                <Text style={styles.previewHint}>{razza} · {aspetto.vestiti}</Text>
+                <Pressable style={styles.randomButton} onPress={() => setAspetto(generaAspettoCasuale(razza))}>
+                  <Text style={styles.randomButtonText}>🎲 Sorprendimi</Text>
+                </Pressable>
+              </View>
             </View>
 
             <View style={styles.field}>
@@ -185,7 +198,7 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
 
             <Text style={styles.sectionTitle}>Aspetto del personaggio</Text>
 
-            <View style={styles.field}><Text style={styles.label}>Razza</Text><View style={styles.chipRowWrap}>{RAZZE.map((o) => <Pressable key={o.id} style={[styles.chip, razza === o.id && styles.chipSelected]} onPress={() => setRazza(o.id)}><Text style={[styles.chipText, razza === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
+            <View style={styles.field}><Text style={styles.label}>Razza</Text><View style={styles.chipRowWrap}>{RAZZE.map((o) => <Pressable key={o.id} style={[styles.chip, razza === o.id && styles.chipSelected]} onPress={() => selezionaRazza(o.id)}><Text style={[styles.chipText, razza === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
             <View style={styles.field}><Text style={styles.label}>Colore della pelle</Text><View style={styles.swatchRow}>{COLORI_PELLE.map((color) => <Pressable accessibilityLabel={`Pelle ${color}`} key={color} onPress={() => setAspetto((v) => ({ ...v, colorePelle: color }))} style={[styles.swatch, { backgroundColor: color }, aspetto.colorePelle === color && styles.swatchSelected]} />)}</View></View>
             <View style={styles.field}><Text style={styles.label}>Stile dei capelli</Text><View style={styles.chipRowWrap}>{CAPELLI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.stileCapelli === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, stileCapelli: o.id }))}><Text style={[styles.chipText, aspetto.stileCapelli === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
             <View style={styles.field}><Text style={styles.label}>Colore dei capelli</Text><View style={styles.swatchRow}>{COLORI_CAPELLI.map((color) => <Pressable accessibilityLabel={`Capelli ${color}`} key={color} onPress={() => setAspetto((v) => ({ ...v, coloreCapelli: color }))} style={[styles.swatch, { backgroundColor: color }, aspetto.coloreCapelli === color && styles.swatchSelected]} />)}</View></View>
@@ -267,6 +280,8 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 0.3
   },
+  modalCardDesktop: { width: "94%", maxWidth: 1040, height: "92%", borderRadius: 20, padding: 24 },
+  subtitle: { color: "#d6c39b", fontSize: 13, marginTop: 7, textAlign: "center" },
   titleUnderline: {
     width: 48,
     height: 2,
@@ -296,8 +311,12 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
-  previewWrap: { alignItems: "center", marginBottom: 18, gap: 8 },
-  previewHint: { color: "#93c5fd", fontSize: 11, fontWeight: "700" },
+  previewWrap: { alignItems: "center", marginBottom: 18, gap: 10, backgroundColor: "rgba(120,83,45,0.16)", borderWidth: 1, borderColor: "rgba(214,195,155,0.25)", borderRadius: 14, padding: 14 },
+  previewWrapDesktop: { flexDirection: "row", justifyContent: "center", gap: 28, paddingVertical: 10 },
+  previewMeta: { alignItems: "center", gap: 8 },
+  previewHint: { color: "#f3ddb0", fontSize: 12, fontWeight: "800", textTransform: "capitalize" },
+  randomButton: { backgroundColor: "#5c3b20", borderWidth: 1, borderColor: "#d6b56f", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
+  randomButtonText: { color: "#fff4d6", fontSize: 12, fontWeight: "800" },
   field: {
     marginBottom: 14
   },

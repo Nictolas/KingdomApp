@@ -5,6 +5,7 @@ import { getEmojiRazza } from "../kingdomData";
 import { generaNomeAlieno } from "./nomiAlieni";
 import { scegliNomeCognomeUmano } from "./nomiUmani";
 import { redditoMensileLavoroDefault } from "./economiaPrezzi";
+import { generaAspettoCasuale } from "./personaggioAspetto";
 
 export type GeneraImmigratiPropostiResult = {
   nuoviAbitanti: Abitante[];
@@ -79,6 +80,7 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
       religione: RELIGIONI[Math.floor(Math.random() * RELIGIONI.length)],
       razza,
       specie: isUmano ? "umano" : "alieno",
+      ...(razza !== "Golem" && { aspetto: generaAspettoCasuale(razza) }),
       ...(sesso != null && { sesso }),
       specializzazione: specializzazioneCasuale()
     }));

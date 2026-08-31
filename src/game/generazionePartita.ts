@@ -4,6 +4,7 @@ import { inferTitoloStudioPerEta } from "./titoloStudio";
 import { specializzazioneCasuale } from "./specializzazione";
 import { pianetiData, getEmojiRazza } from "../kingdomData";
 import { generaNomeAlieno } from "./nomiAlieni";
+import { generaAspettoCasuale } from "./personaggioAspetto";
 import { scegliNomeCognomeUmano } from "./nomiUmani";
 import { LAVORO_GIOCATORE, ETA_GIOCATORE_INIZIALE } from "./schiavituCommercio";
 import { redditoMensileLavoroDefault, STIPENDIO_BASE_MONETE_MESE } from "./economiaPrezzi";
@@ -372,5 +373,11 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
     scelta.incinta = true;
   }
 
-  return { abitanti: abitanti.map(abitanteConInventarioIniziale), razzaNativi };
+  return {
+    abitanti: abitanti.map((abitante) => abitanteConInventarioIniziale({
+      ...abitante,
+      ...(abitante.razza !== "Golem" && { aspetto: generaAspettoCasuale(abitante.razza ?? "Umano") })
+    })),
+    razzaNativi
+  };
 }

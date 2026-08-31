@@ -3,6 +3,7 @@ import { abitanteConInventarioIniziale } from "./inventario";
 import { specializzazioneCasuale } from "./specializzazione";
 import { generaNomeAlieno } from "./nomiAlieni";
 import { redditoMensileLavoroDefault } from "./economiaPrezzi";
+import { generaAspettoCasuale } from "./personaggioAspetto";
 
 export type GeneraAssimilatiInput = {
   razzaNativi: Razza;
@@ -57,6 +58,7 @@ export function generaAssimilati({
       religione: religioni[Math.floor(Math.random() * religioni.length)],
       razza: razzaNativi,
       specie: "alieno",
+      ...(razzaNativi !== "Golem" && { aspetto: generaAspettoCasuale(razzaNativi) }),
       specializzazione: specializzazioneCasuale()
     }));
   }

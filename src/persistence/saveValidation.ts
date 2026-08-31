@@ -1,5 +1,6 @@
 import type { Abitante, Edificio, Risorsa } from "../types";
 import { SAVE_FORMAT, SAVE_SCHEMA_VERSION, type GameSaveV1, type SaveEnvelopeV1 } from "./saveTypes.ts";
+import { generaAspettoDaSeed } from "../game/personaggioAspetto";
 
 export class SaveValidationError extends Error {
   constructor(message: string) {
@@ -236,12 +237,18 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
   next.population.abitanti = next.population.abitanti.map((a: Abitante) => ({
     ...a,
     razza: normalizzaRazzaFantasy(a.razza),
+    ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
+      aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
+    }),
     fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f),
     inventario: a.inventario ? normalizeInventario(a.inventario) : undefined
   }));
   next.population.abitantiProposti = next.population.abitantiProposti.map((a: Abitante) => ({
     ...a,
     razza: normalizzaRazzaFantasy(a.razza),
+    ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
+      aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
+    }),
     fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f)
   }));
   next.policies.razzaCampoLavoro = normalizzaRazzaFantasy(next.policies.razzaCampoLavoro) ?? null;
