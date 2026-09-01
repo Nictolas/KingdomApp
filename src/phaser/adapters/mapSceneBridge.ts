@@ -58,6 +58,8 @@ export type PhaserMapActions = {
   onCharacterPress?: (characterId: number) => void;
   onCharacterDoublePress?: (characterId: number) => void;
   onCharacterPathComplete?: (characterId: number, pathToken: number) => void;
+  onCharacterStepAttempt?: (characterId: number, fromCell: number, toCell: number) => boolean;
+  onCharacterPathBlocked?: (characterId: number, fromCell: number, blockedCell: number) => void;
   onDragStateChange?: (dragging: boolean) => void;
 };
 
@@ -109,6 +111,14 @@ export class MapSceneBridge {
 
   completeCharacterPath(characterId: number, pathToken: number): void {
     this.actions.onCharacterPathComplete?.(characterId, pathToken);
+  }
+
+  attemptCharacterStep(characterId: number, fromCell: number, toCell: number): boolean {
+    return this.actions.onCharacterStepAttempt?.(characterId, fromCell, toCell) ?? true;
+  }
+
+  blockCharacterPath(characterId: number, fromCell: number, blockedCell: number): void {
+    this.actions.onCharacterPathBlocked?.(characterId, fromCell, blockedCell);
   }
 
   setDragging(dragging: boolean): void {

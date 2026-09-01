@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 
 import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
-import type { MapSceneBridge, PhaserMapBuilding, PhaserMapSnapshot } from "../adapters/mapSceneBridge";
+import type { MapSceneBridge, PhaserMapBuilding, PhaserMapCharacter, PhaserMapSnapshot } from "../adapters/mapSceneBridge";
 import { LPC_DIRECTION_ROWS } from "../../character-system/lpcPack";
 import { canRenderCharacter, resolveCharacterLayers } from "../../character-system/registry";
 import { scrollKeepingPointerAnchor } from "../../game/pointerZoom";
@@ -360,12 +360,31 @@ export class KingdomMapScene extends Phaser.Scene {
       }
       if (waypoints.length > 0) {
         const animatedView = view;
-        this.tweens.chain({
-          targets: view.root,
-          tweens: waypoints.map((waypoint, index) => {
-            const previous = index === 0 ? start : waypoints[index - 1].cell;
-            const direction = this.directionForStep(previous, waypoint.cell, snapshot.cols);
-            return {
+        let currentCell = start;
+        const moveNext = (index: number) => {
+          if (index >= waypoints.length) {
+            if (animatedView.usesLpc) {
+              const directionName = this.directionName(animatedView.direction);
+              const layers = character.characterAppearance ? resolveCharacterLayers(character.characterAppearance, "idle") : [];
+              animatedView.sprites.forEach((layerSprite, layerIndex) => {
+                const layer = layers[layerIndex];
+                if (!layer) return layerSprite.setVisible(false);
+                layerSprite.stop().setVisible(true).setTexture(layer.sourceId).setFrame(LPC_DIRECTION_ROWS[directionName] * 2);
+              });
+            } else animatedView.sprite.stop().setFrame(animatedView.direction);
+            this.bridge.completeCharacterPath(character.id, token);
+            return;
+          }
+          const waypoint = waypoints[index]!;
+          if (waypoint.cell !== currentCell && !this.bridge.attemptCharacterStep(character.id, currentCell, waypoint.cell)) {
+            this.stopCharacterAnimation(animatedView, character);
+            this.bridge.blockCharacterPath(character.id, currentCell, waypoint.cell);
+            return;
+          }
+          const direction = this.directionForStep(currentCell, waypoint.cell, snapshot.cols, animatedView.direction);
+          const nextCell = waypoint.cell;
+          const tween = this.tweens.add({
+              targets: animatedView.root,
               x: waypoint.x,
               y: waypoint.y,
               duration: 320,
@@ -387,35 +406,42 @@ export class KingdomMapScene extends Phaser.Scene {
                 }
                 else animatedView.sprite.play(`${animatedView.sprite.texture.key}-walk-${directionName}`, true);
                 animatedView.direction = direction;
+              },
+              onComplete: () => {
+                currentCell = nextCell;
+                moveNext(index + 1);
               }
-            };
-          }),
-          onComplete: () => {
-            if (animatedView.usesLpc) {
-              const directionName = this.directionName(animatedView.direction);
-              const layers = character.characterAppearance ? resolveCharacterLayers(character.characterAppearance, "idle") : [];
-              animatedView.sprites.forEach((layerSprite, layerIndex) => {
-                const layer = layers[layerIndex];
-                if (!layer) return layerSprite.setVisible(false);
-                layerSprite.stop().setVisible(true).setTexture(layer.sourceId).setFrame(LPC_DIRECTION_ROWS[directionName] * 2);
-              });
-            } else {
-              animatedView.sprite.stop().setFrame(animatedView.direction);
-            }
-            this.bridge.completeCharacterPath(character.id, token);
-          }
-        });
+          });
+          void tween;
+        };
+        moveNext(0);
       }
     }
     this.worldLayer.sort("depth");
   }
 
-  private directionForStep(from: number, to: number, cols: number): 0 | 1 | 2 | 3 {
-    const delta = to - from;
-    if (delta === -1) return 1;
-    if (delta === 1) return 2;
-    if (delta === -cols) return 3;
-    return 0;
+  private directionForStep(from: number, to: number, cols: number, fallback: 0 | 1 | 2 | 3): 0 | 1 | 2 | 3 {
+    const fromCol = from % cols;
+    const toCol = to % cols;
+    const fromRow = Math.floor(from / cols);
+    const toRow = Math.floor(to / cols);
+    if (toCol < fromCol) return 1;
+    if (toCol > fromCol) return 2;
+    if (toRow < fromRow) return 3;
+    if (toRow > fromRow) return 0;
+    return fallback;
+  }
+
+  private stopCharacterAnimation(view: CharacterView, character: PhaserMapCharacter): void {
+    if (view.usesLpc) {
+      const directionName = this.directionName(view.direction);
+      const layers = character.characterAppearance ? resolveCharacterLayers(character.characterAppearance, "idle") : [];
+      view.sprites.forEach((sprite, index) => {
+        const layer = layers[index];
+        if (!layer) return sprite.setVisible(false);
+        sprite.stop().setVisible(true).setTexture(layer.sourceId).setFrame(LPC_DIRECTION_ROWS[directionName] * 2);
+      });
+    } else view.sprite.stop().setFrame(view.direction);
   }
 
   private directionName(direction: 0 | 1 | 2 | 3): "down" | "left" | "right" | "up" {

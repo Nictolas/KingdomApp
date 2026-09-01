@@ -3978,6 +3978,16 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     return assignUniqueCharacterCells(candidates, cols, rows, isWalkableCell);
   }, [abitantiPerOverlayMappa, commuteByAbitanteId, cellaCasaPerAbitanteId, cols, rows, isWalkableCell, nudismoAttivo]);
 
+  useEffect(() => {
+    const visibleIds = new Set(phaserCharacters.map((character) => character.id));
+    for (const id of abitanteSuCellaRef.current.keys()) {
+      if (!visibleIds.has(id)) releaseCellAbitante(id);
+    }
+    for (const character of phaserCharacters) {
+      if (!abitanteSuCellaRef.current.has(character.id)) tryClaimCellAbitante(character.id, character.cell);
+    }
+  }, [phaserCharacters, releaseCellAbitante, tryClaimCellAbitante]);
+
   const phaserRevisionRef = useRef(0);
   const phaserBaseSnapshot = useMemo(
     () => buildPhaserMapSnapshot(
@@ -4013,6 +4023,12 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       meta.lavoroCercaEdificioId
     );
   }, [commuteByAbitanteId, handleCommuteFinita]);
+
+  const handlePhaserCharacterPathBlocked = useCallback((abitanteId: number, fromCell: number, blockedCell: number) => {
+    const meta = commuteByAbitanteId[abitanteId];
+    if (!meta) return;
+    handleCommuteBloccata(abitanteId, { fromCell, blockedCell, purpose: meta.purpose });
+  }, [commuteByAbitanteId, handleCommuteBloccata]);
 
   const handlePhaserCharacterPress = useCallback((abitanteId: number) => {
     setSintesiMappaAbitanteId(abitanteId);
@@ -4202,6 +4218,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               onCharacterPress={handlePhaserCharacterPress}
               onCharacterDoublePress={handlePhaserCharacterDoublePress}
               onCharacterPathComplete={handlePhaserCharacterPathComplete}
+              onCharacterStepAttempt={(abitanteId, _fromCell, toCell) => tryClaimCellAbitante(abitanteId, toCell)}
+              onCharacterPathBlocked={handlePhaserCharacterPathBlocked}
               onDragStateChange={handlePhaserDragStateChange}
             />
           </View>

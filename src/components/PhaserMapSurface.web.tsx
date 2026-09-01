@@ -27,6 +27,8 @@ export function PhaserMapSurface({
   onCharacterPress,
   onCharacterDoublePress,
   onCharacterPathComplete,
+  onCharacterStepAttempt,
+  onCharacterPathBlocked,
   onDragStateChange
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -45,7 +47,7 @@ export function PhaserMapSurface({
 
       const bridge = new MapSceneBridge(snapshot, {
         onCellPress, onCellHover, onCharacterPress, onCharacterDoublePress,
-        onCharacterPathComplete, onDragStateChange
+        onCharacterPathComplete, onCharacterStepAttempt, onCharacterPathBlocked, onDragStateChange
       });
       const sheetUrl = Asset.fromModule(SPRITESHEET).uri;
       const artUrls = {
@@ -103,9 +105,9 @@ export function PhaserMapSurface({
   useEffect(() => {
     runtimeRef.current?.bridge.setActions({
       onCellPress, onCellHover, onCharacterPress, onCharacterDoublePress,
-      onCharacterPathComplete, onDragStateChange
+      onCharacterPathComplete, onCharacterStepAttempt, onCharacterPathBlocked, onDragStateChange
     });
-  }, [onCellPress, onCellHover, onCharacterPress, onCharacterDoublePress, onCharacterPathComplete, onDragStateChange]);
+  }, [onCellPress, onCellHover, onCharacterPress, onCharacterDoublePress, onCharacterPathComplete, onCharacterStepAttempt, onCharacterPathBlocked, onDragStateChange]);
 
   return (
     <View style={styles.root}>
