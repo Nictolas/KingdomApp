@@ -83,17 +83,34 @@ function AppearanceOption({
   visibleLayers: readonly CharacterLayer[];
   onPress: () => void;
 }) {
+  const [hovered, setHovered] = useState(false);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={label}
       accessibilityState={{ selected }}
       onPress={onPress}
+      onHoverIn={() => setHovered(true)}
+      onHoverOut={() => setHovered(false)}
       style={[styles.visualOption, selected && styles.visualOptionSelected]}
     >
       <SpriteCharacterRenderer appearance={appearance} animation="idle" direction="down" size={72} visibleLayers={visibleLayers} />
+      {hovered ? <View pointerEvents="none" style={styles.optionTooltip}><Text style={styles.optionTooltipText}>{label}</Text></View> : null}
     </Pressable>
   );
+}
+
+type CreationTab = "identity" | "hair" | "clothes";
+
+const CREATION_TABS: { id: CreationTab; label: string }[] = [
+  { id: "identity", label: "Identità" },
+  { id: "hair", label: "Capelli" },
+  { id: "clothes", label: "Vestiti" }
+];
+
+function readableOptionName(prefix: string, value: string) {
+  const name = value.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  return `${prefix}: ${name}`;
 }
 
 export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocatoreModalProps) {
@@ -102,6 +119,7 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
   const [sesso, setSesso] = useState<"M" | "F" | null>(null);
   const [orientamento, setOrientamento] = useState<"Etero" | "Omo" | "Bi" | "Asessuale" | null>(null);
   const [aspetto, setAspetto] = useState<AspettoPersonaggio>(ASPETTO_RE_DEFAULT);
+  const [activeTab, setActiveTab] = useState<CreationTab>("identity");
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
@@ -180,7 +198,12 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
               showsVerticalScrollIndicator
               keyboardShouldPersistTaps="handled"
             >
-              <Text style={styles.sectionTitle}>Chi sei?</Text>
+              <View style={styles.tabs}>
+                {CREATION_TABS.map((tab) => <Pressable key={tab.id} accessibilityRole="tab" accessibilityState={{ selected: activeTab === tab.id }} style={[styles.tab, activeTab === tab.id && styles.tabSelected]} onPress={() => setActiveTab(tab.id)}><Text style={[styles.tabText, activeTab === tab.id && styles.tabTextSelected]}>{tab.label}</Text></Pressable>)}
+              </View>
+
+              {activeTab === "identity" ? <>
+              <Text style={styles.sectionTitle}>Identità</Text>
               <View style={styles.field}>
                 <Text style={styles.label}>Nome</Text>
                 <TextInput style={styles.input} value={nome} onChangeText={setNome} placeholder="Nome" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="words" />
@@ -191,41 +214,48 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Genere</Text>
-                <View style={styles.chipRow}>{GENERI.map((g) => <Pressable key={g.id} style={[styles.chip, sesso === g.id && styles.chipSelected]} onPress={() => setSesso(g.id)}><Text style={[styles.chipText, sesso === g.id && styles.chipTextSelected]}>{g.label}</Text></Pressable>)}</View>
+                <View style={styles.chipRow}>{GENERI.map((g) => <Pressable key={g.id} style={[styles.chip, sesso === g.id && styles.chipSelected]} onPress={() => setSesso((current) => current === g.id ? null : g.id)}><Text style={[styles.chipText, sesso === g.id && styles.chipTextSelected]}>{g.label}</Text></Pressable>)}</View>
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Orientamento sessuale</Text>
-                <View style={styles.chipRowWrap}>{ORIENTAMENTI.map((o) => <Pressable key={o.id} style={[styles.chip, orientamento === o.id && styles.chipSelected]} onPress={() => setOrientamento(o.id)}><Text style={[styles.chipText, orientamento === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View>
+                <View style={styles.chipRowWrap}>{ORIENTAMENTI.map((o) => <Pressable key={o.id} style={[styles.chip, orientamento === o.id && styles.chipSelected]} onPress={() => setOrientamento((current) => current === o.id ? null : o.id)}><Text style={[styles.chipText, orientamento === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View>
               </View>
-
-              <Text style={styles.sectionTitle}>Aspetto del personaggio</Text>
               <View style={styles.field}>
                 <Text style={styles.label}>Colore pelle</Text>
-                <View style={styles.visualGrid}>{catalogOptions.skinTones.map((value) => <AppearanceOption key={value} label={`Colore pelle ${value}`} selected={spriteAppearance.skinTone === value} visibleLayers={["body", "raceFeatures"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, skinTone: value })} onPress={() => updateSpriteAppearance({ skinTone: value })} />)}</View>
+                <View style={styles.visualGrid}>{catalogOptions.skinTones.map((value) => <AppearanceOption key={value} label={readableOptionName("Colore pelle", value)} selected={spriteAppearance.skinTone === value} visibleLayers={["body", "raceFeatures"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, skinTone: value })} onPress={() => updateSpriteAppearance({ skinTone: value })} />)}</View>
+              </View>
+              </> : null}
+
+              {activeTab === "hair" ? <>
+              <Text style={styles.sectionTitle}>Capelli</Text>
+              <View style={styles.field}>
+                <Text style={styles.label}>Colore capelli</Text>
+                <View style={styles.visualGrid}>{catalogOptions.hairColors.map((value) => <AppearanceOption key={value} label={readableOptionName("Colore capelli", value)} selected={spriteAppearance.hairColor === value} visibleLayers={["hairBack", "hairFront"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, hairColor: value })} onPress={() => updateSpriteAppearance({ hairColor: spriteAppearance.hairColor === value ? "none" : value })} />)}</View>
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Stile capelli</Text>
                 <View style={styles.visualGrid}>{catalogOptions.hairStyles.map((value) => {
                   const hairColor = firstCompatibleHairColor(spriteAppearance, value);
-                  return <AppearanceOption key={value} label={`Stile capelli ${value}`} selected={spriteAppearance.hairStyle === value} visibleLayers={["hairBack", "hairFront"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, hairStyle: value, hairColor })} onPress={() => updateSpriteAppearance({ hairStyle: value, hairColor })} />;
+                  return <AppearanceOption key={value} label={readableOptionName("Stile capelli", value)} selected={spriteAppearance.hairStyle === value} visibleLayers={["hairBack", "hairFront"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, hairStyle: value, hairColor })} onPress={() => updateSpriteAppearance(spriteAppearance.hairStyle === value ? { hairStyle: "none", hairColor: "none" } : { hairStyle: value, hairColor })} />;
                 })}</View>
               </View>
-              <View style={styles.field}>
-                <Text style={styles.label}>Colore capelli</Text>
-                <View style={styles.visualGrid}>{catalogOptions.hairColors.map((value) => <AppearanceOption key={value} label={`Colore capelli ${value}`} selected={spriteAppearance.hairColor === value} visibleLayers={["hairBack", "hairFront"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, hairColor: value })} onPress={() => updateSpriteAppearance({ hairColor: value })} />)}</View>
-              </View>
+              </> : null}
+
+              {activeTab === "clothes" ? <>
+              <Text style={styles.sectionTitle}>Vestiti</Text>
               <View style={styles.field}>
                 <Text style={styles.label}>Abiti completi</Text>
-                <View style={styles.visualGrid}>{catalogOptions.fullOutfits.map((value) => <AppearanceOption key={value} label={`Abito completo ${value}`} selected={spriteAppearance.fullOutfit === value} visibleLayers={["fullOutfit"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: value })} onPress={() => updateSpriteAppearance({ outfit: value, fullOutfit: value })} />)}</View>
+                <View style={styles.visualGrid}>{catalogOptions.fullOutfits.map((value) => <AppearanceOption key={value} label={readableOptionName("Abito completo", value)} selected={spriteAppearance.fullOutfit === value} visibleLayers={["fullOutfit"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: value })} onPress={() => updateSpriteAppearance(spriteAppearance.fullOutfit === value ? { fullOutfit: "none" } : { outfit: value, fullOutfit: value })} />)}</View>
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Sopra</Text>
-                <View style={styles.visualGrid}>{catalogOptions.upperOutfits.map((value) => <AppearanceOption key={value} label={`Parte superiore ${value}`} selected={spriteAppearance.fullOutfit === "none" && spriteAppearance.upperOutfit === value} visibleLayers={["outfit"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", upperOutfit: value })} onPress={() => updateOutfit(value, spriteAppearance.lowerOutfit)} />)}</View>
+                <View style={styles.visualGrid}>{catalogOptions.upperOutfits.map((value) => <AppearanceOption key={value} label={readableOptionName("Sopra", value)} selected={spriteAppearance.fullOutfit === "none" && spriteAppearance.upperOutfit === value} visibleLayers={["outfit"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", upperOutfit: value })} onPress={() => updateOutfit(spriteAppearance.fullOutfit === "none" && spriteAppearance.upperOutfit === value ? "none" : value, spriteAppearance.lowerOutfit)} />)}</View>
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Sotto</Text>
-                <View style={styles.visualGrid}>{catalogOptions.lowerOutfits.map((value) => <AppearanceOption key={value} label={`Parte inferiore ${value}`} selected={spriteAppearance.fullOutfit === "none" && spriteAppearance.lowerOutfit === value} visibleLayers={["lowerBody"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", lowerOutfit: value })} onPress={() => updateOutfit(spriteAppearance.upperOutfit, value)} />)}</View>
+                <View style={styles.visualGrid}>{catalogOptions.lowerOutfits.map((value) => <AppearanceOption key={value} label={readableOptionName("Sotto", value)} selected={spriteAppearance.fullOutfit === "none" && spriteAppearance.lowerOutfit === value} visibleLayers={["lowerBody"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", lowerOutfit: value })} onPress={() => updateOutfit(spriteAppearance.upperOutfit, spriteAppearance.fullOutfit === "none" && spriteAppearance.lowerOutfit === value ? "none" : value)} />)}</View>
               </View>
+              </> : null}
             </ScrollView>
           </View>
 
@@ -328,6 +358,11 @@ const styles = StyleSheet.create({
   previewColumnDesktop: { width: 300 },
   controlsScroll: { flex: 1, minHeight: 0, maxHeight: "100%" },
   controlsColumn: { paddingRight: 8, paddingBottom: 12 },
+  tabs: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 18 },
+  tab: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 9, borderWidth: 1, borderColor: "rgba(148, 163, 184, 0.35)", backgroundColor: "rgba(30, 41, 59, 0.72)" },
+  tabSelected: { borderColor: "#60a5fa", backgroundColor: "rgba(59, 130, 246, 0.24)" },
+  tabText: { color: "rgba(203, 213, 245, 0.76)", fontSize: 12, fontWeight: "700" },
+  tabTextSelected: { color: "#eff6ff" },
   previewWrap: { alignItems: "center", marginBottom: 18, gap: 10, backgroundColor: "rgba(120,83,45,0.16)", borderWidth: 1, borderColor: "rgba(214,195,155,0.25)", borderRadius: 14, padding: 14 },
   previewMeta: { alignItems: "center", gap: 8 },
   previewHint: { color: "#f3ddb0", fontSize: 12, fontWeight: "800", textTransform: "capitalize" },
@@ -396,6 +431,25 @@ const styles = StyleSheet.create({
   visualOptionSelected: {
     borderColor: "#60a5fa",
     backgroundColor: "rgba(59, 130, 246, 0.22)"
+  },
+  optionTooltip: {
+    position: "absolute",
+    left: 3,
+    right: 3,
+    bottom: 3,
+    minHeight: 22,
+    paddingHorizontal: 4,
+    paddingVertical: 3,
+    borderRadius: 5,
+    justifyContent: "center",
+    backgroundColor: "rgba(2, 6, 23, 0.94)"
+  },
+  optionTooltipText: {
+    color: "#f8fafc",
+    fontSize: 8,
+    fontWeight: "700",
+    lineHeight: 10,
+    textAlign: "center"
   },
   confirmButton: {
     backgroundColor: "#2563eb",
