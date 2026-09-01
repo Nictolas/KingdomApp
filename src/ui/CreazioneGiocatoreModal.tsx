@@ -21,7 +21,7 @@ import { PixelAvatarPreview } from "./PixelAvatarPreview";
 import { compatibleCatalogOptions, firstCompatibleHairColor } from "../character-system/registry";
 import { bodyFamilyFor, normalizeCharacterAppearance } from "../character-system/appearance";
 import { SpriteCharacterRenderer } from "../components/SpriteCharacterRenderer";
-import type { CharacterAppearance } from "../character-system/types";
+import type { CharacterAppearance, CharacterLayer } from "../character-system/types";
 
 export type DatiCreazioneGiocatore = {
   nome: string;
@@ -74,11 +74,13 @@ function AppearanceOption({
   appearance,
   label,
   selected,
+  visibleLayers,
   onPress
 }: {
   appearance: CharacterAppearance;
   label: string;
   selected: boolean;
+  visibleLayers: readonly CharacterLayer[];
   onPress: () => void;
 }) {
   return (
@@ -89,7 +91,7 @@ function AppearanceOption({
       onPress={onPress}
       style={[styles.visualOption, selected && styles.visualOptionSelected]}
     >
-      <SpriteCharacterRenderer appearance={appearance} animation="idle" direction="down" size={72} />
+      <SpriteCharacterRenderer appearance={appearance} animation="idle" direction="down" size={72} visibleLayers={visibleLayers} />
     </Pressable>
   );
 }
@@ -193,30 +195,30 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
               <Text style={styles.sectionTitle}>Aspetto del personaggio</Text>
               <View style={styles.field}>
                 <Text style={styles.label}>Colore pelle</Text>
-                <View style={styles.visualGrid}>{catalogOptions.skinTones.map((value) => <AppearanceOption key={value} label={`Colore pelle ${value}`} selected={spriteAppearance.skinTone === value} appearance={normalizeCharacterAppearance({ ...spriteAppearance, skinTone: value })} onPress={() => updateSpriteAppearance({ skinTone: value })} />)}</View>
+                <View style={styles.visualGrid}>{catalogOptions.skinTones.map((value) => <AppearanceOption key={value} label={`Colore pelle ${value}`} selected={spriteAppearance.skinTone === value} visibleLayers={["body", "raceFeatures"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, skinTone: value })} onPress={() => updateSpriteAppearance({ skinTone: value })} />)}</View>
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Stile capelli</Text>
                 <View style={styles.visualGrid}>{catalogOptions.hairStyles.map((value) => {
                   const hairColor = firstCompatibleHairColor(spriteAppearance, value);
-                  return <AppearanceOption key={value} label={`Stile capelli ${value}`} selected={spriteAppearance.hairStyle === value} appearance={normalizeCharacterAppearance({ ...spriteAppearance, hairStyle: value, hairColor })} onPress={() => updateSpriteAppearance({ hairStyle: value, hairColor })} />;
+                  return <AppearanceOption key={value} label={`Stile capelli ${value}`} selected={spriteAppearance.hairStyle === value} visibleLayers={["hairBack", "hairFront"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, hairStyle: value, hairColor })} onPress={() => updateSpriteAppearance({ hairStyle: value, hairColor })} />;
                 })}</View>
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Colore capelli</Text>
-                <View style={styles.visualGrid}>{catalogOptions.hairColors.map((value) => <AppearanceOption key={value} label={`Colore capelli ${value}`} selected={spriteAppearance.hairColor === value} appearance={normalizeCharacterAppearance({ ...spriteAppearance, hairColor: value })} onPress={() => updateSpriteAppearance({ hairColor: value })} />)}</View>
+                <View style={styles.visualGrid}>{catalogOptions.hairColors.map((value) => <AppearanceOption key={value} label={`Colore capelli ${value}`} selected={spriteAppearance.hairColor === value} visibleLayers={["hairBack", "hairFront"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, hairColor: value })} onPress={() => updateSpriteAppearance({ hairColor: value })} />)}</View>
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Abiti completi</Text>
-                <View style={styles.visualGrid}>{catalogOptions.outfits.map((value) => <AppearanceOption key={value} label={`Abito completo ${value}`} selected={spriteAppearance.upperOutfit === value && spriteAppearance.lowerOutfit === value} appearance={normalizeCharacterAppearance({ ...spriteAppearance, outfit: value, upperOutfit: value, lowerOutfit: value })} onPress={() => updateOutfit(value, value)} />)}</View>
+                <View style={styles.visualGrid}>{catalogOptions.outfits.map((value) => <AppearanceOption key={value} label={`Abito completo ${value}`} selected={spriteAppearance.upperOutfit === value && spriteAppearance.lowerOutfit === value} visibleLayers={["outfit", "lowerBody"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, outfit: value, upperOutfit: value, lowerOutfit: value })} onPress={() => updateOutfit(value, value)} />)}</View>
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Sopra</Text>
-                <View style={styles.visualGrid}>{catalogOptions.upperOutfits.map((value) => <AppearanceOption key={value} label={`Parte superiore ${value}`} selected={spriteAppearance.upperOutfit === value} appearance={normalizeCharacterAppearance({ ...spriteAppearance, upperOutfit: value })} onPress={() => updateOutfit(value, spriteAppearance.lowerOutfit)} />)}</View>
+                <View style={styles.visualGrid}>{catalogOptions.upperOutfits.map((value) => <AppearanceOption key={value} label={`Parte superiore ${value}`} selected={spriteAppearance.upperOutfit === value} visibleLayers={["outfit"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, upperOutfit: value })} onPress={() => updateOutfit(value, spriteAppearance.lowerOutfit)} />)}</View>
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Sotto</Text>
-                <View style={styles.visualGrid}>{catalogOptions.lowerOutfits.map((value) => <AppearanceOption key={value} label={`Parte inferiore ${value}`} selected={spriteAppearance.lowerOutfit === value} appearance={normalizeCharacterAppearance({ ...spriteAppearance, lowerOutfit: value })} onPress={() => updateOutfit(spriteAppearance.upperOutfit, value)} />)}</View>
+                <View style={styles.visualGrid}>{catalogOptions.lowerOutfits.map((value) => <AppearanceOption key={value} label={`Parte inferiore ${value}`} selected={spriteAppearance.lowerOutfit === value} visibleLayers={["lowerBody"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, lowerOutfit: value })} onPress={() => updateOutfit(spriteAppearance.upperOutfit, value)} />)}</View>
               </View>
             </ScrollView>
           </View>
@@ -260,7 +262,8 @@ const styles = StyleSheet.create({
     shadowColor: "#000",
     shadowOffset: { width: 0, height: 8 },
     shadowOpacity: 0.45,
-    shadowRadius: 16
+    shadowRadius: 16,
+    overflow: "hidden"
   },
   accentLine: {
     position: "absolute",
@@ -274,7 +277,8 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    marginBottom: 16
+    marginBottom: 16,
+    flexShrink: 0
   },
   emojiWrap: {
     width: 72,
@@ -312,11 +316,11 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
-  editorLayout: { width: "100%", flex: 1, minHeight: 0 },
-  editorLayoutDesktop: { flexDirection: "row", alignItems: "flex-start", gap: 24 },
+  editorLayout: { width: "100%", flex: 1, minHeight: 0, overflow: "hidden" },
+  editorLayoutDesktop: { flexDirection: "row", alignItems: "stretch", gap: 24 },
   previewColumn: { width: "100%" },
   previewColumnDesktop: { width: 300 },
-  controlsScroll: { flex: 1, minHeight: 0 },
+  controlsScroll: { flex: 1, minHeight: 0, maxHeight: "100%" },
   controlsColumn: { paddingRight: 8, paddingBottom: 12 },
   previewWrap: { alignItems: "center", marginBottom: 18, gap: 10, backgroundColor: "rgba(120,83,45,0.16)", borderWidth: 1, borderColor: "rgba(214,195,155,0.25)", borderRadius: 14, padding: 14 },
   previewMeta: { alignItems: "center", gap: 8 },
@@ -395,7 +399,8 @@ const styles = StyleSheet.create({
     alignItems: "center",
     marginTop: 8,
     borderWidth: 1,
-    borderColor: "rgba(147, 197, 253, 0.3)"
+    borderColor: "rgba(147, 197, 253, 0.3)",
+    flexShrink: 0
   },
   confirmButtonDisabled: {
     opacity: 0.45

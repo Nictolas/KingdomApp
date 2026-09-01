@@ -7,6 +7,7 @@ import type {
   CharacterAnimationId,
   CharacterAppearance,
   CharacterDirection,
+  CharacterLayer,
   ResolvedCharacterLayer
 } from "../character-system/types";
 
@@ -19,17 +20,21 @@ export function SpriteCharacterRenderer({
   animation = "idle",
   direction = "down",
   size = 128,
+  visibleLayers,
   debug = false
 }: {
   appearance: CharacterAppearance;
   animation?: CharacterAnimationId;
   direction?: CharacterDirection;
   size?: number;
+  visibleLayers?: readonly CharacterLayer[];
   debug?: boolean;
 }) {
   const layers = useMemo(
-    () => resolveCharacterLayers(appearance, animation).sort((a, b) => LAYER_ORDER.indexOf(a.layer) - LAYER_ORDER.indexOf(b.layer)),
-    [appearance, animation]
+    () => resolveCharacterLayers(appearance, animation)
+      .filter((layer) => !visibleLayers || visibleLayers.includes(layer.layer))
+      .sort((a, b) => LAYER_ORDER.indexOf(a.layer) - LAYER_ORDER.indexOf(b.layer)),
+    [appearance, animation, visibleLayers]
   );
   const definition = layers[0]?.sheet.animations[animation];
   const [frame, setFrame] = useState(0);
