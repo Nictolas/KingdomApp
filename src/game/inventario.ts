@@ -1,4 +1,5 @@
 import type { Abitante } from "../types";
+import { getAlimentazioneAbitante } from "./alimentazione";
 import { abitanteHaInventarioPersonale } from "./casta";
 import {
   MONETE_INVENTARIO_SEED_DEFAULT,
@@ -196,13 +197,13 @@ export function getOggettoInventario(itemId: string): OggettoInventarioDef | und
   return OGGETTI_INVENTARIO[itemId];
 }
 
-/** True se l'abitante può consumare questo oggetto Cibo in base alla personalità. */
-export function abitantePuòConsumareOggettoCibo(personalità: string, itemId: string): boolean {
+/** True se l'abitante può consumare questo oggetto Cibo in base all'alimentazione. */
+export function abitantePuòConsumareOggettoCibo(alimentazione: string, itemId: string): boolean {
   const def = OGGETTI_INVENTARIO[itemId];
   if (!def || def.categoria !== CATEGORIA_CIBO) return false;
   const tags = def.tagCibo ?? [];
-  if (personalità === "Vegetariano") return !tags.includes("carne");
-  if (personalità === "Vegano") return tags.length === 0;
+  if (alimentazione === "Vegetariano") return !tags.includes("carne");
+  if (alimentazione === "Vegano") return tags.length === 0;
   return true;
 }
 
@@ -236,6 +237,11 @@ export function abitanteConInventarioIniziale<T extends Abitante>(abitante: T): 
 /** Rimuove l'inventario dagli schiavi/servi e normalizza gli altri.
  *  Migra eventuali `crediti` legacy nelle monete in inventario. */
 export function normalizzaAbitanteInventario(abitante: Abitante): Abitante {
+  const alimentazione = getAlimentazioneAbitante(abitante);
+  const personalità = abitante.personalità === "Vegetariano" || abitante.personalità === "Vegano"
+    ? "Tiepido"
+    : abitante.personalità;
+  abitante = { ...abitante, alimentazione, personalità };
   const legacyCrediti = Math.max(0, Math.floor(abitante.crediti ?? 0));
   if (!abitanteHaInventarioPersonale(abitante)) {
     const { inventario: _inv, ...rest } = abitante;

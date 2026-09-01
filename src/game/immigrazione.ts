@@ -6,6 +6,7 @@ import { generaNomeAlieno } from "./nomiAlieni";
 import { scegliNomeCognomeUmano } from "./nomiUmani";
 import { redditoMensileLavoroDefault } from "./economiaPrezzi";
 import { generaAspettoCasuale } from "./personaggioAspetto";
+import { alimentazioneCasuale } from "./alimentazione";
 
 export type GeneraImmigratiPropostiResult = {
   nuoviAbitanti: Abitante[];
@@ -66,6 +67,7 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
       produttività: 40 + Math.floor(Math.random() * 60),
       stanchezza: Math.floor(Math.random() * 50),
       personalità: PERSONALITÀ[Math.floor(Math.random() * PERSONALITÀ.length)],
+      alimentazione: alimentazioneCasuale(),
       amici: [],
       rivali: [],
       fazioni: fazioniIniziali,

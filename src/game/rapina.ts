@@ -1,4 +1,5 @@
 import type { Abitante, Edificio, Reato } from "../types";
+import { getAlimentazioneAbitante } from "./alimentazione";
 import { abitanteHaInventarioPersonale } from "./casta";
 import {
   applicaRecuperoFamePasto,
@@ -98,7 +99,7 @@ function qualcheMensaHaCiboCompatibile(
 ): boolean {
   for (const e of edifici) {
     if (e.nome !== NOME_MENSA_PUBBLICA || e.stato !== "Operativo") continue;
-    if (haCiboCompatibileInInventarioMensa(inventarioMensaByEdificioId[e.id], abitante.personalità)) {
+    if (haCiboCompatibileInInventarioMensa(inventarioMensaByEdificioId[e.id], getAlimentazioneAbitante(abitante))) {
       return true;
     }
   }
@@ -143,7 +144,7 @@ export function abitantePuòTentareRapina(
 function vittimaHaBottinoUtile(vittima: Abitante, ladro: Abitante): boolean {
   if (!abitanteHaInventarioPersonale(vittima)) return false;
   if (getMoneteInventarioAbitante(vittima.inventario) >= 1) return true;
-  return haCiboCompatibileInInventario(vittima.inventario, ladro.personalità);
+  return haCiboCompatibileInInventario(vittima.inventario, getAlimentazioneAbitante(ladro));
 }
 
 /**
@@ -178,7 +179,7 @@ export function scegliBersaglioPersonaRapina(
     cands.push({
       id: v.id,
       monete: getMoneteInventarioAbitante(v.inventario),
-      haCibo: haCiboCompatibileInInventario(v.inventario, ladro.personalità),
+      haCibo: haCiboCompatibileInInventario(v.inventario, getAlimentazioneAbitante(ladro)),
       dist: distanzaCelleManhattan(from, cell, opts.cols)
     });
   }
@@ -218,7 +219,7 @@ export function scegliBersaglioEdificioRapina(
   const mense = edifici.filter((e) => e.nome === NOME_MENSA_PUBBLICA && e.stato === "Operativo");
   let bestMensa: { id: number; dist: number } | null = null;
   for (const e of mense) {
-    if (!haCiboCompatibileInInventarioMensa(inventarioMensaByEdificioId[e.id], ladro.personalità)) {
+    if (!haCiboCompatibileInInventarioMensa(inventarioMensaByEdificioId[e.id], getAlimentazioneAbitante(ladro))) {
       continue;
     }
     const cell = findEdificioCell(e.id);
@@ -296,11 +297,11 @@ export function resolveRapina(
       nextVittima = vittima;
       if (rollBottino) {
         const moneteV = getMoneteInventarioAbitante(vittima.inventario);
-        const haCibo = haCiboCompatibileInInventario(vittima.inventario, ladro.personalità);
+        const haCibo = haCiboCompatibileInInventario(vittima.inventario, getAlimentazioneAbitante(ladro));
         const rubaCibo = (fameCritica && haCibo) || (!haCibo ? false : moneteV < 1);
 
         if (rubaCibo && haCibo) {
-          const prel = prelevaCiboCompatibileDaAbitante(vittima, ladro.personalità);
+          const prel = prelevaCiboCompatibileDaAbitante(vittima, getAlimentazioneAbitante(ladro));
           if (prel) {
             nextVittima = prel.vittima;
             nextLadro = applicaRecuperoFamePasto(nextLadro);
@@ -328,7 +329,7 @@ export function resolveRapina(
     labelVittima = NOME_MENSA_PUBBLICA;
     if (rollBottino) {
       const inv = ctx.inventarioMensaByEdificioId[target.id] ?? [];
-      const pasto = consumaPastoDaInventarioMensa(inv, ladro.personalità);
+      const pasto = consumaPastoDaInventarioMensa(inv, getAlimentazioneAbitante(ladro));
       if (pasto) {
         nextInventarioMensa = { edificioId: target.id, inventario: pasto.inventarioMensa };
         nextLadro = applicaRecuperoFamePasto(nextLadro);

@@ -17,6 +17,7 @@ import {
   applicaRecuperoFamePasto,
   normalizzaAbitanteBisogni
 } from "./bisogni";
+import { getAlimentazioneAbitante } from "./alimentazione";
 import { getEdificioAbitazione } from "./abitanteEdifici";
 import { tentaSnackDaInventario } from "./negozio";
 
@@ -59,7 +60,7 @@ function tentaPastoDaPadrone(
   if (idx < 0) return { abitanti, ok: false };
   const padrone = abitanti[idx]!;
   if (!padrone.inventario?.length) return { abitanti, ok: false };
-  const dopo = consumaUnOggettoCibo(padrone.inventario, schiavo.personalità);
+  const dopo = consumaUnOggettoCibo(padrone.inventario, getAlimentazioneAbitante(schiavo));
   if (!dopo) return { abitanti, ok: false };
   const next = [...abitanti];
   next[idx] = { ...padrone, inventario: dopo };
@@ -92,8 +93,8 @@ function applicaPastoSingoloGiorno(
       const daPadrone = tentaPastoDaPadrone(nextAbitanti, a);
       nextAbitanti = daPadrone.abitanti;
       nutrito = daPadrone.ok;
-    } else if (abitanteHaInventarioPersonale(a) && haCiboCompatibileInInventario(a.inventario, a.personalità)) {
-      const dopo = consumaUnOggettoCibo(a.inventario!, a.personalità);
+    } else if (abitanteHaInventarioPersonale(a) && haCiboCompatibileInInventario(a.inventario, getAlimentazioneAbitante(a))) {
+      const dopo = consumaUnOggettoCibo(a.inventario!, getAlimentazioneAbitante(a));
       if (dopo) {
         a = { ...a, inventario: dopo };
         nutrito = true;
@@ -104,7 +105,7 @@ function applicaPastoSingoloGiorno(
       if (!mensaAttiva) {
         carestiaMensa = true;
       } else {
-        const daMensa = tentaPastoDaMensa(nextMensa, mensaIds, a.personalità);
+        const daMensa = tentaPastoDaMensa(nextMensa, mensaIds, getAlimentazioneAbitante(a));
         nextMensa = daMensa.inventarioMensaByEdificioId;
         nutrito = daMensa.ok;
         if (!nutrito) carestiaMensa = true;

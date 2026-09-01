@@ -2,6 +2,7 @@ import React, { useEffect, useState } from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import type { Abitante, Edificio } from "../types";
+import { getAlimentazioneAbitante } from "../game/alimentazione";
 import { useGameContext } from "../context/GameContext";
 import {
   getEdificioAbitazione,
@@ -388,9 +389,15 @@ export function AbitanteInfoModal({
                 <Row
                   emoji="🧠"
                   label="Personalità"
-                  value={abitante.personalità?.trim() ? abitante.personalità : "—"}
-                  muted={!abitante.personalità?.trim()}
-                  onPress={abitante.personalità?.trim() ? () => apriPagina("/personalita") : undefined}
+                  value={abitante.personalità === "Vegetariano" || abitante.personalità === "Vegano" ? "—" : (abitante.personalità?.trim() || "—")}
+                  muted={!abitante.personalità?.trim() || abitante.personalità === "Vegetariano" || abitante.personalità === "Vegano"}
+                  onPress={abitante.personalità?.trim() && abitante.personalità !== "Vegetariano" && abitante.personalità !== "Vegano" ? () => apriPagina("/personalita") : undefined}
+                />
+                <Row
+                  emoji="🍽️"
+                  label="Alimentazione"
+                  value={getAlimentazioneAbitante(abitante)}
+                  onPress={() => apriPagina("/personalita")}
                 />
                 <Row
                   emoji="⛪"

@@ -14,6 +14,7 @@ import {
   type VoceInventario
 } from "./inventario";
 import { haCiboCompatibileInInventario } from "./mensaPubblica";
+import { getAlimentazioneAbitante } from "./alimentazione";
 import { PREZZO_CIBO_NEGOZIO as PREZZO_CIBO_NEGOZIO_CANONICO } from "./economiaPrezzi";
 
 export const NOME_NEGOZIO = "Negozio";
@@ -35,7 +36,7 @@ export function abitanteVuoleNegozio(abitante: Abitante, edifici: Edificio[]): b
   if (!abitanteHaFameUrgente(abitante)) return false;
   if (!abitanteHaInventarioPersonale(abitante)) return false;
   if (!negozioOperativoInColonia(edifici)) return false;
-  if (haCiboCompatibileInInventario(abitante.inventario, abitante.personalità)) return false;
+  if (haCiboCompatibileInInventario(abitante.inventario, getAlimentazioneAbitante(abitante))) return false;
   return getMoneteInventarioAbitante(abitante.inventario) >= PREZZO_CIBO_NEGOZIO;
 }
 
@@ -65,8 +66,8 @@ export function compraCiboAlNegozio(abitante: Abitante): Abitante | null {
 export function tentaSnackDaInventario(abitante: Abitante): Abitante | null {
   if (!abitanteHaInventarioPersonale(abitante)) return null;
   if (getBisogniAbitante(abitante).fame >= SOGLIA_BISOGNO_AZIONE) return null;
-  if (!haCiboCompatibileInInventario(abitante.inventario, abitante.personalità)) return null;
-  const dopo = consumaUnOggettoCibo(abitante.inventario!, abitante.personalità);
+  if (!haCiboCompatibileInInventario(abitante.inventario, getAlimentazioneAbitante(abitante))) return null;
+  const dopo = consumaUnOggettoCibo(abitante.inventario!, getAlimentazioneAbitante(abitante));
   if (!dopo) return null;
   return applicaRecuperoFamePasto({ ...abitante, inventario: dopo });
 }

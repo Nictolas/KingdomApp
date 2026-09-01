@@ -8,6 +8,7 @@ import { generaAspettoCasuale } from "./personaggioAspetto";
 import { scegliNomeCognomeUmano } from "./nomiUmani";
 import { LAVORO_GIOCATORE, ETA_GIOCATORE_INIZIALE } from "./schiavituCommercio";
 import { redditoMensileLavoroDefault, STIPENDIO_BASE_MONETE_MESE } from "./economiaPrezzi";
+import { alimentazioneCasuale } from "./alimentazione";
 
 /** Regole di generazione casuale della colonia iniziale (per la pagina "Generazione Partita"). */
 export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] = [
@@ -30,9 +31,13 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
   {
     titolo: "Personalità",
     punti: [
-      "Solo personalità del catalogo: Pollice Verde, Salutista, Empatico, Depresso, Carismatico, Psicopatico, Stakanovista, Tiepido, Omofobo, Razzista, Vegetariano, Vegano.",
+      "Solo personalità del catalogo: Pollice Verde, Salutista, Empatico, Depresso, Carismatico, Psicopatico, Stakanovista, Tiepido, Omofobo, Razzista, Sessista.",
       "Distribuzione: circa 35% Tiepido, il resto distribuito in modo uniforme tra le altre."
     ]
+  },
+  {
+    titolo: "Alimentazione",
+    punti: ["Ogni abitante è Onnivoro, Vegetariano o Vegano."]
   },
   {
     titolo: "Religione",
@@ -120,8 +125,7 @@ const PERSONALITÀ_POOL: { nome: string; peso: number }[] = [
   { nome: "Stakanovista", peso: 10 },
   { nome: "Omofobo", peso: 5 },
   { nome: "Razzista", peso: 5 },
-  { nome: "Vegetariano", peso: 5 },
-  { nome: "Vegano", peso: 5 }
+  { nome: "Sessista", peso: 5 }
 ];
 
 function pesaScelta<T>(pool: { nome: T; peso: number }[]): T {
@@ -205,6 +209,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
       produttività: 40 + Math.floor(Math.random() * 56),
       stanchezza: Math.floor(Math.random() * 61),
       personalità: pesaScelta(PERSONALITÀ_POOL),
+      alimentazione: alimentazioneCasuale(),
       amici: [],
       rivali: [],
       fazioni: fazioniNorm,
@@ -376,7 +381,7 @@ export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Ra
   return {
     abitanti: abitanti.map((abitante) => abitanteConInventarioIniziale({
       ...abitante,
-      ...(abitante.razza !== "Golem" && { aspetto: generaAspettoCasuale(abitante.razza ?? "Umano") })
+      ...(abitante.razza !== "Golem" && { aspetto: generaAspettoCasuale(abitante.razza ?? "Umano", Math.random, { eta: abitante.eta, sesso: abitante.sesso, professione: abitante.lavoro }) })
     })),
     razzaNativi
   };

@@ -4,6 +4,7 @@ import { specializzazioneCasuale } from "./specializzazione";
 import { generaNomeAlieno } from "./nomiAlieni";
 import { redditoMensileLavoroDefault } from "./economiaPrezzi";
 import { generaAspettoCasuale } from "./personaggioAspetto";
+import { alimentazioneCasuale } from "./alimentazione";
 
 export type GeneraAssimilatiInput = {
   razzaNativi: Razza;
@@ -44,6 +45,7 @@ export function generaAssimilati({
       produttività: 50 + Math.floor(Math.random() * 40),
       stanchezza: Math.floor(Math.random() * 40),
       personalità: personalità[Math.floor(Math.random() * personalità.length)],
+      alimentazione: alimentazioneCasuale(),
       amici: [],
       rivali: [],
       fazioni: ["Nativi", "Cittadini"],

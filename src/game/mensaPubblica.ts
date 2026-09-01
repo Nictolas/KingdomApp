@@ -2,6 +2,7 @@ import type { Abitante, Edificio } from "../types";
 import { abitanteHaInventarioPersonale, getCastaAbitante } from "./casta";
 import { abitanteDeveConsumareCiboGiornaliero } from "./consumoCiboInventario";
 import { applicaRecuperoFamePasto } from "./bisogni";
+import { getAlimentazioneAbitante } from "./alimentazione";
 import {
   abitantePuòConsumareOggettoCibo,
   isOggettoCibo,
@@ -54,7 +55,7 @@ export function abitanteHaBisognoMensa(abitante: Abitante, edifici: Edificio[]):
   if (casta === "Schiavo") return false;
   if (casta === "Servo della gleba") return true;
   if (!abitanteHaInventarioPersonale(abitante)) return true;
-  return !haCiboCompatibileInInventario(abitante.inventario, abitante.personalità);
+  return !haCiboCompatibileInInventario(abitante.inventario, getAlimentazioneAbitante(abitante));
 }
 
 export function trasferisciCiboGiocatoreAMensaPuro(
@@ -110,7 +111,7 @@ export function serviPastoMensaTransaction(
     return { abitante, inventarioMensa: mensaNorm, servito: false, carestiaMensa: false };
   }
 
-  const pasto = consumaPastoDaInventarioMensa(mensaNorm, abitante.personalità);
+  const pasto = consumaPastoDaInventarioMensa(mensaNorm, getAlimentazioneAbitante(abitante));
   if (!pasto) {
     return { abitante, inventarioMensa: mensaNorm, servito: false, carestiaMensa: true };
   }

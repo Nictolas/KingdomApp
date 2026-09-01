@@ -3,6 +3,7 @@ import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "re
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import type { Abitante } from "../src/types";
+import { getAlimentazioneAbitante } from "../src/game/alimentazione";
 
 export default function PersonalitaScreen() {
   const router = useRouter();
@@ -16,7 +17,7 @@ export default function PersonalitaScreen() {
   const mappa = new Map<string, number>();
   abitanti.forEach((a: Abitante) => {
     const p = (a.personalità || "").trim();
-    if (!p) return;
+    if (!p || p === "Vegetariano" || p === "Vegano") return;
     mappa.set(p, (mappa.get(p) ?? 0) + 1);
   });
 
@@ -28,16 +29,12 @@ export default function PersonalitaScreen() {
     { nome: "Carismatico", emoji: "✨", effetto: "+10% lealtà della fazione" },
     { nome: "Psicopatico", emoji: "🔪", effetto: "Rivalità ≥60 può portare a omicidio (soglia 90 per gli altri)" },
     { nome: "Stakanovista", emoji: "⚒️", effetto: "+15% produttività" },
-    { nome: "Tiepido", emoji: "🌡️", effetto: "Nessun bonus né malus" },
-    { nome: "Omofobo", emoji: "😤", effetto: "Stesso Lavoro con Omo/Bi: a ogni Skip solo +0–5 Rivalità" },
-    { nome: "Razzista", emoji: "😠", effetto: "Stesso Lavoro con Razza diversa: a ogni Skip solo +0–5 Rivalità" },
-    { nome: "Vegetariano", emoji: "🥬", effetto: "Non consuma carne dall'inventario (es. Bistecca)" },
-    { nome: "Vegano", emoji: "🌿", effetto: "Non consuma carne, latte né uova dall'inventario" }
+    { nome: "Tiepido", emoji: "🌡️", effetto: "Nessun bonus né malus" }
   ];
 
   const nomiCatalogo = new Set(catalogoPersonalita.map((p) => p.nome));
   const personalitaCustom = Array.from(mappa.entries())
-    .filter(([nome]) => !nomiCatalogo.has(nome))
+    .filter(([nome]) => !nomiCatalogo.has(nome) && !["Omofobo", "Razzista", "Sessista"].includes(nome))
     .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
     .map(([nome, count]) => ({ nome, count, emoji: "🧬", effetto: "—" }));
 
@@ -49,8 +46,23 @@ export default function PersonalitaScreen() {
     ...personalitaCustom
   ];
 
+  const alimentazioni = [
+    { nome: "Onnivoro", emoji: "🍽️", effetto: "Consuma ogni tipo di cibo" },
+    { nome: "Vegetariano", emoji: "🥬", effetto: "Non consuma carne dall'inventario (es. Bistecca)" },
+    { nome: "Vegano", emoji: "🌿", effetto: "Non consuma carne, latte né uova dall'inventario" }
+  ].map((item) => ({
+    ...item,
+    count: abitanti.filter((a: Abitante) => getAlimentazioneAbitante(a) === item.nome).length
+  }));
+
+  const discriminazioni = [
+    { nome: "Omofobo", emoji: "😤", effetto: "Discrimina gli abitanti Omo e Bi" },
+    { nome: "Razzista", emoji: "😠", effetto: "Discrimina gli abitanti di razza diversa" },
+    { nome: "Sessista", emoji: "🚫", effetto: "Discrimina gli abitanti in base al sesso" }
+  ].map((item) => ({ ...item, count: mappa.get(item.nome) ?? 0 }));
+
   return (
-    <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
+    <SafeAreaView style={[styles.safe, maxHeight != null ? { maxHeight, overflow: "hidden" } : undefined]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
         <Text style={styles.title}>🧠 Personalità</Text>
@@ -77,6 +89,32 @@ export default function PersonalitaScreen() {
           {personalita.length === 0 && (
             <Text style={styles.emptyText}>Nessuna personalità trovata.</Text>
           )}
+        </View>
+
+        <Text style={styles.sectionTitle}>🚫 Discriminazioni</Text>
+        <Text style={styles.subtitle}>Personalità discriminatorie presenti nella colonia.</Text>
+        <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
+          {discriminazioni.map((p) => (
+            <View key={p.nome} style={[styles.card, isDesktop && styles.cardDesktop]}>
+              <Text style={styles.emoji}>{p.emoji}</Text>
+              <Text style={styles.cardTitle}>{p.nome}</Text>
+              <Text style={styles.cardEffetto}>{p.effetto}</Text>
+              <Text style={styles.cardDesc}>Presenti: <Text style={styles.bold}>{p.count}</Text></Text>
+            </View>
+          ))}
+        </View>
+
+        <Text style={styles.sectionTitle}>🍽️ Alimentazione</Text>
+        <Text style={styles.subtitle}>Regimi alimentari degli abitanti della colonia.</Text>
+        <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
+          {alimentazioni.map((p) => (
+            <View key={p.nome} style={[styles.card, isDesktop && styles.cardDesktop]}>
+              <Text style={styles.emoji}>{p.emoji}</Text>
+              <Text style={styles.cardTitle}>{p.nome}</Text>
+              <Text style={styles.cardEffetto}>{p.effetto}</Text>
+              <Text style={styles.cardDesc}>Presenti: <Text style={styles.bold}>{p.count}</Text></Text>
+            </View>
+          ))}
         </View>
       </ScrollView>
       </View>
@@ -119,6 +157,7 @@ const styles = StyleSheet.create({
     lineHeight: 14,
     marginBottom: 6
   },
+  sectionTitle: { color: "#ffffff", fontSize: 13, fontWeight: "700", marginTop: 14, marginBottom: 4 },
   grid: {
     flexDirection: "row",
     flexWrap: "wrap",

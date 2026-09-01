@@ -661,6 +661,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       produttività: 0,
       stanchezza: 0,
       personalità: "Tiepido",
+      alimentazione: "Onnivoro",
       amici: [],
       rivali: [],
       genitoriIds: [madre.id, ...(padre ? [padre.id] : [])],
@@ -675,7 +676,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       felicità: 70 + Math.floor(Math.random() * 25),
       religione: madre.religione,
       razza: razzaNeonato,
-      ...(razzaNeonato !== "Golem" && { aspetto: generaAspettoCasuale(razzaNeonato) }),
+      ...(razzaNeonato !== "Golem" && { aspetto: generaAspettoCasuale(razzaNeonato, Math.random, { eta: 0, sesso: sessoNeonato }) }),
       sesso: sessoNeonato,
       specializzazione: specializzazioneCasuale(),
       bisogni: { fame: 80, energia: 90, divertimento: 70, socialita: 70, igiene: 80 }
