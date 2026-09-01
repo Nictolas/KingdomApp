@@ -14,7 +14,8 @@ function semanticForSlot(asset: ManifestAsset, appearance: CharacterAppearance):
   if (asset.slot === "raceFeatures") return asset.semanticId === "human_head" && asset.color === appearance.skinTone;
   if (asset.slot === "hairFront" || asset.slot === "hairBack") return appearance.hairStyle !== "none" && asset.semanticId === appearance.hairStyle && asset.color === appearance.hairColor;
   if (asset.slot === "beard") return appearance.beardStyle !== "none" && asset.semanticId === appearance.beardStyle && asset.color === appearance.beardColor;
-  if (asset.slot === "outfit" || asset.slot === "lowerBody") return appearance.outfit !== "none" && asset.semanticId === appearance.outfit;
+  if (asset.slot === "outfit") return appearance.upperOutfit !== "none" && asset.semanticId === appearance.upperOutfit;
+  if (asset.slot === "lowerBody") return appearance.lowerOutfit !== "none" && asset.semanticId === appearance.lowerOutfit;
   if (asset.slot === "headwear") return appearance.headwear !== "none" && asset.semanticId === appearance.headwear;
   return false;
 }
@@ -38,8 +39,8 @@ export function resolveCharacterLayers(appearance: CharacterAppearance, animatio
     .map((asset): ResolvedCharacterLayer => ({ id: asset.id, assetPack: LPC_PACK_ID, layer: asset.slot, bodyFamilies: [familyForBodyType(asset.bodyType)], races: ["human"], sheetId: sheet.id, sourceId: asset.sourceKey, tint: "none", attributionId: asset.attributionId, sheet }));
   const slots = new Set(layers.map((layer) => layer.layer));
   if (!slots.has("body") || !slots.has("raceFeatures")) return [];
-  if (appearance.outfit !== "none" && !slots.has("outfit")) return [];
-  if (appearance.outfit !== "none" && !slots.has("lowerBody")) return [];
+  if (appearance.upperOutfit !== "none" && !slots.has("outfit")) return [];
+  if (appearance.lowerOutfit !== "none" && !slots.has("lowerBody")) return [];
   if (appearance.hairStyle !== "none" && !slots.has("hairFront") && !slots.has("hairBack")) return [];
   if (appearance.beardStyle !== "none" && !slots.has("beard")) return [];
   if (appearance.headwear !== "none" && !slots.has("headwear")) return [];
@@ -52,10 +53,25 @@ export function rendererKindFor(appearance: CharacterAppearance, animation: Char
 export function compatibleCatalogOptions(appearance: CharacterAppearance, options: { allowRoyalHeadwear?: boolean } = {}) {
   const bodyAssets = LPC_RUNTIME_MANIFEST.assets.filter((asset) => asset.bodyType === appearance.bodyType);
   const values = (slot: CharacterLayer) => [...new Set(bodyAssets.filter((asset) => asset.slot === slot).map((asset) => asset.semanticId))].sort();
+  const hairColors = [...new Set(bodyAssets
+    .filter((asset) => (asset.slot === "hairFront" || asset.slot === "hairBack") && asset.semanticId === appearance.hairStyle)
+    .map((asset) => asset.color))].sort();
   return {
     skinTones: LPC_RUNTIME_MANIFEST.options.skinTones.filter((tone) => bodyAssets.some((asset) => asset.slot === "body" && asset.color === tone)),
-    hairStyles: values("hairFront"), hairColors: LPC_RUNTIME_MANIFEST.options.hairColors,
-    beardStyles: ["none", ...values("beard")], outfits: values("outfit"),
+    hairStyles: [...new Set([...values("hairFront"), ...values("hairBack")])].sort(),
+    hairColors,
+    beardStyles: ["none", ...values("beard")],
+    outfits: values("outfit").filter((value) => values("lowerBody").includes(value)),
+    upperOutfits: values("outfit"),
+    lowerOutfits: values("lowerBody"),
     headwear: ["none", ...values("headwear").filter((value) => options.allowRoyalHeadwear || value !== "crown")]
   };
+}
+
+export function firstCompatibleHairColor(appearance: CharacterAppearance, hairStyle: string): string {
+  return LPC_RUNTIME_MANIFEST.assets.find((asset) =>
+    asset.bodyType === appearance.bodyType &&
+    (asset.slot === "hairFront" || asset.slot === "hairBack") &&
+    asset.semanticId === hairStyle
+  )?.color ?? appearance.hairColor;
 }

@@ -18,8 +18,10 @@ import {
 } from "../game/personaggioAspetto";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 import { PixelAvatarPreview } from "./PixelAvatarPreview";
-import { compatibleCatalogOptions } from "../character-system/registry";
+import { compatibleCatalogOptions, firstCompatibleHairColor } from "../character-system/registry";
 import { bodyFamilyFor, normalizeCharacterAppearance } from "../character-system/appearance";
+import { SpriteCharacterRenderer } from "../components/SpriteCharacterRenderer";
+import type { CharacterAppearance } from "../character-system/types";
 
 export type DatiCreazioneGiocatore = {
   nome: string;
@@ -68,6 +70,30 @@ function forzaAspettoReTeen(aspetto: AspettoPersonaggio): AspettoPersonaggio {
 
 const ASPETTO_RE_DEFAULT = forzaAspettoReTeen(ASPETTO_GIOCATORE_DEFAULT);
 
+function AppearanceOption({
+  appearance,
+  label,
+  selected,
+  onPress
+}: {
+  appearance: CharacterAppearance;
+  label: string;
+  selected: boolean;
+  onPress: () => void;
+}) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={label}
+      accessibilityState={{ selected }}
+      onPress={onPress}
+      style={[styles.visualOption, selected && styles.visualOptionSelected]}
+    >
+      <SpriteCharacterRenderer appearance={appearance} animation="idle" direction="down" size={72} />
+    </Pressable>
+  );
+}
+
 export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocatoreModalProps) {
   const [nome, setNome] = useState("");
   const [cognome, setCognome] = useState("");
@@ -82,6 +108,13 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
   const updateSpriteAppearance = (patch: Partial<typeof spriteAppearance>) => {
     const next = forzaAspettoReTeen({ ...aspetto, characterAppearance: { ...spriteAppearance, ...patch } });
     setAspetto(next);
+  };
+  const updateOutfit = (upperOutfit: string, lowerOutfit: string) => {
+    updateSpriteAppearance({
+      outfit: upperOutfit === lowerOutfit ? upperOutfit : "custom",
+      upperOutfit,
+      lowerOutfit
+    });
   };
 
   const valido =
@@ -110,107 +143,83 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
           onPress={(e) => e.stopPropagation()}
         >
           <View style={styles.accentLine} />
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
-            <View style={styles.header}>
-              <View style={styles.emojiWrap}>
-                <Text style={styles.emoji}>🛡️</Text>
-              </View>
-              <Text style={styles.title}>Crea il tuo Re</Text>
-              <Text style={styles.subtitle}>Configura un personaggio pixel-art modulare</Text>
-              <View style={styles.titleUnderline} />
-            </View>
+          <View style={styles.header}>
+            <View style={styles.emojiWrap}><Text style={styles.emoji}>🛡️</Text></View>
+            <Text style={styles.title}>Crea il tuo Re</Text>
+            <Text style={styles.subtitle}>Configura un personaggio pixel-art modulare</Text>
+            <View style={styles.titleUnderline} />
+          </View>
 
-            <Text style={styles.sectionTitle}>Chi sei?</Text>
-
-            <View style={[styles.editorLayout, isDesktop && styles.editorLayoutDesktop]}>
-              <View style={[styles.previewColumn, isDesktop && styles.previewColumnDesktop]}>
-                <View style={styles.previewWrap}>
-                  <PixelAvatarPreview razza={RAZZA_RE} aspetto={aspetto} />
-                  <View style={styles.previewMeta}>
-                    <Text style={styles.previewHint}>Umano · 10 anni · corpo teen</Text>
-                    <Pressable style={styles.randomButton} onPress={() => {
-                      const casualeTeen = generaAspettoCasuale(RAZZA_RE, Math.random, {
-                        eta: 15,
-                        sesso: sesso ?? undefined
-                      });
-                      setAspetto(forzaAspettoReTeen(casualeTeen));
-                    }}>
-                      <Text style={styles.randomButtonText}>🎲 Sorprendimi</Text>
-                    </Pressable>
-                  </View>
+          <View style={[styles.editorLayout, isDesktop && styles.editorLayoutDesktop]}>
+            <View style={[styles.previewColumn, isDesktop && styles.previewColumnDesktop]}>
+              <View style={styles.previewWrap}>
+                <PixelAvatarPreview razza={RAZZA_RE} aspetto={aspetto} />
+                <View style={styles.previewMeta}>
+                  <Text style={styles.previewHint}>Umano · 10 anni · corpo teen</Text>
+                  <Pressable style={styles.randomButton} onPress={() => {
+                    const casualeTeen = generaAspettoCasuale(RAZZA_RE, Math.random, { eta: 15, sesso: sesso ?? undefined });
+                    setAspetto(forzaAspettoReTeen(casualeTeen));
+                  }}>
+                    <Text style={styles.randomButtonText}>🎲 Sorprendimi</Text>
+                  </Pressable>
                 </View>
               </View>
-
-              <View style={styles.controlsColumn}>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Nome</Text>
-              <TextInput
-                style={styles.input}
-                value={nome}
-                onChangeText={setNome}
-                placeholder="Nome"
-                placeholderTextColor="rgba(148,163,184,0.5)"
-                autoCapitalize="words"
-              />
             </View>
 
-            <View style={styles.field}>
-              <Text style={styles.label}>Cognome</Text>
-              <TextInput
-                style={styles.input}
-                value={cognome}
-                onChangeText={setCognome}
-                placeholder="Cognome"
-                placeholderTextColor="rgba(148,163,184,0.5)"
-                autoCapitalize="words"
-              />
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Genere</Text>
-              <View style={styles.chipRow}>
-                {GENERI.map((g) => (
-                  <Pressable
-                    key={g.id}
-                    style={[styles.chip, sesso === g.id && styles.chipSelected]}
-                  onPress={() => {
-                    setSesso(g.id);
-                  }}
-                  >
-                    <Text style={[styles.chipText, sesso === g.id && styles.chipTextSelected]}>{g.label}</Text>
-                  </Pressable>
-                ))}
+            <ScrollView
+              style={styles.controlsScroll}
+              contentContainerStyle={styles.controlsColumn}
+              showsVerticalScrollIndicator
+              keyboardShouldPersistTaps="handled"
+            >
+              <Text style={styles.sectionTitle}>Chi sei?</Text>
+              <View style={styles.field}>
+                <Text style={styles.label}>Nome</Text>
+                <TextInput style={styles.input} value={nome} onChangeText={setNome} placeholder="Nome" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="words" />
               </View>
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Orientamento sessuale</Text>
-              <View style={styles.chipRowWrap}>
-                {ORIENTAMENTI.map((o) => (
-                  <Pressable
-                    key={o.id}
-                    style={[styles.chip, orientamento === o.id && styles.chipSelected]}
-                    onPress={() => setOrientamento(o.id)}
-                  >
-                    <Text style={[styles.chipText, orientamento === o.id && styles.chipTextSelected]}>
-                      {o.label}
-                    </Text>
-                  </Pressable>
-                ))}
+              <View style={styles.field}>
+                <Text style={styles.label}>Cognome</Text>
+                <TextInput style={styles.input} value={cognome} onChangeText={setCognome} placeholder="Cognome" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="words" />
               </View>
-            </View>
-
-            <Text style={styles.sectionTitle}>Aspetto del personaggio</Text>
-
-            <View style={styles.field}><Text style={styles.label}>Colore pelle</Text><View style={styles.chipRowWrap}>{catalogOptions.skinTones.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.skinTone === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ skinTone: value })}><Text style={[styles.chipText, spriteAppearance.skinTone === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Stile capelli</Text><View style={styles.chipRowWrap}>{catalogOptions.hairStyles.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.hairStyle === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ hairStyle: value })}><Text style={[styles.chipText, spriteAppearance.hairStyle === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Colore capelli</Text><View style={styles.chipRowWrap}>{catalogOptions.hairColors.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.hairColor === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ hairColor: value })}><Text style={[styles.chipText, spriteAppearance.hairColor === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>
-            {spriteAppearance.bodyType === "male" && <View style={styles.field}><Text style={styles.label}>Barba / baffi LPC</Text><View style={styles.chipRowWrap}>{catalogOptions.beardStyles.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.beardStyle === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ beardStyle: value })}><Text style={[styles.chipText, spriteAppearance.beardStyle === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>}
-            <View style={styles.field}><Text style={styles.label}>Outfit LPC</Text><View style={styles.chipRowWrap}>{catalogOptions.outfits.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.outfit === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ outfit: value })}><Text style={[styles.chipText, spriteAppearance.outfit === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>
+              <View style={styles.field}>
+                <Text style={styles.label}>Genere</Text>
+                <View style={styles.chipRow}>{GENERI.map((g) => <Pressable key={g.id} style={[styles.chip, sesso === g.id && styles.chipSelected]} onPress={() => setSesso(g.id)}><Text style={[styles.chipText, sesso === g.id && styles.chipTextSelected]}>{g.label}</Text></Pressable>)}</View>
               </View>
-            </View>
-          </ScrollView>
+              <View style={styles.field}>
+                <Text style={styles.label}>Orientamento sessuale</Text>
+                <View style={styles.chipRowWrap}>{ORIENTAMENTI.map((o) => <Pressable key={o.id} style={[styles.chip, orientamento === o.id && styles.chipSelected]} onPress={() => setOrientamento(o.id)}><Text style={[styles.chipText, orientamento === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View>
+              </View>
+
+              <Text style={styles.sectionTitle}>Aspetto del personaggio</Text>
+              <View style={styles.field}>
+                <Text style={styles.label}>Colore pelle</Text>
+                <View style={styles.visualGrid}>{catalogOptions.skinTones.map((value) => <AppearanceOption key={value} label={`Colore pelle ${value}`} selected={spriteAppearance.skinTone === value} appearance={normalizeCharacterAppearance({ ...spriteAppearance, skinTone: value })} onPress={() => updateSpriteAppearance({ skinTone: value })} />)}</View>
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>Stile capelli</Text>
+                <View style={styles.visualGrid}>{catalogOptions.hairStyles.map((value) => {
+                  const hairColor = firstCompatibleHairColor(spriteAppearance, value);
+                  return <AppearanceOption key={value} label={`Stile capelli ${value}`} selected={spriteAppearance.hairStyle === value} appearance={normalizeCharacterAppearance({ ...spriteAppearance, hairStyle: value, hairColor })} onPress={() => updateSpriteAppearance({ hairStyle: value, hairColor })} />;
+                })}</View>
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>Colore capelli</Text>
+                <View style={styles.visualGrid}>{catalogOptions.hairColors.map((value) => <AppearanceOption key={value} label={`Colore capelli ${value}`} selected={spriteAppearance.hairColor === value} appearance={normalizeCharacterAppearance({ ...spriteAppearance, hairColor: value })} onPress={() => updateSpriteAppearance({ hairColor: value })} />)}</View>
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>Abiti completi</Text>
+                <View style={styles.visualGrid}>{catalogOptions.outfits.map((value) => <AppearanceOption key={value} label={`Abito completo ${value}`} selected={spriteAppearance.upperOutfit === value && spriteAppearance.lowerOutfit === value} appearance={normalizeCharacterAppearance({ ...spriteAppearance, outfit: value, upperOutfit: value, lowerOutfit: value })} onPress={() => updateOutfit(value, value)} />)}</View>
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>Sopra</Text>
+                <View style={styles.visualGrid}>{catalogOptions.upperOutfits.map((value) => <AppearanceOption key={value} label={`Parte superiore ${value}`} selected={spriteAppearance.upperOutfit === value} appearance={normalizeCharacterAppearance({ ...spriteAppearance, upperOutfit: value })} onPress={() => updateOutfit(value, spriteAppearance.lowerOutfit)} />)}</View>
+              </View>
+              <View style={styles.field}>
+                <Text style={styles.label}>Sotto</Text>
+                <View style={styles.visualGrid}>{catalogOptions.lowerOutfits.map((value) => <AppearanceOption key={value} label={`Parte inferiore ${value}`} selected={spriteAppearance.lowerOutfit === value} appearance={normalizeCharacterAppearance({ ...spriteAppearance, lowerOutfit: value })} onPress={() => updateOutfit(spriteAppearance.upperOutfit, value)} />)}</View>
+              </View>
+            </ScrollView>
+          </View>
 
           <Pressable
             style={({ pressed }) => [
@@ -243,6 +252,7 @@ const styles = StyleSheet.create({
     padding: 24,
     minWidth: 320,
     maxWidth: 440,
+    height: "92%",
     maxHeight: "92%",
     borderWidth: 1,
     borderColor: "rgba(148, 163, 184, 0.25)",
@@ -302,11 +312,12 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
-  editorLayout: { width: "100%" },
+  editorLayout: { width: "100%", flex: 1, minHeight: 0 },
   editorLayoutDesktop: { flexDirection: "row", alignItems: "flex-start", gap: 24 },
   previewColumn: { width: "100%" },
   previewColumnDesktop: { width: 300 },
-  controlsColumn: { flex: 1, minWidth: 0 },
+  controlsScroll: { flex: 1, minHeight: 0 },
+  controlsColumn: { paddingRight: 8, paddingBottom: 12 },
   previewWrap: { alignItems: "center", marginBottom: 18, gap: 10, backgroundColor: "rgba(120,83,45,0.16)", borderWidth: 1, borderColor: "rgba(214,195,155,0.25)", borderRadius: 14, padding: 14 },
   previewMeta: { alignItems: "center", gap: 8 },
   previewHint: { color: "#f3ddb0", fontSize: 12, fontWeight: "800", textTransform: "capitalize" },
@@ -359,6 +370,22 @@ const styles = StyleSheet.create({
   },
   chipTextSelected: {
     color: "#e2e8f0"
+  },
+  visualGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  visualOption: {
+    width: 82,
+    height: 82,
+    alignItems: "center",
+    justifyContent: "center",
+    overflow: "hidden",
+    borderRadius: 10,
+    borderWidth: 2,
+    borderColor: "rgba(148, 163, 184, 0.3)",
+    backgroundColor: "#243447"
+  },
+  visualOptionSelected: {
+    borderColor: "#60a5fa",
+    backgroundColor: "rgba(59, 130, 246, 0.22)"
   },
   confirmButton: {
     backgroundColor: "#2563eb",

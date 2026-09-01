@@ -59,6 +59,18 @@ test("compatibilità filtra opzioni per corporatura", () => {
   assert.equal(rendererKindFor(child, "idle"), "sprite");
 });
 
+test("outfit superiore e inferiore sono combinabili e i vecchi salvataggi restano compatibili", () => {
+  const mixed = normalizeCharacterAppearance({ upperOutfit: "noble", lowerOutfit: "traveler" });
+  const layers = resolveCharacterLayers(mixed, "idle");
+  assert.ok(layers.some((layer) => layer.layer === "outfit"));
+  assert.ok(layers.some((layer) => layer.layer === "lowerBody"));
+  assert.equal(rendererKindFor(mixed, "idle"), "sprite");
+
+  const legacy = deserializeCharacterAppearance(JSON.stringify({ ...DEFAULT_CHARACTER_APPEARANCE, upperOutfit: undefined, lowerOutfit: undefined, outfit: "farmer" }));
+  assert.equal(legacy.upperOutfit, "farmer");
+  assert.equal(legacy.lowerOutfit, "farmer");
+});
+
 test("solo il Re mantiene la corona e i pantaloni sono obbligatori senza Nudismo", () => {
   const nakedCrowned = normalizeCharacterAppearance({ outfit: "none", headwear: "crown" });
   const citizen = appearanceForPublicSpace(nakedCrowned, { isKing: false, nudismoAttivo: false });

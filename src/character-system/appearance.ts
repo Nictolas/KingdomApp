@@ -26,6 +26,8 @@ export const DEFAULT_CHARACTER_APPEARANCE: CharacterAppearance = {
   beardStyle: "none",
   beardColor: "dark_brown",
   outfit: "commoner",
+  upperOutfit: "commoner",
+  lowerOutfit: "commoner",
   outfitPrimaryColor: "brown",
   outfitSecondaryColor: "charcoal",
   footwear: "leather",
@@ -36,11 +38,15 @@ export const DEFAULT_CHARACTER_APPEARANCE: CharacterAppearance = {
 export function normalizeCharacterAppearance(value?: Partial<CharacterAppearance>): CharacterAppearance {
   const race = value?.race ?? DEFAULT_CHARACTER_APPEARANCE.race;
   const ageGroup = value?.ageGroup ?? DEFAULT_CHARACTER_APPEARANCE.ageGroup;
+  const legacyOutfit = value?.outfit ?? DEFAULT_CHARACTER_APPEARANCE.outfit;
   return {
     ...DEFAULT_CHARACTER_APPEARANCE,
     ...value,
     race,
     ageGroup,
+    outfit: legacyOutfit,
+    upperOutfit: value?.upperOutfit ?? legacyOutfit,
+    lowerOutfit: value?.lowerOutfit ?? legacyOutfit,
     bodyFamily: value?.bodyFamily ?? bodyFamilyFor(race, ageGroup)
   };
 }
@@ -50,9 +56,12 @@ export function appearanceForPublicSpace(
   value: CharacterAppearance,
   rules: { isKing: boolean; nudismoAttivo: boolean }
 ): CharacterAppearance {
+  const fallbackOutfit = !rules.nudismoAttivo ? "commoner" : "none";
   return normalizeCharacterAppearance({
     ...value,
     headwear: !rules.isKing && value.headwear === "crown" ? "none" : value.headwear,
-    outfit: !rules.nudismoAttivo && value.outfit === "none" ? "commoner" : value.outfit
+    outfit: value.outfit === "none" ? fallbackOutfit : value.outfit,
+    upperOutfit: value.upperOutfit === "none" ? fallbackOutfit : value.upperOutfit,
+    lowerOutfit: value.lowerOutfit === "none" ? fallbackOutfit : value.lowerOutfit
   });
 }

@@ -33,7 +33,10 @@ export type CharacterAppearance = {
   hairColor: string;
   beardStyle: string;
   beardColor: string;
+  /** Identificatore storico del completo; resta per compatibilità con i salvataggi precedenti. */
   outfit: string;
+  upperOutfit: string;
+  lowerOutfit: string;
   outfitPrimaryColor: string;
   outfitSecondaryColor: string;
   footwear: string;
