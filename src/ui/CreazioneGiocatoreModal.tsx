@@ -14,10 +14,7 @@ import {
   generaAspettoCasuale,
   creaCharacterAppearance,
   type AspettoPersonaggio,
-  type CappelloPersonaggio,
-  type RazzaGiocatore,
-  type StileOcchi,
-  type VestitiPersonaggio
+  type RazzaGiocatore
 } from "../game/personaggioAspetto";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 import { PixelAvatarPreview } from "./PixelAvatarPreview";
@@ -50,31 +47,21 @@ const ORIENTAMENTI: { id: "Etero" | "Omo" | "Bi" | "Asessuale"; label: string }[
   { id: "Asessuale", label: "Asessuale" }
 ];
 
-const OCCHI: { id: StileOcchi; label: string }[] = [
-  { id: "tondi", label: "Tondi" }, { id: "determinati", label: "Determinati" }, { id: "allegri", label: "Allegri" }
-];
-const VESTITI: { id: VestitiPersonaggio; label: string }[] = [
-  { id: "viandante", label: "Viandante" }, { id: "nobile", label: "Nobile" },
-  { id: "ranger", label: "Ranger" }, { id: "mago", label: "Mago" }
-];
-const CAPPELLI: { id: CappelloPersonaggio; label: string }[] = [
-  { id: "nessuno", label: "Nessuno" }, { id: "cappuccio", label: "Cappuccio" },
-  { id: "berretto", label: "Berretto" }, { id: "corona", label: "👑 Corona del Re" }
-];
-
 const RAZZA_RE: RazzaGiocatore = "Umano";
 
 function forzaAspettoReTeen(aspetto: AspettoPersonaggio): AspettoPersonaggio {
   const corrente = aspetto.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, "teen");
   return {
     ...aspetto,
+    cappello: "corona",
     characterAppearance: normalizeCharacterAppearance({
       ...corrente,
       race: "human",
       bodyType: "teen",
       ageGroup: "teen",
       bodyFamily: bodyFamilyFor("human", "teen"),
-      beardStyle: "none"
+      beardStyle: "none",
+      headwear: "crown"
     })
   };
 }
@@ -91,7 +78,7 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
   const spriteAppearance = aspetto.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, "teen");
-  const catalogOptions = compatibleCatalogOptions(spriteAppearance, { allowRoyalHeadwear: true });
+  const catalogOptions = compatibleCatalogOptions(spriteAppearance);
   const updateSpriteAppearance = (patch: Partial<typeof spriteAppearance>) => {
     const next = forzaAspettoReTeen({ ...aspetto, characterAppearance: { ...spriteAppearance, ...patch } });
     setAspetto(next);
@@ -131,10 +118,6 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
               <Text style={styles.title}>Crea il tuo Re</Text>
               <Text style={styles.subtitle}>Configura un personaggio pixel-art modulare</Text>
               <View style={styles.titleUnderline} />
-            </View>
-
-            <View style={styles.messaggioWrap}>
-              <Text style={styles.messaggio}>Il tuo aspetto resterà legato al personaggio e verrà conservato nel salvataggio.</Text>
             </View>
 
             <Text style={styles.sectionTitle}>Chi sei?</Text>
@@ -225,11 +208,6 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
             <View style={styles.field}><Text style={styles.label}>Colore capelli</Text><View style={styles.chipRowWrap}>{catalogOptions.hairColors.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.hairColor === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ hairColor: value })}><Text style={[styles.chipText, spriteAppearance.hairColor === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>
             {spriteAppearance.bodyType === "male" && <View style={styles.field}><Text style={styles.label}>Barba / baffi LPC</Text><View style={styles.chipRowWrap}>{catalogOptions.beardStyles.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.beardStyle === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ beardStyle: value })}><Text style={[styles.chipText, spriteAppearance.beardStyle === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>}
             <View style={styles.field}><Text style={styles.label}>Outfit LPC</Text><View style={styles.chipRowWrap}>{catalogOptions.outfits.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.outfit === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ outfit: value })}><Text style={[styles.chipText, spriteAppearance.outfit === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Copricapo LPC</Text><View style={styles.chipRowWrap}>{catalogOptions.headwear.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.headwear === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ headwear: value })}><Text style={[styles.chipText, spriteAppearance.headwear === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>
-
-            <View style={styles.field}><Text style={styles.label}>Stile degli occhi</Text><View style={styles.chipRowWrap}>{OCCHI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.stileOcchi === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, stileOcchi: o.id }))}><Text style={[styles.chipText, aspetto.stileOcchi === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Vestiti</Text><View style={styles.chipRowWrap}>{VESTITI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.vestiti === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, vestiti: o.id }))}><Text style={[styles.chipText, aspetto.vestiti === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Copricapo <Text style={styles.kingOnly}>· la Corona appartiene solo al Re</Text></Text><View style={styles.chipRowWrap}>{CAPPELLI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.cappello === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, cappello: o.id }))}><Text style={[styles.chipText, aspetto.cappello === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
               </View>
             </View>
           </ScrollView>
@@ -316,20 +294,6 @@ const styles = StyleSheet.create({
     marginTop: 10,
     borderRadius: 1
   },
-  messaggioWrap: {
-    backgroundColor: "rgba(15, 23, 42, 0.8)",
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 20,
-    borderWidth: 1,
-    borderColor: "rgba(148, 163, 184, 0.12)"
-  },
-  messaggio: {
-    color: "#cbd5e1",
-    fontSize: 14,
-    lineHeight: 22,
-    textAlign: "justify"
-  },
   sectionTitle: {
     color: "#93c5fd",
     fontSize: 13,
@@ -357,7 +321,6 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     marginBottom: 6
   },
-  kingOnly: { color: "#d6b56f", fontWeight: "800" },
   input: {
     backgroundColor: "rgba(30, 41, 59, 0.9)",
     borderRadius: 8,
@@ -397,9 +360,6 @@ const styles = StyleSheet.create({
   chipTextSelected: {
     color: "#e2e8f0"
   },
-  swatchRow: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
-  swatch: { width: 34, height: 34, borderRadius: 4, borderWidth: 3, borderColor: "#334155" },
-  swatchSelected: { borderColor: "#60a5fa", transform: [{ scale: 1.08 }] },
   confirmButton: {
     backgroundColor: "#2563eb",
     paddingHorizontal: 28,
