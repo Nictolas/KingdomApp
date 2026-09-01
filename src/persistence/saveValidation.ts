@@ -1,7 +1,6 @@
 import type { Abitante, Edificio, Risorsa } from "../types";
 import { SAVE_FORMAT, SAVE_SCHEMA_VERSION, type GameSaveV1, type SaveEnvelopeV1 } from "./saveTypes.ts";
 import { generaAspettoDaSeed } from "../game/personaggioAspetto";
-import { appearanceForPublicSpace, normalizeCharacterAppearance } from "../character-system/appearance";
 import { getAlimentazioneAbitante } from "../game/alimentazione";
 
 export class SaveValidationError extends Error {
@@ -205,7 +204,6 @@ function cloneSaveValue<T>(value: T): T {
 
 export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
   const next = cloneSaveValue(payload);
-  next.policies.nudismoAttivo = next.policies.nudismoAttivo ?? false;
   const normalizzaRazzaFantasy = (razza: unknown): Abitante["razza"] => {
     if (razza === "Robot") return "Golem";
     if (razza === "Grigi" || razza === "Insettoidi") return "Goblin";
@@ -245,15 +243,8 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
       aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
     }),
-    ...(a.aspetto?.characterAppearance && {
-      aspetto: { ...a.aspetto, characterAppearance: appearanceForPublicSpace(normalizeCharacterAppearance(a.aspetto.characterAppearance), { isKing: a.id === 1, nudismoAttivo: next.policies.nudismoAttivo ?? false }) }
-    }),
     ...(a.id !== 1 && a.aspetto?.cappello === "corona" && {
-      aspetto: {
-        ...a.aspetto,
-        cappello: "nessuno",
-        ...(a.aspetto.characterAppearance && { characterAppearance: appearanceForPublicSpace(normalizeCharacterAppearance(a.aspetto.characterAppearance), { isKing: false, nudismoAttivo: next.policies.nudismoAttivo ?? false }) })
-      }
+      aspetto: { ...a.aspetto, cappello: "nessuno" }
     }),
     fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f),
     inventario: a.inventario ? normalizeInventario(a.inventario) : undefined
@@ -266,15 +257,8 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
       aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
     }),
-    ...(a.aspetto?.characterAppearance && {
-      aspetto: { ...a.aspetto, characterAppearance: appearanceForPublicSpace(normalizeCharacterAppearance(a.aspetto.characterAppearance), { isKing: false, nudismoAttivo: next.policies.nudismoAttivo ?? false }) }
-    }),
     ...(a.aspetto?.cappello === "corona" && {
-      aspetto: {
-        ...a.aspetto,
-        cappello: "nessuno",
-        ...(a.aspetto.characterAppearance && { characterAppearance: appearanceForPublicSpace(normalizeCharacterAppearance(a.aspetto.characterAppearance), { isKing: false, nudismoAttivo: next.policies.nudismoAttivo ?? false }) })
-      }
+      aspetto: { ...a.aspetto, cappello: "nessuno" }
     }),
     fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f)
   }));
