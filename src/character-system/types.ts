@@ -15,6 +15,7 @@ export type CharacterLayer =
   | "body"
   | "lowerBody"
   | "outfit"
+  | "fullOutfit"
   | "raceFeatures"
   | "beard"
   | "hairFront"
@@ -37,6 +38,7 @@ export type CharacterAppearance = {
   outfit: string;
   upperOutfit: string;
   lowerOutfit: string;
+  fullOutfit: string;
   outfitPrimaryColor: string;
   outfitSecondaryColor: string;
   footwear: string;

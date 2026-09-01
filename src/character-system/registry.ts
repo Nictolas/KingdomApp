@@ -3,7 +3,7 @@ import { LPC_PACK_ID, generatedLpcSheet } from "./lpcPack";
 import type { CharacterAnimationId, CharacterAppearance, CharacterAssetDefinition, CharacterBodyFamily, CharacterLayer, ResolvedCharacterLayer } from "./types";
 
 type ManifestAsset = { id: string; semanticId: string; slot: CharacterLayer; bodyType: string; color: string; colorField?: keyof CharacterAppearance; animation: string; zPos: number; sourceKey: string; required: boolean; attributionId: string };
-type Manifest = { options: { bodyTypes: string[]; skinTones: string[]; hairColors: string[]; hairStyles: string[]; beardStyles: string[]; outfits: string[]; headwear: string[] }; assets: ManifestAsset[] };
+type Manifest = { options: { bodyTypes: string[]; skinTones: string[]; hairColors: string[]; hairStyles: string[]; beardStyles: string[]; outfits: string[]; fullOutfits?: string[]; headwear: string[] }; assets: ManifestAsset[] };
 
 export const LPC_RUNTIME_MANIFEST = manifestJson as Manifest;
 export const CHARACTER_CATALOG_OPTIONS = LPC_RUNTIME_MANIFEST.options;
@@ -14,8 +14,9 @@ function semanticForSlot(asset: ManifestAsset, appearance: CharacterAppearance):
   if (asset.slot === "raceFeatures") return asset.semanticId === "human_head" && asset.color === appearance.skinTone;
   if (asset.slot === "hairFront" || asset.slot === "hairBack") return appearance.hairStyle !== "none" && asset.semanticId === appearance.hairStyle && asset.color === appearance.hairColor;
   if (asset.slot === "beard") return appearance.beardStyle !== "none" && asset.semanticId === appearance.beardStyle && asset.color === appearance.beardColor;
-  if (asset.slot === "outfit") return appearance.upperOutfit !== "none" && asset.semanticId === appearance.upperOutfit;
-  if (asset.slot === "lowerBody") return appearance.lowerOutfit !== "none" && asset.semanticId === appearance.lowerOutfit;
+  if (asset.slot === "fullOutfit") return appearance.fullOutfit !== "none" && asset.semanticId === appearance.fullOutfit;
+  if (asset.slot === "outfit") return appearance.fullOutfit === "none" && appearance.upperOutfit !== "none" && asset.semanticId === appearance.upperOutfit;
+  if (asset.slot === "lowerBody") return appearance.fullOutfit === "none" && appearance.lowerOutfit !== "none" && asset.semanticId === appearance.lowerOutfit;
   if (asset.slot === "headwear") return appearance.headwear !== "none" && asset.semanticId === appearance.headwear;
   return false;
 }
@@ -39,8 +40,9 @@ export function resolveCharacterLayers(appearance: CharacterAppearance, animatio
     .map((asset): ResolvedCharacterLayer => ({ id: asset.id, assetPack: LPC_PACK_ID, layer: asset.slot, bodyFamilies: [familyForBodyType(asset.bodyType)], races: ["human"], sheetId: sheet.id, sourceId: asset.sourceKey, tint: "none", attributionId: asset.attributionId, sheet }));
   const slots = new Set(layers.map((layer) => layer.layer));
   if (!slots.has("body") || !slots.has("raceFeatures")) return [];
-  if (appearance.upperOutfit !== "none" && !slots.has("outfit")) return [];
-  if (appearance.lowerOutfit !== "none" && !slots.has("lowerBody")) return [];
+  if (appearance.fullOutfit !== "none" && !slots.has("fullOutfit")) return [];
+  if (appearance.fullOutfit === "none" && appearance.upperOutfit !== "none" && !slots.has("outfit")) return [];
+  if (appearance.fullOutfit === "none" && appearance.lowerOutfit !== "none" && !slots.has("lowerBody")) return [];
   if (appearance.hairStyle !== "none" && !slots.has("hairFront") && !slots.has("hairBack")) return [];
   if (appearance.beardStyle !== "none" && !slots.has("beard")) return [];
   if (appearance.headwear !== "none" && !slots.has("headwear")) return [];
@@ -64,6 +66,7 @@ export function compatibleCatalogOptions(appearance: CharacterAppearance, option
     outfits: values("outfit").filter((value) => values("lowerBody").includes(value)),
     upperOutfits: values("outfit"),
     lowerOutfits: values("lowerBody"),
+    fullOutfits: values("fullOutfit"),
     headwear: ["none", ...values("headwear").filter((value) => options.allowRoyalHeadwear || value !== "crown")]
   };
 }

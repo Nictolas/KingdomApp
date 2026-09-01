@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { appearanceForPublicSpace, bodyFamilyFor, DEFAULT_CHARACTER_APPEARANCE, normalizeCharacterAppearance } from "../src/character-system/appearance.ts";
 import { LPC_DIRECTION_ROWS, LPC_SHEETS } from "../src/character-system/lpcPack.ts";
-import { CHARACTER_ASSETS, CHARACTER_CATALOG_OPTIONS, LPC_RUNTIME_MANIFEST, compatibleCatalogOptions, isAssetCompatible, rendererKindFor, resolveCharacterLayers } from "../src/character-system/registry.ts";
+import { CHARACTER_ASSETS, CHARACTER_CATALOG_OPTIONS, LPC_RUNTIME_MANIFEST, compatibleCatalogOptions, firstCompatibleHairColor, isAssetCompatible, rendererKindFor, resolveCharacterLayers } from "../src/character-system/registry.ts";
 import { deserializeCharacterAppearance, serializeCharacterAppearance } from "../src/character-system/serialization.ts";
 import { generaAspettoCasuale } from "../src/game/personaggioAspetto.ts";
 
@@ -19,7 +19,7 @@ test("mapping race e age -> body family", () => {
 test("registry LPC espone solo asset reali e compatibili", () => {
   assert.equal(CHARACTER_ASSETS.length, LPC_RUNTIME_MANIFEST.assets.length);
   assert.ok(CHARACTER_ASSETS.length >= 400);
-  const asset = CHARACTER_ASSETS[0]!;
+  const asset = CHARACTER_ASSETS.find((candidate) => candidate.bodyFamilies.includes("humanAdult"))!;
   assert.equal(asset.assetPack, "lpc");
   assert.ok(isAssetCompatible(asset, DEFAULT_CHARACTER_APPEARANCE));
   assert.equal(isAssetCompatible(asset, normalizeCharacterAppearance({ race: "dwarf" })), false);
@@ -69,6 +69,27 @@ test("outfit superiore e inferiore sono combinabili e i vecchi salvataggi restan
   const legacy = deserializeCharacterAppearance(JSON.stringify({ ...DEFAULT_CHARACTER_APPEARANCE, upperOutfit: undefined, lowerOutfit: undefined, outfit: "farmer" }));
   assert.equal(legacy.upperOutfit, "farmer");
   assert.equal(legacy.lowerOutfit, "farmer");
+});
+
+test("tutte le opzioni teen del catalogo producono uno sprite completo", () => {
+  const teen = normalizeCharacterAppearance({ bodyType: "teen", ageGroup: "teen", bodyFamily: "humanTeen", headwear: "crown" });
+  const options = compatibleCatalogOptions(teen);
+  assert.ok(options.hairStyles.includes("jewfro"));
+  assert.ok(options.fullOutfits.includes("kimono"));
+
+  for (const hairStyle of options.hairStyles) {
+    const hairColor = firstCompatibleHairColor(teen, hairStyle);
+    assert.equal(rendererKindFor(normalizeCharacterAppearance({ ...teen, hairStyle, hairColor }), "idle"), "sprite", `capelli ${hairStyle}`);
+  }
+  for (const upperOutfit of options.upperOutfits) {
+    assert.equal(rendererKindFor(normalizeCharacterAppearance({ ...teen, fullOutfit: "none", upperOutfit }), "idle"), "sprite", `sopra ${upperOutfit}`);
+  }
+  for (const lowerOutfit of options.lowerOutfits) {
+    assert.equal(rendererKindFor(normalizeCharacterAppearance({ ...teen, fullOutfit: "none", lowerOutfit }), "idle"), "sprite", `sotto ${lowerOutfit}`);
+  }
+  for (const fullOutfit of options.fullOutfits) {
+    assert.equal(rendererKindFor(normalizeCharacterAppearance({ ...teen, fullOutfit }), "idle"), "sprite", `abito intero ${fullOutfit}`);
+  }
 });
 
 test("solo il Re mantiene la corona e i pantaloni sono obbligatori senza Nudismo", () => {

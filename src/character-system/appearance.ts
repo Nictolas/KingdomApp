@@ -28,6 +28,7 @@ export const DEFAULT_CHARACTER_APPEARANCE: CharacterAppearance = {
   outfit: "commoner",
   upperOutfit: "commoner",
   lowerOutfit: "commoner",
+  fullOutfit: "none",
   outfitPrimaryColor: "brown",
   outfitSecondaryColor: "charcoal",
   footwear: "leather",
@@ -47,6 +48,7 @@ export function normalizeCharacterAppearance(value?: Partial<CharacterAppearance
     outfit: legacyOutfit,
     upperOutfit: value?.upperOutfit ?? legacyOutfit,
     lowerOutfit: value?.lowerOutfit ?? legacyOutfit,
+    fullOutfit: value?.fullOutfit ?? "none",
     bodyFamily: value?.bodyFamily ?? bodyFamilyFor(race, ageGroup)
   };
 }

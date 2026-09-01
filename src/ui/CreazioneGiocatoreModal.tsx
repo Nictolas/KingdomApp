@@ -18,7 +18,7 @@ import {
 } from "../game/personaggioAspetto";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 import { PixelAvatarPreview } from "./PixelAvatarPreview";
-import { compatibleCatalogOptions, firstCompatibleHairColor } from "../character-system/registry";
+import { canRenderCharacter, compatibleCatalogOptions, firstCompatibleHairColor } from "../character-system/registry";
 import { bodyFamilyFor, normalizeCharacterAppearance } from "../character-system/appearance";
 import { SpriteCharacterRenderer } from "../components/SpriteCharacterRenderer";
 import type { CharacterAppearance, CharacterLayer } from "../character-system/types";
@@ -109,13 +109,16 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
   const catalogOptions = compatibleCatalogOptions(spriteAppearance);
   const updateSpriteAppearance = (patch: Partial<typeof spriteAppearance>) => {
     const next = forzaAspettoReTeen({ ...aspetto, characterAppearance: { ...spriteAppearance, ...patch } });
-    setAspetto(next);
+    if (next.characterAppearance && canRenderCharacter(next.characterAppearance, "idle")) {
+      setAspetto(next);
+    }
   };
   const updateOutfit = (upperOutfit: string, lowerOutfit: string) => {
     updateSpriteAppearance({
       outfit: upperOutfit === lowerOutfit ? upperOutfit : "custom",
       upperOutfit,
-      lowerOutfit
+      lowerOutfit,
+      fullOutfit: "none"
     });
   };
 
@@ -160,7 +163,10 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
                   <Text style={styles.previewHint}>Umano · 10 anni · corpo teen</Text>
                   <Pressable style={styles.randomButton} onPress={() => {
                     const casualeTeen = generaAspettoCasuale(RAZZA_RE, Math.random, { eta: 15, sesso: sesso ?? undefined });
-                    setAspetto(forzaAspettoReTeen(casualeTeen));
+                    const next = forzaAspettoReTeen(casualeTeen);
+                    if (next.characterAppearance && canRenderCharacter(next.characterAppearance, "idle")) {
+                      setAspetto(next);
+                    }
                   }}>
                     <Text style={styles.randomButtonText}>🎲 Sorprendimi</Text>
                   </Pressable>
@@ -210,15 +216,15 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Abiti completi</Text>
-                <View style={styles.visualGrid}>{catalogOptions.outfits.map((value) => <AppearanceOption key={value} label={`Abito completo ${value}`} selected={spriteAppearance.upperOutfit === value && spriteAppearance.lowerOutfit === value} visibleLayers={["outfit", "lowerBody"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, outfit: value, upperOutfit: value, lowerOutfit: value })} onPress={() => updateOutfit(value, value)} />)}</View>
+                <View style={styles.visualGrid}>{catalogOptions.fullOutfits.map((value) => <AppearanceOption key={value} label={`Abito completo ${value}`} selected={spriteAppearance.fullOutfit === value} visibleLayers={["fullOutfit"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: value })} onPress={() => updateSpriteAppearance({ outfit: value, fullOutfit: value })} />)}</View>
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Sopra</Text>
-                <View style={styles.visualGrid}>{catalogOptions.upperOutfits.map((value) => <AppearanceOption key={value} label={`Parte superiore ${value}`} selected={spriteAppearance.upperOutfit === value} visibleLayers={["outfit"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, upperOutfit: value })} onPress={() => updateOutfit(value, spriteAppearance.lowerOutfit)} />)}</View>
+                <View style={styles.visualGrid}>{catalogOptions.upperOutfits.map((value) => <AppearanceOption key={value} label={`Parte superiore ${value}`} selected={spriteAppearance.fullOutfit === "none" && spriteAppearance.upperOutfit === value} visibleLayers={["outfit"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", upperOutfit: value })} onPress={() => updateOutfit(value, spriteAppearance.lowerOutfit)} />)}</View>
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Sotto</Text>
-                <View style={styles.visualGrid}>{catalogOptions.lowerOutfits.map((value) => <AppearanceOption key={value} label={`Parte inferiore ${value}`} selected={spriteAppearance.lowerOutfit === value} visibleLayers={["lowerBody"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, lowerOutfit: value })} onPress={() => updateOutfit(spriteAppearance.upperOutfit, value)} />)}</View>
+                <View style={styles.visualGrid}>{catalogOptions.lowerOutfits.map((value) => <AppearanceOption key={value} label={`Parte inferiore ${value}`} selected={spriteAppearance.fullOutfit === "none" && spriteAppearance.lowerOutfit === value} visibleLayers={["lowerBody"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", lowerOutfit: value })} onPress={() => updateOutfit(spriteAppearance.upperOutfit, value)} />)}</View>
               </View>
             </ScrollView>
           </View>

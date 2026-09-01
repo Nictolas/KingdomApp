@@ -79,8 +79,47 @@ def source_for(base: Path, animation: str, color: str) -> tuple[Path, bool]:
     raise FileNotFoundError(f"Nessun PNG per {base.relative_to(SOURCE)} {animation} {color}")
 
 
+def discovered_teen_items() -> list[dict[str, Any]]:
+    """Indicizza automaticamente gli elementi LPC autonomi compatibili con il corpo teen."""
+    groups = [
+        ("hair", "hair/**/hair_*.json", "hairFront", "$hair", "hairColor"),
+        ("upper", "torso/shirts/**/*.json", "outfit", ["base"], "outfitPrimaryColor"),
+        ("lower_pants", "legs/pants/**/*.json", "lowerBody", ["base"], "outfitSecondaryColor"),
+        ("lower_skirts", "legs/skirts/**/*.json", "lowerBody", ["base"], "outfitSecondaryColor"),
+        ("full", "torso/dresses/**/*.json", "fullOutfit", ["base"], "outfitPrimaryColor"),
+    ]
+    result: list[dict[str, Any]] = []
+    definitions_root = SOURCE / "sheet_definitions"
+    for prefix, pattern, slot, colors, color_field in groups:
+        for path in sorted(definitions_root.glob(pattern)):
+            if path.name.startswith("meta_"):
+                continue
+            relative = path.relative_to(definitions_root).as_posix()
+            definition = load_json(path)
+            if not any("teen" in layer for key, layer in definition.items() if key.startswith("layer_") and isinstance(layer, dict)):
+                continue
+            stem = path.stem
+            for removable in ("hair_", "torso_clothes_", "legs_", "dress_"):
+                if stem.startswith(removable):
+                    stem = stem[len(removable):]
+            semantic = stem
+            result.append({
+                "id": f"auto_{prefix}_{hashlib.sha1(relative.encode()).hexdigest()[:10]}",
+                "slot": slot,
+                "definition": relative,
+                "semantic": semantic,
+                "bodyTypes": ["teen"],
+                "colors": colors,
+                "colorField": color_field,
+            })
+    return result
+
+
 def main() -> None:
     cfg = load_json(CONFIG)
+    if cfg.get("discoverTeenCatalog"):
+        known_definitions = {item["definition"] for item in cfg["items"]}
+        cfg["items"].extend(item for item in discovered_teen_items() if item["definition"] not in known_definitions)
     skin = cfg["skinTones"]
     hair = cfg["hairColors"]
     manifest: dict[str, Any] = {
@@ -149,6 +188,7 @@ def main() -> None:
     manifest["options"]["hairStyles"] = sorted({a["semanticId"] for a in manifest["assets"] if a["slot"] == "hairFront"})
     manifest["options"]["beardStyles"] = ["none"] + sorted({a["semanticId"] for a in manifest["assets"] if a["slot"] == "beard"})
     manifest["options"]["outfits"] = sorted({a["semanticId"] for a in manifest["assets"] if a["slot"] == "outfit"})
+    manifest["options"]["fullOutfits"] = sorted({a["semanticId"] for a in manifest["assets"] if a["slot"] == "fullOutfit"})
     manifest["options"]["headwear"] = ["none"] + sorted({a["semanticId"] for a in manifest["assets"] if a["slot"] == "headwear"})
 
     (OUT_GENERATED / "lpc-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

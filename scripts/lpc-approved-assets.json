@@ -3,6 +3,7 @@
   "skinTones": ["light", "amber", "olive", "bronze", "brown", "black"],
   "hairColors": ["black", "dark_brown", "chestnut", "blonde", "ginger", "white"],
   "bodyTypes": ["male", "female", "teen", "child"],
+  "discoverTeenCatalog": true,
   "items": [
     { "id": "body", "slot": "body", "definition": "body/body.json", "semantic": "$body", "colors": "$skin", "colorField": "skinTone", "required": true },
     { "id": "head_male", "slot": "raceFeatures", "definition": "head/heads/human/heads_human_male.json", "semantic": "human_head", "bodyTypes": ["male"], "colors": "$skin", "colorField": "skinTone", "required": true },

@@ -11,7 +11,7 @@ import type {
   ResolvedCharacterLayer
 } from "../character-system/types";
 
-const LAYER_ORDER = ["hairBack", "body", "lowerBody", "outfit", "raceFeatures", "beard", "hairFront", "headwear", "accessory"] as const;
+const LAYER_ORDER = ["hairBack", "body", "lowerBody", "outfit", "fullOutfit", "raceFeatures", "beard", "hairFront", "headwear", "accessory"] as const;
 
 function sourceFor(layer: ResolvedCharacterLayer) { return LPC_ASSET_SOURCES[layer.sourceId]; }
 
