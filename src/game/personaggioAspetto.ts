@@ -11,7 +11,30 @@ export type AspettoPersonaggio = {
   colorePelle: string;
   vestiti: VestitiPersonaggio;
   cappello: CappelloPersonaggio;
+  /** Nuovo modello grafico-agnostico. Opzionale per compatibilità con i save precedenti. */
+  characterAppearance?: CharacterAppearance;
 };
+
+const raceId = (razza: RazzaConAspetto): CharacterRaceId => ({
+  Umano: "human", Elfo: "elf", Nano: "dwarf", Orco: "orc", Goblin: "halfling"
+} satisfies Record<RazzaConAspetto, CharacterRaceId>)[razza];
+
+export function creaCharacterAppearance(razza: RazzaConAspetto, bodyType = "male"): CharacterAppearance {
+  const race = raceId(razza);
+  const ageGroup = bodyType === "child" ? "child" : bodyType === "teen" ? "teen" : "adult";
+  return normalizeCharacterAppearance({
+    race,
+    bodyType,
+    ageGroup,
+    bodyFamily: bodyFamilyFor(race, ageGroup),
+    hairStyle: bodyType === "child" ? "relm_short" : "messy",
+    hairColor: "dark_brown",
+    beardStyle: "none",
+    beardColor: "dark_brown",
+    outfit: "commoner",
+    headwear: "none"
+  });
+}
 
 export const ASPETTO_GIOCATORE_DEFAULT: AspettoPersonaggio = {
   coloreCapelli: "#6b3f24",
@@ -19,7 +42,8 @@ export const ASPETTO_GIOCATORE_DEFAULT: AspettoPersonaggio = {
   stileOcchi: "tondi",
   colorePelle: "#e9b38f",
   vestiti: "viandante",
-  cappello: "nessuno"
+  cappello: "nessuno",
+  characterAppearance: creaCharacterAppearance("Umano")
 };
 
 export const COLORI_CAPELLI = ["#24170f", "#6b3f24", "#b06a32", "#dfbd65", "#b9bec8"];
@@ -46,7 +70,8 @@ const pick = <T>(values: readonly T[], random: () => number): T =>
 /** Crea un'identità visiva completa usando esattamente gli stessi pezzi disponibili nell'editor. */
 export function generaAspettoCasuale(
   razza: RazzaConAspetto = "Umano",
-  random: () => number = Math.random
+  random: () => number = Math.random,
+  contesto: { eta?: number; sesso?: "M" | "F"; professione?: string } = {}
 ): AspettoPersonaggio {
   const coloriPelle = razza === "Orco" || razza === "Goblin"
     ? ["#79a86b", "#668f58", "#8aa66b"]
@@ -55,13 +80,47 @@ export function generaAspettoCasuale(
     ? ["nessuno", "berretto", "cappuccio"] as const
     : CAPPELLI_PERSONAGGIO;
 
+  const bodyType = contesto.eta != null && contesto.eta < 13
+    ? "child"
+    : contesto.eta != null && contesto.eta < 18
+      ? "teen"
+      : contesto.sesso === "F" ? "female" : "male";
+  const baseAppearance = creaCharacterAppearance(razza, bodyType);
+  const options = compatibleCatalogOptions(baseAppearance);
+  const professione = contesto.professione?.toLocaleLowerCase("it") ?? "";
+  const preferredOutfit = professione.includes("nobil") || professione.includes("ministr") || professione.includes("re")
+    ? "noble"
+    : professione.includes("guard") || professione.includes("soldat") || professione.includes("sicurezza")
+      ? "guard"
+      : professione.includes("agric") || professione.includes("contadin")
+        ? "farmer"
+        : undefined;
+  const outfit = preferredOutfit && options.outfits.includes(preferredOutfit)
+    ? preferredOutfit
+    : options.outfits.length > 0 ? pick(options.outfits, random) : "none";
+  const hairStyle = options.hairStyles.length > 0 ? pick(options.hairStyles, random) : "none";
+  const beardStyle = bodyType === "male" && options.beardStyles.length > 1 && random() > 0.55
+    ? pick(options.beardStyles.filter((value) => value !== "none"), random)
+    : "none";
+  const characterAppearance = normalizeCharacterAppearance({
+    ...baseAppearance,
+    skinTone: options.skinTones.length > 0 ? pick(options.skinTones, random) : baseAppearance.skinTone,
+    hairStyle,
+    hairColor: options.hairColors.length > 0 ? pick(options.hairColors, random) : baseAppearance.hairColor,
+    beardStyle,
+    beardColor: options.hairColors.length > 0 ? pick(options.hairColors, random) : baseAppearance.beardColor,
+    outfit,
+    headwear: options.headwear.length > 0 ? pick(options.headwear, random) : "none"
+  });
+
   return {
     coloreCapelli: pick(COLORI_CAPELLI, random),
     stileCapelli: pick(STILI_CAPELLI, random),
     stileOcchi: pick(STILI_OCCHI, random),
     colorePelle: pick(coloriPelle, random),
     vestiti: pick(VESTITI_PERSONAGGIO, random),
-    cappello: pick(cappelli, random)
+    cappello: pick(cappelli, random),
+    characterAppearance
   };
 }
 
@@ -73,3 +132,6 @@ export function generaAspettoDaSeed(razza: RazzaConAspetto, seed: number): Aspet
     return state / 0x100000000;
   });
 }
+import { bodyFamilyFor, normalizeCharacterAppearance } from "../character-system/appearance";
+import { compatibleCatalogOptions } from "../character-system/registry";
+import type { CharacterAppearance, CharacterRaceId } from "../character-system/types";

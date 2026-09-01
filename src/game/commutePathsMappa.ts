@@ -1,4 +1,5 @@
 import type { Abitante, Edificio } from "../types";
+import { deriveBuildingGeometry } from "./buildingGeometry";
 import { abitanteHaBisognoMensa } from "./mensaPubblica";
 import { abitanteVuoleNegozio } from "./negozio";
 import {
@@ -72,13 +73,11 @@ export function trovaCellaPortaEdificio(
 ): number | null {
   const edificio = edificiInMappa[anchor];
   const footprint = edificio?.footprint ?? { w: 1, h: 1 };
-  const anchorCol = anchor % cols;
-  const anchorRow = Math.floor(anchor / cols);
-  const doorCol = anchorCol + Math.floor(footprint.w / 2);
-  const doorRow = anchorRow + footprint.h;
-  if (doorCol < 0 || doorCol >= cols || doorRow < 0 || doorRow >= rows) return null;
-  const doorCell = doorRow * cols + doorCol;
-  return isWalkable(doorCell) ? doorCell : null;
+  const geometry = deriveBuildingGeometry(anchor, footprint.w, footprint.h, cols, rows);
+  const entryCell = geometry.entryPoint.cell;
+  // Se il footprint tocca il bordo sud non esiste una vera cella esterna.
+  if (geometry.entryPoint.y < geometry.footprint.row + geometry.footprint.height) return null;
+  return isWalkable(entryCell) ? entryCell : null;
 }
 
 /**

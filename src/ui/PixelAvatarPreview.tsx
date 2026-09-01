@@ -2,6 +2,8 @@ import React from "react";
 import { StyleSheet, View } from "react-native";
 import type { AspettoPersonaggio, RazzaGiocatore } from "../game/personaggioAspetto";
 import { COLORI_VESTITI } from "../game/personaggioAspetto";
+import { canRenderCharacter } from "../character-system/registry";
+import { SpriteCharacterRenderer } from "../components/SpriteCharacterRenderer";
 
 export function PixelAvatarPreview({
   razza,
@@ -12,6 +14,15 @@ export function PixelAvatarPreview({
   aspetto: AspettoPersonaggio;
   compatto?: boolean;
 }) {
+  const spriteAppearance = aspetto.characterAppearance;
+  if (spriteAppearance && canRenderCharacter(spriteAppearance, "idle")) {
+    const size = compatto ? 88 : 128;
+    return (
+      <View style={[styles.spriteFrame, { width: size, height: size }]} accessibilityLabel="Anteprima personaggio LPC">
+        <SpriteCharacterRenderer appearance={spriteAppearance} animation="idle" direction="down" size={size} />
+      </View>
+    );
+  }
   const clothes = COLORI_VESTITI[aspetto.vestiti];
   const pointed = razza === "Elfo";
   const beard = razza === "Nano";
@@ -44,6 +55,7 @@ export function PixelAvatarPreview({
 }
 
 const styles = StyleSheet.create({
+  spriteFrame: { backgroundColor: "#243447", borderWidth: 4, borderColor: "#0b1220", overflow: "hidden" },
   frame: { width: 128, height: 144, position: "relative", backgroundColor: "#243447", borderWidth: 4, borderColor: "#0b1220", overflow: "hidden" },
   frameCompatto: { transform: [{ scale: 0.68 }], marginHorizontal: -20, marginVertical: -23 },
   shadow: { position: "absolute", width: 64, height: 12, left: 32, bottom: 8, backgroundColor: "#111827", opacity: 0.65 },

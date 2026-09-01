@@ -47,6 +47,7 @@ export type PersistableGameState = {
   etaPensionabile: number;
   assegnoPensionati: number;
   leggeDroghe: "vietate" | "legali" | "parziali";
+  nudismoAttivo: boolean;
   divietoEspatrioAttivo: boolean;
   coprifuocoAttivo: boolean;
   coprifuocoInizioMinuti: number;
@@ -120,6 +121,7 @@ export function gameStateToGameSaveV1(state: PersistableGameState): GameSaveV1 {
       etaPensionabile: state.etaPensionabile,
       assegnoPensionati: state.assegnoPensionati,
       leggeDroghe: state.leggeDroghe,
+      nudismoAttivo: state.nudismoAttivo,
       divietoEspatrioAttivo: state.divietoEspatrioAttivo,
       coprifuocoAttivo: state.coprifuocoAttivo,
       coprifuocoInizioMinuti: state.coprifuocoInizioMinuti,
@@ -163,6 +165,7 @@ export function gameSaveV1ToGameState(save: GameSaveV1): PersistableGameState {
     pausaManuale: normalized.calendar.pausaManuale,
     ...normalized.simulationCursors,
     ...normalized.policies,
+    nudismoAttivo: normalized.policies.nudismoAttivo ?? false,
     ...normalized.events,
     mappa: normalized.map
   };

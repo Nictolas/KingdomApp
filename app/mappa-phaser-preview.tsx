@@ -7,6 +7,7 @@ import type { MappaRuntimeState } from "../src/game/mappaTypes";
 import { buildPhaserMapSnapshot } from "../src/phaser/adapters/buildPhaserMapSnapshot";
 import { useGameContext } from "../src/context/GameContext";
 import type { PhaserMapInteraction } from "../src/phaser/adapters/mapSceneBridge";
+import { DEFAULT_CHARACTER_APPEARANCE } from "../src/character-system/appearance";
 
 const COLS = 50;
 const ROWS = 50;
@@ -101,6 +102,10 @@ export default function MappaPhaserPreviewScreen() {
         cell: start,
         path: order < 6 ? [start, start + 1, start + 2, start + COLS + 2] : undefined,
         pathToken: 1,
+        appearance: abitante.razza === "Golem" ? "golem" as const : "human" as const,
+        characterAppearance: "aspetto" in abitante
+          ? abitante.aspetto?.characterAppearance
+          : DEFAULT_CHARACTER_APPEARANCE,
         markerEmoji: abitante.razza === "Golem" ? "🗿" : undefined
       };
     });

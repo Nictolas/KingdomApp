@@ -3,10 +3,13 @@ import { Asset } from "expo-asset";
 import { StyleSheet, View } from "react-native";
 
 import type { PhaserMapActions, PhaserMapSnapshot } from "../phaser/adapters/mapSceneBridge";
+import { LPC_ASSET_SOURCES } from "../character-system/generated/lpcAssetSources";
 
 const SPRITESHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spritesheet-full.png");
 const HUMAN_SHEET = require("../../assets/pixel-art/characters/human-colonist.png");
 const GOLEM_SHEET = require("../../assets/pixel-art/characters/stone-golem.png");
+const LPC_HUMAN_MALE_IDLE = require("../../assets/character-packs/lpc/human-male-adult/idle.png");
+const LPC_HUMAN_MALE_WALK = require("../../assets/character-packs/lpc/human-male-adult/walk.png");
 const COMMAND_CENTER = require("../../assets/pixel-art/buildings/command-center.png");
 const DORMITORY = require("../../assets/pixel-art/buildings/dormitory.png");
 const GREENHOUSE = require("../../assets/pixel-art/buildings/greenhouse.png");
@@ -48,6 +51,9 @@ export function PhaserMapSurface({
       const artUrls = {
         human: Asset.fromModule(HUMAN_SHEET).uri,
         golem: Asset.fromModule(GOLEM_SHEET).uri,
+        lpcHumanMaleIdle: Asset.fromModule(LPC_HUMAN_MALE_IDLE).uri,
+        lpcHumanMaleWalk: Asset.fromModule(LPC_HUMAN_MALE_WALK).uri,
+        lpcLayers: Object.fromEntries(Object.entries(LPC_ASSET_SOURCES).map(([key, source]) => [key, Asset.fromModule(source).uri])),
         buildings: {
           "command-center": Asset.fromModule(COMMAND_CENTER).uri,
           dormitory: Asset.fromModule(DORMITORY).uri,
@@ -56,7 +62,10 @@ export function PhaserMapSurface({
         }
       };
       const game = new Phaser.Game({
-        type: Phaser.WEBGL,
+        // La mappa è interamente 2D. Canvas evita la ricreazione dei framebuffer
+        // WebGL quando Expo Router nasconde/ridimensiona il contenitore durante
+        // l'apertura di una pagina edificio ("Incomplete Attachment").
+        type: Phaser.CANVAS,
         parent: hostRef.current,
         backgroundColor: "#18291c",
         transparent: false,
@@ -67,7 +76,7 @@ export function PhaserMapSurface({
         },
         render: {
           antialias: false,
-          pixelArt: false,
+          pixelArt: true,
           roundPixels: true
         },
         scene: [new KingdomMapScene(bridge, sheetUrl, artUrls)]
@@ -77,7 +86,12 @@ export function PhaserMapSurface({
 
     return () => {
       cancelled = true;
-      runtimeRef.current?.game.destroy(true);
+      const runtime = runtimeRef.current;
+      if (runtime) {
+        runtime.game.scale.stopListeners();
+        runtime.game.loop.stop();
+        runtime.game.destroy(true);
+      }
       runtimeRef.current = null;
     };
   }, []);

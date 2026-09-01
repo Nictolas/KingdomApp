@@ -1,0 +1,39 @@
+{
+  "animations": ["idle", "walk"],
+  "skinTones": ["light", "amber", "olive", "bronze", "brown", "black"],
+  "hairColors": ["black", "dark_brown", "chestnut", "blonde", "ginger", "white"],
+  "bodyTypes": ["male", "female", "teen", "child"],
+  "items": [
+    { "id": "body", "slot": "body", "definition": "body/body.json", "semantic": "$body", "colors": "$skin", "colorField": "skinTone", "required": true },
+    { "id": "head_male", "slot": "raceFeatures", "definition": "head/heads/human/heads_human_male.json", "semantic": "human_head", "bodyTypes": ["male"], "colors": "$skin", "colorField": "skinTone", "required": true },
+    { "id": "head_female", "slot": "raceFeatures", "definition": "head/heads/human/heads_human_female.json", "semantic": "human_head", "bodyTypes": ["female"], "colors": "$skin", "colorField": "skinTone", "required": true },
+    { "id": "head_teen", "slot": "raceFeatures", "definition": "head/heads/human/heads_human_female_small.json", "semantic": "human_head", "bodyTypes": ["teen"], "colors": "$skin", "colorField": "skinTone", "required": true },
+    { "id": "head_child", "slot": "raceFeatures", "definition": "head/heads/human/heads_human_child.json", "semantic": "human_head", "bodyTypes": ["child"], "colors": "$skin", "colorField": "skinTone", "required": true },
+
+    { "id": "hair_messy", "slot": "hairFront", "definition": "hair/short/hair_messy1.json", "semantic": "messy", "colors": "$hair", "colorField": "hairColor" },
+    { "id": "hair_bob", "slot": "hairFront", "definition": "hair/bob/hair_bob.json", "semantic": "bob", "colors": "$hair", "colorField": "hairColor" },
+    { "id": "hair_braid", "slot": "hairFront", "definition": "hair/braids/hair_braid.json", "semantic": "braid", "colors": "$hair", "colorField": "hairColor" },
+    { "id": "hair_afro", "slot": "hairFront", "definition": "hair/afro/hair_afro.json", "semantic": "afro", "colors": "$hair", "colorField": "hairColor" },
+    { "id": "hair_relm", "slot": "hairFront", "definition": "hair/bob/hair_relm_short.json", "semantic": "relm_short", "colors": "$hair", "colorField": "hairColor" },
+    { "id": "hair_child_wavy", "slot": "hairFront", "definition": "hair/long/hair_wavy_child.json", "semantic": "child_wavy", "bodyTypes": ["child"], "colors": "$hair", "colorField": "hairColor" },
+
+    { "id": "beard_basic", "slot": "beard", "definition": "hair/beards/beards_beard.json", "semantic": "basic", "bodyTypes": ["male"], "colors": "$hair", "colorField": "beardColor" },
+    { "id": "beard_trimmed", "slot": "beard", "definition": "hair/beards/beards_trimmed.json", "semantic": "trimmed", "bodyTypes": ["male"], "colors": "$hair", "colorField": "beardColor" },
+    { "id": "mustache", "slot": "beard", "definition": "hair/mustaches/beards_mustache.json", "semantic": "mustache", "bodyTypes": ["male"], "colors": "$hair", "colorField": "beardColor" },
+
+    { "id": "commoner_shirt", "slot": "outfit", "definition": "torso/shirts/longsleeve/torso_clothes_longsleeve.json", "semantic": "commoner", "colors": ["brown"], "colorField": "outfitPrimaryColor", "required": true },
+    { "id": "commoner_pants", "slot": "lowerBody", "definition": "legs/pants/legs_pants.json", "semantic": "commoner", "colors": ["charcoal"], "colorField": "outfitSecondaryColor", "required": true },
+    { "id": "commoner_boots", "slot": "outfit", "definition": "feet/boots/feet_boots_basic.json", "semantic": "commoner", "colors": ["leather"], "colorField": "footwear", "required": true },
+    { "id": "traveler_tunic", "slot": "outfit", "definition": "torso/shirts/torso_clothes_tunic.json", "semantic": "traveler", "colors": ["forest"], "colorField": "outfitPrimaryColor", "required": true },
+    { "id": "traveler_pants", "slot": "lowerBody", "definition": "legs/pants/legs_pants.json", "semantic": "traveler", "colors": ["brown"], "colorField": "outfitSecondaryColor", "required": true },
+    { "id": "traveler_boots", "slot": "outfit", "definition": "feet/boots/feet_boots_basic.json", "semantic": "traveler", "colors": ["leather"], "colorField": "footwear", "required": true },
+    { "id": "farmer_shirt", "slot": "outfit", "definition": "torso/shirts/longsleeve/torso_clothes_longsleeve.json", "semantic": "farmer", "colors": ["tan"], "colorField": "outfitPrimaryColor", "required": true },
+    { "id": "farmer_apron", "slot": "outfit", "definition": "torso/aprons/torso_aprons_apron.json", "semantic": "farmer", "colors": ["brown"], "colorField": "outfitSecondaryColor" },
+    { "id": "farmer_pants", "slot": "lowerBody", "definition": "legs/pants/legs_pants.json", "semantic": "farmer", "colors": ["brown"], "colorField": "outfitSecondaryColor", "required": true },
+    { "id": "guard_chainmail", "slot": "outfit", "definition": "torso/torso_chainmail.json", "semantic": "guard", "colors": ["base"], "required": true },
+    { "id": "guard_pants", "slot": "lowerBody", "definition": "legs/pants/legs_pants.json", "semantic": "guard", "colors": ["black"], "colorField": "outfitSecondaryColor", "required": true },
+    { "id": "noble_shirt", "slot": "outfit", "definition": "torso/shirts/longsleeve/torso_clothes_longsleeve.json", "semantic": "noble", "colors": ["maroon"], "colorField": "outfitPrimaryColor", "required": true },
+    { "id": "noble_pants", "slot": "lowerBody", "definition": "legs/pants/legs_pants.json", "semantic": "noble", "colors": ["black"], "colorField": "outfitSecondaryColor", "required": true },
+    { "id": "noble_crown", "slot": "headwear", "definition": "headwear/hats/formal/hat_formal_crown.json", "semantic": "crown", "colors": ["crown_gold"], "colorField": "headwear" }
+  ]
+}

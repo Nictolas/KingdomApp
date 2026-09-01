@@ -115,6 +115,8 @@ import { MapTerrainCell } from "../src/components/MapTerrainCell";
 import { MapWaterCellsLayer } from "../src/components/MapWaterCellsLayer";
 import { PhaserMapSurface } from "../src/components/PhaserMapSurface";
 import { buildPhaserMapSnapshot } from "../src/phaser/adapters/buildPhaserMapSnapshot";
+import { appearanceForPublicSpace } from "../src/character-system/appearance";
+import { assignUniqueCharacterCells } from "../src/game/characterCellOccupancy";
 import type { PhaserMapCharacter, PhaserMapInteraction } from "../src/phaser/adapters/mapSceneBridge";
 import { MondoLoadingScreen } from "../src/components/MondoLoadingScreen";
 import {
@@ -1833,7 +1835,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     capoReligiosoAlieni,
     coprifuocoAttivo,
     coprifuocoInizioMinuti,
-    coprifuocoFineMinuti
+    coprifuocoFineMinuti,
+    nudismoAttivo
   } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
@@ -3953,8 +3956,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     celleProtetteIniziali
   ]);
 
-  const phaserCharacters = useMemo<PhaserMapCharacter[]>(() =>
-    abitantiPerOverlayMappa.map((abitante, order) => {
+  const phaserCharacters = useMemo<PhaserMapCharacter[]>(() => {
+    const candidates: PhaserMapCharacter[] = abitantiPerOverlayMappa.map((abitante, order) => {
       const commute = commuteByAbitanteId[abitante.id];
       const home = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
       const fallback = (6 + Math.floor(order / 10) * 2) * cols + 3 + (order % 10) * 3;
@@ -3966,10 +3969,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         path: commute?.path,
         pathToken: commute?.token ?? 0,
         appearance: abitante.razza === "Golem" ? "golem" : "human",
+        characterAppearance: abitante.aspetto?.characterAppearance
+          ? appearanceForPublicSpace(abitante.aspetto.characterAppearance, { isKing: abitante.id === 1, nudismoAttivo })
+          : undefined,
         markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined
       };
-    }),
-  [abitantiPerOverlayMappa, commuteByAbitanteId, cellaCasaPerAbitanteId, cols]);
+    });
+    return assignUniqueCharacterCells(candidates, cols, rows, isWalkableCell);
+  }, [abitantiPerOverlayMappa, commuteByAbitanteId, cellaCasaPerAbitanteId, cols, rows, isWalkableCell, nudismoAttivo]);
 
   const phaserRevisionRef = useRef(0);
   const phaserBaseSnapshot = useMemo(
@@ -4462,6 +4469,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                               )))
                         }
                         markerEmoji={abitante.razza === "Golem" ? getEmojiAbitante(abitante) : null}
+                        appearance={abitante.aspetto?.characterAppearance}
                         pressAccessibilityLabel={`Seleziona ${getAbitanteNome(abitante.id)}`}
                         doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitante.id)}`}
                         isCellFreeForMe={(cell) => isCellFreeForAbitante(abitante.id, cell)}

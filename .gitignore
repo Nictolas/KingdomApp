@@ -12,4 +12,5 @@ yarn-error.log*
 .env.*.local
 .idea/
 .vscode/
+assets/source-packs/
 

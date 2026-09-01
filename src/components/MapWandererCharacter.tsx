@@ -2,6 +2,9 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { getOrologioGiocoInPausaSnapshot } from "../game/orologioGiocoSession";
 import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
+import type { CharacterAppearance, CharacterDirection } from "../character-system/types";
+import { canRenderCharacter } from "../character-system/registry";
+import { SpriteCharacterRenderer } from "./SpriteCharacterRenderer";
 
 const DOPPIO_TAP_MS = 400;
 
@@ -141,6 +144,8 @@ type MapWandererCharacterProps = {
   doubleTapAccessibilityLabel?: string;
   /** Se impostata, mostra questa emoji al posto dello sprite RPG (es. Golem 🗿). */
   markerEmoji?: string | null;
+  /** Aspetto semantico; se risolvibile usa lo stesso registry della preview e di Phaser. */
+  appearance?: CharacterAppearance;
   /**
    * Occupancy: evita che due personaggi condividano la stessa casella mentre camminano.
    * `isCellFreeForMe` = libera o già mia; `tryClaimCell` prenota atomicamente; `releaseMyCell` in uscita.
@@ -176,6 +181,7 @@ export function MapWandererCharacter({
   pressAccessibilityLabel,
   doubleTapAccessibilityLabel,
   markerEmoji = null,
+  appearance,
   isCellFreeForMe,
   tryClaimCell,
   releaseMyCell
@@ -633,9 +639,21 @@ export function MapWandererCharacter({
   const sheetH = frameH;
   const offsetX = -frameIndex * frameW;
 
+  const spriteDirection: CharacterDirection = ({ n: "up", s: "down", e: "right", w: "left" } as const)[direction];
+  const spriteAnimation = isMoving ? "walk" : "idle";
+  const usaSpriteModulare = appearance != null && canRenderCharacter(appearance, spriteAnimation);
   const sprite = usaEmojiMarker ? (
     <View style={[styles.spriteColumn, { height: cellSizePx, width: cellSizePx }]}>
       <Text style={[styles.markerEmoji, { fontSize: cellSizePx * 0.72 }]}>{markerEmoji}</Text>
+    </View>
+  ) : usaSpriteModulare ? (
+    <View style={[styles.spriteColumn, { height: cellSizePx, width: cellSizePx }]}>
+      <SpriteCharacterRenderer
+        appearance={appearance}
+        animation={spriteAnimation}
+        direction={spriteDirection}
+        size={cellSizePx * 1.22}
+      />
     </View>
   ) : (
     <View style={[styles.spriteColumn, { height: cellSizePx, width: cellSizePx }]}>

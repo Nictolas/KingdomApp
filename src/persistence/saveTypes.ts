@@ -67,6 +67,8 @@ export type GameSaveV1 = {
     etaPensionabile: number;
     assegnoPensionati: number;
     leggeDroghe: "vietate" | "legali" | "parziali";
+    /** Opzionale per mantenere compatibili i salvataggi creati prima della legge. */
+    nudismoAttivo?: boolean;
     divietoEspatrioAttivo: boolean;
     coprifuocoAttivo: boolean;
     coprifuocoInizioMinuti: number;

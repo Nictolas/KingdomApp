@@ -17,7 +17,7 @@ import { createAsyncStoragePersistentStorage } from "../persistence/asyncStorage
 import { gameSaveV1ToGameState, gameStateToGameSaveV1 } from "../persistence/gameStateMapping";
 import { SaveRepository, type LoadSaveResult } from "../persistence/saveRepository";
 import { SAVE_FORMAT, SAVE_SCHEMA_VERSION, type SaveEnvelopeV1 } from "../persistence/saveTypes";
-import { decideStartup, runMutationThenSave, shouldAutosave, shouldConfirmNewGame } from "../persistence/saveRuntimePolicy";
+import { decideStartup, runMutationThenSave, shouldAutosave } from "../persistence/saveRuntimePolicy";
 import { StartGameScreen } from "../ui/StartGameScreen";
 
 type ScaglioneConfig = {
@@ -62,6 +62,7 @@ type GameContextType = {
   etaPensionabile: number;
   assegnoPensionati: number;
   leggeDroghe: "vietate" | "legali" | "parziali";
+  nudismoAttivo: boolean;
   divietoEspatrioAttivo: boolean;
   iusPrimaeNoctisAttivo: boolean;
   /** Coprifuoco: divieto di stare «In giro» in una fascia oraria. */
@@ -95,6 +96,7 @@ type GameContextType = {
   setEtaPensionabile: (eta: number) => void;
   setAssegnoPensionati: (importo: number) => void;
   setLeggeDroghe: (legge: "vietate" | "legali" | "parziali") => void;
+  setNudismoAttivo: (attivo: boolean) => void;
   setDivietoEspatrioAttivo: (attivo: boolean) => void;
   setIusPrimaeNoctisAttivo: (attivo: boolean) => void;
   setCoprifuocoAttivo: (attivo: boolean) => void;
@@ -319,12 +321,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setStartup("active");
       gameState.startNewGame();
     };
-    if (shouldConfirmNewGame(pendingLoadRef.current)) {
-      Alert.alert("Nuova partita", "La partita salvata verrà sostituita. Continuare?", [
-        { text: "Annulla", style: "cancel" },
-        { text: "Continua", style: "destructive", onPress: () => void create() }
-      ]);
-    } else void create();
+    void create();
   }, [gameState]);
 
   const salvaPartita = useCallback(async () => {

@@ -59,6 +59,9 @@ test("gli edifici multicella vengono emessi una sola volta dal loro anchor", () 
   assert.equal(buildings[0].emoji, "🛏️");
   assert.equal(buildings[0].category, "residence");
   assert.equal(buildings[0].artKey, "dormitory");
+  assert.equal(buildings[0].geometry.entryPoint.cell, 17);
+  assert.equal(buildings[0].geometry.doorCell, 12);
+  assert.ok(buildings[0].geometry.collisionAreas.length >= 2);
   assert.equal(buildings[1].artKey, "greenhouse");
 });
 
@@ -99,6 +102,17 @@ test("lo stato di piazzamento resta un overlay effimero dello snapshot", () => {
   assert.deepEqual(snapshot.interaction.affectedCells, [5, 6, 9, 10]);
   assert.equal(snapshot.interaction.valid, true);
   assert.equal("interaction" in state, false);
+});
+
+test("l'overlay di puntamento è semanticamente riservato alla costruzione", () => {
+  const state: MappaRuntimeState = {
+    edificiInMappa: {}, terrenoInMappa: {}, decorazioniInMappa: {}, residenzeMappa: {}
+  };
+  const base = buildPhaserMapSnapshot(state, 4, 4, 40, 9);
+  const build = { ...base, interaction: { mode: "build" as const, hoverCell: 5, affectedCells: [5], valid: true } };
+  const select = { ...base, interaction: { mode: "select" as const, hoverCell: 5, affectedCells: [5], valid: true } };
+  assert.equal(build.interaction.mode, "build");
+  assert.notEqual(select.interaction.mode, "build");
 });
 
 test("una nuova revisione riflette le modifiche del terreno senza stato Phaser salvabile", () => {

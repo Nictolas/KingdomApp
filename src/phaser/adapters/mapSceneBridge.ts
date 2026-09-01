@@ -1,3 +1,6 @@
+import type { CharacterAppearance } from "../../character-system/types";
+import type { BuildingGeometry } from "../../game/buildingGeometry";
+
 export type PhaserMapTile = {
   index: number;
   frameX: number;
@@ -15,6 +18,7 @@ export type PhaserMapBuilding = {
   emoji: string;
   category: "residence" | "industry" | "service" | "security" | "religion" | "special";
   artKey?: "command-center" | "dormitory" | "greenhouse" | "frontier-hut";
+  geometry: BuildingGeometry;
 };
 
 export type PhaserMapCharacter = {
@@ -25,6 +29,7 @@ export type PhaserMapCharacter = {
   pathToken?: number;
   markerEmoji?: string;
   appearance?: "human" | "golem";
+  characterAppearance?: CharacterAppearance;
 };
 
 export type PhaserMapInteraction = {
@@ -43,6 +48,7 @@ export type PhaserMapSnapshot = {
   characters: readonly PhaserMapCharacter[];
   interaction?: PhaserMapInteraction;
   showGrid?: boolean;
+  debugBuildings?: boolean;
   revision: number;
 };
 

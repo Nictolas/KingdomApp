@@ -2,13 +2,22 @@ import Phaser from "phaser";
 
 import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
 import type { MapSceneBridge, PhaserMapBuilding, PhaserMapSnapshot } from "../adapters/mapSceneBridge";
+import { LPC_DIRECTION_ROWS } from "../../character-system/lpcPack";
+import { canRenderCharacter, resolveCharacterLayers } from "../../character-system/registry";
+import { scrollKeepingPointerAnchor } from "../../game/pointerZoom";
 
 const SHEET_KEY = "overworld";
 const HUMAN_KEY = "human-colonist";
 const GOLEM_KEY = "stone-golem";
+const LPC_IDLE_KEY = "lpc-human-male-idle";
+const LPC_WALK_KEY = "lpc-human-male-walk";
 const TILE_LAYER_DEPTH = 0;
-const BUILDING_LAYER_DEPTH = 10;
 const INTERACTION_LAYER_DEPTH = 30;
+const WORLD_DEPTH_BASE = 100;
+
+export function worldDepthForY(y: number): number {
+  return WORLD_DEPTH_BASE + Math.round(y * 10);
+}
 
 const BUILDING_COLORS = {
   residence: { fill: 0xb45309, roof: 0xf59e0b, border: 0x451a03 },
@@ -26,14 +35,22 @@ function frameKey(x: number, y: number): string {
 export type PhaserArtAssetUrls = {
   human: string;
   golem: string;
-  buildings: Record<NonNullable<PhaserMapBuilding["artKey"]>, string>;
+  lpcHumanMaleIdle: string;
+  lpcHumanMaleWalk: string;
+  lpcLayers: Record<string, string>;
+  buildings: Record<
+    NonNullable<PhaserMapBuilding["artKey"]>,
+    string | { base: string; overlay?: string; doorway?: string }
+  >;
 };
 
 type CharacterView = {
   root: Phaser.GameObjects.Container;
   sprite: Phaser.GameObjects.Sprite;
+  sprites: Phaser.GameObjects.Sprite[];
   token: number;
   direction: 0 | 1 | 2 | 3;
+  usesLpc: boolean;
 };
 
 export class KingdomMapScene extends Phaser.Scene {
@@ -42,8 +59,9 @@ export class KingdomMapScene extends Phaser.Scene {
   private readonly artUrls: PhaserArtAssetUrls;
   private unsubscribe: (() => void) | null = null;
   private tileLayer: Phaser.GameObjects.Container | null = null;
-  private buildingLayer: Phaser.GameObjects.Container | null = null;
-  private characterLayer: Phaser.GameObjects.Container | null = null;
+  private worldLayer: Phaser.GameObjects.Container | null = null;
+  private buildingViews: Phaser.GameObjects.Container[] = [];
+  private buildingDebugLayer: Phaser.GameObjects.Container | null = null;
   private interactionLayer: Phaser.GameObjects.Container | null = null;
   private gridLayer: Phaser.GameObjects.Graphics | null = null;
   private readonly characterViews = new Map<number, CharacterView>();
@@ -67,13 +85,25 @@ export class KingdomMapScene extends Phaser.Scene {
     this.load.image(SHEET_KEY, this.sheetUrl);
     this.load.spritesheet(HUMAN_KEY, this.artUrls.human, { frameWidth: 64, frameHeight: 64 });
     this.load.spritesheet(GOLEM_KEY, this.artUrls.golem, { frameWidth: 64, frameHeight: 64 });
-    for (const [key, url] of Object.entries(this.artUrls.buildings)) this.load.image(key, url);
+    this.load.spritesheet(LPC_IDLE_KEY, this.artUrls.lpcHumanMaleIdle, { frameWidth: 64, frameHeight: 64 });
+    this.load.spritesheet(LPC_WALK_KEY, this.artUrls.lpcHumanMaleWalk, { frameWidth: 64, frameHeight: 64 });
+    for (const [key, url] of Object.entries(this.artUrls.lpcLayers)) {
+      this.load.spritesheet(key, url, { frameWidth: 64, frameHeight: 64 });
+    }
+    for (const [key, asset] of Object.entries(this.artUrls.buildings)) {
+      if (typeof asset === "string") this.load.image(key, asset);
+      else {
+        this.load.image(key, asset.base);
+        if (asset.overlay) this.load.image(`${key}-overlay`, asset.overlay);
+        if (asset.doorway) this.load.image(`${key}-doorway`, asset.doorway);
+      }
+    }
   }
 
   create(): void {
     this.tileLayer = this.add.container(0, 0).setDepth(TILE_LAYER_DEPTH);
-    this.buildingLayer = this.add.container(0, 0).setDepth(BUILDING_LAYER_DEPTH);
-    this.characterLayer = this.add.container(0, 0).setDepth(BUILDING_LAYER_DEPTH + 1);
+    this.worldLayer = this.add.container(0, 0).setDepth(10);
+    this.buildingDebugLayer = this.add.container(0, 0).setDepth(INTERACTION_LAYER_DEPTH - 1);
     this.interactionLayer = this.add.container(0, 0).setDepth(INTERACTION_LAYER_DEPTH);
     this.gridLayer = this.add.graphics().setDepth(INTERACTION_LAYER_DEPTH - 1);
     this.configureCharacterAnimations();
@@ -102,6 +132,21 @@ export class KingdomMapScene extends Phaser.Scene {
           repeat: -1
         });
       }
+    }
+    for (const name of ["down", "left", "right", "up"] as const) {
+      const row = LPC_DIRECTION_ROWS[name];
+      this.anims.create({
+        key: `${LPC_WALK_KEY}-walk-${name}`,
+        frames: Array.from({ length: 9 }, (_, column) => ({ key: LPC_WALK_KEY, frame: row * 13 + column })),
+        frameRate: 10,
+        repeat: -1
+      });
+      this.anims.create({
+        key: `${LPC_IDLE_KEY}-idle-${name}`,
+        frames: [0, 1].map((column) => ({ key: LPC_IDLE_KEY, frame: row * 13 + column })),
+        frameRate: 2,
+        repeat: -1
+      });
     }
   }
 
@@ -207,11 +252,9 @@ export class KingdomMapScene extends Phaser.Scene {
     if (!this.interactionLayer) return;
     this.interactionLayer.removeAll(true);
     const interaction = snapshot.interaction;
-    if (!interaction || interaction.hoverCell == null) return;
+    if (!interaction || interaction.mode !== "build" || interaction.hoverCell == null) return;
 
-    const color = interaction.mode === "demolish"
-      ? (interaction.valid ? 0xf97316 : 0xef4444)
-      : (interaction.valid ? 0x22c55e : 0xef4444);
+    const color = interaction.valid ? 0x22c55e : 0xef4444;
     for (const cell of interaction.affectedCells) {
       const col = cell % snapshot.cols;
       const row = Math.floor(cell / snapshot.cols);
@@ -228,7 +271,7 @@ export class KingdomMapScene extends Phaser.Scene {
   }
 
   private reconcileCharacters(snapshot: PhaserMapSnapshot): void {
-    if (!this.characterLayer) return;
+    if (!this.worldLayer) return;
     const active = new Set(snapshot.characters.map((character) => character.id));
     for (const [id, view] of this.characterViews) {
       if (active.has(id)) continue;
@@ -241,18 +284,26 @@ export class KingdomMapScene extends Phaser.Scene {
       let view = this.characterViews.get(character.id);
       if (!view) {
         const root = this.add.container(0, 0);
-        const texture = character.appearance === "golem" ? GOLEM_KEY : HUMAN_KEY;
-        const sprite = this.add.sprite(0, -snapshot.cellSize * 0.2, texture, 0)
+        const usesLpc = character.characterAppearance != null && canRenderCharacter(character.characterAppearance, "idle");
+        const texture = usesLpc ? LPC_IDLE_KEY : character.appearance === "golem" ? GOLEM_KEY : HUMAN_KEY;
+        const initialFrame = usesLpc ? LPC_DIRECTION_ROWS.down * 2 : 0;
+        const sprite = this.add.sprite(0, -snapshot.cellSize * 0.2, texture, initialFrame)
           .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
+        const sprites = usesLpc && character.characterAppearance
+          ? resolveCharacterLayers(character.characterAppearance, "idle").map((layer) => this.add
+              .sprite(0, -snapshot.cellSize * 0.2, layer.sourceId, initialFrame)
+              .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08))
+          : [sprite];
+        if (usesLpc) sprite.setVisible(false);
         if (!character.appearance && character.markerEmoji) {
           sprite.setVisible(false);
           root.add(this.add.text(0, -snapshot.cellSize * 0.2, character.markerEmoji, { fontSize: "26px" }).setOrigin(0.5));
         }
-        root.add(sprite);
+        root.add(sprites);
         root.add(this.add.text(0, snapshot.cellSize * 0.34, character.name, {
           fontSize: "9px", color: "#ffffff", backgroundColor: "rgba(2,6,23,0.7)", padding: { x: 2, y: 1 }
         }).setOrigin(0.5));
-        this.characterLayer.add(root);
+        this.worldLayer.add(root);
         root.setSize(snapshot.cellSize, snapshot.cellSize).setInteractive();
         root.on("pointerup", (_pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
           event.stopPropagation();
@@ -262,41 +313,101 @@ export class KingdomMapScene extends Phaser.Scene {
           this.characterLastPressAt.set(character.id, now);
           this.bridge.pressCharacter(character.id, doublePress);
         });
-        view = { root, sprite, token: -1, direction: 0 };
+        view = { root, sprite, sprites, token: -1, direction: 0, usesLpc };
         this.characterViews.set(character.id, view);
       }
       if (view.token === token) continue;
       this.tweens.killTweensOf(view.root);
       const start = character.path?.[0] ?? character.cell;
-      this.placeCharacter(view.root, start, snapshot);
+      const finalPathCell = character.path?.[(character.path?.length ?? 0) - 1];
+      const enteringBuilding = snapshot.buildings.find((building) => finalPathCell === building.geometry.entryPoint.cell);
+      const exitingBuilding = snapshot.buildings.find((building) => {
+        const f = building.geometry.footprint;
+        const c = character.cell % snapshot.cols;
+        const r = Math.floor(character.cell / snapshot.cols);
+        return character.path?.[0] === building.geometry.entryPoint.cell && c >= f.col && c < f.col + f.width && r >= f.row && r < f.row + f.height;
+      });
+      if (exitingBuilding) {
+        view.root.setPosition(
+          exitingBuilding.geometry.interiorSpawnPoint.x * snapshot.cellSize,
+          exitingBuilding.geometry.interiorSpawnPoint.y * snapshot.cellSize
+        );
+        this.updateCharacterDepth(view.root);
+      } else this.placeCharacter(view.root, start, snapshot);
       view.token = token;
       const path = character.path?.slice(1) ?? [];
-      if (path.length > 0) {
+      const waypoints = path.map((cell) => ({ ...this.characterPosition(cell, snapshot), cell }));
+      if (exitingBuilding) {
+        waypoints.unshift({
+          x: (exitingBuilding.geometry.doorway.col + exitingBuilding.geometry.doorway.width / 2) * snapshot.cellSize,
+          y: (exitingBuilding.geometry.doorway.row + 0.92) * snapshot.cellSize,
+          cell: exitingBuilding.geometry.doorCell
+        });
+      }
+      if (enteringBuilding) {
+        waypoints.push(
+          {
+            x: (enteringBuilding.geometry.doorway.col + enteringBuilding.geometry.doorway.width / 2) * snapshot.cellSize,
+            y: (enteringBuilding.geometry.doorway.row + 0.92) * snapshot.cellSize,
+            cell: enteringBuilding.geometry.doorCell
+          },
+          {
+            x: enteringBuilding.geometry.interiorSpawnPoint.x * snapshot.cellSize,
+            y: enteringBuilding.geometry.interiorSpawnPoint.y * snapshot.cellSize,
+            cell: enteringBuilding.geometry.doorCell
+          }
+        );
+      }
+      if (waypoints.length > 0) {
         const animatedView = view;
         this.tweens.chain({
           targets: view.root,
-          tweens: path.map((cell, index) => {
-            const previous = index === 0 ? start : path[index - 1];
-            const pos = this.characterPosition(cell, snapshot);
-            const direction = this.directionForStep(previous, cell, snapshot.cols);
+          tweens: waypoints.map((waypoint, index) => {
+            const previous = index === 0 ? start : waypoints[index - 1].cell;
+            const direction = this.directionForStep(previous, waypoint.cell, snapshot.cols);
             return {
-              x: pos.x,
-              y: pos.y,
+              x: waypoint.x,
+              y: waypoint.y,
               duration: 320,
               ease: "Linear",
+              onUpdate: () => this.updateCharacterDepth(animatedView.root),
               onStart: () => {
-                animatedView.sprite.play(`${animatedView.sprite.texture.key}-walk-${this.directionName(direction)}`, true);
+                const directionName = this.directionName(direction);
+                if (animatedView.usesLpc && character.characterAppearance) {
+                  const layers = resolveCharacterLayers(character.characterAppearance, "walk");
+                  animatedView.sprites.forEach((layerSprite, layerIndex) => {
+                    const layer = layers[layerIndex];
+                    if (!layer) return layerSprite.setVisible(false);
+                    layerSprite.setVisible(true).setTexture(layer.sourceId);
+                    const row = LPC_DIRECTION_ROWS[directionName];
+                    const animationKey = `${layer.sourceId}-walk-${directionName}`;
+                    if (!this.anims.exists(animationKey)) this.anims.create({ key: animationKey, frames: Array.from({ length: 9 }, (_, column) => ({ key: layer.sourceId, frame: row * 9 + column })), frameRate: 10, repeat: -1 });
+                    layerSprite.play(animationKey, true);
+                  });
+                }
+                else animatedView.sprite.play(`${animatedView.sprite.texture.key}-walk-${directionName}`, true);
                 animatedView.direction = direction;
               }
             };
           }),
           onComplete: () => {
-            animatedView.sprite.stop().setFrame(animatedView.direction);
+            if (animatedView.usesLpc) {
+              const directionName = this.directionName(animatedView.direction);
+              const layers = character.characterAppearance ? resolveCharacterLayers(character.characterAppearance, "idle") : [];
+              animatedView.sprites.forEach((layerSprite, layerIndex) => {
+                const layer = layers[layerIndex];
+                if (!layer) return layerSprite.setVisible(false);
+                layerSprite.stop().setVisible(true).setTexture(layer.sourceId).setFrame(LPC_DIRECTION_ROWS[directionName] * 2);
+              });
+            } else {
+              animatedView.sprite.stop().setFrame(animatedView.direction);
+            }
             this.bridge.completeCharacterPath(character.id, token);
           }
         });
       }
     }
+    this.worldLayer.sort("depth");
   }
 
   private directionForStep(from: number, to: number, cols: number): 0 | 1 | 2 | 3 {
@@ -321,11 +432,19 @@ export class KingdomMapScene extends Phaser.Scene {
   private placeCharacter(root: Phaser.GameObjects.Container, cell: number, snapshot: PhaserMapSnapshot): void {
     const pos = this.characterPosition(cell, snapshot);
     root.setPosition(pos.x, pos.y);
+    this.updateCharacterDepth(root);
+  }
+
+  private updateCharacterDepth(root: Phaser.GameObjects.Container): void {
+    root.setDepth(worldDepthForY(root.y));
+    this.worldLayer?.sort("depth");
   }
 
   private renderBuildings(snapshot: PhaserMapSnapshot): void {
-    if (!this.buildingLayer) return;
-    this.buildingLayer.removeAll(true);
+    if (!this.worldLayer) return;
+    for (const view of this.buildingViews) view.destroy(true);
+    this.buildingViews = [];
+    this.buildingDebugLayer?.removeAll(true);
 
     for (const building of snapshot.buildings) {
       const col = building.anchor % snapshot.cols;
@@ -335,7 +454,10 @@ export class KingdomMapScene extends Phaser.Scene {
       const width = building.widthCells * snapshot.cellSize;
       const height = building.heightCells * snapshot.cellSize;
       const colors = BUILDING_COLORS[building.category];
-      const group = this.add.container(x, y);
+      const base = this.add.container(x, y).setDepth(worldDepthForY((row + 0.05) * snapshot.cellSize));
+      const overlay = this.add.container(x, y).setDepth(worldDepthForY(building.geometry.depthOrigin.y * snapshot.cellSize));
+      this.buildingViews.push(base, overlay);
+      this.worldLayer.add([base, overlay]);
 
       if (building.artKey) {
         const image = this.add.image(width / 2, height, building.artKey).setOrigin(0.5, 1);
@@ -346,8 +468,24 @@ export class KingdomMapScene extends Phaser.Scene {
           fontFamily: "Arial, sans-serif", fontSize: `${Math.max(8, snapshot.cellSize * 0.22)}px`,
           color: "#ffffff", backgroundColor: "rgba(2,6,23,0.72)", padding: { x: 3, y: 1 }
         }).setOrigin(0.5, 1);
-        group.add([shadow, image, label]);
-        this.buildingLayer.add(group);
+        const overlayKey = `${building.artKey}-overlay`;
+        const hasDedicatedOverlay = this.textures.exists(overlayKey);
+        const overlayImage = this.add.image(width / 2, height, hasDedicatedOverlay ? overlayKey : building.artKey).setOrigin(0.5, 1).setScale(scale);
+        if (!hasDedicatedOverlay) {
+          const source = overlayImage.texture.getSourceImage();
+          overlayImage.setCrop(0, 0, source.width, source.height * 0.62);
+        }
+        base.add([shadow, image, label]);
+        const doorwayKey = `${building.artKey}-doorway`;
+        if (this.textures.exists(doorwayKey)) {
+          base.add(this.add.image(
+            (building.geometry.doorway.col - col + building.geometry.doorway.width / 2) * snapshot.cellSize,
+            height,
+            doorwayKey
+          ).setOrigin(0.5, 1).setScale(scale));
+        }
+        overlay.add(overlayImage);
+        this.renderBuildingDebug(building, snapshot);
         continue;
       }
 
@@ -376,9 +514,35 @@ export class KingdomMapScene extends Phaser.Scene {
         })
         .setOrigin(0.5, 1);
 
-      group.add([shadow, body, roof, emoji, label]);
-      this.buildingLayer.add(group);
+      const door = this.add.rectangle(
+        (building.geometry.doorway.col - col + building.geometry.doorway.width / 2) * snapshot.cellSize,
+        height - snapshot.cellSize * 0.42,
+        building.geometry.doorway.width * snapshot.cellSize,
+        snapshot.cellSize * 0.84,
+        0x111827,
+        1
+      ).setStrokeStyle(1, colors.border, 1);
+      base.add([shadow, body, emoji, door, label]);
+      overlay.add(roof);
+      this.renderBuildingDebug(building, snapshot);
     }
+    this.worldLayer.sort("depth");
+  }
+
+  private renderBuildingDebug(building: PhaserMapBuilding, snapshot: PhaserMapSnapshot): void {
+    if (!snapshot.debugBuildings || !this.buildingDebugLayer) return;
+    const g = this.add.graphics();
+    const s = snapshot.cellSize;
+    const rect = (area: { col: number; row: number; width: number; height: number }, color: number) => {
+      g.lineStyle(2, color, 0.9).strokeRect(area.col * s, area.row * s, area.width * s, area.height * s);
+    };
+    rect(building.geometry.footprint, 0x22c55e);
+    rect(building.geometry.doorway, 0x38bdf8);
+    rect(building.geometry.overlayArea, 0xa855f7);
+    for (const collision of building.geometry.collisionAreas) rect(collision, 0xef4444);
+    g.fillStyle(0xfacc15, 1).fillCircle(building.geometry.entryPoint.x * s, building.geometry.entryPoint.y * s, 4);
+    g.fillStyle(0xffffff, 1).fillCircle(building.geometry.depthOrigin.x * s, building.geometry.depthOrigin.y * s, 4);
+    this.buildingDebugLayer.add(g);
   }
 
   update(time: number): void {
@@ -441,10 +605,15 @@ export class KingdomMapScene extends Phaser.Scene {
       (pointer: Phaser.Input.Pointer, _objects: unknown, _dx: number, dy: number) => {
         const before = camera.getWorldPoint(pointer.x, pointer.y);
         const nextZoom = Phaser.Math.Clamp(camera.zoom * (dy > 0 ? 0.9 : 1.1), 0.5, 3);
+        if (nextZoom === camera.zoom) return;
+        const nextScroll = scrollKeepingPointerAnchor(
+          before,
+          { x: pointer.x - camera.x, y: pointer.y - camera.y },
+          { width: camera.width, height: camera.height },
+          nextZoom
+        );
         camera.setZoom(nextZoom);
-        const after = camera.getWorldPoint(pointer.x, pointer.y);
-        camera.scrollX += before.x - after.x;
-        camera.scrollY += before.y - after.y;
+        camera.setScroll(nextScroll.x, nextScroll.y);
       }
     );
   }
