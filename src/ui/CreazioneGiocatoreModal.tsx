@@ -11,20 +11,17 @@ import {
 } from "react-native";
 import {
   ASPETTO_GIOCATORE_DEFAULT,
-  COLORI_CAPELLI,
-  COLORI_PELLE,
   generaAspettoCasuale,
   creaCharacterAppearance,
   type AspettoPersonaggio,
   type CappelloPersonaggio,
   type RazzaGiocatore,
-  type StileCapelli,
   type StileOcchi,
   type VestitiPersonaggio
 } from "../game/personaggioAspetto";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 import { PixelAvatarPreview } from "./PixelAvatarPreview";
-import { CHARACTER_CATALOG_OPTIONS, compatibleCatalogOptions } from "../character-system/registry";
+import { compatibleCatalogOptions } from "../character-system/registry";
 import { bodyFamilyFor, normalizeCharacterAppearance } from "../character-system/appearance";
 
 export type DatiCreazioneGiocatore = {
@@ -53,14 +50,6 @@ const ORIENTAMENTI: { id: "Etero" | "Omo" | "Bi" | "Asessuale"; label: string }[
   { id: "Asessuale", label: "Asessuale" }
 ];
 
-const RAZZE: { id: RazzaGiocatore; label: string }[] = [
-  { id: "Umano", label: "Umano" }, { id: "Elfo", label: "Elfo · orecchie a punta" },
-  { id: "Nano", label: "Nano" }, { id: "Orco", label: "Orco" }
-];
-const CAPELLI: { id: StileCapelli; label: string }[] = [
-  { id: "corti", label: "Corti" }, { id: "spettinati", label: "Spettinati" },
-  { id: "lunghi", label: "Lunghi" }, { id: "trecce", label: "Trecce" }
-];
 const OCCHI: { id: StileOcchi; label: string }[] = [
   { id: "tondi", label: "Tondi" }, { id: "determinati", label: "Determinati" }, { id: "allegri", label: "Allegri" }
 ];
@@ -73,21 +62,39 @@ const CAPPELLI: { id: CappelloPersonaggio; label: string }[] = [
   { id: "berretto", label: "Berretto" }, { id: "corona", label: "👑 Corona del Re" }
 ];
 
+const RAZZA_RE: RazzaGiocatore = "Umano";
+
+function forzaAspettoReTeen(aspetto: AspettoPersonaggio): AspettoPersonaggio {
+  const corrente = aspetto.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, "teen");
+  return {
+    ...aspetto,
+    characterAppearance: normalizeCharacterAppearance({
+      ...corrente,
+      race: "human",
+      bodyType: "teen",
+      ageGroup: "teen",
+      bodyFamily: bodyFamilyFor("human", "teen"),
+      beardStyle: "none"
+    })
+  };
+}
+
+const ASPETTO_RE_DEFAULT = forzaAspettoReTeen(ASPETTO_GIOCATORE_DEFAULT);
+
 export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocatoreModalProps) {
   const [nome, setNome] = useState("");
   const [cognome, setCognome] = useState("");
   const [sesso, setSesso] = useState<"M" | "F" | null>(null);
   const [orientamento, setOrientamento] = useState<"Etero" | "Omo" | "Bi" | "Asessuale" | null>(null);
-  const [razza, setRazza] = useState<RazzaGiocatore>("Umano");
-  const [aspetto, setAspetto] = useState<AspettoPersonaggio>(ASPETTO_GIOCATORE_DEFAULT);
+  const [aspetto, setAspetto] = useState<AspettoPersonaggio>(ASPETTO_RE_DEFAULT);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
-  const spriteAppearance = aspetto.characterAppearance ?? creaCharacterAppearance(razza, sesso === "F" ? "female" : "male");
+  const spriteAppearance = aspetto.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, "teen");
   const catalogOptions = compatibleCatalogOptions(spriteAppearance, { allowRoyalHeadwear: true });
   const updateSpriteAppearance = (patch: Partial<typeof spriteAppearance>) => {
-    const next = normalizeCharacterAppearance({ ...spriteAppearance, ...patch });
-    setAspetto((value) => ({ ...value, characterAppearance: next }));
+    const next = forzaAspettoReTeen({ ...aspetto, characterAppearance: { ...spriteAppearance, ...patch } });
+    setAspetto(next);
   };
 
   const valido =
@@ -103,20 +110,9 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
       cognome: cognome.trim(),
       sesso,
       orientamento,
-      razza,
-      aspetto
+      razza: RAZZA_RE,
+      aspetto: forzaAspettoReTeen(aspetto)
     });
-  };
-
-  const selezionaRazza = (next: RazzaGiocatore) => {
-    setRazza(next);
-    setAspetto((value) => ({
-      ...value,
-      characterAppearance: creaCharacterAppearance(next, sesso === "F" ? "female" : "male")
-    }));
-    if (next === "Orco" && !["#79a86b", "#668f58", "#8aa66b"].includes(aspetto.colorePelle)) {
-      setAspetto((value) => ({ ...value, colorePelle: "#79a86b" }));
-    }
   };
 
   return (
@@ -143,17 +139,26 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
 
             <Text style={styles.sectionTitle}>Chi sei?</Text>
 
-            <View style={[styles.previewWrap, isDesktop && styles.previewWrapDesktop]}>
-              <PixelAvatarPreview razza={razza} aspetto={aspetto} />
-              <View style={styles.previewMeta}>
-                <Text style={styles.previewHint}>{razza} · {aspetto.vestiti}</Text>
-                <Pressable style={styles.randomButton} onPress={() => {
-                  setAspetto(generaAspettoCasuale(razza, Math.random, { sesso: sesso ?? undefined }));
-                }}>
-                  <Text style={styles.randomButtonText}>🎲 Sorprendimi</Text>
-                </Pressable>
+            <View style={[styles.editorLayout, isDesktop && styles.editorLayoutDesktop]}>
+              <View style={[styles.previewColumn, isDesktop && styles.previewColumnDesktop]}>
+                <View style={styles.previewWrap}>
+                  <PixelAvatarPreview razza={RAZZA_RE} aspetto={aspetto} />
+                  <View style={styles.previewMeta}>
+                    <Text style={styles.previewHint}>Umano · 10 anni · corpo teen</Text>
+                    <Pressable style={styles.randomButton} onPress={() => {
+                      const casualeTeen = generaAspettoCasuale(RAZZA_RE, Math.random, {
+                        eta: 15,
+                        sesso: sesso ?? undefined
+                      });
+                      setAspetto(forzaAspettoReTeen(casualeTeen));
+                    }}>
+                      <Text style={styles.randomButtonText}>🎲 Sorprendimi</Text>
+                    </Pressable>
+                  </View>
+                </View>
               </View>
-            </View>
+
+              <View style={styles.controlsColumn}>
 
             <View style={styles.field}>
               <Text style={styles.label}>Nome</Text>
@@ -188,10 +193,6 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
                     style={[styles.chip, sesso === g.id && styles.chipSelected]}
                   onPress={() => {
                     setSesso(g.id);
-                    setAspetto((value) => ({
-                      ...value,
-                      characterAppearance: creaCharacterAppearance(razza, g.id === "F" ? "female" : "male")
-                    }));
                   }}
                   >
                     <Text style={[styles.chipText, sesso === g.id && styles.chipTextSelected]}>{g.label}</Text>
@@ -219,21 +220,18 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
 
             <Text style={styles.sectionTitle}>Aspetto del personaggio</Text>
 
-            <View style={styles.field}><Text style={styles.label}>Corpo LPC</Text><View style={styles.chipRowWrap}>{CHARACTER_CATALOG_OPTIONS.bodyTypes.map((bodyType) => <Pressable key={bodyType} style={[styles.chip, spriteAppearance.bodyType === bodyType && styles.chipSelected]} onPress={() => { const ageGroup = bodyType === "child" ? "child" : bodyType === "teen" ? "teen" : "adult"; updateSpriteAppearance({ bodyType, ageGroup, bodyFamily: bodyFamilyFor("human", ageGroup), beardStyle: bodyType === "male" ? spriteAppearance.beardStyle : "none", outfit: spriteAppearance.outfit === "none" ? "commoner" : spriteAppearance.outfit }); }}><Text style={[styles.chipText, spriteAppearance.bodyType === bodyType && styles.chipTextSelected]}>{bodyType}</Text></Pressable>)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Tonalità LPC</Text><View style={styles.chipRowWrap}>{catalogOptions.skinTones.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.skinTone === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ skinTone: value })}><Text style={[styles.chipText, spriteAppearance.skinTone === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Capelli LPC</Text><View style={styles.chipRowWrap}>{catalogOptions.hairStyles.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.hairStyle === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ hairStyle: value })}><Text style={[styles.chipText, spriteAppearance.hairStyle === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Colore capelli LPC</Text><View style={styles.chipRowWrap}>{catalogOptions.hairColors.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.hairColor === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ hairColor: value })}><Text style={[styles.chipText, spriteAppearance.hairColor === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>
+            <View style={styles.field}><Text style={styles.label}>Colore pelle</Text><View style={styles.chipRowWrap}>{catalogOptions.skinTones.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.skinTone === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ skinTone: value })}><Text style={[styles.chipText, spriteAppearance.skinTone === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>
+            <View style={styles.field}><Text style={styles.label}>Stile capelli</Text><View style={styles.chipRowWrap}>{catalogOptions.hairStyles.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.hairStyle === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ hairStyle: value })}><Text style={[styles.chipText, spriteAppearance.hairStyle === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>
+            <View style={styles.field}><Text style={styles.label}>Colore capelli</Text><View style={styles.chipRowWrap}>{catalogOptions.hairColors.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.hairColor === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ hairColor: value })}><Text style={[styles.chipText, spriteAppearance.hairColor === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>
             {spriteAppearance.bodyType === "male" && <View style={styles.field}><Text style={styles.label}>Barba / baffi LPC</Text><View style={styles.chipRowWrap}>{catalogOptions.beardStyles.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.beardStyle === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ beardStyle: value })}><Text style={[styles.chipText, spriteAppearance.beardStyle === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>}
             <View style={styles.field}><Text style={styles.label}>Outfit LPC</Text><View style={styles.chipRowWrap}>{catalogOptions.outfits.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.outfit === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ outfit: value })}><Text style={[styles.chipText, spriteAppearance.outfit === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>
             <View style={styles.field}><Text style={styles.label}>Copricapo LPC</Text><View style={styles.chipRowWrap}>{catalogOptions.headwear.map((value) => <Pressable key={value} style={[styles.chip, spriteAppearance.headwear === value && styles.chipSelected]} onPress={() => updateSpriteAppearance({ headwear: value })}><Text style={[styles.chipText, spriteAppearance.headwear === value && styles.chipTextSelected]}>{value}</Text></Pressable>)}</View></View>
 
-            <View style={styles.field}><Text style={styles.label}>Razza</Text><View style={styles.chipRowWrap}>{RAZZE.map((o) => <Pressable key={o.id} style={[styles.chip, razza === o.id && styles.chipSelected]} onPress={() => selezionaRazza(o.id)}><Text style={[styles.chipText, razza === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Colore della pelle</Text><View style={styles.swatchRow}>{COLORI_PELLE.map((color) => <Pressable accessibilityLabel={`Pelle ${color}`} key={color} onPress={() => setAspetto((v) => ({ ...v, colorePelle: color }))} style={[styles.swatch, { backgroundColor: color }, aspetto.colorePelle === color && styles.swatchSelected]} />)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Stile dei capelli</Text><View style={styles.chipRowWrap}>{CAPELLI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.stileCapelli === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, stileCapelli: o.id }))}><Text style={[styles.chipText, aspetto.stileCapelli === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Colore dei capelli</Text><View style={styles.swatchRow}>{COLORI_CAPELLI.map((color) => <Pressable accessibilityLabel={`Capelli ${color}`} key={color} onPress={() => setAspetto((v) => ({ ...v, coloreCapelli: color }))} style={[styles.swatch, { backgroundColor: color }, aspetto.coloreCapelli === color && styles.swatchSelected]} />)}</View></View>
             <View style={styles.field}><Text style={styles.label}>Stile degli occhi</Text><View style={styles.chipRowWrap}>{OCCHI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.stileOcchi === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, stileOcchi: o.id }))}><Text style={[styles.chipText, aspetto.stileOcchi === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
             <View style={styles.field}><Text style={styles.label}>Vestiti</Text><View style={styles.chipRowWrap}>{VESTITI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.vestiti === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, vestiti: o.id }))}><Text style={[styles.chipText, aspetto.vestiti === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
             <View style={styles.field}><Text style={styles.label}>Copricapo <Text style={styles.kingOnly}>· la Corona appartiene solo al Re</Text></Text><View style={styles.chipRowWrap}>{CAPPELLI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.cappello === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, cappello: o.id }))}><Text style={[styles.chipText, aspetto.cappello === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
+              </View>
+            </View>
           </ScrollView>
 
           <Pressable
@@ -340,8 +338,12 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
+  editorLayout: { width: "100%" },
+  editorLayoutDesktop: { flexDirection: "row", alignItems: "flex-start", gap: 24 },
+  previewColumn: { width: "100%" },
+  previewColumnDesktop: { width: 300 },
+  controlsColumn: { flex: 1, minWidth: 0 },
   previewWrap: { alignItems: "center", marginBottom: 18, gap: 10, backgroundColor: "rgba(120,83,45,0.16)", borderWidth: 1, borderColor: "rgba(214,195,155,0.25)", borderRadius: 14, padding: 14 },
-  previewWrapDesktop: { flexDirection: "row", justifyContent: "center", gap: 28, paddingVertical: 10 },
   previewMeta: { alignItems: "center", gap: 8 },
   previewHint: { color: "#f3ddb0", fontSize: 12, fontWeight: "800", textTransform: "capitalize" },
   randomButton: { backgroundColor: "#5c3b20", borderWidth: 1, borderColor: "#d6b56f", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
