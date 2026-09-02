@@ -3970,7 +3970,12 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         pathToken: commute?.token ?? 0,
         appearance: abitante.razza === "Golem" ? "golem" : "human",
         characterAppearance: abitante.aspetto?.characterAppearance
-          ? appearanceForPublicSpace(abitante.aspetto.characterAppearance, { isKing: abitante.id === 1, nudismoAttivo })
+          ? appearanceForPublicSpace(abitante.aspetto.characterAppearance, {
+            isKing: abitante.id === 1,
+            nudismoAttivo,
+            incinta: abitante.incinta === true,
+            lavoro: abitante.lavoro
+          })
           : undefined,
         markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined
       };
@@ -4161,7 +4166,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             <Text style={styles.indLabel}>Paura</Text>
             <Text style={styles.indValue}>{pauraMedia}%</Text>
           </Pressable>
-          <Pressable style={styles.indCard}>
+          <Pressable style={styles.indCard} onPress={() => router.push("/lavori")}>
             <Text style={styles.indEmoji}>📋</Text>
             <Text style={styles.indLabel}>Disoccupazione</Text>
             <Text style={styles.indValue}>{disoccupazionePercent}%</Text>
@@ -4487,7 +4492,16 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                               )))
                         }
                         markerEmoji={abitante.razza === "Golem" ? getEmojiAbitante(abitante) : null}
-                        appearance={abitante.aspetto?.characterAppearance}
+                        appearance={
+                          abitante.aspetto?.characterAppearance
+                            ? appearanceForPublicSpace(abitante.aspetto.characterAppearance, {
+                              isKing: abitante.id === 1,
+                              nudismoAttivo,
+                              incinta: abitante.incinta === true,
+                              lavoro: abitante.lavoro
+                            })
+                            : undefined
+                        }
                         pressAccessibilityLabel={`Seleziona ${getAbitanteNome(abitante.id)}`}
                         doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitante.id)}`}
                         isCellFreeForMe={(cell) => isCellFreeForAbitante(abitante.id, cell)}

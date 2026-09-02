@@ -17,6 +17,24 @@ export const LPC_DIRECTION_ROWS: Record<CharacterDirection, number> = {
   right: 3
 };
 
+/** Room above a 64px LPC frame for hats/crown tips inside circular previews. */
+export const LPC_FRAME_CROWN_OVERFLOW = 22;
+
+/** Vertical idle bob baked into LPC column 1 at 64px frame height. */
+export const LPC_IDLE_BOB_PX = 2;
+
+export function lpcSpriteTopOverflowPx(displayFrameSize: number, frameWidth = 64): number {
+  return Math.round(displayFrameSize * (LPC_FRAME_CROWN_OVERFLOW + LPC_IDLE_BOB_PX) / frameWidth);
+}
+
+export function lpcSpriteCircleDiameter(displayFrameSize: number, frameWidth = 64): number {
+  return displayFrameSize + lpcSpriteTopOverflowPx(displayFrameSize, frameWidth);
+}
+
+export function lpcIdleBobPx(displayFrameSize: number, frameWidth = 64): number {
+  return Math.round(displayFrameSize * LPC_IDLE_BOB_PX / frameWidth);
+}
+
 export const LPC_SHEETS: Record<string, SpriteSheetDefinition> = {
   "lpc-human-male-idle": {
     id: "lpc-human-male-idle",

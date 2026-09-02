@@ -6,6 +6,7 @@ import { estraiCreditiLegacyDaRisorse } from "../data/risorseData";
 import { runAvanzaMese } from "../game/avanzaMese";
 import { EVENTI_CATALOGO } from "../game/eventi/index";
 import { generaColoniaIniziale } from "../game/generazionePartita";
+import { aspettoCapoReligiosoSeNecessario } from "../game/personaggioAspetto";
 import {
   ID_GIOCATORE,
   LAVORO_GIOCATORE,
@@ -343,10 +344,22 @@ export function useGameState() {
     setAbitanti((prev) =>
       prev.map((a) => {
         if (capoReligiosoSole != null && a.id === capoReligiosoSole) {
-          return { ...a, lavoro: "Capo Religioso", religione: "Culto del Sole" as const };
+          const aspetto = aspettoCapoReligiosoSeNecessario(a.aspetto, a.id);
+          return {
+            ...a,
+            lavoro: "Capo Religioso",
+            religione: "Culto del Sole" as const,
+            ...(aspetto && { aspetto })
+          };
         }
         if (capoReligiosoAlieni != null && a.id === capoReligiosoAlieni) {
-          return { ...a, lavoro: "Capo Religioso", religione: "Culto degli Alieni" as const };
+          const aspetto = aspettoCapoReligiosoSeNecessario(a.aspetto, a.id);
+          return {
+            ...a,
+            lavoro: "Capo Religioso",
+            religione: "Culto degli Alieni" as const,
+            ...(aspetto && { aspetto })
+          };
         }
         if (a.lavoro === "Capo Religioso") {
           if (a.religione === "Culto del Sole" && a.id !== capoReligiosoSole) {

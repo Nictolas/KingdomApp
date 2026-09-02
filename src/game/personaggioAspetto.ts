@@ -1,4 +1,4 @@
-export type RazzaGiocatore = "Umano" | "Elfo" | "Nano" | "Orco";
+export type RazzaGiocatore = "Umano" | "Elfo" | "Nano" | "Orco" | "Scheletro" | "Vampiro" | "Lucertoloide";
 export type StileCapelli = "corti" | "spettinati" | "lunghi" | "trecce";
 export type StileOcchi = "tondi" | "determinati" | "allegri";
 export type VestitiPersonaggio = "viandante" | "nobile" | "ranger" | "mago";
@@ -16,20 +16,32 @@ export type AspettoPersonaggio = {
 };
 
 const raceId = (razza: RazzaConAspetto): CharacterRaceId => ({
-  Umano: "human", Elfo: "elf", Nano: "dwarf", Orco: "orc", Goblin: "halfling"
+  Umano: "human", Elfo: "elf", Nano: "dwarf", Orco: "orc", Goblin: "goblin",
+  Scheletro: "skeleton", Vampiro: "vampire", Lucertoloide: "lizard"
 } satisfies Record<RazzaConAspetto, CharacterRaceId>)[razza];
+
+export function testaObbligatoriaRazza(razza: RazzaConAspetto, sesso: "M" | "F" = "M"): string {
+  if (razza === "Scheletro") return "skeleton";
+  if (razza === "Vampiro") return "vampire";
+  if (razza === "Goblin") return "goblin";
+  if (razza === "Orco") return sesso === "F" ? "orc_female" : "orc_male";
+  if (razza === "Lucertoloide") return sesso === "F" ? "lizard_female" : "lizard_male";
+  return "human_head";
+}
 
 export function creaCharacterAppearance(razza: RazzaConAspetto, bodyType = "male"): CharacterAppearance {
   const race = raceId(razza);
-  const ageGroup = bodyType === "child" ? "child" : bodyType === "teen" ? "teen" : "adult";
+  const effectiveBodyType = razza === "Nano" ? "child" : bodyType;
+  const ageGroup = effectiveBodyType === "child" ? "child" : effectiveBodyType === "teen" ? "teen" : "adult";
   return normalizeCharacterAppearance({
     race,
-    bodyType,
+    bodyType: effectiveBodyType,
     ageGroup,
     bodyFamily: bodyFamilyFor(race, ageGroup),
-    hairStyle: bodyType === "child" ? "relm_short" : "messy",
+    headStyle: testaObbligatoriaRazza(razza, effectiveBodyType === "female" ? "F" : "M"),
+    hairStyle: effectiveBodyType === "child" ? "relm_short" : "messy",
     hairColor: "dark_brown",
-    beardStyle: "none",
+    beardStyle: razza === "Nano" ? DWARF_BEARD_STYLE : "none",
     beardColor: "dark_brown",
     outfit: "commoner",
     headwear: "none"
@@ -80,11 +92,13 @@ export function generaAspettoCasuale(
     ? ["nessuno", "berretto", "cappuccio"] as const
     : CAPPELLI_PERSONAGGIO;
 
-  const bodyType = contesto.eta != null && contesto.eta < 13
+  const bodyType = razza === "Nano"
     ? "child"
-    : contesto.eta != null && contesto.eta < 18
-      ? "teen"
-      : contesto.sesso === "F" ? "female" : "male";
+    : contesto.eta != null && contesto.eta < 13
+      ? "child"
+      : contesto.eta != null && contesto.eta < 18
+        ? "teen"
+        : contesto.sesso === "F" ? "female" : "male";
   const baseAppearance = creaCharacterAppearance(razza, bodyType);
   const options = compatibleCatalogOptions(baseAppearance);
   const professione = contesto.professione?.toLocaleLowerCase("it") ?? "";
@@ -99,21 +113,34 @@ export function generaAspettoCasuale(
     ? preferredOutfit
     : options.outfits.length > 0 ? pick(options.outfits, random) : "none";
   const hairStyle = options.hairStyles.length > 0 ? pick(options.hairStyles, random) : "none";
-  const beardStyle = bodyType === "male" && options.beardStyles.length > 1 && random() > 0.55
-    ? pick(options.beardStyles.filter((value) => value !== "none"), random)
-    : "none";
+  const dwarfBeardColors = razza === "Nano"
+    ? compatibleColorsForField({ ...baseAppearance, beardStyle: DWARF_BEARD_STYLE }, "beardColor", "beard", DWARF_BEARD_STYLE)
+    : [];
+  const beardStyle = razza === "Nano"
+    ? DWARF_BEARD_STYLE
+    : bodyType === "male" && options.beardStyles.length > 1 && random() > 0.55
+      ? pick(options.beardStyles.filter((value) => value !== "none"), random)
+      : "none";
   const characterAppearance = normalizeCharacterAppearance({
     ...baseAppearance,
     skinTone: options.skinTones.length > 0 ? pick(options.skinTones, random) : baseAppearance.skinTone,
     hairStyle,
     hairColor: options.hairColors.length > 0 ? pick(options.hairColors, random) : baseAppearance.hairColor,
     beardStyle,
-    beardColor: options.hairColors.length > 0 ? pick(options.hairColors, random) : baseAppearance.beardColor,
+    beardColor: razza === "Nano"
+      ? (dwarfBeardColors.length > 0 ? pick(dwarfBeardColors, random) : baseAppearance.beardColor)
+      : options.hairColors.length > 0 ? pick(options.hairColors, random) : baseAppearance.beardColor,
     outfit,
-    headwear: options.headwear.length > 0 ? pick(options.headwear, random) : "none"
+    upperOutfit: outfit,
+    lowerOutfit: outfit,
+    outfitPrimaryColor: options.outfitPrimaryColors.length > 0 ? pick(options.outfitPrimaryColors, random) : baseAppearance.outfitPrimaryColor,
+    outfitSecondaryColor: options.outfitSecondaryColors.length > 0 ? pick(options.outfitSecondaryColors, random) : baseAppearance.outfitSecondaryColor,
+    footwearColor: options.footwearColors.length > 0 ? pick(options.footwearColors, random) : baseAppearance.footwearColor,
+    headwear: options.headwear.length > 0 ? pick(options.headwear, random) : "none",
+    accessory: outfit === "farmer" || professione.includes("agric") ? FARMER_TOOL : "none"
   });
 
-  return {
+  const aspetto: AspettoPersonaggio = {
     coloreCapelli: pick(COLORI_CAPELLI, random),
     stileCapelli: pick(STILI_CAPELLI, random),
     stileOcchi: pick(STILI_OCCHI, random),
@@ -122,6 +149,10 @@ export function generaAspettoCasuale(
     cappello: pick(cappelli, random),
     characterAppearance
   };
+  if (professione.includes("capo religioso")) {
+    return applicaAspettoCapoReligioso(aspetto, random);
+  }
+  return aspetto;
 }
 
 /** Variante stabile per completare vecchi salvataggi senza cambiare volto a ogni caricamento. */
@@ -132,6 +163,140 @@ export function generaAspettoDaSeed(razza: RazzaConAspetto, seed: number): Aspet
     return state / 0x100000000;
   });
 }
-import { bodyFamilyFor, normalizeCharacterAppearance } from "../character-system/appearance";
-import { compatibleCatalogOptions } from "../character-system/registry";
+
+/** Aspetto dimostrativo per la pagina Razze: regole visive coerenti con LPC. */
+export function generaAspettoEsempioRazza(razza: RazzaConAspetto, seed: number): AspettoPersonaggio {
+  const base = generaAspettoDaSeed(razza, seed);
+  const corrente = base.characterAppearance ?? creaCharacterAppearance(razza, "male");
+  const conCapelli = razza === "Umano" || razza === "Vampiro";
+
+  let appearance = normalizeCharacterAppearance({
+    ...corrente,
+    race: raceId(razza),
+    headStyle: testaObbligatoriaRazza(razza, "M"),
+    hairStyle: conCapelli ? corrente.hairStyle : "none",
+    hairColor: conCapelli ? corrente.hairColor : "none",
+    beardStyle: "none"
+  });
+
+  if (razza === "Scheletro") {
+    appearance = normalizeCharacterAppearance({
+      ...appearance,
+      race: "skeleton",
+      bodyType: "skeleton",
+      ageGroup: "adult",
+      bodyFamily: bodyFamilyFor("skeleton", "adult"),
+      headStyle: "skeleton",
+      skinTone: "base",
+      outfit: "none",
+      upperOutfit: "none",
+      lowerOutfit: "none",
+      fullOutfit: "none",
+      footwear: "none",
+      headwear: "none"
+    });
+  } else if (razza === "Nano") {
+    appearance = normalizeCharacterAppearance({
+      ...appearance,
+      race: "dwarf",
+      bodyType: "child",
+      ageGroup: "child",
+      bodyFamily: bodyFamilyFor("dwarf", "child"),
+      headStyle: "human_head"
+    });
+  } else if (razza === "Orco") {
+    appearance = normalizeCharacterAppearance({
+      ...appearance,
+      race: "orc",
+      bodyType: "muscular",
+      ageGroup: "adult",
+      bodyFamily: bodyFamilyFor("orc", "adult"),
+      headStyle: "orc_male",
+      outfit: "none",
+      upperOutfit: "none",
+      lowerOutfit: "none",
+      fullOutfit: "none",
+      footwear: "none",
+      headwear: "none"
+    });
+  } else if (!conCapelli) {
+    appearance = normalizeCharacterAppearance({
+      ...appearance,
+      hairStyle: "none",
+      hairColor: "none",
+      beardStyle: "none"
+    });
+  }
+
+  if (!canRenderCharacter(appearance, "idle")) {
+    return base;
+  }
+  return { ...base, characterAppearance: appearance };
+}
+import { bodyFamilyFor, DWARF_BEARD_STYLE, FARMER_TOOL, normalizeCharacterAppearance } from "../character-system/appearance";
+import { canRenderCharacter, compatibleCatalogOptions, compatibleColorsForField, firstCompatibleColorForField, firstCompatibleHairColor } from "../character-system/registry";
 import type { CharacterAppearance, CharacterRaceId } from "../character-system/types";
+
+/** Kimono LPC disponibile solo sul bodyType teen. */
+export function applicaAspettoCapoReligioso(
+  aspetto: AspettoPersonaggio,
+  random: () => number = Math.random
+): AspettoPersonaggio {
+  const current = aspetto.characterAppearance;
+  if (!current) return aspetto;
+
+  const teenAppearance = normalizeCharacterAppearance({
+    ...current,
+    bodyType: "teen",
+    ageGroup: "teen",
+    bodyFamily: bodyFamilyFor(current.race, "teen"),
+    fullOutfit: "kimono",
+    outfit: "kimono",
+    upperOutfit: "none",
+    lowerOutfit: "none",
+    footwear: "none",
+    headwear: "none"
+  });
+  const options = compatibleCatalogOptions(teenAppearance);
+  const hairStyle = options.hairStyles.includes(teenAppearance.hairStyle)
+    ? teenAppearance.hairStyle
+    : options.hairStyles.length > 0
+      ? pick(options.hairStyles, random)
+      : "none";
+  const hairColor = options.hairColors.includes(teenAppearance.hairColor)
+    ? teenAppearance.hairColor
+    : firstCompatibleHairColor({ ...teenAppearance, hairStyle }, hairStyle);
+  const beardStyle = options.beardStyles.includes(teenAppearance.beardStyle)
+    ? teenAppearance.beardStyle
+    : "none";
+  const outfitPrimaryColor = options.outfitPrimaryColors.length > 0
+    ? pick(options.outfitPrimaryColors, random)
+    : firstCompatibleColorForField(teenAppearance, "outfitPrimaryColor", "fullOutfit", "kimono");
+  const characterAppearance = normalizeCharacterAppearance({
+    ...teenAppearance,
+    hairStyle,
+    hairColor,
+    beardStyle,
+    beardColor: hairColor,
+    outfitPrimaryColor
+  });
+  if (!canRenderCharacter(characterAppearance, "idle")) return aspetto;
+  return { ...aspetto, characterAppearance };
+}
+
+function randomFromId(id: number): () => number {
+  let state = (id >>> 0) || 1;
+  return () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 0x100000000;
+  };
+}
+
+export function aspettoCapoReligiosoSeNecessario(
+  aspetto: AspettoPersonaggio | undefined,
+  id: number
+): AspettoPersonaggio | undefined {
+  if (!aspetto) return aspetto;
+  if (aspetto.characterAppearance?.fullOutfit === "kimono") return aspetto;
+  return applicaAspettoCapoReligioso(aspetto, randomFromId(id));
+}

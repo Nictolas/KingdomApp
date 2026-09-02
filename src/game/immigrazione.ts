@@ -1,4 +1,4 @@
-import type { Abitante, Razza } from "../types";
+import { RAZZE_ABITANTI, type Abitante, type Razza } from "../types";
 import { abitanteConInventarioIniziale } from "./inventario";
 import { specializzazioneCasuale } from "./specializzazione";
 import { getEmojiRazza } from "../kingdomData";
@@ -22,7 +22,7 @@ const PERSONALITÀ = [
   "Curioso", "Lavoratore", "Analitico", "Creativo",
   "Pragmatico", "Idealista", "Deciso", "Collaborativo"
 ];
-const RAZZE_IMMIGRATI: Razza[] = ["Umano", "Elfo", "Nano", "Orco", "Goblin", "Golem"];
+const RAZZE_IMMIGRATI = [...RAZZE_ABITANTI];
 const EMOJI_UMANI_M: string[] = ["👨", "👨‍🔬", "👨‍💼", "👨‍🔧", "👨‍🌾"];
 const EMOJI_UMANI_F: string[] = ["👩", "👩‍🔬", "👩‍💼", "👩‍🔧", "👩‍🌾"];
 const RELIGIONI: Abitante["religione"][] = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto degli Alieni"];
@@ -38,7 +38,7 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
     const razza = RAZZE_IMMIGRATI[Math.floor(Math.random() * RAZZE_IMMIGRATI.length)];
     const isUmano = razza === "Umano";
     let nome: string;
-    let sesso: "M" | "F" | undefined;
+    let sesso: "M" | "F" = Math.random() < 0.5 ? "M" : "F";
     let emoji: string;
     if (isUmano) {
       const { nomeCompleto, sesso: s } = scegliNomeCognomeUmano();
@@ -82,8 +82,8 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
       religione: RELIGIONI[Math.floor(Math.random() * RELIGIONI.length)],
       razza,
       specie: isUmano ? "umano" : "alieno",
-      ...(razza !== "Golem" && { aspetto: generaAspettoCasuale(razza) }),
-      ...(sesso != null && { sesso }),
+      aspetto: generaAspettoCasuale(razza, Math.random, { sesso }),
+      sesso,
       specializzazione: specializzazioneCasuale()
     }));
   }

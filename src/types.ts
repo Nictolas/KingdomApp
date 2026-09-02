@@ -130,11 +130,17 @@ export type Abitante = {
 // Razze trovabili tra gli abitanti (pianeti di origine o sintetici)
 export type Razza =
   | "Umano"
+  | "Scheletro"
+  | "Vampiro"
+  | "Lucertoloide"
   | "Elfo"
   | "Nano"
   | "Orco"
   | "Goblin"
   | "Golem";
+
+/** Razze attive della popolazione; le altre restano leggibili solo per i vecchi salvataggi. */
+export const RAZZE_ABITANTI = ["Umano", "Nano", "Scheletro", "Vampiro", "Goblin", "Orco", "Lucertoloide"] as const satisfies readonly Razza[];
 
 export type Ministro = {
   id: number;

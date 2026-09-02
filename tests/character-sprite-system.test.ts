@@ -1,11 +1,11 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { appearanceForPublicSpace, bodyFamilyFor, DEFAULT_CHARACTER_APPEARANCE, normalizeCharacterAppearance } from "../src/character-system/appearance.ts";
+import { appearanceForPublicSpace, bodyFamilyFor, DEFAULT_CHARACTER_APPEARANCE, FARMER_TOOL, normalizeCharacterAppearance } from "../src/character-system/appearance.ts";
 import { LPC_DIRECTION_ROWS, LPC_SHEETS } from "../src/character-system/lpcPack.ts";
-import { CHARACTER_ASSETS, CHARACTER_CATALOG_OPTIONS, LPC_RUNTIME_MANIFEST, compatibleCatalogOptions, firstCompatibleHairColor, isAssetCompatible, rendererKindFor, resolveCharacterLayers } from "../src/character-system/registry.ts";
+import { CHARACTER_ASSETS, CHARACTER_CATALOG_OPTIONS, LPC_RUNTIME_MANIFEST, canRenderCharacter, compatibleCatalogOptions, firstCompatibleHairColor, isAssetCompatible, rendererKindFor, resolveCharacterLayers } from "../src/character-system/registry.ts";
 import { deserializeCharacterAppearance, serializeCharacterAppearance } from "../src/character-system/serialization.ts";
-import { generaAspettoCasuale } from "../src/game/personaggioAspetto.ts";
+import { generaAspettoCasuale, testaObbligatoriaRazza } from "../src/game/personaggioAspetto.ts";
 
 test("mapping race e age -> body family", () => {
   assert.equal(bodyFamilyFor("human"), "humanAdult");
@@ -47,7 +47,7 @@ test("catalogo generato non contiene ID duplicati e riusa le sorgenti condivise"
   assert.equal(new Set(ids).size, ids.length);
   assert.ok(new Set(sourceKeys).size > 250);
   assert.ok(new Set(sourceKeys).size <= sourceKeys.length);
-  assert.deepEqual(CHARACTER_CATALOG_OPTIONS.bodyTypes.sort(), ["child", "female", "male", "teen"]);
+  assert.deepEqual(CHARACTER_CATALOG_OPTIONS.bodyTypes.sort(), ["child", "female", "male", "muscular", "pregnant", "skeleton", "teen"]);
 });
 
 test("compatibilità filtra opzioni per corporatura", () => {
@@ -55,7 +55,7 @@ test("compatibilità filtra opzioni per corporatura", () => {
   const options = compatibleCatalogOptions(child);
   assert.ok(options.skinTones.includes("light"));
   assert.ok(options.hairStyles.includes("relm_short"));
-  assert.deepEqual(options.beardStyles, ["none"]);
+  assert.deepEqual(options.beardStyles, ["none", "winter"]);
   assert.equal(rendererKindFor(child, "idle"), "sprite");
 });
 
@@ -92,6 +92,21 @@ test("tutte le opzioni teen del catalogo producono uno sprite completo", () => {
   }
 });
 
+test("catalogo piedi e teste obbligatorie delle razze", () => {
+  const teen = normalizeCharacterAppearance({ ...DEFAULT_CHARACTER_APPEARANCE, bodyType: "teen", bodyFamily: "humanTeen", ageGroup: "teen" });
+  const footwear = compatibleCatalogOptions(teen).footwear;
+  for (const category of ["shoes", "boots", "socks", "armour", "slippers", "sandals", "hoofs"]) {
+    assert.ok(footwear.some((value) => value.includes(category)), `manca la categoria ${category}`);
+  }
+  assert.equal(testaObbligatoriaRazza("Scheletro"), "skeleton");
+  assert.equal(testaObbligatoriaRazza("Vampiro"), "vampire");
+  assert.equal(testaObbligatoriaRazza("Goblin"), "goblin");
+  assert.equal(testaObbligatoriaRazza("Orco", "F"), "orc_female");
+  assert.equal(testaObbligatoriaRazza("Orco", "M"), "orc_male");
+  assert.equal(testaObbligatoriaRazza("Lucertoloide", "F"), "lizard_female");
+  assert.equal(testaObbligatoriaRazza("Lucertoloide", "M"), "lizard_male");
+});
+
 test("solo il Re mantiene la corona e i pantaloni sono obbligatori senza Nudismo", () => {
   const nakedCrowned = normalizeCharacterAppearance({ outfit: "none", headwear: "crown" });
   const citizen = appearanceForPublicSpace(nakedCrowned, { isKing: false, nudismoAttivo: false });
@@ -105,6 +120,72 @@ test("solo il Re mantiene la corona e i pantaloni sono obbligatori senza Nudismo
   assert.equal(appearanceForPublicSpace(nakedCrowned, { isKing: true, nudismoAttivo: true }).headwear, "crown");
 });
 
+test("le abitanti incinte usano bodyType pregnant", () => {
+  const incinta = appearanceForPublicSpace(DEFAULT_CHARACTER_APPEARANCE, {
+    isKing: false,
+    nudismoAttivo: false,
+    incinta: true
+  });
+  assert.equal(incinta.bodyType, "pregnant");
+  assert.equal(incinta.ageGroup, "adult");
+  assert.equal(incinta.beardStyle, "none");
+  assert.ok(canRenderCharacter(incinta, "idle"));
+  assert.ok(resolveCharacterLayers(incinta, "idle").some((layer) => layer.layer === "body" && layer.semanticId === "pregnant"));
+});
+
+test("i Nani usano sempre bodyType child", () => {
+  const nano = normalizeCharacterAppearance({ race: "dwarf", bodyType: "male", ageGroup: "adult" });
+  assert.equal(nano.bodyType, "child");
+  assert.equal(nano.ageGroup, "child");
+  assert.equal(nano.bodyFamily, "humanChild");
+
+  const generated = generaAspettoCasuale("Nano", () => 0.5, { eta: 40, sesso: "M" }).characterAppearance!;
+  assert.equal(generated.race, "dwarf");
+  assert.equal(generated.bodyType, "child");
+  assert.equal(generated.ageGroup, "child");
+});
+
+test("i Nani usano sempre la Winter Beard con colore valido", () => {
+  const nano = normalizeCharacterAppearance({
+    race: "dwarf",
+    beardStyle: "basic",
+    beardColor: "pink",
+    hairStyle: "relm_short",
+    outfit: "none",
+    upperOutfit: "none",
+    lowerOutfit: "none"
+  });
+  assert.equal(nano.beardStyle, "winter");
+  assert.ok(["black", "dark_brown", "chestnut", "blonde", "ginger", "white"].includes(nano.beardColor));
+
+  const colors = new Set<string>();
+  for (let seed = 1; seed <= 20; seed += 1) {
+    let state = seed >>> 0;
+    const appearance = generaAspettoCasuale("Nano", () => {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      return state / 0x100000000;
+    }).characterAppearance!;
+    assert.equal(appearance.beardStyle, "winter");
+    colors.add(appearance.beardColor);
+  }
+  assert.ok(colors.size > 1, "la barba del Nano deve poter variare di colore");
+  assert.ok(resolveCharacterLayers(nano, "idle").some((layer) => layer.layer === "beard" && layer.semanticId === "winter"));
+});
+
+test("agricoltore ha sempre l'annaffiatoio (Tools → Watering Can)", () => {
+  const farmer = appearanceForPublicSpace(DEFAULT_CHARACTER_APPEARANCE, {
+    isKing: false,
+    nudismoAttivo: false,
+    lavoro: "Agricoltore"
+  });
+  assert.equal(farmer.accessory, FARMER_TOOL);
+  const idleLayers = resolveCharacterLayers(farmer, "idle").filter((layer) => layer.layer === "accessory");
+  assert.ok(idleLayers.length >= 2, "annaffiatoio LPC ha sfondo e primo piano");
+  assert.ok(idleLayers.every((layer) => layer.semanticId === FARMER_TOOL));
+  const walkLayers = resolveCharacterLayers(farmer, "walk").filter((layer) => layer.layer === "accessory");
+  assert.ok(walkLayers.length >= 2);
+});
+
 test("randomizzazione produce soltanto combinazioni risolvibili o fallback sicuro", () => {
   for (const race of ["Umano", "Elfo", "Nano", "Orco", "Goblin"] as const) {
     const appearance = generaAspettoCasuale(race, () => 0.5).characterAppearance!;
@@ -114,6 +195,55 @@ test("randomizzazione produce soltanto combinazioni risolvibili o fallback sicur
       assert.ok(resolveCharacterLayers(appearance, "idle").every((asset) => isAssetCompatible(asset, appearance)));
     }
   }
+});
+
+test("mantello cape e trim si sovrappongono", () => {
+  const teen = normalizeCharacterAppearance({ bodyType: "teen", ageGroup: "teen", bodyFamily: "humanTeen", headStyle: "human_head" });
+  const withCape = normalizeCharacterAppearance({ ...teen, cape: "solid", capeColor: "brown" });
+  assert.equal(rendererKindFor(withCape, "idle"), "sprite");
+  assert.ok(resolveCharacterLayers(withCape, "idle").some((layer) => layer.layer === "cape" && layer.semanticId === "solid"));
+
+  const withTrim = normalizeCharacterAppearance({ ...teen, cape: "tattered", capeTrim: "trim", capeColor: "black" });
+  const capeLayers = resolveCharacterLayers(withTrim, "idle").filter((layer) => layer.layer === "cape");
+  assert.equal(capeLayers.length, 3);
+  assert.ok(capeLayers.some((layer) => layer.semanticId === "tattered"));
+  assert.ok(capeLayers.some((layer) => layer.semanticId === "trim"));
+});
+
+test("kimono trim si sovrappone alla base senza sostituirla", () => {
+  const teen = normalizeCharacterAppearance({ bodyType: "teen", ageGroup: "teen", bodyFamily: "humanTeen", headStyle: "human_head" });
+  const withTrim = normalizeCharacterAppearance({
+    ...teen,
+    fullOutfit: "kimono",
+    fullOutfitTrim: "kimono_trim",
+    outfitPrimaryColor: "brown"
+  });
+  const layers = resolveCharacterLayers(withTrim, "idle").filter((layer) => layer.layer === "fullOutfit");
+  assert.equal(layers.length, 2);
+  assert.equal(rendererKindFor(withTrim, "idle"), "sprite");
+
+  const splitTrim = normalizeCharacterAppearance({
+    ...teen,
+    fullOutfit: "kimono_split",
+    fullOutfitTrim: "kimono_split_trim",
+    outfitPrimaryColor: "maroon"
+  });
+  assert.equal(resolveCharacterLayers(splitTrim, "idle").filter((layer) => layer.layer === "fullOutfit").length, 2);
+
+  const invalidTrim = normalizeCharacterAppearance({
+    ...teen,
+    fullOutfit: "kimono",
+    fullOutfitTrim: "kimono_split_trim"
+  });
+  assert.equal(invalidTrim.fullOutfitTrim, "none");
+
+  const legacyTrimAsOutfit = normalizeCharacterAppearance({
+    ...teen,
+    fullOutfit: "kimono_trim",
+    outfitPrimaryColor: "blue"
+  });
+  assert.equal(legacyTrimAsOutfit.fullOutfit, "kimono");
+  assert.equal(legacyTrimAsOutfit.fullOutfitTrim, "kimono_trim");
 });
 
 test("CharacterAppearance round-trip mantiene ID semantici e nessun path/frame", () => {

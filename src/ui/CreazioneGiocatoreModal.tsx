@@ -17,10 +17,30 @@ import {
   type RazzaGiocatore
 } from "../game/personaggioAspetto";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
+import { CharacterCreationPreview } from "./CharacterCreationPreview";
 import { PixelAvatarPreview } from "./PixelAvatarPreview";
-import { canRenderCharacter, compatibleCatalogOptions, firstCompatibleHairColor } from "../character-system/registry";
+import { canRenderCharacter, compatibleCatalogOptions, compatibleColorsForField, firstCompatibleColorForField, firstCompatibleHairColor } from "../character-system/registry";
 import { bodyFamilyFor, normalizeCharacterAppearance } from "../character-system/appearance";
-import { SpriteCharacterRenderer } from "../components/SpriteCharacterRenderer";
+import { groupCapeMantelloSections, isCapeTrim } from "../character-system/capeMantello";
+import {
+  filterPantsOptions,
+  filterSkirtsOptions,
+  filterTorsoOutfitOptions,
+  groupCatalogOptionsByLpcSections,
+  groupKimonoVesteSections,
+  isKimonoManicheFullOutfit,
+  isKimonoVesteAbito,
+  isKimonoVesteTrim,
+  kimonoBaseForTrim,
+  kimonoTrimForBase,
+  LPC_KIMONO_MANICHE_SECTIONS,
+  LPC_MANICHE_TORSO_SECTIONS,
+  LPC_PANTS_SECTIONS,
+  LPC_SKIRTS_SECTIONS,
+  LPC_TORSO_SECTIONS,
+  partitionLongsleeveTorsoOptions
+} from "../character-system/lpcCatalogSections";
+import { CircularSpriteFrame } from "./CircularSpriteFrame";
 import type { CharacterAppearance, CharacterLayer } from "../character-system/types";
 
 export type DatiCreazioneGiocatore = {
@@ -75,12 +95,14 @@ function AppearanceOption({
   label,
   selected,
   visibleLayers,
+  visibleSemanticIds,
   onPress
 }: {
   appearance: CharacterAppearance;
   label: string;
   selected: boolean;
   visibleLayers: readonly CharacterLayer[];
+  visibleSemanticIds?: Partial<Record<CharacterLayer, string>>;
   onPress: () => void;
 }) {
   const [hovered, setHovered] = useState(false);
@@ -94,23 +116,236 @@ function AppearanceOption({
       onHoverOut={() => setHovered(false)}
       style={[styles.visualOption, selected && styles.visualOptionSelected]}
     >
-      <SpriteCharacterRenderer appearance={appearance} animation="idle" direction="down" size={72} visibleLayers={visibleLayers} />
+      {selected ? <View pointerEvents="none" style={styles.selectionRing} /> : null}
+      <CircularSpriteFrame appearance={appearance} size={58} animate={false} visibleLayers={visibleLayers} visibleSemanticIds={visibleSemanticIds} />
       {hovered ? <View pointerEvents="none" style={styles.optionTooltip}><Text style={styles.optionTooltipText}>{label}</Text></View> : null}
     </Pressable>
   );
 }
 
-type CreationTab = "identity" | "hair" | "clothes";
+type CreationTab = "identity" | "hair" | "busto" | "maniche" | "veste" | "mantello" | "pantaloni" | "gonne" | "scarpe" | "calze";
 
 const CREATION_TABS: { id: CreationTab; label: string }[] = [
   { id: "identity", label: "Identità" },
   { id: "hair", label: "Capelli" },
-  { id: "clothes", label: "Vestiti" }
+  { id: "busto", label: "Busto" },
+  { id: "maniche", label: "Maniche" },
+  { id: "veste", label: "Veste" },
+  { id: "mantello", label: "Mantello" },
+  { id: "pantaloni", label: "Pantaloni" },
+  { id: "gonne", label: "Gonne" },
+  { id: "scarpe", label: "Scarpe" },
+  { id: "calze", label: "Calze" }
 ];
 
 function readableOptionName(prefix: string, value: string) {
-  const name = value.replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+  const name = formatSemanticLabel(value);
   return `${prefix}: ${name}`;
+}
+
+function formatSemanticLabel(value: string): string {
+  if (value === "trim") return "Cape Trim";
+  return value.replace(/^feet_/, "").replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
+}
+
+type OutfitColorPickerKind = "upper" | "fullOutfit" | "fullOutfitTrim" | "cape" | "capeTrim" | "lower" | "footwear";
+
+type OutfitColorPickerRequest = {
+  kind: OutfitColorPickerKind;
+  semanticId: string;
+  label: string;
+};
+
+type OutfitColorPickerState = {
+  request: OutfitColorPickerRequest;
+  colors: string[];
+};
+
+function colorsForOutfitPicker(
+  appearance: CharacterAppearance,
+  request: OutfitColorPickerRequest
+): string[] {
+  switch (request.kind) {
+    case "fullOutfit":
+    case "fullOutfitTrim":
+      return compatibleColorsForField(appearance, "outfitPrimaryColor", "fullOutfit", request.semanticId);
+    case "cape":
+    case "capeTrim":
+      return compatibleColorsForField(appearance, "capeColor", "cape", request.semanticId);
+    case "upper":
+      return compatibleColorsForField(appearance, "outfitPrimaryColor", "outfit", request.semanticId);
+    case "lower":
+      return compatibleColorsForField(appearance, "outfitSecondaryColor", "lowerBody", request.semanticId);
+    case "footwear":
+      return compatibleColorsForField(appearance, "footwear", "footwear", request.semanticId);
+  }
+}
+
+function resolveOutfitPickerColors(
+  appearance: CharacterAppearance,
+  request: OutfitColorPickerRequest
+): string[] {
+  return colorsForOutfitPicker(appearance, request);
+}
+
+function previewAppearanceForOutfitPicker(
+  appearance: CharacterAppearance,
+  request: OutfitColorPickerRequest,
+  color: string
+): CharacterAppearance {
+  switch (request.kind) {
+    case "fullOutfit": {
+      const compatibleTrim = kimonoTrimForBase(request.semanticId);
+      return normalizeCharacterAppearance({
+        ...appearance,
+        fullOutfit: request.semanticId,
+        fullOutfitTrim: compatibleTrim && appearance.fullOutfitTrim === compatibleTrim ? appearance.fullOutfitTrim : "none",
+        outfit: request.semanticId,
+        outfitPrimaryColor: color,
+        upperOutfit: "none",
+        lowerOutfit: "none"
+      });
+    }
+    case "fullOutfitTrim":
+      return normalizeCharacterAppearance({
+        ...appearance,
+        fullOutfit: kimonoBaseForTrim(request.semanticId) ?? appearance.fullOutfit,
+        fullOutfitTrim: request.semanticId,
+        outfit: kimonoBaseForTrim(request.semanticId) ?? appearance.fullOutfit,
+        outfitPrimaryColor: color,
+        upperOutfit: "none",
+        lowerOutfit: "none"
+      });
+    case "upper":
+      return normalizeCharacterAppearance({
+        ...appearance,
+        fullOutfit: "none",
+        upperOutfit: request.semanticId,
+        outfitPrimaryColor: color
+      });
+    case "lower":
+      return normalizeCharacterAppearance({
+        ...appearance,
+        fullOutfit: "none",
+        lowerOutfit: request.semanticId,
+        outfitSecondaryColor: color
+      });
+    case "footwear":
+      return normalizeCharacterAppearance({
+        ...appearance,
+        footwear: request.semanticId,
+        footwearColor: color
+      });
+    case "cape":
+      return normalizeCharacterAppearance({
+        ...appearance,
+        cape: request.semanticId,
+        capeColor: color
+      });
+    case "capeTrim":
+      return normalizeCharacterAppearance({
+        ...appearance,
+        capeTrim: request.semanticId,
+        capeColor: color
+      });
+  }
+}
+
+function visibleLayersForOutfitPicker(kind: OutfitColorPickerKind): readonly CharacterLayer[] {
+  switch (kind) {
+    case "fullOutfit":
+    case "fullOutfitTrim":
+      return ["body", "raceFeatures", "fullOutfit"];
+    case "upper":
+      return ["outfit"];
+    case "lower":
+      return ["lowerBody"];
+    case "footwear":
+      return ["footwear"];
+    case "cape":
+    case "capeTrim":
+      return ["cape"];
+  }
+}
+
+function visibleSemanticIdsForOutfitPicker(request: OutfitColorPickerRequest): Partial<Record<CharacterLayer, string>> {
+  if (request.kind === "fullOutfit" || request.kind === "fullOutfitTrim") {
+    return { fullOutfit: request.semanticId };
+  }
+  if (request.kind === "cape" || request.kind === "capeTrim") {
+    return { cape: request.semanticId };
+  }
+  return {};
+}
+
+function OutfitColorPickerDialog({
+  picker,
+  appearance,
+  onSelect,
+  onCancel
+}: {
+  picker: OutfitColorPickerState;
+  appearance: CharacterAppearance;
+  onSelect: (color: string) => void;
+  onCancel: () => void;
+}) {
+  const { request, colors } = picker;
+  const visibleLayers = visibleLayersForOutfitPicker(request.kind);
+  const visibleSemanticIds = visibleSemanticIdsForOutfitPicker(request);
+  const currentColor = request.kind === "fullOutfit" || request.kind === "fullOutfitTrim" || request.kind === "upper"
+    ? appearance.outfitPrimaryColor
+    : request.kind === "cape" || request.kind === "capeTrim"
+      ? appearance.capeColor
+    : request.kind === "lower"
+      ? appearance.outfitSecondaryColor
+      : appearance.footwearColor;
+
+  return (
+    <View style={styles.colorPickerOverlay} pointerEvents="box-none">
+      <Pressable style={styles.colorPickerBackdrop} onPress={onCancel} accessibilityLabel="Chiudi selezione colore" />
+      <View style={styles.colorPickerCard}>
+        <Text style={styles.colorPickerTitle}>Scegli il colore</Text>
+        <Text style={styles.colorPickerSubtitle}>{request.label}</Text>
+        <ScrollView style={styles.colorPickerScroll} contentContainerStyle={styles.colorPickerGrid} keyboardShouldPersistTaps="handled">
+          {colors.map((color) => (
+            <AppearanceOption
+              key={color}
+              label={formatSemanticLabel(color)}
+              selected={currentColor === color && (
+                request.kind === "fullOutfit"
+                  ? appearance.fullOutfit === request.semanticId
+                  : request.kind === "fullOutfitTrim"
+                    ? appearance.fullOutfitTrim === request.semanticId
+                    : request.kind === "cape"
+                      ? appearance.cape === request.semanticId
+                      : request.kind === "capeTrim"
+                        ? appearance.capeTrim === request.semanticId
+                    : request.kind === "upper"
+                    ? appearance.upperOutfit === request.semanticId
+                    : request.kind === "lower"
+                      ? appearance.lowerOutfit === request.semanticId
+                      : appearance.footwear === request.semanticId
+              )}
+              visibleLayers={visibleLayers}
+              visibleSemanticIds={visibleSemanticIds}
+              appearance={previewAppearanceForOutfitPicker(appearance, request, color)}
+              onPress={() => onSelect(color)}
+            />
+          ))}
+        </ScrollView>
+        <Pressable style={styles.colorPickerCancel} onPress={onCancel} accessibilityRole="button">
+          <Text style={styles.colorPickerCancelText}>Annulla</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
+const KIMONO_VESTE_PREVIEW_LAYERS = ["body", "raceFeatures", "fullOutfit"] as const;
+const CAPE_MANTELLO_PREVIEW_LAYERS = ["body", "raceFeatures", "cape"] as const;
+
+function kimonoVestePreviewSemanticIds(semanticId: string): Partial<Record<CharacterLayer, string>> {
+  return { fullOutfit: semanticId };
 }
 
 export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocatoreModalProps) {
@@ -120,24 +355,139 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
   const [orientamento, setOrientamento] = useState<"Etero" | "Omo" | "Bi" | "Asessuale" | null>(null);
   const [aspetto, setAspetto] = useState<AspettoPersonaggio>(ASPETTO_RE_DEFAULT);
   const [activeTab, setActiveTab] = useState<CreationTab>("identity");
+  const [outfitColorPicker, setOutfitColorPicker] = useState<OutfitColorPickerState | null>(null);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
   const spriteAppearance = aspetto.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, "teen");
   const catalogOptions = compatibleCatalogOptions(spriteAppearance);
+  const torsoOutfitsAll = filterTorsoOutfitOptions(catalogOptions.upperOutfits, spriteAppearance.bodyType);
+  const { manicheSleeves: manicheTorsoOutfits, rest: bustoTorsoOutfits } = partitionLongsleeveTorsoOptions(torsoOutfitsAll, spriteAppearance.bodyType);
+  const bustoSections = groupCatalogOptionsByLpcSections(bustoTorsoOutfits, spriteAppearance.bodyType, "outfit", LPC_TORSO_SECTIONS);
+  const manicheTorsoSections = groupCatalogOptionsByLpcSections(manicheTorsoOutfits, spriteAppearance.bodyType, "outfit", LPC_MANICHE_TORSO_SECTIONS);
+  const kimonoManicheOutfits = catalogOptions.fullOutfits.filter(isKimonoManicheFullOutfit);
+  const vesteKimonoOutfits = catalogOptions.fullOutfits.filter((id) => !isKimonoManicheFullOutfit(id));
+  const manicheKimonoSections = groupCatalogOptionsByLpcSections(kimonoManicheOutfits, spriteAppearance.bodyType, "fullOutfit", LPC_KIMONO_MANICHE_SECTIONS);
+  const manicheSections = [...manicheTorsoSections, ...manicheKimonoSections];
+  const vesteSections = groupKimonoVesteSections(
+    vesteKimonoOutfits,
+    isKimonoVesteAbito(spriteAppearance.fullOutfit) ? spriteAppearance.fullOutfit : undefined
+  );
+  const mantelloSections = groupCapeMantelloSections(
+    catalogOptions.capes,
+    spriteAppearance.cape !== "none"
+  );
+  const pantaloniSections = groupCatalogOptionsByLpcSections(
+    filterPantsOptions(catalogOptions.lowerOutfits, spriteAppearance.bodyType),
+    spriteAppearance.bodyType,
+    "lowerBody",
+    LPC_PANTS_SECTIONS
+  );
+  const gonneSections = groupCatalogOptionsByLpcSections(
+    filterSkirtsOptions(catalogOptions.lowerOutfits, spriteAppearance.bodyType),
+    spriteAppearance.bodyType,
+    "lowerBody",
+    LPC_SKIRTS_SECTIONS
+  );
+  const scarpeFootwearSections = [
+    ["Shoes", ["shoes"]],
+    ["Boots", ["boots"]],
+    ["Shoe / Boots Accessory", ["plate_toe", "accessory"]],
+    ["Slippers", ["slippers"]],
+    ["Sandals", ["sandals"]],
+    ["Hoofs", ["hoofs"]]
+  ] as const;
+  const calzeFootwearSections = [
+    ["Socks", ["socks"]]
+  ] as const;
   const updateSpriteAppearance = (patch: Partial<typeof spriteAppearance>) => {
     const next = forzaAspettoReTeen({ ...aspetto, characterAppearance: { ...spriteAppearance, ...patch } });
     if (next.characterAppearance && canRenderCharacter(next.characterAppearance, "idle")) {
       setAspetto(next);
     }
   };
-  const updateOutfit = (upperOutfit: string, lowerOutfit: string) => {
+  const updateOutfit = (
+    upperOutfit: string,
+    lowerOutfit: string,
+    outfitPrimaryColor?: string,
+    outfitSecondaryColor?: string
+  ) => {
     updateSpriteAppearance({
       outfit: upperOutfit === lowerOutfit ? upperOutfit : "custom",
       upperOutfit,
       lowerOutfit,
-      fullOutfit: "none"
+      fullOutfit: "none",
+      outfitPrimaryColor: upperOutfit === "none"
+        ? spriteAppearance.outfitPrimaryColor
+        : outfitPrimaryColor ?? firstCompatibleColorForField(spriteAppearance, "outfitPrimaryColor", "outfit", upperOutfit),
+      outfitSecondaryColor: lowerOutfit === "none"
+        ? spriteAppearance.outfitSecondaryColor
+        : outfitSecondaryColor ?? firstCompatibleColorForField(spriteAppearance, "outfitSecondaryColor", "lowerBody", lowerOutfit)
     });
+  };
+
+  const openOutfitColorPicker = (request: OutfitColorPickerRequest, options?: { forceDialog?: boolean }) => {
+    const colors = resolveOutfitPickerColors(spriteAppearance, request);
+    if (colors.length === 0) return;
+    if (!options?.forceDialog && colors.length <= 1) {
+      applyOutfitColorPicker(request, colors[0] ?? "base");
+      return;
+    }
+    setOutfitColorPicker({ request, colors });
+  };
+
+  const applyOutfitColorPicker = (request: OutfitColorPickerRequest, color: string) => {
+    switch (request.kind) {
+      case "fullOutfit": {
+        const compatibleTrim = kimonoTrimForBase(request.semanticId);
+        updateSpriteAppearance({
+          outfit: request.semanticId,
+          fullOutfit: request.semanticId,
+          fullOutfitTrim: compatibleTrim && spriteAppearance.fullOutfitTrim === compatibleTrim
+            ? spriteAppearance.fullOutfitTrim
+            : "none",
+          outfitPrimaryColor: color,
+          upperOutfit: "none",
+          lowerOutfit: "none"
+        });
+        break;
+      }
+      case "fullOutfitTrim":
+        updateSpriteAppearance({
+          outfit: kimonoBaseForTrim(request.semanticId) ?? spriteAppearance.fullOutfit,
+          fullOutfit: kimonoBaseForTrim(request.semanticId) ?? spriteAppearance.fullOutfit,
+          fullOutfitTrim: request.semanticId,
+          outfitPrimaryColor: color,
+          upperOutfit: "none",
+          lowerOutfit: "none"
+        });
+        break;
+      case "upper":
+        updateOutfit(request.semanticId, spriteAppearance.lowerOutfit, color, spriteAppearance.outfitSecondaryColor);
+        break;
+      case "lower":
+        updateOutfit(spriteAppearance.upperOutfit, request.semanticId, spriteAppearance.outfitPrimaryColor, color);
+        break;
+      case "footwear":
+        updateSpriteAppearance({
+          footwear: request.semanticId,
+          footwearColor: color
+        });
+        break;
+      case "cape":
+        updateSpriteAppearance({
+          cape: request.semanticId,
+          capeColor: color
+        });
+        break;
+      case "capeTrim":
+        updateSpriteAppearance({
+          capeTrim: request.semanticId,
+          capeColor: color
+        });
+        break;
+    }
+    setOutfitColorPicker(null);
   };
 
   const valido =
@@ -176,7 +526,11 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
           <View style={[styles.editorLayout, isDesktop && styles.editorLayoutDesktop]}>
             <View style={[styles.previewColumn, isDesktop && styles.previewColumnDesktop]}>
               <View style={styles.previewWrap}>
-                <PixelAvatarPreview razza={RAZZA_RE} aspetto={aspetto} />
+                {canRenderCharacter(spriteAppearance, "idle") ? (
+                  <CharacterCreationPreview appearance={spriteAppearance} />
+                ) : (
+                  <PixelAvatarPreview razza={RAZZA_RE} aspetto={aspetto} />
+                )}
                 <View style={styles.previewMeta}>
                   <Text style={styles.previewHint}>Umano · 10 anni · corpo teen</Text>
                   <Pressable style={styles.randomButton} onPress={() => {
@@ -192,16 +546,17 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
               </View>
             </View>
 
-            <ScrollView
-              style={styles.controlsScroll}
-              contentContainerStyle={styles.controlsColumn}
-              showsVerticalScrollIndicator
-              keyboardShouldPersistTaps="handled"
-            >
+            <View style={styles.controlsColumn}>
               <View style={styles.tabs}>
                 {CREATION_TABS.map((tab) => <Pressable key={tab.id} accessibilityRole="tab" accessibilityState={{ selected: activeTab === tab.id }} style={[styles.tab, activeTab === tab.id && styles.tabSelected]} onPress={() => setActiveTab(tab.id)}><Text style={[styles.tabText, activeTab === tab.id && styles.tabTextSelected]}>{tab.label}</Text></Pressable>)}
               </View>
 
+              <ScrollView
+                style={styles.controlsScroll}
+                contentContainerStyle={styles.controlsScrollContent}
+                showsVerticalScrollIndicator
+                keyboardShouldPersistTaps="handled"
+              >
               {activeTab === "identity" ? <>
               <Text style={styles.sectionTitle}>Identità</Text>
               <View style={styles.field}>
@@ -241,22 +596,340 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
               </View>
               </> : null}
 
-              {activeTab === "clothes" ? <>
-              <Text style={styles.sectionTitle}>Vestiti</Text>
-              <View style={styles.field}>
-                <Text style={styles.label}>Abiti completi</Text>
-                <View style={styles.visualGrid}>{catalogOptions.fullOutfits.map((value) => <AppearanceOption key={value} label={readableOptionName("Abito completo", value)} selected={spriteAppearance.fullOutfit === value} visibleLayers={["fullOutfit"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: value })} onPress={() => updateSpriteAppearance(spriteAppearance.fullOutfit === value ? { fullOutfit: "none" } : { outfit: value, fullOutfit: value })} />)}</View>
-              </View>
-              <View style={styles.field}>
-                <Text style={styles.label}>Sopra</Text>
-                <View style={styles.visualGrid}>{catalogOptions.upperOutfits.map((value) => <AppearanceOption key={value} label={readableOptionName("Sopra", value)} selected={spriteAppearance.fullOutfit === "none" && spriteAppearance.upperOutfit === value} visibleLayers={["outfit"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", upperOutfit: value })} onPress={() => updateOutfit(spriteAppearance.fullOutfit === "none" && spriteAppearance.upperOutfit === value ? "none" : value, spriteAppearance.lowerOutfit)} />)}</View>
-              </View>
-              <View style={styles.field}>
-                <Text style={styles.label}>Sotto</Text>
-                <View style={styles.visualGrid}>{catalogOptions.lowerOutfits.map((value) => <AppearanceOption key={value} label={readableOptionName("Sotto", value)} selected={spriteAppearance.fullOutfit === "none" && spriteAppearance.lowerOutfit === value} visibleLayers={["lowerBody"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", lowerOutfit: value })} onPress={() => updateOutfit(spriteAppearance.upperOutfit, spriteAppearance.fullOutfit === "none" && spriteAppearance.lowerOutfit === value ? "none" : value)} />)}</View>
-              </View>
+              {activeTab === "busto" ? <>
+              <Text style={styles.sectionTitle}>Busto</Text>
+              {bustoSections.map(({ label, options }) => (
+                <View key={label} style={styles.field}>
+                  <Text style={styles.label}>{label}</Text>
+                  <View style={styles.visualGrid}>{options.map((value) => {
+                    const selected = spriteAppearance.fullOutfit === "none" && spriteAppearance.upperOutfit === value;
+                    const previewColor = selected
+                      ? spriteAppearance.outfitPrimaryColor
+                      : firstCompatibleColorForField(spriteAppearance, "outfitPrimaryColor", "outfit", value);
+                    return (
+                      <AppearanceOption
+                        key={value}
+                        label={readableOptionName(label, value)}
+                        selected={selected}
+                        visibleLayers={["outfit"]}
+                        appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", upperOutfit: value, outfitPrimaryColor: previewColor })}
+                        onPress={() => openOutfitColorPicker({
+                          kind: "upper",
+                          semanticId: value,
+                          label: readableOptionName(label, value)
+                        })}
+                      />
+                    );
+                  })}</View>
+                </View>
+              ))}
               </> : null}
-            </ScrollView>
+
+              {activeTab === "maniche" ? <>
+              <Text style={styles.sectionTitle}>Maniche</Text>
+              {manicheSections.map(({ label, options }) => (
+                <View key={label} style={styles.field}>
+                  <Text style={styles.label}>{label}</Text>
+                  <View style={styles.visualGrid}>{options.map((value) => {
+                    const isFullOutfit = isKimonoManicheFullOutfit(value);
+                    const selected = isFullOutfit
+                      ? spriteAppearance.fullOutfit === value
+                      : spriteAppearance.fullOutfit === "none" && spriteAppearance.upperOutfit === value;
+                    const previewColor = selected
+                      ? spriteAppearance.outfitPrimaryColor
+                      : firstCompatibleColorForField(
+                        spriteAppearance,
+                        "outfitPrimaryColor",
+                        isFullOutfit ? "fullOutfit" : "outfit",
+                        value
+                      );
+                    const previewAppearance = isFullOutfit
+                      ? normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: value, outfitPrimaryColor: previewColor })
+                      : normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", upperOutfit: value, outfitPrimaryColor: previewColor });
+                    return (
+                      <AppearanceOption
+                        key={value}
+                        label={readableOptionName(label, value)}
+                        selected={selected}
+                        visibleLayers={isFullOutfit ? ["fullOutfit"] : ["outfit"]}
+                        appearance={previewAppearance}
+                        onPress={() => openOutfitColorPicker({
+                          kind: isFullOutfit ? "fullOutfit" : "upper",
+                          semanticId: value,
+                          label: readableOptionName(label, value)
+                        })}
+                      />
+                    );
+                  })}</View>
+                </View>
+              ))}
+              </> : null}
+
+              {activeTab === "veste" ? <>
+              <Text style={styles.sectionTitle}>Veste</Text>
+              {vesteSections.map(({ label, options }) => (
+                <View key={label} style={styles.field}>
+                  <Text style={styles.label}>{label}</Text>
+                  <View style={styles.visualGrid}>{options.map((value) => {
+                    if (isKimonoVesteTrim(value)) {
+                      const selected = spriteAppearance.fullOutfitTrim === value;
+                      const base = kimonoBaseForTrim(value)!;
+                      const previewColor = selected
+                        ? spriteAppearance.outfitPrimaryColor
+                        : firstCompatibleColorForField(spriteAppearance, "outfitPrimaryColor", "fullOutfit", value);
+                      return (
+                        <AppearanceOption
+                          key={value}
+                          label={formatSemanticLabel(value)}
+                          selected={selected}
+                          visibleLayers={KIMONO_VESTE_PREVIEW_LAYERS}
+                          visibleSemanticIds={kimonoVestePreviewSemanticIds(value)}
+                          appearance={normalizeCharacterAppearance({
+                            ...spriteAppearance,
+                            fullOutfit: base,
+                            fullOutfitTrim: value,
+                            outfitPrimaryColor: previewColor,
+                            upperOutfit: "none",
+                            lowerOutfit: "none"
+                          })}
+                          onPress={() => {
+                            if (selected) {
+                              updateSpriteAppearance({ fullOutfitTrim: "none" });
+                              return;
+                            }
+                            openOutfitColorPicker({
+                              kind: "fullOutfitTrim",
+                              semanticId: value,
+                              label: formatSemanticLabel(value)
+                            }, { forceDialog: true });
+                          }}
+                        />
+                      );
+                    }
+
+                    const selected = spriteAppearance.fullOutfit === value;
+                    const compatibleTrim = kimonoTrimForBase(value);
+                    const previewTrim = compatibleTrim && spriteAppearance.fullOutfitTrim === compatibleTrim
+                      ? spriteAppearance.fullOutfitTrim
+                      : "none";
+                    const previewColor = selected
+                      ? spriteAppearance.outfitPrimaryColor
+                      : firstCompatibleColorForField(spriteAppearance, "outfitPrimaryColor", "fullOutfit", value);
+                    return (
+                      <AppearanceOption
+                        key={value}
+                        label={formatSemanticLabel(value)}
+                        selected={selected}
+                        visibleLayers={KIMONO_VESTE_PREVIEW_LAYERS}
+                        visibleSemanticIds={kimonoVestePreviewSemanticIds(value)}
+                        appearance={normalizeCharacterAppearance({
+                          ...spriteAppearance,
+                          fullOutfit: value,
+                          fullOutfitTrim: previewTrim,
+                          outfitPrimaryColor: previewColor,
+                          upperOutfit: "none",
+                          lowerOutfit: "none"
+                        })}
+                        onPress={() => openOutfitColorPicker({
+                          kind: "fullOutfit",
+                          semanticId: value,
+                          label: formatSemanticLabel(value)
+                        }, { forceDialog: true })}
+                      />
+                    );
+                  })}</View>
+                </View>
+              ))}
+              </> : null}
+
+              {activeTab === "mantello" ? <>
+              <Text style={styles.sectionTitle}>Mantello</Text>
+              {mantelloSections.map(({ label, options }) => (
+                <View key={label} style={styles.field}>
+                  <Text style={styles.label}>{label}</Text>
+                  <View style={styles.visualGrid}>{options.map((value) => {
+                    if (isCapeTrim(value)) {
+                      const selected = spriteAppearance.capeTrim === value;
+                      const previewColor = selected
+                        ? spriteAppearance.capeColor
+                        : firstCompatibleColorForField(spriteAppearance, "capeColor", "cape", value);
+                      return (
+                        <AppearanceOption
+                          key={value}
+                          label={formatSemanticLabel(value)}
+                          selected={selected}
+                          visibleLayers={CAPE_MANTELLO_PREVIEW_LAYERS}
+                          visibleSemanticIds={{ cape: value }}
+                          appearance={normalizeCharacterAppearance({
+                            ...spriteAppearance,
+                            cape: spriteAppearance.cape === "none" ? "solid" : spriteAppearance.cape,
+                            capeTrim: value,
+                            capeColor: previewColor
+                          })}
+                          onPress={() => {
+                            if (selected) {
+                              updateSpriteAppearance({ capeTrim: "none" });
+                              return;
+                            }
+                            openOutfitColorPicker({
+                              kind: "capeTrim",
+                              semanticId: value,
+                              label: formatSemanticLabel(value)
+                            }, { forceDialog: true });
+                          }}
+                        />
+                      );
+                    }
+
+                    const selected = spriteAppearance.cape === value;
+                    const previewColor = selected
+                      ? spriteAppearance.capeColor
+                      : firstCompatibleColorForField(spriteAppearance, "capeColor", "cape", value);
+                    return (
+                      <AppearanceOption
+                        key={`${label}-${value}`}
+                        label={formatSemanticLabel(value)}
+                        selected={selected}
+                        visibleLayers={CAPE_MANTELLO_PREVIEW_LAYERS}
+                        visibleSemanticIds={{ cape: value }}
+                        appearance={normalizeCharacterAppearance({
+                          ...spriteAppearance,
+                          cape: value,
+                          capeColor: previewColor
+                        })}
+                        onPress={() => openOutfitColorPicker({
+                          kind: "cape",
+                          semanticId: value,
+                          label: formatSemanticLabel(value)
+                        }, { forceDialog: true })}
+                      />
+                    );
+                  })}</View>
+                </View>
+              ))}
+              </> : null}
+
+              {activeTab === "pantaloni" ? <>
+              <Text style={styles.sectionTitle}>Pantaloni</Text>
+              {pantaloniSections.map(({ label, options }) => (
+                <View key={label} style={styles.field}>
+                  <Text style={styles.label}>{label}</Text>
+                  <View style={styles.visualGrid}>{options.map((value) => {
+                    const selected = spriteAppearance.fullOutfit === "none" && spriteAppearance.lowerOutfit === value;
+                    const previewColor = selected
+                      ? spriteAppearance.outfitSecondaryColor
+                      : firstCompatibleColorForField(spriteAppearance, "outfitSecondaryColor", "lowerBody", value);
+                    return (
+                      <AppearanceOption
+                        key={value}
+                        label={readableOptionName(label, value)}
+                        selected={selected}
+                        visibleLayers={["lowerBody"]}
+                        appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", lowerOutfit: value, outfitSecondaryColor: previewColor })}
+                        onPress={() => openOutfitColorPicker({
+                          kind: "lower",
+                          semanticId: value,
+                          label: readableOptionName(label, value)
+                        })}
+                      />
+                    );
+                  })}</View>
+                </View>
+              ))}
+              </> : null}
+
+              {activeTab === "gonne" ? <>
+              <Text style={styles.sectionTitle}>Gonne</Text>
+              {gonneSections.map(({ label, options }) => (
+                <View key={label} style={styles.field}>
+                  <Text style={styles.label}>{label}</Text>
+                  <View style={styles.visualGrid}>{options.map((value) => {
+                    const selected = spriteAppearance.fullOutfit === "none" && spriteAppearance.lowerOutfit === value;
+                    const previewColor = selected
+                      ? spriteAppearance.outfitSecondaryColor
+                      : firstCompatibleColorForField(spriteAppearance, "outfitSecondaryColor", "lowerBody", value);
+                    return (
+                      <AppearanceOption
+                        key={value}
+                        label={readableOptionName(label, value)}
+                        selected={selected}
+                        visibleLayers={["lowerBody"]}
+                        appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", lowerOutfit: value, outfitSecondaryColor: previewColor })}
+                        onPress={() => openOutfitColorPicker({
+                          kind: "lower",
+                          semanticId: value,
+                          label: readableOptionName(label, value)
+                        })}
+                      />
+                    );
+                  })}</View>
+                </View>
+              ))}
+              </> : null}
+
+              {activeTab === "scarpe" ? <>
+              <Text style={styles.sectionTitle}>Scarpe</Text>
+              {scarpeFootwearSections.map(([label, matches]) => {
+                const options = catalogOptions.footwear.filter((value) => matches.some((match) => value.includes(match)));
+                if (options.length === 0) return null;
+                return <View key={label} style={styles.field}>
+                  <Text style={styles.label}>{label}</Text>
+                  <View style={styles.visualGrid}>{options.map((value) => {
+                    const selected = spriteAppearance.footwear === value;
+                    const previewColor = selected
+                      ? spriteAppearance.footwearColor
+                      : firstCompatibleColorForField(spriteAppearance, "footwear", "footwear", value);
+                    return (
+                      <AppearanceOption
+                        key={value}
+                        label={readableOptionName(label, value.replace(/^feet_/, ""))}
+                        selected={selected}
+                        visibleLayers={["footwear"]}
+                        appearance={normalizeCharacterAppearance({ ...spriteAppearance, footwear: value, footwearColor: previewColor })}
+                        onPress={() => openOutfitColorPicker({
+                          kind: "footwear",
+                          semanticId: value,
+                          label: readableOptionName(label, value.replace(/^feet_/, ""))
+                        })}
+                      />
+                    );
+                  })}</View>
+                </View>;
+              })}
+              </> : null}
+
+              {activeTab === "calze" ? <>
+              <Text style={styles.sectionTitle}>Calze</Text>
+              {calzeFootwearSections.map(([label, matches]) => {
+                const options = catalogOptions.footwear.filter((value) => matches.some((match) => value.includes(match)));
+                if (options.length === 0) return null;
+                return <View key={label} style={styles.field}>
+                  <Text style={styles.label}>{label}</Text>
+                  <View style={styles.visualGrid}>{options.map((value) => {
+                    const selected = spriteAppearance.footwear === value;
+                    const previewColor = selected
+                      ? spriteAppearance.footwearColor
+                      : firstCompatibleColorForField(spriteAppearance, "footwear", "footwear", value);
+                    return (
+                      <AppearanceOption
+                        key={value}
+                        label={readableOptionName(label, value.replace(/^feet_/, ""))}
+                        selected={selected}
+                        visibleLayers={["footwear"]}
+                        appearance={normalizeCharacterAppearance({ ...spriteAppearance, footwear: value, footwearColor: previewColor })}
+                        onPress={() => openOutfitColorPicker({
+                          kind: "footwear",
+                          semanticId: value,
+                          label: readableOptionName(label, value.replace(/^feet_/, ""))
+                        })}
+                      />
+                    );
+                  })}</View>
+                </View>;
+              })}
+              </> : null}
+              </ScrollView>
+            </View>
           </View>
 
           <Pressable
@@ -270,6 +943,15 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
           >
             <Text style={styles.confirmButtonText}>Inizia il tuo regno</Text>
           </Pressable>
+
+          {outfitColorPicker ? (
+            <OutfitColorPickerDialog
+              picker={outfitColorPicker}
+              appearance={spriteAppearance}
+              onSelect={(color) => applyOutfitColorPicker(outfitColorPicker.request, color)}
+              onCancel={() => setOutfitColorPicker(null)}
+            />
+          ) : null}
         </Pressable>
       </Pressable>
     </Modal>
@@ -356,8 +1038,9 @@ const styles = StyleSheet.create({
   editorLayoutDesktop: { flexDirection: "row", alignItems: "stretch", gap: 24 },
   previewColumn: { width: "100%" },
   previewColumnDesktop: { width: 300 },
-  controlsScroll: { flex: 1, minHeight: 0, maxHeight: "100%" },
-  controlsColumn: { paddingRight: 8, paddingBottom: 12 },
+  controlsColumn: { flex: 1, minHeight: 0, minWidth: 0 },
+  controlsScroll: { flex: 1, minHeight: 0 },
+  controlsScrollContent: { paddingRight: 8, paddingBottom: 12 },
   tabs: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 18 },
   tab: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 9, borderWidth: 1, borderColor: "rgba(148, 163, 184, 0.35)", backgroundColor: "rgba(30, 41, 59, 0.72)" },
   tabSelected: { borderColor: "#60a5fa", backgroundColor: "rgba(59, 130, 246, 0.24)" },
@@ -418,19 +1101,31 @@ const styles = StyleSheet.create({
   },
   visualGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   visualOption: {
-    width: 82,
-    height: 82,
+    width: 88,
+    height: 88,
     alignItems: "center",
     justifyContent: "center",
-    overflow: "hidden",
-    borderRadius: 10,
+    borderRadius: 44,
     borderWidth: 2,
-    borderColor: "rgba(148, 163, 184, 0.3)",
-    backgroundColor: "#243447"
+    borderColor: "transparent",
+    position: "relative"
   },
   visualOptionSelected: {
-    borderColor: "#60a5fa",
-    backgroundColor: "rgba(59, 130, 246, 0.22)"
+    borderColor: "#38bdf8",
+    borderWidth: 4,
+    backgroundColor: "rgba(59, 130, 246, 0.38)",
+    shadowColor: "#60a5fa",
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.95,
+    shadowRadius: 12,
+    elevation: 8
+  },
+  selectionRing: {
+    ...StyleSheet.absoluteFillObject,
+    borderRadius: 44,
+    borderWidth: 3,
+    borderColor: "rgba(191, 219, 254, 0.95)",
+    zIndex: 2
   },
   optionTooltip: {
     position: "absolute",
@@ -473,5 +1168,65 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     letterSpacing: 0.5
+  },
+  colorPickerOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 20,
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 16
+  },
+  colorPickerBackdrop: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(2, 6, 23, 0.72)"
+  },
+  colorPickerCard: {
+    width: "100%",
+    maxWidth: 420,
+    maxHeight: "78%",
+    backgroundColor: "#111827",
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.35)",
+    padding: 18,
+    zIndex: 21
+  },
+  colorPickerTitle: {
+    color: "#f1f5f9",
+    fontSize: 16,
+    fontWeight: "800",
+    textAlign: "center"
+  },
+  colorPickerSubtitle: {
+    color: "#93c5fd",
+    fontSize: 12,
+    fontWeight: "600",
+    textAlign: "center",
+    marginTop: 6,
+    marginBottom: 14
+  },
+  colorPickerScroll: {
+    maxHeight: 360
+  },
+  colorPickerGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 10,
+    justifyContent: "center",
+    paddingBottom: 8
+  },
+  colorPickerCancel: {
+    marginTop: 12,
+    alignSelf: "center",
+    paddingHorizontal: 18,
+    paddingVertical: 10,
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.35)"
+  },
+  colorPickerCancelText: {
+    color: "rgba(203, 213, 245, 0.85)",
+    fontSize: 12,
+    fontWeight: "700"
   }
 });

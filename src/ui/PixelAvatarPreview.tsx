@@ -3,23 +3,29 @@ import { StyleSheet, View } from "react-native";
 import type { AspettoPersonaggio, RazzaGiocatore } from "../game/personaggioAspetto";
 import { COLORI_VESTITI } from "../game/personaggioAspetto";
 import { canRenderCharacter } from "../character-system/registry";
-import { SpriteCharacterRenderer } from "../components/SpriteCharacterRenderer";
+import { CircularSpriteFrame } from "./CircularSpriteFrame";
 
 export function PixelAvatarPreview({
   razza,
   aspetto,
-  compatto = false
+  compatto = false,
+  size: sizeOverride,
+  animate = true,
+  liftPx = 0
 }: {
   razza: RazzaGiocatore | "Goblin" | "Golem";
   aspetto: AspettoPersonaggio;
   compatto?: boolean;
+  size?: number;
+  animate?: boolean;
+  liftPx?: number;
 }) {
   const spriteAppearance = aspetto.characterAppearance;
   if (spriteAppearance && canRenderCharacter(spriteAppearance, "idle")) {
-    const size = compatto ? 88 : 128;
+    const size = sizeOverride ?? (compatto ? 88 : 128);
     return (
-      <View style={[styles.spriteFrame, { width: size, height: size }]} accessibilityLabel="Anteprima personaggio LPC">
-        <SpriteCharacterRenderer appearance={spriteAppearance} animation="idle" direction="down" size={size} />
+      <View accessibilityLabel="Anteprima personaggio LPC">
+        <CircularSpriteFrame appearance={spriteAppearance} size={size} animate={animate} liftPx={liftPx} />
       </View>
     );
   }
@@ -55,7 +61,6 @@ export function PixelAvatarPreview({
 }
 
 const styles = StyleSheet.create({
-  spriteFrame: { backgroundColor: "#243447", borderWidth: 4, borderColor: "#0b1220", overflow: "hidden" },
   frame: { width: 128, height: 144, position: "relative", backgroundColor: "#243447", borderWidth: 4, borderColor: "#0b1220", overflow: "hidden" },
   frameCompatto: { transform: [{ scale: 0.68 }], marginHorizontal: -20, marginVertical: -23 },
   shadow: { position: "absolute", width: 64, height: 12, left: 32, bottom: 8, backgroundColor: "#111827", opacity: 0.65 },

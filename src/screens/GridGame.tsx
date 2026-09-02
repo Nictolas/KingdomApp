@@ -87,6 +87,11 @@ export default function GridGame() {
             <Text style={styles.navEmoji}>📌</Text>
             <Text style={styles.navLabel}>Eventi</Text>
           </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/razze")}>
+            <Text style={styles.navEmoji}>🧬</Text>
+            <Text style={styles.navLabel}>Razze</Text>
+            <Text style={styles.navMeta}>{new Set(abitanti.map((a) => a.razza ?? "Umano")).size}</Text>
+          </Pressable>
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/obiettivi")}>
             <Text style={styles.navEmoji}>🎯</Text>
             <Text style={styles.navLabel}>Obiettivi</Text>

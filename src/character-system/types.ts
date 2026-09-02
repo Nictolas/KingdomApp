@@ -1,4 +1,4 @@
-export type CharacterRaceId = "human" | "elf" | "dwarf" | "halfling" | "orc";
+export type CharacterRaceId = "human" | "elf" | "dwarf" | "halfling" | "orc" | "skeleton" | "vampire" | "goblin" | "lizard";
 export type CharacterAgeGroup = "adult" | "teen" | "child";
 export type CharacterBodyFamily =
   | "humanAdult"
@@ -16,10 +16,12 @@ export type CharacterLayer =
   | "lowerBody"
   | "outfit"
   | "fullOutfit"
+  | "footwear"
   | "raceFeatures"
   | "beard"
   | "hairFront"
   | "headwear"
+  | "cape"
   | "accessory";
 
 /** Dati persistibili: solo ID semantici, mai path o coordinate di sprite. */
@@ -29,6 +31,7 @@ export type CharacterAppearance = {
   bodyFamily: CharacterBodyFamily;
   ageGroup: CharacterAgeGroup;
   skinTone: string;
+  headStyle: string;
   eyeColor: string;
   hairStyle: string;
   hairColor: string;
@@ -39,10 +42,17 @@ export type CharacterAppearance = {
   upperOutfit: string;
   lowerOutfit: string;
   fullOutfit: string;
+  /** Rifinitura LPC sovrapposta all'abito (es. kimono_trim su kimono). */
+  fullOutfitTrim: string;
   outfitPrimaryColor: string;
   outfitSecondaryColor: string;
   footwear: string;
+  /** Colore LPC per scarpe/stivali (colorField manifest: footwear). */
+  footwearColor: string;
   headwear: string;
+  cape: string;
+  capeTrim: string;
+  capeColor: string;
   accessory: string;
 };
 
@@ -68,6 +78,7 @@ export type CharacterAssetDefinition = {
   id: string;
   assetPack: string;
   layer: CharacterLayer;
+  semanticId: string;
   bodyFamilies: readonly CharacterBodyFamily[];
   races: readonly CharacterRaceId[];
   sheetId: string;
@@ -78,4 +89,5 @@ export type CharacterAssetDefinition = {
 
 export type ResolvedCharacterLayer = CharacterAssetDefinition & {
   sheet: SpriteSheetDefinition;
+  zPos: number;
 };

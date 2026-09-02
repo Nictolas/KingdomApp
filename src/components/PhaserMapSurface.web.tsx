@@ -5,6 +5,18 @@ import { StyleSheet, View } from "react-native";
 import type { PhaserMapActions, PhaserMapSnapshot } from "../phaser/adapters/mapSceneBridge";
 import { LPC_ASSET_SOURCES } from "../character-system/generated/lpcAssetSources";
 
+const lpcLayerUriCache = new Map<string, string>();
+
+function getLpcLayerUrl(sourceId: string): string | undefined {
+  const source = LPC_ASSET_SOURCES[sourceId as keyof typeof LPC_ASSET_SOURCES];
+  if (!source) return undefined;
+  const cached = lpcLayerUriCache.get(sourceId);
+  if (cached) return cached;
+  const uri = Asset.fromModule(source).uri;
+  lpcLayerUriCache.set(sourceId, uri);
+  return uri;
+}
+
 const SPRITESHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spritesheet-full.png");
 const HUMAN_SHEET = require("../../assets/pixel-art/characters/human-colonist.png");
 const GOLEM_SHEET = require("../../assets/pixel-art/characters/stone-golem.png");
@@ -55,7 +67,7 @@ export function PhaserMapSurface({
         golem: Asset.fromModule(GOLEM_SHEET).uri,
         lpcHumanMaleIdle: Asset.fromModule(LPC_HUMAN_MALE_IDLE).uri,
         lpcHumanMaleWalk: Asset.fromModule(LPC_HUMAN_MALE_WALK).uri,
-        lpcLayers: Object.fromEntries(Object.entries(LPC_ASSET_SOURCES).map(([key, source]) => [key, Asset.fromModule(source).uri])),
+        getLpcLayerUrl: getLpcLayerUrl,
         buildings: {
           "command-center": Asset.fromModule(COMMAND_CENTER).uri,
           dormitory: Asset.fromModule(DORMITORY).uri,

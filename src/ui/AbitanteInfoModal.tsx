@@ -35,7 +35,7 @@ import {
   getBisogniAbitante,
   getProduttivitaEffettiva
 } from "../game/bisogni";
-import { CampoDiLavoroModal } from "./CampoDiLavoroModal";
+import { appearanceForPublicSpace } from "../character-system/appearance";
 import { EdificioInfoModal } from "./EdificioInfoModal";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 import { PixelAvatarPreview } from "./PixelAvatarPreview";
@@ -201,6 +201,18 @@ export function AbitanteInfoModal({
 
   if (!abitante) return null;
 
+  const aspettoVisualizzato = abitante.aspetto?.characterAppearance
+    ? {
+        ...abitante.aspetto,
+        characterAppearance: appearanceForPublicSpace(abitante.aspetto.characterAppearance, {
+          isKing: abitante.id === 1,
+          nudismoAttivo: false,
+          incinta: abitante.incinta === true,
+          lavoro: abitante.lavoro
+        })
+      }
+    : abitante.aspetto;
+
   const edificioAbitazione = getEdificioAbitazione(abitante.id, edifici);
   const edificiOccupazione = getEdificiOccupazione(abitante.id, edifici);
 
@@ -223,7 +235,7 @@ export function AbitanteInfoModal({
     router.push("/postazioni-lavoro");
   };
 
-  const apriPagina = (path: "/religione" | "/personalita" | "/pianeti" | "/scuola" | "/casta") => {
+  const apriPagina = (path: "/religione" | "/personalita" | "/razze" | "/scuola" | "/casta") => {
     onClose();
     router.push(path);
   };
@@ -289,9 +301,9 @@ export function AbitanteInfoModal({
             {/* Header con accento */}
             <View style={styles.headerAccent} />
             <View style={styles.header}>
-              <View style={[styles.avatarWrap, abitante.aspetto && abitante.razza !== "Golem" && styles.avatarWrapPixel]}>
-                {abitante.aspetto && abitante.razza !== "Golem" ? (
-                  <PixelAvatarPreview compatto razza={abitante.razza ?? "Umano"} aspetto={abitante.aspetto} />
+              <View style={[styles.avatarWrap, aspettoVisualizzato && abitante.razza !== "Golem" && styles.avatarWrapPixel]}>
+                {aspettoVisualizzato && abitante.razza !== "Golem" ? (
+                  <PixelAvatarPreview compatto razza={abitante.razza ?? "Umano"} aspetto={aspettoVisualizzato} />
                 ) : (
                   <Text style={styles.avatarEmoji}>{emojiDisplay}</Text>
                 )}
@@ -334,7 +346,7 @@ export function AbitanteInfoModal({
                   emoji="🪐"
                   label="Razza"
                   value={abitante.razza ?? "Umano"}
-                  onPress={() => apriPagina("/pianeti")}
+                  onPress={() => apriPagina("/razze")}
                 />
                 <Row
                   emoji={getEmojiCasta(casta)}
@@ -366,6 +378,8 @@ export function AbitanteInfoModal({
                 />
                 {isGiocatore(abitante) ? (
                   <Row emoji="👑" label="Occupazione" value={LAVORO_GIOCATORE} />
+                ) : abitante.lavoro === "Capo Religioso" ? (
+                  <Row emoji="⛪" label="Occupazione" value="Capo Religioso" />
                 ) : edificiOccupazione.length === 0 ? (
                   <Row
                     emoji="🏢"

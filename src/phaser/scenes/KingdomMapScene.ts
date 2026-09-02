@@ -37,7 +37,7 @@ export type PhaserArtAssetUrls = {
   golem: string;
   lpcHumanMaleIdle: string;
   lpcHumanMaleWalk: string;
-  lpcLayers: Record<string, string>;
+  getLpcLayerUrl: (sourceId: string) => string | undefined;
   buildings: Record<
     NonNullable<PhaserMapBuilding["artKey"]>,
     string | { base: string; overlay?: string; doorway?: string }
@@ -73,6 +73,8 @@ export class KingdomMapScene extends Phaser.Scene {
   private dragged = false;
   private hoveredCell: number | null = null;
   private readonly characterLastPressAt = new Map<number, number>();
+  private lpcLoadCompleteListener: (() => void) | null = null;
+  private readonly pendingLpcSourceIds = new Set<string>();
 
   constructor(bridge: MapSceneBridge, sheetUrl: string, artUrls: PhaserArtAssetUrls) {
     super({ key: "kingdom-map" });
@@ -87,9 +89,6 @@ export class KingdomMapScene extends Phaser.Scene {
     this.load.spritesheet(GOLEM_KEY, this.artUrls.golem, { frameWidth: 64, frameHeight: 64 });
     this.load.spritesheet(LPC_IDLE_KEY, this.artUrls.lpcHumanMaleIdle, { frameWidth: 64, frameHeight: 64 });
     this.load.spritesheet(LPC_WALK_KEY, this.artUrls.lpcHumanMaleWalk, { frameWidth: 64, frameHeight: 64 });
-    for (const [key, url] of Object.entries(this.artUrls.lpcLayers)) {
-      this.load.spritesheet(key, url, { frameWidth: 64, frameHeight: 64 });
-    }
     for (const [key, asset] of Object.entries(this.artUrls.buildings)) {
       if (typeof asset === "string") this.load.image(key, asset);
       else {
@@ -119,7 +118,100 @@ export class KingdomMapScene extends Phaser.Scene {
         this.renderInteraction(snapshot);
       }
     });
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unsubscribe?.());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.unsubscribe?.();
+      if (this.lpcLoadCompleteListener) {
+        this.load.off(Phaser.Loader.Events.COMPLETE, this.lpcLoadCompleteListener);
+        this.lpcLoadCompleteListener = null;
+      }
+    });
+  }
+
+  /** Carica on-demand solo i layer LPC visibili sulla mappa (evita ~4800 preload all'avvio). */
+  private collectLpcSourceIds(appearance: NonNullable<PhaserMapCharacter["characterAppearance"]>): string[] {
+    const sourceIds = new Set<string>();
+    for (const animation of ["idle", "walk"] as const) {
+      if (!canRenderCharacter(appearance, animation)) continue;
+      for (const layer of resolveCharacterLayers(appearance, animation)) sourceIds.add(layer.sourceId);
+    }
+    return [...sourceIds];
+  }
+
+  private ensureLpcTextures(sourceIds: readonly string[]): void {
+    let queued = false;
+    for (const sourceId of sourceIds) {
+      if (!sourceId || this.textures.exists(sourceId) || this.pendingLpcSourceIds.has(sourceId)) continue;
+      const url = this.artUrls.getLpcLayerUrl(sourceId);
+      if (!url) continue;
+      this.pendingLpcSourceIds.add(sourceId);
+      this.load.spritesheet(sourceId, url, { frameWidth: 64, frameHeight: 64 });
+      queued = true;
+    }
+    if (!queued) return;
+
+    if (!this.lpcLoadCompleteListener) {
+      this.lpcLoadCompleteListener = () => {
+        this.pendingLpcSourceIds.clear();
+        if (this.worldLayer) this.reconcileCharacters(this.bridge.getSnapshot());
+      };
+      this.load.on(Phaser.Loader.Events.COMPLETE, this.lpcLoadCompleteListener);
+    }
+
+    if (!this.load.isLoading()) this.load.start();
+  }
+
+  private lpcLayersReady(appearance: PhaserMapCharacter["characterAppearance"]): boolean {
+    if (!appearance || !canRenderCharacter(appearance, "idle")) return false;
+    return this.collectLpcSourceIds(appearance).every((sourceId) => this.textures.exists(sourceId));
+  }
+
+  private playLpcLayerWalk(layerSprite: Phaser.GameObjects.Sprite, sourceId: string, directionName: "down" | "left" | "right" | "up"): void {
+    if (!layerSprite?.active || !this.textures.exists(sourceId)) return;
+    const row = LPC_DIRECTION_ROWS[directionName];
+    const animationKey = `${sourceId}-walk-${directionName}`;
+    if (!this.anims.exists(animationKey)) {
+      this.anims.create({
+        key: animationKey,
+        frames: Array.from({ length: 9 }, (_, column) => ({ key: sourceId, frame: row * 9 + column })),
+        frameRate: 10,
+        repeat: -1
+      });
+    }
+    if (this.anims.exists(animationKey)) layerSprite.play(animationKey, true);
+  }
+
+  private isActiveCharacterView(view: CharacterView, characterId: number, pathToken?: number): boolean {
+    if (this.characterViews.get(characterId) !== view) return false;
+    if (!view.root?.active) return false;
+    if (pathToken != null && view.token !== pathToken) return false;
+    return true;
+  }
+
+  private stopSpriteAnim(sprite: Phaser.GameObjects.Sprite | undefined): void {
+    if (!sprite?.active) return;
+    sprite.anims?.stop();
+  }
+
+  private setCharacterIdleFrame(view: CharacterView, character: PhaserMapCharacter): void {
+    if (!view.root?.active) return;
+    if (view.usesLpc) {
+      const directionName = this.directionName(view.direction);
+      const layers = character.characterAppearance ? resolveCharacterLayers(character.characterAppearance, "idle") : [];
+      view.sprites.forEach((layerSprite, layerIndex) => {
+        if (!layerSprite?.active) return;
+        const layer = layers[layerIndex];
+        if (!layer || !this.textures.exists(layer.sourceId)) {
+          layerSprite.setVisible(false);
+          return;
+        }
+        this.stopSpriteAnim(layerSprite);
+        layerSprite.setVisible(true).setTexture(layer.sourceId).setFrame(LPC_DIRECTION_ROWS[directionName] * 2);
+      });
+      return;
+    }
+    if (!view.sprite?.active) return;
+    this.stopSpriteAnim(view.sprite);
+    view.sprite.setFrame(view.direction);
   }
 
   private configureCharacterAnimations(): void {
@@ -222,7 +314,9 @@ export class KingdomMapScene extends Phaser.Scene {
 
     const worldW = snapshot.cols * snapshot.cellSize;
     const worldH = snapshot.rows * snapshot.cellSize;
-    this.cameras.main.setBounds(0, 0, worldW, worldH);
+    const camera = this.cameras.main;
+    camera.setBounds(0, 0, worldW, worldH);
+    if (this.renderedRevision < 0) camera.centerOn(worldW / 2, worldH / 2);
     this.physics?.world?.setBounds(0, 0, worldW, worldH);
     this.renderedRevision = snapshot.revision;
     this.renderBuildings(snapshot);
@@ -272,9 +366,18 @@ export class KingdomMapScene extends Phaser.Scene {
 
   private reconcileCharacters(snapshot: PhaserMapSnapshot): void {
     if (!this.worldLayer) return;
+
+    const lpcSourceIds: string[] = [];
+    for (const character of snapshot.characters) {
+      if (!character.characterAppearance || !canRenderCharacter(character.characterAppearance, "idle")) continue;
+      lpcSourceIds.push(...this.collectLpcSourceIds(character.characterAppearance));
+    }
+    this.ensureLpcTextures(lpcSourceIds);
+
     const active = new Set(snapshot.characters.map((character) => character.id));
     for (const [id, view] of this.characterViews) {
       if (active.has(id)) continue;
+      this.tweens.killTweensOf(view.root);
       view.root.destroy(true);
       this.characterViews.delete(id);
     }
@@ -282,9 +385,16 @@ export class KingdomMapScene extends Phaser.Scene {
     for (const character of snapshot.characters) {
       const token = character.pathToken ?? 0;
       let view = this.characterViews.get(character.id);
+      const shouldUseLpc = this.lpcLayersReady(character.characterAppearance);
+      if (view && view.usesLpc !== shouldUseLpc) {
+        this.tweens.killTweensOf(view.root);
+        view.root.destroy(true);
+        this.characterViews.delete(character.id);
+        view = undefined;
+      }
       if (!view) {
         const root = this.add.container(0, 0);
-        const usesLpc = character.characterAppearance != null && canRenderCharacter(character.characterAppearance, "idle");
+        const usesLpc = shouldUseLpc;
         const texture = usesLpc ? LPC_IDLE_KEY : character.appearance === "golem" ? GOLEM_KEY : HUMAN_KEY;
         const initialFrame = usesLpc ? LPC_DIRECTION_ROWS.down * 2 : 0;
         const sprite = this.add.sprite(0, -snapshot.cellSize * 0.2, texture, initialFrame)
@@ -360,24 +470,18 @@ export class KingdomMapScene extends Phaser.Scene {
       }
       if (waypoints.length > 0) {
         const animatedView = view;
+        const pathToken = token;
         let currentCell = start;
         const moveNext = (index: number) => {
+          if (!this.isActiveCharacterView(animatedView, character.id, pathToken)) return;
           if (index >= waypoints.length) {
-            if (animatedView.usesLpc) {
-              const directionName = this.directionName(animatedView.direction);
-              const layers = character.characterAppearance ? resolveCharacterLayers(character.characterAppearance, "idle") : [];
-              animatedView.sprites.forEach((layerSprite, layerIndex) => {
-                const layer = layers[layerIndex];
-                if (!layer) return layerSprite.setVisible(false);
-                layerSprite.stop().setVisible(true).setTexture(layer.sourceId).setFrame(LPC_DIRECTION_ROWS[directionName] * 2);
-              });
-            } else animatedView.sprite.stop().setFrame(animatedView.direction);
-            this.bridge.completeCharacterPath(character.id, token);
+            this.setCharacterIdleFrame(animatedView, character);
+            this.bridge.completeCharacterPath(character.id, pathToken);
             return;
           }
           const waypoint = waypoints[index]!;
           if (waypoint.cell !== currentCell && !this.bridge.attemptCharacterStep(character.id, currentCell, waypoint.cell)) {
-            this.stopCharacterAnimation(animatedView, character);
+            this.setCharacterIdleFrame(animatedView, character);
             this.bridge.blockCharacterPath(character.id, currentCell, waypoint.cell);
             return;
           }
@@ -391,23 +495,30 @@ export class KingdomMapScene extends Phaser.Scene {
               ease: "Linear",
               onUpdate: () => this.updateCharacterDepth(animatedView.root),
               onStart: () => {
+                if (!this.isActiveCharacterView(animatedView, character.id, pathToken)) {
+                  tween.stop();
+                  return;
+                }
                 const directionName = this.directionName(direction);
                 if (animatedView.usesLpc && character.characterAppearance) {
                   const layers = resolveCharacterLayers(character.characterAppearance, "walk");
                   animatedView.sprites.forEach((layerSprite, layerIndex) => {
+                    if (!layerSprite?.active) return;
                     const layer = layers[layerIndex];
-                    if (!layer) return layerSprite.setVisible(false);
+                    if (!layer || !this.textures.exists(layer.sourceId)) {
+                      layerSprite.setVisible(false);
+                      return;
+                    }
                     layerSprite.setVisible(true).setTexture(layer.sourceId);
-                    const row = LPC_DIRECTION_ROWS[directionName];
-                    const animationKey = `${layer.sourceId}-walk-${directionName}`;
-                    if (!this.anims.exists(animationKey)) this.anims.create({ key: animationKey, frames: Array.from({ length: 9 }, (_, column) => ({ key: layer.sourceId, frame: row * 9 + column })), frameRate: 10, repeat: -1 });
-                    layerSprite.play(animationKey, true);
+                    this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName);
                   });
+                } else if (animatedView.sprite?.active) {
+                  animatedView.sprite.play(`${animatedView.sprite.texture.key}-walk-${directionName}`, true);
                 }
-                else animatedView.sprite.play(`${animatedView.sprite.texture.key}-walk-${directionName}`, true);
                 animatedView.direction = direction;
               },
               onComplete: () => {
+                if (!this.isActiveCharacterView(animatedView, character.id, pathToken)) return;
                 currentCell = nextCell;
                 moveNext(index + 1);
               }
@@ -433,15 +544,7 @@ export class KingdomMapScene extends Phaser.Scene {
   }
 
   private stopCharacterAnimation(view: CharacterView, character: PhaserMapCharacter): void {
-    if (view.usesLpc) {
-      const directionName = this.directionName(view.direction);
-      const layers = character.characterAppearance ? resolveCharacterLayers(character.characterAppearance, "idle") : [];
-      view.sprites.forEach((sprite, index) => {
-        const layer = layers[index];
-        if (!layer) return sprite.setVisible(false);
-        sprite.stop().setVisible(true).setTexture(layer.sourceId).setFrame(LPC_DIRECTION_ROWS[directionName] * 2);
-      });
-    } else view.sprite.stop().setFrame(view.direction);
+    this.setCharacterIdleFrame(view, character);
   }
 
   private directionName(direction: 0 | 1 | 2 | 3): "down" | "left" | "right" | "up" {

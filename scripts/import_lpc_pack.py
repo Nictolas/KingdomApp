@@ -67,26 +67,42 @@ def recolor_spec(definition: dict[str, Any], color: str) -> list[tuple[list[str]
 
 
 def source_for(base: Path, animation: str, color: str) -> tuple[Path, bool]:
-    direct = base / f"{animation}.png"
-    if direct.exists():
-        return direct, True
     variant = base / animation / f"{color}.png"
     if variant.exists():
         return variant, False
+    direct = base / f"{animation}.png"
+    if direct.exists():
+        return direct, color != "base"
     fallback = base / animation / "white.png"
     if fallback.exists():
-        return fallback, False
+        return fallback, color != "base"
     raise FileNotFoundError(f"Nessun PNG per {base.relative_to(SOURCE)} {animation} {color}")
 
 
-def discovered_teen_items() -> list[dict[str, Any]]:
-    """Indicizza automaticamente gli elementi LPC autonomi compatibili con il corpo teen."""
+def colors_for_definition(definition: dict[str, Any]) -> list[str]:
+    variants = definition.get("variants")
+    if variants:
+        return list(variants)
+    recolors = definition.get("recolors")
+    if recolors and recolors.get("material"):
+        material = recolors["material"]
+        meta = load_json(SOURCE / f"palette_definitions/{material}/meta_{material}.json")
+        palette_names = recolors.get("palettes") or [meta["default"]]
+        palettes = load_json(SOURCE / f"palette_definitions/{material}/{material}_{palette_names[0]}.json")
+        return ["base", *sorted(palettes.keys())]
+    return ["base"]
+
+
+def discovered_body_type_items(body_type: str) -> list[dict[str, Any]]:
+    """Indicizza automaticamente gli elementi LPC compatibili con un body type."""
     groups = [
         ("hair", "hair/**/hair_*.json", "hairFront", "$hair", "hairColor"),
-        ("upper", "torso/shirts/**/*.json", "outfit", ["base"], "outfitPrimaryColor"),
-        ("lower_pants", "legs/pants/**/*.json", "lowerBody", ["base"], "outfitSecondaryColor"),
-        ("lower_skirts", "legs/skirts/**/*.json", "lowerBody", ["base"], "outfitSecondaryColor"),
-        ("full", "torso/dresses/**/*.json", "fullOutfit", ["base"], "outfitPrimaryColor"),
+        ("upper", "torso/shirts/**/*.json", "outfit", "$definition", "outfitPrimaryColor"),
+        ("lower_pants", "legs/pants/**/*.json", "lowerBody", "$definition", "outfitSecondaryColor"),
+        ("lower_skirts", "legs/skirts/**/*.json", "lowerBody", "$definition", "outfitSecondaryColor"),
+        ("full", "torso/dresses/**/*.json", "fullOutfit", "$definition", "outfitPrimaryColor"),
+        ("feet", "feet/**/*.json", "footwear", "$definition", "footwear"),
+        ("cape", "torso/cape/**/*.json", "cape", "$definition", "capeColor"),
     ]
     result: list[dict[str, Any]] = []
     definitions_root = SOURCE / "sheet_definitions"
@@ -96,23 +112,32 @@ def discovered_teen_items() -> list[dict[str, Any]]:
                 continue
             relative = path.relative_to(definitions_root).as_posix()
             definition = load_json(path)
-            if not any("teen" in layer for key, layer in definition.items() if key.startswith("layer_") and isinstance(layer, dict)):
+            if not any(
+                body_type in layer
+                for key, layer in definition.items()
+                if key.startswith("layer_") and isinstance(layer, dict)
+            ):
                 continue
             stem = path.stem
-            for removable in ("hair_", "torso_clothes_", "legs_", "dress_"):
+            for removable in ("hair_", "torso_clothes_", "legs_", "dress_", "cape_"):
                 if stem.startswith(removable):
                     stem = stem[len(removable):]
             semantic = stem
+            item_colors = colors if colors != "$definition" else colors_for_definition(definition)
             result.append({
-                "id": f"auto_{prefix}_{hashlib.sha1(relative.encode()).hexdigest()[:10]}",
+                "id": f"auto_{prefix}_{body_type}_{hashlib.sha1(relative.encode()).hexdigest()[:10]}",
                 "slot": slot,
                 "definition": relative,
                 "semantic": semantic,
-                "bodyTypes": ["teen"],
-                "colors": colors,
+                "bodyTypes": [body_type],
+                "colors": item_colors,
                 "colorField": color_field,
             })
     return result
+
+
+def discovered_teen_items() -> list[dict[str, Any]]:
+    return discovered_body_type_items("teen")
 
 
 def main() -> None:
@@ -120,6 +145,9 @@ def main() -> None:
     if cfg.get("discoverTeenCatalog"):
         known_definitions = {item["definition"] for item in cfg["items"]}
         cfg["items"].extend(item for item in discovered_teen_items() if item["definition"] not in known_definitions)
+    if cfg.get("discoverPregnantCatalog"):
+        known_definitions = {item["definition"] for item in cfg["items"]}
+        cfg["items"].extend(item for item in discovered_body_type_items("pregnant") if item["definition"] not in known_definitions)
     skin = cfg["skinTones"]
     hair = cfg["hairColors"]
     manifest: dict[str, Any] = {
@@ -142,16 +170,18 @@ def main() -> None:
         definition = load_json(definition_path)
         colors = skin if item.get("colors") == "$skin" else hair if item.get("colors") == "$hair" else item.get("colors", ["base"])
         allowed_bodies = item.get("bodyTypes", cfg["bodyTypes"])
+        layer_key_map = item.get("layerKeyMap", {})
         for layer_name, layer in sorted((k, v) for k, v in definition.items() if k.startswith("layer_")):
             for body_type in allowed_bodies:
-                if body_type not in layer:
+                layer_key = layer_key_map.get(body_type, body_type)
+                if layer_key not in layer:
                     continue
                 semantic = body_type if item["semantic"] == "$body" else item["semantic"]
                 for color in colors:
                     for animation in cfg["animations"]:
                         if animation not in definition.get("animations", ["walk"]):
                             continue
-                        base = SOURCE / "spritesheets" / layer[body_type]
+                        base = SOURCE / "spritesheets" / layer[layer_key]
                         try:
                             source, needs_recolor = source_for(base, animation, color)
                         except FileNotFoundError:
@@ -189,6 +219,8 @@ def main() -> None:
     manifest["options"]["beardStyles"] = ["none"] + sorted({a["semanticId"] for a in manifest["assets"] if a["slot"] == "beard"})
     manifest["options"]["outfits"] = sorted({a["semanticId"] for a in manifest["assets"] if a["slot"] == "outfit"})
     manifest["options"]["fullOutfits"] = sorted({a["semanticId"] for a in manifest["assets"] if a["slot"] == "fullOutfit"})
+    manifest["options"]["footwear"] = sorted({a["semanticId"] for a in manifest["assets"] if a["slot"] == "footwear"})
+    manifest["options"]["capes"] = sorted({a["semanticId"] for a in manifest["assets"] if a["slot"] == "cape"})
     manifest["options"]["headwear"] = ["none"] + sorted({a["semanticId"] for a in manifest["assets"] if a["slot"] == "headwear"})
 
     (OUT_GENERATED / "lpc-manifest.json").write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")

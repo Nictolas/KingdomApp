@@ -2,14 +2,23 @@
   "animations": ["idle", "walk"],
   "skinTones": ["light", "amber", "olive", "bronze", "brown", "black"],
   "hairColors": ["black", "dark_brown", "chestnut", "blonde", "ginger", "white"],
-  "bodyTypes": ["male", "female", "teen", "child"],
+  "bodyTypes": ["male", "female", "teen", "child", "muscular", "skeleton", "pregnant"],
   "discoverTeenCatalog": true,
+  "discoverPregnantCatalog": true,
   "items": [
     { "id": "body", "slot": "body", "definition": "body/body.json", "semantic": "$body", "colors": "$skin", "colorField": "skinTone", "required": true },
+    { "id": "body_skeleton", "slot": "body", "definition": "body/special/body_skeleton.json", "semantic": "skeleton", "bodyTypes": ["skeleton"], "layerKeyMap": { "skeleton": "male" }, "colors": ["base"], "required": true },
     { "id": "head_male", "slot": "raceFeatures", "definition": "head/heads/human/heads_human_male.json", "semantic": "human_head", "bodyTypes": ["male"], "colors": "$skin", "colorField": "skinTone", "required": true },
-    { "id": "head_female", "slot": "raceFeatures", "definition": "head/heads/human/heads_human_female.json", "semantic": "human_head", "bodyTypes": ["female"], "colors": "$skin", "colorField": "skinTone", "required": true },
+    { "id": "head_female", "slot": "raceFeatures", "definition": "head/heads/human/heads_human_female.json", "semantic": "human_head", "bodyTypes": ["female", "pregnant"], "colors": "$skin", "colorField": "skinTone", "required": true },
     { "id": "head_teen", "slot": "raceFeatures", "definition": "head/heads/human/heads_human_female_small.json", "semantic": "human_head", "bodyTypes": ["teen"], "colors": "$skin", "colorField": "skinTone", "required": true },
     { "id": "head_child", "slot": "raceFeatures", "definition": "head/heads/human/heads_human_child.json", "semantic": "human_head", "bodyTypes": ["child"], "colors": "$skin", "colorField": "skinTone", "required": true },
+    { "id": "head_skeleton", "slot": "raceFeatures", "definition": "head/heads/undead/heads_skeleton.json", "semantic": "skeleton", "bodyTypes": ["male", "female", "teen", "muscular", "skeleton"], "layerKeyMap": { "skeleton": "male" }, "colors": ["base"], "required": true },
+    { "id": "head_vampire", "slot": "raceFeatures", "definition": "head/heads/undead/heads_vampire.json", "semantic": "vampire", "bodyTypes": ["male", "female", "teen"], "colors": "$skin", "colorField": "skinTone", "required": true },
+    { "id": "head_goblin", "slot": "raceFeatures", "definition": "head/heads/fantasy/heads_goblin.json", "semantic": "goblin", "bodyTypes": ["male", "female", "teen"], "colors": "$skin", "colorField": "skinTone", "required": true },
+    { "id": "head_orc_female", "slot": "raceFeatures", "definition": "head/heads/fantasy/heads_orc_female.json", "semantic": "orc_female", "bodyTypes": ["female"], "colors": "$skin", "colorField": "skinTone", "required": true },
+    { "id": "head_orc_male", "slot": "raceFeatures", "definition": "head/heads/fantasy/heads_orc_male.json", "semantic": "orc_male", "bodyTypes": ["male", "teen", "muscular"], "colors": "$skin", "colorField": "skinTone", "required": true },
+    { "id": "head_lizard_female", "slot": "raceFeatures", "definition": "head/heads/reptile/heads_lizard_female.json", "semantic": "lizard_female", "bodyTypes": ["female"], "colors": "$skin", "colorField": "skinTone", "required": true },
+    { "id": "head_lizard_male", "slot": "raceFeatures", "definition": "head/heads/reptile/heads_lizard_male.json", "semantic": "lizard_male", "bodyTypes": ["male", "teen"], "colors": "$skin", "colorField": "skinTone", "required": true },
 
     { "id": "hair_messy", "slot": "hairFront", "definition": "hair/short/hair_messy1.json", "semantic": "messy", "colors": "$hair", "colorField": "hairColor" },
     { "id": "hair_bob", "slot": "hairFront", "definition": "hair/bob/hair_bob.json", "semantic": "bob", "colors": "$hair", "colorField": "hairColor" },
@@ -20,6 +29,7 @@
 
     { "id": "beard_basic", "slot": "beard", "definition": "hair/beards/beards_beard.json", "semantic": "basic", "bodyTypes": ["male"], "colors": "$hair", "colorField": "beardColor" },
     { "id": "beard_trimmed", "slot": "beard", "definition": "hair/beards/beards_trimmed.json", "semantic": "trimmed", "bodyTypes": ["male"], "colors": "$hair", "colorField": "beardColor" },
+    { "id": "beard_winter", "slot": "beard", "definition": "hair/beards/beards_winter.json", "semantic": "winter", "bodyTypes": ["child"], "layerKeyMap": { "child": "teen" }, "colors": "$hair", "colorField": "beardColor" },
     { "id": "mustache", "slot": "beard", "definition": "hair/mustaches/beards_mustache.json", "semantic": "mustache", "bodyTypes": ["male"], "colors": "$hair", "colorField": "beardColor" },
 
     { "id": "commoner_shirt", "slot": "outfit", "definition": "torso/shirts/longsleeve/torso_clothes_longsleeve.json", "semantic": "commoner", "colors": ["brown"], "colorField": "outfitPrimaryColor", "required": true },
@@ -35,6 +45,8 @@
     { "id": "guard_pants", "slot": "lowerBody", "definition": "legs/pants/legs_pants.json", "semantic": "guard", "colors": ["black"], "colorField": "outfitSecondaryColor", "required": true },
     { "id": "noble_shirt", "slot": "outfit", "definition": "torso/shirts/longsleeve/torso_clothes_longsleeve.json", "semantic": "noble", "colors": ["maroon"], "colorField": "outfitPrimaryColor", "required": true },
     { "id": "noble_pants", "slot": "lowerBody", "definition": "legs/pants/legs_pants.json", "semantic": "noble", "colors": ["black"], "colorField": "outfitSecondaryColor", "required": true },
-    { "id": "noble_crown", "slot": "headwear", "definition": "headwear/hats/formal/hat_formal_crown.json", "semantic": "crown", "colors": ["crown_gold"], "colorField": "headwear" }
+    { "id": "noble_crown", "slot": "headwear", "definition": "headwear/hats/formal/hat_formal_crown.json", "semantic": "crown", "colors": ["crown_gold"], "colorField": "headwear" },
+
+    { "id": "tool_watering_can", "slot": "accessory", "definition": "tools/tool_watering_can.json", "semantic": "watering_can", "colors": ["base"], "bodyTypes": ["male", "female", "teen", "muscular", "pregnant"] }
   ]
 }
