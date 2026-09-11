@@ -4,14 +4,14 @@ import {
   messaggioReatoSenzaLegge,
   type PenaReatiConfig
 } from "./reati";
+import { aggiungiModificatorePermanente, applicaLuttoFamiliareERimuoviMorti } from "./soddisfazione";
 
 export type RisultatoGiudizio =
   | { ok: false; messaggio: string }
   | { ok: true; messaggio: string; anni: number };
 
 /**
- * Calcola i nuovi abitanti dopo la grazia di un imputato:
- * lui e amici +10% lealtà, rivali -10% lealtà, reati azzerati per il graziato.
+ * Grazia un imputato: reati azzerati; graziato e amici +3 soddisfazione; rivali −3.
  */
 export function graziaCriminalePuro(abitanti: Abitante[], abitanteId: number): Abitante[] {
   const c = abitanti.find((a) => a.id === abitanteId);
@@ -19,13 +19,18 @@ export function graziaCriminalePuro(abitanti: Abitante[], abitanteId: number): A
 
   const idsBonus = new Set<number>([c.id, ...(c.amici ?? []).map((x) => x.id)]);
   const idsMalus = new Set<number>((c.rivali ?? []).map((x) => x.id));
+  const idBonus = `grazia_${abitanteId}`;
+  const idMalus = `grazia_${abitanteId}_malus`;
 
   return abitanti.map((a) => {
-    let lealtà = a.lealtà;
-    if (idsBonus.has(a.id)) lealtà = Math.min(100, Math.round(a.lealtà * 1.1));
-    if (idsMalus.has(a.id)) lealtà = Math.max(0, Math.round(a.lealtà * 0.9));
-    const reati = a.id === abitanteId ? [] : a.reati;
-    return { ...a, lealtà, reati: reati ?? a.reati };
+    let next: Abitante = a.id === abitanteId ? { ...a, reati: [] } : a;
+    if (idsBonus.has(a.id)) {
+      next = aggiungiModificatorePermanente(next, idBonus, 3, "Grazia ricevuta o a un amico");
+    }
+    if (idsMalus.has(a.id)) {
+      next = aggiungiModificatorePermanente(next, idMalus, -3, "Grazia a un rivale");
+    }
+    return next;
   });
 }
 
@@ -35,7 +40,7 @@ export function condannaAMortePuro(
   edifici: Edificio[],
   abitanteId: number
 ): { nuoviAbitanti: Abitante[]; nuoviEdifici: Edificio[] } {
-  const nuoviAbitanti = abitanti.filter((a) => a.id !== abitanteId);
+  const nuoviAbitanti = applicaLuttoFamiliareERimuoviMorti(abitanti, new Set([abitanteId]));
   const nuoviEdifici = edifici.map((e) => {
     const nuovi = (e.abitantiAssegnati ?? []).filter((id) => id !== abitanteId);
     return nuovi.length !== (e.abitantiAssegnati?.length ?? 0)

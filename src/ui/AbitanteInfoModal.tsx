@@ -1,7 +1,7 @@
-import React, { useEffect, useState } from "react";
-import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import React, { useEffect, useMemo, useState } from "react";
+import { Alert, Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import type { Abitante, Edificio } from "../types";
+import type { Abitante, Casta, Edificio } from "../types";
 import { getAlimentazioneAbitante } from "../game/alimentazione";
 import { useGameContext } from "../context/GameContext";
 import {
@@ -11,7 +11,14 @@ import {
 import { getRouteForEdificio } from "../navigation/edificioRoutes";
 import { apriResidenzaAbitante, isResidenzaSuMappa } from "../navigation/apriResidenzaMappa";
 import { getStatoSalute } from "../game/ciboConsumo";
-import { getCastaAbitante, getEmojiCasta, isCastaCoercibile, isCastaLibera } from "../game/casta";
+import {
+  CASTA_CATALOGO,
+  getCastaAbitante,
+  getEmojiCasta,
+  isCastaCoercibile,
+  isCastaLibera
+} from "../game/casta";
+import { getColoreRazza } from "../data/pianetiData";
 import {
   getEmojiSpecializzazione,
   getSpecializzazioneAbitante
@@ -28,17 +35,25 @@ import {
   LAVORO_GIOCATORE
 } from "../game/schiavituCommercio";
 import { getTitoloStudioAbitante } from "../game/titoloStudio";
-import { CATEGORIA_CIBO, getVociInventarioPerCategoria } from "../game/inventario";
+import { formatFasciaOraria, orarioPerLavoro } from "../game/orariLavoroCatalogo";
+import { CATEGORIA_ALTRO, CATEGORIA_CIBO, getVociInventarioPerCategoria } from "../game/inventario";
 import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import {
   abitanteUsaBisogniUmani,
   getBisogniAbitante,
   getProduttivitaEffettiva
 } from "../game/bisogni";
-import { appearanceForPublicSpace } from "../character-system/appearance";
+import { getGiornoGiocoSnapshot } from "../game/orologioGiocoSession";
+import { snapshotSoddisfazioneAbitante } from "../game/soddisfazione";
+import { aspettoPerVisualizzazioneAbitante } from "../game/personaggioAspetto";
 import { EdificioInfoModal } from "./EdificioInfoModal";
+import { CampoDiLavoroModal } from "./CampoDiLavoroModal";
+import { FamigliaAlberoModal } from "./FamigliaAlberoModal";
+import { FamigliaDettaglioModal } from "./FamigliaDettaglioModal";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 import { PixelAvatarPreview } from "./PixelAvatarPreview";
+import { setPendingIndividuaAbitanteId } from "../game/individuaAbitanteMappa";
+import { tornaAllaMappa } from "../navigation/tornaAllaMappa";
 
 const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
 
@@ -54,6 +69,11 @@ type AbitanteInfoModalProps = {
   onApriResidenzaMappa?: (anchor: number) => void;
   /** Azione in corso sulla mappa, mostrata a destra del nome (es. “Sta andando a lavoro”). */
   azioneCorrente?: string | null;
+  /**
+   * Individua sulla mappa. Se assente, imposta un pending e torna alla mappa.
+   * Riceve l’id dell’abitante attualmente in focus nella scheda.
+   */
+  onIndividua?: (abitanteId: number) => void;
 };
 
 function Row({
@@ -62,6 +82,7 @@ function Row({
   value,
   muted,
   disoccupato,
+  valueColor,
   onPress
 }: {
   emoji: string;
@@ -69,6 +90,7 @@ function Row({
   value: string;
   muted?: boolean;
   disoccupato?: boolean;
+  valueColor?: string;
   onPress?: () => void;
 }) {
   const content = (
@@ -82,7 +104,8 @@ function Row({
             muted && styles.rowMuted,
             disoccupato && styles.rowValueDisoccupato,
             onPress && !disoccupato && styles.rowValueLink,
-            onPress && disoccupato && styles.rowValueDisoccupatoLink
+            onPress && disoccupato && styles.rowValueDisoccupatoLink,
+            valueColor ? { color: valueColor } : null
           ]}
           numberOfLines={2}
         >
@@ -166,7 +189,7 @@ function InventarioCategoria({
           <InventarioSlot
             key={v.def.id}
             emoji={v.def.emoji}
-            nome={v.def.categoria === CATEGORIA_CIBO ? v.def.nome : undefined}
+            nome={v.def.categoria === "Valuta" ? undefined : v.def.nome}
             quantità={v.quantità}
           />
         ))}
@@ -177,41 +200,56 @@ function InventarioCategoria({
 
 export function AbitanteInfoModal({
   visible,
-  abitante,
+  abitante: abitanteIniziale,
   edifici,
   onClose,
   getAbitanteNome,
   calcolaFelicitàModificata,
   etaMinimaLavoro = 18,
   onApriResidenzaMappa,
-  azioneCorrente = null
+  azioneCorrente = null,
+  onIndividua
 }: AbitanteInfoModalProps) {
   const router = useRouter();
   const {
     abitanti,
     aggiungiAlCampoDiLavoroTuttiQuelliChe,
     trasferisciProprietaSchiavo,
-    uccidiSchiavo
+    uccidiSchiavo,
+    setCastaAbitante,
+    mese,
+    anno
   } = useGameContext();
   const [edificioDettaglio, setEdificioDettaglio] = useState<Edificio | null>(null);
+  const [focusId, setFocusId] = useState<number | null>(null);
+  const [mostraFamiglia, setMostraFamiglia] = useState(false);
+  const [mostraAlbero, setMostraAlbero] = useState(false);
 
   useEffect(() => {
-    if (!visible) setEdificioDettaglio(null);
-  }, [visible]);
+    if (!visible) {
+      setEdificioDettaglio(null);
+      setMostraFamiglia(false);
+      setMostraAlbero(false);
+      setFocusId(null);
+      return;
+    }
+    if (abitanteIniziale) setFocusId(abitanteIniziale.id);
+  }, [visible, abitanteIniziale?.id]);
+
+  const abitante = useMemo(() => {
+    if (focusId == null) return abitanteIniziale;
+    return abitanti.find((a) => a.id === focusId) ?? abitanteIniziale;
+  }, [focusId, abitanti, abitanteIniziale]);
 
   if (!abitante) return null;
 
-  const aspettoVisualizzato = abitante.aspetto?.characterAppearance
-    ? {
-        ...abitante.aspetto,
-        characterAppearance: appearanceForPublicSpace(abitante.aspetto.characterAppearance, {
-          isKing: abitante.id === 1,
-          nudismoAttivo: false,
-          incinta: abitante.incinta === true,
-          lavoro: abitante.lavoro
-        })
-      }
-    : abitante.aspetto;
+  const apriFamiliare = (id: number) => {
+    setFocusId(id);
+    setMostraFamiglia(false);
+    setMostraAlbero(false);
+  };
+
+  const aspettoVisualizzato = aspettoPerVisualizzazioneAbitante(abitante) ?? abitante.aspetto;
 
   const edificioAbitazione = getEdificioAbitazione(abitante.id, edifici);
   const edificiOccupazione = getEdificiOccupazione(abitante.id, edifici);
@@ -243,6 +281,50 @@ export function AbitanteInfoModal({
   const titoloStudio = getTitoloStudioAbitante(abitante, etaMinimaLavoro);
   const casta = getCastaAbitante(abitante);
 
+  const apriCambioCasta = () => {
+    if (isGiocatore(abitante)) {
+      apriPagina("/casta");
+      return;
+    }
+    Alert.alert(
+      "Casta",
+      `${abitante.nome} · attuale: ${casta}\nIl Re può cambiare la casta a piacimento.`,
+      [
+        ...CASTA_CATALOGO.map((c) => ({
+          text: `${c.emoji} ${c.nome}${c.nome === casta ? " ✓" : ""}`,
+          onPress: () => {
+            if (c.nome === casta) return;
+            if (c.nome === "Schiavo") {
+              const padroni = abitanti.filter(
+                (a) => a.id !== abitante.id && getCastaAbitante(a) === "Nobile"
+              );
+              if (padroni.length === 0) {
+                setCastaAbitante(abitante.id, "Servo della gleba");
+                return;
+              }
+              if (padroni.length === 1) {
+                setCastaAbitante(abitante.id, "Schiavo", padroni[0]!.id);
+                return;
+              }
+              Alert.alert(
+                "Padrone dello Schiavo",
+                "Scegli il Nobile proprietario:",
+                padroni.map((p) => ({
+                  text: p.nome,
+                  onPress: () => setCastaAbitante(abitante.id, "Schiavo", p.id)
+                }))
+              );
+              return;
+            }
+            setCastaAbitante(abitante.id, c.nome as Casta);
+          }
+        })),
+        { text: "Info casti", onPress: () => apriPagina("/casta") },
+        { text: "Annulla", style: "cancel" as const }
+      ]
+    );
+  };
+
   const maggiorenne = abitante.eta >= etaMinimaLavoro;
   const lavoroDaMinore = LAVORI_DA_MINORE.includes(abitante.lavoro);
   const emojiDisplay = maggiorenne && lavoroDaMinore ? "👤" : getEmojiAbitante(abitante);
@@ -251,14 +333,29 @@ export function AbitanteInfoModal({
     : maggiorenne && lavoroDaMinore
       ? "Disoccupato"
       : abitante.lavoro;
+  const fasciaOrarioLavoro =
+    lavoroDisplay === "Disoccupato" || isGiocatore(abitante)
+      ? null
+      : orarioPerLavoro(abitante.lavoro);
+  const occupazioneConOrario = fasciaOrarioLavoro
+    ? `${lavoroDisplay} (${formatFasciaOraria(fasciaOrarioLavoro)})`
+    : lavoroDisplay;
 
   const felicitàModificata = calcolaFelicitàModificata ? calcolaFelicitàModificata(abitante) : abitante.felicità;
   const felicitàCambiata = abitante.razza !== "Golem" && felicitàModificata !== abitante.felicità;
+  const snapshotSodd = snapshotSoddisfazioneAbitante(
+    abitante,
+    edifici,
+    getGiornoGiocoSnapshot(),
+    mese,
+    anno
+  );
   const bisogni = getBisogniAbitante(abitante);
   const produttivitàEff = getProduttivitaEffettiva(abitante);
 
   const vociValuta = getVociInventarioPerCategoria(abitante.inventario, "Valuta");
   const vociCibo = getVociInventarioPerCategoria(abitante.inventario, CATEGORIA_CIBO);
+  const vociAltro = getVociInventarioPerCategoria(abitante.inventario, CATEGORIA_ALTRO);
 
   const schiaviInInventario =
     abitante.id === ID_COMANDANTE
@@ -272,7 +369,7 @@ export function AbitanteInfoModal({
     proprietarioSchiavo === undefined
       ? undefined
       : proprietarioSchiavo === null
-        ? "Colonia"
+        ? "Regno"
         : getAbitanteNome(proprietarioSchiavo);
 
   const puoComprareColonia =
@@ -303,7 +400,12 @@ export function AbitanteInfoModal({
             <View style={styles.header}>
               <View style={[styles.avatarWrap, aspettoVisualizzato && abitante.razza !== "Golem" && styles.avatarWrapPixel]}>
                 {aspettoVisualizzato && abitante.razza !== "Golem" ? (
-                  <PixelAvatarPreview compatto razza={abitante.razza ?? "Umano"} aspetto={aspettoVisualizzato} />
+                  <PixelAvatarPreview
+                    compatto
+                    razza={abitante.razza ?? "Umano"}
+                    aspetto={aspettoVisualizzato}
+                    liftPx={16}
+                  />
                 ) : (
                   <Text style={styles.avatarEmoji}>{emojiDisplay}</Text>
                 )}
@@ -313,7 +415,23 @@ export function AbitanteInfoModal({
                   <Text style={styles.title} numberOfLines={1}>
                     {abitante.nome}
                   </Text>
-                  {azioneCorrente ? (
+                  <Pressable
+                    style={({ pressed }) => [styles.individuaBtn, pressed && styles.individuaBtnPressed]}
+                    onPress={() => {
+                      if (onIndividua) {
+                        onIndividua(abitante.id);
+                        return;
+                      }
+                      setPendingIndividuaAbitanteId(abitante.id);
+                      onClose();
+                      tornaAllaMappa(router);
+                    }}
+                    accessibilityRole="button"
+                    accessibilityLabel={`Individua ${abitante.nome} sulla mappa`}
+                  >
+                    <Text style={styles.individuaBtnText}>📍 Individua</Text>
+                  </Pressable>
+                  {azioneCorrente && focusId === abitanteIniziale?.id ? (
                     <Text style={styles.azioneCorrente} numberOfLines={2}>
                       {azioneCorrente}
                     </Text>
@@ -346,13 +464,14 @@ export function AbitanteInfoModal({
                   emoji="🪐"
                   label="Razza"
                   value={abitante.razza ?? "Umano"}
+                  valueColor={getColoreRazza(abitante.razza ?? "Umano")}
                   onPress={() => apriPagina("/razze")}
                 />
                 <Row
                   emoji={getEmojiCasta(casta)}
                   label="Casta"
-                  value={casta}
-                  onPress={() => apriPagina("/casta")}
+                  value={isGiocatore(abitante) ? casta : `${casta} · tocca per cambiare`}
+                  onPress={apriCambioCasta}
                 />
                 {isCastaLibera(casta) && (
                   <Row
@@ -376,29 +495,22 @@ export function AbitanteInfoModal({
                   value={edificioAbitazione?.nome ?? "—"}
                   onPress={edificioAbitazione ? () => apriEdificio(edificioAbitazione) : undefined}
                 />
-                {isGiocatore(abitante) ? (
-                  <Row emoji="👑" label="Occupazione" value={LAVORO_GIOCATORE} />
-                ) : abitante.lavoro === "Capo Religioso" ? (
-                  <Row emoji="⛪" label="Occupazione" value="Capo Religioso" />
-                ) : edificiOccupazione.length === 0 ? (
+                <Row
+                  emoji="💼"
+                  label="Occupazione"
+                  value={occupazioneConOrario}
+                  disoccupato={lavoroDisplay === "Disoccupato"}
+                  onPress={lavoroDisplay === "Disoccupato" ? apriPostazioniLavoro : undefined}
+                />
+                {edificiOccupazione.map((ed, idx) => (
                   <Row
-                    emoji="🏢"
-                    label="Occupazione"
-                    value="Disoccupato"
-                    disoccupato
-                    onPress={apriPostazioniLavoro}
+                    key={ed.id}
+                    emoji="🏭"
+                    label={idx === 0 ? "Edificio di lavoro" : undefined}
+                    value={ed.nome}
+                    onPress={() => apriEdificio(ed)}
                   />
-                ) : (
-                  edificiOccupazione.map((ed, idx) => (
-                    <Row
-                      key={ed.id}
-                      emoji="🏢"
-                      label={idx === 0 ? "Occupazione" : undefined}
-                      value={ed.nome}
-                      onPress={() => apriEdificio(ed)}
-                    />
-                  ))
-                )}
+                ))}
                 <Row emoji="⚔️" value={abitante.fazioni?.join(", ") ?? "—"} />
                 <Row
                   emoji="🧠"
@@ -446,25 +558,19 @@ export function AbitanteInfoModal({
                   <Row emoji="—" value="—" muted />
                 ) : (
                   <>
-                    <Row emoji="😊" value={abitante.amici?.length ? abitante.amici.map((r) => getAbitanteNome(r.id)).join(", ") : "nessuno"} muted={!abitante.amici?.length} />
-                    <Row emoji="😠" value={abitante.rivali?.length ? abitante.rivali.map((r) => getAbitanteNome(r.id)).join(", ") : "nessuno"} muted={!abitante.rivali?.length} />
-                  </>
-                )}
-              </Block>
-
-              <Block title="👨‍👩‍👧 Famiglia">
-                {abitante.razza === "Golem" ? (
-                  <Row emoji="—" value="—" muted />
-                ) : (
-                  <>
-                    <Row emoji="💍" value={abitante.coniugeId != null ? getAbitanteNome(abitante.coniugeId) : "—"} muted={abitante.coniugeId == null} />
-                    <Row emoji="👶" value={(abitante.figliIds?.length ?? 0) > 0 ? (abitante.figliIds ?? []).map(getAbitanteNome).join(", ") : "—"} muted={!(abitante.figliIds?.length ?? 0)} />
+                    <Row emoji="😊" value={abitante.amici?.length ? abitante.amici.map((r) => `${getAbitanteNome(r.id)} (${r.punteggio})`).join(", ") : "nessuno"} muted={!abitante.amici?.length} />
+                    <Row emoji="😠" value={abitante.rivali?.length ? abitante.rivali.map((r) => `${getAbitanteNome(r.id)} (${r.punteggio})`).join(", ") : "nessuno"} muted={!abitante.rivali?.length} />
+                    <Pressable
+                      style={({ pressed }) => [styles.famigliaBtn, pressed && styles.famigliaBtnPressed]}
+                      onPress={() => setMostraFamiglia(true)}
+                    >
+                      <Text style={styles.famigliaBtnText}>👨‍👩‍👧 Famiglia</Text>
+                    </Pressable>
                   </>
                 )}
               </Block>
 
               <Block title="❤️ Sentimenti">
-                <Row emoji="❤️" value={abitante.razza === "Golem" ? "—" : `${abitante.lealtà}%`} />
                 <Row emoji="😨" value={abitante.razza === "Golem" ? "—" : `${abitante.paura}%`} />
                 <Row
                   emoji="😊"
@@ -474,12 +580,21 @@ export function AbitanteInfoModal({
                       : `${felicitàModificata}%${felicitàCambiata ? ` (base ${abitante.felicità})` : ""}`
                   }
                 />
+                {abitante.razza !== "Golem" && (
+                  <Row
+                    emoji="⚖️"
+                    value={`${snapshotSodd.punti} · ${snapshotSodd.fascia}${
+                      snapshotSodd.casa ? " (+casa)" : ""
+                    }`}
+                  />
+                )}
               </Block>
 
               {!isCastaCoercibile(casta) && (
                 <Block title="Inventario">
                   <InventarioCategoria titolo="Valuta" voci={vociValuta} />
                   <InventarioCategoria titolo="Cibo" voci={vociCibo} />
+                  <InventarioCategoria titolo="Materiali / raccolta" voci={vociAltro} />
                   {schiaviInInventario.length > 0 && (
                     <View style={styles.inventarioCategoria}>
                       <Text style={styles.inventarioCategoriaTitolo}>Schiavi</Text>
@@ -508,7 +623,7 @@ export function AbitanteInfoModal({
                     onPress={() => trasferisciProprietaSchiavo(abitante.id, null, PREZZO_SCHIAVO_DEFAULT)}
                   >
                     <Text style={styles.azioneBtnText}>
-                      Colonia compra ({PREZZO_SCHIAVO_DEFAULT} 💰)
+                      Regno compra ({PREZZO_SCHIAVO_DEFAULT} 💰)
                     </Text>
                   </Pressable>
                 )}
@@ -517,7 +632,7 @@ export function AbitanteInfoModal({
                     style={[styles.azioneBtn, styles.azioneBtnPericolo]}
                     onPress={() => uccidiSchiavo(null, abitante.id)}
                   >
-                    <Text style={styles.azioneBtnTextPericolo}>Colonia uccide (senza reato)</Text>
+                    <Text style={styles.azioneBtnTextPericolo}>Regno uccide (senza reato)</Text>
                   </Pressable>
                 )}
                 {abitanti
@@ -559,6 +674,26 @@ export function AbitanteInfoModal({
           onClose={() => setEdificioDettaglio(null)}
         />
       )}
+
+      <FamigliaDettaglioModal
+        visible={mostraFamiglia}
+        onClose={() => setMostraFamiglia(false)}
+        abitante={abitante}
+        abitanti={abitanti}
+        onSelezionaAbitante={apriFamiliare}
+        onApriAlbero={() => {
+          setMostraFamiglia(false);
+          setMostraAlbero(true);
+        }}
+      />
+
+      <FamigliaAlberoModal
+        visible={mostraAlbero}
+        onClose={() => setMostraAlbero(false)}
+        focusId={abitante.id}
+        abitanti={abitanti}
+        onSelezionaAbitante={apriFamiliare}
+      />
     </>
   );
 }
@@ -622,7 +757,25 @@ const styles = StyleSheet.create({
     color: "#f8fafc",
     letterSpacing: 0.2,
     flexShrink: 1,
-    maxWidth: "48%"
+    maxWidth: "40%"
+  },
+  individuaBtn: {
+    flexShrink: 0,
+    backgroundColor: "rgba(250, 204, 21, 0.18)",
+    borderWidth: 1,
+    borderColor: "rgba(250, 204, 21, 0.45)",
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    marginTop: 1
+  },
+  individuaBtnPressed: {
+    opacity: 0.75
+  },
+  individuaBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#fde68a"
   },
   azioneCorrente: {
     flex: 1,
@@ -757,6 +910,24 @@ const styles = StyleSheet.create({
   rowMuted: {
     color: "rgba(226,232,240,0.5)",
     fontStyle: "italic"
+  },
+  famigliaBtn: {
+    marginTop: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: "rgba(56,189,248,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(56,189,248,0.35)",
+    alignItems: "center"
+  },
+  famigliaBtnPressed: {
+    backgroundColor: "rgba(56,189,248,0.22)"
+  },
+  famigliaBtnText: {
+    fontSize: 11,
+    fontWeight: "700",
+    color: "#7dd3fc"
   },
   inventarioCategoria: {
     marginBottom: 10

@@ -2,8 +2,13 @@ import type { Edificio } from "../types";
 
 /** Edificio di residenza dell'abitante, se assegnato. */
 export function getEdificioAbitazione(abitanteId: number, edifici: Edificio[]): Edificio | undefined {
-  return edifici.find(
+  const residenza = edifici.find(
     (e) => e.tipo === "Residenza" && (e.abitantiAssegnati ?? []).includes(abitanteId)
+  );
+  if (residenza) return residenza;
+  // Re, Consigliere e Nobili abitano nel Castello (Amministrazione).
+  return edifici.find(
+    (e) => e.nome === "Castello" && (e.abitantiAssegnati ?? []).includes(abitanteId)
   );
 }
 

@@ -10,9 +10,9 @@ export type PianetaInfo = {
   compraRisorsaId: number;
   /** Id risorsa che il pianeta vende a noi → noi compriamo questa risorsa dal pianeta. */
   vendiRisorsaId: number;
-  /** Prezzo (crediti/unità) quando vendiamo noi al pianeta (per compraRisorsaId). */
+  /** Prezzo (monete/unità) quando vendiamo noi al pianeta (per compraRisorsaId). */
   prezzoVendita: number;
-  /** Prezzo (crediti/unità) quando compriamo noi dal pianeta (per vendiRisorsaId). */
+  /** Prezzo (monete/unità) quando compriamo noi dal pianeta (per vendiRisorsaId). */
   prezzoAcquisto: number;
 };
 
@@ -31,4 +31,30 @@ export function getEmojiRazza(razza: Razza): string {
   if (razza === "Umano") return "👤";
   if (razza === "Golem") return "🗿";
   return "🏰";
+}
+
+/** Colore testo UI per la razza (tabelle, schede). */
+export function getColoreRazza(razza: Razza | string | null | undefined): string {
+  switch (razza) {
+    case "Umano":
+      return "#93c5fd";
+    case "Nano":
+      return "#fbbf24";
+    case "Elfo":
+      return "#86efac";
+    case "Orco":
+      return "#a3e635";
+    case "Goblin":
+      return "#4ade80";
+    case "Scheletro":
+      return "#e2e8f0";
+    case "Vampiro":
+      return "#f87171";
+    case "Lucertoloide":
+      return "#2dd4bf";
+    case "Golem":
+      return "#94a3b8";
+    default:
+      return "#e5e7eb";
+  }
 }

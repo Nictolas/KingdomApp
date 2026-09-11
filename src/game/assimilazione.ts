@@ -29,7 +29,7 @@ export function generaAssimilati({
     return { nuoviAbitanti: [], nextIdDopo: nextId };
   }
 
-  const lavori = ["Tecnico", "Agricoltore", "Meccanico", "Esploratore", "Comunicatore"];
+  const lavori = ["Agricoltore", "Taglialegna", "Fabbro", "Minatore", "Esploratore", "Ricercatore", "Sicurezza"];
   const personalità = ["Curioso", "Lavoratore", "Pragmatico", "Collaborativo"];
   const religioni: Abitante["religione"][] = ["Ateo", "Deista", "Culto del Sole"];
   const nuoviAbitanti: Abitante[] = [];
@@ -54,7 +54,6 @@ export function generaAssimilati({
       crediti: 0,
       reddito: redditoMensileLavoroDefault(),
       spese: 0,
-      lealtà: 40 + Math.floor(Math.random() * 40),
       paura: Math.floor(Math.random() * 30),
       felicità: 50 + Math.floor(Math.random() * 40),
       religione: religioni[Math.floor(Math.random() * religioni.length)],

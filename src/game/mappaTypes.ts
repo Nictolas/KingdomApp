@@ -15,4 +15,14 @@ export type MappaRuntimeState = {
   terrenoInMappa: Record<number, TerrenoType>;
   decorazioniInMappa: Record<number, string>;
   residenzeMappa: Record<number, number[]>;
+  /**
+   * Profondità del mare (celle dal bordo sud) per ogni colonna.
+   * Costa frastagliata: solo sud, niente mare a sinistra/destra/nord.
+   */
+  costaSudProfondita?: number[];
+  /**
+   * Versione layout mappa.
+   * `3+` = fiume unico, Bosco in due pezzi, sabbia sulle rive; griglia 88×50.
+   */
+  mappaLayoutVersion?: number;
 };

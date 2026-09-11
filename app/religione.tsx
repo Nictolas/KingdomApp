@@ -41,7 +41,7 @@ export default function ReligioneScreen() {
   ];
 
   // Calcola percentuali per ogni religione
-  const religioni = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto degli Alieni"];
+  const religioni = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto delle Ombre"];
   const totaleAbitanti = abitanti.length;
   
   const religioniConPercentuali = religioni.map((religione) => {
@@ -49,13 +49,13 @@ export default function ReligioneScreen() {
     const percentuale = totaleAbitanti > 0 ? Math.round((fedeli.length / totaleAbitanti) * 100) : 0;
     return {
       nome: religione,
-      emoji: religione === "Ateo" ? "🚫" : religione === "Deista" ? "🤔" : religione === "Agnostico" ? "❓" : religione === "Culto del Sole" ? "☀️" : "👽",
+      emoji: religione === "Ateo" ? "🚫" : religione === "Deista" ? "🤔" : religione === "Agnostico" ? "❓" : religione === "Culto del Sole" ? "☀️" : "🌑",
       count: fedeli.length,
       percentuale
     };
   });
 
-  const religioniDisponibili = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto degli Alieni"] as const;
+  const religioniDisponibili = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto delle Ombre"] as const;
 
   const fetteTorta = useMemo(
     () =>
@@ -136,7 +136,7 @@ export default function ReligioneScreen() {
                         onPress={() => setReligioneDiStato(isSelected ? null : religione)}
                       >
                         <Text style={styles.religioneStatoEmoji}>
-                          {religione === "Ateo" ? "🚫" : religione === "Deista" ? "🤔" : religione === "Agnostico" ? "❓" : religione === "Culto del Sole" ? "☀️" : "👽"}
+                          {religione === "Ateo" ? "🚫" : religione === "Deista" ? "🤔" : religione === "Agnostico" ? "❓" : religione === "Culto del Sole" ? "☀️" : "🌑"}
                         </Text>
                         <Text style={[styles.religioneStatoNome, isSelected && styles.religioneStatoNomeSelected]}>
                           {religione}
@@ -181,9 +181,9 @@ export default function ReligioneScreen() {
                   <Text style={styles.edificioEmojiInline}>☀️</Text>
                   <Text style={styles.edificioNomeInline}>Culto del Sole</Text>
                 </Pressable>
-                <Pressable style={styles.edificioCardInline} onPress={() => router.push("/culto-alieni")}>
-                  <Text style={styles.edificioEmojiInline}>👽</Text>
-                  <Text style={styles.edificioNomeInline}>Culto degli Alieni</Text>
+                <Pressable style={styles.edificioCardInline} onPress={() => router.push("/culto-ombre")}>
+                  <Text style={styles.edificioEmojiInline}>🌑</Text>
+                  <Text style={styles.edificioNomeInline}>Culto delle Ombre</Text>
                 </Pressable>
               </View>
             </View>

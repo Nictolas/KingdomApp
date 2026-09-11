@@ -3,7 +3,8 @@ import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, Text
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
+import { getStipendioMoneteGiornaliero, stipendioGiornalieroToPersistito } from "../src/game/edificiPubblici";
+import { AbitanteAvatarPreview } from "../src/ui/AbitanteAvatarPreview";
 import type { Abitante } from "../src/types";
 
 export default function LaboratorioScreen() {
@@ -38,18 +39,18 @@ export default function LaboratorioScreen() {
         <Text style={styles.infoSubtext}>Livello: {laboratorio.livello}</Text>
       </View>
       <View style={styles.stipendioCard}>
-        <Text style={styles.stipendioLabel}>Stipendio mensile per ricercatore (crediti)</Text>
+        <Text style={styles.stipendioLabel}>Stipendio giornaliero per ricercatore (monete)</Text>
         <TextInput
           style={styles.stipendioInput}
-          value={String(laboratorio.stipendioPerLavoratore ?? 0)}
+          value={String(getStipendioMoneteGiornaliero(laboratorio))}
           keyboardType="number-pad"
           onChangeText={(text) => {
             const n = parseInt(text.replace(/[^0-9]/g, ""), 10);
-            setStipendioEdificio(laboratorio.id, isNaN(n) ? 0 : Math.max(0, n));
+            setStipendioEdificio(laboratorio.id, stipendioGiornalieroToPersistito(isNaN(n) ? 0 : n));
           }}
         />
         <Text style={styles.infoSubtext}>
-          Totale: {(laboratorio.stipendioPerLavoratore ?? 0) * abitantiAssegnati.length} crediti/mese
+          Totale: {getStipendioMoneteGiornaliero(laboratorio) * abitantiAssegnati.length} monete/giorno
         </Text>
       </View>
     </View>,
@@ -59,7 +60,7 @@ export default function LaboratorioScreen() {
         <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
           {abitantiAssegnati.map((a: Abitante) => (
             <View key={a.id} style={styles.card}>
-              <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+              <AbitanteAvatarPreview abitante={a} />
               <View style={styles.cardContent}>
                 <Text style={styles.cardTitle}>{a.nome}</Text>
                 <Text style={styles.cardExtra}>Competenza: {a.competenza}% · Produttività: {a.produttività}%</Text>
@@ -81,7 +82,7 @@ export default function LaboratorioScreen() {
         <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
           {abitantiDisponibili.map((a: Abitante) => (
             <View key={a.id} style={styles.card}>
-              <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+              <AbitanteAvatarPreview abitante={a} />
               <View style={styles.cardContent}>
                 <Text style={styles.cardTitle}>{a.nome}</Text>
                 <Text style={styles.cardExtra}>Competenza: {a.competenza}% · Produttività: {a.produttività}%</Text>

@@ -34,7 +34,7 @@ export default function RifiutiScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.mediaCard}>
-          <Text style={styles.mediaLabel}>Scorta attuale (colonia)</Text>
+          <Text style={styles.mediaLabel}>Scorta attuale (regno)</Text>
           <Text style={styles.mediaValue}>
             {scortaAttuale} <Text style={styles.mediaUnit}>{unità}</Text>
           </Text>

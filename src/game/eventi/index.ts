@@ -13,7 +13,7 @@ import { eventoEmigrazione } from "./emigrazione";
 import { eventoRivoluzionariDelusi } from "./rivoluzionariDelusi";
 import { eventoGuerraCivile } from "./guerraCivile";
 
-/** Catalogo eventi attivati allo Skip Mese. La Richiesta Luogo di Culto è immediata (vedi useGameState). */
+/** Catalogo eventi attivati a fine mese. La Richiesta Luogo di Culto è immediata (vedi useGameState). */
 export const EVENTI_CATALOGO: EventoDef[] = [
   eventoProtesteAutoctoni,
   eventoAttentato,

@@ -332,6 +332,202 @@ export function RpgFootprintBar2x2({ width, height }: Props) {
   );
 }
 
+/** Fucina 2×2 — tetto di ardesia, muri di pietra scura, bagliore della forgia. */
+export function RpgFootprintFucina2x2({ width, height }: Props) {
+  const roofH = Math.round(height * 0.32);
+  const grondaH = 2;
+  const bandH = Math.max(3, Math.floor((height - roofH - grondaH) * 0.09));
+  const emojiSize = Math.max(14, Math.min(26, Math.floor(Math.min(width, height) * 0.22)));
+
+  return (
+    <View style={[styles.wrap, { width, height }]} pointerEvents="none">
+      <View
+        style={{
+          height: roofH,
+          backgroundColor: "#292524",
+          borderBottomWidth: 2,
+          borderBottomColor: OUTLINE
+        }}
+      />
+      <View style={[styles.gronda, { height: grondaH }]} />
+      <View style={[styles.wallBlockFlex, { backgroundColor: "#44403c" }]}>
+        <View style={[styles.trimBand, { height: bandH, backgroundColor: "#1c1917" }]} />
+        <View style={[styles.wallInnerFlex, { backgroundColor: "#57534e" }]}>
+          <View style={styles.threeCols}>
+            <View style={styles.col}>
+              <WindowPane small />
+            </View>
+            <View style={[styles.col, { flex: 1.2, justifyContent: "flex-end", alignItems: "center" }]}>
+              <Text style={{ fontSize: emojiSize, lineHeight: emojiSize + 2 }}>🔥</Text>
+              <View
+                style={{
+                  marginTop: 2,
+                  height: 6,
+                  width: "70%",
+                  borderRadius: 2,
+                  backgroundColor: "#ea580c",
+                  borderWidth: 1,
+                  borderColor: OUTLINE,
+                  opacity: 0.95
+                }}
+              />
+            </View>
+            <View style={styles.col}>
+              <WindowPane small />
+            </View>
+          </View>
+        </View>
+        <View style={[styles.trimBand, { height: bandH, backgroundColor: "#7c2d12" }]} />
+      </View>
+    </View>
+  );
+}
+
+/** Emporio 3×3 — facciata commerciale ampia, insegna e vetrine. */
+export function RpgFootprintEmporio3x3({ width, height }: Props) {
+  const roofH = Math.round(height * 0.28);
+  const awningH = Math.max(6, Math.round(height * 0.1));
+  const grondaH = 2;
+  const bandH = Math.max(3, Math.floor((height - roofH - awningH - grondaH) * 0.08));
+  const emojiSize = Math.max(16, Math.min(32, Math.floor(Math.min(width, height) * 0.18)));
+  const nStripes = Math.max(8, Math.floor(width / 12));
+
+  return (
+    <View style={[styles.wrap, { width, height }]} pointerEvents="none">
+      <View
+        style={{
+          height: roofH,
+          backgroundColor: "#44403c",
+          borderBottomWidth: 2,
+          borderBottomColor: OUTLINE
+        }}
+      />
+      <View style={{ height: awningH, flexDirection: "row", overflow: "hidden" }}>
+        {Array.from({ length: nStripes }, (_, i) => (
+          <View
+            key={`em-${i}`}
+            style={{
+              flex: 1,
+              backgroundColor: i % 2 === 0 ? "#b45309" : "#92400e",
+              borderRightWidth: i < nStripes - 1 ? 1 : 0,
+              borderRightColor: OUTLINE
+            }}
+          />
+        ))}
+      </View>
+      <View style={[styles.gronda, { height: grondaH }]} />
+      <View style={[styles.wallBlockFlex, { backgroundColor: "#a8a29e" }]}>
+        <View style={[styles.trimBand, { height: bandH, backgroundColor: "#78716c" }]} />
+        <View style={[styles.wallInnerFlex, { backgroundColor: "#d6d3d1", justifyContent: "center", alignItems: "center" }]}>
+          <Text style={{ fontSize: emojiSize, lineHeight: emojiSize + 2, textAlign: "center" }}>🏪</Text>
+          <View style={{ flexDirection: "row", gap: 4, marginTop: 4, width: "85%", justifyContent: "space-around" }}>
+            <WindowPane small />
+            <View style={[styles.doorOuter, { width: "22%", minHeight: 20, backgroundColor: "#44403c" }]}>
+              <View style={styles.doorKnob} />
+            </View>
+            <WindowPane small />
+          </View>
+        </View>
+        <View style={[styles.trimBand, { height: bandH, backgroundColor: "#57534e" }]} />
+      </View>
+    </View>
+  );
+}
+
+/** Bosco — striscia alta 2 celle: rettangolo pieno a angoli dritti, alberi misti, senza porta. */
+export function RpgFootprintBosco5x5({ width, height }: Props) {
+  const cell = Math.max(8, height / 2);
+  const colsApprox = Math.max(2, Math.round(width / cell));
+  const trees: { left: number; top: number; size: number; emoji: string }[] = [];
+  const emojis = ["🌲", "🌳"] as const;
+  for (let c = 0; c < colsApprox; c++) {
+    const u = (c + 0.5) / colsApprox;
+    trees.push({
+      left: Math.min(0.92, Math.max(0.02, u - 0.04 + ((c * 17) % 7) * 0.008)),
+      top: 0.08 + ((c * 13) % 5) * 0.06,
+      size: 0.85 + ((c * 11) % 4) * 0.1,
+      emoji: emojis[c % 2]!
+    });
+    if (c % 2 === 0) {
+      trees.push({
+        left: Math.min(0.9, Math.max(0.04, u + 0.02)),
+        top: 0.42 + ((c * 7) % 4) * 0.08,
+        size: 0.7 + ((c * 5) % 3) * 0.08,
+        emoji: emojis[(c + 1) % 2]!
+      });
+    }
+  }
+
+  return (
+    <View
+      style={[
+        styles.wrap,
+        {
+          width,
+          height,
+          overflow: "hidden",
+          backgroundColor: "#14532d"
+        }
+      ]}
+      pointerEvents="none"
+    >
+      <View
+        style={{
+          position: "absolute",
+          left: 0,
+          top: height * 0.35,
+          width: width * 0.55,
+          height: height * 0.65,
+          backgroundColor: "#166534",
+          opacity: 0.85
+        }}
+      />
+      <View
+        style={{
+          position: "absolute",
+          right: 0,
+          top: height * 0.28,
+          width: width * 0.5,
+          height: height * 0.72,
+          backgroundColor: "#15803d",
+          opacity: 0.8
+        }}
+      />
+      <View
+        style={{
+          position: "absolute",
+          left: 0,
+          bottom: 0,
+          width,
+          height: height * 0.28,
+          backgroundColor: "#3f6212",
+          opacity: 0.55
+        }}
+      />
+      {trees.map((t, i) => {
+        const fontSize = Math.max(10, Math.min(26, Math.floor(cell * 1.05 * t.size)));
+        return (
+          <Text
+            key={`bosco-tree-${i}`}
+            style={{
+              position: "absolute",
+              left: width * t.left,
+              top: height * t.top,
+              fontSize,
+              lineHeight: fontSize + 2,
+              textShadowColor: "rgba(5,46,22,0.55)",
+              textShadowOffset: { width: 1, height: 1 },
+              textShadowRadius: 1
+            }}
+          >
+            {t.emoji}
+          </Text>
+        );
+      })}
+    </View>
+  );
+}
+
 /** Mercato 2×2 — tenda verde/rossa, facciata chiara con emoji mercato. */
 export function RpgFootprintMercato2x2({ width, height }: Props) {
   const roofH = Math.round(height * 0.28);
@@ -495,9 +691,9 @@ export function RpgFootprintLuogoCultoSole2x2(props: Props) {
   return <RpgFootprintEdificioPietra2x2 {...props} emoji="☀️" />;
 }
 
-/** Luogo di Culto degli Alieni 2×2. */
+/** Luogo di Culto delle Ombre 2×2. */
 export function RpgFootprintLuogoCultoAlieni2x2(props: Props) {
-  return <RpgFootprintEdificioPietra2x2 {...props} emoji="👽" />;
+  return <RpgFootprintEdificioPietra2x2 {...props} emoji="🌑" />;
 }
 
 export function RpgFootprintCarcere2x2(props: Props) {
@@ -536,9 +732,20 @@ export function RpgFootprintCantiere({
   const emojiSize = Math.max(12, Math.min(28, Math.floor(Math.min(width, height) * 0.28)));
   const prog = Math.max(0, Math.min(100, progresso ?? 0));
   const poles = Math.max(2, Math.min(6, Math.round(width / 28)));
+  const barH = Math.max(5, Math.min(8, Math.round(height * 0.1)));
 
   return (
-    <View style={[styles.wrap, { width, height }]} pointerEvents="none">
+    <View style={[styles.wrap, { width, height, overflow: "visible" }]} pointerEvents="none">
+      {/* Barra avanzamento sopra l’edificio */}
+      <View
+        style={[
+          styles.cantiereProgressTrackAbove,
+          { height: barH, top: -barH - 3 }
+        ]}
+      >
+        <View style={[styles.cantiereProgressFill, { width: `${prog}%` }]} />
+      </View>
+
       {/* Telo / copertura cantiere */}
       <View style={[styles.cantiereRoof, { height: roofH }]}>
         {Array.from({ length: Math.max(3, Math.floor(roofH / 4)) }, (_, i) => (
@@ -574,7 +781,6 @@ export function RpgFootprintCantiere({
               ]}
             />
           ))}
-          {/* Traverse orizzontali */}
           <View style={[styles.cantiereBeam, { top: "28%" }]} />
           <View style={[styles.cantiereBeam, { top: "58%" }]} />
         </View>
@@ -587,11 +793,6 @@ export function RpgFootprintCantiere({
       <View style={[styles.cantiereGround, { height: groundH }]}>
         <View style={styles.cantiereDirtPatch} />
         <View style={[styles.cantiereDirtPatch, { left: "55%", width: "28%", backgroundColor: "#a8a29e" }]} />
-        {prog > 0 && (
-          <View style={styles.cantiereProgressTrack}>
-            <View style={[styles.cantiereProgressFill, { width: `${prog}%` }]} />
-          </View>
-        )}
       </View>
     </View>
   );
@@ -725,6 +926,17 @@ const styles = StyleSheet.create({
     position: "relative",
     overflow: "hidden"
   },
+  cantiereProgressTrackAbove: {
+    position: "absolute",
+    left: "6%",
+    right: "6%",
+    borderRadius: 3,
+    backgroundColor: "rgba(0,0,0,0.55)",
+    overflow: "hidden",
+    borderWidth: 1,
+    borderColor: "#44403c",
+    zIndex: 5
+  },
   cantiereDirtPatch: {
     position: "absolute",
     left: "12%",
@@ -747,7 +959,7 @@ const styles = StyleSheet.create({
   },
   cantiereProgressFill: {
     height: "100%",
-    backgroundColor: "#facc15",
+    backgroundColor: "#4ade80",
     borderRadius: 2
   },
   capBaseInner: {

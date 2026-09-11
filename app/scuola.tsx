@@ -3,7 +3,8 @@ import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Tex
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
+import { getStipendioMoneteGiornaliero, stipendioGiornalieroToPersistito } from "../src/game/edificiPubblici";
+import { AbitanteAvatarPreview } from "../src/ui/AbitanteAvatarPreview";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
@@ -60,18 +61,18 @@ export default function ScuolaScreen() {
         </View>
 
         <View style={styles.stipendioCard}>
-          <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (crediti)</Text>
+          <Text style={styles.stipendioLabel}>Stipendio giornaliero per lavoratore (monete)</Text>
           <TextInput
             style={styles.stipendioInput}
-            value={String(scuola.stipendioPerLavoratore ?? 0)}
+            value={String(getStipendioMoneteGiornaliero(scuola))}
             keyboardType="number-pad"
             onChangeText={(text) => {
               const n = parseInt(text.replace(/[^0-9]/g, ""), 10);
-              setStipendioEdificio(scuola.id, isNaN(n) ? 0 : Math.max(0, n));
+              setStipendioEdificio(scuola.id, stipendioGiornalieroToPersistito(isNaN(n) ? 0 : n));
             }}
           />
           <Text style={styles.infoSubtext}>
-            Totale: {(scuola.stipendioPerLavoratore ?? 0) * (scuola.abitantiAssegnati?.length ?? 0)} crediti/mese
+            Totale: {getStipendioMoneteGiornaliero(scuola) * (scuola.abitantiAssegnati?.length ?? 0)} monete/giorno
           </Text>
         </View>
 
@@ -84,7 +85,7 @@ export default function ScuolaScreen() {
           >
             {professore ? (
               <View style={styles.dropdownContent}>
-                <Text style={styles.dropdownEmoji}>{getEmojiAbitante(professore)}</Text>
+                <AbitanteAvatarPreview abitante={professore} size={32} />
                 <View style={styles.dropdownTextContainer}>
                   <Text style={styles.dropdownNome}>{professore.nome}</Text>
                   <Text style={styles.dropdownCompetenza}>Competenza: {professore.competenza}%</Text>
@@ -133,7 +134,7 @@ export default function ScuolaScreen() {
                           setDropdownProfessoreVisible(false);
                         }}
                       >
-                        <Text style={styles.dropdownItemEmoji}>{getEmojiAbitante(a)}</Text>
+                        <AbitanteAvatarPreview abitante={a} size={32} />
                         <View style={styles.dropdownItemTextContainer}>
                           <Text style={styles.dropdownItemNome}>{a.nome}</Text>
                           <Text style={styles.dropdownItemCompetenza}>Competenza: {a.competenza}%</Text>
@@ -156,7 +157,7 @@ export default function ScuolaScreen() {
             <View style={styles.cardsContainer}>
               {bambini.map((bambino: Abitante) => (
                 <View key={bambino.id} style={styles.bambinoCard}>
-                  <Text style={styles.cardEmoji}>{getEmojiAbitante(bambino)}</Text>
+                  <AbitanteAvatarPreview abitante={bambino} />
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{bambino.nome}</Text>
                     <Text style={styles.cardInfo}>Età: {bambino.eta} anni</Text>
@@ -166,7 +167,7 @@ export default function ScuolaScreen() {
               ))}
             </View>
           ) : (
-            <Text style={styles.emptyText}>Nessun bambino nella colonia</Text>
+            <Text style={styles.emptyText}>Nessun bambino nel regno</Text>
           )}
         </View>
       </ScrollView>

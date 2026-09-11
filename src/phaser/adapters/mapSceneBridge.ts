@@ -19,6 +19,10 @@ export type PhaserMapBuilding = {
   category: "residence" | "industry" | "service" | "security" | "religion" | "special";
   artKey?: "command-center" | "dormitory" | "greenhouse" | "frontier-hut";
   geometry: BuildingGeometry;
+  /** True se l’istanza globale è ancora «In costruzione». */
+  underConstruction?: boolean;
+  /** 0–100 avanzamento cantiere. */
+  progressoCostruzione?: number;
 };
 
 export type PhaserMapCharacter = {
@@ -30,6 +34,8 @@ export type PhaserMapCharacter = {
   markerEmoji?: string;
   appearance?: "human" | "golem";
   characterAppearance?: CharacterAppearance;
+  /** Se true, può fare idle stile Pokémon (guarda intorno / un passo) quando non è in commute. */
+  idleRoamAllowed?: boolean;
 };
 
 export type PhaserMapInteraction = {
@@ -37,6 +43,12 @@ export type PhaserMapInteraction = {
   hoverCell: number | null;
   affectedCells: readonly number[];
   valid: boolean;
+};
+
+/** Freccia «Individua» sulla mappa (segue lo sprite se presente, altrimenti la cella). */
+export type PhaserLocateMarker = {
+  cell: number;
+  abitanteId: number;
 };
 
 export type PhaserMapSnapshot = {
@@ -47,6 +59,9 @@ export type PhaserMapSnapshot = {
   buildings: readonly PhaserMapBuilding[];
   characters: readonly PhaserMapCharacter[];
   interaction?: PhaserMapInteraction;
+  locateMarker?: PhaserLocateMarker | null;
+  /** Abitante selezionato col puntatore (cerchio sotto i piedi). */
+  selectedAbitanteId?: number | null;
   showGrid?: boolean;
   debugBuildings?: boolean;
   revision: number;
@@ -61,6 +76,23 @@ export type PhaserMapActions = {
   onCharacterStepAttempt?: (characterId: number, fromCell: number, toCell: number) => boolean;
   onCharacterPathBlocked?: (characterId: number, fromCell: number, blockedCell: number) => void;
   onDragStateChange?: (dragging: boolean) => void;
+  /** Chiamato una volta quando i pezzi LPC degli abitanti iniziali sono pronti (niente placeholder). */
+  onCharacterAssetsReady?: () => void;
+  /**
+   * Passo idle (roam Pokémon): walkable + non interni edifici + claim.
+   * Aggiorna anche l’ultima cella nota.
+   */
+  onCharacterIdleStepAttempt?: (characterId: number, fromCell: number, toCell: number) => boolean;
+  /** Chiacchiera tra due «in giro»: id partner o null a fine conversazione. */
+  onCharacterChatChange?: (characterId: number, chattingWithId: number | null) => void;
+  /** Fine conversazione riuscita: applicare esito relazioni amici/rivali. */
+  onCharacterChatFinished?: (characterIdA: number, characterIdB: number) => void;
+};
+
+/** API imperativa esposta dalla scena Phaser (focus/refresh/camera). */
+export type PhaserMapSceneControls = {
+  refreshViewport: () => void;
+  centerOnCell: (cellIndex: number, options?: { zoomIn?: boolean }) => void;
 };
 
 type Listener = () => void;
@@ -72,6 +104,7 @@ type Listener = () => void;
 export class MapSceneBridge {
   private snapshot: PhaserMapSnapshot;
   private actions: PhaserMapActions;
+  private sceneControls: PhaserMapSceneControls | null = null;
   private readonly listeners = new Set<Listener>();
 
   constructor(snapshot: PhaserMapSnapshot, actions: PhaserMapActions) {
@@ -89,6 +122,18 @@ export class MapSceneBridge {
 
   setActions(actions: PhaserMapActions): void {
     this.actions = actions;
+  }
+
+  registerSceneControls(controls: PhaserMapSceneControls | null): void {
+    this.sceneControls = controls;
+  }
+
+  refreshViewport(): void {
+    this.sceneControls?.refreshViewport();
+  }
+
+  centerOnCell(cellIndex: number, options?: { zoomIn?: boolean }): void {
+    this.sceneControls?.centerOnCell(cellIndex, options);
   }
 
   subscribe(listener: Listener): () => void {
@@ -123,5 +168,21 @@ export class MapSceneBridge {
 
   setDragging(dragging: boolean): void {
     this.actions.onDragStateChange?.(dragging);
+  }
+
+  notifyCharacterAssetsReady(): void {
+    this.actions.onCharacterAssetsReady?.();
+  }
+
+  attemptCharacterIdleStep(characterId: number, fromCell: number, toCell: number): boolean {
+    return this.actions.onCharacterIdleStepAttempt?.(characterId, fromCell, toCell) ?? false;
+  }
+
+  notifyCharacterChatChange(characterId: number, chattingWithId: number | null): void {
+    this.actions.onCharacterChatChange?.(characterId, chattingWithId);
+  }
+
+  notifyCharacterChatFinished(characterIdA: number, characterIdB: number): void {
+    this.actions.onCharacterChatFinished?.(characterIdA, characterIdB);
   }
 }

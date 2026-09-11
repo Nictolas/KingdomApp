@@ -25,7 +25,7 @@ export default function SanitaScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Modalità sistema sanitario</Text>
           <Text style={styles.sectionSubtitle}>
-            Scegli se il sistema sanitario della colonia è <Text style={styles.bold}>Privato</Text> o{" "}
+            Scegli se il sistema sanitario del regno è <Text style={styles.bold}>Privato</Text> o{" "}
             <Text style={styles.bold}>Pubblico</Text>.
           </Text>
 
@@ -35,7 +35,7 @@ export default function SanitaScreen() {
           >
             <Text style={styles.optionTitle}>Sanità Privata</Text>
             <Text style={styles.optionText}>
-              Gli stipendi dell&apos;Ospedale non pesano sul bilancio della colonia. Le cure sono a carico
+              Gli stipendi dell&apos;Ospedale non pesano sul bilancio del regno. Le cure sono a carico
               dei singoli (potrai in futuro modellare costi Salute sugli abitanti).
             </Text>
           </Pressable>
@@ -46,8 +46,8 @@ export default function SanitaScreen() {
           >
             <Text style={styles.optionTitle}>Sanità Pubblica</Text>
             <Text style={styles.optionText}>
-              Gli stipendi dell&apos;Ospedale vengono pagati dalla colonia e compaiono tra i costi in
-              Crediti. In cambio, le cure possono essere considerate gratuite per gli abitanti.
+              Gli stipendi dell&apos;Ospedale vengono pagati dal regno e compaiono tra i costi in
+              Monete. In cambio, le cure possono essere considerate gratuite per gli abitanti.
             </Text>
           </Pressable>
 

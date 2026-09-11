@@ -2,12 +2,12 @@ import React from "react";
 import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 
-/** Elenco di ciò che succede quando si fa Skip Mese (derivato da avanzaMese.ts e useGameState). */
+/** Elenco di ciò che succede a fine mese (derivato da avanzaMese.ts e useGameState). */
 const REGOLE_SKIP: { titolo: string; punti: string[] }[] = [
   {
     titolo: "Emigrazione",
     punti: [
-      "Abitanti con felicità (modificata) ≤ 10% e crediti ≥ 100 hanno 50% di probabilità di lasciare la colonia.",
+      "Abitanti con felicità (modificata) ≤ 10% e monete ≥ 100 hanno 50% di probabilità di lasciare il regno.",
       "Non si applica se è attivo il divieto di espatrio."
     ]
   },
@@ -15,7 +15,7 @@ const REGOLE_SKIP: { titolo: string; punti: string[] }[] = [
     titolo: "Omicidi per rivalità",
     punti: [
       "Per ogni coppia di rivali con punteggio ≥ 90 (o ≥ 60 se uno dei due è Psicopatico), c’è 50% di probabilità che uno uccida l’altro.",
-      "Le vittime vengono rimosse dalla colonia.",
+      "Le vittime vengono rimosse dal regno.",
       "Vengono puliti i riferimenti ai morti (amici, rivali, coniuge, figli, genitori, nonni) e le assegnazioni agli edifici.",
       "Se ci sono vittime, viene mostrato un alert con il nome."
     ]
@@ -24,7 +24,7 @@ const REGOLE_SKIP: { titolo: string; punti: string[] }[] = [
     titolo: "Rapporti Amicizia / Rivalità",
     punti: [
       "Coppie di abitanti assegnati allo stesso edificio (qualsiasi edificio) che non hanno già un rapporto sviluppano in modo casuale Amicizia o Rivalità con punteggio iniziale 10.",
-      "Ogni Skip Mese ogni rapporto (amicizia o rivalità) varia di un punteggio casuale da -10 a +10.",
+      "A fine mese ogni rapporto (amicizia o rivalità) varia di un punteggio casuale da -10 a +10.",
       "Se il punteggio raggiunge 0 o inferiore, il rapporto si trasforma: amicizia diventa rivalità e viceversa, con nuovo punteggio 10."
     ]
   },
@@ -38,9 +38,9 @@ const REGOLE_SKIP: { titolo: string; punti: string[] }[] = [
   {
     titolo: "Aggiornamento abitanti",
     punti: [
-      "Casta coercibile (Schiavo, Servo della gleba): crediti e spese restano 0; stanchezza + random 0–9; peso e salute ±2 (entro 0–100).",
-      "Schiavi privati che lavorano: il reddito va al padrone (non al bilancio colonia).",
-      "Altri abitanti: crediti = crediti + reddito − spese (reddito = 0 se Disoccupato, salvo reddito di cittadinanza); stanchezza + random 0–9; peso e salute ±2 (entro 0–100).",
+      "Casta coercibile (Schiavo, Servo della gleba): monete e spese restano 0; stanchezza + random 0–9; peso e salute ±2 (entro 0–100).",
+      "Schiavi privati che lavorano: il reddito va al padrone (non al bilancio regno).",
+      "Altri abitanti: monete = monete + reddito − spese (reddito = 0 se Disoccupato, salvo reddito di cittadinanza); stanchezza + random 0–9; peso e salute ±2 (entro 0–100).",
       "Omicidio per rivalità: genera reato «Omicidio» salvo se la vittima è schiavo del killer (o Servo della gleba ucciso dal Re)."
     ]
   },
@@ -53,7 +53,7 @@ const REGOLE_SKIP: { titolo: string; punti: string[] }[] = [
   {
     titolo: "Risorse – Tesoro",
     punti: [
-      "Il Tesoro (monete colonia) è l’unica cassa: +affitti pagati, −pensioni e reddito di cittadinanza, ±ordini di mercato, −stipendi edifici pubblici, ±eventi."
+      "Il Tesoro (monete regno) è l’unica cassa: +affitti pagati, −pensioni e reddito di cittadinanza, ±ordini di mercato, −stipendi edifici pubblici, ±eventi."
     ]
   },
   {
@@ -132,14 +132,14 @@ export default function RegoleSkipScreen() {
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
-        <Text style={styles.title}>⏭️ Regole Skip</Text>
+        <Text style={styles.title}>⏭️ Regole di fine mese</Text>
         <View style={{ width: 50 }} />
       </View>
 
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={true}>
         <Text style={styles.intro}>
-          Quando premi «Skip Mese» vengono applicate, in ordine, le seguenti regole. L’elenco riflette la logica in avanzaMese.ts e nel contesto di gioco.
+          A ogni cambio mese automatico (ogni 30 giorni di gioco) vengono applicate, in ordine, le seguenti regole. L’elenco riflette la logica in avanzaMese.ts e nel contesto di gioco.
         </Text>
 
         <View style={[styles.griglia, isDesktop && styles.grigliaDesktop]}>

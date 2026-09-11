@@ -2,7 +2,7 @@ import React, { useState, useMemo } from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Edificio, Razza } from "../types";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
-import { getStipendioMensileEdificio } from "../game/edificiPubblici";
+import { getStipendioMoneteGiornaliero } from "../game/edificiPubblici";
 import { isEdificioPubblicoConPostazioniLavoro } from "../game/edificiLavoro";
 
 const RAZZE: Razza[] = [
@@ -19,7 +19,7 @@ const RELIGIONI: string[] = [
   "Deista",
   "Agnostico",
   "Culto del Sole",
-  "Culto degli Alieni"
+  "Culto delle Ombre"
 ];
 
 type Abitante = import("../types").Abitante;
@@ -121,10 +121,10 @@ export function CampoDiLavoroModal({
               </Text>
               <Text style={styles.line}>Efficienza: {edificio.efficienza}%</Text>
               <Text style={styles.line}>
-                Costo mensile:{" "}
+                Costo giornaliero:{" "}
                 {formatMonete(
                   isEdificioPubblicoConPostazioniLavoro(edificio)
-                    ? getStipendioMensileEdificio(edificio) * (edificio.abitantiAssegnati?.length ?? 0)
+                    ? getStipendioMoneteGiornaliero(edificio) * (edificio.abitantiAssegnati?.length ?? 0)
                     : 0
                 )}{" "}
                 (stipendio × lavoratori)

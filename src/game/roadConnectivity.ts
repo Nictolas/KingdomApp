@@ -162,7 +162,7 @@ export function indiciViciniOrtogonaliStrada(
   return out;
 }
 
-/** Sabbia vietata su Giacimento; i vicini strada restano erba salvo se confinano con acqua. */
+/** Sabbia vietata su Miniera; i vicini strada restano erba salvo se confinano con acqua. */
 export function buildExcludeSandByRoads(
   edifici: Record<number, EdificioMappa>,
   terreno: Record<number, TerrenoType>,

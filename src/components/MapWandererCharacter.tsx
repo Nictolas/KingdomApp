@@ -1,6 +1,10 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { getOrologioGiocoInPausaSnapshot } from "../game/orologioGiocoSession";
+import {
+  getOrologioGiocoInPausaSnapshot,
+  getOrologioGiocoVelocitaSnapshot,
+  scalaDurataRealeMs
+} from "../game/orologioGiocoSession";
 import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
 import type { CharacterAppearance, CharacterDirection } from "../character-system/types";
 import { canRenderCharacter } from "../character-system/registry";
@@ -17,19 +21,24 @@ const FRAMES = 12;
 /** Spostamento tra celle: durata e pausa prima del prossimo passo. */
 const MOVE_DURATION_MS = 560;
 const MOVE_DURATION_ROAD_MS = 340;
-const IDLE_BEFORE_NEXT_MS = 2200;
+const IDLE_BEFORE_NEXT_MS = 1800;
+/** Pausa più breve dopo un semplice “guarda intorno”. */
+const IDLE_LOOK_MS = 900;
 /** Retry più rapido se la cella davanti è occupata durante una commute. */
 const CLAIM_RETRY_MS = 900;
 /** Dopo N fallimenti di claim, chiede al genitore un nuovo percorso. */
 const MAX_CLAIM_FAILS_BEFORE_REPATH = 3;
 
-function segmentMoveDurationMs(
-  from: number,
-  to: number,
-  isRoadCell?: (cellIndex: number) => boolean
-): number {
-  if (isRoadCell?.(from) || isRoadCell?.(to)) return MOVE_DURATION_ROAD_MS;
-  return MOVE_DURATION_MS;
+function idleBeforeNextMs(): number {
+  return scalaDurataRealeMs(IDLE_BEFORE_NEXT_MS, getOrologioGiocoVelocitaSnapshot());
+}
+
+function idleLookMs(): number {
+  return scalaDurataRealeMs(IDLE_LOOK_MS, getOrologioGiocoVelocitaSnapshot());
+}
+
+function claimRetryMs(): number {
+  return scalaDurataRealeMs(CLAIM_RETRY_MS, getOrologioGiocoVelocitaSnapshot());
 }
 
 export type WanderDirection = "n" | "s" | "e" | "w";
@@ -114,8 +123,8 @@ type MapWandererCharacterProps = {
    */
   commutePath?: number[] | null;
   commuteToken?: number;
-  commutePurpose?: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | null;
-  onCommuteComplete?: (purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro") => void;
+  commutePurpose?: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro" | "vende_emporio" | "re_uscita" | null;
+  onCommuteComplete?: (purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro" | "vende_emporio" | "re_uscita") => void;
   /**
    * Coda bloccata (cella occupata): il genitore dovrebbe ripianificare da `fromCell`
    * evitando gli altri abitanti.
@@ -123,7 +132,7 @@ type MapWandererCharacterProps = {
   onCommuteBlocked?: (info: {
     fromCell: number;
     blockedCell: number;
-    purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro";
+    purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro" | "vende_emporio" | "re_uscita";
   }) => void;
   /** Chiamato quando il personaggio “arriva” su una cella (fine passo o snap). */
   onCellSettled?: (cellIndex: number) => void;
@@ -131,6 +140,8 @@ type MapWandererCharacterProps = {
   onPress?: () => void;
   /** Doppio tocco: apre la scheda abitante completa. */
   onDoublePress?: () => void;
+  /** True se questo abitante è selezionato sulla mappa (cerchio sotto i piedi). */
+  selected?: boolean;
   /**
    * Se true per la cella corrente, il personaggio non intercetta i tocchi: passano alla griglia sotto
    * (es. doppio tap sulla residenza → elenco in casa invece della scheda abitante).
@@ -176,6 +187,7 @@ export function MapWandererCharacter({
   onCellSettled,
   onPress,
   onDoublePress,
+  selected = false,
   passTouchesToMapOnCell,
   disableIdleRoam = false,
   pressAccessibilityLabel,
@@ -190,6 +202,7 @@ export function MapWandererCharacter({
   const cellRef = useRef<number | null>(null);
   const [pixelPos, setPixelPos] = useState({ x: 0, y: 0 });
   const [direction, setDirection] = useState<WanderDirection>("s");
+  const directionRef = useRef<WanderDirection>("s");
   const [walkFrame, setWalkFrame] = useState(0);
   const [isMoving, setIsMoving] = useState(false);
   const giocoInPausa = useGiocoInPausa();
@@ -244,6 +257,10 @@ export function MapWandererCharacter({
     isMovingRef.current = isMoving;
   }, [isMoving]);
 
+  useEffect(() => {
+    directionRef.current = direction;
+  }, [direction]);
+
   const clearIdle = useCallback(() => {
     if (idleTimerRef.current != null) {
       clearTimeout(idleTimerRef.current);
@@ -259,12 +276,28 @@ export function MapWandererCharacter({
     const prev = cellRef.current;
     if (prev === null) return;
 
+    // Stile NPC Pokémon: spesso si gira, a volte aspetta, più raramente fa un passo.
+    const roll = Math.random();
+    if (roll < 0.55) {
+      const dirs: WanderDirection[] = ["n", "s", "e", "w"];
+      const others = dirs.filter((d) => d !== directionRef.current);
+      const nextDir = others[Math.floor(Math.random() * others.length)] ?? directionRef.current;
+      directionRef.current = nextDir;
+      setDirection(nextDir);
+      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), idleLookMs());
+      return;
+    }
+    if (roll < 0.78) {
+      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), idleBeforeNextMs());
+      return;
+    }
+
     const isFree = isCellFreeForMeRef.current;
     const cand = orthogonalNeighbors(prev, cols, rows).filter(
       (j) => isWalkable(j) && (isFree?.(j) ?? true)
     );
     if (cand.length === 0) {
-      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), idleBeforeNextMs());
       return;
     }
 
@@ -285,11 +318,13 @@ export function MapWandererCharacter({
       }
     }
     if (next == null) {
-      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), idleBeforeNextMs());
       return;
     }
 
-    setDirection(directionBetween(prev, next, cols));
+    const nextDir = directionBetween(prev, next, cols);
+    directionRef.current = nextDir;
+    setDirection(nextDir);
 
     if (rafRef.current != null) {
       cancelAnimationFrame(rafRef.current);
@@ -303,15 +338,24 @@ export function MapWandererCharacter({
 
     setIsMoving(true);
     const start = performance.now();
-    const durationMs = segmentMoveDurationMs(prev, next, isRoadCell);
+    const baseDurationMs =
+      isRoadCell?.(prev) || isRoadCell?.(next) ? MOVE_DURATION_ROAD_MS : MOVE_DURATION_MS;
     const dest = next;
+    let pausedAt: number | null = null;
+    let pausedAccumMs = 0;
 
     const step = (now: number) => {
       if (getOrologioGiocoInPausaSnapshot()) {
+        if (pausedAt == null) pausedAt = now;
         rafRef.current = requestAnimationFrame(step);
         return;
       }
-      const t = Math.min(1, (now - start) / durationMs);
+      if (pausedAt != null) {
+        pausedAccumMs += now - pausedAt;
+        pausedAt = null;
+      }
+      const durationMs = scalaDurataRealeMs(baseDurationMs, getOrologioGiocoVelocitaSnapshot());
+      const t = Math.min(1, (now - start - pausedAccumMs) / durationMs);
       setPixelPos({
         x: fromX + (toX - fromX) * t,
         y: fromY + (toY - fromY) * t
@@ -326,7 +370,7 @@ export function MapWandererCharacter({
         setLogicalCell(dest);
         cellRef.current = dest;
         onCellSettledRef.current?.(dest);
-        idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+        idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), idleBeforeNextMs());
       }
     };
     rafRef.current = requestAnimationFrame(step);
@@ -338,10 +382,19 @@ export function MapWandererCharacter({
     (from: number, to: number, onDone: () => void, isLastSegment: boolean) => {
       const claim = tryClaimCellRef.current;
       const purpose = commutePurposeRef.current;
-      /** Ultimo passo verso casa: più abitanti possono condividere l’ingresso. */
-      const softHomeEntry = isLastSegment && purpose === "home";
+      /** Ultimo passo verso un ingresso: più abitanti possono condividere la cella (Bar, Bosco, casa, …). */
+      const softSharedEntry =
+        isLastSegment &&
+        (purpose === "home" ||
+          purpose === "work" ||
+          purpose === "cerca_lavoro" ||
+          purpose === "bar" ||
+          purpose === "mensa" ||
+          purpose === "negozio" ||
+          purpose === "culto" ||
+          purpose === "vende_emporio");
 
-      if (claim && !softHomeEntry && !claim(to)) {
+      if (claim && !softSharedEntry && !claim(to)) {
         claimFailCountRef.current += 1;
         if (
           claimFailCountRef.current >= MAX_CLAIM_FAILS_BEFORE_REPATH &&
@@ -354,12 +407,12 @@ export function MapWandererCharacter({
         }
         idleTimerRef.current = setTimeout(() => {
           runOneSegment(from, to, onDone, isLastSegment);
-        }, CLAIM_RETRY_MS);
+        }, claimRetryMs());
         return;
       }
 
-      // Soft entry casa: prova claim, ma prosegui anche se fallisce.
-      if (claim && softHomeEntry) {
+      // Soft entry: prova claim, ma prosegui anche se fallisce.
+      if (claim && softSharedEntry) {
         claim(to);
       }
 
@@ -375,13 +428,22 @@ export function MapWandererCharacter({
       const toY = Math.floor(to / cols) * cellSizePx;
       setIsMoving(true);
       const start = performance.now();
-      const durationMs = segmentMoveDurationMs(from, to, isRoadCell);
+      const baseDurationMs =
+        isRoadCell?.(from) || isRoadCell?.(to) ? MOVE_DURATION_ROAD_MS : MOVE_DURATION_MS;
+      let pausedAt: number | null = null;
+      let pausedAccumMs = 0;
       const step = (now: number) => {
         if (getOrologioGiocoInPausaSnapshot()) {
+          if (pausedAt == null) pausedAt = now;
           rafRef.current = requestAnimationFrame(step);
           return;
         }
-        const t = Math.min(1, (now - start) / durationMs);
+        if (pausedAt != null) {
+          pausedAccumMs += now - pausedAt;
+          pausedAt = null;
+        }
+        const durationMs = scalaDurataRealeMs(baseDurationMs, getOrologioGiocoVelocitaSnapshot());
+        const t = Math.min(1, (now - start - pausedAccumMs) / durationMs);
         setPixelPos({
           x: fromX + (toX - fromX) * t,
           y: fromY + (toY - fromY) * t
@@ -434,7 +496,7 @@ export function MapWandererCharacter({
       if (!alive) return;
       if (seg >= path.length - 1) {
         if (commutePurpose != null) onCommuteCompleteRef.current?.(commutePurpose);
-        idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+        idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), idleBeforeNextMs());
         return;
       }
       const from = path[seg]!;
@@ -511,7 +573,7 @@ export function MapWandererCharacter({
     setWalkFrame(0);
     onCellSettledRef.current?.(prevHome);
     if (!disableIdleRoam) {
-      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), idleBeforeNextMs());
     }
   }, [fixedCell, clearIdle, cols, cellSizePx, disableIdleRoam]);
 
@@ -569,7 +631,7 @@ export function MapWandererCharacter({
     setPixelPos({ x: cx, y: cy });
     onCellSettledRef.current?.(idx);
     if (!disableIdleRoam) {
-      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), idleBeforeNextMs());
     }
   }, [
     cols,
@@ -597,7 +659,7 @@ export function MapWandererCharacter({
     if (cellRef.current == null || !inited.current) return;
     if (isMovingRef.current) return;
     clearIdle();
-    idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+    idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), idleBeforeNextMs());
   }, [giocoInPausa, fixedCell, commutePath, disableIdleRoam, clearIdle]);
 
   useEffect(
@@ -682,6 +744,22 @@ export function MapWandererCharacter({
     </View>
   );
 
+  const selectionRing = selected ? (
+    <View
+      pointerEvents="none"
+      style={[
+        styles.selectionRing,
+        {
+          width: cellSizePx * 0.78,
+          height: cellSizePx * 0.3,
+          left: cellSizePx * 0.11,
+          bottom: cellSizePx * 0.06,
+          borderRadius: cellSizePx * 0.2
+        }
+      ]}
+    />
+  ) : null;
+
   if (intercettaTocco) {
     return (
       <Pressable
@@ -694,6 +772,7 @@ export function MapWandererCharacter({
           "Seleziona abitante"
         }
       >
+        {selectionRing}
         {sprite}
       </Pressable>
     );
@@ -701,6 +780,7 @@ export function MapWandererCharacter({
 
   return (
     <View style={shellStyle} pointerEvents="none">
+      {selectionRing}
       {sprite}
     </View>
   );
@@ -721,5 +801,12 @@ const styles = StyleSheet.create({
   markerEmoji: {
     textAlign: "center",
     lineHeight: undefined
+  },
+  selectionRing: {
+    position: "absolute",
+    backgroundColor: "rgba(34, 197, 94, 0.38)",
+    borderWidth: 2,
+    borderColor: "rgba(134, 239, 172, 0.95)",
+    zIndex: 0
   }
 });

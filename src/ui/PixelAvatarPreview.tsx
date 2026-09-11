@@ -11,7 +11,8 @@ export function PixelAvatarPreview({
   compatto = false,
   size: sizeOverride,
   animate = true,
-  liftPx = 0
+  liftPx = 0,
+  faceOnly = false
 }: {
   razza: RazzaGiocatore | "Goblin" | "Golem";
   aspetto: AspettoPersonaggio;
@@ -19,13 +20,21 @@ export function PixelAvatarPreview({
   size?: number;
   animate?: boolean;
   liftPx?: number;
+  /** Solo il volto nello sprite LPC. */
+  faceOnly?: boolean;
 }) {
   const spriteAppearance = aspetto.characterAppearance;
   if (spriteAppearance && canRenderCharacter(spriteAppearance, "idle")) {
     const size = sizeOverride ?? (compatto ? 88 : 128);
     return (
       <View accessibilityLabel="Anteprima personaggio LPC">
-        <CircularSpriteFrame appearance={spriteAppearance} size={size} animate={animate} liftPx={liftPx} />
+        <CircularSpriteFrame
+          appearance={spriteAppearance}
+          size={size}
+          animate={animate}
+          liftPx={liftPx}
+          faceOnly={faceOnly}
+        />
       </View>
     );
   }

@@ -57,7 +57,7 @@ export function statoPresenzaOccupanteCapanna(
   }
 
   const nascostoLavoro =
-    abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&
+    abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici, [abitante]) &&
     lavoroArrivatiIds.has(abitante.id);
 
   if (nascostoLavoro) return "al_lavoro";

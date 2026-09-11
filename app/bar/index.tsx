@@ -11,7 +11,7 @@ export default function BarIndexRedirect() {
   useEffect(() => {
     const bars = edifici.filter((e) => e.nome === "Bar").sort((a, b) => a.id - b.id);
     if (bars.length >= 1) {
-      router.replace(`/bar/${bars[0].id}`);
+      router.replace(`/impresa/${bars[0].id}`);
     }
   }, [edifici, router]);
 

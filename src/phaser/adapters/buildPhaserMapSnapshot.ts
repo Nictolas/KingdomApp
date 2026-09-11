@@ -1,4 +1,4 @@
-import { deriveBuildingGeometry } from "../../game/buildingGeometry";
+import { deriveBuildingGeometry, edificioHaIngressoPerimetrale } from "../../game/buildingGeometry";
 import {
   getErbaDecorSheetCoord,
   getErbaSheetCoord,
@@ -16,12 +16,14 @@ import {
   sandWaterEdgeMaskAt
 } from "../../game/terrainSpriteHelpers";
 import type { MappaRuntimeState } from "../../game/mappaTypes";
+import type { Edificio } from "../../types";
 import type { PhaserMapBuilding, PhaserMapCharacter, PhaserMapSnapshot, PhaserMapTile } from "./mapSceneBridge";
 
 const BUILDING_EMOJI: Record<string, string> = {
-  "Centro di Comando": "🏛️",
+  Castello: "🏰",
   Dormitorio: "🛏️",
   Capanna: "⛺",
+  Ponte: "🌉",
   Bar: "🍺",
   Tribunale: "⚖️",
   "Ufficio Immigrazione": "🛂",
@@ -29,33 +31,76 @@ const BUILDING_EMOJI: Record<string, string> = {
   Mercato: "🏪",
   Negozio: "🛍️",
   "Mensa Pubblica": "🍲",
-  Dissalatore: "💧",
-  Spazioporto: "🚀",
+  Acquedotto: "💧",
+  Porto: "⚓",
   Serra: "🌱",
   "Luogo di Culto del Sole": "☀️",
-  "Luogo di Culto degli Alieni": "👽",
+  "Luogo di Culto delle Ombre": "🌑",
   Carcere: "🔒",
   "Campo di Lavoro": "⛏️",
   "Campo di Sterminio": "☠️",
   Caserma: "🛡️",
   Centrale: "🚓",
-  Giacimento: "⛰️",
-  "Raffineria Mineraria": "⚙️"
+  Miniera: "⛏️",
+  Fucina: "🔥",
+  Emporio: "🧺",
+  Bosco: "🌲",
+  Falegnameria: "🪚",
+  Conceria: "🧴",
+  Forno: "🍞",
+  Cereria: "🕯️",
+  Sartoria: "👕",
+  Birrificio: "🍺",
+  Taverna: "🍲",
+  Spezieria: "⚗️",
+  Armeria: "🏹",
+  Forgia: "🔨",
+  Chiesa: "⛪",
+  Lazzaretto: "🏥",
+  Scriptorium: "📜",
+  Scuola: "📚",
+  "Laboratorio Magico": "🧙",
+  "Cripta Necromantica": "☠️"
 };
 
 function categoryForBuilding(name: string): PhaserMapBuilding["category"] {
   if (["Dormitorio", "Capanna", "Baracca"].includes(name)) return "residence";
-  if (["Serra", "Dissalatore", "Raffineria Mineraria", "Giacimento"].includes(name)) return "industry";
+  if (
+    [
+      "Serra",
+      "Acquedotto",
+      "Miniera",
+      "Fucina",
+      "Forgia",
+      "Falegnameria",
+      "Conceria",
+      "Forno",
+      "Cereria",
+      "Sartoria",
+      "Birrificio",
+      "Spezieria",
+      "Armeria",
+      "Laboratorio Magico",
+      "Cripta Necromantica",
+      "Raffineria Mineraria",
+      "Giacimento"
+    ].includes(name)
+  ) {
+    return "industry";
+  }
+  if (["Emporio", "Mercato", "Negozio", "Taverna", "Lazzaretto", "Scriptorium", "Scuola"].includes(name)) {
+    return "service";
+  }
   if (["Carcere", "Campo di Lavoro", "Campo di Sterminio", "Caserma", "Centrale"].includes(name)) {
     return "security";
   }
-  if (name.includes("Culto")) return "religion";
-  if (["Spazioporto", "Centro di Comando"].includes(name)) return "special";
+  if (name.includes("Culto") || name === "Chiesa") return "religion";
+  if (["Porto", "Castello", "Bosco"].includes(name)) return "special";
   return "service";
 }
 
 function artKeyForBuilding(name: string): PhaserMapBuilding["artKey"] {
-  if (name === "Centro di Comando") return "command-center";
+  if (name === "Castello" || name === "Centro di Comando") return "command-center";
   if (name === "Dormitorio") return "dormitory";
   if (name === "Serra") return "greenhouse";
   if (name === "Capanna") return "frontier-hut";
@@ -65,9 +110,11 @@ function artKeyForBuilding(name: string): PhaserMapBuilding["artKey"] {
 export function buildPhaserBuildings(
   state: MappaRuntimeState,
   cols: number,
-  rows?: number
+  rows?: number,
+  edificiGlobali: readonly Pick<Edificio, "id" | "stato" | "progressoCostruzione">[] = []
 ): PhaserMapBuilding[] {
   const buildings: PhaserMapBuilding[] = [];
+  const byId = new Map(edificiGlobali.map((e) => [e.id, e]));
   const effectiveRows = rows ?? Math.max(1, ...Object.keys(state.edificiInMappa).map((key) => Math.floor(Number(key) / cols) + 3));
   for (const [indexText, building] of Object.entries(state.edificiInMappa)) {
     if (building.nome === "Strada" || building.footprintRef != null) continue;
@@ -75,15 +122,22 @@ export function buildPhaserBuildings(
     const footprint = building.footprint ?? { w: 1, h: 1 };
     const col = anchor % cols;
     if (col + footprint.w > cols) continue;
+    const globaleId = building.edificioGlobaleId ?? building.id;
+    const globale = byId.get(globaleId);
+    const underConstruction = globale?.stato === "In costruzione";
     buildings.push({
       anchor,
       widthCells: footprint.w,
       heightCells: footprint.h,
       name: building.nome,
-      emoji: building.emoji || BUILDING_EMOJI[building.nome] || "🏢",
+      emoji: underConstruction ? "🏗️" : building.emoji || BUILDING_EMOJI[building.nome] || "🏢",
       category: categoryForBuilding(building.nome),
-      artKey: artKeyForBuilding(building.nome),
-      geometry: deriveBuildingGeometry(anchor, footprint.w, footprint.h, cols, effectiveRows)
+      artKey: underConstruction ? undefined : artKeyForBuilding(building.nome),
+      geometry: deriveBuildingGeometry(anchor, footprint.w, footprint.h, cols, effectiveRows, {
+        ingressoPerimetrale: edificioHaIngressoPerimetrale(building.nome)
+      }),
+      underConstruction,
+      progressoCostruzione: underConstruction ? (globale?.progressoCostruzione ?? 0) : undefined
     });
   }
   return buildings.sort((a, b) => {
@@ -99,7 +153,8 @@ export function buildPhaserMapSnapshot(
   rows: number,
   cellSize: number,
   revision: number,
-  characters: readonly PhaserMapCharacter[] = []
+  characters: readonly PhaserMapCharacter[] = [],
+  edificiGlobali: readonly Pick<Edificio, "id" | "stato" | "progressoCostruzione">[] = []
 ): PhaserMapSnapshot {
   const stradaAssetAt = buildStradaAssetLookup(cols, rows, state.terrenoInMappa, state.edificiInMappa);
   const erbaAssetAt = buildErbaAssetLookup(
@@ -162,7 +217,7 @@ export function buildPhaserMapSnapshot(
     rows,
     cellSize,
     tiles,
-    buildings: buildPhaserBuildings(state, cols, rows),
+    buildings: buildPhaserBuildings(state, cols, rows, edificiGlobali),
     characters,
     revision
   };

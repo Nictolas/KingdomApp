@@ -89,7 +89,7 @@ export function EventiModal({ visible, onClose, input }: EventiModalProps) {
           <View style={styles.accentLine} />
           <Text style={styles.title}>📌 Eventi</Text>
           <Text style={styles.subtitle}>
-            Eventi in corso, disponibili ora e altri possibili nella colonia. Gli eventi mensili si attivano allo Skip Mese;
+            Eventi in corso, disponibili ora e altri possibili nel regno. Gli eventi mensili si attivano al cambio mese;
             la Richiesta Luogo di Culto parte appena si verificano i requisiti.
           </Text>
 

@@ -54,8 +54,8 @@ export default function DivietoEspatrioScreen() {
         <View style={styles.descCard}>
           <Text style={styles.descTitle}>Descrizione</Text>
           <Text style={styles.descText}>
-            Il divieto di espatrio impedisce agli abitanti di lasciare la colonia. Senza questa legge, gli abitanti
-            con felicità molto bassa (≤10) e almeno 100 crediti hanno il 50% di probabilità ogni mese di emigrare.
+            Il divieto di espatrio impedisce agli abitanti di lasciare il regno. Senza questa legge, gli abitanti
+            con felicità molto bassa (≤10) e almeno 100 monete hanno il 50% di probabilità ogni mese di emigrare.
           </Text>
         </View>
 
@@ -64,12 +64,12 @@ export default function DivietoEspatrioScreen() {
           <Text style={styles.effettiTitle}>Effetti</Text>
           <View style={styles.effettoRow}>
             <Text style={styles.effettoEmoji}>🚧</Text>
-            <Text style={styles.effettoText}>Impedisce agli abitanti di lasciare la colonia</Text>
+            <Text style={styles.effettoText}>Impedisce agli abitanti di lasciare il regno</Text>
           </View>
           <View style={styles.effettoRow}>
             <Text style={styles.effettoEmoji}>👥</Text>
             <Text style={styles.effettoText}>
-              Previene l'emigrazione di abitanti infelici (felicità ≤10) con almeno 100 crediti
+              Previene l'emigrazione di abitanti infelici (felicità ≤10) con almeno 100 monete
             </Text>
           </View>
           <View style={styles.effettoRow}>

@@ -18,7 +18,7 @@ export const REATI_PUNIBILI_INFO: {
   descrizione: string;
 }[] = [
   { reato: "Omicidio", emoji: "🔪", descrizione: "Uccisione intenzionale di un abitante." },
-  { reato: "Furto", emoji: "🧤", descrizione: "Sottrazione di beni o crediti senza consenso." },
+  { reato: "Furto", emoji: "🧤", descrizione: "Sottrazione di beni o monete senza consenso." },
   { reato: "Stupro", emoji: "⛔", descrizione: "Violenza sessuale. Crimine gravissimo." }
 ];
 

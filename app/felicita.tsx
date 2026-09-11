@@ -37,7 +37,7 @@ export default function FelicitaScreen() {
           <View style={[styles.leftCol, !isDesktop && styles.leftColFull]}>
             <Text style={styles.sectionTitle}>Totale</Text>
             <View style={styles.totaleCard}>
-              <Text style={styles.totaleLabel}>Felicità media (colonia)</Text>
+              <Text style={styles.totaleLabel}>Felicità media (regno)</Text>
               <Text style={styles.totaleValue}>{felicitàMedia}%</Text>
               <Text style={styles.totaleSubtext}>
                 Calcolata sulla felicità modificata degli abitanti non Golem ({n} abitanti).
@@ -120,7 +120,7 @@ export default function FelicitaScreen() {
           <Text style={styles.modTitle}>5. Emigrazione (avanzaMese.ts)</Text>
           <View style={styles.modItem}>
             <Text style={styles.modBullet}>•</Text>
-            <Text style={styles.modText}>Se la <Text style={styles.modBold}>felicità modificata</Text> è ≤ 10 e l’abitante ha almeno 100 crediti, e il divieto di espatrio non è attivo, c’è il 50% di probabilità ogni mese che l’abitante emigri (venga rimosso dalla colonia).</Text>
+            <Text style={styles.modText}>Se la <Text style={styles.modBold}>felicità modificata</Text> è ≤ 10 e l’abitante ha almeno 100 monete, e il divieto di espatrio non è attivo, c’è il 50% di probabilità ogni mese che l’abitante emigri (venga rimosso dal regno).</Text>
           </View>
         </View>
           </View>

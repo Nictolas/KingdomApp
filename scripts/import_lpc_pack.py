@@ -79,6 +79,27 @@ def source_for(base: Path, animation: str, color: str) -> tuple[Path, bool]:
     raise FileNotFoundError(f"Nessun PNG per {base.relative_to(SOURCE)} {animation} {color}")
 
 
+def write_animation_sheet(source: Path, destination: Path, animation: str, mappings: list[tuple[list[str], list[str]]], *, derive_idle_from_walk: bool) -> None:
+    """Copia (e eventualmente ricolora) lo sheet; se serve idle e c'è solo walk, ritaglia le prime 2 colonne."""
+    destination.parent.mkdir(parents=True, exist_ok=True)
+    if mappings:
+        recolor(source, destination, mappings)
+        working = destination
+    else:
+        working = source
+    image = Image.open(working).convert("RGBA")
+    if derive_idle_from_walk:
+        # Walk ULPC: 9×64; idle: 2×64. Usiamo le prime due colonne del walk.
+        if image.size[0] < 128 or image.size[1] != 256:
+            raise ValueError(f"Walk non valido per derivare idle: {source} {image.size}")
+        image = image.crop((0, 0, 128, 256))
+    expected_columns = 2 if animation == "idle" else 9
+    expected_size = (expected_columns * 64, 4 * 64)
+    if image.size != expected_size:
+        raise ValueError(f"Dimensioni non LPC per {destination.name}: {image.size}, attese {expected_size}")
+    image.save(destination, optimize=True)
+
+
 def colors_for_definition(definition: dict[str, Any]) -> list[str]:
     variants = definition.get("variants")
     if variants:
@@ -91,6 +112,35 @@ def colors_for_definition(definition: dict[str, Any]) -> list[str]:
         palettes = load_json(SOURCE / f"palette_definitions/{material}/{material}_{palette_names[0]}.json")
         return ["base", *sorted(palettes.keys())]
     return ["base"]
+
+
+def discovered_headwear_items(body_type: str) -> list[dict[str, Any]]:
+    """Cappelli e copricapi LPC (esclude accessori facciali e collo)."""
+    result: list[dict[str, Any]] = []
+    definitions_root = SOURCE / "sheet_definitions"
+    for path in sorted(definitions_root.glob("headwear/**/*.json")):
+        relative = path.relative_to(definitions_root).as_posix()
+        if relative.startswith("headwear/accessories/") or relative.startswith("headwear/neck/"):
+            continue
+        definition = load_json(path)
+        if not any(
+            body_type in layer
+            for key, layer in definition.items()
+            if key.startswith("layer_") and isinstance(layer, dict)
+        ):
+            continue
+        stem = path.stem
+        semantic = stem[4:] if stem.startswith("hat_") else stem
+        result.append({
+            "id": f"auto_headwear_{body_type}_{hashlib.sha1(relative.encode()).hexdigest()[:10]}",
+            "slot": "headwear",
+            "definition": relative,
+            "semantic": semantic,
+            "bodyTypes": [body_type],
+            "colors": colors_for_definition(definition),
+            "colorField": "headwearColor",
+        })
+    return result
 
 
 def discovered_body_type_items(body_type: str) -> list[dict[str, Any]]:
@@ -137,7 +187,7 @@ def discovered_body_type_items(body_type: str) -> list[dict[str, Any]]:
 
 
 def discovered_teen_items() -> list[dict[str, Any]]:
-    return discovered_body_type_items("teen")
+    return [*discovered_body_type_items("teen"), *discovered_headwear_items("teen")]
 
 
 def main() -> None:
@@ -168,9 +218,14 @@ def main() -> None:
     for item in cfg["items"]:
         definition_path = SOURCE / "sheet_definitions" / item["definition"]
         definition = load_json(definition_path)
-        colors = skin if item.get("colors") == "$skin" else hair if item.get("colors") == "$hair" else item.get("colors", ["base"])
+        colors = (
+            skin if item.get("colors") == "$skin"
+            else hair if item.get("colors") == "$hair"
+            else item.get("colors") or colors_for_definition(definition)
+        )
         allowed_bodies = item.get("bodyTypes", cfg["bodyTypes"])
         layer_key_map = item.get("layerKeyMap", {})
+        definition_animations = set(definition.get("animations", ["walk"]))
         for layer_name, layer in sorted((k, v) for k, v in definition.items() if k.startswith("layer_")):
             for body_type in allowed_bodies:
                 layer_key = layer_key_map.get(body_type, body_type)
@@ -179,27 +234,33 @@ def main() -> None:
                 semantic = body_type if item["semantic"] == "$body" else item["semantic"]
                 for color in colors:
                     for animation in cfg["animations"]:
-                        if animation not in definition.get("animations", ["walk"]):
-                            continue
+                        derive_idle_from_walk = False
+                        source_animation = animation
+                        if animation not in definition_animations:
+                            # Child clothes ecc. espongono solo walk: deriva idle dalle prime 2 colonne.
+                            if animation == "idle" and "walk" in definition_animations:
+                                source_animation = "walk"
+                                derive_idle_from_walk = True
+                            else:
+                                continue
                         base = SOURCE / "spritesheets" / layer[layer_key]
                         try:
-                            source, needs_recolor = source_for(base, animation, color)
+                            source, needs_recolor = source_for(base, source_animation, color)
                         except FileNotFoundError:
                             continue
-                        digest = hashlib.sha1(f"{source.relative_to(SOURCE)}|{color}".encode()).hexdigest()[:12]
+                        digest_src = f"{source.relative_to(SOURCE)}|{color}|{animation}|idle_from_walk={derive_idle_from_walk}"
+                        digest = hashlib.sha1(digest_src.encode()).hexdigest()[:12]
                         source_key = f"lpc_{digest}_{animation}"
                         destination = OUT_ASSETS / f"{source_key}.png"
                         if source_key not in sources:
                             mappings = recolor_spec(definition, color) if needs_recolor else []
-                            if mappings:
-                                recolor(source, destination, mappings)
-                            else:
-                                shutil.copy2(source, destination)
-                            expected_columns = 2 if animation == "idle" else 9
-                            with Image.open(destination) as generated:
-                                expected_size = (expected_columns * 64, 4 * 64)
-                                if generated.size != expected_size:
-                                    raise ValueError(f"Dimensioni non LPC per {destination.name}: {generated.size}, attese {expected_size}")
+                            write_animation_sheet(
+                                source,
+                                destination,
+                                animation,
+                                mappings,
+                                derive_idle_from_walk=derive_idle_from_walk,
+                            )
                             sources[source_key] = f"../../../assets/character-packs/lpc/generated/{source_key}.png"
                         asset_id = f"{item['id']}:{layer_name}:{body_type}:{semantic}:{color}:{animation}"
                         if asset_id in seen_ids:

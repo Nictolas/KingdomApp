@@ -3,7 +3,7 @@ import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from
 import type { Edificio } from "../types";
 import { EDIFICIO_COMPETENZA_RICHIESTA } from "../data/edificiCompetenze";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
-import { getStipendioMensileEdificio } from "../game/edificiPubblici";
+import { getStipendioMoneteGiornaliero } from "../game/edificiPubblici";
 import { isEdificioPubblicoConPostazioniLavoro } from "../game/edificiLavoro";
 
 type EdificioInfoModalProps = {
@@ -35,7 +35,7 @@ export function EdificioInfoModal({ visible, edificio, onClose }: EdificioInfoMo
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
   const nLav = edificio.abitantiAssegnati?.length ?? 0;
   const costoStipendi =
-    isEdificioPubblicoConPostazioniLavoro(edificio) ? getStipendioMensileEdificio(edificio) * nLav : 0;
+    isEdificioPubblicoConPostazioniLavoro(edificio) ? getStipendioMoneteGiornaliero(edificio) * nLav : 0;
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
@@ -74,7 +74,7 @@ export function EdificioInfoModal({ visible, edificio, onClose }: EdificioInfoMo
                 </Text>
               )}
               <Text style={styles.line}>
-                Costo mensile: {formatMonete(costoStipendi)} (stipendio × lavoratori)
+                Costo giornaliero: {formatMonete(costoStipendi)} (stipendio × lavoratori)
               </Text>
             </View>
 
@@ -86,7 +86,7 @@ export function EdificioInfoModal({ visible, edificio, onClose }: EdificioInfoMo
                   {EDIFICIO_COMPETENZA_RICHIESTA[edificio.id].nomeCompetenza} (min. {EDIFICIO_COMPETENZA_RICHIESTA[edificio.id].competenzaMinima}%)
                 </Text>
                 <Text style={styles.lineHint}>
-                  I Disoccupati con competenza ≥ soglia possono essere assegnati automaticamente allo Skip Mese.
+                  I Disoccupati con competenza ≥ soglia possono essere assegnati automaticamente a fine mese.
                 </Text>
               </View>
             )}

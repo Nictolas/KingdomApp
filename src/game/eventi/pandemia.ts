@@ -7,7 +7,7 @@ export const eventoPandemia: EventoDef = {
   nome: "Pandemia",
   emoji: "🦠",
   descrizione:
-    "Un'epidemia si diffonde tra i coloni. L'ospedale e le medicine sono cruciali.",
+    "Un'epidemia si diffonde tra i sudditi. L'ospedale e le medicine sono cruciali.",
   durataMesi: 3,
   probabilità: 0.15,
   condizione: (_a, risorse) => {

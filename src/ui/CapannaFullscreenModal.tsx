@@ -10,11 +10,11 @@ import {
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
 import type { Abitante, Edificio } from "../types";
-import { getEmojiAbitante } from "../utils/getEmojiAbitante";
+import { AbitanteAvatarPreview } from "./AbitanteAvatarPreview";
 import { badgePresenzaCapanna, statoPresenzaOccupanteCapanna } from "../game/presenzaCapanna";
 
 type CommuteEntry = {
-  purpose: "work" | "bar" | "home";
+  purpose: string;
 };
 
 export type CapannaFullscreenModalProps = {
@@ -112,7 +112,7 @@ export function CapannaFullscreenModal({
           <Text style={styles.heroEmoji}>⛺</Text>
           <Text style={styles.title}>Capanna</Text>
           <Text style={styles.subtitle}>
-            Residenza coloniale · Cella #{anchor} · {occupantiIds.length}/{postiPerCasa} posti
+            Residenza · Cella #{anchor} · {occupantiIds.length}/{postiPerCasa} posti
           </Text>
           <Text style={styles.hint}>
             Accanto a ogni nome: se è dentro la capanna o fuori, e dove si trova (viaggio, bar, lavoro…).
@@ -134,7 +134,7 @@ export function CapannaFullscreenModal({
                   key={abitante.id}
                   style={[styles.listaRiga, badge.èDentro ? styles.listaRigaDentro : styles.listaRigaFuori]}
                 >
-                  <Text style={styles.listaAvatar}>{getEmojiAbitante(abitante)}</Text>
+                  <AbitanteAvatarPreview abitante={abitante} size={32} />
                   <Text style={styles.listaNome} numberOfLines={1}>
                     {abitante.nome}
                   </Text>
@@ -277,9 +277,6 @@ const styles = StyleSheet.create({
   listaRigaFuori: {
     backgroundColor: "rgba(30,41,59,0.85)",
     borderColor: "rgba(148,163,184,0.25)"
-  },
-  listaAvatar: {
-    fontSize: 26
   },
   listaNome: {
     flex: 1,

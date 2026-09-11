@@ -7,7 +7,7 @@ export type AggiungiOrdineMercatoInput = {
   prezzoUnitario: number;
   ordiniCorrenti: OrdineMercato[];
   risorse: Risorsa[];
-  /** Saldo Tesoro (monete colonia). */
+  /** Saldo Tesoro (monete regno). */
   moneteGiocatore: number;
 };
 

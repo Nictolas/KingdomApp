@@ -11,17 +11,18 @@ import { getMoneteInventarioAbitante } from "./inventario";
 import {
   abitanteAlBarRoutineOra,
   abitanteInOrarioLavoroEdificio,
-  primoEdificioLavoroOrarioPerAbitante
+  destinazioneLavoroOrarioPerAbitante
 } from "./orariLavoroMappa";
 import { abitanteNascostoNelCultoOra } from "./presenzaLuogoCulto";
 
 export type CommuteInfoAzione = {
-  purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro";
+  purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro" | "vende_emporio" | "re_uscita";
   barEdificioId?: number;
   mensaEdificioId?: number;
   cultoEdificioId?: number;
   negozioEdificioId?: number;
   lavoroCercaEdificioId?: number;
+  emporioVenditaEdificioId?: number;
 };
 
 function nomeEdificio(edifici: Edificio[], id: number | undefined): string | null {
@@ -75,6 +76,8 @@ export function descriviAzioneCorrenteAbitante(
     coprifuoco?: ConfigCoprifuoco;
     /** Esito recente di una rapina (es. «Ha rubato»). */
     esitoRapinaRecente?: string | null;
+    /** Due abitanti «in giro» fermi uno accanto all’altro. */
+    staChiacchierando?: boolean;
   }
 ): string {
   const {
@@ -97,6 +100,9 @@ export function descriviAzioneCorrenteAbitante(
         return "Sta andando a lavoro";
       case "cerca_lavoro": {
         const nome = nomeEdificio(edifici, commuteInfo.lavoroCercaEdificioId);
+        if (nome === "Emporio") return "Sta andando all'Emporio a chiedere lavoro";
+        if (nome === "Bosco") return "Sta andando nel Bosco a raccogliere";
+        if (nome === "Castello") return "Sta andando al Castello a chiedere lavoro";
         return nome ? `Sta andando a chiedere lavoro (${nome})` : "Sta andando a chiedere lavoro";
       }
       case "home":
@@ -109,26 +115,39 @@ export function descriviAzioneCorrenteAbitante(
         return "Sta andando a mangiare";
       case "negozio":
         return "Sta andando al negozio";
+      case "vende_emporio":
+        return "Sta andando all'Emporio a vendere cibo";
       case "culto":
         return "Sta andando al luogo di culto";
       case "rapina":
         return "Sta andando a rubare";
+      case "re_uscita":
+        return "Sta uscendo dal Castello";
     }
   }
 
   if (esitoRapinaRecente) return esitoRapinaRecente;
 
+  if (opts.staChiacchierando) return "Sta chiacchierando";
+
+  // I Nobili sulla mappa restano «in giro» (non cercano lavoro né mestieri),
+  // ma sopra restano visibili commute (es. uscita Castello) e chiacchiere.
+  if (getCastaAbitante(abitante) === "Nobile") {
+    return "È in giro";
+  }
+
   const èNotte = buioCielo > 0.5;
-  if (èNotte && haCasa && dormonoACasaIds.has(abitante.id)) {
-    return "Sta dormendo a casa sua";
+  // In casa (arrivo commute home / notte): non mostrare «È in giro» o bisogni.
+  if (haCasa && dormonoACasaIds.has(abitante.id)) {
+    return èNotte ? "Sta dormendo a casa sua" : "A casa sua";
   }
 
   if (
-    abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&
+    abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici, [abitante]) &&
     lavoroArrivatiIds.has(abitante.id)
   ) {
     const sede =
-      primoEdificioLavoroOrarioPerAbitante(abitante.id, edifici) ??
+      destinazioneLavoroOrarioPerAbitante(abitante.id, edifici, [abitante]) ??
       getEdificiOccupazione(abitante.id, edifici)[0];
     return sede ? `Sta lavorando presso ${sede.nome}` : "Sta lavorando";
   }
@@ -153,7 +172,7 @@ export function descriviAzioneCorrenteAbitante(
     ) {
       return "Rispetta il coprifuoco";
     }
-    return "Sta girando per la colonia";
+    return "Sta girando per il regno";
   }
 
   if (
@@ -165,10 +184,7 @@ export function descriviAzioneCorrenteAbitante(
 
   const monete = getMoneteInventarioAbitante(abitante.inventario);
   if (abitanteCercaLavoroPerSoldi(abitante, monete)) return "Cerca lavoro";
-  if (
-    abitanteVuolePrendereLavoro(abitante) &&
-    getCastaAbitante(abitante) === "Cittadino"
-  ) {
+  if (abitanteVuolePrendereLavoro(abitante)) {
     return "Cerca lavoro";
   }
 

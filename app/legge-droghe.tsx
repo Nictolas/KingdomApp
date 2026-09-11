@@ -17,7 +17,7 @@ export default function LeggeDrogheScreen() {
       valore: "vietate" as const,
       emoji: "🚫",
       titolo: "Tutte Vietate",
-      descrizione: "Tutte le droghe sono completamente vietate nella colonia."
+      descrizione: "Tutte le droghe sono completamente vietate nel regno."
     },
     {
       valore: "parziali" as const,
@@ -44,7 +44,7 @@ export default function LeggeDrogheScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.descrizione}>
-          Regola la legalità delle sostanze stupefacenti nella colonia. Le tue scelte influenzano la felicità di alcune
+          Regola la legalità delle sostanze stupefacenti nel regno. Le tue scelte influenzano la felicità di alcune
           fazioni.
         </Text>
 

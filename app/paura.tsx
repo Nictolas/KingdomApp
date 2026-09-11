@@ -27,7 +27,7 @@ export default function PauraScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.mediaCard}>
-          <Text style={styles.mediaLabel}>Paura media (colonia)</Text>
+          <Text style={styles.mediaLabel}>Paura media (regno)</Text>
           <Text style={styles.mediaValue}>{pauraMedia}%</Text>
           <Text style={styles.mediaSubtext}>
             Media della paura degli abitanti non Golem ({n} abitanti). Valore base 0–100.
@@ -36,14 +36,14 @@ export default function PauraScreen() {
 
         <Text style={styles.sectionTitle}>Modificatori di Paura (nel codice)</Text>
         <Text style={styles.sectionIntro}>
-          La paura di ogni abitante è un valore 0–100 memorizzato in stato. Nel codice attuale non sono presenti modificatori che alterano la paura in base a leggi, eventi o azioni (a differenza di felicità e lealtà).
+          La paura di ogni abitante è un valore 0–100 memorizzato in stato. Nel codice attuale non sono presenti modificatori che alterano la paura in base a leggi, eventi o azioni (a differenza della soddisfazione).
         </Text>
 
         <View style={styles.modCard}>
-          <Text style={styles.modTitle}>1. Valore base (types.ts / abitantiData / useGameState)</Text>
+          <Text style={styles.modTitle}>1. Valore base (types.ts / generazione partita)</Text>
           <View style={styles.modItem}>
             <Text style={styles.modBullet}>•</Text>
-            <Text style={styles.modText}>La paura è memorizzata per ogni abitante come valore <Text style={styles.modBold}>0–100</Text>. I dati iniziali (abitantiData) e i nuovi abitanti generati (immigrazione, assimilazione) hanno un valore di paura casuale nel rispettivo intervallo; non esiste una funzione "paura modificata" né bonus/malus applicati in tempo reale.</Text>
+            <Text style={styles.modText}>La paura è memorizzata per ogni abitante come valore <Text style={styles.modBold}>0–100</Text>. A inizio partita e per nuovi abitanti (immigrazione, assimilazione) è casuale nel rispettivo intervallo; non esiste una funzione "paura modificata" né bonus/malus applicati in tempo reale.</Text>
           </View>
         </View>
 

@@ -1,4 +1,5 @@
 import type { Abitante } from "../types";
+import { getCastaAbitante } from "./casta";
 import { COSTO_BAR_MONETE, PREZZO_CIBO_NEGOZIO } from "./economiaPrezzi";
 
 export { COSTO_BAR_MONETE };
@@ -122,7 +123,7 @@ export function applicaDecayBisogniGiornaliero(
   }
 
   const next: BisogniAbitante = {
-    fame: cur.fame - DECAY_GIORNO.fame,
+    fame: getCastaAbitante(abitante) === "Clero" ? 100 : cur.fame - DECAY_GIORNO.fame,
     energia: cur.energia - DECAY_GIORNO.energia + (haCasa ? 32 : 0),
     divertimento: cur.divertimento - DECAY_GIORNO.divertimento,
     socialita: cur.socialita - DECAY_GIORNO.socialita,
@@ -146,11 +147,10 @@ export function applicaRecuperoEnergiaSonno(
   return patchBisogni(abitante, { energia: 40, igiene: 5 + igieneExtra });
 }
 
-/** Visita al bar; `altriPresenti` alza la Socialità. */
-export function applicaRecuperoBar(abitante: Abitante, altriPresenti = 0): Abitante {
+/** Acquisto Birra al Bar: +10 Divertimento, +10 Socialità. */
+export function applicaRecuperoBar(abitante: Abitante, _altriPresenti = 0): Abitante {
   if (!abitanteUsaBisogniUmani(abitante)) return abitante;
-  const extraSocial = Math.min(15, Math.max(0, altriPresenti) * 3);
-  return patchBisogni(abitante, { divertimento: 35, socialita: 20 + extraSocial });
+  return patchBisogni(abitante, { divertimento: 10, socialita: 10 });
 }
 
 /** Preghiera / culto. */
@@ -207,6 +207,7 @@ export function abitanteHaFameUrgente(abitante: Abitante): boolean {
  */
 export function abitanteCercaLavoroPerSoldi(abitante: Abitante, moneteDisponibili: number): boolean {
   if (!abitanteUsaBisogniUmani(abitante)) return false;
+  if (getCastaAbitante(abitante) === "Nobile") return false;
   if (abitante.lavoro !== "Disoccupato") return false;
   const b = getBisogniAbitante(abitante);
   if (moneteDisponibili < PREZZO_CIBO_NEGOZIO) return true;
@@ -218,6 +219,7 @@ export function abitanteCercaLavoroPerSoldi(abitante: Abitante, moneteDisponibil
 /** Disoccupato cittadino che vuole un posto (anche preventivo, per avere monete per i bisogni). */
 export function abitanteVuolePrendereLavoro(abitante: Abitante): boolean {
   if (!abitanteUsaBisogniUmani(abitante)) return false;
+  if (getCastaAbitante(abitante) === "Nobile") return false;
   return abitante.lavoro === "Disoccupato";
 }
 
@@ -231,6 +233,7 @@ export function scegliAzioneTempoLibero(
   opts: {
     puòUsareMensa: boolean;
     puòUsareNegozio?: boolean;
+    puòUsareBar?: boolean;
     puòRapinare?: boolean;
     haCasa: boolean;
   }
@@ -238,14 +241,17 @@ export function scegliAzioneTempoLibero(
   if (!abitanteUsaBisogniUmani(abitante)) return "nessuna";
   const b = getBisogniAbitante(abitante);
   const puòNegozio = opts.puòUsareNegozio === true;
+  const puòBar = opts.puòUsareBar !== false;
   const puòRapinare = opts.puòRapinare === true;
 
   const scoreFameMensa = opts.puòUsareMensa ? deficitSottoSoglia(b.fame, SOGLIA_BISOGNO_AZIONE) : 0;
   const scoreFameNegozio = puòNegozio ? deficitSottoSoglia(b.fame, SOGLIA_BISOGNO_AZIONE) : 0;
-  const scoreBar = Math.max(
-    deficitSottoSoglia(b.divertimento, SOGLIA_BISOGNO_AZIONE),
-    deficitSottoSoglia(b.socialita, SOGLIA_BISOGNO_AZIONE)
-  );
+  const scoreBar = puòBar
+    ? Math.max(
+        deficitSottoSoglia(b.divertimento, SOGLIA_BISOGNO_AZIONE),
+        deficitSottoSoglia(b.socialita, SOGLIA_BISOGNO_AZIONE)
+      )
+    : 0;
   const scoreCasa = opts.haCasa ? deficitSottoSoglia(b.energia, SOGLIA_BISOGNO_AZIONE) : 0;
 
   if (b.fame < SOGLIA_BISOGNO_CRITICO) {
@@ -259,15 +265,15 @@ export function scegliAzioneTempoLibero(
   const best = Math.max(bestFame, scoreBar, scoreCasa);
   if (best <= 0) {
     if (b.fame < SOGLIA_BISOGNO_CRITICO && puòRapinare) return "rapina";
-    return "nessuna";
+    return puòBar ? "bar" : "nessuna";
   }
   if (bestFame >= scoreBar && bestFame >= scoreCasa) {
     if (scoreFameMensa >= scoreFameNegozio && opts.puòUsareMensa) return "mensa";
     if (puòNegozio) return "negozio";
     if (opts.puòUsareMensa) return "mensa";
   }
-  if (scoreBar >= scoreCasa) return "bar";
-  return "home";
+  if (scoreBar >= scoreCasa && puòBar) return "bar";
+  return opts.haCasa ? "home" : puòBar ? "bar" : "nessuna";
 }
 
 /** Drain Energia extra se lavora (giornaliero). */

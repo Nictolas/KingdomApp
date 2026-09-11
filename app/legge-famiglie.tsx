@@ -69,7 +69,7 @@ export default function LeggeFamiglieScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.descrizione}>
-          Seleziona quali tipologie di famiglia sono accettate e riconosciute legalmente nella colonia.
+          Seleziona quali tipologie di famiglia sono accettate e riconosciute legalmente nel regno.
         </Text>
 
         <View style={styles.opzioniContainer}>

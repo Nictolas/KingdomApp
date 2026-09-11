@@ -1,3 +1,21 @@
+import {
+  appearanceForPublicSpace,
+  bodyFamilyFor,
+  dwarfChildOutfit,
+  DWARF_BEARD_STYLE,
+  ELF_EARS_STYLE,
+  FARMER_TOOL,
+  normalizeCharacterAppearance
+} from "../character-system/appearance";
+import {
+  canRenderCharacter,
+  compatibleCatalogOptions,
+  compatibleColorsForField,
+  firstCompatibleColorForField,
+  firstCompatibleHairColor
+} from "../character-system/registry";
+import type { CharacterAppearance, CharacterRaceId } from "../character-system/types";
+
 export type RazzaGiocatore = "Umano" | "Elfo" | "Nano" | "Orco" | "Scheletro" | "Vampiro" | "Lucertoloide";
 export type StileCapelli = "corti" | "spettinati" | "lunghi" | "trecce";
 export type StileOcchi = "tondi" | "determinati" | "allegri";
@@ -104,15 +122,19 @@ export function generaAspettoCasuale(
   const professione = contesto.professione?.toLocaleLowerCase("it") ?? "";
   const preferredOutfit = professione.includes("nobil") || professione.includes("ministr") || professione.includes("re")
     ? "noble"
-    : professione.includes("guard") || professione.includes("soldat") || professione.includes("sicurezza")
+    : professione.includes("guard") || professione.includes("soldat") || professione.includes("sicurezza") || professione.includes("giudic")
       ? "guard"
       : professione.includes("agric") || professione.includes("contadin")
         ? "farmer"
-        : undefined;
+        : professione.includes("taglialegn") || professione.includes("boscai")
+          ? "traveler"
+          : undefined;
   const outfit = preferredOutfit && options.outfits.includes(preferredOutfit)
     ? preferredOutfit
     : options.outfits.length > 0 ? pick(options.outfits, random) : "none";
-  const hairStyle = options.hairStyles.length > 0 ? pick(options.hairStyles, random) : "none";
+  const hairStyle = razza === "Nano"
+    ? "none"
+    : options.hairStyles.length > 0 ? pick(options.hairStyles, random) : "none";
   const dwarfBeardColors = razza === "Nano"
     ? compatibleColorsForField({ ...baseAppearance, beardStyle: DWARF_BEARD_STYLE }, "beardColor", "beard", DWARF_BEARD_STYLE)
     : [];
@@ -121,23 +143,31 @@ export function generaAspettoCasuale(
     : bodyType === "male" && options.beardStyles.length > 1 && random() > 0.55
       ? pick(options.beardStyles.filter((value) => value !== "none"), random)
       : "none";
+  const dwarfClothes = razza === "Nano"
+    ? dwarfChildOutfit(contesto.sesso, Math.floor(random() * 1_000_000) + 1)
+    : null;
   const characterAppearance = normalizeCharacterAppearance({
     ...baseAppearance,
     skinTone: options.skinTones.length > 0 ? pick(options.skinTones, random) : baseAppearance.skinTone,
     hairStyle,
-    hairColor: options.hairColors.length > 0 ? pick(options.hairColors, random) : baseAppearance.hairColor,
+    hairColor: razza === "Nano"
+      ? "none"
+      : options.hairColors.length > 0 ? pick(options.hairColors, random) : baseAppearance.hairColor,
     beardStyle,
     beardColor: razza === "Nano"
       ? (dwarfBeardColors.length > 0 ? pick(dwarfBeardColors, random) : baseAppearance.beardColor)
       : options.hairColors.length > 0 ? pick(options.hairColors, random) : baseAppearance.beardColor,
-    outfit,
-    upperOutfit: outfit,
-    lowerOutfit: outfit,
-    outfitPrimaryColor: options.outfitPrimaryColors.length > 0 ? pick(options.outfitPrimaryColors, random) : baseAppearance.outfitPrimaryColor,
-    outfitSecondaryColor: options.outfitSecondaryColors.length > 0 ? pick(options.outfitSecondaryColors, random) : baseAppearance.outfitSecondaryColor,
+    ...(dwarfClothes ?? {
+      outfit,
+      upperOutfit: outfit,
+      lowerOutfit: outfit,
+      outfitPrimaryColor: options.outfitPrimaryColors.length > 0 ? pick(options.outfitPrimaryColors, random) : baseAppearance.outfitPrimaryColor,
+      outfitSecondaryColor: options.outfitSecondaryColors.length > 0 ? pick(options.outfitSecondaryColors, random) : baseAppearance.outfitSecondaryColor,
+      footwear: baseAppearance.footwear
+    }),
     footwearColor: options.footwearColors.length > 0 ? pick(options.footwearColors, random) : baseAppearance.footwearColor,
-    headwear: options.headwear.length > 0 ? pick(options.headwear, random) : "none",
-    accessory: outfit === "farmer" || professione.includes("agric") ? FARMER_TOOL : "none"
+    headwear: razza === "Nano" ? "none" : options.headwear.length > 0 ? pick(options.headwear, random) : "none",
+    accessory: !dwarfClothes && (outfit === "farmer" || professione.includes("agric")) ? FARMER_TOOL : "none"
   });
 
   const aspetto: AspettoPersonaggio = {
@@ -152,16 +182,66 @@ export function generaAspettoCasuale(
   if (professione.includes("capo religioso")) {
     return applicaAspettoCapoReligioso(aspetto, random);
   }
+  if (professione.includes("consigliere")) {
+    return creaAspettoConsigliereIniziale();
+  }
   return aspetto;
 }
 
 /** Variante stabile per completare vecchi salvataggi senza cambiare volto a ogni caricamento. */
-export function generaAspettoDaSeed(razza: RazzaConAspetto, seed: number): AspettoPersonaggio {
+export function generaAspettoDaSeed(
+  razza: RazzaConAspetto,
+  seed: number,
+  contesto: { sesso?: "M" | "F" } = {}
+): AspettoPersonaggio {
   let state = (seed >>> 0) || 1;
-  return generaAspettoCasuale(razza, () => {
-    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-    return state / 0x100000000;
-  });
+  return generaAspettoCasuale(
+    razza,
+    () => {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      return state / 0x100000000;
+    },
+    contesto
+  );
+}
+
+/**
+ * Aspetto da mostrare in UI/mappa: garantisce uno sprite LPC renderizzabile
+ * (i Nani senza characterAppearance o con outfit adult cadevano nel vecchio CSS).
+ */
+export function aspettoPerVisualizzazioneAbitante(
+  abitante: {
+    id: number;
+    razza?: string | null;
+    aspetto?: AspettoPersonaggio;
+    lavoro?: string;
+    incinta?: boolean;
+    sesso?: "M" | "F" | null;
+  },
+  rules: { nudismoAttivo?: boolean } = {}
+): AspettoPersonaggio | undefined {
+  if (abitante.razza === "Golem") return abitante.aspetto;
+  const razza = (abitante.razza ?? "Umano") as RazzaConAspetto;
+  let aspetto = abitante.aspetto;
+  if (!aspetto?.characterAppearance) {
+    const generato = generaAspettoDaSeed(razza, abitante.id, {
+      sesso: abitante.sesso === "M" || abitante.sesso === "F" ? abitante.sesso : undefined
+    });
+    aspetto = aspetto ? { ...aspetto, characterAppearance: generato.characterAppearance } : generato;
+  }
+  if (!aspetto.characterAppearance) return aspetto;
+  return {
+    ...aspetto,
+    characterAppearance: appearanceForPublicSpace(aspetto.characterAppearance, {
+      isKing: abitante.id === 1,
+      nudismoAttivo: rules.nudismoAttivo === true,
+      incinta: abitante.incinta === true,
+      lavoro: abitante.lavoro,
+      seed: abitante.id,
+      razza: abitante.razza,
+      sesso: abitante.sesso
+    })
+  };
 }
 
 /** Aspetto dimostrativo per la pagina Razze: regole visive coerenti con LPC. */
@@ -196,13 +276,25 @@ export function generaAspettoEsempioRazza(razza: RazzaConAspetto, seed: number):
       headwear: "none"
     });
   } else if (razza === "Nano") {
+    const female = (seed % 2) === 0;
     appearance = normalizeCharacterAppearance({
       ...appearance,
       race: "dwarf",
       bodyType: "child",
       ageGroup: "child",
       bodyFamily: bodyFamilyFor("dwarf", "child"),
-      headStyle: "human_head"
+      headStyle: "human_head",
+      hairStyle: "none",
+      hairColor: "none",
+      beardStyle: DWARF_BEARD_STYLE,
+      ...dwarfChildOutfit(female ? "F" : "M", seed)
+    });
+  } else if (razza === "Elfo") {
+    appearance = normalizeCharacterAppearance({
+      ...appearance,
+      race: "elf",
+      headStyle: "human_head",
+      earsStyle: ELF_EARS_STYLE
     });
   } else if (razza === "Orco") {
     appearance = normalizeCharacterAppearance({
@@ -233,11 +325,8 @@ export function generaAspettoEsempioRazza(razza: RazzaConAspetto, seed: number):
   }
   return { ...base, characterAppearance: appearance };
 }
-import { bodyFamilyFor, DWARF_BEARD_STYLE, FARMER_TOOL, normalizeCharacterAppearance } from "../character-system/appearance";
-import { canRenderCharacter, compatibleCatalogOptions, compatibleColorsForField, firstCompatibleColorForField, firstCompatibleHairColor } from "../character-system/registry";
-import type { CharacterAppearance, CharacterRaceId } from "../character-system/types";
 
-/** Kimono LPC disponibile solo sul bodyType teen. */
+/** Kimono LPC disponibile solo sul bodyType teen (i Nani restano sul corpo child). */
 export function applicaAspettoCapoReligioso(
   aspetto: AspettoPersonaggio,
   random: () => number = Math.random
@@ -245,11 +334,23 @@ export function applicaAspettoCapoReligioso(
   const current = aspetto.characterAppearance;
   if (!current) return aspetto;
 
+  const isNano = current.race === "dwarf";
+  const bodyPatch = isNano
+    ? {
+        bodyType: "child" as const,
+        ageGroup: "child" as const,
+        bodyFamily: bodyFamilyFor("dwarf", "child"),
+        beardStyle: DWARF_BEARD_STYLE
+      }
+    : {
+        bodyType: "teen" as const,
+        ageGroup: "teen" as const,
+        bodyFamily: bodyFamilyFor(current.race, "teen")
+      };
+
   const teenAppearance = normalizeCharacterAppearance({
     ...current,
-    bodyType: "teen",
-    ageGroup: "teen",
-    bodyFamily: bodyFamilyFor(current.race, "teen"),
+    ...bodyPatch,
     fullOutfit: "kimono",
     outfit: "kimono",
     upperOutfit: "none",
@@ -266,9 +367,11 @@ export function applicaAspettoCapoReligioso(
   const hairColor = options.hairColors.includes(teenAppearance.hairColor)
     ? teenAppearance.hairColor
     : firstCompatibleHairColor({ ...teenAppearance, hairStyle }, hairStyle);
-  const beardStyle = options.beardStyles.includes(teenAppearance.beardStyle)
-    ? teenAppearance.beardStyle
-    : "none";
+  const beardStyle = isNano
+    ? DWARF_BEARD_STYLE
+    : options.beardStyles.includes(teenAppearance.beardStyle)
+      ? teenAppearance.beardStyle
+      : "none";
   const outfitPrimaryColor = options.outfitPrimaryColors.length > 0
     ? pick(options.outfitPrimaryColors, random)
     : firstCompatibleColorForField(teenAppearance, "outfitPrimaryColor", "fullOutfit", "kimono");
@@ -277,11 +380,59 @@ export function applicaAspettoCapoReligioso(
     hairStyle,
     hairColor,
     beardStyle,
-    beardColor: hairColor,
+    beardColor: isNano ? teenAppearance.beardColor : hairColor,
     outfitPrimaryColor
   });
   if (!canRenderCharacter(characterAppearance, "idle")) return aspetto;
   return { ...aspetto, characterAppearance };
+}
+
+/**
+ * Aspetto fisso del Consigliere iniziale: uomo di 60 anni, pelato,
+ * Body Color Light, Basic Beard White.
+ * Non usato quando il giocatore nomina un altro Consigliere in seguito.
+ */
+export const CONSIGLIERE_ETA_INIZIALE = 60;
+export const CONSIGLIERE_BEARD_STYLE = "basic";
+export const CONSIGLIERE_BEARD_COLOR = "white";
+export const CONSIGLIERE_SKIN_TONE = "light";
+export const CONSIGLIERE_HAIR_STYLE = "none";
+
+/** Aspetto completo e deterministico per il Consigliere di inizio partita. */
+export function creaAspettoConsigliereIniziale(): AspettoPersonaggio {
+  const characterAppearance = normalizeCharacterAppearance({
+    ...creaCharacterAppearance("Umano", "male"),
+    race: "human",
+    bodyType: "male",
+    ageGroup: "adult",
+    bodyFamily: bodyFamilyFor("human", "adult"),
+    headStyle: "human_head",
+    skinTone: CONSIGLIERE_SKIN_TONE,
+    hairStyle: CONSIGLIERE_HAIR_STYLE,
+    hairColor: "none",
+    beardStyle: CONSIGLIERE_BEARD_STYLE,
+    beardColor: CONSIGLIERE_BEARD_COLOR,
+    outfit: "commoner",
+    upperOutfit: "commoner",
+    lowerOutfit: "commoner",
+    fullOutfit: "none",
+    headwear: "none",
+    accessory: "none"
+  });
+  return {
+    coloreCapelli: "#b9bec8",
+    stileCapelli: "corti",
+    stileOcchi: "tondi",
+    colorePelle: COLORI_PELLE[0]!,
+    vestiti: "nobile",
+    cappello: "nessuno",
+    characterAppearance
+  };
+}
+
+/** @deprecated Usa {@link creaAspettoConsigliereIniziale}. */
+export function applicaAspettoConsigliereIniziale(_aspetto?: AspettoPersonaggio): AspettoPersonaggio {
+  return creaAspettoConsigliereIniziale();
 }
 
 function randomFromId(id: number): () => number {

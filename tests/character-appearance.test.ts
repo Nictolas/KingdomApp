@@ -32,9 +32,37 @@ test("Orchi e Goblin ricevono tonalità di pelle fantasy", () => {
 });
 
 test("ogni abitante iniziale non Golem nasce con un aspetto completo", () => {
-  const { abitanti } = generaColoniaIniziale();
+  const { abitanti } = generaColoniaIniziale("creativa");
 
-  assert.ok(abitanti.length >= 15);
+  assert.ok(abitanti.length >= 20);
   assert.ok(abitanti.filter((a) => a.razza !== "Golem").every((a) => a.aspetto != null));
   assert.ok(abitanti.filter((a) => a.razza === "Golem").every((a) => a.aspetto == null));
+});
+
+test("a inizio partita ogni razza attiva ha almeno 1 adulto M e 1 adulta F", () => {
+  const razze = ["Nano", "Scheletro", "Vampiro", "Goblin", "Orco", "Lucertoloide"] as const;
+  for (let i = 0; i < 8; i++) {
+    const { abitanti } = generaColoniaIniziale("creativa");
+    for (const razza of razze) {
+      assert.ok(
+        abitanti.some((a) => a.razza === razza && a.sesso === "M" && a.eta >= 18),
+        `manca ${razza} maschio adulto`
+      );
+      assert.ok(
+        abitanti.some((a) => a.razza === razza && a.sesso === "F" && a.eta >= 18),
+        `manca ${razza} femmina adulta`
+      );
+    }
+  }
+});
+
+test("Avventura parte con pochi abitanti e ruoli essenziali", () => {
+  for (let i = 0; i < 5; i++) {
+    const { abitanti } = generaColoniaIniziale("avventura");
+    assert.ok(abitanti.length >= 5 && abitanti.length <= 8);
+    assert.ok(abitanti.some((a) => a.id === 1));
+    assert.ok(abitanti.some((a) => a.lavoro === "Consigliere"));
+    assert.ok(abitanti.some((a) => a.lavoro === "Agricoltore"));
+    assert.equal(abitanti.filter((a) => a.lavoro === "Prigioniero").length, 0);
+  }
 });

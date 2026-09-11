@@ -3,6 +3,7 @@ import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { leggiData } from "../src/kingdomData";
+import { tornaAllaMappa } from "../src/navigation/tornaAllaMappa";
 
 export default function AmministrazioneScreen() {
   const router = useRouter();
@@ -16,7 +17,7 @@ export default function AmministrazioneScreen() {
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
         <View style={styles.headerSpacer} />
-        <Pressable onPress={() => router.replace("/")} hitSlop={8} accessibilityRole="button" accessibilityLabel="Chiudi e torna alla mappa">
+        <Pressable onPress={() => tornaAllaMappa(router)} hitSlop={8} accessibilityRole="button" accessibilityLabel="Chiudi e torna alla mappa">
           <Text style={styles.chiudi}>Chiudi</Text>
         </Pressable>
       </View>

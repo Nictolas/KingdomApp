@@ -1,4 +1,4 @@
-/** Sincronizza chi è “entrato” a ciascun Bar (stesso stato della mappa) per le schermate `/bar/[id]`. */
+/** Sincronizza chi è “entrato” a ciascun Bar (stesso stato della mappa) per le schede Impresa `/impresa/[id]` e `/bar/[id]`. */
 
 let barArrivatiSnapshot = new Map<number, Set<number>>();
 const listeners = new Set<() => void>();

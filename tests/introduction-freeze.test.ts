@@ -26,7 +26,7 @@ test("il blocco introduttivo mantiene immobili giorno e orologio", () => {
   assert.equal(getGiornoGiocoSnapshot(), giorno);
 });
 
-test("movimenti, pasti, produzione, economia, Skip Mese, eventi e richieste non partono nell'introduzione", () => {
+test("movimenti, pasti, produzione, economia, cambio mese, eventi e richieste non partono nell'introduzione", () => {
   const effetti = {
     movimenti: 0,
     pasti: 0,

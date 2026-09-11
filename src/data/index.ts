@@ -1,6 +1,5 @@
 export type { PianetaInfo } from "./pianetiData";
-export { pianetiData, getEmojiRazza } from "./pianetiData";
-export { abitantiData } from "./abitantiData";
+export { pianetiData, getEmojiRazza, getColoreRazza } from "./pianetiData";
 export { ministeriDisponibili, ministriData } from "./ministriData";
 export { fazioniData } from "./fazioniData";
 export { leggiData } from "./leggiData";

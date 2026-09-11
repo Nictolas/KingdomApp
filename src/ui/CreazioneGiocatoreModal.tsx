@@ -1,5 +1,6 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
+  ActivityIndicator,
   Dimensions,
   Modal,
   Pressable,
@@ -17,9 +18,10 @@ import {
   type RazzaGiocatore
 } from "../game/personaggioAspetto";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
+import { capitalizzaNomePersona } from "../game/nomiUmani";
 import { CharacterCreationPreview } from "./CharacterCreationPreview";
 import { PixelAvatarPreview } from "./PixelAvatarPreview";
-import { canRenderCharacter, compatibleCatalogOptions, compatibleColorsForField, firstCompatibleColorForField, firstCompatibleHairColor } from "../character-system/registry";
+import { canRenderCharacter, compatibleCatalogOptions, compatibleColorsForField, firstCompatibleColorForField, firstCompatibleHairColor, LPC_RUNTIME_MANIFEST } from "../character-system/registry";
 import { bodyFamilyFor, normalizeCharacterAppearance } from "../character-system/appearance";
 import { groupCapeMantelloSections, isCapeTrim } from "../character-system/capeMantello";
 import {
@@ -33,6 +35,7 @@ import {
   isKimonoVesteTrim,
   kimonoBaseForTrim,
   kimonoTrimForBase,
+  LPC_HEADWEAR_SECTIONS,
   LPC_KIMONO_MANICHE_SECTIONS,
   LPC_MANICHE_TORSO_SECTIONS,
   LPC_PANTS_SECTIONS,
@@ -54,7 +57,13 @@ export type DatiCreazioneGiocatore = {
 
 type CreazioneGiocatoreModalProps = {
   visible: boolean;
-  onConferma: (dati: DatiCreazioneGiocatore) => void;
+  onConferma: (dati: DatiCreazioneGiocatore) => void | Promise<void>;
+  /** `edit` = modifica Re; `outfit` = solo abiti (Sacerdote); default creazione iniziale. */
+  mode?: "create" | "edit" | "outfit";
+  initial?: DatiCreazioneGiocatore | null;
+  onAnnulla?: () => void;
+  /** Titolo custom (es. Abiti Sacerdote). */
+  titolo?: string;
 };
 
 const GENERI: { id: "M" | "F"; label: string }[] = [
@@ -73,22 +82,40 @@ const RAZZA_RE: RazzaGiocatore = "Umano";
 
 function forzaAspettoReTeen(aspetto: AspettoPersonaggio): AspettoPersonaggio {
   const corrente = aspetto.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, "teen");
+  const headwear = corrente.headwear ?? "crown";
   return {
     ...aspetto,
-    cappello: "corona",
+    cappello: headwear === "crown" ? "corona" : "nessuno",
     characterAppearance: normalizeCharacterAppearance({
       ...corrente,
       race: "human",
       bodyType: "teen",
       ageGroup: "teen",
       bodyFamily: bodyFamilyFor("human", "teen"),
-      beardStyle: "none",
-      headwear: "crown"
+      beardStyle: "none"
     })
   };
 }
 
-const ASPETTO_RE_DEFAULT = forzaAspettoReTeen(ASPETTO_GIOCATORE_DEFAULT);
+const ASPETTO_RE_DEFAULT = forzaAspettoReTeen({
+  ...ASPETTO_GIOCATORE_DEFAULT,
+  cappello: "corona",
+  characterAppearance: normalizeCharacterAppearance({
+    ...(ASPETTO_GIOCATORE_DEFAULT.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, "teen")),
+    headwear: "crown"
+  })
+});
+
+const ASPETTO_SACERDOTE_DEFAULT: AspettoPersonaggio = {
+  ...ASPETTO_GIOCATORE_DEFAULT,
+  cappello: "nessuno",
+  vestiti: "mago",
+  characterAppearance: normalizeCharacterAppearance({
+    ...creaCharacterAppearance("Umano", "male"),
+    headwear: "none",
+    outfit: "commoner"
+  })
+};
 
 function AppearanceOption({
   appearance,
@@ -123,11 +150,12 @@ function AppearanceOption({
   );
 }
 
-type CreationTab = "identity" | "hair" | "busto" | "maniche" | "veste" | "mantello" | "pantaloni" | "gonne" | "scarpe" | "calze";
+type CreationTab = "identity" | "hair" | "cappelli" | "busto" | "maniche" | "veste" | "mantello" | "pantaloni" | "gonne" | "scarpe" | "calze";
 
 const CREATION_TABS: { id: CreationTab; label: string }[] = [
   { id: "identity", label: "Identità" },
   { id: "hair", label: "Capelli" },
+  { id: "cappelli", label: "Cappelli" },
   { id: "busto", label: "Busto" },
   { id: "maniche", label: "Maniche" },
   { id: "veste", label: "Veste" },
@@ -148,7 +176,7 @@ function formatSemanticLabel(value: string): string {
   return value.replace(/^feet_/, "").replace(/[_-]+/g, " ").replace(/\b\w/g, (letter) => letter.toUpperCase());
 }
 
-type OutfitColorPickerKind = "upper" | "fullOutfit" | "fullOutfitTrim" | "cape" | "capeTrim" | "lower" | "footwear";
+type OutfitColorPickerKind = "upper" | "fullOutfit" | "fullOutfitTrim" | "cape" | "capeTrim" | "lower" | "footwear" | "headwear";
 
 type OutfitColorPickerRequest = {
   kind: OutfitColorPickerKind;
@@ -178,6 +206,13 @@ function colorsForOutfitPicker(
       return compatibleColorsForField(appearance, "outfitSecondaryColor", "lowerBody", request.semanticId);
     case "footwear":
       return compatibleColorsForField(appearance, "footwear", "footwear", request.semanticId);
+    case "headwear":
+      return compatibleColorsForField(
+        appearance,
+        headwearColorFieldFor(appearance, request.semanticId),
+        "headwear",
+        request.semanticId
+      );
   }
 }
 
@@ -248,6 +283,14 @@ function previewAppearanceForOutfitPicker(
         capeTrim: request.semanticId,
         capeColor: color
       });
+    case "headwear": {
+      const colorField = headwearColorFieldFor(appearance, request.semanticId);
+      return normalizeCharacterAppearance({
+        ...appearance,
+        headwear: request.semanticId,
+        ...(colorField === "headwearColor" ? { headwearColor: color } : {})
+      });
+    }
   }
 }
 
@@ -265,6 +308,8 @@ function visibleLayersForOutfitPicker(kind: OutfitColorPickerKind): readonly Cha
     case "cape":
     case "capeTrim":
       return ["cape"];
+    case "headwear":
+      return HEADWEAR_PREVIEW_LAYERS;
   }
 }
 
@@ -274,6 +319,9 @@ function visibleSemanticIdsForOutfitPicker(request: OutfitColorPickerRequest): P
   }
   if (request.kind === "cape" || request.kind === "capeTrim") {
     return { cape: request.semanticId };
+  }
+  if (request.kind === "headwear") {
+    return { headwear: request.semanticId };
   }
   return {};
 }
@@ -296,9 +344,13 @@ function OutfitColorPickerDialog({
     ? appearance.outfitPrimaryColor
     : request.kind === "cape" || request.kind === "capeTrim"
       ? appearance.capeColor
-    : request.kind === "lower"
-      ? appearance.outfitSecondaryColor
-      : appearance.footwearColor;
+      : request.kind === "headwear"
+        ? (headwearColorFieldFor(appearance, request.semanticId) === "headwearColor"
+          ? appearance.headwearColor
+          : appearance.headwear)
+      : request.kind === "lower"
+        ? appearance.outfitSecondaryColor
+        : appearance.footwearColor;
 
   return (
     <View style={styles.colorPickerOverlay} pointerEvents="box-none">
@@ -320,6 +372,8 @@ function OutfitColorPickerDialog({
                       ? appearance.cape === request.semanticId
                       : request.kind === "capeTrim"
                         ? appearance.capeTrim === request.semanticId
+                      : request.kind === "headwear"
+                        ? appearance.headwear === request.semanticId
                     : request.kind === "upper"
                     ? appearance.upperOutfit === request.semanticId
                     : request.kind === "lower"
@@ -343,24 +397,78 @@ function OutfitColorPickerDialog({
 
 const KIMONO_VESTE_PREVIEW_LAYERS = ["body", "raceFeatures", "fullOutfit"] as const;
 const CAPE_MANTELLO_PREVIEW_LAYERS = ["body", "raceFeatures", "cape"] as const;
+const HEADWEAR_PREVIEW_LAYERS = ["body", "raceFeatures", "headwear"] as const;
+
+function headwearColorFieldFor(appearance: CharacterAppearance, semanticId: string): "headwearColor" | "headwear" {
+  const asset = LPC_RUNTIME_MANIFEST.assets.find(
+    (a) => a.bodyType === appearance.bodyType && a.slot === "headwear" && a.semanticId === semanticId && a.colorField
+  );
+  return asset?.colorField === "headwearColor" ? "headwearColor" : "headwear";
+}
 
 function kimonoVestePreviewSemanticIds(semanticId: string): Partial<Record<CharacterLayer, string>> {
   return { fullOutfit: semanticId };
 }
 
-export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocatoreModalProps) {
+export function CreazioneGiocatoreModal({
+  visible,
+  onConferma,
+  mode = "create",
+  initial = null,
+  onAnnulla,
+  titolo
+}: CreazioneGiocatoreModalProps) {
+  const isEdit = mode === "edit";
+  const isOutfit = mode === "outfit";
+  const creationTabs = isOutfit
+    ? CREATION_TABS.filter((t) => t.id !== "identity")
+    : CREATION_TABS;
   const [nome, setNome] = useState("");
   const [cognome, setCognome] = useState("");
   const [sesso, setSesso] = useState<"M" | "F" | null>(null);
   const [orientamento, setOrientamento] = useState<"Etero" | "Omo" | "Bi" | "Asessuale" | null>(null);
-  const [aspetto, setAspetto] = useState<AspettoPersonaggio>(ASPETTO_RE_DEFAULT);
-  const [activeTab, setActiveTab] = useState<CreationTab>("identity");
+  const [aspetto, setAspetto] = useState<AspettoPersonaggio>(
+    isOutfit ? ASPETTO_SACERDOTE_DEFAULT : ASPETTO_RE_DEFAULT
+  );
+  const [activeTab, setActiveTab] = useState<CreationTab>(isOutfit ? "busto" : "identity");
   const [outfitColorPicker, setOutfitColorPicker] = useState<OutfitColorPickerState | null>(null);
+  const [confermando, setConfermando] = useState(false);
+
+  useEffect(() => {
+    if (!visible) setConfermando(false);
+  }, [visible]);
+
+  useEffect(() => {
+    if (!visible) return;
+    if (initial) {
+      setNome(initial.nome ?? "");
+      setCognome((initial.cognome ?? "").trim());
+      setSesso(initial.sesso);
+      setOrientamento(initial.orientamento);
+      setAspetto(
+        isOutfit
+          ? initial.aspetto ?? ASPETTO_SACERDOTE_DEFAULT
+          : forzaAspettoReTeen(initial.aspetto ?? ASPETTO_RE_DEFAULT)
+      );
+      setActiveTab(isOutfit ? "busto" : "identity");
+      setOutfitColorPicker(null);
+      return;
+    }
+    if (isOutfit) {
+      setNome("Sacerdote");
+      setCognome("");
+      setSesso("M");
+      setOrientamento("Etero");
+      setAspetto(ASPETTO_SACERDOTE_DEFAULT);
+      setActiveTab("busto");
+      setOutfitColorPicker(null);
+    }
+  }, [visible, initial, isOutfit]);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
   const spriteAppearance = aspetto.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, "teen");
-  const catalogOptions = compatibleCatalogOptions(spriteAppearance);
+  const catalogOptions = compatibleCatalogOptions(spriteAppearance, { allowRoyalHeadwear: true });
   const torsoOutfitsAll = filterTorsoOutfitOptions(catalogOptions.upperOutfits, spriteAppearance.bodyType);
   const { manicheSleeves: manicheTorsoOutfits, rest: bustoTorsoOutfits } = partitionLongsleeveTorsoOptions(torsoOutfitsAll, spriteAppearance.bodyType);
   const bustoSections = groupCatalogOptionsByLpcSections(bustoTorsoOutfits, spriteAppearance.bodyType, "outfit", LPC_TORSO_SECTIONS);
@@ -376,6 +484,12 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
   const mantelloSections = groupCapeMantelloSections(
     catalogOptions.capes,
     spriteAppearance.cape !== "none"
+  );
+  const cappelliSections = groupCatalogOptionsByLpcSections(
+    catalogOptions.headwear.filter((value) => value !== "none"),
+    spriteAppearance.bodyType,
+    "headwear",
+    LPC_HEADWEAR_SECTIONS
   );
   const pantaloniSections = groupCatalogOptionsByLpcSections(
     filterPantsOptions(catalogOptions.lowerOutfits, spriteAppearance.bodyType),
@@ -486,31 +600,60 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
           capeColor: color
         });
         break;
+      case "headwear": {
+        const colorField = headwearColorFieldFor(spriteAppearance, request.semanticId);
+        updateSpriteAppearance({
+          headwear: request.semanticId,
+          ...(colorField === "headwearColor" ? { headwearColor: color } : {})
+        });
+        break;
+      }
     }
     setOutfitColorPicker(null);
   };
 
-  const valido =
-    nome.trim().length > 0 &&
-    cognome.trim().length > 0 &&
-    sesso != null &&
-    orientamento != null;
+  const valido = isOutfit
+    ? true
+    : nome.trim().length > 0 &&
+      (isEdit || cognome.trim().length > 0) &&
+      sesso != null &&
+      orientamento != null;
 
-  const handleConferma = () => {
-    if (!valido || sesso == null || orientamento == null) return;
-    onConferma({
-      nome: nome.trim(),
-      cognome: cognome.trim(),
-      sesso,
-      orientamento,
+  const handleConferma = async () => {
+    if (!valido || confermando) return;
+    if (!isOutfit && (sesso == null || orientamento == null)) return;
+    const nomeNorm = capitalizzaNomePersona(isOutfit ? nome || "Sacerdote" : nome);
+    const cognomeNorm = capitalizzaNomePersona(cognome);
+    if (!isOutfit) {
+      setNome(nomeNorm);
+      setCognome(cognomeNorm);
+    }
+    const payload: DatiCreazioneGiocatore = {
+      nome: nomeNorm,
+      cognome: cognomeNorm,
+      sesso: sesso ?? "M",
+      orientamento: orientamento ?? "Etero",
       razza: RAZZA_RE,
-      aspetto: forzaAspettoReTeen(aspetto)
-    });
+      aspetto: isOutfit ? aspetto : forzaAspettoReTeen(aspetto)
+    };
+    if (isOutfit) {
+      await onConferma(payload);
+      return;
+    }
+    setConfermando(true);
+    try {
+      await onConferma(payload);
+    } catch {
+      setConfermando(false);
+    }
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onAnnulla}>
+      <Pressable
+        style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]}
+        onPress={isEdit || isOutfit ? onAnnulla : undefined}
+      >
         <Pressable
           style={[styles.modalCard, isDesktop && modalContentFullscreen, isDesktop && styles.modalCardDesktop]}
           onPress={(e) => e.stopPropagation()}
@@ -518,8 +661,17 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
           <View style={styles.accentLine} />
           <View style={styles.header}>
             <View style={styles.emojiWrap}><Text style={styles.emoji}>🛡️</Text></View>
-            <Text style={styles.title}>Crea il tuo Re</Text>
-            <Text style={styles.subtitle}>Configura un personaggio pixel-art modulare</Text>
+            <Text style={styles.title}>
+              {titolo ??
+                (isOutfit ? "Abiti Sacerdote" : isEdit ? "Modifica il Re" : "Crea il tuo Re")}
+            </Text>
+            <Text style={styles.subtitle}>
+              {isOutfit
+                ? "Scegli gli abiti del Sacerdote per questa religione"
+                : isEdit
+                  ? "Aggiorna nome e aspetto pixel-art"
+                  : "Configura un personaggio pixel-art modulare"}
+            </Text>
             <View style={styles.titleUnderline} />
           </View>
 
@@ -548,7 +700,7 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
 
             <View style={styles.controlsColumn}>
               <View style={styles.tabs}>
-                {CREATION_TABS.map((tab) => <Pressable key={tab.id} accessibilityRole="tab" accessibilityState={{ selected: activeTab === tab.id }} style={[styles.tab, activeTab === tab.id && styles.tabSelected]} onPress={() => setActiveTab(tab.id)}><Text style={[styles.tabText, activeTab === tab.id && styles.tabTextSelected]}>{tab.label}</Text></Pressable>)}
+                {creationTabs.map((tab) => <Pressable key={tab.id} accessibilityRole="tab" accessibilityState={{ selected: activeTab === tab.id }} style={[styles.tab, activeTab === tab.id && styles.tabSelected]} onPress={() => setActiveTab(tab.id)}><Text style={[styles.tabText, activeTab === tab.id && styles.tabTextSelected]}>{tab.label}</Text></Pressable>)}
               </View>
 
               <ScrollView
@@ -594,6 +746,53 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
                   return <AppearanceOption key={value} label={readableOptionName("Stile capelli", value)} selected={spriteAppearance.hairStyle === value} visibleLayers={["hairBack", "hairFront"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, hairStyle: value, hairColor })} onPress={() => updateSpriteAppearance(spriteAppearance.hairStyle === value ? { hairStyle: "none", hairColor: "none" } : { hairStyle: value, hairColor })} />;
                 })}</View>
               </View>
+              </> : null}
+
+              {activeTab === "cappelli" ? <>
+              <Text style={styles.sectionTitle}>Cappelli</Text>
+              <View style={styles.field}>
+                <Text style={styles.label}>Nessun copricapo</Text>
+                <View style={styles.visualGrid}>
+                  <AppearanceOption
+                    label="Nessuno"
+                    selected={spriteAppearance.headwear === "none"}
+                    visibleLayers={["body", "raceFeatures"]}
+                    appearance={normalizeCharacterAppearance({ ...spriteAppearance, headwear: "none" })}
+                    onPress={() => updateSpriteAppearance({ headwear: "none" })}
+                  />
+                </View>
+              </View>
+              {cappelliSections.map(({ label, options }) => (
+                <View key={label} style={styles.field}>
+                  <Text style={styles.label}>{label}</Text>
+                  <View style={styles.visualGrid}>{options.map((value) => {
+                    const selected = spriteAppearance.headwear === value;
+                    const colorField = headwearColorFieldFor(spriteAppearance, value);
+                    const previewColor = selected
+                      ? (colorField === "headwearColor" ? spriteAppearance.headwearColor : spriteAppearance.headwear)
+                      : firstCompatibleColorForField(spriteAppearance, colorField, "headwear", value);
+                    return (
+                      <AppearanceOption
+                        key={value}
+                        label={formatSemanticLabel(value)}
+                        selected={selected}
+                        visibleLayers={HEADWEAR_PREVIEW_LAYERS}
+                        visibleSemanticIds={{ headwear: value }}
+                        appearance={normalizeCharacterAppearance({
+                          ...spriteAppearance,
+                          headwear: value,
+                          ...(colorField === "headwearColor" ? { headwearColor: previewColor } : {})
+                        })}
+                        onPress={() => openOutfitColorPicker({
+                          kind: "headwear",
+                          semanticId: value,
+                          label: formatSemanticLabel(value)
+                        })}
+                      />
+                    );
+                  })}</View>
+                </View>
+              ))}
               </> : null}
 
               {activeTab === "busto" ? <>
@@ -932,17 +1131,39 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
             </View>
           </View>
 
-          <Pressable
-            style={({ pressed }) => [
-              styles.confirmButton,
-              !valido && styles.confirmButtonDisabled,
-              pressed && valido && styles.confirmButtonPressed
-            ]}
-            onPress={handleConferma}
-            disabled={!valido}
-          >
-            <Text style={styles.confirmButtonText}>Inizia il tuo regno</Text>
-          </Pressable>
+          <View style={styles.footerActions}>
+            {(isEdit || isOutfit) && onAnnulla ? (
+              <Pressable style={styles.cancelButton} onPress={onAnnulla}>
+                <Text style={styles.cancelButtonText}>Annulla</Text>
+              </Pressable>
+            ) : null}
+            <Pressable
+              style={({ pressed }) => [
+                styles.confirmButton,
+                (isEdit || isOutfit) && styles.confirmButtonFlex,
+                (!valido || confermando) && styles.confirmButtonDisabled,
+                pressed && valido && !confermando && styles.confirmButtonPressed
+              ]}
+              onPress={handleConferma}
+              disabled={!valido || confermando}
+            >
+              <Text style={styles.confirmButtonText}>
+                {isOutfit ? "Salva abiti" : isEdit ? "Salva" : "Inizia il tuo regno"}
+              </Text>
+            </Pressable>
+          </View>
+
+          {confermando ? (
+            <View style={styles.loadingOverlay} pointerEvents="auto">
+              <ActivityIndicator size="large" color="#93c5fd" />
+              <Text style={styles.loadingTitle}>
+                {isOutfit || isEdit ? "Salvataggio in corso…" : "Generazione Mappa in corso"}
+              </Text>
+              {!isEdit && !isOutfit ? (
+                <Text style={styles.loadingSubtitle}>Preparazione del regno…</Text>
+              ) : null}
+            </View>
+          ) : null}
 
           {outfitColorPicker ? (
             <OutfitColorPickerDialog
@@ -1156,6 +1377,51 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(147, 197, 253, 0.3)",
     flexShrink: 0
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(5, 8, 22, 0.88)",
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 14,
+    borderRadius: 20,
+    zIndex: 20,
+    paddingHorizontal: 28
+  },
+  loadingTitle: {
+    color: "#f1f5f9",
+    fontSize: 18,
+    fontWeight: "800",
+    textAlign: "center"
+  },
+  loadingSubtitle: {
+    color: "#94a3b8",
+    fontSize: 14,
+    textAlign: "center"
+  },
+  footerActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 10,
+    marginTop: 8
+  },
+  cancelButton: {
+    paddingHorizontal: 18,
+    paddingVertical: 14,
+    borderRadius: 12,
+    alignItems: "center",
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.45)",
+    backgroundColor: "rgba(15, 23, 42, 0.9)"
+  },
+  cancelButtonText: {
+    color: "#cbd5e1",
+    fontSize: 15,
+    fontWeight: "600"
+  },
+  confirmButtonFlex: {
+    flex: 1,
+    marginTop: 0
   },
   confirmButtonDisabled: {
     opacity: 0.45

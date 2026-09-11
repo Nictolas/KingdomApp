@@ -44,10 +44,10 @@ export const COLTURA_SERRA_DEFAULT = "mela";
 
 export const COLTURE_SERRA_IDS = COLTURE_SERRA.map((c) => c.id);
 
-/** Produzione base: 1 unità al giorno per ogni Serra operativa con coltura impostata. */
-export const PRODUZIONE_SERRA_GIORNALIERA = 1;
+/** Produzione base: 2 unità al giorno per ogni Agricoltore assegnato a una Serra operativa. */
+export const PRODUZIONE_SERRA_GIORNALIERA = 2;
 
-/** Giorni simulati per ogni Skip Mese (produzione Serra). */
+/** Giorni simulati per ogni mese (produzione Serra). */
 export const GIORNI_PRODUZIONE_SERRA_PER_MESE = 30;
 
 export function isColturaSerraValida(itemId: string): boolean {
@@ -57,4 +57,56 @@ export function isColturaSerraValida(itemId: string): boolean {
 export function getColturaSerraDef(itemId: string | undefined): ColturaSerraDef | undefined {
   const id = itemId && isColturaSerraValida(itemId) ? itemId : COLTURA_SERRA_DEFAULT;
   return COLTURE_SERRA.find((c) => c.id === id);
+}
+
+/** Sceglie una coltura a caso (per partita Avventura: unica disponibile all’inizio). */
+export function scegliColturaSerraCasuale(escludi?: ReadonlySet<string>): string {
+  const pool = COLTURE_SERRA_IDS.filter((id) => !escludi?.has(id));
+  const ids = pool.length > 0 ? pool : COLTURE_SERRA_IDS;
+  return ids[Math.floor(Math.random() * ids.length)]!;
+}
+
+/** Colture selezionabili: in Creativa tutte; in Avventura solo quelle sbloccate. */
+export function getColtureSerraDisponibili(
+  sbloccate: readonly string[] | undefined,
+  modalitaGioco: "creativa" | "avventura"
+): ColturaSerraDef[] {
+  if (modalitaGioco === "creativa") return COLTURE_SERRA;
+  const set = new Set(
+    (sbloccate ?? []).filter((id) => isColturaSerraValida(id))
+  );
+  if (set.size === 0) {
+    const fallback = getColturaSerraDef(COLTURA_SERRA_DEFAULT)!;
+    return [fallback];
+  }
+  return COLTURE_SERRA.filter((c) => set.has(c.id));
+}
+
+export function tutteColtureSerraSbloccate(): string[] {
+  return [...COLTURE_SERRA_IDS];
+}
+
+/**
+ * Normalizza le colture sbloccate da un salvataggio.
+ * Creativa / obiettivo «raccolto_serra» → tutte; altrimenti lista valida o fallback dalla Serra.
+ */
+export function normalizzaColtureSerraSbloccate(opts: {
+  sbloccate: unknown;
+  modalitaGioco: "creativa" | "avventura";
+  obiettiviCompletati?: readonly string[];
+  colturaSerraCorrente?: string;
+}): string[] {
+  if (opts.modalitaGioco === "creativa") return tutteColtureSerraSbloccate();
+  if (opts.obiettiviCompletati?.includes("raccolto_serra")) {
+    return tutteColtureSerraSbloccate();
+  }
+  const raw = Array.isArray(opts.sbloccate)
+    ? opts.sbloccate.filter((id): id is string => typeof id === "string" && isColturaSerraValida(id))
+    : [];
+  if (raw.length > 0) return [...new Set(raw)];
+  const fallback =
+    opts.colturaSerraCorrente && isColturaSerraValida(opts.colturaSerraCorrente)
+      ? opts.colturaSerraCorrente
+      : COLTURA_SERRA_DEFAULT;
+  return [fallback];
 }

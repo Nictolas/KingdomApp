@@ -98,11 +98,11 @@ Lo script crea la repository e fa il push automaticamente!
 
 ## Cosa c'è già
 
-- Mappa 20x20 con **fiume**, **spiaggia** e **mare**
-- **Castello** e **campo**
-- **Alberi** e **miniere** random
-- 6 personaggi con professione + nome casuale
-- **Pan** con 1 dito, **pinch‑to‑zoom** con 2 dita
-- Selezione fiume → **costruisci ponte**
-- Pulsanti: reset, zoom, chiama Re, chiama Contadino
+Gestione di un **regno fantasy**: mappa interattiva (~50×50), abitanti, edifici, imprese, leggi, fazioni, economia (Tesoro in monete), eventi e avanzamento mese automatico.
+
+- **Mappa** con terreno, strade, costruzioni e personaggi
+- **Menu regno**: fazioni, ricchezza, leggi, risorse, obiettivi
+- **Edifici** pubblici e imprese (Serra, Emporio, Fucina, Porto, …)
+- **Politiche** (tasse, pena di morte, religione, schiavitù, …)
+- **Salvataggio** locale della partita
 

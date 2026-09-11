@@ -7,7 +7,7 @@ import type { Abitante, Reato } from "../src/types";
 const REATI: { reato: Reato; emoji: string; descrizione: string }[] = [
   { reato: "Omicidio", emoji: "🔪", descrizione: "Uccisione intenzionale di un abitante." },
   { reato: "Stupro", emoji: "⛔", descrizione: "Violenza sessuale. Crimine gravissimo." },
-  { reato: "Furto", emoji: "🧤", descrizione: "Sottrazione di beni o crediti senza consenso." },
+  { reato: "Furto", emoji: "🧤", descrizione: "Sottrazione di beni o monete senza consenso." },
   { reato: "Spaccio", emoji: "💊", descrizione: "Vendita illegale di sostanze stupefacenti." },
   { reato: "Evasione", emoji: "🏃", descrizione: "Fuga o elusione di custodia/sanzioni." }
 ];
@@ -37,7 +37,7 @@ export default function CrimineScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.subtitle}>
-          Reati presenti nella colonia (criminali totali: {criminali.length}).
+          Reati presenti nel regno (criminali totali: {criminali.length}).
         </Text>
 
         <View style={styles.grid}>

@@ -59,7 +59,7 @@ export default function RivoluzionariScreen() {
           <Text style={styles.sectionTitle}>❌ Rivoluzionari delusi</Text>
           <Text style={styles.text}>
             Se la Soddisfazione scende sotto {SOGLIA_SODDISFAZIONE}, può attivarsi l'evento «Rivoluzionari delusi»:
-            per due mesi i membri della fazione perdono Lealtà e Felicità ogni mese.
+            per due mesi i membri della fazione perdono Felicità ogni mese.
           </Text>
         </View>
 

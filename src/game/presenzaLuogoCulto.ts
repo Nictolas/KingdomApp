@@ -17,7 +17,7 @@ export type StatoPresenzaLuogoCulto =
   | "a_casa_notte"
   | "in_giro";
 
-type CommutePurposeCulto = "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro";
+type CommutePurposeCulto = "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro" | "vende_emporio" | "re_uscita";
 
 export function statoPresenzaFedeleLuogoCulto(
   abitante: Abitante,
@@ -67,7 +67,7 @@ export function statoPresenzaFedeleLuogoCulto(
   }
 
   const nascostoLavoro =
-    abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&
+    abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici, [abitante]) &&
     lavoroArrivatiIds.has(abitante.id);
 
   if (nascostoLavoro) return "al_lavoro";
@@ -117,11 +117,12 @@ export function abitanteDeveAndareAlCultoOra(
   edifici: Edificio[]
 ): boolean {
   if (abitante.razza === "Golem") return false;
-  if (abitante.religione !== "Culto del Sole" && abitante.religione !== "Culto degli Alieni") {
+  if (abitante.religione !== "Culto del Sole" && abitante.religione !== "Culto delle Ombre") {
     return false;
   }
   if (!abitanteInOrarioPreghieraCulto(minutiDaMezzanotte, buioCielo)) return false;
-  if (abitanteInOrarioLavoroEdificio(abitante.id, minutiDaMezzanotte, edifici)) return false;
+  if (abitanteInOrarioLavoroEdificio(abitante.id, minutiDaMezzanotte, edifici, [abitante]))
+    return false;
   return true;
 }
 

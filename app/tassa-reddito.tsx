@@ -4,8 +4,17 @@ import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
+import { GateTassaSbloccata } from "../src/ui/GateTassaSbloccata";
 
 export default function TassaRedditoScreen() {
+  return (
+    <GateTassaSbloccata tassaId="reddito" titolo="Tassa sul Reddito">
+      <TassaRedditoScreenInner />
+    </GateTassaSbloccata>
+  );
+}
+
+function TassaRedditoScreenInner() {
   const router = useRouter();
   const {
     abitanti,
@@ -190,15 +199,15 @@ export default function TassaRedditoScreen() {
                   <Text style={styles.nome}>{abitante.nome}</Text>
                   <View style={styles.itemRow}>
                     <Text style={styles.label}>Reddito:</Text>
-                    <Text style={styles.valore}>{abitante.reddito} crediti</Text>
+                    <Text style={styles.valore}>{abitante.reddito} monete</Text>
                   </View>
                   <View style={styles.itemRow}>
                     <Text style={styles.label}>Tassa:</Text>
-                    <Text style={styles.valoreTassa}>-{tassa} crediti</Text>
+                    <Text style={styles.valoreTassa}>-{tassa} monete</Text>
                   </View>
                   <View style={styles.itemRow}>
                     <Text style={styles.label}>Reddito netto:</Text>
-                    <Text style={styles.valoreNetto}>{redditoNetto} crediti</Text>
+                    <Text style={styles.valoreNetto}>{redditoNetto} monete</Text>
                   </View>
                 </View>
               </View>
@@ -210,15 +219,15 @@ export default function TassaRedditoScreen() {
         <View style={styles.totaleContainer}>
           <View style={styles.totaleRow}>
             <Text style={styles.totaleLabel}>Totale redditi:</Text>
-            <Text style={styles.totaleValore}>{totaleRedditi} crediti</Text>
+            <Text style={styles.totaleValore}>{totaleRedditi} monete</Text>
           </View>
           <View style={styles.totaleRow}>
             <Text style={styles.totaleLabel}>Totale tasse:</Text>
-            <Text style={styles.totaleTasse}>-{totaleTasse} crediti</Text>
+            <Text style={styles.totaleTasse}>-{totaleTasse} monete</Text>
           </View>
           <View style={styles.totaleRowFinale}>
-            <Text style={styles.totaleLabelFinale}>Entrate nette dalla colonia:</Text>
-            <Text style={styles.totaleNetto}>{totaleRedditiNetto} crediti</Text>
+            <Text style={styles.totaleLabelFinale}>Entrate nette dal regno:</Text>
+            <Text style={styles.totaleNetto}>{totaleRedditiNetto} monete</Text>
           </View>
         </View>
       </ScrollView>

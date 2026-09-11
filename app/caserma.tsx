@@ -3,8 +3,9 @@ import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Tex
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
+import { AbitanteAvatarPreview } from "../src/ui/AbitanteAvatarPreview";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
+import { getStipendioMoneteGiornaliero, stipendioGiornalieroToPersistito } from "../src/game/edificiPubblici";
 import type { Abitante } from "../src/types";
 
 const SOGLIA_SODDISFAZIONE_BLOCCO_GUERRA = 70;
@@ -57,18 +58,18 @@ export default function CasermaScreen() {
         </View>
 
         <View style={styles.stipendioCard}>
-          <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (crediti)</Text>
+          <Text style={styles.stipendioLabel}>Stipendio giornaliero per lavoratore (monete)</Text>
           <TextInput
             style={styles.stipendioInput}
-            value={String(caserma.stipendioPerLavoratore ?? 0)}
+            value={String(getStipendioMoneteGiornaliero(caserma))}
             keyboardType="number-pad"
             onChangeText={(text) => {
               const n = parseInt(text.replace(/[^0-9]/g, ""), 10);
-              setStipendioEdificio(caserma.id, isNaN(n) ? 0 : Math.max(0, n));
+              setStipendioEdificio(caserma.id, stipendioGiornalieroToPersistito(isNaN(n) ? 0 : n));
             }}
           />
           <Text style={styles.infoSubtext}>
-            Totale: {(caserma.stipendioPerLavoratore ?? 0) * addettiIds.length} crediti/mese
+            Totale: {getStipendioMoneteGiornaliero(caserma) * addettiIds.length} monete/giorno
           </Text>
         </View>
 
@@ -83,7 +84,7 @@ export default function CasermaScreen() {
             <View style={styles.cardsContainer}>
               {addetti.map((a) => (
                 <View key={a.id} style={styles.personCard}>
-                  <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+                  <AbitanteAvatarPreview abitante={a} />
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{a.nome}</Text>
                     <Text style={styles.cardInfo}>Competenza: {a.competenza}%</Text>
@@ -120,7 +121,7 @@ export default function CasermaScreen() {
                         setDropdownVisible(false);
                       }}
                     >
-                      <Text style={styles.dropdownItemEmoji}>{getEmojiAbitante(a)}</Text>
+                      <AbitanteAvatarPreview abitante={a} size={32} />
                       <View style={styles.dropdownItemTextContainer}>
                         <Text style={styles.dropdownItemNome}>{a.nome}</Text>
                         <Text style={styles.dropdownItemCompetenza}>Competenza: {a.competenza}%</Text>

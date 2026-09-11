@@ -1,5 +1,15 @@
-import React, { useMemo, useState } from "react";
-import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import React, { useMemo, useState, useSyncExternalStore } from "react";
+import {
+  Dimensions,
+  Modal,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  View
+} from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
@@ -8,15 +18,44 @@ import {
   NOME_UFFICIO_EDILE,
   PROGRESSO_COSTRUZIONE_COMPLETO
 } from "../src/game/costruzioneEdifici";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
+import { getStipendioMoneteGiornaliero, stipendioGiornalieroToPersistito } from "../src/game/edificiPubblici";
+import { computeStatoCielo } from "../src/game/cicloCielo";
+import {
+  etichettaDoveSiTrovaAddetto,
+  lavoratoreDentroEdificioOra
+} from "../src/game/presenzaLavoroEdificio";
+import {
+  getLavoroArrivatiMappaSnapshot,
+  subscribeLavoroArrivatiMappa
+} from "../src/game/mappaLavoroArrivatiStore";
+import { useOrologioGioco } from "../src/hooks/useOrologioGioco";
+import { AbitanteAvatarPreview } from "../src/ui/AbitanteAvatarPreview";
+import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
 export default function UfficioEdileScreen() {
   const router = useRouter();
-  const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } =
-    useGameContext();
+  const {
+    abitanti,
+    edifici,
+    assegnaAbitanteAEdificio,
+    rimuoviAbitanteDaEdificio,
+    setStipendioEdificio,
+    calcolaFelicitàModificata,
+    etaMinimaLavoro
+  } = useGameContext();
   const [dropdownVisible, setDropdownVisible] = useState(false);
+  const [selectedAbitante, setSelectedAbitante] = useState<Abitante | null>(null);
+  const getAbitanteNome = (id: number) => abitanti.find((a) => a.id === id)?.nome ?? `ID ${id}`;
+
+  const { minuti: orologioMinuti } = useOrologioGioco();
+  const statoCielo = computeStatoCielo(orologioMinuti);
+  const lavoroArrivatiMappa = useSyncExternalStore(
+    subscribeLavoroArrivatiMappa,
+    getLavoroArrivatiMappaSnapshot,
+    getLavoroArrivatiMappaSnapshot
+  );
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -26,6 +65,11 @@ export default function UfficioEdileScreen() {
   const ufficio = edifici.find((e) => e.nome === NOME_UFFICIO_EDILE);
   const ediliIds = ufficio?.abitantiAssegnati ?? [];
   const edili = ediliIds.map((id) => abitanti.find((a) => a.id === id)).filter((a): a is Abitante => a != null);
+  const ediliInServizio = ufficio
+    ? edili.filter((a) =>
+        lavoratoreDentroEdificioOra(a.id, ufficio.id, orologioMinuti, edifici, lavoroArrivatiMappa)
+      ).length
+    : 0;
   const abitantiDisponibili = useMemo(() => {
     if (!ufficio) return [];
     return getServiDellaGlebaPerAssegnazioneEdificio(abitanti, edifici, ufficio);
@@ -47,10 +91,12 @@ export default function UfficioEdileScreen() {
           <View style={styles.infoCard}>
             <Text style={styles.infoTitle}>Stato Ufficio</Text>
             <Text style={styles.infoText}>
-              Edili: {edili.length}/{ufficio.capacità ?? 12}
+              Edili: {edili.length}/{ufficio.capacità ?? 12} · {ediliInServizio} in ufficio
             </Text>
             <Text style={styles.infoSubtext}>
-              Gli edili assegnati avanzano i cantieri a ogni Skip Mese. Più edili = costruzione più rapida.
+              Gli edili assegnati avanzano i cantieri di 1 punto all’ora ciascuno. Con un cantiere in corso si recano a
+              piedi al primo della lista.{" "}
+              <Text style={styles.legendVerde}>Verde = attualmente in Ufficio.</Text>
             </Text>
             {edili.length === 0 && cantieri.length > 0 && (
               <Text style={[styles.infoSubtext, styles.infoWarn]}>
@@ -60,18 +106,18 @@ export default function UfficioEdileScreen() {
           </View>
 
           <View style={styles.stipendioCard}>
-            <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (crediti)</Text>
+            <Text style={styles.stipendioLabel}>Stipendio giornaliero per lavoratore (monete)</Text>
             <TextInput
               style={styles.stipendioInput}
-              value={String(ufficio.stipendioPerLavoratore ?? 0)}
+              value={String(getStipendioMoneteGiornaliero(ufficio))}
               keyboardType="number-pad"
               onChangeText={(text) => {
                 const n = parseInt(text.replace(/[^0-9]/g, ""), 10);
-                setStipendioEdificio(ufficio.id, isNaN(n) ? 0 : Math.max(0, n));
+                setStipendioEdificio(ufficio.id, stipendioGiornalieroToPersistito(isNaN(n) ? 0 : n));
               }}
             />
             <Text style={styles.infoSubtext}>
-              Totale: {(ufficio.stipendioPerLavoratore ?? 0) * ediliIds.length} crediti/mese
+              Totale: {getStipendioMoneteGiornaliero(ufficio) * ediliIds.length} monete/giorno
             </Text>
           </View>
 
@@ -84,21 +130,50 @@ export default function UfficioEdileScreen() {
             )}
             {edili.length > 0 ? (
               <View style={styles.cardsContainer}>
-                {edili.map((a) => (
-                  <View key={a.id} style={styles.personCard}>
-                    <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
-                    <View style={styles.cardContent}>
-                      <Text style={styles.cardTitle}>{a.nome}</Text>
-                      <Text style={styles.cardInfo}>Competenza: {a.competenza}%</Text>
-                    </View>
+                {edili.map((a) => {
+                  const presenza = etichettaDoveSiTrovaAddetto(
+                    a,
+                    ufficio.id,
+                    orologioMinuti,
+                    statoCielo.buio,
+                    edifici,
+                    lavoroArrivatiMappa
+                  );
+                  const inServizio = presenza.inServizio;
+                  return (
                     <Pressable
-                      style={styles.removeButton}
-                      onPress={() => rimuoviAbitanteDaEdificio(a.id, ufficio.id)}
+                      key={a.id}
+                      style={[
+                        styles.personCard,
+                        inServizio ? styles.personCardInServizio : styles.personCardAssente
+                      ]}
+                      onPress={() => setSelectedAbitante(a)}
                     >
-                      <Text style={styles.removeButtonText}>Rimuovi</Text>
+                      <AbitanteAvatarPreview abitante={a} />
+                      <View style={styles.cardContent}>
+                        <Text style={styles.cardTitle}>{a.nome}</Text>
+                        <Text style={styles.cardInfo}>Competenza: {a.competenza}%</Text>
+                        <Text
+                          style={[
+                            styles.presenzaLabel,
+                            inServizio && styles.presenzaLabelInServizio
+                          ]}
+                        >
+                          {presenza.testo}
+                        </Text>
+                      </View>
+                      <Pressable
+                        style={styles.removeButton}
+                        onPress={(e) => {
+                          e.stopPropagation?.();
+                          rimuoviAbitanteDaEdificio(a.id, ufficio.id);
+                        }}
+                      >
+                        <Text style={styles.removeButtonText}>Rimuovi</Text>
+                      </Pressable>
                     </Pressable>
-                  </View>
-                ))}
+                  );
+                })}
               </View>
             ) : (
               <Text style={styles.emptyText}>Nessun edile assunto</Text>
@@ -109,13 +184,15 @@ export default function UfficioEdileScreen() {
             <Text style={styles.sectionTitle}>Cantieri in corso</Text>
             {cantieri.length > 0 ? (
               <View style={styles.cardsContainer}>
-                {cantieri.map((c) => {
+                {cantieri.map((c, index) => {
                   const prog = c.progressoCostruzione ?? 0;
                   return (
                     <View key={c.id} style={styles.cantiereCard}>
                       <Text style={styles.cardEmoji}>{c.emoji}</Text>
                       <View style={styles.cardContent}>
-                        <Text style={styles.cardTitle}>{c.nome}</Text>
+                        <Text style={styles.cardTitle}>
+                          {index === 0 ? `${c.nome} · destinazione edili` : c.nome}
+                        </Text>
                         <Text style={styles.cardInfo}>
                           Avanzamento: {prog}/{PROGRESSO_COSTRUZIONE_COMPLETO}
                         </Text>
@@ -168,7 +245,7 @@ export default function UfficioEdileScreen() {
                           setDropdownVisible(false);
                         }}
                       >
-                        <Text style={styles.dropdownItemEmoji}>{getEmojiAbitante(a)}</Text>
+                        <AbitanteAvatarPreview abitante={a} size={32} />
                         <View style={styles.dropdownItemTextContainer}>
                           <Text style={styles.dropdownItemNome}>{a.nome}</Text>
                           <Text style={styles.dropdownItemCompetenza}>Competenza: {a.competenza}%</Text>
@@ -189,6 +266,16 @@ export default function UfficioEdileScreen() {
           ← Edifici
         </Text>
       </View>
+
+      <AbitanteInfoModal
+        visible={selectedAbitante !== null}
+        abitante={selectedAbitante}
+        edifici={edifici}
+        onClose={() => setSelectedAbitante(null)}
+        getAbitanteNome={getAbitanteNome}
+        calcolaFelicitàModificata={calcolaFelicitàModificata}
+        etaMinimaLavoro={etaMinimaLavoro}
+      />
     </SafeAreaView>
   );
 }
@@ -204,104 +291,105 @@ const styles = StyleSheet.create({
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(148,163,184,0.6)"
   },
-  footer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(148,163,184,0.6)"
-  },
-  back: { color: "#93c5fd", fontSize: 12 },
-  title: { color: "#ffffff", fontSize: 14, fontWeight: "700" },
-  content: { paddingHorizontal: 12, paddingVertical: 8, paddingBottom: 24 },
+  title: { color: "#e5e7eb", fontSize: 16, fontWeight: "700" },
+  content: { padding: 12, gap: 12, paddingBottom: 24 },
   infoCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 6,
-    padding: 8,
+    borderRadius: 8,
+    padding: 12,
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.6)"
+    borderColor: "rgba(148,163,184,0.4)"
   },
-  infoTitle: {
-    color: "#93c5fd",
-    fontSize: 10,
-    fontWeight: "600",
-    marginBottom: 4,
-    textTransform: "uppercase",
-    letterSpacing: 0.5
-  },
-  infoText: { color: "#ffffff", fontSize: 11, fontWeight: "600", marginBottom: 2 },
-  infoSubtext: { color: "rgba(203,213,245,0.7)", fontSize: 9, marginTop: 2 },
-  infoWarn: { color: "#fde047", fontWeight: "600" },
+  infoTitle: { color: "#e5e7eb", fontSize: 13, fontWeight: "700", marginBottom: 4 },
+  infoText: { color: "#cbd5e1", fontSize: 12, marginBottom: 4 },
+  infoSubtext: { color: "rgba(203,213,245,0.65)", fontSize: 10, lineHeight: 14 },
+  infoWarn: { color: "#fbbf24", marginTop: 6 },
+  legendVerde: { color: "#86efac", fontWeight: "600" },
   stipendioCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 8,
-    padding: 10,
-    marginTop: 10,
+    padding: 12,
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.6)"
+    borderColor: "rgba(148,163,184,0.4)",
+    gap: 6
   },
-  stipendioLabel: { color: "#93c5fd", fontSize: 10, fontWeight: "600", marginBottom: 4 },
+  stipendioLabel: { color: "#e5e7eb", fontSize: 11, fontWeight: "600" },
   stipendioInput: {
-    backgroundColor: "rgba(30,41,59,0.9)",
+    backgroundColor: "rgba(2,6,23,0.8)",
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.5)",
-    borderRadius: 4,
-    padding: 6,
-    color: "#e5e7eb",
-    fontSize: 14,
-    minWidth: 80
-  },
-  section: { marginTop: 12 },
-  sectionTitle: { color: "#ffffff", fontSize: 11, fontWeight: "700", marginBottom: 6 },
-  addButton: {
-    backgroundColor: "#3b82f6",
+    borderRadius: 6,
+    color: "#f8fafc",
     paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 4,
-    marginBottom: 8,
-    alignItems: "center"
+    paddingVertical: 6,
+    fontSize: 14
   },
-  addButtonText: { color: "#ffffff", fontSize: 10, fontWeight: "600" },
+  section: { gap: 8 },
+  sectionTitle: { color: "#e5e7eb", fontSize: 13, fontWeight: "700" },
+  addButton: {
+    alignSelf: "flex-start",
+    backgroundColor: "#2563eb",
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 6
+  },
+  addButtonText: { color: "#ffffff", fontSize: 11, fontWeight: "600" },
   cardsContainer: { gap: 6 },
   personCard: {
-    backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 6,
     padding: 8,
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.6)",
     flexDirection: "row",
     alignItems: "center",
     gap: 8
   },
+  personCardInServizio: {
+    backgroundColor: "rgba(22,101,52,0.38)",
+    borderColor: "rgba(74,222,128,0.5)"
+  },
+  personCardAssente: {
+    backgroundColor: "rgba(15,23,42,0.95)",
+    borderColor: "rgba(148,163,184,0.6)"
+  },
+  presenzaLabel: {
+    marginTop: 3,
+    fontSize: 9,
+    fontWeight: "700",
+    color: "rgba(203,213,245,0.55)"
+  },
+  presenzaLabelInServizio: { color: "#bbf7d0" },
+  cardContent: { flex: 1 },
+  cardTitle: { color: "#e5e7eb", fontSize: 11, fontWeight: "700", marginBottom: 2 },
+  cardInfo: { color: "rgba(203,213,245,0.7)", fontSize: 9 },
+  cardEmoji: { fontSize: 22 },
+  removeButton: {
+    backgroundColor: "#ef4444",
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    borderRadius: 4
+  },
+  removeButtonText: { color: "#ffffff", fontSize: 9, fontWeight: "600" },
   cantiereCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 6,
     padding: 8,
     borderWidth: 1,
-    borderColor: "rgba(253,224,71,0.45)",
+    borderColor: "rgba(251,191,36,0.45)",
     flexDirection: "row",
     alignItems: "center",
     gap: 8
   },
-  cardEmoji: { fontSize: 22 },
-  cardContent: { flex: 1 },
-  cardTitle: { color: "#e5e7eb", fontSize: 11, fontWeight: "700", marginBottom: 2 },
-  cardInfo: { color: "rgba(203,213,245,0.7)", fontSize: 9 },
   progressTrack: {
     marginTop: 4,
     height: 6,
     borderRadius: 3,
-    backgroundColor: "rgba(30,41,59,0.9)",
+    backgroundColor: "rgba(51,65,85,0.9)",
     overflow: "hidden"
   },
   progressFill: {
     height: "100%",
-    backgroundColor: "#fde047",
-    borderRadius: 3
+    backgroundColor: "#fbbf24"
   },
-  removeButton: { backgroundColor: "#ef4444", paddingHorizontal: 10, paddingVertical: 4, borderRadius: 4 },
-  removeButtonText: { color: "#ffffff", fontSize: 9, fontWeight: "600" },
   emptyText: {
     color: "rgba(203,213,245,0.5)",
     fontSize: 10,
@@ -309,36 +397,47 @@ const styles = StyleSheet.create({
     textAlign: "center",
     paddingVertical: 12
   },
-  modalOverlay: { flex: 1, backgroundColor: "rgba(0,0,0,0.7)", justifyContent: "center", alignItems: "center" },
+  modalOverlay: {
+    flex: 1,
+    backgroundColor: "rgba(0,0,0,0.7)",
+    justifyContent: "center",
+    alignItems: "center"
+  },
   modalContent: {
-    backgroundColor: "#050816",
-    borderRadius: 8,
+    backgroundColor: "#0f172a",
+    borderRadius: 12,
+    padding: 16,
+    width: "88%",
+    maxWidth: 420,
+    maxHeight: "70%",
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.6)",
-    width: "80%",
-    maxWidth: 400,
-    maxHeight: "70%"
+    borderColor: "rgba(148,163,184,0.5)"
   },
   modalHeader: {
     flexDirection: "row",
     justifyContent: "space-between",
     alignItems: "center",
-    padding: 12,
-    borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(148,163,184,0.6)"
+    marginBottom: 12
   },
-  modalTitle: { color: "#ffffff", fontSize: 12, fontWeight: "700" },
-  modalClose: { color: "rgba(203,213,245,0.7)", fontSize: 18, fontWeight: "700" },
-  modalScrollView: { maxHeight: 300 },
+  modalTitle: { color: "#e5e7eb", fontSize: 14, fontWeight: "700" },
+  modalClose: { color: "#94a3b8", fontSize: 18, paddingHorizontal: 4 },
+  modalScrollView: { maxHeight: 360 },
   dropdownItem: {
     flexDirection: "row",
     alignItems: "center",
-    padding: 10,
+    gap: 10,
+    paddingVertical: 8,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(148,163,184,0.3)"
+    borderBottomColor: "rgba(148,163,184,0.35)"
   },
-  dropdownItemEmoji: { fontSize: 20, marginRight: 10 },
   dropdownItemTextContainer: { flex: 1 },
-  dropdownItemNome: { color: "#e5e7eb", fontSize: 11, fontWeight: "700", marginBottom: 2 },
-  dropdownItemCompetenza: { color: "rgba(203,213,245,0.7)", fontSize: 9 }
+  dropdownItemNome: { color: "#e5e7eb", fontSize: 12, fontWeight: "600" },
+  dropdownItemCompetenza: { color: "rgba(203,213,245,0.65)", fontSize: 10 },
+  footer: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: "rgba(148,163,184,0.6)"
+  },
+  back: { color: "#93c5fd", fontSize: 13, fontWeight: "600" }
 });

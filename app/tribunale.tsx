@@ -3,7 +3,7 @@ import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Tex
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
+import { AbitanteAvatarPreview } from "../src/ui/AbitanteAvatarPreview";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
@@ -82,7 +82,7 @@ export default function TribunaleScreen() {
             <Text style={styles.infoText}>
               {giudice ? `Giudice: ${giudice.nome}` : "Nessun giudice assegnato"}
             </Text>
-            <Text style={styles.infoSubtext}>Imputati nella colonia: {imputati.length}</Text>
+            <Text style={styles.infoSubtext}>Imputati nel regno: {imputati.length}</Text>
           </View>
 
           <Pressable style={styles.reatiButton} onPress={() => router.push("/reati")}>
@@ -94,7 +94,7 @@ export default function TribunaleScreen() {
             <Pressable style={styles.dropdownButton} onPress={() => setDropdownGiudiceVisible(true)}>
               {giudice ? (
                 <View style={styles.dropdownContent}>
-                  <Text style={styles.dropdownEmoji}>{getEmojiAbitante(giudice)}</Text>
+                  <AbitanteAvatarPreview abitante={giudice} size={32} />
                   <View style={styles.dropdownTextContainer}>
                     <Text style={styles.dropdownNome}>{giudice.nome}</Text>
                     <Text style={styles.dropdownCompetenza}>Competenza: {giudice.competenza}%</Text>
@@ -144,7 +144,7 @@ export default function TribunaleScreen() {
                             setDropdownGiudiceVisible(false);
                           }}
                         >
-                          <Text style={styles.dropdownItemEmoji}>{getEmojiAbitante(a)}</Text>
+                          <AbitanteAvatarPreview abitante={a} size={32} />
                           <View style={styles.dropdownItemTextContainer}>
                             <Text style={styles.dropdownItemNome}>{a.nome}</Text>
                             <Text style={styles.dropdownItemCompetenza}>Competenza: {a.competenza}%</Text>
@@ -163,7 +163,7 @@ export default function TribunaleScreen() {
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Imputati ({imputati.length})</Text>
             <Text style={styles.sectionHint}>
-              Graziare: reati azzerati. Il graziato e i suoi Amici +10% Lealtà; i suoi Nemici −10% Lealtà.
+              Graziare: reati azzerati. Il graziato e i suoi Amici +3 soddisfazione; i suoi Rivali −3.
             </Text>
             {imputati.length > 0 ? (
               <View style={styles.cardsContainer}>
@@ -171,7 +171,7 @@ export default function TribunaleScreen() {
                   const msg = messaggiImputati[c.id];
                   return (
                     <View key={c.id} style={styles.imputatoCard}>
-                      <Text style={styles.cardEmoji}>{getEmojiAbitante(c)}</Text>
+                      <AbitanteAvatarPreview abitante={c} />
                       <View style={styles.cardContent}>
                         <Text style={styles.cardTitle}>{c.nome}</Text>
                         <Text style={styles.cardInfo}>Età: {c.eta} anni</Text>
@@ -207,7 +207,7 @@ export default function TribunaleScreen() {
                 })}
               </View>
             ) : (
-              <Text style={styles.emptyText}>Nessun imputato nella colonia</Text>
+              <Text style={styles.emptyText}>Nessun imputato nel regno</Text>
             )}
           </View>
         </ScrollView>

@@ -6,7 +6,7 @@ export type { PianetaInfo } from "./data";
 export {
   pianetiData,
   getEmojiRazza,
-  abitantiData,
+  getColoreRazza,
   ministeriDisponibili,
   ministriData,
   fazioniData,

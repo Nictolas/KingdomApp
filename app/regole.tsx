@@ -5,6 +5,7 @@ import { useRouter } from "expo-router";
 const VOCI: { emoji: string; label: string; route: string }[] = [
   { emoji: "🎲", label: "Generazione Partita", route: "/generazione-partita" },
   { emoji: "⏭️", label: "Regole Skip", route: "/regole-skip" },
+  { emoji: "😌", label: "Regole Soddisfazione", route: "/regole-soddisfazione" },
   { emoji: "🏛️", label: "Casta", route: "/casta" }
 ];
 
@@ -24,7 +25,7 @@ export default function RegoleScreen() {
       <View style={{ flex: 1 }}>
       <View style={[styles.content, isDesktop && styles.contentDesktop]}>
         <Text style={styles.intro}>
-          Consulta le regole di generazione della partita e tutto ciò che succede quando skippi il mese.
+          Consulta le regole di generazione, fine mese, soddisfazione e caste.
         </Text>
         {VOCI.map((v) => (
           <Pressable

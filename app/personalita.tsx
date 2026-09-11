@@ -26,7 +26,7 @@ export default function PersonalitaScreen() {
     { nome: "Salutista", emoji: "🥗", effetto: "+10% Salute" },
     { nome: "Empatico", emoji: "🩺", effetto: "+10% Competenza Medica" },
     { nome: "Depresso", emoji: "🌧️", effetto: "-10% qualsiasi produzione" },
-    { nome: "Carismatico", emoji: "✨", effetto: "+10% lealtà della fazione" },
+    { nome: "Carismatico", emoji: "✨", effetto: "Aumenta la soddisfazione della propria fazione (proposto)" },
     { nome: "Psicopatico", emoji: "🔪", effetto: "Rivalità ≥60 può portare a omicidio (soglia 90 per gli altri)" },
     { nome: "Stakanovista", emoji: "⚒️", effetto: "+15% produttività" },
     { nome: "Tiepido", emoji: "🌡️", effetto: "Nessun bonus né malus" }
@@ -72,7 +72,7 @@ export default function PersonalitaScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.subtitle}>
-          Catalogo delle personalità (con conteggio attuale nella colonia).
+          Catalogo delle personalità (con conteggio attuale nel regno).
         </Text>
 
         <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
@@ -92,7 +92,7 @@ export default function PersonalitaScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>🚫 Discriminazioni</Text>
-        <Text style={styles.subtitle}>Personalità discriminatorie presenti nella colonia.</Text>
+        <Text style={styles.subtitle}>Personalità discriminatorie presenti nel regno.</Text>
         <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
           {discriminazioni.map((p) => (
             <View key={p.nome} style={[styles.card, isDesktop && styles.cardDesktop]}>
@@ -105,7 +105,7 @@ export default function PersonalitaScreen() {
         </View>
 
         <Text style={styles.sectionTitle}>🍽️ Alimentazione</Text>
-        <Text style={styles.subtitle}>Regimi alimentari degli abitanti della colonia.</Text>
+        <Text style={styles.subtitle}>Regimi alimentari degli abitanti del regno.</Text>
         <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
           {alimentazioni.map((p) => (
             <View key={p.nome} style={[styles.card, isDesktop && styles.cardDesktop]}>

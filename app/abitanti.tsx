@@ -5,34 +5,52 @@ import { useGameContext } from "../src/context/GameContext";
 import type { Edificio } from "../src/types";
 import { getStatoSalute } from "../src/game/ciboConsumo";
 import { getAbitazioneAbitante } from "../src/game/abitanteEdifici";
-import { getEmojiRazza, fazioniData } from "../src/kingdomData";
+import { fazioniData, getColoreRazza } from "../src/kingdomData";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 import { getCastaAbitante, getEmojiCasta, isCastaCoercibile, abitanteHaInventarioPersonale } from "../src/game/casta";
 import { isGiocatore, LAVORO_GIOCATORE } from "../src/game/schiavituCommercio";
 import { getSpecializzazioneAbitante } from "../src/game/specializzazione";
+import { lpcSpriteCircleDiameter } from "../src/character-system/lpcPack";
+import { AbitanteAvatarPreview } from "../src/ui/AbitanteAvatarPreview";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 import { getMoneteInventarioAbitante } from "../src/game/inventario";
 
+const AVATAR_SIZE = 28;
+const AVATAR_OUTER = lpcSpriteCircleDiameter(AVATAR_SIZE) + 8;
+const AVATAR_COL_WIDTH = Math.max(44, AVATAR_OUTER + 4);
+
 type FazioneItem = { emoji: string; nome: string };
 
-/** Restituisce l'array emoji+nome per fazioni + Culto del Sole / Culto degli Alieni se presenti. */
-function getFazioniConReligione(a: Abitante): FazioneItem[] {
-  const items: FazioneItem[] = (a.fazioni ?? []).map((nome) => {
+/** Restituisce l'array emoji+nome per le sole fazioni (senza religioni). */
+function getFazioniItems(a: Abitante): FazioneItem[] {
+  return (a.fazioni ?? []).map((nome) => {
     const f = fazioniData.find((x) => x.nome === nome);
     return { emoji: f?.emoji ?? nome, nome };
   });
-  if (a.religione === "Culto del Sole") items.push({ emoji: "☀️", nome: "Culto del Sole" });
-  if (a.religione === "Culto degli Alieni") items.push({ emoji: "👽", nome: "Culto degli Alieni" });
-  return items;
 }
 
-/** Stringa per ordinamento: emoji fazioni + eventuale emoji religione (Culto Sole/Alieni). */
-function getFazioniEmojiDisplay(fazioni: string[] | undefined, religione?: Abitante["religione"]): string {
-  let s = !fazioni?.length ? "" : fazioni.map((nome) => fazioniData.find((f) => f.nome === nome)?.emoji ?? nome).join(" ");
-  if (religione === "Culto del Sole") s += " ☀️";
-  if (religione === "Culto degli Alieni") s += " 👽";
-  return s || "—";
+function getEmojiReligione(religione: Abitante["religione"] | undefined): string {
+  switch (religione) {
+    case "Ateo":
+      return "🚫";
+    case "Deista":
+      return "⛪";
+    case "Agnostico":
+      return "❓";
+    case "Culto del Sole":
+      return "☀️";
+    case "Culto delle Ombre":
+      return "🌑";
+    default:
+      return "—";
+  }
+}
+
+/** Stringa per ordinamento fazioni (solo fazioni politiche). */
+function getFazioniEmojiDisplay(fazioni: string[] | undefined): string {
+  if (!fazioni?.length) return "—";
+  return fazioni.map((nome) => fazioniData.find((f) => f.nome === nome)?.emoji ?? nome).join(" ") || "—";
 }
 
 /** Wrapper emoji con tooltip (nome) al passaggio del mouse (web). */
@@ -59,28 +77,20 @@ function getResidenzaAbitante(abitanteId: number, edifici: Edificio[]): string {
   return getAbitazioneAbitante(abitanteId, edifici);
 }
 
-type SortField = "nome" | "eta" | "lavoro" | "razza" | "casta" | "sesso" | "orientamento" | "residenza" | "specializzazione" | "produttività" | "stanchezza" | "peso" | "salute" | "monete" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "fazioni" | null;
+type SortField = "nome" | "eta" | "lavoro" | "razza" | "casta" | "sesso" | "orientamento" | "residenza" | "specializzazione" | "produttività" | "stanchezza" | "peso" | "salute" | "monete" | "reddito" | "spese" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "fazioni" | "religione" | null;
 type SortDirection = "asc" | "desc";
 
-type MacroKey = "anagrafica" | "prestazioni" | "benessere" | "economia" | "lealta" | "sociale" | "religioneFazioni";
+type MacroKey = "anagrafica" | "prestazioni" | "benessere" | "economia" | "sociale" | "religioneFazioni";
 const MACRO_OPEN_DEFAULT: Record<MacroKey, boolean> = {
   anagrafica: true,
   prestazioni: true,
   benessere: true,
   economia: true,
-  lealta: true,
   sociale: true,
   religioneFazioni: true
 };
 
 const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
-
-function getEmojiDisplay(abitante: Abitante, etaMinimaLavoro: number): string {
-  const maggiorenne = abitante.eta >= etaMinimaLavoro;
-  const lavoroDaMinore = LAVORI_DA_MINORE.includes(abitante.lavoro);
-  if (maggiorenne && lavoroDaMinore) return "👤";
-  return getEmojiAbitante(abitante);
-}
 
 function getLavoroDisplay(abitante: Abitante, etaMinimaLavoro: number): string {
   if (isGiocatore(abitante)) return LAVORO_GIOCATORE;
@@ -164,8 +174,11 @@ export default function AbitantiScreen() {
         aValue = a.razza === "Golem" ? -1 : calcolaFelicitàModificata(a);
         bValue = b.razza === "Golem" ? -1 : calcolaFelicitàModificata(b);
       } else if (sortField === "fazioni") {
-        aValue = getFazioniEmojiDisplay(a.fazioni, a.religione);
-        bValue = getFazioniEmojiDisplay(b.fazioni, b.religione);
+        aValue = getFazioniEmojiDisplay(a.fazioni);
+        bValue = getFazioniEmojiDisplay(b.fazioni);
+      } else if (sortField === "religione") {
+        aValue = a.religione ?? "—";
+        bValue = b.religione ?? "—";
       } else if (sortField === "nome") {
         aValue = a.nome;
         bValue = b.nome;
@@ -299,15 +312,6 @@ export default function AbitantiScreen() {
               </View>
             </Pressable>
             <Pressable
-              style={[styles.superHeaderCell, macroOpen.lealta ? styles.superLealta : styles.superMacroCollapsed]}
-              onPress={() => toggleMacro("lealta")}
-            >
-              <View style={styles.superHeaderInner}>
-                <Text style={styles.superHeaderText} numberOfLines={1}>Lealtà</Text>
-                <Text style={styles.superHeaderArrow}>{macroOpen.lealta ? "▼" : "▶"}</Text>
-              </View>
-            </Pressable>
-            <Pressable
               style={[styles.superHeaderCell, macroOpen.sociale ? styles.superSociale : styles.superMacroCollapsed]}
               onPress={() => toggleMacro("sociale")}
             >
@@ -329,8 +333,8 @@ export default function AbitantiScreen() {
 
           {/* Header della tabella */}
           <View style={styles.tableHeader}>
-            <View style={[styles.headerCell, styles.cellEmoji]}>
-              <Text style={styles.headerText}>😊</Text>
+            <View style={[styles.headerCell, styles.cellAvatar]}>
+              <Text style={styles.headerText}> </Text>
             </View>
             {macroOpen.anagrafica && (
               <>
@@ -420,12 +424,6 @@ export default function AbitantiScreen() {
                 </Pressable>
               </>
             )}
-            {macroOpen.lealta && (
-              <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "lealtà" && styles.headerCellActive]} onPress={() => handleSort("lealtà")}>
-                <Text style={styles.headerText}>❤️ Lealtà</Text>
-                {sortField === "lealtà" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
-              </Pressable>
-            )}
             {macroOpen.sociale && (
               <>
                 <Pressable style={[styles.headerCell, styles.cellSociale, sortField === "amici" && styles.headerCellActive]} onPress={() => handleSort("amici")}>
@@ -443,17 +441,32 @@ export default function AbitantiScreen() {
               </>
             )}
             {macroOpen.religioneFazioni && (
-              <Pressable style={[styles.headerCell, styles.cellFazione, sortField === "fazioni" && styles.headerCellActive]} onPress={() => handleSort("fazioni")}>
-                <Text style={styles.headerText}>⚔️ Fazione</Text>
-                {sortField === "fazioni" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
-              </Pressable>
+              <>
+                <Pressable
+                  style={[styles.headerCell, styles.cellReligione, sortField === "religione" && styles.headerCellActive]}
+                  onPress={() => handleSort("religione")}
+                >
+                  <Text style={styles.headerText}>⛪ Religione</Text>
+                  {sortField === "religione" && (
+                    <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+                  )}
+                </Pressable>
+                <Pressable
+                  style={[styles.headerCell, styles.cellFazione, sortField === "fazioni" && styles.headerCellActive]}
+                  onPress={() => handleSort("fazioni")}
+                >
+                  <Text style={styles.headerText}>⚔️ Fazione</Text>
+                  {sortField === "fazioni" && (
+                    <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>
+                  )}
+                </Pressable>
+              </>
             )}
           </View>
 
           {/* Righe della tabella */}
           {abitantiOrdinati.map((a: Abitante) => {
             const felicitàModificata = calcolaFelicitàModificata(a);
-            const emojiDisplay = getEmojiDisplay(a, etaMinimaLavoro);
             const lavoroDisplay = getLavoroDisplay(a, etaMinimaLavoro);
             const statoSalute = getStatoSalute(a);
             const saluteStyle =
@@ -470,8 +483,8 @@ export default function AbitantiScreen() {
                 style={styles.tableRow}
                 onPress={() => setSelectedAbitante(a)}
               >
-                <View style={[styles.cell, styles.cellEmoji]}>
-                  <Text style={styles.cellEmojiText}>{emojiDisplay}</Text>
+                <View style={[styles.cell, styles.cellAvatar]}>
+                  <AbitanteAvatarPreview abitante={a} size={AVATAR_SIZE} liftPx={0} />
                 </View>
                 {macroOpen.anagrafica && (
                   <>
@@ -491,7 +504,12 @@ export default function AbitantiScreen() {
                       <Text style={[styles.cellTextSmall, lavoroDisplay === "Disoccupato" && styles.cellTextDisoccupato]}>{lavoroDisplay}</Text>
                     </View>
                     <View style={[styles.cell, styles.cellRazza]}>
-                      <Text style={styles.cellEmojiText}>{getEmojiRazza(a.razza ?? "Umano")}</Text>
+                      <Text
+                        style={[styles.cellTextSmall, { color: getColoreRazza(a.razza ?? "Umano") }]}
+                        numberOfLines={1}
+                      >
+                        {a.razza ?? "Umano"}
+                      </Text>
                     </View>
                     <View style={[styles.cell, styles.cellCasta]}>
                       <Text style={styles.cellEmojiText}>{getEmojiCasta(getCastaAbitante(a))}</Text>
@@ -555,9 +573,6 @@ export default function AbitantiScreen() {
                     <View style={[styles.cell, styles.cellMedium]}><Text style={[styles.cellText, a.razza === "Golem" ? undefined : styles.cellTextNegative]}>{a.razza === "Golem" ? "—" : a.spese}</Text></View>
                   </>
                 )}
-                {macroOpen.lealta && (
-                  <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.razza === "Golem" ? "—" : `${a.lealtà}%`}</Text></View>
-                )}
                 {macroOpen.sociale && (
                   <>
                     <View style={[styles.cell, styles.cellSociale]}>
@@ -602,17 +617,30 @@ export default function AbitantiScreen() {
                   </>
                 )}
                 {macroOpen.religioneFazioni && (
-                  <View style={[styles.cell, styles.cellFazione]}>
-                    {getFazioniConReligione(a).length > 0 ? (
+                  <>
+                    <View style={[styles.cell, styles.cellReligione]}>
                       <View style={styles.fazioneEmojiRow}>
-                        {getFazioniConReligione(a).map((item, idx) => (
-                          <EmojiWithTooltip key={idx} emoji={item.emoji} nome={item.nome} />
-                        ))}
+                        <EmojiWithTooltip
+                          emoji={getEmojiReligione(a.religione)}
+                          nome={a.religione ?? "—"}
+                        />
+                        <Text style={styles.cellTextReligione} numberOfLines={1}>
+                          {a.religione ?? "—"}
+                        </Text>
                       </View>
-                    ) : (
-                      <Text style={styles.cellEmojiText}>—</Text>
-                    )}
-                  </View>
+                    </View>
+                    <View style={[styles.cell, styles.cellFazione]}>
+                      {getFazioniItems(a).length > 0 ? (
+                        <View style={styles.fazioneEmojiRow}>
+                          {getFazioniItems(a).map((item, idx) => (
+                            <EmojiWithTooltip key={idx} emoji={item.emoji} nome={item.nome} />
+                          ))}
+                        </View>
+                      ) : (
+                        <Text style={styles.cellEmojiText}>—</Text>
+                      )}
+                    </View>
+                  </>
                 )}
               </Pressable>
             );
@@ -714,12 +742,12 @@ const styles = StyleSheet.create({
     minWidth: 48
   },
   superEmoji: {
-    width: 40,
-    minWidth: 40
+    width: AVATAR_COL_WIDTH,
+    minWidth: AVATAR_COL_WIDTH
   },
   superAnagrafica: {
-    width: 580,
-    minWidth: 580
+    width: 612,
+    minWidth: 612
   },
   superPrestazioni: {
     width: 150,
@@ -733,17 +761,13 @@ const styles = StyleSheet.create({
     width: 210,
     minWidth: 210
   },
-  superLealta: {
-    width: 50,
-    minWidth: 50
-  },
   superSociale: {
     width: 450,
     minWidth: 450
   },
   superReligioneFazioni: {
-    width: 210,
-    minWidth: 210
+    width: 330,
+    minWidth: 330
   },
   tableHeader: {
     flexDirection: "row",
@@ -781,7 +805,7 @@ const styles = StyleSheet.create({
     backgroundColor: "rgba(15,23,42,0.6)",
     borderBottomWidth: StyleSheet.hairlineWidth,
     borderBottomColor: "rgba(148,163,184,0.2)",
-    minHeight: 32
+    minHeight: AVATAR_OUTER + 8
   },
   cell: {
     paddingVertical: 4,
@@ -790,6 +814,10 @@ const styles = StyleSheet.create({
     borderRightColor: "rgba(148,163,184,0.2)",
     justifyContent: "center",
     alignItems: "center"
+  },
+  cellAvatar: {
+    width: AVATAR_COL_WIDTH,
+    minWidth: AVATAR_COL_WIDTH
   },
   cellEmoji: {
     width: 40,
@@ -804,8 +832,8 @@ const styles = StyleSheet.create({
     minWidth: 120
   },
   cellRazza: {
-    width: 40,
-    minWidth: 40
+    width: 72,
+    minWidth: 72
   },
   cellCasta: {
     width: 40,
@@ -835,9 +863,18 @@ const styles = StyleSheet.create({
     width: 200,
     minWidth: 200
   },
+  cellReligione: {
+    width: 120,
+    minWidth: 120
+  },
   cellFazione: {
     width: 140,
     minWidth: 140
+  },
+  cellTextReligione: {
+    color: "#e2e8f0",
+    fontSize: 10,
+    maxWidth: 88
   },
   fazioneEmojiRow: {
     flexDirection: "row",

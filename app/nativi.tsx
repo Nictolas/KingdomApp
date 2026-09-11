@@ -40,7 +40,7 @@ export default function NativiScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Nativi non integrati</Text>
-          <Text style={styles.sectionDesc}>Contatore (aumenta di 0–5 ogni Skip Mese)</Text>
+          <Text style={styles.sectionDesc}>Contatore (aumenta di 0–5 a fine mese)</Text>
           <View style={styles.counterCard}>
             <Text style={styles.counterValue}>{nativiNonIntegrati}</Text>
           </View>
@@ -48,7 +48,7 @@ export default function NativiScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Nativi integrati ({nativiIntegrati.length})</Text>
-          <Text style={styles.sectionDesc}>Abitanti della colonia che sono anche Nativi (inclusi eventuali Schiavi)</Text>
+          <Text style={styles.sectionDesc}>Abitanti del regno che sono anche Nativi (inclusi eventuali Schiavi)</Text>
           {nativiIntegrati.length > 0 ? (
             <View style={styles.grid}>
               {nativiIntegrati.map((a: Abitante) => {
@@ -67,7 +67,7 @@ export default function NativiScreen() {
               })}
             </View>
           ) : (
-            <Text style={styles.emptyText}>Nessun nativo integrato in colonia</Text>
+            <Text style={styles.emptyText}>Nessun nativo integrato nel regno</Text>
           )}
         </View>
       </ScrollView>

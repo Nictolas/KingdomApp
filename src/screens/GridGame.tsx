@@ -4,6 +4,9 @@ import { useRouter } from "expo-router";
 import { fazioniData } from "../kingdomData";
 import { useGameContext } from "../context/GameContext";
 import type { Abitante } from "../types";
+import { isOccupazioneRimossa } from "../game/lavoriCatalogo";
+import { OGGETTI_CATALOGO } from "../data/oggettiCatalogo";
+import { tornaAllaMappa } from "../navigation/tornaAllaMappa";
 
 export default function GridGame() {
   const router = useRouter();
@@ -15,31 +18,54 @@ export default function GridGame() {
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
-
-  const contentWrapStyle = isDesktop ? [styles.scrollContent, styles.contentWrapDesktop] : styles.scrollContent;
+  const isWide = width > 1100;
+  const cardStyle = [
+    styles.navCard,
+    isWide ? styles.navCardXWide : isDesktop ? styles.navCardWide : null
+  ];
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={contentWrapStyle} showsVerticalScrollIndicator={false}>
-      {/* Navigazione: Colonia */}
+    <ScrollView style={styles.container} contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+      {/* Navigazione: Regno */}
       <View style={styles.block}>
-        <Text style={styles.blockTitle}>🏘️ Colonia</Text>
+        <Text style={styles.blockTitle}>🏰 Regno</Text>
         <View style={[styles.navGrid, isDesktop && styles.navGridWide]}>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/fazioni")}>
+          <Pressable style={cardStyle} onPress={() => router.push("/fazioni")}>
             <Text style={styles.navEmoji}>⚔️</Text>
             <Text style={styles.navLabel}>Fazioni</Text>
             <Text style={styles.navMeta}>{fazioni.length}</Text>
           </Pressable>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/edifici")}>
+          <Pressable style={cardStyle} onPress={() => router.push("/religioni")}>
+            <Text style={styles.navEmoji}>⛪</Text>
+            <Text style={styles.navLabel}>Religioni</Text>
+          </Pressable>
+          <Pressable style={cardStyle} onPress={() => router.push("/edifici")}>
             <Text style={styles.navEmoji}>🏗️</Text>
             <Text style={styles.navLabel}>Edifici</Text>
             <Text style={styles.navMeta}>{edifici.length}</Text>
           </Pressable>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/ricchezza")}>
+          <Pressable style={cardStyle} onPress={() => router.push("/oggetti")}>
+            <Text style={styles.navEmoji}>🎒</Text>
+            <Text style={styles.navLabel}>Oggetti</Text>
+            <Text style={styles.navMeta}>{OGGETTI_CATALOGO.length}</Text>
+          </Pressable>
+          <Pressable style={cardStyle} onPress={() => router.push("/ricchezza")}>
             <Text style={styles.navEmoji}>💎</Text>
             <Text style={styles.navLabel}>Ricchezza</Text>
             <Text style={styles.navMeta}>{abitanti.length}</Text>
           </Pressable>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/")}>
+          <Pressable style={cardStyle} onPress={() => router.push("/crediti")}>
+            <Text style={styles.navEmoji}>📒</Text>
+            <Text style={styles.navLabel}>Bilancio</Text>
+          </Pressable>
+          <Pressable style={cardStyle} onPress={() => router.push("/lavori")}>
+            <Text style={styles.navEmoji}>💼</Text>
+            <Text style={styles.navLabel}>Lavori</Text>
+            <Text style={styles.navMeta}>
+              {abitanti.filter((a) => a.razza !== "Golem" && (a.lavoro === "Disoccupato" || isOccupazioneRimossa(a.lavoro))).length} disoccupati
+            </Text>
+          </Pressable>
+          <Pressable style={cardStyle} onPress={() => tornaAllaMappa(router)}>
             <Text style={styles.navEmoji}>🗺️</Text>
             <Text style={styles.navLabel}>Mappa</Text>
           </Pressable>
@@ -50,16 +76,16 @@ export default function GridGame() {
       <View style={styles.block}>
         <Text style={styles.blockTitle}>📜 Leggi e ordine</Text>
         <View style={[styles.navGrid, isDesktop && styles.navGridWide]}>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/amministrazione")}>
+          <Pressable style={cardStyle} onPress={() => router.push("/amministrazione")}>
             <Text style={styles.navEmoji}>🏛️</Text>
             <Text style={styles.navLabel}>Amministrazione</Text>
           </Pressable>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/crimine")}>
+          <Pressable style={cardStyle} onPress={() => router.push("/crimine")}>
             <Text style={styles.navEmoji}>🕵️</Text>
             <Text style={styles.navLabel}>Crimine</Text>
             <Text style={styles.navMeta}>{criminali.length}</Text>
           </Pressable>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/regole")}>
+          <Pressable style={cardStyle} onPress={() => router.push("/regole")}>
             <Text style={styles.navEmoji}>📋</Text>
             <Text style={styles.navLabel}>Regole</Text>
           </Pressable>
@@ -70,29 +96,29 @@ export default function GridGame() {
       <View style={[styles.block, styles.blockLast]}>
         <Text style={styles.blockTitle}>🌐 Altro</Text>
         <View style={[styles.navGrid, isDesktop && styles.navGridWide]}>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/personalita")}>
+          <Pressable style={cardStyle} onPress={() => router.push("/personalita")}>
             <Text style={styles.navEmoji}>🧠</Text>
             <Text style={styles.navLabel}>Personalità</Text>
             <Text style={styles.navMeta}>{personalitàUniche.length}</Text>
           </Pressable>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/casta")}>
+          <Pressable style={cardStyle} onPress={() => router.push("/casta")}>
             <Text style={styles.navEmoji}>🏛️</Text>
             <Text style={styles.navLabel}>Casta</Text>
           </Pressable>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/competenze")}>
+          <Pressable style={cardStyle} onPress={() => router.push("/competenze")}>
             <Text style={styles.navEmoji}>📊</Text>
             <Text style={styles.navLabel}>Competenze</Text>
           </Pressable>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/eventi")}>
+          <Pressable style={cardStyle} onPress={() => router.push("/eventi")}>
             <Text style={styles.navEmoji}>📌</Text>
             <Text style={styles.navLabel}>Eventi</Text>
           </Pressable>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/razze")}>
+          <Pressable style={cardStyle} onPress={() => router.push("/razze")}>
             <Text style={styles.navEmoji}>🧬</Text>
             <Text style={styles.navLabel}>Razze</Text>
             <Text style={styles.navMeta}>{new Set(abitanti.map((a) => a.razza ?? "Umano")).size}</Text>
           </Pressable>
-          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/obiettivi")}>
+          <Pressable style={cardStyle} onPress={() => router.push("/obiettivi")}>
             <Text style={styles.navEmoji}>🎯</Text>
             <Text style={styles.navLabel}>Obiettivi</Text>
             <Text style={styles.navMeta}>1</Text>
@@ -101,7 +127,7 @@ export default function GridGame() {
       </View>
       <View style={[styles.block, styles.blockLast]}>
         <Text style={styles.blockTitle}>💾 Partita</Text>
-        <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => void salvaPartita()} disabled={saveStatus === "saving"}>
+        <Pressable style={cardStyle} onPress={() => void salvaPartita()} disabled={saveStatus === "saving"}>
           <Text style={styles.navEmoji}>💾</Text>
           <Text style={styles.navLabel}>{saveStatus === "saving" ? "Salvataggio…" : "Salva"}</Text>
           {saveStatus === "saved" && <Text style={styles.navMeta}>Partita salvata</Text>}
@@ -119,11 +145,7 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 28,
-    paddingHorizontal: 14
-  },
-  contentWrapDesktop: {
-    maxWidth: 440,
-    alignSelf: "center",
+    paddingHorizontal: 14,
     width: "100%"
   },
   block: {
@@ -157,6 +179,9 @@ const styles = StyleSheet.create({
   },
   navCardWide: {
     width: "31%"
+  },
+  navCardXWide: {
+    width: "18.5%"
   },
   navEmoji: { fontSize: 24, marginBottom: 4 },
   navLabel: { fontSize: 12, fontWeight: "700", color: "#e2e8f0" },

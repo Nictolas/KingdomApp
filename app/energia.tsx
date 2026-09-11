@@ -102,7 +102,7 @@ export default function EnergiaScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={true}>
         <Text style={styles.intro}>
-          Produzione e consumo mensili (ogni Skip Mese). Le residenze consumano energia in base al numero di residenti.
+          Produzione e consumo mensili (a fine mese). Le residenze consumano energia in base al numero di residenti.
         </Text>
 
         {produzioneEnergia.length > 0 && (

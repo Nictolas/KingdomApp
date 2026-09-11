@@ -8,11 +8,10 @@ import type { Fazione } from "../src/types";
 const COLONNA_GOVERNO = ["Amministrazione", "Cittadini", "Lealisti", "Sicurezza", "Rivoluzionari", "Élite"];
 const COLONNA_LAVORO = ["Lavoratori", "Scienziati", "Esploratori", "Intellettuali", "Ambientalisti"];
 const COLONNA_MARGINI = ["Mafia", "Schiavi", "Nativi", "Golem", "Senzatetto", "Immigrati"];
-const COLONNA_RELIGIONE = ["Culto del Sole", "Culto degli Alieni"];
 
 /** Path per ogni fazione: pagina dedicata o /fazione/[slug]. */
 const FAZIONE_TO_PATH: Record<string, string> = {
-  Amministrazione: "/ministri",
+  Amministrazione: "/castello",
   Cittadini: "/fazione/cittadini",
   Lealisti: "/fazione/lealisti",
   Sicurezza: "/sicurezza",
@@ -28,9 +27,7 @@ const FAZIONE_TO_PATH: Record<string, string> = {
   Nativi: "/nativi",
   Golem: "/fazione/robots",
   Senzatetto: "/fazione/senzatetto",
-  Immigrati: "/fazione/immigrati",
-  "Culto del Sole": "/culto-sole",
-  "Culto degli Alieni": "/culto-alieni"
+  Immigrati: "/fazione/immigrati"
 };
 
 function getFazioniPerColonna(nomi: string[]): Fazione[] {
@@ -54,7 +51,6 @@ export default function FazioniScreen() {
   const governo = getFazioniPerColonna(COLONNA_GOVERNO);
   const lavoro = getFazioniPerColonna(COLONNA_LAVORO);
   const margini = getFazioniPerColonna(COLONNA_MARGINI);
-  const religione = getFazioniPerColonna(COLONNA_RELIGIONE);
 
   const renderColumn = (title: string, subtitle: string, fazioniCol: Fazione[]) => (
     <View key={title} style={styles.column}>
@@ -95,7 +91,6 @@ export default function FazioniScreen() {
           {renderColumn("Governo e società", "Amministrazione, Cittadini, Lealisti, Sicurezza, Rivoluzionari, Élite", governo)}
           {renderColumn("Lavoro e professione", "Lavoratori, Scienziati, Esploratori, Intellettuali, Ambientalisti", lavoro)}
           {renderColumn("Margini e coercizione", "Mafia, Schiavi, Nativi, Golem, Senzatetto, Immigrati", margini)}
-          {renderColumn("Religione", "Culto del Sole, Culto degli Alieni", religione)}
         </View>
       </ScrollView>
       </View>
@@ -198,4 +193,3 @@ const styles = StyleSheet.create({
     textAlign: "center"
   }
 });
-

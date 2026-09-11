@@ -1,33 +1,18 @@
 import React, { useState } from "react";
-import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { ministeriDisponibili } from "../src/kingdomData";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
+import { AbitanteAvatarPreview } from "../src/ui/AbitanteAvatarPreview";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
-const ID_RE = 1;
-
-/** Suddivide "Nome Cognome" in nome e cognome (ultimo spazio). */
-function splitNomeCognome(nome: string): { nome: string; cognome: string } {
-  const t = (nome ?? "").trim();
-  const lastSpace = t.lastIndexOf(" ");
-  if (lastSpace <= 0) return { nome: t, cognome: "" };
-  return { nome: t.slice(0, lastSpace).trim(), cognome: t.slice(lastSpace + 1).trim() };
-}
-
 export default function MinistriScreen() {
   const router = useRouter();
-  const { abitanti, nominaMinistro, rimuoviMinistro, setNomeAbitante } = useGameContext();
+  const { abitanti, nominaMinistro, rimuoviMinistro } = useGameContext();
   const [showNominaModal, setShowNominaModal] = useState(false);
   const [selectedAbitante, setSelectedAbitante] = useState<Abitante | null>(null);
   const [selectedMinistero, setSelectedMinistero] = useState<string>("");
-  const [showEditNome, setShowEditNome] = useState(false);
-  const [editNome, setEditNome] = useState("");
-  const [editCognome, setEditCognome] = useState("");
-
-  const re = abitanti.find((a) => a.id === ID_RE);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -51,22 +36,6 @@ export default function MinistriScreen() {
     }
   };
 
-  const handleApriModificaNome = () => {
-    if (!re) return;
-    const { nome, cognome } = splitNomeCognome(re.nome);
-    setEditNome(nome);
-    setEditCognome(cognome);
-    setShowEditNome(true);
-  };
-
-  const handleSalvaNome = () => {
-    const nomeCompleto = [editNome.trim(), editCognome.trim()].filter(Boolean).join(" ");
-    if (nomeCompleto && re) {
-      setNomeAbitante(re.id, nomeCompleto);
-      setShowEditNome(false);
-    }
-  };
-
   return (
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
@@ -76,72 +45,66 @@ export default function MinistriScreen() {
       </View>
 
       <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.content}>
-        {re && (
-          <View style={styles.reSection}>
-            <Text style={styles.reTitle}>Il Re</Text>
-            <View style={[styles.card, styles.cardRe]}>
-              <Text style={styles.cardEmoji}>{getEmojiAbitante(re)}</Text>
-              <Text style={styles.cardTitle}>{re.nome}</Text>
-              <Text style={styles.line}>{re.lavoro}</Text>
-              <Pressable style={styles.modificaNomeButton} onPress={handleApriModificaNome}>
-                <Text style={styles.modificaNomeButtonText}>Modifica nome e cognome</Text>
-              </Pressable>
-            </View>
+        <ScrollView contentContainerStyle={styles.content}>
+          <Text style={styles.intro}>
+            Nomina o cambia i Ministri del regno. Ogni ministero può avere un solo abitante assegnato.
+          </Text>
+          <View style={styles.grid}>
+            {ministeriDisponibili.map((ministero) => {
+              const assegnatario = getAssegnatario(ministero);
+              const èAgricoltura = ministero === "Ministero dell'Agricoltura";
+              const bonusPolliceVerde = èAgricoltura && assegnatario?.personalità === "Pollice Verde";
+              return (
+                <View key={ministero} style={styles.card}>
+                  <Text style={styles.cardMinistero}>{ministero}</Text>
+                  {assegnatario ? (
+                    <>
+                      <AbitanteAvatarPreview abitante={assegnatario} />
+                      <Text style={styles.cardTitle}>{assegnatario.nome}</Text>
+                      <Text style={styles.line}>Personalità: {assegnatario.personalità}</Text>
+                      {bonusPolliceVerde ? (
+                        <Text style={styles.bonusText}>+10% produzione Cibo a fine mese</Text>
+                      ) : null}
+                      <View style={styles.cardButtons}>
+                        <Pressable style={styles.cambiaButton} onPress={() => handleApriAssegna(ministero)}>
+                          <Text style={styles.cambiaButtonText}>Cambia</Text>
+                        </Pressable>
+                        <Pressable style={styles.removeButton} onPress={() => rimuoviMinistro(assegnatario.id)}>
+                          <Text style={styles.removeButtonText}>Rimuovi</Text>
+                        </Pressable>
+                      </View>
+                    </>
+                  ) : (
+                    <>
+                      <Text style={styles.nonAssegnato}>Non assegnato</Text>
+                      <Pressable style={styles.assegnaButton} onPress={() => handleApriAssegna(ministero)}>
+                        <Text style={styles.assegnaButtonText}>Assegna abitante</Text>
+                      </Pressable>
+                    </>
+                  )}
+                </View>
+              );
+            })}
           </View>
-        )}
-
-        <View style={styles.grid}>
-          {ministeriDisponibili.map((ministero) => {
-            const assegnatario = getAssegnatario(ministero);
-            const èAgricoltura = ministero === "Ministero dell'Agricoltura";
-            const bonusPolliceVerde = èAgricoltura && assegnatario?.personalità === "Pollice Verde";
-            return (
-              <View key={ministero} style={styles.card}>
-                <Text style={styles.cardMinistero}>{ministero}</Text>
-                {assegnatario ? (
-                  <>
-                    <Text style={styles.cardEmoji}>{getEmojiAbitante(assegnatario)}</Text>
-                    <Text style={styles.cardTitle}>{assegnatario.nome}</Text>
-                    <Text style={styles.line}>Personalità: {assegnatario.personalità}</Text>
-                    {bonusPolliceVerde && (
-                      <Text style={styles.bonusText}>+10% produzione Cibo (Skip Mese)</Text>
-                    )}
-                    <View style={styles.cardButtons}>
-                      <Pressable style={styles.cambiaButton} onPress={() => handleApriAssegna(ministero)}>
-                        <Text style={styles.cambiaButtonText}>Cambia</Text>
-                      </Pressable>
-                      <Pressable style={styles.removeButton} onPress={() => rimuoviMinistro(assegnatario.id)}>
-                        <Text style={styles.removeButtonText}>Rimuovi</Text>
-                      </Pressable>
-                    </View>
-                  </>
-                ) : (
-                  <>
-                    <Text style={styles.nonAssegnato}>Non assegnato</Text>
-                    <Pressable style={styles.assegnaButton} onPress={() => handleApriAssegna(ministero)}>
-                      <Text style={styles.assegnaButtonText}>Assegna abitante</Text>
-                    </Pressable>
-                  </>
-                )}
-              </View>
-            );
-          })}
-        </View>
-      </ScrollView>
+        </ScrollView>
       </View>
+
       <View style={styles.footer}>
-        <Text style={styles.back} onPress={() => router.back()}>← Fazioni</Text>
+        <Text style={styles.back} onPress={() => router.back()}>
+          ← Castello
+        </Text>
       </View>
 
-      {/* Modal per nominare un nuovo ministro */}
       <Modal
         visible={showNominaModal}
         transparent
         animationType="fade"
         onRequestClose={() => setShowNominaModal(false)}
       >
-        <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={() => setShowNominaModal(false)}>
+        <Pressable
+          style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]}
+          onPress={() => setShowNominaModal(false)}
+        >
           <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
             <Text style={styles.modalTitle}>Nomina Ministro</Text>
 
@@ -157,7 +120,7 @@ export default function MinistriScreen() {
                     ]}
                     onPress={() => setSelectedAbitante(a)}
                   >
-                    <Text style={styles.abitanteEmoji}>{getEmojiAbitante(a)}</Text>
+                    <AbitanteAvatarPreview abitante={a} size={32} />
                     <View style={styles.abitanteInfo}>
                       <Text style={styles.abitanteNome}>{a.nome}</Text>
                       <Text style={styles.abitanteLavoro}>{a.lavoro}</Text>
@@ -188,58 +151,7 @@ export default function MinistriScreen() {
                 onPress={handleNomina}
                 disabled={!selectedAbitante || !selectedMinistero}
               >
-                <Text style={styles.modalButtonText}>{selectedMinistero ? "Conferma" : "Nomina"}</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
-      </Modal>
-
-      {/* Modal Modifica nome e cognome (Re) */}
-      <Modal
-        visible={showEditNome}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setShowEditNome(false)}
-      >
-        <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={() => setShowEditNome(false)}>
-          <Pressable style={[styles.modalCard, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
-            <Text style={styles.modalTitle}>Modifica nome e cognome</Text>
-            <Text style={styles.modalSubtitle}>Re</Text>
-
-            <View style={styles.modalSection}>
-              <Text style={styles.modalLabel}>Nome</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editNome}
-                onChangeText={setEditNome}
-                placeholder="Nome"
-                placeholderTextColor="rgba(148,163,184,0.5)"
-                autoCapitalize="words"
-              />
-            </View>
-            <View style={styles.modalSection}>
-              <Text style={styles.modalLabel}>Cognome</Text>
-              <TextInput
-                style={styles.textInput}
-                value={editCognome}
-                onChangeText={setEditCognome}
-                placeholder="Cognome"
-                placeholderTextColor="rgba(148,163,184,0.5)"
-                autoCapitalize="words"
-              />
-            </View>
-
-            <View style={styles.modalButtons}>
-              <Pressable style={[styles.modalButton, styles.modalButtonCancel]} onPress={() => setShowEditNome(false)}>
-                <Text style={styles.modalButtonText}>Annulla</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonConfirm, !editNome.trim() && styles.modalButtonDisabled]}
-                onPress={handleSalvaNome}
-                disabled={!editNome.trim()}
-              >
-                <Text style={styles.modalButtonText}>Salva</Text>
+                <Text style={styles.modalButtonText}>Conferma</Text>
               </Pressable>
             </View>
           </Pressable>
@@ -280,45 +192,16 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700"
   },
-  addButton: {
-    color: "#3b82f6",
-    fontSize: 12,
-    fontWeight: "600"
-  },
   content: {
     paddingHorizontal: 12,
     paddingVertical: 6,
-    paddingBottom: 8,
-    flex: 1
+    paddingBottom: 8
   },
-  reSection: {
-    marginBottom: 14
-  },
-  reTitle: {
-    color: "#93c5fd",
+  intro: {
+    color: "rgba(203,213,245,0.75)",
     fontSize: 11,
-    fontWeight: "700",
-    marginBottom: 6,
-    textTransform: "uppercase",
-    letterSpacing: 0.5
-  },
-  cardRe: {
-    borderColor: "rgba(234,179,8,0.5)",
-    backgroundColor: "rgba(234,179,8,0.06)"
-  },
-  modificaNomeButton: {
-    backgroundColor: "#eab308",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    marginTop: 8,
-    width: "100%",
-    alignItems: "center"
-  },
-  modificaNomeButtonText: {
-    color: "#0f172a",
-    fontSize: 11,
-    fontWeight: "700"
+    marginBottom: 10,
+    lineHeight: 16
   },
   grid: {
     flexDirection: "row",
@@ -334,10 +217,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     width: "48%",
     minWidth: 140
-  },
-  cardEmoji: {
-    fontSize: 32,
-    marginBottom: 4
   },
   cardTitle: {
     color: "#e5e7eb",
@@ -357,8 +236,7 @@ const styles = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 5,
     borderRadius: 6,
-    marginTop: 6,
-    width: "100%",
+    flex: 1,
     alignItems: "center"
   },
   removeButtonText: {
@@ -447,24 +325,8 @@ const styles = StyleSheet.create({
     color: "#ffffff",
     fontSize: 16,
     fontWeight: "700",
-    marginBottom: 4,
-    textAlign: "center"
-  },
-  modalSubtitle: {
-    color: "rgba(203,213,245,0.7)",
-    fontSize: 12,
     marginBottom: 12,
     textAlign: "center"
-  },
-  textInput: {
-    backgroundColor: "rgba(15,23,42,0.8)",
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.5)",
-    borderRadius: 6,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    color: "#e5e7eb",
-    fontSize: 14
   },
   modalSection: {
     marginBottom: 12
@@ -478,7 +340,7 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5
   },
   abitantiList: {
-    maxHeight: 120
+    maxHeight: 180
   },
   abitanteOption: {
     flexDirection: "row",
@@ -488,15 +350,12 @@ const styles = StyleSheet.create({
     marginBottom: 4,
     backgroundColor: "rgba(15,23,42,0.6)",
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.3)"
+    borderColor: "rgba(148,163,184,0.3)",
+    gap: 8
   },
   abitanteOptionSelected: {
     backgroundColor: "rgba(59,130,246,0.2)",
     borderColor: "#3b82f6"
-  },
-  abitanteEmoji: {
-    fontSize: 20,
-    marginRight: 8
   },
   abitanteInfo: {
     flex: 1
@@ -509,21 +368,6 @@ const styles = StyleSheet.create({
   abitanteLavoro: {
     color: "#93c5fd",
     fontSize: 10
-  },
-  ministeriList: {
-    maxHeight: 150
-  },
-  ministeroOption: {
-    padding: 8,
-    borderRadius: 6,
-    marginBottom: 4,
-    backgroundColor: "rgba(15,23,42,0.6)",
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.3)"
-  },
-  ministeroOptionSelected: {
-    backgroundColor: "rgba(59,130,246,0.2)",
-    borderColor: "#3b82f6"
   },
   modalButtons: {
     flexDirection: "row",

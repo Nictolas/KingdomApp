@@ -18,7 +18,7 @@ export default function SchiavituScreen() {
   const schiavisti = abitanti.filter((a: Abitante) => a.ruoloSchiavitu === "schiavista");
   const schiavi = abitanti.filter((a: Abitante) => a.ruoloSchiavitu === "schiavo");
 
-  // Funzione per ottenere il nome dello schiavista (Stato = schiavo di proprietà della colonia)
+  // Funzione per ottenere il nome dello schiavista (Stato = schiavo di proprietà del regno)
   const getSchiavistaNome = (schiavistaId?: number): string => {
     if (schiavistaId == null || schiavistaId === undefined) return "Stato";
     const schiavista = abitanti.find((a) => a.id === schiavistaId);
@@ -34,7 +34,7 @@ export default function SchiavituScreen() {
     <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
-        <Text style={styles.title}>Schiavitu</Text>
+        <Text style={styles.title}>Schiavitù</Text>
         <View style={{ width: 50 }} />
       </View>
 

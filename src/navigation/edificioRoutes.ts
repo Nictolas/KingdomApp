@@ -4,13 +4,14 @@ import type { Edificio } from "../types";
 export function getRouteForEdificio(edificio: Edificio): string | null {
   switch (edificio.nome) {
     case "Serra":
-      return `/serra/${edificio.id}`;
     case "Bar":
-      return `/bar/${edificio.id}`;
-    case "Centrale Energetica":
-      return "/centrale-energetica";
-    case "Raffineria Mineraria":
-      return "/raffineria-mineraria";
+    case "Fucina":
+    case "Emporio":
+    case "Bosco":
+    case "Miniera":
+      return `/impresa/${edificio.id}`;
+    case "Zecca":
+      return "/zecca";
     case "Impianto di Riciclo":
       return "/impianto-riciclo";
     case "Baracca":
@@ -29,18 +30,18 @@ export function getRouteForEdificio(edificio: Edificio): string | null {
       return "/centrale";
     case "Tribunale":
       return "/tribunale";
-    case "Centro di Comando":
-      return "/ministri";
-    case "Dissalatore":
-      return "/dissalatore";
+    case "Castello":
+      return "/castello";
+    case "Acquedotto":
+      return "/";
     case "Laboratorio di Ricerca":
       return "/laboratorio";
     case "Caserma":
       return "/caserma";
     case "Carcere":
       return "/carcere";
-    case "Spazioporto":
-      return "/spazioporto";
+    case "Porto":
+      return "/porto";
     case "Ufficio Immigrazione":
       return "/immigrazione";
     case "Ufficio Edile":
@@ -49,6 +50,8 @@ export function getRouteForEdificio(edificio: Edificio): string | null {
       return "/mercato";
     case "Mensa Pubblica":
       return `/mensa/${edificio.id}`;
+    case "Chiesa":
+      return `/chiesa/${edificio.id}`;
     default:
       return null;
   }

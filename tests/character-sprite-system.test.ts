@@ -1,11 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { appearanceForPublicSpace, bodyFamilyFor, DEFAULT_CHARACTER_APPEARANCE, FARMER_TOOL, normalizeCharacterAppearance } from "../src/character-system/appearance.ts";
+import { appearanceForPublicSpace, bodyFamilyFor, DEFAULT_CHARACTER_APPEARANCE, BLACKSMITH_TOOL, FARMER_TOOL, LUMBERJACK_TOOL, MAGO_HAT, MINER_TOOL, normalizeCharacterAppearance } from "../src/character-system/appearance.ts";
 import { LPC_DIRECTION_ROWS, LPC_SHEETS } from "../src/character-system/lpcPack.ts";
 import { CHARACTER_ASSETS, CHARACTER_CATALOG_OPTIONS, LPC_RUNTIME_MANIFEST, canRenderCharacter, compatibleCatalogOptions, firstCompatibleHairColor, isAssetCompatible, rendererKindFor, resolveCharacterLayers } from "../src/character-system/registry.ts";
 import { deserializeCharacterAppearance, serializeCharacterAppearance } from "../src/character-system/serialization.ts";
 import { generaAspettoCasuale, testaObbligatoriaRazza } from "../src/game/personaggioAspetto.ts";
+import { generaAspettoEsempioOccupazione } from "../src/game/lavoriAspetto.ts";
 
 test("mapping race e age -> body family", () => {
   assert.equal(bodyFamilyFor("human"), "humanAdult");
@@ -55,7 +56,7 @@ test("compatibilità filtra opzioni per corporatura", () => {
   const options = compatibleCatalogOptions(child);
   assert.ok(options.skinTones.includes("light"));
   assert.ok(options.hairStyles.includes("relm_short"));
-  assert.deepEqual(options.beardStyles, ["none", "winter"]);
+  assert.deepEqual(options.beardStyles, ["none", "basic", "medium", "trimmed", "winter"]);
   assert.equal(rendererKindFor(child, "idle"), "sprite");
 });
 
@@ -133,6 +134,21 @@ test("le abitanti incinte usano bodyType pregnant", () => {
   assert.ok(resolveCharacterLayers(incinta, "idle").some((layer) => layer.layer === "body" && layer.semanticId === "pregnant"));
 });
 
+test("le abitanti incinte con outfit incompatibile restano renderizzabili", () => {
+  for (let i = 0; i < 200; i++) {
+    const base = generaAspettoCasuale("Umano", Math.random, { sesso: "F", eta: 32 });
+    const incinta = appearanceForPublicSpace(base.characterAppearance!, {
+      isKing: false,
+      nudismoAttivo: false,
+      incinta: true,
+      lavoro: "Disoccupato",
+      seed: i
+    });
+    assert.equal(incinta.bodyType, "pregnant");
+    assert.equal(rendererKindFor(incinta, "idle"), "sprite", `seed ${i} hw=${base.characterAppearance!.headwear} outfit=${base.characterAppearance!.upperOutfit}`);
+  }
+});
+
 test("i Nani usano sempre bodyType child", () => {
   const nano = normalizeCharacterAppearance({ race: "dwarf", bodyType: "male", ageGroup: "adult" });
   assert.equal(nano.bodyType, "child");
@@ -143,6 +159,54 @@ test("i Nani usano sempre bodyType child", () => {
   assert.equal(generated.race, "dwarf");
   assert.equal(generated.bodyType, "child");
   assert.equal(generated.ageGroup, "child");
+  assert.equal(generated.upperOutfit, "child_shirt");
+  assert.equal(generated.lowerOutfit, "child_pants");
+  assert.equal(generated.hairStyle, "none");
+
+  const generatedF = generaAspettoCasuale("Nano", () => 0.5, { eta: 40, sesso: "F" }).characterAppearance!;
+  assert.equal(generatedF.upperOutfit, "child_shirt");
+  assert.equal(generatedF.lowerOutfit, "child_skirt");
+
+  // Anche se l'aspetto salvato ha race human/adulto, la razza di gioco Nano forza il corpo child.
+  const salvatoSbagliato = {
+    ...DEFAULT_CHARACTER_APPEARANCE,
+    race: "human" as const,
+    bodyType: "male",
+    ageGroup: "adult" as const,
+    bodyFamily: "humanAdult" as const
+  };
+  const pubblico = appearanceForPublicSpace(salvatoSbagliato, {
+    isKing: false,
+    nudismoAttivo: false,
+    razza: "Nano",
+    sesso: "M",
+    seed: 42
+  });
+  assert.equal(pubblico.race, "dwarf");
+  assert.equal(pubblico.bodyType, "child");
+  assert.equal(pubblico.bodyFamily, "humanChild");
+  assert.equal(pubblico.upperOutfit, "child_shirt");
+  assert.equal(pubblico.lowerOutfit, "child_pants");
+  assert.ok(canRenderCharacter(pubblico, "idle"));
+
+  const pubblicoF = appearanceForPublicSpace(salvatoSbagliato, {
+    isKing: false,
+    nudismoAttivo: false,
+    razza: "Nano",
+    sesso: "F",
+    seed: 7
+  });
+  assert.equal(pubblicoF.lowerOutfit, "child_skirt");
+  assert.ok(canRenderCharacter(pubblicoF, "idle"));
+
+  const nanoMedico = appearanceForPublicSpace(generated, {
+    isKing: false,
+    nudismoAttivo: false,
+    lavoro: "Medico",
+    razza: "Nano"
+  });
+  assert.equal(nanoMedico.bodyType, "child");
+  assert.equal(nanoMedico.ageGroup, "child");
 });
 
 test("i Nani usano sempre la Winter Beard con colore valido", () => {
@@ -184,6 +248,127 @@ test("agricoltore ha sempre l'annaffiatoio (Tools → Watering Can)", () => {
   assert.ok(idleLayers.every((layer) => layer.semanticId === FARMER_TOOL));
   const walkLayers = resolveCharacterLayers(farmer, "walk").filter((layer) => layer.layer === "accessory");
   assert.ok(walkLayers.length >= 2);
+});
+
+test("taglialegna ha sempre l'ascia (Tools → Axe)", () => {
+  const lumberjack = appearanceForPublicSpace(DEFAULT_CHARACTER_APPEARANCE, {
+    isKing: false,
+    nudismoAttivo: false,
+    lavoro: "Taglialegna"
+  });
+  assert.equal(lumberjack.accessory, LUMBERJACK_TOOL);
+  const idleLayers = resolveCharacterLayers(lumberjack, "idle").filter((layer) => layer.layer === "accessory");
+  assert.ok(idleLayers.length >= 1, "ascia LPC visibile in idle");
+  assert.ok(idleLayers.every((layer) => layer.semanticId === LUMBERJACK_TOOL));
+  const walkLayers = resolveCharacterLayers(lumberjack, "walk").filter((layer) => layer.layer === "accessory");
+  assert.ok(walkLayers.length >= 1);
+});
+
+test("fabbro ha sempre il martello (Tools → Hammer)", () => {
+  const fabbro = appearanceForPublicSpace(DEFAULT_CHARACTER_APPEARANCE, {
+    isKing: false,
+    nudismoAttivo: false,
+    lavoro: "Fabbro"
+  });
+  assert.equal(fabbro.accessory, BLACKSMITH_TOOL);
+  const idleLayers = resolveCharacterLayers(fabbro, "idle").filter((layer) => layer.layer === "accessory");
+  assert.ok(idleLayers.length >= 1, "martello LPC visibile in idle");
+  assert.ok(idleLayers.every((layer) => layer.semanticId === BLACKSMITH_TOOL));
+});
+
+test("minatore ha sempre il piccone (Tools → Pickaxe)", () => {
+  const minatore = appearanceForPublicSpace(DEFAULT_CHARACTER_APPEARANCE, {
+    isKing: false,
+    nudismoAttivo: false,
+    lavoro: "Minatore"
+  });
+  assert.equal(minatore.accessory, MINER_TOOL);
+  const idleLayers = resolveCharacterLayers(minatore, "idle").filter((layer) => layer.layer === "accessory");
+  assert.ok(idleLayers.length >= 1, "piccone LPC visibile in idle");
+  assert.ok(idleLayers.every((layer) => layer.semanticId === MINER_TOOL));
+});
+
+test("medico ha sempre equip LPC (mail, cravat, mask, sunglasses, kimono)", () => {
+  const doctor = appearanceForPublicSpace(DEFAULT_CHARACTER_APPEARANCE, {
+    isKing: false,
+    nudismoAttivo: false,
+    lavoro: "Medico"
+  });
+  assert.equal(doctor.fullOutfit, "kimono");
+  assert.equal(doctor.outfitPrimaryColor, "black");
+  assert.equal(doctor.upperOutfit, "chainmail");
+  assert.equal(doctor.outfitSecondaryColor, "iron");
+  assert.equal(doctor.neckwear, "cravat");
+  assert.equal(doctor.neckwearColor, "white");
+  assert.equal(doctor.facialMask, "plain_mask");
+  assert.equal(doctor.facialMaskColor, "white");
+  assert.equal(doctor.facialEyes, "sunglasses");
+  assert.equal(doctor.facialEyesColor, "black");
+  assert.equal(doctor.hairStyle, "none");
+  assert.equal(doctor.headwear, "mail");
+  assert.equal(doctor.headwearColor, "iron");
+  const idleLayers = resolveCharacterLayers(doctor, "idle");
+  assert.ok(!idleLayers.some((layer) => layer.layer === "hairFront" || layer.layer === "hairBack"));
+  assert.ok(idleLayers.some((layer) => layer.layer === "headwear" && layer.semanticId === "mail"));
+  assert.ok(idleLayers.some((layer) => layer.layer === "fullOutfit" && layer.semanticId === "kimono"));
+  assert.ok(idleLayers.some((layer) => layer.layer === "outfit" && layer.semanticId === "chainmail"));
+  assert.ok(idleLayers.some((layer) => layer.layer === "neck" && layer.semanticId === "cravat"));
+  assert.ok(idleLayers.some((layer) => layer.layer === "facialMask" && layer.semanticId === "plain_mask"));
+  assert.ok(idleLayers.some((layer) => layer.layer === "facialEyes" && layer.semanticId === "sunglasses"));
+});
+
+test("giudice ha sempre capelli wavy bianchi e kimono nero", () => {
+  const giudice = appearanceForPublicSpace(DEFAULT_CHARACTER_APPEARANCE, {
+    isKing: false,
+    nudismoAttivo: false,
+    lavoro: "Giudice"
+  });
+  assert.equal(giudice.hairStyle, "wavy");
+  assert.equal(giudice.hairColor, "white");
+  assert.equal(giudice.beardStyle, "none");
+  assert.equal(giudice.fullOutfit, "kimono");
+  assert.equal(giudice.outfitPrimaryColor, "black");
+  const idleLayers = resolveCharacterLayers(giudice, "idle");
+  assert.ok(idleLayers.some((layer) => layer.layer === "hairFront" && layer.semanticId === "wavy"));
+  assert.ok(idleLayers.some((layer) => layer.layer === "fullOutfit" && layer.semanticId === "kimono"));
+});
+
+test("mago ha sempre cappello magic celestial con colore stabile per seed", () => {
+  const magoA = appearanceForPublicSpace(DEFAULT_CHARACTER_APPEARANCE, {
+    isKing: false,
+    nudismoAttivo: false,
+    lavoro: "Mago",
+    seed: 42
+  });
+  const magoB = appearanceForPublicSpace(DEFAULT_CHARACTER_APPEARANCE, {
+    isKing: false,
+    nudismoAttivo: false,
+    lavoro: "Mago",
+    seed: 42
+  });
+  const magoAlt = appearanceForPublicSpace(DEFAULT_CHARACTER_APPEARANCE, {
+    isKing: false,
+    nudismoAttivo: false,
+    lavoro: "Mago",
+    seed: 99
+  });
+  assert.equal(magoA.headwear, MAGO_HAT);
+  assert.equal(magoB.headwearColor, magoA.headwearColor);
+  assert.equal(magoAlt.headwear, MAGO_HAT);
+  assert.ok(magoA.headwearColor);
+  assert.equal(rendererKindFor(magoA, "idle"), "sprite");
+  const idleLayers = resolveCharacterLayers(magoA, "idle");
+  assert.ok(idleLayers.some((layer) => layer.layer === "headwear" && layer.semanticId === MAGO_HAT));
+});
+
+test("card Lavori Giudice usa sprite LPC e non il fallback legacy", () => {
+  const esempio = generaAspettoEsempioOccupazione("Giudice", "giudice");
+  assert.ok(esempio.characterAppearance);
+  assert.equal(rendererKindFor(esempio.characterAppearance!, "idle"), "sprite");
+  assert.equal(esempio.characterAppearance!.hairStyle, "wavy");
+  assert.equal(esempio.characterAppearance!.hairColor, "white");
+  assert.equal(esempio.characterAppearance!.fullOutfit, "kimono");
+  assert.equal(esempio.characterAppearance!.outfitPrimaryColor, "black");
 });
 
 test("randomizzazione produce soltanto combinazioni risolvibili o fallback sicuro", () => {

@@ -15,7 +15,8 @@ const CASTA_COLORI: Record<Casta, string> = {
   Schiavo: "#ef4444",
   "Servo della gleba": "#22c55e",
   Cittadino: "#3b82f6",
-  Nobile: "#eab308"
+  Nobile: "#eab308",
+  Clero: "#a78bfa"
 };
 
 export function coloriCasta(nome: Casta): string {

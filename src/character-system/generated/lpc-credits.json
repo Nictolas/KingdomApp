@@ -485,6 +485,26 @@
       }
     ]
   },
+  "2619792f8a51": {
+    "definition": "head/furry_ears/side/head_ears_lykon_skin.json",
+    "credits": [
+      {
+        "file": "head/ears/lykon",
+        "notes": "",
+        "authors": [
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0+",
+          "CC-BY 3.0+",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-furry-ears-tails-for-rpg-sprites"
+        ]
+      }
+    ]
+  },
   "2e1fe4f727ff": {
     "definition": "hair/short/hair_messy1.json",
     "credits": [
@@ -648,6 +668,25 @@
       }
     ]
   },
+  "e74a5c30d47b": {
+    "definition": "hair/beards/beards_medium.json",
+    "credits": [
+      {
+        "file": "beards/beard/medium",
+        "notes": "",
+        "authors": [
+          "ElizaWy"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://github.com/ElizaWy/LPC/tree/main/Characters/Hair",
+          "https://opengameart.org/content/lpc-expanded-sit-run-jump-more"
+        ]
+      }
+    ]
+  },
   "9f1964cb1b34": {
     "definition": "hair/beards/beards_winter.json",
     "credits": [
@@ -682,6 +721,66 @@
         ],
         "urls": [
           "https://opengameart.org/content/lpc-brunet-mustache"
+        ]
+      }
+    ]
+  },
+  "71cb7cce44f5": {
+    "definition": "torso/shirts/torso_clothes_child_shirt.json",
+    "credits": [
+      {
+        "file": "torso/clothes/shirt/child",
+        "notes": "",
+        "authors": [
+          "Nila122"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-clothes-for-children"
+        ]
+      }
+    ]
+  },
+  "b26264b1f88f": {
+    "definition": "legs/pants/legs_childpants.json",
+    "credits": [
+      {
+        "file": "legs/pants/child",
+        "notes": "",
+        "authors": [
+          "Nila122"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-clothes-for-children"
+        ]
+      }
+    ]
+  },
+  "0665bb0e1129": {
+    "definition": "legs/skirts/legs_childskirts.json",
+    "credits": [
+      {
+        "file": "legs/skirts/child",
+        "notes": "",
+        "authors": [
+          "Nila122"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-clothes-for-children"
         ]
       }
     ]
@@ -984,6 +1083,164 @@
         ],
         "urls": [
           "https://opengameart.org/content/lpc-hand-tools"
+        ]
+      }
+    ]
+  },
+  "b5412f227e18": {
+    "definition": "tools/tool_axe.json",
+    "credits": [
+      {
+        "file": "tools/axe",
+        "notes": "original by bluecarrot16, color reduced by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman",
+          "Pierre Vigier (pvigier)",
+          "Tuomo Untinen (reemax)"
+        ],
+        "licenses": [
+          "OGA-BY-3.0",
+          "CC-BY 4.0",
+          "CC-BY-SA 3.0+",
+          "GPL 2.0+"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-hand-tools"
+        ]
+      }
+    ]
+  },
+  "752c4c75c1d0": {
+    "definition": "tools/tool_hammer.json",
+    "credits": [
+      {
+        "file": "tools/hammer",
+        "notes": "original by bluecarrot16, color reduced by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman",
+          "Pierre Vigier (pvigier)",
+          "Tuomo Untinen (reemax)"
+        ],
+        "licenses": [
+          "OGA-BY-3.0",
+          "CC-BY 4.0",
+          "CC-BY-SA 3.0+",
+          "GPL 2.0+"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-hand-tools"
+        ]
+      }
+    ]
+  },
+  "3bee40d7bb9f": {
+    "definition": "tools/tool_pickaxe.json",
+    "credits": [
+      {
+        "file": "tools/pickaxe",
+        "notes": "original by bluecarrot16, color reduced by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman",
+          "Pierre Vigier (pvigier)",
+          "Tuomo Untinen (reemax)"
+        ],
+        "licenses": [
+          "OGA-BY-3.0",
+          "CC-BY 4.0",
+          "CC-BY-SA 3.0+",
+          "GPL 2.0+"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-hand-tools"
+        ]
+      }
+    ]
+  },
+  "ddee22b1a8b1": {
+    "definition": "headwear/neck/neck_cravat.json",
+    "credits": [
+      {
+        "file": "neck/cravat",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates"
+        ]
+      }
+    ]
+  },
+  "512661b346c7": {
+    "definition": "headwear/accessories/facial_mask_plain.json",
+    "credits": [
+      {
+        "file": "facial/masks/plain",
+        "notes": "",
+        "authors": [
+          "Nila122"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-masks",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "bc7c85e2bad4": {
+    "definition": "headwear/accessories/glasses/facial_glasses_sunglasses.json",
+    "credits": [
+      {
+        "file": "facial/glasses/sunglasses",
+        "notes": "",
+        "authors": [
+          "Michael Whitlock (bigbeargames)",
+          "Thane Brimhall (pennomi)",
+          "laetissima"
+        ],
+        "licenses": [
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-base-character-expressions",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "7b0d93dbd61a": {
+    "definition": "headwear/helmets/helmets/hat_helmet_mail.json",
+    "credits": [
+      {
+        "file": "hat/helmet/mail",
+        "notes": "reduced palette version by Napsio",
+        "authors": [
+          "Napsio (Vitruvian Studio)",
+          "Johannes Sj\u00f6lund (wulax)",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
         ]
       }
     ]
@@ -4920,6 +5177,2069 @@
         "urls": [
           "https://opengameart.org/content/lpc-curly-hair-elven-ears-white-cape-with-blue-trim-and-more",
           "http://opengameart.org/content/lpc-clothing-updates"
+        ]
+      }
+    ]
+  },
+  "02bf2915d554": {
+    "definition": "headwear/coverings/bandana/hat_bandana.json",
+    "credits": [
+      {
+        "file": "hat/cloth/bandana",
+        "notes": "",
+        "authors": [
+          "Matthew Krohn (makrohn)",
+          "JaidynReiman",
+          "Marcel van de Steeg (MadMarcel)",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-female-orcogregoblintroll-base-walkcycle",
+          "https://github.com/makrohn/Universal-LPC-spritesheet/commit/f50007cb47c235d8896cafae7a613f0b6a9a09a8?short_path=02b86d4#diff-02b86d45789a3e3e8e79519c7d17d15c9e6ecc9b4ddecb1bcd8dfbbaef430b75",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "cc6ba91b62fe": {
+    "definition": "headwear/coverings/bandana/hat_bandana2.json",
+    "credits": [
+      {
+        "file": "hat/cloth/bandana2",
+        "notes": "",
+        "authors": [
+          "Napsio (Vitruvian Studio)",
+          "JaidynReiman",
+          "Michael Whitlock (bigbeargames)",
+          "Matthew Krohn (makrohn)",
+          "Marcel van de Steeg (MadMarcel)"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-female-orcogregoblintroll-base-walkcycle",
+          "https://github.com/makrohn/Universal-LPC-spritesheet/commit/f50007cb47c235d8896cafae7a613f0b6a9a09a8?short_path=02b86d4#diff-02b86d45789a3e3e8e79519c7d17d15c9e6ecc9b4ddecb1bcd8dfbbaef430b75",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "3835cb170ce0": {
+    "definition": "headwear/coverings/bandana/hat_bandana_pirate.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bandana",
+        "notes": "Original Bandana by Fabzy, Pirate Version by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "Fabzy"
+        ],
+        "licenses": [
+          "CC-BY-SA 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/the-revolution-hair",
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "733b2dc30d5d": {
+    "definition": "headwear/coverings/bandana/hat_bandana_pirate_skull.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bandana",
+        "notes": "Original Bandana by Fabzy, Pirate Version by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "Fabzy"
+        ],
+        "licenses": [
+          "CC-BY-SA 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/the-revolution-hair",
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "045dc6f0236c": {
+    "definition": "headwear/coverings/headbands/hat_headband_hairtie.json",
+    "credits": [
+      {
+        "file": "hat/headband/hairtie",
+        "notes": "",
+        "authors": [
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0+",
+          "CC-BY 3.0+",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-relm-hair-xlong-ponytail",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "b66620371215": {
+    "definition": "headwear/coverings/headbands/hat_headband_hairtie_rune.json",
+    "credits": [
+      {
+        "file": "hat/headband/hairtie",
+        "notes": "",
+        "authors": [
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0+",
+          "CC-BY 3.0+",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-relm-hair-xlong-ponytail",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "e27656cb9e63": {
+    "definition": "headwear/coverings/headbands/hat_headband_kerchief.json",
+    "credits": [
+      {
+        "file": "hat/pirate/kerchief",
+        "notes": "original Kerchief by Nila122, recolors by bluecarrot16, more frames by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman",
+          "Nila122"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/more-lpc-clothes-and-hair",
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "68359ea04a09": {
+    "definition": "headwear/coverings/headbands/hat_headband_thick.json",
+    "credits": [
+      {
+        "file": "hat/headband/thick",
+        "notes": "",
+        "authors": [
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0+",
+          "CC-BY 3.0+",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-relm-hair-xlong-ponytail",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "444f535f1d29": {
+    "definition": "headwear/coverings/headbands/hat_headband_thick_rune.json",
+    "credits": [
+      {
+        "file": "hat/headband/thick",
+        "notes": "",
+        "authors": [
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0+",
+          "CC-BY 3.0+",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-relm-hair-xlong-ponytail",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "e19f547b7b03": {
+    "definition": "headwear/coverings/headbands/hat_headband_tied.json",
+    "credits": [
+      {
+        "file": "hat/headband/tied",
+        "notes": "",
+        "authors": [
+          "Nila122"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-lizard-headgear",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "a19aa916b29f": {
+    "definition": "headwear/coverings/hoods/hat_hood_cloth.json",
+    "credits": [
+      {
+        "file": "hat/cloth/hood",
+        "notes": "Brown hood by Wulax, original black/white recolors by ??, mapped to idle/run/jump/revised combat by JaidynReiman, along with additional recolors.",
+        "authors": [
+          "Johannes Sj\u00f6lund (wulax)",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "ac7e73bb1bb6": {
+    "definition": "headwear/coverings/hoods/hat_hood_hijab.json",
+    "credits": [
+      {
+        "file": "hat/cloth/hijab",
+        "notes": "",
+        "authors": [
+          "thecilekli"
+        ],
+        "licenses": [
+          "CC0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-hijab",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "853754fcd600": {
+    "definition": "headwear/coverings/hoods/hat_hood_sack_cloth.json",
+    "credits": [
+      {
+        "file": "hat/cloth/hood_sack/adult",
+        "notes": "original by Nila122, adapted to human heads by JaidynReiman",
+        "authors": [
+          "Nila122",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-lizard-headgear",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "f656bca17583": {
+    "definition": "headwear/hats/athwart/hat_bicorne_athwart_admiral.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bicorne/athwart/admiral",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "c1cc7b02975f": {
+    "definition": "headwear/hats/athwart/hat_bicorne_athwart_admiral_cockade.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bicorne/athwart/admiral",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "19dddd3df232": {
+    "definition": "headwear/hats/athwart/hat_bicorne_athwart_admiral_trim.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bicorne/athwart/admiral",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "f1f341c0202d": {
+    "definition": "headwear/hats/athwart/hat_bicorne_athwart_basic.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bicorne/athwart",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "601a2135ef75": {
+    "definition": "headwear/hats/athwart/hat_bicorne_athwart_basic_skull.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bicorne/athwart/basic/skull",
+        "notes": "Pirate Hat by Bluecarrot16, Pirate Skull mapped to Basic Athwart by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "b1c91a0bcf32": {
+    "definition": "headwear/hats/athwart/hat_bicorne_athwart_captain.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bicorne/athwart/captain",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "e0847761b2ab": {
+    "definition": "headwear/hats/athwart/hat_bicorne_athwart_captain_skull.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bicorne/athwart/captain",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "8d02c1194221": {
+    "definition": "headwear/hats/athwart/hat_bicorne_athwart_commodore.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bicorne/athwart/commodore",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "1da004271d48": {
+    "definition": "headwear/hats/athwart/hat_bicorne_athwart_commodore_trim.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bicorne/athwart/commodore",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "33b95cb58092": {
+    "definition": "headwear/hats/caps/hat_cap_bonnie.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bonnie",
+        "notes": "Bonnie Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "81317e65f055": {
+    "definition": "headwear/hats/caps/hat_cap_bonnie_feather.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bonnie",
+        "notes": "Bonnie Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "37c7418f8dbd": {
+    "definition": "headwear/hats/caps/hat_cap_bonnie_tilt.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bonnie",
+        "notes": "Bonnie Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "0d0ccf0c369a": {
+    "definition": "headwear/hats/caps/hat_cap_bonnie_trim.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bonnie",
+        "notes": "Bonnie Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "f1e9af1e59f4": {
+    "definition": "headwear/hats/caps/hat_cap_cavalier.json",
+    "credits": [
+      {
+        "file": "hat/pirate/cavalier",
+        "notes": "Cavalier Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "9e145a5c7bad": {
+    "definition": "headwear/hats/caps/hat_cap_cavalier_feather.json",
+    "credits": [
+      {
+        "file": "hat/pirate/cavalier",
+        "notes": "Cavalier Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "c37132f5f5e2": {
+    "definition": "headwear/hats/caps/hat_cap_leather.json",
+    "credits": [
+      {
+        "file": "hat/cloth/leather_cap",
+        "notes": "original by Johannes Sj\u00f6lund (wulax), female by Matthew Krohn, mapped to all frames w/recolors by JaidynReiman",
+        "authors": [
+          "Johannes Sj\u00f6lund (wulax)",
+          "Matthew Krohn (Makrohn)",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "c3371fecb7eb": {
+    "definition": "headwear/hats/caps/hat_cap_leather_feather.json",
+    "credits": [
+      {
+        "file": "hat/cloth/leather_cap",
+        "notes": "original by Johannes Sj\u00f6lund (wulax), female by Matthew Krohn, mapped to all frames w/recolors by JaidynReiman",
+        "authors": [
+          "Johannes Sj\u00f6lund (wulax)",
+          "Matthew Krohn (Makrohn)",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "b51210017d6c": {
+    "definition": "headwear/hats/foreaft/hat_bicorne_foreaft.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bicorne/foreaft",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "954eaee6607f": {
+    "definition": "headwear/hats/foreaft/hat_bicorne_foreaft_commodore.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bicorne/foreaft/commodore",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "0e5576f6c65c": {
+    "definition": "headwear/hats/foreaft/hat_bicorne_foreaft_commodore_trim.json",
+    "credits": [
+      {
+        "file": "hat/pirate/bicorne/foreaft/commodore",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "2a949e28a4f3": {
+    "definition": "headwear/hats/formal/hat_formal_bowler.json",
+    "credits": [
+      {
+        "file": "hat/formal/bowler",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-gentleman",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "64cf191c4a92": {
+    "definition": "headwear/hats/formal/hat_formal_tiara.json",
+    "credits": [
+      {
+        "file": "hat/formal/tiara",
+        "notes": "",
+        "authors": [
+          "Luke Mehl"
+        ],
+        "licenses": [
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/female-mage-clothing-set",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "4b35040c945b": {
+    "definition": "headwear/hats/formal/hat_formal_tophat.json",
+    "credits": [
+      {
+        "file": "hat/formal/tophat",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-gentleman",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "d2b5ae95f5ff": {
+    "definition": "headwear/hats/holiday/hat_holiday_christmas.json",
+    "credits": [
+      {
+        "file": "hat/holiday/christmas",
+        "notes": "Santa/Elf Hat by bluecarrot16, untrimmed Santa Hat by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-santa",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "133650f277f8": {
+    "definition": "headwear/hats/holiday/hat_holiday_elf.json",
+    "credits": [
+      {
+        "file": "hat/holiday/elf",
+        "notes": "Christmas Elf by bluecarrot16, split into layers by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-santa",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "20776d6f369f": {
+    "definition": "headwear/hats/holiday/hat_holiday_santa.json",
+    "credits": [
+      {
+        "file": "hat/holiday/santa",
+        "notes": "Santa Hat by bluecarrot16, split into layers by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-santa",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "18dc76126193": {
+    "definition": "headwear/hats/magic/hat_magic_celestial.json",
+    "credits": [
+      {
+        "file": "hat/magic/celestial",
+        "notes": "Original by Tracy, Adapted to ULPC by Big Bear Games, reduced colors by Napsio",
+        "authors": [
+          "Napsio (Vitruvian Studio)",
+          "Michael Whitlock (bigbeargames)",
+          "Tracy"
+        ],
+        "licenses": [
+          "CC-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-celestial-wizard-hats",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "7b65c57d798e": {
+    "definition": "headwear/hats/magic/hat_magic_celestial_moon.json",
+    "credits": [
+      {
+        "file": "hat/magic/celestial_moon",
+        "notes": "sheet_definitions/hat_magic_celestial.json",
+        "authors": [
+          "Napsio (Vitruvian Studio)",
+          "Michael Whitlock (bigbeargames)",
+          "Tracy"
+        ],
+        "licenses": [
+          "CC-BY 3.0"
+        ],
+        "urls": [
+          "https:/opengameart.org/content/lpc-celestial-wizard-hats",
+          "https:/opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "97a2a55b1ddd": {
+    "definition": "headwear/hats/magic/hat_magic_celestial_moon_trim.json",
+    "credits": [
+      {
+        "file": "hat/magic/celestial_moon",
+        "notes": "sheet_definitions/hat_magic_celestial.json",
+        "authors": [
+          "Napsio (Vitruvian Studio)",
+          "Michael Whitlock (bigbeargames)",
+          "Tracy"
+        ],
+        "licenses": [
+          "CC-BY 3.0"
+        ],
+        "urls": [
+          "https:/opengameart.org/content/lpc-celestial-wizard-hats",
+          "https:/opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "7e90c0823f7d": {
+    "definition": "headwear/hats/magic/hat_magic_celestial_trim.json",
+    "credits": [
+      {
+        "file": "hat/magic/celestial",
+        "notes": "Original by Tracy, Adapted to ULPC by Big Bear Games, reduced colors by Napsio, second color layer by JaidynReiman",
+        "authors": [
+          "Napsio (Vitruvian Studio)",
+          "JaidynReiman",
+          "Michael Whitlock (bigbeargames)",
+          "Tracy"
+        ],
+        "licenses": [
+          "CC-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-celestial-wizard-hats",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "254fea8ced2f": {
+    "definition": "headwear/hats/magic/hat_magic_large.json",
+    "credits": [
+      {
+        "file": "hat/magic/large",
+        "notes": "",
+        "authors": [
+          "Stafford McIntyre",
+          "PlatForge project",
+          "Evert"
+        ],
+        "licenses": [
+          "CC-BY-SA 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/wizard-2",
+          "https://opengameart.org/content/wizard-hat",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "4c03e74212b5": {
+    "definition": "headwear/hats/magic/hat_magic_wizard.json",
+    "credits": [
+      {
+        "file": "hat/magic/wizard",
+        "notes": "Original Wizard Hat and Recolors by bigbeargames and reemax; split into separate layers with new recolors by JaidynReiman",
+        "authors": [
+          "Michael Whitlock (bigbeargames)",
+          "Tuomo Untinen (reemax)",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "CC-BY-SA 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-items-and-game-effects",
+          "https://opengameart.org/content/lpc-pointed-hats",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "d7c20240df69": {
+    "definition": "headwear/hats/magic/hat_magic_wizard_belt.json",
+    "credits": [
+      {
+        "file": "hat/magic/wizard",
+        "notes": "Original Wizard Hat and Recolors by bigbeargames and reemax; split into separate layers with new recolors by JaidynReiman",
+        "authors": [
+          "Michael Whitlock (bigbeargames)",
+          "Tuomo Untinen (reemax)",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "CC-BY-SA 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-items-and-game-effects",
+          "https://opengameart.org/content/lpc-pointed-hats",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "5873f1763c93": {
+    "definition": "headwear/hats/magic/hat_magic_wizard_buckle.json",
+    "credits": [
+      {
+        "file": "hat/magic/wizard",
+        "notes": "Original Wizard Hat and Recolors by bigbeargames and reemax; split into separate layers with new recolors by JaidynReiman",
+        "authors": [
+          "Michael Whitlock (bigbeargames)",
+          "Tuomo Untinen (reemax)",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "CC-BY-SA 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-items-and-game-effects",
+          "https://opengameart.org/content/lpc-pointed-hats",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "50af79636cbf": {
+    "definition": "headwear/hats/tricorne/hat_tricorne.json",
+    "credits": [
+      {
+        "file": "hat/pirate/tricorne",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "195ac02a6599": {
+    "definition": "headwear/hats/tricorne/hat_tricorne_captain.json",
+    "credits": [
+      {
+        "file": "hat/pirate/tricorne/captain",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "01ac75b2fe80": {
+    "definition": "headwear/hats/tricorne/hat_tricorne_captain_skull.json",
+    "credits": [
+      {
+        "file": "hat/pirate/tricorne/captain",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "fbf2df93c823": {
+    "definition": "headwear/hats/tricorne/hat_tricorne_captain_trim.json",
+    "credits": [
+      {
+        "file": "hat/pirate/tricorne/captain",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "dd55d0456420": {
+    "definition": "headwear/hats/tricorne/hat_tricorne_lieutenant.json",
+    "credits": [
+      {
+        "file": "hat/pirate/tricorne/lieutenant",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "82e68783cda7": {
+    "definition": "headwear/hats/tricorne/hat_tricorne_lieutenant_trim.json",
+    "credits": [
+      {
+        "file": "hat/pirate/tricorne/lieutenant",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "d9a51bba7512": {
+    "definition": "headwear/hats/tricorne/hat_tricorne_stitched.json",
+    "credits": [
+      {
+        "file": "hat/pirate/tricorne",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "a32d0f45178e": {
+    "definition": "headwear/hats/tricorne/hat_tricorne_thatch.json",
+    "credits": [
+      {
+        "file": "hat/pirate/tricorne",
+        "notes": "Pirate Hat by Bluecarrot16, layers and added animations by JaidynReiman",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-pirates",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "0d898c571ea8": {
+    "definition": "headwear/helmets/accessories/hat_accessory_crest.json",
+    "credits": [
+      {
+        "file": "hat/accessory/crest",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "d28a03440047": {
+    "definition": "headwear/helmets/accessories/hat_accessory_crest_centurion.json",
+    "credits": [
+      {
+        "file": "hat/accessory/crest_centurion",
+        "notes": "",
+        "authors": [
+          "bluecarrot16",
+          "DCSS authors"
+        ],
+        "licenses": [
+          "CC0"
+        ],
+        "urls": [
+          "http://opengameart.org/content/dungeon-crawl-32x32-tiles",
+          "https://opengameart.org/content/cc0-headgear-icons",
+          "https://opengameart.org/content/lpc-helmets-mega-pack",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "a6028c189b64": {
+    "definition": "headwear/helmets/accessories/hat_accessory_plumage.json",
+    "credits": [
+      {
+        "file": "hat/accessory/plumage",
+        "notes": "",
+        "authors": [
+          "ElizaWy"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "CC-BY-SA 4.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-realistic-helmet-pack",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "e08d42fd5831": {
+    "definition": "headwear/helmets/accessories/hat_accessory_plumage_centurion.json",
+    "credits": [
+      {
+        "file": "hat/accessory/plumage_centurion",
+        "notes": "",
+        "authors": [
+          "bluecarrot16",
+          "DCSS authors"
+        ],
+        "licenses": [
+          "CC0"
+        ],
+        "urls": [
+          "http://opengameart.org/content/dungeon-crawl-32x32-tiles",
+          "https://opengameart.org/content/cc0-headgear-icons",
+          "https://opengameart.org/content/lpc-helmets-mega-pack",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "86f20b8f679e": {
+    "definition": "headwear/helmets/accessories/hat_accessory_plumage_legion.json",
+    "credits": [
+      {
+        "file": "hat/accessory/plumage_legion",
+        "notes": "",
+        "authors": [
+          "bluecarrot16",
+          "Nila122",
+          "JaidynReiman",
+          "Matthew Krohn (makrohn)",
+          "Johannes Sj\u00f6lund (wulax)"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-roman-armor",
+          "https://opengameart.org/content/lpc-helmets-mega-pack",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "c27d42508dbe": {
+    "definition": "headwear/helmets/helmets/hat_helmet_armet.json",
+    "credits": [
+      {
+        "file": "hat/helmet/armet",
+        "notes": "previously called helmet/armor, original version by Johannes Sj\u00f6lund (wulax), adjustments by bluecarrot16, color reduction by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "Johannes Sj\u00f6lund (wulax)",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "01ebb9da194b": {
+    "definition": "headwear/helmets/helmets/hat_helmet_armet_simple.json",
+    "credits": [
+      {
+        "file": "hat/helmet/armet_simple",
+        "notes": "original version by Johannes Sj\u00f6lund (wulax), adjustments by bluecarrot16, color reduction by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "Johannes Sj\u00f6lund (wulax)",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "2579e8747109": {
+    "definition": "headwear/helmets/helmets/hat_helmet_barbarian.json",
+    "credits": [
+      {
+        "file": "hat/helmet/barbarian",
+        "notes": "original version by bluecarrot16, color reduction by Napsio (Vitruvian Studio)",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman",
+          "Napsio (Vitruvian Studio)"
+        ],
+        "licenses": [
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "OGA-BY 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "04713338e1c1": {
+    "definition": "headwear/helmets/helmets/hat_helmet_barbarian_nasal.json",
+    "credits": [
+      {
+        "file": "hat/helmet/barbarian_nasal",
+        "notes": "original version by bluecarrot16, color reduction by Napsio (Vitruvian Studio)",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman",
+          "Napsio (Vitruvian Studio)"
+        ],
+        "licenses": [
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "OGA-BY 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "c551f818acff": {
+    "definition": "headwear/helmets/helmets/hat_helmet_barbarian_viking.json",
+    "credits": [
+      {
+        "file": "hat/helmet/barbarian_viking",
+        "notes": "original version by bluecarrot16, color reduction by Napsio (Vitruvian Studio)",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman",
+          "Napsio (Vitruvian Studio)"
+        ],
+        "licenses": [
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "OGA-BY 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "c68dd8338ac6": {
+    "definition": "headwear/helmets/helmets/hat_helmet_barbuta.json",
+    "credits": [
+      {
+        "file": "hat/helmet/barbuta",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "cd71338bd858": {
+    "definition": "headwear/helmets/helmets/hat_helmet_barbuta_simple.json",
+    "credits": [
+      {
+        "file": "hat/helmet/barbuta_simple",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "58e48ed6c362": {
+    "definition": "headwear/helmets/helmets/hat_helmet_bascinet.json",
+    "credits": [
+      {
+        "file": "hat/helmet/bascinet",
+        "notes": "",
+        "authors": [
+          "bluecarrot16",
+          "ElizaWy",
+          "Sander Frenken (castelonia)"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 4.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-realistic-helmet-pack",
+          "https://opengameart.org/content/lpc-helmets-mega-pack",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "7df9b4929a8f": {
+    "definition": "headwear/helmets/helmets/hat_helmet_bascinet_round.json",
+    "credits": [
+      {
+        "file": "hat/helmet/bascinet_round",
+        "notes": "Original Bascinet Round by ElizaWy/Bluecarrot16, split from visor and base Bascinet by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman",
+          "ElizaWy",
+          "Sander Frenken (castelonia)"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 4.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-realistic-helmet-pack",
+          "https://opengameart.org/content/lpc-helmets-mega-pack",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "bf8a6d5b7749": {
+    "definition": "headwear/helmets/helmets/hat_helmet_close.json",
+    "credits": [
+      {
+        "file": "hat/helmet/close",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "e070a5a208ab": {
+    "definition": "headwear/helmets/helmets/hat_helmet_flattop.json",
+    "credits": [
+      {
+        "file": "hat/helmet/flattop",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "c41818074135": {
+    "definition": "headwear/helmets/helmets/hat_helmet_greathelm.json",
+    "credits": [
+      {
+        "file": "hat/helmet/greathelm",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "b47fa3941dac": {
+    "definition": "headwear/helmets/helmets/hat_helmet_horned.json",
+    "credits": [
+      {
+        "file": "hat/helmet/horned",
+        "notes": "",
+        "authors": [
+          "bluecarrot16",
+          "Shaun Williams",
+          "Matthew Krohn (makrohn)",
+          "Johannes Sj\u00f6lund (wulax)",
+          "Sander Frenken (castelonia)"
+        ],
+        "licenses": [
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+          "https://opengameart.org/content/lpc-full-plate-golden-armor",
+          "https://opengameart.org/content/lpc-full-plate-golden-armor-0",
+          "https://opengameart.org/content/lpc-helmets-mega-pack",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "51d415d8bb97": {
+    "definition": "headwear/helmets/helmets/hat_helmet_kettle.json",
+    "credits": [
+      {
+        "file": "hat/helmet/kettle",
+        "notes": "previously referred to as chain-hat, color reduction by Napsio (Vitruvian Studio)",
+        "authors": [
+          "Johannes Sj\u00f6lund (wulax)",
+          "JaidynReiman",
+          "Napsio (Vitruvian Studio)"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "7bd2c06326ea": {
+    "definition": "headwear/helmets/helmets/hat_helmet_legion.json",
+    "credits": [
+      {
+        "file": "hat/helmet/legion",
+        "notes": "",
+        "authors": [
+          "bluecarrot16",
+          "Nila122",
+          "JaidynReiman",
+          "Matthew Krohn (makrohn)",
+          "Johannes Sj\u00f6lund (wulax)"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-roman-armor",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "ee4f06307964": {
+    "definition": "headwear/helmets/helmets/hat_helmet_maximus.json",
+    "credits": [
+      {
+        "file": "hat/helmet/maximus",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "OGA-BY 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "18347419ae97": {
+    "definition": "headwear/helmets/helmets/hat_helmet_morion.json",
+    "credits": [
+      {
+        "file": "hat/helmet/morion",
+        "notes": "",
+        "authors": [
+          "ElizaWy",
+          "Sander Frenken (castelonia)"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 4.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-realistic-helmet-pack",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "e0727e82f737": {
+    "definition": "headwear/helmets/helmets/hat_helmet_nasal.json",
+    "credits": [
+      {
+        "file": "hat/helmet/nasal",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "OGA-BY 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "0138c3d562f8": {
+    "definition": "headwear/helmets/helmets/hat_helmet_norman.json",
+    "credits": [
+      {
+        "file": "hat/helmet/norman",
+        "notes": "",
+        "authors": [
+          "ElizaWy",
+          "Sander Frenken (castelonia)"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 4.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-realistic-helmet-pack",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "2fb5e8df9618": {
+    "definition": "headwear/helmets/helmets/hat_helmet_pointed.json",
+    "credits": [
+      {
+        "file": "hat/helmet/pointed",
+        "notes": "original version by bluecarrot16, color reduction by JaidynReiman",
+        "authors": [
+          "bluecarrot16",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "OGA-BY 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "b1aad04e36ac": {
+    "definition": "headwear/helmets/helmets/hat_helmet_spangenhelm.json",
+    "credits": [
+      {
+        "file": "hat/helmet/spangenhelm",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "OGA-BY 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "6abb21075b5d": {
+    "definition": "headwear/helmets/helmets/hat_helmet_spangenhelm_viking.json",
+    "credits": [
+      {
+        "file": "hat/helmet/spangenhelm_viking",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "OGA-BY 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "0a06bb622ed9": {
+    "definition": "headwear/helmets/helmets/hat_helmet_sugarloaf.json",
+    "credits": [
+      {
+        "file": "hat/helmet/sugarloaf",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "OGA-BY 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "525f76d91ccb": {
+    "definition": "headwear/helmets/helmets/hat_helmet_sugarloaf_simple.json",
+    "credits": [
+      {
+        "file": "hat/helmet/sugarloaf_simple",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "OGA-BY 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "84f3c60e7c7f": {
+    "definition": "headwear/helmets/helmets/hat_helmet_xeon.json",
+    "credits": [
+      {
+        "file": "hat/helmet/xeon",
+        "notes": "original version by Stephen Challener (Redshrike), color reduction by JaidynReiman",
+        "authors": [
+          "Stephen Challener (Redshrike)",
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/four-characters-my-lpc-entries",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "f14d13c9430a": {
+    "definition": "headwear/helmets/visors/hat_visor_grated.json",
+    "credits": [
+      {
+        "file": "hat/visor/grated",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "OGA-BY 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "ab2887ab58d1": {
+    "definition": "headwear/helmets/visors/hat_visor_grated_narrow.json",
+    "credits": [
+      {
+        "file": "hat/visor/grated_narrow",
+        "notes": "",
+        "authors": [
+          "bluecarrot16"
+        ],
+        "licenses": [
+          "CC-BY 3.0",
+          "CC-BY 4.0",
+          "OGA-BY 3.0",
+          "GPL 2.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-helmets",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "19305206de5a": {
+    "definition": "headwear/helmets/visors/hat_visor_horned.json",
+    "credits": [
+      {
+        "file": "hat/visor/horned",
+        "notes": "",
+        "authors": [
+          "bluecarrot16",
+          "Shaun Williams",
+          "Matthew Krohn (makrohn)",
+          "Johannes Sj\u00f6lund (wulax)",
+          "Sander Frenken (castelonia)"
+        ],
+        "licenses": [
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+          "https://opengameart.org/content/lpc-full-plate-golden-armor",
+          "https://opengameart.org/content/lpc-full-plate-golden-armor-0",
+          "https://opengameart.org/content/lpc-helmets-mega-pack",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "da69856d9137": {
+    "definition": "headwear/helmets/visors/hat_visor_pigface.json",
+    "credits": [
+      {
+        "file": "hat/visor/pigface",
+        "notes": "",
+        "authors": [
+          "bluecarrot16",
+          "ElizaWy",
+          "Sander Frenken (castelonia)"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 4.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-realistic-helmet-pack",
+          "https://opengameart.org/content/lpc-helmets-mega-pack",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "2664cf71c9f1": {
+    "definition": "headwear/helmets/visors/hat_visor_pigface_raised.json",
+    "credits": [
+      {
+        "file": "hat/visor/pigface_raised",
+        "notes": "",
+        "authors": [
+          "bluecarrot16",
+          "ElizaWy",
+          "Sander Frenken (castelonia)"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 4.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-realistic-helmet-pack",
+          "https://opengameart.org/content/lpc-helmets-mega-pack",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "7896e626bf5d": {
+    "definition": "headwear/helmets/visors/hat_visor_round.json",
+    "credits": [
+      {
+        "file": "hat/visor/round",
+        "notes": "",
+        "authors": [
+          "bluecarrot16",
+          "ElizaWy",
+          "Sander Frenken (castelonia)"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 4.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-realistic-helmet-pack",
+          "https://opengameart.org/content/lpc-helmets-mega-pack",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "195df86ef23c": {
+    "definition": "headwear/helmets/visors/hat_visor_round_raised.json",
+    "credits": [
+      {
+        "file": "hat/visor/round_raised",
+        "notes": "",
+        "authors": [
+          "bluecarrot16",
+          "ElizaWy",
+          "Sander Frenken (castelonia)"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 4.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-realistic-helmet-pack",
+          "https://opengameart.org/content/lpc-helmets-mega-pack",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "3de93f8079a9": {
+    "definition": "headwear/helmets/visors/hat_visor_slit.json",
+    "credits": [
+      {
+        "file": "hat/visor/slit",
+        "notes": "",
+        "authors": [
+          "bluecarrot16",
+          "Johannes Sj\u00f6lund (wulax)"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
+        ]
+      }
+    ]
+  },
+  "581d56933d44": {
+    "definition": "headwear/helmets/visors/hat_visor_slit_narrow.json",
+    "credits": [
+      {
+        "file": "hat/visor/slit",
+        "notes": "",
+        "authors": [
+          "bluecarrot16",
+          "Johannes Sj\u00f6lund (wulax)"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "CC-BY-SA 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-medieval-fantasy-character-sprites",
+          "https://opengameart.org/content/lpc-expanded-hats-facial-helmets"
         ]
       }
     ]

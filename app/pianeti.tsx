@@ -40,7 +40,7 @@ export default function PianetiScreen() {
                 <Text style={styles.emoji}>{p.emoji}</Text>
                 <Text style={styles.cardTitle}>{p.nome}</Text>
                 <Text style={styles.cardDesc}>
-                  Razza: {p.razza} · In colonia: {p.count} abitanti
+                  Razza: {p.razza} · In regno: {p.count} abitanti
                 </Text>
               </View>
             ))}

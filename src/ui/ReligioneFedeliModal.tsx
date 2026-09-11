@@ -22,7 +22,7 @@ export function ReligioneFedeliModal({ visible, religione, abitanti, onClose }: 
       Deista: "🤔",
       Agnostico: "❓",
       "Culto del Sole": "☀️",
-      "Culto degli Alieni": "👽"
+      "Culto delle Ombre": "🌑"
     };
     return emojiMap[nome] || "📿";
   };

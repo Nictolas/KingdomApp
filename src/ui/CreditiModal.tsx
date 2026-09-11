@@ -5,6 +5,7 @@ import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 import {
   calcolaTotaleStipendiMensiliEdificiPubblici,
+  contaLavoratoriRetribuitiPubblici,
   getStipendioMensileEdificio
 } from "../game/edificiPubblici";
 import { isEdificioPubblicoConPostazioniLavoro } from "../game/edificiLavoro";
@@ -27,15 +28,15 @@ export function CreditiModal({ visible, abitanti, edifici, onClose }: CreditiMod
   const speseEdifici = edifici
     .filter((e) => e.stato === "Operativo" && isEdificioPubblicoConPostazioniLavoro(e))
     .map((edificio) => {
-      const n = edificio.abitantiAssegnati?.length ?? 0;
+      const n = contaLavoratoriRetribuitiPubblici(edificio, abitanti);
       const costo = getStipendioMensileEdificio(edificio) * n;
       return { edificio, costo };
     })
-    .filter((s) => s.costo > 0 || (s.edificio.abitantiAssegnati?.length ?? 0) > 0);
+    .filter((s) => s.costo > 0 || contaLavoratoriRetribuitiPubblici(s.edificio, abitanti) > 0);
 
   const totaleRedditi = abitanti.reduce((sum, a) => sum + a.reddito, 0);
   const totaleSpese = abitanti.reduce((sum, a) => sum + a.spese, 0);
-  const totaleStipendiEdifici = calcolaTotaleStipendiMensiliEdificiPubblici(edifici);
+  const totaleStipendiEdifici = calcolaTotaleStipendiMensiliEdificiPubblici(edifici, abitanti);
   const totaleNettoCrediti = totaleRedditi - totaleSpese;
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
@@ -48,7 +49,7 @@ export function CreditiModal({ visible, abitanti, edifici, onClose }: CreditiMod
 
           {/* Entrate dagli abitanti */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Redditi abitanti (Crediti colonia)</Text>
+            <Text style={styles.sectionTitle}>Redditi abitanti (monete)</Text>
             <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
               {entrateAbitanti.map(({ abitante, reddito, spese, netto }) => (
                 <View key={abitante.id} style={styles.item}>
@@ -106,7 +107,7 @@ export function CreditiModal({ visible, abitanti, edifici, onClose }: CreditiMod
           </View>
 
           <View style={styles.totaleFinaleContainer}>
-            <Text style={styles.totaleFinaleLabel}>Saldo Crediti (senza stipendi tesoro):</Text>
+            <Text style={styles.totaleFinaleLabel}>Saldo monete (senza stipendi tesoro):</Text>
             <Text
               style={[
                 styles.totaleFinaleValore,
@@ -114,7 +115,7 @@ export function CreditiModal({ visible, abitanti, edifici, onClose }: CreditiMod
               ]}
             >
               {totaleNettoCrediti >= 0 ? "+" : ""}
-              {totaleNettoCrediti} <Text style={styles.unità}>crediti</Text>
+              {totaleNettoCrediti} <Text style={styles.unità}>monete</Text>
             </Text>
           </View>
 

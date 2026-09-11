@@ -46,7 +46,7 @@ export type TitoloDiStudio = "Asilo" | "Elementare" | "Superiore" | "Università
 export type Specializzazione = "Legge" | "Medicina" | "Educazione" | "Agraria";
 
 /** Classe sociale dell'abitante (casta). */
-export type Casta = "Schiavo" | "Servo della gleba" | "Cittadino" | "Nobile";
+export type Casta = "Schiavo" | "Servo della gleba" | "Cittadino" | "Nobile" | "Clero";
 
 /** @deprecated Usare Casta */
 export type Ceto = Casta;
@@ -74,8 +74,12 @@ export type Abitante = {
   amici: RelazionePunteggio[]; // ID + punteggio amicizia 1-100
   rivali: RelazionePunteggio[]; // ID + punteggio rivalità 1-100
   coniugeId?: number; // ID del coniuge (se presente)
-  figliIds?: number[]; // ID dei figli
+  figliIds?: number[]; // ID dei figli (biologici e adottati)
+  /** Sottoinsieme di `figliIds` (o elenco parallelo) nati da adozione. */
+  figliAdottatiIds?: number[];
   genitoriIds?: number[]; // ID dei genitori (1 o 2)
+  /** Genitori adottivi (es. Re che adotta); possono coincidere con o sostituire i biologici in UI. */
+  genitoriAdottiviIds?: number[];
   nonniIds?: number[]; // ID dei nonni
   fazioni: string[]; // Ogni abitante può far parte di più fazioni (es. Cittadini, Nativi, Schiavi, Amministrazione, …)
   peso: number; // 0-100: indicatore peso (Denutrito 0-40, Normopeso 41-80, Sovrappeso 81-95, Obeso 96+)
@@ -87,7 +91,6 @@ export type Abitante = {
   crediti?: number;
   reddito: number; // Monete/mese (display; allineato allo stipendio base)
   spese: number; // Legacy display; saldo monete usa solo costi reali (affitto, bar, negozio)
-  lealtà: number; // 0-100
   paura: number; // 0-100
   felicità: number; // 1-100
   ministero?: string; // Ministero assegnato (se è ministro)
@@ -97,10 +100,10 @@ export type Abitante = {
   ceto?: Casta;
   ruoloSchiavitu?: "schiavista" | "schiavo"; // Ruolo nella schiavitù
   schiavistaId?: number; // ID dello schiavista (se è schiavo)
-  religione: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni"; // Religione dell'abitante
+  religione: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto delle Ombre" | string; // Religione (canoniche o create dal giocatore)
   /** Livello scolastico (Asilo → Università). */
   titoloStudio?: TitoloDiStudio;
-  specie?: "umano" | "alieno"; // Specie dell'abitante (alieno = non Umano)
+  specie?: "umano" | "alieno"; // Specie (alieno = non umano / razze fantasy)
   razza?: Razza; // Razza/Pianeta di origine dell'abitante
   /** Aspetto modulare scelto nell'editor del Re o generato per l'abitante. */
   aspetto?: AspettoPersonaggio;
@@ -115,6 +118,21 @@ export type Abitante = {
   gravidanzaIniziataAnno?: number;
   /** Oggetti portati dall'abitante (monete, cibo, …). */
   inventario?: { itemId: string; quantità: number }[];
+  /** Ultimo bottino trovato nel Bosco (Raccoglitore). */
+  ultimoRaccoltoBosco?: {
+    giorno: number;
+    voci: { itemId: string; emoji: string; nome: string; quantità: number }[];
+  };
+  /** Ultimo bottino estratto in Miniera (Minatore). */
+  ultimoRaccoltoMiniera?: {
+    giorno: number;
+    voci: { itemId: string; emoji: string; nome: string; quantità: number }[];
+  };
+  /** Ultimo raccolto dalla Serra (Agricoltore). */
+  ultimoRaccoltoSerra?: {
+    giorno: number;
+    voci: { itemId: string; emoji: string; nome: string; quantità: number }[];
+  };
   /** Ultimo giorno di gioco in cui ha consumato un oggetto Cibo dall'inventario. */
   ultimoGiornoCiboConsumato?: number;
   /** Bisogni 0–100 (Fame, Energia, Divertimento, Socialità, Igiene). */
@@ -125,6 +143,19 @@ export type Abitante = {
     socialita: number;
     igiene: number;
   };
+  /**
+   * Modificatori soddisfazione a punti (permanenti / giornalieri / mensili).
+   * Distinti da `felicità` (0–100). Casa è valutata situazionalmente.
+   */
+  modificatoriSoddisfazione?: {
+    id: string;
+    delta: number;
+    motivo: string;
+    durata: "permanente" | "giornaliero" | "mensile";
+    scadeGiorno?: number;
+    scadeMese?: number;
+    scadeAnno?: number;
+  }[];
 };
 
 // Razze trovabili tra gli abitanti (pianeti di origine o sintetici)
@@ -170,7 +201,7 @@ export type Risorsa = {
   unità: string;
 };
 
-/** Evento attivo nella colonia; si attiva al cambio mese se sono soddisfatte le condizioni. */
+/** Evento attivo nel regno; si attiva al cambio mese se sono soddisfatte le condizioni. */
 export type EventoInCorso = {
   id: string;
   iniziatoMese: number;
@@ -178,7 +209,7 @@ export type EventoInCorso = {
   durataMesi: number;
 };
 
-/** Ordine di acquisto o vendita nel Mercato; si esegue al cambio mese (Skip Mese). */
+/** Ordine di acquisto o vendita nel Mercato; si esegue al cambio mese. */
 export type OrdineMercato = {
   id: number;
   tipo: "compra" | "vendi";
@@ -192,6 +223,8 @@ export type Edificio = {
   nome: string;
   emoji: string;
   tipo: string;
+  /** Flag economico: scheda Impresa standard (Bar, Emporio, Fucina, …). Non sostituisce `tipo` tematico. */
+  categoriaEconomica?: "Impresa";
   descrizione: string;
   capacità: number; // Numero di persone che può ospitare
   occupazione: number; // Numero attuale di persone
@@ -202,10 +235,16 @@ export type Edificio = {
   livello: number; // Livello dell'edificio
   produzione?: string; // Cosa produce (se applicabile)
   consumo?: string; // Cosa consuma (se applicabile)
-  /** Stipendio mensile per ogni lavoratore assegnato (configurabile dall'utente). Costo edificio = stipendioPerLavoratore × numero lavoratori. */
+  /** Stipendio per lavoratore (persistito come monete/mese; in UI edifici pubblici = giornaliero). Costo = stipendio × lavoratori. */
   stipendioPerLavoratore?: number;
-  /** Solo Serra: id oggetto Cibo vegetale prodotto (1 unità/giorno). */
+  /** Cassa Impresa (monete). Assente su edifici non-Impresa; seed tipico 10. */
+  cassaMonete?: number;
+  /** Fatturato clienti del mese corrente (per tassa impresa); azzerato a fine mese. */
+  fatturatoMeseMonete?: number;
+  /** Solo Serra: id oggetto Cibo vegetale prodotto (2 unità/giorno per Agricoltore). */
   colturaItemId?: string;
-  /** 0–100: avanzamento cantiere (solo se stato === "In costruzione"). Completato dagli edili dell'Ufficio Edile. */
+  /** Solo Chiesa: religione del tempio (non Ateo/Deista/Agnostico). */
+  religioneTempio?: string;
+  /** 0–100: avanzamento cantiere (solo se stato === "In costruzione"). +1/ora per ogni Edile dell'Ufficio Edile. */
   progressoCostruzione?: number;
 };

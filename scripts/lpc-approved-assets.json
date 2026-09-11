@@ -20,6 +20,8 @@
     { "id": "head_lizard_female", "slot": "raceFeatures", "definition": "head/heads/reptile/heads_lizard_female.json", "semantic": "lizard_female", "bodyTypes": ["female"], "colors": "$skin", "colorField": "skinTone", "required": true },
     { "id": "head_lizard_male", "slot": "raceFeatures", "definition": "head/heads/reptile/heads_lizard_male.json", "semantic": "lizard_male", "bodyTypes": ["male", "teen"], "colors": "$skin", "colorField": "skinTone", "required": true },
 
+    { "id": "ears_side_wolf_skintone", "slot": "ears", "definition": "head/furry_ears/side/head_ears_lykon_skin.json", "semantic": "side_wolf_skintone", "colors": "$skin", "colorField": "skinTone", "bodyTypes": ["male", "female", "teen", "muscular", "pregnant", "child"] },
+
     { "id": "hair_messy", "slot": "hairFront", "definition": "hair/short/hair_messy1.json", "semantic": "messy", "colors": "$hair", "colorField": "hairColor" },
     { "id": "hair_bob", "slot": "hairFront", "definition": "hair/bob/hair_bob.json", "semantic": "bob", "colors": "$hair", "colorField": "hairColor" },
     { "id": "hair_braid", "slot": "hairFront", "definition": "hair/braids/hair_braid.json", "semantic": "braid", "colors": "$hair", "colorField": "hairColor" },
@@ -27,10 +29,15 @@
     { "id": "hair_relm", "slot": "hairFront", "definition": "hair/bob/hair_relm_short.json", "semantic": "relm_short", "colors": "$hair", "colorField": "hairColor" },
     { "id": "hair_child_wavy", "slot": "hairFront", "definition": "hair/long/hair_wavy_child.json", "semantic": "child_wavy", "bodyTypes": ["child"], "colors": "$hair", "colorField": "hairColor" },
 
-    { "id": "beard_basic", "slot": "beard", "definition": "hair/beards/beards_beard.json", "semantic": "basic", "bodyTypes": ["male"], "colors": "$hair", "colorField": "beardColor" },
-    { "id": "beard_trimmed", "slot": "beard", "definition": "hair/beards/beards_trimmed.json", "semantic": "trimmed", "bodyTypes": ["male"], "colors": "$hair", "colorField": "beardColor" },
+    { "id": "beard_basic", "slot": "beard", "definition": "hair/beards/beards_beard.json", "semantic": "basic", "bodyTypes": ["male", "child"], "layerKeyMap": { "child": "male" }, "colors": "$hair", "colorField": "beardColor" },
+    { "id": "beard_trimmed", "slot": "beard", "definition": "hair/beards/beards_trimmed.json", "semantic": "trimmed", "bodyTypes": ["male", "child"], "layerKeyMap": { "child": "male" }, "colors": "$hair", "colorField": "beardColor" },
+    { "id": "beard_medium", "slot": "beard", "definition": "hair/beards/beards_medium.json", "semantic": "medium", "bodyTypes": ["male", "child"], "layerKeyMap": { "child": "male" }, "colors": "$hair", "colorField": "beardColor" },
     { "id": "beard_winter", "slot": "beard", "definition": "hair/beards/beards_winter.json", "semantic": "winter", "bodyTypes": ["child"], "layerKeyMap": { "child": "teen" }, "colors": "$hair", "colorField": "beardColor" },
     { "id": "mustache", "slot": "beard", "definition": "hair/mustaches/beards_mustache.json", "semantic": "mustache", "bodyTypes": ["male"], "colors": "$hair", "colorField": "beardColor" },
+
+    { "id": "child_shirt", "slot": "outfit", "definition": "torso/shirts/torso_clothes_child_shirt.json", "semantic": "child_shirt", "bodyTypes": ["child"], "colorField": "outfitPrimaryColor", "required": true },
+    { "id": "child_pants", "slot": "lowerBody", "definition": "legs/pants/legs_childpants.json", "semantic": "child_pants", "bodyTypes": ["child"], "colorField": "outfitSecondaryColor", "required": true },
+    { "id": "child_skirt", "slot": "lowerBody", "definition": "legs/skirts/legs_childskirts.json", "semantic": "child_skirt", "bodyTypes": ["child"], "colorField": "outfitSecondaryColor", "required": true },
 
     { "id": "commoner_shirt", "slot": "outfit", "definition": "torso/shirts/longsleeve/torso_clothes_longsleeve.json", "semantic": "commoner", "colors": ["brown"], "colorField": "outfitPrimaryColor", "required": true },
     { "id": "commoner_pants", "slot": "lowerBody", "definition": "legs/pants/legs_pants.json", "semantic": "commoner", "colors": ["charcoal"], "colorField": "outfitSecondaryColor", "required": true },
@@ -47,6 +54,15 @@
     { "id": "noble_pants", "slot": "lowerBody", "definition": "legs/pants/legs_pants.json", "semantic": "noble", "colors": ["black"], "colorField": "outfitSecondaryColor", "required": true },
     { "id": "noble_crown", "slot": "headwear", "definition": "headwear/hats/formal/hat_formal_crown.json", "semantic": "crown", "colors": ["crown_gold"], "colorField": "headwear" },
 
-    { "id": "tool_watering_can", "slot": "accessory", "definition": "tools/tool_watering_can.json", "semantic": "watering_can", "colors": ["base"], "bodyTypes": ["male", "female", "teen", "muscular", "pregnant"] }
+    { "id": "tool_watering_can", "slot": "accessory", "definition": "tools/tool_watering_can.json", "semantic": "watering_can", "colors": ["base"], "bodyTypes": ["male", "female", "teen", "muscular", "pregnant"] },
+    { "id": "tool_axe", "slot": "accessory", "definition": "tools/tool_axe.json", "semantic": "axe", "colors": ["base"], "bodyTypes": ["male", "female", "teen", "muscular", "pregnant"] },
+    { "id": "tool_hammer", "slot": "accessory", "definition": "tools/tool_hammer.json", "semantic": "hammer", "colors": ["base"], "bodyTypes": ["male", "female", "teen", "muscular", "pregnant"] },
+    { "id": "tool_pickaxe", "slot": "accessory", "definition": "tools/tool_pickaxe.json", "semantic": "pickaxe", "colors": ["base"], "bodyTypes": ["male", "female", "teen", "muscular", "pregnant"] },
+
+    { "id": "medico_chainmail", "slot": "outfit", "definition": "torso/torso_chainmail.json", "semantic": "chainmail", "colors": ["iron"], "colorField": "outfitSecondaryColor", "bodyTypes": ["male", "female", "teen", "muscular", "pregnant"] },
+    { "id": "medico_cravat", "slot": "neck", "definition": "headwear/neck/neck_cravat.json", "semantic": "cravat", "colors": ["white"], "colorField": "neckwearColor", "bodyTypes": ["male", "female", "teen", "muscular", "pregnant"] },
+    { "id": "medico_mask", "slot": "facialMask", "definition": "headwear/accessories/facial_mask_plain.json", "semantic": "plain_mask", "colors": ["white"], "colorField": "facialMaskColor", "bodyTypes": ["male", "female", "teen", "muscular", "pregnant", "child"] },
+    { "id": "medico_sunglasses", "slot": "facialEyes", "definition": "headwear/accessories/glasses/facial_glasses_sunglasses.json", "semantic": "sunglasses", "colors": ["black"], "colorField": "facialEyesColor", "bodyTypes": ["male", "female", "teen", "muscular", "pregnant", "child"] },
+    { "id": "medico_hood_mail", "slot": "headwear", "definition": "headwear/helmets/helmets/hat_helmet_mail.json", "semantic": "mail", "colors": ["iron"], "colorField": "headwearColor", "bodyTypes": ["male", "female", "teen", "muscular", "pregnant"] }
   ]
 }

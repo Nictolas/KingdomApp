@@ -3,7 +3,8 @@ import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, Text
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
+import { getStipendioMoneteGiornaliero, stipendioGiornalieroToPersistito } from "../src/game/edificiPubblici";
+import { AbitanteAvatarPreview } from "../src/ui/AbitanteAvatarPreview";
 import type { Abitante } from "../src/types";
 
 export default function ImpiantoRicicloScreen() {
@@ -34,7 +35,7 @@ export default function ImpiantoRicicloScreen() {
       <View style={styles.infoCard}>
         <Text style={styles.infoTitle}>Smaltimento Rifiuti</Text>
         <Text style={styles.infoSubtext}>
-          Tratta e smaltisce i rifiuti della colonia.
+          Tratta e smaltisce i rifiuti del regno.
         </Text>
         <Text style={styles.infoSubtext}>
           {abitantiAssegnati.length} abitante{abitantiAssegnati.length !== 1 ? "i" : ""} assegnato
@@ -46,18 +47,18 @@ export default function ImpiantoRicicloScreen() {
         <Text style={styles.infoSubtext}>Consumo: Rifiuti</Text>
       </View>
       <View style={styles.stipendioCard}>
-        <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (crediti)</Text>
+        <Text style={styles.stipendioLabel}>Stipendio giornaliero per lavoratore (monete)</Text>
         <TextInput
           style={styles.stipendioInput}
-          value={String(impianto.stipendioPerLavoratore ?? 0)}
+          value={String(getStipendioMoneteGiornaliero(impianto))}
           keyboardType="number-pad"
           onChangeText={(text) => {
             const n = parseInt(text.replace(/[^0-9]/g, ""), 10);
-            setStipendioEdificio(impianto.id, isNaN(n) ? 0 : Math.max(0, n));
+            setStipendioEdificio(impianto.id, stipendioGiornalieroToPersistito(isNaN(n) ? 0 : n));
           }}
         />
         <Text style={styles.infoSubtext}>
-          Totale: {(impianto.stipendioPerLavoratore ?? 0) * abitantiAssegnati.length} crediti/mese
+          Totale: {getStipendioMoneteGiornaliero(impianto) * abitantiAssegnati.length} monete/giorno
         </Text>
       </View>
     </View>,
@@ -67,7 +68,7 @@ export default function ImpiantoRicicloScreen() {
         <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
           {abitantiAssegnati.map((a: Abitante) => (
             <View key={a.id} style={styles.card}>
-              <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+              <AbitanteAvatarPreview abitante={a} />
               <View style={styles.cardContent}>
                 <Text style={styles.cardTitle}>{a.nome}</Text>
                 <Text style={styles.cardLavoro}>{a.lavoro}</Text>
@@ -93,7 +94,7 @@ export default function ImpiantoRicicloScreen() {
         <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
           {abitantiDisponibili.map((a: Abitante) => (
             <View key={a.id} style={styles.card}>
-              <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+              <AbitanteAvatarPreview abitante={a} />
               <View style={styles.cardContent}>
                 <Text style={styles.cardTitle}>{a.nome}</Text>
                 <Text style={styles.cardExtra}>Produttività: {a.produttività}%</Text>

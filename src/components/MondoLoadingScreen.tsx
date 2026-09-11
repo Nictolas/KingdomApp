@@ -16,7 +16,7 @@ export const MondoLoadingScreen = memo(function MondoLoadingScreen({ progress, l
         <View style={styles.accentLine} />
         <Text style={styles.emoji}>🌍</Text>
         <Text style={styles.title}>Creazione del mondo</Text>
-        <Text style={styles.subtitle}>MyKingdom sta preparando la tua colonia…</Text>
+        <Text style={styles.subtitle}>MyKingdom sta preparando il tuo regno…</Text>
 
         <View style={styles.barTrack}>
           <View style={[styles.barFill, { width: `${pct}%` }]} />

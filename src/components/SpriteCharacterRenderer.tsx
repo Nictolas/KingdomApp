@@ -2,19 +2,58 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Image, StyleSheet, View } from "react-native";
 
 import { resolveCharacterLayers } from "../character-system/registry";
-import { lpcIdleBobPx } from "../character-system/lpcPack";
+import { CHILD_BEARD_OFFSET_Y_PX, lpcIdleBobPx } from "../character-system/lpcPack";
 import { LPC_ASSET_SOURCES } from "../character-system/generated/lpcAssetSources";
 import type {
   CharacterAnimationId,
   CharacterAppearance,
   CharacterDirection,
   CharacterLayer,
-  ResolvedCharacterLayer
+  ResolvedCharacterLayer,
+  SpriteAnimationDefinition
 } from "../character-system/types";
 
 const LAYER_ORDER = ["hairBack", "body", "lowerBody", "outfit", "fullOutfit", "footwear", "raceFeatures", "beard", "cape", "hairFront", "headwear", "accessory"] as const;
 
 function sourceFor(layer: ResolvedCharacterLayer) { return LPC_ASSET_SOURCES[layer.sourceId]; }
+
+/** Offset layer in coordinate sheet (prima dello scale). */
+function layerSheetOffsetY(appearance: CharacterAppearance, layer: CharacterLayer): number {
+  if (layer === "beard" && appearance.bodyType === "child") return CHILD_BEARD_OFFSET_Y_PX;
+  return 0;
+}
+
+function layerAnimationId(
+  layer: ResolvedCharacterLayer,
+  animation: CharacterAnimationId
+): CharacterAnimationId | null {
+  if (layer.sheet.animations[animation]) return animation;
+  if (animation === "idle" && layer.sheet.animations.walk) return "walk";
+  return null;
+}
+
+function primaryAnimationLayer(layers: ResolvedCharacterLayer[], animation: CharacterAnimationId): ResolvedCharacterLayer | undefined {
+  return layers.find((layer) => layer.layer === "body" && layerAnimationId(layer, animation))
+    ?? layers.find((layer) => layerAnimationId(layer, animation));
+}
+
+function sheetColumnForLayer(
+  layerAnimation: CharacterAnimationId,
+  requestedAnimation: CharacterAnimationId,
+  layerDef: SpriteAnimationDefinition,
+  frame: number,
+  animate: boolean
+): number {
+  if (layerAnimation === "idle" && requestedAnimation === "idle") {
+    const idleDownColumn = layerDef.columns?.[1] ?? layerDef.columns?.[0] ?? 0;
+    const useTransformIdleBob = layerDef.frames >= 2;
+    return useTransformIdleBob && !animate ? idleDownColumn : (layerDef.columns?.[frame] ?? frame);
+  }
+  if (layerAnimation === "walk" && requestedAnimation === "idle") {
+    return layerDef.columns?.[1] ?? layerDef.columns?.[0] ?? 0;
+  }
+  return layerDef.columns?.[frame] ?? frame;
+}
 
 export function SpriteCharacterRenderer({
   appearance,
@@ -54,7 +93,9 @@ export function SpriteCharacterRenderer({
       }),
     [appearance, animation, visibleLayers, visibleSemanticIds]
   );
-  const definition = layers[0]?.sheet.animations[animation];
+  const primaryLayer = primaryAnimationLayer(layers, animation);
+  const primaryAnimId = primaryLayer ? layerAnimationId(primaryLayer, animation) : null;
+  const definition = primaryAnimId ? primaryLayer!.sheet.animations[primaryAnimId] : undefined;
   const [frame, setFrame] = useState(0);
 
   useEffect(() => {
@@ -65,13 +106,10 @@ export function SpriteCharacterRenderer({
   }, [animate, animation, direction, definition]);
 
   if (!definition || layers.length === 0) return null;
-  const frameWidth = layers[0]!.sheet.frameWidth;
+  const frameWidth = primaryLayer!.sheet.frameWidth;
   const scale = size / frameWidth;
-  const animatedColumn = definition.columns?.[frame] ?? frame;
   const row = definition.directionRows[direction];
-  const useTransformIdleBob = animation === "idle" && definition.frames >= 2;
-  const idleDownColumn = definition.columns?.[1] ?? definition.columns?.[0] ?? 0;
-  const sheetColumn = useTransformIdleBob ? idleDownColumn : animatedColumn;
+  const useTransformIdleBob = animation === "idle" && primaryAnimId === "idle" && definition.frames >= 2;
   const bobOffsetY = useTransformIdleBob && animate && frame === 0
     ? -lpcIdleBobPx(size, frameWidth)
     : 0;
@@ -85,20 +123,39 @@ export function SpriteCharacterRenderer({
       <View style={{ transform: [{ translateY: bobOffsetY }] }}>
         {layers.map((layer) => {
           const source = sourceFor(layer);
-          if (!source) return null;
+          const layerAnimId = layerAnimationId(layer, animation);
+          const layerDef = layerAnimId ? layer.sheet.animations[layerAnimId] : undefined;
+          if (!source || !layerDef) return null;
+          const sheetColumn = sheetColumnForLayer(layerAnimId!, animation, layerDef, frame, animate);
+          const beardNudgePx = layerSheetOffsetY(appearance, layer.layer) * scale;
+          const imageStyle = {
+            position: "absolute" as const,
+            width: layer.sheet.columns * layer.sheet.frameWidth * scale,
+            height: layer.sheet.rows * layer.sheet.frameHeight * scale,
+            left: -sheetColumn * size,
+            top: -row * size + offsetY
+          };
+          const image = (
+            <Image source={source} resizeMode="stretch" style={imageStyle} />
+          );
+          // translateY positivo abbassa il layer (Winter Beard sul corpo child).
+          if (beardNudgePx === 0) {
+            return <React.Fragment key={`${layer.id}-${layer.layer}`}>{image}</React.Fragment>;
+          }
           return (
-            <Image
+            <View
               key={`${layer.id}-${layer.layer}`}
-              source={source}
-              resizeMode="stretch"
               style={{
                 position: "absolute",
-                width: layer.sheet.columns * layer.sheet.frameWidth * scale,
-                height: layer.sheet.rows * layer.sheet.frameHeight * scale,
-                left: -sheetColumn * size,
-                top: -row * size + offsetY
+                left: 0,
+                top: 0,
+                width: size,
+                height: size,
+                transform: [{ translateY: beardNudgePx }]
               }}
-            />
+            >
+              {image}
+            </View>
           );
         })}
       </View>

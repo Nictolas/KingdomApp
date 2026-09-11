@@ -1,11 +1,5 @@
 import { isTerrenoAcqua, type TerrenoType } from "./riverGeneration";
 
-function isAcquaCell(index: number, cols: number, rows: number): boolean {
-  const row = Math.floor(index / cols);
-  const col = index % cols;
-  return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
-}
-
 /** Acqua reale per autotile spiaggia: fiume o mare disegnato, mai sabbia adiacente. */
 function isWaterAt(
   row: number,

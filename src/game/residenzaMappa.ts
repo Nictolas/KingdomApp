@@ -49,7 +49,7 @@ export function elencoAnchorCelleCapanne(edificiInMappa: Record<number, Edificio
   return anchors;
 }
 
-/** Riparti i colonisti tra le capanne sulla mappa (max `postiPerCapanna` per anchor). */
+/** Riparti i sudditi tra le capanne sulla mappa (max `postiPerCapanna` per anchor). */
 export function distribuisciAbitantiSuAnchorCapanne(
   idsOrdinati: number[],
   anchors: number[],

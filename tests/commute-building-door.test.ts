@@ -60,3 +60,52 @@ test("se la porta di partenza è bloccata l'abitante non esce attraversando una 
 
   assert.equal(calcolaPercorsoVersoAnchorEdificio(7, 10, cols, rows, isWalkable, edifici), null);
 });
+
+test("Bosco striscia nord: ingresso sul bordo sud davanti a sé (non al centro)", () => {
+  const boscoCols = 12;
+  const boscoRows = 12;
+  const anchor = 0;
+  const w = boscoCols;
+  const h = 2;
+  const edifici: Record<number, EdificioInCellaLike> = {
+    [anchor]: { id: 51, nome: "Bosco", footprint: { w, h } }
+  };
+  for (let dr = 0; dr < h; dr++) {
+    for (let dc = 0; dc < w; dc++) {
+      const i = anchor + dr * boscoCols + dc;
+      if (i === anchor) continue;
+      edifici[i] = { id: 51, nome: "Bosco", footprintRef: anchor };
+    }
+  }
+  const isWalkable = (cell: number) =>
+    cell >= 0 && cell < boscoCols * boscoRows && edifici[cell] == null;
+
+  // Da sud, colonna 2 → entra in colonna 2 (non al centro = col 6)
+  const startLeft = 5 * boscoCols + 2;
+  const pathLeft = calcolaPercorsoVersoAnchorEdificio(
+    startLeft,
+    anchor,
+    boscoCols,
+    boscoRows,
+    isWalkable,
+    edifici
+  );
+  assert.ok(pathLeft);
+  assert.equal(pathLeft!.at(-1)! % boscoCols, 2);
+
+  // Da sud, colonna 10 → entra in colonna 10
+  const startRight = 5 * boscoCols + 10;
+  const pathRight = calcolaPercorsoVersoAnchorEdificio(
+    startRight,
+    anchor,
+    boscoCols,
+    boscoRows,
+    isWalkable,
+    edifici
+  );
+  assert.ok(pathRight);
+  assert.equal(pathRight!.at(-1)! % boscoCols, 10);
+
+  // Nessun percorso deve finire al centro (col 6) se si parte da col 2
+  assert.notEqual(pathLeft!.at(-1)! % boscoCols, Math.floor(boscoCols / 2));
+});

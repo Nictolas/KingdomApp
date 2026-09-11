@@ -145,10 +145,27 @@ export type GroupedCatalogOptions = {
   options: string[];
 };
 
+/** Sezioni Headwear (albero LPC headwear/*). */
+export const LPC_HEADWEAR_SECTIONS: readonly LpcCatalogSection[] = [
+  { label: "Head Coverings · Hoods", match: (definition) => definition.includes("headwear/coverings/hoods/") },
+  { label: "Head Coverings · Bandana", match: (definition) => definition.includes("headwear/coverings/bandana/") },
+  { label: "Head Coverings · Headbands", match: (definition) => definition.includes("headwear/coverings/headbands/") },
+  { label: "Hats · Caps", match: (definition) => definition.includes("headwear/hats/caps/") },
+  { label: "Hats · Tricorne", match: (definition) => definition.includes("headwear/hats/tricorne/") },
+  { label: "Hats · Bicorne Athwart", match: (definition) => definition.includes("headwear/hats/athwart/") },
+  { label: "Hats · Bicorne Foreaft", match: (definition) => definition.includes("headwear/hats/foreaft/") },
+  { label: "Hats · Magic", match: (definition) => definition.includes("headwear/hats/magic/") },
+  { label: "Hats · Formal", match: (definition) => definition.includes("headwear/hats/formal/") },
+  { label: "Hats · Holiday", match: (definition) => definition.includes("headwear/hats/holiday/") },
+  { label: "Helmets", match: (definition) => definition.includes("headwear/helmets/helmets/") },
+  { label: "Helmets · Visors", match: (definition) => definition.includes("headwear/helmets/visors/") },
+  { label: "Helmets · Accessories", match: (definition) => definition.includes("headwear/helmets/accessories/") }
+];
+
 export function groupCatalogOptionsByLpcSections(
   options: readonly string[],
   bodyType: string,
-  slot: "outfit" | "lowerBody" | "fullOutfit",
+  slot: "outfit" | "lowerBody" | "fullOutfit" | "headwear",
   sections: readonly LpcCatalogSection[]
 ): GroupedCatalogOptions[] {
   const definitions = semanticDefinitionsFor(bodyType, slot);

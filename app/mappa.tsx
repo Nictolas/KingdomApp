@@ -1,6 +1,5 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Dimensions,
   Modal,
@@ -14,15 +13,19 @@ import {
   type ViewStyle
 } from "react-native";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useFocusEffect, useRouter } from "expo-router";
 import { edificiData } from "../src/data/edificiData";
 import { useGameContext } from "../src/context/GameContext";
+import { useTutorialSpotlightOptional } from "../src/tutorial/TutorialSpotlightContext";
+import { useSpotlightTarget } from "../src/tutorial/useSpotlightTarget";
+import { SPOTLIGHT_TARGET_IDS } from "../src/tutorial/spotlightTypes";
+import { ObiettivoSbloccatoModal } from "../src/ui/ObiettivoSbloccatoModal";
 import {
   applyTerrenoGrassAndSandContinuity,
   buildTerrenoFromRivers,
   ensureStradaErbaTerrainBoundaryRules,
   fillErbaEnclosedByWater,
-  generateRivers,
+  generateSingleRiverNordToMare,
   hasOrthogonalSandNeighbor,
   hasOrthogonalWaterNeighbor,
   isTerrenoAcqua,
@@ -34,6 +37,7 @@ import {
   getAperturaResidenzaPending
 } from "../src/game/mappaAperturaPending";
 import { getMappaSessione, setMappaSessione } from "../src/game/mappaSessione";
+import { MAP_COLS as FIXED_MAP_COLS, MAP_ROWS as FIXED_MAP_ROWS } from "../src/game/mappaDimensioni";
 import {
   aggiungiAbitanteAlCultoEdificio,
   èNomeLuogoCulto,
@@ -59,7 +63,9 @@ import {
   èResidenzaMappa
 } from "../src/game/residenzaMappa";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
+import { AbitanteAvatarPreview } from "../src/ui/AbitanteAvatarPreview";
 import { CapannaFullscreenModal } from "../src/ui/CapannaFullscreenModal";
+import { CantiereModal } from "../src/ui/CantiereModal";
 import { LuogoCultoFullscreenModal } from "../src/ui/LuogoCultoFullscreenModal";
 import { abitanteDeveAndareAlCultoOra, abitanteNascostoNelCultoOra } from "../src/game/presenzaLuogoCulto";
 import { RichiesteModal } from "../src/ui/RichiesteModal";
@@ -67,10 +73,16 @@ import { EventiModal } from "../src/ui/EventiModal";
 import { calcolaEventiUI } from "../src/game/eventiDisponibili";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import {
+  calcolaPunteggioSoddisfazione,
+  fasciaDaPunteggio
+} from "../src/game/soddisfazione";
+import {
   RpgFootprintAdmin3x2,
   RpgFootprintCapanna2x1,
   RpgFootprintDorm2x2,
   RpgFootprintBar2x2,
+  RpgFootprintFucina2x2,
+  RpgFootprintEmporio3x3,
   RpgFootprintTribunale2x2,
   RpgFootprintUfficioImmigrazione2x2,
   RpgFootprintUfficioEdile2x2,
@@ -86,7 +98,8 @@ import {
   RpgFootprintNegozio2x2,
   RpgFootprintDissalatore2x2,
   RpgFootprintSerra2x1,
-  RpgFootprintSpazioporto4x3
+  RpgFootprintSpazioporto4x3,
+  RpgFootprintBosco5x5
 } from "../src/components/RpgFootprintBuilding";
 import { MapWandererCharacter } from "../src/components/MapWandererCharacter";
 import { abitanteSoggettoACoprifuoco } from "../src/game/coprifuoco";
@@ -95,27 +108,65 @@ import {
   applicaRecuperoCulto,
   applicaRecuperoEnergiaSonno,
   abitanteUsaBisogniUmani,
-  abitanteVuolePrendereLavoro,
-  COSTO_BAR_MONETE,
   getBisogniAbitante,
-  patchBisogni,
   scegliAzioneTempoLibero
 } from "../src/game/bisogni";
+import {
+  abitantePuoEntrareAlBar,
+  COSTO_BAR_MONETE,
+  EMOJI_BIRRA_BAR,
+  ITEM_BIRRA_BAR,
+  NOME_BIRRA_BAR,
+  pagaIngressoBar,
+  raggruppaBaristiInServizioPerBar
+} from "../src/game/barEconomia";
 import { getCastaAbitante, getEmojiCasta } from "../src/game/casta";
-import { elencoEdificiConPostoPerDisoccupato } from "../src/game/edificiLavoro";
+import {
+  NOME_EMPORIO
+} from "../src/game/emporioLavoro";
+import {
+  NOME_BOSCO
+} from "../src/game/boscoRaccolta";
+import {
+  generaProfonditaCostaSud,
+  getActiveCostaSud,
+  isMareAttivo,
+  MARE_PROFONDITA_BAIA,
+  MARE_PROFONDITA_MIN,
+  migraMappaCostaSud,
+  setActiveCostaSud
+} from "../src/game/mareCosta";
+import type { ModalitaGiocoGenerazione } from "../src/game/generazionePartita";
+import { MAPPA_LAYOUT_BOSCO_FIUME, migraMappaBoscoDueRettangoliEFiume } from "../src/game/boscoMappa";
+import {
+  NOME_CASTELLO,
+  èResidenteFissoCastello
+} from "../src/game/castelloGuardie";
+import { NOME_MINIERA } from "../src/game/minieraRaccolta";
+import { NOME_ZECCA } from "../src/game/zeccaProduzione";
 import { getEdificioAbitazione } from "../src/game/abitanteEdifici";
+import { reNascostoInEdificio } from "../src/game/disordineRe";
+import { consigliereNascostoNelCastello } from "../src/game/consiglierePresenza";
+import { ID_GIOCATORE } from "../src/game/schiavituCommercio";
+import {
+  azzeraReUscitaCastelloPending,
+  getReUscitaCastelloPending,
+  getTipoUscitaCastelloPending,
+  subscribeReUscitaCastelloPending
+} from "../src/game/reUscitaCastelloPending";
 import {
   getTotaleOggettiInventarioGiocatore,
   getMoneteInventarioAbitante,
-  provaSpendiMoneteInventarioAbitante
+  getOggettoInventario
 } from "../src/game/inventario";
 import { abitanteHaBisognoMensa } from "../src/game/mensaPubblica";
 import { abitanteVuoleNegozio, compraEMangiaAlNegozio, tentaSnackDaInventario } from "../src/game/negozio";
 import { MapTerrainCell } from "../src/components/MapTerrainCell";
 import { MapWaterCellsLayer } from "../src/components/MapWaterCellsLayer";
-import { PhaserMapSurface } from "../src/components/PhaserMapSurface";
-import { buildPhaserMapSnapshot } from "../src/phaser/adapters/buildPhaserMapSnapshot";
-import { appearanceForPublicSpace } from "../src/character-system/appearance";
+import { PhaserMapSurface, type PhaserMapSurfaceHandle } from "../src/components/PhaserMapSurface";
+import { buildPhaserBuildings, buildPhaserMapSnapshot } from "../src/phaser/adapters/buildPhaserMapSnapshot";
+import { findBuildingForInteriorCell } from "../src/game/buildingGeometry";
+import { aspettoPerVisualizzazioneAbitante } from "../src/game/personaggioAspetto";
 import { assignUniqueCharacterCells } from "../src/game/characterCellOccupancy";
 import type { PhaserMapCharacter, PhaserMapInteraction } from "../src/phaser/adapters/mapSceneBridge";
 import { MondoLoadingScreen } from "../src/components/MondoLoadingScreen";
@@ -133,34 +184,62 @@ import {
 import {
   abitanteAlBarRoutineOra,
   abitanteInOrarioLavoroEdificio,
+  abitanteInOrarioOccupazione,
+  attraversaFineFasciaLavoro,
   fasciaPerEdificio,
   minutiInFascia,
-  primoEdificioLavoroOrarioPerAbitante
+  primoEdificioLavoroOrarioPerAbitante,
+  destinazioneLavoroOrarioPerAbitante
 } from "../src/game/orariLavoroMappa";
+import { scegliAzioneCommuteBloccataLavoro } from "../src/game/commuteBloccataLavoro";
 import {
   calcolaPercorsoVersoAnchorEdificio,
   pianificaCommuteMattina,
   pianificaCommuteSeraACasa,
   pianificaCommuteVersoBarDaCella,
   pianificaCommuteVersoEdificioGlobaleDaCella,
+  pianificaUscitaDalCastello,
   scegliBarEdificioIdPiuVicino,
   scegliEdificioIdPiuVicinoPerNome,
   scegliLuogoCultoEdificioIdPiuVicino,
   scegliMensaEdificioIdPiuVicino,
+  sediCercaLavoroDisoccupatoInOrdine,
   trovaAnchorEdificioGlobaleSuMappa,
-  trovaCellaPortaEdificio
+  trovaCelleIngressoEdificio
 } from "../src/game/commutePathsMappa";
 import { SEZIONE_AMBIENTE, SEZIONI_COSTRUZIONE, type TerrenoCostruzioneKind } from "../src/game/costruzioneSezioni";
 import {
+  edificiCostruibiliSbloccati,
+  isAmbienteCostruibileSbloccato,
+  isNomeEdificioCostruibileSbloccato,
+  isStradaCostruibileSbloccata
+} from "../src/game/costruzioneSbloccoAvventura";
+import {
   costoMaterialeEdilePerFootprint,
+  costoCostruzioneMonete,
   haMaterialeEdileSufficiente,
   quantitaMaterialeEdile
 } from "../src/game/costruzioneEdifici";
 import { setBarArrivatiMappaSnapshot } from "../src/game/mappaBarArrivatiStore";
+import { setCultoArrivatiMappaSnapshot } from "../src/game/mappaCultoArrivatiStore";
+import { setEmporioArrivatiMappaSnapshot } from "../src/game/mappaEmporioArrivatiStore";
+import { setLavoroArrivatiMappaSnapshot } from "../src/game/mappaLavoroArrivatiStore";
+import {
+  getMappaPersonaggiRuntime,
+  hydrateCommutesFromRuntime,
+  patchMappaPersonaggiRuntime,
+  setUltimaCellaAbitanteRuntime,
+  type CommuteInfoMappa
+} from "../src/game/mappaPersonaggiRuntimeStore";
 import { computeStatoCielo } from "../src/game/cicloCielo";
-import { formatOrologioGioco, getGiornoGiocoSnapshot } from "../src/game/orologioGiocoSession";
+import { formatOrologioGioco, getGiornoGiocoSnapshot, getOrologioGiocoInPausaSnapshot, OROLOGIO_VELOCITA_OPZIONI, setOrologioGiocoBloccatoDaCostruzione, setOrologioGiocoInPausa } from "../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../src/hooks/useOrologioGioco";
 import { descriviAzioneCorrenteAbitante } from "../src/game/azioneAbitanteMappa";
+import {
+  consumePendingIndividuaAbitanteId,
+  risolviCellaIndividuaAbitante,
+  type LocateMarkerMappa
+} from "../src/game/individuaAbitanteMappa";
 import {
   abitantePuòTentareRapina,
   resolveRapina,
@@ -177,6 +256,16 @@ import {
   STRADA_FOOTPRINT_W
 } from "../src/game/stradaFootprint";
 import {
+  isCellaOkPerPonte,
+  COSTO_PONTE_MONETE,
+  ID_TEMPLATE_PONTE,
+  NOME_PONTE,
+  PONTE_EMOJI,
+  PONTE_OPZIONE,
+  ponteCellaAttraversabile,
+  piazzaPonteSuCella
+} from "../src/game/ponteMappa";
+import {
   buildCoastalAssetLookups,
   buildErbaAssetLookup,
   buildStradaAssetLookup,
@@ -184,9 +273,6 @@ import {
   sandWaterEdgeMaskAt
 } from "../src/game/terrainSpriteHelpers";
 
-/** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
-const FIXED_MAP_COLS = 50;
-const FIXED_MAP_ROWS = 50;
 /** Footprint del complesso amministrativo: 3 colonne × 2 righe (largo × alto). */
 const ADMIN_FOOTPRINT_W = 3;
 const ADMIN_FOOTPRINT_H = 2;
@@ -196,6 +282,14 @@ const DORMITORIO_FOOTPRINT_H = 2;
 /** Bar: stesso ingombro 2×2 del dormitorio. */
 const BAR_FOOTPRINT_W = 2;
 const BAR_FOOTPRINT_H = 2;
+/** Fucina: 2×2, presente a inizio partita. */
+const FUCINA_FOOTPRINT_W = 2;
+const FUCINA_FOOTPRINT_H = 2;
+/** Emporio: 3×3, presente a inizio partita. */
+const EMPORIO_FOOTPRINT_W = 3;
+const EMPORIO_FOOTPRINT_H = 3;
+/** Bosco: due rettangoli alti 2 celle sulle righe nord, separati dal fiume. */
+const BOSCO_FOOTPRINT_H = 2;
 /** Tribunale: 2×2 (emoji bilancia ⚖️ sul catalogo). */
 const TRIBUNALE_FOOTPRINT_W = 2;
 const TRIBUNALE_FOOTPRINT_H = 2;
@@ -211,10 +305,10 @@ const MERCATO_FOOTPRINT_H = 2;
 /** Negozio: 2×2 (vendita al dettaglio). */
 const NEGOZIO_FOOTPRINT_W = 2;
 const NEGOZIO_FOOTPRINT_H = 2;
-/** Dissalatore: 2×2 con 2 celle sabbia + 2 celle mare (confine `isAcqua`). */
+/** Acquedotto: 2×2 con 2 celle sabbia + 2 celle mare (costa sud). */
 const DISSALATORE_FOOTPRINT_W = 2;
 const DISSALATORE_FOOTPRINT_H = 2;
-/** Spazioporto: edificio + area lancio (sprite orizzontale). */
+/** Porto: edificio + area lancio (sprite orizzontale). */
 const SPAZIOPORTO_FOOTPRINT_W = 4;
 const SPAZIOPORTO_FOOTPRINT_H = 3;
 /** Serra: due celle in orizzontale × una in verticale. */
@@ -279,16 +373,32 @@ function getIndiciEdificiIniziali(cols: number, rows: number) {
     DORMITORIO_2_INDEX: centro - cols,
     DORMITORIO_3_INDEX: centro + cols + 1,
     /** Bar 2×2: preferenza a sud-est del nucleo (trovaAnchor risolve conflitti). */
-    BAR_INDEX: centro + 2 * cols + 3
+    BAR_INDEX: centro + 2 * cols + 3,
+    /** Fucina 2×2: preferenza a sud-ovest del nucleo. */
+    FUCINA_INDEX: centro + 2 * cols - 3,
+    /** Emporio 3×3: preferenza a nord-est del nucleo. */
+    EMPORIO_INDEX: centro - 2 * cols + 2,
+    /** Ufficio Edile 2×2: preferenza a sud del Castello. */
+    UFFICIO_EDILE_INDEX: centro + 2 * cols + 1,
+    /** Scuola 2×2 (solo Creativa). */
+    SCUOLA_INDEX: centro - cols + 3,
+    /** Lazzaretto 2×2 (solo Creativa). */
+    LAZZARETTO_INDEX: centro + cols - 3,
+    /** Zecca 2×2 (solo Creativa): vicino alla Fucina. */
+    ZECCA_INDEX: centro + 3 * cols - 2,
+    /** Chiesa 2×2: a nord-ovest del nucleo. */
+    CHIESA_INDEX: centro - 2 * cols - 3
   };
 }
 
 /** Route per edificio (come in app/edifici). */
 const EDIFICIO_TO_ROUTE: Record<string, string> = {
-  "Centro di Comando": "/amministrazione",
-  "Serra": "/serra",
-  "Centrale Energetica": "/centrale-energetica",
-  "Raffineria Mineraria": "/raffineria-mineraria",
+  Castello: "/castello",
+  "Serra": "/impresa",
+  "Miniera": "/impresa",
+  "Zecca": "/zecca",
+  "Fucina": "/impresa",
+  "Emporio": "/impresa",
   "Impianto di Riciclo": "/impianto-riciclo",
   "Baracca": "/residenze",
   "Capanna": "/residenze",
@@ -304,13 +414,15 @@ const EDIFICIO_TO_ROUTE: Record<string, string> = {
   "Ufficio Immigrazione": "/immigrazione",
   "Ufficio Edile": "/ufficio-edile",
   "Mercato": "/mercato",
-  "Dissalatore": "/dissalatore",
+  "Acquedotto": "/acquedotto",
   "Laboratorio di Ricerca": "/laboratorio",
-  "Bar": "/bar",
+  "Bar": "/impresa",
+  "Bosco": "/impresa",
   "Mensa Pubblica": "/mensa",
+  "Chiesa": "/chiesa",
   "Caserma": "/caserma",
   "Carcere": "/carcere",
-  "Spazioporto": "/spazioporto"
+  "Porto": "/porto"
 };
 
 type EdificioInCella = {
@@ -337,23 +449,42 @@ function riverSetDaTerreno(terreno: Record<number, TerrenoType>): Set<number> {
 /** Footprint costruzioni giocatore (allineato agli edifici procedurali iniziali). */
 const FOOTPRINT_COSTRUZIONE: Record<string, { w: number; h: number }> = {
   Strada: { w: STRADA_FOOTPRINT_W, h: STRADA_FOOTPRINT_H },
+  Ponte: { w: 1, h: 1 },
   Serra: { w: SERRA_FOOTPRINT_W, h: SERRA_FOOTPRINT_H },
   Capanna: { w: CAPANNA_FOOTPRINT_W, h: CAPANNA_FOOTPRINT_H },
   Dormitorio: { w: DORMITORIO_FOOTPRINT_W, h: DORMITORIO_FOOTPRINT_H },
   Bar: { w: BAR_FOOTPRINT_W, h: BAR_FOOTPRINT_H },
+  Fucina: { w: FUCINA_FOOTPRINT_W, h: FUCINA_FOOTPRINT_H },
+  Emporio: { w: EMPORIO_FOOTPRINT_W, h: EMPORIO_FOOTPRINT_H },
   Tribunale: { w: TRIBUNALE_FOOTPRINT_W, h: TRIBUNALE_FOOTPRINT_H },
   "Ufficio Immigrazione": { w: UFFICIO_IMMIGRAZIONE_FOOTPRINT_W, h: UFFICIO_IMMIGRAZIONE_FOOTPRINT_H },
   "Ufficio Edile": { w: UFFICIO_EDILE_FOOTPRINT_W, h: UFFICIO_EDILE_FOOTPRINT_H },
   Mercato: { w: MERCATO_FOOTPRINT_W, h: MERCATO_FOOTPRINT_H },
   Negozio: { w: NEGOZIO_FOOTPRINT_W, h: NEGOZIO_FOOTPRINT_H },
   "Mensa Pubblica": { w: MERCATO_FOOTPRINT_W, h: MERCATO_FOOTPRINT_H },
-  Dissalatore: { w: DISSALATORE_FOOTPRINT_W, h: DISSALATORE_FOOTPRINT_H },
-  Spazioporto: { w: SPAZIOPORTO_FOOTPRINT_W, h: SPAZIOPORTO_FOOTPRINT_H },
+  Acquedotto: { w: DISSALATORE_FOOTPRINT_W, h: DISSALATORE_FOOTPRINT_H },
+  Porto: { w: SPAZIOPORTO_FOOTPRINT_W, h: SPAZIOPORTO_FOOTPRINT_H },
   "Luogo di Culto del Sole": { w: 2, h: 2 },
-  "Luogo di Culto degli Alieni": { w: 2, h: 2 },
+  "Luogo di Culto delle Ombre": { w: 2, h: 2 },
   Carcere: { w: 2, h: 2 },
   "Campo di Lavoro": { w: 2, h: 2 },
-  "Campo di Sterminio": { w: 2, h: 2 }
+  "Campo di Sterminio": { w: 2, h: 2 },
+  Falegnameria: { w: 2, h: 2 },
+  Conceria: { w: 2, h: 2 },
+  Forno: { w: 2, h: 2 },
+  Cereria: { w: 2, h: 2 },
+  Sartoria: { w: 2, h: 2 },
+  Birrificio: { w: 2, h: 2 },
+  Taverna: { w: 2, h: 2 },
+  Spezieria: { w: 2, h: 2 },
+  Armeria: { w: 2, h: 2 },
+  Forgia: { w: 2, h: 2 },
+  Chiesa: { w: 2, h: 2 },
+  Lazzaretto: { w: 2, h: 2 },
+  Scriptorium: { w: 2, h: 2 },
+  Scuola: { w: 2, h: 2 },
+  "Laboratorio Magico": { w: 2, h: 2 },
+  "Cripta Necromantica": { w: 2, h: 2 }
 };
 
 /** Sabbia = terreno sabbia su terraferma (non mare). */
@@ -469,20 +600,18 @@ function applicaEdificioFootprintCostruzione(
   }
 }
 
-/** Cella è acqua (blu) se true, altrimenti erba (verde). Bordi della mappa = mare. */
+/** Cella è acqua (blu) se true. Mare solo a sud, costa frastagliata. */
 function isAcqua(index: number, cols: number, rows: number): boolean {
-  const row = Math.floor(index / cols);
-  const col = index % cols;
-  return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
+  return isMareAttivo(index, cols, rows);
 }
 
 /** Mare, fiume, sabbia o confine con acqua: nessuna cella strada (vedi {@link isCellaOkPerStrada}). */
 
-function giacimentoIndicesDaEdifici(edificiInMappa: Record<number, EdificioInCella>): Set<number> {
+function minieraIndicesDaEdifici(edificiInMappa: Record<number, EdificioInCella>): Set<number> {
   return new Set(
     Object.keys(edificiInMappa)
       .map(Number)
-      .filter((i) => edificiInMappa[i]?.nome === "Giacimento")
+      .filter((i) => edificiInMappa[i]?.nome === "Miniera")
   );
 }
 
@@ -494,14 +623,14 @@ function applicaRegoleConfineTerreno(
   rows: number,
   options?: { collegaEdificiAllaStrada?: boolean }
 ): void {
-  const giacimenti = giacimentoIndicesDaEdifici(edificiInMappa);
+  const miniere = minieraIndicesDaEdifici(edificiInMappa);
   const collegaEdifici = options?.collegaEdificiAllaStrada ?? true;
   ensureStradaErbaTerrainBoundaryRules(
     edificiInMappa,
     terrenoInMappa,
     cols,
     rows,
-    giacimenti,
+    miniere,
     collegaEdifici
       ? (edifici, terreno, c, r) =>
           assicuraEdificiCollegatiDaStrada(edifici, terreno, c, r, STRADA_OPZIONE)
@@ -511,13 +640,17 @@ function applicaRegoleConfineTerreno(
     terrenoInMappa,
     cols,
     rows,
-    buildExcludeSandByRoads(edificiInMappa, terrenoInMappa, cols, rows, giacimenti)
+    buildExcludeSandByRoads(edificiInMappa, terrenoInMappa, cols, rows, miniere)
   );
   fillErbaEnclosedByWater(terrenoInMappa, cols, rows);
 }
 
-const GIACIMENTO: EdificioInCella = { id: 0, nome: "Giacimento", emoji: "⛰️" };
-const RAFFINERIA_MINERARIA: EdificioInCella = { id: 3, nome: "Raffineria Mineraria", emoji: "⚙️" };
+const MINIERA: EdificioInCella = { id: 3, nome: "Miniera", emoji: "⛏️" };
+const FUCINA_EDIFICIO: EdificioInCella = { id: 34, nome: "Fucina", emoji: "🔥" };
+const ZECCA_EDIFICIO: EdificioInCella = { id: 52, nome: "Zecca", emoji: "🪙" };
+const EMPORIO_EDIFICIO: EdificioInCella = { id: 35, nome: "Emporio", emoji: "🧺" };
+const UFFICIO_EDILE_EDIFICIO: EdificioInCella = { id: 33, nome: "Ufficio Edile", emoji: "🏗️" };
+const BOSCO_EDIFICIO: EdificioInCella = { id: 51, nome: "Bosco", emoji: "🌲" };
 /** Opzione "Strada" per il dialog costruzione (cella diventa lastricato strada). */
 const STRADA_OPZIONE: EdificioInCella = { id: -1, nome: "Strada", emoji: "🛤️" };
 
@@ -527,6 +660,9 @@ const TRIBUNALE_EDIFICIO: EdificioInCella = { id: 12, nome: "Tribunale", emoji: 
 const SERRA_EDIFICIO: EdificioInCella = { id: 2, nome: "Serra", emoji: "🌱" };
 const SERRA_2_EDIFICIO: EdificioInCella = { id: 21, nome: "Serra", emoji: "🌱" };
 const CAPANNA: EdificioInCella = { id: 20, nome: "Capanna", emoji: "⛺" };
+const SCUOLA_EDIFICIO: EdificioInCella = { id: 11, nome: "Scuola", emoji: "📚" };
+const LAZZARETTO_EDIFICIO: EdificioInCella = { id: 47, nome: "Lazzaretto", emoji: "🏥" };
+const CHIESA_EDIFICIO: EdificioInCella = { id: 46, nome: "Chiesa", emoji: "⛪" };
 
 /** Emoji per decorazioni procedurali sulla mappa (alberi, palme, cactus, vulcano). */
 const DECORAZIONI_EMOJI = ["🌳", "🌲", "🌴", "🌵", "🌋"] as const;
@@ -733,25 +869,29 @@ function trovaCellaSingolaConCuscino(
  * tra tutti i rettangoli interamente su terra (non mare), quello col centro più vicino al "centro" mappa.
  * Va riservato ai fiumi prima di `generateRivers` così il 3×2 resta sempre libero.
  */
-function scegliAnchorComplessoAmministrativo(cols: number, rows: number): number {
+function scegliAnchorComplessoAmministrativo(
+  cols: number,
+  rows: number,
+  riverSet: Set<number> = new Set()
+): number {
   const idx = getIndiciEdificiIniziali(cols, rows);
   const preferred = idx.CENTRO_COMANDO_INDEX;
   const pc = preferred % cols;
   const pr = Math.floor(preferred / cols);
   const w = ADMIN_FOOTPRINT_W;
   const h = ADMIN_FOOTPRINT_H;
-  const minR = 1;
-  const maxR = rows - 2 - h;
-  const minC = 1;
-  const maxC = cols - 2 - w;
+  /** Sotto la striscia Bosco (2 righe) + 1 di cuscino d’erba. */
+  const minR = BOSCO_FOOTPRINT_H + 1;
+  const maxR = rows - MARE_PROFONDITA_BAIA - 1 - h;
+  const minC = 0;
+  const maxC = cols - w;
   let bestAnchor = preferred;
   let bestD = Infinity;
   const vietatoVuoto = new Set<number>();
-  const fiumiVuoti = new Set<number>();
   for (let ar = minR; ar <= maxR; ar++) {
     for (let ac = minC; ac <= maxC; ac++) {
       const anchor = ar * cols + ac;
-      if (!puòPiazzareFootprintConCuscino(anchor, w, h, cols, rows, fiumiVuoti, vietatoVuoto)) continue;
+      if (!puòPiazzareFootprintConCuscino(anchor, w, h, cols, rows, riverSet, vietatoVuoto)) continue;
       const d = Math.abs(ar - pr) + Math.abs(ac - pc);
       if (d < bestD) {
         bestD = d;
@@ -774,14 +914,14 @@ function aggiungiComplessoAmministrativo(
   const celle = getIndiciFootprint(anchor, w, h, cols);
   const anchorEd: EdificioInCella = {
     id: 1,
-    nome: "Centro di Comando",
-    emoji: "🏛️",
+    nome: "Castello",
+    emoji: "🏰",
     footprint: { w, h }
   };
   out[anchor] = anchorEd;
   for (const i of celle) {
     if (i === anchor) continue;
-    out[i] = { id: 1, nome: "Centro di Comando", emoji: "", footprintRef: anchor };
+    out[i] = { id: 1, nome: "Castello", emoji: "", footprintRef: anchor };
   }
 }
 
@@ -849,6 +989,112 @@ function aggiungiBarFootprint(
     out[i] = { id: BAR_EDIFICIO.id, nome: BAR_EDIFICIO.nome, emoji: "", footprintRef: anchor };
   }
   estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
+}
+
+function aggiungiFucinaFootprint(
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  vietato: Set<number>,
+  out: Record<number, EdificioInCella>,
+  preferred: number
+): void {
+  const w = FUCINA_FOOTPRINT_W;
+  const h = FUCINA_FOOTPRINT_H;
+  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, vietato);
+  if (anchor == null) {
+    const cell = trovaCellaSingolaConCuscino(preferred, cols, rows, riverSet, vietato);
+    if (cell != null) {
+      out[cell] = { ...FUCINA_EDIFICIO };
+      estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, vietato);
+    }
+    return;
+  }
+  const celle = getIndiciFootprint(anchor, w, h, cols);
+  out[anchor] = {
+    id: FUCINA_EDIFICIO.id,
+    nome: FUCINA_EDIFICIO.nome,
+    emoji: "",
+    footprint: { w, h }
+  };
+  for (const i of celle) {
+    if (i === anchor) continue;
+    out[i] = { id: FUCINA_EDIFICIO.id, nome: FUCINA_EDIFICIO.nome, emoji: "", footprintRef: anchor };
+  }
+  estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
+}
+
+function aggiungiEmporioFootprint(
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  vietato: Set<number>,
+  out: Record<number, EdificioInCella>,
+  preferred: number
+): void {
+  const w = EMPORIO_FOOTPRINT_W;
+  const h = EMPORIO_FOOTPRINT_H;
+  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, vietato);
+  if (anchor == null) {
+    const cell = trovaCellaSingolaConCuscino(preferred, cols, rows, riverSet, vietato);
+    if (cell != null) {
+      out[cell] = { ...EMPORIO_EDIFICIO };
+      estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, vietato);
+    }
+    return;
+  }
+  const celle = getIndiciFootprint(anchor, w, h, cols);
+  out[anchor] = {
+    id: EMPORIO_EDIFICIO.id,
+    nome: EMPORIO_EDIFICIO.nome,
+    emoji: "",
+    footprint: { w, h }
+  };
+  for (const i of celle) {
+    if (i === anchor) continue;
+    out[i] = { id: EMPORIO_EDIFICIO.id, nome: EMPORIO_EDIFICIO.nome, emoji: "", footprintRef: anchor };
+  }
+  estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
+}
+
+function aggiungiBoscoFootprint(
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  vietato: Set<number>,
+  out: Record<number, EdificioInCella>,
+  gapCol: number
+): void {
+  const h = Math.min(BOSCO_FOOTPRINT_H, rows);
+  const gap = Math.max(2, Math.min(cols - 3, gapCol));
+  const leftW = gap;
+  const rightAnchor = gap + 1;
+  const rightW = cols - rightAnchor;
+
+  const piazza = (anchor: number, w: number) => {
+    if (w < 1) return;
+    const celle = getIndiciFootprint(anchor, w, h, cols);
+    out[anchor] = {
+      id: BOSCO_EDIFICIO.id,
+      nome: BOSCO_EDIFICIO.nome,
+      emoji: "",
+      footprint: { w, h }
+    };
+    for (const i of celle) {
+      if (i === anchor) continue;
+      out[i] = { id: BOSCO_EDIFICIO.id, nome: BOSCO_EDIFICIO.nome, emoji: "", footprintRef: anchor };
+    }
+    estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
+  };
+
+  piazza(0, leftW);
+  piazza(rightAnchor, rightW);
+  // Il varco fiume resta vietato agli altri edifici.
+  for (let r = 0; r < h; r++) {
+    const i = r * cols + gap;
+    riverSet.add(i);
+    vietato.add(i);
+  }
 }
 
 function aggiungiTribunaleFootprint(
@@ -928,7 +1174,88 @@ function aggiungiSerraFootprint(
   estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
 }
 
-const SPAZIOPORTO_EDIFICIO: EdificioInCella = { id: 19, nome: "Spazioporto", emoji: "🚀" };
+const SPAZIOPORTO_EDIFICIO: EdificioInCella = { id: 19, nome: "Porto", emoji: "⚓" };
+
+/**
+ * Porto sulla costa sud: footprint interamente su terra, bordo sud adiacente al mare.
+ * Il cuscino lato mare può essere acqua (a differenza degli altri edifici).
+ */
+function puòPiazzarePortoSullaCosta(
+  anchor: number,
+  w: number,
+  h: number,
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  vietato: Set<number>
+): boolean {
+  const ac = anchor % cols;
+  const ar = Math.floor(anchor / cols);
+  if (ac + w > cols || ar + h > rows) return false;
+  for (let dr = 0; dr < h; dr++) {
+    for (let dc = 0; dc < w; dc++) {
+      const i = (ar + dr) * cols + (ac + dc);
+      if (vietato.has(i) || isAcqua(i, cols, rows) || riverSet.has(i)) return false;
+    }
+  }
+  let toccaMare = false;
+  for (let dc = 0; dc < w; dc++) {
+    const sud = (ar + h - 1) * cols + (ac + dc);
+    const sotto = sud + cols;
+    if (sotto < cols * rows && isAcqua(sotto, cols, rows)) {
+      toccaMare = true;
+      break;
+    }
+  }
+  if (!toccaMare) return false;
+  for (const i of getIndiciCuscinoErba(anchor, w, h, cols, rows)) {
+    if (isAcqua(i, cols, rows)) continue;
+    if (vietato.has(i) || riverSet.has(i)) return false;
+  }
+  return true;
+}
+
+function trovaAnchorPortoSullaCosta(
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  vietato: Set<number>
+): number | null {
+  const w = SPAZIOPORTO_FOOTPRINT_W;
+  const h = SPAZIOPORTO_FOOTPRINT_H;
+  const depths = getActiveCostaSud();
+  const candidati: { anchor: number; score: number }[] = [];
+  const midCol = (cols - 1) / 2;
+
+  for (let ac = 0; ac <= cols - w; ac++) {
+    let rowMareMin = rows;
+    for (let dc = 0; dc < w; dc++) {
+      const d = depths?.[ac + dc] ?? MARE_PROFONDITA_MIN;
+      rowMareMin = Math.min(rowMareMin, rows - d);
+    }
+    const ar = rowMareMin - h;
+    if (ar < 0) continue;
+    const anchor = ar * cols + ac;
+    if (!puòPiazzarePortoSullaCosta(anchor, w, h, cols, rows, riverSet, vietato)) continue;
+    const centroCol = ac + (w - 1) / 2;
+    candidati.push({ anchor, score: Math.abs(centroCol - midCol) });
+  }
+
+  if (candidati.length === 0) {
+    // Fallback: scansione completa (costa irregolare / ostacoli).
+    for (let ar = 0; ar <= rows - h; ar++) {
+      for (let ac = 0; ac <= cols - w; ac++) {
+        const anchor = ar * cols + ac;
+        if (!puòPiazzarePortoSullaCosta(anchor, w, h, cols, rows, riverSet, vietato)) continue;
+        const centroCol = ac + (w - 1) / 2;
+        candidati.push({ anchor, score: Math.abs(centroCol - midCol) + (rows - ar) * 0.01 });
+      }
+    }
+  }
+
+  candidati.sort((a, b) => a.score - b.score);
+  return candidati[0]?.anchor ?? null;
+}
 
 function aggiungiSpazioportoFootprint(
   cols: number,
@@ -936,17 +1263,32 @@ function aggiungiSpazioportoFootprint(
   riverSet: Set<number>,
   vietato: Set<number>,
   out: Record<number, EdificioInCella>,
-  preferred: number
+  _preferred: number
 ): void {
   const w = SPAZIOPORTO_FOOTPRINT_W;
   const h = SPAZIOPORTO_FOOTPRINT_H;
-  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, vietato);
+  const anchor = trovaAnchorPortoSullaCosta(cols, rows, riverSet, vietato);
   if (anchor == null) {
-    const cell = trovaCellaSingolaConCuscino(preferred, cols, rows, riverSet, vietato);
-    if (cell != null) {
-      out[cell] = { ...SPAZIOPORTO_EDIFICIO };
-      estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, vietato);
+    // Ultimo fallback: terra libera (meglio un porto inland che nessuno).
+    const fallback = trovaAnchorFootprintLibero(w, h, _preferred, cols, rows, riverSet, vietato);
+    if (fallback == null) return;
+    const celle = getIndiciFootprint(fallback, w, h, cols);
+    out[fallback] = {
+      id: SPAZIOPORTO_EDIFICIO.id,
+      nome: SPAZIOPORTO_EDIFICIO.nome,
+      emoji: "",
+      footprint: { w, h }
+    };
+    for (const i of celle) {
+      if (i === fallback) continue;
+      out[i] = {
+        id: SPAZIOPORTO_EDIFICIO.id,
+        nome: SPAZIOPORTO_EDIFICIO.nome,
+        emoji: "",
+        footprintRef: fallback
+      };
     }
+    estendiVietatoConFootprintECuscino(fallback, w, h, cols, rows, vietato);
     return;
   }
   const celle = getIndiciFootprint(anchor, w, h, cols);
@@ -965,41 +1307,160 @@ function aggiungiSpazioportoFootprint(
       footprintRef: anchor
     };
   }
+  // Cuscino: marca footprint + terra intorno; le celle mare del cuscino sud restano edificabili-no ma non vanno in vietato “erba”.
+  for (const i of celle) vietato.add(i);
+  for (const i of getIndiciCuscinoErba(anchor, w, h, cols, rows)) {
+    if (!isAcqua(i, cols, rows)) vietato.add(i);
+  }
+}
+
+/** Piazzamento generico w×h per edifici iniziali (Scuola, Lazzaretto, …). */
+function aggiungiEdificioFootprintIniziale(
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  vietato: Set<number>,
+  out: Record<number, EdificioInCella>,
+  preferred: number,
+  edificio: EdificioInCella,
+  w: number,
+  h: number
+): void {
+  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, vietato);
+  if (anchor == null) {
+    const cell = trovaCellaSingolaConCuscino(preferred, cols, rows, riverSet, vietato);
+    if (cell != null) {
+      out[cell] = { ...edificio };
+      estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, vietato);
+    }
+    return;
+  }
+  const celle = getIndiciFootprint(anchor, w, h, cols);
+  out[anchor] = {
+    id: edificio.id,
+    nome: edificio.nome,
+    emoji: "",
+    footprint: { w, h }
+  };
+  for (const i of celle) {
+    if (i === anchor) continue;
+    out[i] = {
+      id: edificio.id,
+      nome: edificio.nome,
+      emoji: "",
+      footprintRef: anchor
+    };
+  }
   estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
 }
 
-/** Restituisce edifici iniziali fissi, spostati su terra (no fiume, no mare); nessuna cella condivisa. */
+/** Restituisce edifici iniziali fissi; layout dipende dalla modalità di gioco. */
 function getEdificiIniziali(
   cols: number,
   rows: number,
   riverSet: Set<number>,
-  adminAnchor: number
+  adminAnchor: number,
+  gapCol: number,
+  modalita: ModalitaGiocoGenerazione
 ): Record<number, EdificioInCella> {
   const idx = getIndiciEdificiIniziali(cols, rows);
   const out: Record<number, EdificioInCella> = {};
   /** Footprint ∪ cuscino d'erba degli edifici già piazzati. */
   const vietato = new Set<number>();
 
+  // Bosco prima: due rettangoli nord separati dal fiume.
+  aggiungiBoscoFootprint(cols, rows, riverSet, vietato, out, gapCol);
+
   aggiungiComplessoAmministrativo(cols, rows, out, adminAnchor);
   estendiVietatoConFootprintECuscino(adminAnchor, ADMIN_FOOTPRINT_W, ADMIN_FOOTPRINT_H, cols, rows, vietato);
 
+  // Porto sempre sulla costa sud (mare).
   aggiungiSpazioportoFootprint(cols, rows, riverSet, vietato, out, idx.SPAZIOPORTO_INDEX);
 
   aggiungiSerraFootprint(cols, rows, riverSet, vietato, out, idx.SERRA_INDEX, SERRA_EDIFICIO);
-  aggiungiSerraFootprint(cols, rows, riverSet, vietato, out, idx.SERRA_2_INDEX, SERRA_2_EDIFICIO);
 
-  aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_1_INDEX);
-  aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_2_INDEX);
-  aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_3_INDEX);
+  // Chiesa 2×2: presente all’inizio in ogni modalità.
+  aggiungiEdificioFootprintIniziale(
+    cols,
+    rows,
+    riverSet,
+    vietato,
+    out,
+    idx.CHIESA_INDEX,
+    CHIESA_EDIFICIO,
+    2,
+    2
+  );
 
-  aggiungiTribunaleFootprint(cols, rows, riverSet, vietato, out, idx.TRIBUNALE_INDEX);
+  // Zecca 2×2: presente all’inizio anche in Avventura.
+  aggiungiEdificioFootprintIniziale(
+    cols,
+    rows,
+    riverSet,
+    vietato,
+    out,
+    idx.ZECCA_INDEX,
+    ZECCA_EDIFICIO,
+    2,
+    2
+  );
 
-  aggiungiBarFootprint(cols, rows, riverSet, vietato, out, idx.BAR_INDEX);
+  if (modalita === "creativa") {
+    aggiungiSerraFootprint(cols, rows, riverSet, vietato, out, idx.SERRA_2_INDEX, SERRA_2_EDIFICIO);
+
+    aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_1_INDEX);
+    aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_2_INDEX);
+    aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_3_INDEX);
+
+    aggiungiTribunaleFootprint(cols, rows, riverSet, vietato, out, idx.TRIBUNALE_INDEX);
+
+    aggiungiBarFootprint(cols, rows, riverSet, vietato, out, idx.BAR_INDEX);
+    aggiungiFucinaFootprint(cols, rows, riverSet, vietato, out, idx.FUCINA_INDEX);
+
+    aggiungiEdificioFootprintIniziale(
+      cols,
+      rows,
+      riverSet,
+      vietato,
+      out,
+      idx.SCUOLA_INDEX,
+      SCUOLA_EDIFICIO,
+      2,
+      2
+    );
+    aggiungiEdificioFootprintIniziale(
+      cols,
+      rows,
+      riverSet,
+      vietato,
+      out,
+      idx.LAZZARETTO_INDEX,
+      LAZZARETTO_EDIFICIO,
+      2,
+      2
+    );
+  }
+
+  // Emporio: presente anche in Avventura (cibo per chi non produce, es. Minatori).
+  aggiungiEmporioFootprint(cols, rows, riverSet, vietato, out, idx.EMPORIO_INDEX);
+
+  // Ufficio Edile: presente anche in Avventura (cantieri / Ponte).
+  aggiungiEdificioFootprintIniziale(
+    cols,
+    rows,
+    riverSet,
+    vietato,
+    out,
+    idx.UFFICIO_EDILE_INDEX,
+    UFFICIO_EDILE_EDIFICIO,
+    UFFICIO_EDILE_FOOTPRINT_W,
+    UFFICIO_EDILE_FOOTPRINT_H
+  );
 
   return out;
 }
 
-/** Footprint ∪ cuscino d'erba (8 direzioni) per ogni edificio iniziale ancorato: evita capanne/giacimenti sul verde riservato. */
+/** Footprint ∪ cuscino d'erba (8 direzioni) per ogni edificio iniziale ancorato: evita capanne/miniere sul verde riservato. */
 function vietatoFootprintECuscinoDaEdificiIniziali(
   edifici: Record<number, EdificioInCella>,
   cols: number,
@@ -1022,12 +1483,13 @@ function vietatoFootprintECuscinoDaEdificiIniziali(
 /** Anteprima piazzamento in modalità Costruisci (stessa logica di `handleScegliEdificio`). */
 type SelezioneCostruzioneAnteprima =
   | { tipo: "strada" }
+  | { tipo: "ponte" }
   | { tipo: "terreno"; kind: TerrenoCostruzioneKind }
   | { tipo: "edificio"; edificio: Edificio };
 
-/** Strada / Acqua / Spiaggia / Erba: la modalità resta attiva fino a un secondo tap su Costruisci. */
+/** Strada / Ponte / Acqua / Spiaggia / Erba: la modalità resta attiva fino a un secondo tap su Costruisci. */
 function costruzioneTerrenoPersistente(selezione: SelezioneCostruzioneAnteprima | null): boolean {
-  return selezione?.tipo === "strada" || selezione?.tipo === "terreno";
+  return selezione?.tipo === "strada" || selezione?.tipo === "ponte" || selezione?.tipo === "terreno";
 }
 
 /** Anchor 2×2 che contiene `cellIndex` (Acqua / Spiaggia / Erba). */
@@ -1077,7 +1539,7 @@ function edificioRispettaCriteriPiazzamento(
   cols: number,
   rows: number
 ): boolean {
-  if (nomeEdificio === "Dissalatore") {
+  if (nomeEdificio === "Acquedotto") {
     return footprintDissalatoreMareSabbiaValido(anchor, cols, rows, terrenoInMappa, edificiInMappa);
   }
   const riverSet = riverSetDaTerreno(terrenoInMappa);
@@ -1097,7 +1559,7 @@ function calcolaAnchorEdificioMultiCella(
   const dim = FOOTPRINT_COSTRUZIONE[nomeEdificio] ?? { w: 1, h: 1 };
   const w = dim.w;
   const h = dim.h;
-  if (nomeEdificio === "Dissalatore") {
+  if (nomeEdificio === "Acquedotto") {
     const anchor = trovaAnchorDissalatore(cellIndex, edificiInMappa, terrenoInMappa, cols, rows);
     return { anchor, w, h };
   }
@@ -1121,6 +1583,10 @@ function calcolaPreviewPiazzamento(
   rows: number
 ): { celle: number[]; valido: boolean } | null {
   if (hoverCell == null) return null;
+  if (selezione.tipo === "ponte") {
+    const valido = isCellaOkPerPonte(hoverCell, terrenoInMappa, edificiInMappa);
+    return { celle: [hoverCell], valido };
+  }
   if (selezione.tipo === "strada" || selezione.tipo === "terreno") {
     const { anchor, w, h } = calcolaAnchorCostruzione2x2(hoverCell, cols, rows);
     if (anchor == null) {
@@ -1171,16 +1637,16 @@ function calcolaPreviewPiazzamento(
   return { celle, valido };
 }
 
-/** Capanne 2×1 (o 1×1 se non c’è spazio) e giacimenti 1×1 senza sovrapposizioni al buffer d’erba. */
-function piazzaCapanneEgiacimentiProcedurali(
+/** Capanne 2×1 (o 1×1 se non c’è spazio) e miniere 1×1 senza sovrapposizioni al buffer d’erba. */
+function piazzaCapanneEMiniereProcedurali(
   cols: number,
   rows: number,
   riverSet: Set<number>,
   vietatoBase: Set<number>,
   shuffled: number[],
   nCapanne: number,
-  nGiacimento: number
-): { capanne: Record<number, EdificioInCella>; giacimenti: Record<number, EdificioInCella> } {
+  nMiniera: number
+): { capanne: Record<number, EdificioInCella>; miniere: Record<number, EdificioInCella> } {
   const occupato = new Set(vietatoBase);
   const capanne: Record<number, EdificioInCella> = {};
   let placedC = 0;
@@ -1219,19 +1685,20 @@ function piazzaCapanneEgiacimentiProcedurali(
     }
   }
 
-  const poolGi: number[] = [];
+  const poolMi: number[] = [];
   const tot = cols * rows;
   for (let i = 0; i < tot; i++) {
-    if (isAcqua(i, cols, rows) || riverSet.has(i) || occupato.has(i)) continue;
-    poolGi.push(i);
+    // Niente miniere sul fiume né sulla riva (serve sabbia / passaggio).
+    if (!cellaSoloErba(i, cols, rows, riverSet) || occupato.has(i)) continue;
+    poolMi.push(i);
   }
-  poolGi.sort(() => Math.random() - 0.5);
-  const giacimenti: Record<number, EdificioInCella> = {};
-  const nG = Math.min(nGiacimento, poolGi.length);
-  for (let k = 0; k < nG; k++) {
-    giacimenti[poolGi[k]!] = GIACIMENTO;
+  poolMi.sort(() => Math.random() - 0.5);
+  const miniere: Record<number, EdificioInCella> = {};
+  const nM = Math.min(nMiniera, poolMi.length);
+  for (let k = 0; k < nM; k++) {
+    miniere[poolMi[k]!] = MINIERA;
   }
-  return { capanne, giacimenti };
+  return { capanne, miniere };
 }
 
 /** Restituisce lo stato iniziale della mappa; esclude sempre acqua e fiumi dalle celle edificabili. */
@@ -1239,9 +1706,11 @@ function getInitialEdificiInMappa(
   cols: number,
   rows: number,
   riverSet: Set<number>,
-  adminAnchor: number
+  adminAnchor: number,
+  gapCol: number,
+  modalita: ModalitaGiocoGenerazione
 ): Record<number, EdificioInCella> {
-  const edificiIniziali = getEdificiIniziali(cols, rows, riverSet, adminAnchor);
+  const edificiIniziali = getEdificiIniziali(cols, rows, riverSet, adminAnchor, gapCol, modalita);
   const totaleCelle = cols * rows;
   const vietatoEdifici = vietatoFootprintECuscinoDaEdificiIniziali(edificiIniziali, cols, rows);
   const erbaLibera: number[] = [];
@@ -1249,22 +1718,23 @@ function getInitialEdificiInMappa(
     if (!isAcqua(i, cols, rows) && !riverSet.has(i) && !vietatoEdifici.has(i)) erbaLibera.push(i);
   }
   const shuffled = [...erbaLibera].sort(() => Math.random() - 0.5);
-  const nCapanne = 5 + Math.floor(Math.random() * 5);
-  const nGiacimento = 2 + Math.floor(Math.random() * 4);
-  const { capanne, giacimenti } = piazzaCapanneEgiacimentiProcedurali(
+  const nCapanne =
+    modalita === "avventura" ? 1 + Math.floor(Math.random() * 2) : 5 + Math.floor(Math.random() * 5);
+  const nMiniera = modalita === "avventura" ? 3 : 2 + Math.floor(Math.random() * 4);
+  const { capanne, miniere } = piazzaCapanneEMiniereProcedurali(
     cols,
     rows,
     riverSet,
     vietatoEdifici,
     shuffled,
     nCapanne,
-    nGiacimento
+    nMiniera
   );
-  return { ...edificiIniziali, ...capanne, ...giacimenti };
+  return { ...edificiIniziali, ...capanne, ...miniere };
 }
 
 /**
- * Stato iniziale mappa. Ordine: edifici → strade → fiumi/sabbia → confini acqua → decorazioni.
+ * Stato iniziale mappa. Ordine: fiume → edifici/Bosco → strade → confini → decorazioni.
  * Eseguito in fasi async così la UI può mostrare l’avanzamento.
  */
 export type { MappaRuntimeState } from "../src/game/mappaTypes";
@@ -1282,7 +1752,8 @@ function yieldToUi(): Promise<void> {
 async function buildInitialMappa(
   cols: number,
   rows: number,
-  onProgress: (progress: number, label: string) => void
+  onProgress: (progress: number, label: string) => void,
+  modalita: ModalitaGiocoGenerazione
 ): Promise<MappaRuntimeState> {
   const report = async (progress: number, label: string) => {
     onProgress(progress, label);
@@ -1292,46 +1763,71 @@ async function buildInitialMappa(
   await report(0, "Preparazione del mondo…");
 
   const totaleCelle = cols * rows;
+  const costaSudProfondita = generaProfonditaCostaSud(cols);
+  setActiveCostaSud(costaSudProfondita);
   const borderIndices = new Set<number>();
   for (let i = 0; i < totaleCelle; i++) if (isAcqua(i, cols, rows)) borderIndices.add(i);
-  const adminAnchor = scegliAnchorComplessoAmministrativo(cols, rows);
 
-  await report(12, "Posizionamento edifici…");
-  const edificiInMappa = getInitialEdificiInMappa(cols, rows, new Set(), adminAnchor);
-  const terrenoInMappa: Record<number, TerrenoType> = {};
-
-  await report(28, "Costruzione della rete stradale…");
-  piazzaStradeInizialiTraEdifici(edificiInMappa, terrenoInMappa, cols, rows);
-  assicuraEdificiCollegatiDaStrada(edificiInMappa, terrenoInMappa, cols, rows, STRADA_OPZIONE);
-
-  await report(48, "Generazione fiumi e coste…");
-  const vietatoPerFiumi = new Set<number>([...borderIndices, ...Object.keys(edificiInMappa).map(Number)]);
-  const { riverIndices, sandIndices } = generateRivers({
+  await report(18, "Il fiume scende dal Bosco…");
+  const { riverIndices, gapCol } = generateSingleRiverNordToMare({
     cols,
     rows,
-    numSources: 2 + Math.floor(Math.random() * 2),
-    maxLength: 60,
-    bifurcationProbability: 0.1,
-    forbiddenIndices: vietatoPerFiumi
+    boscoH: BOSCO_FOOTPRINT_H,
+    forbiddenIndices: borderIndices
   });
   const riverSet = new Set(riverIndices);
 
-  const giacimentoIndices = new Set(
+  const adminAnchor = scegliAnchorComplessoAmministrativo(cols, rows, riverSet);
+
+  await report(36, "Posizionamento edifici…");
+  const edificiInMappa = getInitialEdificiInMappa(cols, rows, riverSet, adminAnchor, gapCol, modalita);
+  const terrenoInMappa: Record<number, TerrenoType> = {};
+
+  await report(52, "Costruzione della rete stradale…");
+  piazzaStradeInizialiTraEdifici(edificiInMappa, terrenoInMappa, cols, rows);
+  assicuraEdificiCollegatiDaStrada(edificiInMappa, terrenoInMappa, cols, rows, STRADA_OPZIONE);
+
+  await report(68, "Acqua e coste…");
+  // Togli strade / edifici finiti sul fiume (sicurezza).
+  for (const i of riverIndices) {
+    const e = edificiInMappa[i];
+    if (!e) continue;
+    if (e.nome === "Strada") {
+      delete edificiInMappa[i];
+      continue;
+    }
+    if (e.nome === "Bosco") continue;
+    const anchor = e.footprintRef != null ? e.footprintRef : i;
+    const head = edificiInMappa[anchor];
+    if (head?.footprint) {
+      for (const cell of getIndiciFootprint(anchor, head.footprint.w, head.footprint.h, cols)) {
+        delete edificiInMappa[cell];
+      }
+    } else {
+      for (const key of Object.keys(edificiInMappa)) {
+        const idx = Number(key);
+        const cell = edificiInMappa[idx];
+        if (idx === anchor || cell?.footprintRef === anchor) delete edificiInMappa[idx];
+      }
+    }
+  }
+  Object.assign(terrenoInMappa, buildTerrenoFromRivers(riverIndices, [], new Set()));
+
+  const minieraIndices = new Set(
     Object.keys(edificiInMappa)
       .map(Number)
-      .filter((i) => edificiInMappa[i]?.nome === "Giacimento")
+      .filter((i) => edificiInMappa[i]?.nome === "Miniera")
   );
-  const excludeSand = new Set<number>(giacimentoIndices);
+  const excludeSand = new Set<number>(minieraIndices);
   for (const j of indiciViciniOrtogonaliStrada(edificiInMappa, cols, rows)) {
     excludeSand.add(j);
   }
-  Object.assign(terrenoInMappa, buildTerrenoFromRivers(riverIndices, sandIndices, excludeSand));
 
-  await report(68, "Rifinitura terreno e confini…");
+  await report(82, "Rifinitura terreno e confini…");
   applyTerrenoGrassAndSandContinuity(terrenoInMappa, cols, rows, excludeSand);
   applicaRegoleConfineTerreno(edificiInMappa, terrenoInMappa, cols, rows);
 
-  await report(86, "Distribuzione decorazioni…");
+  await report(92, "Distribuzione decorazioni…");
   const celleLibere: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {
     if (isAcqua(i, cols, rows) || riverSet.has(i) || edificiInMappa[i]) continue;
@@ -1346,7 +1842,14 @@ async function buildInitialMappa(
   }
 
   await report(100, "Mondo pronto!");
-  return { edificiInMappa, terrenoInMappa, decorazioniInMappa, residenzeMappa: {} };
+  return {
+    edificiInMappa,
+    terrenoInMappa,
+    decorazioniInMappa,
+    residenzeMappa: {},
+    costaSudProfondita,
+    mappaLayoutVersion: MAPPA_LAYOUT_BOSCO_FIUME
+  };
 }
 
 /**
@@ -1360,25 +1863,34 @@ const CIELO_ALPHA_CALORE_TRAMONTO_MAX = 0.26;
 /** Coppie [indiceA, indiceB] per strade iniziali (anchor centro → spazioporto, serra); usa le posizioni effettive degli edifici. */
 function getStradeIniziali(edificiInMappa: Record<number, EdificioInCella>): [number, number][] {
   let centro: number | null = null;
-  let spazioporto: number | null = null;
+  let porto: number | null = null;
   let bar: number | null = null;
+  let fucina: number | null = null;
+  let emporio: number | null = null;
+  let ufficioEdile: number | null = null;
   let tribunale: number | null = null;
   const serre: number[] = [];
   for (const [i, e] of Object.entries(edificiInMappa)) {
     const idx = Number(i);
-    if (e.nome === "Centro di Comando" && e.footprint && !e.footprintRef) centro = idx;
-    if (e.nome === "Spazioporto" && e.footprint && !e.footprintRef) spazioporto = idx;
+    if (e.nome === "Castello" && e.footprint && !e.footprintRef) centro = idx;
+    if (e.nome === "Porto" && e.footprint && !e.footprintRef) porto = idx;
     if (e.nome === "Serra" && e.footprint && !e.footprintRef) serre.push(idx);
     if (e.nome === "Bar" && e.footprint && !e.footprintRef) bar = idx;
+    if (e.nome === "Fucina" && e.footprint && !e.footprintRef) fucina = idx;
+    if (e.nome === "Emporio" && e.footprint && !e.footprintRef) emporio = idx;
+    if (e.nome === "Ufficio Edile" && e.footprint && !e.footprintRef) ufficioEdile = idx;
     if (e.nome === "Tribunale" && e.footprint && !e.footprintRef) tribunale = idx;
   }
   const out: [number, number][] = [];
-  if (centro != null && spazioporto != null) out.push([centro, spazioporto]);
+  if (centro != null && porto != null) out.push([centro, porto]);
   if (centro != null) {
     for (const sa of serre) out.push([centro, sa]);
   }
   if (centro != null && tribunale != null) out.push([centro, tribunale]);
   if (centro != null && bar != null) out.push([centro, bar]);
+  if (centro != null && fucina != null) out.push([centro, fucina]);
+  if (centro != null && emporio != null) out.push([centro, emporio]);
+  if (centro != null && ufficioEdile != null) out.push([centro, ufficioEdile]);
   return out;
 }
 
@@ -1405,6 +1917,29 @@ function aggiungiAbitanteAlBarEdificio(
   return { ...cleaned, [barEdificioId]: [...cur, abitanteId] };
 }
 
+function rimuoviAbitanteDaTuttiEmporio(
+  prev: Record<number, number[]>,
+  abitanteId: number
+): Record<number, number[]> {
+  const next: Record<number, number[]> = {};
+  for (const [k, ids] of Object.entries(prev)) {
+    const filt = ids.filter((id) => id !== abitanteId);
+    if (filt.length > 0) next[Number(k)] = filt;
+  }
+  return next;
+}
+
+function aggiungiAbitanteAllEmporioEdificio(
+  prev: Record<number, number[]>,
+  emporioEdificioId: number,
+  abitanteId: number
+): Record<number, number[]> {
+  const cleaned = rimuoviAbitanteDaTuttiEmporio(prev, abitanteId);
+  const cur = cleaned[emporioEdificioId] ?? [];
+  if (cur.includes(abitanteId)) return cleaned;
+  return { ...cleaned, [emporioEdificioId]: [...cur, abitanteId] };
+}
+
 /** Angolo in alto a sinistra della cella in px (per overlay edifici multi-cella). */
 function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: number): { left: number; top: number } {
   const col = cellIndex % cols;
@@ -1412,24 +1947,25 @@ function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: n
   return { left: col * (cellW + GAP), top: row * (cellH + GAP) };
 }
 
-type CommutePurpose = "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro";
+type CommutePurpose = CommuteInfoMappa["purpose"];
 
-type CommuteInfo = {
-  path: number[];
-  token: number;
-  purpose: CommutePurpose;
-  barEdificioId?: number;
-  mensaEdificioId?: number;
-  cultoEdificioId?: number;
-  negozioEdificioId?: number;
-  lavoroCercaEdificioId?: number;
-  rapinaTarget?: RapinaTarget;
-};
+type CommuteInfo = CommuteInfoMappa;
+
+/** Prossima cella sul path di commute a partire da `fromCell` (o null se non c’è). */
+function prossimoPassoCommute(path: readonly number[] | undefined, fromCell: number): number | null {
+  if (!path || path.length < 2) return null;
+  const idx = path.indexOf(fromCell);
+  if (idx >= 0 && idx + 1 < path.length) return path[idx + 1]!;
+  if (path[0] === fromCell) return path[1]!;
+  return null;
+}
 
 type FootprintVariant =
   | "amministrazione"
   | "dormitorio"
   | "bar"
+  | "fucina"
+  | "emporio"
   | "tribunale"
   | "ufficio_immigrazione"
   | "ufficio_edile"
@@ -1447,6 +1983,7 @@ type FootprintVariant =
   | "campo_sterminio"
   | "caserma"
   | "centrale_polizia"
+  | "bosco"
   | "cantiere";
 
 function EdificioFootprintGfx({
@@ -1492,6 +2029,30 @@ function EdificioFootprintGfx({
     return (
       <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
         <RpgFootprintBar2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "fucina" && w === FUCINA_FOOTPRINT_W && h === FUCINA_FOOTPRINT_H) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintFucina2x2 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "emporio" && w === EMPORIO_FOOTPRINT_W && h === EMPORIO_FOOTPRINT_H) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintEmporio3x3 width={width} height={height} />
+      </View>
+    );
+  }
+
+  if (variant === "bosco" && h === BOSCO_FOOTPRINT_H && w >= 2) {
+    return (
+      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
+        <RpgFootprintBosco5x5 width={width} height={height} />
       </View>
     );
   }
@@ -1724,7 +2285,6 @@ function getResourceEmoji(r: Risorsa): string {
   const n = r.nome.toLowerCase();
   if (n.includes("cibo")) return "🍱";
   if (n.includes("energia")) return "⚡";
-  if (n.includes("acqua")) return "💧";
   if (n.includes("materiale edile")) return "🧱";
   if (n.includes("medicine")) return "💊";
   if (n.includes("combustibile")) return "⛽";
@@ -1736,17 +2296,17 @@ function getResourceRoute(r: Risorsa): string | null {
   const n = r.nome.toLowerCase();
   if (n.includes("cibo")) return "/cibo";
   if (n.includes("energia")) return "/energia";
-  if (n.includes("acqua")) return "/acqua";
   if (n.includes("rifiuti")) return "/rifiuti";
   return null;
 }
 
 function normalizeMappaSessione(state: MappaRuntimeState): MappaRuntimeState {
-  if (state.residenzeMappa) return state;
-  return { ...state, residenzeMappa: {} };
+  const conCosta = migraMappaCostaSud(state, FIXED_MAP_COLS, FIXED_MAP_ROWS);
+  return migraMappaBoscoDueRettangoliEFiume(conCosta, FIXED_MAP_COLS, FIXED_MAP_ROWS);
 }
 
 export function MappaScreen() {
+  const { modalitaGioco } = useGameContext();
   const [boot, setBoot] = useState<
     | { status: "loading"; progress: number; label: string }
     | { status: "ready"; state: MappaRuntimeState }
@@ -1763,9 +2323,14 @@ export function MappaScreen() {
     let cancelled = false;
     void (async () => {
       try {
-        const state = await buildInitialMappa(FIXED_MAP_COLS, FIXED_MAP_ROWS, (progress, label) => {
-          if (!cancelled) setBoot({ status: "loading", progress, label });
-        });
+        const state = await buildInitialMappa(
+          FIXED_MAP_COLS,
+          FIXED_MAP_ROWS,
+          (progress, label) => {
+            if (!cancelled) setBoot({ status: "loading", progress, label });
+          },
+          modalitaGioco
+        );
         if (cancelled) return;
         setMappaSessione(state);
         setBoot({ status: "ready", state });
@@ -1779,7 +2344,7 @@ export function MappaScreen() {
     return () => {
       cancelled = true;
     };
-  }, [boot.status]);
+  }, [boot.status, modalitaGioco]);
 
   if (boot.status === "loading") {
     return <MondoLoadingScreen progress={boot.progress} label={boot.label} />;
@@ -1790,6 +2355,27 @@ export function MappaScreen() {
 
 function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRuntimeState }) {
   const router = useRouter();
+  const bottomBarScrollRef = useRef<ScrollView>(null);
+  const spotlight = useTutorialSpotlightOptional();
+  const pendingPonteSpotlightRef = useRef(false);
+  const spotlightRef = useRef(spotlight);
+  spotlightRef.current = spotlight;
+  const onCostruisciPressRef = useRef<() => void>(() => {});
+  const onPontePressRef = useRef<() => void>(() => {});
+  const costruisciModalScrollRef = useRef<ScrollView>(null);
+  const mostraModalCostruisciRef = useRef(false);
+  const costruisciSpotlightRef = useSpotlightTarget(SPOTLIGHT_TARGET_IDS.MAPPA_COSTRUISCI, {
+    ensureVisible: () => {
+      bottomBarScrollRef.current?.scrollToEnd({ animated: true });
+    },
+    onPress: () => onCostruisciPressRef.current()
+  });
+  const ponteSpotlightRef = useSpotlightTarget(SPOTLIGHT_TARGET_IDS.MAPPA_PONTE, {
+    ensureVisible: () => {
+      costruisciModalScrollRef.current?.scrollTo({ y: 0, animated: true });
+    },
+    onPress: () => onPontePressRef.current()
+  });
   const {
     risorse,
     abitanti,
@@ -1798,8 +2384,6 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     edifici,
     mese,
     anno,
-    isLoading,
-    avanzaMese,
     calcolaProduzioneConsumo,
     calcolaDeltaOrdiniMercato,
     calcolaDeltaTesoroMercato,
@@ -1811,8 +2395,21 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     rimuoviEdificioPerId,
     serviPastoMensaAbitante,
     aggiornaAbitanteById,
+    applicaEsitoChiacchieraAbitanti,
     accreditaMoneteGiocatore,
+    addebitaMoneteGiocatore,
+    incassaImpresa,
+    applicaPagaETipBarFineTurno,
+    provaAssumiBaristaBarVuotoDaMappa,
+    registraScambioCommerciale,
+    registrazioniScambi,
     assumiCittadinoDisoccupatoAEdificio,
+    assumiDisoccupatoInEmporioDaMappa,
+    assumiDisoccupatoNelBoscoDaMappa,
+    assumiDisoccupatoNellaMinieraDaMappa,
+    assumiDisoccupatoComeGuardiaDaMappa,
+    ricollocaLavoroIrraggiungibileDaMappa,
+    vendeAlimentoAllEmporioDaMappa,
     appendDiarioRiga,
     setInventarioMensaEdificio,
     inventarioMensaByEdificioId,
@@ -1820,6 +2417,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     setLuoghiCultoPendentiMappa,
     richiesteInAttesa,
     accettaRichiestaInAttesa,
+    modalitaRe,
+    edificioVisitaReId,
     rifiutaRichiestaInAttesa,
     eventiInCorso,
     eventiCatalogo,
@@ -1836,7 +2435,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     coprifuocoAttivo,
     coprifuocoInizioMinuti,
     coprifuocoFineMinuti,
-    nudismoAttivo
+    nudismoAttivo,
+    apriDialogPiazzaPonte,
+    modalitaGioco,
+    obiettiviCompletati,
+    simulationEnabled
   } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
@@ -1844,27 +2447,47 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const abitantiConFelicità = abitanti.filter((a) => a.razza !== "Golem");
   const nConFelicità = abitantiConFelicità.length;
-  const felicitàMedia = nConFelicità ? Math.round(abitantiConFelicità.reduce((s, a) => s + calcolaFelicitàModificata(a), 0) / nConFelicità) : 0;
-  const nConLealtàPaura = abitantiConFelicità.length;
-  const lealtàMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.lealtà, 0) / nConLealtàPaura) : 0;
-  const pauraMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.paura, 0) / nConLealtàPaura) : 0;
+  const giornoGioco = getGiornoGiocoSnapshot();
+  const soddisfazioneMediaRaw = nConFelicità
+    ? abitantiConFelicità.reduce(
+        (s, a) => s + calcolaPunteggioSoddisfazione(a, edifici, giornoGioco, mese, anno),
+        0
+      ) / nConFelicità
+    : 0;
+  const soddisfazioneMedia = Math.round(soddisfazioneMediaRaw * 10) / 10;
+  const fasciaSoddisfazioneMedia = fasciaDaPunteggio(soddisfazioneMediaRaw);
+  const nConPaura = abitantiConFelicità.length;
+  const pauraMedia = nConPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.paura, 0) / nConPaura) : 0;
   const nDisoccupati = abitantiConFelicità.filter((a) => a.lavoro === "Disoccupato").length;
   const disoccupazionePercent = nConFelicità ? Math.round((nDisoccupati / nConFelicità) * 100) : 0;
 
   /** Una voce per nome (es. una sola "Serra") con id template del catalogo. */
+  const costruzioneSbloccati = useMemo(
+    () => edificiCostruibiliSbloccati(obiettiviCompletati, modalitaGioco),
+    [obiettiviCompletati, modalitaGioco]
+  );
+  const mostraStradaCostruisci = isStradaCostruibileSbloccata(costruzioneSbloccati);
+  const mostraAmbienteCostruisci = isAmbienteCostruibileSbloccato(costruzioneSbloccati);
+  const mostraPonteCostruisci = isNomeEdificioCostruibileSbloccato("Ponte", costruzioneSbloccati);
+
   const edificiCatalogoModal = useMemo(() => {
     const seen = new Set<string>();
     const out: Edificio[] = [];
     for (const row of edificiData) {
-      if (row.nome === "Centro di Comando") continue;
+      if (row.nome === "Castello") continue;
+      /** Ponte: voce dedicata in cima al menu (non nel catalogo sezioni). */
+      if (row.nome === NOME_PONTE) continue;
       /** Una sola Baracca è supportata dalla sync globale Senzatetto → edificio. */
       if (row.nome === "Baracca") continue;
+      /** Dissalatore / Acquedotto: fuori tema medievale fantasy. */
+      if (row.nome === "Acquedotto" || row.nome === "Dissalatore") continue;
       if (seen.has(row.nome)) continue;
+      if (!isNomeEdificioCostruibileSbloccato(row.nome, costruzioneSbloccati)) continue;
       seen.add(row.nome);
       out.push(row);
     }
     return out;
-  }, []);
+  }, [costruzioneSbloccati]);
 
   const edificiCostruzionePerSezione = useMemo(() => {
     const byNome = new Map(edificiCatalogoModal.map((e) => [e.nome, e]));
@@ -1877,7 +2500,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           return byNome.get(nome);
         })
         .filter((e): e is Edificio => e != null)
-    }));
+    })).filter((s) => s.edifici.length > 0);
     const altri = edificiCatalogoModal.filter((e) => !used.has(e.nome));
     return { sections, altri };
   }, [edificiCatalogoModal]);
@@ -1892,11 +2515,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     return { columns, tileWidth, gap };
   }, []);
 
-  const [mappaState, setMappaState] = useState<MappaRuntimeState>(() => {
-    const session = getMappaSessione() ?? initialMappaState;
-    setMappaSessione(session);
-    return session;
-  });
+  const [mappaState, setMappaState] = useState<MappaRuntimeState>(() =>
+    normalizeMappaSessione(getMappaSessione() ?? initialMappaState)
+  );
 
   const setMappaStatePersistente = useCallback((action: React.SetStateAction<MappaRuntimeState>) => {
     setMappaState((prev) => {
@@ -1965,8 +2586,41 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     setMappaStatePersistente((s) => ({ ...s, residenzeMappa: next }));
   }, [edifici, edificiInMappa, residenzeMappa, setMappaStatePersistente]);
 
+  /** Chi vive nel Castello non resta nelle capanne sulla mappa. */
+  useEffect(() => {
+    const castello = edifici.find((e) => e.nome === "Castello" || e.id === 1);
+    const idsCastello = new Set(castello?.abitantiAssegnati ?? []);
+    if (idsCastello.size === 0 || Object.keys(residenzeMappa).length === 0) return;
+    let changed = false;
+    const next: Record<number, number[]> = {};
+    for (const [k, ids] of Object.entries(residenzeMappa)) {
+      const filtered = ids.filter((id) => !idsCastello.has(id));
+      if (filtered.length !== ids.length) changed = true;
+      next[Number(k)] = filtered;
+    }
+    if (!changed) return;
+    setMappaStatePersistente((s) => ({ ...s, residenzeMappa: next }));
+  }, [edifici, residenzeMappa, setMappaStatePersistente]);
+
   /** Modal elenco edifici (pulsante Costruisci). */
   const [mostraModalCostruisci, setMostraModalCostruisci] = useState(false);
+  const [obiettivoSbloccato, setObiettivoSbloccato] = useState<{
+    titolo: string;
+    messaggio: string;
+    emoji?: string;
+  } | null>(null);
+  const obiettiviCompletatiPrevRef = useRef(obiettiviCompletati);
+  useEffect(() => {
+    const prev = obiettiviCompletatiPrevRef.current;
+    obiettiviCompletatiPrevRef.current = obiettiviCompletati;
+    if (!prev.includes("primo_ponte") && obiettiviCompletati.includes("primo_ponte")) {
+      setObiettivoSbloccato({
+        titolo: "Obiettivo Sbloccato!",
+        messaggio: "Il tuo primo Ponte è pronto e attraversabile!",
+        emoji: "🌉"
+      });
+    }
+  }, [obiettiviCompletati]);
   /** Modal richieste rimandate (pulsante Richieste). */
   const [mostraModalRichieste, setMostraModalRichieste] = useState(false);
   /** Modal catalogo eventi (pulsante Eventi). */
@@ -2029,15 +2683,17 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   } | null>(null);
   /** Edifico scelto: anteprima sulla mappa e tap per piazzare. */
   const [costruzioneSelezione, setCostruzioneSelezione] = useState<SelezioneCostruzioneAnteprima | null>(null);
+  const costruzioneSelezioneRef = useRef(costruzioneSelezione);
+  costruzioneSelezioneRef.current = costruzioneSelezione;
   const celleProtetteIniziali = useMemo(
     () => indiciFootprintProtettiIniziali(initialMappaState.edificiInMappa, FIXED_MAP_COLS),
     [initialMappaState]
   );
   /** Cella sotto il puntatore (web hover / press mobile) per l’anteprima footprint. */
   const [previewCellHover, setPreviewCellHover] = useState<number | null>(null);
-  const [selectedCellForTransformDialog, setSelectedCellForTransformDialog] = useState<number | null>(null);
   /** Cella anchor della residenza aperta dal doppio tocco (Baracca, Capanna, Dormitorio). */
   const [selectedResidenzaAnchor, setSelectedResidenzaAnchor] = useState<number | null>(null);
+  const [cantiereSelezionatoId, setCantiereSelezionatoId] = useState<number | null>(null);
 
   /** Apertura residenza richiesta dal profilo abitante (Capanna / Baracca / Dormitorio specifici). */
   useEffect(() => {
@@ -2068,6 +2724,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const [schedaWandererAbitante, setSchedaWandererAbitante] = useState<Abitante | null>(null);
   /** Selezione mappa: sintesi in barra inferiore al posto dei pulsanti risorse. */
   const [sintesiMappaAbitanteId, setSintesiMappaAbitanteId] = useState<number | null>(null);
+  /** Freccia «Individua» sulla mappa (abitante puntato). */
+  const [locateAbitanteId, setLocateAbitanteId] = useState<number | null>(null);
+  const clearLocateMarker = useCallback(() => {
+    setLocateAbitanteId(null);
+  }, []);
+  /** Id abitante → partner della chiacchiera «in giro» (Phaser). */
+  const [chiacchieraConById, setChiacchieraConById] = useState<Record<number, number>>({});
+  /** Scheda aperta: sempre i dati freschi da `abitanti`, non lo snapshot al tap. */
+  const schedaWandererAbitanteLive = useMemo(() => {
+    if (schedaWandererAbitante == null) return null;
+    return abitanti.find((a) => a.id === schedaWandererAbitante.id) ?? schedaWandererAbitante;
+  }, [abitanti, schedaWandererAbitante]);
   /** Bordi tra le celle: di default nascosti; il toggle nella barra risorse li attiva. */
   const [mostraGrigliaMappa, setMostraGrigliaMappa] = useState(false);
   const lastTapCell = useRef<number | null>(null);
@@ -2075,9 +2743,48 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   /** True se l’ultimo gesto sulla mappa è stato un trascinamento (pan): non chiudere la sintesi. */
   const mapDraggedRef = useRef(false);
   const panStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const phaserMapRef = useRef<PhaserMapSurfaceHandle | null>(null);
 
-  const { minuti: orologioMinuti, inPausa: orologioInPausa, togglePausa: toggleOrologioPausa } =
-    useOrologioGioco();
+  const {
+    minuti: orologioMinuti,
+    inPausa: orologioInPausa,
+    togglePausa: toggleOrologioPausa,
+    velocita: orologioVelocita,
+    setVelocita: setOrologioVelocita
+  } = useOrologioGioco();
+
+  const reUscitaCastelloPending = useSyncExternalStore(
+    subscribeReUscitaCastelloPending,
+    getReUscitaCastelloPending,
+    getReUscitaCastelloPending
+  );
+  const tipoUscitaCastelloPending = useSyncExternalStore(
+    subscribeReUscitaCastelloPending,
+    getTipoUscitaCastelloPending,
+    getTipoUscitaCastelloPending
+  );
+  /** Bump quando spostiamo personaggi via ref (ultimaCella) così Phaser/RN ricalcolano le celle. */
+  const [personaggiCelleEpoch, setPersonaggiCelleEpoch] = useState(0);
+
+  /** Ritorno da Castello/altre pagine: il canvas Phaser può restare sullo sfondo verde finché non si ridimensiona. */
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== "web") return;
+      let cancelled = false;
+      const refresh = () => {
+        if (!cancelled) phaserMapRef.current?.refreshViewport();
+      };
+      const t0 = requestAnimationFrame(refresh);
+      const t1 = setTimeout(refresh, 50);
+      const t2 = setTimeout(refresh, 200);
+      return () => {
+        cancelled = true;
+        cancelAnimationFrame(t0);
+        clearTimeout(t1);
+        clearTimeout(t2);
+      };
+    }, [])
+  );
 
   /** Dimensioni viewport mappa (per culling celle visibili durante pan/zoom). */
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
@@ -2160,6 +2867,31 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const uscitaCostruzione = useCallback(() => {
     setCostruzioneSelezione(null);
     setPreviewCellHover(null);
+    setMostraGrigliaMappa(false);
+  }, []);
+
+  /** Costruisci attiva (menu o piazzamento) → pausa; in uscita il tempo riparte. */
+  const costruzionePausaAttivaRef = useRef(false);
+  useEffect(() => {
+    const attiva = mostraModalCostruisci || costruzioneSelezione != null;
+    if (attiva) {
+      setOrologioGiocoBloccatoDaCostruzione(true);
+      costruzionePausaAttivaRef.current = true;
+      return;
+    }
+    if (!costruzionePausaAttivaRef.current) return;
+    costruzionePausaAttivaRef.current = false;
+    setOrologioGiocoBloccatoDaCostruzione(false);
+    setOrologioGiocoInPausa(false);
+  }, [mostraModalCostruisci, costruzioneSelezione]);
+
+  useEffect(() => {
+    return () => {
+      if (!costruzionePausaAttivaRef.current) return;
+      costruzionePausaAttivaRef.current = false;
+      setOrologioGiocoBloccatoDaCostruzione(false);
+      setOrologioGiocoInPausa(false);
+    };
   }, []);
 
   const uscitaDemolizione = useCallback(() => {
@@ -2168,6 +2900,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   }, []);
 
   const onDemolisciPress = useCallback(() => {
+    clearLocateMarker();
     if (modalitaDemolisci) {
       uscitaDemolizione();
       return;
@@ -2176,16 +2909,84 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     setMostraModalCostruisci(false);
     setModalitaDemolisci(true);
     setMostraGrigliaMappa(true);
-  }, [modalitaDemolisci, uscitaDemolizione, uscitaCostruzione]);
+  }, [modalitaDemolisci, uscitaDemolizione, uscitaCostruzione, clearLocateMarker]);
 
   const onCostruisciPress = useCallback(() => {
+    clearLocateMarker();
+    const daSpotlightCostruisci = spotlight?.active?.targetId === SPOTLIGHT_TARGET_IDS.MAPPA_COSTRUISCI;
+    const continuaTutorialPonte = daSpotlightCostruisci || pendingPonteSpotlightRef.current;
+    if (continuaTutorialPonte) {
+      pendingPonteSpotlightRef.current = true;
+    }
+    spotlight?.dismissSpotlight();
     setModalitaDemolisci(false);
     if (costruzioneTerrenoPersistente(costruzioneSelezione)) {
+      pendingPonteSpotlightRef.current = false;
       uscitaCostruzione();
       return;
     }
     setMostraModalCostruisci(true);
-  }, [costruzioneSelezione, uscitaCostruzione]);
+    if (!continuaTutorialPonte) {
+      pendingPonteSpotlightRef.current = false;
+    }
+  }, [costruzioneSelezione, uscitaCostruzione, spotlight, clearLocateMarker]);
+  onCostruisciPressRef.current = onCostruisciPress;
+
+  const mostraSpotlightPonteSePending = useCallback(() => {
+    if (!pendingPonteSpotlightRef.current) return;
+    costruisciModalScrollRef.current?.scrollTo({ y: 0, animated: false });
+    const tryShow = (attempt: number) => {
+      if (!pendingPonteSpotlightRef.current) return;
+      if (!mostraModalCostruisciRef.current) return;
+      spotlightRef.current?.showSpotlight({
+        targetId: SPOTLIGHT_TARGET_IDS.MAPPA_PONTE,
+        padding: 10
+      });
+      if (attempt < 6) {
+        setTimeout(() => tryShow(attempt + 1), 120 + attempt * 80);
+      }
+    };
+    requestAnimationFrame(() => {
+      setTimeout(() => tryShow(0), 80);
+    });
+  }, []);
+
+  const scegliPonte = useCallback(() => {
+    const daTutorial = spotlight?.active?.targetId === SPOTLIGHT_TARGET_IDS.MAPPA_PONTE;
+    pendingPonteSpotlightRef.current = false;
+    spotlight?.dismissSpotlight();
+    setCostruzioneSelezione({ tipo: "ponte" });
+    setMostraModalCostruisci(false);
+    setMostraGrigliaMappa(true);
+    if (daTutorial) {
+      setTimeout(() => apriDialogPiazzaPonte(), 150);
+    }
+  }, [spotlight, apriDialogPiazzaPonte]);
+  onPontePressRef.current = scegliPonte;
+
+  const chiudiModalCostruisci = useCallback(() => {
+    pendingPonteSpotlightRef.current = false;
+    if (spotlight?.active?.targetId === SPOTLIGHT_TARGET_IDS.MAPPA_PONTE) {
+      spotlight.dismissSpotlight();
+    }
+    setMostraModalCostruisci(false);
+  }, [spotlight]);
+
+  useEffect(() => {
+    mostraModalCostruisciRef.current = mostraModalCostruisci;
+    if (mostraModalCostruisci) return;
+    // Chiudi solo lo spotlight Ponte se il menu non è più aperto (non azzerare pending
+    // nello stesso tick in cui stiamo aprendo il modal).
+    if (spotlightRef.current?.active?.targetId === SPOTLIGHT_TARGET_IDS.MAPPA_PONTE) {
+      spotlightRef.current.dismissSpotlight();
+    }
+  }, [mostraModalCostruisci]);
+
+  // Backup su web se `Modal.onShow` non arriva: quando il menu Costruisci è aperto.
+  useEffect(() => {
+    if (!mostraModalCostruisci) return;
+    mostraSpotlightPonteSePending();
+  }, [mostraModalCostruisci, mostraSpotlightPonteSePending]);
 
   const previewPiazzamento = useMemo(
     () =>
@@ -2297,32 +3098,41 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const costruzioneDissalatore = Boolean(
     costruzioneSelezione?.tipo === "edificio" &&
-      costruzioneSelezione.edificio.nome === "Dissalatore"
+      costruzioneSelezione.edificio.nome === "Acquedotto"
   );
 
   const overlayEmojiAt = useCallback(
     (cellIndex: number): string | null => {
       const edificio = edificiInMappa[cellIndex];
+      if (edificio?.nome === NOME_PONTE) {
+        const globaleId = edificio.edificioGlobaleId ?? edificio.id;
+        const globale = edifici.find((x) => x.id === globaleId);
+        if (globale?.stato === "In costruzione") return null;
+        return edificio.emoji || PONTE_EMOJI;
+      }
       const èStrada = edificio?.nome === "Strada";
       const edificioMulticella =
         !!edificio && !èStrada && (edificio.footprintRef != null || edificio.footprint != null);
       if (edificio && !èStrada && !edificioMulticella) return edificio.emoji;
       return decorazioniInMappa[cellIndex] ?? null;
     },
-    [edificiInMappa, decorazioniInMappa]
+    [edificiInMappa, decorazioniInMappa, edifici]
   );
 
   const isWalkableCell = useCallback(
     (i: number) => {
       if (isAcqua(i, cols, rows)) return false;
-      if ((terrenoInMappa[i] ?? "erba") === "river") return false;
-      if (decorazioniInMappa[i]) return false;
       const e = edificiInMappa[i];
+      if ((terrenoInMappa[i] ?? "erba") === "river") {
+        return ponteCellaAttraversabile(e, edifici);
+      }
+      if (decorazioniInMappa[i]) return false;
       if (!e) return true;
       if (e.nome === "Strada") return true;
+      if (e.nome === NOME_PONTE) return ponteCellaAttraversabile(e, edifici);
       return false;
     },
-    [terrenoInMappa, edificiInMappa, decorazioniInMappa, cols, rows]
+    [terrenoInMappa, edificiInMappa, decorazioniInMappa, cols, rows, edifici]
   );
 
   const isRoadCell = useCallback(
@@ -2338,16 +3148,67 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     return m;
   }, [abitanti, edifici, edificiInMappa, residenzeMappa]);
 
-  const ultimaCellaAbitanteRef = useRef<Map<number, number>>(new Map());
+  const runtimePersonaggiInitRef = useRef(getMappaPersonaggiRuntime());
+  const ultimaCellaAbitanteRef = useRef<Map<number, number>>(
+    new Map(
+      Object.entries(runtimePersonaggiInitRef.current.ultimaCellaByAbitanteId).map(([id, cell]) => [
+        Number(id),
+        cell
+      ])
+    )
+  );
+
+  const individuaReSullaMappa = useCallback(() => {
+    const ultima = ultimaCellaAbitanteRef.current.get(ID_GIOCATORE);
+    const casa = cellaCasaPerAbitanteId.get(ID_GIOCATORE) ?? null;
+    let castelloAnchor: number | null = null;
+    for (const key of Object.keys(edificiInMappa)) {
+      const idx = Number(key);
+      const e = edificiInMappa[idx];
+      if (e?.nome === "Castello" && !e.footprintRef) {
+        castelloAnchor = idx;
+        break;
+      }
+    }
+    const cell =
+      (modalitaRe === "a_giro" ? ultima ?? casa ?? castelloAnchor : casa ?? castelloAnchor ?? ultima) ??
+      null;
+    if (cell == null) return;
+    setLocateAbitanteId(ID_GIOCATORE);
+    if (Platform.OS === "web") {
+      phaserMapRef.current?.centerOnCell(cell, { zoomIn: true });
+    }
+  }, [cellaCasaPerAbitanteId, edificiInMappa, modalitaRe]);
+
   /** Minuti assoluti (giorno*1440 + ora) dell’ultimo tentativo di rapina per abitante. */
   const ultimoTentativoRapinaAbsRef = useRef<Map<number, number>>(new Map());
   /** Esito testo scheda dopo una rapina risolta. */
-  const [esitoRapinaByAbitanteId, setEsitoRapinaByAbitanteId] = useState<Record<number, string>>({});
+  const [esitoRapinaByAbitanteId, setEsitoRapinaByAbitanteId] = useState<Record<number, string>>(
+    () => ({ ...runtimePersonaggiInitRef.current.esitoRapinaByAbitanteId })
+  );
   /** Cella → abitante che la occupa (solo mentre è visibile in strada; non in casa di notte). */
-  const cellaOccupataDaAbitanteRef = useRef<Map<number, number>>(new Map());
-  const abitanteSuCellaRef = useRef<Map<number, number>>(new Map());
-  const prevBuioNotteTransitRef = useRef<boolean | undefined>(undefined);
-  const orologioPrevTickRef = useRef(orologioMinuti);
+  const cellaOccupataDaAbitanteRef = useRef<Map<number, number>>(
+    (() => {
+      const m = new Map<number, number>();
+      for (const [id, cell] of ultimaCellaAbitanteRef.current) {
+        m.set(cell, id);
+      }
+      return m;
+    })()
+  );
+  const abitanteSuCellaRef = useRef<Map<number, number>>(new Map(ultimaCellaAbitanteRef.current));
+  const prevBuioNotteTransitRef = useRef<boolean | undefined>(
+    runtimePersonaggiInitRef.current.prevBuioNotte
+  );
+  const orologioPrevTickRef = useRef(
+    runtimePersonaggiInitRef.current.orologioPrevTick ?? orologioMinuti
+  );
+  /** Aggiornato sotto dopo lo state commute; dichiarato qui per lo swap head-on in tryClaim. */
+  const commuteByAbitanteIdRef = useRef<Record<number, CommuteInfo>>({});
+  /** Conta repath avanti/indietro sullo stesso tratto (anti-oscillazione corridoio). */
+  const commuteRepathOscillationRef = useRef<
+    Map<number, { from: number; next: number; count: number }>
+  >(new Map());
 
   const isCellFreeForAbitante = useCallback((abitanteId: number, cell: number) => {
     const occupant = cellaOccupataDaAbitanteRef.current.get(cell);
@@ -2356,8 +3217,24 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const tryClaimCellAbitante = useCallback((abitanteId: number, cell: number) => {
     const occupant = cellaOccupataDaAbitanteRef.current.get(cell);
-    if (occupant != null && occupant !== abitanteId) return false;
     const prev = abitanteSuCellaRef.current.get(abitanteId);
+
+    // Head-on in corridoio stretto: A→cella di B e B→cella di A → scambio atomico (evita oscillazione).
+    if (occupant != null && occupant !== abitanteId && prev != null) {
+      const otherNext = prossimoPassoCommute(commuteByAbitanteIdRef.current[occupant]?.path, cell);
+      if (otherNext === prev) {
+        cellaOccupataDaAbitanteRef.current.set(cell, abitanteId);
+        cellaOccupataDaAbitanteRef.current.set(prev, occupant);
+        abitanteSuCellaRef.current.set(abitanteId, cell);
+        abitanteSuCellaRef.current.set(occupant, prev);
+        ultimaCellaAbitanteRef.current.set(abitanteId, cell);
+        ultimaCellaAbitanteRef.current.set(occupant, prev);
+        return true;
+      }
+      return false;
+    }
+
+    if (occupant != null && occupant !== abitanteId) return false;
     if (prev != null && prev !== cell && cellaOccupataDaAbitanteRef.current.get(prev) === abitanteId) {
       cellaOccupataDaAbitanteRef.current.delete(prev);
     }
@@ -2375,13 +3252,370 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     abitanteSuCellaRef.current.delete(abitanteId);
   }, []);
 
-  const [dormonoACasaIds, setDormonoACasaIds] = useState<Set<number>>(() => new Set());
-  const [lavoroArrivatiIds, setLavoroArrivatiIds] = useState<Set<number>>(() => new Set());
+  const [dormonoACasaIds, setDormonoACasaIds] = useState<Set<number>>(
+    () => new Set(runtimePersonaggiInitRef.current.dormonoACasaIds)
+  );
+  const [lavoroArrivatiIds, setLavoroArrivatiIds] = useState<Set<number>>(
+    () => new Set(runtimePersonaggiInitRef.current.lavoroArrivatiIds)
+  );
+  const [lavoroArrivoEdificioByAbitanteId, setLavoroArrivoEdificioByAbitanteId] = useState<
+    Record<number, number>
+  >(() => ({ ...runtimePersonaggiInitRef.current.lavoroArrivoEdificioByAbitanteId }));
   /** id edificio Bar (globale) → abitanti considerati “dentro” quel locale sulla mappa. */
-  const [barArrivatiByEdificio, setBarArrivatiByEdificio] = useState<Record<number, number[]>>({});
+  const [barArrivatiByEdificio, setBarArrivatiByEdificio] = useState<Record<number, number[]>>(
+    () => ({ ...runtimePersonaggiInitRef.current.barArrivatiByEdificio })
+  );
+  /** id Emporio → visitatori (venditori / cercatori) attualmente dentro. */
+  const [emporioArrivatiByEdificio, setEmporioArrivatiByEdificio] = useState<Record<number, number[]>>(
+    () => ({ ...(runtimePersonaggiInitRef.current.emporioArrivatiByEdificio ?? {}) })
+  );
   /** id edificio Luogo di Culto (globale) → fedeli considerati “dentro” quel tempio. */
-  const [cultoArrivatiByEdificio, setCultoArrivatiByEdificio] = useState<Record<number, number[]>>({});
-  const [commuteByAbitanteId, setCommuteByAbitanteId] = useState<Record<number, CommuteInfo>>({});
+  const [cultoArrivatiByEdificio, setCultoArrivatiByEdificio] = useState<Record<number, number[]>>(
+    () => ({ ...runtimePersonaggiInitRef.current.cultoArrivatiByEdificio })
+  );
+  const [commuteByAbitanteId, setCommuteByAbitanteId] = useState<Record<number, CommuteInfo>>(() =>
+    hydrateCommutesFromRuntime(
+      runtimePersonaggiInitRef.current.commuteByAbitanteId,
+      runtimePersonaggiInitRef.current.ultimaCellaByAbitanteId
+    )
+  );
+  commuteByAbitanteIdRef.current = commuteByAbitanteId;
+
+  /** Persiste lo stato personaggi così Castello→Indietro non li rimette tutti a casa. */
+  useEffect(() => {
+    const ultima: Record<number, number> = {};
+    for (const [id, cell] of ultimaCellaAbitanteRef.current) {
+      ultima[id] = cell;
+    }
+    patchMappaPersonaggiRuntime({
+      ultimaCellaByAbitanteId: ultima,
+      commuteByAbitanteId,
+      lavoroArrivatiIds: [...lavoroArrivatiIds],
+      lavoroArrivoEdificioByAbitanteId,
+      barArrivatiByEdificio,
+      emporioArrivatiByEdificio,
+      cultoArrivatiByEdificio,
+      dormonoACasaIds: [...dormonoACasaIds],
+      esitoRapinaByAbitanteId,
+      prevBuioNotte: prevBuioNotteTransitRef.current,
+      orologioPrevTick: orologioPrevTickRef.current
+    });
+  }, [
+    commuteByAbitanteId,
+    lavoroArrivatiIds,
+    lavoroArrivoEdificioByAbitanteId,
+    barArrivatiByEdificio,
+    emporioArrivatiByEdificio,
+    cultoArrivatiByEdificio,
+    dormonoACasaIds,
+    esitoRapinaByAbitanteId,
+    orologioMinuti,
+    statoCielo.buio
+  ]);
+
+  const individuaAbitanteSullaMappa = useCallback(
+    (abitanteId: number) => {
+      const abitante = abitanti.find((a) => a.id === abitanteId);
+      if (!abitante) return;
+      const cell = risolviCellaIndividuaAbitante(abitante, {
+        ultimaCella: ultimaCellaAbitanteRef.current.get(abitanteId),
+        casa: cellaCasaPerAbitanteId.get(abitanteId) ?? null,
+        edifici,
+        edificiInMappa,
+        orologioMinuti,
+        buioCielo: statoCielo.buio,
+        dormonoACasaIds,
+        lavoroArrivatiIds,
+        barArrivatiByEdificio,
+        cultoArrivatiByEdificio,
+        inCommute: commuteByAbitanteId[abitanteId] != null,
+        modalitaRe,
+        reUscitaCastelloPending
+      });
+      if (cell == null) return;
+      setSchedaWandererAbitante(null);
+      setSintesiMappaAbitanteId(null);
+      setLocateAbitanteId(abitanteId);
+      if (Platform.OS === "web") {
+        requestAnimationFrame(() => {
+          phaserMapRef.current?.centerOnCell(cell, { zoomIn: true });
+        });
+      }
+    },
+    [
+      abitanti,
+      cellaCasaPerAbitanteId,
+      edifici,
+      edificiInMappa,
+      orologioMinuti,
+      statoCielo.buio,
+      dormonoACasaIds,
+      lavoroArrivatiIds,
+      barArrivatiByEdificio,
+      cultoArrivatiByEdificio,
+      commuteByAbitanteId,
+      modalitaRe,
+      reUscitaCastelloPending
+    ]
+  );
+
+  const locateMarker = useMemo<LocateMarkerMappa | null>(() => {
+    if (locateAbitanteId == null) return null;
+    const abitante = abitanti.find((a) => a.id === locateAbitanteId);
+    if (!abitante) return null;
+    const cell = risolviCellaIndividuaAbitante(abitante, {
+      ultimaCella: ultimaCellaAbitanteRef.current.get(locateAbitanteId),
+      casa: cellaCasaPerAbitanteId.get(locateAbitanteId) ?? null,
+      edifici,
+      edificiInMappa,
+      orologioMinuti,
+      buioCielo: statoCielo.buio,
+      dormonoACasaIds,
+      lavoroArrivatiIds,
+      barArrivatiByEdificio,
+      cultoArrivatiByEdificio,
+      inCommute: commuteByAbitanteId[locateAbitanteId] != null,
+      modalitaRe,
+      reUscitaCastelloPending
+    });
+    if (cell == null) return null;
+    return { cell, abitanteId: locateAbitanteId };
+  }, [
+    locateAbitanteId,
+    abitanti,
+    cellaCasaPerAbitanteId,
+    edifici,
+    edificiInMappa,
+    orologioMinuti,
+    statoCielo.buio,
+    dormonoACasaIds,
+    lavoroArrivatiIds,
+    barArrivatiByEdificio,
+    cultoArrivatiByEdificio,
+    commuteByAbitanteId,
+    modalitaRe,
+    reUscitaCastelloPending
+  ]);
+
+  useFocusEffect(
+    useCallback(() => {
+      const pendingId = consumePendingIndividuaAbitanteId();
+      if (pendingId == null) return;
+      const t = setTimeout(() => individuaAbitanteSullaMappa(pendingId), 120);
+      return () => clearTimeout(t);
+    }, [individuaAbitanteSullaMappa])
+  );
+
+  /** Bar senza lavoratori: promuove il primo cliente già dentro a Barista. */
+  useEffect(() => {
+    for (const bar of edifici) {
+      if (bar.nome !== "Bar" || bar.stato !== "Operativo") continue;
+      if ((bar.abitantiAssegnati ?? []).length > 0) continue;
+      const presenti = barArrivatiByEdificio[bar.id] ?? [];
+      for (const id of presenti) {
+        if (provaAssumiBaristaBarVuotoDaMappa(id, bar.id)) {
+          setLavoroArrivatiIds((s) => new Set(s).add(id));
+          setLavoroArrivoEdificioByAbitanteId((prev) => ({ ...prev, [id]: bar.id }));
+          setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, id));
+          break;
+        }
+      }
+    }
+  }, [edifici, barArrivatiByEdificio, provaAssumiBaristaBarVuotoDaMappa]);
+
+  /**
+   * Uscita Castello:
+   * - inizio partita: TUTTI i sudditi escono dalla porta del Castello (non da Capanna/Serra/…).
+   * - «A giro»: solo Re + corte (Consigliere/Nobili).
+   * Non brucia il pending se il Castello non è ancora sulla mappa.
+   * Con sim in pausa: teleport fuori (niente tween bloccato a timeScale 0).
+   */
+  useEffect(() => {
+    if (modalitaRe !== "a_giro" || !reUscitaCastelloPending) return;
+    const tipo = tipoUscitaCastelloPending ?? "re";
+
+    let castelloAnchor: number | null = null;
+    for (const key of Object.keys(edificiInMappa)) {
+      const idx = Number(key);
+      const e = edificiInMappa[idx];
+      if (e?.nome === "Castello" && !e.footprintRef) {
+        castelloAnchor = idx;
+        break;
+      }
+    }
+    if (castelloAnchor == null) return;
+
+    const path = pianificaUscitaDalCastello(
+      castelloAnchor,
+      edificiInMappa,
+      cols,
+      rows,
+      isWalkableCell
+    );
+    const fallbackIngresso =
+      trovaCelleIngressoEdificio(castelloAnchor, edificiInMappa, cols, rows, isWalkableCell)[0] ??
+      null;
+    const cellaFuori =
+      (path && path.length >= 1 ? path[path.length - 1]! : null) ?? fallbackIngresso;
+    if (cellaFuori == null) return;
+
+    const castelloGlob = edifici.find((e) => e.nome === "Castello" || e.id === 1);
+
+    const idsDaFarUscire: number[] = [];
+    if (tipo === "inizio_partita") {
+      // Tutti i personaggi umani: escono dal Castello. Esclusi Golem e chi è già
+      // seedato in un posto di lavoro (es. Edili in Ufficio Edile in Avventura).
+      for (const a of abitanti) {
+        if (a.razza === "Golem") continue;
+        if (lavoroArrivatiIds.has(a.id) && lavoroArrivoEdificioByAbitanteId[a.id] != null) {
+          const edId = lavoroArrivoEdificioByAbitanteId[a.id];
+          if (edId !== castelloGlob?.id) continue;
+        }
+        idsDaFarUscire.push(a.id);
+      }
+    } else {
+      const fissi = (castelloGlob?.abitantiAssegnati ?? []).filter((id) => {
+        const ab = abitanti.find((a) => a.id === id);
+        return ab != null && èResidenteFissoCastello(ab);
+      });
+      idsDaFarUscire.push(...fissi);
+      if (!idsDaFarUscire.includes(ID_GIOCATORE)) idsDaFarUscire.push(ID_GIOCATORE);
+    }
+
+    // Celle walkable distinte vicino all’uscita.
+    const celleUscita: number[] = [cellaFuori];
+    const coda = [cellaFuori];
+    const visti = new Set<number>([cellaFuori]);
+    const targetCelle = Math.max(idsDaFarUscire.length, 1);
+    while (coda.length > 0 && celleUscita.length < targetCelle) {
+      const cur = coda.shift()!;
+      const col = cur % cols;
+      const neigh = [
+        cur + cols,
+        cur - cols,
+        col > 0 ? cur - 1 : -1,
+        col < cols - 1 ? cur + 1 : -1
+      ];
+      for (const n of neigh) {
+        if (n < 0 || n >= cols * rows || visti.has(n) || !isWalkableCell(n)) continue;
+        visti.add(n);
+        celleUscita.push(n);
+        coda.push(n);
+        if (celleUscita.length >= targetCelle) break;
+      }
+    }
+
+    const cellaPerId = new Map<number, number>();
+    idsDaFarUscire.forEach((id, i) => {
+      cellaPerId.set(id, celleUscita[Math.min(i, celleUscita.length - 1)]!);
+    });
+    if (!cellaPerId.has(ID_GIOCATORE)) {
+      cellaPerId.set(ID_GIOCATORE, cellaFuori);
+    }
+
+    for (const [id, cell] of cellaPerId) {
+      ultimaCellaAbitanteRef.current.set(id, cell);
+      setUltimaCellaAbitanteRuntime(id, cell);
+    }
+
+    // Annulla commute partiti da Capanna/casa/lavoro: ripartono dalla zona Castello.
+    setCommuteByAbitanteId((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      const daTogliere = new Set(idsDaFarUscire);
+      for (const id of daTogliere) {
+        if (next[id]) {
+          delete next[id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+
+    // Chi non era già in un posto di lavoro seedato: non deve risultare «arrivato» al Castello.
+    if (castelloGlob) {
+      setLavoroArrivatiIds((prev) => {
+        let changed = false;
+        const s = new Set(prev);
+        for (const id of idsDaFarUscire) {
+          if (s.has(id) && lavoroArrivoEdificioByAbitanteId[id] === castelloGlob.id) {
+            s.delete(id);
+            changed = true;
+          }
+        }
+        return changed ? s : prev;
+      });
+      setLavoroArrivoEdificioByAbitanteId((prev) => {
+        let changed = false;
+        const next = { ...prev };
+        for (const id of idsDaFarUscire) {
+          if (next[id] === castelloGlob.id) {
+            delete next[id];
+            changed = true;
+          }
+        }
+        return changed ? next : prev;
+      });
+    }
+
+    const puòAnimare =
+      simulationEnabled && path != null && path.length >= 2 && !getOrologioGiocoInPausaSnapshot();
+
+    if (puòAnimare) {
+      ultimaCellaAbitanteRef.current.set(ID_GIOCATORE, castelloAnchor);
+      setUltimaCellaAbitanteRuntime(ID_GIOCATORE, castelloAnchor);
+      setCommuteByAbitanteId((prev) => ({
+        ...prev,
+        [ID_GIOCATORE]: { path, token: Date.now(), purpose: "re_uscita" }
+      }));
+      if (Platform.OS === "web") {
+        phaserMapRef.current?.centerOnCell(castelloAnchor, { zoomIn: true });
+      }
+    } else {
+      setCommuteByAbitanteId((prev) => {
+        if (!prev[ID_GIOCATORE]) return prev;
+        const next = { ...prev };
+        delete next[ID_GIOCATORE];
+        return next;
+      });
+      if (Platform.OS === "web") {
+        phaserMapRef.current?.centerOnCell(cellaFuori, { zoomIn: true });
+      }
+    }
+
+    setPersonaggiCelleEpoch((n) => n + 1);
+    azzeraReUscitaCastelloPending();
+  }, [
+    modalitaRe,
+    reUscitaCastelloPending,
+    tipoUscitaCastelloPending,
+    edificiInMappa,
+    cols,
+    rows,
+    isWalkableCell,
+    edifici,
+    abitanti,
+    simulationEnabled,
+    lavoroArrivoEdificioByAbitanteId,
+    lavoroArrivatiIds
+  ]);
+
+  /** Nobili bloccati in «cerca lavoro»: annulla la commute (non assumibili). */
+  useEffect(() => {
+    setCommuteByAbitanteId((prev) => {
+      let changed = false;
+      const next = { ...prev };
+      for (const a of abitanti) {
+        if (getCastaAbitante(a) !== "Nobile") continue;
+        const c = next[a.id];
+        if (c?.purpose === "cerca_lavoro" || c?.purpose === "work") {
+          delete next[a.id];
+          changed = true;
+        }
+      }
+      return changed ? next : prev;
+    });
+  }, [abitanti]);
 
   const minutiAbsGioco = useCallback(
     () => getGiornoGiocoSnapshot() * 1440 + orologioMinuti,
@@ -2399,11 +3633,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     for (const ids of Object.values(barArrivatiByEdificio)) {
       for (const id of ids) s.add(id);
     }
+    for (const ids of Object.values(emporioArrivatiByEdificio)) {
+      for (const id of ids) s.add(id);
+    }
     for (const ids of Object.values(cultoArrivatiByEdificio)) {
       for (const id of ids) s.add(id);
     }
     return s;
-  }, [lavoroArrivatiIds, barArrivatiByEdificio, cultoArrivatiByEdificio]);
+  }, [lavoroArrivatiIds, barArrivatiByEdificio, emporioArrivatiByEdificio, cultoArrivatiByEdificio]);
 
   /** Se eleggibile, costruisce una commute purpose rapina verso persona o edificio. */
   const provaCommuteRapina = useCallback(
@@ -2478,20 +3715,43 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     setBarArrivatiMappaSnapshot(m);
   }, [barArrivatiByEdificio]);
 
-  /** 8:00 → Bar / casa → lavoro; 17:00 → lavoro → Bar. */
+  useEffect(() => {
+    const m = new Map<number, Set<number>>();
+    for (const [k, ids] of Object.entries(emporioArrivatiByEdificio)) {
+      m.set(Number(k), new Set(ids));
+    }
+    setEmporioArrivatiMappaSnapshot(m);
+  }, [emporioArrivatiByEdificio]);
+
+  useEffect(() => {
+    const m = new Map<number, Set<number>>();
+    for (const [k, ids] of Object.entries(cultoArrivatiByEdificio)) {
+      m.set(Number(k), new Set(ids));
+    }
+    setCultoArrivatiMappaSnapshot(m);
+  }, [cultoArrivatiByEdificio]);
+
+  useEffect(() => {
+    setLavoroArrivatiMappaSnapshot(lavoroArrivatiIds);
+  }, [lavoroArrivatiIds]);
+
+  /**
+   * Culto diurno + verso lavoro (anche turni notturni) + uscita a fine fascia per mestiere.
+   * Non interrompere tutto il tick se fa buio: Necromante/Oste devono ancora essere schedulati.
+   */
   useEffect(() => {
     const prev = orologioPrevTickRef.current;
     const cur = orologioMinuti;
     orologioPrevTickRef.current = cur;
     if (prev === cur) return;
-    if (statoCielo.buio > 0.5) return;
+    // Prima dell’uscita di massa dal Castello non far partire path da Capanna/casa.
+    if (tipoUscitaCastelloPending === "inizio_partita") return;
 
-    const LAVORO_INIZIO = 8 * 60;
-    const LAVORO_FINE = 17 * 60;
+    const èGiornoChiaro = statoCielo.buio <= 0.5;
     const PREGHIERA_INIZIO = 10 * 60;
     const PREGHIERA_FINE = 11 * 60;
 
-    if (prev < PREGHIERA_INIZIO && cur >= PREGHIERA_INIZIO) {
+    if (èGiornoChiaro && prev < PREGHIERA_INIZIO && cur >= PREGHIERA_INIZIO) {
       setCommuteByAbitanteId((prevComm) => {
         const out = { ...prevComm };
         for (const a of abitanti) {
@@ -2537,186 +3797,321 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       });
     }
 
-    if (prev < PREGHIERA_FINE && cur >= PREGHIERA_FINE) {
+    if (èGiornoChiaro && prev < PREGHIERA_FINE && cur >= PREGHIERA_FINE) {
       setCultoArrivatiByEdificio({});
     }
 
-    if (prev < LAVORO_INIZIO && cur >= LAVORO_INIZIO) {
-      setCommuteByAbitanteId((prevComm) => {
-        const out = { ...prevComm };
-        for (const a of abitanti) {
-          if (a.razza === "Golem") continue;
-          if (out[a.id]) continue;
-          const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
-          if (!lav) continue;
-          const fascia = fasciaPerEdificio(lav);
-          if (!fascia || !minutiInFascia(cur, fascia)) continue;
-          const homeCell = cellaCasaPerAbitanteId.get(a.id) ?? null;
-          const from =
-            ultimaCellaAbitanteRef.current.get(a.id) ?? (homeCell != null ? homeCell : null);
-          if (from == null) continue;
-          const path = pianificaCommuteVersoEdificioGlobaleDaCella(
-            from,
-            lav.id,
-            edificiInMappa,
-            cols,
-            rows,
-            isWalkableCell
-          );
-          if (path && path.length >= 2) {
-            out[a.id] = { path, token: Date.now(), purpose: "work" };
+    // Verso il lavoro: all’inizio fascia e per tutta la fascia se non sono ancora arrivati.
+    // Edili: destinazione = primo cantiere in lista, altrimenti Ufficio Edile.
+    {
+      const daAvviare: Record<number, CommuteInfo> = {};
+      const daFarUscire = new Set<number>();
+      const arrivoDiretto: Record<number, number> = {};
+      const commuteDaChiudere = new Set<number>();
+      const ricollocaRichieste: { abitanteId: number; fromCell: number }[] = [];
+      for (const a of abitanti) {
+        if (a.razza === "Golem") continue;
+        const sede = primoEdificioLavoroOrarioPerAbitante(a.id, edifici, abitanti);
+        if (!sede) continue;
+        const fascia = fasciaPerEdificio(sede);
+        if (!fascia || !minutiInFascia(cur, fascia)) continue;
+        const dest = destinazioneLavoroOrarioPerAbitante(a.id, edifici, abitanti) ?? sede;
+        const commuteEsistente = commuteByAbitanteId[a.id];
+
+        if (lavoroArrivatiIds.has(a.id)) {
+          const arrivoId = lavoroArrivoEdificioByAbitanteId[a.id];
+          if (arrivoId === dest.id) continue;
+          daFarUscire.add(a.id);
+        } else if (commuteEsistente?.purpose === "work") {
+          // Lavoro già in viaggio: non ripianificare (evita loop passo avanti/indietro).
+          if (
+            commuteEsistente.lavoroEdificioId == null ||
+            commuteEsistente.lavoroEdificioId === dest.id
+          ) {
+            // Watchdog: già sulla cella d’arrivo ma callback mancato → registra come arrivato.
+            const here = ultimaCellaAbitanteRef.current.get(a.id);
+            const pathEnd = commuteEsistente.path[commuteEsistente.path.length - 1];
+            if (here != null && pathEnd != null && here === pathEnd) {
+              arrivoDiretto[a.id] = dest.id;
+              commuteDaChiudere.add(a.id);
+            }
+            continue;
+          }
+          // Destinazione cambiata (es. nuovo cantiere in cima): ripianifica.
+        }
+
+        const homeCell = cellaCasaPerAbitanteId.get(a.id) ?? null;
+        const fromSede =
+          trovaAnchorEdificioGlobaleSuMappa(sede.id, edificiInMappa) ?? null;
+        const from =
+          ultimaCellaAbitanteRef.current.get(a.id) ??
+          (lavoroArrivatiIds.has(a.id) ? fromSede : null) ??
+          (homeCell != null ? homeCell : null) ??
+          fromSede;
+        if (from == null) continue;
+        const path = pianificaCommuteVersoEdificioGlobaleDaCella(
+          from,
+          dest.id,
+          edificiInMappa,
+          cols,
+          rows,
+          isWalkableCell
+        );
+        if (path && path.length >= 2) {
+          daAvviare[a.id] = {
+            path,
+            token: Date.now(),
+            purpose: "work",
+            lavoroEdificioId: dest.id
+          };
+        } else if (path != null && path.length === 1) {
+          arrivoDiretto[a.id] = dest.id;
+        } else {
+          ricollocaRichieste.push({ abitanteId: a.id, fromCell: from });
+        }
+      }
+      if (ricollocaRichieste.length > 0) {
+        const ricollocati = ricollocaLavoroIrraggiungibileDaMappa(
+          ricollocaRichieste,
+          edificiInMappa,
+          cols,
+          rows,
+          isWalkableCell
+        );
+        for (const [idStr, info] of Object.entries(ricollocati)) {
+          const id = Number(idStr);
+          if (info.path && info.path.length >= 2 && info.nuovoEdificioId != null) {
+            daAvviare[id] = {
+              path: info.path,
+              token: Date.now(),
+              purpose: "work",
+              lavoroEdificioId: info.nuovoEdificioId
+            };
+          } else if (info.nuovoEdificioId != null && (info.path == null || info.path.length < 2)) {
+            arrivoDiretto[id] = info.nuovoEdificioId;
           }
         }
-        return out;
-      });
-      setBarArrivatiByEdificio((prev0) => {
-        let acc = prev0;
-        for (const a of abitanti) {
-          if (a.razza === "Golem") continue;
-          const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
-          if (!lav) continue;
-          const fascia = fasciaPerEdificio(lav);
-          if (!fascia || !minutiInFascia(cur, fascia)) continue;
-          acc = rimuoviAbitanteDaTuttiBar(acc, a.id);
+        // Irraggiungibile e non ricollocabile (es. già Raccoglitore/Bosco): teletrasporto in sede
+        // invece di restare visibili, fermi, con idleRoam disabilitato per tutta la fascia.
+        for (const req of ricollocaRichieste) {
+          if (daAvviare[req.abitanteId] != null || arrivoDiretto[req.abitanteId] != null) continue;
+          const dest =
+            destinazioneLavoroOrarioPerAbitante(req.abitanteId, edifici, abitanti) ??
+            primoEdificioLavoroOrarioPerAbitante(req.abitanteId, edifici, abitanti);
+          if (dest) arrivoDiretto[req.abitanteId] = dest.id;
         }
-        return acc;
-      });
+      }
+      if (daFarUscire.size > 0) {
+        setLavoroArrivatiIds((prevArr) => {
+          const s = new Set(prevArr);
+          for (const id of daFarUscire) s.delete(id);
+          return s;
+        });
+        setLavoroArrivoEdificioByAbitanteId((prevMap) => {
+          const next = { ...prevMap };
+          for (const id of daFarUscire) delete next[id];
+          return next;
+        });
+      }
+      if (Object.keys(arrivoDiretto).length > 0) {
+        setLavoroArrivatiIds((prevArr) => {
+          const s = new Set(prevArr);
+          for (const id of Object.keys(arrivoDiretto).map(Number)) s.add(id);
+          return s;
+        });
+        setLavoroArrivoEdificioByAbitanteId((prevMap) => ({ ...prevMap, ...arrivoDiretto }));
+      }
+      if (commuteDaChiudere.size > 0 || Object.keys(daAvviare).length > 0) {
+        setCommuteByAbitanteId((prevComm) => {
+          const next = { ...prevComm, ...daAvviare };
+          for (const id of commuteDaChiudere) delete next[id];
+          return next;
+        });
+      }
+      if (Object.keys(daAvviare).length > 0) {
+        setBarArrivatiByEdificio((prev0) => {
+          let acc = prev0;
+          for (const id of Object.keys(daAvviare).map(Number)) {
+            acc = rimuoviAbitanteDaTuttiBar(acc, id);
+          }
+          return acc;
+        });
+        setEmporioArrivatiByEdificio((prev0) => {
+          let acc = prev0;
+          for (const id of Object.keys(daAvviare).map(Number)) {
+            acc = rimuoviAbitanteDaTuttiEmporio(acc, id);
+          }
+          return acc;
+        });
+        setCultoArrivatiByEdificio((prev0) => {
+          let acc = prev0;
+          for (const id of Object.keys(daAvviare).map(Number)) {
+            acc = rimuoviAbitanteDaTuttiCulti(acc, id);
+          }
+          return acc;
+        });
+      }
     }
 
-    if (prev < LAVORO_FINE && cur >= LAVORO_FINE && lavoroArrivatiIds.size > 0) {
-      const toPath = [...lavoroArrivatiIds];
-      const nuove: Record<number, CommuteInfo> = {};
-      for (const id of toPath) {
-        const ab = abitanti.find((a) => a.id === id);
-        const homeCell = cellaCasaPerAbitanteId.get(id) ?? null;
-        const from =
-          ultimaCellaAbitanteRef.current.get(id) ?? (homeCell != null ? homeCell : null);
-        if (from == null || !ab) continue;
+    // Fine turno per mestiere (non hardcode 17:00): Barista resta fino a 22, Oste/Necromante di notte, ecc.
+    if (lavoroArrivatiIds.size > 0) {
+      const toPath: number[] = [];
+      for (const id of lavoroArrivatiIds) {
+        const sede = primoEdificioLavoroOrarioPerAbitante(id, edifici, abitanti);
+        const fascia = sede ? fasciaPerEdificio(sede) : null;
+        if (!fascia) continue;
+        if (attraversaFineFasciaLavoro(prev, cur, fascia)) toPath.push(id);
+      }
+      if (toPath.length > 0) {
+        const baristiPerBar = raggruppaBaristiInServizioPerBar(toPath, edifici);
+        applicaPagaETipBarFineTurno(baristiPerBar);
+        const nuove: Record<number, CommuteInfo> = {};
+        for (const id of toPath) {
+          const ab = abitanti.find((a) => a.id === id);
+          const homeCell = cellaCasaPerAbitanteId.get(id) ?? null;
+          const from =
+            ultimaCellaAbitanteRef.current.get(id) ?? (homeCell != null ? homeCell : null);
+          if (from == null || !ab) continue;
 
-        const cfgCoprifuoco = {
-          attivo: coprifuocoAttivo,
-          inizioMinuti: coprifuocoInizioMinuti,
-          fineMinuti: coprifuocoFineMinuti
-        };
-        if (abitanteSoggettoACoprifuoco(ab, edifici, cfgCoprifuoco, cur)) {
-          if (homeCell != null && from !== homeCell) {
+          const cfgCoprifuoco = {
+            attivo: coprifuocoAttivo,
+            inizioMinuti: coprifuocoInizioMinuti,
+            fineMinuti: coprifuocoFineMinuti
+          };
+          if (abitanteSoggettoACoprifuoco(ab, edifici, cfgCoprifuoco, cur)) {
+            if (homeCell != null && from !== homeCell) {
+              const pathHome = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell, edificiInMappa);
+              if (pathHome && pathHome.length >= 2) {
+                nuove[id] = { path: pathHome, token: Date.now(), purpose: "home" };
+              }
+            }
+            continue;
+          }
+
+          const snack = tentaSnackDaInventario(ab);
+          if (snack) {
+            aggiornaAbitanteById(id, () => snack);
+            continue;
+          }
+
+          const puòRapinare = abitantePuòTentareRapina(ab, {
+            edifici,
+            inventarioMensaByEdificioId,
+            ultimoTentativoAbsMinuti: ultimoTentativoRapinaAbsRef.current.get(id) ?? null,
+            oraAbsMinuti: minutiAbsGioco()
+          });
+          const azione = scegliAzioneTempoLibero(ab, {
+            puòUsareMensa: abitanteHaBisognoMensa(ab, edifici),
+            puòUsareNegozio: abitanteVuoleNegozio(ab, edifici),
+            puòUsareBar: abitantePuoEntrareAlBar(ab),
+            puòRapinare,
+            haCasa: homeCell != null
+          });
+
+          if (azione === "mensa") {
+            const mensaId = scegliMensaEdificioIdPiuVicino(
+              from,
+              edifici,
+              edificiInMappa,
+              cols,
+              rows,
+              isWalkableCell
+            );
+            if (mensaId != null) {
+              const pathMensa = pianificaCommuteVersoEdificioGlobaleDaCella(
+                from,
+                mensaId,
+                edificiInMappa,
+                cols,
+                rows,
+                isWalkableCell
+              );
+              if (pathMensa && pathMensa.length >= 2) {
+                nuove[id] = { path: pathMensa, token: Date.now(), purpose: "mensa", mensaEdificioId: mensaId };
+                continue;
+              }
+            }
+          }
+
+          if (azione === "negozio") {
+            const negozioId = scegliEdificioIdPiuVicinoPerNome(
+              "Negozio",
+              from,
+              edifici,
+              edificiInMappa,
+              cols,
+              rows,
+              isWalkableCell
+            );
+            if (negozioId != null) {
+              const pathNegozio = pianificaCommuteVersoEdificioGlobaleDaCella(
+                from,
+                negozioId,
+                edificiInMappa,
+                cols,
+                rows,
+                isWalkableCell
+              );
+              if (pathNegozio && pathNegozio.length >= 2) {
+                nuove[id] = {
+                  path: pathNegozio,
+                  token: Date.now(),
+                  purpose: "negozio",
+                  negozioEdificioId: negozioId
+                };
+                continue;
+              }
+            }
+          }
+
+          if (azione === "rapina") {
+            const rapina = provaCommuteRapina(ab, from);
+            if (rapina) {
+              nuove[id] = rapina;
+              continue;
+            }
+          }
+
+          if (azione === "bar") {
+            if (!abitanteAlBarRoutineOra(ab, orologioMinuti, statoCielo.buio, edifici)) continue;
+            if (!abitantePuoEntrareAlBar(ab)) continue;
+            const barId = scegliBarEdificioIdPiuVicino(from, edifici, edificiInMappa, cols, rows, isWalkableCell);
+            if (barId != null) {
+              const path = pianificaCommuteVersoBarDaCella(from, barId, edificiInMappa, cols, rows, isWalkableCell);
+              if (path && path.length >= 2) {
+                nuove[id] = { path, token: Date.now(), purpose: "bar", barEdificioId: barId };
+                continue;
+              }
+            }
+          }
+
+          if (azione === "home" && homeCell != null) {
             const pathHome = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell, edificiInMappa);
             if (pathHome && pathHome.length >= 2) {
               nuove[id] = { path: pathHome, token: Date.now(), purpose: "home" };
             }
           }
-          continue;
         }
-
-        const snack = tentaSnackDaInventario(ab);
-        if (snack) {
-          aggiornaAbitanteById(id, () => snack);
-          continue;
+        if (Object.keys(nuove).length > 0) {
+          setCommuteByAbitanteId((prevComm) => ({ ...prevComm, ...nuove }));
         }
-
-        const puòRapinare = abitantePuòTentareRapina(ab, {
-          edifici,
-          inventarioMensaByEdificioId,
-          ultimoTentativoAbsMinuti: ultimoTentativoRapinaAbsRef.current.get(id) ?? null,
-          oraAbsMinuti: minutiAbsGioco()
+        setLavoroArrivatiIds((prevIds) => {
+          const s = new Set(prevIds);
+          for (const id of toPath) s.delete(id);
+          return s;
         });
-        const azione = scegliAzioneTempoLibero(ab, {
-          puòUsareMensa: abitanteHaBisognoMensa(ab, edifici),
-          puòUsareNegozio: abitanteVuoleNegozio(ab, edifici),
-          puòRapinare,
-          haCasa: homeCell != null
+        setLavoroArrivoEdificioByAbitanteId((prevMap) => {
+          const next = { ...prevMap };
+          for (const id of toPath) delete next[id];
+          return next;
         });
-
-        if (azione === "mensa") {
-          const mensaId = scegliMensaEdificioIdPiuVicino(
-            from,
-            edifici,
-            edificiInMappa,
-            cols,
-            rows,
-            isWalkableCell
-          );
-          if (mensaId != null) {
-            const pathMensa = pianificaCommuteVersoEdificioGlobaleDaCella(
-              from,
-              mensaId,
-              edificiInMappa,
-              cols,
-              rows,
-              isWalkableCell
-            );
-            if (pathMensa && pathMensa.length >= 2) {
-              nuove[id] = { path: pathMensa, token: Date.now(), purpose: "mensa", mensaEdificioId: mensaId };
-              continue;
-            }
-          }
-        }
-
-        if (azione === "negozio") {
-          const negozioId = scegliEdificioIdPiuVicinoPerNome(
-            "Negozio",
-            from,
-            edifici,
-            edificiInMappa,
-            cols,
-            rows,
-            isWalkableCell
-          );
-          if (negozioId != null) {
-            const pathNegozio = pianificaCommuteVersoEdificioGlobaleDaCella(
-              from,
-              negozioId,
-              edificiInMappa,
-              cols,
-              rows,
-              isWalkableCell
-            );
-            if (pathNegozio && pathNegozio.length >= 2) {
-              nuove[id] = {
-                path: pathNegozio,
-                token: Date.now(),
-                purpose: "negozio",
-                negozioEdificioId: negozioId
-              };
-              continue;
-            }
-          }
-        }
-
-        if (azione === "rapina") {
-          const rapina = provaCommuteRapina(ab, from);
-          if (rapina) {
-            nuove[id] = rapina;
-            continue;
-          }
-        }
-
-        if (azione === "bar") {
-          const barId = scegliBarEdificioIdPiuVicino(from, edifici, edificiInMappa, cols, rows, isWalkableCell);
-          if (barId != null) {
-            const path = pianificaCommuteVersoBarDaCella(from, barId, edificiInMappa, cols, rows, isWalkableCell);
-            if (path && path.length >= 2) {
-              nuove[id] = { path, token: Date.now(), purpose: "bar", barEdificioId: barId };
-              continue;
-            }
-          }
-        }
-
-        if (azione === "home" && homeCell != null) {
-          const pathHome = pianificaCommuteSeraACasa(homeCell, from, cols, rows, isWalkableCell, edificiInMappa);
-          if (pathHome && pathHome.length >= 2) {
-            nuove[id] = { path: pathHome, token: Date.now(), purpose: "home" };
-          }
-        }
       }
-      if (Object.keys(nuove).length > 0) {
-        setCommuteByAbitanteId((prevComm) => ({ ...prevComm, ...nuove }));
-      }
-      setLavoroArrivatiIds(new Set());
     }
   }, [
+
     orologioMinuti,
     statoCielo.buio,
+    tipoUscitaCastelloPending,
     abitanti,
     edifici,
     edificiInMappa,
@@ -2724,14 +4119,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     rows,
     isWalkableCell,
     lavoroArrivatiIds,
+    lavoroArrivoEdificioByAbitanteId,
+    commuteByAbitanteId,
     cellaCasaPerAbitanteId,
     aggiornaAbitanteById,
+    applicaPagaETipBarFineTurno,
     coprifuocoAttivo,
     coprifuocoInizioMinuti,
     coprifuocoFineMinuti,
     inventarioMensaByEdificioId,
     minutiAbsGioco,
-    provaCommuteRapina
+    provaCommuteRapina,
+    ricollocaLavoroIrraggiungibileDaMappa
   ]);
 
   const handleCommuteFinita = useCallback(
@@ -2743,7 +4142,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       cultoEdificioId?: number,
       negozioEdificioId?: number,
       rapinaTarget?: RapinaTarget,
-      lavoroCercaEdificioId?: number
+      lavoroCercaEdificioId?: number,
+      emporioVenditaEdificioId?: number
     ) => {
       const pathCorrente = commuteByAbitanteId[abitanteId]?.path;
       const cellaArrivo =
@@ -2765,48 +4165,147 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             nomeResidenza: getEdificioAbitazione(a.id, edifici)?.nome ?? null
           })
         );
+        setEmporioArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiEmporio(p, abitanteId));
       } else if (purpose === "work") {
+        const destId =
+          commuteByAbitanteId[abitanteId]?.lavoroEdificioId ??
+          destinazioneLavoroOrarioPerAbitante(abitanteId, edifici, abitanti)?.id;
         setLavoroArrivatiIds((s) => new Set(s).add(abitanteId));
+        if (destId != null) {
+          setLavoroArrivoEdificioByAbitanteId((prev) => ({ ...prev, [abitanteId]: destId }));
+        }
+        setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
+        setEmporioArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiEmporio(p, abitanteId));
+        setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
+      } else if (purpose === "vende_emporio") {
+        vendeAlimentoAllEmporioDaMappa(abitanteId);
+        const emporioId =
+          emporioVenditaEdificioId ??
+          edifici.find((e) => e.nome === NOME_EMPORIO && e.stato === "Operativo")?.id;
+        if (emporioId != null) {
+          setEmporioArrivatiByEdificio((p) =>
+            aggiungiAbitanteAllEmporioEdificio(p, emporioId, abitanteId)
+          );
+        }
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
         setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
       } else if (purpose === "cerca_lavoro" && lavoroCercaEdificioId != null) {
-        assumiCittadinoDisoccupatoAEdificio(abitanteId, lavoroCercaEdificioId);
+        const ab = abitanti.find((x) => x.id === abitanteId);
+        const sede =
+          edifici.find((e) => e.id === lavoroCercaEdificioId) ??
+          (ab ? sediCercaLavoroDisoccupatoInOrdine(ab, edifici, abitanti)[0] : undefined);
+        let assunto = false;
+        if (sede?.nome === NOME_BOSCO) {
+          assunto = assumiDisoccupatoNelBoscoDaMappa(abitanteId);
+        } else if (sede?.nome === NOME_MINIERA) {
+          assunto = assumiDisoccupatoNellaMinieraDaMappa(abitanteId);
+        } else if (sede?.nome === NOME_CASTELLO) {
+          assunto = assumiDisoccupatoComeGuardiaDaMappa(abitanteId);
+        } else if (sede?.nome === NOME_EMPORIO) {
+          assunto = assumiDisoccupatoInEmporioDaMappa(abitanteId);
+        } else if (sede) {
+          assunto = assumiCittadinoDisoccupatoAEdificio(abitanteId, sede.id);
+        } else {
+          assunto = assumiCittadinoDisoccupatoAEdificio(abitanteId, lavoroCercaEdificioId);
+        }
+        if (sede?.nome === NOME_EMPORIO) {
+          if (assunto) {
+            setEmporioArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiEmporio(p, abitanteId));
+          } else {
+            setEmporioArrivatiByEdificio((p) =>
+              aggiungiAbitanteAllEmporioEdificio(p, sede.id, abitanteId)
+            );
+          }
+        }
         setLavoroArrivatiIds((s) => new Set(s).add(abitanteId));
+        if (lavoroCercaEdificioId != null) {
+          setLavoroArrivoEdificioByAbitanteId((prev) => ({
+            ...prev,
+            [abitanteId]: lavoroCercaEdificioId
+          }));
+        }
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
         setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
       } else if (purpose === "bar" && barEdificioId != null) {
+        const cliente = abitanti.find((x) => x.id === abitanteId);
+        if (!cliente) return;
+        // Bar senza lavoratori: il primo entrante idoneo diventa Barista, non cliente.
+        if (provaAssumiBaristaBarVuotoDaMappa(abitanteId, barEdificioId)) {
+          setLavoroArrivatiIds((s) => new Set(s).add(abitanteId));
+          setLavoroArrivoEdificioByAbitanteId((prev) => ({
+            ...prev,
+            [abitanteId]: barEdificioId
+          }));
+          setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
+          setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
+          return;
+        }
+        const pagato = pagaIngressoBar(cliente);
+        if (!pagato) {
+          // Senza monete non entra: resta fuori (commute già chiusa), non resta “in coda” eterna.
+          return;
+        }
         const altriGiaNelBar = (barArrivatiByEdificio[barEdificioId] ?? []).filter(
           (id) => id !== abitanteId
         ).length;
+        const dopoBar = applicaRecuperoBar(pagato, altriGiaNelBar);
+        aggiornaAbitanteById(abitanteId, () => dopoBar);
+        const barEd = edifici.find((e) => e.id === barEdificioId);
+        const baristaIds = barEd?.abitantiAssegnati ?? [];
+        const baristaInServizio =
+          baristaIds
+            .map((id) => abitanti.find((x) => x.id === id))
+            .find((x) => x != null && lavoroArrivatiIds.has(x.id)) ?? null;
+        const baristaFallback =
+          baristaIds.map((id) => abitanti.find((x) => x.id === id)).find((x) => x != null) ?? null;
+        const barista = baristaInServizio ?? baristaFallback;
+        registraScambioCommerciale({
+          luogoEdificioId: barEdificioId,
+          luogoNome: "Bar",
+          daId: abitanteId,
+          daNome: cliente.nome,
+          aId: barista?.id ?? null,
+          aNome: barista?.nome ?? "Cassa del Bar",
+          itemId: ITEM_BIRRA_BAR,
+          itemNome: NOME_BIRRA_BAR,
+          itemEmoji: EMOJI_BIRRA_BAR,
+          prezzoMonete: COSTO_BAR_MONETE
+        });
         setBarArrivatiByEdificio((p) => aggiungiAbitanteAlBarEdificio(p, barEdificioId, abitanteId));
         setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
-        let spesaBar = 0;
-        aggiornaAbitanteById(abitanteId, (a) => {
-          const pagato = provaSpendiMoneteInventarioAbitante(a, COSTO_BAR_MONETE);
-          if (pagato) {
-            spesaBar = COSTO_BAR_MONETE;
-            return applicaRecuperoBar(pagato, altriGiaNelBar);
-          }
-          return patchBisogni(a, {
-            divertimento: 8,
-            socialita: 5 + Math.min(10, altriGiaNelBar * 2)
-          });
-        });
-        if (spesaBar > 0) accreditaMoneteGiocatore(spesaBar);
+        incassaImpresa(barEdificioId, COSTO_BAR_MONETE);
       } else if (purpose === "mensa" && mensaEdificioId != null) {
         serviPastoMensaAbitante(abitanteId, mensaEdificioId);
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
         setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
       } else if (purpose === "negozio" && negozioEdificioId != null) {
-        let spesaNegozio = 0;
-        aggiornaAbitanteById(abitanteId, (a) => {
-          const prima = getMoneteInventarioAbitante(a.inventario);
-          const dopo = compraEMangiaAlNegozio(a);
-          if (!dopo) return a;
-          spesaNegozio = Math.max(0, prima - getMoneteInventarioAbitante(dopo.inventario));
-          return dopo;
-        });
-        if (spesaNegozio > 0) accreditaMoneteGiocatore(spesaNegozio);
+        const cliente = abitanti.find((x) => x.id === abitanteId);
+        if (!cliente) return;
+        const prima = getMoneteInventarioAbitante(cliente.inventario);
+        const dopo = compraEMangiaAlNegozio(cliente);
+        if (dopo) {
+          const spesaNegozio = Math.max(0, prima - getMoneteInventarioAbitante(dopo.inventario));
+          aggiornaAbitanteById(abitanteId, () => dopo);
+          if (spesaNegozio > 0) {
+            accreditaMoneteGiocatore(spesaNegozio);
+            const negozio = edifici.find((e) => e.id === negozioEdificioId);
+            const serra = edifici.find((e) => e.nome === "Serra" && e.stato === "Operativo");
+            const serraColtura = serra?.colturaItemId ?? "mela";
+            const def = getOggettoInventario(serraColtura) ?? getOggettoInventario("mela");
+            registraScambioCommerciale({
+              luogoEdificioId: negozio?.id ?? negozioEdificioId,
+              luogoNome: "Serra",
+              daId: abitanteId,
+              daNome: cliente.nome,
+              aId: null,
+              aNome: "Regno",
+              itemId: def?.id ?? serraColtura,
+              itemNome: def?.nome ?? "Cibo vegetale",
+              itemEmoji: def?.emoji ?? "🍎",
+              prezzoMonete: spesaNegozio
+            });
+          }
+        }
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
         setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
       } else if (purpose === "culto" && cultoEdificioId != null) {
@@ -2851,9 +4350,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       serviPastoMensaAbitante,
       aggiornaAbitanteById,
       accreditaMoneteGiocatore,
+      incassaImpresa,
+      provaAssumiBaristaBarVuotoDaMappa,
+      registraScambioCommerciale,
       assumiCittadinoDisoccupatoAEdificio,
+      assumiDisoccupatoInEmporioDaMappa,
+      assumiDisoccupatoNelBoscoDaMappa,
+      assumiDisoccupatoNellaMinieraDaMappa,
+      assumiDisoccupatoComeGuardiaDaMappa,
+      vendeAlimentoAllEmporioDaMappa,
       edifici,
       barArrivatiByEdificio,
+      lavoroArrivatiIds,
       abitanti,
       inventarioMensaByEdificioId,
       orologioMinuti,
@@ -2867,7 +4375,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   /**
    * Commute bloccata da occupancy: ripianifica evitando celle occupate da altri.
-   * Se fallisce e purpose è home → completa comunque (entra in casa).
+   * Critico: non fare mai `return` senza nuovo token — Phaser ha già fermato l’animazione
+   * e senza token nuovo il personaggio resta congelato per sempre.
    */
   const handleCommuteBloccata = useCallback(
     (
@@ -2885,16 +4394,26 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       const goalLiberi = new Set<number>();
       const registraGoalsDaAnchor = (anchor: number | null) => {
         if (anchor == null) return;
-        const porta = trovaCellaPortaEdificio(anchor, edificiInMappa, cols, rows, isWalkableCell);
-        if (porta != null) goalLiberi.add(porta);
+        for (const cell of trovaCelleIngressoEdificio(
+          anchor,
+          edificiInMappa,
+          cols,
+          rows,
+          isWalkableCell
+        )) {
+          goalLiberi.add(cell);
+        }
       };
 
       let anchorDest: number | null = null;
       if (info.purpose === "home") {
         anchorDest = cellaCasaPerAbitanteId.get(abitanteId) ?? null;
       } else if (info.purpose === "work") {
-        const lav = primoEdificioLavoroOrarioPerAbitante(abitanteId, edifici);
-        anchorDest = lav ? trovaAnchorEdificioGlobaleSuMappa(lav.id, edificiInMappa) : null;
+        const lavId =
+          meta?.lavoroEdificioId ??
+          destinazioneLavoroOrarioPerAbitante(abitanteId, edifici, abitanti)?.id;
+        anchorDest =
+          lavId != null ? trovaAnchorEdificioGlobaleSuMappa(lavId, edificiInMappa) : null;
       } else if (info.purpose === "cerca_lavoro" && meta?.lavoroCercaEdificioId != null) {
         anchorDest = trovaAnchorEdificioGlobaleSuMappa(meta.lavoroCercaEdificioId, edificiInMappa);
       } else if (info.purpose === "bar" && meta?.barEdificioId != null) {
@@ -2905,8 +4424,58 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         anchorDest = trovaAnchorEdificioGlobaleSuMappa(meta.negozioEdificioId, edificiInMappa);
       } else if (info.purpose === "culto" && meta?.cultoEdificioId != null) {
         anchorDest = trovaAnchorEdificioGlobaleSuMappa(meta.cultoEdificioId, edificiInMappa);
+      } else if (info.purpose === "vende_emporio" && meta?.emporioVenditaEdificioId != null) {
+        anchorDest = trovaAnchorEdificioGlobaleSuMappa(meta.emporioVenditaEdificioId, edificiInMappa);
       }
       registraGoalsDaAnchor(anchorDest);
+
+      const completa = () => {
+        handleCommuteFinita(
+          abitanteId,
+          info.purpose,
+          meta?.barEdificioId,
+          meta?.mensaEdificioId,
+          meta?.cultoEdificioId,
+          meta?.negozioEdificioId,
+          meta?.rapinaTarget,
+          meta?.lavoroCercaEdificioId,
+          meta?.emporioVenditaEdificioId
+        );
+      };
+
+      const applicaPath = (pathNorm: number[]) => {
+        const nextCell = pathNorm[1]!;
+        commuteRepathOscillationRef.current.set(abitanteId, {
+          from,
+          next: nextCell,
+          count: 1
+        });
+        setCommuteByAbitanteId((prev) => ({
+          ...prev,
+          [abitanteId]: {
+            path: pathNorm,
+            token: Date.now(),
+            purpose: info.purpose,
+            barEdificioId: meta?.barEdificioId,
+            mensaEdificioId: meta?.mensaEdificioId,
+            cultoEdificioId: meta?.cultoEdificioId,
+            negozioEdificioId: meta?.negozioEdificioId,
+            lavoroCercaEdificioId: meta?.lavoroCercaEdificioId,
+            lavoroEdificioId: meta?.lavoroEdificioId,
+            emporioVenditaEdificioId: meta?.emporioVenditaEdificioId,
+            rapinaTarget: meta?.rapinaTarget
+          }
+        }));
+      };
+
+      const ingressi =
+        anchorDest != null
+          ? trovaCelleIngressoEdificio(anchorDest, edificiInMappa, cols, rows, isWalkableCell)
+          : [];
+      if (ingressi.includes(info.fromCell) && info.purpose !== "home") {
+        completa();
+        return;
+      }
 
       const isWalkableEvitandoAltri = (i: number) => {
         if (!isWalkableCell(i)) return false;
@@ -2916,47 +4485,71 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         return true;
       };
 
-      let path: number[] | null = null;
-      if (anchorDest != null) {
-        path = calcolaPercorsoVersoAnchorEdificio(
-          from,
-          anchorDest,
-          cols,
-          rows,
-          isWalkableEvitandoAltri,
-          edificiInMappa
-        );
-        if (!path || path.length < 2) {
-          path = calcolaPercorsoVersoAnchorEdificio(from, anchorDest, cols, rows, isWalkableCell, edificiInMappa);
+      const pathEvitando =
+        anchorDest != null
+          ? calcolaPercorsoVersoAnchorEdificio(
+              from,
+              anchorDest,
+              cols,
+              rows,
+              isWalkableEvitandoAltri,
+              edificiInMappa
+            )
+          : null;
+      const pathAttraverso =
+        anchorDest != null
+          ? calcolaPercorsoVersoAnchorEdificio(
+              from,
+              anchorDest,
+              cols,
+              rows,
+              isWalkableCell,
+              edificiInMappa
+            )
+          : null;
+
+      const prevOsc = commuteRepathOscillationRef.current.get(abitanteId);
+      const oscillazioniConsecutive =
+        prevOsc && prevOsc.next === from ? prevOsc.count : 0;
+
+      const azione = scegliAzioneCommuteBloccataLavoro({
+        fromCell: from,
+        blockedCell: info.blockedCell,
+        cols,
+        pathEvitandoAltri: pathEvitando,
+        pathAttraversoAltri: pathAttraverso,
+        giaAllIngresso: ingressi.includes(from),
+        oscillazioniConsecutive
+      });
+
+      if (azione.tipo === "usa_path" || azione.tipo === "attendi_e_riprova") {
+        // Nuovo token obbligatorio: riparte l’animazione anche se il path è simile.
+        if (azione.tipo === "attendi_e_riprova") {
+          commuteRepathOscillationRef.current.set(abitanteId, {
+            from: azione.path[1] ?? from,
+            next: from,
+            count: oscillazioniConsecutive + 1
+          });
         }
+        applicaPath(azione.path);
+        return;
       }
 
-      if (path && path.length >= 2) {
-        const idxFrom = path.indexOf(from);
-        const pathNorm =
-          idxFrom >= 0 ? path.slice(idxFrom) : path[0] === from ? path : [from, ...path];
-        if (pathNorm.length >= 2) {
-          setCommuteByAbitanteId((prev) => ({
-            ...prev,
-            [abitanteId]: {
-              path: pathNorm,
-              token: Date.now(),
-              purpose: info.purpose,
-              barEdificioId: meta?.barEdificioId,
-              mensaEdificioId: meta?.mensaEdificioId,
-              cultoEdificioId: meta?.cultoEdificioId,
-              negozioEdificioId: meta?.negozioEdificioId,
-              lavoroCercaEdificioId: meta?.lavoroCercaEdificioId,
-              rapinaTarget: meta?.rapinaTarget
-            }
-          }));
-          return;
-        }
+      // completa: lavoro/cerca_lavoro/home → entra; altri purpose → annulla commute (il tick ripianifica).
+      if (
+        info.purpose === "home" ||
+        info.purpose === "work" ||
+        info.purpose === "cerca_lavoro"
+      ) {
+        commuteRepathOscillationRef.current.delete(abitanteId);
+        completa();
+        return;
       }
-
-      if (info.purpose === "home") {
-        handleCommuteFinita(abitanteId, "home");
-      }
+      commuteRepathOscillationRef.current.delete(abitanteId);
+      setCommuteByAbitanteId((prev) => {
+        const { [abitanteId]: _removed, ...rest } = prev;
+        return rest;
+      });
     },
     [
       commuteByAbitanteId,
@@ -2965,6 +4558,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       rows,
       isWalkableCell,
       edifici,
+      abitanti,
       edificiInMappa,
       handleCommuteFinita
     ]
@@ -2973,6 +4567,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   /** Tempo libero: bisogni spingono snack / mensa / negozio / bar / casa (se non già in commute o al lavoro). */
   useEffect(() => {
     if (statoCielo.buio > 0.5) return;
+    if (tipoUscitaCastelloPending === "inizio_partita") return;
 
     const cfgCoprifuoco = {
       attivo: coprifuocoAttivo,
@@ -2980,19 +4575,55 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       fineMinuti: coprifuocoFineMinuti
     };
     const nuoveCommuteById: Record<number, CommuteInfo> = {};
+    const ricollocaRichieste: { abitanteId: number; fromCell: number }[] = [];
 
     for (const a of abitanti) {
       if (a.razza === "Golem") continue;
+      // Non riassegnare un percorso già in corso (altrimenti il token si rinnova ogni minuto e restano fermi).
       if (commuteByAbitanteId[a.id]) continue;
-      if (abitanteInOrarioLavoroEdificio(a.id, orologioMinuti, edifici) && lavoroArrivatiIds.has(a.id)) {
+      if (abitanteInOrarioLavoroEdificio(a.id, orologioMinuti, edifici, abitanti) && lavoroArrivatiIds.has(a.id)) {
         continue;
       }
-      if (Object.values(barArrivatiByEdificio).some((ids) => ids.includes(a.id))) continue;
 
       const homeCell = cellaCasaPerAbitanteId.get(a.id) ?? null;
       const from =
         ultimaCellaAbitanteRef.current.get(a.id) ?? (homeCell != null ? homeCell : null);
       if (from == null) continue;
+
+      // In fascia lavoro ma non ancora in sede → priorità assoluta sul tempo libero.
+      if (
+        abitanteInOrarioLavoroEdificio(a.id, orologioMinuti, edifici, abitanti) &&
+        !lavoroArrivatiIds.has(a.id)
+      ) {
+        const dest = destinazioneLavoroOrarioPerAbitante(a.id, edifici, abitanti);
+        if (dest) {
+          const pathWork = pianificaCommuteVersoEdificioGlobaleDaCella(
+            from,
+            dest.id,
+            edificiInMappa,
+            cols,
+            rows,
+            isWalkableCell
+          );
+          if (pathWork && pathWork.length >= 2) {
+            nuoveCommuteById[a.id] = {
+              path: pathWork,
+              token: Date.now(),
+              purpose: "work",
+              lavoroEdificioId: dest.id
+            };
+          } else if (pathWork == null) {
+            ricollocaRichieste.push({ abitanteId: a.id, fromCell: from });
+          }
+          // path length 1: già in sede — il tick lavoro lo registra come arrivato.
+        }
+        continue;
+      }
+
+      const alBar = Object.values(barArrivatiByEdificio).some((ids) => ids.includes(a.id));
+      const sediLavoro = sediCercaLavoroDisoccupatoInOrdine(a, edifici, abitanti);
+      const puòCercareLavoro = sediLavoro.length > 0;
+      if (alBar && !puòCercareLavoro) continue;
 
       // Coprifuoco: solo rientro a casa (esenti Centrale).
       if (abitanteSoggettoACoprifuoco(a, edifici, cfgCoprifuoco, orologioMinuti)) {
@@ -3020,12 +4651,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       const azione = scegliAzioneTempoLibero(a, {
         puòUsareMensa: abitanteHaBisognoMensa(a, edifici),
         puòUsareNegozio: abitanteVuoleNegozio(a, edifici),
+        puòUsareBar: abitantePuoEntrareAlBar(a),
         puòRapinare,
         haCasa: homeCell != null
       });
-
-      const puòCercareLavoro =
-        getCastaAbitante(a) === "Cittadino" && abitanteVuolePrendereLavoro(a);
 
       if (azione === "mensa") {
         const mensaId = scegliMensaEdificioIdPiuVicino(
@@ -3097,40 +4726,31 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       }
 
       if (puòCercareLavoro) {
-        const posti = elencoEdificiConPostoPerDisoccupato(a, edifici);
-        let bestId: number | null = null;
-        let bestPath: number[] | null = null;
-        let bestLen = Infinity;
-        for (const e of posti) {
+        const sede = sediLavoro[0];
+        if (sede) {
           const path = pianificaCommuteVersoEdificioGlobaleDaCella(
             from,
-            e.id,
+            sede.id,
             edificiInMappa,
             cols,
             rows,
             isWalkableCell
           );
-          if (!path || path.length < 2) continue;
-          if (path.length < bestLen) {
-            bestLen = path.length;
-            bestId = e.id;
-            bestPath = path;
+          if (path && path.length >= 2) {
+            nuoveCommuteById[a.id] = {
+              path,
+              token: Date.now(),
+              purpose: "cerca_lavoro",
+              lavoroCercaEdificioId: sede.id
+            };
+            continue;
           }
-        }
-        if (bestId != null && bestPath != null) {
-          nuoveCommuteById[a.id] = {
-            path: bestPath,
-            token: Date.now(),
-            purpose: "cerca_lavoro",
-            lavoroCercaEdificioId: bestId
-          };
-          continue;
         }
       }
 
-      if (azione === "nessuna") continue;
-
       if (azione === "bar") {
+        if (!abitanteAlBarRoutineOra(a, orologioMinuti, statoCielo.buio, edifici)) continue;
+        if (!abitantePuoEntrareAlBar(a)) continue;
         const barId = scegliBarEdificioIdPiuVicino(from, edifici, edificiInMappa, cols, rows, isWalkableCell);
         if (barId == null) continue;
         const path = pianificaCommuteVersoBarDaCella(from, barId, edificiInMappa, cols, rows, isWalkableCell);
@@ -3151,6 +4771,50 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       }
     }
 
+      if (ricollocaRichieste.length > 0) {
+        const ricollocati = ricollocaLavoroIrraggiungibileDaMappa(
+          ricollocaRichieste,
+          edificiInMappa,
+          cols,
+          rows,
+          isWalkableCell
+        );
+        const arrivoDirettoTempoLibero: Record<number, number> = {};
+        for (const [idStr, info] of Object.entries(ricollocati)) {
+          const id = Number(idStr);
+          if (info.path && info.path.length >= 2 && info.nuovoEdificioId != null) {
+            nuoveCommuteById[id] = {
+              path: info.path,
+              token: Date.now(),
+              purpose: "work",
+              lavoroEdificioId: info.nuovoEdificioId
+            };
+          } else if (info.nuovoEdificioId != null) {
+            arrivoDirettoTempoLibero[id] = info.nuovoEdificioId;
+          }
+        }
+        for (const req of ricollocaRichieste) {
+          if (nuoveCommuteById[req.abitanteId] != null || arrivoDirettoTempoLibero[req.abitanteId] != null) {
+            continue;
+          }
+          const dest =
+            destinazioneLavoroOrarioPerAbitante(req.abitanteId, edifici, abitanti) ??
+            primoEdificioLavoroOrarioPerAbitante(req.abitanteId, edifici, abitanti);
+          if (dest) arrivoDirettoTempoLibero[req.abitanteId] = dest.id;
+        }
+        if (Object.keys(arrivoDirettoTempoLibero).length > 0) {
+          setLavoroArrivatiIds((prevArr) => {
+            const s = new Set(prevArr);
+            for (const id of Object.keys(arrivoDirettoTempoLibero).map(Number)) s.add(id);
+            return s;
+          });
+          setLavoroArrivoEdificioByAbitanteId((prevMap) => ({
+            ...prevMap,
+            ...arrivoDirettoTempoLibero
+          }));
+        }
+      }
+
     const ids = Object.keys(nuoveCommuteById).map(Number);
     if (ids.length === 0) return;
 
@@ -3158,6 +4822,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     setBarArrivatiByEdificio((prevBar) => {
       let acc = prevBar;
       for (const id of ids) acc = rimuoviAbitanteDaTuttiBar(acc, id);
+      return acc;
+    });
+    setEmporioArrivatiByEdificio((prevEmp) => {
+      let acc = prevEmp;
+      for (const id of ids) acc = rimuoviAbitanteDaTuttiEmporio(acc, id);
       return acc;
     });
   }, [
@@ -3179,7 +4848,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     coprifuocoFineMinuti,
     inventarioMensaByEdificioId,
     minutiAbsGioco,
-    provaCommuteRapina
+    provaCommuteRapina,
+    ricollocaLavoroIrraggiungibileDaMappa,
+    tipoUscitaCastelloPending
   ]);
 
   /** Chi è al bar ma non ha più bisogno di Divertimento/Socialità esce. */
@@ -3211,6 +4882,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const handleCellAbitante = useCallback((abitanteId: number, cell: number) => {
     ultimaCellaAbitanteRef.current.set(abitanteId, cell);
+    setUltimaCellaAbitanteRuntime(abitanteId, cell);
   }, []);
 
   const passTouchesToMapOnCellPerWanderer = useCallback(
@@ -3223,6 +4895,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   useEffect(() => {
     const notte = statoCielo.buio > 0.5;
+    if (tipoUscitaCastelloPending === "inizio_partita") return;
     if (prevBuioNotteTransitRef.current === undefined) {
       prevBuioNotteTransitRef.current = notte;
       if (notte) {
@@ -3241,7 +4914,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     if (eraNotte && !notte) {
       setDormonoACasaIds(new Set());
       setLavoroArrivatiIds(new Set());
+      setLavoroArrivoEdificioByAbitanteId({});
       const next: Record<number, CommuteInfo> = {};
+      const ricollocaAlba: { abitanteId: number; fromCell: number }[] = [];
       for (const a of abitanti) {
         if (a.razza === "Golem") continue;
         const home = cellaCasaPerAbitanteId.get(a.id) ?? null;
@@ -3265,7 +4940,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           rows,
           isWalkableCell,
           orologioMinuti,
-          { puòRapinare }
+          { puòRapinare, abitantiTutti: abitanti }
         );
 
         if (mattina.purpose === "rapina" && fromBase != null) {
@@ -3277,7 +4952,23 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         }
 
         const path = mattina.path;
-        if (!path || path.length < 2) continue;
+        if (!path || path.length < 2) {
+          // Lavoro in fascia ma path assente: ricolloca se irraggiungibile (no teleport cieco).
+          // path.length === 1 = già all’ingresso → gestito dal teleport sotto.
+          if (mattina.purpose === "rapina") continue;
+          if (path != null && path.length === 1 && mattina.purpose === "work") {
+            // Già in sede: nessun commute, teleport/arrivo sotto.
+            continue;
+          }
+          if (path != null) continue; // altro purpose con path corto
+          const sede = primoEdificioLavoroOrarioPerAbitante(a.id, edifici, abitanti);
+          if (!sede || fromBase == null) continue;
+          const fascia = fasciaPerEdificio(sede);
+          if (fascia && minutiInFascia(orologioMinuti, fascia)) {
+            ricollocaAlba.push({ abitanteId: a.id, fromCell: fromBase });
+          }
+          continue;
+        }
         const purpose: CommutePurpose =
           mattina.purpose && mattina.purpose !== "rapina"
             ? mattina.purpose
@@ -3298,10 +4989,37 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           mensaEdificioId: purpose === "mensa" ? mattina.mensaEdificioId : undefined,
           negozioEdificioId: purpose === "negozio" ? mattina.negozioEdificioId : undefined,
           lavoroCercaEdificioId:
-            purpose === "cerca_lavoro" ? mattina.lavoroCercaEdificioId : undefined
+            purpose === "cerca_lavoro" ? mattina.lavoroCercaEdificioId : undefined,
+          lavoroEdificioId: purpose === "work" ? mattina.lavoroEdificioId : undefined,
+          emporioVenditaEdificioId:
+            purpose === "vende_emporio" ? mattina.emporioVenditaEdificioId : undefined
         };
       }
+
+      const ricollocatiAlba =
+        ricollocaAlba.length > 0
+          ? ricollocaLavoroIrraggiungibileDaMappa(
+              ricollocaAlba,
+              edificiInMappa,
+              cols,
+              rows,
+              isWalkableCell
+            )
+          : {};
+      for (const [idStr, info] of Object.entries(ricollocatiAlba)) {
+        const id = Number(idStr);
+        if (info.path && info.path.length >= 2 && info.nuovoEdificioId != null) {
+          next[id] = {
+            path: info.path,
+            token: Date.now(),
+            purpose: "work",
+            lavoroEdificioId: info.nuovoEdificioId
+          };
+        }
+      }
+
       setCommuteByAbitanteId(next);
+      const arrivoTeleport: Record<number, number> = {};
       setLavoroArrivatiIds((prev) => {
         const s = new Set(prev);
         for (const a of abitanti) {
@@ -3318,22 +5036,55 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           ) {
             continue;
           }
-          const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
-          if (lav && !next[a.id]) {
-            const fascia = fasciaPerEdificio(lav);
-            if (fascia && minutiInFascia(orologioMinuti, fascia)) s.add(a.id);
+          if (next[a.id]) continue;
+
+          const ric = ricollocatiAlba[a.id];
+          if (ric?.nuovoEdificioId != null) {
+            // Ricollocato senza path: compare al nuovo posto (alba).
+            s.add(a.id);
+            arrivoTeleport[a.id] = ric.nuovoEdificioId;
+            continue;
           }
+          if (ric) continue; // liberato ma senza nuovo posto
+
+          const sede = primoEdificioLavoroOrarioPerAbitante(a.id, edifici, abitanti);
+          if (!sede) continue;
+          const fascia = fasciaPerEdificio(sede);
+          if (!fascia || !minutiInFascia(orologioMinuti, fascia)) continue;
+          const dest = destinazioneLavoroOrarioPerAbitante(a.id, edifici, abitanti) ?? sede;
+          const home = cellaCasaPerAbitanteId.get(a.id) ?? null;
+          const from = ultimaCellaAbitanteRef.current.get(a.id) ?? home;
+          const destAnchor = trovaAnchorEdificioGlobaleSuMappa(dest.id, edificiInMappa);
+          if (from != null && destAnchor != null && from !== destAnchor) {
+            const pathCheck = pianificaCommuteVersoEdificioGlobaleDaCella(
+              from,
+              dest.id,
+              edificiInMappa,
+              cols,
+              rows,
+              isWalkableCell
+            );
+            if (pathCheck == null) continue;
+          }
+          s.add(a.id);
+          arrivoTeleport[a.id] = dest.id;
         }
         return s;
       });
+      if (Object.keys(arrivoTeleport).length > 0) {
+        setLavoroArrivoEdificioByAbitanteId((prev) => ({ ...prev, ...arrivoTeleport }));
+      }
       // Arrivi al bar solo a fine commute (niente teletrasporto).
       setBarArrivatiByEdificio({});
+      setEmporioArrivatiByEdificio({});
       setCultoArrivatiByEdificio({});
     }
 
     if (!eraNotte && notte) {
       setLavoroArrivatiIds(new Set());
+      setLavoroArrivoEdificioByAbitanteId({});
       setBarArrivatiByEdificio({});
+      setEmporioArrivatiByEdificio({});
       setCultoArrivatiByEdificio({});
       const next: Record<number, { path: number[]; token: number; purpose: "home" }> = {};
       const dormiSenzaPercorso: number[] = [];
@@ -3369,7 +5120,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     orologioMinuti,
     inventarioMensaByEdificioId,
     minutiAbsGioco,
-    provaCommuteRapina
+    provaCommuteRapina,
+    ricollocaLavoroIrraggiungibileDaMappa
   ]);
 
   const edificiFootprintOverlay = useMemo(() => {
@@ -3385,46 +5137,68 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         const edificioGlobale = edifici.find((x) => x.id === globaleId);
         const inCostruzione = edificioGlobale?.stato === "In costruzione";
 
+        if (e.nome === NOME_PONTE) {
+          if (inCostruzione) {
+            list.push({
+              anchor: Number(i),
+              fp: e.footprint,
+              variant: "cantiere",
+              progressoCostruzione: edificioGlobale?.progressoCostruzione ?? 0
+            });
+          }
+          continue;
+        }
+
         const variantFinale: FootprintVariant =
           e.nome === "Dormitorio"
             ? "dormitorio"
             : e.nome === "Bar"
               ? "bar"
-              : e.nome === "Tribunale"
-                ? "tribunale"
-                : e.nome === "Ufficio Immigrazione"
-                  ? "ufficio_immigrazione"
-                  : e.nome === "Ufficio Edile"
-                    ? "ufficio_edile"
-                    : e.nome === "Mercato"
-                      ? "mercato"
-                      : e.nome === "Negozio"
-                        ? "negozio"
-                        : e.nome === "Mensa Pubblica"
-                          ? "mensa"
-                          : e.nome === "Dissalatore"
-                            ? "dissalatore"
-                            : e.nome === "Spazioporto"
-                              ? "spazioporto"
-                              : e.nome === "Serra"
-                                ? "serra"
-                                : e.nome === "Capanna"
-                                  ? "capanna"
-                                  : e.nome === "Luogo di Culto del Sole"
-                                    ? "luogo_culto_sole"
-                                    : e.nome === "Luogo di Culto degli Alieni"
-                                      ? "luogo_culto_alieni"
-                                      : e.nome === "Carcere"
-                                        ? "carcere"
-                                        : e.nome === "Campo di Lavoro"
-                                          ? "campo_lavoro"
-                                          : e.nome === "Campo di Sterminio"
-                                            ? "campo_sterminio"
-                                            : e.nome === "Caserma"
-                                              ? "caserma"
-                                              : e.nome === "Centrale"
-                                                ? "centrale_polizia"
-                                                : "amministrazione";
+              : e.nome === "Fucina"
+                ? "fucina"
+                : e.nome === "Emporio"
+                  ? "emporio"
+                  : e.nome === "Tribunale"
+                    ? "tribunale"
+                    : e.nome === "Ufficio Immigrazione"
+                      ? "ufficio_immigrazione"
+                      : e.nome === "Ufficio Edile"
+                        ? "ufficio_edile"
+                        : e.nome === "Mercato"
+                          ? "mercato"
+                          : e.nome === "Negozio"
+                            ? "negozio"
+                            : e.nome === "Mensa Pubblica"
+                              ? "mensa"
+                              : e.nome === "Acquedotto"
+                                ? "dissalatore"
+                                : e.nome === "Porto"
+                                  ? "spazioporto"
+                                  : e.nome === "Serra"
+                                    ? "serra"
+                                    : e.nome === "Capanna"
+                                      ? "capanna"
+                                      : e.nome === "Luogo di Culto del Sole"
+                                        ? "luogo_culto_sole"
+                                        : e.nome === "Luogo di Culto delle Ombre"
+                                          ? "luogo_culto_alieni"
+                                          : e.nome === "Carcere"
+                                            ? "carcere"
+                                            : e.nome === "Campo di Lavoro"
+                                              ? "campo_lavoro"
+                                              : e.nome === "Campo di Sterminio"
+                                                ? "campo_sterminio"
+                                                : e.nome === "Caserma"
+                                                  ? "caserma"
+                                                  : e.nome === "Centrale"
+                                                    ? "centrale_polizia"
+                                                    : e.nome === "Bosco"
+                                                      ? "bosco"
+                                                      : e.nome === "Scuola"
+                                                        ? "tribunale"
+                                                        : e.nome === "Lazzaretto"
+                                                          ? "caserma"
+                                                          : "amministrazione";
         list.push({
           anchor: Number(i),
           fp: e.footprint,
@@ -3446,23 +5220,69 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const openRouteForEdificio = useCallback(
     (nome: string, edificioId?: number) => {
+      if (edificioId != null) {
+        const globale = edifici.find((e) => e.id === edificioId);
+        if (globale?.stato === "In costruzione") {
+          setCantiereSelezionatoId(edificioId);
+          return;
+        }
+      }
       const route = EDIFICIO_TO_ROUTE[nome];
-      if (!route) return;
-      if (nome === "Serra" && edificioId != null) {
-        router.push(`/serra/${edificioId}`);
+      if (!route) {
+        if (nome === NOME_PONTE && edificioId != null) {
+          setCantiereSelezionatoId(edificioId);
+        }
         return;
       }
-      if (nome === "Bar" && edificioId != null) {
-        router.push(`/bar/${edificioId}`);
+      if (
+        (nome === "Serra" ||
+          nome === "Bar" ||
+          nome === "Emporio" ||
+          nome === "Fucina" ||
+          nome === "Bosco" ||
+          nome === "Miniera") &&
+        edificioId != null
+      ) {
+        router.push(`/impresa/${edificioId}`);
         return;
       }
       if (nome === "Mensa Pubblica" && edificioId != null) {
         router.push(`/mensa/${edificioId}`);
         return;
       }
+      if (nome === "Chiesa" && edificioId != null) {
+        router.push(`/chiesa/${edificioId}`);
+        return;
+      }
       router.push(route);
     },
-    [router]
+    [router, edifici]
+  );
+
+  const cantiereSelezionato = useMemo(() => {
+    if (cantiereSelezionatoId == null) return null;
+    return edifici.find((e) => e.id === cantiereSelezionatoId) ?? null;
+  }, [cantiereSelezionatoId, edifici]);
+
+  const apriCantiereDaCella = useCallback(
+    (cellIndex: number) => {
+      const e = edificiInMappa[cellIndex];
+      if (!e || e.nome === "Strada") return false;
+      const anchor = e.footprintRef != null ? e.footprintRef : cellIndex;
+      const cap = edificiInMappa[anchor] ?? e;
+      const globaleId = cap.edificioGlobaleId ?? cap.id;
+      const globale = edifici.find((x) => x.id === globaleId);
+      if (globale?.stato === "In costruzione") {
+        setCantiereSelezionatoId(globale.id);
+        return true;
+      }
+      if (cap.nome === NOME_PONTE) {
+        // Ponte operativo: niente scheda dedicata; cantiere già gestito sopra.
+        return false;
+      }
+      return false;
+    },
+    [edificiInMappa, edifici]
   );
 
   const edificioResidenzaAperta = useMemo(() => {
@@ -3613,6 +5433,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const handleScegliEdificio = useCallback(
     (cellIndex: number, e: Edificio) => {
+      if (!isNomeEdificioCostruibileSbloccato(e.nome, costruzioneSbloccati)) {
+        Alert.alert("Non ancora disponibile", "Questo edificio non è ancora sbloccato.");
+        return;
+      }
+
       if (e.nome === "Strada") {
         const cur = mappaStateRef.current;
         const { anchor } = calcolaAnchorStrada2x2(cellIndex, FIXED_MAP_COLS, FIXED_MAP_ROWS);
@@ -3637,6 +5462,58 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         return;
       }
 
+      if (e.nome === NOME_PONTE) {
+        const cur = mappaStateRef.current;
+        if (!isCellaOkPerPonte(cellIndex, cur.terrenoInMappa, cur.edificiInMappa)) {
+          Alert.alert("Non qui", "Il ponte si costruisce su una cella di fiume libera.");
+          return;
+        }
+        const costoPonte = COSTO_PONTE_MONETE;
+        if (costoPonte > 0 && moneteGiocatore < costoPonte) {
+          Alert.alert(
+            "Monete insufficienti",
+            `Servono ${costoPonte.toLocaleString("it-IT")} monete (disponibili nel Tesoro: ${moneteGiocatore.toLocaleString("it-IT")}).`
+          );
+          return;
+        }
+        const newId = aggiungiEdificioDaTemplate(ID_TEMPLATE_PONTE, {
+          costoMonete: costoPonte,
+          costoMateriale: 0
+        });
+        if (newId == null) {
+          Alert.alert(
+            "Impossibile costruire",
+            `Non riesco a creare il cantiere del Ponte. Servono ${costoPonte.toLocaleString("it-IT")} monete nel Tesoro.`
+          );
+          return;
+        }
+        let piazzato = false;
+        setMappaStatePersistente((s) => {
+          const nextEdifici = { ...s.edificiInMappa };
+          if (
+            !piazzaPonteSuCella(cellIndex, s.terrenoInMappa, nextEdifici, {
+              edificioGlobaleId: newId
+            })
+          ) {
+            return s;
+          }
+          piazzato = true;
+          return { ...s, edificiInMappa: nextEdifici };
+        });
+        if (!piazzato) {
+          rimuoviEdificioPerId(newId);
+          Alert.alert("Non qui", "Il ponte si costruisce su una cella di fiume libera.");
+          return;
+        }
+        if (modalitaGioco === "avventura") {
+          Alert.alert(
+            "Cantiere sul fiume",
+            "Il Ponte è in costruzione. Assegna Edili all'Ufficio Edile: ogni ora di gioco avanzano di 1 punto per edile sul cantiere. Solo a ponte pronto si potrà attraversare."
+          );
+        }
+        return;
+      }
+
       const s = mappaStateRef.current;
       const { anchor, w, h } = calcolaAnchorEdificioMultiCella(
         cellIndex,
@@ -3649,8 +5526,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (anchor == null) {
         Alert.alert(
           "Spazio insufficiente",
-          e.nome === "Dissalatore"
-            ? "Il Dissalatore richiede un’area 2×2 con esattamente 2 celle sulla sabbia e 2 sul mare (bordo acqua)."
+          e.nome === "Acquedotto"
+            ? "L'Acquedotto richiede un’area 2×2 con esattamente 2 celle sulla sabbia e 2 sul mare (bordo acqua)."
             : "Non c'è spazio adatto (terreno, cuscino d'erba o distanza dagli altri edifici)."
         );
         return;
@@ -3670,14 +5547,22 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       ) {
         Alert.alert(
           "Spazio insufficiente",
-          e.nome === "Dissalatore"
-            ? "Il Dissalatore richiede un’area 2×2 con esattamente 2 celle sulla sabbia e 2 sul mare (bordo acqua)."
+          e.nome === "Acquedotto"
+            ? "L'Acquedotto richiede un’area 2×2 con esattamente 2 celle sulla sabbia e 2 sul mare (bordo acqua)."
             : "Non c'è spazio adatto (terreno, cuscino d'erba o distanza dagli altri edifici)."
         );
         return;
       }
 
+      const costoMonete = costoCostruzioneMonete(e.nome);
       const costoMateriale = costoMaterialeEdilePerFootprint(e.nome, w, h);
+      if (costoMonete > 0 && moneteGiocatore < costoMonete) {
+        Alert.alert(
+          "Monete insufficienti",
+          `Servono ${costoMonete.toLocaleString("it-IT")} monete (disponibili nel Tesoro: ${moneteGiocatore.toLocaleString("it-IT")}).`
+        );
+        return;
+      }
       if (!haMaterialeEdileSufficiente(risorse, costoMateriale)) {
         Alert.alert(
           "Materiale insufficiente",
@@ -3686,9 +5571,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         return;
       }
 
-      const newId = aggiungiEdificioDaTemplate(e.id, { costoMateriale });
+      const newId = aggiungiEdificioDaTemplate(e.id, { costoMateriale, costoMonete });
       if (newId == null) {
-        Alert.alert("Errore", "Impossibile creare questo tipo di edificio.");
+        Alert.alert(
+          "Errore",
+          costoMonete > 0
+            ? "Impossibile costruire: monete o risorse insufficienti."
+            : "Impossibile creare questo tipo di edificio."
+        );
         return;
       }
 
@@ -3711,7 +5601,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       });
       uscitaCostruzione();
     },
-    [setMappaStatePersistente, aggiungiEdificioDaTemplate, uscitaCostruzione, risorse]
+    [setMappaStatePersistente, aggiungiEdificioDaTemplate, rimuoviEdificioPerId, uscitaCostruzione, risorse, moneteGiocatore, addebitaMoneteGiocatore, abitanti, registraScambioCommerciale, modalitaGioco, costruzioneSbloccati]
   );
 
   const eseguiDemolizione = useCallback(
@@ -3756,6 +5646,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         anchor = r.anchor;
         w = r.w;
         h = r.h;
+      } else if (e.nome === NOME_PONTE) {
+        anchor = cellIndex;
+        w = 1;
+        h = 1;
       } else {
         anchor = getAnchorCellPerEdificio(cellIndex, edificiInMappa);
         ({ w, h } = dimensioniFootprintEdificioInMappa(anchor, edificiInMappa));
@@ -3764,7 +5658,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (celle.some((i) => celleProtetteIniziali.has(i))) {
         Alert.alert(
           "Non demolibile",
-          "Questo edificio fa parte della colonia iniziale e non può essere rimosso."
+          "Questo edificio fa parte del regno iniziale e non può essere rimosso."
         );
         return;
       }
@@ -3780,6 +5674,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const handlePiazzaTerreno = useCallback(
     (cellIndex: number, kind: TerrenoCostruzioneKind) => {
+      if (!isAmbienteCostruibileSbloccato(costruzioneSbloccati)) {
+        Alert.alert("Non ancora disponibile", "Le opzioni Ambiente non sono ancora sbloccate.");
+        return;
+      }
       const cur = mappaStateRef.current;
       const { anchor } = calcolaAnchorCostruzione2x2(cellIndex, FIXED_MAP_COLS, FIXED_MAP_ROWS);
       if (
@@ -3820,7 +5718,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         return { ...s, terrenoInMappa: nextTerreno };
       });
     },
-    [setMappaStatePersistente]
+    [setMappaStatePersistente, costruzioneSbloccati]
   );
 
   const onCellPress = useCallback(
@@ -3830,44 +5728,64 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         mapDraggedRef.current = false;
         return;
       }
+      clearLocateMarker();
       setSintesiMappaAbitanteId(null);
       if (modalitaDemolisci) {
         handleDemolisci(cellIndex);
         return;
       }
-      if (costruzioneSelezione) {
+      const selezione = costruzioneSelezioneRef.current;
+      if (selezione) {
         const edificio = edificiInMappa[cellIndex];
         const terreno = terrenoInMappa[cellIndex] ?? "erba";
+        if (selezione.tipo === "ponte") {
+          if (edificio && edificio.nome !== NOME_PONTE) {
+            Alert.alert("Non qui", "Il ponte si costruisce su una cella di fiume libera.");
+            return;
+          }
+          handleScegliEdificio(cellIndex, PONTE_OPZIONE as unknown as Edificio);
+          return;
+        }
         if (edificio) return;
         const èDissalatore =
-          costruzioneSelezione.tipo === "edificio" && costruzioneSelezione.edificio.nome === "Dissalatore";
-        const èAcqua =
-          costruzioneSelezione.tipo === "terreno" && costruzioneSelezione.kind === "acqua";
+          selezione.tipo === "edificio" && selezione.edificio.nome === "Acquedotto";
+        const èAcqua = selezione.tipo === "terreno" && selezione.kind === "acqua";
         if (èDissalatore) {
           if (terreno === "river") return;
         } else if (!èAcqua && (terreno === "river" || isAcqua(cellIndex, cols, rows))) {
           return;
         }
-        if (costruzioneSelezione.tipo === "strada") {
+        if (selezione.tipo === "strada") {
           handleScegliEdificio(cellIndex, STRADA_OPZIONE as unknown as Edificio);
-        } else if (costruzioneSelezione.tipo === "terreno") {
-          handlePiazzaTerreno(cellIndex, costruzioneSelezione.kind);
+        } else if (selezione.tipo === "terreno") {
+          handlePiazzaTerreno(cellIndex, selezione.kind);
         } else {
-          handleScegliEdificio(cellIndex, costruzioneSelezione.edificio);
+          handleScegliEdificio(cellIndex, selezione.edificio);
         }
         return;
       }
       const edificio = edificiInMappa[cellIndex];
-      const terreno = terrenoInMappa[cellIndex] ?? "erba";
+      /** Cantiere in costruzione: un tap apre la scheda lavoratori. */
+      if (edificio && apriCantiereDaCella(cellIndex)) {
+        lastTapCell.current = null;
+        return;
+      }
       /** Capanna: un tap apre subito la scheda a tutto schermo (presenze dentro/fuori). */
       if (edificio?.nome === "Capanna") {
         setSelectedResidenzaAnchor(getAnchorCellPerEdificio(cellIndex, edificiInMappa));
         lastTapCell.current = null;
         return;
       }
-      /** Serra: apre subito la pagina produzione / assegnazioni. */
-      if (edificio?.nome === "Serra") {
-        openRouteForEdificio(edificio.nome, edificio.id);
+      /** Castello / Serra / Bosco / Miniera / Zecca / Chiesa: un tap apre subito la scheda. */
+      if (
+        edificio?.nome === "Castello" ||
+        edificio?.nome === "Serra" ||
+        edificio?.nome === "Bosco" ||
+        edificio?.nome === NOME_MINIERA ||
+        edificio?.nome === NOME_ZECCA ||
+        edificio?.nome === "Chiesa"
+      ) {
+        openRouteForEdificio(edificio.nome, edificio.edificioGlobaleId ?? edificio.id);
         lastTapCell.current = null;
         return;
       }
@@ -3876,14 +5794,12 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (isDoubleTap) {
         lastTapCell.current = null;
         if (edificio) {
-          if (edificio.nome === "Giacimento") {
-            setSelectedCellForTransformDialog(cellIndex);
-          } else if (èResidenzaMappa(edificio.nome)) {
+          if (èResidenzaMappa(edificio.nome)) {
             setSelectedResidenzaAnchor(getAnchorCellPerEdificio(cellIndex, edificiInMappa));
           } else if (èNomeLuogoCulto(edificio.nome)) {
             setSelectedLuogoCultoAnchor(getAnchorCellPerEdificio(cellIndex, edificiInMappa));
           } else {
-            openRouteForEdificio(edificio.nome, edificio.id);
+            openRouteForEdificio(edificio.nome, edificio.edificioGlobaleId ?? edificio.id);
           }
         }
         return;
@@ -3894,14 +5810,15 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     [
       modalitaDemolisci,
       handleDemolisci,
-      costruzioneSelezione,
       edificiInMappa,
       terrenoInMappa,
       openRouteForEdificio,
+      apriCantiereDaCella,
       cols,
       rows,
       handleScegliEdificio,
-      handlePiazzaTerreno
+      handlePiazzaTerreno,
+      clearLocateMarker
     ]
   );
 
@@ -3956,32 +5873,137 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     celleProtetteIniziali
   ]);
 
+  const phaserBuildings = useMemo(
+    () => buildPhaserBuildings(mappaState, cols, rows, edifici),
+    [mappaState, cols, rows, edifici]
+  );
+
+  const abitanteVisibileSuMappaPhaser = useCallback(
+    (abitante: Abitante) => {
+      if (abitante.id === ID_GIOCATORE) {
+        if (reNascostoInEdificio(modalitaRe)) return false;
+        // Scelto «A giro» ma ancora nel Castello (fino a Indietro / inizio path).
+        if (reUscitaCastelloPending && commuteByAbitanteId[ID_GIOCATORE] == null) return false;
+      }
+      // Inizio partita: non mostrare nessuno sulla Capanna prima dell’uscita dal Castello.
+      if (
+        tipoUscitaCastelloPending === "inizio_partita" &&
+        !ultimaCellaAbitanteRef.current.has(abitante.id) &&
+        !(lavoroArrivatiIds.has(abitante.id) && lavoroArrivoEdificioByAbitanteId[abitante.id] != null)
+      ) {
+        return false;
+      }
+      const inCommute = commuteByAbitanteId[abitante.id] != null;
+      if (consigliereNascostoNelCastello(abitante, edifici, inCommute, modalitaRe)) return false;
+      if (
+        abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici, abitanti) &&
+        lavoroArrivatiIds.has(abitante.id) &&
+        !inCommute
+      ) {
+        return false;
+      }
+      if (
+        abitanteAlBarRoutineOra(abitante, orologioMinuti, statoCielo.buio, edifici) &&
+        Object.values(barArrivatiByEdificio).some((ids) => ids.includes(abitante.id)) &&
+        !inCommute
+      ) {
+        return false;
+      }
+      if (
+        abitanteNascostoNelCultoOra(abitante, orologioMinuti, statoCielo.buio, cultoArrivatiByEdificio) &&
+        !inCommute
+      ) {
+        return false;
+      }
+      const homeCell = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
+      if (
+        !inCommute &&
+        èNottePersonaggiInCasa &&
+        homeCell !== null &&
+        dormonoACasaIds.has(abitante.id)
+      ) {
+        return false;
+      }
+      return true;
+    },
+    [
+      modalitaRe,
+      reUscitaCastelloPending,
+      tipoUscitaCastelloPending,
+      commuteByAbitanteId,
+      edifici,
+      orologioMinuti,
+      lavoroArrivatiIds,
+      lavoroArrivoEdificioByAbitanteId,
+      barArrivatiByEdificio,
+      cultoArrivatiByEdificio,
+      statoCielo.buio,
+      cellaCasaPerAbitanteId,
+      èNottePersonaggiInCasa,
+      dormonoACasaIds,
+      abitanti
+    ]
+  );
+
   const phaserCharacters = useMemo<PhaserMapCharacter[]>(() => {
-    const candidates: PhaserMapCharacter[] = abitantiPerOverlayMappa.map((abitante, order) => {
-      const commute = commuteByAbitanteId[abitante.id];
-      const home = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
-      const fallback = (6 + Math.floor(order / 10) * 2) * cols + 3 + (order % 10) * 3;
-      const cell = ultimaCellaAbitanteRef.current.get(abitante.id) ?? home ?? fallback;
-      return {
-        id: abitante.id,
-        name: abitante.nome,
-        cell,
-        path: commute?.path,
-        pathToken: commute?.token ?? 0,
-        appearance: abitante.razza === "Golem" ? "golem" : "human",
-        characterAppearance: abitante.aspetto?.characterAppearance
-          ? appearanceForPublicSpace(abitante.aspetto.characterAppearance, {
-            isKing: abitante.id === 1,
-            nudismoAttivo,
-            incinta: abitante.incinta === true,
-            lavoro: abitante.lavoro
-          })
-          : undefined,
-        markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined
-      };
-    });
+    const candidates: PhaserMapCharacter[] = abitantiPerOverlayMappa
+      .filter(abitanteVisibileSuMappaPhaser)
+      .map((abitante, order) => {
+        const commute = commuteByAbitanteId[abitante.id];
+        // Durante uscita inizio partita non usare la Capanna come spawn.
+        const home =
+          tipoUscitaCastelloPending === "inizio_partita"
+            ? null
+            : (cellaCasaPerAbitanteId.get(abitante.id) ?? null);
+        const fallback = (6 + Math.floor(order / 10) * 2) * cols + 3 + (order % 10) * 3;
+        const cell = ultimaCellaAbitanteRef.current.get(abitante.id) ?? home ?? fallback;
+        // Visibilità Phaser già esclude lavoro/bar/casa; qui basta no commute + no coprifuoco + non in orario lavoro.
+        // In fascia lavorativa non idle/chiacchiere: devono andare (o restare) al lavoro.
+        const idleRoamAllowed =
+          commute == null &&
+          !abitanteInOrarioOccupazione(abitante, orologioMinuti) &&
+          !abitanteSoggettoACoprifuoco(
+            abitante,
+            edifici,
+            {
+              attivo: coprifuocoAttivo,
+              inizioMinuti: coprifuocoInizioMinuti,
+              fineMinuti: coprifuocoFineMinuti
+            },
+            orologioMinuti
+          );
+        return {
+          id: abitante.id,
+          name: abitante.nome,
+          cell,
+          path: commute?.path,
+          // Senza commute: l’epoch forza un ripiazza Phaser dopo teleport (uscita Castello).
+          pathToken: commute?.token ?? 1_000_000 + personaggiCelleEpoch,
+          appearance: abitante.razza === "Golem" ? "golem" : "human",
+          characterAppearance: aspettoPerVisualizzazioneAbitante(abitante, { nudismoAttivo })
+            ?.characterAppearance,
+          markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined,
+          idleRoamAllowed
+        };
+      });
     return assignUniqueCharacterCells(candidates, cols, rows, isWalkableCell);
-  }, [abitantiPerOverlayMappa, commuteByAbitanteId, cellaCasaPerAbitanteId, cols, rows, isWalkableCell, nudismoAttivo]);
+  }, [
+    abitantiPerOverlayMappa,
+    abitanteVisibileSuMappaPhaser,
+    commuteByAbitanteId,
+    cellaCasaPerAbitanteId,
+    cols,
+    rows,
+    isWalkableCell,
+    nudismoAttivo,
+    edifici,
+    coprifuocoAttivo,
+    coprifuocoInizioMinuti,
+    coprifuocoFineMinuti,
+    orologioMinuti,
+    personaggiCelleEpoch,
+    tipoUscitaCastelloPending
+  ]);
 
   useEffect(() => {
     const visibleIds = new Set(phaserCharacters.map((character) => character.id));
@@ -3995,23 +6017,80 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const phaserRevisionRef = useRef(0);
   const phaserBaseSnapshot = useMemo(
-    () => buildPhaserMapSnapshot(
-      mappaState,
-      cols,
-      rows,
-      CELL_SIZE_PX,
-      ++phaserRevisionRef.current
-    ),
-    [mappaState, cols, rows]
+    () =>
+      buildPhaserMapSnapshot(
+        mappaState,
+        cols,
+        rows,
+        CELL_SIZE_PX,
+        ++phaserRevisionRef.current,
+        [],
+        edifici
+      ),
+    [mappaState, cols, rows, edifici]
   );
   const phaserSnapshot = useMemo(
     () => ({
       ...phaserBaseSnapshot,
       characters: phaserCharacters,
       interaction: phaserInteraction,
+      locateMarker,
+      selectedAbitanteId: sintesiMappaAbitanteId,
       showGrid: mostraGrigliaMappa
     }),
-    [phaserBaseSnapshot, phaserCharacters, phaserInteraction, mostraGrigliaMappa]
+    [phaserBaseSnapshot, phaserCharacters, phaserInteraction, locateMarker, sintesiMappaAbitanteId, mostraGrigliaMappa]
+  );
+
+  const tryPhaserCharacterStep = useCallback(
+    (abitanteId: number, _fromCell: number, toCell: number) => {
+      if (findBuildingForInteriorCell(toCell, phaserBuildings, cols)) {
+        releaseCellAbitante(abitanteId);
+        ultimaCellaAbitanteRef.current.set(abitanteId, toCell);
+        setUltimaCellaAbitanteRuntime(abitanteId, toCell);
+        return true;
+      }
+      if (!tryClaimCellAbitante(abitanteId, toCell)) return false;
+      ultimaCellaAbitanteRef.current.set(abitanteId, toCell);
+      setUltimaCellaAbitanteRuntime(abitanteId, toCell);
+      return true;
+    },
+    [phaserBuildings, cols, releaseCellAbitante, tryClaimCellAbitante]
+  );
+
+  /** Passo idle: solo celle walkable esterne; aggiorna ultima cella (altrimenti lo snapshot li riporta indietro). */
+  const tryPhaserIdleStep = useCallback(
+    (abitanteId: number, _fromCell: number, toCell: number) => {
+      if (!isWalkableCell(toCell)) return false;
+      if (findBuildingForInteriorCell(toCell, phaserBuildings, cols)) return false;
+      if (!tryClaimCellAbitante(abitanteId, toCell)) return false;
+      ultimaCellaAbitanteRef.current.set(abitanteId, toCell);
+      setUltimaCellaAbitanteRuntime(abitanteId, toCell);
+      return true;
+    },
+    [isWalkableCell, phaserBuildings, cols, tryClaimCellAbitante]
+  );
+
+  const handlePhaserCharacterChatChange = useCallback(
+    (abitanteId: number, chattingWithId: number | null) => {
+      setChiacchieraConById((prev) => {
+        if (chattingWithId == null) {
+          if (prev[abitanteId] == null) return prev;
+          const next = { ...prev };
+          delete next[abitanteId];
+          return next;
+        }
+        if (prev[abitanteId] === chattingWithId) return prev;
+        return { ...prev, [abitanteId]: chattingWithId };
+      });
+    },
+    []
+  );
+
+  const handlePhaserCharacterChatFinished = useCallback(
+    (idA: number, idB: number) => {
+      applicaEsitoChiacchieraAbitanti(idA, idB);
+    },
+    [applicaEsitoChiacchieraAbitanti]
   );
 
   const handlePhaserCharacterPathComplete = useCallback((abitanteId: number, token: number) => {
@@ -4025,7 +6104,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       meta.cultoEdificioId,
       meta.negozioEdificioId,
       meta.rapinaTarget,
-      meta.lavoroCercaEdificioId
+      meta.lavoroCercaEdificioId,
+      meta.emporioVenditaEdificioId
     );
   }, [commuteByAbitanteId, handleCommuteFinita]);
 
@@ -4036,30 +6116,22 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   }, [commuteByAbitanteId, handleCommuteBloccata]);
 
   const handlePhaserCharacterPress = useCallback((abitanteId: number) => {
+    clearLocateMarker();
     setSintesiMappaAbitanteId(abitanteId);
-  }, []);
+  }, [clearLocateMarker]);
 
   const handlePhaserCharacterDoublePress = useCallback((abitanteId: number) => {
     const abitante = abitanti.find((item) => item.id === abitanteId);
     if (!abitante) return;
+    clearLocateMarker();
     setSintesiMappaAbitanteId(abitanteId);
     setSchedaWandererAbitante(abitante);
-  }, [abitanti]);
+  }, [abitanti, clearLocateMarker]);
 
   const handlePhaserDragStateChange = useCallback((dragging: boolean) => {
+    if (dragging) clearLocateMarker();
     mapDraggedRef.current = dragging;
-  }, []);
-
-  const handleTrasformaGiacimento = useCallback((cellIndex: number) => {
-    setMappaStatePersistente((s) => {
-      const nextEdifici = { ...s.edificiInMappa, [cellIndex]: RAFFINERIA_MINERARIA };
-      applicaRegoleConfineTerreno(nextEdifici, s.terrenoInMappa, FIXED_MAP_COLS, FIXED_MAP_ROWS, {
-        collegaEdificiAllaStrada: false
-      });
-      return { ...s, edificiInMappa: nextEdifici };
-    });
-    setSelectedCellForTransformDialog(null);
-  }, [setMappaStatePersistente]);
+  }, [clearLocateMarker]);
 
   const azioneSintesiMappa = useMemo(() => {
     if (!sintesiMappaAbitante) return null;
@@ -4078,7 +6150,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         inizioMinuti: coprifuocoInizioMinuti,
         fineMinuti: coprifuocoFineMinuti
       },
-      esitoRapinaRecente: esitoRapinaByAbitanteId[sintesiMappaAbitante.id] ?? null
+      esitoRapinaRecente: esitoRapinaByAbitanteId[sintesiMappaAbitante.id] ?? null,
+      staChiacchierando: chiacchieraConById[sintesiMappaAbitante.id] != null
     });
   }, [
     sintesiMappaAbitante,
@@ -4094,19 +6167,20 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     coprifuocoAttivo,
     coprifuocoInizioMinuti,
     coprifuocoFineMinuti,
-    esitoRapinaByAbitanteId
+    esitoRapinaByAbitanteId,
+    chiacchieraConById
   ]);
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Banner in alto: MyKingdom, Mese/Anno, Diario, Skip Mese, Felicità, Lealtà, Paura, Menu */}
+      {/* Banner in alto: MyKingdom, Mese/Anno, Diario, Soddisfazione, Paura, Menu */}
       <View style={styles.topBanner}>
         <View style={styles.topBannerInner}>
           <View style={styles.bannerTitleBlock}>
             <Text style={styles.bannerTitleEmoji}>🏰</Text>
             <View>
               <Text style={styles.bannerTitle}>MyKingdom</Text>
-              <Text style={styles.bannerSubtitle}>Gestisci la tua colonia</Text>
+              <Text style={styles.bannerSubtitle}>Gestisci il tuo regno</Text>
             </View>
           </View>
           <View style={styles.badge}>
@@ -4127,56 +6201,72 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                 >
                   <Text style={styles.orologioPausaBtnText}>{orologioInPausa ? "▶️" : "⏸️"}</Text>
                 </Pressable>
+                <View style={styles.orologioVelocitaRow}>
+                  {OROLOGIO_VELOCITA_OPZIONI.map((v) => (
+                    <Pressable
+                      key={v}
+                      style={[
+                        styles.orologioVelocitaBtn,
+                        !orologioInPausa && orologioVelocita === v && styles.orologioVelocitaBtnAttivo
+                      ]}
+                      onPress={() => setOrologioVelocita(v)}
+                      accessibilityLabel={`Velocità ×${v}`}
+                    >
+                      <Text
+                        style={[
+                          styles.orologioVelocitaBtnText,
+                          !orologioInPausa &&
+                            orologioVelocita === v &&
+                            styles.orologioVelocitaBtnTextAttivo
+                        ]}
+                      >
+                        ×{v}
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
               </View>
             </View>
           </View>
-          <Pressable style={styles.diarioBtn} onPress={() => router.push("/diario")}>
+          <Pressable style={styles.diarioBtn} onPress={() => { clearLocateMarker(); router.push("/diario"); }}>
             <Text style={styles.diarioBtnEmoji}>📖</Text>
             <Text style={styles.diarioBtnLabel}>Diario</Text>
           </Pressable>
           <Pressable
-            style={[styles.skipBtn, isLoading && styles.skipBtnDisabled]}
-            onPress={avanzaMese}
-            disabled={isLoading}
+            style={styles.indCard}
+            onPress={individuaReSullaMappa}
+            accessibilityLabel="Individua Re sulla mappa"
           >
-            {isLoading ? (
-              <>
-                <ActivityIndicator size="small" color="#fff" />
-                <Text style={styles.skipBtnText}>Caricamento...</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.skipBtnEmoji}>⏭️</Text>
-                <Text style={styles.skipBtnText}>Skip Mese</Text>
-              </>
-            )}
+            <Text style={styles.indEmoji}>👑</Text>
+            <Text style={styles.indLabel}>Individua Re</Text>
           </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/felicita")}>
-            <Text style={styles.indEmoji}>😊</Text>
-            <Text style={styles.indLabel}>Felicità</Text>
-            <Text style={styles.indValue}>{felicitàMedia}%</Text>
+          <Pressable style={styles.indCard} onPress={() => { clearLocateMarker(); router.push("/soddisfazione"); }}>
+            <Text style={styles.indEmoji}>😌</Text>
+            <Text style={styles.indLabel}>Soddisfazione</Text>
+            <Text style={styles.indValue}>{soddisfazioneMedia}</Text>
+            <Text style={styles.indLabel}>{fasciaSoddisfazioneMedia}</Text>
           </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/lealta")}>
-            <Text style={styles.indEmoji}>❤️</Text>
-            <Text style={styles.indLabel}>Lealtà</Text>
-            <Text style={styles.indValue}>{lealtàMedia}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/paura")}>
+          <Pressable style={styles.indCard} onPress={() => { clearLocateMarker(); router.push("/paura"); }}>
             <Text style={styles.indEmoji}>😨</Text>
             <Text style={styles.indLabel}>Paura</Text>
             <Text style={styles.indValue}>{pauraMedia}%</Text>
           </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/lavori")}>
+          <Pressable style={styles.indCard} onPress={() => { clearLocateMarker(); router.push("/lavori"); }}>
             <Text style={styles.indEmoji}>📋</Text>
             <Text style={styles.indLabel}>Disoccupazione</Text>
             <Text style={styles.indValue}>{disoccupazionePercent}%</Text>
           </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/abitanti")}>
+          <Pressable style={styles.indCard} onPress={() => { clearLocateMarker(); router.push("/registrazioni"); }}>
+            <Text style={styles.indEmoji}>🧾</Text>
+            <Text style={styles.indLabel}>Registrazioni</Text>
+            <Text style={styles.indValue}>{registrazioniScambi.length}</Text>
+          </Pressable>
+          <Pressable style={styles.indCard} onPress={() => { clearLocateMarker(); router.push("/abitanti"); }}>
             <Text style={styles.indEmoji}>👥</Text>
             <Text style={styles.indLabel}>Abitanti</Text>
             <Text style={styles.indValue}>{abitanti.length}</Text>
           </Pressable>
-          <Pressable style={styles.menuBtn} onPress={() => router.push("/menu")}>
+          <Pressable style={styles.menuBtn} onPress={() => { clearLocateMarker(); router.push("/menu"); }}>
             <Text style={styles.menuBtnText}>Menu</Text>
           </Pressable>
         </View>
@@ -4196,14 +6286,16 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           <Text style={styles.costruzioneBannerText} numberOfLines={2}>
             {costruzioneSelezione.tipo === "strada"
               ? "🛤️ Strada — area 2×2 su erba; tocca per piazzare. Riclicca Costruisci per uscire."
+              : costruzioneSelezione.tipo === "ponte"
+                ? "🌉 Ponte — tocca una cella di fiume: nasce un cantiere (barra di avanzamento). Serve Ufficio Edile + Edili. Riclicca Costruisci per uscire."
               : costruzioneSelezione.tipo === "terreno"
                 ? costruzioneSelezione.kind === "acqua"
                   ? "🌊 Acqua — area 2×2; tocca per piazzare. Riclicca Costruisci per uscire."
                   : costruzioneSelezione.kind === "spiaggia"
                     ? "🏖️ Spiaggia — area 2×2; tocca per piazzare. Riclicca Costruisci per uscire."
                     : "🌿 Erba — area 2×2; tocca per piazzare. Riclicca Costruisci per uscire."
-                : costruzioneSelezione.edificio.nome === "Dissalatore"
-                ? `🔨 ${costruzioneSelezione.edificio.emoji} Dissalatore — serve un 2×2 con 2 celle sabbia e 2 sul mare; tocca sabbia o acqua.`
+                : costruzioneSelezione.edificio.nome === "Acquedotto"
+                ? `🔨 ${costruzioneSelezione.edificio.emoji} Acquedotto — serve un 2×2 con 2 celle sabbia e 2 sul mare; tocca sabbia o acqua.`
                 : `🔨 ${costruzioneSelezione.edificio.emoji} ${costruzioneSelezione.edificio.nome} — l’anteprima segue il puntatore; tocca per confermare.`}
           </Text>
           <Pressable style={styles.costruzioneBannerBtn} onPress={uscitaCostruzione} accessibilityRole="button">
@@ -4217,13 +6309,17 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         {Platform.OS === "web" ? (
           <View style={styles.phaserMainSurface}>
             <PhaserMapSurface
+              ref={phaserMapRef}
               snapshot={phaserSnapshot}
               onCellPress={onCellPress}
               onCellHover={setPreviewCellHover}
               onCharacterPress={handlePhaserCharacterPress}
               onCharacterDoublePress={handlePhaserCharacterDoublePress}
               onCharacterPathComplete={handlePhaserCharacterPathComplete}
-              onCharacterStepAttempt={(abitanteId, _fromCell, toCell) => tryClaimCellAbitante(abitanteId, toCell)}
+              onCharacterStepAttempt={tryPhaserCharacterStep}
+              onCharacterIdleStepAttempt={tryPhaserIdleStep}
+              onCharacterChatChange={handlePhaserCharacterChatChange}
+              onCharacterChatFinished={handlePhaserCharacterChatFinished}
               onCharacterPathBlocked={handlePhaserCharacterPathBlocked}
               onDragStateChange={handlePhaserDragStateChange}
             />
@@ -4398,7 +6494,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                     const inCommute = infoCommute != null;
 
                     const nascostoLavoro =
-                      abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&
+                      abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici, abitanti) &&
                       lavoroArrivatiIds.has(abitante.id) &&
                       !inCommute;
 
@@ -4418,8 +6514,29 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                     if (nascostoLavoro) return null;
                     if (nascostoBar) return null;
                     if (nascostoCulto) return null;
+                    if (consigliereNascostoNelCastello(abitante, edifici, inCommute, modalitaRe)) return null;
+                    if (
+                      abitante.id === ID_GIOCATORE &&
+                      (reNascostoInEdificio(modalitaRe) ||
+                        (reUscitaCastelloPending && !inCommute))
+                    ) {
+                      return null;
+                    }
+                    if (
+                      tipoUscitaCastelloPending === "inizio_partita" &&
+                      !ultimaCellaAbitanteRef.current.has(abitante.id) &&
+                      !(
+                        lavoroArrivatiIds.has(abitante.id) &&
+                        lavoroArrivoEdificioByAbitanteId[abitante.id] != null
+                      )
+                    ) {
+                      return null;
+                    }
 
-                    const homeCell = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
+                    const homeCell =
+                      tipoUscitaCastelloPending === "inizio_partita"
+                        ? null
+                        : (cellaCasaPerAbitanteId.get(abitante.id) ?? null);
                     const fixedCellNotte =
                       !inCommute &&
                       èNottePersonaggiInCasa &&
@@ -4430,7 +6547,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
                     return (
                       <MapWandererCharacter
-                        key={`wanderer-${abitante.id}`}
+                        key={`wanderer-${abitante.id}-e${personaggiCelleEpoch}`}
                         cols={cols}
                         rows={rows}
                         cellSizePx={CELL_SIZE_PX}
@@ -4454,7 +6571,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                             meta?.cultoEdificioId,
                             meta?.negozioEdificioId,
                             meta?.rapinaTarget,
-                            meta?.lavoroCercaEdificioId
+                            meta?.lavoroCercaEdificioId,
+                            meta?.emporioVenditaEdificioId
                           );
                         }}
                         onCommuteBlocked={(info) => handleCommuteBloccata(abitante.id, info)}
@@ -4469,6 +6587,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                             setSchedaWandererAbitante(a);
                           }
                         }}
+                        selected={sintesiMappaAbitanteId === abitante.id}
                         passTouchesToMapOnCell={passTouchesToMapOnCellPerWanderer}
                         disableIdleRoam={
                           abitanteSoggettoACoprifuoco(
@@ -4480,27 +6599,12 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                               fineMinuti: coprifuocoFineMinuti
                             },
                             orologioMinuti
-                          ) ||
-                          (abitante.razza !== "Golem" &&
-                            (inCommute ||
-                              abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) ||
-                              abitanteAlBarRoutineOra(
-                                abitante,
-                                orologioMinuti,
-                                statoCielo.buio,
-                                edifici
-                              )))
+                          ) || inCommute
                         }
                         markerEmoji={abitante.razza === "Golem" ? getEmojiAbitante(abitante) : null}
                         appearance={
-                          abitante.aspetto?.characterAppearance
-                            ? appearanceForPublicSpace(abitante.aspetto.characterAppearance, {
-                              isKing: abitante.id === 1,
-                              nudismoAttivo,
-                              incinta: abitante.incinta === true,
-                              lavoro: abitante.lavoro
-                            })
-                            : undefined
+                          aspettoPerVisualizzazioneAbitante(abitante, { nudismoAttivo })
+                            ?.characterAppearance
                         }
                         pressAccessibilityLabel={`Seleziona ${getAbitanteNome(abitante.id)}`}
                         doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitante.id)}`}
@@ -4589,6 +6693,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             </View>
           ) : (
           <ScrollView
+            ref={bottomBarScrollRef}
             horizontal
             showsHorizontalScrollIndicator={false}
             style={styles.bottomBarScroll}
@@ -4598,7 +6703,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               style={[styles.risorseCard, styles.risorseCardClickable]}
               onPress={() => router.push("/crediti")}
               accessibilityRole="button"
-              accessibilityLabel="Apri bilancio Tesoro"
+              accessibilityLabel="Apri Bilancio"
             >
               <Text style={styles.risorseEmoji}>💰</Text>
               <Text style={styles.risorseName} numberOfLines={1}>Tesoro</Text>
@@ -4660,17 +6765,19 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                           Griglia
                         </Text>
                       </Pressable>
-                      <Pressable
-                        style={[styles.grigliaMapToggle, costruzioneSelezione != null && styles.grigliaMapToggleOn]}
-                        onPress={onCostruisciPress}
-                        accessibilityRole="button"
-                        accessibilityLabel="Apri costruzione edifici"
-                      >
-                        <Text style={styles.grigliaMapToggleEmoji}>🔨</Text>
-                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                          Costruisci
-                        </Text>
-                      </Pressable>
+                      <View ref={costruisciSpotlightRef} collapsable={false}>
+                        <Pressable
+                          style={[styles.grigliaMapToggle, costruzioneSelezione != null && styles.grigliaMapToggleOn]}
+                          onPress={onCostruisciPress}
+                          accessibilityRole="button"
+                          accessibilityLabel="Apri costruzione edifici"
+                        >
+                          <Text style={styles.grigliaMapToggleEmoji}>🔨</Text>
+                          <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
+                            Costruisci
+                          </Text>
+                        </Pressable>
+                      </View>
                       <Pressable
                         style={[styles.grigliaMapToggle, modalitaDemolisci && styles.grigliaMapToggleDemolisciOn]}
                         onPress={onDemolisciPress}
@@ -4734,11 +6841,36 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         onClose={() => setMostraModalEventi(false)}
       />
 
+      <ObiettivoSbloccatoModal
+        visible={obiettivoSbloccato != null}
+        titolo={obiettivoSbloccato?.titolo ?? ""}
+        messaggio={obiettivoSbloccato?.messaggio ?? ""}
+        emoji={obiettivoSbloccato?.emoji}
+        onOk={() => setObiettivoSbloccato(null)}
+        onVediObiettivi={() => {
+          setObiettivoSbloccato(null);
+          router.push("/obiettivi");
+        }}
+      />
+
+      <CantiereModal
+        visible={cantiereSelezionato != null && cantiereSelezionato.stato === "In costruzione"}
+        cantiere={cantiereSelezionato}
+        abitanti={abitanti}
+        edifici={edifici}
+        onClose={() => setCantiereSelezionatoId(null)}
+        onApriUfficioEdile={() => {
+          setCantiereSelezionatoId(null);
+          router.push("/ufficio-edile");
+        }}
+      />
+
       <Modal
         visible={mostraModalCostruisci}
         animationType="slide"
         presentationStyle="fullScreen"
-        onRequestClose={() => setMostraModalCostruisci(false)}
+        onRequestClose={chiudiModalCostruisci}
+        onShow={mostraSpotlightPonteSePending}
       >
         <SafeAreaView style={styles.modalCostruisciRoot}>
           <View style={styles.modalCostruisciBody}>
@@ -4748,50 +6880,81 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               confermare.
             </Text>
             <ScrollView
+              ref={costruisciModalScrollRef}
               style={styles.modalCostruisciList}
               contentContainerStyle={styles.modalCostruisciListContent}
               nestedScrollEnabled
               showsVerticalScrollIndicator={false}
             >
-              <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
-                <Pressable
-                  style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
-                  onPress={() => {
-                    setCostruzioneSelezione({ tipo: "strada" });
-                    setMostraModalCostruisci(false);
-                    setMostraGrigliaMappa(true);
-                  }}
-                >
-                  <Text style={styles.modalOptionCostruisciEmoji}>{STRADA_OPZIONE.emoji}</Text>
-                  <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
-                    {STRADA_OPZIONE.nome}
-                  </Text>
-                </Pressable>
-              </View>
-              <Text style={styles.modalSectionTitle}>{SEZIONE_AMBIENTE.titolo}</Text>
-              <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
-                {SEZIONE_AMBIENTE.opzioni.map((opzione) => (
-                  <Pressable
-                    key={opzione.kind}
-                    style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
-                    onPress={() => {
-                      setCostruzioneSelezione({ tipo: "terreno", kind: opzione.kind });
-                      setMostraModalCostruisci(false);
-                      setMostraGrigliaMappa(true);
-                    }}
-                  >
-                    <Text style={styles.modalOptionCostruisciEmoji}>{opzione.emoji}</Text>
-                    <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
-                      {opzione.nome}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
+              {mostraStradaCostruisci || mostraPonteCostruisci ? (
+                <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
+                  {mostraStradaCostruisci ? (
+                    <Pressable
+                      style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
+                      onPress={() => {
+                        setCostruzioneSelezione({ tipo: "strada" });
+                        setMostraModalCostruisci(false);
+                        setMostraGrigliaMappa(true);
+                      }}
+                    >
+                      <Text style={styles.modalOptionCostruisciEmoji}>{STRADA_OPZIONE.emoji}</Text>
+                      <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
+                        {STRADA_OPZIONE.nome}
+                      </Text>
+                    </Pressable>
+                  ) : null}
+                  {mostraPonteCostruisci ? (
+                    <View
+                      ref={ponteSpotlightRef}
+                      collapsable={false}
+                      style={{ width: costruisciLayout.tileWidth }}
+                    >
+                      <Pressable
+                        style={[styles.modalOptionCostruisci, { width: "100%" }]}
+                        onPress={scegliPonte}
+                      >
+                        <Text style={styles.modalOptionCostruisciEmoji}>{PONTE_OPZIONE.emoji}</Text>
+                        <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
+                          {PONTE_OPZIONE.nome}
+                        </Text>
+                        <Text style={styles.modalOptionCostruisciPrezzo}>
+                          💰 {COSTO_PONTE_MONETE.toLocaleString("it-IT")}
+                        </Text>
+                      </Pressable>
+                    </View>
+                  ) : null}
+                </View>
+              ) : null}
+              {mostraAmbienteCostruisci ? (
+                <>
+                  <Text style={styles.modalSectionTitle}>{SEZIONE_AMBIENTE.titolo}</Text>
+                  <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
+                    {SEZIONE_AMBIENTE.opzioni.map((opzione) => (
+                      <Pressable
+                        key={opzione.kind}
+                        style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
+                        onPress={() => {
+                          setCostruzioneSelezione({ tipo: "terreno", kind: opzione.kind });
+                          setMostraModalCostruisci(false);
+                          setMostraGrigliaMappa(true);
+                        }}
+                      >
+                        <Text style={styles.modalOptionCostruisciEmoji}>{opzione.emoji}</Text>
+                        <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
+                          {opzione.nome}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </>
+              ) : null}
               {edificiCostruzionePerSezione.sections.map((sezione) => (
                 <View key={sezione.titolo}>
                   <Text style={styles.modalSectionTitle}>{sezione.titolo}</Text>
                   <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
-                    {sezione.edifici.map((e) => (
+                    {sezione.edifici.map((e) => {
+                      const prezzo = costoCostruzioneMonete(e.nome);
+                      return (
                       <Pressable
                         key={e.id}
                         style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
@@ -4805,8 +6968,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                         <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
                           {e.nome}
                         </Text>
+                        {prezzo > 0 ? (
+                          <Text style={styles.modalOptionCostruisciPrezzo}>
+                            💰 {prezzo.toLocaleString("it-IT")}
+                          </Text>
+                        ) : null}
                       </Pressable>
-                    ))}
+                      );
+                    })}
                   </View>
                 </View>
               ))}
@@ -4815,7 +6984,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               ) : null}
               {edificiCostruzionePerSezione.altri.length > 0 ? (
                 <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
-                  {edificiCostruzionePerSezione.altri.map((e) => (
+                  {edificiCostruzionePerSezione.altri.map((e) => {
+                    const prezzo = costoCostruzioneMonete(e.nome);
+                    return (
                     <Pressable
                       key={e.id}
                       style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
@@ -4829,52 +7000,22 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                       <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
                         {e.nome}
                       </Text>
+                      {prezzo > 0 ? (
+                        <Text style={styles.modalOptionCostruisciPrezzo}>
+                          💰 {prezzo.toLocaleString("it-IT")}
+                        </Text>
+                      ) : null}
                     </Pressable>
-                  ))}
+                    );
+                  })}
                 </View>
               ) : null}
             </ScrollView>
-            <Pressable style={styles.modalCancel} onPress={() => setMostraModalCostruisci(false)}>
+            <Pressable style={styles.modalCancel} onPress={chiudiModalCostruisci}>
               <Text style={styles.modalCancelText}>Chiudi</Text>
             </Pressable>
           </View>
         </SafeAreaView>
-      </Modal>
-
-      <Modal
-        visible={selectedCellForTransformDialog !== null}
-        transparent
-        animationType="fade"
-        onRequestClose={() => setSelectedCellForTransformDialog(null)}
-      >
-        <Pressable
-          style={styles.modalBackdrop}
-          onPress={() => setSelectedCellForTransformDialog(null)}
-        >
-          <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>Trasformare in Raffineria Mineraria?</Text>
-            <Text style={styles.modalSubtitle}>
-              Vuoi trasformare questo Giacimento ⛰️ nell'edificio Raffineria Mineraria ⚙️?
-            </Text>
-            <View style={styles.modalButtonsRow}>
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonCancel]}
-                onPress={() => setSelectedCellForTransformDialog(null)}
-              >
-                <Text style={styles.modalButtonText}>Annulla</Text>
-              </Pressable>
-              <Pressable
-                style={[styles.modalButton, styles.modalButtonConfirm]}
-                onPress={() =>
-                  selectedCellForTransformDialog !== null &&
-                  handleTrasformaGiacimento(selectedCellForTransformDialog)
-                }
-              >
-                <Text style={styles.modalButtonText}>Conferma</Text>
-              </Pressable>
-            </View>
-          </Pressable>
-        </Pressable>
       </Modal>
 
       <Modal
@@ -4913,17 +7054,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       </Modal>
 
       <AbitanteInfoModal
-        visible={schedaWandererAbitante !== null}
-        abitante={schedaWandererAbitante}
+        visible={schedaWandererAbitanteLive !== null}
+        abitante={schedaWandererAbitanteLive}
         edifici={edifici}
         onClose={() => setSchedaWandererAbitante(null)}
         getAbitanteNome={getAbitanteNome}
         calcolaFelicitàModificata={calcolaFelicitàModificata}
         etaMinimaLavoro={etaMinimaLavoro}
         onApriResidenzaMappa={handleApriResidenzaMappa}
+        onIndividua={(id) => individuaAbitanteSullaMappa(id)}
         azioneCorrente={
-          schedaWandererAbitante
-            ? descriviAzioneCorrenteAbitante(schedaWandererAbitante, {
+          schedaWandererAbitanteLive
+            ? descriviAzioneCorrenteAbitante(schedaWandererAbitanteLive, {
                 edifici,
                 buioCielo: statoCielo.buio,
                 orologioMinuti,
@@ -4931,14 +7073,15 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                 lavoroArrivatiIds,
                 barArrivatiByEdificio,
                 cultoArrivatiByEdificio,
-                commuteInfo: commuteByAbitanteId[schedaWandererAbitante.id],
-                haCasa: (cellaCasaPerAbitanteId.get(schedaWandererAbitante.id) ?? null) != null,
+                commuteInfo: commuteByAbitanteId[schedaWandererAbitanteLive.id],
+                haCasa: (cellaCasaPerAbitanteId.get(schedaWandererAbitanteLive.id) ?? null) != null,
                 coprifuoco: {
                   attivo: coprifuocoAttivo,
                   inizioMinuti: coprifuocoInizioMinuti,
                   fineMinuti: coprifuocoFineMinuti
                 },
-                esitoRapinaRecente: esitoRapinaByAbitanteId[schedaWandererAbitante.id] ?? null
+                esitoRapinaRecente: esitoRapinaByAbitanteId[schedaWandererAbitanteLive.id] ?? null,
+                staChiacchierando: chiacchieraConById[schedaWandererAbitanteLive.id] != null
               })
             : null
         }
@@ -4965,7 +7108,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           cultoArrivatiByEdificio={cultoArrivatiByEdificio}
           onApriGestioneCulto={() => {
             const route =
-              luogoCultoModalCtx.religione === "Culto del Sole" ? "/culto-sole" : "/culto-alieni";
+              luogoCultoModalCtx.religione === "Culto del Sole" ? "/culto-sole" : "/culto-ombre";
             setSelectedLuogoCultoAnchor(null);
             router.push(route);
           }}
@@ -5004,8 +7147,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               <Text style={styles.modalSubtitle}>
                 Posti sulla mappa: {occupantiCasaMappaIds.length}/{POSTI_PER_CASA_MAPPA} · Cella #{selectedResidenzaAnchor}
                 {edificioResidenzaAperta?.nome === "Dormitorio"
-                  ? "\nPuoi assegnare chi è già nel Dormitorio coloniale o far entrare chi non ha ancora residenza (non i Senzatetto)."
-                  : "\nI Senzatetto sono tutti in Baracca a livello colonia: qui scegli chi associare a questa baracca (max 6)."}
+                  ? "\nPuoi assegnare chi è già nel Dormitorio reale o far entrare chi non ha ancora residenza (non i Senzatetto)."
+                  : "\nI Senzatetto sono tutti in Baracca a livello regno: qui scegli chi associare a questa baracca (max 6)."}
               </Text>
               <Text style={styles.casaPostiTitolo}>Posti</Text>
               <ScrollView style={styles.modalList} nestedScrollEnabled>
@@ -5017,7 +7160,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                       <Text style={styles.casaSlotLabel}>{slot + 1}</Text>
                       {occ ? (
                         <>
-                          <Text style={styles.capannaAbitanteEmoji}>{getEmojiAbitante(occ)}</Text>
+                          <AbitanteAvatarPreview abitante={occ} size={32} />
                           <Text style={styles.capannaAbitanteNome} numberOfLines={1}>
                             {occ.nome}
                           </Text>
@@ -5051,7 +7194,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                       onPress={() => handleAggiungiACasaMappa(a.id)}
                       disabled={postiLiberiCasaMappa === 0}
                     >
-                      <Text style={styles.modalOptionEmoji}>{getEmojiAbitante(a)}</Text>
+                      <AbitanteAvatarPreview abitante={a} size={32} />
                       <Text style={styles.modalOptionNome} numberOfLines={1}>
                         {a.nome}
                       </Text>
@@ -5186,6 +7329,32 @@ const styles = StyleSheet.create({
   },
   orologioPausaBtnText: {
     fontSize: 11
+  },
+  orologioVelocitaRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3,
+    marginLeft: 2
+  },
+  orologioVelocitaBtn: {
+    paddingHorizontal: 5,
+    paddingVertical: 1,
+    borderRadius: 5,
+    backgroundColor: "rgba(30,41,59,0.5)",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.25)"
+  },
+  orologioVelocitaBtnAttivo: {
+    backgroundColor: "rgba(37,99,235,0.4)",
+    borderColor: "rgba(96,165,250,0.55)"
+  },
+  orologioVelocitaBtnText: {
+    fontSize: 9,
+    fontWeight: "600",
+    color: "rgba(226,232,240,0.75)"
+  },
+  orologioVelocitaBtnTextAttivo: {
+    color: "#f8fafc"
   },
   diarioBtn: {
     flexDirection: "row",
@@ -5754,6 +7923,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "center",
     lineHeight: 14
+  },
+  modalOptionCostruisciPrezzo: {
+    color: "#fbbf24",
+    fontSize: 10,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: 4
   },
   modalOptionEmoji: {
     fontSize: 22,

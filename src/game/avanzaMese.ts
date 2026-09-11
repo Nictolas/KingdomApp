@@ -1,6 +1,6 @@
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso } from "../types";
 import { EVENTI_CATALOGO } from "./eventi/index";
-import { getConsumoCibo, getConsumoAcqua, getProduzioneCiboPerAbitante } from "./ciboConsumo";
+import { getConsumoCibo, getProduzioneCiboPerAbitante } from "./ciboConsumo";
 import {
   abitanteConInventarioIniziale,
   getMoneteInventarioAbitante,
@@ -8,14 +8,17 @@ import {
 } from "./inventario";
 import { RESIDENZE_CATALOGO, RESIDENZE_ENERGIA_PER_ABITANTE } from "../data/residenzeData";
 import { getCastaAbitante, isCastaCoercibile } from "./casta";
-import { autoAssegnaCittadiniDisoccupati, autoAssegnaDisoccupati, isEdificioPubblicoConPostazioniLavoro, normalizzaLavoroEAgricoltura } from "./edificiLavoro";
-import { avanzaCostruzioniEdifici } from "./costruzioneEdifici";
+import { autoAssegnaCittadiniDisoccupati, autoAssegnaDisoccupati, isEdificioImpresa, isEdificioPubblicoConPostazioniLavoro, normalizzaLavoroEAgricoltura } from "./edificiLavoro";
 import { applicaRedditoSchiaviAlPadroni, isOmicidioSchiavoImmune, LAVORO_GIOCATORE } from "./schiavituCommercio";
 import { specializzazioneCasuale } from "./specializzazione";
 import { getProduttivitaEffettiva, normalizzaAbitanteBisogni } from "./bisogni";
 import { getStipendioMensileEdificio } from "./edificiPubblici";
 import { redditoMensileLavoroDefault } from "./economiaPrezzi";
+import { prelevaTassaImpresaMensile } from "./impresaCassa";
 import { generaAspettoCasuale } from "./personaggioAspetto";
+import { applicaLuttoFamiliareERimuoviMorti } from "./soddisfazione";
+import { applicaMoltiplicatoreProduzione } from "./disordineRe";
+import { applicaTasseMensili, type ConfigTassaReddito } from "./tasse";
 
 export type AvanzaMeseInput = {
   abitanti: Abitante[];
@@ -48,8 +51,16 @@ export type AvanzaMeseInput = {
     matrimonioUmanoRobot: boolean;
     matrimonioIntercasta?: boolean;
   };
-  /** Tesoro colonia (unica cassa monete). */
+  /** Tesoro regno (unica cassa monete). */
   moneteGiocatore: number;
+  /** Edificio con buff produzione visita Re (moltiplicatore 1.15), se presente. */
+  edificioBuffVisitaId?: number | null;
+  /** Configurazione tassa sul reddito (prelievo a fine mese). */
+  configTassaReddito?: ConfigTassaReddito;
+  /** Aliquota % Tassa sul Patrimonio (default 5). */
+  tassaPatrimonioPercentuale?: number;
+  /** Aliquota % Imposta sul Valore Aggiunto (default 10). */
+  ivaPercentuale?: number;
 };
 
 export type AvanzaMeseOutput = {
@@ -67,7 +78,7 @@ export type AvanzaMeseOutput = {
   vittimeOmicidi: { nome: string }[];
   /** Coppia con amicizia >= 90 che chiede di sposarsi (compatibili per orientamento/sesso). */
   pendingMatrimonio: { idA: number; idB: number; nomeA: string; nomeB: string } | null;
-  /** Messaggio da mostrare in home quando si attiva l'evento Emigrazione (es. "Alessandro Ricci ha lasciato la colonia."). */
+  /** Messaggio da mostrare in home quando si attiva l'evento Emigrazione (es. "Alessandro Ricci ha lasciato il regno."). */
   messaggioEmigrazione: string | null;
   /** Abitante appena incinta (concepimento questo mese): mostra avviso "X è incinta.". */
   pendingGravidanza: { id: number; nome: string } | null;
@@ -87,15 +98,23 @@ export function syncResidenzeBaraccaSenzatetto(edifici: Edificio[], abitanti: Ab
     .map((x) => x.id)
     .sort((a, b) => a - b);
   const baraccaPrimariaId = baraccaIdsOrdinati[0];
-  return edifici.map((e) => {
+  let changed = false;
+  const next = edifici.map((e) => {
     if (e.tipo !== "Residenza") return e;
     if (e.nome === "Baracca") {
       const ids = e.id === baraccaPrimariaId ? [...senzatettoIds] : [];
+      const prev = e.abitantiAssegnati ?? [];
+      if (ids.length === prev.length && ids.every((id, i) => id === prev[i])) return e;
+      changed = true;
       return { ...e, abitantiAssegnati: ids, occupazione: ids.length };
     }
     const nuovi = (e.abitantiAssegnati ?? []).filter((id) => !senzatettoIds.has(id));
+    const prev = e.abitantiAssegnati ?? [];
+    if (nuovi.length === prev.length && nuovi.every((id, i) => id === prev[i])) return e;
+    changed = true;
     return { ...e, abitantiAssegnati: nuovi, occupazione: nuovi.length };
   });
+  return changed ? next : edifici;
 }
 
 /** Compatibilità matrimonio: Omo solo con Omo/Bi stesso sesso; Etero con Etero/Bi sesso opposto; Bi con chiunque; Asessuale con nessuno. */
@@ -133,7 +152,7 @@ function coppiaConsentitaLegge(
   return true;
 }
 
-/** True se esiste almeno una coppia (non sposata, amicizia ≥90, compatibile) che può generare pendingMatrimonio allo Skip Mese. */
+/** True se esiste almeno una coppia (non sposata, amicizia ≥90, compatibile) che può generare pendingMatrimonio a fine mese. */
 export function esisteCoppiaMatrimonioPossibile(
   abitanti: Abitante[],
   tipologieFamigliaAccettate?: { matrimonioUmanoRobot: boolean; matrimonioIntercasta?: boolean }
@@ -176,7 +195,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     prezzoResidenze = {},
     redditoCittadinanza = 0,
     modalitaSanita = "privata",
-    moneteGiocatore: moneteGiocatoreIn
+    moneteGiocatore: moneteGiocatoreIn,
+    edificioBuffVisitaId = null
   } = input;
 
   let moneteGiocatore = Math.max(0, Math.floor(moneteGiocatoreIn));
@@ -218,9 +238,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       }
     }
   }
-  abitantiRimasti = abitantiRimasti
-    .filter((a) => !idsVittime.has(a.id))
-    .map((a) => {
+  abitantiRimasti = applicaLuttoFamiliareERimuoviMorti(abitantiRimasti, idsVittime).map((a) => {
       const n = reatiOmicidioPerKiller.get(a.id);
       if (!n) return a;
       const reati = [...(a.reati ?? [])];
@@ -238,7 +256,9 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     rivali: rimuoviMortiRel(a.rivali),
     coniugeId: a.coniugeId != null && idsVivi.has(a.coniugeId) ? a.coniugeId : undefined,
     figliIds: rimuoviMorti(a.figliIds ?? []),
+    figliAdottatiIds: rimuoviMorti(a.figliAdottatiIds ?? []),
     genitoriIds: rimuoviMorti(a.genitoriIds ?? []),
+    genitoriAdottiviIds: rimuoviMorti(a.genitoriAdottiviIds ?? []),
     nonniIds: rimuoviMorti(a.nonniIds ?? [])
   }));
 
@@ -411,17 +431,23 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   edificiConAuto = normLavoro.edifici;
   const abitantiConLavoro = normLavoro.abitanti;
 
-  const avanzamentoCantieri = avanzaCostruzioniEdifici(edificiConAuto, abitantiConLavoro);
-  edificiConAuto = avanzamentoCantieri.edifici;
-
   const idLavoratoreEdificioPubblico = new Set<number>();
   const idToEdificioPubblico = new Map<number, Edificio>();
+  const idLavoratoreImpresa = new Set<number>();
+  const idToEdificioImpresa = new Map<number, Edificio>();
   edificiConAuto.forEach((e) => {
-    if (!isEdificioPubblicoConPostazioniLavoro(e)) return;
-    (e.abitantiAssegnati ?? []).forEach((id) => {
-      idLavoratoreEdificioPubblico.add(id);
-      idToEdificioPubblico.set(id, e);
-    });
+    if (isEdificioPubblicoConPostazioniLavoro(e)) {
+      (e.abitantiAssegnati ?? []).forEach((id) => {
+        idLavoratoreEdificioPubblico.add(id);
+        idToEdificioPubblico.set(id, e);
+      });
+    }
+    if (isEdificioImpresa(e) && e.stato === "Operativo") {
+      (e.abitantiAssegnati ?? []).forEach((id) => {
+        idLavoratoreImpresa.add(id);
+        idToEdificioImpresa.set(id, e);
+      });
+    }
   });
 
   // Costo abitazione per abitante (dalla residenza assegnata). Usato per Senzatetto e per entrateResidenze.
@@ -435,7 +461,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     (edificio.abitantiAssegnati ?? []).forEach((id) => idToCostoAbitazione.set(id, prezzo));
   });
 
-  /** Affitti pagati questo mese → accreditati alla risorsa Crediti colonia (non al tesoro moneteGiocatore). */
+  /** Affitti pagati questo mese → accreditati alla risorsa Crediti regno (non al tesoro moneteGiocatore). */
   let totaleAffittiPagati = 0;
 
   // Aggiorna abitanti (invecchiamento, pensionamento, monete inventario, stanchezza/bisogni, peso, salute)
@@ -454,17 +480,24 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     }
 
     const èCoercibile = isCastaCoercibile(getCastaAbitante(abitante));
+    const èClero = getCastaAbitante(abitante) === "Clero";
     const pubblico = idLavoratoreEdificioPubblico.has(abitante.id);
+    const impresa = idLavoratoreImpresa.has(abitante.id);
 
     // Reddito = display / bilanci; spese fisse = 0 (costi reali: affitto + bar/negozio).
     let reddito = 0;
     const spese = 0;
-    if (lavoro === "Pensionato") {
+    if (èClero) {
+      reddito = 0;
+    } else if (lavoro === "Pensionato") {
       reddito = assegnoPensionati;
     } else if (lavoro === "Disoccupato") {
       reddito = !èCoercibile && redditoCittadinanza > 0 ? redditoCittadinanza : 0;
     } else if (pubblico) {
       const ed = idToEdificioPubblico.get(abitante.id);
+      reddito = ed ? getStipendioMensileEdificio(ed) : redditoMensileLavoroDefault();
+    } else if (impresa) {
+      const ed = idToEdificioImpresa.get(abitante.id);
       reddito = ed ? getStipendioMensileEdificio(ed) : redditoMensileLavoroDefault();
     } else if (lavoro === LAVORO_GIOCATORE) {
       reddito = redditoMensileLavoroDefault() * 2;
@@ -472,7 +505,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       reddito = redditoMensileLavoroDefault();
     }
 
-    if (èCoercibile) {
+    if (èCoercibile || èClero) {
       const base = normalizzaAbitanteBisogni({
         ...abitante,
         eta,
@@ -505,9 +538,9 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       fazioni = fazioni.filter((f) => f !== "Senzatetto");
     }
 
-    // Monete: affitto reale; stipendio mensile solo se non già pagato dagli edifici pubblici (giornaliero).
+    // Monete: affitto reale; stipendio mensile solo se non già pagato (pubblico giornaliero / impresa da cassa).
     let nuovoSaldo = moneteAttuali - spesaAbitazioneEffettiva;
-    if (!pubblico && reddito > 0) {
+    if (!pubblico && !impresa && reddito > 0) {
       nuovoSaldo += reddito;
     }
 
@@ -529,10 +562,34 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     return setMoneteInventarioAbitante(aggiornato, Math.max(0, nuovoSaldo));
   });
 
-  const { abitanti: abitantiConRedditoPadroni } = applicaRedditoSchiaviAlPadroni(nuoviAbitanti);
+  const { abitanti: abitantiDopoPadroni } = applicaRedditoSchiaviAlPadroni(nuoviAbitanti);
 
-  // Tesoro: +affitti; −assegni pensioni e reddito cittadinanza già accreditati agli inventari.
+  // Tasse: reddito + patrimonio (prelievo inventari) + IVA (gettito su produzione).
+  const tasse = applicaTasseMensili({
+    abitanti: abitantiDopoPadroni,
+    edifici: edificiConAuto,
+    configReddito: input.configTassaReddito ?? {
+      tipo: "scaglioni",
+      flatPercentuale: 15,
+      scaglioni: [
+        { min: 0, max: 300, percentuale: 0 },
+        { min: 301, max: 800, percentuale: 10 },
+        { min: 801, max: 1500, percentuale: 20 },
+        { min: 1501, max: Infinity, percentuale: 30 }
+      ]
+    },
+    tassaPatrimonioPercentuale: input.tassaPatrimonioPercentuale ?? 5,
+    ivaPercentuale: input.ivaPercentuale ?? 10,
+    edificioBuffVisitaId
+  });
+  const abitantiConRedditoPadroni = tasse.abitanti;
+
+  // Tesoro: +affitti + gettito fiscale; −assegni pensioni e reddito cittadinanza.
   moneteGiocatore += totaleAffittiPagati;
+  moneteGiocatore += tasse.gettitoReddito + tasse.gettitoPatrimonio + tasse.gettitoIva;
+  const tassaImpresa = prelevaTassaImpresaMensile(edificiConAuto, moneteGiocatore);
+  edificiConAuto = tassaImpresa.edifici;
+  moneteGiocatore = tassaImpresa.moneteGiocatore;
   const numPensionati = abitantiConRedditoPadroni.filter((a) => a.lavoro === "Pensionato").length;
   moneteGiocatore -= numPensionati * assegnoPensionati;
   const beneficiariCittadinanza = abitantiConRedditoPadroni.filter(
@@ -552,6 +609,10 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
 
     edificiConAuto.forEach((edificio) => {
       if (edificio.stato !== "Operativo") return;
+      // Miniera: produzione giornaliera (bottino + deposito) come il Bosco, non mensile.
+      if (edificio.nome === "Miniera") return;
+      // Zecca: conversione giornaliera Metalli → Tesoro (zeccaProduzione), non consumo mensile.
+      if (edificio.nome === "Zecca") return;
       if (edificio.produzione) {
         const produzioni = edificio.produzione.split(",").map((p) => p.trim());
         produzioni.forEach((prod) => {
@@ -559,21 +620,29 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
             const numAbitanti = edificio.abitantiAssegnati.length;
             if (numAbitanti > 0) {
               if (risorsa.nome.toLowerCase().includes("cibo")) {
-                // Il cibo vegetale della Serra va nell'inventario (produzione giornaliera / Skip Mese).
+                // Il cibo vegetale della Serra va nell'inventario (produzione giornaliera / cambio mese).
                 if (edificio.nome === "Serra") return;
                 const produzioneTotale = edificio.abitantiAssegnati.reduce(
                   (sum, id) => sum + getProduzioneCiboPerAbitante(id),
                   0
                 );
-                totaleCiboProdotto += produzioneTotale;
-                nuovaQuantità += produzioneTotale;
+                const buffed = applicaMoltiplicatoreProduzione(
+                  produzioneTotale,
+                  edificio.id === edificioBuffVisitaId
+                );
+                totaleCiboProdotto += buffed;
+                nuovaQuantità += buffed;
               } else {
                 const produttivitàMedia =
                   edificio.abitantiAssegnati.reduce((sum, id) => {
                     const abitante = abitantiConRedditoPadroni.find((a) => a.id === id);
                     return sum + (abitante ? getProduttivitaEffettiva(abitante) : 0);
                   }, 0) / numAbitanti;
-                nuovaQuantità += Math.floor(numAbitanti * (produttivitàMedia / 10));
+                const produzione = Math.floor(numAbitanti * (produttivitàMedia / 10));
+                nuovaQuantità += applicaMoltiplicatoreProduzione(
+                  produzione,
+                  edificio.id === edificioBuffVisitaId
+                );
               }
             }
           }
@@ -613,13 +682,6 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     if (risorsa.nome.toLowerCase().includes("cibo")) {
       abitantiConRedditoPadroni.forEach((abitante) => {
         nuovaQuantità -= getConsumoCibo(abitante);
-      });
-    }
-
-    if (risorsa.nome.toLowerCase().includes("acqua")) {
-      abitantiConRedditoPadroni.forEach((abitante) => {
-        if (abitante.razza === "Golem") return;
-        nuovaQuantità -= getConsumoAcqua(abitante);
       });
     }
 
@@ -666,12 +728,15 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       rivali: [],
       genitoriIds: [madre.id, ...(padre ? [padre.id] : [])],
       fazioni: [...(madre.fazioni || ["Cittadini"])],
+      casta:
+        getCastaAbitante(madre) === "Nobile" || (padre != null && getCastaAbitante(padre) === "Nobile")
+          ? "Nobile"
+          : "Cittadino",
       peso: 35 + Math.floor(Math.random() * 15),
       salute: 70 + Math.floor(Math.random() * 25),
       crediti: 0,
       reddito: 0,
       spese: 0,
-      lealtà: 50 + Math.floor(Math.random() * 30),
       paura: 0,
       felicità: 70 + Math.floor(Math.random() * 25),
       religione: madre.religione,
@@ -829,12 +894,6 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     if (lealisti >= maggioranza - 1 || percentuale >= 40) {
       avvisoDiario = `Rischio Guerra Civile: i Lealisti sono ${lealisti}/${abitantiEv.length} (${percentuale}%). Rafforza la Caserma (almeno 3 addetti) e mantieni alta la Soddisfazione della fazione Sicurezza per bloccare o mitigare il conflitto.`;
     }
-  }
-  if (avanzamentoCantieri.completati.length > 0) {
-    const msgCantieri = avanzamentoCantieri.completati
-      .map((c) => `${c.nome} è stato completato.`)
-      .join(" ");
-    avvisoDiario = avvisoDiario ? `${avvisoDiario}\n${msgCantieri}` : msgCantieri;
   }
 
   // Sincronizza di nuovo Baracca con i Senzatetto (dopo aggiornamento fazioni in nuoviAbitanti)

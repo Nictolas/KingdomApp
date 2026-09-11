@@ -12,7 +12,7 @@ const requiredHeadStyle = (appearance: CharacterAppearance) => {
   return "human_head";
 };
 
-type ManifestAsset = { id: string; semanticId: string; slot: CharacterLayer; bodyType: string; color: string; colorField?: keyof CharacterAppearance | "footwear" | "capeColor"; animation: string; zPos: number; sourceKey: string; required: boolean; attributionId: string };
+type ManifestAsset = { id: string; semanticId: string; slot: CharacterLayer; bodyType: string; color: string; colorField?: keyof CharacterAppearance | "footwear" | "capeColor" | "headwearColor" | "neckwearColor" | "facialMaskColor" | "facialEyesColor"; animation: string; zPos: number; sourceKey: string; required: boolean; attributionId: string };
 type Manifest = { options: { bodyTypes: string[]; skinTones: string[]; hairColors: string[]; hairStyles: string[]; beardStyles: string[]; outfits: string[]; fullOutfits?: string[]; footwear?: string[]; capes?: string[]; headwear: string[] }; assets: ManifestAsset[] };
 
 export const LPC_RUNTIME_MANIFEST = manifestJson as Manifest;
@@ -24,6 +24,10 @@ function colorValueForField(field: ManifestAsset["colorField"], appearance: Char
   if (!field) return "base";
   if (field === "footwear") return appearance.footwearColor;
   if (field === "capeColor") return appearance.capeColor;
+  if (field === "headwearColor") return appearance.headwearColor;
+  if (field === "neckwearColor") return appearance.neckwearColor;
+  if (field === "facialMaskColor") return appearance.facialMaskColor;
+  if (field === "facialEyesColor") return appearance.facialEyesColor;
   return (appearance[field] as string) ?? "base";
 }
 
@@ -54,6 +58,11 @@ function assetColorMatches(asset: ManifestAsset, appearance: CharacterAppearance
 function semanticForSlot(asset: ManifestAsset, appearance: CharacterAppearance, pool: ManifestAsset[]): boolean {
   if (asset.slot === "body") return asset.semanticId === appearance.bodyType && asset.color === appearance.skinTone;
   if (asset.slot === "raceFeatures") return asset.semanticId === appearance.headStyle && (asset.color === "base" || asset.color === appearance.skinTone);
+  if (asset.slot === "ears") {
+    if (appearance.earsStyle === "none") return false;
+    if (asset.semanticId !== appearance.earsStyle) return false;
+    return assetColorMatches(asset, appearance, pool);
+  }
   if (asset.slot === "hairFront" || asset.slot === "hairBack") return appearance.hairStyle !== "none" && asset.semanticId === appearance.hairStyle && asset.color === appearance.hairColor;
   if (asset.slot === "beard") return appearance.beardStyle !== "none" && asset.semanticId === appearance.beardStyle && asset.color === appearance.beardColor;
   if (asset.slot === "fullOutfit") {
@@ -64,7 +73,9 @@ function semanticForSlot(asset: ManifestAsset, appearance: CharacterAppearance, 
     return assetColorMatches(asset, appearance, pool);
   }
   if (asset.slot === "outfit") {
-    if (appearance.fullOutfit !== "none") return false;
+    const chainmailSopraKimono =
+      appearance.fullOutfit !== "none" && appearance.upperOutfit === "chainmail";
+    if (appearance.fullOutfit !== "none" && !chainmailSopraKimono) return false;
     if (appearance.upperOutfit === "none") return false;
     if (asset.semanticId !== appearance.upperOutfit) return false;
     return assetColorMatches(asset, appearance, pool);
@@ -80,7 +91,26 @@ function semanticForSlot(asset: ManifestAsset, appearance: CharacterAppearance, 
     if (asset.semanticId !== appearance.footwear) return false;
     return assetColorMatches(asset, appearance, pool);
   }
-  if (asset.slot === "headwear") return appearance.headwear !== "none" && asset.semanticId === appearance.headwear;
+  if (asset.slot === "headwear") {
+    if (appearance.headwear === "none") return false;
+    if (asset.semanticId !== appearance.headwear) return false;
+    return assetColorMatches(asset, appearance, pool);
+  }
+  if (asset.slot === "neck") {
+    if (appearance.neckwear === "none") return false;
+    if (asset.semanticId !== appearance.neckwear) return false;
+    return assetColorMatches(asset, appearance, pool);
+  }
+  if (asset.slot === "facialMask") {
+    if (appearance.facialMask === "none") return false;
+    if (asset.semanticId !== appearance.facialMask) return false;
+    return assetColorMatches(asset, appearance, pool);
+  }
+  if (asset.slot === "facialEyes") {
+    if (appearance.facialEyes === "none") return false;
+    if (asset.semanticId !== appearance.facialEyes) return false;
+    return assetColorMatches(asset, appearance, pool);
+  }
   if (asset.slot === "cape") {
     if (appearance.cape === "none") return false;
     const matchesBase = asset.semanticId === appearance.cape;
@@ -145,10 +175,15 @@ export function resolveCharacterLayers(appearance: CharacterAppearance, animatio
   if (!slots.has("body") || !slots.has("raceFeatures")) return [];
   if (appearance.fullOutfit !== "none" && !slots.has("fullOutfit")) return [];
   if (appearance.fullOutfit === "none" && appearance.upperOutfit !== "none" && !slots.has("outfit")) return [];
+  if (appearance.fullOutfit !== "none" && appearance.upperOutfit === "chainmail" && !slots.has("outfit")) return [];
   if (appearance.fullOutfit === "none" && appearance.lowerOutfit !== "none" && !slots.has("lowerBody")) return [];
   if (appearance.hairStyle !== "none" && !slots.has("hairFront") && !slots.has("hairBack")) return [];
   if (appearance.beardStyle !== "none" && !slots.has("beard")) return [];
+  if (appearance.earsStyle !== "none" && !slots.has("ears")) return [];
   if (appearance.headwear !== "none" && !slots.has("headwear")) return [];
+  if (appearance.neckwear !== "none" && !slots.has("neck")) return [];
+  if (appearance.facialMask !== "none" && !slots.has("facialMask")) return [];
+  if (appearance.facialEyes !== "none" && !slots.has("facialEyes")) return [];
   if (appearance.footwear !== "none" && !slots.has("footwear")) return [];
   return layers;
 }

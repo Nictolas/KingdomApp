@@ -101,7 +101,7 @@ export function calcolaEventiUI(input: EventiUIInput): {
       id: "assimilazione-pending",
       nome: "Assimilazione",
       emoji: "🤝",
-      descrizione: `${pendingAssimilazione} nativi vogliono unirsi alla colonia. Rispondi dalla pagina Eventi o attendi.`,
+      descrizione: `${pendingAssimilazione} nativi vogliono unirsi al regno. Rispondi dalla pagina Eventi o attendi.`,
       stato: "in-attesa"
     });
   }
@@ -131,7 +131,7 @@ export function calcolaEventiUI(input: EventiUIInput): {
     });
     if (
       capo &&
-      (capo.religione === "Culto del Sole" || capo.religione === "Culto degli Alieni") &&
+      (capo.religione === "Culto del Sole" || capo.religione === "Culto delle Ombre") &&
       !luoghiCultoRifiutati.includes(capo.religione as ReligioneConCulto)
     ) {
       disponibili.push({
@@ -151,7 +151,7 @@ export function calcolaEventiUI(input: EventiUIInput): {
     nome: "Matrimonio",
     emoji: "💒",
     descrizione: puòMatrimonio
-      ? "Una coppia compatibile con amicizia ≥90 può chiedere di sposarsi allo Skip Mese."
+      ? "Una coppia compatibile con amicizia ≥90 può chiedere di sposarsi a fine mese."
       : "Serve una coppia con amicizia ≥90 e compatibile (orientamento/sesso).",
     stato: puòMatrimonio ? "disponibile" : "possibile"
   };
@@ -176,7 +176,7 @@ export function calcolaEventiUI(input: EventiUIInput): {
       id: "nascita",
       nome: "Nascita",
       emoji: "👶",
-      descrizione: "Le coppie sposate possono concepire allo Skip Mese (Legge sulle Nascite attiva).",
+      descrizione: "Le coppie sposate possono concepire a fine mese (Legge sulle Nascite attiva).",
       stato: "disponibile"
     });
   } else {

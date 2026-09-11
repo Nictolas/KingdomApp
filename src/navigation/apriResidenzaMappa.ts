@@ -49,12 +49,12 @@ export function apriResidenzaAbitante(
         return;
       }
       impostaAperturaResidenzaAnchor(anchor);
-      router.push("/");
+      router.navigate("/");
       return;
     }
   }
 
   onCloseProfilo();
   impostaAperturaResidenzaPerAbitante(abitanteId);
-  router.push("/");
+  router.navigate("/");
 }

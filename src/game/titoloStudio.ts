@@ -16,7 +16,7 @@ export function getTitoloStudioAbitante(
   return "Superiore";
 }
 
-/** Assegna `titoloStudio` in base all'età (generazione partita / nuovi coloni). */
+/** Assegna `titoloStudio` in base all'età (generazione partita / nuovi sudditi). */
 export function inferTitoloStudioPerEta(eta: number, etaMinimaLavoro: number, razza?: Abitante["razza"]): TitoloDiStudio | undefined {
   if (razza === "Golem") return undefined;
   if (eta < 6) return "Asilo";

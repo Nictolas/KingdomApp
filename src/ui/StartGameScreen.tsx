@@ -1,28 +1,45 @@
 import React, { useState } from "react";
 import { ActivityIndicator, Modal, Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
 
+export type ModalitaGiocoScelta = "creativa" | "avventura";
+
 type Props = {
   loading: boolean;
   hasSave: boolean;
   error: string | null;
+  /** Testo sotto lo spinner (es. caricamento personaggi). */
+  loadingLabel?: string | null;
   onContinue: () => void;
-  onNewGame: () => void;
+  onNewGame: (modalita: ModalitaGiocoScelta) => void;
 };
 
-export function StartGameScreen({ loading, hasSave, error, onContinue, onNewGame }: Props) {
+export function StartGameScreen({
+  loading,
+  hasSave,
+  error,
+  loadingLabel,
+  onContinue,
+  onNewGame
+}: Props) {
   const [confirmationVisible, setConfirmationVisible] = useState(false);
+  const [modalitaVisible, setModalitaVisible] = useState(false);
 
   const handleNewGame = () => {
     if (hasSave) {
       setConfirmationVisible(true);
       return;
     }
-    onNewGame();
+    setModalitaVisible(true);
   };
 
   const confirmNewGame = () => {
     setConfirmationVisible(false);
-    onNewGame();
+    setModalitaVisible(true);
+  };
+
+  const scegliModalita = (modalita: ModalitaGiocoScelta) => {
+    setModalitaVisible(false);
+    onNewGame(modalita);
   };
 
   return (
@@ -31,10 +48,21 @@ export function StartGameScreen({ loading, hasSave, error, onContinue, onNewGame
         <View style={styles.card}>
           <Text style={styles.title}>MyKingdom</Text>
           <Text style={styles.subtitle}>Regno Medievale Fantasy</Text>
-          {loading ? <ActivityIndicator color="#93c5fd" /> : (
+          {loading ? (
+            <View style={styles.loadingBlock}>
+              <ActivityIndicator color="#93c5fd" />
+              {loadingLabel ? <Text style={styles.loadingLabel}>{loadingLabel}</Text> : null}
+            </View>
+          ) : (
             <>
-              {hasSave && <Pressable style={styles.primary} onPress={onContinue}><Text style={styles.buttonText}>Continua</Text></Pressable>}
-              <Pressable style={styles.secondary} onPress={handleNewGame}><Text style={styles.buttonText}>Nuova partita</Text></Pressable>
+              {hasSave && (
+                <Pressable style={styles.primary} onPress={onContinue}>
+                  <Text style={styles.buttonText}>Continua</Text>
+                </Pressable>
+              )}
+              <Pressable style={styles.secondary} onPress={handleNewGame}>
+                <Text style={styles.buttonText}>Nuova partita</Text>
+              </Pressable>
             </>
           )}
           {error && <Text style={styles.error}>{error}</Text>}
@@ -64,6 +92,46 @@ export function StartGameScreen({ loading, hasSave, error, onContinue, onNewGame
           </View>
         </View>
       </Modal>
+
+      <Modal
+        animationType="fade"
+        transparent
+        visible={modalitaVisible}
+        onRequestClose={() => setModalitaVisible(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.confirmationCard}>
+            <Text style={styles.confirmationTitle}>Modalità di gioco</Text>
+            <Text style={styles.confirmationText}>
+              Scegli come vuoi giocare. Potrai cambiare modalità anche in seguito.
+            </Text>
+
+            <Pressable style={styles.modalitaBtn} onPress={() => scegliModalita("creativa")}>
+              <Text style={styles.modalitaEmoji}>🎨</Text>
+              <View style={styles.modalitaTesto}>
+                <Text style={styles.modalitaTitolo}>Creativa</Text>
+                <Text style={styles.modalitaDesc}>
+                  Colonia ricca fin dall&apos;inizio (anche Scuola e Lazzaretto). Nessun blocco, libertà totale.
+                </Text>
+              </View>
+            </Pressable>
+
+            <Pressable style={styles.modalitaBtn} onPress={() => scegliModalita("avventura")}>
+              <Text style={styles.modalitaEmoji}>⚔️</Text>
+              <View style={styles.modalitaTesto}>
+                <Text style={styles.modalitaTitolo}>Avventura</Text>
+                <Text style={styles.modalitaDesc}>
+                  Pochi abitanti e pochi edifici (Castello, Capanna, Serra, Porto sul mare). Sblocca il resto avanzando.
+                </Text>
+              </View>
+            </Pressable>
+
+            <Pressable style={styles.cancelButtonFull} onPress={() => setModalitaVisible(false)}>
+              <Text style={styles.buttonText}>Annulla</Text>
+            </Pressable>
+          </View>
+        </View>
+      </Modal>
     </>
   );
 }
@@ -73,6 +141,8 @@ const styles = StyleSheet.create({
   card: { width: "88%", maxWidth: 420, padding: 28, gap: 12, borderRadius: 18, backgroundColor: "#0f172a" },
   title: { color: "#fff", fontSize: 32, fontWeight: "800", textAlign: "center" },
   subtitle: { color: "#94a3b8", fontSize: 15, textAlign: "center", marginBottom: 16 },
+  loadingBlock: { alignItems: "center", gap: 12, paddingVertical: 8 },
+  loadingLabel: { color: "#94a3b8", fontSize: 13, textAlign: "center" },
   primary: { backgroundColor: "#2563eb", padding: 14, borderRadius: 10 },
   secondary: { backgroundColor: "#334155", padding: 14, borderRadius: 10 },
   buttonText: { color: "#fff", fontWeight: "700", textAlign: "center" },
@@ -98,5 +168,20 @@ const styles = StyleSheet.create({
   confirmationText: { color: "#cbd5e1", fontSize: 15, lineHeight: 22, textAlign: "center" },
   confirmationActions: { flexDirection: "row", gap: 10 },
   cancelButton: { flex: 1, padding: 14, borderRadius: 10, backgroundColor: "#334155" },
-  destructiveButton: { flex: 1, padding: 14, borderRadius: 10, backgroundColor: "#b91c1c" }
+  cancelButtonFull: { padding: 14, borderRadius: 10, backgroundColor: "#334155" },
+  destructiveButton: { flex: 1, padding: 14, borderRadius: 10, backgroundColor: "#b91c1c" },
+  modalitaBtn: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 14,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "#475569",
+    backgroundColor: "#1e293b"
+  },
+  modalitaEmoji: { fontSize: 28 },
+  modalitaTesto: { flex: 1, gap: 4 },
+  modalitaTitolo: { color: "#fff", fontSize: 17, fontWeight: "700" },
+  modalitaDesc: { color: "#94a3b8", fontSize: 13, lineHeight: 18 }
 });

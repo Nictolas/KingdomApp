@@ -15,8 +15,8 @@ export type GeneraImmigratiPropostiResult = {
 
 const FAZIONI_RUOLO = ["Amministrazione", "Lavoratori", "Scienziati", "Esploratori", "Intellettuali", "Ambientalisti"];
 const LAVORI = [
-  "Tecnico", "Ricercatore", "Ingegnere", "Medico", "Agricoltore",
-  "Meccanico", "Esploratore", "Comunicatore", "Sicurezza", "Amministratore"
+  "Ricercatore", "Medico", "Agricoltore", "Taglialegna", "Fabbro", "Minatore",
+  "Esploratore", "Sicurezza", "Mago"
 ];
 const PERSONALITÀ = [
   "Curioso", "Lavoratore", "Analitico", "Creativo",
@@ -25,7 +25,7 @@ const PERSONALITÀ = [
 const RAZZE_IMMIGRATI = [...RAZZE_ABITANTI];
 const EMOJI_UMANI_M: string[] = ["👨", "👨‍🔬", "👨‍💼", "👨‍🔧", "👨‍🌾"];
 const EMOJI_UMANI_F: string[] = ["👩", "👩‍🔬", "👩‍💼", "👩‍🔧", "👩‍🌾"];
-const RELIGIONI: Abitante["religione"][] = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto degli Alieni"];
+const RELIGIONI: Abitante["religione"][] = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto delle Ombre"];
 
 /**
  * Genera 0-5 nuovi abitanti proposti per immigrazione (usa Math.random).
@@ -57,6 +57,12 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
         : [FAZIONI_RUOLO[Math.floor(Math.random() * FAZIONI_RUOLO.length)], "Immigrati"];
 
     const lavoro = LAVORI[Math.floor(Math.random() * LAVORI.length)];
+    const èNobile = razza !== "Golem" && Math.random() < 0.12;
+    const fazioniImmigrato = èNobile
+      ? [...fazioniIniziali.filter((f) => f !== "Cittadini"), "Immigrati"].filter(
+          (f, i, arr) => arr.indexOf(f) === i
+        )
+      : fazioniIniziali;
     nuoviAbitanti.push(abitanteConInventarioIniziale({
       id: nextId + i,
       nome,
@@ -70,13 +76,12 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
       alimentazione: alimentazioneCasuale(),
       amici: [],
       rivali: [],
-      fazioni: fazioniIniziali,
+      fazioni: fazioniImmigrato,
       peso: 41 + Math.floor(Math.random() * 40),
       salute: 50 + Math.floor(Math.random() * 50),
       crediti: 0,
       reddito: lavoro === "Disoccupato" ? 0 : redditoMensileLavoroDefault(),
       spese: 0,
-      lealtà: 30 + Math.floor(Math.random() * 50),
       paura: Math.floor(Math.random() * 40),
       felicità: 40 + Math.floor(Math.random() * 50),
       religione: RELIGIONI[Math.floor(Math.random() * RELIGIONI.length)],
@@ -84,7 +89,8 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
       specie: isUmano ? "umano" : "alieno",
       aspetto: generaAspettoCasuale(razza, Math.random, { sesso }),
       sesso,
-      specializzazione: specializzazioneCasuale()
+      specializzazione: specializzazioneCasuale(),
+      casta: èNobile ? "Nobile" : "Cittadino"
     }));
   }
 

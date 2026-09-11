@@ -52,7 +52,7 @@ export default function PenaDiMorteScreen() {
         <View style={styles.descCard}>
           <Text style={styles.descTitle}>Descrizione</Text>
           <Text style={styles.descText}>
-            La pena di morte consente l'esecuzione capitale per crimini gravi commessi nella colonia. Questa legge è
+            La pena di morte consente l'esecuzione capitale per crimini gravi commessi nel regno. Questa legge è
             controversa e può avere conseguenze diplomatiche.
           </Text>
         </View>

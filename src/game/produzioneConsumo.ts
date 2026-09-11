@@ -1,5 +1,5 @@
 import type { Abitante, Edificio, Risorsa } from "../types";
-import { getConsumoCibo, getConsumoAcqua } from "./ciboConsumo";
+import { getConsumoCibo } from "./ciboConsumo";
 import { calcolaProduzioneSerraMensile } from "./produzioneSerra";
 import { getProduttivitaEffettiva } from "./bisogni";
 
@@ -26,6 +26,7 @@ export function calcolaProduzioneConsumoPuro({
 
   // Calcola produzione dagli edifici
   edifici.forEach((edificio) => {
+    if (edificio.nome === "Miniera") return;
     if (edificio.stato === "Operativo" && edificio.produzione) {
       const produzioni = edificio.produzione.split(",").map((p) => p.trim());
       produzioni.forEach((prod) => {
@@ -78,17 +79,6 @@ export function calcolaProduzioneConsumoPuro({
     risorse.forEach((r) => {
       if (r.nome.toLowerCase().includes("cibo")) {
         variazioni[r.nome] = (variazioni[r.nome] || 0) - consumoCibo;
-      }
-    });
-  });
-
-  // Consumo acqua potabile: ogni abitante (esclusi i Robot) consuma 2-5 m³/mese
-  abitanti.forEach((abitante) => {
-    if (abitante.razza === "Golem") return;
-    const consumoAcqua = getConsumoAcqua(abitante);
-    risorse.forEach((r) => {
-      if (r.nome.toLowerCase().includes("acqua")) {
-        variazioni[r.nome] = (variazioni[r.nome] || 0) - consumoAcqua;
       }
     });
   });

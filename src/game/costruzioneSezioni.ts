@@ -1,9 +1,16 @@
+import { sezioniFasciaCostruzione } from "./edificiPrezzi";
+
 /** Sezioni del catalogo Costruisci sulla mappa (ordine di visualizzazione). */
 export const SEZIONI_COSTRUZIONE: { titolo: string; nomi: string[] }[] = [
   {
+    titolo: "Base",
+    nomi: ["Capanna", "Serra"]
+  },
+  {
     titolo: "Ordine",
     nomi: ["Ufficio Edile", "Tribunale", "Campo di Lavoro", "Campo di Sterminio", "Centrale", "Caserma"]
-  }
+  },
+  ...sezioniFasciaCostruzione()
 ];
 
 export type TerrenoCostruzioneKind = "acqua" | "spiaggia" | "erba";

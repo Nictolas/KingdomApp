@@ -18,7 +18,6 @@ export function createSaveEnvelope() {
     salute: 90,
     reddito: 30,
     spese: 0,
-    lealtà: 100,
     paura: 0,
     felicità: 80,
     religione: "Ateo",
@@ -35,7 +34,7 @@ export function createSaveEnvelope() {
   };
   const edificio = {
     id: 1,
-    nome: "Centro di Comando",
+    nome: "Castello",
     emoji: "🏛️",
     tipo: "Amministrazione",
     descrizione: "Centro",
@@ -133,7 +132,7 @@ export function createSaveEnvelope() {
         luoghiCultoPendentiMappa: []
       },
       map: {
-        edificiInMappa: { 10: { id: 1, nome: "Centro di Comando", emoji: "🏛️", edificioGlobaleId: 1 } },
+        edificiInMappa: { 10: { id: 1, nome: "Castello", emoji: "🏰", edificioGlobaleId: 1 } },
         terrenoInMappa: { 11: "river" },
         decorazioniInMappa: { 12: "🌳" },
         residenzeMappa: { 10: [1] }

@@ -70,7 +70,10 @@ export default function RootLayout() {
         <StatusBar style="light" />
         <Stack
           screenOptions={{
-            headerShown: false
+            headerShown: false,
+            // Tiene la mappa (Phaser) montata sotto le altre schermate, evitando reload abitanti.
+            freezeOnBlur: true,
+            detachInactiveScreens: false
           }}
         />
       </GameProvider>

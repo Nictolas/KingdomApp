@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { elencoPostazioniLavoroOrdinato } from "../src/game/edificiLavoro";
 import { getServiDellaGlebaAssegnabili } from "../src/game/edificiLavoro";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
+import { AbitanteAvatarPreview } from "../src/ui/AbitanteAvatarPreview";
 
 function titoloEdificio(nome: string, edificioId: number, duplicatiPerNome: Map<string, number>): string {
   const count = duplicatiPerNome.get(nome) ?? 1;
@@ -110,7 +110,7 @@ export default function PostazioniLavoroScreen() {
               ) : (
                 serviAssegnabili.map((s) => (
                   <Pressable key={s.id} style={styles.modalItem} onPress={() => assegnaServo(s.id)}>
-                    <Text style={styles.modalItemEmoji}>{getEmojiAbitante(s)}</Text>
+                    <AbitanteAvatarPreview abitante={s} size={32} />
                     <View style={styles.modalItemText}>
                       <Text style={styles.modalItemNome}>{s.nome}</Text>
                       <Text style={styles.modalItemMeta}>Comp. {s.competenza}% · {s.lavoro}</Text>

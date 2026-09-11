@@ -5,9 +5,9 @@ import { useGameContext } from "../src/context/GameContext";
 import { esisteCoppiaMatrimonioPossibile } from "../src/game/avanzaMese";
 
 const MATRIMONIO_DESC_POSSIBILE =
-  "Una coppia con amicizia ≥90 e compatibile (orientamento/sesso) può chiedere di sposarsi allo Skip Mese.";
+  "Una coppia con amicizia ≥90 e compatibile (orientamento/sesso) può chiedere di sposarsi a fine mese.";
 const MATRIMONIO_DESC_NON_PRONTO =
-  "Quando una coppia avrà amicizia ≥90 e sarà compatibile (orientamento/sesso), potrà chiedere di sposarsi allo Skip Mese.";
+  "Quando una coppia avrà amicizia ≥90 e sarà compatibile (orientamento/sesso), potrà chiedere di sposarsi a fine mese.";
 
 const NASCITA_DESC_POSSIBILE =
   "Le coppie sposate possono concepire (Legge sulle Nascite ≠ Nessuna). Dopo 9 mesi nasce un figlio; avviso quando qualcuna è incinta.";
@@ -66,14 +66,14 @@ export default function EventiScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.subtitle}>
-          Eventi possibili o in corso nella colonia. Qui trovi il catalogo degli eventi che possono verificarsi o che sono attivi.
+          Eventi possibili o in corso nel regno. Qui trovi il catalogo degli eventi che possono verificarsi o che sono attivi.
         </Text>
 
         {pendingAssimilazione != null && pendingAssimilazione > 0 && (
           <View style={styles.assimilazioneBanner}>
             <Text style={styles.assimilazioneTitle}>🤝 Assimilazione</Text>
             <Text style={styles.assimilazioneText}>
-              Alcuni nativi ({pendingAssimilazione}) vogliono aggiungersi alla colonia. Vuoi accettarli?
+              Alcuni nativi ({pendingAssimilazione}) vogliono aggiungersi al regno. Vuoi accettarli?
             </Text>
             <View style={styles.assimilazioneButtons}>
               <Pressable style={[styles.assimilazioneBtn, styles.assimilazioneBtnAccetta]} onPress={accettaAssimilazione}>

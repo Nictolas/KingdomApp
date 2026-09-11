@@ -26,7 +26,7 @@ export const eventoGuerraCivile: EventoDef = {
   nome: "Guerra Civile",
   emoji: "⚔️",
   descrizione:
-    "I Lealisti sono diventati la maggioranza (50%+1) della colonia. Scoppia un conflitto interno tra lealisti e rivoluzionari. La Caserma (3+ addetti) e la Soddisfazione Sicurezza bloccano l'evento o ne mitigano gli effetti.",
+    "I Lealisti sono diventati la maggioranza (50%+1) del regno. Scoppia un conflitto interno tra lealisti e rivoluzionari. La Caserma (3+ addetti) e la Soddisfazione Sicurezza bloccano l'evento o ne mitigano gli effetti.",
   durataMesi: 3,
   probabilità: 0.5,
   condizione: (abitanti, _risorse, edifici, _p, _d, _c, soddisfazioneFazioni) => {
@@ -50,13 +50,11 @@ export const eventoGuerraCivile: EventoDef = {
     const inCaserma = caserma?.abitantiAssegnati?.length ?? 0;
     const mitigazione = inCaserma >= CASERMA_MIN_MITIGAZIONE;
 
-    // Malus: mitigato (-2 felicità, -1 lealtà) o pieno (-4, -3)
+    // Malus felicità: mitigato −2 o pieno −4
     const deltaFelicità = mitigazione ? -2 : -4;
-    const deltaLealtà = mitigazione ? -1 : -3;
     abitanti.forEach((a) => {
       if (a.razza === "Golem") return;
       (a as Abitante).felicità = Math.max(1, (a as Abitante).felicità + deltaFelicità);
-      (a as Abitante).lealtà = Math.max(0, (a as Abitante).lealtà + deltaLealtà);
     });
 
     // Vittime: pool Lealisti e Sicurezza (escluso il Re, id 1)

@@ -4,6 +4,8 @@ import type { PenaReatiConfig } from "../game/reati";
 import type { ReligioneConCulto } from "../game/luogoCulto";
 import type { RichiestaInAttesa } from "../game/richieste";
 import type { VoceInventario } from "../game/inventario";
+import type { RegistrazioneScambio } from "../game/registrazioniScambi";
+import type { RegistrazioneVenditaEmporio } from "../game/emporioVendita";
 import { normalizeGameSave } from "./saveValidation.ts";
 import type { GameSaveV1, SaveGamePhase, ScaglioneSalvato } from "./saveTypes.ts";
 
@@ -12,6 +14,8 @@ export type PersistableGameState = {
   gamePhase: SaveGamePhase;
   introductionCompleted: boolean;
   diarioInizioVisto: boolean;
+  /** Opzionale: salvataggi precedenti non lo hanno. */
+  introConsigliereVisto?: boolean;
   abitanti: Abitante[];
   abitantiProposti: Abitante[];
   nextId: number;
@@ -21,6 +25,8 @@ export type PersistableGameState = {
   risorse: Risorsa[];
   inventarioGiocatore: VoceInventario[];
   inventarioMensaByEdificioId: Record<number, VoceInventario[]>;
+  /** Scorte alimenti acquistate dai Raccoglitori (chiave = id Emporio). */
+  inventarioEmporioByEdificioId?: Record<number, VoceInventario[]>;
   moneteGiocatore: number;
   prezzoResidenze: Record<string, number>;
   mese: number;
@@ -34,12 +40,16 @@ export type PersistableGameState = {
   tipoTassaReddito: "flat" | "scaglioni";
   flatTaxPercentuale: number;
   scaglioniConfig: ScaglioneSalvato[];
+  tassaPatrimonioPercentuale?: number;
+  ivaPercentuale?: number;
   politicaNascite: "figlio-unico" | "incentivi" | "nessuna";
   punteggioSanzioni: number;
   penaDiMorteAttiva: boolean;
   penaReati: PenaReatiConfig;
   politicaReligiosa: "ateismo-stato" | "religione-stato" | "liberta-culto";
   religioneDiStato: Abitante["religione"] | null;
+  /** Religioni create dal giocatore (opzionale per salvataggi vecchi). */
+  religioniCustom?: import("../game/fedeleCulto").ReligioneCustom[];
   leggeRazzialeAttiva: boolean;
   razzaCampoLavoro: Razza | null;
   razzaCampoSterminio: Razza | null;
@@ -59,16 +69,30 @@ export type PersistableGameState = {
   ordiniMercato: OrdineMercato[];
   eventiInCorso: EventoInCorso[];
   soddisfazioneFazioni: Record<string, number>;
+  modalitaRe: "nel_castello" | "a_giro" | "in_visita";
+  edificioVisitaReId: number | null;
+  popolaritaRe: number;
+  mesiConsecutiviNelCastello: number;
+  faseDisordine: "nessuna" | "protesta" | "ribellione";
+  avvisoReAssenteEmesso: boolean;
   pendingAssimilazione: number | null;
   pendingMatrimonio: GameSaveV1["events"]["pendingMatrimonio"];
   messaggioEmigrazione: string | null;
   diarioRighe: string[];
+  /** Log vendite Raccoglitore → Emporio (ultime N). Opzionale per salvataggi vecchi. */
+  registrazioniEmporio?: RegistrazioneVenditaEmporio[];
+  /** Log scambi commerciali moneta↔oggetto (Emporio, Bar, Negozio, …). */
+  registrazioniScambi?: RegistrazioneScambio[];
   capoReligiosoSole: number | null;
   capoReligiosoAlieni: number | null;
   pendingRichiestaLuogoCulto: GameSaveV1["events"]["pendingRichiestaLuogoCulto"];
   richiesteInAttesa: RichiestaInAttesa[];
   luoghiCultoRifiutati: ReligioneConCulto[];
   luoghiCultoPendentiMappa: GameSaveV1["events"]["luoghiCultoPendentiMappa"];
+  obiettiviCompletati: string[];
+  /** Colture Serra sbloccate (Avventura); in Creativa tipicamente tutte. */
+  coltureSerraSbloccate: string[];
+  modalitaGioco: "creativa" | "avventura";
   mappa: MappaRuntimeState;
 };
 
@@ -77,6 +101,7 @@ export function gameStateToGameSaveV1(state: PersistableGameState): GameSaveV1 {
     gamePhase: state.gamePhase,
     introductionCompleted: state.introductionCompleted,
     diarioInizioVisto: state.diarioInizioVisto,
+    introConsigliereVisto: state.introConsigliereVisto ?? state.diarioInizioVisto,
     population: {
       abitanti: state.abitanti,
       abitantiProposti: state.abitantiProposti,
@@ -89,6 +114,7 @@ export function gameStateToGameSaveV1(state: PersistableGameState): GameSaveV1 {
       risorse: state.risorse,
       inventarioGiocatore: state.inventarioGiocatore,
       inventarioMensaByEdificioId: state.inventarioMensaByEdificioId,
+      inventarioEmporioByEdificioId: state.inventarioEmporioByEdificioId ?? {},
       moneteGiocatore: state.moneteGiocatore,
       prezzoResidenze: state.prezzoResidenze
     },
@@ -108,12 +134,15 @@ export function gameStateToGameSaveV1(state: PersistableGameState): GameSaveV1 {
       tipoTassaReddito: state.tipoTassaReddito,
       flatTaxPercentuale: state.flatTaxPercentuale,
       scaglioniConfig: state.scaglioniConfig,
+      tassaPatrimonioPercentuale: state.tassaPatrimonioPercentuale,
+      ivaPercentuale: state.ivaPercentuale,
       politicaNascite: state.politicaNascite,
       punteggioSanzioni: state.punteggioSanzioni,
       penaDiMorteAttiva: state.penaDiMorteAttiva,
       penaReati: state.penaReati,
       politicaReligiosa: state.politicaReligiosa,
       religioneDiStato: state.religioneDiStato,
+      religioniCustom: state.religioniCustom ?? [],
       leggeRazzialeAttiva: state.leggeRazzialeAttiva,
       razzaCampoLavoro: state.razzaCampoLavoro,
       razzaCampoSterminio: state.razzaCampoSterminio,
@@ -135,17 +164,28 @@ export function gameStateToGameSaveV1(state: PersistableGameState): GameSaveV1 {
       ordiniMercato: state.ordiniMercato,
       eventiInCorso: state.eventiInCorso,
       soddisfazioneFazioni: state.soddisfazioneFazioni,
+      modalitaRe: state.modalitaRe,
+      edificioVisitaReId: state.edificioVisitaReId,
+      popolaritaRe: state.popolaritaRe,
+      mesiConsecutiviNelCastello: state.mesiConsecutiviNelCastello,
+      faseDisordine: state.faseDisordine,
+      avvisoReAssenteEmesso: state.avvisoReAssenteEmesso,
       pendingAssimilazione: state.pendingAssimilazione,
       pendingMatrimonio: state.pendingMatrimonio,
       messaggioEmigrazione: state.messaggioEmigrazione,
       diarioRighe: state.diarioRighe,
+      registrazioniEmporio: [],
+      registrazioniScambi: state.registrazioniScambi ?? [],
       capoReligiosoSole: state.capoReligiosoSole,
       capoReligiosoAlieni: state.capoReligiosoAlieni,
       pendingRichiestaLuogoCulto: state.pendingRichiestaLuogoCulto,
       richiesteInAttesa: state.richiesteInAttesa,
       luoghiCultoRifiutati: state.luoghiCultoRifiutati,
-      luoghiCultoPendentiMappa: state.luoghiCultoPendentiMappa
+      luoghiCultoPendentiMappa: state.luoghiCultoPendentiMappa,
+      obiettiviCompletati: state.obiettiviCompletati,
+      coltureSerraSbloccate: state.coltureSerraSbloccate
     },
+    modalitaGioco: state.modalitaGioco,
     map: state.mappa
   });
 }
@@ -156,6 +196,7 @@ export function gameSaveV1ToGameState(save: GameSaveV1): PersistableGameState {
     gamePhase: normalized.gamePhase,
     introductionCompleted: normalized.introductionCompleted,
     diarioInizioVisto: normalized.diarioInizioVisto,
+    introConsigliereVisto: normalized.introConsigliereVisto ?? normalized.diarioInizioVisto,
     ...normalized.population,
     ...normalized.colony,
     mese: normalized.calendar.mese,
@@ -166,7 +207,17 @@ export function gameSaveV1ToGameState(save: GameSaveV1): PersistableGameState {
     ...normalized.simulationCursors,
     ...normalized.policies,
     nudismoAttivo: normalized.policies.nudismoAttivo ?? false,
+    religioniCustom: normalized.policies.religioniCustom ?? [],
     ...normalized.events,
+    modalitaRe: normalized.events.modalitaRe ?? "nel_castello",
+    edificioVisitaReId: normalized.events.edificioVisitaReId ?? null,
+    popolaritaRe: normalized.events.popolaritaRe ?? 50,
+    mesiConsecutiviNelCastello: normalized.events.mesiConsecutiviNelCastello ?? 0,
+    faseDisordine: normalized.events.faseDisordine ?? "nessuna",
+    avvisoReAssenteEmesso: normalized.events.avvisoReAssenteEmesso ?? false,
+    obiettiviCompletati: normalized.events.obiettiviCompletati ?? [],
+    coltureSerraSbloccate: normalized.events.coltureSerraSbloccate ?? [],
+    modalitaGioco: normalized.modalitaGioco ?? "avventura",
     mappa: normalized.map
   };
 }

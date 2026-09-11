@@ -33,6 +33,9 @@ function nearestFreeCell(
  * Assegna una cella esclusiva a ogni personaggio visibile. L'ordine ricevuto è
  * la priorità stabile; eventuali duplicati vengono spostati sulla cella libera
  * e percorribile più vicina, senza alterare lo stato persistito.
+ *
+ * Eccezione: uscita da edificio — se la cella è interna (non walkable) e c’è un path,
+ * si mantiene così Phaser può animare interior → porta.
  */
 export function assignUniqueCharacterCells<T extends CharacterCellLike>(
   characters: readonly T[],
@@ -42,6 +45,13 @@ export function assignUniqueCharacterCells<T extends CharacterCellLike>(
 ): T[] {
   const occupied = new Set<number>();
   return characters.map((character) => {
+    const exitingInterior =
+      !!character.path?.length && character.cell >= 0 && !isWalkable(character.cell);
+    if (exitingInterior) {
+      occupied.add(character.cell);
+      occupied.add(character.path![0]!);
+      return character;
+    }
     const cell = nearestFreeCell(character.cell, cols, rows, occupied, isWalkable);
     if (cell == null) return character;
     occupied.add(cell);

@@ -2,12 +2,40 @@ import React from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { leggiData } from "../src/kingdomData";
+import { useGameContext } from "../src/context/GameContext";
+import { resolveStatoLegge } from "../src/game/statoLeggi";
+import { tassaIdDaTitoloLegge, tasseSbloccate } from "../src/game/tasseSblocco";
 import type { Legge } from "../src/types";
 
 type LeggeConTema = Legge & { tema: string };
 
 export default function LeggiScreen() {
   const router = useRouter();
+  const {
+    penaDiMorteAttiva,
+    leggeRazzialeAttiva,
+    divietoEspatrioAttivo,
+    iusPrimaeNoctisAttivo,
+    coprifuocoAttivo,
+    nudismoAttivo,
+    tassaPatrimonioPercentuale,
+    ivaPercentuale,
+    obiettiviCompletati,
+    modalitaGioco
+  } = useGameContext();
+
+  const unlockTasse = tasseSbloccate(obiettiviCompletati, modalitaGioco);
+
+  const flagsStato = {
+    penaDiMorteAttiva,
+    leggeRazzialeAttiva,
+    divietoEspatrioAttivo,
+    iusPrimaeNoctisAttivo,
+    coprifuocoAttivo,
+    nudismoAttivo,
+    tassaPatrimonioPercentuale: unlockTasse.has("patrimonio") ? tassaPatrimonioPercentuale : 0,
+    ivaPercentuale: unlockTasse.has("iva") ? ivaPercentuale : 0
+  };
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -25,11 +53,12 @@ export default function LeggiScreen() {
   // Mappa emoji per le leggi
   const getEmojiLegge = (titolo: string): string => {
     const emojiMap: Record<string, string> = {
-      "Tassa sulla Produzione": "📊",
+      "Imposta sul Valore Aggiunto": "📊",
       "Tassa sul Patrimonio": "💎",
       "Tassa sul Reddito": "💰",
+      "Prelievo Forzoso": "🗡️",
       "Reddito di Cittadinanza": "🪙",
-      "Carta dei Diritti dei Coloni": "📜",
+      "Carta dei Diritti dei Sudditi": "📜",
       "Età minima sul lavoro": "👶",
       "Età pensionabile": "👴",
       "Pena di Morte": "⚰️",
@@ -51,14 +80,15 @@ export default function LeggiScreen() {
   // Aggiungi le leggi ai rispettivi temi (riorganizzate logicamente)
   leggiData.forEach((legge) => {
     if (
-      legge.titolo === "Tassa sulla Produzione" ||
+      legge.titolo === "Imposta sul Valore Aggiunto" ||
       legge.titolo === "Tassa sul Patrimonio" ||
       legge.titolo === "Tassa sul Reddito" ||
+      legge.titolo === "Prelievo Forzoso" ||
       legge.titolo === "Reddito di Cittadinanza"
     ) {
       leggiPerTema.Fiscale.push({ ...legge, tema: "Fiscale" });
     } else if (
-      legge.titolo === "Carta dei Diritti dei Coloni" ||
+      legge.titolo === "Carta dei Diritti dei Sudditi" ||
       legge.titolo === "Età minima sul lavoro" ||
       legge.titolo === "Età pensionabile" ||
       legge.titolo === "Pena di Morte" ||
@@ -84,15 +114,18 @@ export default function LeggiScreen() {
     }
   });
 
-  // Aggiungi Schiavitu come gestione separata
+  // Aggiungi Schiavitù come gestione separata
   const gestioneSpeciale = {
-    titolo: "Schiavitu",
-    descrizione: "Gestisci schiavisti e schiavi nella colonia",
+    titolo: "Schiavitù",
+    descrizione: "Gestisci schiavisti e schiavi nel regno",
     tema: "Gestione"
   };
 
   const getNavigationPath = (titolo: string) => {
     if (titolo === "Tassa sul Reddito") return "/tassa-reddito";
+    if (titolo === "Tassa sul Patrimonio") return "/tassa-patrimonio";
+    if (titolo === "Imposta sul Valore Aggiunto") return "/imposta-valore-aggiunto";
+    if (titolo === "Prelievo Forzoso") return "/prelievo-forzoso";
     if (titolo === "Legge sulle Nascite") return "/legge-nascite";
     if (titolo === "Pena di Morte") return "/pena-di-morte";
     if (titolo === "Religione") return "/religione";
@@ -105,7 +138,7 @@ export default function LeggiScreen() {
     if (titolo === "Legge sulle Famiglie") return "/legge-famiglie";
     if (titolo === "Divieto di espatrio") return "/divieto-espatrio";
     if (titolo === "Ius primae noctis") return "/ius-primae-noctis";
-    if (titolo === "Schiavitu") return "/schiavitu";
+    if (titolo === "Schiavitù" || titolo === "Schiavitu") return "/schiavitu";
     if (titolo === "Coprifuoco") return "/coprifuoco";
     if (titolo === "Nudismo") return "/nudismo";
     return null;
@@ -115,33 +148,43 @@ export default function LeggiScreen() {
     const isLegge = "id" in legge;
     const path = getNavigationPath(legge.titolo);
     const isClickable = path !== null;
+    const tassaId = isLegge ? tassaIdDaTitoloLegge(legge.titolo) : null;
+    const tassaBloccata =
+      tassaId != null && tassaId !== "prelievo" && !unlockTasse.has(tassaId);
+    const stato = isLegge && !tassaBloccata ? resolveStatoLegge(legge.titolo, flagsStato) : null;
+    const statoLabel = tassaBloccata ? "Bloccata" : stato;
 
     return (
       <Pressable
         key={isLegge ? legge.id : "schiavitu"}
-        style={styles.card}
+        style={[styles.card, tassaBloccata && styles.cardLocked]}
         onPress={isClickable ? () => router.push(path) : undefined}
         disabled={!isClickable}
       >
         <Text style={styles.cardTitle}>
-          <Text style={styles.cardEmoji}>{getEmojiLegge(legge.titolo)} </Text>
+          <Text style={styles.cardEmoji}>
+            {tassaBloccata ? "🔒 " : ""}
+            {getEmojiLegge(legge.titolo)}{" "}
+          </Text>
           {legge.titolo}
         </Text>
         <Text style={styles.line} numberOfLines={2}>
-          {legge.descrizione}
+          {tassaBloccata
+            ? "Sblocca avanzando negli Obiettivi (ramo fiscale)."
+            : legge.descrizione}
         </Text>
-        {isLegge && (
+        {isLegge && statoLabel && (
           <Text style={styles.chip}>
             Stato:{" "}
             <Text
               style={[
                 styles.chipValue,
-                legge.stato === "In vigore" && styles.chipActive,
-                legge.stato === "Proposta" && styles.chipProposed,
-                legge.stato === "Abrogata" && styles.chipRepealed
+                statoLabel === "In vigore" && styles.chipActive,
+                (statoLabel === "Proposta" || statoLabel === "Bloccata") && styles.chipProposed,
+                statoLabel === "Abrogata" && styles.chipRepealed
               ]}
             >
-              {legge.stato}
+              {statoLabel}
             </Text>
           </Text>
         )}
@@ -262,6 +305,10 @@ const styles = StyleSheet.create({
     borderColor: "rgba(148,163,184,0.6)",
     marginBottom: 4,
     minHeight: 70
+  },
+  cardLocked: {
+    opacity: 0.72,
+    borderColor: "rgba(100,116,139,0.5)"
   },
   cardTitle: {
     color: "#e5e7eb",

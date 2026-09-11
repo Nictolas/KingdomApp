@@ -6,7 +6,7 @@ export const eventoRivoluzionariDelusi: EventoDef = {
   nome: "Rivoluzionari delusi",
   emoji: "🔴",
   descrizione:
-    "I Rivoluzionari sono scontenti delle tue scelte (es. grazia all'Ex Governatore). Tensione e calo di lealtà tra i tuoi ex alleati.",
+    "I Rivoluzionari sono scontenti delle tue scelte (es. grazia all'Ex Governatore). Tensione e calo di felicità tra i tuoi ex alleati.",
   durataMesi: 2,
   probabilità: 0.6,
   condizione: (_abitanti, _risorse, _edifici, _punteggioSanzioni, _divietoEspatrio, _calcolaFelicità, soddisfazioneFazioni) => {
@@ -17,7 +17,6 @@ export const eventoRivoluzionariDelusi: EventoDef = {
   applicaMensile: (_r, abitanti) => {
     abitanti.forEach((a) => {
       if (a.fazioni?.includes("Rivoluzionari")) {
-        (a as Abitante).lealtà = Math.max(0, (a as Abitante).lealtà - 5);
         (a as Abitante).felicità = Math.max(1, (a as Abitante).felicità - 3);
       }
     });

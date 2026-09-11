@@ -13,7 +13,8 @@ import {
 import { formatOrologioGioco } from "../../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../../src/hooks/useOrologioGioco";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../../src/game/edificiLavoro";
-import { getEmojiAbitante } from "../../src/utils/getEmojiAbitante";
+import { getStipendioMoneteGiornaliero, stipendioGiornalieroToPersistito } from "../../src/game/edificiPubblici";
+import { AbitanteAvatarPreview } from "../../src/ui/AbitanteAvatarPreview";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../../src/types";
 
@@ -157,7 +158,7 @@ export default function MensaScreenById() {
           {affamati.length > 0 ? (
             affamati.map((a) => (
               <View key={a.id} style={styles.row}>
-                <Text style={styles.emoji}>{getEmojiAbitante(a)}</Text>
+                <AbitanteAvatarPreview abitante={a} />
                 <Text style={styles.nome} numberOfLines={1}>
                   {a.nome}
                 </Text>
@@ -173,7 +174,7 @@ export default function MensaScreenById() {
           {addetti.length > 0 ? (
             addetti.map((a) => (
               <View key={a.id} style={styles.row}>
-                <Text style={styles.emoji}>{getEmojiAbitante(a)}</Text>
+                <AbitanteAvatarPreview abitante={a} />
                 <Text style={styles.nome} numberOfLines={1}>
                   {a.nome}
                 </Text>
@@ -193,13 +194,23 @@ export default function MensaScreenById() {
         </View>
 
         <View style={styles.stipendioCard}>
-          <Text style={styles.sectionTitle}>Stipendio mensile per addetto</Text>
+          <Text style={styles.sectionTitle}>Stipendio giornaliero per addetto</Text>
           <TextInput
             style={styles.stipendioInput}
             keyboardType="numeric"
-            defaultValue={String(mensa.stipendioPerLavoratore ?? 0)}
-            onEndEditing={(e) => setStipendioEdificio(edificioId, parseInt(e.nativeEvent.text, 10) || 0)}
+            value={String(getStipendioMoneteGiornaliero(mensa))}
+            onChangeText={(text) => {
+              const n = parseInt(text.replace(/[^0-9]/g, ""), 10);
+              setStipendioEdificio(edificioId, stipendioGiornalieroToPersistito(isNaN(n) ? 0 : n));
+            }}
+            onEndEditing={(e) => {
+              const n = parseInt(e.nativeEvent.text.replace(/[^0-9]/g, ""), 10);
+              setStipendioEdificio(edificioId, stipendioGiornalieroToPersistito(isNaN(n) ? 0 : n));
+            }}
           />
+          <Text style={styles.infoSubtext}>
+            Totale: {getStipendioMoneteGiornaliero(mensa) * addettiIds.length} monete/giorno
+          </Text>
         </View>
       </ScrollView>
       </View>
@@ -224,9 +235,10 @@ export default function MensaScreenById() {
                     setDropdownVisible(false);
                   }}
                 >
-                  <Text>
-                    {getEmojiAbitante(a)} {a.nome}
-                  </Text>
+                  <View style={styles.modalRowContent}>
+                    <AbitanteAvatarPreview abitante={a} size={32} />
+                    <Text>{a.nome}</Text>
+                  </View>
                 </Pressable>
               ))}
             </ScrollView>
@@ -304,6 +316,7 @@ const styles = StyleSheet.create({
   },
   modalTitle: { fontSize: 17, fontWeight: "700", color: "#fff", marginBottom: 12 },
   modalRow: { paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: "#333" },
+  modalRowContent: { flexDirection: "row", alignItems: "center", gap: 8 },
   inventarioHint: { color: "#aaa", fontSize: 12, marginBottom: 12 },
   inventarioRow: {
     flexDirection: "row",

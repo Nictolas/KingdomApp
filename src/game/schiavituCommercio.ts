@@ -10,7 +10,7 @@ import { PREZZO_SCHIAVO_DEFAULT as PREZZO_SCHIAVO_CANONICO } from "./economiaPre
 /** Prezzo di riferimento per compravendita schiavi (monete). */
 export const PREZZO_SCHIAVO_DEFAULT = PREZZO_SCHIAVO_CANONICO;
 
-/** ID del giocatore (Re) per azioni sulla colonia. */
+/** ID del giocatore (Re) per azioni sul regno. */
 export const ID_GIOCATORE = 1;
 /** @deprecated Usa ID_GIOCATORE */
 export const ID_COMANDANTE = ID_GIOCATORE;
@@ -26,14 +26,14 @@ export function isSchiavoCommerciabile(abitante: Abitante): boolean {
   return casta === "Schiavo" || casta === "Servo della gleba";
 }
 
-/** Restituisce l'id del proprietario: `null` = colonia/giocatore, `number` = abitante, `undefined` = non schiavo. */
+/** Restituisce l'id del proprietario: `null` = regno/giocatore, `number` = abitante, `undefined` = non schiavo. */
 export function getProprietarioSchiavoId(schiavo: Abitante): number | null | undefined {
   if (!isSchiavoCommerciabile(schiavo)) return undefined;
   if (getCastaAbitante(schiavo) === "Servo della gleba") return null;
   return schiavo.schiavistaId ?? undefined;
 }
 
-/** Schiavi nell'inventario di un proprietario (colonia se `proprietarioId === null`). */
+/** Schiavi nell'inventario di un proprietario (regno se `proprietarioId === null`). */
 export function getSchiaviDiProprietario(abitanti: Abitante[], proprietarioId: number | null): Abitante[] {
   return abitanti.filter((a) => {
     const prop = getProprietarioSchiavoId(a);
@@ -42,7 +42,7 @@ export function getSchiaviDiProprietario(abitanti: Abitante[], proprietarioId: n
   });
 }
 
-/** Schiavi nella colonia (Servi della gleba). */
+/** Schiavi nel regno (Servi della gleba). */
 export function getSchiaviColonia(abitanti: Abitante[]): Abitante[] {
   return getSchiaviDiProprietario(abitanti, null);
 }
@@ -110,7 +110,7 @@ export type TrasferisciProprietaSchiavoInput = {
   abitanti: Abitante[];
   moneteGiocatore: number;
   schiavoId: number;
-  /** `null` = colonia/giocatore. */
+  /** `null` = regno/giocatore. */
   nuovoProprietarioId: number | null;
   prezzo: number;
 };
@@ -194,7 +194,7 @@ export function uccidiSchiavoPuro(
   return { ok: true, abitanti: nuoviAbitanti, edifici: nuoviEdifici };
 }
 
-/** Applica il reddito degli schiavi privati al padrone e restituisce il reddito da escludere dal bilancio colonia. */
+/** Applica il reddito degli schiavi privati al padrone e restituisce il reddito da escludere dal bilancio regno. */
 export function applicaRedditoSchiaviAlPadroni(
   abitanti: Abitante[]
 ): { abitanti: Abitante[]; redditoEsclusoDaColonia: number } {

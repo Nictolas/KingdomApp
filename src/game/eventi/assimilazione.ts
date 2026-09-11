@@ -5,7 +5,7 @@ export const eventoAssimilazione: EventoDef = {
   nome: "Assimilazione",
   emoji: "🤝",
   descrizione:
-    "Alcuni nativi (da 0 a 3) vogliono aggiungersi alla colonia. Vuoi accettarli? (Si verifica solo se la Felicità Media degli abitanti è superiore all'80%.)",
+    "Alcuni nativi (da 0 a 3) vogliono aggiungersi al regno. Vuoi accettarli? (Si verifica solo se la Felicità Media degli abitanti è superiore all'80%.)",
   durataMesi: 1,
   probabilità: 0.4,
   condizione: (abitanti) => {

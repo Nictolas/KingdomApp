@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
+import { AbitanteAvatarPreview } from "../src/ui/AbitanteAvatarPreview";
 import { RESIDENZE_CATALOGO } from "../src/data/residenzeData";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 import type { Abitante } from "../src/types";
@@ -33,7 +33,7 @@ export default function ResidenzeScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={true}>
         <Text style={styles.intro}>
-          Costi in crediti ed energia sono mensili (ogni Skip Mese). L'energia è consumata per ogni residente (es. Baracca 0, Dormitorio 1 MW/abitante). Colonia e catalogo unificati.
+          Costi in monete ed energia sono mensili (a fine mese). L'energia è consumata per ogni residente (es. Baracca 0, Dormitorio 1 MW/abitante). Regno e catalogo unificati.
         </Text>
 
         <View style={styles.sezione}>
@@ -101,7 +101,7 @@ export default function ResidenzeScreen() {
                   </View>
                   {ed != null && (
                     <>
-                      <Text style={styles.abitantiLabel}>Assegnati in colonia</Text>
+                      <Text style={styles.abitantiLabel}>Assegnati nel regno</Text>
                       <ScrollView style={styles.abitantiLista} nestedScrollEnabled showsVerticalScrollIndicator={true}>
                         {assegnati.length === 0 ? (
                           <Text style={styles.abitantiVuoto}>Nessuno</Text>
@@ -112,7 +112,7 @@ export default function ResidenzeScreen() {
                               style={styles.abitanteRiga}
                               onPress={() => setSelectedAbitante(a)}
                             >
-                              <Text style={styles.abitanteEmoji}>{getEmojiAbitante(a)}</Text>
+                              <AbitanteAvatarPreview abitante={a} size={32} />
                               <Text style={styles.abitanteNome} numberOfLines={1}>
                                 {a.nome}
                               </Text>
