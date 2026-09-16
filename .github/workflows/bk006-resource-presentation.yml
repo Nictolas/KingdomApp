@@ -56,7 +56,6 @@ jobs:
               'app/mappa.tsx',
               'src/game/mappaRisorsePresentazione.ts',
               'tests/mappa-risorse-presentazione.test.ts',
-              '.github/workflows/bk006-resource-presentation.yml',
           }
           tracked = set(filter(None, subprocess.check_output(['git','diff','--name-only']).decode().splitlines()))
           untracked = set(filter(None, subprocess.check_output(['git','ls-files','--others','--exclude-standard']).decode().splitlines()))
