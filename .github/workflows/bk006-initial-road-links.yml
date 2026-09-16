@@ -29,6 +29,7 @@ jobs:
 
       - name: Diff sanity
         run: |
+          git add -N src/game/mappaStradeIniziali.ts tests/mappa-strade-iniziali.test.ts
           git diff --check
           printf '%s\n' "$(git diff --name-only | sort)"
           test "$(git diff --name-only | sort)" = "$(printf '%s\n' app/mappa.tsx src/game/mappaStradeIniziali.ts tests/mappa-strade-iniziali.test.ts | sort)"
