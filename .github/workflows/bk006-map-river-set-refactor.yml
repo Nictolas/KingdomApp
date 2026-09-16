@@ -1,0 +1,153 @@
+name: BK-006 map river-set refactor
+
+on:
+  push:
+    branches:
+      - refactor/map-river-set-bk006
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/map-river-set-bk006
+          fetch-depth: 0
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply narrow river-set extraction
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          mappa = Path('app/mappa.tsx')
+          text = mappa.read_text()
+
+          old_import = '''import {
+            expandAxisToUnitSteps,
+            getIndiciCuscinoErba,
+            getIndiciFootprint,
+            getManhattanPathSegments,
+            getVicini8,
+            isAcqua
+          } from "../src/game/mappaGeometry";'''
+          new_import = '''import {
+            expandAxisToUnitSteps,
+            getIndiciCuscinoErba,
+            getIndiciFootprint,
+            getManhattanPathSegments,
+            getVicini8,
+            isAcqua,
+            riverSetDaTerreno
+          } from "../src/game/mappaGeometry";'''
+          if old_import not in text:
+              raise SystemExit('mappaGeometry import block not found')
+          text = text.replace(old_import, new_import, 1)
+
+          old_fn = '''/** Fiumi come insieme di indici (per regole di piazzamento con cuscino). */
+          function riverSetDaTerreno(terreno: Record<number, TerrenoType>): Set<number> {
+            const s = new Set<number>();
+            for (const [k, v] of Object.entries(terreno)) {
+              if (v === "river") s.add(Number(k));
+            }
+            return s;
+          }
+
+          '''
+          if old_fn not in text:
+              raise SystemExit('riverSetDaTerreno local function not found')
+          text = text.replace(old_fn, '', 1)
+          mappa.write_text(text)
+
+          geometry = Path('src/game/mappaGeometry.ts')
+          g = geometry.read_text()
+          header = '/** Pure grid geometry helpers shared by the map runtime. */\n'
+          if header not in g:
+              raise SystemExit('mappaGeometry header not found')
+          if 'import type { TerrenoType } from "./riverGeneration";' not in g:
+              g = g.replace(header, header + '\nimport type { TerrenoType } from "./riverGeneration";\n', 1)
+
+          marker = '''\n\n/** Adjacent orthogonal segments between cells on the same row or column. */\n'''
+          helper = '''\n\n/** River cell indices derived from the terrain lookup. */
+          export function riverSetDaTerreno(terreno: Record<number, TerrenoType>): Set<number> {
+            const out = new Set<number>();
+            for (const [key, value] of Object.entries(terreno)) {
+              if (value === "river") out.add(Number(key));
+            }
+            return out;
+          }
+          '''
+          if marker not in g:
+              raise SystemExit('geometry insertion marker not found')
+          if 'export function riverSetDaTerreno' not in g:
+              g = g.replace(marker, helper + marker, 1)
+          geometry.write_text(g)
+
+          test_file = Path('tests/mappa-geometry.test.ts')
+          t = test_file.read_text()
+          old_test_import = '''  getManhattanPathSegments,
+            getVicini8,
+            isAcqua
+          } from "../src/game/mappaGeometry.ts";'''
+          new_test_import = '''  getManhattanPathSegments,
+            getVicini8,
+            isAcqua,
+            riverSetDaTerreno
+          } from "../src/game/mappaGeometry.ts";'''
+          if old_test_import not in t:
+              raise SystemExit('test import block not found')
+          t = t.replace(old_test_import, new_test_import, 1)
+
+          test_marker = '''\n\ntest("expandAxisToUnitSteps restituisce solo segmenti adiacenti", () => {'''
+          test_block = '''\n\ntest("riverSetDaTerreno raccoglie solo le celle river", () => {
+            assert.deepEqual(
+              [...riverSetDaTerreno({ 0: "erba", 1: "river", 2: "sabbia", 8: "river" })],
+              [1, 8]
+            );
+            assert.deepEqual([...riverSetDaTerreno({ 0: "erba", 4: "sabbia" })], []);
+          });
+          '''
+          if test_marker not in t:
+              raise SystemExit('test insertion marker not found')
+          if 'riverSetDaTerreno raccoglie solo le celle river' not in t:
+              t = t.replace(test_marker, test_block + test_marker, 1)
+          test_file.write_text(t)
+          PY
+
+      - name: Diff sanity
+        run: git diff --check
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Phaser tests
+        run: npm run test:phaser
+
+      - name: Build web
+        run: npm run build:web
+
+      - name: Commit refactor and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/bk006-map-river-set-refactor.yml
+          git config user.name "Nictolas"
+          git config user.email "nicolasmicheletti90@gmail.com"
+          git add app/mappa.tsx src/game/mappaGeometry.ts tests/mappa-geometry.test.ts .github/workflows/bk006-map-river-set-refactor.yml
+          git commit -m "Extract river terrain set helper" -m "Continue BK-006 by moving only riverSetDaTerreno out of app/mappa.tsx with regression tests. [bk006-river-set-applied]"
+          git push origin HEAD:refactor/map-river-set-bk006
