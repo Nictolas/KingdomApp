@@ -3,12 +3,51 @@ import {
   type MappaCostruzioneFootprint
 } from "./mappaCostruzioneFootprints";
 import { getIndiciFootprint } from "./mappaGeometry";
+import type { EdificioInCellaMappa } from "./mappaTypes";
 
 export type MappaEdificioFootprintEntry = {
   nome: string;
   footprintRef?: number;
   footprint?: MappaCostruzioneFootprint;
 };
+
+/** Scrive un edificio 1×1 o multi-cella sulla griglia a partire da un anchor già scelto. */
+export function applicaEdificioFootprintCostruzione(
+  out: Record<number, EdificioInCellaMappa>,
+  anchor: number,
+  w: number,
+  h: number,
+  cols: number,
+  base: { id: number; nome: string; emoji: string; edificioGlobaleId?: number }
+): void {
+  const celle = getIndiciFootprint(anchor, w, h, cols);
+  if (w === 1 && h === 1) {
+    out[anchor] = {
+      id: base.id,
+      nome: base.nome,
+      emoji: base.emoji,
+      edificioGlobaleId: base.edificioGlobaleId
+    };
+    return;
+  }
+  out[anchor] = {
+    id: base.id,
+    nome: base.nome,
+    emoji: "",
+    footprint: { w, h },
+    edificioGlobaleId: base.edificioGlobaleId
+  };
+  for (const i of celle) {
+    if (i === anchor) continue;
+    out[i] = {
+      id: base.id,
+      nome: base.nome,
+      emoji: "",
+      footprintRef: anchor,
+      edificioGlobaleId: base.edificioGlobaleId
+    };
+  }
+}
 
 /** Dimensioni effettive del footprint di un edificio presente sulla mappa. */
 export function dimensioniFootprintEdificioInMappa(

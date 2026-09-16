@@ -2,12 +2,14 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  applicaEdificioFootprintCostruzione,
   dimensioniFootprintEdificioInMappa,
   giacimentoIndicesDaEdifici,
   indiciFootprintProtettiIniziali,
   rimuoviFootprintEdificioDaMappa,
   type MappaEdificioFootprintEntry
 } from "../src/game/mappaEdificioFootprints.ts";
+import type { EdificioInCellaMappa } from "../src/game/mappaTypes.ts";
 
 test("dimensioniFootprintEdificioInMappa privilegia il footprint esplicito", () => {
   const edifici: Record<number, MappaEdificioFootprintEntry> = {
@@ -65,4 +67,45 @@ test("rimuoviFootprintEdificioDaMappa elimina solo il rettangolo richiesto", () 
   };
   rimuoviFootprintEdificioDaMappa(edifici, 6, 2, 2, 5);
   assert.deepEqual(edifici, { 20: "keep" });
+});
+
+
+test("applicaEdificioFootprintCostruzione scrive correttamente 1x1 e multi-cella", () => {
+  const edifici: Record<number, EdificioInCellaMappa> = {};
+
+  applicaEdificioFootprintCostruzione(edifici, 3, 1, 1, 5, {
+    id: 99,
+    nome: "Singolo",
+    emoji: "🧱",
+    edificioGlobaleId: 700
+  });
+  assert.deepEqual(edifici[3], {
+    id: 99,
+    nome: "Singolo",
+    emoji: "🧱",
+    edificioGlobaleId: 700
+  });
+
+  applicaEdificioFootprintCostruzione(edifici, 6, 2, 2, 5, {
+    id: 12,
+    nome: "Tribunale",
+    emoji: "⚖️",
+    edificioGlobaleId: 701
+  });
+  assert.deepEqual(edifici[6], {
+    id: 12,
+    nome: "Tribunale",
+    emoji: "",
+    footprint: { w: 2, h: 2 },
+    edificioGlobaleId: 701
+  });
+  for (const i of [7, 11, 12]) {
+    assert.deepEqual(edifici[i], {
+      id: 12,
+      nome: "Tribunale",
+      emoji: "",
+      footprintRef: 6,
+      edificioGlobaleId: 701
+    });
+  }
 });
