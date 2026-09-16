@@ -38,6 +38,9 @@ jobs:
       - name: Align dependencies with SDK 53
         run: npx expo install --fix --npm
 
+      - name: Install Expo Router required peer
+        run: npx expo install expo-linking --npm
+
       - name: Verify Expo dependency alignment
         run: npx expo install --check
 
@@ -77,7 +80,7 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json
+          git add package.json package-lock.json app.json
           if git diff --cached --quiet; then
             echo "No dependency changes"
             exit 0
