@@ -35,18 +35,22 @@ export class SaveRepository {
   /** Non propaga errori di storage o validazione durante il bootstrap del gioco. */
   async loadBestAvailable(): Promise<LoadSaveResult> {
     const primary = await this.tryLoad(SAVE_PRIMARY_KEY);
+    const backup = await this.tryLoad(SAVE_BACKUP_KEY);
     const temp = await this.tryLoad(SAVE_TEMP_KEY);
 
-    // Un temp valido indica una scrittura interrotta. Lo recuperiamo solo se il primary
-    // manca oppure se il temp è almeno altrettanto recente, così un residuo vecchio
-    // non può sovrascrivere logicamente un salvataggio principale più nuovo.
-    if (temp && (!primary || this.isAtLeastAsRecent(temp, primary))) {
+    // Un temp valido indica una scrittura interrotta. Lo recuperiamo soltanto se non
+    // risulta più vecchio di nessun salvataggio stabile valido, così un residuo temp
+    // obsoleto non può prevalere su primary/backup più recenti.
+    if (
+      temp &&
+      (!primary || this.isAtLeastAsRecent(temp, primary)) &&
+      (!backup || this.isAtLeastAsRecent(temp, backup))
+    ) {
       return { source: "temp", save: temp };
     }
     if (primary) return { source: "primary", save: primary };
-
-    const backup = await this.tryLoad(SAVE_BACKUP_KEY);
     if (backup) return { source: "backup", save: backup };
+    if (temp) return { source: "temp", save: temp };
 
     return { source: "none", save: null };
   }
