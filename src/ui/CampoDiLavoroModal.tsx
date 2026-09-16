@@ -309,6 +309,11 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     letterSpacing: 0.5
   },
+  line: {
+    color: "rgba(203,213,245,0.85)",
+    fontSize: 13,
+    lineHeight: 19
+  },
   sectionHint: {
     color: "rgba(203,213,245,0.7)",
     fontSize: 11,

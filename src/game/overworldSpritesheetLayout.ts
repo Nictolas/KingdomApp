@@ -107,7 +107,7 @@ function pickBestStradaSheetCoordForGrassMask(mask: number): SheetCoord {
     const correct = popcountMask(mask & tileMask);
     const wrong = popcountMask(tileMask & ~mask);
     const score = correct * 10 - wrong * 100 + popcountMask(tileMask);
-    if (score > bestScore) {
+    if (coord != null && score > bestScore) {
       bestScore = score;
       bestCoord = coord;
     }

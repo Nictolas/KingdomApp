@@ -319,6 +319,9 @@ const styles = StyleSheet.create({
     textAlign: "center",
     marginBottom: 2
   },
+  politicaTitoloSelected: {
+    color: "#ffffff"
+  },
   politicaEffetto: {
     color: "rgba(203,213,245,0.6)",
     fontSize: 7,

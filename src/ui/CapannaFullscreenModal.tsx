@@ -14,7 +14,7 @@ import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import { badgePresenzaCapanna, statoPresenzaOccupanteCapanna } from "../game/presenzaCapanna";
 
 type CommuteEntry = {
-  purpose: "work" | "bar" | "home";
+  purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro";
 };
 
 export type CapannaFullscreenModalProps = {
@@ -63,7 +63,11 @@ export function CapannaFullscreenModal({
     return occupanti.map((a) => {
       const home = cellaCasaPerAbitanteId.get(a.id) ?? null;
       const commuteRaw = commuteByAbitanteId[a.id];
-      const commuteInfo = commuteRaw ? { purpose: commuteRaw.purpose } : undefined;
+      const commuteInfo =
+        commuteRaw &&
+        (commuteRaw.purpose === "work" || commuteRaw.purpose === "bar" || commuteRaw.purpose === "home")
+          ? { purpose: commuteRaw.purpose }
+          : undefined;
       const stato = statoPresenzaOccupanteCapanna(a, anchor, home, {
         buioCielo,
         orologioMinuti,

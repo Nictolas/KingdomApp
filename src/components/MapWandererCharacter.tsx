@@ -111,7 +111,7 @@ type MapWandererCharacterProps = {
    */
   commutePath?: number[] | null;
   commuteToken?: number;
-  commutePurpose?: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | null;
+  commutePurpose?: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro" | null;
   onCommuteComplete?: (purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro") => void;
   /**
    * Coda bloccata (cella occupata): il genitore dovrebbe ripianificare da `fromCell`

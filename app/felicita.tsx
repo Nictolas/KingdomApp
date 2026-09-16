@@ -55,7 +55,7 @@ export default function FelicitaScreen() {
                     <Text style={styles.rigaEmoji}>{getEmojiAbitante(abitante)}</Text>
                     <View style={styles.rigaTesto}>
                       <Text style={styles.rigaNome} numberOfLines={1}>
-                        {abitante.nome} {abitante.cognome}
+                        {abitante.nome}
                       </Text>
                       <Text style={styles.rigaValore}>{felicità}%</Text>
                     </View>

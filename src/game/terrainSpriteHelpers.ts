@@ -1197,10 +1197,11 @@ function fixSpiaggiaAdjacentToErbaSpiaggia(
   if (col < cols - 1) addFromErba(index + 1, "w");
   if (col > 0) addFromErba(index - 1, "e");
 
-  if (allowed == null || allowed.size === 0) {
+  const resolvedAllowed = allowed as Set<SpiaggiaTileAsset1x1> | null;
+  if (resolvedAllowed == null || resolvedAllowed.size === 0) {
     return clampSpiaggiaAssetToWaterNeighbors(index, cols, rows, terrenoInMappa, asset);
   }
-  const waterOk = filterSpiaggiaByWaterMask(allowed, index, cols, rows, terrenoInMappa);
+  const waterOk = filterSpiaggiaByWaterMask(resolvedAllowed, index, cols, rows, terrenoInMappa);
   if (waterOk.size === 0) {
     return clampSpiaggiaAssetToWaterNeighbors(index, cols, rows, terrenoInMappa, asset);
   }

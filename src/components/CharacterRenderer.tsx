@@ -57,14 +57,10 @@ const styles = StyleSheet.create({
     height: CELL_SIZE,
     alignItems: "center",
     justifyContent: "center",
-    userSelect: "none",
-    WebkitUserSelect: "none",
-    MozUserSelect: "none",
-    msUserSelect: "none"
+    userSelect: "none"
   },
   emoji: {
     fontSize: 24,
     userSelect: "none",
-    WebkitUserSelect: "none"
   }
 });

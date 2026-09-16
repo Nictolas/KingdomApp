@@ -233,7 +233,7 @@ const GAP = 0;
  * Celle senza griglia: bordi azzerati in modo esplicito (su web anche outline/focus su Pressable).
  * Il layer emoji non deve mai ridisegnare i bordi sopra al terreno (altrimenti linee doppie / punti agli incroci).
  */
-const CELLA_SENZA_GRIGLIA: ViewStyle = Platform.select<ViewStyle>({
+const CELLA_SENZA_GRIGLIA: ViewStyle = Platform.select<any>({
   web: {
     borderWidth: 0,
     borderColor: "transparent",
@@ -4266,7 +4266,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                 }}
               >
                 <View style={[styles.gridWrap, { width: contentWidth, height: contentHeight }]} pointerEvents="box-none">
-                  <View style={[styles.gridTerrain, gridContainerStyle]}>
+                  <View style={[styles.gridTerrain, gridContainerStyle as ViewStyle]}>
                     {visibleTerrainIndices.map((i) => {
                       const terreno = terrenoInMappa[i] ?? "erba";
                       const edificio = edificiInMappa[i];
@@ -5449,7 +5449,6 @@ const styles = StyleSheet.create({
     maxWidth: CELL_SIZE_PX,
     minHeight: CELL_SIZE_PX,
     maxHeight: CELL_SIZE_PX,
-    boxSizing: "border-box"
   },
   cellaStretch: {
     flex: 1,
