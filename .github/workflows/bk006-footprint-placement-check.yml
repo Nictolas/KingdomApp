@@ -1,0 +1,52 @@
+name: BK-006 footprint placement check
+
+on:
+  push:
+    branches:
+      - refactor/map-footprint-placement-check-bk006
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: ${{ !contains(github.event.head_commit.message, '[bk006-final]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply narrow extraction
+        run: node scripts/bk006-extract-footprint-placement-check.mjs
+      - name: Remove temporary files
+        run: rm scripts/bk006-extract-footprint-placement-check.mjs .github/workflows/bk006-footprint-placement-check.yml
+      - name: Diff sanity
+        run: |
+          git fetch origin main
+          changed="$(git diff --name-only origin/main | sort)"
+          expected="$(printf '%s\n' app/mappa.tsx src/game/mappaPiazzamentoFootprint.ts tests/mappa-piazzamento-footprint.test.ts | sort)"
+          printf 'Changed files:\n%s\n' "$changed"
+          test "$changed" = "$expected"
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit and integration tests
+        run: npm test
+      - name: Phaser tests
+        run: npm run test:phaser
+      - name: Build web
+        run: npm run build:web
+      - name: Commit refactor and remove temporary files
+        run: |
+          git add -A
+          git config user.name "Nictolas"
+          git config user.email "nicolasmicheletti90@gmail.com"
+          git commit -m "Extract footprint placement validity helper" -m "Continue BK-006 by moving puòPiazzareFootprintConCuscino out of app/mappa.tsx with deterministic tests. No anchor-search, gameplay, or rendering changes. [bk006-final]"
+          git push origin HEAD
