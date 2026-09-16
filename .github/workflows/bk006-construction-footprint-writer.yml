@@ -1,0 +1,88 @@
+name: BK-006 construction footprint writer
+
+on:
+  push:
+    branches:
+      - refactor/map-construction-footprint-writer-bk006
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/map-construction-footprint-writer-bk006
+          fetch-depth: 0
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply narrow extraction
+        run: python3 scripts/bk006-construction-footprint-writer.py
+
+      - name: Diff sanity
+        run: |
+          python3 - <<'PY'
+          import subprocess
+          allowed = {
+              'app/mappa.tsx',
+              'src/game/mappaEdificioFootprints.ts',
+              'tests/mappa-edificio-footprints.test.ts',
+              '.github/workflows/bk006-construction-footprint-writer.yml',
+              'scripts/bk006-construction-footprint-writer.py',
+          }
+          out = subprocess.check_output(['git', 'status', '--porcelain'], text=True)
+          changed = set()
+          for line in out.splitlines():
+              path = line[3:]
+              if ' -> ' in path:
+                  path = path.split(' -> ', 1)[1]
+              changed.add(path)
+          unexpected = changed - allowed
+          if unexpected:
+              raise SystemExit(f'unexpected files: {sorted(unexpected)}')
+          required = {
+              'app/mappa.tsx',
+              'src/game/mappaEdificioFootprints.ts',
+              'tests/mappa-edificio-footprints.test.ts',
+          }
+          missing = required - changed
+          if missing:
+              raise SystemExit(f'missing expected files: {sorted(missing)}')
+          print('changed files:', *sorted(changed), sep='\n- ')
+          PY
+          git diff --check
+          git diff -- app/mappa.tsx src/game/mappaEdificioFootprints.ts tests/mappa-edificio-footprints.test.ts
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Phaser tests
+        run: npm run test:phaser
+
+      - name: Build web
+        run: npm run build:web
+
+      - name: Commit refactor and remove temporary files
+        run: |
+          rm .github/workflows/bk006-construction-footprint-writer.yml
+          rm scripts/bk006-construction-footprint-writer.py
+          git config user.name "Nictolas"
+          git config user.email "nicolasmicheletti90@gmail.com"
+          git add app/mappa.tsx src/game/mappaEdificioFootprints.ts tests/mappa-edificio-footprints.test.ts .github/workflows/bk006-construction-footprint-writer.yml scripts/bk006-construction-footprint-writer.py
+          git commit -m "Extract construction footprint writer" -m "Continue BK-006 by moving applicaEdificioFootprintCostruzione into the existing map footprint module and extending deterministic tests. No placement-rule, gameplay, or rendering changes."
+          git push origin HEAD:refactor/map-construction-footprint-writer-bk006
