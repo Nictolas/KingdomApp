@@ -225,6 +225,7 @@ import {
   riverSetDaTerreno
 } from "../src/game/mappaGeometry";
 import { EDIFICIO_TO_ROUTE } from "../src/game/mappaEdificioRoutes";
+import { FOOTPRINT_COSTRUZIONE } from "../src/game/mappaCostruzioneFootprints";
 
 
 /**
@@ -271,28 +272,6 @@ type EdificioInCella = {
   footprintRef?: number;
   /** Solo sulla cella anchor: larghezza/altezza in celle del rettangolo. */
   footprint?: { w: number; h: number };
-};
-
-/** Footprint costruzioni giocatore (allineato agli edifici procedurali iniziali). */
-const FOOTPRINT_COSTRUZIONE: Record<string, { w: number; h: number }> = {
-  Strada: { w: STRADA_FOOTPRINT_W, h: STRADA_FOOTPRINT_H },
-  Serra: { w: SERRA_FOOTPRINT_W, h: SERRA_FOOTPRINT_H },
-  Capanna: { w: CAPANNA_FOOTPRINT_W, h: CAPANNA_FOOTPRINT_H },
-  Dormitorio: { w: DORMITORIO_FOOTPRINT_W, h: DORMITORIO_FOOTPRINT_H },
-  Bar: { w: BAR_FOOTPRINT_W, h: BAR_FOOTPRINT_H },
-  Tribunale: { w: TRIBUNALE_FOOTPRINT_W, h: TRIBUNALE_FOOTPRINT_H },
-  "Ufficio Immigrazione": { w: UFFICIO_IMMIGRAZIONE_FOOTPRINT_W, h: UFFICIO_IMMIGRAZIONE_FOOTPRINT_H },
-  "Ufficio Edile": { w: UFFICIO_EDILE_FOOTPRINT_W, h: UFFICIO_EDILE_FOOTPRINT_H },
-  Mercato: { w: MERCATO_FOOTPRINT_W, h: MERCATO_FOOTPRINT_H },
-  Negozio: { w: NEGOZIO_FOOTPRINT_W, h: NEGOZIO_FOOTPRINT_H },
-  "Mensa Pubblica": { w: MERCATO_FOOTPRINT_W, h: MERCATO_FOOTPRINT_H },
-  Dissalatore: { w: DISSALATORE_FOOTPRINT_W, h: DISSALATORE_FOOTPRINT_H },
-  Spazioporto: { w: SPAZIOPORTO_FOOTPRINT_W, h: SPAZIOPORTO_FOOTPRINT_H },
-  "Luogo di Culto del Sole": { w: 2, h: 2 },
-  "Luogo di Culto degli Alieni": { w: 2, h: 2 },
-  Carcere: { w: 2, h: 2 },
-  "Campo di Lavoro": { w: 2, h: 2 },
-  "Campo di Sterminio": { w: 2, h: 2 }
 };
 
 /** Sabbia = terreno sabbia su terraferma (non mare). */
