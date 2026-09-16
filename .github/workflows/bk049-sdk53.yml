@@ -31,6 +31,9 @@ jobs:
       - name: Install current dependencies
         run: npm ci
 
+      - name: Pin patched React Server Components peer for SDK 53
+        run: npm pkg set "overrides.react-server-dom-webpack=19.0.4"
+
       - name: Upgrade Expo to SDK 53
         run: npm install expo@^53.0.0
 
