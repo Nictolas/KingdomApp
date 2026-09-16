@@ -1,0 +1,83 @@
+name: BK-006 resource presentation refactor v2
+
+on:
+  push:
+    branches:
+      - refactor/map-resource-presentation-bk006-v2
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Apply narrow resource presentation extraction
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/mappa.tsx')
+          s = path.read_text()
+
+          anchor = '''import {\n  dimensioniFootprintEdificioInMappa,\n  giacimentoIndicesDaEdifici,\n  indiciFootprintProtettiIniziali,\n  rimuoviFootprintEdificioDaMappa\n} from "../src/game/mappaEdificioFootprints";\n'''
+          replacement = anchor + 'import { getResourceEmoji, getResourceRoute } from "../src/game/mappaRisorsePresentazione";\n'
+          if anchor not in s:
+              raise SystemExit('updated import anchor not found')
+          s = s.replace(anchor, replacement, 1)
+
+          block = '''function getResourceEmoji(r: Risorsa): string {\n  const n = r.nome.toLowerCase();\n  if (n.includes("cibo")) return "🍱";\n  if (n.includes("energia")) return "⚡";\n  if (n.includes("acqua")) return "💧";\n  if (n.includes("materiale edile")) return "🧱";\n  if (n.includes("medicine")) return "💊";\n  if (n.includes("combustibile")) return "⛽";\n  if (n.includes("rifiuti")) return "🗑️";\n  return "⛏️";\n}\n\nfunction getResourceRoute(r: Risorsa): string | null {\n  const n = r.nome.toLowerCase();\n  if (n.includes("cibo")) return "/cibo";\n  if (n.includes("energia")) return "/energia";\n  if (n.includes("acqua")) return "/acqua";\n  if (n.includes("rifiuti")) return "/rifiuti";\n  return null;\n}\n\n'''
+          if block not in s:
+              raise SystemExit('resource helper block not found')
+          s = s.replace(block, '', 1)
+          path.write_text(s)
+
+          Path('src/game/mappaRisorsePresentazione.ts').write_text('''import type { Risorsa } from "../types";\n\ntype RisorsaConNome = Pick<Risorsa, "nome">;\n\nexport function getResourceEmoji(r: RisorsaConNome): string {\n  const n = r.nome.toLowerCase();\n  if (n.includes("cibo")) return "🍱";\n  if (n.includes("energia")) return "⚡";\n  if (n.includes("acqua")) return "💧";\n  if (n.includes("materiale edile")) return "🧱";\n  if (n.includes("medicine")) return "💊";\n  if (n.includes("combustibile")) return "⛽";\n  if (n.includes("rifiuti")) return "🗑️";\n  return "⛏️";\n}\n\nexport function getResourceRoute(r: RisorsaConNome): string | null {\n  const n = r.nome.toLowerCase();\n  if (n.includes("cibo")) return "/cibo";\n  if (n.includes("energia")) return "/energia";\n  if (n.includes("acqua")) return "/acqua";\n  if (n.includes("rifiuti")) return "/rifiuti";\n  return null;\n}\n''')
+
+          Path('tests/mappa-risorse-presentazione.test.ts').write_text('''import assert from "node:assert/strict";\nimport test from "node:test";\nimport { getResourceEmoji, getResourceRoute } from "../src/game/mappaRisorsePresentazione";\n\ntest("getResourceEmoji preserves every map resource mapping", () => {\n  assert.equal(getResourceEmoji({ nome: "Cibo" }), "🍱");\n  assert.equal(getResourceEmoji({ nome: "Energia" }), "⚡");\n  assert.equal(getResourceEmoji({ nome: "Acqua potabile" }), "💧");\n  assert.equal(getResourceEmoji({ nome: "Materiale Edile" }), "🧱");\n  assert.equal(getResourceEmoji({ nome: "Medicine" }), "💊");\n  assert.equal(getResourceEmoji({ nome: "Combustibile" }), "⛽");\n  assert.equal(getResourceEmoji({ nome: "Rifiuti" }), "🗑️");\n  assert.equal(getResourceEmoji({ nome: "Minerali" }), "⛏️");\n});\n\ntest("getResourceRoute preserves navigable resources and fallback", () => {\n  assert.equal(getResourceRoute({ nome: "Cibo" }), "/cibo");\n  assert.equal(getResourceRoute({ nome: "Energia" }), "/energia");\n  assert.equal(getResourceRoute({ nome: "Acqua potabile" }), "/acqua");\n  assert.equal(getResourceRoute({ nome: "Rifiuti" }), "/rifiuti");\n  assert.equal(getResourceRoute({ nome: "Materiale Edile" }), null);\n});\n\ntest("resource presentation matching remains case-insensitive and substring-based", () => {\n  assert.equal(getResourceEmoji({ nome: "Scorte di CIBO" }), "🍱");\n  assert.equal(getResourceRoute({ nome: "Produzione ENERGIA" }), "/energia");\n});\n''')
+          PY
+      - name: Diff sanity
+        shell: bash
+        run: |
+          python - <<'PY'
+          import subprocess
+          expected = {
+              'app/mappa.tsx',
+              'src/game/mappaRisorsePresentazione.ts',
+              'tests/mappa-risorse-presentazione.test.ts',
+          }
+          tracked = set(filter(None, subprocess.check_output(['git','diff','--name-only']).decode().splitlines()))
+          untracked = set(filter(None, subprocess.check_output(['git','ls-files','--others','--exclude-standard']).decode().splitlines()))
+          actual = tracked | untracked
+          if actual != expected:
+              raise SystemExit(f'unexpected diff: {sorted(actual)}')
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit and integration tests
+        run: npm test
+      - name: Phaser tests
+        run: npm run test:phaser
+      - name: Build web
+        run: npm run build:web
+      - name: Commit refactor and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/bk006-resource-presentation-v2.yml
+          git config user.name "Nictolas"
+          git config user.email "nicolasmicheletti90@gmail.com"
+          git add -A
+          git commit -m "Extract map resource presentation helpers" -m "Continue BK-006 by moving resource emoji and route helpers out of app/mappa.tsx with regression tests. No gameplay or rendering changes."
+          git push origin HEAD
