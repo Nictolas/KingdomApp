@@ -181,53 +181,41 @@ import {
   erbaExtraDecorCasuale,
   sandWaterEdgeMaskAt
 } from "../src/game/terrainSpriteHelpers";
+import {
+  ADMIN_FOOTPRINT_H,
+  ADMIN_FOOTPRINT_W,
+  BAR_FOOTPRINT_H,
+  BAR_FOOTPRINT_W,
+  CAPANNA_FOOTPRINT_H,
+  CAPANNA_FOOTPRINT_W,
+  CELL_SIZE_PX,
+  COSTRUZIONE_TERRENO_FOOTPRINT_H,
+  COSTRUZIONE_TERRENO_FOOTPRINT_W,
+  DISSALATORE_FOOTPRINT_H,
+  DISSALATORE_FOOTPRINT_W,
+  DOPPIO_TAP_MS,
+  DORMITORIO_FOOTPRINT_H,
+  DORMITORIO_FOOTPRINT_W,
+  FIXED_MAP_COLS,
+  FIXED_MAP_ROWS,
+  GAP,
+  MERCATO_FOOTPRINT_H,
+  MERCATO_FOOTPRINT_W,
+  NEGOZIO_FOOTPRINT_H,
+  NEGOZIO_FOOTPRINT_W,
+  SERRA_FOOTPRINT_H,
+  SERRA_FOOTPRINT_W,
+  SPAZIOPORTO_FOOTPRINT_H,
+  SPAZIOPORTO_FOOTPRINT_W,
+  TRIBUNALE_FOOTPRINT_H,
+  TRIBUNALE_FOOTPRINT_W,
+  UFFICIO_EDILE_FOOTPRINT_H,
+  UFFICIO_EDILE_FOOTPRINT_W,
+  UFFICIO_IMMIGRAZIONE_FOOTPRINT_H,
+  UFFICIO_IMMIGRAZIONE_FOOTPRINT_W,
+  getIndiciEdificiIniziali
+} from "../src/game/mappaLayoutConfig";
 
-/** Dimensione fissa della mappa: non dipende dal viewport. Stabilita una sola volta all'avvio. */
-const FIXED_MAP_COLS = 50;
-const FIXED_MAP_ROWS = 50;
-/** Footprint del complesso amministrativo: 3 colonne × 2 righe (largo × alto). */
-const ADMIN_FOOTPRINT_W = 3;
-const ADMIN_FOOTPRINT_H = 2;
-/** Footprint dormitori iniziali: 2×2. */
-const DORMITORIO_FOOTPRINT_W = 2;
-const DORMITORIO_FOOTPRINT_H = 2;
-/** Bar: stesso ingombro 2×2 del dormitorio. */
-const BAR_FOOTPRINT_W = 2;
-const BAR_FOOTPRINT_H = 2;
-/** Tribunale: 2×2 (emoji bilancia ⚖️ sul catalogo). */
-const TRIBUNALE_FOOTPRINT_W = 2;
-const TRIBUNALE_FOOTPRINT_H = 2;
-/** Ufficio Immigrazione: 2×2 (stesso stile del Tribunale). */
-const UFFICIO_IMMIGRAZIONE_FOOTPRINT_W = 2;
-const UFFICIO_IMMIGRAZIONE_FOOTPRINT_H = 2;
-/** Ufficio Edile: 2×2 (stesso stile istituzionale). */
-const UFFICIO_EDILE_FOOTPRINT_W = 2;
-const UFFICIO_EDILE_FOOTPRINT_H = 2;
-/** Mercato: 2×2 (tenda verde/rossa, facciata commerciale). */
-const MERCATO_FOOTPRINT_W = 2;
-const MERCATO_FOOTPRINT_H = 2;
-/** Negozio: 2×2 (vendita al dettaglio). */
-const NEGOZIO_FOOTPRINT_W = 2;
-const NEGOZIO_FOOTPRINT_H = 2;
-/** Dissalatore: 2×2 con 2 celle sabbia + 2 celle mare (confine `isAcqua`). */
-const DISSALATORE_FOOTPRINT_W = 2;
-const DISSALATORE_FOOTPRINT_H = 2;
-/** Spazioporto: edificio + area lancio (sprite orizzontale). */
-const SPAZIOPORTO_FOOTPRINT_W = 4;
-const SPAZIOPORTO_FOOTPRINT_H = 3;
-/** Serra: due celle in orizzontale × una in verticale. */
-const SERRA_FOOTPRINT_W = 2;
-const SERRA_FOOTPRINT_H = 1;
-/** Capanna procedurale: stesso footprint 2×1 della Serra. */
-const CAPANNA_FOOTPRINT_W = 2;
-const CAPANNA_FOOTPRINT_H = 1;
-/** Strada, Acqua, Spiaggia, Erba (costruzione giocatore): sempre 2×2. */
-const COSTRUZIONE_TERRENO_FOOTPRINT_W = 2;
-const COSTRUZIONE_TERRENO_FOOTPRINT_H = 2;
-/** Dimensione fissa di ogni cella in pixel (nessuna percentuale, solo px). */
-const CELL_SIZE_PX = 40;
-/** Gap tra le celle (0 = griglia compatta 2000x2000). */
-const GAP = 0;
 
 /**
  * Celle senza griglia: bordi azzerati in modo esplicito (su web anche outline/focus su Pressable).
@@ -248,7 +236,6 @@ const CELLA_SENZA_GRIGLIA: ViewStyle = Platform.select<any>({
     borderRadius: 0
   }
 }) as ViewStyle;
-const DOPPIO_TAP_MS = 400;
 
 /**
  * Su web, `display: grid` + `transform: scale()` (zoom mappa) fa posizionare le celle su coordinate
@@ -263,23 +250,6 @@ function webCellAbsolutePosition(index: number, cols: number, cellPx: number): V
   };
 }
 
-/** Calcola indici edifici iniziali in funzione di cols/rows (centro griglia). */
-function getIndiciEdificiIniziali(cols: number, rows: number) {
-  const centro = Math.floor((cols * rows) / 2) - Math.floor(cols / 2);
-  return {
-    CENTRO_COMANDO_INDEX: centro,
-    SPAZIOPORTO_INDEX: centro + 1,
-    TRIBUNALE_INDEX: centro + cols,
-    SERRA_INDEX: centro - 1,
-    /** Preferenza posizionamento seconda Serra (2×1), lontano dalla prima. */
-    SERRA_2_INDEX: centro - 4,
-    DORMITORIO_1_INDEX: centro + 2,
-    DORMITORIO_2_INDEX: centro - cols,
-    DORMITORIO_3_INDEX: centro + cols + 1,
-    /** Bar 2×2: preferenza a sud-est del nucleo (trovaAnchor risolve conflitti). */
-    BAR_INDEX: centro + 2 * cols + 3
-  };
-}
 
 /** Route per edificio (come in app/edifici). */
 const EDIFICIO_TO_ROUTE: Record<string, string> = {
