@@ -1,0 +1,84 @@
+name: BK-006 map building routes refactor
+
+on:
+  push:
+    branches:
+      - refactor/map-building-routes-bk006
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: ${{ !contains(github.event.head_commit.message, '[bk006-building-routes-applied]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/map-building-routes-bk006
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply narrow building-route extraction
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          mappa_path = Path('app/mappa.tsx')
+          text = mappa_path.read_text(encoding='utf-8')
+
+          import_anchor = '} from "../src/game/mappaGeometry";\n'
+          routes_import = 'import { EDIFICIO_TO_ROUTE } from "../src/game/mappaEdificioRoutes";\n'
+          if routes_import not in text:
+              if text.count(import_anchor) != 1:
+                  raise SystemExit('Expected exactly one mappaGeometry import anchor')
+              text = text.replace(import_anchor, import_anchor + routes_import, 1)
+
+          route_block = '''/** Route per edificio (come in app/edifici). */\nconst EDIFICIO_TO_ROUTE: Record<string, string> = {\n  "Centro di Comando": "/amministrazione",\n  "Serra": "/serra",\n  "Centrale Energetica": "/centrale-energetica",\n  "Raffineria Mineraria": "/raffineria-mineraria",\n  "Impianto di Riciclo": "/impianto-riciclo",\n  "Baracca": "/residenze",\n  "Capanna": "/residenze",\n  "Dormitorio": "/residenze",\n  "Scuola": "/scuola",\n  "Asilo": "/scuola",\n  "Scuola Elementare": "/scuola",\n  "Scuola Superiore": "/scuola",\n  "Università": "/scuola",\n  "Ospedale": "/ospedale",\n  "Centrale": "/centrale",\n  "Tribunale": "/tribunale",\n  "Ufficio Immigrazione": "/immigrazione",\n  "Ufficio Edile": "/ufficio-edile",\n  "Mercato": "/mercato",\n  "Dissalatore": "/dissalatore",\n  "Laboratorio di Ricerca": "/laboratorio",\n  "Bar": "/bar",\n  "Mensa Pubblica": "/mensa",\n  "Caserma": "/caserma",\n  "Carcere": "/carcere",\n  "Spazioporto": "/spazioporto"\n};\n\n'''
+          if text.count(route_block) != 1:
+              raise SystemExit(f'Expected route table exactly once, found {text.count(route_block)}')
+          text = text.replace(route_block, '', 1)
+          mappa_path.write_text(text, encoding='utf-8')
+
+          Path('src/game/mappaEdificioRoutes.ts').write_text('''/** Static route lookup used when opening buildings directly from the map. */\nexport const EDIFICIO_TO_ROUTE: Readonly<Record<string, string>> = {\n  "Centro di Comando": "/amministrazione",\n  "Serra": "/serra",\n  "Centrale Energetica": "/centrale-energetica",\n  "Raffineria Mineraria": "/raffineria-mineraria",\n  "Impianto di Riciclo": "/impianto-riciclo",\n  "Baracca": "/residenze",\n  "Capanna": "/residenze",\n  "Dormitorio": "/residenze",\n  "Scuola": "/scuola",\n  "Asilo": "/scuola",\n  "Scuola Elementare": "/scuola",\n  "Scuola Superiore": "/scuola",\n  "Università": "/scuola",\n  "Ospedale": "/ospedale",\n  "Centrale": "/centrale",\n  "Tribunale": "/tribunale",\n  "Ufficio Immigrazione": "/immigrazione",\n  "Ufficio Edile": "/ufficio-edile",\n  "Mercato": "/mercato",\n  "Dissalatore": "/dissalatore",\n  "Laboratorio di Ricerca": "/laboratorio",\n  "Bar": "/bar",\n  "Mensa Pubblica": "/mensa",\n  "Caserma": "/caserma",\n  "Carcere": "/carcere",\n  "Spazioporto": "/spazioporto"\n};\n''', encoding='utf-8')
+
+          Path('tests/mappa-edificio-routes.test.ts').write_text('''import assert from "node:assert/strict";\nimport test from "node:test";\n\nimport { EDIFICIO_TO_ROUTE } from "../src/game/mappaEdificioRoutes.ts";\n\ntest("la tabella route della mappa mantiene esattamente i mapping correnti", () => {\n  assert.deepEqual(EDIFICIO_TO_ROUTE, {\n    "Centro di Comando": "/amministrazione",\n    "Serra": "/serra",\n    "Centrale Energetica": "/centrale-energetica",\n    "Raffineria Mineraria": "/raffineria-mineraria",\n    "Impianto di Riciclo": "/impianto-riciclo",\n    "Baracca": "/residenze",\n    "Capanna": "/residenze",\n    "Dormitorio": "/residenze",\n    "Scuola": "/scuola",\n    "Asilo": "/scuola",\n    "Scuola Elementare": "/scuola",\n    "Scuola Superiore": "/scuola",\n    "Università": "/scuola",\n    "Ospedale": "/ospedale",\n    "Centrale": "/centrale",\n    "Tribunale": "/tribunale",\n    "Ufficio Immigrazione": "/immigrazione",\n    "Ufficio Edile": "/ufficio-edile",\n    "Mercato": "/mercato",\n    "Dissalatore": "/dissalatore",\n    "Laboratorio di Ricerca": "/laboratorio",\n    "Bar": "/bar",\n    "Mensa Pubblica": "/mensa",\n    "Caserma": "/caserma",\n    "Carcere": "/carcere",\n    "Spazioporto": "/spazioporto"\n  });\n});\n\ntest("la mappa conserva i routing volutamente specifici rispetto alla schermata edifici", () => {\n  assert.equal(EDIFICIO_TO_ROUTE["Centro di Comando"], "/amministrazione");\n  assert.equal(EDIFICIO_TO_ROUTE["Serra"], "/serra");\n  assert.equal(EDIFICIO_TO_ROUTE["Dormitorio"], "/residenze");\n});\n''', encoding='utf-8')
+          PY
+
+      - name: Diff sanity
+        run: git diff --check && git diff --stat
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Phaser tests
+        run: npm run test:phaser
+
+      - name: Build web
+        run: npm run build:web
+
+      - name: Commit refactor and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/bk006-map-building-routes-refactor.yml
+          git config user.name "Nictolas"
+          git config user.email "nicolasmicheletti90@gmail.com"
+          git add -A
+          git commit -m "Extract static map building routes" -m "Continue BK-006 by moving only the map-specific building route lookup out of app/mappa.tsx, with regression tests. [bk006-building-routes-applied]"
+          git push origin HEAD:refactor/map-building-routes-bk006
