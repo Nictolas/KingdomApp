@@ -262,7 +262,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const [startupError, setStartupError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const dirtyRef = useRef(false);
-  const lastFingerprintRef = useRef<string | null>(null);
+  const dirtyTrackingInitializedRef = useRef(false);
+  const lastPersistableStateTokenRef = useRef<typeof gameState.createPersistableState | null>(null);
+  const lastMapTokenRef = useRef<typeof mappa>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -298,7 +300,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (!loaded || loaded.source === "none") return;
     metadataRef.current = loaded.save.metadata;
     gameState.restorePersistableState(gameSaveV1ToGameState(loaded.save.payload));
-    lastFingerprintRef.current = null;
+    dirtyTrackingInitializedRef.current = false;
+    lastPersistableStateTokenRef.current = null;
+    lastMapTokenRef.current = null;
     dirtyRef.current = false;
     setStartup("active");
     if (loaded.source === "backup") Alert.alert("Backup ripristinato", "Il salvataggio principale non era disponibile. È stato caricato il backup.");
@@ -314,7 +318,9 @@ export function GameProvider({ children }: { children: ReactNode }) {
       }
       pendingLoadRef.current = null;
       metadataRef.current = null;
-      lastFingerprintRef.current = null;
+      dirtyTrackingInitializedRef.current = false;
+      lastPersistableStateTokenRef.current = null;
+      lastMapTokenRef.current = null;
       dirtyRef.current = true;
       setStartup("active");
       gameState.startNewGame();
@@ -332,6 +338,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const currentMap = getMappaSessione();
     const state = latestStateRef.current;
     if (!repository || !currentMap || !state.simulationEnabled) return;
+    const savedStateToken = state.createPersistableState;
+    const savedMapToken = currentMap;
     setSaveStatus("saving");
     try {
       const now = new Date().toISOString();
@@ -349,7 +357,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
       };
       await repository.save(envelope);
       metadataRef.current = envelope.metadata;
-      dirtyRef.current = false;
+      // Se qualcosa è cambiato mentre la scrittura era in corso, deve restare dirty.
+      dirtyRef.current =
+        latestStateRef.current.createPersistableState !== savedStateToken ||
+        getMappaSessione() !== savedMapToken;
       setSaveStatus("saved");
     } catch {
       dirtyRef.current = true;
@@ -359,17 +370,25 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     if (startup !== "active" || !gameState.simulationEnabled || !mappa) return;
-    const payload = gameStateToGameSaveV1(gameState.createPersistableState(mappa));
-    const fingerprintPayload = { ...payload, calendar: { ...payload.calendar, giorno: 0, minutiDaMezzanotte: 0 } };
-    const fingerprint = JSON.stringify(fingerprintPayload, (_key, value) => value === Infinity ? "__Infinity__" : value);
-    if (lastFingerprintRef.current == null) {
-      lastFingerprintRef.current = fingerprint;
+
+    // createPersistableState è memoizzata sulle sole parti persistite dello stato:
+    // la sua identità funziona quindi come token di revisione O(1), senza serializzare
+    // l'intero salvataggio ad ogni render. La mappa usa allo stesso modo il suo snapshot.
+    const stateToken = gameState.createPersistableState;
+    if (!dirtyTrackingInitializedRef.current) {
+      dirtyTrackingInitializedRef.current = true;
+      lastPersistableStateTokenRef.current = stateToken;
+      lastMapTokenRef.current = mappa;
       dirtyRef.current = metadataRef.current == null;
-    } else if (lastFingerprintRef.current !== fingerprint) {
-      lastFingerprintRef.current = fingerprint;
+      return;
+    }
+
+    if (lastPersistableStateTokenRef.current !== stateToken || lastMapTokenRef.current !== mappa) {
+      lastPersistableStateTokenRef.current = stateToken;
+      lastMapTokenRef.current = mappa;
       dirtyRef.current = true;
     }
-  }, [startup, gameState, mappa]);
+  }, [startup, gameState.simulationEnabled, gameState.createPersistableState, mappa]);
 
   useEffect(() => {
     const id = setInterval(() => {
