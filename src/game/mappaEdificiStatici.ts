@@ -15,6 +15,7 @@ export const TRIBUNALE_EDIFICIO: EdificioInCellaMappa = { id: 12, nome: "Tribuna
 export const SERRA_EDIFICIO: EdificioInCellaMappa = { id: 2, nome: "Serra", emoji: "🌱" };
 export const SERRA_2_EDIFICIO: EdificioInCellaMappa = { id: 21, nome: "Serra", emoji: "🌱" };
 export const CAPANNA: EdificioInCellaMappa = { id: 20, nome: "Capanna", emoji: "⛺" };
+export const SPAZIOPORTO_EDIFICIO: EdificioInCellaMappa = { id: 19, nome: "Spazioporto", emoji: "🚀" };
 
 /** Emoji per decorazioni procedurali sulla mappa (alberi, palme, cactus, vulcano). */
 export const DECORAZIONI_EMOJI = ["🌳", "🌲", "🌴", "🌵", "🌋"] as const;
