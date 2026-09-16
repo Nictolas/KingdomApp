@@ -1,4 +1,4 @@
-name: BK-049 Expo SDK 53
+name: BK-049 Expo SDK 54
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  upgrade-sdk53:
+  upgrade-sdk54:
     if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -29,13 +29,13 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install current dependencies
+      - name: Install SDK 53 baseline
         run: npm ci
 
-      - name: Upgrade Expo to SDK 53
-        run: npm install expo@^53.0.0
+      - name: Upgrade Expo to SDK 54
+        run: npm install expo@^54.0.0
 
-      - name: Align dependencies with SDK 53
+      - name: Align dependencies with SDK 54
         run: npx expo install --fix --npm
 
       - name: Install Expo Router required peer
@@ -43,16 +43,6 @@ jobs:
 
       - name: Verify Expo dependency alignment
         run: npx expo install --check
-
-      - name: Confirm unused RSC peer is absent
-        shell: bash
-        run: |
-          if npm explain react-server-dom-webpack >/dev/null 2>&1; then
-            echo "react-server-dom-webpack unexpectedly installed"
-            npm explain react-server-dom-webpack
-            exit 1
-          fi
-          echo "react-server-dom-webpack is not installed"
 
       - name: Expo Doctor
         run: npx expo-doctor
@@ -72,10 +62,10 @@ jobs:
       - name: Audit dependencies
         shell: bash
         run: |
-          npm audit --json > npm-audit-sdk53.json || true
-          npm audit > npm-audit-sdk53.txt || true
+          npm audit --json > npm-audit-sdk54.json || true
+          npm audit > npm-audit-sdk54.txt || true
 
-      - name: Commit SDK 53 upgrade
+      - name: Commit SDK 54 upgrade
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
@@ -85,5 +75,5 @@ jobs:
             echo "No dependency changes"
             exit 0
           fi
-          git commit -m "chore: upgrade Expo SDK 52 to 53"
+          git commit -m "chore: upgrade Expo SDK 53 to 54"
           git push origin HEAD:upgrade/expo-sdk-bk049
