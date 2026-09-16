@@ -216,11 +216,13 @@ import {
   getIndiciEdificiIniziali
 } from "../src/game/mappaLayoutConfig";
 import {
+  cellaSoloErba,
   expandAxisToUnitSteps,
   getIndiciCuscinoErba,
   getIndiciFootprint,
   getManhattanPathSegments,
   getVicini8,
+  haVicinoFiume,
   isAcqua,
   riverSetDaTerreno
 } from "../src/game/mappaGeometry";
@@ -497,17 +499,6 @@ function cellaÈNelFootprintResidenzaMappa(
   const w = cap.footprint?.w ?? 1;
   const h = cap.footprint?.h ?? 1;
   return getIndiciFootprint(anchor, w, h, cols).includes(cellIndex);
-}
-
-function haVicinoFiume(index: number, riverSet: Set<number>, cols: number, rows: number): boolean {
-  return getVicini8(index, cols, rows).some((n) => riverSet.has(n));
-}
-
-/** Cella adatta a “solo erba”: no mare, no fiume; se adiacente a un fiume diventerebbe sabbia → esclusa. */
-function cellaSoloErba(index: number, cols: number, rows: number, riverSet: Set<number>): boolean {
-  if (isAcqua(index, cols, rows) || riverSet.has(index)) return false;
-  if (haVicinoFiume(index, riverSet, cols, rows)) return false;
-  return true;
 }
 
 /**

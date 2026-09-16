@@ -2,11 +2,13 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  cellaSoloErba,
   expandAxisToUnitSteps,
   getIndiciCuscinoErba,
   getIndiciFootprint,
   getManhattanPathSegments,
   getVicini8,
+  haVicinoFiume,
   isAcqua,
   riverSetDaTerreno
 } from "../src/game/mappaGeometry.ts";
@@ -44,6 +46,19 @@ test("riverSetDaTerreno raccoglie solo le celle river", () => {
     [1, 8]
   );
   assert.deepEqual([...riverSetDaTerreno({ 0: "erba", 4: "sabbia" })], []);
+});
+
+test("haVicinoFiume usa gli otto vicini e rispetta i bordi", () => {
+  assert.equal(haVicinoFiume(12, new Set([6]), 5, 5), true);
+  assert.equal(haVicinoFiume(12, new Set([0]), 5, 5), false);
+  assert.equal(haVicinoFiume(0, new Set([6]), 5, 5), true);
+});
+
+test("cellaSoloErba esclude bordo, fiume e celle adiacenti al fiume", () => {
+  assert.equal(cellaSoloErba(0, 5, 5, new Set()), false);
+  assert.equal(cellaSoloErba(12, 5, 5, new Set([12])), false);
+  assert.equal(cellaSoloErba(13, 5, 5, new Set([12])), false);
+  assert.equal(cellaSoloErba(18, 5, 5, new Set([6])), true);
 });
 
 
