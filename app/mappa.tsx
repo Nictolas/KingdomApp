@@ -221,7 +221,8 @@ import {
   getIndiciFootprint,
   getManhattanPathSegments,
   getVicini8,
-  isAcqua
+  isAcqua,
+  riverSetDaTerreno
 } from "../src/game/mappaGeometry";
 import { EDIFICIO_TO_ROUTE } from "../src/game/mappaEdificioRoutes";
 
@@ -271,15 +272,6 @@ type EdificioInCella = {
   /** Solo sulla cella anchor: larghezza/altezza in celle del rettangolo. */
   footprint?: { w: number; h: number };
 };
-
-/** Fiumi come insieme di indici (per regole di piazzamento con cuscino). */
-function riverSetDaTerreno(terreno: Record<number, TerrenoType>): Set<number> {
-  const s = new Set<number>();
-  for (const [k, v] of Object.entries(terreno)) {
-    if (v === "river") s.add(Number(k));
-  }
-  return s;
-}
 
 /** Footprint costruzioni giocatore (allineato agli edifici procedurali iniziali). */
 const FOOTPRINT_COSTRUZIONE: Record<string, { w: number; h: number }> = {
