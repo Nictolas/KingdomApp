@@ -250,6 +250,11 @@ import {
   TRIBUNALE_EDIFICIO
 } from "../src/game/mappaEdificiStatici";
 import { getStradeIniziali } from "../src/game/mappaStradeIniziali";
+import {
+  calcolaAnchorCostruzione2x2,
+  costruzioneTerrenoPersistente,
+  type SelezioneCostruzioneAnteprima
+} from "../src/game/mappaCostruzioneAnteprima";
 
 
 /**
@@ -794,26 +799,6 @@ function vietatoFootprintECuscinoDaEdificiIniziali(
     }
   }
   return vietato;
-}
-
-/** Anteprima piazzamento in modalità Costruisci (stessa logica di `handleScegliEdificio`). */
-type SelezioneCostruzioneAnteprima =
-  | { tipo: "strada" }
-  | { tipo: "terreno"; kind: TerrenoCostruzioneKind }
-  | { tipo: "edificio"; edificio: Edificio };
-
-/** Strada / Acqua / Spiaggia / Erba: la modalità resta attiva fino a un secondo tap su Costruisci. */
-function costruzioneTerrenoPersistente(selezione: SelezioneCostruzioneAnteprima | null): boolean {
-  return selezione?.tipo === "strada" || selezione?.tipo === "terreno";
-}
-
-/** Anchor 2×2 che contiene `cellIndex` (Acqua / Spiaggia / Erba). */
-function calcolaAnchorCostruzione2x2(
-  cellIndex: number,
-  cols: number,
-  rows: number
-): { anchor: number | null; w: number; h: number } {
-  return calcolaAnchorStrada2x2(cellIndex, cols, rows);
 }
 
 function footprintTerreno2x2Valido(
