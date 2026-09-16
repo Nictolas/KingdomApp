@@ -5055,7 +5055,11 @@ const styles = StyleSheet.create({
   },
   /** Overlay alba/tramonto/notte (in-game); i tocchi passano ai controlli sotto. */
   overlayCielo: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     pointerEvents: "none"
   },
   topBanner: {

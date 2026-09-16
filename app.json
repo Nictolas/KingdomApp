@@ -5,9 +5,15 @@
     "scheme": "mykingdom",
     "version": "0.1.0",
     "orientation": "default",
-    "platforms": ["ios", "android", "web"],
+    "platforms": [
+      "ios",
+      "android",
+      "web"
+    ],
     "userInterfaceStyle": "automatic",
-    "assetBundlePatterns": ["**/*"],
+    "assetBundlePatterns": [
+      "**/*"
+    ],
     "ios": {
       "supportsTablet": true
     },
@@ -17,8 +23,9 @@
       }
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-asset",
+      "expo-status-bar"
     ]
   }
 }
-
