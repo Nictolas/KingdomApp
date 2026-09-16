@@ -256,7 +256,10 @@ import {
   costruzioneTerrenoPersistente,
   type SelezioneCostruzioneAnteprima
 } from "../src/game/mappaCostruzioneAnteprima";
-import { estendiVietatoConFootprintECuscino } from "../src/game/mappaPiazzamentoFootprint";
+import {
+  estendiVietatoConFootprintECuscino,
+  puòPiazzareFootprintConCuscino
+} from "../src/game/mappaPiazzamentoFootprint";
 
 
 /**
@@ -398,34 +401,6 @@ function applicaRegoleConfineTerreno(
     buildExcludeSandByRoads(edificiInMappa, terrenoInMappa, cols, rows, giacimenti)
   );
   fillErbaEnclosedByWater(terrenoInMappa, cols, rows);
-}
-
-/**
- * `vietato` = unione (footprint ∪ cuscino) degli edifici già piazzati: il nuovo blocco
- * non può invadere quell'area (mantiene almeno un anello d'erba tra strutture).
- */
-function puòPiazzareFootprintConCuscino(
-  anchor: number,
-  w: number,
-  h: number,
-  cols: number,
-  rows: number,
-  riverSet: Set<number>,
-  vietato: Set<number>
-): boolean {
-  const ac = anchor % cols;
-  const ar = Math.floor(anchor / cols);
-  if (ac + w > cols || ar + h > rows) return false;
-  for (let dr = 0; dr < h; dr++) {
-    for (let dc = 0; dc < w; dc++) {
-      const i = (ar + dr) * cols + (ac + dc);
-      if (vietato.has(i) || isAcqua(i, cols, rows) || riverSet.has(i)) return false;
-    }
-  }
-  for (const i of getIndiciCuscinoErba(anchor, w, h, cols, rows)) {
-    if (vietato.has(i) || !cellaSoloErba(i, cols, rows, riverSet)) return false;
-  }
-  return true;
 }
 
 /** Primo angolo w×h con cuscino d'erba e rispetto di `vietato`, ordinato per vicinanza a `preferred`. */
