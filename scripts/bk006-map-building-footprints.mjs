@@ -7,7 +7,7 @@ const testPath = "tests/mappa-edificio-footprints.test.ts";
 let mappa = fs.readFileSync(mappaPath, "utf8");
 
 const oldImport = 'import { EDIFICIO_TO_ROUTE } from "../src/game/mappaEdificioRoutes";\nimport { FOOTPRINT_COSTRUZIONE } from "../src/game/mappaCostruzioneFootprints";';
-const newImport = 'import { EDIFICIO_TO_ROUTE } from "../src/game/mappaEdificioRoutes";\nimport {\n  dimensioniFootprintEdificioInMappa,\n  indiciFootprintProtettiIniziali\n} from "../src/game/mappaEdificioFootprints";';
+const newImport = 'import { EDIFICIO_TO_ROUTE } from "../src/game/mappaEdificioRoutes";\nimport { FOOTPRINT_COSTRUZIONE } from "../src/game/mappaCostruzioneFootprints";\nimport {\n  dimensioniFootprintEdificioInMappa,\n  indiciFootprintProtettiIniziali\n} from "../src/game/mappaEdificioFootprints";';
 if (!mappa.includes(oldImport)) throw new Error("Expected footprint import block not found");
 mappa = mappa.replace(oldImport, newImport);
 
