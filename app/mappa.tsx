@@ -235,6 +235,18 @@ import {
   rimuoviFootprintEdificioDaMappa
 } from "../src/game/mappaEdificioFootprints";
 import { getResourceEmoji, getResourceRoute } from "../src/game/mappaRisorsePresentazione";
+import {
+  BAR_EDIFICIO,
+  CAPANNA,
+  DECORAZIONI_EMOJI,
+  DORMITORIO,
+  GIACIMENTO,
+  RAFFINERIA_MINERARIA,
+  SERRA_2_EDIFICIO,
+  SERRA_EDIFICIO,
+  STRADA_OPZIONE,
+  TRIBUNALE_EDIFICIO
+} from "../src/game/mappaEdificiStatici";
 
 
 /**
@@ -427,21 +439,6 @@ function applicaRegoleConfineTerreno(
   );
   fillErbaEnclosedByWater(terrenoInMappa, cols, rows);
 }
-
-const GIACIMENTO: EdificioInCella = { id: 0, nome: "Giacimento", emoji: "⛰️" };
-const RAFFINERIA_MINERARIA: EdificioInCella = { id: 3, nome: "Raffineria Mineraria", emoji: "⚙️" };
-/** Opzione "Strada" per il dialog costruzione (cella diventa lastricato strada). */
-const STRADA_OPZIONE: EdificioInCella = { id: -1, nome: "Strada", emoji: "🛤️" };
-
-const DORMITORIO: EdificioInCella = { id: 14, nome: "Dormitorio", emoji: "🛏️" };
-const BAR_EDIFICIO: EdificioInCella = { id: 17, nome: "Bar", emoji: "🍺" };
-const TRIBUNALE_EDIFICIO: EdificioInCella = { id: 12, nome: "Tribunale", emoji: "⚖️" };
-const SERRA_EDIFICIO: EdificioInCella = { id: 2, nome: "Serra", emoji: "🌱" };
-const SERRA_2_EDIFICIO: EdificioInCella = { id: 21, nome: "Serra", emoji: "🌱" };
-const CAPANNA: EdificioInCella = { id: 20, nome: "Capanna", emoji: "⛺" };
-
-/** Emoji per decorazioni procedurali sulla mappa (alberi, palme, cactus, vulcano). */
-const DECORAZIONI_EMOJI = ["🌳", "🌲", "🌴", "🌵", "🌋"] as const;
 
 /**
  * True se la cella fa parte dell’impronta di una residenza (Baracca, Capanna, Dormitorio).
