@@ -44,7 +44,7 @@ import {
   trovaLuoghiCultoDaPiazzareSuMappa,
   type ReligioneConCulto
 } from "../src/game/luogoCulto";
-import type { MappaRuntimeState } from "../src/game/mappaTypes";
+import type { EdificioInCellaMappa as EdificioInCella, MappaRuntimeState } from "../src/game/mappaTypes";
 import {
   cellaÈNelFootprintResidenzaMappa,
   distribuisciAbitantiSuAnchorCapanne,
@@ -283,18 +283,6 @@ function webCellAbsolutePosition(index: number, cols: number, cellPx: number): V
   };
 }
 
-
-type EdificioInCella = {
-  id: number;
-  nome: string;
-  emoji: string;
-  /** Istanza in useGameState (edifici) per residenze costruite o edifici con id non di catalogo. */
-  edificioGlobaleId?: number;
-  /** Indice dell'angolo in alto a sinistra dell'edificio multi-cella (solo sulle celle "schiena"). */
-  footprintRef?: number;
-  /** Solo sulla cella anchor: larghezza/altezza in celle del rettangolo. */
-  footprint?: { w: number; h: number };
-};
 
 /** Sabbia = terreno sabbia su terraferma (non mare). */
 function cellaÈSabbiaDissalatore(
