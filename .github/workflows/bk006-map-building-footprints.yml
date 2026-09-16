@@ -27,6 +27,7 @@ jobs:
       - name: Diff sanity
         shell: bash
         run: |
+          git add -N src/game/mappaEdificioFootprints.ts tests/mappa-edificio-footprints.test.ts
           changed="$(git diff --name-only | sort)"
           expected="$(printf '%s\n' app/mappa.tsx src/game/mappaEdificioFootprints.ts tests/mappa-edificio-footprints.test.ts | sort)"
           printf 'Changed files:\n%s\n' "$changed"
