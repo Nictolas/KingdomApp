@@ -230,6 +230,7 @@ import {
 import { EDIFICIO_TO_ROUTE } from "../src/game/mappaEdificioRoutes";
 import { FOOTPRINT_COSTRUZIONE } from "../src/game/mappaCostruzioneFootprints";
 import {
+  applicaEdificioFootprintCostruzione,
   dimensioniFootprintEdificioInMappa,
   giacimentoIndicesDaEdifici,
   indiciFootprintProtettiIniziali,
@@ -364,44 +365,6 @@ function trovaAnchorDissalatore(
   }
   /** Solo ancore che includono la cella toccata: coerente con anteprima verde/rossa. */
   return null;
-}
-
-/** Scrive l'occupazione multi-cella sulla griglia (come aggiungiSerraFootprint ma con anchor già scelto). */
-function applicaEdificioFootprintCostruzione(
-  out: Record<number, EdificioInCella>,
-  anchor: number,
-  w: number,
-  h: number,
-  cols: number,
-  base: { id: number; nome: string; emoji: string; edificioGlobaleId?: number }
-): void {
-  const celle = getIndiciFootprint(anchor, w, h, cols);
-  if (w === 1 && h === 1) {
-    out[anchor] = {
-      id: base.id,
-      nome: base.nome,
-      emoji: base.emoji,
-      edificioGlobaleId: base.edificioGlobaleId
-    };
-    return;
-  }
-  out[anchor] = {
-    id: base.id,
-    nome: base.nome,
-    emoji: "",
-    footprint: { w, h },
-    edificioGlobaleId: base.edificioGlobaleId
-  };
-  for (const i of celle) {
-    if (i === anchor) continue;
-    out[i] = {
-      id: base.id,
-      nome: base.nome,
-      emoji: "",
-      footprintRef: anchor,
-      edificioGlobaleId: base.edificioGlobaleId
-    };
-  }
 }
 
 /** Mare, fiume, sabbia o confine con acqua: nessuna cella strada (vedi {@link isCellaOkPerStrada}). */
