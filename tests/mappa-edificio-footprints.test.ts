@@ -3,7 +3,9 @@ import test from "node:test";
 
 import {
   dimensioniFootprintEdificioInMappa,
+  giacimentoIndicesDaEdifici,
   indiciFootprintProtettiIniziali,
+  rimuoviFootprintEdificioDaMappa,
   type MappaEdificioFootprintEntry
 } from "../src/game/mappaEdificioFootprints.ts";
 
@@ -41,4 +43,26 @@ test("indiciFootprintProtettiIniziali espande solo le celle anchor", () => {
     [...indiciFootprintProtettiIniziali(edifici, 5)].sort((a, b) => a - b),
     [6, 7, 12, 13, 17, 18, 24]
   );
+});
+
+
+test("giacimentoIndicesDaEdifici restituisce solo le celle Giacimento", () => {
+  const edifici = {
+    3: { nome: "Giacimento" },
+    5: { nome: "Serra" },
+    9: { nome: "Giacimento" }
+  };
+  assert.deepEqual([...giacimentoIndicesDaEdifici(edifici)].sort((a, b) => a - b), [3, 9]);
+});
+
+test("rimuoviFootprintEdificioDaMappa elimina solo il rettangolo richiesto", () => {
+  const edifici: Record<number, string> = {
+    6: "a",
+    7: "b",
+    11: "c",
+    12: "d",
+    20: "keep"
+  };
+  rimuoviFootprintEdificioDaMappa(edifici, 6, 2, 2, 5);
+  assert.deepEqual(edifici, { 20: "keep" });
 });

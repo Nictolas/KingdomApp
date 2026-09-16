@@ -21,6 +21,30 @@ export function dimensioniFootprintEdificioInMappa(
   return FOOTPRINT_COSTRUZIONE[cap.nome] ?? { w: 1, h: 1 };
 }
 
+/** Indici delle celle che contengono giacimenti. */
+export function giacimentoIndicesDaEdifici(
+  edificiInMappa: Record<number, { nome: string }>
+): Set<number> {
+  return new Set(
+    Object.keys(edificiInMappa)
+      .map(Number)
+      .filter((i) => edificiInMappa[i]?.nome === "Giacimento")
+  );
+}
+
+/** Rimuove tutte le celle appartenenti a un footprint rettangolare. */
+export function rimuoviFootprintEdificioDaMappa<T>(
+  out: Record<number, T>,
+  anchor: number,
+  w: number,
+  h: number,
+  cols: number
+): void {
+  for (const i of getIndiciFootprint(anchor, w, h, cols)) {
+    delete out[i];
+  }
+}
+
 /** Celle occupate dagli edifici iniziali e quindi protette dalla demolizione. */
 export function indiciFootprintProtettiIniziali(
   edificiIniziali: Record<number, MappaEdificioFootprintEntry>,
