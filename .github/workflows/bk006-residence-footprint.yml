@@ -152,7 +152,6 @@ jobs:
               "app/mappa.tsx",
               "src/game/residenzaMappa.ts",
               "tests/residenza-mappa-footprint.test.ts",
-              ".github/workflows/bk006-residence-footprint.yml",
           }
           changed = set()
           for line in subprocess.check_output(["git", "status", "--porcelain"], text=True).splitlines():
