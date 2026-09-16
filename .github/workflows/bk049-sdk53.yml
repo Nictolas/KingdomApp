@@ -41,6 +41,34 @@ jobs:
       - name: Install required native peers
         run: npx expo install expo-linking react-native-worklets --npm
 
+      - name: Apply SDK 57 source compatibility fixes
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          fill = 'position: "absolute",\n    top: 0,\n    right: 0,\n    bottom: 0,\n    left: 0'
+
+          for filename, expected in [
+              ("app/mappa.tsx", 1),
+              ("src/components/RpgFootprintBuilding.tsx", 2),
+          ]:
+              path = Path(filename)
+              text = path.read_text()
+              count = text.count("...StyleSheet.absoluteFillObject")
+              if count != expected:
+                  raise SystemExit(f"{filename}: expected {expected} absoluteFillObject usages, found {count}")
+              path.write_text(text.replace("...StyleSheet.absoluteFillObject", fill))
+
+          path = Path("src/navigation/apriResidenzaMappa.ts")
+          text = path.read_text()
+          old = 'import type { Router } from "expo-router";'
+          new = 'import type { useRouter } from "expo-router";\ntype Router = ReturnType<typeof useRouter>;'
+          if text.count(old) != 1:
+              raise SystemExit("Expected one Expo Router type import to migrate")
+          path.write_text(text.replace(old, new))
+          PY
+
       - name: Verify Expo dependency alignment
         run: npx expo install --check
 
@@ -64,15 +92,16 @@ jobs:
         run: |
           npm audit --json > npm-audit-sdk57.json || true
           npm audit > npm-audit-sdk57.txt || true
+          cat npm-audit-sdk57.txt
 
       - name: Commit SDK 57 upgrade
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add package.json package-lock.json app.json
+          git add package.json package-lock.json app.json app/mappa.tsx src/components/RpgFootprintBuilding.tsx src/navigation/apriResidenzaMappa.ts
           if git diff --cached --quiet; then
-            echo "No dependency changes"
+            echo "No upgrade changes"
             exit 0
           fi
           git commit -m "chore: upgrade Expo SDK 55 to 57"
