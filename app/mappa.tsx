@@ -223,6 +223,7 @@ import {
   getVicini8,
   isAcqua
 } from "../src/game/mappaGeometry";
+import { EDIFICIO_TO_ROUTE } from "../src/game/mappaEdificioRoutes";
 
 
 /**
@@ -258,36 +259,6 @@ function webCellAbsolutePosition(index: number, cols: number, cellPx: number): V
   };
 }
 
-
-/** Route per edificio (come in app/edifici). */
-const EDIFICIO_TO_ROUTE: Record<string, string> = {
-  "Centro di Comando": "/amministrazione",
-  "Serra": "/serra",
-  "Centrale Energetica": "/centrale-energetica",
-  "Raffineria Mineraria": "/raffineria-mineraria",
-  "Impianto di Riciclo": "/impianto-riciclo",
-  "Baracca": "/residenze",
-  "Capanna": "/residenze",
-  "Dormitorio": "/residenze",
-  "Scuola": "/scuola",
-  "Asilo": "/scuola",
-  "Scuola Elementare": "/scuola",
-  "Scuola Superiore": "/scuola",
-  "Università": "/scuola",
-  "Ospedale": "/ospedale",
-  "Centrale": "/centrale",
-  "Tribunale": "/tribunale",
-  "Ufficio Immigrazione": "/immigrazione",
-  "Ufficio Edile": "/ufficio-edile",
-  "Mercato": "/mercato",
-  "Dissalatore": "/dissalatore",
-  "Laboratorio di Ricerca": "/laboratorio",
-  "Bar": "/bar",
-  "Mensa Pubblica": "/mensa",
-  "Caserma": "/caserma",
-  "Carcere": "/carcere",
-  "Spazioporto": "/spazioporto"
-};
 
 type EdificioInCella = {
   id: number;
