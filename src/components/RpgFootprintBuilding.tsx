@@ -693,7 +693,11 @@ const styles = StyleSheet.create({
     borderColor: OUTLINE
   },
   cantiereScaffold: {
-    ...StyleSheet.absoluteFillObject
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0
   },
   cantierePole: {
     position: "absolute",
@@ -712,7 +716,11 @@ const styles = StyleSheet.create({
     borderColor: OUTLINE
   },
   cantiereEmojiWrap: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute",
+    top: 0,
+    right: 0,
+    bottom: 0,
+    left: 0,
     justifyContent: "center",
     alignItems: "center",
     zIndex: 2
