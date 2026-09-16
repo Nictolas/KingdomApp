@@ -75,6 +75,18 @@ export function riverSetDaTerreno(terreno: Record<number, TerrenoType>): Set<num
   return out;
 }
 
+/** True when any of the eight neighboring cells is a river cell. */
+export function haVicinoFiume(index: number, riverSet: Set<number>, cols: number, rows: number): boolean {
+  return getVicini8(index, cols, rows).some((n) => riverSet.has(n));
+}
+
+/** Cell suitable for grass-only placement: not border water, not river, and not next to a river. */
+export function cellaSoloErba(index: number, cols: number, rows: number, riverSet: Set<number>): boolean {
+  if (isAcqua(index, cols, rows) || riverSet.has(index)) return false;
+  if (haVicinoFiume(index, riverSet, cols, rows)) return false;
+  return true;
+}
+
 
 /** Adjacent orthogonal segments between cells on the same row or column. */
 export function expandAxisToUnitSteps(from: number, to: number, cols: number): [number, number][] {
