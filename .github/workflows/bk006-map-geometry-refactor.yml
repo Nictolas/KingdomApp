@@ -1,0 +1,93 @@
+name: BK-006 map geometry refactor
+
+on:
+  push:
+    branches:
+      - refactor/map-geometry-bk006
+
+permissions:
+  contents: write
+
+jobs:
+  refactor:
+    if: ${{ !contains(github.event.head_commit.message, '[bk006-geometry-applied]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: refactor/map-geometry-bk006
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Apply narrow geometry extraction
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          mappa_path = Path('app/mappa.tsx')
+          text = mappa_path.read_text(encoding='utf-8')
+
+          import_anchor = '} from "../src/game/mappaLayoutConfig";\n'
+          geometry_import = '''import {\n  getIndiciCuscinoErba,\n  getIndiciFootprint,\n  getVicini8,\n  isAcqua\n} from "../src/game/mappaGeometry";\n'''
+          if geometry_import not in text:
+              if text.count(import_anchor) != 1:
+                  raise SystemExit('Expected exactly one mappaLayoutConfig import anchor')
+              text = text.replace(import_anchor, import_anchor + geometry_import, 1)
+
+          blocks = [
+          '''/** Cella è acqua (blu) se true, altrimenti erba (verde). Bordi della mappa = mare. */\nfunction isAcqua(index: number, cols: number, rows: number): boolean {\n  const row = Math.floor(index / cols);\n  const col = index % cols;\n  return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;\n}\n\n''',
+          '''/** Indici di tutte le celle occupate da un footprint ancorato in `anchor`. */\nfunction getIndiciFootprint(anchor: number, w: number, h: number, cols: number): number[] {\n  const ac = anchor % cols;\n  const ar = Math.floor(anchor / cols);\n  const out: number[] = [];\n  for (let dr = 0; dr < h; dr++) {\n    for (let dc = 0; dc < w; dc++) {\n      out.push((ar + dr) * cols + (ac + dc));\n    }\n  }\n  return out;\n}\n\n''',
+          '''/** 8 vicini (ortogonali + diagonali). */\nfunction getVicini8(index: number, cols: number, rows: number): number[] {\n  const c = index % cols;\n  const r = Math.floor(index / cols);\n  const out: number[] = [];\n  for (let dr = -1; dr <= 1; dr++) {\n    for (let dc = -1; dc <= 1; dc++) {\n      if (dr === 0 && dc === 0) continue;\n      const r2 = r + dr;\n      const c2 = c + dc;\n      if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) continue;\n      out.push(r2 * cols + c2);\n    }\n  }\n  return out;\n}\n\n''',
+          '''/**\n * Anello di celle intorno al rettangolo w×h (una cella in ogni direzione, inclusi gli obliqui).\n * Non include l'interno dell'edificio.\n */\nfunction getIndiciCuscinoErba(anchor: number, w: number, h: number, cols: number, rows: number): number[] {\n  const ac = anchor % cols;\n  const ar = Math.floor(anchor / cols);\n  const foot = new Set(getIndiciFootprint(anchor, w, h, cols));\n  const out: number[] = [];\n  for (let dr = -1; dr <= h; dr++) {\n    for (let dc = -1; dc <= w; dc++) {\n      const inside = dr >= 0 && dr < h && dc >= 0 && dc < w;\n      if (inside) continue;\n      const r = ar + dr;\n      const c = ac + dc;\n      if (r < 0 || r >= rows || c < 0 || c >= cols) continue;\n      const i = r * cols + c;\n      if (!foot.has(i)) out.push(i);\n    }\n  }\n  return out;\n}\n\n'''
+          ]
+
+          for block in blocks:
+              count = text.count(block)
+              if count != 1:
+                  raise SystemExit(f'Expected helper block exactly once, found {count}: {block.splitlines()[0]}')
+              text = text.replace(block, '', 1)
+
+          mappa_path.write_text(text, encoding='utf-8')
+
+          Path('src/game/mappaGeometry.ts').write_text('''/** Pure grid geometry helpers shared by the map runtime. */\n\n/** True for cells on the outer border of the map. */\nexport function isAcqua(index: number, cols: number, rows: number): boolean {\n  const row = Math.floor(index / cols);\n  const col = index % cols;\n  return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;\n}\n\n/** Indices occupied by a w×h footprint anchored at its top-left cell. */\nexport function getIndiciFootprint(anchor: number, w: number, h: number, cols: number): number[] {\n  const ac = anchor % cols;\n  const ar = Math.floor(anchor / cols);\n  const out: number[] = [];\n  for (let dr = 0; dr < h; dr++) {\n    for (let dc = 0; dc < w; dc++) {\n      out.push((ar + dr) * cols + (ac + dc));\n    }\n  }\n  return out;\n}\n\n/** Eight neighboring cells (orthogonal + diagonal), clipped to map bounds. */\nexport function getVicini8(index: number, cols: number, rows: number): number[] {\n  const c = index % cols;\n  const r = Math.floor(index / cols);\n  const out: number[] = [];\n  for (let dr = -1; dr <= 1; dr++) {\n    for (let dc = -1; dc <= 1; dc++) {\n      if (dr === 0 && dc === 0) continue;\n      const r2 = r + dr;\n      const c2 = c + dc;\n      if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) continue;\n      out.push(r2 * cols + c2);\n    }\n  }\n  return out;\n}\n\n/** One-cell ring around a footprint, excluding the footprint itself. */\nexport function getIndiciCuscinoErba(\n  anchor: number,\n  w: number,\n  h: number,\n  cols: number,\n  rows: number\n): number[] {\n  const ac = anchor % cols;\n  const ar = Math.floor(anchor / cols);\n  const foot = new Set(getIndiciFootprint(anchor, w, h, cols));\n  const out: number[] = [];\n  for (let dr = -1; dr <= h; dr++) {\n    for (let dc = -1; dc <= w; dc++) {\n      const inside = dr >= 0 && dr < h && dc >= 0 && dc < w;\n      if (inside) continue;\n      const r = ar + dr;\n      const c = ac + dc;\n      if (r < 0 || r >= rows || c < 0 || c >= cols) continue;\n      const i = r * cols + c;\n      if (!foot.has(i)) out.push(i);\n    }\n  }\n  return out;\n}\n''', encoding='utf-8')
+
+          Path('tests/mappa-geometry.test.ts').write_text('''import assert from "node:assert/strict";\nimport test from "node:test";\n\nimport {\n  getIndiciCuscinoErba,\n  getIndiciFootprint,\n  getVicini8,\n  isAcqua\n} from "../src/game/mappaGeometry.ts";\n\ntest("isAcqua riconosce solo il bordo esterno", () => {\n  assert.equal(isAcqua(0, 5, 5), true);\n  assert.equal(isAcqua(4, 5, 5), true);\n  assert.equal(isAcqua(20, 5, 5), true);\n  assert.equal(isAcqua(24, 5, 5), true);\n  assert.equal(isAcqua(6, 5, 5), false);\n  assert.equal(isAcqua(12, 5, 5), false);\n});\n\ntest("getIndiciFootprint mantiene l'ordine corrente delle celle", () => {\n  assert.deepEqual(getIndiciFootprint(6, 2, 2, 5), [6, 7, 11, 12]);\n  assert.deepEqual(getIndiciFootprint(12, 3, 1, 5), [12, 13, 14]);\n});\n\ntest("getVicini8 rispetta centro e bordi", () => {\n  assert.deepEqual(getVicini8(12, 5, 5), [6, 7, 8, 11, 13, 16, 17, 18]);\n  assert.deepEqual(getVicini8(0, 5, 5), [1, 5, 6]);\n});\n\ntest("getIndiciCuscinoErba produce lo stesso anello senza includere il footprint", () => {\n  assert.deepEqual(\n    getIndiciCuscinoErba(6, 2, 2, 5, 5),\n    [0, 1, 2, 3, 5, 8, 10, 13, 15, 16, 17, 18]\n  );\n});\n''', encoding='utf-8')
+          PY
+
+      - name: Diff sanity
+        run: git diff --check && git diff --stat
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Phaser tests
+        run: npm run test:phaser
+
+      - name: Build web
+        run: npm run build:web
+
+      - name: Commit refactor and remove temporary workflow
+        shell: bash
+        run: |
+          rm .github/workflows/bk006-map-geometry-refactor.yml
+          git config user.name "Nictolas"
+          git config user.email "nicolasmicheletti90@gmail.com"
+          git add -A
+          git commit -m "Extract pure map geometry helpers" -m "Continue BK-006 by moving only pure grid geometry helpers out of app/mappa.tsx, with regression tests. [bk006-geometry-applied]"
+          git push origin HEAD:refactor/map-geometry-bk006
