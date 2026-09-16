@@ -19,13 +19,23 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#0b3d1f"
+        "backgroundColor": "#0b3d1f",
+        "foregroundImage": "./assets/adaptive-icon.png"
       }
     },
     "plugins": [
       "expo-router",
       "expo-asset",
-      "expo-status-bar"
-    ]
+      "expo-status-bar",
+      [
+        "expo-splash-screen",
+        {
+          "backgroundColor": "#0b3d1f",
+          "image": "./assets/splash.png",
+          "imageWidth": 220
+        }
+      ]
+    ],
+    "icon": "./assets/icon.png"
   }
 }
