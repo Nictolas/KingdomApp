@@ -55,7 +55,5 @@ jobs:
           git config user.name "Nictolas"
           git config user.email "nicolasmicheletti90@gmail.com"
           git add -A
-          git commit -m "Extract map construction footprints
-
-Continue BK-006 by moving only FOOTPRINT_COSTRUZIONE out of app/mappa.tsx with regression tests. [bk006-construction-footprints-applied]"
+          git commit -m "Extract map construction footprints" -m "Continue BK-006 by moving only FOOTPRINT_COSTRUZIONE out of app/mappa.tsx with regression tests. [bk006-construction-footprints-applied]"
           git push origin HEAD:refactor/map-construction-footprints-bk006
