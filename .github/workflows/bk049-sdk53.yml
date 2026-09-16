@@ -1,0 +1,75 @@
+name: BK-049 Expo SDK 53
+
+on:
+  push:
+    branches:
+      - upgrade/expo-sdk-bk049
+
+permissions:
+  contents: write
+
+jobs:
+  upgrade-sdk53:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: upgrade/expo-sdk-bk049
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install current dependencies
+        run: npm ci
+
+      - name: Upgrade Expo to SDK 53
+        run: npm install expo@^53.0.0
+
+      - name: Align dependencies with SDK 53
+        run: npx expo install --fix --npm
+
+      - name: Verify Expo dependency alignment
+        run: npx expo install --check
+
+      - name: Expo Doctor
+        run: npx expo-doctor
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Phaser tests
+        run: npm run test:phaser
+
+      - name: Build web
+        run: npm run build:web
+
+      - name: Audit dependencies
+        shell: bash
+        run: |
+          npm audit --json > npm-audit-sdk53.json || true
+          npm audit > npm-audit-sdk53.txt || true
+
+      - name: Commit SDK 53 upgrade
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add package.json package-lock.json
+          if git diff --cached --quiet; then
+            echo "No dependency changes"
+            exit 0
+          fi
+          git commit -m "chore: upgrade Expo SDK 52 to 53"
+          git push origin HEAD:upgrade/expo-sdk-bk049
