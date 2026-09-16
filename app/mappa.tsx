@@ -256,6 +256,7 @@ import {
   costruzioneTerrenoPersistente,
   type SelezioneCostruzioneAnteprima
 } from "../src/game/mappaCostruzioneAnteprima";
+import { estendiVietatoConFootprintECuscino } from "../src/game/mappaPiazzamentoFootprint";
 
 
 /**
@@ -425,18 +426,6 @@ function puòPiazzareFootprintConCuscino(
     if (vietato.has(i) || !cellaSoloErba(i, cols, rows, riverSet)) return false;
   }
   return true;
-}
-
-function estendiVietatoConFootprintECuscino(
-  anchor: number,
-  w: number,
-  h: number,
-  cols: number,
-  rows: number,
-  vietato: Set<number>
-): void {
-  for (const i of getIndiciFootprint(anchor, w, h, cols)) vietato.add(i);
-  for (const i of getIndiciCuscinoErba(anchor, w, h, cols, rows)) vietato.add(i);
 }
 
 /** Primo angolo w×h con cuscino d'erba e rispetto di `vietato`, ordinato per vicinanza a `preferred`. */
