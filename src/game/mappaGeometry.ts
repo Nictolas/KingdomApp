@@ -62,3 +62,41 @@ export function getIndiciCuscinoErba(
   }
   return out;
 }
+
+
+/** Adjacent orthogonal segments between cells on the same row or column. */
+export function expandAxisToUnitSteps(from: number, to: number, cols: number): [number, number][] {
+  const c1 = from % cols;
+  const r1 = Math.floor(from / cols);
+  const c2 = to % cols;
+  const r2 = Math.floor(to / cols);
+  if (r1 !== r2 && c1 !== c2) return [];
+  const out: [number, number][] = [];
+  if (r1 === r2) {
+    if (c1 === c2) return [];
+    const step = c2 > c1 ? 1 : -1;
+    for (let c = c1; c !== c2; c += step) {
+      const i = r1 * cols + c;
+      out.push([i, i + step]);
+    }
+  } else {
+    const step = r2 > r1 ? cols : -cols;
+    for (let i = from; i !== to; i += step) {
+      out.push([i, i + step]);
+    }
+  }
+  return out;
+}
+
+/** L-shaped Manhattan path represented only by adjacent orthogonal cell pairs. */
+export function getManhattanPathSegments(from: number, to: number, cols: number): [number, number][] {
+  const c1 = from % cols;
+  const r1 = Math.floor(from / cols);
+  const c2 = to % cols;
+  const r2 = Math.floor(to / cols);
+  if (c1 === c2 && r1 === r2) return [];
+  if (c1 === c2) return expandAxisToUnitSteps(from, to, cols);
+  if (r1 === r2) return expandAxisToUnitSteps(from, to, cols);
+  const mid = r1 * cols + c2;
+  return [...expandAxisToUnitSteps(from, mid, cols), ...expandAxisToUnitSteps(mid, to, cols)];
+}

@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  expandAxisToUnitSteps,
   getIndiciCuscinoErba,
   getIndiciFootprint,
+  getManhattanPathSegments,
   getVicini8,
   isAcqua
 } from "../src/game/mappaGeometry.ts";
@@ -32,4 +34,27 @@ test("getIndiciCuscinoErba produce lo stesso anello senza includere il footprint
     getIndiciCuscinoErba(6, 2, 2, 5, 5),
     [0, 1, 2, 3, 5, 8, 10, 13, 15, 16, 17, 18]
   );
+});
+
+
+test("expandAxisToUnitSteps restituisce solo segmenti adiacenti", () => {
+  assert.deepEqual(expandAxisToUnitSteps(6, 9, 5), [[6, 7], [7, 8], [8, 9]]);
+  assert.deepEqual(expandAxisToUnitSteps(16, 6, 5), [[16, 11], [11, 6]]);
+  assert.deepEqual(expandAxisToUnitSteps(6, 12, 5), []);
+});
+
+test("getManhattanPathSegments conserva il percorso a L corrente", () => {
+  assert.deepEqual(getManhattanPathSegments(6, 18, 5), [
+    [6, 7],
+    [7, 8],
+    [8, 13],
+    [13, 18]
+  ]);
+  assert.deepEqual(getManhattanPathSegments(18, 6, 5), [
+    [18, 17],
+    [17, 16],
+    [16, 11],
+    [11, 6]
+  ]);
+  assert.deepEqual(getManhattanPathSegments(12, 12, 5), []);
 });
