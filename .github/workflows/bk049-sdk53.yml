@@ -16,6 +16,7 @@ jobs:
     env:
       CI: true
       EXPO_NO_TELEMETRY: 1
+      NPM_CONFIG_LEGACY_PEER_DEPS: true
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -31,9 +32,6 @@ jobs:
       - name: Install current dependencies
         run: npm ci
 
-      - name: Pin patched React Server Components peer for SDK 53
-        run: npm pkg set "overrides.react-server-dom-webpack=19.0.4"
-
       - name: Upgrade Expo to SDK 53
         run: npm install expo@^53.0.0
 
@@ -42,6 +40,16 @@ jobs:
 
       - name: Verify Expo dependency alignment
         run: npx expo install --check
+
+      - name: Confirm unused RSC peer is absent
+        shell: bash
+        run: |
+          if npm explain react-server-dom-webpack >/dev/null 2>&1; then
+            echo "react-server-dom-webpack unexpectedly installed"
+            npm explain react-server-dom-webpack
+            exit 1
+          fi
+          echo "react-server-dom-webpack is not installed"
 
       - name: Expo Doctor
         run: npx expo-doctor
