@@ -24,139 +24,14 @@ jobs:
           cache: npm
 
       - name: Apply narrow building-grid helper extraction
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          mappa = Path('app/mappa.tsx')
-          text = mappa.read_text()
-
-          old_import = '''import {
-            dimensioniFootprintEdificioInMappa,
-            indiciFootprintProtettiIniziali
-          } from "../src/game/mappaEdificioFootprints";'''
-          new_import = '''import {
-            dimensioniFootprintEdificioInMappa,
-            giacimentoIndicesDaEdifici,
-            indiciFootprintProtettiIniziali,
-            rimuoviFootprintEdificioDaMappa
-          } from "../src/game/mappaEdificioFootprints";'''
-          assert text.count(old_import) == 1
-          text = text.replace(old_import, new_import)
-
-          old_giacimenti = '''function giacimentoIndicesDaEdifici(edificiInMappa: Record<number, EdificioInCella>): Set<number> {
-            return new Set(
-              Object.keys(edificiInMappa)
-                .map(Number)
-                .filter((i) => edificiInMappa[i]?.nome === "Giacimento")
-            );
-          }
-
-'''
-          assert text.count(old_giacimenti) == 1
-          text = text.replace(old_giacimenti, '')
-
-          old_remove = '''function rimuoviFootprintEdificioDaMappa(
-            out: Record<number, EdificioInCella>,
-            anchor: number,
-            w: number,
-            h: number,
-            cols: number
-          ): void {
-            for (const i of getIndiciFootprint(anchor, w, h, cols)) {
-              delete out[i];
-            }
-          }
-
-'''
-          assert text.count(old_remove) == 1
-          text = text.replace(old_remove, '')
-          mappa.write_text(text)
-
-          module = Path('src/game/mappaEdificioFootprints.ts')
-          mod = module.read_text()
-          marker = '''/** Celle occupate dagli edifici iniziali e quindi protette dalla demolizione. */'''
-          addition = '''/** Indici delle celle che contengono giacimenti. */
-          export function giacimentoIndicesDaEdifici(
-            edificiInMappa: Record<number, { nome: string }>
-          ): Set<number> {
-            return new Set(
-              Object.keys(edificiInMappa)
-                .map(Number)
-                .filter((i) => edificiInMappa[i]?.nome === "Giacimento")
-            );
-          }
-
-          /** Rimuove tutte le celle appartenenti a un footprint rettangolare. */
-          export function rimuoviFootprintEdificioDaMappa<T>(
-            out: Record<number, T>,
-            anchor: number,
-            w: number,
-            h: number,
-            cols: number
-          ): void {
-            for (const i of getIndiciFootprint(anchor, w, h, cols)) {
-              delete out[i];
-            }
-          }
-
-          '''
-          assert mod.count(marker) == 1
-          mod = mod.replace(marker, addition + marker)
-          module.write_text(mod)
-
-          test = Path('tests/mappa-edificio-footprints.test.ts')
-          t = test.read_text()
-          old_test_import = '''import {
-            dimensioniFootprintEdificioInMappa,
-            indiciFootprintProtettiIniziali,
-            type MappaEdificioFootprintEntry
-          } from "../src/game/mappaEdificioFootprints.ts";'''
-          new_test_import = '''import {
-            dimensioniFootprintEdificioInMappa,
-            giacimentoIndicesDaEdifici,
-            indiciFootprintProtettiIniziali,
-            rimuoviFootprintEdificioDaMappa,
-            type MappaEdificioFootprintEntry
-          } from "../src/game/mappaEdificioFootprints.ts";'''
-          assert t.count(old_test_import) == 1
-          t = t.replace(old_test_import, new_test_import)
-          t += '''
-
-          test("giacimentoIndicesDaEdifici restituisce solo le celle Giacimento", () => {
-            const edifici = {
-              3: { nome: "Giacimento" },
-              5: { nome: "Serra" },
-              9: { nome: "Giacimento" }
-            };
-            assert.deepEqual([...giacimentoIndicesDaEdifici(edifici)].sort((a, b) => a - b), [3, 9]);
-          });
-
-          test("rimuoviFootprintEdificioDaMappa elimina solo il rettangolo richiesto", () => {
-            const edifici: Record<number, string> = {
-              6: "a",
-              7: "b",
-              11: "c",
-              12: "d",
-              20: "keep"
-            };
-            rimuoviFootprintEdificioDaMappa(edifici, 6, 2, 2, 5);
-            assert.deepEqual(edifici, { 20: "keep" });
-          });
-          '''
-          test.write_text(t)
-          PY
+        run: python3 .github/scripts/bk006_map_building_grid_helpers.py
 
       - name: Diff sanity
         shell: bash
         run: |
-          git status --short
-          changed="$(git diff --name-only)"
-          printf '%s\n' "$changed"
-          test "$changed" = "app/mappa.tsx
-          src/game/mappaEdificioFootprints.ts
-          tests/mappa-edificio-footprints.test.ts"
+          git diff --name-only | sort > /tmp/changed
+          printf '%s\n' app/mappa.tsx src/game/mappaEdificioFootprints.ts tests/mappa-edificio-footprints.test.ts | sort > /tmp/expected
+          diff -u /tmp/expected /tmp/changed
 
       - name: Install dependencies
         run: npm ci
@@ -173,12 +48,13 @@ jobs:
       - name: Build web
         run: npm run build:web
 
-      - name: Commit refactor and remove temporary workflow
+      - name: Commit refactor and remove temporary files
         shell: bash
         run: |
           rm .github/workflows/bk006-map-building-grid-helpers.yml
+          rm .github/scripts/bk006_map_building_grid_helpers.py
           git config user.name "Nictolas"
           git config user.email "nicolasmicheletti90@gmail.com"
-          git add app/mappa.tsx src/game/mappaEdificioFootprints.ts tests/mappa-edificio-footprints.test.ts .github/workflows/bk006-map-building-grid-helpers.yml
+          git add -A
           git commit -m "Extract map building grid helpers" -m "Continue BK-006 by moving pure building-grid helpers out of app/mappa.tsx with regression tests. No placement, gameplay, or rendering changes."
           git push origin HEAD:refactor/map-building-grid-helpers-bk006
