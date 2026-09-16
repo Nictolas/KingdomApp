@@ -8,7 +8,7 @@ import {
 
 test("puòPiazzareFootprintConCuscino accetta un footprint interno con cuscino libero", () => {
   assert.equal(
-    puòPiazzareFootprintConCuscino(12, 2, 2, 6, 6, new Set<number>(), new Set<number>()),
+    puòPiazzareFootprintConCuscino(14, 2, 2, 6, 6, new Set<number>(), new Set<number>()),
     true
   );
 });
