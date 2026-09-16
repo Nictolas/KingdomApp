@@ -230,7 +230,9 @@ import { EDIFICIO_TO_ROUTE } from "../src/game/mappaEdificioRoutes";
 import { FOOTPRINT_COSTRUZIONE } from "../src/game/mappaCostruzioneFootprints";
 import {
   dimensioniFootprintEdificioInMappa,
-  indiciFootprintProtettiIniziali
+  giacimentoIndicesDaEdifici,
+  indiciFootprintProtettiIniziali,
+  rimuoviFootprintEdificioDaMappa
 } from "../src/game/mappaEdificioFootprints";
 
 
@@ -395,14 +397,6 @@ function applicaEdificioFootprintCostruzione(
 
 /** Mare, fiume, sabbia o confine con acqua: nessuna cella strada (vedi {@link isCellaOkPerStrada}). */
 
-function giacimentoIndicesDaEdifici(edificiInMappa: Record<number, EdificioInCella>): Set<number> {
-  return new Set(
-    Object.keys(edificiInMappa)
-      .map(Number)
-      .filter((i) => edificiInMappa[i]?.nome === "Giacimento")
-  );
-}
-
 /** Dopo strade/fiumi: niente strada adiacente ad acqua o sabbia; erba costiera → sabbia. */
 function applicaRegoleConfineTerreno(
   edificiInMappa: Record<number, EdificioInCella>,
@@ -447,18 +441,6 @@ const CAPANNA: EdificioInCella = { id: 20, nome: "Capanna", emoji: "⛺" };
 
 /** Emoji per decorazioni procedurali sulla mappa (alberi, palme, cactus, vulcano). */
 const DECORAZIONI_EMOJI = ["🌳", "🌲", "🌴", "🌵", "🌋"] as const;
-
-function rimuoviFootprintEdificioDaMappa(
-  out: Record<number, EdificioInCella>,
-  anchor: number,
-  w: number,
-  h: number,
-  cols: number
-): void {
-  for (const i of getIndiciFootprint(anchor, w, h, cols)) {
-    delete out[i];
-  }
-}
 
 /**
  * True se la cella fa parte dell’impronta di una residenza (Baracca, Capanna, Dormitorio).
