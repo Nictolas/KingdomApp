@@ -1,0 +1,99 @@
+name: BK-005 Dirty Tracking
+
+on:
+  push:
+    branches:
+      - perf/dirty-tracking-bk005
+
+permissions:
+  contents: write
+
+jobs:
+  optimize:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: perf/dirty-tracking-bk005
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Replace full-state fingerprint with revision tokens
+        shell: python
+        run: |
+          from pathlib import Path
+
+          path = Path('src/context/GameContext.tsx')
+          text = path.read_text()
+
+          old = '''  const dirtyRef = useRef(false);\n  const lastFingerprintRef = useRef<string | null>(null);'''
+          new = '''  const dirtyRef = useRef(false);\n  const dirtyTrackingInitializedRef = useRef(false);\n  const lastPersistableStateTokenRef = useRef<typeof gameState.createPersistableState | null>(null);\n  const lastMapTokenRef = useRef<typeof mappa>(null);'''
+          assert text.count(old) == 1, f'dirty refs block count={text.count(old)}'
+          text = text.replace(old, new)
+
+          old_reset = '''    lastFingerprintRef.current = null;\n    dirtyRef.current = false;'''
+          new_reset = '''    dirtyTrackingInitializedRef.current = false;\n    lastPersistableStateTokenRef.current = null;\n    lastMapTokenRef.current = null;\n    dirtyRef.current = false;'''
+          assert text.count(old_reset) == 1, f'continue reset count={text.count(old_reset)}'
+          text = text.replace(old_reset, new_reset)
+
+          old_new_game = '''      lastFingerprintRef.current = null;\n      dirtyRef.current = true;'''
+          new_new_game = '''      dirtyTrackingInitializedRef.current = false;\n      lastPersistableStateTokenRef.current = null;\n      lastMapTokenRef.current = null;\n      dirtyRef.current = true;'''
+          assert text.count(old_new_game) == 1, f'new game reset count={text.count(old_new_game)}'
+          text = text.replace(old_new_game, new_new_game)
+
+          old_save_start = '''    const state = latestStateRef.current;\n    if (!repository || !currentMap || !state.simulationEnabled) return;\n    setSaveStatus("saving");'''
+          new_save_start = '''    const state = latestStateRef.current;\n    if (!repository || !currentMap || !state.simulationEnabled) return;\n    const savedStateToken = state.createPersistableState;\n    const savedMapToken = currentMap;\n    setSaveStatus("saving");'''
+          assert text.count(old_save_start) == 1, f'save start count={text.count(old_save_start)}'
+          text = text.replace(old_save_start, new_save_start)
+
+          old_save_success = '''      metadataRef.current = envelope.metadata;\n      dirtyRef.current = false;\n      setSaveStatus("saved");'''
+          new_save_success = '''      metadataRef.current = envelope.metadata;\n      // Se qualcosa è cambiato mentre la scrittura era in corso, deve restare dirty.\n      dirtyRef.current =\n        latestStateRef.current.createPersistableState !== savedStateToken ||\n        getMappaSessione() !== savedMapToken;\n      setSaveStatus("saved");'''
+          assert text.count(old_save_success) == 1, f'save success count={text.count(old_save_success)}'
+          text = text.replace(old_save_success, new_save_success)
+
+          old_effect = '''  useEffect(() => {\n    if (startup !== "active" || !gameState.simulationEnabled || !mappa) return;\n    const payload = gameStateToGameSaveV1(gameState.createPersistableState(mappa));\n    const fingerprintPayload = { ...payload, calendar: { ...payload.calendar, giorno: 0, minutiDaMezzanotte: 0 } };\n    const fingerprint = JSON.stringify(fingerprintPayload, (_key, value) => value === Infinity ? "__Infinity__" : value);\n    if (lastFingerprintRef.current == null) {\n      lastFingerprintRef.current = fingerprint;\n      dirtyRef.current = metadataRef.current == null;\n    } else if (lastFingerprintRef.current !== fingerprint) {\n      lastFingerprintRef.current = fingerprint;\n      dirtyRef.current = true;\n    }\n  }, [startup, gameState, mappa]);'''
+          new_effect = '''  useEffect(() => {\n    if (startup !== "active" || !gameState.simulationEnabled || !mappa) return;\n\n    // createPersistableState è memoizzata sulle sole parti persistite dello stato:\n    // la sua identità funziona quindi come token di revisione O(1), senza serializzare\n    // l'intero salvataggio ad ogni render. La mappa usa allo stesso modo il suo snapshot.\n    const stateToken = gameState.createPersistableState;\n    if (!dirtyTrackingInitializedRef.current) {\n      dirtyTrackingInitializedRef.current = true;\n      lastPersistableStateTokenRef.current = stateToken;\n      lastMapTokenRef.current = mappa;\n      dirtyRef.current = metadataRef.current == null;\n      return;\n    }\n\n    if (lastPersistableStateTokenRef.current !== stateToken || lastMapTokenRef.current !== mappa) {\n      lastPersistableStateTokenRef.current = stateToken;\n      lastMapTokenRef.current = mappa;\n      dirtyRef.current = true;\n    }\n  }, [startup, gameState.simulationEnabled, gameState.createPersistableState, mappa]);'''
+          assert text.count(old_effect) == 1, f'fingerprint effect count={text.count(old_effect)}'
+          text = text.replace(old_effect, new_effect)
+
+          assert 'lastFingerprintRef' not in text
+          assert 'JSON.stringify(fingerprintPayload' not in text
+          path.write_text(text)
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Phaser tests
+        run: npm run test:phaser
+
+      - name: Build web
+        run: npm run build:web
+
+      - name: Commit optimized tracking
+        shell: bash
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/context/GameContext.tsx
+          if git diff --cached --quiet; then
+            echo "No changes"
+            exit 0
+          fi
+          git commit -m "perf: replace save fingerprint with revision tokens"
+          git push origin HEAD:perf/dirty-tracking-bk005
