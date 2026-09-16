@@ -228,6 +228,10 @@ import {
 } from "../src/game/mappaGeometry";
 import { EDIFICIO_TO_ROUTE } from "../src/game/mappaEdificioRoutes";
 import { FOOTPRINT_COSTRUZIONE } from "../src/game/mappaCostruzioneFootprints";
+import {
+  dimensioniFootprintEdificioInMappa,
+  indiciFootprintProtettiIniziali
+} from "../src/game/mappaEdificioFootprints";
 
 
 /**
@@ -444,16 +448,6 @@ const CAPANNA: EdificioInCella = { id: 20, nome: "Capanna", emoji: "⛺" };
 /** Emoji per decorazioni procedurali sulla mappa (alberi, palme, cactus, vulcano). */
 const DECORAZIONI_EMOJI = ["🌳", "🌲", "🌴", "🌵", "🌋"] as const;
 
-function dimensioniFootprintEdificioInMappa(
-  anchor: number,
-  edificiInMappa: Record<number, EdificioInCella>
-): { w: number; h: number } {
-  const cap = edificiInMappa[anchor];
-  if (!cap) return { w: 1, h: 1 };
-  if (cap.footprint) return cap.footprint;
-  return FOOTPRINT_COSTRUZIONE[cap.nome] ?? { w: 1, h: 1 };
-}
-
 function rimuoviFootprintEdificioDaMappa(
   out: Record<number, EdificioInCella>,
   anchor: number,
@@ -464,22 +458,6 @@ function rimuoviFootprintEdificioDaMappa(
   for (const i of getIndiciFootprint(anchor, w, h, cols)) {
     delete out[i];
   }
-}
-
-/** Celle occupate dagli edifici presenti allo stato iniziale della mappa (non demolibili). */
-function indiciFootprintProtettiIniziali(
-  edificiIniziali: Record<number, EdificioInCella>,
-  cols: number
-): Set<number> {
-  const protetti = new Set<number>();
-  for (const idxStr of Object.keys(edificiIniziali)) {
-    const idx = Number(idxStr);
-    const e = edificiIniziali[idx];
-    if (!e || e.footprintRef != null) continue;
-    const { w, h } = dimensioniFootprintEdificioInMappa(idx, edificiIniziali);
-    for (const i of getIndiciFootprint(idx, w, h, cols)) protetti.add(i);
-  }
-  return protetti;
 }
 
 /**
