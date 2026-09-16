@@ -29,7 +29,6 @@ jobs:
 
           path = Path('app/mappa.tsx')
           s = path.read_text()
-          s = s.replace('import type { Abitante, Edificio, Risorsa } from "../src/types";', 'import type { Abitante, Edificio } from "../src/types";')
 
           anchor = '''import {\n  dimensioniFootprintEdificioInMappa,\n  indiciFootprintProtettiIniziali\n} from "../src/game/mappaEdificioFootprints";\n'''
           replacement = anchor + 'import { getResourceEmoji, getResourceRoute } from "../src/game/mappaRisorsePresentazione";\n'
