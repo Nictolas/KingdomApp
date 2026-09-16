@@ -17,7 +17,7 @@ import type {
 import { MissingTile1x1 } from "./MissingTile1x1";
 import { TerrainSheetSprite } from "./TerrainSheetSprite";
 
-const CELLA_SENZA_GRIGLIA: ViewStyle = Platform.select<ViewStyle>({
+const CELLA_SENZA_GRIGLIA: ViewStyle = Platform.select<any>({
   web: {
     borderWidth: 0,
     borderColor: "transparent",
@@ -132,7 +132,6 @@ function MapTerrainCellInner({
   const emojiEl = overlayEmoji ? (
     <Text
       style={[styles.edificioEmoji, { fontSize: Math.max(10, Math.min(22, cellSizePx - 4)) }]}
-      pointerEvents="none"
     >
       {overlayEmoji}
     </Text>
@@ -170,9 +169,7 @@ const styles = StyleSheet.create({
     borderWidth: StyleSheet.hairlineWidth,
     borderColor: "rgba(0,0,0,0.15)"
   },
-  cellaFixed: {
-    boxSizing: "border-box"
-  },
+  cellaFixed: {},
   cellaTextureTerreno: {
     backgroundColor: "transparent",
     overflow: "hidden",

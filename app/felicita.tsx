@@ -23,7 +23,7 @@ export default function FelicitaScreen() {
   const maxHeight = isDesktop ? containerHeight : undefined;
 
   return (
-    <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
+    <SafeAreaView style={[styles.safe, maxHeight ? { maxHeight, overflow: "hidden" } : undefined]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
         <Text style={styles.title}>😊 Felicità</Text>
@@ -55,7 +55,7 @@ export default function FelicitaScreen() {
                     <Text style={styles.rigaEmoji}>{getEmojiAbitante(abitante)}</Text>
                     <View style={styles.rigaTesto}>
                       <Text style={styles.rigaNome} numberOfLines={1}>
-                        {abitante.nome} {abitante.cognome}
+                        {abitante.nome}
                       </Text>
                       <Text style={styles.rigaValore}>{felicità}%</Text>
                     </View>

@@ -39,10 +39,10 @@ function getFazioniEmojiDisplay(fazioni: string[] | undefined, religione?: Abita
 function EmojiWithTooltip({ emoji, nome }: { emoji: string; nome: string }) {
   const [show, setShow] = useState(false);
   return (
-    <View
+    <Pressable
       style={styles.tooltipWrap}
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
+      onHoverIn={() => setShow(true)}
+      onHoverOut={() => setShow(false)}
     >
       <Text style={styles.cellEmojiText}>{emoji}</Text>
       {show && (
@@ -50,7 +50,7 @@ function EmojiWithTooltip({ emoji, nome }: { emoji: string; nome: string }) {
           <Text style={styles.tooltipText}>{nome}</Text>
         </View>
       )}
-    </View>
+    </Pressable>
   );
 }
 
@@ -242,7 +242,7 @@ export default function AbitantiScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
+    <SafeAreaView style={[styles.safe, maxHeight ? { maxHeight, overflow: "hidden" } : undefined]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
         <Text style={styles.title}>Abitanti</Text>

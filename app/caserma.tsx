@@ -32,7 +32,7 @@ export default function CasermaScreen() {
   const bloccaGuerraCivile = addettiIds.length >= 3 && soddisfazioneSicurezza >= SOGLIA_SODDISFAZIONE_BLOCCO_GUERRA;
 
   return (
-    <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
+    <SafeAreaView style={[styles.safe, maxHeight ? { maxHeight, overflow: "hidden" } : undefined]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
         <Text style={styles.title}>🏰 Caserma</Text>

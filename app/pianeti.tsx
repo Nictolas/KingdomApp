@@ -19,7 +19,7 @@ export default function PianetiScreen() {
   }));
 
   return (
-    <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
+    <SafeAreaView style={[styles.safe, maxHeight ? { maxHeight, overflow: "hidden" } : undefined]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
         <Text style={styles.title}>🏰 Regni e popoli</Text>

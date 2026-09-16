@@ -56,7 +56,7 @@ export default function EventiScreen() {
   const possibiliConMatrimonioENascita = nascitaPossibile ? [matrimonioCard, nascitaCard, ...possibili] : [matrimonioCard, ...possibili];
 
   return (
-    <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
+    <SafeAreaView style={[styles.safe, maxHeight ? { maxHeight, overflow: "hidden" } : undefined]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
         <Text style={styles.title}>📌 Eventi</Text>

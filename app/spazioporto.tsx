@@ -15,7 +15,7 @@ export default function SpazioportoScreen() {
   const spazioporto = edifici.find((e) => e.nome === "Spazioporto");
 
   return (
-    <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
+    <SafeAreaView style={[styles.safe, maxHeight ? { maxHeight, overflow: "hidden" } : undefined]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
         <Text style={styles.title}>🚀 Spazioporto</Text>

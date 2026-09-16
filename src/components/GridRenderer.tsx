@@ -66,14 +66,10 @@ const styles = StyleSheet.create({
     borderWidth: 0,
     alignItems: "center",
     justifyContent: "center",
-    userSelect: "none",
-    WebkitUserSelect: "none",
-    MozUserSelect: "none",
-    msUserSelect: "none"
+    userSelect: "none"
   },
   treeEmoji: {
     fontSize: 24,
     userSelect: "none",
-    WebkitUserSelect: "none"
   }
 });
