@@ -2,8 +2,49 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  estendiVietatoConFootprintECuscino
+  estendiVietatoConFootprintECuscino,
+  puòPiazzareFootprintConCuscino
 } from "../src/game/mappaPiazzamentoFootprint.ts";
+
+test("puòPiazzareFootprintConCuscino accetta un footprint interno con cuscino libero", () => {
+  assert.equal(
+    puòPiazzareFootprintConCuscino(14, 2, 2, 6, 6, new Set<number>(), new Set<number>()),
+    true
+  );
+});
+
+test("puòPiazzareFootprintConCuscino rifiuta un footprint che esce dalla griglia", () => {
+  assert.equal(
+    puòPiazzareFootprintConCuscino(16, 2, 2, 5, 5, new Set<number>(), new Set<number>()),
+    false
+  );
+});
+
+test("puòPiazzareFootprintConCuscino rifiuta footprint su acqua, fiume o cella vietata", () => {
+  assert.equal(
+    puòPiazzareFootprintConCuscino(1, 1, 1, 5, 5, new Set<number>(), new Set<number>()),
+    false
+  );
+  assert.equal(
+    puòPiazzareFootprintConCuscino(12, 1, 1, 5, 5, new Set<number>([12]), new Set<number>()),
+    false
+  );
+  assert.equal(
+    puòPiazzareFootprintConCuscino(12, 1, 1, 5, 5, new Set<number>(), new Set<number>([12])),
+    false
+  );
+});
+
+test("puòPiazzareFootprintConCuscino rifiuta un cuscino occupato o non solo-erba", () => {
+  assert.equal(
+    puòPiazzareFootprintConCuscino(12, 1, 1, 5, 5, new Set<number>(), new Set<number>([11])),
+    false
+  );
+  assert.equal(
+    puòPiazzareFootprintConCuscino(12, 1, 1, 5, 5, new Set<number>([6]), new Set<number>()),
+    false
+  );
+});
 
 test("estendiVietatoConFootprintECuscino aggiunge footprint e anello circostante", () => {
   const vietato = new Set<number>([24]);
