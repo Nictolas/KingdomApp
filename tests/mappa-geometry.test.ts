@@ -1,0 +1,35 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+
+import {
+  getIndiciCuscinoErba,
+  getIndiciFootprint,
+  getVicini8,
+  isAcqua
+} from "../src/game/mappaGeometry.ts";
+
+test("isAcqua riconosce solo il bordo esterno", () => {
+  assert.equal(isAcqua(0, 5, 5), true);
+  assert.equal(isAcqua(4, 5, 5), true);
+  assert.equal(isAcqua(20, 5, 5), true);
+  assert.equal(isAcqua(24, 5, 5), true);
+  assert.equal(isAcqua(6, 5, 5), false);
+  assert.equal(isAcqua(12, 5, 5), false);
+});
+
+test("getIndiciFootprint mantiene l'ordine corrente delle celle", () => {
+  assert.deepEqual(getIndiciFootprint(6, 2, 2, 5), [6, 7, 11, 12]);
+  assert.deepEqual(getIndiciFootprint(12, 3, 1, 5), [12, 13, 14]);
+});
+
+test("getVicini8 rispetta centro e bordi", () => {
+  assert.deepEqual(getVicini8(12, 5, 5), [6, 7, 8, 11, 13, 16, 17, 18]);
+  assert.deepEqual(getVicini8(0, 5, 5), [1, 5, 6]);
+});
+
+test("getIndiciCuscinoErba produce lo stesso anello senza includere il footprint", () => {
+  assert.deepEqual(
+    getIndiciCuscinoErba(6, 2, 2, 5, 5),
+    [0, 1, 2, 3, 5, 8, 10, 13, 15, 16, 17, 18]
+  );
+});
