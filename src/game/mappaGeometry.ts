@@ -1,5 +1,7 @@
 /** Pure grid geometry helpers shared by the map runtime. */
 
+import type { TerrenoType } from "./riverGeneration";
+
 /** True for cells on the outer border of the map. */
 export function isAcqua(index: number, cols: number, rows: number): boolean {
   const row = Math.floor(index / cols);
@@ -59,6 +61,16 @@ export function getIndiciCuscinoErba(
       const i = r * cols + c;
       if (!foot.has(i)) out.push(i);
     }
+  }
+  return out;
+}
+
+
+/** River cell indices derived from the terrain lookup. */
+export function riverSetDaTerreno(terreno: Record<number, TerrenoType>): Set<number> {
+  const out = new Set<number>();
+  for (const [key, value] of Object.entries(terreno)) {
+    if (value === "river") out.add(Number(key));
   }
   return out;
 }
