@@ -232,6 +232,7 @@ import {
   dimensioniFootprintEdificioInMappa,
   indiciFootprintProtettiIniziali
 } from "../src/game/mappaEdificioFootprints";
+import { getResourceEmoji, getResourceRoute } from "../src/game/mappaRisorsePresentazione";
 
 
 /**
@@ -1505,27 +1506,6 @@ function piazzaStradeInizialiTraEdifici(
       piazzaStrada2x2CheContiene(i, cols, rows, terrenoInMappa, edificiInMappa, STRADA_OPZIONE);
     }
   }
-}
-
-function getResourceEmoji(r: Risorsa): string {
-  const n = r.nome.toLowerCase();
-  if (n.includes("cibo")) return "🍱";
-  if (n.includes("energia")) return "⚡";
-  if (n.includes("acqua")) return "💧";
-  if (n.includes("materiale edile")) return "🧱";
-  if (n.includes("medicine")) return "💊";
-  if (n.includes("combustibile")) return "⛽";
-  if (n.includes("rifiuti")) return "🗑️";
-  return "⛏️";
-}
-
-function getResourceRoute(r: Risorsa): string | null {
-  const n = r.nome.toLowerCase();
-  if (n.includes("cibo")) return "/cibo";
-  if (n.includes("energia")) return "/energia";
-  if (n.includes("acqua")) return "/acqua";
-  if (n.includes("rifiuti")) return "/rifiuti";
-  return null;
 }
 
 function normalizeMappaSessione(state: MappaRuntimeState): MappaRuntimeState {
