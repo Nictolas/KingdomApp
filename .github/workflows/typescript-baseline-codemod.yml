@@ -1,0 +1,51 @@
+name: TypeScript baseline codemod
+
+on:
+  push:
+    branches:
+      - fix/typescript-baseline
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    if: ${{ github.actor != 'github-actions[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/typescript-baseline
+
+      - name: Apply safe style codemod
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          changed = []
+          old = 'maxHeight && { maxHeight, overflow: "hidden" }'
+          new = 'maxHeight ? { maxHeight, overflow: "hidden" } : undefined'
+
+          for path in Path('app').rglob('*.tsx'):
+              text = path.read_text(encoding='utf-8')
+              updated = text.replace(old, new)
+              if updated != text:
+                  path.write_text(updated, encoding='utf-8')
+                  changed.append(str(path))
+
+          print(f'Updated {len(changed)} files')
+          for path in changed:
+              print(path)
+          PY
+
+      - name: Commit codemod result
+        run: |
+          if git diff --quiet; then
+            echo "No codemod changes"
+            exit 0
+          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app
+          git commit -m "fix: make conditional styles type-safe"
+          git push origin HEAD:fix/typescript-baseline
