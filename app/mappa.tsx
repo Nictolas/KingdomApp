@@ -245,6 +245,7 @@ import {
   RAFFINERIA_MINERARIA,
   SERRA_2_EDIFICIO,
   SERRA_EDIFICIO,
+  SPAZIOPORTO_EDIFICIO,
   STRADA_OPZIONE,
   TRIBUNALE_EDIFICIO
 } from "../src/game/mappaEdificiStatici";
@@ -704,8 +705,6 @@ function aggiungiSerraFootprint(
   }
   estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
 }
-
-const SPAZIOPORTO_EDIFICIO: EdificioInCella = { id: 19, nome: "Spazioporto", emoji: "🚀" };
 
 function aggiungiSpazioportoFootprint(
   cols: number,
