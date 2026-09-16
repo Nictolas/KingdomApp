@@ -215,6 +215,12 @@ import {
   UFFICIO_IMMIGRAZIONE_FOOTPRINT_W,
   getIndiciEdificiIniziali
 } from "../src/game/mappaLayoutConfig";
+import {
+  getIndiciCuscinoErba,
+  getIndiciFootprint,
+  getVicini8,
+  isAcqua
+} from "../src/game/mappaGeometry";
 
 
 /**
@@ -437,13 +443,6 @@ function applicaEdificioFootprintCostruzione(
   }
 }
 
-/** Cella è acqua (blu) se true, altrimenti erba (verde). Bordi della mappa = mare. */
-function isAcqua(index: number, cols: number, rows: number): boolean {
-  const row = Math.floor(index / cols);
-  const col = index % cols;
-  return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
-}
-
 /** Mare, fiume, sabbia o confine con acqua: nessuna cella strada (vedi {@link isCellaOkPerStrada}). */
 
 function giacimentoIndicesDaEdifici(edificiInMappa: Record<number, EdificioInCella>): Set<number> {
@@ -498,19 +497,6 @@ const CAPANNA: EdificioInCella = { id: 20, nome: "Capanna", emoji: "⛺" };
 
 /** Emoji per decorazioni procedurali sulla mappa (alberi, palme, cactus, vulcano). */
 const DECORAZIONI_EMOJI = ["🌳", "🌲", "🌴", "🌵", "🌋"] as const;
-
-/** Indici di tutte le celle occupate da un footprint ancorato in `anchor`. */
-function getIndiciFootprint(anchor: number, w: number, h: number, cols: number): number[] {
-  const ac = anchor % cols;
-  const ar = Math.floor(anchor / cols);
-  const out: number[] = [];
-  for (let dr = 0; dr < h; dr++) {
-    for (let dc = 0; dc < w; dc++) {
-      out.push((ar + dr) * cols + (ac + dc));
-    }
-  }
-  return out;
-}
 
 function dimensioniFootprintEdificioInMappa(
   anchor: number,
@@ -569,48 +555,8 @@ function cellaÈNelFootprintResidenzaMappa(
   return getIndiciFootprint(anchor, w, h, cols).includes(cellIndex);
 }
 
-/** 8 vicini (ortogonali + diagonali). */
-function getVicini8(index: number, cols: number, rows: number): number[] {
-  const c = index % cols;
-  const r = Math.floor(index / cols);
-  const out: number[] = [];
-  for (let dr = -1; dr <= 1; dr++) {
-    for (let dc = -1; dc <= 1; dc++) {
-      if (dr === 0 && dc === 0) continue;
-      const r2 = r + dr;
-      const c2 = c + dc;
-      if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) continue;
-      out.push(r2 * cols + c2);
-    }
-  }
-  return out;
-}
-
 function haVicinoFiume(index: number, riverSet: Set<number>, cols: number, rows: number): boolean {
   return getVicini8(index, cols, rows).some((n) => riverSet.has(n));
-}
-
-/**
- * Anello di celle intorno al rettangolo w×h (una cella in ogni direzione, inclusi gli obliqui).
- * Non include l'interno dell'edificio.
- */
-function getIndiciCuscinoErba(anchor: number, w: number, h: number, cols: number, rows: number): number[] {
-  const ac = anchor % cols;
-  const ar = Math.floor(anchor / cols);
-  const foot = new Set(getIndiciFootprint(anchor, w, h, cols));
-  const out: number[] = [];
-  for (let dr = -1; dr <= h; dr++) {
-    for (let dc = -1; dc <= w; dc++) {
-      const inside = dr >= 0 && dr < h && dc >= 0 && dc < w;
-      if (inside) continue;
-      const r = ar + dr;
-      const c = ac + dc;
-      if (r < 0 || r >= rows || c < 0 || c >= cols) continue;
-      const i = r * cols + c;
-      if (!foot.has(i)) out.push(i);
-    }
-  }
-  return out;
 }
 
 /** Cella adatta a “solo erba”: no mare, no fiume; se adiacente a un fiume diventerebbe sabbia → esclusa. */
