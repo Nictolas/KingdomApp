@@ -27,7 +27,7 @@ export default function CrimineScreen() {
     criminali.filter((a) => (a.reati ?? []).includes(reato)).length;
 
   return (
-    <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
+    <SafeAreaView style={[styles.safe, maxHeight ? { maxHeight, overflow: "hidden" } : undefined]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
         <Text style={styles.title}>🕵️ Crimine</Text>
