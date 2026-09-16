@@ -8,6 +8,7 @@
     "platforms": ["ios", "android", "web"],
     "userInterfaceStyle": "automatic",
     "assetBundlePatterns": ["**/*"],
+    "newArchEnabled": false,
     "ios": {
       "supportsTablet": true
     },
@@ -21,4 +22,3 @@
     ]
   }
 }
-
