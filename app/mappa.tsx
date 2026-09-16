@@ -46,6 +46,7 @@ import {
 } from "../src/game/luogoCulto";
 import type { MappaRuntimeState } from "../src/game/mappaTypes";
 import {
+  cellaÈNelFootprintResidenzaMappa,
   distribuisciAbitantiSuAnchorCapanne,
   elencoAnchorCelleCapanne,
   getAnchorCellPerEdificio,
@@ -438,25 +439,6 @@ function applicaRegoleConfineTerreno(
     buildExcludeSandByRoads(edificiInMappa, terrenoInMappa, cols, rows, giacimenti)
   );
   fillErbaEnclosedByWater(terrenoInMappa, cols, rows);
-}
-
-/**
- * True se la cella fa parte dell’impronta di una residenza (Baracca, Capanna, Dormitorio).
- * Il passeggiatore sopra non deve rubare il doppio tap alla griglia (elenco residenti).
- */
-function cellaÈNelFootprintResidenzaMappa(
-  cellIndex: number,
-  edificiInMappa: Record<number, EdificioInCella>,
-  cols: number
-): boolean {
-  const e = edificiInMappa[cellIndex];
-  if (!e || !èResidenzaMappa(e.nome)) return false;
-  const anchor = getAnchorCellPerEdificio(cellIndex, edificiInMappa);
-  const cap = edificiInMappa[anchor];
-  if (!cap || !èResidenzaMappa(cap.nome)) return false;
-  const w = cap.footprint?.w ?? 1;
-  const h = cap.footprint?.h ?? 1;
-  return getIndiciFootprint(anchor, w, h, cols).includes(cellIndex);
 }
 
 /**

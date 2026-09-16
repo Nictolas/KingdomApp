@@ -1,6 +1,7 @@
 import { edificiData } from "../data/edificiData";
 import type { Edificio } from "../types";
 import type { EdificioInCellaMappa } from "./mappaTypes";
+import { getIndiciFootprint } from "./mappaGeometry";
 
 export const NOMI_RESIDENZE_MAPPA = new Set(["Baracca", "Capanna", "Dormitorio"]);
 export const POSTI_PER_CASA_MAPPA = 6;
@@ -17,6 +18,21 @@ export function getAnchorCellPerEdificio(
 
 export function èResidenzaMappa(nome: string | undefined): boolean {
   return nome != null && NOMI_RESIDENZE_MAPPA.has(nome);
+}
+
+export function cellaÈNelFootprintResidenzaMappa(
+  cellIndex: number,
+  edificiInMappa: Record<number, EdificioInCellaMappa>,
+  cols: number
+): boolean {
+  const e = edificiInMappa[cellIndex];
+  if (!e || !èResidenzaMappa(e.nome)) return false;
+  const anchor = getAnchorCellPerEdificio(cellIndex, edificiInMappa);
+  const cap = edificiInMappa[anchor];
+  if (!cap || !èResidenzaMappa(cap.nome)) return false;
+  const w = cap.footprint?.w ?? 1;
+  const h = cap.footprint?.h ?? 1;
+  return getIndiciFootprint(anchor, w, h, cols).includes(cellIndex);
 }
 
 export function residenzaGlobaleDi(abitanteId: number, edificiList: Edificio[]): Edificio | undefined {
