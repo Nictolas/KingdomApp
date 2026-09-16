@@ -1,4 +1,4 @@
-name: BK-049 Expo SDK 54
+name: BK-049 Expo SDK 55
 
 on:
   push:
@@ -9,7 +9,7 @@ permissions:
   contents: write
 
 jobs:
-  upgrade-sdk54:
+  upgrade-sdk55:
     if: ${{ github.actor != 'github-actions[bot]' }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -29,13 +29,13 @@ jobs:
           node-version: 22
           cache: npm
 
-      - name: Install SDK 53 baseline
+      - name: Install SDK 54 baseline
         run: npm ci
 
-      - name: Upgrade Expo to SDK 54
-        run: npm install expo@^54.0.0
+      - name: Upgrade Expo to SDK 55
+        run: npm install expo@^55.0.0
 
-      - name: Align dependencies with SDK 54
+      - name: Align dependencies with SDK 55
         run: npx expo install --fix --npm
 
       - name: Install required native peers
@@ -62,10 +62,10 @@ jobs:
       - name: Audit dependencies
         shell: bash
         run: |
-          npm audit --json > npm-audit-sdk54.json || true
-          npm audit > npm-audit-sdk54.txt || true
+          npm audit --json > npm-audit-sdk55.json || true
+          npm audit > npm-audit-sdk55.txt || true
 
-      - name: Commit SDK 54 upgrade
+      - name: Commit SDK 55 upgrade
         shell: bash
         run: |
           git config user.name "github-actions[bot]"
@@ -75,5 +75,5 @@ jobs:
             echo "No dependency changes"
             exit 0
           fi
-          git commit -m "chore: upgrade Expo SDK 53 to 54"
+          git commit -m "chore: upgrade Expo SDK 54 to 55"
           git push origin HEAD:upgrade/expo-sdk-bk049
