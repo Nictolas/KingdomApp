@@ -58,6 +58,8 @@ export class KingdomMapScene extends Phaser.Scene {
   private waterSprites: Phaser.GameObjects.Image[] = [];
   private waterFrame = 0;
   private nextWaterFrameAt = 0;
+  private nextWaterViewportSyncAt = 0;
+  private waterViewportDirty = true;
   private nextCharacterVisibilityAt = 0;
   private characterVisibilityDirty = true;
   private dragPointerId: number | null = null;
@@ -160,6 +162,7 @@ export class KingdomMapScene extends Phaser.Scene {
     this.configureTextureFrames(snapshot);
     this.tileLayer.removeAll(true);
     this.waterSprites = [];
+    this.waterViewportDirty = true;
 
     const bleed = 1;
     for (const tile of snapshot.tiles) {
@@ -403,14 +406,43 @@ export class KingdomMapScene extends Phaser.Scene {
       this.nextCharacterVisibilityAt = time + 120;
     }
 
-    if (time < this.nextWaterFrameAt || this.waterSprites.length === 0) return;
-    this.nextWaterFrameAt = time + 420;
-    this.waterFrame = (this.waterFrame + 1) % OVERWORLD_SHEET_PX.waterFrames;
+    const waterFrameDue = this.waterSprites.length > 0 && time >= this.nextWaterFrameAt;
+    if (waterFrameDue) {
+      this.nextWaterFrameAt = time + 420;
+      this.waterFrame = (this.waterFrame + 1) % OVERWORLD_SHEET_PX.waterFrames;
+      this.waterViewportDirty = true;
+    }
+
+    if (
+      this.waterViewportDirty &&
+      this.waterSprites.length > 0 &&
+      (waterFrameDue || time >= this.nextWaterViewportSyncAt)
+    ) {
+      this.refreshVisibleWaterFrames();
+      this.waterViewportDirty = false;
+      this.nextWaterViewportSyncAt = time + 120;
+    }
+  }
+
+  private refreshVisibleWaterFrames(): void {
+    if (this.waterSprites.length === 0) return;
+    const snapshot = this.bridge.getSnapshot();
+    const camera = this.cameras.main;
+    const padding = snapshot.cellSize * 1.5;
+    const worldView = {
+      x: camera.worldView.x,
+      y: camera.worldView.y,
+      width: camera.worldView.width,
+      height: camera.worldView.height
+    };
     const key = frameKey(
       OVERWORLD_SHEET_PX.waterAnimX + this.waterFrame * OVERWORLD_SHEET_PX.tile,
       OVERWORLD_SHEET_PX.waterAnimY
     );
-    for (const sprite of this.waterSprites) sprite.setFrame(key);
+
+    for (const sprite of this.waterSprites) {
+      if (isPointNearPhaserWorldView(sprite.x, sprite.y, worldView, padding)) sprite.setFrame(key);
+    }
   }
 
   private refreshCharacterVisibility(): void {
@@ -460,6 +492,7 @@ export class KingdomMapScene extends Phaser.Scene {
       camera.scrollX -= dx / camera.zoom;
       camera.scrollY -= dy / camera.zoom;
       this.characterVisibilityDirty = true;
+      this.waterViewportDirty = true;
     });
 
     this.input.on("pointerout", () => {
@@ -491,6 +524,7 @@ export class KingdomMapScene extends Phaser.Scene {
         camera.scrollX += before.x - after.x;
         camera.scrollY += before.y - after.y;
         this.characterVisibilityDirty = true;
+        this.waterViewportDirty = true;
       }
     );
   }

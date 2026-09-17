@@ -32,3 +32,15 @@ test("synthetic 50x50 population renders only a viewport subset", () => {
   assert.equal(cols * rows, 2500);
   assert.ok(visible < (cols * rows) * 0.2);
 });
+
+test("water cell becomes eligible for frame sync after camera pan", () => {
+  const cellSize = 40;
+  const padding = cellSize * 1.5;
+  const waterX = 1020;
+  const waterY = 300;
+  const beforePan = { x: 0, y: 0, width: 800, height: 600 };
+  const afterPan = { x: 400, y: 0, width: 800, height: 600 };
+
+  assert.equal(isPointNearPhaserWorldView(waterX, waterY, beforePan, padding), false);
+  assert.equal(isPointNearPhaserWorldView(waterX, waterY, afterPan, padding), true);
+});
