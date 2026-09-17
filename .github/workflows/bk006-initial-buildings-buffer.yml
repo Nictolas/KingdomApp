@@ -1,0 +1,95 @@
+name: BK006 initial buildings buffer extraction
+
+on:
+  push:
+    branches:
+      - refactor/map-initial-buildings-buffer-bk006
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-finalize:
+    if: ${{ !contains(github.event.head_commit.message, '[bk006-final]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Extract helper from mappa.tsx
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/mappa.tsx')
+          text = path.read_text(encoding='utf-8')
+
+          old_import = '''  scegliAnchorComplessoAmministrativo,\n  trovaAnchorFootprintLibero,\n  trovaCellaSingolaConCuscino\n} from "../src/game/mappaPiazzamentoFootprint";'''
+          new_import = '''  scegliAnchorComplessoAmministrativo,\n  trovaAnchorFootprintLibero,\n  trovaCellaSingolaConCuscino,\n  vietatoFootprintECuscinoDaEdificiIniziali\n} from "../src/game/mappaPiazzamentoFootprint";'''
+          if old_import not in text:
+              raise SystemExit('Import target not found')
+          text = text.replace(old_import, new_import, 1)
+
+          start_marker = '''/** Footprint ∪ cuscino d'erba (8 direzioni) per ogni edificio iniziale ancorato: evita capanne/giacimenti sul verde riservato. */\nfunction vietatoFootprintECuscinoDaEdificiIniziali('''
+          end_marker = '\n\nfunction footprintTerreno2x2Valido('
+          start = text.find(start_marker)
+          if start < 0:
+              raise SystemExit('Local helper start not found')
+          end = text.find(end_marker, start)
+          if end < 0:
+              raise SystemExit('Local helper end not found')
+          text = text[:start] + text[end + 2:]
+          path.write_text(text, encoding='utf-8')
+          PY
+
+      - name: Diff sanity
+        shell: bash
+        run: |
+          git diff --check
+          python - <<'PY'
+          import subprocess
+          changed = set()
+          for line in subprocess.check_output(['git', 'status', '--porcelain'], text=True).splitlines():
+              if line:
+                  changed.add(line[3:])
+          expected = {'app/mappa.tsx'}
+          if changed != expected:
+              raise SystemExit(f'Unexpected worktree files: {sorted(changed)} expected {sorted(expected)}')
+          PY
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Unit and integration tests
+        run: npm test
+
+      - name: Phaser tests
+        run: npm run test:phaser
+
+      - name: Build web
+        run: npm run build:web
+
+      - name: Finalize branch
+        shell: bash
+        run: |
+          rm .github/workflows/bk006-initial-buildings-buffer.yml
+          git add app/mappa.tsx .github/workflows/bk006-initial-buildings-buffer.yml
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git commit -m "Extract initial buildings forbidden-buffer helper
+
+Continue BK-006 by moving vietatoFootprintECuscinoDaEdificiIniziali out of app/mappa.tsx with deterministic tests. No building placement, gameplay, or rendering changes. [bk006-final]"
+          git push
