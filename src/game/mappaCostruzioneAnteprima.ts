@@ -1,10 +1,15 @@
 import type { Edificio } from "../types";
 import type { TerrenoCostruzioneKind } from "./costruzioneSezioni";
-import { footprintDissalatoreMareSabbiaValido } from "./mappaDissalatorePiazzamento";
+import { FOOTPRINT_COSTRUZIONE } from "./mappaCostruzioneFootprints";
+import {
+  footprintDissalatoreMareSabbiaValido,
+  trovaAnchorDissalatore
+} from "./mappaDissalatorePiazzamento";
 import { COSTRUZIONE_TERRENO_FOOTPRINT_H, COSTRUZIONE_TERRENO_FOOTPRINT_W } from "./mappaLayoutConfig";
 import { getIndiciFootprint, isAcqua, riverSetDaTerreno } from "./mappaGeometry";
 import {
   puòPiazzareFootprintConCuscino,
+  trovaAnchorFootprintLibero,
   vietatoFootprintECuscinoDaEdificiIniziali
 } from "./mappaPiazzamentoFootprint";
 import type { EdificioInCellaMappa } from "./mappaTypes";
@@ -83,4 +88,31 @@ export function edificioRispettaCriteriPiazzamento(
   const riverSet = riverSetDaTerreno(terrenoInMappa);
   const vietato = vietatoFootprintECuscinoDaEdificiIniziali(edificiInMappa, cols, rows);
   return puòPiazzareFootprintConCuscino(anchor, w, h, cols, rows, riverSet, vietato);
+}
+
+/** Stessa ricerca anchor usata dalla mappa per edifici multi-cella. */
+export function calcolaAnchorEdificioMultiCella(
+  cellIndex: number,
+  nomeEdificio: string,
+  edificiInMappa: Record<number, EdificioInCellaMappa>,
+  terrenoInMappa: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): { anchor: number | null; w: number; h: number } {
+  const dim = FOOTPRINT_COSTRUZIONE[nomeEdificio] ?? { w: 1, h: 1 };
+  const w = dim.w;
+  const h = dim.h;
+  if (nomeEdificio === "Dissalatore") {
+    const anchor = trovaAnchorDissalatore(cellIndex, edificiInMappa, terrenoInMappa, cols, rows);
+    return { anchor, w, h };
+  }
+  const riverSet = riverSetDaTerreno(terrenoInMappa);
+  const vietato = vietatoFootprintECuscinoDaEdificiIniziali(edificiInMappa, cols, rows);
+  let anchor: number | null = null;
+  if (puòPiazzareFootprintConCuscino(cellIndex, w, h, cols, rows, riverSet, vietato)) {
+    anchor = cellIndex;
+  } else {
+    anchor = trovaAnchorFootprintLibero(w, h, cellIndex, cols, rows, riverSet, vietato);
+  }
+  return { anchor, w, h };
 }
