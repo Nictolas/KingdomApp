@@ -6,7 +6,8 @@ import {
   puòPiazzareFootprintConCuscino,
   scegliAnchorComplessoAmministrativo,
   trovaAnchorFootprintLibero,
-  trovaCellaSingolaConCuscino
+  trovaCellaSingolaConCuscino,
+  vietatoFootprintECuscinoDaEdificiIniziali
 } from "../src/game/mappaPiazzamentoFootprint.ts";
 
 test("puòPiazzareFootprintConCuscino accetta un footprint interno con cuscino libero", () => {
@@ -110,4 +111,25 @@ test("estendiVietatoConFootprintECuscino è idempotente su un Set", () => {
 
   estendiVietatoConFootprintECuscino(5, 1, 1, 4, 4, vietato);
   assert.deepEqual([...vietato].sort((a, b) => a - b), prima);
+});
+
+test("vietatoFootprintECuscinoDaEdificiIniziali aggrega anchor multi-cella e 1x1", () => {
+  const edifici = {
+    9: { id: 1, nome: "A", emoji: "", footprint: { w: 2, h: 1 } },
+    10: { id: 1, nome: "A", emoji: "", footprintRef: 9 },
+    22: { id: 2, nome: "B", emoji: "🏠" }
+  };
+
+  assert.deepEqual(
+    [...vietatoFootprintECuscinoDaEdificiIniziali(edifici, 6, 6)].sort((a, b) => a - b),
+    [2, 3, 4, 5, 8, 9, 10, 11, 14, 15, 16, 17, 21, 22, 23, 27, 28, 29]
+  );
+});
+
+test("vietatoFootprintECuscinoDaEdificiIniziali ignora una cella secondaria isolata", () => {
+  const edifici = {
+    10: { id: 1, nome: "A", emoji: "", footprintRef: 9 }
+  };
+
+  assert.deepEqual([...vietatoFootprintECuscinoDaEdificiIniziali(edifici, 6, 6)], []);
 });
