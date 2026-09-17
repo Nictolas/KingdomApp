@@ -66,6 +66,7 @@ export class KingdomMapScene extends Phaser.Scene {
   private gridLayer: Phaser.GameObjects.Graphics | null = null;
   private readonly characterViews = new Map<number, CharacterView>();
   private readonly framePerformance = new PhaserFramePerformanceSampler(600);
+  private lastPerfWallClockAt: number | null = null;
   private perfOverlay: Phaser.GameObjects.Text | null = null;
   private perfEnabled = false;
   private nextPerfOverlayAt = 0;
@@ -110,10 +111,12 @@ export class KingdomMapScene extends Phaser.Scene {
     this.perfEnabled = (globalThis as any).__KINGDOM_PERF_REQUESTED__ === true || (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("perf") === "1");
     if (this.perfEnabled) {
       this.framePerformance.reset();
+      this.lastPerfWallClockAt = null;
       (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();
       (globalThis as any).__KINGDOM_PERF_SNAPSHOT__ = () => this.framePerformance.snapshot();
       (globalThis as any).__KINGDOM_PERF_RESET__ = () => {
         this.framePerformance.reset();
+        this.lastPerfWallClockAt = null;
         (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();
       };
       this.perfOverlay = this.add.text(8, 8, "PERF warming up...", {
@@ -445,7 +448,13 @@ export class KingdomMapScene extends Phaser.Scene {
 
   update(time: number, delta: number): void {
     if (this.perfEnabled) {
-      this.framePerformance.push(delta);
+      // Phaser's delta can be smoothed/clamped toward the target frame rate.
+      // Use browser wall-clock time so CI/headless measurements reflect real frame stalls.
+      const wallClockNow = performance.now();
+      if (this.lastPerfWallClockAt != null) {
+        this.framePerformance.push(wallClockNow - this.lastPerfWallClockAt);
+      }
+      this.lastPerfWallClockAt = wallClockNow;
       if (time >= this.nextPerfOverlayAt) {
         const metrics = this.framePerformance.snapshot();
         (globalThis as any).__KINGDOM_PERF__ = metrics;
