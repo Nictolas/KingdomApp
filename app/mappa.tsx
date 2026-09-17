@@ -269,6 +269,7 @@ import {
   trovaAnchorDissalatore
 } from "../src/game/mappaDissalatorePiazzamento";
 import { applicaRegoleConfineTerreno } from "../src/game/mappaRegoleConfineTerreno";
+import { aggiungiDormitorioFootprint } from "../src/game/mappaEdificiInizialiPiazzamento";
 
 
 /**
@@ -306,39 +307,6 @@ function webCellAbsolutePosition(index: number, cols: number, cellPx: number): V
 
 
 /** Mare, fiume, sabbia o confine con acqua: nessuna cella strada (vedi {@link isCellaOkPerStrada}). */
-
-function aggiungiDormitorioFootprint(
-  cols: number,
-  rows: number,
-  riverSet: Set<number>,
-  vietato: Set<number>,
-  out: Record<number, EdificioInCella>,
-  preferred: number
-): void {
-  const w = DORMITORIO_FOOTPRINT_W;
-  const h = DORMITORIO_FOOTPRINT_H;
-  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, vietato);
-  if (anchor == null) {
-    const cell = trovaCellaSingolaConCuscino(preferred, cols, rows, riverSet, vietato);
-    if (cell != null) {
-      out[cell] = { ...DORMITORIO };
-      estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, vietato);
-    }
-    return;
-  }
-  const celle = getIndiciFootprint(anchor, w, h, cols);
-  out[anchor] = {
-    id: DORMITORIO.id,
-    nome: DORMITORIO.nome,
-    emoji: "",
-    footprint: { w, h }
-  };
-  for (const i of celle) {
-    if (i === anchor) continue;
-    out[i] = { id: DORMITORIO.id, nome: DORMITORIO.nome, emoji: "", footprintRef: anchor };
-  }
-  estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
-}
 
 function aggiungiBarFootprint(
   cols: number,
