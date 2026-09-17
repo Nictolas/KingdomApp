@@ -1,0 +1,52 @@
+name: BK017 Wall Clock Timing Codemod
+
+on:
+  push:
+    branches:
+      - perf/bk017-wall-clock-frame-timing
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/bk017-wall-clock-frame-timing
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Measure real wall-clock frame intervals
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/phaser/scenes/KingdomMapScene.ts')
+          s = p.read_text()
+
+          field_old = '  private readonly framePerformance = new PhaserFramePerformanceSampler(600);\n  private perfOverlay: Phaser.GameObjects.Text | null = null;\n'
+          field_new = '  private readonly framePerformance = new PhaserFramePerformanceSampler(600);\n  private lastPerfWallClockAt: number | null = null;\n  private perfOverlay: Phaser.GameObjects.Text | null = null;\n'
+          if field_old not in s:
+              raise SystemExit('frame performance field marker not found')
+          s = s.replace(field_old, field_new, 1)
+
+          reset_old = '''      this.framePerformance.reset();\n      (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();\n      (globalThis as any).__KINGDOM_PERF_SNAPSHOT__ = () => this.framePerformance.snapshot();\n      (globalThis as any).__KINGDOM_PERF_RESET__ = () => {\n        this.framePerformance.reset();\n        (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();\n      };\n'''
+          reset_new = '''      this.framePerformance.reset();\n      this.lastPerfWallClockAt = null;\n      (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();\n      (globalThis as any).__KINGDOM_PERF_SNAPSHOT__ = () => this.framePerformance.snapshot();\n      (globalThis as any).__KINGDOM_PERF_RESET__ = () => {\n        this.framePerformance.reset();\n        this.lastPerfWallClockAt = null;\n        (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();\n      };\n'''
+          if reset_old not in s:
+              raise SystemExit('perf reset marker not found')
+          s = s.replace(reset_old, reset_new, 1)
+
+          update_old = '''    if (this.perfEnabled) {\n      this.framePerformance.push(delta);\n      if (time >= this.nextPerfOverlayAt) {\n'''
+          update_new = '''    if (this.perfEnabled) {\n      // Phaser's delta can be smoothed/clamped toward the target frame rate.\n      // Use browser wall-clock time so CI/headless measurements reflect real frame stalls.\n      const wallClockNow = performance.now();\n      if (this.lastPerfWallClockAt != null) {\n        this.framePerformance.push(wallClockNow - this.lastPerfWallClockAt);\n      }\n      this.lastPerfWallClockAt = wallClockNow;\n      if (time >= this.nextPerfOverlayAt) {\n'''
+          if update_old not in s:
+              raise SystemExit('update perf marker not found')
+          s = s.replace(update_old, update_new, 1)
+
+          p.write_text(s)
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/phaser/scenes/KingdomMapScene.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "BK-017: measure real frame intervals with wall clock"
+          git push origin HEAD:perf/bk017-wall-clock-frame-timing
