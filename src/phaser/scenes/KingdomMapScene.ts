@@ -105,7 +105,7 @@ export class KingdomMapScene extends Phaser.Scene {
     this.characterLayer = this.add.container(0, 0).setDepth(BUILDING_LAYER_DEPTH + 1);
     this.interactionLayer = this.add.container(0, 0).setDepth(INTERACTION_LAYER_DEPTH);
     this.gridLayer = this.add.graphics().setDepth(INTERACTION_LAYER_DEPTH - 1);
-    this.perfEnabled = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("perf") === "1";
+    this.perfEnabled = (globalThis as any).__KINGDOM_PERF_REQUESTED__ === true || (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("perf") === "1");
     if (this.perfEnabled) {
       this.framePerformance.reset();
       (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();
