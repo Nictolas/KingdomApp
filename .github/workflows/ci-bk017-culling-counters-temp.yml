@@ -1,0 +1,88 @@
+name: BK017 Culling Counters Codemod
+
+on:
+  push:
+    branches:
+      - perf/bk017-culling-work-counters
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/bk017-culling-work-counters
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Add opt-in culling work counters
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/phaser/scenes/KingdomMapScene.ts')
+          s = p.read_text()
+
+          field_old = '''  private readonly framePerformance = new PhaserFramePerformanceSampler(600);\n  private lastPerfWallClockAt: number | null = null;\n  private perfOverlay: Phaser.GameObjects.Text | null = null;\n'''
+          field_new = '''  private readonly framePerformance = new PhaserFramePerformanceSampler(600);\n  private lastPerfWallClockAt: number | null = null;\n  private perfWork = {\n    panMoves: 0,\n    wheelEvents: 0,\n    staticTileRefreshes: 0,\n    staticTileDeltaCells: 0,\n    characterVisibilityRefreshes: 0,\n    characterViewsChecked: 0,\n    waterViewportRefreshes: 0,\n    waterSpritesChecked: 0\n  };\n  private perfOverlay: Phaser.GameObjects.Text | null = null;\n'''
+          if field_old not in s: raise SystemExit('field marker not found')
+          s = s.replace(field_old, field_new, 1)
+
+          globals_old = '''      (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();\n      (globalThis as any).__KINGDOM_PERF_SNAPSHOT__ = () => this.framePerformance.snapshot();\n      (globalThis as any).__KINGDOM_PERF_RESET__ = () => {\n        this.framePerformance.reset();\n        this.lastPerfWallClockAt = null;\n        (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();\n      };\n'''
+          globals_new = '''      (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();\n      (globalThis as any).__KINGDOM_PERF_SNAPSHOT__ = () => this.framePerformance.snapshot();\n      (globalThis as any).__KINGDOM_PERF_WORK_SNAPSHOT__ = () => ({ ...this.perfWork });\n      (globalThis as any).__KINGDOM_PERF_RESET__ = () => {\n        this.framePerformance.reset();\n        this.lastPerfWallClockAt = null;\n        for (const key of Object.keys(this.perfWork) as Array<keyof typeof this.perfWork>) {\n          this.perfWork[key] = 0;\n        }\n        (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();\n      };\n'''
+          if globals_old not in s: raise SystemExit('globals marker not found')
+          s = s.replace(globals_old, globals_new, 1)
+
+          static_old = '''    this.staticTileVisibilityDirty = false;\n    if (!force && phaserGridCellRangesEqual(this.lastStaticTileRange, range)) return;\n\n    if (force || this.lastStaticTileRange == null) {\n'''
+          static_new = '''    this.staticTileVisibilityDirty = false;\n    if (!force && phaserGridCellRangesEqual(this.lastStaticTileRange, range)) return;\n    if (this.perfEnabled) this.perfWork.staticTileRefreshes += 1;\n\n    if (force || this.lastStaticTileRange == null) {\n'''
+          if static_old not in s: raise SystemExit('static refresh marker not found')
+          s = s.replace(static_old, static_new, 1)
+
+          delta_old = '''      const delta = computePhaserGridRangeDelta(this.lastStaticTileRange, range, snapshot.cols);\n      for (const cell of delta.hiddenCells) this.setStaticTileCellVisibility(cell, false);\n      for (const cell of delta.shownCells) this.setStaticTileCellVisibility(cell, true);\n'''
+          delta_new = '''      const delta = computePhaserGridRangeDelta(this.lastStaticTileRange, range, snapshot.cols);\n      if (this.perfEnabled) this.perfWork.staticTileDeltaCells += delta.hiddenCells.length + delta.shownCells.length;\n      for (const cell of delta.hiddenCells) this.setStaticTileCellVisibility(cell, false);\n      for (const cell of delta.shownCells) this.setStaticTileCellVisibility(cell, true);\n'''
+          if delta_old not in s: raise SystemExit('static delta marker not found')
+          s = s.replace(delta_old, delta_new, 1)
+
+          water_old = '''  private refreshVisibleWaterFrames(): void {\n    if (this.waterSprites.length === 0) return;\n    const snapshot = this.bridge.getSnapshot();\n'''
+          water_new = '''  private refreshVisibleWaterFrames(): void {\n    if (this.waterSprites.length === 0) return;\n    if (this.perfEnabled) {\n      this.perfWork.waterViewportRefreshes += 1;\n      this.perfWork.waterSpritesChecked += this.waterSprites.length;\n    }\n    const snapshot = this.bridge.getSnapshot();\n'''
+          if water_old not in s: raise SystemExit('water marker not found')
+          s = s.replace(water_old, water_new, 1)
+
+          char_old = '''  private refreshCharacterVisibility(): void {\n    if (this.characterViews.size === 0) return;\n    const snapshot = this.bridge.getSnapshot();\n'''
+          char_new = '''  private refreshCharacterVisibility(): void {\n    if (this.characterViews.size === 0) return;\n    if (this.perfEnabled) {\n      this.perfWork.characterVisibilityRefreshes += 1;\n      this.perfWork.characterViewsChecked += this.characterViews.size;\n    }\n    const snapshot = this.bridge.getSnapshot();\n'''
+          if char_old not in s: raise SystemExit('character marker not found')
+          s = s.replace(char_old, char_new, 1)
+
+          pan_old = '''      if (Math.abs(dx) + Math.abs(dy) > 2) this.dragged = true;\n      camera.scrollX -= dx / camera.zoom;\n'''
+          pan_new = '''      if (Math.abs(dx) + Math.abs(dy) > 2) this.dragged = true;\n      if (this.perfEnabled) this.perfWork.panMoves += 1;\n      camera.scrollX -= dx / camera.zoom;\n'''
+          if pan_old not in s: raise SystemExit('pan marker not found')
+          s = s.replace(pan_old, pan_new, 1)
+
+          wheel_old = '''      (pointer: Phaser.Input.Pointer, _objects: unknown, _dx: number, dy: number) => {\n        const before = camera.getWorldPoint(pointer.x, pointer.y);\n'''
+          wheel_new = '''      (pointer: Phaser.Input.Pointer, _objects: unknown, _dx: number, dy: number) => {\n        if (this.perfEnabled) this.perfWork.wheelEvents += 1;\n        const before = camera.getWorldPoint(pointer.x, pointer.y);\n'''
+          if wheel_old not in s: raise SystemExit('wheel marker not found')
+          s = s.replace(wheel_old, wheel_new, 1)
+
+          p.write_text(s)
+      - name: Extend benchmark output with work counters
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('scripts/phaser-perf-benchmark.mjs')
+          s = p.read_text()
+          old = '''async function currentMetrics(page) {\n  return page.evaluate(() => {\n    const live = globalThis.__KINGDOM_PERF_SNAPSHOT__?.();\n    return live ?? globalThis.__KINGDOM_PERF__ ?? null;\n  });\n}\n'''
+          new = '''async function currentMetrics(page) {\n  return page.evaluate(() => {\n    const live = globalThis.__KINGDOM_PERF_SNAPSHOT__?.();\n    return live ?? globalThis.__KINGDOM_PERF__ ?? null;\n  });\n}\n\nasync function currentWork(page) {\n  return page.evaluate(() => globalThis.__KINGDOM_PERF_WORK_SNAPSHOT__?.() ?? null);\n}\n\nasync function resultWithWork(page, scenario, metrics) {\n  return { scenario, ...metrics, work: await currentWork(page) };\n}\n'''
+          if old not in s: raise SystemExit('currentMetrics marker not found')
+          s = s.replace(old, new, 1)
+          s = s.replace('if (metrics?.sampleCount >= minSamples) return { scenario, ...metrics };', 'if (metrics?.sampleCount >= minSamples) return resultWithWork(page, scenario, metrics);', 1)
+          s = s.replace('return { scenario: "pan", ...metrics };', 'return resultWithWork(page, "pan", metrics);', 1)
+          s = s.replace('return { scenario: "zoom", ...metrics };', 'return resultWithWork(page, "zoom", metrics);', 1)
+          p.write_text(s)
+      - name: Commit counters
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/phaser/scenes/KingdomMapScene.ts scripts/phaser-perf-benchmark.mjs
+          git diff --cached --quiet && exit 0
+          git commit -m "BK-017: count culling work in perf mode"
+          git push origin HEAD:perf/bk017-culling-work-counters
