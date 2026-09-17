@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   estendiVietatoConFootprintECuscino,
   puòPiazzareFootprintConCuscino,
+  scegliAnchorComplessoAmministrativo,
   trovaAnchorFootprintLibero,
   trovaCellaSingolaConCuscino
 } from "../src/game/mappaPiazzamentoFootprint.ts";
@@ -75,6 +76,14 @@ test("trovaCellaSingolaConCuscino usa la stessa ricerca del footprint 1x1", () =
     trovaCellaSingolaConCuscino(27, 8, 8, riverSet, vietato),
     trovaAnchorFootprintLibero(1, 1, 27, 8, 8, riverSet, vietato)
   );
+});
+
+test("scegliAnchorComplessoAmministrativo mantiene il centro preferito sulla mappa 50x50", () => {
+  assert.equal(scegliAnchorComplessoAmministrativo(50, 50), 1225);
+});
+
+test("scegliAnchorComplessoAmministrativo corregge deterministicamente un preferred troppo vicino al bordo", () => {
+  assert.equal(scegliAnchorComplessoAmministrativo(8, 8), 27);
 });
 
 test("estendiVietatoConFootprintECuscino aggiunge footprint e anello circostante", () => {

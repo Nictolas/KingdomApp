@@ -1,4 +1,9 @@
 import {
+  ADMIN_FOOTPRINT_H,
+  ADMIN_FOOTPRINT_W,
+  getIndiciEdificiIniziali
+} from "./mappaLayoutConfig";
+import {
   cellaSoloErba,
   getIndiciCuscinoErba,
   getIndiciFootprint,
@@ -64,6 +69,39 @@ export function trovaCellaSingolaConCuscino(
   vietato: Set<number>
 ): number | null {
   return trovaAnchorFootprintLibero(1, 1, preferred, cols, rows, riverSet, vietato);
+}
+
+/**
+ * Sceglie deterministicamente l'anchor 3×2 del Complesso amministrativo più vicino
+ * alla posizione preferita del Centro di Comando, mantenendo il cuscino libero.
+ */
+export function scegliAnchorComplessoAmministrativo(cols: number, rows: number): number {
+  const idx = getIndiciEdificiIniziali(cols, rows);
+  const preferred = idx.CENTRO_COMANDO_INDEX;
+  const pc = preferred % cols;
+  const pr = Math.floor(preferred / cols);
+  const w = ADMIN_FOOTPRINT_W;
+  const h = ADMIN_FOOTPRINT_H;
+  const minR = 1;
+  const maxR = rows - 2 - h;
+  const minC = 1;
+  const maxC = cols - 2 - w;
+  let bestAnchor = preferred;
+  let bestD = Infinity;
+  const vietatoVuoto = new Set<number>();
+  const fiumiVuoti = new Set<number>();
+  for (let ar = minR; ar <= maxR; ar++) {
+    for (let ac = minC; ac <= maxC; ac++) {
+      const anchor = ar * cols + ac;
+      if (!puòPiazzareFootprintConCuscino(anchor, w, h, cols, rows, fiumiVuoti, vietatoVuoto)) continue;
+      const d = Math.abs(ar - pr) + Math.abs(ac - pc);
+      if (d < bestD) {
+        bestD = d;
+        bestAnchor = anchor;
+      }
+    }
+  }
+  return bestAnchor;
 }
 
 /** Aggiunge a `vietato` il footprint e il cuscino di una cella che lo circonda. */
