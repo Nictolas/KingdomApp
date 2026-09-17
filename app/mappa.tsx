@@ -118,8 +118,10 @@ import type { PhaserMapCharacter, PhaserMapInteraction } from "../src/phaser/ada
 import { MondoLoadingScreen } from "../src/components/MondoLoadingScreen";
 import {
   buildVisibleCellIndices,
+  computeDirectionalCullingMargins,
   computeVisibleCellRange,
   footprintIntersectsRange,
+  MAP_VIEWPORT_MARGIN_CELLS,
   shouldCommitMapTransformForCulling,
   type MapTransformState
 } from "../src/game/mapViewportCulling";
@@ -1373,7 +1375,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const [mapTransform, setMapTransform] = useState<MapTransformState>({
     positionX: 0,
     positionY: 0,
-    scale: 1
+    scale: 1,
+    cullingMargins: {
+      left: MAP_VIEWPORT_MARGIN_CELLS,
+      right: MAP_VIEWPORT_MARGIN_CELLS,
+      top: MAP_VIEWPORT_MARGIN_CELLS,
+      bottom: MAP_VIEWPORT_MARGIN_CELLS
+    }
   });
   const transformRafRef = useRef<number | null>(null);
   const pendingTransformRef = useRef<MapTransformState | null>(null);
@@ -1385,19 +1393,23 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       transformRafRef.current = null;
       const next = pendingTransformRef.current;
       if (!next) return;
-      setMapTransform((previous) =>
-        shouldCommitMapTransformForCulling(
+      setMapTransform((previous) => {
+        const nextWithMargins: MapTransformState = {
+          ...next,
+          cullingMargins: computeDirectionalCullingMargins(previous, next)
+        };
+        return shouldCommitMapTransformForCulling(
           viewportSize.width,
           viewportSize.height,
           previous,
-          next,
+          nextWithMargins,
           FIXED_MAP_COLS,
           FIXED_MAP_ROWS,
           CELL_SIZE_PX
         )
-          ? next
-          : previous
-      );
+          ? nextWithMargins
+          : previous;
+      });
     });
   }, [viewportSize.width, viewportSize.height]);
 
