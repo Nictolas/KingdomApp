@@ -1,0 +1,148 @@
+name: BK-006 desalination codemod
+
+on:
+  push:
+    branches:
+      - refactor/map-desalination-placement-bk006
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: refactor/map-desalination-placement-bk006
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Extract desalination helpers from mappa.tsx
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+
+          path = Path('app/mappa.tsx')
+          text = path.read_text(encoding='utf-8')
+
+          import_anchor = '''import {
+  estendiVietatoConFootprintECuscino,
+  puòPiazzareFootprintConCuscino,
+  scegliAnchorComplessoAmministrativo,
+  trovaAnchorFootprintLibero,
+  trovaCellaSingolaConCuscino,
+  vietatoFootprintECuscinoDaEdificiIniziali
+} from "../src/game/mappaPiazzamentoFootprint";
+'''
+          new_import = '''import {
+  footprintDissalatoreMareSabbiaValido,
+  trovaAnchorDissalatore
+} from "../src/game/mappaDissalatorePiazzamento";
+'''
+
+          local_block = '''/** Sabbia = terreno sabbia su terraferma (non mare). */
+function cellaÈSabbiaDissalatore(
+  index: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): boolean {
+  if (isAcqua(index, cols, rows)) return false;
+  return (terrenoInMappa[index] ?? "erba") === "sabbia";
+}
+
+/**
+ * Rettangolo 2×2 con esattamente 2 celle sul mare (bordo mappa) e 2 sulla sabbia; niente fiume né edifici.
+ */
+function footprintDissalatoreMareSabbiaValido(
+  anchor: number,
+  cols: number,
+  rows: number,
+  terrenoInMappa: Record<number, TerrenoType>,
+  edificiInMappa: Record<number, EdificioInCella>
+): boolean {
+  const w = DISSALATORE_FOOTPRINT_W;
+  const h = DISSALATORE_FOOTPRINT_H;
+  const ac = anchor % cols;
+  const ar = Math.floor(anchor / cols);
+  if (ac + w > cols || ar + h > rows) return false;
+  const celle = getIndiciFootprint(anchor, w, h, cols);
+  let nMare = 0;
+  let nSabbia = 0;
+  for (const i of celle) {
+    if (edificiInMappa[i]) return false;
+    const t = terrenoInMappa[i] ?? "erba";
+    if (t === "river") return false;
+    if (isAcqua(i, cols, rows)) nMare++;
+    else if (cellaÈSabbiaDissalatore(i, terrenoInMappa, cols, rows)) nSabbia++;
+    else return false;
+  }
+  return nMare === 2 && nSabbia === 2;
+}
+
+/** Cerca un ancoraggio 2×2 valido per il Dissalatore, partendo dalla cella toccata. */
+function trovaAnchorDissalatore(
+  preferredCell: number,
+  edificiInMappa: Record<number, EdificioInCella>,
+  terrenoInMappa: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): number | null {
+  const w = DISSALATORE_FOOTPRINT_W;
+  const h = DISSALATORE_FOOTPRINT_H;
+  const pc = preferredCell % cols;
+  const pr = Math.floor(preferredCell / cols);
+  const dist = (an: number) => {
+    const aac = an % cols;
+    const aar = Math.floor(an / cols);
+    return Math.abs(aac - pc) + Math.abs(aar - pr);
+  };
+  const candidati = new Set<number>();
+  for (let dr = 0; dr < h; dr++) {
+    for (let dc = 0; dc < w; dc++) {
+      const ac = pc - dc;
+      const ar = pr - dr;
+      if (ac < 0 || ar < 0) continue;
+      if (ac + w > cols || ar + h > rows) continue;
+      candidati.add(ar * cols + ac);
+    }
+  }
+  const sortedNear = [...candidati].sort((a, b) => dist(a) - dist(b));
+  for (const an of sortedNear) {
+    if (footprintDissalatoreMareSabbiaValido(an, cols, rows, terrenoInMappa, edificiInMappa)) return an;
+  }
+  /** Solo ancore che includono la cella toccata: coerente con anteprima verde/rossa. */
+  return null;
+}
+
+'''
+
+          changed = False
+          if new_import not in text:
+              if text.count(import_anchor) != 1:
+                  raise SystemExit('Import anchor non univoco; nessuna modifica applicata')
+              text = text.replace(import_anchor, import_anchor + new_import, 1)
+              changed = True
+
+          if local_block in text:
+              if text.count(local_block) != 1:
+                  raise SystemExit('Blocco Dissalatore non univoco; nessuna modifica applicata')
+              text = text.replace(local_block, '', 1)
+              changed = True
+
+          if changed:
+              path.write_text(text, encoding='utf-8')
+          PY
+
+          if git diff --quiet -- app/mappa.tsx; then
+            echo "No codemod changes needed"
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/mappa.tsx
+          git commit -m "BK-006: use extracted desalination placement helpers"
+          git push origin HEAD:refactor/map-desalination-placement-bk006
