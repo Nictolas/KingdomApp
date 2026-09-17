@@ -108,6 +108,11 @@ export class KingdomMapScene extends Phaser.Scene {
     this.perfEnabled = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("perf") === "1";
     if (this.perfEnabled) {
       this.framePerformance.reset();
+      (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();
+      (globalThis as any).__KINGDOM_PERF_RESET__ = () => {
+        this.framePerformance.reset();
+        (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();
+      };
       this.perfOverlay = this.add.text(8, 8, "PERF warming up...", {
         fontFamily: "monospace",
         fontSize: "12px",
@@ -439,6 +444,7 @@ export class KingdomMapScene extends Phaser.Scene {
       this.framePerformance.push(delta);
       if (time >= this.nextPerfOverlayAt) {
         const metrics = this.framePerformance.snapshot();
+        (globalThis as any).__KINGDOM_PERF__ = metrics;
         this.perfOverlay?.setText(formatPhaserFramePerformance(metrics));
         this.perfOverlay?.setScale(1 / this.cameras.main.zoom);
         this.nextPerfOverlayAt = time + 1000;
