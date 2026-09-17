@@ -1,0 +1,84 @@
+name: BK006 terrain preview validity extraction
+
+on:
+  push:
+    branches:
+      - refactor/map-terrain-preview-validity-bk006
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-finalize:
+    if: ${{ !contains(github.event.head_commit.message, '[bk006-final]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Extract helper from mappa.tsx
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          p = Path('app/mappa.tsx')
+          s = p.read_text()
+          old_import = '''import {
+            calcolaAnchorCostruzione2x2,
+            costruzioneTerrenoPersistente,
+            type SelezioneCostruzioneAnteprima
+          } from "../src/game/mappaCostruzioneAnteprima";'''
+          new_import = '''import {
+            calcolaAnchorCostruzione2x2,
+            costruzioneTerrenoPersistente,
+            footprintTerreno2x2Valido,
+            type SelezioneCostruzioneAnteprima
+          } from "../src/game/mappaCostruzioneAnteprima";'''
+          if old_import not in s:
+              raise SystemExit('expected construction preview import block not found')
+          s = s.replace(old_import, new_import, 1)
+          start = s.find('function footprintTerreno2x2Valido(')
+          if start < 0:
+              raise SystemExit('local footprintTerreno2x2Valido not found')
+          end_marker = '\n\n/** Verifica che l’anchor rispetti le stesse regole usate per costruire (anteprima verde solo se true). */'
+          end = s.find(end_marker, start)
+          if end < 0:
+              raise SystemExit('end marker not found')
+          s = s[:start] + s[end+2:]
+          p.write_text(s)
+          PY
+      - name: Diff sanity
+        run: |
+          git diff --check
+          python - <<'PY'
+          import subprocess
+          lines = subprocess.check_output(['git','status','--porcelain'], text=True).splitlines()
+          changed = {line[3:] for line in lines if line}
+          expected = {'app/mappa.tsx'}
+          if changed != expected:
+              raise SystemExit(f'unexpected worktree changes: {changed}; expected {expected}')
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit and integration tests
+        run: npm test
+      - name: Phaser tests
+        run: npm run test:phaser
+      - name: Build web
+        run: npm run build:web
+      - name: Finalize branch
+        run: |
+          rm .github/workflows/bk006-terrain-preview-validity.yml
+          git add app/mappa.tsx .github/workflows/bk006-terrain-preview-validity.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git commit -m 'Extract terrain footprint preview validity helper
+
+Continue BK-006 by moving footprintTerreno2x2Valido out of app/mappa.tsx with deterministic tests. No building placement, Dissalatore, gameplay, or rendering changes. [bk006-final]'
+          git push
