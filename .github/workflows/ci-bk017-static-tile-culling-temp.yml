@@ -1,0 +1,188 @@
+name: BK017 Static Tile Culling Codemod
+
+on:
+  push:
+    branches:
+      - perf/bk017-static-tile-viewport-culling
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/bk017-static-tile-viewport-culling
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Patch KingdomMapScene
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("src/phaser/scenes/KingdomMapScene.ts")
+          s = p.read_text()
+
+          old_import = 'import { isPointNearPhaserWorldView } from "../adapters/phaserViewportCulling";'
+          new_import = '''import {
+            computePhaserWorldViewCellRange,
+            isCellInsidePhaserGridRange,
+            isPointNearPhaserWorldView,
+            phaserGridCellRangesEqual,
+            type PhaserGridCellRange
+          } from "../adapters/phaserViewportCulling";'''
+          if old_import in s:
+              s = s.replace(old_import, new_import, 1)
+
+          marker = '''type CharacterView = {
+            root: Phaser.GameObjects.Container;
+            sprite: Phaser.GameObjects.Sprite;
+            token: number;
+            direction: 0 | 1 | 2 | 3;
+          };'''
+          replacement = marker + '''
+
+          type StaticTileView = {
+            object: Phaser.GameObjects.Image;
+            cell: number;
+          };'''
+          if 'type StaticTileView' not in s:
+              if marker not in s:
+                  raise SystemExit("character type marker not found")
+              s = s.replace(marker, replacement, 1)
+
+          field_marker = '''  private renderedSnapshot: PhaserMapSnapshot | null = null;
+            private waterSprites: Phaser.GameObjects.Image[] = [];'''
+          field_new = '''  private renderedSnapshot: PhaserMapSnapshot | null = null;
+            private staticTileViews: StaticTileView[] = [];
+            private lastStaticTileRange: PhaserGridCellRange | null = null;
+            private staticTileVisibilityDirty = true;
+            private waterSprites: Phaser.GameObjects.Image[] = [];'''
+          if 'private staticTileViews:' not in s:
+              if field_marker not in s:
+                  raise SystemExit("field marker not found")
+              s = s.replace(field_marker, field_new, 1)
+
+          reset_marker = '''    this.tileLayer.removeAll(true);
+            this.waterSprites = [];
+            this.waterViewportDirty = true;'''
+          reset_new = '''    this.tileLayer.removeAll(true);
+            this.staticTileViews = [];
+            this.lastStaticTileRange = null;
+            this.staticTileVisibilityDirty = true;
+            this.waterSprites = [];
+            this.waterViewportDirty = true;'''
+          if reset_marker in s and 'this.staticTileViews = [];' not in s[s.index(reset_marker)-100:s.index(reset_marker)+300]:
+              s = s.replace(reset_marker, reset_new, 1)
+
+          sprite_marker = '''      this.tileLayer.add(sprite);
+            if (tile.animation === "water") this.waterSprites.push(sprite);'''
+          sprite_new = '''      this.tileLayer.add(sprite);
+            this.staticTileViews.push({ object: sprite, cell: tile.index });
+            if (tile.animation === "water") this.waterSprites.push(sprite);'''
+          if 'this.staticTileViews.push({ object: sprite' not in s:
+              if sprite_marker not in s:
+                  raise SystemExit("sprite marker not found")
+              s = s.replace(sprite_marker, sprite_new, 1)
+
+          overlay_marker = '''        this.tileLayer.add(overlay);
+                }
+              }'''
+          overlay_new = '''        this.tileLayer.add(overlay);
+                  this.staticTileViews.push({ object: overlay, cell: tile.index });
+                }
+              }'''
+          if 'this.staticTileViews.push({ object: overlay' not in s:
+              if overlay_marker not in s:
+                  raise SystemExit("overlay marker not found")
+              s = s.replace(overlay_marker, overlay_new, 1)
+
+          bounds_marker = '''    this.cameras.main.setBounds(0, 0, worldW, worldH);
+            this.physics?.world?.setBounds(0, 0, worldW, worldH);
+            this.renderedRevision = snapshot.revision;'''
+          bounds_new = '''    this.cameras.main.setBounds(0, 0, worldW, worldH);
+            this.physics?.world?.setBounds(0, 0, worldW, worldH);
+            this.refreshStaticTileVisibility(true);
+            this.renderedRevision = snapshot.revision;'''
+          if 'this.refreshStaticTileVisibility(true);' not in s:
+              if bounds_marker not in s:
+                  raise SystemExit("bounds marker not found")
+              s = s.replace(bounds_marker, bounds_new, 1)
+
+          update_marker = '''  update(time: number): void {
+            if (this.characterVisibilityDirty || time >= this.nextCharacterVisibilityAt) {'''
+          update_new = '''  update(time: number): void {
+            if (this.staticTileVisibilityDirty) this.refreshStaticTileVisibility();
+
+            if (this.characterVisibilityDirty || time >= this.nextCharacterVisibilityAt) {'''
+          if 'if (this.staticTileVisibilityDirty) this.refreshStaticTileVisibility();' not in s:
+              if update_marker not in s:
+                  raise SystemExit("update marker not found")
+              s = s.replace(update_marker, update_new, 1)
+
+          refresh_marker = '''  private refreshVisibleWaterFrames(): void {'''
+          refresh_method = '''  private refreshStaticTileVisibility(force = false): void {
+            if (this.staticTileViews.length === 0) {
+              this.staticTileVisibilityDirty = false;
+              return;
+            }
+            const snapshot = this.bridge.getSnapshot();
+            const camera = this.cameras.main;
+            const worldView = {
+              x: camera.worldView.x,
+              y: camera.worldView.y,
+              width: camera.worldView.width,
+              height: camera.worldView.height
+            };
+            const range = computePhaserWorldViewCellRange(
+              worldView,
+              snapshot.cols,
+              snapshot.rows,
+              snapshot.cellSize,
+              2
+            );
+            this.staticTileVisibilityDirty = false;
+            if (!force && phaserGridCellRangesEqual(this.lastStaticTileRange, range)) return;
+            this.lastStaticTileRange = range;
+
+            for (const tileView of this.staticTileViews) {
+              const visible = isCellInsidePhaserGridRange(tileView.cell, snapshot.cols, range);
+              if (tileView.object.visible !== visible) tileView.object.setVisible(visible);
+            }
+          }
+
+          private refreshVisibleWaterFrames(): void {'''
+          if 'private refreshStaticTileVisibility(' not in s:
+              if refresh_marker not in s:
+                  raise SystemExit("refresh marker not found")
+              s = s.replace(refresh_marker, refresh_method, 1)
+
+          pan_marker = '''      this.characterVisibilityDirty = true;
+            this.waterViewportDirty = true;'''
+          pan_new = '''      this.characterVisibilityDirty = true;
+            this.waterViewportDirty = true;
+            this.staticTileVisibilityDirty = true;'''
+          if s.count('this.staticTileVisibilityDirty = true;') < 2:
+              if pan_marker not in s:
+                  raise SystemExit("pan dirty marker not found")
+              s = s.replace(pan_marker, pan_new, 1)
+
+          zoom_marker = '''        this.characterVisibilityDirty = true;
+                this.waterViewportDirty = true;'''
+          zoom_new = '''        this.characterVisibilityDirty = true;
+                this.waterViewportDirty = true;
+                this.staticTileVisibilityDirty = true;'''
+          if s.count('this.staticTileVisibilityDirty = true;') < 3:
+              if zoom_marker not in s:
+                  raise SystemExit("zoom dirty marker not found")
+              s = s.replace(zoom_marker, zoom_new, 1)
+
+          p.write_text(s)
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/phaser/scenes/KingdomMapScene.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "BK-017: cull static Phaser tiles by viewport"
+          git push origin HEAD:perf/bk017-static-tile-viewport-culling
