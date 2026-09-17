@@ -20,8 +20,6 @@ import { useGameContext } from "../src/context/GameContext";
 import {
   applyTerrenoGrassAndSandContinuity,
   buildTerrenoFromRivers,
-  ensureStradaErbaTerrainBoundaryRules,
-  fillErbaEnclosedByWater,
   generateRivers,
   hasOrthogonalSandNeighbor,
   hasOrthogonalWaterNeighbor,
@@ -124,11 +122,7 @@ import {
   footprintIntersectsRange,
   type MapTransformState
 } from "../src/game/mapViewportCulling";
-import {
-  assicuraEdificiCollegatiDaStrada,
-  buildExcludeSandByRoads,
-  indiciViciniOrtogonaliStrada
-} from "../src/game/roadConnectivity";
+import { indiciViciniOrtogonaliStrada } from "../src/game/roadConnectivity";
 import {
   abitanteAlBarRoutineOra,
   abitanteInOrarioLavoroEdificio,
@@ -233,7 +227,6 @@ import {
   aggiungiComplessoAmministrativo,
   applicaEdificioFootprintCostruzione,
   dimensioniFootprintEdificioInMappa,
-  giacimentoIndicesDaEdifici,
   indiciFootprintProtettiIniziali,
   rimuoviFootprintEdificioDaMappa
 } from "../src/game/mappaEdificioFootprints";
@@ -272,6 +265,7 @@ import {
   footprintDissalatoreMareSabbiaValido,
   trovaAnchorDissalatore
 } from "../src/game/mappaDissalatorePiazzamento";
+import { applicaRegoleConfineTerreno } from "../src/game/mappaRegoleConfineTerreno";
 
 
 /**
@@ -309,36 +303,6 @@ function webCellAbsolutePosition(index: number, cols: number, cellPx: number): V
 
 
 /** Mare, fiume, sabbia o confine con acqua: nessuna cella strada (vedi {@link isCellaOkPerStrada}). */
-
-/** Dopo strade/fiumi: niente strada adiacente ad acqua o sabbia; erba costiera → sabbia. */
-function applicaRegoleConfineTerreno(
-  edificiInMappa: Record<number, EdificioInCella>,
-  terrenoInMappa: Record<number, TerrenoType>,
-  cols: number,
-  rows: number,
-  options?: { collegaEdificiAllaStrada?: boolean }
-): void {
-  const giacimenti = giacimentoIndicesDaEdifici(edificiInMappa);
-  const collegaEdifici = options?.collegaEdificiAllaStrada ?? true;
-  ensureStradaErbaTerrainBoundaryRules(
-    edificiInMappa,
-    terrenoInMappa,
-    cols,
-    rows,
-    giacimenti,
-    collegaEdifici
-      ? (edifici, terreno, c, r) =>
-          assicuraEdificiCollegatiDaStrada(edifici, terreno, c, r, STRADA_OPZIONE)
-      : () => {}
-  );
-  applyTerrenoGrassAndSandContinuity(
-    terrenoInMappa,
-    cols,
-    rows,
-    buildExcludeSandByRoads(edificiInMappa, terrenoInMappa, cols, rows, giacimenti)
-  );
-  fillErbaEnclosedByWater(terrenoInMappa, cols, rows);
-}
 
 function aggiungiDormitorioFootprint(
   cols: number,
