@@ -46,6 +46,31 @@ export type PhaserMapSnapshot = {
   revision: number;
 };
 
+export type PhaserDynamicSnapshotChanges = {
+  characters: boolean;
+  interaction: boolean;
+  grid: boolean;
+};
+
+/**
+ * Parti dinamiche che Phaser può aggiornare senza ricostruire terreno/edifici.
+ *
+ * Gli snapshot React mantengono riferimenti stabili tramite useMemo: un cambio hover
+ * sostituisce solo `interaction`, mentre `characters` e `showGrid` restano invariati.
+ * Usare questi riferimenti evita di riconciliare tutti i personaggi e ridisegnare la
+ * griglia ad ogni spostamento del puntatore.
+ */
+export function getPhaserDynamicSnapshotChanges(
+  previous: PhaserMapSnapshot,
+  next: PhaserMapSnapshot
+): PhaserDynamicSnapshotChanges {
+  return {
+    characters: previous.characters !== next.characters,
+    interaction: previous.interaction !== next.interaction,
+    grid: previous.showGrid !== next.showGrid
+  };
+}
+
 export type PhaserMapActions = {
   onCellPress: (cellIndex: number) => void;
   onCellHover?: (cellIndex: number | null) => void;

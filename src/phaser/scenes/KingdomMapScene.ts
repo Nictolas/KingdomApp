@@ -1,7 +1,12 @@
 import Phaser from "phaser";
 
 import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
-import type { MapSceneBridge, PhaserMapBuilding, PhaserMapSnapshot } from "../adapters/mapSceneBridge";
+import {
+  getPhaserDynamicSnapshotChanges,
+  type MapSceneBridge,
+  type PhaserMapBuilding,
+  type PhaserMapSnapshot
+} from "../adapters/mapSceneBridge";
 
 const SHEET_KEY = "overworld";
 const HUMAN_KEY = "human-colonist";
@@ -48,6 +53,7 @@ export class KingdomMapScene extends Phaser.Scene {
   private gridLayer: Phaser.GameObjects.Graphics | null = null;
   private readonly characterViews = new Map<number, CharacterView>();
   private renderedRevision = -1;
+  private renderedSnapshot: PhaserMapSnapshot | null = null;
   private waterSprites: Phaser.GameObjects.Image[] = [];
   private waterFrame = 0;
   private nextWaterFrameAt = 0;
@@ -82,12 +88,16 @@ export class KingdomMapScene extends Phaser.Scene {
     this.configureCameraAndInput();
     this.unsubscribe = this.bridge.subscribe(() => {
       const snapshot = this.bridge.getSnapshot();
-      if (snapshot.revision !== this.renderedRevision) this.renderSnapshot(snapshot);
-      else {
-        this.reconcileCharacters(snapshot);
-        this.renderGrid(snapshot);
-        this.renderInteraction(snapshot);
+      if (snapshot.revision !== this.renderedRevision || this.renderedSnapshot == null) {
+        this.renderSnapshot(snapshot);
+        return;
       }
+
+      const changes = getPhaserDynamicSnapshotChanges(this.renderedSnapshot, snapshot);
+      if (changes.characters) this.reconcileCharacters(snapshot);
+      if (changes.grid) this.renderGrid(snapshot);
+      if (changes.interaction) this.renderInteraction(snapshot);
+      this.renderedSnapshot = snapshot;
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unsubscribe?.());
   }
@@ -184,6 +194,7 @@ export class KingdomMapScene extends Phaser.Scene {
     this.reconcileCharacters(snapshot);
     this.renderGrid(snapshot);
     this.renderInteraction(snapshot);
+    this.renderedSnapshot = snapshot;
   }
 
   private renderGrid(snapshot: PhaserMapSnapshot): void {
