@@ -2,7 +2,9 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  MAP_VIEWPORT_BASE_MARGIN_CELLS,
   MAP_VIEWPORT_MARGIN_CELLS,
+  computeDirectionalCullingMargins,
   computeVisibleCellRange,
   shouldCommitMapTransformForCulling
 } from "../src/game/mapViewportCulling.ts";
@@ -38,6 +40,80 @@ test("il buffer resta limitato ai bordi della mappa", () => {
     ),
     { colStart: 0, colEnd: 36, rowStart: 0, rowEnd: 31 }
   );
+});
+
+test("l'overscan adattivo mantiene 16 celle davanti al pan e ne usa 8 sugli altri lati", () => {
+  assert.deepEqual(
+    computeDirectionalCullingMargins(
+      { positionX: -400, positionY: -400, scale: 1 },
+      { positionX: -440, positionY: -400, scale: 1 }
+    ),
+    {
+      left: MAP_VIEWPORT_BASE_MARGIN_CELLS,
+      right: MAP_VIEWPORT_MARGIN_CELLS,
+      top: MAP_VIEWPORT_BASE_MARGIN_CELLS,
+      bottom: MAP_VIEWPORT_BASE_MARGIN_CELLS
+    }
+  );
+});
+
+test("un'inversione di pan conserva per un aggiornamento il margine massimo sui due lati", () => {
+  assert.deepEqual(
+    computeDirectionalCullingMargins(
+      {
+        positionX: -440,
+        positionY: -400,
+        scale: 1,
+        cullingMargins: {
+          left: MAP_VIEWPORT_BASE_MARGIN_CELLS,
+          right: MAP_VIEWPORT_MARGIN_CELLS,
+          top: MAP_VIEWPORT_BASE_MARGIN_CELLS,
+          bottom: MAP_VIEWPORT_BASE_MARGIN_CELLS
+        }
+      },
+      { positionX: -400, positionY: -400, scale: 1 }
+    ),
+    {
+      left: MAP_VIEWPORT_MARGIN_CELLS,
+      right: MAP_VIEWPORT_MARGIN_CELLS,
+      top: MAP_VIEWPORT_BASE_MARGIN_CELLS,
+      bottom: MAP_VIEWPORT_BASE_MARGIN_CELLS
+    }
+  );
+});
+
+test("durante lo zoom il margine resta prudenzialmente simmetrico", () => {
+  assert.deepEqual(
+    computeDirectionalCullingMargins(
+      { positionX: -400, positionY: -400, scale: 1 },
+      { positionX: -400, positionY: -400, scale: 1.2 }
+    ),
+    {
+      left: MAP_VIEWPORT_MARGIN_CELLS,
+      right: MAP_VIEWPORT_MARGIN_CELLS,
+      top: MAP_VIEWPORT_MARGIN_CELLS,
+      bottom: MAP_VIEWPORT_MARGIN_CELLS
+    }
+  );
+});
+
+test("l'overscan direzionale riduce sensibilmente le celle prerenderizzate lontano dai bordi", () => {
+  const previous = { positionX: -1200, positionY: -1200, scale: 1 };
+  const next = { positionX: -1240, positionY: -1240, scale: 1 };
+  const cullingMargins = computeDirectionalCullingMargins(previous, next);
+  const adaptive = computeVisibleCellRange(
+    800,
+    600,
+    { ...next, cullingMargins },
+    100,
+    100,
+    40
+  );
+  const symmetric = computeVisibleCellRange(800, 600, next, 100, 100, 40, MAP_VIEWPORT_MARGIN_CELLS);
+  const adaptiveCells = (adaptive.colEnd - adaptive.colStart) * (adaptive.rowEnd - adaptive.rowStart);
+  const symmetricCells = (symmetric.colEnd - symmetric.colStart) * (symmetric.rowEnd - symmetric.rowStart);
+
+  assert.ok(adaptiveCells < symmetricCells * 0.75, `${adaptiveCells} deve essere < 75% di ${symmetricCells}`);
 });
 
 test("movimenti che restano nello stesso range di celle non richiedono un render React", () => {
