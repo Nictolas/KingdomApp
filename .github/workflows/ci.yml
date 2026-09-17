@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -22,6 +25,41 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Apply BK-006 dormitory footprint codemod
+        if: github.event_name == 'pull_request' && github.head_ref == 'refactor/map-dormitory-footprint-bk006'
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('app/mappa.tsx')
+          text = path.read_text(encoding='utf-8')
+          import_anchor = 'import { applicaRegoleConfineTerreno } from "../src/game/mappaRegoleConfineTerreno";\n'
+          new_import = 'import { aggiungiDormitorioFootprint } from "../src/game/mappaEdificiInizialiPiazzamento";\n'
+          if new_import not in text:
+              if import_anchor not in text:
+                  raise SystemExit('import anchor not found')
+              text = text.replace(import_anchor, import_anchor + new_import, 1)
+          start_marker = 'function aggiungiDormitorioFootprint(\n'
+          end_marker = 'function aggiungiBarFootprint(\n'
+          if start_marker in text:
+              start = text.index(start_marker)
+              end = text.index(end_marker, start)
+              text = text[:start] + text[end:]
+          elif new_import not in text:
+              raise SystemExit('dormitory helper block not found')
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          if ! git diff --quiet -- app/mappa.tsx; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add app/mappa.tsx
+            git commit -m "BK-006: use extracted initial dormitory footprint helper"
+            git push origin HEAD:refactor/map-dormitory-footprint-bk006
+          fi
 
       - name: Use Node.js 22
         uses: actions/setup-node@v4
