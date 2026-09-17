@@ -1,6 +1,7 @@
 import Phaser from "phaser";
 
 import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
+import { PhaserFramePerformanceSampler, formatPhaserFramePerformance } from "../adapters/phaserFramePerformance";
 import {
   getPhaserDynamicSnapshotChanges,
   type MapSceneBridge,
@@ -63,6 +64,10 @@ export class KingdomMapScene extends Phaser.Scene {
   private interactionLayer: Phaser.GameObjects.Container | null = null;
   private gridLayer: Phaser.GameObjects.Graphics | null = null;
   private readonly characterViews = new Map<number, CharacterView>();
+  private readonly framePerformance = new PhaserFramePerformanceSampler(600);
+  private perfOverlay: Phaser.GameObjects.Text | null = null;
+  private perfEnabled = false;
+  private nextPerfOverlayAt = 0;
   private renderedRevision = -1;
   private renderedSnapshot: PhaserMapSnapshot | null = null;
   private staticTileViews: StaticTileView[] = [];
@@ -100,6 +105,17 @@ export class KingdomMapScene extends Phaser.Scene {
     this.characterLayer = this.add.container(0, 0).setDepth(BUILDING_LAYER_DEPTH + 1);
     this.interactionLayer = this.add.container(0, 0).setDepth(INTERACTION_LAYER_DEPTH);
     this.gridLayer = this.add.graphics().setDepth(INTERACTION_LAYER_DEPTH - 1);
+    this.perfEnabled = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("perf") === "1";
+    if (this.perfEnabled) {
+      this.framePerformance.reset();
+      this.perfOverlay = this.add.text(8, 8, "PERF warming up...", {
+        fontFamily: "monospace",
+        fontSize: "12px",
+        color: "#ffffff",
+        backgroundColor: "rgba(2,6,23,0.82)",
+        padding: { x: 5, y: 3 }
+      }).setScrollFactor(0).setDepth(INTERACTION_LAYER_DEPTH + 100);
+    }
     this.configureCharacterAnimations();
     this.configureTextureFrames(this.bridge.getSnapshot());
     this.renderSnapshot(this.bridge.getSnapshot());
@@ -418,7 +434,17 @@ export class KingdomMapScene extends Phaser.Scene {
     }
   }
 
-  update(time: number): void {
+  update(time: number, delta: number): void {
+    if (this.perfEnabled) {
+      this.framePerformance.push(delta);
+      if (time >= this.nextPerfOverlayAt) {
+        const metrics = this.framePerformance.snapshot();
+        this.perfOverlay?.setText(formatPhaserFramePerformance(metrics));
+        this.perfOverlay?.setScale(1 / this.cameras.main.zoom);
+        this.nextPerfOverlayAt = time + 1000;
+      }
+    }
+
     if (this.staticTileVisibilityDirty) this.refreshStaticTileVisibility();
 
     if (this.characterVisibilityDirty || time >= this.nextCharacterVisibilityAt) {
