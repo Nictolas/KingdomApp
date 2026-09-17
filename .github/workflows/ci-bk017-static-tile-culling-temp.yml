@@ -20,162 +20,137 @@ jobs:
         shell: python
         run: |
           from pathlib import Path
+          from textwrap import dedent
+
           p = Path("src/phaser/scenes/KingdomMapScene.ts")
           s = p.read_text()
 
-          old_import = 'import { isPointNearPhaserWorldView } from "../adapters/phaserViewportCulling";'
-          new_import = '''import {
-            computePhaserWorldViewCellRange,
-            isCellInsidePhaserGridRange,
-            isPointNearPhaserWorldView,
-            phaserGridCellRangesEqual,
-            type PhaserGridCellRange
-          } from "../adapters/phaserViewportCulling";'''
-          if old_import in s:
-              s = s.replace(old_import, new_import, 1)
+          def replace_once(old, new, label):
+              global s
+              if new in s:
+                  return
+              if old not in s:
+                  raise SystemExit(f"{label} marker not found")
+              s = s.replace(old, new, 1)
 
-          marker = '''type CharacterView = {
+          replace_once(
+              'import { isPointNearPhaserWorldView } from "../adapters/phaserViewportCulling";',
+              dedent('''\
+              import {
+                computePhaserWorldViewCellRange,
+                isCellInsidePhaserGridRange,
+                isPointNearPhaserWorldView,
+                phaserGridCellRangesEqual,
+                type PhaserGridCellRange
+              } from "../adapters/phaserViewportCulling";'''),
+              "import"
+          )
+
+          old_character_type = dedent('''\
+          type CharacterView = {
             root: Phaser.GameObjects.Container;
             sprite: Phaser.GameObjects.Sprite;
             token: number;
             direction: 0 | 1 | 2 | 3;
-          };'''
-          replacement = marker + '''
+          };''')
+          new_character_type = old_character_type + dedent('''\
 
           type StaticTileView = {
             object: Phaser.GameObjects.Image;
             cell: number;
-          };'''
-          if 'type StaticTileView' not in s:
-              if marker not in s:
-                  raise SystemExit("character type marker not found")
-              s = s.replace(marker, replacement, 1)
+          };''')
+          replace_once(old_character_type, new_character_type, "static tile type")
 
-          field_marker = '''  private renderedSnapshot: PhaserMapSnapshot | null = null;
-            private waterSprites: Phaser.GameObjects.Image[] = [];'''
-          field_new = '''  private renderedSnapshot: PhaserMapSnapshot | null = null;
-            private staticTileViews: StaticTileView[] = [];
-            private lastStaticTileRange: PhaserGridCellRange | null = null;
-            private staticTileVisibilityDirty = true;
-            private waterSprites: Phaser.GameObjects.Image[] = [];'''
-          if 'private staticTileViews:' not in s:
-              if field_marker not in s:
-                  raise SystemExit("field marker not found")
-              s = s.replace(field_marker, field_new, 1)
+          replace_once(
+              "  private renderedSnapshot: PhaserMapSnapshot | null = null;\n  private waterSprites: Phaser.GameObjects.Image[] = [];",
+              "  private renderedSnapshot: PhaserMapSnapshot | null = null;\n  private staticTileViews: StaticTileView[] = [];\n  private lastStaticTileRange: PhaserGridCellRange | null = null;\n  private staticTileVisibilityDirty = true;\n  private waterSprites: Phaser.GameObjects.Image[] = [];",
+              "static tile fields"
+          )
 
-          reset_marker = '''    this.tileLayer.removeAll(true);
-            this.waterSprites = [];
-            this.waterViewportDirty = true;'''
-          reset_new = '''    this.tileLayer.removeAll(true);
-            this.staticTileViews = [];
-            this.lastStaticTileRange = null;
-            this.staticTileVisibilityDirty = true;
-            this.waterSprites = [];
-            this.waterViewportDirty = true;'''
-          if reset_marker in s and 'this.staticTileViews = [];' not in s[s.index(reset_marker)-100:s.index(reset_marker)+300]:
-              s = s.replace(reset_marker, reset_new, 1)
+          replace_once(
+              "    this.tileLayer.removeAll(true);\n    this.waterSprites = [];\n    this.waterViewportDirty = true;",
+              "    this.tileLayer.removeAll(true);\n    this.staticTileViews = [];\n    this.lastStaticTileRange = null;\n    this.staticTileVisibilityDirty = true;\n    this.waterSprites = [];\n    this.waterViewportDirty = true;",
+              "snapshot reset"
+          )
 
-          sprite_marker = '''      this.tileLayer.add(sprite);
-            if (tile.animation === "water") this.waterSprites.push(sprite);'''
-          sprite_new = '''      this.tileLayer.add(sprite);
-            this.staticTileViews.push({ object: sprite, cell: tile.index });
-            if (tile.animation === "water") this.waterSprites.push(sprite);'''
-          if 'this.staticTileViews.push({ object: sprite' not in s:
-              if sprite_marker not in s:
-                  raise SystemExit("sprite marker not found")
-              s = s.replace(sprite_marker, sprite_new, 1)
+          replace_once(
+              "      this.tileLayer.add(sprite);\n      if (tile.animation === \"water\") this.waterSprites.push(sprite);",
+              "      this.tileLayer.add(sprite);\n      this.staticTileViews.push({ object: sprite, cell: tile.index });\n      if (tile.animation === \"water\") this.waterSprites.push(sprite);",
+              "base tile registration"
+          )
 
-          overlay_marker = '''        this.tileLayer.add(overlay);
-                }
-              }'''
-          overlay_new = '''        this.tileLayer.add(overlay);
-                  this.staticTileViews.push({ object: overlay, cell: tile.index });
-                }
-              }'''
-          if 'this.staticTileViews.push({ object: overlay' not in s:
-              if overlay_marker not in s:
-                  raise SystemExit("overlay marker not found")
-              s = s.replace(overlay_marker, overlay_new, 1)
+          replace_once(
+              "        this.tileLayer.add(overlay);\n      }\n    }",
+              "        this.tileLayer.add(overlay);\n        this.staticTileViews.push({ object: overlay, cell: tile.index });\n      }\n    }",
+              "overlay registration"
+          )
 
-          bounds_marker = '''    this.cameras.main.setBounds(0, 0, worldW, worldH);
-            this.physics?.world?.setBounds(0, 0, worldW, worldH);
-            this.renderedRevision = snapshot.revision;'''
-          bounds_new = '''    this.cameras.main.setBounds(0, 0, worldW, worldH);
-            this.physics?.world?.setBounds(0, 0, worldW, worldH);
-            this.refreshStaticTileVisibility(true);
-            this.renderedRevision = snapshot.revision;'''
-          if 'this.refreshStaticTileVisibility(true);' not in s:
-              if bounds_marker not in s:
-                  raise SystemExit("bounds marker not found")
-              s = s.replace(bounds_marker, bounds_new, 1)
+          replace_once(
+              "    this.cameras.main.setBounds(0, 0, worldW, worldH);\n    this.physics?.world?.setBounds(0, 0, worldW, worldH);\n    this.renderedRevision = snapshot.revision;",
+              "    this.cameras.main.setBounds(0, 0, worldW, worldH);\n    this.physics?.world?.setBounds(0, 0, worldW, worldH);\n    this.refreshStaticTileVisibility(true);\n    this.renderedRevision = snapshot.revision;",
+              "initial tile visibility"
+          )
 
-          update_marker = '''  update(time: number): void {
-            if (this.characterVisibilityDirty || time >= this.nextCharacterVisibilityAt) {'''
-          update_new = '''  update(time: number): void {
-            if (this.staticTileVisibilityDirty) this.refreshStaticTileVisibility();
+          replace_once(
+              "  update(time: number): void {\n    if (this.characterVisibilityDirty || time >= this.nextCharacterVisibilityAt) {",
+              "  update(time: number): void {\n    if (this.staticTileVisibilityDirty) this.refreshStaticTileVisibility();\n\n    if (this.characterVisibilityDirty || time >= this.nextCharacterVisibilityAt) {",
+              "update tile visibility"
+          )
 
-            if (this.characterVisibilityDirty || time >= this.nextCharacterVisibilityAt) {'''
-          if 'if (this.staticTileVisibilityDirty) this.refreshStaticTileVisibility();' not in s:
-              if update_marker not in s:
-                  raise SystemExit("update marker not found")
-              s = s.replace(update_marker, update_new, 1)
-
-          refresh_marker = '''  private refreshVisibleWaterFrames(): void {'''
-          refresh_method = '''  private refreshStaticTileVisibility(force = false): void {
-            if (this.staticTileViews.length === 0) {
+          refresh_method = dedent('''\
+            private refreshStaticTileVisibility(force = false): void {
+              if (this.staticTileViews.length === 0) {
+                this.staticTileVisibilityDirty = false;
+                return;
+              }
+              const snapshot = this.bridge.getSnapshot();
+              const camera = this.cameras.main;
+              const worldView = {
+                x: camera.worldView.x,
+                y: camera.worldView.y,
+                width: camera.worldView.width,
+                height: camera.worldView.height
+              };
+              const range = computePhaserWorldViewCellRange(
+                worldView,
+                snapshot.cols,
+                snapshot.rows,
+                snapshot.cellSize,
+                2
+              );
               this.staticTileVisibilityDirty = false;
-              return;
+              if (!force && phaserGridCellRangesEqual(this.lastStaticTileRange, range)) return;
+              this.lastStaticTileRange = range;
+
+              for (const tileView of this.staticTileViews) {
+                const visible = isCellInsidePhaserGridRange(tileView.cell, snapshot.cols, range);
+                if (tileView.object.visible !== visible) tileView.object.setVisible(visible);
+              }
             }
-            const snapshot = this.bridge.getSnapshot();
-            const camera = this.cameras.main;
-            const worldView = {
-              x: camera.worldView.x,
-              y: camera.worldView.y,
-              width: camera.worldView.width,
-              height: camera.worldView.height
-            };
-            const range = computePhaserWorldViewCellRange(
-              worldView,
-              snapshot.cols,
-              snapshot.rows,
-              snapshot.cellSize,
-              2
-            );
-            this.staticTileVisibilityDirty = false;
-            if (!force && phaserGridCellRangesEqual(this.lastStaticTileRange, range)) return;
-            this.lastStaticTileRange = range;
 
-            for (const tileView of this.staticTileViews) {
-              const visible = isCellInsidePhaserGridRange(tileView.cell, snapshot.cols, range);
-              if (tileView.object.visible !== visible) tileView.object.setVisible(visible);
-            }
-          }
+          ''')
+          if "private refreshStaticTileVisibility(" not in s:
+              marker = "  private refreshVisibleWaterFrames(): void {"
+              if marker not in s:
+                  raise SystemExit("refresh method insertion marker not found")
+              s = s.replace(marker, refresh_method + marker, 1)
 
-          private refreshVisibleWaterFrames(): void {'''
-          if 'private refreshStaticTileVisibility(' not in s:
-              if refresh_marker not in s:
-                  raise SystemExit("refresh marker not found")
-              s = s.replace(refresh_marker, refresh_method, 1)
+          pan_old = "      this.characterVisibilityDirty = true;\n      this.waterViewportDirty = true;"
+          pan_new = pan_old + "\n      this.staticTileVisibilityDirty = true;"
+          if "      this.staticTileVisibilityDirty = true;" not in s[s.find("this.input.on(\"pointermove\""):s.find("this.input.on(\"pointerout\"")]:
+              replace_once(pan_old, pan_new, "pan dirty flag")
 
-          pan_marker = '''      this.characterVisibilityDirty = true;
-            this.waterViewportDirty = true;'''
-          pan_new = '''      this.characterVisibilityDirty = true;
-            this.waterViewportDirty = true;
-            this.staticTileVisibilityDirty = true;'''
-          if s.count('this.staticTileVisibilityDirty = true;') < 2:
-              if pan_marker not in s:
-                  raise SystemExit("pan dirty marker not found")
-              s = s.replace(pan_marker, pan_new, 1)
-
-          zoom_marker = '''        this.characterVisibilityDirty = true;
-                this.waterViewportDirty = true;'''
-          zoom_new = '''        this.characterVisibilityDirty = true;
-                this.waterViewportDirty = true;
-                this.staticTileVisibilityDirty = true;'''
-          if s.count('this.staticTileVisibilityDirty = true;') < 3:
-              if zoom_marker not in s:
-                  raise SystemExit("zoom dirty marker not found")
-              s = s.replace(zoom_marker, zoom_new, 1)
+          wheel_start = s.find('    this.input.on(\n      "wheel"')
+          wheel_end = s.find("    );", wheel_start)
+          wheel_block = s[wheel_start:wheel_end] if wheel_start >= 0 and wheel_end >= 0 else ""
+          if "this.staticTileVisibilityDirty = true;" not in wheel_block:
+              wheel_old = "        this.characterVisibilityDirty = true;\n        this.waterViewportDirty = true;"
+              wheel_new = wheel_old + "\n        this.staticTileVisibilityDirty = true;"
+              if wheel_old not in s:
+                  raise SystemExit("zoom dirty flag marker not found")
+              # Replace the last occurrence so pointermove remains untouched.
+              idx = s.rfind(wheel_old)
+              s = s[:idx] + wheel_new + s[idx + len(wheel_old):]
 
           p.write_text(s)
       - name: Commit patch
