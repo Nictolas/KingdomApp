@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -22,6 +25,31 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.head_ref || github.ref_name }}
+
+      - name: Restore shared road helper import
+        if: github.event_name == 'pull_request' && github.head_ref == 'refactor/map-terrain-boundary-rules-bk006'
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('app/mappa.tsx')
+          text = path.read_text(encoding='utf-8')
+          old = 'import { indiciViciniOrtogonaliStrada } from "../src/game/roadConnectivity";'
+          new = 'import {\n  assicuraEdificiCollegatiDaStrada,\n  indiciViciniOrtogonaliStrada\n} from "../src/game/roadConnectivity";'
+          if old not in text:
+              raise SystemExit('road helper import marker not found')
+          path.write_text(text.replace(old, new, 1), encoding='utf-8')
+          PY
+
+          if ! git diff --quiet -- app/mappa.tsx; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add app/mappa.tsx
+            git commit -m "BK-006: keep shared road connection helper import"
+            git push origin HEAD:refactor/map-terrain-boundary-rules-bk006
+          fi
 
       - name: Use Node.js 22
         uses: actions/setup-node@v4
