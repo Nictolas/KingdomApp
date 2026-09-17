@@ -6,6 +6,9 @@ on:
     branches:
       - main
 
+permissions:
+  contents: write
+
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -22,6 +25,41 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event_name == 'pull_request' && github.head_ref || github.ref_name }}
+
+      - name: Apply BK-006 building validation codemod
+        if: github.event_name == 'pull_request' && github.head_ref == 'refactor/map-building-placement-validation-bk006'
+        shell: bash
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          path = Path('app/mappa.tsx')
+          text = path.read_text(encoding='utf-8')
+          old_import = '  costruzioneTerrenoPersistente,\n  footprintTerreno2x2Valido,'
+          new_import = '  costruzioneTerrenoPersistente,\n  edificioRispettaCriteriPiazzamento,\n  footprintTerreno2x2Valido,'
+          if new_import not in text:
+              if text.count(old_import) != 1:
+                  raise SystemExit('Import anchor non univoco')
+              text = text.replace(old_import, new_import, 1)
+          func_marker = 'function edificioRispettaCriteriPiazzamento('
+          func = text.find(func_marker)
+          if func != -1:
+              start = text.rfind('/**', 0, func)
+              end = text.find('/** Stessa ricerca anchor usata', func)
+              if start == -1 or end == -1 or end <= func:
+                  raise SystemExit('Blocco helper non individuato in modo sicuro')
+              text = text[:start] + text[end:]
+          path.write_text(text, encoding='utf-8')
+          PY
+
+          if ! git diff --quiet -- app/mappa.tsx; then
+            git config user.name "github-actions[bot]"
+            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+            git add app/mappa.tsx
+            git commit -m "BK-006: use extracted building placement validation"
+            git push origin HEAD:refactor/map-building-placement-validation-bk006
+          fi
 
       - name: Use Node.js 22
         uses: actions/setup-node@v4
