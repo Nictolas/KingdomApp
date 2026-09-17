@@ -6,9 +6,6 @@ on:
     branches:
       - main
 
-permissions:
-  contents: write
-
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -25,45 +22,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
-
-      - name: Apply BK-006 desalination codemod
-        if: github.event_name == 'pull_request' && github.head_ref == 'refactor/map-desalination-placement-bk006'
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-          path = Path('app/mappa.tsx')
-          text = path.read_text(encoding='utf-8')
-          import_anchor = '} from "../src/game/mappaPiazzamentoFootprint";\n'
-          new_import = 'import {\n  footprintDissalatoreMareSabbiaValido,\n  trovaAnchorDissalatore\n} from "../src/game/mappaDissalatorePiazzamento";\n'
-          start_marker = '/** Sabbia = terreno sabbia su terraferma (non mare). */'
-          end_marker = '/** Mare, fiume, sabbia o confine con acqua: nessuna cella strada (vedi {@link isCellaOkPerStrada}). */'
-          changed = False
-          if new_import not in text:
-              if text.count(import_anchor) != 1:
-                  raise SystemExit('Import anchor non univoco')
-              text = text.replace(import_anchor, import_anchor + new_import, 1)
-              changed = True
-          if start_marker in text:
-              start = text.find(start_marker)
-              end = text.find(end_marker, start)
-              if end == -1:
-                  raise SystemExit('Fine blocco Dissalatore non trovata')
-              text = text[:start] + text[end:]
-              changed = True
-          if changed:
-              path.write_text(text, encoding='utf-8')
-          PY
-
-          if ! git diff --quiet -- app/mappa.tsx; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add app/mappa.tsx
-            git commit -m "BK-006: use extracted desalination placement helpers"
-            git push origin HEAD:refactor/map-desalination-placement-bk006
-          fi
 
       - name: Use Node.js 22
         uses: actions/setup-node@v4
