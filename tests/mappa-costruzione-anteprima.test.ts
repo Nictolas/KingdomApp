@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   calcolaAnchorCostruzione2x2,
   costruzioneTerrenoPersistente,
+  edificioRispettaCriteriPiazzamento,
   footprintTerreno2x2Valido
 } from "../src/game/mappaCostruzioneAnteprima";
 
@@ -63,4 +64,54 @@ test("beach 2x2 preview rejects existing water", () => {
 test("grass 2x2 preview rejects existing water and accepts dry terrain", () => {
   assert.equal(footprintTerreno2x2Valido("erba", 12, 5, 5, { 12: "river" }, {}), false);
   assert.equal(footprintTerreno2x2Valido("erba", 12, 5, 5, { 12: "sabbia" }, {}), true);
+});
+
+test("building placement validation delegates desalination to the coastal rule", () => {
+  assert.equal(
+    edificioRispettaCriteriPiazzamento(
+      "Dissalatore",
+      1,
+      2,
+      2,
+      {},
+      { 6: "sabbia", 7: "sabbia" },
+      5,
+      5
+    ),
+    true
+  );
+  assert.equal(
+    edificioRispettaCriteriPiazzamento(
+      "Dissalatore",
+      1,
+      2,
+      2,
+      { 6: { id: 1, nome: "Test", emoji: "" } },
+      { 6: "sabbia", 7: "sabbia" },
+      5,
+      5
+    ),
+    false
+  );
+});
+
+test("building placement validation rejects rivers and reserved building buffers", () => {
+  assert.equal(edificioRispettaCriteriPiazzamento("Bar", 24, 1, 1, {}, {}, 7, 7), true);
+  assert.equal(
+    edificioRispettaCriteriPiazzamento("Bar", 24, 1, 1, {}, { 24: "river" }, 7, 7),
+    false
+  );
+  assert.equal(
+    edificioRispettaCriteriPiazzamento(
+      "Bar",
+      24,
+      1,
+      1,
+      { 16: { id: 1, nome: "Test", emoji: "" } },
+      {},
+      7,
+      7
+    ),
+    false
+  );
 });
