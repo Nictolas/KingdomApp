@@ -9,6 +9,7 @@ import {
   getIndiciFootprint,
   isAcqua
 } from "./mappaGeometry";
+import type { EdificioInCellaMappa } from "./mappaTypes";
 
 /** Verifica che footprint e cuscino siano liberi da celle vietate, acqua e fiume. */
 export function puòPiazzareFootprintConCuscino(
@@ -115,4 +116,24 @@ export function estendiVietatoConFootprintECuscino(
 ): void {
   for (const i of getIndiciFootprint(anchor, w, h, cols)) vietato.add(i);
   for (const i of getIndiciCuscinoErba(anchor, w, h, cols, rows)) vietato.add(i);
+}
+
+/** Footprint ∪ cuscino degli edifici iniziali ancorati; le celle secondarie non aggiungono riserve. */
+export function vietatoFootprintECuscinoDaEdificiIniziali(
+  edifici: Record<number, EdificioInCellaMappa>,
+  cols: number,
+  rows: number
+): Set<number> {
+  const vietato = new Set<number>();
+  for (const idxStr of Object.keys(edifici)) {
+    const idx = Number(idxStr);
+    const e = edifici[idx];
+    if (e.footprintRef != null) continue;
+    if (e.footprint) {
+      estendiVietatoConFootprintECuscino(idx, e.footprint.w, e.footprint.h, cols, rows, vietato);
+    } else {
+      estendiVietatoConFootprintECuscino(idx, 1, 1, cols, rows, vietato);
+    }
+  }
+  return vietato;
 }

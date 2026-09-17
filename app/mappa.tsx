@@ -261,7 +261,8 @@ import {
   puòPiazzareFootprintConCuscino,
   scegliAnchorComplessoAmministrativo,
   trovaAnchorFootprintLibero,
-  trovaCellaSingolaConCuscino
+  trovaCellaSingolaConCuscino,
+  vietatoFootprintECuscinoDaEdificiIniziali
 } from "../src/game/mappaPiazzamentoFootprint";
 
 
@@ -639,26 +640,6 @@ function getEdificiIniziali(
   aggiungiBarFootprint(cols, rows, riverSet, vietato, out, idx.BAR_INDEX);
 
   return out;
-}
-
-/** Footprint ∪ cuscino d'erba (8 direzioni) per ogni edificio iniziale ancorato: evita capanne/giacimenti sul verde riservato. */
-function vietatoFootprintECuscinoDaEdificiIniziali(
-  edifici: Record<number, EdificioInCella>,
-  cols: number,
-  rows: number
-): Set<number> {
-  const vietato = new Set<number>();
-  for (const idxStr of Object.keys(edifici)) {
-    const idx = Number(idxStr);
-    const e = edifici[idx];
-    if (e.footprintRef != null) continue;
-    if (e.footprint) {
-      estendiVietatoConFootprintECuscino(idx, e.footprint.w, e.footprint.h, cols, rows, vietato);
-    } else {
-      estendiVietatoConFootprintECuscino(idx, 1, 1, cols, rows, vietato);
-    }
-  }
-  return vietato;
 }
 
 function footprintTerreno2x2Valido(
