@@ -3,7 +3,9 @@ import test from "node:test";
 
 import {
   estendiVietatoConFootprintECuscino,
-  puòPiazzareFootprintConCuscino
+  puòPiazzareFootprintConCuscino,
+  trovaAnchorFootprintLibero,
+  trovaCellaSingolaConCuscino
 } from "../src/game/mappaPiazzamentoFootprint.ts";
 
 test("puòPiazzareFootprintConCuscino accetta un footprint interno con cuscino libero", () => {
@@ -43,6 +45,35 @@ test("puòPiazzareFootprintConCuscino rifiuta un cuscino occupato o non solo-erb
   assert.equal(
     puòPiazzareFootprintConCuscino(12, 1, 1, 5, 5, new Set<number>([6]), new Set<number>()),
     false
+  );
+});
+
+test("trovaAnchorFootprintLibero mantiene preferred quando è già valido", () => {
+  assert.equal(
+    trovaAnchorFootprintLibero(2, 2, 27, 8, 8, new Set<number>(), new Set<number>()),
+    27
+  );
+});
+
+test("trovaAnchorFootprintLibero sceglie il candidato valido più vicino", () => {
+  assert.equal(
+    trovaAnchorFootprintLibero(2, 2, 0, 8, 8, new Set<number>(), new Set<number>()),
+    18
+  );
+});
+
+test("trovaAnchorFootprintLibero restituisce null quando ogni cella è vietata", () => {
+  const vietato = new Set<number>(Array.from({ length: 64 }, (_, i) => i));
+  assert.equal(trovaAnchorFootprintLibero(1, 1, 27, 8, 8, new Set<number>(), vietato), null);
+});
+
+test("trovaCellaSingolaConCuscino usa la stessa ricerca del footprint 1x1", () => {
+  const riverSet = new Set<number>();
+  const vietato = new Set<number>();
+  assert.equal(trovaCellaSingolaConCuscino(27, 8, 8, riverSet, vietato), 27);
+  assert.equal(
+    trovaCellaSingolaConCuscino(27, 8, 8, riverSet, vietato),
+    trovaAnchorFootprintLibero(1, 1, 27, 8, 8, riverSet, vietato)
   );
 });
 

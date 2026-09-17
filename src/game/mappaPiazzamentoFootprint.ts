@@ -30,6 +30,42 @@ export function puòPiazzareFootprintConCuscino(
   return true;
 }
 
+/** Primo angolo w×h valido, ordinato per distanza Manhattan da `preferred`. */
+export function trovaAnchorFootprintLibero(
+  w: number,
+  h: number,
+  preferred: number,
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  vietato: Set<number>
+): number | null {
+  const pc = preferred % cols;
+  const pr = Math.floor(preferred / cols);
+  const candidati = Array.from({ length: cols * rows }, (_, i) => i).sort((a, b) => {
+    const ar = Math.floor(a / cols);
+    const ac = a % cols;
+    const br = Math.floor(b / cols);
+    const bc = b % cols;
+    return Math.abs(ar - pr) + Math.abs(ac - pc) - (Math.abs(br - pr) + Math.abs(bc - pc));
+  });
+  for (const anchor of candidati) {
+    if (puòPiazzareFootprintConCuscino(anchor, w, h, cols, rows, riverSet, vietato)) return anchor;
+  }
+  return null;
+}
+
+/** Variante 1×1 della ricerca con cuscino. */
+export function trovaCellaSingolaConCuscino(
+  preferred: number,
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  vietato: Set<number>
+): number | null {
+  return trovaAnchorFootprintLibero(1, 1, preferred, cols, rows, riverSet, vietato);
+}
+
 /** Aggiunge a `vietato` il footprint e il cuscino di una cella che lo circonda. */
 export function estendiVietatoConFootprintECuscino(
   anchor: number,
