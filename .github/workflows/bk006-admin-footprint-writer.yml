@@ -1,0 +1,75 @@
+name: BK006 admin footprint writer extraction
+
+on:
+  push:
+    branches:
+      - refactor/map-admin-footprint-writer-bk006
+
+permissions:
+  contents: write
+
+jobs:
+  validate-and-finalize:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Extract writer from mappa.tsx
+        run: |
+          python - <<'PY'
+          from pathlib import Path
+          import re
+          p = Path('app/mappa.tsx')
+          s = p.read_text()
+          old_import = '''import {\n  applicaEdificioFootprintCostruzione,'''
+          new_import = '''import {\n  aggiungiComplessoAmministrativo,\n  applicaEdificioFootprintCostruzione,'''
+          if old_import not in s:
+              raise SystemExit('mappaEdificioFootprints import marker not found')
+          s = s.replace(old_import, new_import, 1)
+          pattern = re.compile(r'/\*\* Complesso amministrativo: rettangolo 3×2 \(6 celle\), `anchor` già riservato ai fiumi\. \*/\nfunction aggiungiComplessoAmministrativo\([\s\S]*?\n}\n\n(?=function aggiungiDormitorioFootprint)')
+          s2, n = pattern.subn('', s, count=1)
+          if n != 1:
+              raise SystemExit(f'admin writer block replacements: {n}')
+          p.write_text(s2)
+          PY
+      - name: Diff sanity
+        run: |
+          git diff --check
+          python - <<'PY'
+          import subprocess
+          changed = set()
+          for line in subprocess.check_output(['git','status','--porcelain'], text=True).splitlines():
+              path = line[3:]
+              if ' -> ' in path:
+                  path = path.split(' -> ', 1)[1]
+              changed.add(path)
+          expected = {'app/mappa.tsx'}
+          if changed != expected:
+              raise SystemExit(f'Unexpected worktree diff: {changed} != {expected}')
+          PY
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck
+        run: npm run typecheck
+      - name: Unit and integration tests
+        run: npm test
+      - name: Phaser tests
+        run: npm run test:phaser
+      - name: Build web
+        run: npm run build:web
+      - name: Finalize branch
+        run: |
+          rm .github/workflows/bk006-admin-footprint-writer.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add -A
+          git commit -m 'Extract administrative complex footprint writer
+
+Continue BK-006 by moving aggiungiComplessoAmministrativo out of app/mappa.tsx with deterministic tests. No anchor selection, gameplay, or rendering changes. [bk006-final]'
+          git push origin HEAD:refactor/map-admin-footprint-writer-bk006
