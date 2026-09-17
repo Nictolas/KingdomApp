@@ -1,0 +1,49 @@
+name: BK009 Visibility Order Fix
+
+on:
+  push:
+    branches:
+      - fix/bk009-shared-character-visibility
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/bk009-shared-character-visibility
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Move visibility memo after renderer state declarations
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('app/mappa.tsx')
+          s = p.read_text()
+          start_marker = '  /** Stessa regola di visibilità personaggi per renderer Phaser web e React Native. */\n'
+          end_marker = '  /** Allineato al buio del cielo: con buio > 0.5 i personaggi con casa si posizionano sulla residenza. */\n'
+          start = s.find(start_marker)
+          if start < 0:
+              raise SystemExit('visibility block start not found')
+          end = s.find(end_marker, start)
+          if end < 0:
+              raise SystemExit('visibility block end not found')
+          block = s[start:end]
+          s = s[:start] + s[end:]
+          state_marker = '  const [commuteByAbitanteId, setCommuteByAbitanteId] = useState<Record<number, CommuteInfo>>({});\n\n'
+          pos = s.find(state_marker)
+          if pos < 0:
+              raise SystemExit('commute state marker not found')
+          pos += len(state_marker)
+          s = s[:pos] + block + s[pos:]
+          p.write_text(s)
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/mappa.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "BK-009: place shared visibility after state declarations"
+          git push origin HEAD:fix/bk009-shared-character-visibility
