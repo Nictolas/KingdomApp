@@ -7,6 +7,7 @@ import {
   type PhaserMapBuilding,
   type PhaserMapSnapshot
 } from "../adapters/mapSceneBridge";
+import { isPointNearPhaserWorldView } from "../adapters/phaserViewportCulling";
 
 const SHEET_KEY = "overworld";
 const HUMAN_KEY = "human-colonist";
@@ -57,6 +58,8 @@ export class KingdomMapScene extends Phaser.Scene {
   private waterSprites: Phaser.GameObjects.Image[] = [];
   private waterFrame = 0;
   private nextWaterFrameAt = 0;
+  private nextCharacterVisibilityAt = 0;
+  private characterVisibilityDirty = true;
   private dragPointerId: number | null = null;
   private dragged = false;
   private hoveredCell: number | null = null;
@@ -308,6 +311,7 @@ export class KingdomMapScene extends Phaser.Scene {
         });
       }
     }
+    this.characterVisibilityDirty = true;
   }
 
   private directionForStep(from: number, to: number, cols: number): 0 | 1 | 2 | 3 {
@@ -393,6 +397,12 @@ export class KingdomMapScene extends Phaser.Scene {
   }
 
   update(time: number): void {
+    if (this.characterVisibilityDirty || time >= this.nextCharacterVisibilityAt) {
+      this.refreshCharacterVisibility();
+      this.characterVisibilityDirty = false;
+      this.nextCharacterVisibilityAt = time + 120;
+    }
+
     if (time < this.nextWaterFrameAt || this.waterSprites.length === 0) return;
     this.nextWaterFrameAt = time + 420;
     this.waterFrame = (this.waterFrame + 1) % OVERWORLD_SHEET_PX.waterFrames;
@@ -401,6 +411,29 @@ export class KingdomMapScene extends Phaser.Scene {
       OVERWORLD_SHEET_PX.waterAnimY
     );
     for (const sprite of this.waterSprites) sprite.setFrame(key);
+  }
+
+  private refreshCharacterVisibility(): void {
+    if (this.characterViews.size === 0) return;
+    const snapshot = this.bridge.getSnapshot();
+    const camera = this.cameras.main;
+    const padding = snapshot.cellSize * 1.5;
+    const worldView = {
+      x: camera.worldView.x,
+      y: camera.worldView.y,
+      width: camera.worldView.width,
+      height: camera.worldView.height
+    };
+
+    for (const characterView of this.characterViews.values()) {
+      const visible = isPointNearPhaserWorldView(
+        characterView.root.x,
+        characterView.root.y,
+        worldView,
+        padding
+      );
+      if (characterView.root.visible !== visible) characterView.root.setVisible(visible);
+    }
   }
 
   private configureCameraAndInput(): void {
@@ -426,6 +459,7 @@ export class KingdomMapScene extends Phaser.Scene {
       if (Math.abs(dx) + Math.abs(dy) > 2) this.dragged = true;
       camera.scrollX -= dx / camera.zoom;
       camera.scrollY -= dy / camera.zoom;
+      this.characterVisibilityDirty = true;
     });
 
     this.input.on("pointerout", () => {
@@ -456,6 +490,7 @@ export class KingdomMapScene extends Phaser.Scene {
         const after = camera.getWorldPoint(pointer.x, pointer.y);
         camera.scrollX += before.x - after.x;
         camera.scrollY += before.y - after.y;
+        this.characterVisibilityDirty = true;
       }
     );
   }
