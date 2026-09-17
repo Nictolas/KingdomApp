@@ -1,0 +1,66 @@
+name: BK017 Frame Telemetry Codemod
+
+on:
+  push:
+    branches:
+      - perf/bk017-frame-telemetry
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/bk017-frame-telemetry
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Patch KingdomMapScene
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("src/phaser/scenes/KingdomMapScene.ts")
+          s = p.read_text()
+
+          def replace_once(old, new, label):
+              global s
+              if new in s:
+                  return
+              if old not in s:
+                  raise SystemExit(f"{label} marker not found")
+              s = s.replace(old, new, 1)
+
+          replace_once(
+              'import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";\n',
+              'import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";\nimport { PhaserFramePerformanceSampler, formatPhaserFramePerformance } from "../adapters/phaserFramePerformance";\n',
+              "perf import"
+          )
+
+          replace_once(
+              '  private readonly characterViews = new Map<number, CharacterView>();\n',
+              '  private readonly characterViews = new Map<number, CharacterView>();\n  private readonly framePerformance = new PhaserFramePerformanceSampler(600);\n  private perfOverlay: Phaser.GameObjects.Text | null = null;\n  private perfEnabled = false;\n  private nextPerfOverlayAt = 0;\n',
+              "perf fields"
+          )
+
+          replace_once(
+              '    this.gridLayer = this.add.graphics().setDepth(INTERACTION_LAYER_DEPTH - 1);\n',
+              '    this.gridLayer = this.add.graphics().setDepth(INTERACTION_LAYER_DEPTH - 1);\n    this.perfEnabled = typeof window !== "undefined" && new URLSearchParams(window.location.search).get("perf") === "1";\n    if (this.perfEnabled) {\n      this.framePerformance.reset();\n      this.perfOverlay = this.add.text(8, 8, "PERF warming up...", {\n        fontFamily: "monospace",\n        fontSize: "12px",\n        color: "#ffffff",\n        backgroundColor: "rgba(2,6,23,0.82)",\n        padding: { x: 5, y: 3 }\n      }).setScrollFactor(0).setDepth(INTERACTION_LAYER_DEPTH + 100);\n    }\n',
+              "perf overlay init"
+          )
+
+          replace_once(
+              '  update(time: number): void {\n',
+              '  update(time: number, delta: number): void {\n    if (this.perfEnabled) {\n      this.framePerformance.push(delta);\n      if (time >= this.nextPerfOverlayAt) {\n        const metrics = this.framePerformance.snapshot();\n        this.perfOverlay?.setText(formatPhaserFramePerformance(metrics));\n        this.perfOverlay?.setScale(1 / this.cameras.main.zoom);\n        this.nextPerfOverlayAt = time + 1000;\n      }\n    }\n\n',
+              "perf update"
+          )
+
+          p.write_text(s)
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/phaser/scenes/KingdomMapScene.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "BK-017: expose Phaser frame telemetry overlay"
+          git push origin HEAD:perf/bk017-frame-telemetry
