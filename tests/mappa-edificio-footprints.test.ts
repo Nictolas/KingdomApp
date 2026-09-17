@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
+  aggiungiComplessoAmministrativo,
   applicaEdificioFootprintCostruzione,
   dimensioniFootprintEdificioInMappa,
   giacimentoIndicesDaEdifici,
@@ -47,7 +48,6 @@ test("indiciFootprintProtettiIniziali espande solo le celle anchor", () => {
   );
 });
 
-
 test("giacimentoIndicesDaEdifici restituisce solo le celle Giacimento", () => {
   const edifici = {
     3: { nome: "Giacimento" },
@@ -69,6 +69,29 @@ test("rimuoviFootprintEdificioDaMappa elimina solo il rettangolo richiesto", () 
   assert.deepEqual(edifici, { 20: "keep" });
 });
 
+test("aggiungiComplessoAmministrativo scrive il footprint 3x2 sul solo anchor scelto", () => {
+  const edifici: Record<number, EdificioInCellaMappa> = {
+    20: { id: 99, nome: "Da conservare", emoji: "🧱" }
+  };
+
+  aggiungiComplessoAmministrativo(5, 5, edifici, 6);
+
+  assert.deepEqual(edifici[6], {
+    id: 1,
+    nome: "Centro di Comando",
+    emoji: "🏛️",
+    footprint: { w: 3, h: 2 }
+  });
+  for (const i of [7, 8, 11, 12, 13]) {
+    assert.deepEqual(edifici[i], {
+      id: 1,
+      nome: "Centro di Comando",
+      emoji: "",
+      footprintRef: 6
+    });
+  }
+  assert.deepEqual(edifici[20], { id: 99, nome: "Da conservare", emoji: "🧱" });
+});
 
 test("applicaEdificioFootprintCostruzione scrive correttamente 1x1 e multi-cella", () => {
   const edifici: Record<number, EdificioInCellaMappa> = {};

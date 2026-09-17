@@ -230,6 +230,7 @@ import {
 import { EDIFICIO_TO_ROUTE } from "../src/game/mappaEdificioRoutes";
 import { FOOTPRINT_COSTRUZIONE } from "../src/game/mappaCostruzioneFootprints";
 import {
+  aggiungiComplessoAmministrativo,
   applicaEdificioFootprintCostruzione,
   dimensioniFootprintEdificioInMappa,
   giacimentoIndicesDaEdifici,
@@ -405,29 +406,6 @@ function applicaRegoleConfineTerreno(
     buildExcludeSandByRoads(edificiInMappa, terrenoInMappa, cols, rows, giacimenti)
   );
   fillErbaEnclosedByWater(terrenoInMappa, cols, rows);
-}
-
-/** Complesso amministrativo: rettangolo 3×2 (6 celle), `anchor` già riservato ai fiumi. */
-function aggiungiComplessoAmministrativo(
-  cols: number,
-  rows: number,
-  out: Record<number, EdificioInCella>,
-  anchor: number
-): void {
-  const w = ADMIN_FOOTPRINT_W;
-  const h = ADMIN_FOOTPRINT_H;
-  const celle = getIndiciFootprint(anchor, w, h, cols);
-  const anchorEd: EdificioInCella = {
-    id: 1,
-    nome: "Centro di Comando",
-    emoji: "🏛️",
-    footprint: { w, h }
-  };
-  out[anchor] = anchorEd;
-  for (const i of celle) {
-    if (i === anchor) continue;
-    out[i] = { id: 1, nome: "Centro di Comando", emoji: "", footprintRef: anchor };
-  }
 }
 
 function aggiungiDormitorioFootprint(

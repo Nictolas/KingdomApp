@@ -3,6 +3,7 @@ import {
   type MappaCostruzioneFootprint
 } from "./mappaCostruzioneFootprints";
 import { getIndiciFootprint } from "./mappaGeometry";
+import { ADMIN_FOOTPRINT_H, ADMIN_FOOTPRINT_W } from "./mappaLayoutConfig";
 import type { EdificioInCellaMappa } from "./mappaTypes";
 
 export type MappaEdificioFootprintEntry = {
@@ -10,6 +11,30 @@ export type MappaEdificioFootprintEntry = {
   footprintRef?: number;
   footprint?: MappaCostruzioneFootprint;
 };
+
+/** Scrive il footprint 3×2 del Complesso amministrativo su un anchor già scelto. */
+export function aggiungiComplessoAmministrativo(
+  cols: number,
+  rows: number,
+  out: Record<number, EdificioInCellaMappa>,
+  anchor: number
+): void {
+  const w = ADMIN_FOOTPRINT_W;
+  const h = ADMIN_FOOTPRINT_H;
+  const celle = getIndiciFootprint(anchor, w, h, cols);
+  const anchorEd: EdificioInCellaMappa = {
+    id: 1,
+    nome: "Centro di Comando",
+    emoji: "🏛️",
+    footprint: { w, h }
+  };
+  out[anchor] = anchorEd;
+  for (const i of celle) {
+    if (i === anchor) continue;
+    out[i] = { id: 1, nome: "Centro di Comando", emoji: "", footprintRef: anchor };
+  }
+  void rows;
+}
 
 /** Scrive un edificio 1×1 o multi-cella sulla griglia a partire da un anchor già scelto. */
 export function applicaEdificioFootprintCostruzione(
