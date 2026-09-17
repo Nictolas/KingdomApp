@@ -122,7 +122,10 @@ import {
   footprintIntersectsRange,
   type MapTransformState
 } from "../src/game/mapViewportCulling";
-import { indiciViciniOrtogonaliStrada } from "../src/game/roadConnectivity";
+import {
+  assicuraEdificiCollegatiDaStrada,
+  indiciViciniOrtogonaliStrada
+} from "../src/game/roadConnectivity";
 import {
   abitanteAlBarRoutineOra,
   abitanteInOrarioLavoroEdificio,
