@@ -1,0 +1,48 @@
+name: BK017 Benchmark Globals Codemod
+
+on:
+  push:
+    branches:
+      - perf/bk017-headless-benchmark
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/bk017-headless-benchmark
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Patch KingdomMapScene
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("src/phaser/scenes/KingdomMapScene.ts")
+          s = p.read_text()
+
+          old = '''      this.framePerformance.reset();\n      this.perfOverlay = this.add.text(8, 8, "PERF warming up...", {'''
+          new = '''      this.framePerformance.reset();\n      (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();\n      (globalThis as any).__KINGDOM_PERF_RESET__ = () => {\n        this.framePerformance.reset();\n        (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();\n      };\n      this.perfOverlay = this.add.text(8, 8, "PERF warming up...", {'''
+          if new not in s:
+              if old not in s:
+                  raise SystemExit("perf init marker not found")
+              s = s.replace(old, new, 1)
+
+          old2 = '''        const metrics = this.framePerformance.snapshot();\n        this.perfOverlay?.setText(formatPhaserFramePerformance(metrics));'''
+          new2 = '''        const metrics = this.framePerformance.snapshot();\n        (globalThis as any).__KINGDOM_PERF__ = metrics;\n        this.perfOverlay?.setText(formatPhaserFramePerformance(metrics));'''
+          if new2 not in s:
+              if old2 not in s:
+                  raise SystemExit("perf snapshot marker not found")
+              s = s.replace(old2, new2, 1)
+
+          p.write_text(s)
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/phaser/scenes/KingdomMapScene.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "BK-017: expose benchmark metrics to browser automation"
+          git push origin HEAD:perf/bk017-headless-benchmark
