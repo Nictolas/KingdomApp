@@ -81,3 +81,53 @@ export function isCellInsidePhaserGridRange(
     row <= range.rowEnd
   );
 }
+
+export type PhaserGridRangeDelta = {
+  hiddenCells: number[];
+  shownCells: number[];
+};
+
+function isGridCoordinateInsidePhaserRange(
+  col: number,
+  row: number,
+  range: PhaserGridCellRange
+): boolean {
+  return (
+    col >= range.colStart &&
+    col <= range.colEnd &&
+    row >= range.rowStart &&
+    row <= range.rowEnd
+  );
+}
+
+/**
+ * Restituisce solo le celle che cambiano visibilità tra due range camera.
+ * Evita di riesaminare l'intera mappa ad ogni attraversamento di cella.
+ */
+export function computePhaserGridRangeDelta(
+  previous: PhaserGridCellRange,
+  next: PhaserGridCellRange,
+  cols: number
+): PhaserGridRangeDelta {
+  const safeCols = Math.max(1, cols);
+  const hiddenCells: number[] = [];
+  const shownCells: number[] = [];
+
+  for (let row = previous.rowStart; row <= previous.rowEnd; row++) {
+    for (let col = previous.colStart; col <= previous.colEnd; col++) {
+      if (!isGridCoordinateInsidePhaserRange(col, row, next)) {
+        hiddenCells.push(row * safeCols + col);
+      }
+    }
+  }
+
+  for (let row = next.rowStart; row <= next.rowEnd; row++) {
+    for (let col = next.colStart; col <= next.colEnd; col++) {
+      if (!isGridCoordinateInsidePhaserRange(col, row, previous)) {
+        shownCells.push(row * safeCols + col);
+      }
+    }
+  }
+
+  return { hiddenCells, shownCells };
+}
