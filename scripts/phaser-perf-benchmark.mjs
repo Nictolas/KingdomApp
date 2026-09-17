@@ -4,14 +4,36 @@ const baseUrl = process.env.KINGDOM_BENCHMARK_URL ?? "http://127.0.0.1:4173";
 const warmupMs = Number(process.env.KINGDOM_BENCHMARK_WARMUP_MS ?? 2500);
 const sampleMs = Number(process.env.KINGDOM_BENCHMARK_SAMPLE_MS ?? 5000);
 
-const browser = await chromium.launch({ headless: true });
+const browser = await chromium.launch({
+  headless: true,
+  args: ["--use-gl=swiftshader", "--enable-webgl", "--ignore-gpu-blocklist"]
+});
 const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+await context.addInitScript(() => {
+  globalThis.__KINGDOM_PERF_REQUESTED__ = true;
+});
 
 async function openScenario() {
   const page = await context.newPage();
+  const diagnostics = [];
+  page.on("pageerror", (error) => diagnostics.push(`pageerror: ${error.message}`));
+  page.on("console", (message) => {
+    if (message.type() === "error") diagnostics.push(`console.error: ${message.text()}`);
+  });
   await page.goto(`${baseUrl}/?perf=1`, { waitUntil: "networkidle", timeout: 120_000 });
   await page.waitForSelector("canvas", { timeout: 120_000 });
-  await page.waitForFunction(() => globalThis.__KINGDOM_PERF__?.samples > 30, null, { timeout: 120_000 });
+  try {
+    await page.waitForFunction(() => globalThis.__KINGDOM_PERF__?.samples > 30, null, { timeout: 90_000 });
+  } catch (error) {
+    console.error("Benchmark bootstrap failed", {
+      url: page.url(),
+      diagnostics,
+      body: (await page.locator("body").innerText().catch(() => "")).slice(0, 4000),
+      requested: await page.evaluate(() => globalThis.__KINGDOM_PERF_REQUESTED__ ?? null),
+      metrics: await page.evaluate(() => globalThis.__KINGDOM_PERF__ ?? null)
+    });
+    throw error;
+  }
   await page.waitForTimeout(warmupMs);
   await page.evaluate(() => globalThis.__KINGDOM_PERF_RESET__?.());
   return page;
