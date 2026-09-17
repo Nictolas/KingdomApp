@@ -3,30 +3,77 @@ import test from "node:test";
 
 import {
   MAP_VIEWPORT_MARGIN_CELLS,
+  MAP_VIEWPORT_TARGET_SCREEN_MARGIN_CELLS,
+  computeViewportMarginCells,
   computeVisibleCellRange,
   shouldCommitMapTransformForCulling
 } from "../src/game/mapViewportCulling.ts";
 
-test("il buffer di culling copre un trascinamento rapido prima del render successivo", () => {
+test("l'overscan mantiene una protezione minima costante sullo schermo", () => {
+  const cellPx = 40;
+
+  assert.equal(computeViewportMarginCells(0.5), 16);
+  assert.equal(computeViewportMarginCells(1), 8);
+  assert.equal(computeViewportMarginCells(2), 4);
+  assert.equal(computeViewportMarginCells(3), 3);
+
+  for (const scale of [0.5, 1, 2, 3]) {
+    const marginCells = computeViewportMarginCells(scale);
+    const screenBufferPx = marginCells * cellPx * scale;
+    const targetBufferPx = MAP_VIEWPORT_TARGET_SCREEN_MARGIN_CELLS * cellPx;
+    assert.ok(
+      screenBufferPx >= targetBufferPx,
+      `buffer insufficiente a zoom ${scale}: ${screenBufferPx}px < ${targetBufferPx}px`
+    );
+  }
+});
+
+test("a zoom minimo conserva le 16 celle storiche di protezione fast-drag", () => {
   const cellPx = 40;
   const range = computeVisibleCellRange(
     800,
     600,
-    { positionX: -800, positionY: -800, scale: 1 },
+    { positionX: -400, positionY: -400, scale: 0.5 },
     50,
     50,
     cellPx
   );
 
-  const bufferPx = MAP_VIEWPORT_MARGIN_CELLS * cellPx;
-  assert.ok(bufferPx >= 600, "il prerender deve coprire almeno 600 px di pan rapido");
-  assert.equal(range.colStart, 20 - MAP_VIEWPORT_MARGIN_CELLS);
-  assert.equal(range.rowStart, 20 - MAP_VIEWPORT_MARGIN_CELLS);
-  assert.equal(range.colEnd, 40 + MAP_VIEWPORT_MARGIN_CELLS > 50 ? 50 : 40 + MAP_VIEWPORT_MARGIN_CELLS);
-  assert.equal(range.rowEnd, 35 + MAP_VIEWPORT_MARGIN_CELLS > 50 ? 50 : 35 + MAP_VIEWPORT_MARGIN_CELLS);
+  assert.equal(computeViewportMarginCells(0.5), MAP_VIEWPORT_MARGIN_CELLS);
+  assert.deepEqual(range, { colStart: 4, colEnd: 50, rowStart: 4, rowEnd: 50 });
 });
 
-test("il buffer resta limitato ai bordi della mappa", () => {
+test("a zoom 1 dimezza l'overscan rispetto al vecchio margine fisso", () => {
+  const adaptive = computeVisibleCellRange(
+    800,
+    600,
+    { positionX: -600, positionY: -600, scale: 1 },
+    50,
+    50,
+    40
+  );
+  const legacyFixed = computeVisibleCellRange(
+    800,
+    600,
+    { positionX: -600, positionY: -600, scale: 1 },
+    50,
+    50,
+    40,
+    MAP_VIEWPORT_MARGIN_CELLS
+  );
+
+  const adaptiveCells = (adaptive.colEnd - adaptive.colStart) * (adaptive.rowEnd - adaptive.rowStart);
+  const legacyCells =
+    (legacyFixed.colEnd - legacyFixed.colStart) * (legacyFixed.rowEnd - legacyFixed.rowStart);
+
+  assert.deepEqual(adaptive, { colStart: 7, colEnd: 43, rowStart: 7, rowEnd: 38 });
+  assert.deepEqual(legacyFixed, { colStart: 0, colEnd: 50, rowStart: 0, rowEnd: 46 });
+  assert.equal(adaptiveCells, 1116);
+  assert.equal(legacyCells, 2300);
+  assert.ok(adaptiveCells < legacyCells * 0.5, "il numero di celle deve ridursi di oltre il 50%");
+});
+
+test("il buffer adattivo resta limitato ai bordi della mappa", () => {
   assert.deepEqual(
     computeVisibleCellRange(
       800,
@@ -36,7 +83,7 @@ test("il buffer resta limitato ai bordi della mappa", () => {
       50,
       40
     ),
-    { colStart: 0, colEnd: 36, rowStart: 0, rowEnd: 31 }
+    { colStart: 0, colEnd: 28, rowStart: 0, rowEnd: 23 }
   );
 });
 

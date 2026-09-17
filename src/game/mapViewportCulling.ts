@@ -1,13 +1,18 @@
 /**
- * Celle prerenderizzate oltre il viewport.
+ * Massimo overscan in celle oltre il viewport.
  *
  * Il pan web viene applicato immediatamente tramite transform CSS, mentre React
- * aggiorna il sottoinsieme di celle renderizzate nel frame seguente. Un margine
- * troppo piccolo lascia quindi intravedere il fondo nero durante i drag rapidi.
- * 16 celle corrispondono a 640 px con le celle attuali da 40 px: abbastanza per
- * assorbire anche un gesto molto veloce senza rinunciare al culling della 50x50.
+ * aggiorna il sottoinsieme di celle renderizzate nel frame seguente. A zoom 0.5x
+ * manteniamo quindi le 16 celle storiche: con celle da 40 px equivalgono a 320 px
+ * sullo schermo, cioè il margine minimo già tollerato dal comportamento attuale.
  */
 export const MAP_VIEWPORT_MARGIN_CELLS = 16;
+
+/**
+ * Margine desiderato espresso in larghezze-cella sullo schermo.
+ * Con CELL_SIZE_PX=40 equivale ad almeno 320 px indipendentemente dallo zoom.
+ */
+export const MAP_VIEWPORT_TARGET_SCREEN_MARGIN_CELLS = 8;
 
 export type MapTransformState = {
   positionX: number;
@@ -22,6 +27,24 @@ export type VisibleCellRange = {
   rowEnd: number;
 };
 
+/**
+ * Converte il margine desiderato sullo schermo in celle del mondo.
+ *
+ * 0.5x -> 16 celle, 1x -> 8, 2x -> 4, 3x -> 3. In questo modo lo zoom alto
+ * non trascina nel DOM centinaia di celle invisibili solo per conservare un
+ * margine in coordinate mondo molto più grande del necessario.
+ */
+export function computeViewportMarginCells(
+  scale: number,
+  maxMarginCells = MAP_VIEWPORT_MARGIN_CELLS
+): number {
+  if (!Number.isFinite(scale) || scale <= 0) return maxMarginCells;
+  return Math.min(
+    maxMarginCells,
+    Math.max(1, Math.ceil(MAP_VIEWPORT_TARGET_SCREEN_MARGIN_CELLS / scale))
+  );
+}
+
 /** Area visibile del contenuto mappa in coordinate pixel (top-left del contenuto). */
 export function computeVisibleCellRange(
   viewportW: number,
@@ -30,7 +53,7 @@ export function computeVisibleCellRange(
   cols: number,
   rows: number,
   cellPx: number,
-  marginCells = MAP_VIEWPORT_MARGIN_CELLS
+  marginCells?: number
 ): VisibleCellRange {
   if (viewportW <= 0 || viewportH <= 0) {
     return { colStart: 0, colEnd: cols, rowStart: 0, rowEnd: rows };
@@ -38,16 +61,17 @@ export function computeVisibleCellRange(
 
   const { positionX, positionY, scale } = transform;
   const s = scale || 1;
+  const effectiveMarginCells = marginCells ?? computeViewportMarginCells(s);
   const left = -positionX / s;
   const top = -positionY / s;
   const right = (viewportW - positionX) / s;
   const bottom = (viewportH - positionY) / s;
 
   return {
-    colStart: Math.max(0, Math.floor(left / cellPx) - marginCells),
-    colEnd: Math.min(cols, Math.ceil(right / cellPx) + marginCells),
-    rowStart: Math.max(0, Math.floor(top / cellPx) - marginCells),
-    rowEnd: Math.min(rows, Math.ceil(bottom / cellPx) + marginCells)
+    colStart: Math.max(0, Math.floor(left / cellPx) - effectiveMarginCells),
+    colEnd: Math.min(cols, Math.ceil(right / cellPx) + effectiveMarginCells),
+    rowStart: Math.max(0, Math.floor(top / cellPx) - effectiveMarginCells),
+    rowEnd: Math.min(rows, Math.ceil(bottom / cellPx) + effectiveMarginCells)
   };
 }
 
@@ -73,7 +97,7 @@ export function shouldCommitMapTransformForCulling(
   cols: number,
   rows: number,
   cellPx: number,
-  marginCells = MAP_VIEWPORT_MARGIN_CELLS
+  marginCells?: number
 ): boolean {
   if (viewportW <= 0 || viewportH <= 0) return true;
 
