@@ -1,0 +1,110 @@
+name: BK017 Incremental Static Culling Codemod
+
+on:
+  push:
+    branches:
+      - perf/bk017-incremental-static-culling
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/bk017-incremental-static-culling
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Apply incremental static-tile culling
+        shell: python
+        run: |
+          from pathlib import Path
+
+          adapter = Path('src/phaser/adapters/phaserViewportCulling.ts')
+          s = adapter.read_text()
+          marker = '''export function isCellInsidePhaserGridRange(
+            cellIndex: number,
+            cols: number,
+            range: PhaserGridCellRange
+          ): boolean {
+            const col = cellIndex % cols;
+            const row = Math.floor(cellIndex / cols);
+            return (
+              col >= range.colStart &&
+              col <= range.colEnd &&
+              row >= range.rowStart &&
+              row <= range.rowEnd
+            );
+          }
+          '''
+          addition = marker + '''\nexport type PhaserGridRangeDelta = {\n  hiddenCells: number[];\n  shownCells: number[];\n};\n\nfunction isGridCoordinateInsidePhaserRange(\n  col: number,\n  row: number,\n  range: PhaserGridCellRange\n): boolean {\n  return (\n    col >= range.colStart &&\n    col <= range.colEnd &&\n    row >= range.rowStart &&\n    row <= range.rowEnd\n  );\n}\n\n/**\n * Restituisce solo le celle che cambiano visibilità tra due range camera.\n * Evita di riesaminare l'intera mappa ad ogni attraversamento di cella.\n */\nexport function computePhaserGridRangeDelta(\n  previous: PhaserGridCellRange,\n  next: PhaserGridCellRange,\n  cols: number\n): PhaserGridRangeDelta {\n  const safeCols = Math.max(1, cols);\n  const hiddenCells: number[] = [];\n  const shownCells: number[] = [];\n\n  for (let row = previous.rowStart; row <= previous.rowEnd; row++) {\n    for (let col = previous.colStart; col <= previous.colEnd; col++) {\n      if (!isGridCoordinateInsidePhaserRange(col, row, next)) {\n        hiddenCells.push(row * safeCols + col);\n      }\n    }\n  }\n\n  for (let row = next.rowStart; row <= next.rowEnd; row++) {\n    for (let col = next.colStart; col <= next.colEnd; col++) {\n      if (!isGridCoordinateInsidePhaserRange(col, row, previous)) {\n        shownCells.push(row * safeCols + col);\n      }\n    }\n  }\n\n  return { hiddenCells, shownCells };\n}\n'''
+          if 'computePhaserGridRangeDelta' not in s:
+              if marker not in s:
+                  raise SystemExit('adapter marker not found')
+              s = s.replace(marker, addition, 1)
+              adapter.write_text(s)
+
+          scene = Path('src/phaser/scenes/KingdomMapScene.ts')
+          s = scene.read_text()
+          old_import = '''  computePhaserWorldViewCellRange,\n  isCellInsidePhaserGridRange,'''
+          new_import = '''  computePhaserGridRangeDelta,\n  computePhaserWorldViewCellRange,\n  isCellInsidePhaserGridRange,'''
+          if 'computePhaserGridRangeDelta,' not in s:
+              if old_import not in s:
+                  raise SystemExit('scene import marker not found')
+              s = s.replace(old_import, new_import, 1)
+
+          old_field = '  private staticTileViews: StaticTileView[] = [];\n'
+          new_field = old_field + '  private readonly staticTileViewsByCell = new Map<number, Phaser.GameObjects.Image[]>();\n'
+          if 'staticTileViewsByCell' not in s:
+              if old_field not in s:
+                  raise SystemExit('scene field marker not found')
+              s = s.replace(old_field, new_field, 1)
+
+          old_reset = '    this.staticTileViews = [];\n    this.lastStaticTileRange = null;'
+          new_reset = '    this.staticTileViews = [];\n    this.staticTileViewsByCell.clear();\n    this.lastStaticTileRange = null;'
+          if 'this.staticTileViewsByCell.clear();' not in s:
+              if old_reset not in s:
+                  raise SystemExit('scene reset marker not found')
+              s = s.replace(old_reset, new_reset, 1)
+
+          s = s.replace(
+              '      this.staticTileViews.push({ object: sprite, cell: tile.index });',
+              '      this.registerStaticTileView(sprite, tile.index);',
+              1
+          )
+          s = s.replace(
+              '        this.staticTileViews.push({ object: overlay, cell: tile.index });',
+              '        this.registerStaticTileView(overlay, tile.index);',
+              1
+          )
+
+          old_refresh = '''private refreshStaticTileVisibility(force = false): void {\n  if (this.staticTileViews.length === 0) {\n    this.staticTileVisibilityDirty = false;\n    return;\n  }\n  const snapshot = this.bridge.getSnapshot();\n  const camera = this.cameras.main;\n  const worldView = {\n    x: camera.worldView.x,\n    y: camera.worldView.y,\n    width: camera.worldView.width,\n    height: camera.worldView.height\n  };\n  const range = computePhaserWorldViewCellRange(\n    worldView,\n    snapshot.cols,\n    snapshot.rows,\n    snapshot.cellSize,\n    2\n  );\n  this.staticTileVisibilityDirty = false;\n  if (!force && phaserGridCellRangesEqual(this.lastStaticTileRange, range)) return;\n  this.lastStaticTileRange = range;\n\n  for (const tileView of this.staticTileViews) {\n    const visible = isCellInsidePhaserGridRange(tileView.cell, snapshot.cols, range);\n    if (tileView.object.visible !== visible) tileView.object.setVisible(visible);\n  }\n}\n'''
+          new_refresh = '''  private registerStaticTileView(object: Phaser.GameObjects.Image, cell: number): void {\n    this.staticTileViews.push({ object, cell });\n    const cellViews = this.staticTileViewsByCell.get(cell);\n    if (cellViews) cellViews.push(object);\n    else this.staticTileViewsByCell.set(cell, [object]);\n  }\n\n  private setStaticTileCellVisibility(cell: number, visible: boolean): void {\n    for (const object of this.staticTileViewsByCell.get(cell) ?? []) {\n      if (object.visible !== visible) object.setVisible(visible);\n    }\n  }\n\n  private refreshStaticTileVisibility(force = false): void {\n    if (this.staticTileViews.length === 0) {\n      this.staticTileVisibilityDirty = false;\n      return;\n    }\n    const snapshot = this.bridge.getSnapshot();\n    const camera = this.cameras.main;\n    const worldView = {\n      x: camera.worldView.x,\n      y: camera.worldView.y,\n      width: camera.worldView.width,\n      height: camera.worldView.height\n    };\n    const range = computePhaserWorldViewCellRange(\n      worldView,\n      snapshot.cols,\n      snapshot.rows,\n      snapshot.cellSize,\n      2\n    );\n    this.staticTileVisibilityDirty = false;\n    if (!force && phaserGridCellRangesEqual(this.lastStaticTileRange, range)) return;\n\n    if (force || this.lastStaticTileRange == null) {\n      for (const tileView of this.staticTileViews) {\n        const visible = isCellInsidePhaserGridRange(tileView.cell, snapshot.cols, range);\n        if (tileView.object.visible !== visible) tileView.object.setVisible(visible);\n      }\n    } else {\n      const delta = computePhaserGridRangeDelta(this.lastStaticTileRange, range, snapshot.cols);\n      for (const cell of delta.hiddenCells) this.setStaticTileCellVisibility(cell, false);\n      for (const cell of delta.shownCells) this.setStaticTileCellVisibility(cell, true);\n    }\n\n    this.lastStaticTileRange = range;\n  }\n'''
+          if 'private setStaticTileCellVisibility' not in s:
+              if old_refresh not in s:
+                  raise SystemExit('scene refresh marker not found')
+              s = s.replace(old_refresh, new_refresh, 1)
+          scene.write_text(s)
+
+          tests = Path('tests/phaser-viewport-culling.test.ts')
+          s = tests.read_text()
+          old_test_import = '''  computePhaserWorldViewCellRange,\n  isCellInsidePhaserGridRange,'''
+          new_test_import = '''  computePhaserGridRangeDelta,\n  computePhaserWorldViewCellRange,\n  isCellInsidePhaserGridRange,'''
+          if 'computePhaserGridRangeDelta,' not in s:
+              if old_test_import not in s:
+                  raise SystemExit('test import marker not found')
+              s = s.replace(old_test_import, new_test_import, 1)
+
+          test_block = '''\n\ntest("static tile range delta touches only entering and exiting strips", () => {\n  const previous = computePhaserWorldViewCellRange(\n    { x: 400, y: 400, width: 800, height: 600 },\n    50,\n    50,\n    40,\n    2\n  );\n  const next = computePhaserWorldViewCellRange(\n    { x: 440, y: 400, width: 800, height: 600 },\n    50,\n    50,\n    40,\n    2\n  );\n  const delta = computePhaserGridRangeDelta(previous, next, 50);\n\n  assert.deepEqual(previous, { colStart: 8, colEnd: 32, rowStart: 8, rowEnd: 27 });\n  assert.deepEqual(next, { colStart: 9, colEnd: 33, rowStart: 8, rowEnd: 27 });\n  assert.equal(delta.hiddenCells.length, 20);\n  assert.equal(delta.shownCells.length, 20);\n  assert.ok(delta.hiddenCells.every((cell) => cell % 50 === 8));\n  assert.ok(delta.shownCells.every((cell) => cell % 50 === 33));\n});\n\ntest("static tile range delta is empty when the culling range is unchanged", () => {\n  const range = { colStart: 8, colEnd: 32, rowStart: 8, rowEnd: 27 };\n  assert.deepEqual(computePhaserGridRangeDelta(range, range, 50), {\n    hiddenCells: [],\n    shownCells: []\n  });\n});\n'''
+          if 'static tile range delta touches only entering and exiting strips' not in s:
+              s += test_block
+              tests.write_text(s)
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/phaser/adapters/phaserViewportCulling.ts src/phaser/scenes/KingdomMapScene.ts tests/phaser-viewport-culling.test.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "BK-017: make static tile culling incremental"
+          git push origin HEAD:perf/bk017-incremental-static-culling
