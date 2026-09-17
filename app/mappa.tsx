@@ -120,6 +120,7 @@ import {
   buildVisibleCellIndices,
   computeVisibleCellRange,
   footprintIntersectsRange,
+  shouldCommitMapTransformForCulling,
   type MapTransformState
 } from "../src/game/mapViewportCulling";
 import {
@@ -1382,9 +1383,23 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     if (transformRafRef.current != null) return;
     transformRafRef.current = requestAnimationFrame(() => {
       transformRafRef.current = null;
-      if (pendingTransformRef.current) setMapTransform(pendingTransformRef.current);
+      const next = pendingTransformRef.current;
+      if (!next) return;
+      setMapTransform((previous) =>
+        shouldCommitMapTransformForCulling(
+          viewportSize.width,
+          viewportSize.height,
+          previous,
+          next,
+          FIXED_MAP_COLS,
+          FIXED_MAP_ROWS,
+          CELL_SIZE_PX
+        )
+          ? next
+          : previous
+      );
     });
-  }, []);
+  }, [viewportSize.width, viewportSize.height]);
 
   useEffect(
     () => () => {
