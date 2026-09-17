@@ -255,6 +255,7 @@ import { getStradeIniziali } from "../src/game/mappaStradeIniziali";
 import {
   calcolaAnchorCostruzione2x2,
   costruzioneTerrenoPersistente,
+  footprintTerreno2x2Valido,
   type SelezioneCostruzioneAnteprima
 } from "../src/game/mappaCostruzioneAnteprima";
 import {
@@ -618,33 +619,6 @@ function getEdificiIniziali(
   aggiungiBarFootprint(cols, rows, riverSet, vietato, out, idx.BAR_INDEX);
 
   return out;
-}
-
-function footprintTerreno2x2Valido(
-  kind: TerrenoCostruzioneKind,
-  anchor: number,
-  cols: number,
-  rows: number,
-  terrenoInMappa: Record<number, TerrenoType>,
-  edificiInMappa: Record<number, EdificioInCella>
-): boolean {
-  const celle = getIndiciFootprint(anchor, COSTRUZIONE_TERRENO_FOOTPRINT_W, COSTRUZIONE_TERRENO_FOOTPRINT_H, cols);
-  for (const i of celle) {
-    if (edificiInMappa[i]) return false;
-    if (kind === "acqua") {
-      if (isAcqua(i, cols, rows)) continue;
-      const t = terrenoInMappa[i] ?? "erba";
-      if (t === "river") continue;
-      if (t === "sabbia" || t === "erba") continue;
-      return false;
-    }
-    if (kind === "spiaggia") {
-      if (isTerrenoAcqua(i, terrenoInMappa, cols, rows)) return false;
-      continue;
-    }
-    if (isTerrenoAcqua(i, terrenoInMappa, cols, rows)) return false;
-  }
-  return true;
 }
 
 /** Verifica che l’anchor rispetti le stesse regole usate per costruire (anteprima verde solo se true). */
