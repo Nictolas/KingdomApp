@@ -1,0 +1,39 @@
+name: BK017 Live Snapshot Codemod
+
+on:
+  push:
+    branches:
+      - perf/bk017-benchmark-live-snapshot
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/bk017-benchmark-live-snapshot
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Expose live sampler snapshot to browser benchmark
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/phaser/scenes/KingdomMapScene.ts')
+          s = p.read_text()
+          old = '''      (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();\n      (globalThis as any).__KINGDOM_PERF_RESET__ = () => {\n        this.framePerformance.reset();\n        (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();\n      };\n'''
+          new = '''      (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();\n      (globalThis as any).__KINGDOM_PERF_SNAPSHOT__ = () => this.framePerformance.snapshot();\n      (globalThis as any).__KINGDOM_PERF_RESET__ = () => {\n        this.framePerformance.reset();\n        (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();\n      };\n'''
+          if '__KINGDOM_PERF_SNAPSHOT__' not in s:
+              if old not in s:
+                  raise SystemExit('perf global marker not found')
+              s = s.replace(old, new, 1)
+              p.write_text(s)
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/phaser/scenes/KingdomMapScene.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "BK-017: expose live Phaser performance snapshot"
+          git push origin HEAD:perf/bk017-benchmark-live-snapshot
