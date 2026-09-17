@@ -1,0 +1,64 @@
+name: BK017 Water Culling Codemod
+
+on:
+  push:
+    branches:
+      - perf/bk017-water-viewport-updates
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/bk017-water-viewport-updates
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Patch KingdomMapScene
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("src/phaser/scenes/KingdomMapScene.ts")
+          s = p.read_text()
+
+          field_marker = '''  private waterFrame = 0;\n  private nextWaterFrameAt = 0;\n  private nextCharacterVisibilityAt = 0;'''
+          field_new = '''  private waterFrame = 0;\n  private nextWaterFrameAt = 0;\n  private nextWaterViewportSyncAt = 0;\n  private waterViewportDirty = true;\n  private nextCharacterVisibilityAt = 0;'''
+          if field_marker not in s:
+              raise SystemExit("water field marker not found")
+          s = s.replace(field_marker, field_new, 1)
+
+          reset_marker = '''    this.tileLayer.removeAll(true);\n    this.waterSprites = [];'''
+          reset_new = '''    this.tileLayer.removeAll(true);\n    this.waterSprites = [];\n    this.waterViewportDirty = true;'''
+          if reset_marker not in s:
+              raise SystemExit("water reset marker not found")
+          s = s.replace(reset_marker, reset_new, 1)
+
+          update_old = '''  update(time: number): void {\n    if (this.characterVisibilityDirty || time >= this.nextCharacterVisibilityAt) {\n      this.refreshCharacterVisibility();\n      this.characterVisibilityDirty = false;\n      this.nextCharacterVisibilityAt = time + 120;\n    }\n\n    if (time < this.nextWaterFrameAt || this.waterSprites.length === 0) return;\n    this.nextWaterFrameAt = time + 420;\n    this.waterFrame = (this.waterFrame + 1) % OVERWORLD_SHEET_PX.waterFrames;\n    const key = frameKey(\n      OVERWORLD_SHEET_PX.waterAnimX + this.waterFrame * OVERWORLD_SHEET_PX.tile,\n      OVERWORLD_SHEET_PX.waterAnimY\n    );\n    for (const sprite of this.waterSprites) sprite.setFrame(key);\n  }\n\n  private refreshCharacterVisibility(): void {'''
+          update_new = '''  update(time: number): void {\n    if (this.characterVisibilityDirty || time >= this.nextCharacterVisibilityAt) {\n      this.refreshCharacterVisibility();\n      this.characterVisibilityDirty = false;\n      this.nextCharacterVisibilityAt = time + 120;\n    }\n\n    const waterFrameDue = this.waterSprites.length > 0 && time >= this.nextWaterFrameAt;\n    if (waterFrameDue) {\n      this.nextWaterFrameAt = time + 420;\n      this.waterFrame = (this.waterFrame + 1) % OVERWORLD_SHEET_PX.waterFrames;\n      this.waterViewportDirty = true;\n    }\n\n    if (\n      this.waterViewportDirty &&\n      this.waterSprites.length > 0 &&\n      (waterFrameDue || time >= this.nextWaterViewportSyncAt)\n    ) {\n      this.refreshVisibleWaterFrames();\n      this.waterViewportDirty = false;\n      this.nextWaterViewportSyncAt = time + 120;\n    }\n  }\n\n  private refreshVisibleWaterFrames(): void {\n    if (this.waterSprites.length === 0) return;\n    const snapshot = this.bridge.getSnapshot();\n    const camera = this.cameras.main;\n    const padding = snapshot.cellSize * 1.5;\n    const worldView = {\n      x: camera.worldView.x,\n      y: camera.worldView.y,\n      width: camera.worldView.width,\n      height: camera.worldView.height\n    };\n    const key = frameKey(\n      OVERWORLD_SHEET_PX.waterAnimX + this.waterFrame * OVERWORLD_SHEET_PX.tile,\n      OVERWORLD_SHEET_PX.waterAnimY\n    );\n\n    for (const sprite of this.waterSprites) {\n      if (isPointNearPhaserWorldView(sprite.x, sprite.y, worldView, padding)) sprite.setFrame(key);\n    }\n  }\n\n  private refreshCharacterVisibility(): void {'''
+          if update_old not in s:
+              raise SystemExit("update block marker not found")
+          s = s.replace(update_old, update_new, 1)
+
+          pan_marker = '''      camera.scrollX -= dx / camera.zoom;\n      camera.scrollY -= dy / camera.zoom;\n      this.characterVisibilityDirty = true;'''
+          pan_new = '''      camera.scrollX -= dx / camera.zoom;\n      camera.scrollY -= dy / camera.zoom;\n      this.characterVisibilityDirty = true;\n      this.waterViewportDirty = true;'''
+          if pan_marker not in s:
+              raise SystemExit("pan marker not found")
+          s = s.replace(pan_marker, pan_new, 1)
+
+          zoom_marker = '''        camera.scrollX += before.x - after.x;\n        camera.scrollY += before.y - after.y;\n        this.characterVisibilityDirty = true;'''
+          zoom_new = '''        camera.scrollX += before.x - after.x;\n        camera.scrollY += before.y - after.y;\n        this.characterVisibilityDirty = true;\n        this.waterViewportDirty = true;'''
+          if zoom_marker not in s:
+              raise SystemExit("zoom marker not found")
+          s = s.replace(zoom_marker, zoom_new, 1)
+
+          p.write_text(s)
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/phaser/scenes/KingdomMapScene.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "BK-017: update visible water frames only"
+          git push origin HEAD:perf/bk017-water-viewport-updates
