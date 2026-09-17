@@ -42,8 +42,12 @@ jobs:
           cat /tmp/kingdom-http.log
           exit 1
       - name: Run Phaser benchmark
-        run: node scripts/phaser-perf-benchmark.mjs | tee phaser-perf-results.txt
+        shell: bash
+        run: |
+          set -o pipefail
+          node scripts/phaser-perf-benchmark.mjs | tee phaser-perf-results.txt
       - name: Upload benchmark result
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: phaser-perf-results
