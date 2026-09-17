@@ -632,7 +632,8 @@ export class KingdomMapScene extends Phaser.Scene {
         camera.scrollY += before.y - after.y;
         this.characterVisibilityDirty = true;
         this.waterViewportDirty = true;
-        this.staticTileVisibilityDirty = true;
+        // BK-017 diagnostic only: keep the last static-tile culling range during wheel zoom.
+        // This branch is benchmark-only and must not be merged.
       }
     );
   }
