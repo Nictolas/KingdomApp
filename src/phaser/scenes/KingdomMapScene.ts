@@ -9,6 +9,7 @@ import {
   type PhaserMapSnapshot
 } from "../adapters/mapSceneBridge";
 import {
+  computePhaserGridRangeDelta,
   computePhaserWorldViewCellRange,
   isCellInsidePhaserGridRange,
   isPointNearPhaserWorldView,
@@ -71,6 +72,7 @@ export class KingdomMapScene extends Phaser.Scene {
   private renderedRevision = -1;
   private renderedSnapshot: PhaserMapSnapshot | null = null;
   private staticTileViews: StaticTileView[] = [];
+  private readonly staticTileViewsByCell = new Map<number, Phaser.GameObjects.Image[]>();
   private lastStaticTileRange: PhaserGridCellRange | null = null;
   private staticTileVisibilityDirty = true;
   private waterSprites: Phaser.GameObjects.Image[] = [];
@@ -196,6 +198,7 @@ export class KingdomMapScene extends Phaser.Scene {
     this.configureTextureFrames(snapshot);
     this.tileLayer.removeAll(true);
     this.staticTileViews = [];
+    this.staticTileViewsByCell.clear();
     this.lastStaticTileRange = null;
     this.staticTileVisibilityDirty = true;
     this.waterSprites = [];
@@ -214,7 +217,7 @@ export class KingdomMapScene extends Phaser.Scene {
         )
         .setDisplaySize(snapshot.cellSize + bleed, snapshot.cellSize + bleed);
       this.tileLayer.add(sprite);
-      this.staticTileViews.push({ object: sprite, cell: tile.index });
+      this.registerStaticTileView(sprite, tile.index);
       if (tile.animation === "water") this.waterSprites.push(sprite);
       if (tile.overlayFrameX != null && tile.overlayFrameY != null) {
         const overlay = this.add
@@ -226,7 +229,7 @@ export class KingdomMapScene extends Phaser.Scene {
           )
           .setDisplaySize(snapshot.cellSize, snapshot.cellSize);
         this.tileLayer.add(overlay);
-        this.staticTileViews.push({ object: overlay, cell: tile.index });
+        this.registerStaticTileView(overlay, tile.index);
       }
     }
 
@@ -477,35 +480,55 @@ export class KingdomMapScene extends Phaser.Scene {
     }
   }
 
-private refreshStaticTileVisibility(force = false): void {
-  if (this.staticTileViews.length === 0) {
-    this.staticTileVisibilityDirty = false;
-    return;
+  private registerStaticTileView(object: Phaser.GameObjects.Image, cell: number): void {
+    this.staticTileViews.push({ object, cell });
+    const cellViews = this.staticTileViewsByCell.get(cell);
+    if (cellViews) cellViews.push(object);
+    else this.staticTileViewsByCell.set(cell, [object]);
   }
-  const snapshot = this.bridge.getSnapshot();
-  const camera = this.cameras.main;
-  const worldView = {
-    x: camera.worldView.x,
-    y: camera.worldView.y,
-    width: camera.worldView.width,
-    height: camera.worldView.height
-  };
-  const range = computePhaserWorldViewCellRange(
-    worldView,
-    snapshot.cols,
-    snapshot.rows,
-    snapshot.cellSize,
-    2
-  );
-  this.staticTileVisibilityDirty = false;
-  if (!force && phaserGridCellRangesEqual(this.lastStaticTileRange, range)) return;
-  this.lastStaticTileRange = range;
 
-  for (const tileView of this.staticTileViews) {
-    const visible = isCellInsidePhaserGridRange(tileView.cell, snapshot.cols, range);
-    if (tileView.object.visible !== visible) tileView.object.setVisible(visible);
+  private setStaticTileCellVisibility(cell: number, visible: boolean): void {
+    for (const object of this.staticTileViewsByCell.get(cell) ?? []) {
+      if (object.visible !== visible) object.setVisible(visible);
+    }
   }
-}
+
+  private refreshStaticTileVisibility(force = false): void {
+    if (this.staticTileViews.length === 0) {
+      this.staticTileVisibilityDirty = false;
+      return;
+    }
+    const snapshot = this.bridge.getSnapshot();
+    const camera = this.cameras.main;
+    const worldView = {
+      x: camera.worldView.x,
+      y: camera.worldView.y,
+      width: camera.worldView.width,
+      height: camera.worldView.height
+    };
+    const range = computePhaserWorldViewCellRange(
+      worldView,
+      snapshot.cols,
+      snapshot.rows,
+      snapshot.cellSize,
+      2
+    );
+    this.staticTileVisibilityDirty = false;
+    if (!force && phaserGridCellRangesEqual(this.lastStaticTileRange, range)) return;
+
+    if (force || this.lastStaticTileRange == null) {
+      for (const tileView of this.staticTileViews) {
+        const visible = isCellInsidePhaserGridRange(tileView.cell, snapshot.cols, range);
+        if (tileView.object.visible !== visible) tileView.object.setVisible(visible);
+      }
+    } else {
+      const delta = computePhaserGridRangeDelta(this.lastStaticTileRange, range, snapshot.cols);
+      for (const cell of delta.hiddenCells) this.setStaticTileCellVisibility(cell, false);
+      for (const cell of delta.shownCells) this.setStaticTileCellVisibility(cell, true);
+    }
+
+    this.lastStaticTileRange = range;
+  }
 
   private refreshVisibleWaterFrames(): void {
     if (this.waterSprites.length === 0) return;
