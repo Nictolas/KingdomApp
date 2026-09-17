@@ -22,6 +22,14 @@ async function currentMetrics(page) {
   });
 }
 
+async function currentWork(page) {
+  return page.evaluate(() => globalThis.__KINGDOM_PERF_WORK_SNAPSHOT__?.() ?? null);
+}
+
+async function resultWithWork(page, scenario, metrics) {
+  return { scenario, ...metrics, work: await currentWork(page) };
+}
+
 async function openScenario() {
   const page = await context.newPage();
   const diagnostics = [];
@@ -63,7 +71,7 @@ async function waitForIdleMetrics(page, scenario) {
   while (Date.now() < deadline) {
     if (Date.now() >= minimumEndAt) {
       const metrics = await currentMetrics(page);
-      if (metrics?.sampleCount >= minSamples) return { scenario, ...metrics };
+      if (metrics?.sampleCount >= minSamples) return resultWithWork(page, scenario, metrics);
     }
     await page.waitForTimeout(100);
   }
@@ -104,7 +112,7 @@ async function panScenario() {
       const metrics = await currentMetrics(page);
       if (metrics?.sampleCount >= minSamples) {
         await page.close();
-        return { scenario: "pan", ...metrics };
+        return resultWithWork(page, "pan", metrics);
       }
     }
   }
@@ -136,7 +144,7 @@ async function zoomScenario() {
       const metrics = await currentMetrics(page);
       if (metrics?.sampleCount >= minSamples) {
         await page.close();
-        return { scenario: "zoom", ...metrics };
+        return resultWithWork(page, "zoom", metrics);
       }
     }
   }
