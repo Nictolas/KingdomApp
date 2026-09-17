@@ -255,6 +255,7 @@ import { getStradeIniziali } from "../src/game/mappaStradeIniziali";
 import {
   calcolaAnchorCostruzione2x2,
   costruzioneTerrenoPersistente,
+  edificioRispettaCriteriPiazzamento,
   footprintTerreno2x2Valido,
   type SelezioneCostruzioneAnteprima
 } from "../src/game/mappaCostruzioneAnteprima";
@@ -548,25 +549,6 @@ function getEdificiIniziali(
   aggiungiBarFootprint(cols, rows, riverSet, vietato, out, idx.BAR_INDEX);
 
   return out;
-}
-
-/** Verifica che l’anchor rispetti le stesse regole usate per costruire (anteprima verde solo se true). */
-function edificioRispettaCriteriPiazzamento(
-  nomeEdificio: string,
-  anchor: number,
-  w: number,
-  h: number,
-  edificiInMappa: Record<number, EdificioInCella>,
-  terrenoInMappa: Record<number, TerrenoType>,
-  cols: number,
-  rows: number
-): boolean {
-  if (nomeEdificio === "Dissalatore") {
-    return footprintDissalatoreMareSabbiaValido(anchor, cols, rows, terrenoInMappa, edificiInMappa);
-  }
-  const riverSet = riverSetDaTerreno(terrenoInMappa);
-  const vietato = vietatoFootprintECuscinoDaEdificiIniziali(edificiInMappa, cols, rows);
-  return puòPiazzareFootprintConCuscino(anchor, w, h, cols, rows, riverSet, vietato);
 }
 
 /** Stessa ricerca anchor usata in `handleScegliEdificio` per edifici multi-cella. */
