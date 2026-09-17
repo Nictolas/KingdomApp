@@ -1,7 +1,12 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 
-import { isPointNearPhaserWorldView } from "../src/phaser/adapters/phaserViewportCulling.ts";
+import {
+  computePhaserWorldViewCellRange,
+  isCellInsidePhaserGridRange,
+  isPointNearPhaserWorldView,
+  phaserGridCellRangesEqual
+} from "../src/phaser/adapters/phaserViewportCulling.ts";
 
 test("character viewport culling keeps visible and padded-edge points only", () => {
   const view = { x: 100, y: 200, width: 800, height: 600 };
@@ -43,4 +48,52 @@ test("water cell becomes eligible for frame sync after camera pan", () => {
 
   assert.equal(isPointNearPhaserWorldView(waterX, waterY, beforePan, padding), false);
   assert.equal(isPointNearPhaserWorldView(waterX, waterY, afterPan, padding), true);
+});
+
+test("static tile culling keeps only a buffered subset of a 50x50 map", () => {
+  const cols = 50;
+  const rows = 50;
+  const range = computePhaserWorldViewCellRange(
+    { x: 0, y: 0, width: 800, height: 600 },
+    cols,
+    rows,
+    40,
+    2
+  );
+
+  let visibleCells = 0;
+  for (let cell = 0; cell < cols * rows; cell++) {
+    if (isCellInsidePhaserGridRange(cell, cols, range)) visibleCells++;
+  }
+
+  assert.deepEqual(range, { colStart: 0, colEnd: 22, rowStart: 0, rowEnd: 17 });
+  assert.equal(visibleCells, 414);
+  assert.ok(visibleCells < (cols * rows) * 0.2);
+});
+
+test("static tile range does not change for sub-cell camera movement", () => {
+  const first = computePhaserWorldViewCellRange(
+    { x: 400, y: 400, width: 800, height: 600 },
+    50,
+    50,
+    40,
+    2
+  );
+  const sameCell = computePhaserWorldViewCellRange(
+    { x: 405, y: 405, width: 800, height: 600 },
+    50,
+    50,
+    40,
+    2
+  );
+  const crossedCell = computePhaserWorldViewCellRange(
+    { x: 440, y: 400, width: 800, height: 600 },
+    50,
+    50,
+    40,
+    2
+  );
+
+  assert.equal(phaserGridCellRangesEqual(first, sameCell), true);
+  assert.equal(phaserGridCellRangesEqual(first, crossedCell), false);
 });
