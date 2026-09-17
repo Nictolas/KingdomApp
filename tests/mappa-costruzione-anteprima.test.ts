@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   calcolaAnchorCostruzione2x2,
+  calcolaAnchorEdificioMultiCella,
   costruzioneTerrenoPersistente,
   edificioRispettaCriteriPiazzamento,
   footprintTerreno2x2Valido
@@ -113,5 +114,25 @@ test("building placement validation rejects rivers and reserved building buffers
       7
     ),
     false
+  );
+});
+
+test("multicell building anchor preserves configured footprint and a valid preferred anchor", () => {
+  assert.deepEqual(calcolaAnchorEdificioMultiCella(24, "Bar", {}, {}, 7, 7), {
+    anchor: 24,
+    w: 2,
+    h: 2
+  });
+});
+
+test("multicell building anchor falls back to the nearest free anchor and keeps desalination rules", () => {
+  assert.deepEqual(calcolaAnchorEdificioMultiCella(0, "Bar", {}, {}, 7, 7), {
+    anchor: 16,
+    w: 2,
+    h: 2
+  });
+  assert.deepEqual(
+    calcolaAnchorEdificioMultiCella(7, "Dissalatore", {}, { 6: "sabbia", 7: "sabbia" }, 5, 5),
+    { anchor: 1, w: 2, h: 2 }
   );
 });

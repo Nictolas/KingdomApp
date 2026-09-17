@@ -254,6 +254,7 @@ import {
 import { getStradeIniziali } from "../src/game/mappaStradeIniziali";
 import {
   calcolaAnchorCostruzione2x2,
+  calcolaAnchorEdificioMultiCella,
   costruzioneTerrenoPersistente,
   edificioRispettaCriteriPiazzamento,
   footprintTerreno2x2Valido,
@@ -549,33 +550,6 @@ function getEdificiIniziali(
   aggiungiBarFootprint(cols, rows, riverSet, vietato, out, idx.BAR_INDEX);
 
   return out;
-}
-
-/** Stessa ricerca anchor usata in `handleScegliEdificio` per edifici multi-cella. */
-function calcolaAnchorEdificioMultiCella(
-  cellIndex: number,
-  nomeEdificio: string,
-  edificiInMappa: Record<number, EdificioInCella>,
-  terrenoInMappa: Record<number, TerrenoType>,
-  cols: number,
-  rows: number
-): { anchor: number | null; w: number; h: number } {
-  const dim = FOOTPRINT_COSTRUZIONE[nomeEdificio] ?? { w: 1, h: 1 };
-  const w = dim.w;
-  const h = dim.h;
-  if (nomeEdificio === "Dissalatore") {
-    const anchor = trovaAnchorDissalatore(cellIndex, edificiInMappa, terrenoInMappa, cols, rows);
-    return { anchor, w, h };
-  }
-  const riverSet = riverSetDaTerreno(terrenoInMappa);
-  const vietato = vietatoFootprintECuscinoDaEdificiIniziali(edificiInMappa, cols, rows);
-  let anchor: number | null = null;
-  if (puòPiazzareFootprintConCuscino(cellIndex, w, h, cols, rows, riverSet, vietato)) {
-    anchor = cellIndex;
-  } else {
-    anchor = trovaAnchorFootprintLibero(w, h, cellIndex, cols, rows, riverSet, vietato);
-  }
-  return { anchor, w, h };
 }
 
 function calcolaPreviewPiazzamento(
