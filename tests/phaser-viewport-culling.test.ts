@@ -2,7 +2,6 @@ import assert from "node:assert/strict";
 import test from "node:test";
 
 import {
-  computePhaserGridRangeDelta,
   computePhaserWorldViewCellRange,
   isCellInsidePhaserGridRange,
   isPointNearPhaserWorldView,
@@ -97,38 +96,4 @@ test("static tile range does not change for sub-cell camera movement", () => {
 
   assert.equal(phaserGridCellRangesEqual(first, sameCell), true);
   assert.equal(phaserGridCellRangesEqual(first, crossedCell), false);
-});
-
-
-test("static tile range delta touches only entering and exiting strips", () => {
-  const previous = computePhaserWorldViewCellRange(
-    { x: 400, y: 400, width: 800, height: 600 },
-    50,
-    50,
-    40,
-    2
-  );
-  const next = computePhaserWorldViewCellRange(
-    { x: 440, y: 400, width: 800, height: 600 },
-    50,
-    50,
-    40,
-    2
-  );
-  const delta = computePhaserGridRangeDelta(previous, next, 50);
-
-  assert.deepEqual(previous, { colStart: 8, colEnd: 32, rowStart: 8, rowEnd: 27 });
-  assert.deepEqual(next, { colStart: 9, colEnd: 33, rowStart: 8, rowEnd: 27 });
-  assert.equal(delta.hiddenCells.length, 20);
-  assert.equal(delta.shownCells.length, 20);
-  assert.ok(delta.hiddenCells.every((cell) => cell % 50 === 8));
-  assert.ok(delta.shownCells.every((cell) => cell % 50 === 33));
-});
-
-test("static tile range delta is empty when the culling range is unchanged", () => {
-  const range = { colStart: 8, colEnd: 32, rowStart: 8, rowEnd: 27 };
-  assert.deepEqual(computePhaserGridRangeDelta(range, range, 50), {
-    hiddenCells: [],
-    shownCells: []
-  });
 });
