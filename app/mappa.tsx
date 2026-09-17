@@ -259,6 +259,7 @@ import {
 import {
   estendiVietatoConFootprintECuscino,
   puòPiazzareFootprintConCuscino,
+  scegliAnchorComplessoAmministrativo,
   trovaAnchorFootprintLibero,
   trovaCellaSingolaConCuscino
 } from "../src/game/mappaPiazzamentoFootprint";
@@ -403,40 +404,6 @@ function applicaRegoleConfineTerreno(
     buildExcludeSandByRoads(edificiInMappa, terrenoInMappa, cols, rows, giacimenti)
   );
   fillErbaEnclosedByWater(terrenoInMappa, cols, rows);
-}
-
-/**
- * Angolo in alto a sinistra del blocco ADMIN_FOOTPRINT_W×H, scelto in modo deterministico:
- * tra tutti i rettangoli interamente su terra (non mare), quello col centro più vicino al "centro" mappa.
- * Va riservato ai fiumi prima di `generateRivers` così il 3×2 resta sempre libero.
- */
-function scegliAnchorComplessoAmministrativo(cols: number, rows: number): number {
-  const idx = getIndiciEdificiIniziali(cols, rows);
-  const preferred = idx.CENTRO_COMANDO_INDEX;
-  const pc = preferred % cols;
-  const pr = Math.floor(preferred / cols);
-  const w = ADMIN_FOOTPRINT_W;
-  const h = ADMIN_FOOTPRINT_H;
-  const minR = 1;
-  const maxR = rows - 2 - h;
-  const minC = 1;
-  const maxC = cols - 2 - w;
-  let bestAnchor = preferred;
-  let bestD = Infinity;
-  const vietatoVuoto = new Set<number>();
-  const fiumiVuoti = new Set<number>();
-  for (let ar = minR; ar <= maxR; ar++) {
-    for (let ac = minC; ac <= maxC; ac++) {
-      const anchor = ar * cols + ac;
-      if (!puòPiazzareFootprintConCuscino(anchor, w, h, cols, rows, fiumiVuoti, vietatoVuoto)) continue;
-      const d = Math.abs(ar - pr) + Math.abs(ac - pc);
-      if (d < bestD) {
-        bestD = d;
-        bestAnchor = anchor;
-      }
-    }
-  }
-  return bestAnchor;
 }
 
 /** Complesso amministrativo: rettangolo 3×2 (6 celle), `anchor` già riservato ai fiumi. */
