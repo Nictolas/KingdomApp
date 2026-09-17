@@ -1,0 +1,65 @@
+name: BK009 Visibility Codemod
+
+on:
+  push:
+    branches:
+      - fix/bk009-shared-character-visibility
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: fix/bk009-shared-character-visibility
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Share character visibility between web and mobile
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('app/mappa.tsx')
+          s = p.read_text()
+
+          import_marker = 'import { abitanteDeveAndareAlCultoOra, abitanteNascostoNelCultoOra } from "../src/game/presenzaLuogoCulto";\n'
+          import_line = 'import { mapCharacterShouldBeVisible } from "../src/game/mappaCharacterVisibility";\n'
+          if import_line not in s:
+              if import_marker not in s:
+                  raise SystemExit('visibility import marker not found')
+              s = s.replace(import_marker, import_marker + import_line, 1)
+
+          sky_marker = '''  const statoCielo = useMemo(() => computeStatoCielo(orologioMinuti), [orologioMinuti]);\n  /** Allineato al buio del cielo: con buio > 0.5 i personaggi con casa si posizionano sulla residenza. */\n'''
+          visibility_block = '''  const statoCielo = useMemo(() => computeStatoCielo(orologioMinuti), [orologioMinuti]);\n\n  /** Stessa regola di visibilità personaggi per renderer Phaser web e React Native. */\n  const abitantiVisibiliMappaIds = useMemo(() => {\n    const barArrivatiIds = new Set(Object.values(barArrivatiByEdificio).flat());\n    const visibili = new Set<number>();\n    for (const abitante of abitantiPerOverlayMappa) {\n      const inCommute = commuteByAbitanteId[abitante.id] != null;\n      const atWorkNow =\n        abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&\n        lavoroArrivatiIds.has(abitante.id);\n      const atBarNow =\n        abitanteAlBarRoutineOra(abitante, orologioMinuti, statoCielo.buio, edifici) &&\n        barArrivatiIds.has(abitante.id);\n      const atCultNow = abitanteNascostoNelCultoOra(\n        abitante,\n        orologioMinuti,\n        statoCielo.buio,\n        cultoArrivatiByEdificio\n      );\n      if (mapCharacterShouldBeVisible({ inCommute, atWorkNow, atBarNow, atCultNow })) {\n        visibili.add(abitante.id);\n      }\n    }\n    return visibili;\n  }, [\n    abitantiPerOverlayMappa,\n    commuteByAbitanteId,\n    orologioMinuti,\n    edifici,\n    lavoroArrivatiIds,\n    barArrivatiByEdificio,\n    statoCielo.buio,\n    cultoArrivatiByEdificio\n  ]);\n\n  /** Allineato al buio del cielo: con buio > 0.5 i personaggi con casa si posizionano sulla residenza. */\n'''
+          if 'const abitantiVisibiliMappaIds = useMemo' not in s:
+              if sky_marker not in s:
+                  raise SystemExit('sky marker not found')
+              s = s.replace(sky_marker, visibility_block, 1)
+
+          phaser_old = '''  const phaserCharacters = useMemo<PhaserMapCharacter[]>(() =>\n    abitantiPerOverlayMappa.map((abitante, order) => {\n      const commute = commuteByAbitanteId[abitante.id];\n'''
+          phaser_new = '''  const phaserCharacters = useMemo<PhaserMapCharacter[]>(() =>\n    abitantiPerOverlayMappa.flatMap((abitante, order) => {\n      if (!abitantiVisibiliMappaIds.has(abitante.id)) return [];\n      const commute = commuteByAbitanteId[abitante.id];\n'''
+          if phaser_old not in s:
+              raise SystemExit('phaser character marker not found')
+          s = s.replace(phaser_old, phaser_new, 1)
+          phaser_return_old = '''      return {\n        id: abitante.id,\n        name: abitante.nome,\n        cell,\n        path: commute?.path,\n        pathToken: commute?.token ?? 0,\n        appearance: abitante.razza === "Golem" ? "golem" : "human",\n        markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined\n      };\n    }),\n  [abitantiPerOverlayMappa, commuteByAbitanteId, cellaCasaPerAbitanteId, cols]);\n'''
+          phaser_return_new = '''      return [{\n        id: abitante.id,\n        name: abitante.nome,\n        cell,\n        path: commute?.path,\n        pathToken: commute?.token ?? 0,\n        appearance: abitante.razza === "Golem" ? "golem" : "human",\n        markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined\n      }];\n    }),\n  [abitantiPerOverlayMappa, abitantiVisibiliMappaIds, commuteByAbitanteId, cellaCasaPerAbitanteId, cols]);\n'''
+          if phaser_return_old not in s:
+              raise SystemExit('phaser return marker not found')
+          s = s.replace(phaser_return_old, phaser_return_new, 1)
+
+          native_old = '''                  {abitantiPerOverlayMappa.map((abitante: Abitante) => {\n                    const infoCommute = commuteByAbitanteId[abitante.id];\n                    const inCommute = infoCommute != null;\n\n                    const nascostoLavoro =\n                      abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&\n                      lavoroArrivatiIds.has(abitante.id) &&\n                      !inCommute;\n\n                    const nascostoBar =\n                      abitanteAlBarRoutineOra(abitante, orologioMinuti, statoCielo.buio, edifici) &&\n                      Object.values(barArrivatiByEdificio).some((ids) => ids.includes(abitante.id)) &&\n                      !inCommute;\n\n                    const nascostoCulto =\n                      abitanteNascostoNelCultoOra(\n                        abitante,\n                        orologioMinuti,\n                        statoCielo.buio,\n                        cultoArrivatiByEdificio\n                      ) && !inCommute;\n\n                    if (nascostoLavoro) return null;\n                    if (nascostoBar) return null;\n                    if (nascostoCulto) return null;\n\n                    const homeCell = cellaCasaPerAbitanteId.get(abitante.id) ?? null;\n'''
+          native_new = '''                  {abitantiPerOverlayMappa.map((abitante: Abitante) => {\n                    if (!abitantiVisibiliMappaIds.has(abitante.id)) return null;\n                    const infoCommute = commuteByAbitanteId[abitante.id];\n                    const inCommute = infoCommute != null;\n                    const homeCell = cellaCasaPerAbitanteId.get(abitante.id) ?? null;\n'''
+          if native_old not in s:
+              raise SystemExit('native visibility block not found')
+          s = s.replace(native_old, native_new, 1)
+
+          p.write_text(s)
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add app/mappa.tsx
+          git diff --cached --quiet && exit 0
+          git commit -m "BK-009: share character visibility across renderers"
+          git push origin HEAD:fix/bk009-shared-character-visibility
