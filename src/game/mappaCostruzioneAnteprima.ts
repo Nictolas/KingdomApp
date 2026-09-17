@@ -1,7 +1,12 @@
 import type { Edificio } from "../types";
 import type { TerrenoCostruzioneKind } from "./costruzioneSezioni";
+import { footprintDissalatoreMareSabbiaValido } from "./mappaDissalatorePiazzamento";
 import { COSTRUZIONE_TERRENO_FOOTPRINT_H, COSTRUZIONE_TERRENO_FOOTPRINT_W } from "./mappaLayoutConfig";
-import { getIndiciFootprint, isAcqua } from "./mappaGeometry";
+import { getIndiciFootprint, isAcqua, riverSetDaTerreno } from "./mappaGeometry";
+import {
+  puòPiazzareFootprintConCuscino,
+  vietatoFootprintECuscinoDaEdificiIniziali
+} from "./mappaPiazzamentoFootprint";
 import type { EdificioInCellaMappa } from "./mappaTypes";
 import { isTerrenoAcqua, type TerrenoType } from "./riverGeneration";
 import { calcolaAnchorStrada2x2 } from "./stradaFootprint";
@@ -59,4 +64,23 @@ export function footprintTerreno2x2Valido(
     if (isTerrenoAcqua(i, terrenoInMappa, cols, rows)) return false;
   }
   return true;
+}
+
+/** Verifica che l'anchor rispetti le stesse regole usate per costruire l'edificio. */
+export function edificioRispettaCriteriPiazzamento(
+  nomeEdificio: string,
+  anchor: number,
+  w: number,
+  h: number,
+  edificiInMappa: Record<number, EdificioInCellaMappa>,
+  terrenoInMappa: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): boolean {
+  if (nomeEdificio === "Dissalatore") {
+    return footprintDissalatoreMareSabbiaValido(anchor, cols, rows, terrenoInMappa, edificiInMappa);
+  }
+  const riverSet = riverSetDaTerreno(terrenoInMappa);
+  const vietato = vietatoFootprintECuscinoDaEdificiIniziali(edificiInMappa, cols, rows);
+  return puòPiazzareFootprintConCuscino(anchor, w, h, cols, rows, riverSet, vietato);
 }
