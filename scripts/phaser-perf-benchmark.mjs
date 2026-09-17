@@ -38,6 +38,60 @@ async function phaserCanvas(page) {
   return canvas;
 }
 
+async function dispatchPanGesture(page, direction) {
+  await page.evaluate(({ selector, direction }) => {
+    const canvas = document.querySelector(selector);
+    if (!(canvas instanceof HTMLCanvasElement)) throw new Error(`Phaser canvas not found at ${selector}`);
+    const rect = canvas.getBoundingClientRect();
+    const startX = rect.left + rect.width / 2 - 180 * direction;
+    const startY = rect.top + rect.height / 2;
+    const endX = rect.left + rect.width / 2 + 180 * direction;
+    const endY = rect.top + rect.height / 2 + 80 * direction;
+    const common = { bubbles: true, cancelable: true, pointerId: 1, pointerType: "mouse", isPrimary: true };
+
+    canvas.dispatchEvent(new PointerEvent("pointerdown", {
+      ...common,
+      clientX: startX,
+      clientY: startY,
+      button: 0,
+      buttons: 1
+    }));
+    for (let step = 1; step <= 10; step += 1) {
+      const ratio = step / 10;
+      canvas.dispatchEvent(new PointerEvent("pointermove", {
+        ...common,
+        clientX: startX + (endX - startX) * ratio,
+        clientY: startY + (endY - startY) * ratio,
+        button: 0,
+        buttons: 1
+      }));
+    }
+    canvas.dispatchEvent(new PointerEvent("pointerup", {
+      ...common,
+      clientX: endX,
+      clientY: endY,
+      button: 0,
+      buttons: 0
+    }));
+  }, { selector: phaserCanvasSelector, direction });
+}
+
+async function dispatchWheel(page, direction) {
+  await page.evaluate(({ selector, direction }) => {
+    const canvas = document.querySelector(selector);
+    if (!(canvas instanceof HTMLCanvasElement)) throw new Error(`Phaser canvas not found at ${selector}`);
+    const rect = canvas.getBoundingClientRect();
+    canvas.dispatchEvent(new WheelEvent("wheel", {
+      bubbles: true,
+      cancelable: true,
+      clientX: rect.left + rect.width / 2,
+      clientY: rect.top + rect.height / 2,
+      deltaY: 180 * direction,
+      deltaMode: WheelEvent.DOM_DELTA_PIXEL
+    }));
+  }, { selector: phaserCanvasSelector, direction });
+}
+
 function assertScenarioInput(result) {
   if (!result.work) throw new Error(`No culling work counters returned for ${result.scenario}`);
   if (result.scenario === "pan" && result.work.panMoves <= 0) {
@@ -111,22 +165,16 @@ async function idleScenario() {
 
 async function panScenario() {
   const page = await openScenario();
-  const canvas = await phaserCanvas(page);
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error("Phaser canvas has no bounding box");
-  const centerX = box.x + box.width / 2;
-  const centerY = box.y + box.height / 2;
+  await phaserCanvas(page);
   const startedAt = Date.now();
   const minimumEndAt = startedAt + sampleMs;
   const deadline = startedAt + Math.max(sampleMs, maxScenarioMs);
   let direction = 1;
 
   while (Date.now() < deadline) {
-    await page.mouse.move(centerX - 180 * direction, centerY);
-    await page.mouse.down();
-    await page.mouse.move(centerX + 180 * direction, centerY + 80 * direction, { steps: 10 });
-    await page.mouse.up();
+    await dispatchPanGesture(page, direction);
     direction *= -1;
+    await page.waitForTimeout(16);
 
     if (Date.now() >= minimumEndAt) {
       const metrics = await currentMetrics(page);
@@ -148,17 +196,14 @@ async function panScenario() {
 
 async function zoomScenario() {
   const page = await openScenario();
-  const canvas = await phaserCanvas(page);
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error("Phaser canvas has no bounding box");
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+  await phaserCanvas(page);
   const startedAt = Date.now();
   const minimumEndAt = startedAt + sampleMs;
   const deadline = startedAt + Math.max(sampleMs, maxScenarioMs);
   let direction = 1;
 
   while (Date.now() < deadline) {
-    await page.mouse.wheel(0, 180 * direction);
+    await dispatchWheel(page, direction);
     direction *= -1;
     await page.waitForTimeout(80);
 
