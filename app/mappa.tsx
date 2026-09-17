@@ -1452,40 +1452,6 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const statoCielo = useMemo(() => computeStatoCielo(orologioMinuti), [orologioMinuti]);
 
-  /** Stessa regola di visibilità personaggi per renderer Phaser web e React Native. */
-  const abitantiVisibiliMappaIds = useMemo(() => {
-    const barArrivatiIds = new Set(Object.values(barArrivatiByEdificio).flat());
-    const visibili = new Set<number>();
-    for (const abitante of abitantiPerOverlayMappa) {
-      const inCommute = commuteByAbitanteId[abitante.id] != null;
-      const atWorkNow =
-        abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&
-        lavoroArrivatiIds.has(abitante.id);
-      const atBarNow =
-        abitanteAlBarRoutineOra(abitante, orologioMinuti, statoCielo.buio, edifici) &&
-        barArrivatiIds.has(abitante.id);
-      const atCultNow = abitanteNascostoNelCultoOra(
-        abitante,
-        orologioMinuti,
-        statoCielo.buio,
-        cultoArrivatiByEdificio
-      );
-      if (mapCharacterShouldBeVisible({ inCommute, atWorkNow, atBarNow, atCultNow })) {
-        visibili.add(abitante.id);
-      }
-    }
-    return visibili;
-  }, [
-    abitantiPerOverlayMappa,
-    commuteByAbitanteId,
-    orologioMinuti,
-    edifici,
-    lavoroArrivatiIds,
-    barArrivatiByEdificio,
-    statoCielo.buio,
-    cultoArrivatiByEdificio
-  ]);
-
   /** Allineato al buio del cielo: con buio > 0.5 i personaggi con casa si posizionano sulla residenza. */
   const èNottePersonaggiInCasa = statoCielo.buio > 0.5;
 
@@ -1721,6 +1687,40 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   /** id edificio Luogo di Culto (globale) → fedeli considerati “dentro” quel tempio. */
   const [cultoArrivatiByEdificio, setCultoArrivatiByEdificio] = useState<Record<number, number[]>>({});
   const [commuteByAbitanteId, setCommuteByAbitanteId] = useState<Record<number, CommuteInfo>>({});
+
+  /** Stessa regola di visibilità personaggi per renderer Phaser web e React Native. */
+  const abitantiVisibiliMappaIds = useMemo(() => {
+    const barArrivatiIds = new Set(Object.values(barArrivatiByEdificio).flat());
+    const visibili = new Set<number>();
+    for (const abitante of abitantiPerOverlayMappa) {
+      const inCommute = commuteByAbitanteId[abitante.id] != null;
+      const atWorkNow =
+        abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&
+        lavoroArrivatiIds.has(abitante.id);
+      const atBarNow =
+        abitanteAlBarRoutineOra(abitante, orologioMinuti, statoCielo.buio, edifici) &&
+        barArrivatiIds.has(abitante.id);
+      const atCultNow = abitanteNascostoNelCultoOra(
+        abitante,
+        orologioMinuti,
+        statoCielo.buio,
+        cultoArrivatiByEdificio
+      );
+      if (mapCharacterShouldBeVisible({ inCommute, atWorkNow, atBarNow, atCultNow })) {
+        visibili.add(abitante.id);
+      }
+    }
+    return visibili;
+  }, [
+    abitantiPerOverlayMappa,
+    commuteByAbitanteId,
+    orologioMinuti,
+    edifici,
+    lavoroArrivatiIds,
+    barArrivatiByEdificio,
+    statoCielo.buio,
+    cultoArrivatiByEdificio
+  ]);
 
   const minutiAbsGioco = useCallback(
     () => getGiornoGiocoSnapshot() * 1440 + orologioMinuti,
