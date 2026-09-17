@@ -7,7 +7,13 @@ import {
   type PhaserMapBuilding,
   type PhaserMapSnapshot
 } from "../adapters/mapSceneBridge";
-import { isPointNearPhaserWorldView } from "../adapters/phaserViewportCulling";
+import {
+  computePhaserWorldViewCellRange,
+  isCellInsidePhaserGridRange,
+  isPointNearPhaserWorldView,
+  phaserGridCellRangesEqual,
+  type PhaserGridCellRange
+} from "../adapters/phaserViewportCulling";
 
 const SHEET_KEY = "overworld";
 const HUMAN_KEY = "human-colonist";
@@ -41,6 +47,10 @@ type CharacterView = {
   token: number;
   direction: 0 | 1 | 2 | 3;
 };
+type StaticTileView = {
+  object: Phaser.GameObjects.Image;
+  cell: number;
+};
 
 export class KingdomMapScene extends Phaser.Scene {
   private readonly bridge: MapSceneBridge;
@@ -55,6 +65,9 @@ export class KingdomMapScene extends Phaser.Scene {
   private readonly characterViews = new Map<number, CharacterView>();
   private renderedRevision = -1;
   private renderedSnapshot: PhaserMapSnapshot | null = null;
+  private staticTileViews: StaticTileView[] = [];
+  private lastStaticTileRange: PhaserGridCellRange | null = null;
+  private staticTileVisibilityDirty = true;
   private waterSprites: Phaser.GameObjects.Image[] = [];
   private waterFrame = 0;
   private nextWaterFrameAt = 0;
@@ -161,6 +174,9 @@ export class KingdomMapScene extends Phaser.Scene {
     if (!this.tileLayer) return;
     this.configureTextureFrames(snapshot);
     this.tileLayer.removeAll(true);
+    this.staticTileViews = [];
+    this.lastStaticTileRange = null;
+    this.staticTileVisibilityDirty = true;
     this.waterSprites = [];
     this.waterViewportDirty = true;
 
@@ -177,6 +193,7 @@ export class KingdomMapScene extends Phaser.Scene {
         )
         .setDisplaySize(snapshot.cellSize + bleed, snapshot.cellSize + bleed);
       this.tileLayer.add(sprite);
+      this.staticTileViews.push({ object: sprite, cell: tile.index });
       if (tile.animation === "water") this.waterSprites.push(sprite);
       if (tile.overlayFrameX != null && tile.overlayFrameY != null) {
         const overlay = this.add
@@ -188,6 +205,7 @@ export class KingdomMapScene extends Phaser.Scene {
           )
           .setDisplaySize(snapshot.cellSize, snapshot.cellSize);
         this.tileLayer.add(overlay);
+        this.staticTileViews.push({ object: overlay, cell: tile.index });
       }
     }
 
@@ -195,6 +213,7 @@ export class KingdomMapScene extends Phaser.Scene {
     const worldH = snapshot.rows * snapshot.cellSize;
     this.cameras.main.setBounds(0, 0, worldW, worldH);
     this.physics?.world?.setBounds(0, 0, worldW, worldH);
+    this.refreshStaticTileVisibility(true);
     this.renderedRevision = snapshot.revision;
     this.renderBuildings(snapshot);
     this.reconcileCharacters(snapshot);
@@ -400,6 +419,8 @@ export class KingdomMapScene extends Phaser.Scene {
   }
 
   update(time: number): void {
+    if (this.staticTileVisibilityDirty) this.refreshStaticTileVisibility();
+
     if (this.characterVisibilityDirty || time >= this.nextCharacterVisibilityAt) {
       this.refreshCharacterVisibility();
       this.characterVisibilityDirty = false;
@@ -423,6 +444,36 @@ export class KingdomMapScene extends Phaser.Scene {
       this.nextWaterViewportSyncAt = time + 120;
     }
   }
+
+private refreshStaticTileVisibility(force = false): void {
+  if (this.staticTileViews.length === 0) {
+    this.staticTileVisibilityDirty = false;
+    return;
+  }
+  const snapshot = this.bridge.getSnapshot();
+  const camera = this.cameras.main;
+  const worldView = {
+    x: camera.worldView.x,
+    y: camera.worldView.y,
+    width: camera.worldView.width,
+    height: camera.worldView.height
+  };
+  const range = computePhaserWorldViewCellRange(
+    worldView,
+    snapshot.cols,
+    snapshot.rows,
+    snapshot.cellSize,
+    2
+  );
+  this.staticTileVisibilityDirty = false;
+  if (!force && phaserGridCellRangesEqual(this.lastStaticTileRange, range)) return;
+  this.lastStaticTileRange = range;
+
+  for (const tileView of this.staticTileViews) {
+    const visible = isCellInsidePhaserGridRange(tileView.cell, snapshot.cols, range);
+    if (tileView.object.visible !== visible) tileView.object.setVisible(visible);
+  }
+}
 
   private refreshVisibleWaterFrames(): void {
     if (this.waterSprites.length === 0) return;
@@ -493,6 +544,7 @@ export class KingdomMapScene extends Phaser.Scene {
       camera.scrollY -= dy / camera.zoom;
       this.characterVisibilityDirty = true;
       this.waterViewportDirty = true;
+      this.staticTileVisibilityDirty = true;
     });
 
     this.input.on("pointerout", () => {
@@ -525,6 +577,7 @@ export class KingdomMapScene extends Phaser.Scene {
         camera.scrollY += before.y - after.y;
         this.characterVisibilityDirty = true;
         this.waterViewportDirty = true;
+        this.staticTileVisibilityDirty = true;
       }
     );
   }
