@@ -51,6 +51,53 @@ export function computeVisibleCellRange(
   };
 }
 
+export function visibleCellRangesEqual(a: VisibleCellRange, b: VisibleCellRange): boolean {
+  return (
+    a.colStart === b.colStart &&
+    a.colEnd === b.colEnd &&
+    a.rowStart === b.rowStart &&
+    a.rowEnd === b.rowEnd
+  );
+}
+
+/**
+ * Il transform CSS viene aggiornato dalla libreria di pan/zoom indipendentemente da React.
+ * React deve quindi ricevere un nuovo transform solo quando quel movimento cambia davvero
+ * le celle incluse nel culling; in caso contrario sarebbe un render completo inutile.
+ */
+export function shouldCommitMapTransformForCulling(
+  viewportW: number,
+  viewportH: number,
+  previous: MapTransformState,
+  next: MapTransformState,
+  cols: number,
+  rows: number,
+  cellPx: number,
+  marginCells = MAP_VIEWPORT_MARGIN_CELLS
+): boolean {
+  if (viewportW <= 0 || viewportH <= 0) return true;
+
+  const previousRange = computeVisibleCellRange(
+    viewportW,
+    viewportH,
+    previous,
+    cols,
+    rows,
+    cellPx,
+    marginCells
+  );
+  const nextRange = computeVisibleCellRange(
+    viewportW,
+    viewportH,
+    next,
+    cols,
+    rows,
+    cellPx,
+    marginCells
+  );
+  return !visibleCellRangesEqual(previousRange, nextRange);
+}
+
 export function buildVisibleCellIndices(range: VisibleCellRange, cols: number): number[] {
   const out: number[] = [];
   for (let r = range.rowStart; r < range.rowEnd; r++) {
