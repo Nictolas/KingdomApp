@@ -1,0 +1,70 @@
+name: BK017 Character Culling Codemod
+
+on:
+  push:
+    branches:
+      - perf/bk017-character-viewport-culling
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/bk017-character-viewport-culling
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Patch KingdomMapScene
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path("src/phaser/scenes/KingdomMapScene.ts")
+          s = p.read_text()
+
+          import_marker = '} from "../adapters/mapSceneBridge";\n'
+          import_add = '} from "../adapters/mapSceneBridge";\nimport { isPointNearPhaserWorldView } from "../adapters/phaserViewportCulling";\n'
+          if import_marker not in s:
+              raise SystemExit("import marker not found")
+          s = s.replace(import_marker, import_add, 1)
+
+          field_marker = '  private nextWaterFrameAt = 0;\n  private dragPointerId: number | null = null;'
+          field_add = '  private nextWaterFrameAt = 0;\n  private nextCharacterVisibilityAt = 0;\n  private characterVisibilityDirty = true;\n  private dragPointerId: number | null = null;'
+          if field_marker not in s:
+              raise SystemExit("field marker not found")
+          s = s.replace(field_marker, field_add, 1)
+
+          reconcile_end = '''      }\n    }\n  }\n\n  private directionForStep'''
+          reconcile_new = '''      }\n    }\n    this.characterVisibilityDirty = true;\n  }\n\n  private directionForStep'''
+          if reconcile_end not in s:
+              raise SystemExit("reconcile end marker not found")
+          s = s.replace(reconcile_end, reconcile_new, 1)
+
+          update_old = '''  update(time: number): void {\n    if (time < this.nextWaterFrameAt || this.waterSprites.length === 0) return;\n    this.nextWaterFrameAt = time + 420;\n    this.waterFrame = (this.waterFrame + 1) % OVERWORLD_SHEET_PX.waterFrames;\n    const key = frameKey(\n      OVERWORLD_SHEET_PX.waterAnimX + this.waterFrame * OVERWORLD_SHEET_PX.tile,\n      OVERWORLD_SHEET_PX.waterAnimY\n    );\n    for (const sprite of this.waterSprites) sprite.setFrame(key);\n  }\n\n  private configureCameraAndInput(): void {'''
+          update_new = '''  update(time: number): void {\n    if (this.characterVisibilityDirty || time >= this.nextCharacterVisibilityAt) {\n      this.refreshCharacterVisibility();\n      this.characterVisibilityDirty = false;\n      this.nextCharacterVisibilityAt = time + 120;\n    }\n\n    if (time < this.nextWaterFrameAt || this.waterSprites.length === 0) return;\n    this.nextWaterFrameAt = time + 420;\n    this.waterFrame = (this.waterFrame + 1) % OVERWORLD_SHEET_PX.waterFrames;\n    const key = frameKey(\n      OVERWORLD_SHEET_PX.waterAnimX + this.waterFrame * OVERWORLD_SHEET_PX.tile,\n      OVERWORLD_SHEET_PX.waterAnimY\n    );\n    for (const sprite of this.waterSprites) sprite.setFrame(key);\n  }\n\n  private refreshCharacterVisibility(): void {\n    if (this.characterViews.size === 0) return;\n    const snapshot = this.bridge.getSnapshot();\n    const camera = this.cameras.main;\n    const padding = snapshot.cellSize * 1.5;\n    const worldView = {\n      x: camera.worldView.x,\n      y: camera.worldView.y,\n      width: camera.worldView.width,\n      height: camera.worldView.height\n    };\n\n    for (const characterView of this.characterViews.values()) {\n      const visible = isPointNearPhaserWorldView(\n        characterView.root.x,\n        characterView.root.y,\n        worldView,\n        padding\n      );\n      if (characterView.root.visible !== visible) characterView.root.setVisible(visible);\n    }\n  }\n\n  private configureCameraAndInput(): void {'''
+          if update_old not in s:
+              raise SystemExit("update marker not found")
+          s = s.replace(update_old, update_new, 1)
+
+          pan_marker = '''      camera.scrollX -= dx / camera.zoom;\n      camera.scrollY -= dy / camera.zoom;\n    });'''
+          pan_new = '''      camera.scrollX -= dx / camera.zoom;\n      camera.scrollY -= dy / camera.zoom;\n      this.characterVisibilityDirty = true;\n    });'''
+          if pan_marker not in s:
+              raise SystemExit("pan marker not found")
+          s = s.replace(pan_marker, pan_new, 1)
+
+          zoom_marker = '''        camera.scrollX += before.x - after.x;\n        camera.scrollY += before.y - after.y;\n      }\n    );'''
+          zoom_new = '''        camera.scrollX += before.x - after.x;\n        camera.scrollY += before.y - after.y;\n        this.characterVisibilityDirty = true;\n      }\n    );'''
+          if zoom_marker not in s:
+              raise SystemExit("zoom marker not found")
+          s = s.replace(zoom_marker, zoom_new, 1)
+
+          p.write_text(s)
+      - name: Commit patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/phaser/scenes/KingdomMapScene.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "BK-017: cull offscreen Phaser characters"
+          git push origin HEAD:perf/bk017-character-viewport-culling
