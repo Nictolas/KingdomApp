@@ -1,0 +1,40 @@
+name: BK017 Zoom Diagnostic Codemod
+
+on:
+  push:
+    branches:
+      - perf/bk017-zoom-diagnostic
+
+permissions:
+  contents: write
+
+jobs:
+  codemod:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/bk017-zoom-diagnostic
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Disable static culling refresh on wheel for diagnostic
+        shell: python
+        run: |
+          from pathlib import Path
+          p = Path('src/phaser/scenes/KingdomMapScene.ts')
+          s = p.read_text()
+          old = '''        this.characterVisibilityDirty = true;\n        this.waterViewportDirty = true;\n        this.staticTileVisibilityDirty = true;\n      }\n    );\n  }\n'''
+          new = '''        this.characterVisibilityDirty = true;\n        this.waterViewportDirty = true;\n        // BK-017 diagnostic only: keep the last static-tile culling range during wheel zoom.\n        // This branch is benchmark-only and must not be merged.\n      }\n    );\n  }\n'''
+          # Target the wheel handler, which is the last occurrence of this block.
+          pos = s.rfind(old)
+          if pos < 0:
+              raise SystemExit('wheel culling marker not found')
+          s = s[:pos] + new + s[pos + len(old):]
+          p.write_text(s)
+      - name: Commit diagnostic patch
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add src/phaser/scenes/KingdomMapScene.ts
+          git diff --cached --quiet && exit 0
+          git commit -m "BK-017: diagnose zoom without static culling refresh"
+          git push origin HEAD:perf/bk017-zoom-diagnostic
