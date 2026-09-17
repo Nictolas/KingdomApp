@@ -111,8 +111,9 @@ async function panScenario() {
     if (Date.now() >= minimumEndAt) {
       const metrics = await currentMetrics(page);
       if (metrics?.sampleCount >= minSamples) {
+        const result = await resultWithWork(page, "pan", metrics);
         await page.close();
-        return resultWithWork(page, "pan", metrics);
+        return result;
       }
     }
   }
@@ -143,8 +144,9 @@ async function zoomScenario() {
     if (Date.now() >= minimumEndAt) {
       const metrics = await currentMetrics(page);
       if (metrics?.sampleCount >= minSamples) {
+        const result = await resultWithWork(page, "zoom", metrics);
         await page.close();
-        return resultWithWork(page, "zoom", metrics);
+        return result;
       }
     }
   }
