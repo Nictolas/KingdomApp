@@ -23,7 +23,7 @@ async function openScenario() {
   await page.goto(`${baseUrl}/?perf=1`, { waitUntil: "networkidle", timeout: 120_000 });
   await page.waitForSelector("canvas", { timeout: 120_000 });
   try {
-    await page.waitForFunction(() => globalThis.__KINGDOM_PERF__?.samples > 30, null, { timeout: 90_000 });
+    await page.waitForFunction(() => globalThis.__KINGDOM_PERF__?.sampleCount > 30, null, { timeout: 90_000 });
   } catch (error) {
     console.error("Benchmark bootstrap failed", {
       url: page.url(),
@@ -42,7 +42,7 @@ async function openScenario() {
 async function readMetrics(page, scenario) {
   await page.waitForTimeout(sampleMs);
   const metrics = await page.evaluate(() => globalThis.__KINGDOM_PERF__ ?? null);
-  if (!metrics || metrics.samples < 30) throw new Error(`No usable performance sample for ${scenario}`);
+  if (!metrics || metrics.sampleCount < 30) throw new Error(`No usable performance sample for ${scenario}`);
   return { scenario, ...metrics };
 }
 
@@ -70,7 +70,7 @@ async function panScenario() {
     direction *= -1;
   }
   const metrics = await page.evaluate(() => globalThis.__KINGDOM_PERF__ ?? null);
-  if (!metrics || metrics.samples < 30) throw new Error("No usable performance sample for pan");
+  if (!metrics || metrics.sampleCount < 30) throw new Error("No usable performance sample for pan");
   await page.close();
   return { scenario: "pan", ...metrics };
 }
@@ -89,7 +89,7 @@ async function zoomScenario() {
     await page.waitForTimeout(80);
   }
   const metrics = await page.evaluate(() => globalThis.__KINGDOM_PERF__ ?? null);
-  if (!metrics || metrics.samples < 30) throw new Error("No usable performance sample for zoom");
+  if (!metrics || metrics.sampleCount < 30) throw new Error("No usable performance sample for zoom");
   await page.close();
   return { scenario: "zoom", ...metrics };
 }
@@ -97,14 +97,14 @@ async function zoomScenario() {
 try {
   const results = [await idleScenario(), await panScenario(), await zoomScenario()];
   console.log("BK017_PERF_RESULTS=" + JSON.stringify(results));
-  console.table(results.map(({ scenario, fpsAverage, frameMsAverage, frameMsP95, slow33, slow50, samples }) => ({
+  console.table(results.map(({ scenario, meanFps, meanFrameMs, p95FrameMs, framesOver33Ms, framesOver50Ms, sampleCount }) => ({
     scenario,
-    fpsAverage,
-    frameMsAverage,
-    frameMsP95,
-    slow33,
-    slow50,
-    samples
+    meanFps,
+    meanFrameMs,
+    p95FrameMs,
+    framesOver33Ms,
+    framesOver50Ms,
+    sampleCount
   })));
 } finally {
   await browser.close();
