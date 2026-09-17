@@ -6,9 +6,6 @@ on:
     branches:
       - main
 
-permissions:
-  contents: write
-
 concurrency:
   group: ci-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
@@ -25,64 +22,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-        with:
-          ref: ${{ github.head_ref || github.ref_name }}
-
-      - name: Apply BK-006 terrain boundary codemod
-        if: github.event_name == 'pull_request' && github.head_ref == 'refactor/map-terrain-boundary-rules-bk006'
-        shell: bash
-        run: |
-          python - <<'PY'
-          from pathlib import Path
-
-          path = Path('app/mappa.tsx')
-          text = path.read_text(encoding='utf-8')
-
-          old_river = '  applyTerrenoGrassAndSandContinuity,\n  buildTerrenoFromRivers,\n  ensureStradaErbaTerrainBoundaryRules,\n  fillErbaEnclosedByWater,\n  generateRivers,'
-          new_river = '  applyTerrenoGrassAndSandContinuity,\n  buildTerrenoFromRivers,\n  generateRivers,'
-          if old_river not in text:
-              raise SystemExit('riverGeneration import marker not found')
-          text = text.replace(old_river, new_river, 1)
-
-          old_road = 'import {\n  assicuraEdificiCollegatiDaStrada,\n  buildExcludeSandByRoads,\n  indiciViciniOrtogonaliStrada\n} from "../src/game/roadConnectivity";'
-          new_road = 'import { indiciViciniOrtogonaliStrada } from "../src/game/roadConnectivity";'
-          if old_road not in text:
-              raise SystemExit('roadConnectivity import marker not found')
-          text = text.replace(old_road, new_road, 1)
-
-          old_footprint = '  applicaEdificioFootprintCostruzione,\n  dimensioniFootprintEdificioInMappa,\n  giacimentoIndicesDaEdifici,\n  indiciFootprintProtettiIniziali,'
-          new_footprint = '  applicaEdificioFootprintCostruzione,\n  dimensioniFootprintEdificioInMappa,\n  indiciFootprintProtettiIniziali,'
-          if old_footprint not in text:
-              raise SystemExit('mappaEdificioFootprints import marker not found')
-          text = text.replace(old_footprint, new_footprint, 1)
-
-          import_anchor = '} from "../src/game/mappaDissalatorePiazzamento";\n'
-          new_import = 'import { applicaRegoleConfineTerreno } from "../src/game/mappaRegoleConfineTerreno";\n'
-          if new_import not in text:
-              if import_anchor not in text:
-                  raise SystemExit('new import anchor not found')
-              text = text.replace(import_anchor, import_anchor + new_import, 1)
-
-          start_marker = '/** Dopo strade/fiumi: niente strada adiacente ad acqua o sabbia; erba costiera → sabbia. */\nfunction applicaRegoleConfineTerreno('
-          end_marker = '\nfunction aggiungiDormitorioFootprint('
-          start = text.find(start_marker)
-          if start < 0:
-              raise SystemExit('local helper start marker not found')
-          end = text.find(end_marker, start)
-          if end < 0:
-              raise SystemExit('local helper end marker not found')
-          text = text[:start] + text[end + 1:]
-
-          path.write_text(text, encoding='utf-8')
-          PY
-
-          if ! git diff --quiet -- app/mappa.tsx; then
-            git config user.name "github-actions[bot]"
-            git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-            git add app/mappa.tsx
-            git commit -m "BK-006: use extracted terrain boundary rules helper"
-            git push origin HEAD:refactor/map-terrain-boundary-rules-bk006
-          fi
 
       - name: Use Node.js 22
         uses: actions/setup-node@v4
