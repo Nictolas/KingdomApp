@@ -3,12 +3,13 @@ import test from "node:test";
 import { applicaRegoleConfineTerreno } from "../src/game/mappaRegoleConfineTerreno";
 import { GIACIMENTO, STRADA_OPZIONE } from "../src/game/mappaEdificiStatici";
 import type { EdificioInCellaMappa } from "../src/game/mappaTypes";
+import type { TerrenoType } from "../src/game/riverGeneration";
 
 test("terrain boundary rules can skip automatic road reconnection", () => {
   const edifici: Record<number, EdificioInCellaMappa> = {
     27: { id: 9001, nome: "Edificio test", emoji: "" }
   };
-  const terreno = {};
+  const terreno: Record<number, TerrenoType> = {};
 
   applicaRegoleConfineTerreno(edifici, terreno, 8, 8, {
     collegaEdificiAllaStrada: false
@@ -21,7 +22,7 @@ test("terrain boundary rules preserve the historical default road reconnection",
   const edifici: Record<number, EdificioInCellaMappa> = {
     27: { id: 9001, nome: "Edificio test", emoji: "" }
   };
-  const terreno = {};
+  const terreno: Record<number, TerrenoType> = {};
 
   applicaRegoleConfineTerreno(edifici, terreno, 8, 8);
 
@@ -33,7 +34,7 @@ test("terrain boundary rules remove coastal roads but keep Giacimento out of san
     9: { ...STRADA_OPZIONE },
     10: { ...GIACIMENTO }
   };
-  const terreno = {};
+  const terreno: Record<number, TerrenoType> = {};
 
   applicaRegoleConfineTerreno(edifici, terreno, 8, 8, {
     collegaEdificiAllaStrada: false
