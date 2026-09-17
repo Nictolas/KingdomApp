@@ -3,6 +3,8 @@ import { chromium } from "playwright";
 const baseUrl = process.env.KINGDOM_BENCHMARK_URL ?? "http://127.0.0.1:4173";
 const warmupMs = Number(process.env.KINGDOM_BENCHMARK_WARMUP_MS ?? 2500);
 const sampleMs = Number(process.env.KINGDOM_BENCHMARK_SAMPLE_MS ?? 5000);
+const minSamples = Number(process.env.KINGDOM_BENCHMARK_MIN_SAMPLES ?? 30);
+const maxScenarioMs = Number(process.env.KINGDOM_BENCHMARK_MAX_SCENARIO_MS ?? 15000);
 
 const browser = await chromium.launch({
   headless: true,
@@ -12,6 +14,13 @@ const context = await browser.newContext({ viewport: { width: 1280, height: 800 
 await context.addInitScript(() => {
   globalThis.__KINGDOM_PERF_REQUESTED__ = true;
 });
+
+async function currentMetrics(page) {
+  return page.evaluate(() => {
+    const live = globalThis.__KINGDOM_PERF_SNAPSHOT__?.();
+    return live ?? globalThis.__KINGDOM_PERF__ ?? null;
+  });
+}
 
 async function openScenario() {
   const page = await context.newPage();
@@ -23,14 +32,21 @@ async function openScenario() {
   await page.goto(`${baseUrl}/?perf=1`, { waitUntil: "networkidle", timeout: 120_000 });
   await page.waitForSelector("canvas", { timeout: 120_000 });
   try {
-    await page.waitForFunction(() => globalThis.__KINGDOM_PERF__?.sampleCount > 30, null, { timeout: 90_000 });
+    await page.waitForFunction(
+      () => {
+        const metrics = globalThis.__KINGDOM_PERF_SNAPSHOT__?.() ?? globalThis.__KINGDOM_PERF__;
+        return (metrics?.sampleCount ?? 0) >= 10;
+      },
+      null,
+      { timeout: 90_000 }
+    );
   } catch (error) {
     console.error("Benchmark bootstrap failed", {
       url: page.url(),
       diagnostics,
       body: (await page.locator("body").innerText().catch(() => "")).slice(0, 4000),
       requested: await page.evaluate(() => globalThis.__KINGDOM_PERF_REQUESTED__ ?? null),
-      metrics: await page.evaluate(() => globalThis.__KINGDOM_PERF__ ?? null)
+      metrics: await currentMetrics(page)
     });
     throw error;
   }
@@ -39,16 +55,28 @@ async function openScenario() {
   return page;
 }
 
-async function readMetrics(page, scenario) {
-  await page.waitForTimeout(sampleMs);
-  const metrics = await page.evaluate(() => globalThis.__KINGDOM_PERF__ ?? null);
-  if (!metrics || metrics.sampleCount < 30) throw new Error(`No usable performance sample for ${scenario}`);
-  return { scenario, ...metrics };
+async function waitForIdleMetrics(page, scenario) {
+  const startedAt = Date.now();
+  const minimumEndAt = startedAt + sampleMs;
+  const deadline = startedAt + Math.max(sampleMs, maxScenarioMs);
+
+  while (Date.now() < deadline) {
+    if (Date.now() >= minimumEndAt) {
+      const metrics = await currentMetrics(page);
+      if (metrics?.sampleCount >= minSamples) return { scenario, ...metrics };
+    }
+    await page.waitForTimeout(100);
+  }
+
+  const metrics = await currentMetrics(page);
+  throw new Error(
+    `No usable performance sample for ${scenario}: ${metrics?.sampleCount ?? 0}/${minSamples} samples after ${Date.now() - startedAt} ms`
+  );
 }
 
 async function idleScenario() {
   const page = await openScenario();
-  const result = await readMetrics(page, "idle");
+  const result = await waitForIdleMetrics(page, "idle");
   await page.close();
   return result;
 }
@@ -60,19 +88,32 @@ async function panScenario() {
   if (!box) throw new Error("Phaser canvas has no bounding box");
   const centerX = box.x + box.width / 2;
   const centerY = box.y + box.height / 2;
-  const endAt = Date.now() + sampleMs;
+  const startedAt = Date.now();
+  const minimumEndAt = startedAt + sampleMs;
+  const deadline = startedAt + Math.max(sampleMs, maxScenarioMs);
   let direction = 1;
-  while (Date.now() < endAt) {
+
+  while (Date.now() < deadline) {
     await page.mouse.move(centerX - 180 * direction, centerY);
     await page.mouse.down();
     await page.mouse.move(centerX + 180 * direction, centerY + 80 * direction, { steps: 10 });
     await page.mouse.up();
     direction *= -1;
+
+    if (Date.now() >= minimumEndAt) {
+      const metrics = await currentMetrics(page);
+      if (metrics?.sampleCount >= minSamples) {
+        await page.close();
+        return { scenario: "pan", ...metrics };
+      }
+    }
   }
-  const metrics = await page.evaluate(() => globalThis.__KINGDOM_PERF__ ?? null);
-  if (!metrics || metrics.sampleCount < 30) throw new Error("No usable performance sample for pan");
+
+  const metrics = await currentMetrics(page);
   await page.close();
-  return { scenario: "pan", ...metrics };
+  throw new Error(
+    `No usable performance sample for pan: ${metrics?.sampleCount ?? 0}/${minSamples} samples after ${Date.now() - startedAt} ms`
+  );
 }
 
 async function zoomScenario() {
@@ -81,17 +122,30 @@ async function zoomScenario() {
   const box = await canvas.boundingBox();
   if (!box) throw new Error("Phaser canvas has no bounding box");
   await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  const endAt = Date.now() + sampleMs;
+  const startedAt = Date.now();
+  const minimumEndAt = startedAt + sampleMs;
+  const deadline = startedAt + Math.max(sampleMs, maxScenarioMs);
   let direction = 1;
-  while (Date.now() < endAt) {
+
+  while (Date.now() < deadline) {
     await page.mouse.wheel(0, 180 * direction);
     direction *= -1;
     await page.waitForTimeout(80);
+
+    if (Date.now() >= minimumEndAt) {
+      const metrics = await currentMetrics(page);
+      if (metrics?.sampleCount >= minSamples) {
+        await page.close();
+        return { scenario: "zoom", ...metrics };
+      }
+    }
   }
-  const metrics = await page.evaluate(() => globalThis.__KINGDOM_PERF__ ?? null);
-  if (!metrics || metrics.sampleCount < 30) throw new Error("No usable performance sample for zoom");
+
+  const metrics = await currentMetrics(page);
   await page.close();
-  return { scenario: "zoom", ...metrics };
+  throw new Error(
+    `No usable performance sample for zoom: ${metrics?.sampleCount ?? 0}/${minSamples} samples after ${Date.now() - startedAt} ms`
+  );
 }
 
 try {

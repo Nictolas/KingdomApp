@@ -111,6 +111,7 @@ export class KingdomMapScene extends Phaser.Scene {
     if (this.perfEnabled) {
       this.framePerformance.reset();
       (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();
+      (globalThis as any).__KINGDOM_PERF_SNAPSHOT__ = () => this.framePerformance.snapshot();
       (globalThis as any).__KINGDOM_PERF_RESET__ = () => {
         this.framePerformance.reset();
         (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();
