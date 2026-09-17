@@ -1,0 +1,25 @@
+name: BK017 A/B pre-61
+
+on:
+  push:
+    branches:
+      - perf/bk017-ab-pre61
+
+permissions:
+  contents: write
+
+jobs:
+  revert:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: perf/bk017-ab-pre61
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+      - name: Revert PR 61 optimization for A/B benchmark only
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git revert --no-edit 7836bce49809948062a72ae7ded59266f15224e6
+          git push origin HEAD:perf/bk017-ab-pre61
