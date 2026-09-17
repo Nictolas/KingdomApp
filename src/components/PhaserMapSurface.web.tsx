@@ -95,7 +95,7 @@ export function PhaserMapSurface({
 
   return (
     <View style={styles.root}>
-      <div ref={hostRef} style={hostStyle} />
+      <div id="kingdom-phaser-host" ref={hostRef} style={hostStyle} />
     </View>
   );
 }
