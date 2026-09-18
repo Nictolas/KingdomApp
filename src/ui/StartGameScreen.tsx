@@ -1,15 +1,38 @@
-import React from "react";
-import { ActivityIndicator, Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
+import React, { useState } from "react";
+import { ActivityIndicator, Modal, Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
 
 type Props = {
   loading: boolean;
   hasSave: boolean;
   error: string | null;
+  confirmNewGame: boolean;
   onContinue: () => void;
   onNewGame: () => void;
 };
 
-export function StartGameScreen({ loading, hasSave, error, onContinue, onNewGame }: Props) {
+export function StartGameScreen({
+  loading,
+  hasSave,
+  error,
+  confirmNewGame,
+  onContinue,
+  onNewGame
+}: Props) {
+  const [showNewGameConfirmation, setShowNewGameConfirmation] = useState(false);
+
+  const handleNewGamePress = () => {
+    if (confirmNewGame) {
+      setShowNewGameConfirmation(true);
+      return;
+    }
+    onNewGame();
+  };
+
+  const confirmNewGameStart = () => {
+    setShowNewGameConfirmation(false);
+    onNewGame();
+  };
+
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.card}>
@@ -17,12 +40,48 @@ export function StartGameScreen({ loading, hasSave, error, onContinue, onNewGame
         <Text style={styles.subtitle}>Regno Medievale Fantasy</Text>
         {loading ? <ActivityIndicator color="#93c5fd" /> : (
           <>
-            {hasSave && <Pressable style={styles.primary} onPress={onContinue}><Text style={styles.buttonText}>Continua</Text></Pressable>}
-            <Pressable style={styles.secondary} onPress={onNewGame}><Text style={styles.buttonText}>Nuova partita</Text></Pressable>
+            {hasSave && (
+              <Pressable style={styles.primary} onPress={onContinue}>
+                <Text style={styles.buttonText}>Continua</Text>
+              </Pressable>
+            )}
+            <Pressable style={styles.secondary} onPress={handleNewGamePress}>
+              <Text style={styles.buttonText}>Nuova partita</Text>
+            </Pressable>
           </>
         )}
         {error && <Text style={styles.error}>{error}</Text>}
       </View>
+
+      <Modal
+        visible={showNewGameConfirmation}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowNewGameConfirmation(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalCard}>
+            <Text style={styles.modalTitle}>Nuova partita</Text>
+            <Text style={styles.modalText}>
+              La partita salvata verrà sostituita. Vuoi continuare?
+            </Text>
+            <View style={styles.modalButtons}>
+              <Pressable
+                style={[styles.modalButton, styles.modalCancel]}
+                onPress={() => setShowNewGameConfirmation(false)}
+              >
+                <Text style={styles.modalButtonText}>Annulla</Text>
+              </Pressable>
+              <Pressable
+                style={[styles.modalButton, styles.modalConfirm]}
+                onPress={confirmNewGameStart}
+              >
+                <Text style={styles.modalButtonText}>Continua</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -35,5 +94,56 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: "#2563eb", padding: 14, borderRadius: 10 },
   secondary: { backgroundColor: "#334155", padding: 14, borderRadius: 10 },
   buttonText: { color: "#fff", fontWeight: "700", textAlign: "center" },
-  error: { color: "#fca5a5", textAlign: "center", marginTop: 8 }
+  error: { color: "#fca5a5", textAlign: "center", marginTop: 8 },
+  modalBackdrop: {
+    flex: 1,
+    backgroundColor: "rgba(2,6,23,0.72)",
+    alignItems: "center",
+    justifyContent: "center",
+    padding: 24
+  },
+  modalCard: {
+    width: "100%",
+    maxWidth: 420,
+    borderRadius: 16,
+    backgroundColor: "#0f172a",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.35)",
+    padding: 22,
+    gap: 14
+  },
+  modalTitle: {
+    color: "#fff",
+    fontSize: 20,
+    fontWeight: "800",
+    textAlign: "center"
+  },
+  modalText: {
+    color: "#cbd5e1",
+    fontSize: 14,
+    lineHeight: 20,
+    textAlign: "center"
+  },
+  modalButtons: {
+    flexDirection: "row",
+    gap: 10,
+    marginTop: 4
+  },
+  modalButton: {
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 14,
+    borderRadius: 10
+  },
+  modalCancel: {
+    backgroundColor: "#334155"
+  },
+  modalConfirm: {
+    backgroundColor: "#b91c1c"
+  },
+  modalButtonText: {
+    color: "#fff",
+    fontWeight: "700",
+    textAlign: "center"
+  }
 });
