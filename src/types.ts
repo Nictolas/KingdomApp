@@ -188,7 +188,7 @@ export type Risorsa = {
   unità: string;
 };
 
-/** Evento attivo nella colonia; si attiva al cambio mese se sono soddisfatte le condizioni. */
+/** Evento attivo nel regno; si attiva al cambio mese se sono soddisfatte le condizioni. */
 export type EventoInCorso = {
   id: string;
   iniziatoMese: number;
@@ -222,6 +222,10 @@ export type Edificio = {
   consumo?: string; // Cosa consuma (se applicabile)
   /** Stipendio mensile per ogni lavoratore assegnato (configurabile dall'utente). Costo edificio = stipendioPerLavoratore × numero lavoratori. */
   stipendioPerLavoratore?: number;
+  /** Impresa privata con cassa separata dal Tesoro del regno. */
+  categoriaEconomica?: "Impresa";
+  /** Cassa monetaria dell'impresa. */
+  cassaMonete?: number;
   /** Solo Serra: id oggetto Cibo vegetale prodotto (1 unità/giorno). */
   colturaItemId?: string;
   /** Solo Chiesa: religione del tempio (non Ateo/Deista/Agnostico). */

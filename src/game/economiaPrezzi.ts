@@ -1,7 +1,7 @@
 /**
  * Tabella prezzi canonica (scala monete).
  * Unità: 1 moneta ≈ 1 giorno di stipendio base pubblico.
- * Unica cassa colonia = Tesoro (`moneteGiocatore`): stipendi, mercato, affitti, eventi.
+ * Tesoro del regno (`moneteGiocatore`): stipendi, mercato, affitti, eventi.
  */
 
 /** Giorni di lavoro simulati per mese (stipendi). */
@@ -28,9 +28,15 @@ export const MONETE_INVENTARIO_SEED_MAX = 40;
 export const MONETE_INVENTARIO_SEED_DEFAULT = 30;
 
 /**
- * Tesoro iniziale (ex monete stipendi 500 + ex Crediti colonia 1250).
+ * Tesoro iniziale del regno.
  */
 export const MONETE_GIOCATORE_INIZIALI = 1750;
+
+/** Seed minimo per le Imprese recuperate dall'11 settembre. */
+export const CASSA_IMPRESA_SEED = 10;
+
+/** Aliquota base sulle Imprese; usata dai moduli economici recuperati. */
+export const TASSA_IMPRESA_PERCENTUALE = 10;
 
 /** Assegno pensionati default (monete/mese). */
 export const ASSEGNO_PENSIONATI_DEFAULT = 12;
