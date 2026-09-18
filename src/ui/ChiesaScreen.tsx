@@ -29,7 +29,7 @@ import {
 } from "../game/mappaLavoroArrivatiStore";
 import { lavoratoreDentroEdificioOra } from "../game/presenzaLavoroEdificio";
 import { useOrologioGioco } from "../hooks/useOrologioGioco";
-import { AbitanteAvatarPreview } from "./AbitanteAvatarPreview";
+import { AbitanteLpcAvatar } from "./AbitanteLpcAvatar";
 import { AbitanteInfoModal } from "./AbitanteInfoModal";
 import type { Abitante } from "../types";
 
@@ -190,7 +190,7 @@ export function ChiesaScreen({ edificioId }: Props) {
                         style={[styles.personRow, inServizio ? styles.personDentro : styles.personFuori]}
                         onPress={() => setSelectedAbitante(a)}
                       >
-                        <AbitanteAvatarPreview abitante={a} />
+                        <AbitanteLpcAvatar abitante={a} />
                         <View style={styles.personText}>
                           <Text style={styles.personNome}>{a.nome}</Text>
                           <Text style={styles.personMeta}>{a.lavoro}</Text>
@@ -235,7 +235,7 @@ export function ChiesaScreen({ edificioId }: Props) {
                       style={styles.visitatoreRow}
                       onPress={() => setSelectedAbitante(a)}
                     >
-                      <AbitanteAvatarPreview abitante={a} size={32} />
+                      <AbitanteLpcAvatar abitante={a} size={32} />
                       <View style={styles.personText}>
                         <Text style={styles.personNome} numberOfLines={1}>
                           {a.nome}
@@ -264,7 +264,7 @@ export function ChiesaScreen({ edificioId }: Props) {
                         style={[styles.visitatoreRow, dentro && styles.personDentro]}
                         onPress={() => setSelectedAbitante(a)}
                       >
-                        <AbitanteAvatarPreview abitante={a} size={32} />
+                        <AbitanteLpcAvatar abitante={a} size={32} />
                         <View style={styles.personText}>
                           <Text style={styles.personNome} numberOfLines={1}>
                             {a.nome}
