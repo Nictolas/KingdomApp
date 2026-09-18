@@ -159,7 +159,11 @@ import {
   setBarArrivatiMappaSnapshot
 } from "../src/game/mappaBarArrivatiStore";
 import { computeStatoCielo } from "../src/game/cicloCielo";
-import { formatOrologioGioco, getGiornoGiocoSnapshot } from "../src/game/orologioGiocoSession";
+import {
+  formatOrologioGioco,
+  getGiornoGiocoSnapshot,
+  OROLOGIO_GIOCO_VELOCITA
+} from "../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../src/hooks/useOrologioGioco";
 import { descriviAzioneCorrenteAbitante } from "../src/game/azioneAbitanteMappa";
 import {
@@ -1136,8 +1140,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const mapDraggedRef = useRef(false);
   const panStartPosRef = useRef<{ x: number; y: number } | null>(null);
 
-  const { minuti: orologioMinuti, inPausa: orologioInPausa, togglePausa: toggleOrologioPausa } =
-    useOrologioGioco();
+  const {
+    minuti: orologioMinuti,
+    inPausa: orologioInPausa,
+    velocita: orologioVelocita,
+    togglePausa: toggleOrologioPausa,
+    setVelocita: setOrologioVelocita
+  } = useOrologioGioco();
 
   /** Dimensioni viewport mappa (per culling celle visibili durante pan/zoom). */
   const [viewportSize, setViewportSize] = useState({ width: 0, height: 0 });
@@ -3169,13 +3178,35 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                   🕐 {formatOrologioGioco(orologioMinuti)}
                   {orologioInPausa ? " · in pausa" : ""}
                 </Text>
-                <Pressable
-                  style={[styles.orologioPausaBtn, orologioInPausa && styles.orologioPausaBtnAttivo]}
-                  onPress={toggleOrologioPausa}
-                  accessibilityLabel={orologioInPausa ? "Riprendi il tempo" : "Metti in pausa il tempo"}
-                >
-                  <Text style={styles.orologioPausaBtnText}>{orologioInPausa ? "▶️" : "⏸️"}</Text>
-                </Pressable>
+                <View style={styles.orologioControlliTempo}>
+                  <Pressable
+                    style={[styles.orologioPausaBtn, orologioInPausa && styles.orologioPausaBtnAttivo]}
+                    onPress={toggleOrologioPausa}
+                    accessibilityLabel={orologioInPausa ? "Riprendi il tempo" : "Metti in pausa il tempo"}
+                  >
+                    <Text style={styles.orologioPausaBtnText}>{orologioInPausa ? "▶️" : "⏸️"}</Text>
+                  </Pressable>
+                  {OROLOGIO_GIOCO_VELOCITA.map((velocita) => (
+                    <Pressable
+                      key={velocita}
+                      style={[
+                        styles.orologioVelocitaBtn,
+                        orologioVelocita === velocita && styles.orologioVelocitaBtnAttivo
+                      ]}
+                      onPress={() => setOrologioVelocita(velocita)}
+                      accessibilityLabel={`Velocità tempo ${velocita} per`}
+                    >
+                      <Text
+                        style={[
+                          styles.orologioVelocitaBtnText,
+                          orologioVelocita === velocita && styles.orologioVelocitaBtnTextAttivo
+                        ]}
+                      >
+                        {velocita}×
+                      </Text>
+                    </Pressable>
+                  ))}
+                </View>
               </View>
             </View>
           </View>
@@ -4213,6 +4244,11 @@ const styles = StyleSheet.create({
     color: "rgba(248,250,252,0.72)",
     fontWeight: "500"
   },
+  orologioControlliTempo: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 3
+  },
   orologioPausaBtn: {
     paddingHorizontal: 4,
     paddingVertical: 1,
@@ -4227,6 +4263,28 @@ const styles = StyleSheet.create({
   },
   orologioPausaBtnText: {
     fontSize: 11
+  },
+  orologioVelocitaBtn: {
+    minWidth: 24,
+    paddingHorizontal: 4,
+    paddingVertical: 2,
+    alignItems: "center",
+    borderRadius: 6,
+    backgroundColor: "rgba(30,41,59,0.5)",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.25)"
+  },
+  orologioVelocitaBtnAttivo: {
+    backgroundColor: "rgba(37,99,235,0.55)",
+    borderColor: "rgba(96,165,250,0.7)"
+  },
+  orologioVelocitaBtnText: {
+    fontSize: 9,
+    fontWeight: "700",
+    color: "rgba(226,232,240,0.72)"
+  },
+  orologioVelocitaBtnTextAttivo: {
+    color: "#ffffff"
   },
   diarioBtn: {
     flexDirection: "row",
