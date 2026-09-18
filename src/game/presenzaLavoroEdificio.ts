@@ -78,6 +78,19 @@ export function statoPresenzaLavoratoreEdificio(
   return "in_giro";
 }
 
+/** True se l’abitante è in orario, assegnato a questo edificio e risulta arrivato sulla mappa. */
+export function lavoratoreDentroEdificioOra(
+  abitanteId: number,
+  edificioId: number,
+  minutiDaMezzanotte: number,
+  edificiList: Edificio[],
+  lavoroArrivatiIds: ReadonlySet<number>
+): boolean {
+  if (!lavoroArrivatiIds.has(abitanteId)) return false;
+  if (!abitanteInOrarioLavoroEdificio(abitanteId, minutiDaMezzanotte, edificiList)) return false;
+  return primoEdificioLavoroOrarioPerAbitante(abitanteId, edificiList)?.id === edificioId;
+}
+
 export function badgePresenzaLavoroEdificio(stato: StatoPresenzaLavoroEdificio): {
   èDentro: boolean;
   simbolo: string;
