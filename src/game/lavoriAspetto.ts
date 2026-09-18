@@ -5,7 +5,6 @@ import {
 import { LAVORO_GIOCATORE } from "./schiavituCommercio";
 import type { AspettoPersonaggio } from "./personaggioAspetto";
 import {
-  applicaAspettoCapoReligioso,
   creaCharacterAppearance,
   generaAspettoCasuale
 } from "./personaggioAspetto";
@@ -39,18 +38,9 @@ export function generaAspettoEsempioOccupazione(lavoro: string, slug: string): A
     {
       isKing,
       nudismoAttivo: false,
-      lavoro: isKing ? LAVORO_GIOCATORE : lavoro,
-      seed
+      lavoro: isKing ? LAVORO_GIOCATORE : lavoro
     }
   );
-
-  if (lavoro === "Capo Religioso" || lavoro === "Capo Spirituale") {
-    const conKimono = applicaAspettoCapoReligioso(
-      { ...base, characterAppearance },
-      randomFromSeed(seed + 17)
-    );
-    characterAppearance = normalizeCharacterAppearance(conKimono.characterAppearance);
-  }
 
   return { ...base, characterAppearance };
 }
