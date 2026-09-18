@@ -144,14 +144,14 @@ test("placement preview returns null without a hovered cell", () => {
 });
 
 test("placement preview preserves road and terrain 2x2 cells and validity", () => {
-  assert.deepEqual(calcolaPreviewPiazzamento({ tipo: "strada" }, 12, {}, {}, 5, 5), {
-    celle: [12, 13, 17, 18],
+  assert.deepEqual(calcolaPreviewPiazzamento({ tipo: "strada" }, 24, {}, {}, 7, 7), {
+    celle: [24, 25, 31, 32],
     valido: true
   });
   assert.deepEqual(
-    calcolaPreviewPiazzamento({ tipo: "terreno", kind: "erba" }, 12, {}, {}, 5, 5),
+    calcolaPreviewPiazzamento({ tipo: "terreno", kind: "erba" }, 24, {}, {}, 7, 7),
     {
-      celle: [12, 13, 17, 18],
+      celle: [24, 25, 31, 32],
       valido: true
     }
   );
