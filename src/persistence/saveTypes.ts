@@ -4,6 +4,7 @@ import type { PenaReatiConfig } from "../game/reati";
 import type { ReligioneConCulto } from "../game/luogoCulto";
 import type { RichiestaInAttesa } from "../game/richieste";
 import type { VoceInventario } from "../game/inventario";
+import type { GameMode } from "../game/gameMode";
 
 export const SAVE_FORMAT = "mykingdom-save" as const;
 export const SAVE_SCHEMA_VERSION = 1 as const;
@@ -20,6 +21,8 @@ export type SaveMetadata = {
 export type ScaglioneSalvato = { min: number; max: number; percentuale: number };
 
 export type GameSaveV1 = {
+  /** Assente nei salvataggi precedenti al ripristino Avventura/Creativa: viene migrato ad Avventura. */
+  gameMode?: GameMode;
   gamePhase: SaveGamePhase;
   introductionCompleted: boolean;
   diarioInizioVisto: boolean;
