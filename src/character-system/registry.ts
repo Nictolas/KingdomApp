@@ -100,7 +100,12 @@ export const CHARACTER_ASSETS: readonly CharacterAssetDefinition[] = LPC_RUNTIME
 }));
 
 export function isAssetCompatible(asset: CharacterAssetDefinition, appearance: CharacterAppearance): boolean {
-  return asset.bodyFamilies.includes(appearance.bodyFamily) && asset.races.includes(appearance.race);
+  // Gli sprite LPC condividono le stesse basi corporee per più razze:
+  // Orchi/Goblin/Elfi ecc. differiscono tramite i layer raceFeatures, non tramite
+  // una sprite-body family separata. La compatibilità runtime deve quindi
+  // seguire il bodyType effettivamente renderizzato, come resolveCharacterLayers.
+  const runtimeBodyFamily = familyForBodyType(appearance.bodyType);
+  return asset.bodyFamilies.includes(runtimeBodyFamily) && asset.races.includes(appearance.race);
 }
 
 export function resolveCharacterLayers(appearance: CharacterAppearance, animation: CharacterAnimationId, assetPack = LPC_PACK_ID): ResolvedCharacterLayer[] {
