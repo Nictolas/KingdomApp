@@ -99,6 +99,7 @@ export const LPC_ASSETS: readonly CharacterAssetDefinition[] = [
     id: LPC_HUMAN_MALE_BODY_ID,
     assetPack: LPC_PACK_ID,
     layer: "body",
+    semanticId: "male",
     bodyFamilies: ["humanAdult"],
     races: ["human"],
     sheetId: "lpc-human-male-idle",
