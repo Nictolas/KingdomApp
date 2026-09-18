@@ -3073,9 +3073,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       ...phaserBaseSnapshot,
       characters: phaserCharacters,
       interaction: phaserInteraction,
-      showGrid: mostraGrigliaMappa
+      showGrid: mostraGrigliaMappa,
+      paused: orologioInPausa
     }),
-    [phaserBaseSnapshot, phaserCharacters, phaserInteraction, mostraGrigliaMappa]
+    [phaserBaseSnapshot, phaserCharacters, phaserInteraction, mostraGrigliaMappa, orologioInPausa]
   );
 
   const handlePhaserCharacterPathComplete = useCallback((abitanteId: number, token: number) => {
@@ -3191,7 +3192,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                       key={velocita}
                       style={[
                         styles.orologioVelocitaBtn,
-                        orologioVelocita === velocita && styles.orologioVelocitaBtnAttivo
+                        !orologioInPausa &&
+                          orologioVelocita === velocita &&
+                          styles.orologioVelocitaBtnAttivo
                       ]}
                       onPress={() => setOrologioVelocita(velocita)}
                       accessibilityLabel={`Velocità tempo ${velocita} per`}
@@ -3199,7 +3202,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                       <Text
                         style={[
                           styles.orologioVelocitaBtnText,
-                          orologioVelocita === velocita && styles.orologioVelocitaBtnTextAttivo
+                          !orologioInPausa &&
+                            orologioVelocita === velocita &&
+                            styles.orologioVelocitaBtnTextAttivo
                         ]}
                       >
                         {velocita}×
