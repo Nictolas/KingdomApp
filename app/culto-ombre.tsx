@@ -2,7 +2,7 @@ import React from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
-import { AbitanteAvatarPreview } from "../src/ui/AbitanteAvatarPreview";
+import { AbitanteLpcAvatar } from "../src/ui/AbitanteLpcAvatar";
 import type { Abitante } from "../src/types";
 
 export default function CultoOmbreScreen() {
@@ -15,16 +15,16 @@ export default function CultoOmbreScreen() {
   const maxHeight = isDesktop ? containerHeight : undefined;
 
   // Fedeli del Culto delle Ombre (abitanti con religione "Culto delle Ombre" e razza non Umana)
-  const isNonUmano = (a: Abitante) => (a.razza ?? "Umano") !== "Umano" || a.specie === "alieno";
+  const isNonUmano = (a) => (a.razza ?? "Umano") !== "Umano";
   const fedeli = abitanti.filter(
-    (a: Abitante) => a.religione === "Culto delle Ombre" && isNonUmano(a)
+    (a) => a.religione === "Culto delle Ombre" && isNonUmano(a)
   );
-  const capoReligioso = abitanti.find((a: Abitante) => a.id === capoReligiosoAlieni);
+  const capoReligioso = abitanti.find((a) => a.id === capoReligiosoAlieni);
 
-  // Abitanti disponibili per essere nominati capo religioso (non già capo di altro culto, non-umani con culto degli alieni)
+  // Abitanti disponibili per essere nominati capo religioso (non già capo di altro culto, non-umani del Culto delle Ombre)
   const { capoReligiosoSole } = useGameContext();
   const disponibiliPerCapo = abitanti.filter(
-    (a: Abitante) =>
+    (a) =>
       a.id !== capoReligiosoSole &&
       a.religione === "Culto delle Ombre" &&
       isNonUmano(a)
@@ -45,7 +45,7 @@ export default function CultoOmbreScreen() {
           <Text style={styles.sectionTitle}>Capo Religioso</Text>
           {capoReligioso ? (
             <View style={styles.capoCard}>
-              <AbitanteAvatarPreview abitante={capoReligioso} />
+              <AbitanteLpcAvatar abitante={capoReligioso} />
               <View style={styles.capoContent}>
                 <Text style={styles.capoNome}>{capoReligioso.nome}</Text>
                 <Text style={styles.capoInfo}>{capoReligioso.lavoro}</Text>
@@ -70,7 +70,7 @@ export default function CultoOmbreScreen() {
                         style={styles.fedeleItem}
                         onPress={() => setCapoReligiosoAlieni(abitante.id)}
                       >
-                        <AbitanteAvatarPreview abitante={abitante} size={32} />
+                        <AbitanteLpcAvatar abitante={abitante} size={32} />
                         <View style={styles.fedeleContent}>
                           <Text style={styles.fedeleNome}>{abitante.nome}</Text>
                           <Text style={styles.fedeleInfo}>{abitante.lavoro}</Text>
@@ -92,7 +92,7 @@ export default function CultoOmbreScreen() {
             <View style={styles.fedeliGrid}>
               {fedeli.map((fedele: Abitante) => (
                 <View key={fedele.id} style={styles.fedeleCard}>
-                  <AbitanteAvatarPreview abitante={fedele} />
+                  <AbitanteLpcAvatar abitante={fedele} />
                   <Text style={styles.fedeleCardNome}>{fedele.nome}</Text>
                   <Text style={styles.fedeleCardLavoro}>{fedele.lavoro}</Text>
                 </View>
