@@ -25,6 +25,8 @@ export type PhaserMapCharacter = {
   pathToken?: number;
   markerEmoji?: string;
   appearance?: "human" | "golem";
+  /** Evidenzia l'abitante attualmente selezionato sulla mappa. */
+  selected?: boolean;
 };
 
 export type PhaserMapInteraction = {
