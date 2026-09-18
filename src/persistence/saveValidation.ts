@@ -269,7 +269,9 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
   if ((next.policies.religioneDiStato as string | null) === "Culto degli Alieni") {
     next.policies.religioneDiStato = "Culto delle Ombre";
   }
-  next.policies.religioniCustom = normalizzaReligioniCustom(next.policies.religioniCustom);
+  if (next.policies.religioniCustom != null) {
+    next.policies.religioniCustom = normalizzaReligioniCustom(next.policies.religioniCustom);
+  }
   next.events.luoghiCultoRifiutati = next.events.luoghiCultoRifiutati.map((r) =>
     (r as string) === "Culto degli Alieni" ? "Culto delle Ombre" : r
   );
