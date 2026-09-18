@@ -2,9 +2,11 @@ import React from "react";
 import { SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
-import { generaAspettoEsempioRazza } from "../src/game/personaggioAspetto";
+import { creaCharacterAppearance } from "../src/game/personaggioAspetto";
+import { normalizeCharacterAppearance } from "../src/character-system/appearance";
 import { lpcSpriteCircleDiameter } from "../src/character-system/lpcPack";
-import { RAZZE_ABITANTI } from "../src/types";
+type RazzaPagina = "Umano" | "Nano" | "Scheletro" | "Vampiro" | "Goblin" | "Orco" | "Lucertoloide";
+const RAZZE_ABITANTI: readonly RazzaPagina[] = ["Umano", "Nano", "Scheletro", "Vampiro", "Goblin", "Orco", "Lucertoloide"];
 import { CircularSpriteFrame } from "../src/ui/CircularSpriteFrame";
 
 const RACE_DETAILS = {
@@ -17,19 +19,39 @@ const RACE_DETAILS = {
   Lucertoloide: { head: "Lizard female / Lizard male" }
 } as const;
 
-const ESEMPIO_RAZZA_SEED: Record<(typeof RAZZE_ABITANTI)[number], number> = {
-  Umano: 42,
-  Nano: 777,
-  Scheletro: 137,
-  Vampiro: 256,
-  Goblin: 389,
-  Orco: 512,
-  Lucertoloide: 633
-};
+function generaAspettoEsempioRazza(razza: RazzaPagina) {
+  const baseRazza = razza === "Scheletro" || razza === "Vampiro" || razza === "Lucertoloide" ? "Umano" : razza;
+  const base = creaCharacterAppearance(baseRazza === "Goblin" ? "Umano" : baseRazza);
+  const race =
+    razza === "Scheletro" ? "skeleton" :
+    razza === "Vampiro" ? "vampire" :
+    razza === "Goblin" ? "goblin" :
+    razza === "Orco" ? "orc" :
+    razza === "Lucertoloide" ? "lizard" :
+    razza === "Nano" ? "dwarf" :
+    "human";
+  const headStyle =
+    razza === "Scheletro" ? "skeleton" :
+    razza === "Vampiro" ? "vampire" :
+    razza === "Goblin" ? "goblin" :
+    razza === "Orco" ? "orc_male" :
+    razza === "Lucertoloide" ? "lizard_male" :
+    "human_head";
+  return {
+    characterAppearance: normalizeCharacterAppearance({
+      ...base,
+      race,
+      headStyle,
+      hairStyle: razza === "Umano" || razza === "Vampiro" ? base.hairStyle : "none",
+      hairColor: razza === "Umano" || razza === "Vampiro" ? base.hairColor : "none",
+      beardStyle: razza === "Nano" ? base.beardStyle : "none"
+    })
+  };
+}
 
 const ESEMPI_RAZZA = Object.fromEntries(
-  RAZZE_ABITANTI.map((razza) => [razza, generaAspettoEsempioRazza(razza, ESEMPIO_RAZZA_SEED[razza])])
-) as Record<(typeof RAZZE_ABITANTI)[number], ReturnType<typeof generaAspettoEsempioRazza>>;
+  RAZZE_ABITANTI.map((razza) => [razza, generaAspettoEsempioRazza(razza)])
+) as Record<RazzaPagina, ReturnType<typeof generaAspettoEsempioRazza>>;
 
 export default function RazzeScreen() {
   const router = useRouter();
