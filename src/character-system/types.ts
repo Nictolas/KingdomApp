@@ -18,9 +18,13 @@ export type CharacterLayer =
   | "fullOutfit"
   | "footwear"
   | "raceFeatures"
+  | "ears"
   | "beard"
   | "hairFront"
   | "headwear"
+  | "neck"
+  | "facialMask"
+  | "facialEyes"
   | "cape"
   | "accessory";
 
@@ -37,6 +41,8 @@ export type CharacterAppearance = {
   hairColor: string;
   beardStyle: string;
   beardColor: string;
+  /** Orecchie LPC (es. side_wolf_skintone per gli Elfi). */
+  earsStyle: string;
   /** Identificatore storico del completo; resta per compatibilità con i salvataggi precedenti. */
   outfit: string;
   upperOutfit: string;
@@ -50,6 +56,17 @@ export type CharacterAppearance = {
   /** Colore LPC per scarpe/stivali (colorField manifest: footwear). */
   footwearColor: string;
   headwear: string;
+  /** Colore LPC per copricapo (es. Mail hood → iron). */
+  headwearColor: string;
+  /** Cravat / neck LPC (es. Medico). */
+  neckwear: string;
+  neckwearColor: string;
+  /** Plain Mask LPC (es. Medico). */
+  facialMask: string;
+  facialMaskColor: string;
+  /** Sunglasses LPC (es. Medico). */
+  facialEyes: string;
+  facialEyesColor: string;
   cape: string;
   capeTrim: string;
   capeColor: string;
