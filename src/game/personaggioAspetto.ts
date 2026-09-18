@@ -12,7 +12,14 @@ import {
 } from "../character-system/registry";
 import type { CharacterAppearance, CharacterRaceId } from "../character-system/types";
 
-export type RazzaGiocatore = "Umano" | "Elfo" | "Nano" | "Orco";
+export type RazzaGiocatore =
+  | "Umano"
+  | "Elfo"
+  | "Nano"
+  | "Orco"
+  | "Scheletro"
+  | "Vampiro"
+  | "Lucertoloide";
 export type StileCapelli = "corti" | "spettinati" | "lunghi" | "trecce";
 export type StileOcchi = "tondi" | "determinati" | "allegri";
 export type VestitiPersonaggio = "viandante" | "nobile" | "ranger" | "mago";
@@ -37,12 +44,18 @@ const raceId = (razza: RazzaConAspetto): CharacterRaceId =>
     Elfo: "elf",
     Nano: "dwarf",
     Orco: "orc",
-    Goblin: "goblin"
+    Goblin: "goblin",
+    Scheletro: "skeleton",
+    Vampiro: "vampire",
+    Lucertoloide: "lizard"
   } satisfies Record<RazzaConAspetto, CharacterRaceId>)[razza];
 
 export function testaObbligatoriaRazza(razza: RazzaConAspetto, sesso: "M" | "F" = "M"): string {
+  if (razza === "Scheletro") return "skeleton";
+  if (razza === "Vampiro") return "vampire";
   if (razza === "Goblin") return "goblin";
   if (razza === "Orco") return sesso === "F" ? "orc_female" : "orc_male";
+  if (razza === "Lucertoloide") return sesso === "F" ? "lizard_female" : "lizard_male";
   return "human_head";
 }
 
@@ -146,7 +159,8 @@ export function generaAspettoCasuale(
       ? pick(commonOutfits, random)
       : "none";
 
-  const hairStyle = options.hairStyles.length > 0 ? pick(options.hairStyles, random) : "none";
+  const puòAvereCapelli = razza === "Umano" || razza === "Elfo" || razza === "Vampiro";
+  const hairStyle = puòAvereCapelli && options.hairStyles.length > 0 ? pick(options.hairStyles, random) : "none";
   const appearanceWithHair = normalizeCharacterAppearance({ ...baseAppearance, hairStyle });
   const hairColors = compatibleCatalogOptions(appearanceWithHair).hairColors;
   const hairColor = hairColors.length > 0
