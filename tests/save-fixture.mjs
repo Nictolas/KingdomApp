@@ -57,6 +57,7 @@ export function createSaveEnvelope() {
       updatedAt: "2026-08-28T11:00:00.000Z"
     },
     payload: {
+      gameMode: "avventura",
       gamePhase: "running",
       introductionCompleted: true,
       diarioInizioVisto: true,
