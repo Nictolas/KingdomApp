@@ -82,6 +82,12 @@ import {
   trovaCapoReligiosoSenzaLuogo,
   type ReligioneConCulto
 } from "../game/luogoCulto";
+import { assicuraReligioneTempioChiese } from "../game/chiesa";
+import {
+  normalizzaReligioniCustom,
+  provaCreaReligioneCustom,
+  type ReligioneCustom
+} from "../game/fedeleCulto";
 import { creaRichiestaLuogoCulto, type RichiestaInAttesa } from "../game/richieste";
 import { isSimulationRunning, type GamePhase } from "../game/gamePhase";
 import type { GameMode } from "../game/gameMode";
@@ -136,7 +142,7 @@ function calcolaPendingRichiestaLuogoCulto(
     sole: capoSole,
     alieni: capoAlieni
   });
-  if (!capo || (capo.religione !== "Culto del Sole" && capo.religione !== "Culto degli Alieni")) return null;
+  if (!capo || (capo.religione !== "Culto del Sole" && capo.religione !== "Culto delle Ombre")) return null;
   const religione = capo.religione as ReligioneConCulto;
   if (richiesteInAttesa.some((r) => r.tipo === "luogo-culto" && r.religione === religione)) return null;
   if (luoghiCultoRifiutati.includes(religione)) return null;
@@ -323,7 +329,8 @@ export function useGameState() {
   
   // Configurazione politica religiosa
   const [politicaReligiosa, setPoliticaReligiosa] = useState<"ateismo-stato" | "religione-stato" | "liberta-culto">("liberta-culto");
-  const [religioneDiStato, setReligioneDiStato] = useState<"Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni" | null>(null);
+  const [religioneDiStato, setReligioneDiStato] = useState<"Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto delle Ombre" | string | null>(null);
+  const [religioniCustom, setReligioniCustom] = useState<ReligioneCustom[]>([]);
   
   // Capo religioso e fedeli per ogni culto
   const [capoReligiosoSole, setCapoReligiosoSole] = useState<number | null>(capoReligiosoSoleIniziale);
@@ -348,13 +355,13 @@ export function useGameState() {
           return { ...a, lavoro: "Capo Religioso", religione: "Culto del Sole" as const };
         }
         if (capoReligiosoAlieni != null && a.id === capoReligiosoAlieni) {
-          return { ...a, lavoro: "Capo Religioso", religione: "Culto degli Alieni" as const };
+          return { ...a, lavoro: "Capo Religioso", religione: "Culto delle Ombre" as const };
         }
         if (a.lavoro === "Capo Religioso") {
           if (a.religione === "Culto del Sole" && a.id !== capoReligiosoSole) {
             return { ...a, lavoro: "Disoccupato", reddito: a.ruoloSchiavitu ? 0 : 0 };
           }
-          if (a.religione === "Culto degli Alieni" && a.id !== capoReligiosoAlieni) {
+          if (a.religione === "Culto delle Ombre" && a.id !== capoReligiosoAlieni) {
             return { ...a, lavoro: "Disoccupato", reddito: a.ruoloSchiavitu ? 0 : 0 };
           }
         }
@@ -371,7 +378,7 @@ export function useGameState() {
         (e) =>
           e.tipo !== "Luogo di Culto" ||
           (e.id !== TEMPLATE_ID_LUOGO_CULTO["Culto del Sole"] &&
-            e.id !== TEMPLATE_ID_LUOGO_CULTO["Culto degli Alieni"])
+            e.id !== TEMPLATE_ID_LUOGO_CULTO["Culto delle Ombre"])
       )
     );
   }, [simulationEnabled]);
@@ -732,6 +739,7 @@ export function useGameState() {
     setPenaReati(state.penaReati);
     setPoliticaReligiosa(state.politicaReligiosa);
     setReligioneDiStato(state.religioneDiStato);
+    setReligioniCustom(normalizzaReligioniCustom(state.religioniCustom));
     setCapoReligiosoSole(state.capoReligiosoSole);
     setCapoReligiosoAlieni(state.capoReligiosoAlieni);
     setPendingRichiestaLuogoCulto(state.pendingRichiestaLuogoCulto);
@@ -778,7 +786,7 @@ export function useGameState() {
       ultimoGiornoProduzioneSerra: ultimoGiornoProduzioneSerraRef.current,
       ultimoGiornoEconomiaPubblica: ultimoGiornoEconomiaPubblicaRef.current,
       tipoTassaReddito, flatTaxPercentuale, scaglioniConfig, politicaNascite, punteggioSanzioni,
-      penaDiMorteAttiva, penaReati, politicaReligiosa, religioneDiStato, leggeRazzialeAttiva,
+      penaDiMorteAttiva, penaReati, politicaReligiosa, religioneDiStato, religioniCustom, leggeRazzialeAttiva,
       razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, etaPensionabile, assegnoPensionati,
       leggeDroghe, divietoEspatrioAttivo, coprifuocoAttivo, coprifuocoInizioMinuti,
       coprifuocoFineMinuti, iusPrimaeNoctisAttivo, tipologieFamigliaAccettate,
@@ -790,7 +798,7 @@ export function useGameState() {
   }, [gameMode, gamePhase, diarioInizioVisto, abitanti, abitantiProposti, nextId, razzaNativi, nativiNonIntegrati,
     edifici, risorse, inventarioGiocatore, inventarioMensaByEdificioId, moneteGiocatore, prezzoResidenze,
     mese, anno, tipoTassaReddito, flatTaxPercentuale, scaglioniConfig, politicaNascite, punteggioSanzioni,
-    penaDiMorteAttiva, penaReati, politicaReligiosa, religioneDiStato, leggeRazzialeAttiva,
+    penaDiMorteAttiva, penaReati, politicaReligiosa, religioneDiStato, religioniCustom, leggeRazzialeAttiva,
     razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, etaPensionabile, assegnoPensionati,
     leggeDroghe, divietoEspatrioAttivo, coprifuocoAttivo, coprifuocoInizioMinuti, coprifuocoFineMinuti,
     iusPrimaeNoctisAttivo, tipologieFamigliaAccettate, redditoCittadinanza, modalitaSanita,
@@ -798,6 +806,26 @@ export function useGameState() {
     messaggioEmigrazione, diarioRighe, capoReligiosoSole, capoReligiosoAlieni,
     pendingRichiestaLuogoCulto, richiesteInAttesa, luoghiCultoRifiutati, luoghiCultoPendentiMappa]);
   const chiudiMessaggioEmigrazione = useCallback(() => setMessaggioEmigrazione(null), []);
+
+  const creaReligioneCustom = useCallback(
+    (input: {
+      nome: string;
+      emoji?: string;
+      descrizione?: string;
+      aspettoSacerdote?: import("../game/personaggioAspetto").AspettoPersonaggio;
+    }) => {
+      const result = provaCreaReligioneCustom(input, religioniCustom, () => `rel-${Date.now()}`);
+      if (result.ok) setReligioniCustom((prev) => [...prev, result.religione]);
+      return result;
+    },
+    [religioniCustom]
+  );
+
+  useEffect(() => {
+    if (!simulationEnabled) return;
+    const next = assicuraReligioneTempioChiese(edifici, religioniCustom);
+    if (next !== edifici) setEdifici(next);
+  }, [edifici, religioniCustom, simulationEnabled]);
 
   /**
    * Ogni «Agricoltore» finisce in una Serra operativa con posto libero; poi il lavoro segue le assegnazioni.
@@ -1014,6 +1042,10 @@ export function useGameState() {
 
   const aggiornaAbitanteById = useCallback((abitanteId: number, fn: (a: Abitante) => Abitante) => {
     setAbitanti((prev) => prev.map((a) => (a.id === abitanteId ? fn(a) : a)));
+  }, []);
+
+  const aggiornaEdificioById = useCallback((edificioId: number, fn: (e: Edificio) => Edificio) => {
+    setEdifici((prev) => prev.map((e) => (e.id === edificioId ? fn(e) : e)));
   }, []);
 
   /** Accredita monete al tesoro (sink bar/negozio → stipendi). */
@@ -1430,6 +1462,8 @@ export function useGameState() {
     capoReligiosoSole,
     capoReligiosoAlieni,
     religioneDiStato,
+    religioniCustom,
+    creaReligioneCustom,
     etaMinimaLavoro,
     etaPensionabile,
     assegnoPensionati,
@@ -1488,6 +1522,7 @@ export function useGameState() {
     rimuoviMinistro,
     setNomeAbitante,
     aggiornaAbitanteById,
+    aggiornaEdificioById,
     accreditaMoneteGiocatore,
     appendDiarioRiga,
     setInventarioMensaEdificio,
