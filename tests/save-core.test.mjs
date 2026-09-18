@@ -16,6 +16,16 @@ test("round trip completo stato → JSON → stato", () => {
   assert.deepEqual(restored.payload.simulationCursors, original.payload.simulationCursors);
 });
 
+test("i salvataggi precedenti senza modalità migrano ad Avventura", () => {
+  const current = createSaveEnvelope();
+  const legacy = JSON.parse(serializeSave(current));
+  delete legacy.payload.gameMode;
+
+  const restored = deserializeSave(JSON.stringify(legacy));
+
+  assert.equal(restored.payload.gameMode, "adventure");
+});
+
 test("l'aspetto del Re sopravvive al salvataggio", () => {
   const save = createSaveEnvelope();
   const aspetto = {

@@ -6,9 +6,11 @@ import type { RichiestaInAttesa } from "../game/richieste";
 import type { VoceInventario } from "../game/inventario";
 import { normalizeGameSave } from "./saveValidation.ts";
 import type { GameSaveV1, SaveGamePhase, ScaglioneSalvato } from "./saveTypes.ts";
+import { DEFAULT_GAME_MODE, type GameMode } from "../game/gameMode";
 
 /** Snapshot persistibile del runtime attuale, senza alcuno stato visuale. */
 export type PersistableGameState = {
+  gameMode: GameMode;
   gamePhase: SaveGamePhase;
   introductionCompleted: boolean;
   diarioInizioVisto: boolean;
@@ -73,6 +75,7 @@ export type PersistableGameState = {
 
 export function gameStateToGameSaveV1(state: PersistableGameState): GameSaveV1 {
   return normalizeGameSave({
+    gameMode: state.gameMode,
     gamePhase: state.gamePhase,
     introductionCompleted: state.introductionCompleted,
     diarioInizioVisto: state.diarioInizioVisto,
@@ -151,6 +154,7 @@ export function gameStateToGameSaveV1(state: PersistableGameState): GameSaveV1 {
 export function gameSaveV1ToGameState(save: GameSaveV1): PersistableGameState {
   const normalized = normalizeGameSave(save);
   return {
+    gameMode: normalized.gameMode ?? DEFAULT_GAME_MODE,
     gamePhase: normalized.gamePhase,
     introductionCompleted: normalized.introductionCompleted,
     diarioInizioVisto: normalized.diarioInizioVisto,

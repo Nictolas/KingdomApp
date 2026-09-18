@@ -84,6 +84,7 @@ import {
 } from "../game/luogoCulto";
 import { creaRichiestaLuogoCulto, type RichiestaInAttesa } from "../game/richieste";
 import { isSimulationRunning, type GamePhase } from "../game/gamePhase";
+import { DEFAULT_GAME_MODE, type GameMode } from "../game/gameMode";
 import type { PersistableGameState } from "../persistence/gameStateMapping";
 import type { MappaRuntimeState } from "../game/mappaTypes";
 import { setMappaSessione } from "../game/mappaSessione";
@@ -144,6 +145,7 @@ function calcolaPendingRichiestaLuogoCulto(
 
 export function useGameState() {
   const [gamePhase, setGamePhase] = useState<GamePhase>("loading");
+  const [gameMode, setGameMode] = useState<GameMode>(DEFAULT_GAME_MODE);
   const gamePhaseRef = useRef<GamePhase>(gamePhase);
   gamePhaseRef.current = gamePhase;
   const simulationEnabled = isSimulationRunning(gamePhase);
@@ -654,7 +656,8 @@ export function useGameState() {
   /** Creazione personaggio Re a inizio partita (prima degli eventi). */
   const [creazioneGiocatoreAperta, setCreazioneGiocatoreAperta] = useState(false);
   const [diarioInizioVisto, setDiarioInizioVisto] = useState(false);
-  const startNewGame = useCallback(() => {
+  const startNewGame = useCallback((mode: GameMode) => {
+    setGameMode(mode);
     gamePhaseRef.current = "commander-creation";
     setGamePhase("commander-creation");
     setCreazioneGiocatoreAperta(true);
@@ -751,6 +754,7 @@ export function useGameState() {
     setModalitaSanita(state.modalitaSanita);
     setPrezzoResidenzeState(state.prezzoResidenze);
     setDiarioInizioVisto(state.diarioInizioVisto);
+    setGameMode(state.gameMode);
     ultimoGiornoPastiRef.current = state.ultimoGiornoPasti;
     ultimoGiornoProduzioneSerraRef.current = state.ultimoGiornoProduzioneSerra;
     ultimoGiornoEconomiaPubblicaRef.current = state.ultimoGiornoEconomiaPubblica;
@@ -763,6 +767,7 @@ export function useGameState() {
   const createPersistableState = useCallback((mappa: MappaRuntimeState): PersistableGameState => {
     const clock = getOrologioPersistableSnapshot();
     return {
+      gameMode,
       gamePhase: gamePhase === "running" ? "running" : gamePhase === "activating" ? "activating" : "commander-creation",
       introductionCompleted: diarioInizioVisto,
       diarioInizioVisto,
@@ -782,7 +787,7 @@ export function useGameState() {
       capoReligiosoSole, capoReligiosoAlieni, pendingRichiestaLuogoCulto, richiesteInAttesa,
       luoghiCultoRifiutati, luoghiCultoPendentiMappa, mappa
     };
-  }, [gamePhase, diarioInizioVisto, abitanti, abitantiProposti, nextId, razzaNativi, nativiNonIntegrati,
+  }, [gameMode, gamePhase, diarioInizioVisto, abitanti, abitantiProposti, nextId, razzaNativi, nativiNonIntegrati,
     edifici, risorse, inventarioGiocatore, inventarioMensaByEdificioId, moneteGiocatore, prezzoResidenze,
     mese, anno, tipoTassaReddito, flatTaxPercentuale, scaglioniConfig, politicaNascite, punteggioSanzioni,
     penaDiMorteAttiva, penaReati, politicaReligiosa, religioneDiStato, leggeRazzialeAttiva,
@@ -1391,6 +1396,7 @@ export function useGameState() {
   }, [calcolaPunteggioSanzioni, simulationEnabled]);
 
   return {
+    gameMode,
     gamePhase,
     simulationEnabled,
     startNewGame,
