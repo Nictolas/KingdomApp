@@ -6,6 +6,7 @@ import {
   computePhaserWorldViewCellRange,
   isCellInsidePhaserGridRange,
   isPointNearPhaserWorldView,
+  phaserGridCellRangeContains,
   phaserGridCellRangesEqual
 } from "../src/phaser/adapters/phaserViewportCulling.ts";
 
@@ -131,4 +132,33 @@ test("static tile range delta is empty when the culling range is unchanged", () 
     hiddenCells: [],
     shownCells: []
   });
+});
+
+
+test("static tile buffered range contains the visible viewport until its margin is exhausted", () => {
+  const buffered = computePhaserWorldViewCellRange(
+    { x: 400, y: 400, width: 800, height: 600 },
+    50,
+    50,
+    40,
+    2
+  );
+  const visibleInside = computePhaserWorldViewCellRange(
+    { x: 440, y: 400, width: 720, height: 540 },
+    50,
+    50,
+    40,
+    0
+  );
+  const visibleOutside = computePhaserWorldViewCellRange(
+    { x: 280, y: 400, width: 1040, height: 600 },
+    50,
+    50,
+    40,
+    0
+  );
+
+  assert.equal(phaserGridCellRangeContains(buffered, visibleInside), true);
+  assert.equal(phaserGridCellRangeContains(buffered, visibleOutside), false);
+  assert.equal(phaserGridCellRangeContains(null, visibleInside), false);
 });
