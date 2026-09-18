@@ -153,7 +153,11 @@ import {
   haMaterialeEdileSufficiente,
   quantitaMaterialeEdile
 } from "../src/game/costruzioneEdifici";
-import { setBarArrivatiMappaSnapshot } from "../src/game/mappaBarArrivatiStore";
+import {
+  aggiungiAbitanteAlBarEdificio,
+  rimuoviAbitanteDaTuttiBar,
+  setBarArrivatiMappaSnapshot
+} from "../src/game/mappaBarArrivatiStore";
 import { computeStatoCielo } from "../src/game/cicloCielo";
 import { formatOrologioGioco, getGiornoGiocoSnapshot } from "../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../src/hooks/useOrologioGioco";
@@ -528,29 +532,6 @@ async function buildInitialMappa(
 
 const CIELO_ALPHA_NOTTE_MAX = 0.52;
 const CIELO_ALPHA_CALORE_TRAMONTO_MAX = 0.26;
-
-function rimuoviAbitanteDaTuttiBar(
-  prev: Record<number, number[]>,
-  abitanteId: number
-): Record<number, number[]> {
-  const next: Record<number, number[]> = {};
-  for (const [k, ids] of Object.entries(prev)) {
-    const filt = ids.filter((id) => id !== abitanteId);
-    if (filt.length > 0) next[Number(k)] = filt;
-  }
-  return next;
-}
-
-function aggiungiAbitanteAlBarEdificio(
-  prev: Record<number, number[]>,
-  barEdificioId: number,
-  abitanteId: number
-): Record<number, number[]> {
-  const cleaned = rimuoviAbitanteDaTuttiBar(prev, abitanteId);
-  const cur = cleaned[barEdificioId] ?? [];
-  if (cur.includes(abitanteId)) return cleaned;
-  return { ...cleaned, [barEdificioId]: [...cur, abitanteId] };
-}
 
 /** Angolo in alto a sinistra della cella in px (per overlay edifici multi-cella). */
 function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: number): { left: number; top: number } {
