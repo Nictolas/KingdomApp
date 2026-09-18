@@ -248,6 +248,7 @@ import { getStradeIniziali } from "../src/game/mappaStradeIniziali";
 import {
   calcolaAnchorCostruzione2x2,
   calcolaAnchorEdificioMultiCella,
+  calcolaPreviewPiazzamento,
   costruzioneTerrenoPersistente,
   edificioRispettaCriteriPiazzamento,
   footprintTerreno2x2Valido,
@@ -340,65 +341,6 @@ function getEdificiIniziali(
   aggiungiBarFootprint(cols, rows, riverSet, vietato, out, idx.BAR_INDEX);
 
   return out;
-}
-
-function calcolaPreviewPiazzamento(
-  selezione: SelezioneCostruzioneAnteprima,
-  hoverCell: number | null,
-  edificiInMappa: Record<number, EdificioInCella>,
-  terrenoInMappa: Record<number, TerrenoType>,
-  cols: number,
-  rows: number
-): { celle: number[]; valido: boolean } | null {
-  if (hoverCell == null) return null;
-  if (selezione.tipo === "strada" || selezione.tipo === "terreno") {
-    const { anchor, w, h } = calcolaAnchorCostruzione2x2(hoverCell, cols, rows);
-    if (anchor == null) {
-      return { celle: [hoverCell], valido: false };
-    }
-    const celle = getIndiciFootprint(anchor, w, h, cols);
-    const valido =
-      selezione.tipo === "strada"
-        ? footprintStrada2x2Valido(anchor, cols, rows, terrenoInMappa, edificiInMappa)
-        : footprintTerreno2x2Valido(
-            selezione.kind,
-            anchor,
-            cols,
-            rows,
-            terrenoInMappa,
-            edificiInMappa
-          );
-    return { celle, valido };
-  }
-  const e = selezione.edificio;
-  const { anchor, w, h } = calcolaAnchorEdificioMultiCella(
-    hoverCell,
-    e.nome,
-    edificiInMappa,
-    terrenoInMappa,
-    cols,
-    rows
-  );
-  if (anchor == null) {
-    const ac = hoverCell % cols;
-    const ar = Math.floor(hoverCell / cols);
-    if (ac + w > cols || ar + h > rows) {
-      return { celle: [hoverCell], valido: false };
-    }
-    return { celle: getIndiciFootprint(hoverCell, w, h, cols), valido: false };
-  }
-  const celle = getIndiciFootprint(anchor, w, h, cols);
-  const valido = edificioRispettaCriteriPiazzamento(
-    e.nome,
-    anchor,
-    w,
-    h,
-    edificiInMappa,
-    terrenoInMappa,
-    cols,
-    rows
-  );
-  return { celle, valido };
 }
 
 /** Capanne 2×1 (o 1×1 se non c’è spazio) e giacimenti 1×1 senza sovrapposizioni al buffer d’erba. */

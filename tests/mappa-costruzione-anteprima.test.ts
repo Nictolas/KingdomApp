@@ -3,6 +3,7 @@ import test from "node:test";
 import {
   calcolaAnchorCostruzione2x2,
   calcolaAnchorEdificioMultiCella,
+  calcolaPreviewPiazzamento,
   costruzioneTerrenoPersistente,
   edificioRispettaCriteriPiazzamento,
   footprintTerreno2x2Valido
@@ -134,5 +135,41 @@ test("multicell building anchor falls back to the nearest free anchor and keeps 
   assert.deepEqual(
     calcolaAnchorEdificioMultiCella(7, "Dissalatore", {}, { 6: "sabbia", 7: "sabbia" }, 5, 5),
     { anchor: 1, w: 2, h: 2 }
+  );
+});
+
+
+test("placement preview returns null without a hovered cell", () => {
+  assert.equal(calcolaPreviewPiazzamento({ tipo: "strada" }, null, {}, {}, 5, 5), null);
+});
+
+test("placement preview preserves road and terrain 2x2 cells and validity", () => {
+  assert.deepEqual(calcolaPreviewPiazzamento({ tipo: "strada" }, 24, {}, {}, 7, 7), {
+    celle: [24, 25, 31, 32],
+    valido: true
+  });
+  assert.deepEqual(
+    calcolaPreviewPiazzamento({ tipo: "terreno", kind: "erba" }, 24, {}, {}, 7, 7),
+    {
+      celle: [24, 25, 31, 32],
+      valido: true
+    }
+  );
+});
+
+test("placement preview preserves building footprint and placement validity", () => {
+  assert.deepEqual(
+    calcolaPreviewPiazzamento(
+      { tipo: "edificio", edificio: { nome: "Bar" } as never },
+      24,
+      {},
+      {},
+      7,
+      7
+    ),
+    {
+      celle: [24, 25, 31, 32],
+      valido: true
+    }
   );
 });
