@@ -143,10 +143,11 @@ test("la modalità Creativa sopravvive al salvataggio", () => {
 });
 
 test("i vecchi salvataggi senza modalità vengono migrati ad Avventura", () => {
-  const save = createSaveEnvelope();
-  delete save.payload.gameMode;
+  const serialized = serializeSave(createSaveEnvelope());
+  const legacy = JSON.parse(serialized);
+  delete legacy.payload.gameMode;
 
-  const restored = deserializeSave(JSON.stringify(save));
+  const restored = deserializeSave(JSON.stringify(legacy));
 
   assert.equal(restored.payload.gameMode, "avventura");
 });
