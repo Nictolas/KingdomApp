@@ -3052,10 +3052,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         path: commute?.path,
         pathToken: commute?.token ?? 0,
         appearance: abitante.razza === "Golem" ? "golem" : "human",
-        markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined
+        markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined,
+        selected: abitante.id === sintesiMappaAbitanteId
       };
     }),
-  [abitantiPerOverlayMappa, commuteByAbitanteId, cellaCasaPerAbitanteId, cols]);
+  [abitantiPerOverlayMappa, commuteByAbitanteId, cellaCasaPerAbitanteId, cols, sintesiMappaAbitanteId]);
 
   const phaserRevisionRef = useRef(0);
   const phaserBaseSnapshot = useMemo(
