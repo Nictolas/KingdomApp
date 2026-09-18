@@ -2,6 +2,7 @@ import type { Abitante, Edificio, Risorsa } from "../types";
 import { SAVE_FORMAT, SAVE_SCHEMA_VERSION, type GameSaveV1, type SaveEnvelopeV1 } from "./saveTypes.ts";
 import { generaAspettoDaSeed } from "../game/personaggioAspetto";
 import { normalizeGameMode } from "../game/gameMode";
+import { normalizzaReligioniCustom } from "../game/fedeleCulto";
 
 export class SaveValidationError extends Error {
   constructor(message: string) {
@@ -226,6 +227,7 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
   next.colony.risorse = next.colony.risorse.map((r: Risorsa) => ({ ...r, quantità: clampNonNegative(r.quantità) }));
   next.colony.edifici = next.colony.edifici.map((e: Edificio) => ({
     ...e,
+    ...(e.nome === "Luogo di Culto degli Alieni" && { nome: "Luogo di Culto delle Ombre" }),
     capacità: clampNonNegative(Math.trunc(e.capacità)),
     abitantiAssegnati: [...new Set(e.abitantiAssegnati)],
     occupazione: new Set(e.abitantiAssegnati).size,
@@ -242,26 +244,53 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
   next.population.abitanti = next.population.abitanti.map((a: Abitante) => ({
     ...a,
     razza: normalizzaRazzaFantasy(a.razza),
+    ...((a.religione as string) === "Culto degli Alieni" && { religione: "Culto delle Ombre" }),
     ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
       aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
     }),
     ...(a.id !== 1 && a.aspetto?.cappello === "corona" && {
       aspetto: { ...a.aspetto, cappello: "nessuno" }
     }),
-    fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f),
+    fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f === "Culto degli Alieni" ? "Culto delle Ombre" : f),
     inventario: a.inventario ? normalizeInventario(a.inventario) : undefined
   }));
   next.population.abitantiProposti = next.population.abitantiProposti.map((a: Abitante) => ({
     ...a,
     razza: normalizzaRazzaFantasy(a.razza),
+    ...((a.religione as string) === "Culto degli Alieni" && { religione: "Culto delle Ombre" }),
     ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
       aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
     }),
     ...(a.aspetto?.cappello === "corona" && {
       aspetto: { ...a.aspetto, cappello: "nessuno" }
     }),
-    fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f)
+    fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f === "Culto degli Alieni" ? "Culto delle Ombre" : f)
   }));
+  if ((next.policies.religioneDiStato as string | null) === "Culto degli Alieni") {
+    next.policies.religioneDiStato = "Culto delle Ombre";
+  }
+  next.policies.religioniCustom = normalizzaReligioniCustom(next.policies.religioniCustom);
+  next.events.luoghiCultoRifiutati = next.events.luoghiCultoRifiutati.map((r) =>
+    (r as string) === "Culto degli Alieni" ? "Culto delle Ombre" : r
+  );
+  next.events.luoghiCultoPendentiMappa = next.events.luoghiCultoPendentiMappa.map((entry) => ({
+    ...entry,
+    religione: (entry.religione as string) === "Culto degli Alieni" ? "Culto delle Ombre" : entry.religione
+  }));
+  if (
+    next.events.pendingRichiestaLuogoCulto &&
+    (next.events.pendingRichiestaLuogoCulto.religione as string) === "Culto degli Alieni"
+  ) {
+    next.events.pendingRichiestaLuogoCulto = {
+      ...next.events.pendingRichiestaLuogoCulto,
+      religione: "Culto delle Ombre"
+    };
+  }
+  for (const [key, edificio] of Object.entries(next.map.edificiInMappa)) {
+    if (edificio.nome === "Luogo di Culto degli Alieni") {
+      next.map.edificiInMappa[Number(key)] = { ...edificio, nome: "Luogo di Culto delle Ombre" };
+    }
+  }
   next.policies.razzaCampoLavoro = normalizzaRazzaFantasy(next.policies.razzaCampoLavoro) ?? null;
   next.policies.razzaCampoSterminio = normalizzaRazzaFantasy(next.policies.razzaCampoSterminio) ?? null;
   return next;
