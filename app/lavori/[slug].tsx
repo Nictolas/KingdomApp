@@ -9,7 +9,7 @@ import {
   resolveLavoroFromSlug
 } from "../../src/game/lavoriCatalogo";
 import { etichettaOrarioLavoro } from "../../src/game/orariLavoroCatalogo";
-import { AbitanteAvatarPreview } from "../../src/ui/AbitanteAvatarPreview";
+import { AbitanteLpcAvatar } from "../../src/ui/AbitanteLpcAvatar";
 import { AbitanteInfoModal } from "../../src/ui/AbitanteInfoModal";
 
 export default function LavoriOccupazioneScreen() {
@@ -57,7 +57,7 @@ export default function LavoriOccupazioneScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
+    <SafeAreaView style={[styles.safe, maxHeight != null ? { maxHeight, overflow: "hidden" } : undefined]}>
       <View style={styles.header}>
         <Text style={styles.back} onPress={() => router.push("/lavori")}>← Lavori</Text>
         <Text style={styles.title}>{lavoro}</Text>
@@ -77,7 +77,7 @@ export default function LavoriOccupazioneScreen() {
             ) : (
               elenco.map((a) => (
                 <Pressable key={a.id} style={styles.riga} onPress={() => setSelectedAbitante(a)}>
-                  <AbitanteAvatarPreview abitante={a} />
+                  <AbitanteLpcAvatar abitante={a} size={40} />
                   <Text style={styles.nomeLink} numberOfLines={1}>
                     {a.nome}
                   </Text>
