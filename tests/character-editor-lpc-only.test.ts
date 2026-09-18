@@ -12,4 +12,11 @@ test("character creation uses only the Universal LPC editor", () => {
   assert.equal(source.includes("CharacterCreationPreview"), true);
   assert.equal(source.includes("Universal LPC"), true);
   assert.equal(existsSync(legacyPreviewPath), false);
+
+  const immigrationSource = readFileSync(resolve(process.cwd(), "app/immigrazione.tsx"), "utf8");
+  const residentModalSource = readFileSync(resolve(process.cwd(), "src/ui/AbitanteInfoModal.tsx"), "utf8");
+  assert.equal(immigrationSource.includes("PixelAvatarPreview"), false);
+  assert.equal(residentModalSource.includes("PixelAvatarPreview"), false);
+  assert.equal(immigrationSource.includes("AbitanteLpcAvatar"), true);
+  assert.equal(residentModalSource.includes("AbitanteLpcAvatar"), true);
 });
