@@ -17,10 +17,11 @@ test("round trip completo stato → JSON → stato", () => {
 });
 
 test("i salvataggi precedenti senza modalità migrano ad Avventura", () => {
-  const save = createSaveEnvelope();
-  delete save.payload.gameMode;
+  const current = createSaveEnvelope();
+  const legacy = JSON.parse(serializeSave(current));
+  delete legacy.payload.gameMode;
 
-  const restored = deserializeSave(JSON.stringify(save));
+  const restored = deserializeSave(JSON.stringify(legacy));
 
   assert.equal(restored.payload.gameMode, "adventure");
 });
