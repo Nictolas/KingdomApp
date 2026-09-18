@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import {
+  getOrologioGiocoInPausaSnapshot,
   getOrologioGiocoVelocitaSnapshot,
   restoreOrologioGioco,
   setOrologioGiocoBloccatoDallaFase,
@@ -61,4 +62,16 @@ test("restoring a save starts the session at normal 1x speed", () => {
   setOrologioGiocoVelocita(4);
   restoreOrologioGioco({ giorno: 2, minutiDaMezzanotte: 600, pausaManuale: false });
   assert.equal(getOrologioGiocoVelocitaSnapshot(), 1);
+});
+
+
+test("selecting a speed while paused resumes the game and makes pause exclusive", () => {
+  restoreOrologioGioco({ giorno: 1, minutiDaMezzanotte: 360, pausaManuale: true });
+  setOrologioGiocoBloccatoDallaFase(false);
+
+  assert.equal(getOrologioGiocoInPausaSnapshot(), true);
+  setOrologioGiocoVelocita(4);
+
+  assert.equal(getOrologioGiocoVelocitaSnapshot(), 4);
+  assert.equal(getOrologioGiocoInPausaSnapshot(), false);
 });

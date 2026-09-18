@@ -3,6 +3,7 @@ import test from "node:test";
 
 import {
   getPhaserDynamicSnapshotChanges,
+  isPhaserSimulationPaused,
   MapSceneBridge,
   type PhaserMapSnapshot
 } from "../src/phaser/adapters/mapSceneBridge.ts";
@@ -91,4 +92,21 @@ test("personaggi e griglia vengono segnalati solo quando cambiano i rispettivi d
     getPhaserDynamicSnapshotChanges(before, { ...before, showGrid: true }),
     { characters: false, interaction: false, grid: true }
   );
+});
+
+
+test("Phaser simulation pause follows the snapshot pause flag", () => {
+  const base = {
+    cols: 2,
+    rows: 2,
+    cellSize: 40,
+    tiles: [],
+    buildings: [],
+    characters: [],
+    revision: 1
+  };
+
+  assert.equal(isPhaserSimulationPaused(base), false);
+  assert.equal(isPhaserSimulationPaused({ ...base, paused: true }), true);
+  assert.equal(isPhaserSimulationPaused({ ...base, paused: false }), false);
 });

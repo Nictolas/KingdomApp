@@ -63,13 +63,15 @@ function notifyVelocitaListeners(): void {
 
 export function setOrologioGiocoVelocita(velocita: OrologioGiocoVelocita): void {
   if (!OROLOGIO_GIOCO_VELOCITA.includes(velocita)) return;
-  if (orologioGiocoVelocita === velocita) return;
 
-  // Consuma prima il tempo trascorso con il moltiplicatore precedente.
+  // Se si seleziona una velocità mentre il gioco è in pausa, quella selezione
+  // rappresenta anche la ripresa: Pausa e 1×/2×/4× sono modalità esclusive.
   syncOrologioGiocoDaWallClock();
+  const velocitaCambiata = orologioGiocoVelocita !== velocita;
   orologioGiocoVelocita = velocita;
   orologioGiocoLastRealMs = Date.now();
-  notifyVelocitaListeners();
+  if (velocitaCambiata) notifyVelocitaListeners();
+  if (orologioGiocoInPausa) setOrologioGiocoInPausa(false);
 }
 
 export function setOrologioGiocoBloccatoDallaFase(bloccato: boolean): void {

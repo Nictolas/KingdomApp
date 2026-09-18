@@ -43,6 +43,8 @@ export type PhaserMapSnapshot = {
   characters: readonly PhaserMapCharacter[];
   interaction?: PhaserMapInteraction;
   showGrid?: boolean;
+  /** Pausa globale della simulazione; il renderer mantiene la scena interattiva ma congela le animazioni legate al tempo. */
+  paused?: boolean;
   revision: number;
 };
 
@@ -51,6 +53,10 @@ export type PhaserDynamicSnapshotChanges = {
   interaction: boolean;
   grid: boolean;
 };
+
+export function isPhaserSimulationPaused(snapshot: PhaserMapSnapshot): boolean {
+  return snapshot.paused === true;
+}
 
 /**
  * Parti dinamiche che Phaser può aggiornare senza ricostruire terreno/edifici.
