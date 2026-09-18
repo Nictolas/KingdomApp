@@ -6,15 +6,20 @@
 /** Minuti di gioco aggiunti per ogni secondo trascorso nel mondo reale. */
 export const MINUTI_GIOCO_PER_SECONDO_REALE = 30;
 
+export const OROLOGIO_GIOCO_VELOCITA = [1, 2, 4] as const;
+export type OrologioGiocoVelocita = (typeof OROLOGIO_GIOCO_VELOCITA)[number];
+
 let orologioGiocoMinutiDaMezzanotte = 6 * 60;
 let orologioGiocoLastRealMs: number | null = null;
 let orologioGiocoInPausa = false;
+let orologioGiocoVelocita: OrologioGiocoVelocita = 1;
 // Parte bloccato: la creazione del Re non deve far avanzare il mondo.
 let orologioGiocoBloccatoDallaFase = true;
 /** Giorno di gioco (1 = primo giorno); avanza a ogni mezzanotte dell'orologio. */
 let orologioGiocoGiorno = 1;
 
 const pausaListeners = new Set<() => void>();
+const velocitaListeners = new Set<() => void>();
 const giornoListeners = new Set<() => void>();
 
 function notifyGiornoListeners(): void {
@@ -43,6 +48,30 @@ export function getOrologioGiocoInPausaSnapshot(): boolean {
   return orologioGiocoInPausa || orologioGiocoBloccatoDallaFase;
 }
 
+export function subscribeOrologioGiocoVelocita(listener: () => void): () => void {
+  velocitaListeners.add(listener);
+  return () => velocitaListeners.delete(listener);
+}
+
+export function getOrologioGiocoVelocitaSnapshot(): OrologioGiocoVelocita {
+  return orologioGiocoVelocita;
+}
+
+function notifyVelocitaListeners(): void {
+  velocitaListeners.forEach((l) => l());
+}
+
+export function setOrologioGiocoVelocita(velocita: OrologioGiocoVelocita): void {
+  if (!OROLOGIO_GIOCO_VELOCITA.includes(velocita)) return;
+  if (orologioGiocoVelocita === velocita) return;
+
+  // Consuma prima il tempo trascorso con il moltiplicatore precedente.
+  syncOrologioGiocoDaWallClock();
+  orologioGiocoVelocita = velocita;
+  orologioGiocoLastRealMs = Date.now();
+  notifyVelocitaListeners();
+}
+
 export function setOrologioGiocoBloccatoDallaFase(bloccato: boolean): void {
   if (orologioGiocoBloccatoDallaFase === bloccato) return;
   orologioGiocoBloccatoDallaFase = bloccato;
@@ -55,9 +84,11 @@ export function restoreOrologioGioco(input: { giorno: number; minutiDaMezzanotte
   orologioGiocoGiorno = Math.max(1, Math.trunc(input.giorno));
   orologioGiocoMinutiDaMezzanotte = ((Math.trunc(input.minutiDaMezzanotte) % 1440) + 1440) % 1440;
   orologioGiocoInPausa = input.pausaManuale;
+  orologioGiocoVelocita = 1;
   orologioGiocoLastRealMs = Date.now();
   notifyGiornoListeners();
   notifyPausaListeners();
+  notifyVelocitaListeners();
 }
 
 export function getOrologioPersistableSnapshot() {
@@ -93,7 +124,8 @@ export function syncOrologioGiocoDaWallClock(): number {
   }
   const minutiPrima = orologioGiocoMinutiDaMezzanotte;
   const elapsedSeconds = Math.floor((Date.now() - orologioGiocoLastRealMs) / 1000);
-  const catchUp = elapsedSeconds * MINUTI_GIOCO_PER_SECONDO_REALE;
+  const catchUp =
+    elapsedSeconds * MINUTI_GIOCO_PER_SECONDO_REALE * orologioGiocoVelocita;
   const minutiTotali = minutiPrima + catchUp;
   orologioGiocoMinutiDaMezzanotte = minutiTotali % 1440;
   const giorniPassati = Math.floor(minutiTotali / 1440);
