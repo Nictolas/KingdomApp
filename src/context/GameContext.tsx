@@ -12,6 +12,7 @@ import type { RichiestaInAttesa } from "../game/richieste";
 import type { PenaReatiConfig, ReatoPunibile } from "../game/reati";
 import type { RisultatoGiudizio } from "../game/tribunale";
 import type { GamePhase } from "../game/gamePhase";
+import type { GameMode } from "../game/gameMode";
 import { getMappaSessione, subscribeMappaSessione } from "../game/mappaSessione";
 import { createAsyncStoragePersistentStorage } from "../persistence/asyncStorageAdapter";
 import { gameSaveV1ToGameState, gameStateToGameSaveV1 } from "../persistence/gameStateMapping";
@@ -19,6 +20,7 @@ import { SaveRepository, type LoadSaveResult } from "../persistence/saveReposito
 import { SAVE_FORMAT, SAVE_SCHEMA_VERSION, type SaveEnvelopeV1 } from "../persistence/saveTypes";
 import { decideStartup, runMutationThenSave, shouldAutosave, shouldConfirmNewGame } from "../persistence/saveRuntimePolicy";
 import { StartGameScreen } from "../ui/StartGameScreen";
+import { GameModeSelectionScreen } from "../ui/GameModeSelectionScreen";
 
 type ScaglioneConfig = {
   min: number;
@@ -27,6 +29,7 @@ type ScaglioneConfig = {
 };
 
 type GameContextType = {
+  gameMode: GameMode;
   gamePhase: GamePhase;
   simulationEnabled: boolean;
   saveStatus: "idle" | "saving" | "saved" | "error";
@@ -258,7 +261,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const metadataRef = useRef<SaveEnvelopeV1["metadata"] | null>(null);
   const latestStateRef = useRef(gameState);
   latestStateRef.current = gameState;
-  const [startup, setStartup] = useState<"loading" | "choice" | "active">("loading");
+  const [startup, setStartup] = useState<"loading" | "choice" | "mode-choice" | "active">("loading");
   const [startupError, setStartupError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const dirtyRef = useRef(false);
@@ -277,8 +280,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         pendingLoadRef.current = result;
         if (decideStartup(result) === "start-new") {
-          setStartup("active");
-          gameState.startNewGame();
+          setStartup("mode-choice");
         } else {
           setStartup("choice");
         }
@@ -286,8 +288,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
         if (cancelled) return;
         setStartupError("Salvataggio non disponibile. La partita può continuare senza persistenza.");
         setSaveStatus("error");
-        setStartup("active");
-        gameState.startNewGame();
+        pendingLoadRef.current = { source: "none", save: null };
+        setStartup("mode-choice");
       }
     })();
     return () => { cancelled = true; };
@@ -309,6 +311,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [gameState]);
 
   const nuovaPartita = useCallback(() => {
+    setStartupError(null);
+    setStartup("mode-choice");
+  }, []);
+
+  const avviaNuovaPartita = useCallback((mode: GameMode) => {
     void (async () => {
       try {
         await repositoryRef.current?.clearAll();
@@ -323,9 +330,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
       lastMapTokenRef.current = null;
       dirtyRef.current = true;
       setStartup("active");
-      gameState.startNewGame();
+      gameState.startNewGame(mode);
     })();
   }, [gameState]);
+
+  const annullaSceltaModalita = useCallback(() => {
+    const loaded = pendingLoadRef.current;
+    if (loaded && loaded.source !== "none") {
+      setStartup("choice");
+    }
+  }, []);
 
   const salvaPartita = useCallback(async () => {
     const repository = repositoryRef.current;
@@ -417,6 +431,17 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [gameState, salvaPartita]);
 
   const contextValue = { ...gameState, avanzaMese: avanzaMeseConSalvataggio, saveStatus, salvaPartita };
+
+  if (startup === "mode-choice") {
+    return (
+      <GameModeSelectionScreen
+        error={startupError}
+        canCancel={pendingLoadRef.current != null && pendingLoadRef.current.source !== "none"}
+        onSelect={avviaNuovaPartita}
+        onCancel={annullaSceltaModalita}
+      />
+    );
+  }
 
   if (startup !== "active") {
     return (
