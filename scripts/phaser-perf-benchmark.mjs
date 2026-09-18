@@ -130,15 +130,17 @@ async function idleScenario() {
 
 async function panScenario() {
   const page = await openScenario();
-  await phaserCanvas(page);
   const startedAt = Date.now();
   const minimumEndAt = startedAt + sampleMs;
   const deadline = startedAt + Math.max(sampleMs, maxScenarioMs);
   let direction = 1;
 
   while (Date.now() < deadline) {
-    await dispatchPanGesture(page, direction);
+    await page.evaluate((dir) => {
+      globalThis.__KINGDOM_PERF_PAN__?.(360 * dir, 80 * dir);
+    }, direction);
     direction *= -1;
+    await page.waitForTimeout(80);
 
     if (Date.now() >= minimumEndAt) {
       const metrics = await currentMetrics(page);
@@ -160,14 +162,15 @@ async function panScenario() {
 
 async function zoomScenario() {
   const page = await openScenario();
-  await phaserCanvas(page);
   const startedAt = Date.now();
   const minimumEndAt = startedAt + sampleMs;
   const deadline = startedAt + Math.max(sampleMs, maxScenarioMs);
   let direction = 1;
 
   while (Date.now() < deadline) {
-    await dispatchWheel(page, direction);
+    await page.evaluate((dir) => {
+      globalThis.__KINGDOM_PERF_ZOOM__?.(180 * dir);
+    }, direction);
     direction *= -1;
     await page.waitForTimeout(80);
 
