@@ -117,6 +117,21 @@ export type Abitante = {
   gravidanzaIniziataAnno?: number;
   /** Oggetti portati dall'abitante (monete, cibo, …). */
   inventario?: { itemId: string; quantità: number }[];
+  /** Ultimo bottino trovato nel Bosco (Raccoglitore). */
+  ultimoRaccoltoBosco?: {
+    giorno: number;
+    voci: { itemId: string; emoji: string; nome: string; quantità: number }[];
+  };
+  /** Ultimo bottino estratto in Miniera (Minatore). */
+  ultimoRaccoltoMiniera?: {
+    giorno: number;
+    voci: { itemId: string; emoji: string; nome: string; quantità: number }[];
+  };
+  /** Ultimo raccolto dalla Serra (Agricoltore). */
+  ultimoRaccoltoSerra?: {
+    giorno: number;
+    voci: { itemId: string; emoji: string; nome: string; quantità: number }[];
+  };
   /** Ultimo giorno di gioco in cui ha consumato un oggetto Cibo dall'inventario. */
   ultimoGiornoCiboConsumato?: number;
   /** Bisogni 0–100 (Fame, Energia, Divertimento, Socialità, Igiene). */
@@ -226,6 +241,8 @@ export type Edificio = {
   categoriaEconomica?: "Impresa";
   /** Cassa monetaria dell'impresa. */
   cassaMonete?: number;
+  /** Fatturato clienti del mese corrente (per tassa impresa); azzerato a fine mese. */
+  fatturatoMeseMonete?: number;
   /** Solo Serra: id oggetto Cibo vegetale prodotto (1 unità/giorno). */
   colturaItemId?: string;
   /** Solo Chiesa: religione del tempio (non Ateo/Deista/Agnostico). */
