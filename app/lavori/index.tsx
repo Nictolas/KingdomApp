@@ -19,7 +19,7 @@ import {
   ID_GIOCATORE,
   LAVORO_GIOCATORE
 } from "../../src/game/schiavituCommercio";
-import { AbitanteAvatarPreview } from "../../src/ui/AbitanteAvatarPreview";
+import { AbitanteLpcAvatar } from "../../src/ui/AbitanteLpcAvatar";
 import { AbitanteInfoModal } from "../../src/ui/AbitanteInfoModal";
 import { CircularSpriteFrame } from "../../src/ui/CircularSpriteFrame";
 
@@ -100,7 +100,7 @@ function OccupazionePieChart({
 
 export default function LavoriScreen() {
   const router = useRouter();
-  const { abitanti, edifici, calcolaFelicitàModificata, etaMinimaLavoro, modalitaGioco } =
+  const { abitanti, edifici, calcolaFelicitàModificata, etaMinimaLavoro, gameMode } =
     useGameContext();
   const [selectedAbitante, setSelectedAbitante] = useState<Abitante | null>(null);
 
@@ -116,14 +116,14 @@ export default function LavoriScreen() {
     dis.sort((a, b) => a.nome.localeCompare(b.nome, "it"));
     const cards = elencoOccupazioniConConteggio(abitantiAttivi);
     const cardsVisibili =
-      modalitaGioco === "avventura" ? cards.filter((c) => c.count > 0) : cards;
+      gameMode === "avventura" ? cards.filter((c) => c.count > 0) : cards;
     const occupatiTotali = cardsVisibili.reduce((sum, c) => sum + c.count, 0);
     return {
       disoccupati: dis,
       occupatiTotali,
       cardOccupazioni: cardsVisibili
     };
-  }, [abitantiAttivi, modalitaGioco]);
+  }, [abitantiAttivi, gameMode]);
 
   const giocatore = useMemo(
     () => abitanti.find((a) => a.id === ID_GIOCATORE) ?? null,
@@ -150,7 +150,7 @@ export default function LavoriScreen() {
   const stack = width < 900;
 
   return (
-    <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
+    <SafeAreaView style={[styles.safe, maxHeight != null ? { maxHeight, overflow: "hidden" } : undefined]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
         <Text style={styles.title}>💼 Lavori</Text>
@@ -190,7 +190,7 @@ export default function LavoriScreen() {
                         <View style={[styles.cell, styles.occupazioneCellWrap, { width: COLS[0].width }]}>
                           <View style={[styles.avatarWrap, { width: AVATAR_OUTER, height: AVATAR_OUTER }]}>
                             {card.lavoro === LAVORO_GIOCATORE && giocatore?.aspetto ? (
-                              <AbitanteAvatarPreview abitante={giocatore} size={AVATAR_SIZE} liftPx={0} />
+                              <AbitanteLpcAvatar abitante={giocatore} size={AVATAR_SIZE} />
                             ) : (
                               (() => {
                                 const aspetto =
@@ -263,7 +263,7 @@ export default function LavoriScreen() {
                           : getAbitanteNome(propId);
                     return (
                       <Pressable key={a.id} style={styles.riga} onPress={() => setSelectedAbitante(a)}>
-                        <AbitanteAvatarPreview abitante={a} />
+                        <AbitanteLpcAvatar abitante={a} size={36} />
                         <View style={styles.rigaTesto}>
                           <Text style={[styles.nomeLink, styles.rigaDisoccupato]} numberOfLines={1}>
                             {a.nome}
