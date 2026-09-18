@@ -160,7 +160,7 @@ export default function CastelloScreen() {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
+    <SafeAreaView style={[styles.safe, maxHeight != null ? { maxHeight, overflow: "hidden" as const } : undefined]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
         <Text style={styles.title}>Castello</Text>
