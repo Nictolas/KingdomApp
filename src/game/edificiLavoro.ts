@@ -6,6 +6,16 @@ import { abitanteCercaLavoroPerSoldi, abitanteVuolePrendereLavoro } from "./biso
 import { getMoneteInventarioAbitante } from "./inventario";
 import { isGiocatore, puoEssereAssegnatoForzatamente } from "./schiavituCommercio";
 
+/** Occupazioni fantascientifiche/obsolete che non devono comparire nel catalogo Lavori. */
+export const OCCUPAZIONI_RIMOSSE = new Set([
+  "Ingegnere",
+  "Meccanico",
+  "Comunicatore",
+  "Amministratore",
+  "Tecnico",
+  "Operatore"
+]);
+
 /** Mappa edificioId → nome lavoro. Usata per sincronizzare lavoro abitante e per auto-assign Skip Mese. */
 export const EDIFICIO_TO_LAVORO: Record<number, string> = {
   2: "Agricoltore",     // Serra
