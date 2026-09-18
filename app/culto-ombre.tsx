@@ -15,7 +15,7 @@ export default function CultoOmbreScreen() {
   const maxHeight = isDesktop ? containerHeight : undefined;
 
   // Fedeli del Culto delle Ombre (abitanti con religione "Culto delle Ombre" e razza non Umana)
-  const isNonUmano = (a) => (a.razza ?? "Umano") !== "Umano";
+  const isNonUmano = (a: Abitante) => (a.razza ?? "Umano") !== "Umano";
   const fedeli = abitanti.filter(
     (a) => a.religione === "Culto delle Ombre" && isNonUmano(a)
   );
@@ -31,7 +31,7 @@ export default function CultoOmbreScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
+    <SafeAreaView style={[styles.safe, maxHeight != null ? { maxHeight, overflow: "hidden" } : undefined]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
         <Text style={styles.title}>🌑 Culto delle Ombre</Text>
