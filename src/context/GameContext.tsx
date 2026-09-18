@@ -309,7 +309,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [gameState]);
 
   const nuovaPartita = useCallback(() => {
-    const create = async () => {
+    void (async () => {
       try {
         await repositoryRef.current?.clearAll();
       } catch {
@@ -324,13 +324,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       dirtyRef.current = true;
       setStartup("active");
       gameState.startNewGame();
-    };
-    if (shouldConfirmNewGame(pendingLoadRef.current)) {
-      Alert.alert("Nuova partita", "La partita salvata verrà sostituita. Continuare?", [
-        { text: "Annulla", style: "cancel" },
-        { text: "Continua", style: "destructive", onPress: () => void create() }
-      ]);
-    } else void create();
+    })();
   }, [gameState]);
 
   const salvaPartita = useCallback(async () => {
@@ -425,7 +419,16 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const contextValue = { ...gameState, avanzaMese: avanzaMeseConSalvataggio, saveStatus, salvaPartita };
 
   if (startup !== "active") {
-    return <StartGameScreen loading={startup === "loading"} hasSave={startup === "choice"} error={startupError} onContinue={continua} onNewGame={nuovaPartita} />;
+    return (
+      <StartGameScreen
+        loading={startup === "loading"}
+        hasSave={startup === "choice"}
+        error={startupError}
+        confirmNewGame={shouldConfirmNewGame(pendingLoadRef.current)}
+        onContinue={continua}
+        onNewGame={nuovaPartita}
+      />
+    );
   }
 
   return (
