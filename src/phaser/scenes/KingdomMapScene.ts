@@ -13,6 +13,7 @@ import {
   computePhaserWorldViewCellRange,
   isCellInsidePhaserGridRange,
   isPointNearPhaserWorldView,
+  phaserGridCellRangeContains,
   phaserGridCellRangesEqual,
   type PhaserGridCellRange
 } from "../adapters/phaserViewportCulling";
@@ -86,6 +87,8 @@ export class KingdomMapScene extends Phaser.Scene {
   private readonly staticTileViewsByCell = new Map<number, Phaser.GameObjects.Image[]>();
   private lastStaticTileRange: PhaserGridCellRange | null = null;
   private staticTileVisibilityDirty = true;
+  private staticTileZoomCleanupPending = false;
+  private staticTileZoomCleanupAt = 0;
   private waterSprites: Phaser.GameObjects.Image[] = [];
   private waterFrame = 0;
   private nextWaterFrameAt = 0;
@@ -491,7 +494,13 @@ export class KingdomMapScene extends Phaser.Scene {
       }
     }
 
-    if (this.staticTileVisibilityDirty) this.refreshStaticTileVisibility();
+    if (this.staticTileVisibilityDirty) {
+      this.refreshStaticTileVisibility();
+      this.staticTileZoomCleanupPending = false;
+    } else if (this.staticTileZoomCleanupPending && time >= this.staticTileZoomCleanupAt) {
+      this.refreshStaticTileVisibility();
+      this.staticTileZoomCleanupPending = false;
+    }
 
     if (this.characterVisibilityDirty || time >= this.nextCharacterVisibilityAt) {
       this.refreshCharacterVisibility();
@@ -629,6 +638,7 @@ export class KingdomMapScene extends Phaser.Scene {
     this.characterVisibilityDirty = true;
     this.waterViewportDirty = true;
     this.staticTileVisibilityDirty = true;
+    this.staticTileZoomCleanupPending = false;
   }
 
   private applyCameraWheelZoom(pointerX: number, pointerY: number, dy: number): void {
@@ -642,7 +652,31 @@ export class KingdomMapScene extends Phaser.Scene {
     camera.scrollY += before.y - after.y;
     this.characterVisibilityDirty = true;
     this.waterViewportDirty = true;
-    this.staticTileVisibilityDirty = true;
+
+    const snapshot = this.bridge.getSnapshot();
+    const worldView = {
+      x: camera.worldView.x,
+      y: camera.worldView.y,
+      width: camera.worldView.width,
+      height: camera.worldView.height
+    };
+    const visibleRange = computePhaserWorldViewCellRange(
+      worldView,
+      snapshot.cols,
+      snapshot.rows,
+      snapshot.cellSize,
+      0
+    );
+    if (
+      this.staticTileVisibilityDirty ||
+      !phaserGridCellRangeContains(this.lastStaticTileRange, visibleRange)
+    ) {
+      this.staticTileVisibilityDirty = true;
+      this.staticTileZoomCleanupPending = false;
+    } else {
+      this.staticTileZoomCleanupPending = true;
+      this.staticTileZoomCleanupAt = this.time.now + 180;
+    }
   }
 
   private configureCameraAndInput(): void {

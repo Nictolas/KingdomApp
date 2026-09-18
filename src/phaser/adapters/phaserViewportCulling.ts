@@ -54,6 +54,19 @@ export function computePhaserWorldViewCellRange(
   };
 }
 
+export function phaserGridCellRangeContains(
+  outer: PhaserGridCellRange | null,
+  inner: PhaserGridCellRange
+): boolean {
+  return (
+    outer != null &&
+    inner.colStart >= outer.colStart &&
+    inner.colEnd <= outer.colEnd &&
+    inner.rowStart >= outer.rowStart &&
+    inner.rowEnd <= outer.rowEnd
+  );
+}
+
 export function phaserGridCellRangesEqual(
   a: PhaserGridCellRange | null,
   b: PhaserGridCellRange
