@@ -86,6 +86,7 @@ export class KingdomMapScene extends Phaser.Scene {
   private readonly staticTileViewsByCell = new Map<number, Phaser.GameObjects.Image[]>();
   private lastStaticTileRange: PhaserGridCellRange | null = null;
   private staticTileVisibilityDirty = true;
+  private nextStaticTileVisibilityAt = 0;
   private waterSprites: Phaser.GameObjects.Image[] = [];
   private waterFrame = 0;
   private nextWaterFrameAt = 0;
@@ -491,7 +492,10 @@ export class KingdomMapScene extends Phaser.Scene {
       }
     }
 
-    if (this.staticTileVisibilityDirty) this.refreshStaticTileVisibility();
+    if (this.staticTileVisibilityDirty && time >= this.nextStaticTileVisibilityAt) {
+      this.refreshStaticTileVisibility();
+      this.nextStaticTileVisibilityAt = time + 120;
+    }
 
     if (this.characterVisibilityDirty || time >= this.nextCharacterVisibilityAt) {
       this.refreshCharacterVisibility();
@@ -629,6 +633,7 @@ export class KingdomMapScene extends Phaser.Scene {
     this.characterVisibilityDirty = true;
     this.waterViewportDirty = true;
     this.staticTileVisibilityDirty = true;
+    this.nextStaticTileVisibilityAt = 0;
   }
 
   private applyCameraWheelZoom(pointerX: number, pointerY: number, dy: number): void {
