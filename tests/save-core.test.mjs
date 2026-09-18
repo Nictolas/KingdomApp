@@ -131,3 +131,30 @@ test("un errore di scrittura non altera primary e backup", async () => {
   assert.equal(await storage.getItem(SAVE_PRIMARY_KEY), primary);
   assert.equal(await storage.getItem(SAVE_BACKUP_KEY), primary);
 });
+
+
+test("la modalità Creativa sopravvive al salvataggio", () => {
+  const save = createSaveEnvelope();
+  save.payload.gameMode = "creativa";
+
+  const restored = deserializeSave(serializeSave(save));
+
+  assert.equal(restored.payload.gameMode, "creativa");
+});
+
+test("i vecchi salvataggi senza modalità vengono migrati ad Avventura", () => {
+  const serialized = serializeSave(createSaveEnvelope());
+  const legacy = JSON.parse(serialized);
+  delete legacy.payload.gameMode;
+
+  const restored = deserializeSave(JSON.stringify(legacy));
+
+  assert.equal(restored.payload.gameMode, "avventura");
+});
+
+test("una modalità di gioco sconosciuta viene rifiutata", () => {
+  const save = createSaveEnvelope();
+  save.payload.gameMode = "sconosciuta";
+
+  assert.throws(() => serializeSave(save), /Modalità di gioco/i);
+});
