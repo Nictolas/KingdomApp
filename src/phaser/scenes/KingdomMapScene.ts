@@ -67,6 +67,16 @@ export class KingdomMapScene extends Phaser.Scene {
   private readonly characterViews = new Map<number, CharacterView>();
   private readonly framePerformance = new PhaserFramePerformanceSampler(600);
   private lastPerfWallClockAt: number | null = null;
+  private perfWork = {
+    panMoves: 0,
+    wheelEvents: 0,
+    staticTileRefreshes: 0,
+    staticTileDeltaCells: 0,
+    characterVisibilityRefreshes: 0,
+    characterViewsChecked: 0,
+    waterViewportRefreshes: 0,
+    waterSpritesChecked: 0
+  };
   private perfOverlay: Phaser.GameObjects.Text | null = null;
   private perfEnabled = false;
   private nextPerfOverlayAt = 0;
@@ -114,10 +124,21 @@ export class KingdomMapScene extends Phaser.Scene {
       this.lastPerfWallClockAt = null;
       (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();
       (globalThis as any).__KINGDOM_PERF_SNAPSHOT__ = () => this.framePerformance.snapshot();
+      (globalThis as any).__KINGDOM_PERF_WORK_SNAPSHOT__ = () => ({ ...this.perfWork });
       (globalThis as any).__KINGDOM_PERF_RESET__ = () => {
         this.framePerformance.reset();
         this.lastPerfWallClockAt = null;
+        for (const key of Object.keys(this.perfWork) as Array<keyof typeof this.perfWork>) {
+          this.perfWork[key] = 0;
+        }
         (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();
+      };
+      (globalThis as any).__KINGDOM_PERF_PAN__ = (dx: number, dy: number) => {
+        this.applyCameraPan(dx, dy);
+      };
+      (globalThis as any).__KINGDOM_PERF_ZOOM__ = (dy: number) => {
+        const camera = this.cameras.main;
+        this.applyCameraWheelZoom(camera.width / 2, camera.height / 2, dy);
       };
       this.perfOverlay = this.add.text(8, 8, "PERF warming up...", {
         fontFamily: "monospace",
@@ -144,7 +165,13 @@ export class KingdomMapScene extends Phaser.Scene {
       if (changes.interaction) this.renderInteraction(snapshot);
       this.renderedSnapshot = snapshot;
     });
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unsubscribe?.());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.unsubscribe?.();
+      if (this.perfEnabled) {
+        delete (globalThis as any).__KINGDOM_PERF_PAN__;
+        delete (globalThis as any).__KINGDOM_PERF_ZOOM__;
+      }
+    });
   }
 
   private configureCharacterAnimations(): void {
@@ -525,6 +552,7 @@ export class KingdomMapScene extends Phaser.Scene {
     );
     this.staticTileVisibilityDirty = false;
     if (!force && phaserGridCellRangesEqual(this.lastStaticTileRange, range)) return;
+    if (this.perfEnabled) this.perfWork.staticTileRefreshes += 1;
 
     if (force || this.lastStaticTileRange == null) {
       for (const tileView of this.staticTileViews) {
@@ -533,6 +561,7 @@ export class KingdomMapScene extends Phaser.Scene {
       }
     } else {
       const delta = computePhaserGridRangeDelta(this.lastStaticTileRange, range, snapshot.cols);
+      if (this.perfEnabled) this.perfWork.staticTileDeltaCells += delta.hiddenCells.length + delta.shownCells.length;
       for (const cell of delta.hiddenCells) this.setStaticTileCellVisibility(cell, false);
       for (const cell of delta.shownCells) this.setStaticTileCellVisibility(cell, true);
     }
@@ -542,6 +571,10 @@ export class KingdomMapScene extends Phaser.Scene {
 
   private refreshVisibleWaterFrames(): void {
     if (this.waterSprites.length === 0) return;
+    if (this.perfEnabled) {
+      this.perfWork.waterViewportRefreshes += 1;
+      this.perfWork.waterSpritesChecked += this.waterSprites.length;
+    }
     const snapshot = this.bridge.getSnapshot();
     const camera = this.cameras.main;
     const padding = snapshot.cellSize * 1.5;
@@ -563,6 +596,10 @@ export class KingdomMapScene extends Phaser.Scene {
 
   private refreshCharacterVisibility(): void {
     if (this.characterViews.size === 0) return;
+    if (this.perfEnabled) {
+      this.perfWork.characterVisibilityRefreshes += 1;
+      this.perfWork.characterViewsChecked += this.characterViews.size;
+    }
     const snapshot = this.bridge.getSnapshot();
     const camera = this.cameras.main;
     const padding = snapshot.cellSize * 1.5;
@@ -582,6 +619,30 @@ export class KingdomMapScene extends Phaser.Scene {
       );
       if (characterView.root.visible !== visible) characterView.root.setVisible(visible);
     }
+  }
+
+  private applyCameraPan(dx: number, dy: number): void {
+    const camera = this.cameras.main;
+    if (this.perfEnabled) this.perfWork.panMoves += 1;
+    camera.scrollX -= dx / camera.zoom;
+    camera.scrollY -= dy / camera.zoom;
+    this.characterVisibilityDirty = true;
+    this.waterViewportDirty = true;
+    this.staticTileVisibilityDirty = true;
+  }
+
+  private applyCameraWheelZoom(pointerX: number, pointerY: number, dy: number): void {
+    const camera = this.cameras.main;
+    if (this.perfEnabled) this.perfWork.wheelEvents += 1;
+    const before = camera.getWorldPoint(pointerX, pointerY);
+    const nextZoom = Phaser.Math.Clamp(camera.zoom * (dy > 0 ? 0.9 : 1.1), 0.5, 3);
+    camera.setZoom(nextZoom);
+    const after = camera.getWorldPoint(pointerX, pointerY);
+    camera.scrollX += before.x - after.x;
+    camera.scrollY += before.y - after.y;
+    this.characterVisibilityDirty = true;
+    this.waterViewportDirty = true;
+    this.staticTileVisibilityDirty = true;
   }
 
   private configureCameraAndInput(): void {
@@ -605,11 +666,7 @@ export class KingdomMapScene extends Phaser.Scene {
       const dx = pointer.x - pointer.prevPosition.x;
       const dy = pointer.y - pointer.prevPosition.y;
       if (Math.abs(dx) + Math.abs(dy) > 2) this.dragged = true;
-      camera.scrollX -= dx / camera.zoom;
-      camera.scrollY -= dy / camera.zoom;
-      this.characterVisibilityDirty = true;
-      this.waterViewportDirty = true;
-      this.staticTileVisibilityDirty = true;
+      this.applyCameraPan(dx, dy);
     });
 
     this.input.on("pointerout", () => {
@@ -634,15 +691,7 @@ export class KingdomMapScene extends Phaser.Scene {
     this.input.on(
       "wheel",
       (pointer: Phaser.Input.Pointer, _objects: unknown, _dx: number, dy: number) => {
-        const before = camera.getWorldPoint(pointer.x, pointer.y);
-        const nextZoom = Phaser.Math.Clamp(camera.zoom * (dy > 0 ? 0.9 : 1.1), 0.5, 3);
-        camera.setZoom(nextZoom);
-        const after = camera.getWorldPoint(pointer.x, pointer.y);
-        camera.scrollX += before.x - after.x;
-        camera.scrollY += before.y - after.y;
-        this.characterVisibilityDirty = true;
-        this.waterViewportDirty = true;
-        this.staticTileVisibilityDirty = true;
+        this.applyCameraWheelZoom(pointer.x, pointer.y, dy);
       }
     );
   }

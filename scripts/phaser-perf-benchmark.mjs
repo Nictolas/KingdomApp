@@ -5,6 +5,7 @@ const warmupMs = Number(process.env.KINGDOM_BENCHMARK_WARMUP_MS ?? 2500);
 const sampleMs = Number(process.env.KINGDOM_BENCHMARK_SAMPLE_MS ?? 5000);
 const minSamples = Number(process.env.KINGDOM_BENCHMARK_MIN_SAMPLES ?? 30);
 const maxScenarioMs = Number(process.env.KINGDOM_BENCHMARK_MAX_SCENARIO_MS ?? 15000);
+const phaserCanvasSelector = "#kingdom-phaser-host canvas";
 
 const browser = await chromium.launch({
   headless: true,
@@ -22,6 +23,51 @@ async function currentMetrics(page) {
   });
 }
 
+async function currentWork(page) {
+  return page.evaluate(() => globalThis.__KINGDOM_PERF_WORK_SNAPSHOT__?.() ?? null);
+}
+
+async function resultWithWork(page, scenario, metrics) {
+  return { scenario, ...metrics, work: await currentWork(page) };
+}
+
+async function phaserCanvas(page) {
+  const canvas = page.locator(phaserCanvasSelector);
+  const count = await canvas.count();
+  if (count !== 1) throw new Error(`Expected exactly one Phaser canvas at ${phaserCanvasSelector}, found ${count}`);
+  return canvas;
+}
+
+async function dispatchPanGesture(page, direction) {
+  for (let step = 0; step < 10; step += 1) {
+    await page.evaluate(({ dx, dy }) => {
+      const pan = globalThis.__KINGDOM_PERF_PAN__;
+      if (typeof pan !== "function") throw new Error("Phaser perf pan hook is unavailable");
+      pan(dx, dy);
+    }, { dx: 36 * direction, dy: 8 * direction });
+    await page.waitForTimeout(16);
+  }
+}
+
+async function dispatchWheel(page, direction) {
+  await page.evaluate((dy) => {
+    const zoom = globalThis.__KINGDOM_PERF_ZOOM__;
+    if (typeof zoom !== "function") throw new Error("Phaser perf zoom hook is unavailable");
+    zoom(dy);
+  }, 180 * direction);
+}
+
+function assertScenarioInput(result) {
+  if (!result.work) throw new Error(`No culling work counters returned for ${result.scenario}`);
+  if (result.scenario === "pan" && result.work.panMoves <= 0) {
+    throw new Error(`Pan benchmark did not reach Phaser input: ${JSON.stringify(result.work)}`);
+  }
+  if (result.scenario === "zoom" && result.work.wheelEvents <= 0) {
+    throw new Error(`Zoom benchmark did not reach Phaser input: ${JSON.stringify(result.work)}`);
+  }
+  return result;
+}
+
 async function openScenario() {
   const page = await context.newPage();
   const diagnostics = [];
@@ -30,7 +76,8 @@ async function openScenario() {
     if (message.type() === "error") diagnostics.push(`console.error: ${message.text()}`);
   });
   await page.goto(`${baseUrl}/?perf=1`, { waitUntil: "networkidle", timeout: 120_000 });
-  await page.waitForSelector("canvas", { timeout: 120_000 });
+  await page.waitForSelector(phaserCanvasSelector, { timeout: 120_000, state: "visible" });
+  await phaserCanvas(page);
   try {
     await page.waitForFunction(
       () => {
@@ -63,7 +110,7 @@ async function waitForIdleMetrics(page, scenario) {
   while (Date.now() < deadline) {
     if (Date.now() >= minimumEndAt) {
       const metrics = await currentMetrics(page);
-      if (metrics?.sampleCount >= minSamples) return { scenario, ...metrics };
+      if (metrics?.sampleCount >= minSamples) return resultWithWork(page, scenario, metrics);
     }
     await page.waitForTimeout(100);
   }
@@ -83,68 +130,65 @@ async function idleScenario() {
 
 async function panScenario() {
   const page = await openScenario();
-  const canvas = page.locator("canvas").last();
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error("Phaser canvas has no bounding box");
-  const centerX = box.x + box.width / 2;
-  const centerY = box.y + box.height / 2;
   const startedAt = Date.now();
   const minimumEndAt = startedAt + sampleMs;
   const deadline = startedAt + Math.max(sampleMs, maxScenarioMs);
   let direction = 1;
 
   while (Date.now() < deadline) {
-    await page.mouse.move(centerX - 180 * direction, centerY);
-    await page.mouse.down();
-    await page.mouse.move(centerX + 180 * direction, centerY + 80 * direction, { steps: 10 });
-    await page.mouse.up();
-    direction *= -1;
-
-    if (Date.now() >= minimumEndAt) {
-      const metrics = await currentMetrics(page);
-      if (metrics?.sampleCount >= minSamples) {
-        await page.close();
-        return { scenario: "pan", ...metrics };
-      }
-    }
-  }
-
-  const metrics = await currentMetrics(page);
-  await page.close();
-  throw new Error(
-    `No usable performance sample for pan: ${metrics?.sampleCount ?? 0}/${minSamples} samples after ${Date.now() - startedAt} ms`
-  );
-}
-
-async function zoomScenario() {
-  const page = await openScenario();
-  const canvas = page.locator("canvas").last();
-  const box = await canvas.boundingBox();
-  if (!box) throw new Error("Phaser canvas has no bounding box");
-  await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
-  const startedAt = Date.now();
-  const minimumEndAt = startedAt + sampleMs;
-  const deadline = startedAt + Math.max(sampleMs, maxScenarioMs);
-  let direction = 1;
-
-  while (Date.now() < deadline) {
-    await page.mouse.wheel(0, 180 * direction);
+    await page.evaluate((dir) => {
+      globalThis.__KINGDOM_PERF_PAN__?.(360 * dir, 80 * dir);
+    }, direction);
     direction *= -1;
     await page.waitForTimeout(80);
 
     if (Date.now() >= minimumEndAt) {
       const metrics = await currentMetrics(page);
       if (metrics?.sampleCount >= minSamples) {
+        const result = assertScenarioInput(await resultWithWork(page, "pan", metrics));
         await page.close();
-        return { scenario: "zoom", ...metrics };
+        return result;
       }
     }
   }
 
   const metrics = await currentMetrics(page);
+  const work = await currentWork(page);
   await page.close();
   throw new Error(
-    `No usable performance sample for zoom: ${metrics?.sampleCount ?? 0}/${minSamples} samples after ${Date.now() - startedAt} ms`
+    `No usable performance sample for pan: ${metrics?.sampleCount ?? 0}/${minSamples} samples after ${Date.now() - startedAt} ms; work=${JSON.stringify(work)}`
+  );
+}
+
+async function zoomScenario() {
+  const page = await openScenario();
+  const startedAt = Date.now();
+  const minimumEndAt = startedAt + sampleMs;
+  const deadline = startedAt + Math.max(sampleMs, maxScenarioMs);
+  let direction = 1;
+
+  while (Date.now() < deadline) {
+    await page.evaluate((dir) => {
+      globalThis.__KINGDOM_PERF_ZOOM__?.(180 * dir);
+    }, direction);
+    direction *= -1;
+    await page.waitForTimeout(80);
+
+    if (Date.now() >= minimumEndAt) {
+      const metrics = await currentMetrics(page);
+      if (metrics?.sampleCount >= minSamples) {
+        const result = assertScenarioInput(await resultWithWork(page, "zoom", metrics));
+        await page.close();
+        return result;
+      }
+    }
+  }
+
+  const metrics = await currentMetrics(page);
+  const work = await currentWork(page);
+  await page.close();
+  throw new Error(
+    `No usable performance sample for zoom: ${metrics?.sampleCount ?? 0}/${minSamples} samples after ${Date.now() - startedAt} ms; work=${JSON.stringify(work)}`
   );
 }
 
