@@ -20,14 +20,18 @@ export default function GridGame() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={contentWrapStyle} showsVerticalScrollIndicator={false}>
-      {/* Navigazione: Colonia */}
+      {/* Navigazione: Regno */}
       <View style={styles.block}>
-        <Text style={styles.blockTitle}>🏘️ Colonia</Text>
+        <Text style={styles.blockTitle}>🏰 Regno</Text>
         <View style={[styles.navGrid, isDesktop && styles.navGridWide]}>
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/fazioni")}>
             <Text style={styles.navEmoji}>⚔️</Text>
             <Text style={styles.navLabel}>Fazioni</Text>
             <Text style={styles.navMeta}>{fazioni.length}</Text>
+          </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/religioni")}>
+            <Text style={styles.navEmoji}>⛪</Text>
+            <Text style={styles.navLabel}>Religioni</Text>
           </Pressable>
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/edifici")}>
             <Text style={styles.navEmoji}>🏗️</Text>
@@ -38,6 +42,10 @@ export default function GridGame() {
             <Text style={styles.navEmoji}>💎</Text>
             <Text style={styles.navLabel}>Ricchezza</Text>
             <Text style={styles.navMeta}>{abitanti.length}</Text>
+          </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/lavori")}>
+            <Text style={styles.navEmoji}>🛠️</Text>
+            <Text style={styles.navLabel}>Lavori</Text>
           </Pressable>
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/")}>
             <Text style={styles.navEmoji}>🗺️</Text>
@@ -86,6 +94,10 @@ export default function GridGame() {
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/eventi")}>
             <Text style={styles.navEmoji}>📌</Text>
             <Text style={styles.navLabel}>Eventi</Text>
+          </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/razze")}>
+            <Text style={styles.navEmoji}>🧬</Text>
+            <Text style={styles.navLabel}>Razze</Text>
           </Pressable>
         </View>
       </View>

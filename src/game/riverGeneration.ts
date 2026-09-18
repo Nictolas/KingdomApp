@@ -3,6 +3,8 @@
  * e direzione preferenziale. Supporta biforcazioni e biomi (sabbia adiacente).
  */
 
+import { cellaTerraSopraMare, getActiveCostaSud, isMareAttivo, MARE_PROFONDITA_MIN } from "./mareCosta";
+
 export type TerrenoType = "erba" | "river" | "sabbia";
 
 const DIR_SU = 0;
@@ -41,16 +43,7 @@ function rowColToIndex(row: number, col: number, cols: number): number {
 }
 
 function isOnBorder(row: number, col: number, rows: number, cols: number): boolean {
-  return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
-}
-
-/** Restituisce lato del bordo: 0=top, 1=right, 2=bottom, 3=left */
-function getEdge(row: number, col: number, rows: number, cols: number): number | null {
-  if (row === 0) return 0;
-  if (col === cols - 1) return 1;
-  if (row === rows - 1) return 2;
-  if (col === 0) return 3;
-  return null;
+  return isMareAttivo(row * cols + col, cols, rows);
 }
 
 /** Direzione preferenziale per fluire dall'edge dato verso l'interno */
@@ -58,31 +51,28 @@ function flowDirectionFromEdge(edge: number): number {
   return (edge + 2) % 4;
 }
 
-/** Sceglie un indice di partenza sulla prima fila di terra (un passo dentro dal bordo mare). edge 0=top, 1=right, 2=bottom, 3=left */
+/** Sceglie un indice di partenza sulla prima fila di terra sopra la costa sud. */
 function pickStartOnEdge(
-  edge: number,
+  _edge: number,
   rows: number,
   cols: number,
   forbidden: Set<number>,
   random: () => number
 ): number | null {
-  let row: number, col: number;
-  if (edge === 0) {
-    row = 1;
-    col = 1 + Math.floor(random() * (cols - 2));
-  } else if (edge === 1) {
-    row = 1 + Math.floor(random() * (rows - 2));
-    col = cols - 2;
-  } else if (edge === 2) {
-    row = rows - 2;
-    col = 1 + Math.floor(random() * (cols - 2));
-  } else {
-    row = 1 + Math.floor(random() * (rows - 2));
-    col = 1;
+  const depths = getActiveCostaSud();
+  for (let attempt = 0; attempt < Math.max(8, cols); attempt++) {
+    const col = Math.floor(random() * cols);
+    const idx =
+      depths && depths.length === cols
+        ? cellaTerraSopraMare(col, cols, rows, depths)
+        : (() => {
+            const row = rows - MARE_PROFONDITA_MIN - 1;
+            return row >= 0 ? row * cols + col : null;
+          })();
+    if (idx == null || forbidden.has(idx)) continue;
+    return idx;
   }
-  const idx = rowColToIndex(row, col, cols);
-  if (forbidden.has(idx)) return null;
-  return idx;
+  return null;
 }
 
 /** Vicini ortogonali con peso (stessa dir preferita, flow preferito). */
@@ -94,8 +84,7 @@ function getNeighbors(
   blocked: Set<number>
 ): Array<{ index: number; dir: number; weight: number }> {
   const [r, c] = indexToRowCol(index, cols);
-  const edge = r === 0 ? 0 : r === rows - 1 ? 2 : c === 0 ? 3 : 1;
-  const flowDir = flowDirectionFromEdge(edge);
+  const flowDir = DIR_SU; // fiumi dalla costa sud: preferenza verso l’interno (nord)
   const out: Array<{ index: number; dir: number; weight: number }> = [];
   for (let d = 0; d < 4; d++) {
     const [dr, dc] = DELTA[d];
@@ -121,9 +110,135 @@ function weightedPick<T>(items: Array<{ value: T; weight: number }>, random: () 
   return items[items.length - 1].value;
 }
 
+export type SingleRiverOptions = {
+  cols: number;
+  rows: number;
+  /** Altezza della fascia Bosco a nord: il fiume resta dritto su `gapCol`. */
+  boscoH: number;
+  /** Celle da evitare sotto il Bosco (edifici, mare). */
+  forbiddenIndices?: Set<number>;
+  /** Margine minimo a sinistra/destra per i due pezzi di Bosco. */
+  marginCols?: number;
+  seed?: number;
+  random?: () => number;
+};
+
+/**
+ * Un solo fiume: entra da nord (fuori mappa), colonna a caso tra i due Bosco,
+ * meandro leggero verso sud fino al mare. Larghezza 1, niente sabbia.
+ */
+export function generateSingleRiverNordToMare(options: SingleRiverOptions): {
+  riverIndices: number[];
+  gapCol: number;
+  sandIndices: number[];
+} {
+  const {
+    cols,
+    rows,
+    boscoH,
+    forbiddenIndices = new Set(),
+    marginCols = 2,
+    seed,
+    random: randomOpt
+  } = options;
+  const random = randomOpt ?? (seed !== undefined ? seededRandom(seed) : Math.random);
+  const margin = Math.max(2, Math.min(marginCols, Math.floor(cols / 2) - 1));
+  const lo = margin;
+  const hi = cols - 1 - margin;
+  const gapCol = lo >= hi ? Math.floor(cols / 2) : lo + Math.floor(random() * (hi - lo + 1));
+
+  const riverSet = new Set<number>();
+  const hBosco = Math.max(1, Math.min(boscoH, rows));
+
+  for (let r = 0; r < hBosco; r++) {
+    riverSet.add(rowColToIndex(r, gapCol, cols));
+  }
+
+  let row = hBosco;
+  let col = gapCol;
+  let dir = DIR_GIU;
+  let steps = 0;
+  const maxSteps = cols * rows;
+
+  while (row < rows && steps++ < maxSteps) {
+    const idx = rowColToIndex(row, col, cols);
+    if (isMareAttivo(idx, cols, rows)) break;
+    if (!forbiddenIndices.has(idx) || isMareAttivo(idx, cols, rows)) {
+      riverSet.add(idx);
+    }
+
+    const candidates: Array<{ row: number; col: number; dir: number; weight: number }> = [];
+    for (let d = 0; d < 4; d++) {
+      const [dr, dc] = DELTA[d]!;
+      const r2 = row + dr;
+      const c2 = col + dc;
+      if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) continue;
+      // Sotto il Bosco non rientrare nelle righe bosco.
+      if (r2 < hBosco) continue;
+      const i2 = rowColToIndex(r2, c2, cols);
+      if (isMareAttivo(i2, cols, rows)) {
+        candidates.push({ row: r2, col: c2, dir: d, weight: d === DIR_GIU ? 1 : 0.2 });
+        continue;
+      }
+      if (riverSet.has(i2)) continue;
+      // Mai attraversare edifici / celle vietate.
+      if (forbiddenIndices.has(i2)) continue;
+      let w = d === DIR_GIU ? 0.62 : d === dir ? 0.22 : 0.08;
+      if (d === DIR_SU) w *= 0.15;
+      if (w > 0) candidates.push({ row: r2, col: c2, dir: d, weight: w });
+    }
+
+    if (candidates.length === 0) {
+      // Cerca un bypass ortogonale (sinistra/destra) non vietato, poi sud.
+      let moved = false;
+      for (const dc of random() < 0.5 ? [-1, 1] : [1, -1]) {
+        const c2 = col + dc;
+        if (c2 < 0 || c2 >= cols) continue;
+        const i2 = rowColToIndex(row, c2, cols);
+        if (forbiddenIndices.has(i2) && !isMareAttivo(i2, cols, rows)) continue;
+        if (riverSet.has(i2)) continue;
+        col = c2;
+        moved = true;
+        break;
+      }
+      if (!moved && row + 1 < rows) {
+        const iSud = rowColToIndex(row + 1, col, cols);
+        if (!forbiddenIndices.has(iSud) || isMareAttivo(iSud, cols, rows)) {
+          row += 1;
+          continue;
+        }
+        // Sud bloccato: prova diagonali sud.
+        for (const dc of [-1, 1]) {
+          const c2 = col + dc;
+          if (c2 < 0 || c2 >= cols) continue;
+          const i2 = rowColToIndex(row + 1, c2, cols);
+          if (forbiddenIndices.has(i2) && !isMareAttivo(i2, cols, rows)) continue;
+          row += 1;
+          col = c2;
+          moved = true;
+          break;
+        }
+      }
+      if (!moved) break;
+      continue;
+    }
+
+    const chosen = weightedPick(
+      candidates.map((c) => ({ value: c, weight: c.weight })),
+      random
+    );
+    row = chosen.row;
+    col = chosen.col;
+    dir = chosen.dir;
+  }
+
+  return { riverIndices: Array.from(riverSet), gapCol, sandIndices: [] };
+}
+
 /**
  * Genera fiumi sulla griglia e restituisce gli insiemi di indici
  * per 'river' e per 'sabbia' (celle adiacenti al fiume, esclusa montagna).
+ * @deprecated Preferisci `generateSingleRiverNordToMare`.
  */
 export function generateRivers(options: RiverOptions): {
   riverIndices: number[];
@@ -143,7 +258,7 @@ export function generateRivers(options: RiverOptions): {
   const branches: Array<{ index: number; dir: number }> = [];
 
   for (let s = 0; s < numSources; s++) {
-    const edge = Math.floor(random() * 4);
+    const edge = 2; // solo costa sud
     const blocked = new Set(forbiddenIndices);
     const start = pickStartOnEdge(edge, rows, cols, blocked, random);
     if (start == null) continue;
@@ -352,7 +467,7 @@ export function applyTerrenoGrassAndSandContinuity(
 export function buildTerrenoFromRivers(
   riverIndices: number[],
   sandIndices: number[],
-  /** Indici da non marcare come sabbia (es. montagna/Giacimento) */
+  /** Indici da non marcare come sabbia (es. montagna/Miniera) */
   excludeFromSand?: Set<number>
 ): Record<number, TerrenoType> {
   const out: Record<number, TerrenoType> = {};
@@ -364,11 +479,9 @@ export function buildTerrenoFromRivers(
   return out;
 }
 
-/** Mare = bordo griglia (come `isAcqua` in app/mappa). */
+/** Mare = costa sud frastagliata (niente bordi laterali/nord). */
 export function isMareCell(index: number, cols: number, rows: number): boolean {
-  const row = Math.floor(index / cols);
-  const col = index % cols;
-  return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
+  return isMareAttivo(index, cols, rows);
 }
 
 /** Cella mare (bordo) o fiume. */
@@ -511,6 +624,7 @@ export function ensureNoDirectWaterAdjacencyForStradaAndErba(
     if (isMareCell(i, cols, rows)) continue;
     if ((terreno[i] ?? "erba") === "river") continue;
     if ((terreno[i] ?? "erba") !== "erba") continue;
+    // Sabbia costiera: mare e fiume (come le spiagge del mare).
     if (hasOrthogonalWaterNeighbor(i, terreno, cols, rows)) {
       terreno[i] = "sabbia";
     }
@@ -603,8 +717,7 @@ function pruneSandOrthogonallySurroundedByWaterOnly(
 }
 
 /**
- * Fascia di sabbia attorno all’acqua: solo dove la cella confina con acqua **e** ha già un attacco a
- * erba/sabbia (nessun cubetto di sola sabbia circondato da acqua; niente erba su quattro lati solo fiume/mare).
+ * Fascia di sabbia lungo mare e fiume (stesso trattamento della costa).
  */
 export function applySandAdjacentToAnyWater(
   terreno: Record<number, TerrenoType>,
@@ -626,11 +739,7 @@ export function applySandAdjacentToAnyWater(
       const c2 = c + dc;
       if (r2 < 0 || r2 >= rows || c2 < 0 || c2 >= cols) continue;
       const j = rowColToIndex(r2, c2, cols);
-      if (isMareCell(j, cols, rows)) {
-        vicinoAcqua = true;
-        break;
-      }
-      if ((terreno[j] ?? "erba") === "river") {
+      if (isMareCell(j, cols, rows) || (terreno[j] ?? "erba") === "river") {
         vicinoAcqua = true;
         break;
       }

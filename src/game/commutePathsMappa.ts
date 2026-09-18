@@ -1,13 +1,37 @@
 import type { Abitante, Edificio } from "../types";
+import {
+  deriveBuildingGeometry,
+  edificioHaIngressoPerimetrale,
+  celleIngressoSudFootprint,
+  NOME_BOSCO
+} from "./buildingGeometry";
+import { BOSCO_STRISCIA_H } from "./boscoMappa";
 import { abitanteHaBisognoMensa } from "./mensaPubblica";
 import { abitanteVuoleNegozio } from "./negozio";
-import {
-  abitanteVuolePrendereLavoro,
-  scegliAzioneTempoLibero
-} from "./bisogni";
+import { scegliAzioneTempoLibero } from "./bisogni";
 import { getCastaAbitante } from "./casta";
-import { elencoEdificiConPostoPerDisoccupato } from "./edificiLavoro";
-import { fasciaPerEdificio, minutiInFascia, primoEdificioLavoroOrarioPerAbitante } from "./orariLavoroMappa";
+import { disoccupatoIdoneoPerEmporio, emporioHaPostoLibero, trovaEmporioOperativo } from "./emporioLavoro";
+import { boscoHaPostoLibero, disoccupatoIdoneoPerBosco } from "./boscoRaccolta";
+import {
+  disoccupatoIdoneoPerMiniera,
+  minieraHaPostoLibero,
+  NOME_MINIERA
+} from "./minieraRaccolta";
+import {
+  castelloHaPostoLiberoPerGuardia,
+  disoccupatoIdoneoPerGuardia
+} from "./castelloGuardie";
+import { raccoglitorePuòVendereAllEmporio } from "./emporioVendita";
+import {
+  fasciaPerEdificio,
+  minutiInFascia,
+  primoEdificioLavoroOrarioPerAbitante,
+  destinazioneLavoroOrarioPerAbitante
+} from "./orariLavoroMappa";
+import {
+  edificioAccettaDisoccupatoCittadino,
+  isEdificioImpresa
+} from "./edificiLavoro";
 import {
   celleIngressoWalkableAttornoAdAnchor,
   orthogonalNeighbors,
@@ -15,6 +39,42 @@ import {
   trovaCellaWalkablePiuVicina,
   trovaPercorsoVersoCelle
 } from "./mappaPathfinding";
+
+/**
+ * Sedi per disoccupati in cerca lavoro, in ordine di priorità.
+ * Imprese (non Bosco/Miniera) → Castello → Miniera → Bosco sempre ultima.
+ */
+export function sediCercaLavoroDisoccupatoInOrdine(
+  abitante: Abitante,
+  edificiList: Edificio[],
+  abitantiTutti?: Abitante[]
+): Edificio[] {
+  // I Nobili non cercano lavoro (restano «in giro»).
+  if (getCastaAbitante(abitante) === "Nobile") return [];
+  const impreseConPosto = edificiList
+    .filter(
+      (e) =>
+        isEdificioImpresa(e) &&
+        e.nome !== NOME_BOSCO &&
+        e.nome !== NOME_MINIERA &&
+        e.stato === "Operativo"
+    )
+    .filter((e) => {
+      if (e.nome === "Emporio") {
+        return disoccupatoIdoneoPerEmporio(abitante) && emporioHaPostoLibero([e]) != null;
+      }
+      return edificioAccettaDisoccupatoCittadino(abitante, e, abitantiTutti);
+    })
+    .sort((a, b) => a.id - b.id);
+  const castello = disoccupatoIdoneoPerGuardia(abitante)
+    ? castelloHaPostoLiberoPerGuardia(edificiList, abitantiTutti)
+    : undefined;
+  const miniera = disoccupatoIdoneoPerMiniera(abitante)
+    ? minieraHaPostoLibero(edificiList)
+    : undefined;
+  const bosco = disoccupatoIdoneoPerBosco(abitante) ? boscoHaPostoLibero(edificiList) : undefined;
+  return [...impreseConPosto, castello, miniera, bosco].filter((e): e is Edificio => !!e);
+}
 
 /** Minimo tipo per celle edificio sulla mappa (come in app/mappa). */
 export type EdificioInCellaLike = {
@@ -62,23 +122,103 @@ export function trovaAnchorBarSuMappa(edificiInMappa: Record<number, EdificioInC
   return null;
 }
 
-/** Unico accesso frontale: cella esterna sotto la porta centrale del footprint. */
-export function trovaCellaPortaEdificio(
+/** Footprint Bosco: dati salvati sul footprint dell’anchor. */
+function footprintBoscoSuMappa(
+  _anchor: number,
+  edificio: EdificioInCellaLike,
+  _edificiInMappa: Record<number, EdificioInCellaLike>,
+  _cols: number,
+  rows: number
+): { w: number; h: number } {
+  const h = Math.min(edificio.footprint?.h ?? BOSCO_STRISCIA_H, rows);
+  const wSaved = edificio.footprint?.w ?? 1;
+  return { w: Math.max(1, wSaved), h };
+}
+
+/** Tutti gli anchor Bosco (due rettangoli nord). */
+export function trovaTuttiAnchorBosco(
+  edificiInMappa: Record<number, EdificioInCellaLike>
+): number[] {
+  const out: number[] = [];
+  for (const k of Object.keys(edificiInMappa)) {
+    const i = Number(k);
+    const e = edificiInMappa[i];
+    if (e?.nome === NOME_BOSCO && e.footprintRef == null) out.push(i);
+  }
+  return out;
+}
+
+/** Ingresso sud del Bosco più vicino alla colonna di `fromCell` (davanti a sé, non al centro). */
+export function scegliIngressoSudBoscoPiuVicino(
+  fromCell: number,
+  southEntries: readonly number[],
+  cols: number
+): number | null {
+  if (southEntries.length === 0) return null;
+  const fromCol = fromCell % cols;
+  let best = southEntries[0]!;
+  let bestD = Infinity;
+  for (const cell of southEntries) {
+    const d = Math.abs((cell % cols) - fromCol);
+    if (d < bestD) {
+      bestD = d;
+      best = cell;
+    }
+  }
+  return best;
+}
+
+/** Tutte le celle d’ingresso di un edificio (porta sud, oppure bordo sud per Bosco). */
+export function trovaCelleIngressoEdificio(
   anchor: number,
   edificiInMappa: Record<number, EdificioInCellaLike>,
   cols: number,
   rows: number,
   isWalkable: (i: number) => boolean
-): number | null {
+): number[] {
   const edificio = edificiInMappa[anchor];
+  if (edificio?.nome === NOME_BOSCO || (edificio && edificioHaIngressoPerimetrale(edificio.nome))) {
+    const { w, h } = footprintBoscoSuMappa(anchor, edificio, edificiInMappa, cols, rows);
+    const sud = celleIngressoSudFootprint(anchor, w, h, cols, rows);
+    const walkable = sud.filter(isWalkable);
+    return walkable.length > 0 ? walkable : sud;
+  }
   const footprint = edificio?.footprint ?? { w: 1, h: 1 };
-  const anchorCol = anchor % cols;
-  const anchorRow = Math.floor(anchor / cols);
-  const doorCol = anchorCol + Math.floor(footprint.w / 2);
-  const doorRow = anchorRow + footprint.h;
-  if (doorCol < 0 || doorCol >= cols || doorRow < 0 || doorRow >= rows) return null;
-  const doorCell = doorRow * cols + doorCol;
-  return isWalkable(doorCell) ? doorCell : null;
+  const geometry = deriveBuildingGeometry(anchor, footprint.w, footprint.h, cols, rows);
+  const entryCell = geometry.entryPoint.cell;
+  if (geometry.entryPoint.y < geometry.footprint.row + geometry.footprint.height) return [];
+  return isWalkable(entryCell) ? [entryCell] : [];
+}
+
+/**
+ * Un accesso: porta sud (edifici normali) oppure, per Bosco, una cella del perimetro
+ * (preferita quella più vicina a `versoCell` se indicata).
+ */
+export function trovaCellaPortaEdificio(
+  anchor: number,
+  edificiInMappa: Record<number, EdificioInCellaLike>,
+  cols: number,
+  rows: number,
+  isWalkable: (i: number) => boolean,
+  versoCell?: number | null
+): number | null {
+  const cells = trovaCelleIngressoEdificio(anchor, edificiInMappa, cols, rows, isWalkable);
+  if (cells.length === 0) return null;
+  if (versoCell == null || cells.length === 1) return cells[0]!;
+  const vc = versoCell % cols;
+  const vr = Math.floor(versoCell / cols);
+  let best = cells[0]!;
+  let bestDist = Infinity;
+  for (const cell of cells) {
+    const c = cell % cols;
+    const r = Math.floor(cell / cols);
+    const d = Math.abs(c - vc) + Math.abs(r - vr);
+    if (d < bestDist) {
+      bestDist = d;
+      best = cell;
+    }
+  }
+  return best;
 }
 
 /**
@@ -181,12 +321,28 @@ export function calcolaPercorsoVersoAnchorEdificio(
   isWalkable: (i: number) => boolean,
   edificiInMappa?: Record<number, EdificioInCellaLike>
 ): number[] | null {
-  const portaDest = edificiInMappa
-    ? trovaCellaPortaEdificio(anchorDest, edificiInMappa, cols, rows, isWalkable)
-    : null;
+  const destNome = edificiInMappa?.[anchorDest]?.nome;
+  const èBosco = destNome === NOME_BOSCO;
+
   const goals = new Set<number>();
-  if (portaDest != null) goals.add(portaDest);
-  if (!edificiInMappa) {
+  if (edificiInMappa) {
+    if (èBosco) {
+      // Tutti gli ingressi sud di entrambi i rettangoli Bosco; meta = colonna più vicina.
+      const anchors = trovaTuttiAnchorBosco(edificiInMappa);
+      const sud: number[] = [];
+      for (const a of anchors.length > 0 ? anchors : [anchorDest]) {
+        for (const cell of trovaCelleIngressoEdificio(a, edificiInMappa, cols, rows, () => true)) {
+          sud.push(cell);
+        }
+      }
+      const nearest = scegliIngressoSudBoscoPiuVicino(fromCellPreferita, sud, cols);
+      if (nearest != null) goals.add(nearest);
+    } else {
+      for (const cell of trovaCelleIngressoEdificio(anchorDest, edificiInMappa, cols, rows, isWalkable)) {
+        goals.add(cell);
+      }
+    }
+  } else {
     for (const cell of celleIngressoWalkableAttornoAdAnchor(anchorDest, cols, rows, isWalkable)) goals.add(cell);
   }
   if (goals.size === 0 && !edificiInMappa) {
@@ -201,9 +357,24 @@ export function calcolaPercorsoVersoAnchorEdificio(
   );
   if (edificiInMappa && parteDaEdificio) {
     const sourceAnchor = getAnchorCellPerEdificio(fromCellPreferita, edificiInMappa);
-    start = trovaCellaPortaEdificio(sourceAnchor, edificiInMappa, cols, rows, isWalkable);
+    const sampleGoal = goals.values().next().value as number | undefined;
+    start = trovaCellaPortaEdificio(
+      sourceAnchor,
+      edificiInMappa,
+      cols,
+      rows,
+      isWalkable,
+      sampleGoal ?? fromCellPreferita
+    );
   } else {
-    start = scegliCellaPartenzaWalkable(fromCellPreferita, anchorDest, cols, rows, isWalkable);
+    const sample = goals.values().next().value as number | undefined;
+    start = scegliCellaPartenzaWalkable(
+      fromCellPreferita,
+      sample ?? anchorDest,
+      cols,
+      rows,
+      isWalkable
+    );
   }
   if (parteDaEdificio && start == null) return null;
   if (start == null || !isWalkable(start)) {
@@ -213,7 +384,12 @@ export function calcolaPercorsoVersoAnchorEdificio(
   }
   if (start == null || !isWalkable(start)) return null;
 
-  return trovaPercorsoVersoCelle(start, goals, cols, rows, isWalkable);
+  // Bosco: la cella d’ingresso scelta resta raggiungibile anche con decorazione sopra.
+  const goalUnica = èBosco ? ([...goals][0] ?? null) : null;
+  const walk =
+    goalUnica != null ? (i: number) => i === goalUnica || isWalkable(i) : isWalkable;
+
+  return trovaPercorsoVersoCelle(start, goals, cols, rows, walk);
 }
 
 export function pianificaCommuteVersoBarDaCella(
@@ -244,11 +420,13 @@ export function pianificaCommuteVersoEdificioGlobaleDaCella(
 
 export type RisultatoCommuteMattina = {
   path: number[] | null;
-  purpose?: "work" | "bar" | "mensa" | "home" | "negozio" | "rapina" | "cerca_lavoro";
+  purpose?: "work" | "bar" | "mensa" | "home" | "negozio" | "rapina" | "cerca_lavoro" | "vende_emporio";
   barEdificioId?: number;
   mensaEdificioId?: number;
   negozioEdificioId?: number;
   lavoroCercaEdificioId?: number;
+  lavoroEdificioId?: number;
+  emporioVenditaEdificioId?: number;
 };
 
 /**
@@ -264,7 +442,7 @@ export function pianificaCommuteMattina(
   rows: number,
   isWalkable: (i: number) => boolean,
   minutiDaMezzanotte: number,
-  optsExtra?: { puòRapinare?: boolean }
+  optsExtra?: { puòRapinare?: boolean; abitantiTutti?: Abitante[] }
 ): RisultatoCommuteMattina {
   if (abitante.razza === "Golem") return { path: null };
 
@@ -272,6 +450,7 @@ export function pianificaCommuteMattina(
   const haCasa = homeAnchor != null;
   const puòMensa = abitanteHaBisognoMensa(abitante, edificiList);
   const puòNegozio = abitanteVuoleNegozio(abitante, edificiList);
+  const abitantiTutti = optsExtra?.abitantiTutti ?? [abitante];
   const azioneLibera = scegliAzioneTempoLibero(abitante, {
     puòUsareMensa: puòMensa,
     puòUsareNegozio: puòNegozio,
@@ -326,37 +505,42 @@ export function pianificaCommuteMattina(
   };
 
   const pathVersoLavoro = (): RisultatoCommuteMattina => {
-    const lavoro = primoEdificioLavoroOrarioPerAbitante(abitante.id, edificiList);
+    const lavoro = destinazioneLavoroOrarioPerAbitante(abitante.id, edificiList, abitantiTutti);
     if (!lavoro) return { path: null };
     const wAnchor = trovaAnchorEdificioGlobaleSuMappa(lavoro.id, edificiInMappa);
     if (wAnchor == null) return { path: null };
     const from = fromBase ?? wAnchor;
     const path = calcolaPercorsoVersoAnchorEdificio(from, wAnchor, cols, rows, isWalkable, edificiInMappa);
-    return path != null ? { path, purpose: "work" } : { path: null };
+    return path != null ? { path, purpose: "work", lavoroEdificioId: lavoro.id } : { path: null };
+  };
+
+  const pathVersoVendeEmporio = (): RisultatoCommuteMattina => {
+    if (!raccoglitorePuòVendereAllEmporio(abitante, edificiList, abitantiTutti)) {
+      return { path: null };
+    }
+    const emporio = trovaEmporioOperativo(edificiList);
+    if (!emporio) return { path: null };
+    const anchor = trovaAnchorEdificioGlobaleSuMappa(emporio.id, edificiInMappa);
+    if (anchor == null) return { path: null };
+    const from = fromBase ?? anchor;
+    const path = calcolaPercorsoVersoAnchorEdificio(from, anchor, cols, rows, isWalkable, edificiInMappa);
+    return path != null
+      ? { path, purpose: "vende_emporio", emporioVenditaEdificioId: emporio.id }
+      : { path: null };
   };
 
   const pathVersoCercaLavoro = (): RisultatoCommuteMattina => {
-    if (getCastaAbitante(abitante) !== "Cittadino") return { path: null };
-    if (!abitanteVuolePrendereLavoro(abitante)) return { path: null };
-    const posti = elencoEdificiConPostoPerDisoccupato(abitante, edificiList);
-    if (posti.length === 0) return { path: null };
-    let bestId: number | null = null;
-    let bestLen = Infinity;
-    let bestPath: number[] | null = null;
-    for (const e of posti) {
-      const anchor = trovaAnchorEdificioGlobaleSuMappa(e.id, edificiInMappa);
+    const candidati = sediCercaLavoroDisoccupatoInOrdine(abitante, edificiList, abitantiTutti);
+    if (candidati.length === 0) return { path: null };
+    for (const edificio of candidati) {
+      const anchor = trovaAnchorEdificioGlobaleSuMappa(edificio.id, edificiInMappa);
       if (anchor == null) continue;
       const from = fromBase ?? anchor;
       const path = calcolaPercorsoVersoAnchorEdificio(from, anchor, cols, rows, isWalkable, edificiInMappa);
       if (path == null || path.length < 2) continue;
-      if (path.length < bestLen) {
-        bestLen = path.length;
-        bestId = e.id;
-        bestPath = path;
-      }
+      return { path, purpose: "cerca_lavoro", lavoroCercaEdificioId: edificio.id };
     }
-    if (bestId == null || bestPath == null) return { path: null };
-    return { path: bestPath, purpose: "cerca_lavoro", lavoroCercaEdificioId: bestId };
+    return { path: null };
   };
 
   const provaAzioneLibera = (): RisultatoCommuteMattina => {
@@ -381,7 +565,7 @@ export function pianificaCommuteMattina(
     return { path: null };
   };
 
-  const lavoro = primoEdificioLavoroOrarioPerAbitante(abitante.id, edificiList);
+  const lavoro = primoEdificioLavoroOrarioPerAbitante(abitante.id, edificiList, abitantiTutti);
   if (lavoro) {
     const fascia = fasciaPerEdificio(lavoro);
     if (fascia && minutiInFascia(minutiDaMezzanotte, fascia)) {
@@ -397,16 +581,28 @@ export function pianificaCommuteMattina(
       if (azioneLibera === "rapina") return { path: null, purpose: "rapina" };
       const w = pathVersoLavoro();
       if (w.path != null && w.path.length >= 2) return w;
-      return provaAzioneLibera();
+      if (w.path != null && w.path.length >= 1) return w; // già all’ingresso
+      // Lavoro in fascia ma irraggiungibile: non dirottare su bar/casa (la mappa ricolloca).
+      return {
+        path: null,
+        purpose: "work",
+        lavoroEdificioId:
+          destinazioneLavoroOrarioPerAbitante(abitante.id, edificiList, abitantiTutti)?.id ??
+          lavoro.id
+      };
     }
   }
 
-  // Fame critica: prima cibo/rapina, poi cerca lavoro per guadagnare monete.
+  // Fame critica: prima cibo/rapina, poi vendita eccedenze, poi cerca lavoro.
   if (azioneLibera === "mensa" || azioneLibera === "negozio" || azioneLibera === "rapina") {
     const urgente = provaAzioneLibera();
     if (urgente.path != null && urgente.path.length >= 2) return urgente;
     if (urgente.purpose === "rapina") return urgente;
   }
+
+  // Fuori orario lavoro: Raccoglitore/Agricoltore con eccedenza cibo → Emporio.
+  const vendita = pathVersoVendeEmporio();
+  if (vendita.path != null && vendita.path.length >= 2) return vendita;
 
   const cerca = pathVersoCercaLavoro();
   if (cerca.path != null && cerca.path.length >= 2) return cerca;
@@ -426,4 +622,33 @@ export function pianificaCommuteSeraACasa(
   edificiInMappa?: Record<number, EdificioInCellaLike>
 ): number[] | null {
   return calcolaPercorsoVersoAnchorEdificio(fromCell, homeAnchor, cols, rows, isWalkable, edificiInMappa);
+}
+
+/**
+ * Path di uscita dal Castello: parte dalla porta (entry), poi qualche passo su terra walkable.
+ * Garantisce almeno 2 celle quando c’è un vicino walkable (Phaser richiede length ≥ 2 per animare).
+ */
+export function pianificaUscitaDalCastello(
+  castelloAnchor: number,
+  edificiInMappa: Record<number, EdificioInCellaLike>,
+  cols: number,
+  rows: number,
+  isWalkable: (i: number) => boolean
+): number[] | null {
+  const porta = trovaCellaPortaEdificio(castelloAnchor, edificiInMappa, cols, rows, isWalkable);
+  if (porta == null) return null;
+  const path: number[] = [porta];
+  let cur = porta;
+  for (let step = 0; step < 4; step++) {
+    const col = cur % cols;
+    const neighbors = [cur + cols, cur - cols, col > 0 ? cur - 1 : -1, col < cols - 1 ? cur + 1 : -1].filter(
+      (n) => n >= 0 && n < cols * rows && isWalkable(n) && !path.includes(n)
+    );
+    if (neighbors.length === 0) break;
+    // Preferisci andare verso sud (lontano dal Castello).
+    neighbors.sort((a, b) => Math.floor(b / cols) - Math.floor(a / cols));
+    cur = neighbors[0]!;
+    path.push(cur);
+  }
+  return path;
 }

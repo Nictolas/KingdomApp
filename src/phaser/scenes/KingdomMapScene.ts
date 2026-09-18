@@ -39,15 +39,31 @@ function frameKey(x: number, y: number): string {
   return `${x}:${y}`;
 }
 
+const LPC_WALK_COLUMNS = 9;
+const LPC_FRAME_SIZE = 64;
+
+function lpcTextureKey(sourceId: string): string {
+  return `lpc-${sourceId}`;
+}
+
+function lpcDirectionRow(direction: 0 | 1 | 2 | 3): number {
+  // Phaser legacy: down=0, left=1, right=2, up=3. LPC: up=0, left=1, down=2, right=3.
+  return direction === 0 ? 2 : direction === 1 ? 1 : direction === 2 ? 3 : 0;
+}
+
 export type PhaserArtAssetUrls = {
   human: string;
   golem: string;
   buildings: Record<NonNullable<PhaserMapBuilding["artKey"]>, string>;
+  lpc: Record<string, string>;
 };
 
 type CharacterView = {
   root: Phaser.GameObjects.Container;
-  sprite: Phaser.GameObjects.Sprite;
+  sprites: Phaser.GameObjects.Sprite[];
+  selectionRing: Phaser.GameObjects.Ellipse;
+  visualKey: string;
+  lpc: boolean;
   token: number;
   direction: 0 | 1 | 2 | 3;
 };
@@ -101,6 +117,7 @@ export class KingdomMapScene extends Phaser.Scene {
   private dragged = false;
   private hoveredCell: number | null = null;
   private readonly characterLastPressAt = new Map<number, number>();
+  private readonly loadingLpcSourceIds = new Set<string>();
 
   constructor(bridge: MapSceneBridge, sheetUrl: string, artUrls: PhaserArtAssetUrls) {
     super({ key: "kingdom-map" });
@@ -114,6 +131,33 @@ export class KingdomMapScene extends Phaser.Scene {
     this.load.spritesheet(HUMAN_KEY, this.artUrls.human, { frameWidth: 64, frameHeight: 64 });
     this.load.spritesheet(GOLEM_KEY, this.artUrls.golem, { frameWidth: 64, frameHeight: 64 });
     for (const [key, url] of Object.entries(this.artUrls.buildings)) this.load.image(key, url);
+    for (const [sourceId, url] of Object.entries(this.artUrls.lpc)) {
+      this.load.spritesheet(lpcTextureKey(sourceId), url, { frameWidth: LPC_FRAME_SIZE, frameHeight: LPC_FRAME_SIZE });
+    }
+  }
+
+  /** Registra eventuali layer LPC comparsi dopo l'avvio (es. nuovi immigrati). */
+  registerLpcAssetUrls(urls: Record<string, string>): void {
+    const queued: string[] = [];
+    for (const [sourceId, url] of Object.entries(urls)) {
+      this.artUrls.lpc[sourceId] = url;
+      const textureKey = lpcTextureKey(sourceId);
+      if (this.textures?.exists(textureKey)) {
+        this.configureLpcAnimations([sourceId]);
+        continue;
+      }
+      if (!this.sys?.isActive() || this.loadingLpcSourceIds.has(sourceId)) continue;
+      this.loadingLpcSourceIds.add(sourceId);
+      queued.push(sourceId);
+      this.load.spritesheet(textureKey, url, { frameWidth: LPC_FRAME_SIZE, frameHeight: LPC_FRAME_SIZE });
+    }
+    if (queued.length === 0) return;
+    this.load.once(Phaser.Loader.Events.COMPLETE, () => {
+      for (const sourceId of queued) this.loadingLpcSourceIds.delete(sourceId);
+      this.configureLpcAnimations(queued);
+      this.reconcileCharacters(this.bridge.getSnapshot());
+    });
+    this.load.start();
   }
 
   create(): void {
@@ -153,6 +197,7 @@ export class KingdomMapScene extends Phaser.Scene {
       }).setScrollFactor(0).setDepth(INTERACTION_LAYER_DEPTH + 100);
     }
     this.configureCharacterAnimations();
+    this.configureLpcAnimations(Object.keys(this.artUrls.lpc));
     this.configureTextureFrames(this.bridge.getSnapshot());
     this.renderSnapshot(this.bridge.getSnapshot());
     this.configureCameraAndInput();
@@ -181,10 +226,33 @@ export class KingdomMapScene extends Phaser.Scene {
   private configureCharacterAnimations(): void {
     for (const texture of [HUMAN_KEY, GOLEM_KEY]) {
       for (const [name, direction] of [["down", 0], ["left", 1], ["right", 2], ["up", 3]] as const) {
+        const key = `${texture}-walk-${name}`;
+        if (this.anims.exists(key)) continue;
         this.anims.create({
-          key: `${texture}-walk-${name}`,
+          key,
           frames: [direction, 4 + direction, 8 + direction, 4 + direction].map((frame) => ({ key: texture, frame })),
           frameRate: 8,
+          repeat: -1
+        });
+      }
+    }
+  }
+
+  private configureLpcAnimations(sourceIds: readonly string[]): void {
+    for (const sourceId of sourceIds) {
+      const texture = lpcTextureKey(sourceId);
+      if (!this.textures.exists(texture)) continue;
+      for (const [name, direction] of [["down", 0], ["left", 1], ["right", 2], ["up", 3]] as const) {
+        const key = `${texture}-walk-${name}`;
+        if (this.anims.exists(key)) continue;
+        const row = lpcDirectionRow(direction);
+        this.anims.create({
+          key,
+          frames: Array.from({ length: LPC_WALK_COLUMNS }, (_, column) => ({
+            key: texture,
+            frame: row * LPC_WALK_COLUMNS + column
+          })),
+          frameRate: 10,
           repeat: -1
         });
       }
@@ -333,17 +401,58 @@ export class KingdomMapScene extends Phaser.Scene {
 
     for (const character of snapshot.characters) {
       const token = character.pathToken ?? 0;
+      const requestedLpcLayers = character.appearance === "lpc"
+        ? [...(character.lpcLayers ?? [])].sort((a, b) => a.zPos - b.zPos)
+        : [];
+      const allLpcTexturesReady = requestedLpcLayers.length > 0 && requestedLpcLayers.every((layer) =>
+        this.textures.exists(lpcTextureKey(layer.sourceId))
+      );
+      const visualKey = allLpcTexturesReady
+        ? `lpc:${requestedLpcLayers.map((layer) => layer.sourceId).join(",")}`
+        : character.appearance === "golem"
+          ? "golem"
+          : "human";
       let view = this.characterViews.get(character.id);
+      if (view && view.visualKey !== visualKey) {
+        view.root.destroy(true);
+        this.characterViews.delete(character.id);
+        view = undefined;
+      }
+
       if (!view) {
         const root = this.add.container(0, 0);
-        const texture = character.appearance === "golem" ? GOLEM_KEY : HUMAN_KEY;
-        const sprite = this.add.sprite(0, -snapshot.cellSize * 0.2, texture, 0)
-          .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
+        const selectionRing = this.add.ellipse(
+          0,
+          snapshot.cellSize * 0.2,
+          snapshot.cellSize * 0.78,
+          snapshot.cellSize * 0.34,
+          0x22c55e,
+          0.14
+        ).setStrokeStyle(2, 0x22c55e, 0.98).setVisible(character.selected === true);
+        root.add(selectionRing);
+
+        const sprites: Phaser.GameObjects.Sprite[] = [];
+        if (allLpcTexturesReady) {
+          for (const layer of requestedLpcLayers) {
+            const texture = lpcTextureKey(layer.sourceId);
+            const sprite = this.add.sprite(0, -snapshot.cellSize * 0.24, texture, lpcDirectionRow(0) * LPC_WALK_COLUMNS)
+              .setDisplaySize(snapshot.cellSize * 1.22, snapshot.cellSize * 1.22)
+              .setDepth(layer.zPos);
+            sprites.push(sprite);
+            root.add(sprite);
+          }
+        } else {
+          const texture = character.appearance === "golem" ? GOLEM_KEY : HUMAN_KEY;
+          const sprite = this.add.sprite(0, -snapshot.cellSize * 0.2, texture, 0)
+            .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
+          sprites.push(sprite);
+          root.add(sprite);
+        }
+
         if (!character.appearance && character.markerEmoji) {
-          sprite.setVisible(false);
+          for (const sprite of sprites) sprite.setVisible(false);
           root.add(this.add.text(0, -snapshot.cellSize * 0.2, character.markerEmoji, { fontSize: "26px" }).setOrigin(0.5));
         }
-        root.add(sprite);
         root.add(this.add.text(0, snapshot.cellSize * 0.34, character.name, {
           fontSize: "9px", color: "#ffffff", backgroundColor: "rgba(2,6,23,0.7)", padding: { x: 2, y: 1 }
         }).setOrigin(0.5));
@@ -357,9 +466,11 @@ export class KingdomMapScene extends Phaser.Scene {
           this.characterLastPressAt.set(character.id, now);
           this.bridge.pressCharacter(character.id, doublePress);
         });
-        view = { root, sprite, token: -1, direction: 0 };
+        view = { root, sprites, selectionRing, visualKey, lpc: allLpcTexturesReady, token: -1, direction: 0 };
         this.characterViews.set(character.id, view);
       }
+
+      view.selectionRing.setVisible(character.selected === true);
       if (view.token === token) continue;
       this.tweens.killTweensOf(view.root);
       const start = character.path?.[0] ?? character.cell;
@@ -380,16 +491,18 @@ export class KingdomMapScene extends Phaser.Scene {
               duration: 320,
               ease: "Linear",
               onStart: () => {
-                animatedView.sprite.play(`${animatedView.sprite.texture.key}-walk-${this.directionName(direction)}`, true);
+                this.playCharacterWalk(animatedView, direction);
                 animatedView.direction = direction;
               }
             };
           }),
           onComplete: () => {
-            animatedView.sprite.stop().setFrame(animatedView.direction);
+            this.stopCharacterWalk(animatedView);
             this.bridge.completeCharacterPath(character.id, token);
           }
         });
+      } else {
+        this.stopCharacterWalk(view);
       }
     }
     this.characterVisibilityDirty = true;
@@ -405,6 +518,22 @@ export class KingdomMapScene extends Phaser.Scene {
 
   private directionName(direction: 0 | 1 | 2 | 3): "down" | "left" | "right" | "up" {
     return (["down", "left", "right", "up"] as const)[direction];
+  }
+
+  private playCharacterWalk(view: CharacterView, direction: 0 | 1 | 2 | 3): void {
+    for (const sprite of view.sprites) {
+      const animationKey = view.lpc
+        ? `${sprite.texture.key}-walk-${this.directionName(direction)}`
+        : `${sprite.texture.key}-walk-${this.directionName(direction)}`;
+      if (this.anims.exists(animationKey)) sprite.play(animationKey, true);
+    }
+  }
+
+  private stopCharacterWalk(view: CharacterView): void {
+    for (const sprite of view.sprites) {
+      sprite.stop();
+      sprite.setFrame(view.lpc ? lpcDirectionRow(view.direction) * LPC_WALK_COLUMNS : view.direction);
+    }
   }
 
   private characterPosition(cell: number, snapshot: PhaserMapSnapshot): { x: number; y: number } {

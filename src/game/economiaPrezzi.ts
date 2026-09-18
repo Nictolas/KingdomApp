@@ -1,7 +1,8 @@
 /**
  * Tabella prezzi canonica (scala monete).
- * Unità: 1 moneta ≈ 1 giorno di stipendio base pubblico.
- * Unica cassa colonia = Tesoro (`moneteGiocatore`): stipendi, mercato, affitti, eventi.
+ * Unità: 1 moneta ≈ 1 giorno di stipendio base.
+ * Tesoro regno = `moneteGiocatore` (stipendi pubblici, mercato, affitti, eventi).
+ * Imprese: cassa propria (`edificio.cassaMonete`) per stipendi privati.
  */
 
 /** Giorni di lavoro simulati per mese (stipendi). */
@@ -14,7 +15,7 @@ export const STIPENDIO_BASE_MONETE_GIORNO = 1;
 export const STIPENDIO_BASE_MONETE_MESE = STIPENDIO_BASE_MONETE_GIORNO * GIORNI_MESE_ECONOMIA;
 
 /** Costo monete per entrare al bar. */
-export const COSTO_BAR_MONETE = 2;
+export const COSTO_BAR_MONETE = 1;
 
 /** Prezzo monete per 1 unità di cibo base al Negozio. */
 export const PREZZO_CIBO_NEGOZIO = 3;
@@ -28,15 +29,30 @@ export const MONETE_INVENTARIO_SEED_MAX = 40;
 export const MONETE_INVENTARIO_SEED_DEFAULT = 30;
 
 /**
- * Tesoro iniziale (ex monete stipendi 500 + ex Crediti colonia 1250).
+ * Tesoro iniziale (ex monete stipendi 500 + ex Crediti regno 1250).
  */
-export const MONETE_GIOCATORE_INIZIALI = 1750;
+export const MONETE_GIOCATORE_INIZIALI = 1850;
+
+/** Seed cassa per nuove Imprese (evita fallimento al giorno 1). */
+export const CASSA_IMPRESA_SEED = 10;
+
+/** Aliquota tassa impresa (% fatturato mensile da Cassa → Tesoro). */
+export const TASSA_IMPRESA_PERCENTUALE = 10;
 
 /** Assegno pensionati default (monete/mese). */
 export const ASSEGNO_PENSIONATI_DEFAULT = 12;
 
 /** Reddito di cittadinanza default (monete/mese); 0 = disattivato. */
 export const REDDITO_CITTADINANZA_DEFAULT = 0;
+
+/** Aliquota default Tassa sul Patrimonio (% monete in inventario / mese). */
+export const TASSA_PATRIMONIO_PERCENTUALE_DEFAULT = 5;
+
+/** Aliquota default Imposta sul Valore Aggiunto (% valore produzione / mese). */
+export const IVA_PERCENTUALE_DEFAULT = 10;
+
+/** Prezzo monete per 1 unità di output stimata (base imponibile IVA). */
+export const PREZZO_UNITA_VALORE_AGGIUNTO = 1;
 
 /**
  * Affitti mensili (monete) per nome residenza.

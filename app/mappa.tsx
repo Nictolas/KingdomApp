@@ -65,6 +65,8 @@ import { RichiesteModal } from "../src/ui/RichiesteModal";
 import { EventiModal } from "../src/ui/EventiModal";
 import { calcolaEventiUI } from "../src/game/eventiDisponibili";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
+import { getCharacterAppearanceAbitante } from "../src/game/abitanteAspettoLpc";
+import { resolveCharacterLayers } from "../src/character-system/registry";
 import {
   RpgFootprintAdmin3x2,
   RpgFootprintCapanna2x1,
@@ -3045,17 +3047,26 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       const home = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
       const fallback = (6 + Math.floor(order / 10) * 2) * cols + 3 + (order % 10) * 3;
       const cell = ultimaCellaAbitanteRef.current.get(abitante.id) ?? home ?? fallback;
+      const characterAppearance = getCharacterAppearanceAbitante(abitante);
+      const lpcLayers = characterAppearance
+        ? resolveCharacterLayers(characterAppearance, "walk").map((layer) => ({
+            sourceId: layer.sourceId,
+            zPos: layer.zPos
+          }))
+        : [];
       return {
         id: abitante.id,
         name: abitante.nome,
         cell,
         path: commute?.path,
         pathToken: commute?.token ?? 0,
-        appearance: abitante.razza === "Golem" ? "golem" : "human",
-        markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined
+        appearance: abitante.razza === "Golem" ? "golem" : lpcLayers.length > 0 ? "lpc" : "human",
+        lpcLayers: lpcLayers.length > 0 ? lpcLayers : undefined,
+        markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined,
+        selected: abitante.id === sintesiMappaAbitanteId
       };
     }),
-  [abitantiPerOverlayMappa, commuteByAbitanteId, cellaCasaPerAbitanteId, cols]);
+  [abitantiPerOverlayMappa, commuteByAbitanteId, cellaCasaPerAbitanteId, cols, sintesiMappaAbitanteId]);
 
   const phaserRevisionRef = useRef(0);
   const phaserBaseSnapshot = useMemo(

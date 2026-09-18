@@ -17,6 +17,11 @@ export type PhaserMapBuilding = {
   artKey?: "command-center" | "dormitory" | "greenhouse" | "frontier-hut";
 };
 
+export type PhaserMapCharacterLpcLayer = {
+  sourceId: string;
+  zPos: number;
+};
+
 export type PhaserMapCharacter = {
   id: number;
   name: string;
@@ -24,7 +29,11 @@ export type PhaserMapCharacter = {
   path?: readonly number[];
   pathToken?: number;
   markerEmoji?: string;
-  appearance?: "human" | "golem";
+  appearance?: "human" | "golem" | "lpc";
+  /** Layer Universal LPC già risolti per la camminata del singolo abitante. */
+  lpcLayers?: readonly PhaserMapCharacterLpcLayer[];
+  /** Evidenzia l'abitante attualmente selezionato sulla mappa. */
+  selected?: boolean;
 };
 
 export type PhaserMapInteraction = {

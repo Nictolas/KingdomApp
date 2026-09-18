@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dimensions,
   Modal,
@@ -53,7 +53,12 @@ export type DatiCreazioneGiocatore = {
 
 type CreazioneGiocatoreModalProps = {
   visible: boolean;
-  onConferma: (dati: DatiCreazioneGiocatore) => void;
+  onConferma: (dati: DatiCreazioneGiocatore) => void | Promise<void>;
+  /** edit = modifica Re; outfit = solo abiti per NPC come Sacerdote. */
+  mode?: "create" | "edit" | "outfit";
+  initial?: DatiCreazioneGiocatore | null;
+  onAnnulla?: () => void;
+  titolo?: string;
 };
 
 const GENERI: { id: "M" | "F"; label: string }[] = [
@@ -88,6 +93,17 @@ function forzaAspettoReTeen(aspetto: AspettoPersonaggio): AspettoPersonaggio {
 }
 
 const ASPETTO_RE_DEFAULT = forzaAspettoReTeen(ASPETTO_GIOCATORE_DEFAULT);
+
+const ASPETTO_SACERDOTE_DEFAULT: AspettoPersonaggio = {
+  ...ASPETTO_GIOCATORE_DEFAULT,
+  cappello: "nessuno",
+  vestiti: "mago",
+  characterAppearance: normalizeCharacterAppearance({
+    ...creaCharacterAppearance("Umano", "male"),
+    headwear: "none",
+    outfit: "commoner"
+  })
+};
 
 function AppearanceOption({
   appearance,
@@ -347,18 +363,51 @@ function kimonoVestePreviewSemanticIds(semanticId: string): Partial<Record<Chara
   return { fullOutfit: semanticId };
 }
 
-export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocatoreModalProps) {
+export function CreazioneGiocatoreModal({
+  visible,
+  onConferma,
+  mode = "create",
+  initial = null,
+  onAnnulla,
+  titolo
+}: CreazioneGiocatoreModalProps) {
+  const isEdit = mode === "edit";
+  const isOutfit = mode === "outfit";
+  const creationTabs = isOutfit ? CREATION_TABS.filter((tab) => tab.id !== "identity") : CREATION_TABS;
   const [nome, setNome] = useState("");
   const [cognome, setCognome] = useState("");
   const [sesso, setSesso] = useState<"M" | "F" | null>(null);
   const [orientamento, setOrientamento] = useState<"Etero" | "Omo" | "Bi" | "Asessuale" | null>(null);
-  const [aspetto, setAspetto] = useState<AspettoPersonaggio>(ASPETTO_RE_DEFAULT);
-  const [activeTab, setActiveTab] = useState<CreationTab>("identity");
+  const [aspetto, setAspetto] = useState<AspettoPersonaggio>(isOutfit ? ASPETTO_SACERDOTE_DEFAULT : ASPETTO_RE_DEFAULT);
+  const [activeTab, setActiveTab] = useState<CreationTab>(isOutfit ? "busto" : "identity");
   const [outfitColorPicker, setOutfitColorPicker] = useState<OutfitColorPickerState | null>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+    if (initial) {
+      setNome(initial.nome ?? "");
+      setCognome((initial.cognome ?? "").trim());
+      setSesso(initial.sesso);
+      setOrientamento(initial.orientamento);
+      setAspetto(isOutfit ? initial.aspetto ?? ASPETTO_SACERDOTE_DEFAULT : forzaAspettoReTeen(initial.aspetto ?? ASPETTO_RE_DEFAULT));
+      setActiveTab(isOutfit ? "busto" : "identity");
+      setOutfitColorPicker(null);
+      return;
+    }
+    if (isOutfit) {
+      setNome("Sacerdote");
+      setCognome("");
+      setSesso("M");
+      setOrientamento("Etero");
+      setAspetto(ASPETTO_SACERDOTE_DEFAULT);
+      setActiveTab("busto");
+      setOutfitColorPicker(null);
+    }
+  }, [visible, initial, isOutfit]);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
-  const spriteAppearance = aspetto.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, "teen");
+  const spriteAppearance = aspetto.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, isOutfit ? "male" : "teen");
   const catalogOptions = compatibleCatalogOptions(spriteAppearance);
   const torsoOutfitsAll = filterTorsoOutfitOptions(catalogOptions.upperOutfits, spriteAppearance.bodyType);
   const { manicheSleeves: manicheTorsoOutfits, rest: bustoTorsoOutfits } = partitionLongsleeveTorsoOptions(torsoOutfitsAll, spriteAppearance.bodyType);
@@ -400,10 +449,13 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
     ["Socks", ["socks"]]
   ] as const;
   const updateSpriteAppearance = (patch: Partial<typeof spriteAppearance>) => {
-    const next = forzaAspettoReTeen({ ...aspetto, characterAppearance: { ...spriteAppearance, ...patch } });
-    if (next.characterAppearance && canRenderCharacter(next.characterAppearance, "idle")) {
-      setAspetto(next);
-    }
+    const raw: AspettoPersonaggio = {
+      ...aspetto,
+      ...(isOutfit ? { cappello: "nessuno" as const } : {}),
+      characterAppearance: normalizeCharacterAppearance({ ...spriteAppearance, ...patch })
+    };
+    const next = isOutfit ? raw : forzaAspettoReTeen(raw);
+    if (next.characterAppearance && canRenderCharacter(next.characterAppearance, "idle")) setAspetto(next);
   };
   const updateOutfit = (
     upperOutfit: string,
@@ -489,27 +541,27 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
     setOutfitColorPicker(null);
   };
 
-  const valido =
-    nome.trim().length > 0 &&
-    cognome.trim().length > 0 &&
-    sesso != null &&
-    orientamento != null;
+  const valido = isOutfit
+    ? true
+    : nome.trim().length > 0 && (isEdit || cognome.trim().length > 0) && sesso != null && orientamento != null;
 
   const handleConferma = () => {
-    if (!valido || sesso == null || orientamento == null) return;
-    onConferma({
-      nome: nome.trim(),
+    if (!valido) return;
+    const resolvedSesso = sesso ?? "M";
+    const resolvedOrientamento = orientamento ?? "Etero";
+    void onConferma({
+      nome: nome.trim() || (isOutfit ? "Sacerdote" : "Re"),
       cognome: cognome.trim(),
-      sesso,
-      orientamento,
+      sesso: resolvedSesso,
+      orientamento: resolvedOrientamento,
       razza: RAZZA_RE,
-      aspetto: forzaAspettoReTeen(aspetto)
+      aspetto: isOutfit ? aspetto : forzaAspettoReTeen(aspetto)
     });
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]}>
+    <Modal visible={visible} transparent animationType="fade" onRequestClose={onAnnulla}>
+      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]} onPress={isEdit || isOutfit ? onAnnulla : undefined}>
         <Pressable
           style={[styles.modalCard, isDesktop && modalContentFullscreen, isDesktop && styles.modalCardDesktop]}
           onPress={(e) => e.stopPropagation()}
@@ -517,7 +569,7 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
           <View style={styles.accentLine} />
           <View style={styles.header}>
             <View style={styles.emojiWrap}><Text style={styles.emoji}>🛡️</Text></View>
-            <Text style={styles.title}>Crea il tuo Re</Text>
+            <Text style={styles.title}>{titolo ?? (isEdit ? "Modifica il Re" : isOutfit ? "Abiti Sacerdote" : "Crea il tuo Re")}</Text>
             <Text style={styles.subtitle}>Configura un personaggio pixel-art modulare</Text>
             <View style={styles.titleUnderline} />
           </View>
@@ -536,13 +588,13 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
                   </View>
                 )}
                 <View style={styles.previewMeta}>
-                  <Text style={styles.previewHint}>Umano · 10 anni · corpo teen</Text>
+                  <Text style={styles.previewHint}>{isOutfit ? "Sacerdote · Universal LPC" : "Umano · 10 anni · corpo teen"}</Text>
                   <Pressable style={styles.randomButton} onPress={() => {
-                    const casualeTeen = generaAspettoCasuale(RAZZA_RE, Math.random, { eta: 15, sesso: sesso ?? undefined });
-                    const next = forzaAspettoReTeen(casualeTeen);
-                    if (next.characterAppearance && canRenderCharacter(next.characterAppearance, "idle")) {
-                      setAspetto(next);
-                    }
+                    const casuale = generaAspettoCasuale(RAZZA_RE, Math.random, { eta: isOutfit ? 30 : 15, sesso: sesso ?? undefined });
+                    const next = isOutfit
+                      ? { ...casuale, cappello: "nessuno" as const, characterAppearance: casuale.characterAppearance ? normalizeCharacterAppearance({ ...casuale.characterAppearance, headwear: "none" }) : casuale.characterAppearance }
+                      : forzaAspettoReTeen(casuale);
+                    if (next.characterAppearance && canRenderCharacter(next.characterAppearance, "idle")) setAspetto(next);
                   }}>
                     <Text style={styles.randomButtonText}>🎲 Sorprendimi</Text>
                   </Pressable>
@@ -552,7 +604,7 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
 
             <View style={styles.controlsColumn}>
               <View style={styles.tabs}>
-                {CREATION_TABS.map((tab) => <Pressable key={tab.id} accessibilityRole="tab" accessibilityState={{ selected: activeTab === tab.id }} style={[styles.tab, activeTab === tab.id && styles.tabSelected]} onPress={() => setActiveTab(tab.id)}><Text style={[styles.tabText, activeTab === tab.id && styles.tabTextSelected]}>{tab.label}</Text></Pressable>)}
+                {creationTabs.map((tab) => <Pressable key={tab.id} accessibilityRole="tab" accessibilityState={{ selected: activeTab === tab.id }} style={[styles.tab, activeTab === tab.id && styles.tabSelected]} onPress={() => setActiveTab(tab.id)}><Text style={[styles.tabText, activeTab === tab.id && styles.tabTextSelected]}>{tab.label}</Text></Pressable>)}
               </View>
 
               <ScrollView
@@ -945,7 +997,7 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
             onPress={handleConferma}
             disabled={!valido}
           >
-            <Text style={styles.confirmButtonText}>Inizia il tuo regno</Text>
+            <Text style={styles.confirmButtonText}>{isOutfit ? "Salva abiti" : isEdit ? "Salva modifiche" : "Inizia il tuo regno"}</Text>
           </Pressable>
 
           {outfitColorPicker ? (

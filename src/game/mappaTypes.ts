@@ -15,4 +15,8 @@ export type MappaRuntimeState = {
   terrenoInMappa: Record<number, TerrenoType>;
   decorazioniInMappa: Record<number, string>;
   residenzeMappa: Record<number, number[]>;
+  /** Profondità del mare (celle dal bordo sud) per ogni colonna. */
+  costaSudProfondita?: number[];
+  /** Versione del layout procedurale della mappa. */
+  mappaLayoutVersion?: number;
 };

@@ -2,6 +2,20 @@
  * Nomi e cognomi per abitanti umani, con sesso coerente (es. Alessandro sempre M, Anna sempre F).
  * Usato da generazionePartita e immigrazione.
  */
+
+/** Prima lettera maiuscola (locale it) per ogni parola; resto invariato. */
+export function capitalizzaNomePersona(valore: string): string {
+  const t = valore.trim().replace(/\s+/g, " ");
+  if (!t) return "";
+  return t
+    .split(" ")
+    .map((parola) => {
+      if (!parola) return parola;
+      return parola.charAt(0).toLocaleUpperCase("it-IT") + parola.slice(1);
+    })
+    .join(" ");
+}
+
 export const NOMI_UMANI_CON_SESSO: { nome: string; sesso: "M" | "F" }[] = [
   { nome: "Marco", sesso: "M" },
   { nome: "Luca", sesso: "M" },

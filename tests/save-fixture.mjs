@@ -95,6 +95,7 @@ export function createSaveEnvelope() {
         penaReati: { Omicidio: 20, Stupro: 15, Furto: 2, Spaccio: 3, Evasione: 5, "Ex Governatore": 10 },
         politicaReligiosa: "liberta-culto",
         religioneDiStato: null,
+        religioniCustom: [],
         leggeRazzialeAttiva: false,
         razzaCampoLavoro: null,
         razzaCampoSterminio: null,

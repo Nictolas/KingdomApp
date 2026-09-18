@@ -46,10 +46,13 @@ export type TitoloDiStudio = "Asilo" | "Elementare" | "Superiore" | "Università
 export type Specializzazione = "Legge" | "Medicina" | "Educazione" | "Agraria";
 
 /** Classe sociale dell'abitante (casta). */
-export type Casta = "Schiavo" | "Servo della gleba" | "Cittadino" | "Nobile";
+export type Casta = "Schiavo" | "Servo della gleba" | "Cittadino" | "Nobile" | "Clero";
 
 /** @deprecated Usare Casta */
 export type Ceto = Casta;
+
+/** Regime alimentare dell'abitante. */
+export type Alimentazione = "Onnivoro" | "Vegetariano" | "Vegano";
 
 /** Relazione con punteggio 1-100 (amicizia o rivalità). */
 export type RelazionePunteggio = { id: number; punteggio: number };
@@ -66,11 +69,15 @@ export type Abitante = {
   /** Legge, Medicina, Educazione o Agraria. */
   specializzazione?: Specializzazione;
   personalità: string;
+  /** Separato dalla personalità; opzionale per compatibilità con i salvataggi precedenti. */
+  alimentazione?: Alimentazione;
   amici: RelazionePunteggio[]; // ID + punteggio amicizia 1-100
   rivali: RelazionePunteggio[]; // ID + punteggio rivalità 1-100
   coniugeId?: number; // ID del coniuge (se presente)
   figliIds?: number[]; // ID dei figli
+  figliAdottatiIds?: number[];
   genitoriIds?: number[]; // ID dei genitori (1 o 2)
+  genitoriAdottiviIds?: number[];
   nonniIds?: number[]; // ID dei nonni
   fazioni: string[]; // Ogni abitante può far parte di più fazioni (es. Cittadini, Nativi, Schiavi, Amministrazione, …)
   peso: number; // 0-100: indicatore peso (Denutrito 0-40, Normopeso 41-80, Sovrappeso 81-95, Obeso 96+)
@@ -92,7 +99,7 @@ export type Abitante = {
   ceto?: Casta;
   ruoloSchiavitu?: "schiavista" | "schiavo"; // Ruolo nella schiavitù
   schiavistaId?: number; // ID dello schiavista (se è schiavo)
-  religione: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni"; // Religione dell'abitante
+  religione: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto delle Ombre" | string; // Religione canonica o creata dal giocatore
   /** Livello scolastico (Asilo → Università). */
   titoloStudio?: TitoloDiStudio;
   specie?: "umano" | "alieno"; // Specie dell'abitante (alieno = non Umano)
@@ -110,6 +117,21 @@ export type Abitante = {
   gravidanzaIniziataAnno?: number;
   /** Oggetti portati dall'abitante (monete, cibo, …). */
   inventario?: { itemId: string; quantità: number }[];
+  /** Ultimo bottino trovato nel Bosco (Raccoglitore). */
+  ultimoRaccoltoBosco?: {
+    giorno: number;
+    voci: { itemId: string; emoji: string; nome: string; quantità: number }[];
+  };
+  /** Ultimo bottino estratto in Miniera (Minatore). */
+  ultimoRaccoltoMiniera?: {
+    giorno: number;
+    voci: { itemId: string; emoji: string; nome: string; quantità: number }[];
+  };
+  /** Ultimo raccolto dalla Serra (Agricoltore). */
+  ultimoRaccoltoSerra?: {
+    giorno: number;
+    voci: { itemId: string; emoji: string; nome: string; quantità: number }[];
+  };
   /** Ultimo giorno di gioco in cui ha consumato un oggetto Cibo dall'inventario. */
   ultimoGiornoCiboConsumato?: number;
   /** Bisogni 0–100 (Fame, Energia, Divertimento, Socialità, Igiene). */
@@ -120,16 +142,38 @@ export type Abitante = {
     socialita: number;
     igiene: number;
   };
+  modificatoriSoddisfazione?: {
+    id: string;
+    delta: number;
+    motivo: string;
+    durata: "permanente" | "giornaliero" | "mensile";
+    scadeGiorno?: number;
+    scadeMese?: number;
+    scadeAnno?: number;
+  }[];
 };
 
 // Razze trovabili tra gli abitanti (pianeti di origine o sintetici)
 export type Razza =
   | "Umano"
+  | "Scheletro"
+  | "Vampiro"
+  | "Lucertoloide"
   | "Elfo"
   | "Nano"
   | "Orco"
   | "Goblin"
   | "Golem";
+
+export const RAZZE_ABITANTI = [
+  "Umano",
+  "Nano",
+  "Scheletro",
+  "Vampiro",
+  "Goblin",
+  "Orco",
+  "Lucertoloide"
+] as const satisfies readonly Razza[];
 
 export type Ministro = {
   id: number;
@@ -159,7 +203,7 @@ export type Risorsa = {
   unità: string;
 };
 
-/** Evento attivo nella colonia; si attiva al cambio mese se sono soddisfatte le condizioni. */
+/** Evento attivo nel regno; si attiva al cambio mese se sono soddisfatte le condizioni. */
 export type EventoInCorso = {
   id: string;
   iniziatoMese: number;
@@ -193,8 +237,16 @@ export type Edificio = {
   consumo?: string; // Cosa consuma (se applicabile)
   /** Stipendio mensile per ogni lavoratore assegnato (configurabile dall'utente). Costo edificio = stipendioPerLavoratore × numero lavoratori. */
   stipendioPerLavoratore?: number;
+  /** Impresa privata con cassa separata dal Tesoro del regno. */
+  categoriaEconomica?: "Impresa";
+  /** Cassa monetaria dell'impresa. */
+  cassaMonete?: number;
+  /** Fatturato clienti del mese corrente (per tassa impresa); azzerato a fine mese. */
+  fatturatoMeseMonete?: number;
   /** Solo Serra: id oggetto Cibo vegetale prodotto (1 unità/giorno). */
   colturaItemId?: string;
+  /** Solo Chiesa: religione del tempio (non Ateo/Deista/Agnostico). */
+  religioneTempio?: string;
   /** 0–100: avanzamento cantiere (solo se stato === "In costruzione"). Completato dagli edili dell'Ufficio Edile. */
   progressoCostruzione?: number;
 };

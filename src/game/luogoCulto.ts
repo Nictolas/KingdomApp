@@ -6,25 +6,25 @@ import { getMappaSessione, setMappaSessione } from "./mappaSessione";
 export const MAP_COLS = 50;
 export const MAP_ROWS = 50;
 
-export const RELIGIONI_CON_CULTO = ["Culto del Sole", "Culto degli Alieni"] as const;
+export const RELIGIONI_CON_CULTO = ["Culto del Sole", "Culto delle Ombre"] as const;
 export type ReligioneConCulto = (typeof RELIGIONI_CON_CULTO)[number];
 
 export const TEMPLATE_ID_LUOGO_CULTO: Record<ReligioneConCulto, number> = {
   "Culto del Sole": 30,
-  "Culto degli Alieni": 31
+  "Culto delle Ombre": 31
 };
 
 export function nomeEdificioLuogoCulto(religione: ReligioneConCulto): string {
-  return religione === "Culto del Sole" ? "Luogo di Culto del Sole" : "Luogo di Culto degli Alieni";
+  return religione === "Culto del Sole" ? "Luogo di Culto del Sole" : "Luogo di Culto delle Ombre";
 }
 
 export function emojiLuogoCulto(religione: ReligioneConCulto): string {
-  return religione === "Culto del Sole" ? "☀️" : "👽";
+  return religione === "Culto del Sole" ? "☀️" : "🌑";
 }
 
 const NOMI_LUOGHI_CULTO = new Set<string>([
   "Luogo di Culto del Sole",
-  "Luogo di Culto degli Alieni"
+  "Luogo di Culto delle Ombre"
 ]);
 
 export function èNomeLuogoCulto(nome: string): boolean {
@@ -33,7 +33,7 @@ export function èNomeLuogoCulto(nome: string): boolean {
 
 export function religioneDaNomeEdificioLuogoCulto(nome: string): ReligioneConCulto | null {
   if (nome === "Luogo di Culto del Sole") return "Culto del Sole";
-  if (nome === "Luogo di Culto degli Alieni") return "Culto degli Alieni";
+  if (nome === "Luogo di Culto delle Ombre") return "Culto delle Ombre";
   return null;
 }
 
@@ -132,7 +132,7 @@ export function trovaCapoReligiosoSenzaLuogo(
       a.id === capiIds?.sole
         ? "Culto del Sole"
         : a.id === capiIds?.alieni
-          ? "Culto degli Alieni"
+          ? "Culto delle Ombre"
           : a.religione;
     if (!RELIGIONI_CON_CULTO.includes(religione as ReligioneConCulto)) continue;
     const religioneCulto = religione as ReligioneConCulto;
