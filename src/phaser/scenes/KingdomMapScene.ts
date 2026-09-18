@@ -133,6 +133,13 @@ export class KingdomMapScene extends Phaser.Scene {
         }
         (globalThis as any).__KINGDOM_PERF__ = this.framePerformance.snapshot();
       };
+      (globalThis as any).__KINGDOM_PERF_PAN__ = (dx: number, dy: number) => {
+        this.applyCameraPan(dx, dy);
+      };
+      (globalThis as any).__KINGDOM_PERF_ZOOM__ = (dy: number) => {
+        const camera = this.cameras.main;
+        this.applyCameraWheelZoom(camera.width / 2, camera.height / 2, dy);
+      };
       this.perfOverlay = this.add.text(8, 8, "PERF warming up...", {
         fontFamily: "monospace",
         fontSize: "12px",
@@ -158,7 +165,13 @@ export class KingdomMapScene extends Phaser.Scene {
       if (changes.interaction) this.renderInteraction(snapshot);
       this.renderedSnapshot = snapshot;
     });
-    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => this.unsubscribe?.());
+    this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.unsubscribe?.();
+      if (this.perfEnabled) {
+        delete (globalThis as any).__KINGDOM_PERF_PAN__;
+        delete (globalThis as any).__KINGDOM_PERF_ZOOM__;
+      }
+    });
   }
 
   private configureCharacterAnimations(): void {
@@ -608,6 +621,30 @@ export class KingdomMapScene extends Phaser.Scene {
     }
   }
 
+  private applyCameraPan(dx: number, dy: number): void {
+    const camera = this.cameras.main;
+    if (this.perfEnabled) this.perfWork.panMoves += 1;
+    camera.scrollX -= dx / camera.zoom;
+    camera.scrollY -= dy / camera.zoom;
+    this.characterVisibilityDirty = true;
+    this.waterViewportDirty = true;
+    this.staticTileVisibilityDirty = true;
+  }
+
+  private applyCameraWheelZoom(pointerX: number, pointerY: number, dy: number): void {
+    const camera = this.cameras.main;
+    if (this.perfEnabled) this.perfWork.wheelEvents += 1;
+    const before = camera.getWorldPoint(pointerX, pointerY);
+    const nextZoom = Phaser.Math.Clamp(camera.zoom * (dy > 0 ? 0.9 : 1.1), 0.5, 3);
+    camera.setZoom(nextZoom);
+    const after = camera.getWorldPoint(pointerX, pointerY);
+    camera.scrollX += before.x - after.x;
+    camera.scrollY += before.y - after.y;
+    this.characterVisibilityDirty = true;
+    this.waterViewportDirty = true;
+    this.staticTileVisibilityDirty = true;
+  }
+
   private configureCameraAndInput(): void {
     const camera = this.cameras.main;
     camera.setRoundPixels(true);
@@ -629,12 +666,7 @@ export class KingdomMapScene extends Phaser.Scene {
       const dx = pointer.x - pointer.prevPosition.x;
       const dy = pointer.y - pointer.prevPosition.y;
       if (Math.abs(dx) + Math.abs(dy) > 2) this.dragged = true;
-      if (this.perfEnabled) this.perfWork.panMoves += 1;
-      camera.scrollX -= dx / camera.zoom;
-      camera.scrollY -= dy / camera.zoom;
-      this.characterVisibilityDirty = true;
-      this.waterViewportDirty = true;
-      this.staticTileVisibilityDirty = true;
+      this.applyCameraPan(dx, dy);
     });
 
     this.input.on("pointerout", () => {
@@ -659,16 +691,7 @@ export class KingdomMapScene extends Phaser.Scene {
     this.input.on(
       "wheel",
       (pointer: Phaser.Input.Pointer, _objects: unknown, _dx: number, dy: number) => {
-        if (this.perfEnabled) this.perfWork.wheelEvents += 1;
-        const before = camera.getWorldPoint(pointer.x, pointer.y);
-        const nextZoom = Phaser.Math.Clamp(camera.zoom * (dy > 0 ? 0.9 : 1.1), 0.5, 3);
-        camera.setZoom(nextZoom);
-        const after = camera.getWorldPoint(pointer.x, pointer.y);
-        camera.scrollX += before.x - after.x;
-        camera.scrollY += before.y - after.y;
-        this.characterVisibilityDirty = true;
-        this.waterViewportDirty = true;
-        this.staticTileVisibilityDirty = true;
+        this.applyCameraWheelZoom(pointer.x, pointer.y, dy);
       }
     );
   }
