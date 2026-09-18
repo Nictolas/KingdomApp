@@ -51,6 +51,9 @@ export type Casta = "Schiavo" | "Servo della gleba" | "Cittadino" | "Nobile" | "
 /** @deprecated Usare Casta */
 export type Ceto = Casta;
 
+/** Regime alimentare dell'abitante. */
+export type Alimentazione = "Onnivoro" | "Vegetariano" | "Vegano";
+
 /** Relazione con punteggio 1-100 (amicizia o rivalità). */
 export type RelazionePunteggio = { id: number; punteggio: number };
 
@@ -66,11 +69,15 @@ export type Abitante = {
   /** Legge, Medicina, Educazione o Agraria. */
   specializzazione?: Specializzazione;
   personalità: string;
+  /** Separato dalla personalità; opzionale per compatibilità con i salvataggi precedenti. */
+  alimentazione?: Alimentazione;
   amici: RelazionePunteggio[]; // ID + punteggio amicizia 1-100
   rivali: RelazionePunteggio[]; // ID + punteggio rivalità 1-100
   coniugeId?: number; // ID del coniuge (se presente)
   figliIds?: number[]; // ID dei figli
+  figliAdottatiIds?: number[];
   genitoriIds?: number[]; // ID dei genitori (1 o 2)
+  genitoriAdottiviIds?: number[];
   nonniIds?: number[]; // ID dei nonni
   fazioni: string[]; // Ogni abitante può far parte di più fazioni (es. Cittadini, Nativi, Schiavi, Amministrazione, …)
   peso: number; // 0-100: indicatore peso (Denutrito 0-40, Normopeso 41-80, Sovrappeso 81-95, Obeso 96+)
@@ -120,16 +127,38 @@ export type Abitante = {
     socialita: number;
     igiene: number;
   };
+  modificatoriSoddisfazione?: {
+    id: string;
+    delta: number;
+    motivo: string;
+    durata: "permanente" | "giornaliero" | "mensile";
+    scadeGiorno?: number;
+    scadeMese?: number;
+    scadeAnno?: number;
+  }[];
 };
 
 // Razze trovabili tra gli abitanti (pianeti di origine o sintetici)
 export type Razza =
   | "Umano"
+  | "Scheletro"
+  | "Vampiro"
+  | "Lucertoloide"
   | "Elfo"
   | "Nano"
   | "Orco"
   | "Goblin"
   | "Golem";
+
+export const RAZZE_ABITANTI = [
+  "Umano",
+  "Nano",
+  "Scheletro",
+  "Vampiro",
+  "Goblin",
+  "Orco",
+  "Lucertoloide"
+] as const satisfies readonly Razza[];
 
 export type Ministro = {
   id: number;
