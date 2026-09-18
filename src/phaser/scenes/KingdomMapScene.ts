@@ -4,6 +4,7 @@ import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
 import { PhaserFramePerformanceSampler, formatPhaserFramePerformance } from "../adapters/phaserFramePerformance";
 import {
   getPhaserDynamicSnapshotChanges,
+  isPhaserSimulationPaused,
   type MapSceneBridge,
   type PhaserMapBuilding,
   type PhaserMapSnapshot
@@ -508,7 +509,14 @@ export class KingdomMapScene extends Phaser.Scene {
       this.nextCharacterVisibilityAt = time + 120;
     }
 
-    const waterFrameDue = this.waterSprites.length > 0 && time >= this.nextWaterFrameAt;
+    const simulationPaused = isPhaserSimulationPaused(this.bridge.getSnapshot());
+    if (simulationPaused) {
+      // Come il vecchio layer React dell'acqua: in pausa il frame resta fermo.
+      // Spostiamo anche la prossima scadenza, così alla ripresa non scatta subito un frame arretrato.
+      this.nextWaterFrameAt = time + 420;
+    }
+    const waterFrameDue =
+      !simulationPaused && this.waterSprites.length > 0 && time >= this.nextWaterFrameAt;
     if (waterFrameDue) {
       this.nextWaterFrameAt = time + 420;
       this.waterFrame = (this.waterFrame + 1) % OVERWORLD_SHEET_PX.waterFrames;
