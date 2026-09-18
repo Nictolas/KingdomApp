@@ -14,7 +14,7 @@ import {
 } from "./mappaPiazzamentoFootprint";
 import type { EdificioInCellaMappa } from "./mappaTypes";
 import { isTerrenoAcqua, type TerrenoType } from "./riverGeneration";
-import { calcolaAnchorStrada2x2 } from "./stradaFootprint";
+import { calcolaAnchorStrada2x2, footprintStrada2x2Valido } from "./stradaFootprint";
 
 /** Anteprima piazzamento in modalità Costruisci (stessa forma usata dalla mappa). */
 export type SelezioneCostruzioneAnteprima =
@@ -115,4 +115,67 @@ export function calcolaAnchorEdificioMultiCella(
     anchor = trovaAnchorFootprintLibero(w, h, cellIndex, cols, rows, riverSet, vietato);
   }
   return { anchor, w, h };
+}
+
+
+/** Calcola celle e validità dell'anteprima di piazzamento mostrata dalla mappa. */
+export function calcolaPreviewPiazzamento(
+  selezione: SelezioneCostruzioneAnteprima,
+  hoverCell: number | null,
+  edificiInMappa: Record<number, EdificioInCellaMappa>,
+  terrenoInMappa: Record<number, TerrenoType>,
+  cols: number,
+  rows: number
+): { celle: number[]; valido: boolean } | null {
+  if (hoverCell == null) return null;
+  if (selezione.tipo === "strada" || selezione.tipo === "terreno") {
+    const { anchor, w, h } = calcolaAnchorCostruzione2x2(hoverCell, cols, rows);
+    if (anchor == null) {
+      return { celle: [hoverCell], valido: false };
+    }
+    const celle = getIndiciFootprint(anchor, w, h, cols);
+    const valido =
+      selezione.tipo === "strada"
+        ? footprintStrada2x2Valido(anchor, cols, rows, terrenoInMappa, edificiInMappa)
+        : footprintTerreno2x2Valido(
+            selezione.kind,
+            anchor,
+            cols,
+            rows,
+            terrenoInMappa,
+            edificiInMappa
+          );
+    return { celle, valido };
+  }
+
+  const e = selezione.edificio;
+  const { anchor, w, h } = calcolaAnchorEdificioMultiCella(
+    hoverCell,
+    e.nome,
+    edificiInMappa,
+    terrenoInMappa,
+    cols,
+    rows
+  );
+  if (anchor == null) {
+    const ac = hoverCell % cols;
+    const ar = Math.floor(hoverCell / cols);
+    if (ac + w > cols || ar + h > rows) {
+      return { celle: [hoverCell], valido: false };
+    }
+    return { celle: getIndiciFootprint(hoverCell, w, h, cols), valido: false };
+  }
+
+  const celle = getIndiciFootprint(anchor, w, h, cols);
+  const valido = edificioRispettaCriteriPiazzamento(
+    e.nome,
+    anchor,
+    w,
+    h,
+    edificiInMappa,
+    terrenoInMappa,
+    cols,
+    rows
+  );
+  return { celle, valido };
 }
