@@ -46,7 +46,7 @@ export type TitoloDiStudio = "Asilo" | "Elementare" | "Superiore" | "Università
 export type Specializzazione = "Legge" | "Medicina" | "Educazione" | "Agraria";
 
 /** Classe sociale dell'abitante (casta). */
-export type Casta = "Schiavo" | "Servo della gleba" | "Cittadino" | "Nobile";
+export type Casta = "Schiavo" | "Servo della gleba" | "Cittadino" | "Nobile" | "Clero";
 
 /** @deprecated Usare Casta */
 export type Ceto = Casta;
