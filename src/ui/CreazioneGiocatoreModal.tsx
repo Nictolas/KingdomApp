@@ -1121,7 +1121,7 @@ const styles = StyleSheet.create({
     elevation: 8
   },
   selectionRing: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     borderRadius: 44,
     borderWidth: 3,
     borderColor: "rgba(191, 219, 254, 0.95)",
@@ -1170,14 +1170,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5
   },
   colorPickerOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     zIndex: 20,
     alignItems: "center",
     justifyContent: "center",
     padding: 16
   },
   colorPickerBackdrop: {
-    ...StyleSheet.absoluteFillObject,
+    ...StyleSheet.absoluteFill,
     backgroundColor: "rgba(2, 6, 23, 0.72)"
   },
   colorPickerCard: {
