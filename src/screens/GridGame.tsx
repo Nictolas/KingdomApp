@@ -43,6 +43,10 @@ export default function GridGame() {
             <Text style={styles.navLabel}>Ricchezza</Text>
             <Text style={styles.navMeta}>{abitanti.length}</Text>
           </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/lavori")}>
+            <Text style={styles.navEmoji}>🛠️</Text>
+            <Text style={styles.navLabel}>Lavori</Text>
+          </Pressable>
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/")}>
             <Text style={styles.navEmoji}>🗺️</Text>
             <Text style={styles.navLabel}>Mappa</Text>
@@ -90,6 +94,10 @@ export default function GridGame() {
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/eventi")}>
             <Text style={styles.navEmoji}>📌</Text>
             <Text style={styles.navLabel}>Eventi</Text>
+          </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/razze")}>
+            <Text style={styles.navEmoji}>🧬</Text>
+            <Text style={styles.navLabel}>Razze</Text>
           </Pressable>
         </View>
       </View>
