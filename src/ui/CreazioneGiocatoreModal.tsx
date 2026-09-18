@@ -18,7 +18,6 @@ import {
 } from "../game/personaggioAspetto";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 import { CharacterCreationPreview } from "./CharacterCreationPreview";
-import { PixelAvatarPreview } from "./PixelAvatarPreview";
 import { canRenderCharacter, compatibleCatalogOptions, compatibleColorsForField, firstCompatibleColorForField, firstCompatibleHairColor } from "../character-system/registry";
 import { bodyFamilyFor, normalizeCharacterAppearance } from "../character-system/appearance";
 import { groupCapeMantelloSections, isCapeTrim } from "../character-system/capeMantello";
@@ -529,7 +528,12 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
                 {canRenderCharacter(spriteAppearance, "idle") ? (
                   <CharacterCreationPreview appearance={spriteAppearance} />
                 ) : (
-                  <PixelAvatarPreview razza={RAZZA_RE} aspetto={aspetto} />
+                  <View style={styles.lpcPreviewError} accessibilityRole="alert">
+                    <Text style={styles.lpcPreviewErrorTitle}>Anteprima LPC non disponibile</Text>
+                    <Text style={styles.lpcPreviewErrorText}>
+                      Questa combinazione non può essere renderizzata dal sistema Universal LPC.
+                    </Text>
+                  </View>
                 )}
                 <View style={styles.previewMeta}>
                   <Text style={styles.previewHint}>Umano · 10 anni · corpo teen</Text>
@@ -1047,6 +1051,30 @@ const styles = StyleSheet.create({
   tabText: { color: "rgba(203, 213, 245, 0.76)", fontSize: 12, fontWeight: "700" },
   tabTextSelected: { color: "#eff6ff" },
   previewWrap: { alignItems: "center", marginBottom: 18, gap: 10, backgroundColor: "rgba(120,83,45,0.16)", borderWidth: 1, borderColor: "rgba(214,195,155,0.25)", borderRadius: 14, padding: 14 },
+  lpcPreviewError: {
+    width: "100%",
+    minHeight: 160,
+    alignItems: "center",
+    justifyContent: "center",
+    gap: 8,
+    padding: 16,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(248, 113, 113, 0.5)",
+    backgroundColor: "rgba(127, 29, 29, 0.18)"
+  },
+  lpcPreviewErrorTitle: {
+    color: "#fecaca",
+    fontSize: 14,
+    fontWeight: "800",
+    textAlign: "center"
+  },
+  lpcPreviewErrorText: {
+    color: "rgba(254, 226, 226, 0.82)",
+    fontSize: 11,
+    lineHeight: 16,
+    textAlign: "center"
+  },
   previewMeta: { alignItems: "center", gap: 8 },
   previewHint: { color: "#f3ddb0", fontSize: 12, fontWeight: "800", textTransform: "capitalize" },
   randomButton: { backgroundColor: "#5c3b20", borderWidth: 1, borderColor: "#d6b56f", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },

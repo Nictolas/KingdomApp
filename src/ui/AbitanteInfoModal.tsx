@@ -37,7 +37,7 @@ import {
 import { CampoDiLavoroModal } from "./CampoDiLavoroModal";
 import { EdificioInfoModal } from "./EdificioInfoModal";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
-import { PixelAvatarPreview } from "./PixelAvatarPreview";
+import { AbitanteLpcAvatar } from "./AbitanteLpcAvatar";
 
 const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
 
@@ -288,9 +288,9 @@ export function AbitanteInfoModal({
             {/* Header con accento */}
             <View style={styles.headerAccent} />
             <View style={styles.header}>
-              <View style={[styles.avatarWrap, abitante.aspetto && abitante.razza !== "Golem" && styles.avatarWrapPixel]}>
-                {abitante.aspetto && abitante.razza !== "Golem" ? (
-                  <PixelAvatarPreview compatto razza={abitante.razza ?? "Umano"} aspetto={abitante.aspetto} />
+              <View style={[styles.avatarWrap, abitante.razza !== "Golem" && styles.avatarWrapLpc]}>
+                {abitante.razza !== "Golem" ? (
+                  <AbitanteLpcAvatar abitante={abitante} size={64} />
                 ) : (
                   <Text style={styles.avatarEmoji}>{emojiDisplay}</Text>
                 )}
@@ -588,7 +588,7 @@ const styles = StyleSheet.create({
     marginRight: 14
   },
   avatarEmoji: { fontSize: 30 },
-  avatarWrapPixel: { width: 88, height: 96, borderRadius: 10, overflow: "hidden" },
+  avatarWrapLpc: { width: 88, height: 88, borderRadius: 44, overflow: "visible" },
   headerText: { flex: 1, minWidth: 0 },
   titleRow: {
     flexDirection: "row",
