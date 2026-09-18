@@ -39,57 +39,22 @@ async function phaserCanvas(page) {
 }
 
 async function dispatchPanGesture(page, direction) {
-  await page.evaluate(({ selector, direction }) => {
-    const canvas = document.querySelector(selector);
-    if (!(canvas instanceof HTMLCanvasElement)) throw new Error(`Phaser canvas not found at ${selector}`);
-    const rect = canvas.getBoundingClientRect();
-    const startX = rect.left + rect.width / 2 - 180 * direction;
-    const startY = rect.top + rect.height / 2;
-    const endX = rect.left + rect.width / 2 + 180 * direction;
-    const endY = rect.top + rect.height / 2 + 80 * direction;
-    const common = { bubbles: true, cancelable: true, pointerId: 1, pointerType: "mouse", isPrimary: true };
-
-    canvas.dispatchEvent(new PointerEvent("pointerdown", {
-      ...common,
-      clientX: startX,
-      clientY: startY,
-      button: 0,
-      buttons: 1
-    }));
-    for (let step = 1; step <= 10; step += 1) {
-      const ratio = step / 10;
-      canvas.dispatchEvent(new PointerEvent("pointermove", {
-        ...common,
-        clientX: startX + (endX - startX) * ratio,
-        clientY: startY + (endY - startY) * ratio,
-        button: 0,
-        buttons: 1
-      }));
-    }
-    canvas.dispatchEvent(new PointerEvent("pointerup", {
-      ...common,
-      clientX: endX,
-      clientY: endY,
-      button: 0,
-      buttons: 0
-    }));
-  }, { selector: phaserCanvasSelector, direction });
+  for (let step = 0; step < 10; step += 1) {
+    await page.evaluate(({ dx, dy }) => {
+      const pan = globalThis.__KINGDOM_PERF_PAN__;
+      if (typeof pan !== "function") throw new Error("Phaser perf pan hook is unavailable");
+      pan(dx, dy);
+    }, { dx: 36 * direction, dy: 8 * direction });
+    await page.waitForTimeout(16);
+  }
 }
 
 async function dispatchWheel(page, direction) {
-  await page.evaluate(({ selector, direction }) => {
-    const canvas = document.querySelector(selector);
-    if (!(canvas instanceof HTMLCanvasElement)) throw new Error(`Phaser canvas not found at ${selector}`);
-    const rect = canvas.getBoundingClientRect();
-    canvas.dispatchEvent(new WheelEvent("wheel", {
-      bubbles: true,
-      cancelable: true,
-      clientX: rect.left + rect.width / 2,
-      clientY: rect.top + rect.height / 2,
-      deltaY: 180 * direction,
-      deltaMode: WheelEvent.DOM_DELTA_PIXEL
-    }));
-  }, { selector: phaserCanvasSelector, direction });
+  await page.evaluate((dy) => {
+    const zoom = globalThis.__KINGDOM_PERF_ZOOM__;
+    if (typeof zoom !== "function") throw new Error("Phaser perf zoom hook is unavailable");
+    zoom(dy);
+  }, 180 * direction);
 }
 
 function assertScenarioInput(result) {
@@ -174,7 +139,6 @@ async function panScenario() {
   while (Date.now() < deadline) {
     await dispatchPanGesture(page, direction);
     direction *= -1;
-    await page.waitForTimeout(16);
 
     if (Date.now() >= minimumEndAt) {
       const metrics = await currentMetrics(page);
