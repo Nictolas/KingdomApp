@@ -1,6 +1,7 @@
 import type { Abitante, Edificio, Risorsa } from "../types";
 import { SAVE_FORMAT, SAVE_SCHEMA_VERSION, type GameSaveV1, type SaveEnvelopeV1 } from "./saveTypes.ts";
 import { generaAspettoDaSeed } from "../game/personaggioAspetto";
+import { normalizeGameMode } from "../game/gameMode";
 
 export class SaveValidationError extends Error {
   constructor(message: string) {
@@ -177,6 +178,9 @@ export function validateSaveEnvelope(value: unknown): asserts value is SaveEnvel
   requireString(metadata.updatedAt, "save.metadata.updatedAt");
 
   const payload = requireRecord(envelope.payload, "save.payload");
+  if (payload.gameMode != null && payload.gameMode !== "avventura" && payload.gameMode !== "creativa") {
+    throw new SaveValidationError("Modalità di gioco non valida.");
+  }
   const requiredRecords = ["population", "colony", "calendar", "simulationCursors", "policies", "events", "map"];
   requiredRecords.forEach((key) => requireRecord(payload[key], `save.payload.${key}`));
   if (!["commander-creation", "activating", "running"].includes(String(payload.gamePhase))) {
@@ -203,6 +207,7 @@ function cloneSaveValue<T>(value: T): T {
 
 export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
   const next = cloneSaveValue(payload);
+  next.gameMode = normalizeGameMode(next.gameMode);
   const normalizzaRazzaFantasy = (razza: unknown): Abitante["razza"] => {
     if (razza === "Robot") return "Golem";
     if (razza === "Grigi" || razza === "Insettoidi") return "Goblin";
