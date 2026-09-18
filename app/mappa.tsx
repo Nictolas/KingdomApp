@@ -221,6 +221,7 @@ import {
 import {
   cellaSoloErba,
   expandAxisToUnitSteps,
+  getCellTopLeft,
   getIndiciCuscinoErba,
   getIndiciFootprint,
   getManhattanPathSegments,
@@ -533,13 +534,6 @@ async function buildInitialMappa(
 const CIELO_ALPHA_NOTTE_MAX = 0.52;
 const CIELO_ALPHA_CALORE_TRAMONTO_MAX = 0.26;
 
-/** Angolo in alto a sinistra della cella in px (per overlay edifici multi-cella). */
-function getCellTopLeft(cellIndex: number, cellW: number, cellH: number, cols: number): { left: number; top: number } {
-  const col = cellIndex % cols;
-  const row = Math.floor(cellIndex / cols);
-  return { left: col * (cellW + GAP), top: row * (cellH + GAP) };
-}
-
 type CommutePurpose = "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro";
 
 type CommuteInfo = {
@@ -594,7 +588,7 @@ function EdificioFootprintGfx({
   cellH: number;
   progressoCostruzione?: number;
 }) {
-  const { left, top } = getCellTopLeft(anchor, cellW, cellH, cols);
+  const { left, top } = getCellTopLeft(anchor, cellW, cellH, cols, GAP);
   const { w, h } = footprint;
   const width = w * cellW + (w - 1) * GAP;
   const height = h * cellH + (h - 1) * GAP;
