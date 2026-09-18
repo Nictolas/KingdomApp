@@ -384,10 +384,10 @@ export function sincronizzaLavoroDaEdifici(
     }
     // Clero: occupazione sempre Sacerdote / Capo Spirituale.
     if (haCastaCleroEsplicita(a) || getCastaAbitante(a) === "Clero") {
-      const locked = assicuraLavoroClero({ ...a, casta: "Clero" });
+      const locked = assicuraLavoroClero({ ...a, casta: "Clero" as const });
       if (locked.lavoro !== a.lavoro || a.casta !== "Clero") {
         changed = true;
-        return { ...locked, casta: "Clero" };
+        return { ...locked, casta: "Clero" as const };
       }
       return a;
     }
