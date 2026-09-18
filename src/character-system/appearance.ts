@@ -41,7 +41,7 @@ export function enforceRaceBodyTypeRules(value: Partial<CharacterAppearance>): P
   const withBody = {
     ...value,
     bodyType: "child",
-    ageGroup: "child",
+    ageGroup: "child" as const,
     bodyFamily: "humanChild" as const,
     beardStyle: DWARF_BEARD_STYLE
   };
