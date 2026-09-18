@@ -4,6 +4,7 @@ import test from "node:test";
 import {
   cellaSoloErba,
   expandAxisToUnitSteps,
+  getCellTopLeft,
   getIndiciCuscinoErba,
   getIndiciFootprint,
   getManhattanPathSegments,
@@ -82,4 +83,11 @@ test("getManhattanPathSegments conserva il percorso a L corrente", () => {
     [11, 6]
   ]);
   assert.deepEqual(getManhattanPathSegments(12, 12, 5), []);
+});
+
+
+test("getCellTopLeft conserva il posizionamento in pixel con gap", () => {
+  assert.deepEqual(getCellTopLeft(0, 32, 24, 10, 1), { left: 0, top: 0 });
+  assert.deepEqual(getCellTopLeft(23, 32, 24, 10, 1), { left: 99, top: 50 });
+  assert.deepEqual(getCellTopLeft(23, 32, 24, 10, 0), { left: 96, top: 48 });
 });

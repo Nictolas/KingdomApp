@@ -124,3 +124,17 @@ export function getManhattanPathSegments(from: number, to: number, cols: number)
   const mid = r1 * cols + c2;
   return [...expandAxisToUnitSteps(from, mid, cols), ...expandAxisToUnitSteps(mid, to, cols)];
 }
+
+
+/** Angolo in alto a sinistra di una cella in px, includendo il gap fra celle. */
+export function getCellTopLeft(
+  cellIndex: number,
+  cellW: number,
+  cellH: number,
+  cols: number,
+  gap: number
+): { left: number; top: number } {
+  const col = cellIndex % cols;
+  const row = Math.floor(cellIndex / cols);
+  return { left: col * (cellW + gap), top: row * (cellH + gap) };
+}
