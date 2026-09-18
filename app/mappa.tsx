@@ -219,8 +219,7 @@ import {
   UFFICIO_EDILE_FOOTPRINT_H,
   UFFICIO_EDILE_FOOTPRINT_W,
   UFFICIO_IMMIGRAZIONE_FOOTPRINT_H,
-  UFFICIO_IMMIGRAZIONE_FOOTPRINT_W,
-  getIndiciEdificiIniziali
+  UFFICIO_IMMIGRAZIONE_FOOTPRINT_W
 } from "../src/game/mappaLayoutConfig";
 import {
   cellaSoloErba,
@@ -237,22 +236,13 @@ import {
 import { EDIFICIO_TO_ROUTE } from "../src/game/mappaEdificioRoutes";
 import { FOOTPRINT_COSTRUZIONE } from "../src/game/mappaCostruzioneFootprints";
 import {
-  aggiungiComplessoAmministrativo,
   applicaEdificioFootprintCostruzione,
   dimensioniFootprintEdificioInMappa,
   indiciFootprintProtettiIniziali,
   rimuoviFootprintEdificioDaMappa
 } from "../src/game/mappaEdificioFootprints";
 import { getResourceEmoji, getResourceRoute } from "../src/game/mappaRisorsePresentazione";
-import {
-  CAPANNA,
-  DECORAZIONI_EMOJI,
-  GIACIMENTO,
-  RAFFINERIA_MINERARIA,
-  SERRA_2_EDIFICIO,
-  SERRA_EDIFICIO,
-  STRADA_OPZIONE
-} from "../src/game/mappaEdificiStatici";
+import { DECORAZIONI_EMOJI, RAFFINERIA_MINERARIA, STRADA_OPZIONE } from "../src/game/mappaEdificiStatici";
 import { getStradeIniziali } from "../src/game/mappaStradeIniziali";
 import {
   calcolaAnchorCostruzione2x2,
@@ -264,25 +254,15 @@ import {
   type SelezioneCostruzioneAnteprima
 } from "../src/game/mappaCostruzioneAnteprima";
 import {
-  estendiVietatoConFootprintECuscino,
   puòPiazzareFootprintConCuscino,
-  scegliAnchorComplessoAmministrativo,
-  trovaAnchorFootprintLibero,
-  trovaCellaSingolaConCuscino,
-  vietatoFootprintECuscinoDaEdificiIniziali
+  scegliAnchorComplessoAmministrativo
 } from "../src/game/mappaPiazzamentoFootprint";
 import {
   footprintDissalatoreMareSabbiaValido,
   trovaAnchorDissalatore
 } from "../src/game/mappaDissalatorePiazzamento";
 import { applicaRegoleConfineTerreno } from "../src/game/mappaRegoleConfineTerreno";
-import {
-  aggiungiBarFootprint,
-  aggiungiDormitorioFootprint,
-  aggiungiSerraFootprint,
-  aggiungiSpazioportoFootprint,
-  aggiungiTribunaleFootprint
-} from "../src/game/mappaEdificiInizialiPiazzamento";
+import { getInitialEdificiInMappa } from "../src/game/mappaGenerazioneEdificiIniziali";
 
 
 /**
@@ -318,131 +298,6 @@ function webCellAbsolutePosition(index: number, cols: number, cellPx: number): V
   };
 }
 
-
-/** Mare, fiume, sabbia o confine con acqua: nessuna cella strada (vedi {@link isCellaOkPerStrada}). */
-
-/** Restituisce edifici iniziali fissi, spostati su terra (no fiume, no mare); nessuna cella condivisa. */
-function getEdificiIniziali(
-  cols: number,
-  rows: number,
-  riverSet: Set<number>,
-  adminAnchor: number
-): Record<number, EdificioInCella> {
-  const idx = getIndiciEdificiIniziali(cols, rows);
-  const out: Record<number, EdificioInCella> = {};
-  /** Footprint ∪ cuscino d'erba degli edifici già piazzati. */
-  const vietato = new Set<number>();
-
-  aggiungiComplessoAmministrativo(cols, rows, out, adminAnchor);
-  estendiVietatoConFootprintECuscino(adminAnchor, ADMIN_FOOTPRINT_W, ADMIN_FOOTPRINT_H, cols, rows, vietato);
-
-  aggiungiSpazioportoFootprint(cols, rows, riverSet, vietato, out, idx.SPAZIOPORTO_INDEX);
-
-  aggiungiSerraFootprint(cols, rows, riverSet, vietato, out, idx.SERRA_INDEX, SERRA_EDIFICIO);
-  aggiungiSerraFootprint(cols, rows, riverSet, vietato, out, idx.SERRA_2_INDEX, SERRA_2_EDIFICIO);
-
-  aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_1_INDEX);
-  aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_2_INDEX);
-  aggiungiDormitorioFootprint(cols, rows, riverSet, vietato, out, idx.DORMITORIO_3_INDEX);
-
-  aggiungiTribunaleFootprint(cols, rows, riverSet, vietato, out, idx.TRIBUNALE_INDEX);
-
-  aggiungiBarFootprint(cols, rows, riverSet, vietato, out, idx.BAR_INDEX);
-
-  return out;
-}
-
-/** Capanne 2×1 (o 1×1 se non c’è spazio) e giacimenti 1×1 senza sovrapposizioni al buffer d’erba. */
-function piazzaCapanneEgiacimentiProcedurali(
-  cols: number,
-  rows: number,
-  riverSet: Set<number>,
-  vietatoBase: Set<number>,
-  shuffled: number[],
-  nCapanne: number,
-  nGiacimento: number
-): { capanne: Record<number, EdificioInCella>; giacimenti: Record<number, EdificioInCella> } {
-  const occupato = new Set(vietatoBase);
-  const capanne: Record<number, EdificioInCella> = {};
-  let placedC = 0;
-  const w = CAPANNA_FOOTPRINT_W;
-  const h = CAPANNA_FOOTPRINT_H;
-
-  for (const pref of shuffled) {
-    if (placedC >= nCapanne) break;
-    const anchor = trovaAnchorFootprintLibero(w, h, pref, cols, rows, riverSet, occupato);
-    if (anchor != null) {
-      const celle = getIndiciFootprint(anchor, w, h, cols);
-      capanne[anchor] = {
-        id: CAPANNA.id,
-        nome: CAPANNA.nome,
-        emoji: "",
-        footprint: { w, h }
-      };
-      for (const i of celle) {
-        if (i === anchor) continue;
-        capanne[i] = {
-          id: CAPANNA.id,
-          nome: CAPANNA.nome,
-          emoji: "",
-          footprintRef: anchor
-        };
-      }
-      estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, occupato);
-      placedC++;
-      continue;
-    }
-    const cell = trovaCellaSingolaConCuscino(pref, cols, rows, riverSet, occupato);
-    if (cell != null) {
-      capanne[cell] = { ...CAPANNA };
-      estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, occupato);
-      placedC++;
-    }
-  }
-
-  const poolGi: number[] = [];
-  const tot = cols * rows;
-  for (let i = 0; i < tot; i++) {
-    if (isAcqua(i, cols, rows) || riverSet.has(i) || occupato.has(i)) continue;
-    poolGi.push(i);
-  }
-  poolGi.sort(() => Math.random() - 0.5);
-  const giacimenti: Record<number, EdificioInCella> = {};
-  const nG = Math.min(nGiacimento, poolGi.length);
-  for (let k = 0; k < nG; k++) {
-    giacimenti[poolGi[k]!] = GIACIMENTO;
-  }
-  return { capanne, giacimenti };
-}
-
-/** Restituisce lo stato iniziale della mappa; esclude sempre acqua e fiumi dalle celle edificabili. */
-function getInitialEdificiInMappa(
-  cols: number,
-  rows: number,
-  riverSet: Set<number>,
-  adminAnchor: number
-): Record<number, EdificioInCella> {
-  const edificiIniziali = getEdificiIniziali(cols, rows, riverSet, adminAnchor);
-  const totaleCelle = cols * rows;
-  const vietatoEdifici = vietatoFootprintECuscinoDaEdificiIniziali(edificiIniziali, cols, rows);
-  const erbaLibera: number[] = [];
-  for (let i = 0; i < totaleCelle; i++) {
-    if (!isAcqua(i, cols, rows) && !riverSet.has(i) && !vietatoEdifici.has(i)) erbaLibera.push(i);
-  }
-  const shuffled = [...erbaLibera].sort(() => Math.random() - 0.5);
-  const nCapanne = 5 + Math.floor(Math.random() * 5);
-  const nGiacimento = 2 + Math.floor(Math.random() * 4);
-  const { capanne, giacimenti } = piazzaCapanneEgiacimentiProcedurali(
-    cols,
-    rows,
-    riverSet,
-    vietatoEdifici,
-    shuffled,
-    nCapanne,
-    nGiacimento
-  );
-  return { ...edificiIniziali, ...capanne, ...giacimenti };
-}
 
 /**
  * Stato iniziale mappa. Ordine: edifici → strade → fiumi/sabbia → confini acqua → decorazioni.
