@@ -1,8 +1,10 @@
 import type { Abitante, Edificio } from "../types";
+import { getEdificioAbitazione } from "./abitanteEdifici";
+import { èNotteRoutineMappaDaBuio } from "./cicloCielo";
 import {
   abitanteAlBarRoutineOra,
   abitanteInOrarioLavoroEdificio,
-  primoEdificioLavoroOrarioPerAbitante
+  destinazioneLavoroOrarioPerAbitante
 } from "./orariLavoroMappa";
 
 /** Presenza rispetto a un edificio di lavoro (es. Serra), allineata ai passeggiatori sulla mappa. */
@@ -46,7 +48,7 @@ export function statoPresenzaLavoratoreEdificio(
 
   const inCommute = commuteInfo != null;
   const èNotte = buioCielo > 0.5;
-  const primo = primoEdificioLavoroOrarioPerAbitante(abitante.id, edifici);
+  const destinazione = destinazioneLavoroOrarioPerAbitante(abitante.id, edifici, [abitante]);
 
   if (homeCell !== null && èNotte && dormonoACasaIds.has(abitante.id) && !inCommute) {
     return "a_casa_notte";
@@ -56,16 +58,16 @@ export function statoPresenzaLavoratoreEdificio(
     const p = commuteInfo!.purpose;
     if (p === "home") return "viaggio_casa";
     if (p === "bar") return "viaggio_bar";
-    if (primo?.id === edificio.id) return "viaggio_verso_questo";
+    if (destinazione?.id === edificio.id) return "viaggio_verso_questo";
     return "viaggio_verso_altro_lavoro";
   }
 
   const nascostoLavoro =
-    abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&
+    abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici, [abitante]) &&
     lavoroArrivatiIds.has(abitante.id);
 
   if (nascostoLavoro) {
-    if (primo?.id === edificio.id) return "dentro";
+    if (destinazione?.id === edificio.id) return "dentro";
     return "al_lavoro_altrove";
   }
 
@@ -78,17 +80,68 @@ export function statoPresenzaLavoratoreEdificio(
   return "in_giro";
 }
 
-/** True se l’abitante è in orario, assegnato a questo edificio e risulta arrivato sulla mappa. */
+/** True se l’abitante è in fascia oraria, assegnato a questo edificio e risulta entrato sulla mappa. */
 export function lavoratoreDentroEdificioOra(
   abitanteId: number,
   edificioId: number,
   minutiDaMezzanotte: number,
   edificiList: Edificio[],
-  lavoroArrivatiIds: ReadonlySet<number>
+  lavoroArrivatiIds: ReadonlySet<number>,
+  abitantiList?: readonly Pick<Abitante, "id" | "lavoro" | "casta">[]
 ): boolean {
   if (!lavoroArrivatiIds.has(abitanteId)) return false;
-  if (!abitanteInOrarioLavoroEdificio(abitanteId, minutiDaMezzanotte, edificiList)) return false;
-  return primoEdificioLavoroOrarioPerAbitante(abitanteId, edificiList)?.id === edificioId;
+  if (!abitanteInOrarioLavoroEdificio(abitanteId, minutiDaMezzanotte, edificiList, abitantiList))
+    return false;
+  return destinazioneLavoroOrarioPerAbitante(abitanteId, edificiList, abitantiList)?.id === edificioId;
+}
+
+/**
+ * Testo breve per la scheda lavoratori (es. Bar): dove si trova se non è in sede.
+ * Usa orario + arrivi mappa + residenza; non richiede lo stato commute della mappa.
+ */
+export function etichettaDoveSiTrovaAddetto(
+  abitante: Abitante,
+  edificioId: number,
+  minutiDaMezzanotte: number,
+  buioCielo: number,
+  edificiList: Edificio[],
+  lavoroArrivatiIds: ReadonlySet<number>,
+  abitantiList?: readonly Pick<Abitante, "id" | "lavoro" | "casta">[]
+): { inServizio: boolean; testo: string } {
+  const anagrafica = abitantiList ?? [abitante];
+  if (
+    lavoratoreDentroEdificioOra(
+      abitante.id,
+      edificioId,
+      minutiDaMezzanotte,
+      edificiList,
+      lavoroArrivatiIds,
+      anagrafica
+    )
+  ) {
+    return { inServizio: true, testo: "In servizio" };
+  }
+
+  if (abitanteInOrarioLavoroEdificio(abitante.id, minutiDaMezzanotte, edificiList, anagrafica)) {
+    const dest = destinazioneLavoroOrarioPerAbitante(abitante.id, edificiList, anagrafica);
+    if (lavoroArrivatiIds.has(abitante.id) && dest && dest.id !== edificioId) {
+      return { inServizio: false, testo: `Al lavoro (${dest.nome})` };
+    }
+    if (dest && dest.id !== edificioId) {
+      return { inServizio: false, testo: `In viaggio verso ${dest.nome}` };
+    }
+    return { inServizio: false, testo: "In viaggio verso questa sede" };
+  }
+
+  if (èNotteRoutineMappaDaBuio(buioCielo)) {
+    const casa = getEdificioAbitazione(abitante.id, edificiList);
+    return {
+      inServizio: false,
+      testo: casa ? `A casa (${casa.nome})` : "A casa"
+    };
+  }
+
+  return { inServizio: false, testo: "In giro" };
 }
 
 export function badgePresenzaLavoroEdificio(stato: StatoPresenzaLavoroEdificio): {

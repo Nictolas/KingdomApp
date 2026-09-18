@@ -1,4 +1,5 @@
 import type { Abitante } from "../types";
+import { getAlimentazioneAbitante } from "./alimentazione";
 import { abitanteHaInventarioPersonale } from "./casta";
 import {
   MONETE_INVENTARIO_SEED_DEFAULT,
@@ -6,8 +7,9 @@ import {
   moneteInventarioSeedCasuali
 } from "./economiaPrezzi";
 import { COLTURE_SERRA } from "./colturaSerra";
+import { OGGETTI_CATALOGO } from "../data/oggettiCatalogo";
 
-export type CategoriaInventario = "Valuta" | "Cibo";
+export type CategoriaInventario = "Valuta" | "Cibo" | "Altro";
 
 export type TagCibo = "carne" | "latticini" | "uova";
 
@@ -21,6 +23,7 @@ export type OggettoInventarioDef = {
 };
 
 export const CATEGORIA_CIBO: CategoriaInventario = "Cibo";
+export const CATEGORIA_ALTRO: CategoriaInventario = "Altro";
 
 const OGGETTI_CIBO_ANIMALE: Record<string, OggettoInventarioDef> = {
   bistecca: { id: "bistecca", nome: "Bistecca", emoji: "🥩", categoria: CATEGORIA_CIBO, tagCibo: ["carne"] },
@@ -32,8 +35,26 @@ const OGGETTI_CIBO_VEGETALE: Record<string, OggettoInventarioDef> = Object.fromE
   COLTURE_SERRA.map((c) => [c.id, { id: c.id, nome: c.nome, emoji: c.emoji, categoria: CATEGORIA_CIBO }])
 );
 
+const OGGETTI_CATALOGO_MAP: Record<string, OggettoInventarioDef> = Object.fromEntries(
+  OGGETTI_CATALOGO.map((o) => [
+    o.id,
+    {
+      id: o.id,
+      nome: o.nome,
+      emoji: o.emoji,
+      categoria:
+        o.tipologia === "Valuta"
+          ? "Valuta"
+          : o.tipologia === "Cibo vegetale" || o.tipologia === "Cibo animale"
+            ? CATEGORIA_CIBO
+            : CATEGORIA_ALTRO
+    } satisfies OggettoInventarioDef
+  ])
+);
+
 export const OGGETTI_INVENTARIO: Record<string, OggettoInventarioDef> = {
   monete: { id: "monete", nome: "Monete", emoji: "💰", categoria: "Valuta" },
+  ...OGGETTI_CATALOGO_MAP,
   ...OGGETTI_CIBO_VEGETALE,
   ...OGGETTI_CIBO_ANIMALE
 };
@@ -56,7 +77,7 @@ const INVENTARIO_INIZIALE: VoceInventario[] = [
   { itemId: "uovo", quantità: 5 }
 ];
 
-/** Inventario cibo del giocatore (colonia): solo oggetti Cibo, senza monete. */
+/** Inventario cibo del giocatore (regno): solo oggetti Cibo, senza monete. */
 const INVENTARIO_GIOCATORE_INIZIALE: VoceInventario[] = [
   { itemId: "mela", quantità: 20 },
   { itemId: "bistecca", quantità: 20 },
@@ -116,6 +137,23 @@ export function aggiungiMoneteInventarioAbitante(abitante: Abitante, quantità: 
   const next = inv.map((v) =>
     v.itemId === "monete" ? { ...v, quantità: v.quantità + quantità } : v
   );
+  return { ...abitante, inventario: next, crediti: 0 };
+}
+
+export function aggiungiOggettoInventarioAbitante(
+  abitante: Abitante,
+  itemId: string,
+  quantità: number
+): Abitante {
+  if (quantità <= 0 || !abitanteHaInventarioPersonale(abitante) || !OGGETTI_INVENTARIO[itemId]) {
+    return abitante;
+  }
+  const inv = normalizzaInventarioAbitante(abitante.inventario);
+  const idx = inv.findIndex((v) => v.itemId === itemId);
+  const next =
+    idx >= 0
+      ? inv.map((v, i) => (i === idx ? { ...v, quantità: v.quantità + quantità } : v))
+      : [...inv, { itemId, quantità }];
   return { ...abitante, inventario: next, crediti: 0 };
 }
 
@@ -196,13 +234,13 @@ export function getOggettoInventario(itemId: string): OggettoInventarioDef | und
   return OGGETTI_INVENTARIO[itemId];
 }
 
-/** True se l'abitante può consumare questo oggetto Cibo in base alla personalità. */
-export function abitantePuòConsumareOggettoCibo(personalità: string, itemId: string): boolean {
+/** True se l'abitante può consumare questo oggetto Cibo in base all'alimentazione. */
+export function abitantePuòConsumareOggettoCibo(alimentazione: string, itemId: string): boolean {
   const def = OGGETTI_INVENTARIO[itemId];
   if (!def || def.categoria !== CATEGORIA_CIBO) return false;
   const tags = def.tagCibo ?? [];
-  if (personalità === "Vegetariano") return !tags.includes("carne");
-  if (personalità === "Vegano") return tags.length === 0;
+  if (alimentazione === "Vegetariano") return !tags.includes("carne");
+  if (alimentazione === "Vegano") return tags.length === 0;
   return true;
 }
 
@@ -216,10 +254,16 @@ export function normalizzaInventarioAbitante(inventario?: VoceInventario[]): Voc
   for (const base of INVENTARIO_INIZIALE) {
     if (!map.has(base.itemId)) map.set(base.itemId, base.quantità);
   }
-  return INVENTARIO_INIZIALE.map((b) => ({
+  const iniziali = INVENTARIO_INIZIALE.map((b) => ({
     itemId: b.itemId,
     quantità: map.get(b.itemId) ?? 0
   }));
+  const inizialiSet = new Set(INVENTARIO_INIZIALE.map((b) => b.itemId));
+  const extra = [...map.entries()]
+    .filter(([itemId]) => !inizialiSet.has(itemId))
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([itemId, quantità]) => ({ itemId, quantità }));
+  return [...iniziali, ...extra];
 }
 
 export function abitanteConInventarioIniziale<T extends Abitante>(abitante: T): T {
@@ -236,6 +280,11 @@ export function abitanteConInventarioIniziale<T extends Abitante>(abitante: T): 
 /** Rimuove l'inventario dagli schiavi/servi e normalizza gli altri.
  *  Migra eventuali `crediti` legacy nelle monete in inventario. */
 export function normalizzaAbitanteInventario(abitante: Abitante): Abitante {
+  const alimentazione = getAlimentazioneAbitante(abitante);
+  const personalità = abitante.personalità === "Vegetariano" || abitante.personalità === "Vegano"
+    ? "Tiepido"
+    : abitante.personalità;
+  abitante = { ...abitante, alimentazione, personalità };
   const legacyCrediti = Math.max(0, Math.floor(abitante.crediti ?? 0));
   if (!abitanteHaInventarioPersonale(abitante)) {
     const { inventario: _inv, ...rest } = abitante;
@@ -256,6 +305,15 @@ export function consumaUnOggettoCibo(
   inventario: VoceInventario[],
   personalità?: string
 ): VoceInventario[] | null {
+  const r = consumaUnOggettoCiboConId(inventario, personalità);
+  return r?.inventario ?? null;
+}
+
+/** Come `consumaUnOggettoCibo`, ma restituisce anche l'`itemId` consumato. */
+export function consumaUnOggettoCiboConId(
+  inventario: VoceInventario[],
+  personalità?: string
+): { inventario: VoceInventario[]; itemId: string } | null {
   const inv = normalizzaInventarioAbitante(inventario);
   const idx = inv.findIndex(
     (v) =>
@@ -264,8 +322,9 @@ export function consumaUnOggettoCibo(
       abitantePuòConsumareOggettoCibo(personalità ?? "", v.itemId)
   );
   if (idx < 0) return null;
+  const itemId = inv[idx]!.itemId;
   const next = inv.map((v, i) => (i === idx ? { ...v, quantità: v.quantità - 1 } : v));
-  return next;
+  return { inventario: next, itemId };
 }
 
 /** Trasferisce monete tra due abitanti con inventario; null se saldo insufficiente. */
@@ -315,7 +374,7 @@ export function getVociInventarioPerCategoria(
 ): VoceInventarioDisplay[] {
   if (!inventario?.length) return [];
   return normalizzaInventarioAbitante(inventario)
-    .filter((v) => OGGETTI_INVENTARIO[v.itemId]?.categoria === categoria)
+    .filter((v) => OGGETTI_INVENTARIO[v.itemId]?.categoria === categoria && v.quantità > 0)
     .map((v) => ({
       def: OGGETTI_INVENTARIO[v.itemId]!,
       quantità: v.quantità

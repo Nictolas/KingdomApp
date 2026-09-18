@@ -1,6 +1,7 @@
 import type { Abitante, Edificio } from "../types";
+import { getCastaAbitante } from "./casta";
 import { aggiungiMoneteInventarioAbitante } from "./inventario";
-import { isGiocatore } from "./schiavituCommercio";
+import { ID_GIOCATORE, isGiocatore } from "./schiavituCommercio";
 import {
   isEdificioPubblicoConPostazioniLavoro
 } from "./edificiLavoro";
@@ -11,14 +12,34 @@ import {
   STIPENDIO_BASE_MONETE_MESE
 } from "./economiaPrezzi";
 
+/**
+ * Conta i lavoratori retribuiti di un edificio pubblico.
+ * Esclude il Re/giocatore, allineato a `pagaStipendiEdificiPubblici`.
+ */
+export function contaLavoratoriRetribuitiPubblici(
+  edificio: Edificio,
+  abitanti?: Abitante[]
+): number {
+  const ids = edificio.abitantiAssegnati ?? [];
+  if (!abitanti || abitanti.length === 0) {
+    return ids.filter((id) => id !== ID_GIOCATORE).length;
+  }
+  const byId = new Map(abitanti.map((a) => [a.id, a]));
+  return ids.filter((id) => {
+    const ab = byId.get(id);
+    if (!ab) return id !== ID_GIOCATORE;
+    return !isGiocatore(ab);
+  }).length;
+}
+
 /** Stipendio base: 1 moneta al giorno per ogni lavoratore negli edifici pubblici. */
 export { STIPENDIO_BASE_MONETE_GIORNO };
 
-/** Giorni simulati per stipendi allo Skip Mese. */
+/** Giorni simulati per stipendi a fine mese. */
 export const GIORNI_STIPENDIO_EDIFICIO_PUBBLICO_MESE = GIORNI_MESE_ECONOMIA;
 
 /**
- * Stipendio mensile configurato sull'edificio (monete/mese per lavoratore).
+ * Stipendio configurato sull'edificio (persistito come monete/mese per lavoratore).
  * Se assente → default base.
  */
 export function getStipendioMensileEdificio(edificio: Edificio): number {
@@ -29,6 +50,7 @@ export function getStipendioMensileEdificio(edificio: Edificio): number {
 
 /**
  * Pagamento giornaliero da mensile: max(1, round(mensile/30)), oppure 0 se mensile 0.
+ * Usato anche come valore UI «Stipendio giornaliero».
  */
 export function getStipendioMoneteGiornaliero(edificio: Edificio): number {
   const mensile = getStipendioMensileEdificio(edificio);
@@ -36,24 +58,38 @@ export function getStipendioMoneteGiornaliero(edificio: Edificio): number {
   return Math.max(1, Math.round(mensile / GIORNI_MESE_ECONOMIA));
 }
 
-export function calcolaTotaleStipendiMonetePeriodo(edifici: Edificio[], giorni: number): number {
+/** Converte monete/giorno (UI) nel valore persistito monete/mese. */
+export function stipendioGiornalieroToPersistito(giornaliero: number): number {
+  const g = Math.max(0, Math.floor(giornaliero));
+  if (g <= 0) return 0;
+  return g * GIORNI_MESE_ECONOMIA;
+}
+
+export function calcolaTotaleStipendiMonetePeriodo(
+  edifici: Edificio[],
+  giorni: number,
+  abitanti?: Abitante[]
+): number {
   if (giorni <= 0) return 0;
   let tot = 0;
   for (const edificio of edifici) {
     if (!isEdificioPubblicoConPostazioniLavoro(edificio)) continue;
-    const n = (edificio.abitantiAssegnati ?? []).length;
+    const n = contaLavoratoriRetribuitiPubblici(edificio, abitanti);
     tot += n * getStipendioMoneteGiornaliero(edificio) * giorni;
   }
   return tot;
 }
 
 /** Totale stipendi mensili previsti (monete) per edifici pubblici operativi. */
-export function calcolaTotaleStipendiMensiliEdificiPubblici(edifici: Edificio[]): number {
+export function calcolaTotaleStipendiMensiliEdificiPubblici(
+  edifici: Edificio[],
+  abitanti?: Abitante[]
+): number {
   let tot = 0;
   for (const edificio of edifici) {
     if (!isEdificioPubblicoConPostazioniLavoro(edificio)) continue;
     if (edificio.stato !== "Operativo") continue;
-    const n = (edificio.abitantiAssegnati ?? []).length;
+    const n = contaLavoratoriRetribuitiPubblici(edificio, abitanti);
     tot += n * getStipendioMensileEdificio(edificio);
   }
   return tot;
@@ -76,6 +112,7 @@ export function pagaStipendiEdificiPubblici(
     for (const id of edificio.abitantiAssegnati ?? []) {
       const ab = abById.get(id);
       if (!ab || isGiocatore(ab)) continue;
+      if (getCastaAbitante(ab) === "Clero") continue;
       const dovuto = importoGiorno * giorni;
       if (dovuto <= 0) continue;
       const pagato = Math.min(dovuto, monete);
@@ -91,7 +128,7 @@ export function pagaStipendiEdificiPubblici(
   };
 }
 
-/** Tesoro iniziale del giocatore (unica cassa colonia). */
+/** Tesoro iniziale del giocatore (unica cassa regno). */
 export function creaMoneteGiocatoreIniziali(): number {
   return MONETE_GIOCATORE_INIZIALI;
 }
