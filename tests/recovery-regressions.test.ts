@@ -27,3 +27,16 @@ test("Phaser mostra un indicatore verde sull'abitante selezionato", () => {
   assert.equal(sceneSource.includes("0x22c55e"), true);
   assert.equal(sceneSource.includes("view.selectionRing.setVisible(character.selected === true)"), true);
 });
+
+
+test("gli abitanti non-Golem portano i layer LPC fino al renderer Phaser", () => {
+  const mapSource = readFileSync(resolve(process.cwd(), "app/mappa.tsx"), "utf8");
+  const surfaceSource = readFileSync(resolve(process.cwd(), "src/components/PhaserMapSurface.web.tsx"), "utf8");
+  const sceneSource = readFileSync(resolve(process.cwd(), "src/phaser/scenes/KingdomMapScene.ts"), "utf8");
+
+  assert.equal(mapSource.includes('resolveCharacterLayers(characterAppearance, "walk")'), true);
+  assert.equal(mapSource.includes('appearance: abitante.razza === "Golem" ? "golem" : lpcLayers.length > 0 ? "lpc" : "human"'), true);
+  assert.equal(surfaceSource.includes("LPC_ASSET_SOURCES"), true);
+  assert.equal(sceneSource.includes("requestedLpcLayers"), true);
+  assert.equal(sceneSource.includes("allLpcTexturesReady"), true);
+});
