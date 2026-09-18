@@ -229,3 +229,38 @@ export function generaAspettoDaSeed(razza: RazzaConAspetto, seed: number): Aspet
     return state / 0x100000000;
   });
 }
+
+
+export const CONSIGLIERE_ETA_INIZIALE = 60;
+
+/** Aspetto deterministico del Consigliere iniziale della modalità Avventura. */
+export function creaAspettoConsigliereIniziale(): AspettoPersonaggio {
+  const base = creaCharacterAppearance("Umano", "male");
+  return {
+    coloreCapelli: "#b9bec8",
+    stileCapelli: "corti",
+    stileOcchi: "determinati",
+    colorePelle: "#e9b38f",
+    vestiti: "nobile",
+    cappello: "nessuno",
+    characterAppearance: normalizeCharacterAppearance({
+      ...base,
+      race: "human",
+      bodyType: "male",
+      ageGroup: "adult",
+      bodyFamily: bodyFamilyFor("human", "adult"),
+      headStyle: "human_head",
+      skinTone: "light",
+      hairStyle: "none",
+      hairColor: "none",
+      beardStyle: "basic",
+      beardColor: "white",
+      outfit: "commoner",
+      upperOutfit: "commoner",
+      lowerOutfit: "commoner",
+      fullOutfit: "none",
+      headwear: "none",
+      accessory: "none"
+    })
+  };
+}
