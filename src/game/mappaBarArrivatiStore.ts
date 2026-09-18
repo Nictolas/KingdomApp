@@ -21,3 +21,29 @@ export function subscribeBarArrivatiMappa(listener: () => void): () => void {
 export function getBarArrivatiMappaSnapshotForEdificio(edificioId: number): Set<number> {
   return barArrivatiSnapshot.get(edificioId) ?? EMPTY_BAR_ARRIVATI;
 }
+
+
+/** Rimuove un abitante da tutti i Bar e scarta le liste rimaste vuote. */
+export function rimuoviAbitanteDaTuttiBar(
+  prev: Record<number, number[]>,
+  abitanteId: number
+): Record<number, number[]> {
+  const next: Record<number, number[]> = {};
+  for (const [k, ids] of Object.entries(prev)) {
+    const filt = ids.filter((id) => id !== abitanteId);
+    if (filt.length > 0) next[Number(k)] = filt;
+  }
+  return next;
+}
+
+/** Sposta un abitante nel Bar indicato, garantendo che compaia in un solo Bar. */
+export function aggiungiAbitanteAlBarEdificio(
+  prev: Record<number, number[]>,
+  barEdificioId: number,
+  abitanteId: number
+): Record<number, number[]> {
+  const cleaned = rimuoviAbitanteDaTuttiBar(prev, abitanteId);
+  const cur = cleaned[barEdificioId] ?? [];
+  if (cur.includes(abitanteId)) return cleaned;
+  return { ...cleaned, [barEdificioId]: [...cur, abitanteId] };
+}
