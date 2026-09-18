@@ -98,13 +98,12 @@ test("catalogo piedi e teste obbligatorie delle razze", () => {
   for (const category of ["shoes", "boots", "socks", "armour", "slippers", "sandals", "hoofs"]) {
     assert.ok(footwear.some((value) => value.includes(category)), `manca la categoria ${category}`);
   }
-  assert.equal(testaObbligatoriaRazza("Scheletro"), "skeleton");
-  assert.equal(testaObbligatoriaRazza("Vampiro"), "vampire");
+  assert.equal(testaObbligatoriaRazza("Umano"), "human_head");
+  assert.equal(testaObbligatoriaRazza("Elfo"), "human_head");
+  assert.equal(testaObbligatoriaRazza("Nano"), "human_head");
   assert.equal(testaObbligatoriaRazza("Goblin"), "goblin");
   assert.equal(testaObbligatoriaRazza("Orco", "F"), "orc_female");
   assert.equal(testaObbligatoriaRazza("Orco", "M"), "orc_male");
-  assert.equal(testaObbligatoriaRazza("Lucertoloide", "F"), "lizard_female");
-  assert.equal(testaObbligatoriaRazza("Lucertoloide", "M"), "lizard_male");
 });
 
 test("solo il Re mantiene la corona e i pantaloni sono obbligatori senza Nudismo", () => {
