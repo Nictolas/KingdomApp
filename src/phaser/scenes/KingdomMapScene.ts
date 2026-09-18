@@ -48,6 +48,7 @@ export type PhaserArtAssetUrls = {
 type CharacterView = {
   root: Phaser.GameObjects.Container;
   sprite: Phaser.GameObjects.Sprite;
+  selectionRing: Phaser.GameObjects.Ellipse;
   token: number;
   direction: 0 | 1 | 2 | 3;
 };
@@ -337,8 +338,17 @@ export class KingdomMapScene extends Phaser.Scene {
       if (!view) {
         const root = this.add.container(0, 0);
         const texture = character.appearance === "golem" ? GOLEM_KEY : HUMAN_KEY;
+        const selectionRing = this.add.ellipse(
+          0,
+          snapshot.cellSize * 0.2,
+          snapshot.cellSize * 0.78,
+          snapshot.cellSize * 0.34,
+          0x22c55e,
+          0.14
+        ).setStrokeStyle(2, 0x22c55e, 0.98).setVisible(character.selected === true);
         const sprite = this.add.sprite(0, -snapshot.cellSize * 0.2, texture, 0)
           .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
+        root.add(selectionRing);
         if (!character.appearance && character.markerEmoji) {
           sprite.setVisible(false);
           root.add(this.add.text(0, -snapshot.cellSize * 0.2, character.markerEmoji, { fontSize: "26px" }).setOrigin(0.5));
@@ -357,9 +367,10 @@ export class KingdomMapScene extends Phaser.Scene {
           this.characterLastPressAt.set(character.id, now);
           this.bridge.pressCharacter(character.id, doublePress);
         });
-        view = { root, sprite, token: -1, direction: 0 };
+        view = { root, sprite, selectionRing, token: -1, direction: 0 };
         this.characterViews.set(character.id, view);
       }
+      view.selectionRing.setVisible(character.selected === true);
       if (view.token === token) continue;
       this.tweens.killTweensOf(view.root);
       const start = character.path?.[0] ?? character.cell;
