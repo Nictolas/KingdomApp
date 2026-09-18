@@ -114,7 +114,11 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
           onPress={(e) => e.stopPropagation()}
         >
           <View style={styles.accentLine} />
-          <ScrollView showsVerticalScrollIndicator={false} keyboardShouldPersistTaps="handled">
+          <ScrollView
+            showsVerticalScrollIndicator
+            keyboardShouldPersistTaps="handled"
+            contentContainerStyle={styles.scrollContent}
+          >
             <View style={styles.header}>
               <View style={styles.emojiWrap}>
                 <Text style={styles.emoji}>🛡️</Text>
@@ -125,86 +129,191 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
             </View>
 
             <View style={styles.messaggioWrap}>
-              <Text style={styles.messaggio}>Il tuo aspetto resterà legato al personaggio e verrà conservato nel salvataggio.</Text>
+              <Text style={styles.messaggio}>
+                Il tuo aspetto resterà legato al personaggio e verrà conservato nel salvataggio.
+              </Text>
             </View>
 
-            <Text style={styles.sectionTitle}>Chi sei?</Text>
+            <View style={[styles.editorColumns, isDesktop && styles.editorColumnsDesktop]}>
+              <View style={[styles.editorColumn, isDesktop && styles.editorColumnDesktop]}>
+                <Text style={styles.sectionTitle}>Chi sei?</Text>
 
-            <View style={[styles.previewWrap, isDesktop && styles.previewWrapDesktop]}>
-              <PixelAvatarPreview razza={razza} aspetto={aspetto} />
-              <View style={styles.previewMeta}>
-                <Text style={styles.previewHint}>{razza} · {aspetto.vestiti}</Text>
-                <Pressable style={styles.randomButton} onPress={() => setAspetto(generaAspettoCasuale(razza))}>
-                  <Text style={styles.randomButtonText}>🎲 Sorprendimi</Text>
-                </Pressable>
+                <View style={[styles.previewWrap, isDesktop && styles.previewWrapDesktop]}>
+                  <PixelAvatarPreview razza={razza} aspetto={aspetto} />
+                  <View style={styles.previewMeta}>
+                    <Text style={styles.previewHint}>{razza} · {aspetto.vestiti}</Text>
+                    <Pressable style={styles.randomButton} onPress={() => setAspetto(generaAspettoCasuale(razza))}>
+                      <Text style={styles.randomButtonText}>🎲 Sorprendimi</Text>
+                    </Pressable>
+                  </View>
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Nome</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={nome}
+                    onChangeText={setNome}
+                    placeholder="Nome"
+                    placeholderTextColor="rgba(148,163,184,0.5)"
+                    autoCapitalize="words"
+                  />
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Cognome</Text>
+                  <TextInput
+                    style={styles.input}
+                    value={cognome}
+                    onChangeText={setCognome}
+                    placeholder="Cognome"
+                    placeholderTextColor="rgba(148,163,184,0.5)"
+                    autoCapitalize="words"
+                  />
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Genere</Text>
+                  <View style={styles.chipRow}>
+                    {GENERI.map((g) => (
+                      <Pressable
+                        key={g.id}
+                        style={[styles.chip, sesso === g.id && styles.chipSelected]}
+                        onPress={() => setSesso(g.id)}
+                      >
+                        <Text style={[styles.chipText, sesso === g.id && styles.chipTextSelected]}>{g.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Orientamento sessuale</Text>
+                  <View style={styles.chipRowWrap}>
+                    {ORIENTAMENTI.map((o) => (
+                      <Pressable
+                        key={o.id}
+                        style={[styles.chip, orientamento === o.id && styles.chipSelected]}
+                        onPress={() => setOrientamento(o.id)}
+                      >
+                        <Text style={[styles.chipText, orientamento === o.id && styles.chipTextSelected]}>
+                          {o.label}
+                        </Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              </View>
+
+              <View style={[styles.editorColumn, styles.appearanceColumn, isDesktop && styles.editorColumnDesktop]}>
+                <Text style={styles.sectionTitle}>Aspetto del personaggio</Text>
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Razza</Text>
+                  <View style={styles.chipRowWrap}>
+                    {RAZZE.map((o) => (
+                      <Pressable
+                        key={o.id}
+                        style={[styles.chip, razza === o.id && styles.chipSelected]}
+                        onPress={() => selezionaRazza(o.id)}
+                      >
+                        <Text style={[styles.chipText, razza === o.id && styles.chipTextSelected]}>{o.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Colore della pelle</Text>
+                  <View style={styles.swatchRow}>
+                    {COLORI_PELLE.map((color) => (
+                      <Pressable
+                        accessibilityLabel={`Pelle ${color}`}
+                        key={color}
+                        onPress={() => setAspetto((v) => ({ ...v, colorePelle: color }))}
+                        style={[styles.swatch, { backgroundColor: color }, aspetto.colorePelle === color && styles.swatchSelected]}
+                      />
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Stile dei capelli</Text>
+                  <View style={styles.chipRowWrap}>
+                    {CAPELLI.map((o) => (
+                      <Pressable
+                        key={o.id}
+                        style={[styles.chip, aspetto.stileCapelli === o.id && styles.chipSelected]}
+                        onPress={() => setAspetto((v) => ({ ...v, stileCapelli: o.id }))}
+                      >
+                        <Text style={[styles.chipText, aspetto.stileCapelli === o.id && styles.chipTextSelected]}>{o.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Colore dei capelli</Text>
+                  <View style={styles.swatchRow}>
+                    {COLORI_CAPELLI.map((color) => (
+                      <Pressable
+                        accessibilityLabel={`Capelli ${color}`}
+                        key={color}
+                        onPress={() => setAspetto((v) => ({ ...v, coloreCapelli: color }))}
+                        style={[styles.swatch, { backgroundColor: color }, aspetto.coloreCapelli === color && styles.swatchSelected]}
+                      />
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Stile degli occhi</Text>
+                  <View style={styles.chipRowWrap}>
+                    {OCCHI.map((o) => (
+                      <Pressable
+                        key={o.id}
+                        style={[styles.chip, aspetto.stileOcchi === o.id && styles.chipSelected]}
+                        onPress={() => setAspetto((v) => ({ ...v, stileOcchi: o.id }))}
+                      >
+                        <Text style={[styles.chipText, aspetto.stileOcchi === o.id && styles.chipTextSelected]}>{o.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>Vestiti</Text>
+                  <View style={styles.chipRowWrap}>
+                    {VESTITI.map((o) => (
+                      <Pressable
+                        key={o.id}
+                        style={[styles.chip, aspetto.vestiti === o.id && styles.chipSelected]}
+                        onPress={() => setAspetto((v) => ({ ...v, vestiti: o.id }))}
+                      >
+                        <Text style={[styles.chipText, aspetto.vestiti === o.id && styles.chipTextSelected]}>{o.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+
+                <View style={styles.field}>
+                  <Text style={styles.label}>
+                    Copricapo <Text style={styles.kingOnly}>· la Corona appartiene solo al Re</Text>
+                  </Text>
+                  <View style={styles.chipRowWrap}>
+                    {CAPPELLI.map((o) => (
+                      <Pressable
+                        key={o.id}
+                        style={[styles.chip, aspetto.cappello === o.id && styles.chipSelected]}
+                        onPress={() => setAspetto((v) => ({ ...v, cappello: o.id }))}
+                      >
+                        <Text style={[styles.chipText, aspetto.cappello === o.id && styles.chipTextSelected]}>{o.label}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
               </View>
             </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Nome</Text>
-              <TextInput
-                style={styles.input}
-                value={nome}
-                onChangeText={setNome}
-                placeholder="Nome"
-                placeholderTextColor="rgba(148,163,184,0.5)"
-                autoCapitalize="words"
-              />
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Cognome</Text>
-              <TextInput
-                style={styles.input}
-                value={cognome}
-                onChangeText={setCognome}
-                placeholder="Cognome"
-                placeholderTextColor="rgba(148,163,184,0.5)"
-                autoCapitalize="words"
-              />
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Genere</Text>
-              <View style={styles.chipRow}>
-                {GENERI.map((g) => (
-                  <Pressable
-                    key={g.id}
-                    style={[styles.chip, sesso === g.id && styles.chipSelected]}
-                    onPress={() => setSesso(g.id)}
-                  >
-                    <Text style={[styles.chipText, sesso === g.id && styles.chipTextSelected]}>{g.label}</Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            <View style={styles.field}>
-              <Text style={styles.label}>Orientamento sessuale</Text>
-              <View style={styles.chipRowWrap}>
-                {ORIENTAMENTI.map((o) => (
-                  <Pressable
-                    key={o.id}
-                    style={[styles.chip, orientamento === o.id && styles.chipSelected]}
-                    onPress={() => setOrientamento(o.id)}
-                  >
-                    <Text style={[styles.chipText, orientamento === o.id && styles.chipTextSelected]}>
-                      {o.label}
-                    </Text>
-                  </Pressable>
-                ))}
-              </View>
-            </View>
-
-            <Text style={styles.sectionTitle}>Aspetto del personaggio</Text>
-
-            <View style={styles.field}><Text style={styles.label}>Razza</Text><View style={styles.chipRowWrap}>{RAZZE.map((o) => <Pressable key={o.id} style={[styles.chip, razza === o.id && styles.chipSelected]} onPress={() => selezionaRazza(o.id)}><Text style={[styles.chipText, razza === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Colore della pelle</Text><View style={styles.swatchRow}>{COLORI_PELLE.map((color) => <Pressable accessibilityLabel={`Pelle ${color}`} key={color} onPress={() => setAspetto((v) => ({ ...v, colorePelle: color }))} style={[styles.swatch, { backgroundColor: color }, aspetto.colorePelle === color && styles.swatchSelected]} />)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Stile dei capelli</Text><View style={styles.chipRowWrap}>{CAPELLI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.stileCapelli === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, stileCapelli: o.id }))}><Text style={[styles.chipText, aspetto.stileCapelli === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Colore dei capelli</Text><View style={styles.swatchRow}>{COLORI_CAPELLI.map((color) => <Pressable accessibilityLabel={`Capelli ${color}`} key={color} onPress={() => setAspetto((v) => ({ ...v, coloreCapelli: color }))} style={[styles.swatch, { backgroundColor: color }, aspetto.coloreCapelli === color && styles.swatchSelected]} />)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Stile degli occhi</Text><View style={styles.chipRowWrap}>{OCCHI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.stileOcchi === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, stileOcchi: o.id }))}><Text style={[styles.chipText, aspetto.stileOcchi === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Vestiti</Text><View style={styles.chipRowWrap}>{VESTITI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.vestiti === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, vestiti: o.id }))}><Text style={[styles.chipText, aspetto.vestiti === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
-            <View style={styles.field}><Text style={styles.label}>Copricapo <Text style={styles.kingOnly}>· la Corona appartiene solo al Re</Text></Text><View style={styles.chipRowWrap}>{CAPPELLI.map((o) => <Pressable key={o.id} style={[styles.chip, aspetto.cappello === o.id && styles.chipSelected]} onPress={() => setAspetto((v) => ({ ...v, cappello: o.id }))}><Text style={[styles.chipText, aspetto.cappello === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View></View>
           </ScrollView>
 
           <Pressable
@@ -280,7 +389,32 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 0.3
   },
-  modalCardDesktop: { width: "94%", maxWidth: 1040, height: "92%", borderRadius: 20, padding: 24 },
+  modalCardDesktop: { width: "94%", maxWidth: 1180, height: "92%", borderRadius: 20, padding: 24 },
+  scrollContent: {
+    paddingBottom: 92
+  },
+  editorColumns: {
+    width: "100%"
+  },
+  editorColumnsDesktop: {
+    flexDirection: "row",
+    alignItems: "flex-start",
+    gap: 28
+  },
+  editorColumn: {
+    width: "100%"
+  },
+  editorColumnDesktop: {
+    flex: 1,
+    minWidth: 0
+  },
+  appearanceColumn: {
+    backgroundColor: "rgba(15, 23, 42, 0.48)",
+    borderWidth: 1,
+    borderColor: "rgba(147, 197, 253, 0.18)",
+    borderRadius: 14,
+    padding: 16
+  },
   subtitle: { color: "#d6c39b", fontSize: 13, marginTop: 7, textAlign: "center" },
   titleUnderline: {
     width: 48,
