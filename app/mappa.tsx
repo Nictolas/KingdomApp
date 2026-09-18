@@ -236,17 +236,13 @@ import {
 } from "../src/game/mappaEdificioFootprints";
 import { getResourceEmoji, getResourceRoute } from "../src/game/mappaRisorsePresentazione";
 import {
-  BAR_EDIFICIO,
   CAPANNA,
   DECORAZIONI_EMOJI,
-  DORMITORIO,
   GIACIMENTO,
   RAFFINERIA_MINERARIA,
   SERRA_2_EDIFICIO,
   SERRA_EDIFICIO,
-  SPAZIOPORTO_EDIFICIO,
-  STRADA_OPZIONE,
-  TRIBUNALE_EDIFICIO
+  STRADA_OPZIONE
 } from "../src/game/mappaEdificiStatici";
 import { getStradeIniziali } from "../src/game/mappaStradeIniziali";
 import {
@@ -270,7 +266,13 @@ import {
   trovaAnchorDissalatore
 } from "../src/game/mappaDissalatorePiazzamento";
 import { applicaRegoleConfineTerreno } from "../src/game/mappaRegoleConfineTerreno";
-import { aggiungiDormitorioFootprint } from "../src/game/mappaEdificiInizialiPiazzamento";
+import {
+  aggiungiBarFootprint,
+  aggiungiDormitorioFootprint,
+  aggiungiSerraFootprint,
+  aggiungiSpazioportoFootprint,
+  aggiungiTribunaleFootprint
+} from "../src/game/mappaEdificiInizialiPiazzamento";
 
 
 /**
@@ -308,154 +310,6 @@ function webCellAbsolutePosition(index: number, cols: number, cellPx: number): V
 
 
 /** Mare, fiume, sabbia o confine con acqua: nessuna cella strada (vedi {@link isCellaOkPerStrada}). */
-
-function aggiungiBarFootprint(
-  cols: number,
-  rows: number,
-  riverSet: Set<number>,
-  vietato: Set<number>,
-  out: Record<number, EdificioInCella>,
-  preferred: number
-): void {
-  const w = BAR_FOOTPRINT_W;
-  const h = BAR_FOOTPRINT_H;
-  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, vietato);
-  if (anchor == null) {
-    const cell = trovaCellaSingolaConCuscino(preferred, cols, rows, riverSet, vietato);
-    if (cell != null) {
-      out[cell] = { ...BAR_EDIFICIO };
-      estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, vietato);
-    }
-    return;
-  }
-  const celle = getIndiciFootprint(anchor, w, h, cols);
-  out[anchor] = {
-    id: BAR_EDIFICIO.id,
-    nome: BAR_EDIFICIO.nome,
-    emoji: "",
-    footprint: { w, h }
-  };
-  for (const i of celle) {
-    if (i === anchor) continue;
-    out[i] = { id: BAR_EDIFICIO.id, nome: BAR_EDIFICIO.nome, emoji: "", footprintRef: anchor };
-  }
-  estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
-}
-
-function aggiungiTribunaleFootprint(
-  cols: number,
-  rows: number,
-  riverSet: Set<number>,
-  vietato: Set<number>,
-  out: Record<number, EdificioInCella>,
-  preferred: number
-): void {
-  const w = TRIBUNALE_FOOTPRINT_W;
-  const h = TRIBUNALE_FOOTPRINT_H;
-  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, vietato);
-  if (anchor == null) {
-    const cell = trovaCellaSingolaConCuscino(preferred, cols, rows, riverSet, vietato);
-    if (cell != null) {
-      out[cell] = { ...TRIBUNALE_EDIFICIO };
-      estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, vietato);
-    }
-    return;
-  }
-  const celle = getIndiciFootprint(anchor, w, h, cols);
-  out[anchor] = {
-    id: TRIBUNALE_EDIFICIO.id,
-    nome: TRIBUNALE_EDIFICIO.nome,
-    emoji: "",
-    footprint: { w, h }
-  };
-  for (const i of celle) {
-    if (i === anchor) continue;
-    out[i] = {
-      id: TRIBUNALE_EDIFICIO.id,
-      nome: TRIBUNALE_EDIFICIO.nome,
-      emoji: "",
-      footprintRef: anchor
-    };
-  }
-  estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
-}
-
-function aggiungiSerraFootprint(
-  cols: number,
-  rows: number,
-  riverSet: Set<number>,
-  vietato: Set<number>,
-  out: Record<number, EdificioInCella>,
-  preferred: number,
-  spec: EdificioInCella
-): void {
-  const w = SERRA_FOOTPRINT_W;
-  const h = SERRA_FOOTPRINT_H;
-  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, vietato);
-  if (anchor == null) {
-    const cell = trovaCellaSingolaConCuscino(preferred, cols, rows, riverSet, vietato);
-    if (cell != null) {
-      out[cell] = { ...spec };
-      estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, vietato);
-    }
-    return;
-  }
-  const celle = getIndiciFootprint(anchor, w, h, cols);
-  out[anchor] = {
-    id: spec.id,
-    nome: spec.nome,
-    emoji: "",
-    footprint: { w, h }
-  };
-  for (const i of celle) {
-    if (i === anchor) continue;
-    out[i] = {
-      id: spec.id,
-      nome: spec.nome,
-      emoji: "",
-      footprintRef: anchor
-    };
-  }
-  estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
-}
-
-function aggiungiSpazioportoFootprint(
-  cols: number,
-  rows: number,
-  riverSet: Set<number>,
-  vietato: Set<number>,
-  out: Record<number, EdificioInCella>,
-  preferred: number
-): void {
-  const w = SPAZIOPORTO_FOOTPRINT_W;
-  const h = SPAZIOPORTO_FOOTPRINT_H;
-  const anchor = trovaAnchorFootprintLibero(w, h, preferred, cols, rows, riverSet, vietato);
-  if (anchor == null) {
-    const cell = trovaCellaSingolaConCuscino(preferred, cols, rows, riverSet, vietato);
-    if (cell != null) {
-      out[cell] = { ...SPAZIOPORTO_EDIFICIO };
-      estendiVietatoConFootprintECuscino(cell, 1, 1, cols, rows, vietato);
-    }
-    return;
-  }
-  const celle = getIndiciFootprint(anchor, w, h, cols);
-  out[anchor] = {
-    id: SPAZIOPORTO_EDIFICIO.id,
-    nome: SPAZIOPORTO_EDIFICIO.nome,
-    emoji: "",
-    footprint: { w, h }
-  };
-  for (const i of celle) {
-    if (i === anchor) continue;
-    out[i] = {
-      id: SPAZIOPORTO_EDIFICIO.id,
-      nome: SPAZIOPORTO_EDIFICIO.nome,
-      emoji: "",
-      footprintRef: anchor
-    };
-  }
-  estendiVietatoConFootprintECuscino(anchor, w, h, cols, rows, vietato);
-}
 
 /** Restituisce edifici iniziali fissi, spostati su terra (no fiume, no mare); nessuna cella condivisa. */
 function getEdificiIniziali(
