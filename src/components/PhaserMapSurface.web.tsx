@@ -3,6 +3,7 @@ import { Asset } from "expo-asset";
 import { StyleSheet, View } from "react-native";
 
 import type { PhaserMapActions, PhaserMapSnapshot } from "../phaser/adapters/mapSceneBridge";
+import { LPC_ASSET_SOURCES } from "../character-system/generated/lpcAssetSources";
 
 const SPRITESHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spritesheet-full.png");
 const HUMAN_SHEET = require("../../assets/pixel-art/characters/human-colonist.png");
@@ -16,6 +17,19 @@ type Props = PhaserMapActions & {
   snapshot: PhaserMapSnapshot;
 };
 
+function lpcAssetUrlsForSnapshot(snapshot: PhaserMapSnapshot): Record<string, string> {
+  const urls: Record<string, string> = {};
+  for (const character of snapshot.characters) {
+    for (const layer of character.lpcLayers ?? []) {
+      if (urls[layer.sourceId]) continue;
+      const module = LPC_ASSET_SOURCES[layer.sourceId];
+      if (module == null) continue;
+      urls[layer.sourceId] = Asset.fromModule(module).uri;
+    }
+  }
+  return urls;
+}
+
 /** Superficie WebGL. React le passa dati e azioni, senza partecipare al render loop. */
 export function PhaserMapSurface({
   snapshot,
@@ -27,9 +41,12 @@ export function PhaserMapSurface({
   onDragStateChange
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
+  const latestSnapshotRef = useRef(snapshot);
+  latestSnapshotRef.current = snapshot;
   const runtimeRef = useRef<{
     game: import("phaser").Game;
     bridge: import("../phaser/adapters/mapSceneBridge").MapSceneBridge;
+    scene: import("../phaser/scenes/KingdomMapScene").KingdomMapScene;
   } | null>(null);
 
   useEffect(() => {
@@ -40,7 +57,8 @@ export function PhaserMapSurface({
       const { KingdomMapScene } = await import("../phaser/scenes/KingdomMapScene");
       if (cancelled || !hostRef.current) return;
 
-      const bridge = new MapSceneBridge(snapshot, {
+      const initialSnapshot = latestSnapshotRef.current;
+      const bridge = new MapSceneBridge(initialSnapshot, {
         onCellPress, onCellHover, onCharacterPress, onCharacterDoublePress,
         onCharacterPathComplete, onDragStateChange
       });
@@ -53,8 +71,10 @@ export function PhaserMapSurface({
           dormitory: Asset.fromModule(DORMITORY).uri,
           greenhouse: Asset.fromModule(GREENHOUSE).uri,
           "frontier-hut": Asset.fromModule(FRONTIER_HUT).uri
-        }
+        },
+        lpc: lpcAssetUrlsForSnapshot(initialSnapshot)
       };
+      const scene = new KingdomMapScene(bridge, sheetUrl, artUrls);
       const game = new Phaser.Game({
         type: Phaser.WEBGL,
         parent: hostRef.current,
@@ -70,9 +90,12 @@ export function PhaserMapSurface({
           pixelArt: false,
           roundPixels: true
         },
-        scene: [new KingdomMapScene(bridge, sheetUrl, artUrls)]
+        scene: [scene]
       });
-      runtimeRef.current = { game, bridge };
+      runtimeRef.current = { game, bridge, scene };
+      const latestSnapshot = latestSnapshotRef.current;
+      scene.registerLpcAssetUrls(lpcAssetUrlsForSnapshot(latestSnapshot));
+      bridge.setSnapshot(latestSnapshot);
     })();
 
     return () => {
@@ -83,7 +106,10 @@ export function PhaserMapSurface({
   }, []);
 
   useEffect(() => {
-    runtimeRef.current?.bridge.setSnapshot(snapshot);
+    const runtime = runtimeRef.current;
+    if (!runtime) return;
+    runtime.scene.registerLpcAssetUrls(lpcAssetUrlsForSnapshot(snapshot));
+    runtime.bridge.setSnapshot(snapshot);
   }, [snapshot]);
 
   useEffect(() => {
