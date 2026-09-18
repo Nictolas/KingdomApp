@@ -5,7 +5,7 @@ import { useGameContext } from "../src/context/GameContext";
 import { generaAspettoEsempioRazza } from "../src/game/personaggioAspetto";
 import { lpcSpriteCircleDiameter } from "../src/character-system/lpcPack";
 import { RAZZE_ABITANTI } from "../src/types";
-import { PixelAvatarPreview } from "../src/ui/PixelAvatarPreview";
+import { CircularSpriteFrame } from "../src/ui/CircularSpriteFrame";
 
 const RACE_DETAILS = {
   Umano: { head: "Human" },
@@ -47,7 +47,15 @@ export default function RazzeScreen() {
         const avatarOuter = lpcSpriteCircleDiameter(avatarSize) + 8;
         return <View key={razza} style={styles.card}>
           <View style={[styles.avatarWrap, { width: avatarOuter, height: avatarOuter }]}>
-            <PixelAvatarPreview razza={razza} aspetto={ESEMPI_RAZZA[razza]} size={avatarSize} animate={false} />
+            {ESEMPI_RAZZA[razza].characterAppearance ? (
+              <CircularSpriteFrame
+                appearance={ESEMPI_RAZZA[razza].characterAppearance!}
+                size={avatarSize}
+                animation="idle"
+                direction="down"
+                animate={false}
+              />
+            ) : null}
           </View>
           <Text style={styles.race}>{razza}</Text>
           <Text style={styles.head} numberOfLines={2}>Heads: {detail.head}</Text>
