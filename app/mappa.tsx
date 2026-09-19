@@ -119,7 +119,10 @@ import { findBuildingForInteriorCell } from "../src/game/buildingGeometry";
 import { assignUniqueCharacterCells } from "../src/game/characterCellOccupancy";
 import {
   getMappaPersonaggiRuntime,
-  setUltimaCellaAbitanteRuntime
+  hydrateCommutesFromRuntime,
+  patchMappaPersonaggiRuntime,
+  setUltimaCellaAbitanteRuntime,
+  type CommuteInfoMappa
 } from "../src/game/mappaPersonaggiRuntimeStore";
 import type { PhaserMapCharacter, PhaserMapInteraction } from "../src/phaser/adapters/mapSceneBridge";
 import { MondoLoadingScreen } from "../src/components/MondoLoadingScreen";
@@ -1475,13 +1478,44 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     abitanteSuCellaRef.current.delete(abitanteId);
   }, []);
 
-  const [dormonoACasaIds, setDormonoACasaIds] = useState<Set<number>>(() => new Set());
-  const [lavoroArrivatiIds, setLavoroArrivatiIds] = useState<Set<number>>(() => new Set());
+  const runtimePersonaggiInizialeRef = useRef(getMappaPersonaggiRuntime());
+  const [dormonoACasaIds, setDormonoACasaIds] = useState<Set<number>>(
+    () => new Set(runtimePersonaggiInizialeRef.current.dormonoACasaIds)
+  );
+  const [lavoroArrivatiIds, setLavoroArrivatiIds] = useState<Set<number>>(
+    () => new Set(runtimePersonaggiInizialeRef.current.lavoroArrivatiIds)
+  );
   /** id edificio Bar (globale) → abitanti considerati “dentro” quel locale sulla mappa. */
-  const [barArrivatiByEdificio, setBarArrivatiByEdificio] = useState<Record<number, number[]>>({});
+  const [barArrivatiByEdificio, setBarArrivatiByEdificio] = useState<Record<number, number[]>>(
+    () => runtimePersonaggiInizialeRef.current.barArrivatiByEdificio
+  );
   /** id edificio Luogo di Culto (globale) → fedeli considerati “dentro” quel tempio. */
-  const [cultoArrivatiByEdificio, setCultoArrivatiByEdificio] = useState<Record<number, number[]>>({});
-  const [commuteByAbitanteId, setCommuteByAbitanteId] = useState<Record<number, CommuteInfo>>({});
+  const [cultoArrivatiByEdificio, setCultoArrivatiByEdificio] = useState<Record<number, number[]>>(
+    () => runtimePersonaggiInizialeRef.current.cultoArrivatiByEdificio
+  );
+  const [commuteByAbitanteId, setCommuteByAbitanteId] = useState<Record<number, CommuteInfo>>(
+    () =>
+      hydrateCommutesFromRuntime(
+        runtimePersonaggiInizialeRef.current.commuteByAbitanteId,
+        runtimePersonaggiInizialeRef.current.ultimaCellaByAbitanteId
+      ) as Record<number, CommuteInfo>
+  );
+
+  useEffect(() => {
+    patchMappaPersonaggiRuntime({
+      commuteByAbitanteId: commuteByAbitanteId as Record<number, CommuteInfoMappa>,
+      lavoroArrivatiIds: [...lavoroArrivatiIds],
+      barArrivatiByEdificio,
+      cultoArrivatiByEdificio,
+      dormonoACasaIds: [...dormonoACasaIds]
+    });
+  }, [
+    commuteByAbitanteId,
+    lavoroArrivatiIds,
+    barArrivatiByEdificio,
+    cultoArrivatiByEdificio,
+    dormonoACasaIds
+  ]);
 
   const minutiAbsGioco = useCallback(
     () => getGiornoGiocoSnapshot() * 1440 + orologioMinuti,
