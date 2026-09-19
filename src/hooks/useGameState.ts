@@ -84,6 +84,8 @@ import {
   type ReligioneConCulto
 } from "../game/luogoCulto";
 import { creaRichiestaLuogoCulto, type RichiestaInAttesa } from "../game/richieste";
+import { provaCreaReligioneCustom, type ReligioneCustom } from "../game/fedeleCulto";
+import { assicuraReligioneTempioChiese } from "../game/chiesa";
 import { isSimulationRunning, type GamePhase } from "../game/gamePhase";
 import type { GameMode } from "../game/gameMode";
 import type { PersistableGameState } from "../persistence/gameStateMapping";
@@ -137,7 +139,7 @@ function calcolaPendingRichiestaLuogoCulto(
     sole: capoSole,
     alieni: capoAlieni
   });
-  if (!capo || (capo.religione !== "Culto del Sole" && capo.religione !== "Culto degli Alieni")) return null;
+  if (!capo || (capo.religione !== "Culto del Sole" && capo.religione !== "Culto delle Ombre")) return null;
   const religione = capo.religione as ReligioneConCulto;
   if (richiesteInAttesa.some((r) => r.tipo === "luogo-culto" && r.religione === religione)) return null;
   if (luoghiCultoRifiutati.includes(religione)) return null;
@@ -324,7 +326,10 @@ export function useGameState() {
   
   // Configurazione politica religiosa
   const [politicaReligiosa, setPoliticaReligiosa] = useState<"ateismo-stato" | "religione-stato" | "liberta-culto">("liberta-culto");
-  const [religioneDiStato, setReligioneDiStato] = useState<"Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni" | null>(null);
+  const [religioneDiStato, setReligioneDiStato] = useState<
+    "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto delle Ombre" | string | null
+  >(null);
+  const [religioniCustom, setReligioniCustom] = useState<ReligioneCustom[]>([]);
   
   // Capo religioso e fedeli per ogni culto
   const [capoReligiosoSole, setCapoReligiosoSole] = useState<number | null>(capoReligiosoSoleIniziale);
@@ -349,13 +354,13 @@ export function useGameState() {
           return { ...a, lavoro: "Capo Religioso", religione: "Culto del Sole" as const };
         }
         if (capoReligiosoAlieni != null && a.id === capoReligiosoAlieni) {
-          return { ...a, lavoro: "Capo Religioso", religione: "Culto degli Alieni" as const };
+          return { ...a, lavoro: "Capo Religioso", religione: "Culto delle Ombre" as const };
         }
         if (a.lavoro === "Capo Religioso") {
           if (a.religione === "Culto del Sole" && a.id !== capoReligiosoSole) {
             return { ...a, lavoro: "Disoccupato", reddito: a.ruoloSchiavitu ? 0 : 0 };
           }
-          if (a.religione === "Culto degli Alieni" && a.id !== capoReligiosoAlieni) {
+          if (a.religione === "Culto delle Ombre" && a.id !== capoReligiosoAlieni) {
             return { ...a, lavoro: "Disoccupato", reddito: a.ruoloSchiavitu ? 0 : 0 };
           }
         }
@@ -372,7 +377,7 @@ export function useGameState() {
         (e) =>
           e.tipo !== "Luogo di Culto" ||
           (e.id !== TEMPLATE_ID_LUOGO_CULTO["Culto del Sole"] &&
-            e.id !== TEMPLATE_ID_LUOGO_CULTO["Culto degli Alieni"])
+            e.id !== TEMPLATE_ID_LUOGO_CULTO["Culto delle Ombre"])
       )
     );
   }, [simulationEnabled]);
@@ -810,6 +815,28 @@ export function useGameState() {
     if (nextA !== abitanti) setAbitanti(nextA);
     if (nextE !== edifici) setEdifici(nextE);
   }, [abitanti, edifici, simulationEnabled]);
+
+  const creaReligioneCustom = useCallback(
+    (input: {
+      nome: string;
+      emoji?: string;
+      descrizione?: string;
+      aspettoSacerdote?: import("../game/personaggioAspetto").AspettoPersonaggio;
+    }) => {
+      const result = provaCreaReligioneCustom(input, religioniCustom, () => `rel-${Date.now()}`);
+      if (result.ok) {
+        setReligioniCustom((prev) => [...prev, result.religione]);
+      }
+      return result;
+    },
+    [religioniCustom]
+  );
+
+  useEffect(() => {
+    if (!simulationEnabled) return;
+    const next = assicuraReligioneTempioChiese(edifici, religioniCustom);
+    if (next !== edifici) setEdifici(next);
+  }, [edifici, religioniCustom, simulationEnabled]);
 
   const assegnaAbitanteAEdificio = useCallback((abitanteId: number, edificioId: number) => {
     const abitante = abitanti.find((a) => a.id === abitanteId);
@@ -1435,6 +1462,8 @@ export function useGameState() {
     capoReligiosoSole,
     capoReligiosoAlieni,
     religioneDiStato,
+    religioniCustom,
+    creaReligioneCustom,
     etaMinimaLavoro,
     etaPensionabile,
     assegnoPensionati,
