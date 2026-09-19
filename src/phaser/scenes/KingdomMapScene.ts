@@ -398,9 +398,17 @@ export class KingdomMapScene extends Phaser.Scene {
     for (const character of snapshot.characters) {
       const token = character.pathToken ?? 0;
       let view = this.characterViews.get(character.id);
+      const lpcReady = character.appearance !== "golem" && this.ensureLpcTextures(character);
+      if (view && view.usesLpc !== lpcReady) {
+        this.stopIdleRoam(character.id);
+        this.tweens.killTweensOf(view.root);
+        view.root.destroy(true);
+        this.characterViews.delete(character.id);
+        view = undefined;
+      }
       if (!view) {
         const root = this.add.container(0, 0);
-        const useLpc = character.appearance !== "golem" && this.ensureLpcTextures(character);
+        const useLpc = lpcReady;
         const idleLayers = useLpc && character.characterAppearance
           ? resolveCharacterLayers(character.characterAppearance, "idle")
           : [];
