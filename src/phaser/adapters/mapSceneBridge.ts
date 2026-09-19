@@ -91,6 +91,10 @@ export type PhaserMapActions = {
   onCharacterPathComplete?: (characterId: number, pathToken: number) => void;
   /** Valida un passo idle prima che Phaser sposti realmente l'abitante. */
   onCharacterIdleStepAttempt?: (characterId: number, fromCell: number, toCell: number) => boolean;
+  /** Segnala l'inizio/fine di una chiacchierata tra abitanti. */
+  onCharacterChatChange?: (characterId: number, chattingWithId: number | null) => void;
+  /** Segnala che una chiacchierata tra due abitanti è terminata. */
+  onCharacterChatFinished?: (characterIdA: number, characterIdB: number) => void;
   onDragStateChange?: (dragging: boolean) => void;
 };
 
@@ -146,6 +150,14 @@ export class MapSceneBridge {
 
   attemptCharacterIdleStep(characterId: number, fromCell: number, toCell: number): boolean {
     return this.actions.onCharacterIdleStepAttempt?.(characterId, fromCell, toCell) ?? false;
+  }
+
+  notifyCharacterChatChange(characterId: number, chattingWithId: number | null): void {
+    this.actions.onCharacterChatChange?.(characterId, chattingWithId);
+  }
+
+  notifyCharacterChatFinished(characterIdA: number, characterIdB: number): void {
+    this.actions.onCharacterChatFinished?.(characterIdA, characterIdB);
   }
 
   setDragging(dragging: boolean): void {
