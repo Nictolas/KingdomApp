@@ -60,7 +60,16 @@ type GameContextType = {
   razzaCampoSterminio: Razza | null;
   capoReligiosoSole: number | null;
   capoReligiosoAlieni: number | null;
-  religioneDiStato: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni" | null;
+  religioneDiStato: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto delle Ombre" | string | null;
+  religioniCustom: import("../game/fedeleCulto").ReligioneCustom[];
+  creaReligioneCustom: (input: {
+    nome: string;
+    emoji?: string;
+    descrizione?: string;
+    aspettoSacerdote?: import("../game/personaggioAspetto").AspettoPersonaggio;
+  }) =>
+    | { ok: true; religione: import("../game/fedeleCulto").ReligioneCustom }
+    | { ok: false; errore: string };
   etaMinimaLavoro: number;
   etaPensionabile: number;
   assegnoPensionati: number;
@@ -88,7 +97,7 @@ type GameContextType = {
   setPoliticaNascite: (politica: "figlio-unico" | "incentivi" | "nessuna") => void;
   setPenaDiMorteAttiva: (attiva: boolean) => void;
   setPoliticaReligiosa: (politica: "ateismo-stato" | "religione-stato" | "liberta-culto") => void;
-  setReligioneDiStato: (religione: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni" | null) => void;
+  setReligioneDiStato: (religione: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto delle Ombre" | string | null) => void;
   setLeggeRazzialeAttiva: (attiva: boolean) => void;
   setRazzaCampoLavoro: (razza: Razza | null) => void;
   setRazzaCampoSterminio: (razza: Razza | null) => void;
