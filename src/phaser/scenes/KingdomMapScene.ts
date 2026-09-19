@@ -98,6 +98,8 @@ export class KingdomMapScene extends Phaser.Scene {
   private static readonly IDLE_ROAM_PAUSE_MS = 1600;
   private static readonly CHAT_TALK_GAME_MINUTES = 60;
   private readonly chatBusy = new Set<number>();
+  /** Partner della chiacchiera attiva; mantiene coerente la coppia durante abort/remount. */
+  private readonly chatPartnerById = new Map<number, number>();
   private readonly chatPairCooldownUntil = new Map<string, number>();
   private readonly chatTalkTimers = new Map<number, Phaser.Time.TimerEvent>();
   private static readonly CHAT_PAIR_COOLDOWN_MS = 240_000;
@@ -234,6 +236,8 @@ export class KingdomMapScene extends Phaser.Scene {
       this.unsubscribeSimTime = null;
       for (const timer of this.chatTalkTimers.values()) timer.remove(false);
       this.chatTalkTimers.clear();
+      this.chatPartnerById.clear();
+      this.chatBusy.clear();
       this.clearLocateArrow();
       if (this.lpcLoadCompleteListener) {
         this.load.off(Phaser.Loader.Events.COMPLETE, this.lpcLoadCompleteListener);
@@ -260,6 +264,26 @@ export class KingdomMapScene extends Phaser.Scene {
     this.chatTalkTimers.delete(anchorId);
   }
 
+  private abortChatFor(characterId: number): void {
+    const partnerId = this.chatPartnerById.get(characterId);
+    if (partnerId == null) {
+      this.chatBusy.delete(characterId);
+      return;
+    }
+
+    const anchorId = Math.min(characterId, partnerId);
+    this.clearChatTalkTimer(anchorId);
+    this.chatPartnerById.delete(characterId);
+    this.chatPartnerById.delete(partnerId);
+    this.chatBusy.delete(characterId);
+    this.chatBusy.delete(partnerId);
+    this.bridge.notifyCharacterChatChange(characterId, null);
+    this.bridge.notifyCharacterChatChange(partnerId, null);
+
+    // Il partner rimasto libero può tornare al roaming.
+    this.ensureIdleRoamScheduled(partnerId);
+  }
+
   private startChatTalkTimer(characterId: number, partnerId: number): void {
     const anchorId = Math.min(characterId, partnerId);
     this.clearChatTalkTimer(anchorId);
@@ -267,7 +291,12 @@ export class KingdomMapScene extends Phaser.Scene {
 
     const finish = () => {
       this.chatTalkTimers.delete(anchorId);
-      if (!this.chatBusy.has(characterId) || !this.chatBusy.has(partnerId)) return;
+      if (
+        this.chatPartnerById.get(characterId) !== partnerId ||
+        this.chatPartnerById.get(partnerId) !== characterId
+      ) return;
+      this.chatPartnerById.delete(characterId);
+      this.chatPartnerById.delete(partnerId);
       this.chatBusy.delete(characterId);
       this.chatBusy.delete(partnerId);
       this.bridge.notifyCharacterChatChange(characterId, null);
@@ -287,7 +316,10 @@ export class KingdomMapScene extends Phaser.Scene {
     };
 
     const tick = () => {
-      if (!this.chatBusy.has(characterId) || !this.chatBusy.has(partnerId)) {
+      if (
+        this.chatPartnerById.get(characterId) !== partnerId ||
+        this.chatPartnerById.get(partnerId) !== characterId
+      ) {
         this.chatTalkTimers.delete(anchorId);
         return;
       }
@@ -555,6 +587,7 @@ export class KingdomMapScene extends Phaser.Scene {
     const active = new Set(snapshot.characters.map((character) => character.id));
     for (const [id, view] of this.characterViews) {
       if (active.has(id)) continue;
+      this.stopIdleRoam(id);
       view.root.destroy(true);
       this.characterViews.delete(id);
     }
@@ -797,6 +830,7 @@ export class KingdomMapScene extends Phaser.Scene {
   }
 
   private stopIdleRoam(characterId: number): void {
+    this.abortChatFor(characterId);
     const timer = this.idleRoamTimers.get(characterId);
     if (timer) timer.remove(false);
     this.idleRoamTimers.delete(characterId);
@@ -890,6 +924,8 @@ export class KingdomMapScene extends Phaser.Scene {
           this.stopIdleRoam(nearby.id);
           this.chatBusy.add(characterId);
           this.chatBusy.add(nearby.id);
+          this.chatPartnerById.set(characterId, nearby.id);
+          this.chatPartnerById.set(nearby.id, characterId);
           this.bridge.notifyCharacterChatChange(characterId, nearby.id);
           this.bridge.notifyCharacterChatChange(nearby.id, characterId);
           this.startChatTalkTimer(characterId, nearby.id);
