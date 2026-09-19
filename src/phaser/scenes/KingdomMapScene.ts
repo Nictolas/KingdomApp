@@ -509,6 +509,17 @@ export class KingdomMapScene extends Phaser.Scene {
       if (!character?.idleRoamAllowed || !view?.root?.active || (character.path?.length ?? 0) >= 2) return;
       const dirs: Array<0 | 1 | 2 | 3> = [0, 1, 2, 3];
       view.direction = dirs[Math.floor(Math.random() * dirs.length)] ?? view.direction;
+      if (Math.random() < 0.3) {
+        const col = view.logicalCell % snapshot.cols;
+        const row = Math.floor(view.logicalCell / snapshot.cols);
+        const candidates = [row + 1 < snapshot.rows ? view.logicalCell + snapshot.cols : null, col > 0 ? view.logicalCell - 1 : null, col + 1 < snapshot.cols ? view.logicalCell + 1 : null, row > 0 ? view.logicalCell - snapshot.cols : null].filter((cell): cell is number => cell != null);
+        const destination = candidates[Math.floor(Math.random() * candidates.length)];
+        if (destination != null) {
+          const pos = this.characterPosition(destination, snapshot);
+          view.direction = this.directionForStep(view.logicalCell, destination, snapshot.cols);
+          this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => { view.root.setDepth(Math.round(view.root.y * 10)); this.characterLayer?.sort("depth"); }, onComplete: () => { view.logicalCell = destination; this.ensureIdleRoamScheduled(characterId); } });
+        }
+      }
       if (view.usesLpc && character.characterAppearance) {
         const layers = resolveCharacterLayers(character.characterAppearance, "idle");
         const directionName = this.directionName(view.direction);
