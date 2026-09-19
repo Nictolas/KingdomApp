@@ -115,6 +115,7 @@ import { MapTerrainCell } from "../src/components/MapTerrainCell";
 import { MapWaterCellsLayer } from "../src/components/MapWaterCellsLayer";
 import { PhaserMapSurface } from "../src/components/PhaserMapSurface";
 import { buildPhaserMapSnapshot } from "../src/phaser/adapters/buildPhaserMapSnapshot";
+import { findBuildingForInteriorCell } from "../src/game/buildingGeometry";
 import type { PhaserMapCharacter, PhaserMapInteraction } from "../src/phaser/adapters/mapSceneBridge";
 import { MondoLoadingScreen } from "../src/components/MondoLoadingScreen";
 import {
@@ -3086,16 +3087,29 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     [phaserBaseSnapshot, phaserCharacters, phaserInteraction, sintesiMappaAbitanteId, mostraGrigliaMappa, orologioInPausa]
   );
 
-  const tryPhaserIdleStep = useCallback(
+  const tryPhaserCharacterStep = useCallback(
     (abitanteId: number, _fromCell: number, toCell: number) => {
-      if (!isWalkableCell(toCell)) return false;
-      const insideBuilding = phaserBuildings.some((building) => building.geometry.cells.includes(toCell));
-      if (insideBuilding) return false;
+      if (findBuildingForInteriorCell(toCell, phaserBaseSnapshot.buildings, cols)) {
+        releaseCellAbitante(abitanteId);
+        ultimaCellaAbitanteRef.current.set(abitanteId, toCell);
+        return true;
+      }
       if (!tryClaimCellAbitante(abitanteId, toCell)) return false;
       ultimaCellaAbitanteRef.current.set(abitanteId, toCell);
       return true;
     },
-    [isWalkableCell, phaserBuildings, tryClaimCellAbitante]
+    [phaserBaseSnapshot.buildings, cols, releaseCellAbitante, tryClaimCellAbitante]
+  );
+
+  const tryPhaserIdleStep = useCallback(
+    (abitanteId: number, _fromCell: number, toCell: number) => {
+      if (!isWalkableCell(toCell)) return false;
+      if (findBuildingForInteriorCell(toCell, phaserBaseSnapshot.buildings, cols)) return false;
+      if (!tryClaimCellAbitante(abitanteId, toCell)) return false;
+      ultimaCellaAbitanteRef.current.set(abitanteId, toCell);
+      return true;
+    },
+    [isWalkableCell, phaserBaseSnapshot.buildings, cols, tryClaimCellAbitante]
   );
 
   const handlePhaserCharacterChatChange = useCallback(
@@ -3135,6 +3149,15 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       meta.lavoroCercaEdificioId
     );
   }, [commuteByAbitanteId, handleCommuteFinita]);
+
+  const handlePhaserCharacterPathBlocked = useCallback(
+    (abitanteId: number, fromCell: number, blockedCell: number) => {
+      const meta = commuteByAbitanteId[abitanteId];
+      if (!meta) return;
+      handleCommuteBloccata(abitanteId, { fromCell, blockedCell, purpose: meta.purpose });
+    },
+    [commuteByAbitanteId, handleCommuteBloccata]
+  );
 
   const handlePhaserCharacterPress = useCallback((abitanteId: number) => {
     setSintesiMappaAbitanteId(abitanteId);
@@ -3352,6 +3375,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               onCharacterPress={handlePhaserCharacterPress}
               onCharacterDoublePress={handlePhaserCharacterDoublePress}
               onCharacterPathComplete={handlePhaserCharacterPathComplete}
+              onCharacterStepAttempt={tryPhaserCharacterStep}
+              onCharacterPathBlocked={handlePhaserCharacterPathBlocked}
               onCharacterIdleStepAttempt={tryPhaserIdleStep}
               onCharacterChatChange={handlePhaserCharacterChatChange}
               onCharacterChatFinished={handlePhaserCharacterChatFinished}
