@@ -110,7 +110,7 @@ export type ModalitaGiocoGenerazione = "creativa" | "avventura";
 
 const NUM_ABITANTI_MIN_CREATIVA = 20;
 const NUM_ABITANTI_MAX_CREATIVA = 28;
-const NUM_ABITANTI_MIN_AVVENTURA = 6;
+const NUM_ABITANTI_MIN_AVVENTURA = 7;
 const NUM_ABITANTI_MAX_AVVENTURA = 8;
 
 const PERSONALITÀ_POOL: { nome: string; peso: number }[] = [
@@ -298,10 +298,18 @@ export function generaColoniaIniziale(
     if (!ab.ruoloSchiavitu) ab.reddito = 0;
   }
 
-  // Regola: almeno 1 Agricoltore a inizio partita (assegnato alla Serra in useGameState).
+  // Regola: 1 Agricoltore a inizio partita (assegnato alla Serra in useGameState).
   const candidatiAgricoltore = abitanti.filter((a) => a.id !== 1);
   if (candidatiAgricoltore.length > 0) {
     const agr = candidatiAgricoltore[Math.floor(Math.random() * candidatiAgricoltore.length)];
+    if (isAvventura) {
+      for (const abitante of candidatiAgricoltore) {
+        if (abitante.id !== agr.id && abitante.lavoro === "Agricoltore") {
+          abitante.lavoro = "Disoccupato";
+          if (!abitante.ruoloSchiavitu) abitante.reddito = 0;
+        }
+      }
+    }
     agr.lavoro = "Agricoltore";
     if (!agr.ruoloSchiavitu) agr.reddito = redditoMensileLavoroDefault();
   }
