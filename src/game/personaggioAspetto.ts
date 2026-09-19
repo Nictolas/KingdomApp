@@ -1,4 +1,5 @@
 import {
+  appearanceForPublicSpace,
   bodyFamilyFor,
   DWARF_BEARD_STYLE,
   FARMER_TOOL,
@@ -214,4 +215,47 @@ export function generaAspettoDaSeed(razza: RazzaConAspetto, seed: number): Aspet
     state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
     return state / 0x100000000;
   });
+}
+
+
+/**
+ * Aspetto usato da mappa/UI: completa i vecchi salvataggi con un LPC stabile
+ * e applica le regole dell'abbigliamento pubblico senza mutare il salvataggio.
+ */
+export function aspettoPerVisualizzazioneAbitante(
+  abitante: {
+    id: number;
+    razza?: string | null;
+    aspetto?: AspettoPersonaggio;
+    lavoro?: string;
+    incinta?: boolean;
+    sesso?: "M" | "F" | null;
+  },
+  rules: { nudismoAttivo?: boolean } = {}
+): AspettoPersonaggio | undefined {
+  if (abitante.razza === "Golem") return abitante.aspetto;
+
+  const razzeSupportate: readonly RazzaConAspetto[] = ["Umano", "Elfo", "Nano", "Orco", "Goblin"];
+  const razza = razzeSupportate.includes(abitante.razza as RazzaConAspetto)
+    ? (abitante.razza as RazzaConAspetto)
+    : "Umano";
+
+  let aspetto = abitante.aspetto;
+  if (!aspetto?.characterAppearance) {
+    const generato = generaAspettoDaSeed(razza, abitante.id, {
+      sesso: abitante.sesso === "M" || abitante.sesso === "F" ? abitante.sesso : undefined
+    });
+    aspetto = aspetto ? { ...aspetto, characterAppearance: generato.characterAppearance } : generato;
+  }
+  if (!aspetto.characterAppearance) return aspetto;
+
+  return {
+    ...aspetto,
+    characterAppearance: appearanceForPublicSpace(aspetto.characterAppearance, {
+      isKing: abitante.id === 1,
+      nudismoAttivo: rules.nudismoAttivo === true,
+      incinta: abitante.incinta === true,
+      lavoro: abitante.lavoro
+    })
+  };
 }
