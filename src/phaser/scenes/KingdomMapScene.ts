@@ -1,12 +1,15 @@
 import Phaser from "phaser";
 
 import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
+import { LPC_DIRECTION_ROWS } from "../../character-system/lpcPack";
+import { canRenderCharacter, resolveCharacterLayers } from "../../character-system/registry";
 import { PhaserFramePerformanceSampler, formatPhaserFramePerformance } from "../adapters/phaserFramePerformance";
 import {
   getPhaserDynamicSnapshotChanges,
   isPhaserSimulationPaused,
   type MapSceneBridge,
   type PhaserMapBuilding,
+  type PhaserMapCharacter,
   type PhaserMapSnapshot
 } from "../adapters/mapSceneBridge";
 import {
@@ -49,6 +52,8 @@ export type PhaserArtAssetUrls = {
 type CharacterView = {
   root: Phaser.GameObjects.Container;
   sprite: Phaser.GameObjects.Sprite;
+  sprites: Phaser.GameObjects.Sprite[];
+  usesLpc: boolean;
   token: number;
   direction: 0 | 1 | 2 | 3;
 };
@@ -179,6 +184,31 @@ export class KingdomMapScene extends Phaser.Scene {
         delete (globalThis as any).__KINGDOM_PERF_ZOOM__;
       }
     });
+  }
+
+  private collectLpcSourceIds(appearance: NonNullable<PhaserMapCharacter["characterAppearance"]>): string[] {
+    const ids = new Set<string>();
+    for (const animation of ["idle", "walk"] as const) {
+      if (!canRenderCharacter(appearance, animation)) continue;
+      for (const layer of resolveCharacterLayers(appearance, animation)) ids.add(layer.sourceId);
+    }
+    return [...ids];
+  }
+
+  private ensureLpcTextures(character: PhaserMapCharacter): boolean {
+    const appearance = character.characterAppearance;
+    if (!appearance || !canRenderCharacter(appearance, "idle") || !this.artUrls.getLpcLayerUrl) return false;
+    const ids = this.collectLpcSourceIds(appearance);
+    let queued = false;
+    for (const id of ids) {
+      if (this.textures.exists(id)) continue;
+      const url = this.artUrls.getLpcLayerUrl(id);
+      if (!url) continue;
+      this.load.spritesheet(id, url, { frameWidth: 64, frameHeight: 64 });
+      queued = true;
+    }
+    if (queued && !this.load.isLoading()) this.load.start();
+    return ids.length > 0 && ids.every((id) => this.textures.exists(id));
   }
 
   private configureCharacterAnimations(): void {
@@ -339,14 +369,23 @@ export class KingdomMapScene extends Phaser.Scene {
       let view = this.characterViews.get(character.id);
       if (!view) {
         const root = this.add.container(0, 0);
+        const useLpc = character.appearance !== "golem" && this.ensureLpcTextures(character);
+        const idleLayers = useLpc && character.characterAppearance
+          ? resolveCharacterLayers(character.characterAppearance, "idle")
+          : [];
         const texture = character.appearance === "golem" ? GOLEM_KEY : HUMAN_KEY;
-        const sprite = this.add.sprite(0, -snapshot.cellSize * 0.2, texture, 0)
+        const sprite = this.add.sprite(0, -snapshot.cellSize * 0.2, useLpc ? idleLayers[0]?.sourceId ?? texture : texture, 0)
           .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
+        const sprites = useLpc
+          ? idleLayers.map((layer) => this.add.sprite(0, -snapshot.cellSize * 0.2, layer.sourceId, LPC_DIRECTION_ROWS.down * 2)
+              .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08))
+          : [sprite];
+        if (useLpc) sprite.setVisible(false);
         if (!character.appearance && character.markerEmoji) {
           sprite.setVisible(false);
           root.add(this.add.text(0, -snapshot.cellSize * 0.2, character.markerEmoji, { fontSize: "26px" }).setOrigin(0.5));
         }
-        root.add(sprite);
+        root.add(sprites);
         root.add(this.add.text(0, snapshot.cellSize * 0.34, character.name, {
           fontSize: "9px", color: "#ffffff", backgroundColor: "rgba(2,6,23,0.7)", padding: { x: 2, y: 1 }
         }).setOrigin(0.5));
@@ -360,7 +399,7 @@ export class KingdomMapScene extends Phaser.Scene {
           this.characterLastPressAt.set(character.id, now);
           this.bridge.pressCharacter(character.id, doublePress);
         });
-        view = { root, sprite, token: -1, direction: 0 };
+        view = { root, sprite, sprites, usesLpc: useLpc, token: -1, direction: 0 };
         this.characterViews.set(character.id, view);
       }
       if (view.token === token) continue;
