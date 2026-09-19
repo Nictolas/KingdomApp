@@ -641,7 +641,7 @@ export class KingdomMapScene extends Phaser.Scene {
           }
 
           this.claimFailCounts.delete(character.id);
-          const direction = this.directionForStep(currentCell, waypoint.cell, snapshot.cols);
+          const direction = this.directionForStep(currentCell, waypoint.cell, snapshot.cols, animatedView.direction);
           const nextCell = waypoint.cell;
           const tween = this.tweens.add({
             targets: animatedView.root,
@@ -659,6 +659,7 @@ export class KingdomMapScene extends Phaser.Scene {
               if (animatedView.usesLpc && character.characterAppearance) {
                 const layers = resolveCharacterLayers(character.characterAppearance, "walk");
                 animatedView.sprites.forEach((layerSprite, layerIndex) => {
+                  if (!layerSprite?.active) return;
                   const layer = layers[layerIndex];
                   if (!layer || !this.textures.exists(layer.sourceId)) {
                     layerSprite.setVisible(false);
@@ -685,6 +686,7 @@ export class KingdomMapScene extends Phaser.Scene {
         moveNext(0);
       }
     }
+    this.worldLayer.sort("depth");
     this.characterVisibilityDirty = true;
     this.renderSelectionMarker(snapshot);
   }
@@ -755,7 +757,7 @@ export class KingdomMapScene extends Phaser.Scene {
               return;
             }
             const pos = this.characterPosition(destination, snapshot);
-            view.direction = this.directionForStep(view.logicalCell, destination, snapshot.cols);
+            view.direction = this.directionForStep(view.logicalCell, destination, snapshot.cols, view.direction);
             if (view.usesLpc && character.characterAppearance) {
               const layers = resolveCharacterLayers(character.characterAppearance, "walk");
               const directionName = this.directionName(view.direction);
@@ -775,8 +777,8 @@ export class KingdomMapScene extends Phaser.Scene {
       if (nearby && !pairOnCooldown && Math.random() < 0.35 && !this.chatBusy.has(characterId) && !this.chatBusy.has(nearby.id)) {
         const otherView = this.characterViews.get(nearby.id);
         if (otherView) {
-          view.direction = this.directionForStep(view.logicalCell, otherView.logicalCell, snapshot.cols);
-          otherView.direction = this.directionForStep(otherView.logicalCell, view.logicalCell, snapshot.cols);
+          view.direction = this.directionForStep(view.logicalCell, otherView.logicalCell, snapshot.cols, view.direction);
+          otherView.direction = this.directionForStep(otherView.logicalCell, view.logicalCell, snapshot.cols, otherView.direction);
           const otherCharacter = snapshot.characters.find((c) => c.id === nearby.id);
           this.setCharacterIdleFrame(view, character);
           if (otherCharacter) this.setCharacterIdleFrame(otherView, otherCharacter);
@@ -832,7 +834,7 @@ export class KingdomMapScene extends Phaser.Scene {
         const destination = freeCandidates.find((cell) => this.bridge.attemptCharacterIdleStep(characterId, view.logicalCell, cell));
         if (destination != null) {
           const pos = this.characterPosition(destination, snapshot);
-          view.direction = this.directionForStep(view.logicalCell, destination, snapshot.cols);
+          view.direction = this.directionForStep(view.logicalCell, destination, snapshot.cols, view.direction);
           if (view.usesLpc && character.characterAppearance) {
             const layers = resolveCharacterLayers(character.characterAppearance, "walk");
             const directionName = this.directionName(view.direction);
@@ -890,12 +892,21 @@ export class KingdomMapScene extends Phaser.Scene {
     this.selectionRing = ring;
   }
 
-  private directionForStep(from: number, to: number, cols: number): 0 | 1 | 2 | 3 {
-    const delta = to - from;
-    if (delta === -1) return 1;
-    if (delta === 1) return 2;
-    if (delta === -cols) return 3;
-    return 0;
+  private directionForStep(
+    from: number,
+    to: number,
+    cols: number,
+    fallback: 0 | 1 | 2 | 3
+  ): 0 | 1 | 2 | 3 {
+    const fromCol = from % cols;
+    const toCol = to % cols;
+    const fromRow = Math.floor(from / cols);
+    const toRow = Math.floor(to / cols);
+    if (toCol < fromCol) return 1;
+    if (toCol > fromCol) return 2;
+    if (toRow < fromRow) return 3;
+    if (toRow > fromRow) return 0;
+    return fallback;
   }
 
   private directionName(direction: 0 | 1 | 2 | 3): "down" | "left" | "right" | "up" {
