@@ -3064,6 +3064,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     }),
   [abitantiPerOverlayMappa, commuteByAbitanteId, cellaCasaPerAbitanteId, cols]);
 
+  useEffect(() => {
+    const visibleIds = new Set(phaserCharacters.map((character) => character.id));
+    for (const id of abitanteSuCellaRef.current.keys()) {
+      if (!visibleIds.has(id)) releaseCellAbitante(id);
+    }
+    for (const character of phaserCharacters) {
+      if (!abitanteSuCellaRef.current.has(character.id)) {
+        tryClaimCellAbitante(character.id, character.cell);
+      }
+    }
+  }, [phaserCharacters, releaseCellAbitante, tryClaimCellAbitante]);
+
   const phaserRevisionRef = useRef(0);
   const phaserBaseSnapshot = useMemo(
     () => buildPhaserMapSnapshot(
