@@ -575,7 +575,8 @@ export class KingdomMapScene extends Phaser.Scene {
         const col = view.logicalCell % snapshot.cols;
         const row = Math.floor(view.logicalCell / snapshot.cols);
         const candidates = [row + 1 < snapshot.rows ? view.logicalCell + snapshot.cols : null, col > 0 ? view.logicalCell - 1 : null, col + 1 < snapshot.cols ? view.logicalCell + 1 : null, row > 0 ? view.logicalCell - snapshot.cols : null].filter((cell): cell is number => cell != null);
-        const destination = candidates[Math.floor(Math.random() * candidates.length)];
+        const freeCandidates = candidates.filter((cell) => ![...this.characterViews.entries()].some(([id, candidate]) => id !== characterId && candidate.logicalCell === cell));
+        const destination = freeCandidates[Math.floor(Math.random() * freeCandidates.length)];
         if (destination != null) {
           const pos = this.characterPosition(destination, snapshot);
           view.direction = this.directionForStep(view.logicalCell, destination, snapshot.cols);
