@@ -530,6 +530,11 @@ export class KingdomMapScene extends Phaser.Scene {
             const stepCol = aCol + Math.sign(bCol - aCol);
             const stepRow = bCol === aCol ? aRow + Math.sign(bRow - aRow) : aRow;
             const destination = stepRow * snapshot.cols + stepCol;
+            const destinationOccupied = [...this.characterViews.entries()].some(([id, candidate]) => id !== characterId && candidate.logicalCell === destination);
+            if (destinationOccupied) {
+              this.ensureIdleRoamScheduled(characterId);
+              return;
+            }
             const pos = this.characterPosition(destination, snapshot);
             view.direction = this.directionForStep(view.logicalCell, destination, snapshot.cols);
             this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => { view.root.setDepth(Math.round(view.root.y * 10)); this.characterLayer?.sort("depth"); }, onComplete: () => { view.logicalCell = destination; this.ensureIdleRoamScheduled(characterId); } });
