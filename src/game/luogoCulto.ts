@@ -1,30 +1,31 @@
+import { MAP_COLS, MAP_ROWS } from "./mappaDimensioni";
 import type { Abitante, Edificio } from "../types";
 import type { EdificioInCellaMappa, MappaRuntimeState } from "./mappaTypes";
 import type { TerrenoType } from "./riverGeneration";
+import { isMareAttivo } from "./mareCosta";
 import { getMappaSessione, setMappaSessione } from "./mappaSessione";
 
-export const MAP_COLS = 50;
-export const MAP_ROWS = 50;
+export { MAP_COLS, MAP_ROWS };
 
-export const RELIGIONI_CON_CULTO = ["Culto del Sole", "Culto degli Alieni"] as const;
+export const RELIGIONI_CON_CULTO = ["Culto del Sole", "Culto delle Ombre"] as const;
 export type ReligioneConCulto = (typeof RELIGIONI_CON_CULTO)[number];
 
 export const TEMPLATE_ID_LUOGO_CULTO: Record<ReligioneConCulto, number> = {
   "Culto del Sole": 30,
-  "Culto degli Alieni": 31
+  "Culto delle Ombre": 31
 };
 
 export function nomeEdificioLuogoCulto(religione: ReligioneConCulto): string {
-  return religione === "Culto del Sole" ? "Luogo di Culto del Sole" : "Luogo di Culto degli Alieni";
+  return religione === "Culto del Sole" ? "Luogo di Culto del Sole" : "Luogo di Culto delle Ombre";
 }
 
 export function emojiLuogoCulto(religione: ReligioneConCulto): string {
-  return religione === "Culto del Sole" ? "☀️" : "👽";
+  return religione === "Culto del Sole" ? "☀️" : "🌑";
 }
 
 const NOMI_LUOGHI_CULTO = new Set<string>([
   "Luogo di Culto del Sole",
-  "Luogo di Culto degli Alieni"
+  "Luogo di Culto delle Ombre"
 ]);
 
 export function èNomeLuogoCulto(nome: string): boolean {
@@ -33,7 +34,7 @@ export function èNomeLuogoCulto(nome: string): boolean {
 
 export function religioneDaNomeEdificioLuogoCulto(nome: string): ReligioneConCulto | null {
   if (nome === "Luogo di Culto del Sole") return "Culto del Sole";
-  if (nome === "Luogo di Culto degli Alieni") return "Culto degli Alieni";
+  if (nome === "Luogo di Culto delle Ombre") return "Culto delle Ombre";
   return null;
 }
 
@@ -113,7 +114,7 @@ function raccogliCapiReligiosi(abitanti: Abitante[], capiIds?: CapiReligiosiIds)
   };
 
   for (const a of abitanti) {
-    if (a.lavoro === "Capo Religioso") aggiungi(a);
+    if (a.lavoro === "Capo Religioso" || a.lavoro === "Capo Spirituale") aggiungi(a);
   }
   if (capiIds?.sole != null) aggiungi(abitanti.find((a) => a.id === capiIds.sole));
   if (capiIds?.alieni != null) aggiungi(abitanti.find((a) => a.id === capiIds.alieni));
@@ -132,7 +133,7 @@ export function trovaCapoReligiosoSenzaLuogo(
       a.id === capiIds?.sole
         ? "Culto del Sole"
         : a.id === capiIds?.alieni
-          ? "Culto degli Alieni"
+          ? "Culto delle Ombre"
           : a.religione;
     if (!RELIGIONI_CON_CULTO.includes(religione as ReligioneConCulto)) continue;
     const religioneCulto = religione as ReligioneConCulto;
@@ -154,9 +155,7 @@ function getIndiciFootprint(anchor: number, w: number, h: number, cols: number):
 }
 
 function isAcqua(index: number, cols: number, rows: number): boolean {
-  const row = Math.floor(index / cols);
-  const col = index % cols;
-  return row === 0 || row === rows - 1 || col === 0 || col === cols - 1;
+  return isMareAttivo(index, cols, rows);
 }
 
 function riverSetDaTerreno(terreno: Record<number, TerrenoType>): Set<number> {
