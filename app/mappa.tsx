@@ -101,6 +101,7 @@ import {
   scegliAzioneTempoLibero
 } from "../src/game/bisogni";
 import { getCastaAbitante, getEmojiCasta } from "../src/game/casta";
+import { aspettoPerVisualizzazioneAbitante } from "../src/game/personaggioAspetto";
 import { elencoEdificiConPostoPerDisoccupato } from "../src/game/edificiLavoro";
 import { getEdificioAbitazione } from "../src/game/abitanteEdifici";
 import {
@@ -3052,6 +3053,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         path: commute?.path,
         pathToken: commute?.token ?? 0,
         appearance: abitante.razza === "Golem" ? "golem" : "human",
+        characterAppearance: aspettoPerVisualizzazioneAbitante(abitante)?.characterAppearance,
         markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined
       };
     }),
