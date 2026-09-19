@@ -1045,6 +1045,13 @@ export function useGameState() {
   }, []);
 
   /** Accredita monete al tesoro (sink bar/negozio → stipendi). */
+  const aggiornaEdificioById = useCallback(
+    (edificioId: number, update: (e: Edificio) => Edificio) => {
+      setEdifici((prev) => prev.map((e) => (e.id === edificioId ? update(e) : e)));
+    },
+    []
+  );
+
   const applicaEsitoChiacchieraAbitanti = useCallback((idA: number, idB: number) => {
     setAbitanti((prev) => applicaEsitoChiacchieraSuLista(prev, idA, idB));
   }, []);
@@ -1523,6 +1530,7 @@ export function useGameState() {
     rimuoviMinistro,
     setNomeAbitante,
     aggiornaAbitanteById,
+    aggiornaEdificioById,
     applicaEsitoChiacchieraAbitanti,
     accreditaMoneteGiocatore,
     appendDiarioRiga,
