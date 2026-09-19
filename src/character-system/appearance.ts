@@ -96,11 +96,11 @@ export function enforceRaceBodyTypeRules(value: Partial<CharacterAppearance>): P
     };
   }
   if (value.race === "dwarf") {
-    const withBody = {
+    const withBody: Partial<CharacterAppearance> = {
       ...value,
       bodyType: "child",
       ageGroup: "child",
-      bodyFamily: "humanChild" as const,
+      bodyFamily: "humanChild",
       beardStyle: DWARF_BEARD_STYLE,
       earsStyle: "none"
     };
