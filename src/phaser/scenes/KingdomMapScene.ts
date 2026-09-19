@@ -42,6 +42,7 @@ function frameKey(x: number, y: number): string {
 export type PhaserArtAssetUrls = {
   human: string;
   golem: string;
+  getLpcLayerUrl?: (sourceId: string) => string | undefined;
   buildings: Record<NonNullable<PhaserMapBuilding["artKey"]>, string>;
 };
 
