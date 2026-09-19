@@ -99,6 +99,8 @@ export type PhaserMapActions = {
   onCharacterChatChange?: (characterId: number, chattingWithId: number | null) => void;
   /** Segnala che una chiacchierata tra due abitanti è terminata. */
   onCharacterChatFinished?: (characterIdA: number, characterIdB: number) => void;
+  /** Chiamato quando gli asset LPC visibili sono pronti e non servono più placeholder. */
+  onCharacterAssetsReady?: () => void;
   onDragStateChange?: (dragging: boolean) => void;
 };
 
@@ -170,6 +172,10 @@ export class MapSceneBridge {
 
   notifyCharacterChatFinished(characterIdA: number, characterIdB: number): void {
     this.actions.onCharacterChatFinished?.(characterIdA, characterIdB);
+  }
+
+  notifyCharacterAssetsReady(): void {
+    this.actions.onCharacterAssetsReady?.();
   }
 
   setDragging(dragging: boolean): void {
