@@ -600,11 +600,8 @@ export class KingdomMapScene extends Phaser.Scene {
     for (const character of snapshot.characters) {
       const token = character.pathToken ?? 0;
       let view = this.characterViews.get(character.id);
-      const needsLpc = character.appearance !== "golem";
-      const lpcReady =
-        needsLpc &&
-        this.characterNeedsLpc(character) &&
-        this.ensureLpcTextures(character);
+      const needsLpc = this.characterNeedsLpc(character);
+      const lpcReady = needsLpc && this.ensureLpcTextures(character);
       if (needsLpc && !lpcReady) {
         if (view) {
           this.stopIdleRoam(character.id);
@@ -651,6 +648,9 @@ export class KingdomMapScene extends Phaser.Scene {
           });
           sprite = sprites[0]!;
         } else {
+          const canSpawnGolem = character.appearance === "golem";
+          const canSpawnEmoji = !!character.markerEmoji;
+          if (!canSpawnGolem && !canSpawnEmoji) continue;
           sprite = this.add
             .sprite(0, -snapshot.cellSize * 0.2, GOLEM_KEY, 0)
             .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
