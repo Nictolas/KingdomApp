@@ -663,7 +663,12 @@ export function useGameState() {
   const [creazioneGiocatoreAperta, setCreazioneGiocatoreAperta] = useState(false);
   const [diarioInizioVisto, setDiarioInizioVisto] = useState(false);
   const startNewGame = useCallback((mode: GameMode = "avventura") => {
+    const colonia = generaColoniaIniziale(mode);
     setGameMode(mode);
+    setAbitanti(colonia.abitanti);
+    setRazzaNativi(colonia.razzaNativi);
+    setEdifici(creaEdificiIniziali(colonia.abitanti));
+    setNextId(colonia.abitanti.length + 100);
     gamePhaseRef.current = "commander-creation";
     setGamePhase("commander-creation");
     setCreazioneGiocatoreAperta(true);
