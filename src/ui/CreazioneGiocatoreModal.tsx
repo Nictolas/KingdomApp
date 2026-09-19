@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Dimensions,
   Modal,
@@ -53,7 +53,11 @@ export type DatiCreazioneGiocatore = {
 
 type CreazioneGiocatoreModalProps = {
   visible: boolean;
-  onConferma: (dati: DatiCreazioneGiocatore) => void;
+  onConferma: (dati: DatiCreazioneGiocatore) => void | Promise<void>;
+  mode?: "create" | "edit" | "outfit";
+  initial?: DatiCreazioneGiocatore | null;
+  onAnnulla?: () => void;
+  titolo?: string;
 };
 
 const GENERI: { id: "M" | "F"; label: string }[] = [
@@ -88,6 +92,15 @@ function forzaAspettoReTeen(aspetto: AspettoPersonaggio): AspettoPersonaggio {
 }
 
 const ASPETTO_RE_DEFAULT = forzaAspettoReTeen(ASPETTO_GIOCATORE_DEFAULT);
+
+const ASPETTO_OUTFIT_DEFAULT: AspettoPersonaggio = {
+  ...ASPETTO_GIOCATORE_DEFAULT,
+  cappello: "nessuno",
+  characterAppearance: normalizeCharacterAppearance({
+    ...creaCharacterAppearance("Umano", "male"),
+    headwear: "none"
+  })
+};
 
 function AppearanceOption({
   appearance,
@@ -347,7 +360,14 @@ function kimonoVestePreviewSemanticIds(semanticId: string): Partial<Record<Chara
   return { fullOutfit: semanticId };
 }
 
-export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocatoreModalProps) {
+export function CreazioneGiocatoreModal({
+  visible,
+  onConferma,
+  mode = "create",
+  initial = null,
+  onAnnulla,
+  titolo
+}: CreazioneGiocatoreModalProps) {
   const [nome, setNome] = useState("");
   const [cognome, setCognome] = useState("");
   const [sesso, setSesso] = useState<"M" | "F" | null>(null);
@@ -355,6 +375,29 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
   const [aspetto, setAspetto] = useState<AspettoPersonaggio>(ASPETTO_RE_DEFAULT);
   const [activeTab, setActiveTab] = useState<CreationTab>("identity");
   const [outfitColorPicker, setOutfitColorPicker] = useState<OutfitColorPickerState | null>(null);
+
+  useEffect(() => {
+    if (!visible) return;
+    const source =
+      initial ??
+      (mode === "outfit"
+        ? {
+            nome: "Sacerdote",
+            cognome: "",
+            sesso: "M" as const,
+            orientamento: "Etero" as const,
+            razza: RAZZA_RE,
+            aspetto: ASPETTO_OUTFIT_DEFAULT
+          }
+        : null);
+    setNome(source?.nome ?? "");
+    setCognome(source?.cognome ?? "");
+    setSesso(source?.sesso ?? null);
+    setOrientamento(source?.orientamento ?? null);
+    setAspetto(source?.aspetto ?? ASPETTO_RE_DEFAULT);
+    setActiveTab(mode === "outfit" ? "busto" : "identity");
+    setOutfitColorPicker(null);
+  }, [visible, mode, initial]);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
@@ -400,7 +443,11 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
     ["Socks", ["socks"]]
   ] as const;
   const updateSpriteAppearance = (patch: Partial<typeof spriteAppearance>) => {
-    const next = forzaAspettoReTeen({ ...aspetto, characterAppearance: { ...spriteAppearance, ...patch } });
+    const patched = {
+      ...aspetto,
+      characterAppearance: normalizeCharacterAppearance({ ...spriteAppearance, ...patch })
+    };
+    const next = mode === "outfit" ? patched : forzaAspettoReTeen(patched);
     if (next.characterAppearance && canRenderCharacter(next.characterAppearance, "idle")) {
       setAspetto(next);
     }
@@ -490,26 +537,32 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
   };
 
   const valido =
-    nome.trim().length > 0 &&
-    cognome.trim().length > 0 &&
-    sesso != null &&
-    orientamento != null;
+    mode === "outfit" ||
+    (nome.trim().length > 0 &&
+      cognome.trim().length > 0 &&
+      sesso != null &&
+      orientamento != null);
 
   const handleConferma = () => {
-    if (!valido || sesso == null || orientamento == null) return;
-    onConferma({
-      nome: nome.trim(),
-      cognome: cognome.trim(),
-      sesso,
-      orientamento,
-      razza: RAZZA_RE,
-      aspetto: forzaAspettoReTeen(aspetto)
+    if (!valido) return;
+    const sessoFinale = sesso ?? initial?.sesso ?? "M";
+    const orientamentoFinale = orientamento ?? initial?.orientamento ?? "Etero";
+    void onConferma({
+      nome: nome.trim() || initial?.nome || (mode === "outfit" ? "Sacerdote" : "Re"),
+      cognome: cognome.trim() || initial?.cognome || "",
+      sesso: sessoFinale,
+      orientamento: orientamentoFinale,
+      razza: initial?.razza ?? RAZZA_RE,
+      aspetto: mode === "outfit" ? aspetto : forzaAspettoReTeen(aspetto)
     });
   };
 
   return (
     <Modal visible={visible} transparent animationType="fade">
-      <Pressable style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]}>
+      <Pressable
+        style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]}
+        onPress={onAnnulla}
+      >
         <Pressable
           style={[styles.modalCard, isDesktop && modalContentFullscreen, isDesktop && styles.modalCardDesktop]}
           onPress={(e) => e.stopPropagation()}
@@ -517,7 +570,7 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
           <View style={styles.accentLine} />
           <View style={styles.header}>
             <View style={styles.emojiWrap}><Text style={styles.emoji}>🛡️</Text></View>
-            <Text style={styles.title}>Crea il tuo Re</Text>
+            <Text style={styles.title}>{titolo ?? (mode === "outfit" ? "Abiti Sacerdote" : mode === "edit" ? "Modifica il Re" : "Crea il tuo Re")}</Text>
             <Text style={styles.subtitle}>Configura un personaggio pixel-art modulare</Text>
             <View style={styles.titleUnderline} />
           </View>
@@ -945,8 +998,14 @@ export function CreazioneGiocatoreModal({ visible, onConferma }: CreazioneGiocat
             onPress={handleConferma}
             disabled={!valido}
           >
-            <Text style={styles.confirmButtonText}>Inizia il tuo regno</Text>
+            <Text style={styles.confirmButtonText}>{mode === "outfit" ? "Salva abiti" : mode === "edit" ? "Salva modifiche" : "Inizia il tuo regno"}</Text>
           </Pressable>
+
+          {onAnnulla ? (
+            <Pressable style={styles.colorPickerCancel} onPress={onAnnulla}>
+              <Text style={styles.colorPickerCancelText}>Annulla</Text>
+            </Pressable>
+          ) : null}
 
           {outfitColorPicker ? (
             <OutfitColorPickerDialog
