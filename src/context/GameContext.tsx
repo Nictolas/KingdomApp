@@ -32,6 +32,8 @@ type GameContextType = {
   gameMode: GameMode;
   /** Alias UI legacy: stessa modalità di gameMode. */
   modalitaGioco: "creativa" | "avventura";
+  /** Id degli obiettivi completati; usato dalla futura schermata Obiettivi. */
+  obiettiviCompletati: string[];
   gamePhase: GamePhase;
   simulationEnabled: boolean;
   saveStatus: "idle" | "saving" | "saved" | "error";
