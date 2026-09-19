@@ -61,6 +61,7 @@ import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 import { CapannaFullscreenModal } from "../src/ui/CapannaFullscreenModal";
 import { LuogoCultoFullscreenModal } from "../src/ui/LuogoCultoFullscreenModal";
 import { abitanteDeveAndareAlCultoOra, abitanteNascostoNelCultoOra } from "../src/game/presenzaLuogoCulto";
+import { mapCharacterShouldBeVisible } from "../src/game/mappaCharacterVisibility";
 import { RichiesteModal } from "../src/ui/RichiesteModal";
 import { EventiModal } from "../src/ui/EventiModal";
 import { calcolaEventiUI } from "../src/game/eventiDisponibili";
@@ -1230,6 +1231,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   }, []);
 
   const statoCielo = useMemo(() => computeStatoCielo(orologioMinuti), [orologioMinuti]);
+
   /** Allineato al buio del cielo: con buio > 0.5 i personaggi con casa si posizionano sulla residenza. */
   const èNottePersonaggiInCasa = statoCielo.buio > 0.5;
 
@@ -1465,6 +1467,40 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   /** id edificio Luogo di Culto (globale) → fedeli considerati “dentro” quel tempio. */
   const [cultoArrivatiByEdificio, setCultoArrivatiByEdificio] = useState<Record<number, number[]>>({});
   const [commuteByAbitanteId, setCommuteByAbitanteId] = useState<Record<number, CommuteInfo>>({});
+
+  /** Stessa regola di visibilità personaggi per renderer Phaser web e React Native. */
+  const abitantiVisibiliMappaIds = useMemo(() => {
+    const barArrivatiIds = new Set(Object.values(barArrivatiByEdificio).flat());
+    const visibili = new Set<number>();
+    for (const abitante of abitantiPerOverlayMappa) {
+      const inCommute = commuteByAbitanteId[abitante.id] != null;
+      const atWorkNow =
+        abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&
+        lavoroArrivatiIds.has(abitante.id);
+      const atBarNow =
+        abitanteAlBarRoutineOra(abitante, orologioMinuti, statoCielo.buio, edifici) &&
+        barArrivatiIds.has(abitante.id);
+      const atCultNow = abitanteNascostoNelCultoOra(
+        abitante,
+        orologioMinuti,
+        statoCielo.buio,
+        cultoArrivatiByEdificio
+      );
+      if (mapCharacterShouldBeVisible({ inCommute, atWorkNow, atBarNow, atCultNow })) {
+        visibili.add(abitante.id);
+      }
+    }
+    return visibili;
+  }, [
+    abitantiPerOverlayMappa,
+    commuteByAbitanteId,
+    orologioMinuti,
+    edifici,
+    lavoroArrivatiIds,
+    barArrivatiByEdificio,
+    statoCielo.buio,
+    cultoArrivatiByEdificio
+  ]);
 
   const minutiAbsGioco = useCallback(
     () => getGiornoGiocoSnapshot() * 1440 + orologioMinuti,
@@ -3040,12 +3076,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   ]);
 
   const phaserCharacters = useMemo<PhaserMapCharacter[]>(() =>
-    abitantiPerOverlayMappa.map((abitante, order) => {
+    abitantiPerOverlayMappa.flatMap((abitante, order) => {
+      if (!abitantiVisibiliMappaIds.has(abitante.id)) return [];
       const commute = commuteByAbitanteId[abitante.id];
       const home = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
       const fallback = (6 + Math.floor(order / 10) * 2) * cols + 3 + (order % 10) * 3;
       const cell = ultimaCellaAbitanteRef.current.get(abitante.id) ?? home ?? fallback;
-      return {
+      return [{
         id: abitante.id,
         name: abitante.nome,
         cell,
@@ -3053,9 +3090,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         pathToken: commute?.token ?? 0,
         appearance: abitante.razza === "Golem" ? "golem" : "human",
         markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined
-      };
+      }];
     }),
-  [abitantiPerOverlayMappa, commuteByAbitanteId, cellaCasaPerAbitanteId, cols]);
+  [abitantiPerOverlayMappa, abitantiVisibiliMappaIds, commuteByAbitanteId, cellaCasaPerAbitanteId, cols]);
 
   const phaserRevisionRef = useRef(0);
   const phaserBaseSnapshot = useMemo(
@@ -3477,31 +3514,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                     ))}
                   </View>
                   {abitantiPerOverlayMappa.map((abitante: Abitante) => {
+                    if (!abitantiVisibiliMappaIds.has(abitante.id)) return null;
                     const infoCommute = commuteByAbitanteId[abitante.id];
                     const inCommute = infoCommute != null;
-
-                    const nascostoLavoro =
-                      abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&
-                      lavoroArrivatiIds.has(abitante.id) &&
-                      !inCommute;
-
-                    const nascostoBar =
-                      abitanteAlBarRoutineOra(abitante, orologioMinuti, statoCielo.buio, edifici) &&
-                      Object.values(barArrivatiByEdificio).some((ids) => ids.includes(abitante.id)) &&
-                      !inCommute;
-
-                    const nascostoCulto =
-                      abitanteNascostoNelCultoOra(
-                        abitante,
-                        orologioMinuti,
-                        statoCielo.buio,
-                        cultoArrivatiByEdificio
-                      ) && !inCommute;
-
-                    if (nascostoLavoro) return null;
-                    if (nascostoBar) return null;
-                    if (nascostoCulto) return null;
-
                     const homeCell = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
                     const fixedCellNotte =
                       !inCommute &&
