@@ -528,7 +528,9 @@ export class KingdomMapScene extends Phaser.Scene {
         const distance = Math.abs(aCol - bCol) + Math.abs(aRow - bRow);
         return distance >= 1 && distance <= 3;
       });
-      if (nearby) {
+      const pairKey = nearby ? [characterId, nearby.id].sort((a, b) => a - b).join(":") : null;
+      const pairOnCooldown = pairKey != null && (this.chatPairCooldownUntil.get(pairKey) ?? 0) > this.time.now;
+      if (nearby && !pairOnCooldown) {
         const otherView = this.characterViews.get(nearby.id);
         if (otherView) {
           const aCol = view.logicalCell % snapshot.cols, aRow = Math.floor(view.logicalCell / snapshot.cols);
@@ -568,8 +570,6 @@ export class KingdomMapScene extends Phaser.Scene {
           }
         }
       }
-      const pairKey = nearby ? [characterId, nearby.id].sort((a, b) => a - b).join(":") : null;
-      const pairOnCooldown = pairKey != null && (this.chatPairCooldownUntil.get(pairKey) ?? 0) > this.time.now;
       if (nearby && !pairOnCooldown && Math.random() < 0.35 && !this.chatBusy.has(characterId) && !this.chatBusy.has(nearby.id)) {
         const otherView = this.characterViews.get(nearby.id);
         if (otherView) {
