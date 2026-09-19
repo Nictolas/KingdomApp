@@ -668,9 +668,17 @@ export class KingdomMapScene extends Phaser.Scene {
 
   private ensureIdleRoamScheduled(characterId: number): void {
     if (this.idleRoamTimers.has(characterId) || this.chatBusy.has(characterId)) return;
-    const timer = this.time.delayedCall(KingdomMapScene.IDLE_ROAM_PAUSE_MS, () => {
+    const delay = scalaDurataRealeMs(
+      KingdomMapScene.IDLE_ROAM_PAUSE_MS,
+      getOrologioGiocoVelocitaSnapshot()
+    );
+    const timer = this.time.delayedCall(delay, () => {
       this.idleRoamTimers.delete(characterId);
       const snapshot = this.bridge.getSnapshot();
+      if (isPhaserSimulationPaused(snapshot)) {
+        this.ensureIdleRoamScheduled(characterId);
+        return;
+      }
       const character = snapshot.characters.find((c) => c.id === characterId);
       const view = this.characterViews.get(characterId);
       if (!character?.idleRoamAllowed || !view?.root?.active || (character.path?.length ?? 0) >= 2 || this.chatBusy.has(characterId)) return;
@@ -748,8 +756,21 @@ export class KingdomMapScene extends Phaser.Scene {
           this.chatBusy.add(nearby.id);
           this.bridge.notifyCharacterChatChange(characterId, nearby.id);
           this.bridge.notifyCharacterChatChange(nearby.id, characterId);
-          if (pairKey) this.chatPairCooldownUntil.set(pairKey, this.time.now + KingdomMapScene.CHAT_PAIR_COOLDOWN_MS);
-          this.time.delayedCall(KingdomMapScene.CHAT_TALK_MS, () => {
+          if (pairKey) {
+            this.chatPairCooldownUntil.set(
+              pairKey,
+              this.time.now + scalaDurataRealeMs(
+                KingdomMapScene.CHAT_PAIR_COOLDOWN_MS,
+                getOrologioGiocoVelocitaSnapshot()
+              )
+            );
+          }
+          this.time.delayedCall(
+            scalaDurataRealeMs(
+              KingdomMapScene.CHAT_TALK_MS,
+              getOrologioGiocoVelocitaSnapshot()
+            ),
+            () => {
             this.chatBusy.delete(characterId);
             this.chatBusy.delete(nearby.id);
             this.bridge.notifyCharacterChatChange(characterId, null);
@@ -757,7 +778,8 @@ export class KingdomMapScene extends Phaser.Scene {
             this.bridge.notifyCharacterChatFinished(characterId, nearby.id);
             this.ensureIdleRoamScheduled(characterId);
             this.ensureIdleRoamScheduled(nearby.id);
-          });
+            }
+          );
           return;
         }
       }
