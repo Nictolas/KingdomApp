@@ -59,7 +59,10 @@ export type PhaserArtAssetUrls = {
   human: string;
   golem: string;
   getLpcLayerUrl?: (sourceId: string) => string | undefined;
-  buildings: Record<NonNullable<PhaserMapBuilding["artKey"]>, string>;
+  buildings: Record<
+    NonNullable<PhaserMapBuilding["artKey"]>,
+    string | { base: string; overlay?: string; doorway?: string }
+  >;
 };
 
 type CharacterView = {
@@ -149,7 +152,15 @@ export class KingdomMapScene extends Phaser.Scene {
     this.load.image(SHEET_KEY, this.sheetUrl);
     this.load.spritesheet(HUMAN_KEY, this.artUrls.human, { frameWidth: 64, frameHeight: 64 });
     this.load.spritesheet(GOLEM_KEY, this.artUrls.golem, { frameWidth: 64, frameHeight: 64 });
-    for (const [key, url] of Object.entries(this.artUrls.buildings)) this.load.image(key, url);
+    for (const [key, asset] of Object.entries(this.artUrls.buildings)) {
+      if (typeof asset === "string") {
+        this.load.image(key, asset);
+      } else {
+        this.load.image(key, asset.base);
+        if (asset.overlay) this.load.image(`${key}-overlay`, asset.overlay);
+        if (asset.doorway) this.load.image(`${key}-doorway`, asset.doorway);
+      }
+    }
   }
 
   create(): void {
@@ -993,22 +1004,73 @@ export class KingdomMapScene extends Phaser.Scene {
       const width = building.widthCells * snapshot.cellSize;
       const height = building.heightCells * snapshot.cellSize;
       const colors = BUILDING_COLORS[building.category];
-      const group = this.add
+
+      // Base sotto i personaggi; overlay ordinato sulla Y di profondità dell'edificio.
+      const base = this.add
+        .container(x, y)
+        .setDepth(worldDepthForY((row + 0.05) * snapshot.cellSize));
+      const overlay = this.add
         .container(x, y)
         .setDepth(worldDepthForY(building.geometry.depthOrigin.y * snapshot.cellSize));
-      this.buildingViews.push(group);
-      this.worldLayer.add(group);
+      this.buildingViews.push(base, overlay);
+      this.worldLayer.add([base, overlay]);
 
       if (building.artKey) {
         const image = this.add.image(width / 2, height, building.artKey).setOrigin(0.5, 1);
-        const scale = Math.min((width * 1.12) / image.width, (height + snapshot.cellSize * 0.75) / image.height);
+        const scale = Math.min(
+          (width * 1.12) / image.width,
+          (height + snapshot.cellSize * 0.75) / image.height
+        );
         image.setScale(scale);
-        const shadow = this.add.ellipse(width / 2 + 2, height - 2, width * 0.82, snapshot.cellSize * 0.3, 0x000000, 0.25);
-        const label = this.add.text(width / 2, height - 3, building.name, {
-          fontFamily: "Arial, sans-serif", fontSize: `${Math.max(8, snapshot.cellSize * 0.22)}px`,
-          color: "#ffffff", backgroundColor: "rgba(2,6,23,0.72)", padding: { x: 3, y: 1 }
-        }).setOrigin(0.5, 1);
-        group.add([shadow, image, label]);
+
+        const shadow = this.add.ellipse(
+          width / 2 + 2,
+          height - 2,
+          width * 0.82,
+          snapshot.cellSize * 0.3,
+          0x000000,
+          0.25
+        );
+        base.add([shadow, image]);
+
+        // Se non esiste un overlay dedicato, usa la parte alta dell'immagine originale.
+        const overlayKey = `${building.artKey}-overlay`;
+        const hasDedicatedOverlay = this.textures.exists(overlayKey);
+        const overlayImage = this.add
+          .image(width / 2, height, hasDedicatedOverlay ? overlayKey : building.artKey)
+          .setOrigin(0.5, 1)
+          .setScale(scale);
+        if (!hasDedicatedOverlay) {
+          const source = overlayImage.texture.getSourceImage() as { width: number; height: number };
+          overlayImage.setCrop(0, 0, source.width, source.height * 0.62);
+        }
+        overlay.add(overlayImage);
+
+        const doorwayKey = `${building.artKey}-doorway`;
+        if (this.textures.exists(doorwayKey)) {
+          base.add(
+            this.add
+              .image(
+                (building.geometry.doorway.col - col + building.geometry.doorway.width / 2) *
+                  snapshot.cellSize,
+                height,
+                doorwayKey
+              )
+              .setOrigin(0.5, 1)
+              .setScale(scale)
+          );
+        }
+
+        const label = this.add
+          .text(width / 2, height - 3, building.name, {
+            fontFamily: "Arial, sans-serif",
+            fontSize: `${Math.max(8, snapshot.cellSize * 0.22)}px`,
+            color: "#ffffff",
+            backgroundColor: "rgba(2,6,23,0.72)",
+            padding: { x: 3, y: 1 }
+          })
+          .setOrigin(0.5, 1);
+        overlay.add(label);
         continue;
       }
 
@@ -1018,8 +1080,17 @@ export class KingdomMapScene extends Phaser.Scene {
       const body = this.add
         .rectangle(width / 2, height / 2, width - 6, height - 8, colors.fill, 1)
         .setStrokeStyle(2, colors.border, 1);
+      base.add([shadow, body]);
+
       const roof = this.add
-        .rectangle(width / 2, Math.max(7, height * 0.2), width - 3, Math.max(10, height * 0.32), colors.roof, 1)
+        .rectangle(
+          width / 2,
+          Math.max(7, height * 0.2),
+          width - 3,
+          Math.max(10, height * 0.32),
+          colors.roof,
+          1
+        )
         .setStrokeStyle(2, colors.border, 1);
       const emoji = this.add
         .text(width / 2, height / 2, building.emoji, {
@@ -1036,9 +1107,9 @@ export class KingdomMapScene extends Phaser.Scene {
           padding: { x: 3, y: 1 }
         })
         .setOrigin(0.5, 1);
-
-      group.add([shadow, body, roof, emoji, label]);
+      overlay.add([roof, emoji, label]);
     }
+
     this.worldLayer.sort("depth");
   }
 
