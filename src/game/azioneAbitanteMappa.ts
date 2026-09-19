@@ -75,6 +75,8 @@ export function descriviAzioneCorrenteAbitante(
     coprifuoco?: ConfigCoprifuoco;
     /** Esito recente di una rapina (es. «Ha rubato»). */
     esitoRapinaRecente?: string | null;
+    /** Due abitanti «in giro» fermi a chiacchierare. */
+    staChiacchierando?: boolean;
   }
 ): string {
   const {
@@ -117,6 +119,8 @@ export function descriviAzioneCorrenteAbitante(
   }
 
   if (esitoRapinaRecente) return esitoRapinaRecente;
+
+  if (opts.staChiacchierando) return "Sta chiacchierando";
 
   const èNotte = buioCielo > 0.5;
   if (èNotte && haCasa && dormonoACasaIds.has(abitante.id)) {
