@@ -3050,6 +3050,19 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       const home = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
       const fallback = (6 + Math.floor(order / 10) * 2) * cols + 3 + (order % 10) * 3;
       const cell = ultimaCellaAbitanteRef.current.get(abitante.id) ?? home ?? fallback;
+      const idleRoamAllowed =
+        commute == null &&
+        !abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&
+        !abitanteSoggettoACoprifuoco(
+          abitante,
+          edifici,
+          {
+            attivo: coprifuocoAttivo,
+            inizioMinuti: coprifuocoInizioMinuti,
+            fineMinuti: coprifuocoFineMinuti
+          },
+          orologioMinuti
+        );
       return {
         id: abitante.id,
         name: abitante.nome,
@@ -3059,10 +3072,20 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         appearance: abitante.razza === "Golem" ? "golem" : "human",
         characterAppearance: aspettoPerVisualizzazioneAbitante(abitante)?.characterAppearance,
         markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined,
-        idleRoamAllowed: commute == null
+        idleRoamAllowed
       };
     }),
-  [abitantiPerOverlayMappa, commuteByAbitanteId, cellaCasaPerAbitanteId, cols]);
+  [
+    abitantiPerOverlayMappa,
+    commuteByAbitanteId,
+    cellaCasaPerAbitanteId,
+    cols,
+    orologioMinuti,
+    edifici,
+    coprifuocoAttivo,
+    coprifuocoInizioMinuti,
+    coprifuocoFineMinuti
+  ]);
 
   useEffect(() => {
     const visibleIds = new Set(phaserCharacters.map((character) => character.id));
