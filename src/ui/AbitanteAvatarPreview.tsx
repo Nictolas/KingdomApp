@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { aspettoPerVisualizzazioneAbitante } from "../game/personaggioAspetto";
 import { lpcSpriteCircleDiameter } from "../character-system/lpcPack";
 import type { Abitante } from "../types";
-import { PixelAvatarPreview } from "./PixelAvatarPreview";
+import { CircularSpriteFrame } from "./CircularSpriteFrame";
 
 const DEFAULT_SIZE = 40;
 const DEFAULT_LIFT = 6;
@@ -27,12 +27,11 @@ export function AbitanteAvatarPreview({
   const aspetto = aspettoPerVisualizzazioneAbitante(abitante);
   const grayStyle = grayscale ? ({ filter: "grayscale(1)" } as const) : undefined;
 
-  if (aspetto && abitante.razza !== "Golem") {
+  if (aspetto?.characterAppearance && abitante.razza !== "Golem") {
     return (
       <View style={[styles.wrap, { width: frame, height: frame }, grayStyle]}>
-        <PixelAvatarPreview
-          razza={abitante.razza ?? "Umano"}
-          aspetto={aspetto}
+        <CircularSpriteFrame
+          appearance={aspetto.characterAppearance}
           size={size}
           animate={false}
           liftPx={liftPx}
