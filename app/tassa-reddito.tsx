@@ -4,8 +4,17 @@ import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
+import { GateTassaSbloccata } from "../src/ui/GateTassaSbloccata";
 
 export default function TassaRedditoScreen() {
+  return (
+    <GateTassaSbloccata tassaId="reddito" titolo="Tassa sul Reddito">
+      <TassaRedditoScreenInner />
+    </GateTassaSbloccata>
+  );
+}
+
+function TassaRedditoScreenInner() {
   const router = useRouter();
   const {
     abitanti,

@@ -1,7 +1,7 @@
 import type { Legge } from "../types";
 
 export const leggiData: Legge[] = [
-  { id: 1, titolo: "Tassa sulla Produzione", descrizione: "Una tassa del 10% su tutte le risorse prodotte nella colonia.", stato: "In vigore" },
+  { id: 1, titolo: "Imposta sul Valore Aggiunto", descrizione: "Imposta sul valore della produzione degli edifici operativi. Aliquota configurabile; gettito al Tesoro a fine mese.", stato: "In vigore" },
   { id: 2, titolo: "Carta dei Diritti dei Coloni", descrizione: "Riconosce alcuni diritti fondamentali a tutti i membri della colonia.", stato: "Proposta" },
   { id: 3, titolo: "Regolamento sull'Uso dell'Energia", descrizione: "Stabilisce norme per l'utilizzo efficiente dell'energia nella colonia.", stato: "In vigore" },
   { id: 4, titolo: "Tassa sul Patrimonio", descrizione: "Una tassa progressiva sul patrimonio dei coloni basata sui loro crediti accumulati.", stato: "In vigore" },

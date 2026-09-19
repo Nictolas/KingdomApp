@@ -2,12 +2,16 @@ import React from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { leggiData } from "../src/kingdomData";
+import { useGameContext } from "../src/context/GameContext";
+import { tassaIdDaTitoloLegge, tasseSbloccate } from "../src/game/tasseSblocco";
 import type { Legge } from "../src/types";
 
 type LeggeConTema = Legge & { tema: string };
 
 export default function LeggiScreen() {
   const router = useRouter();
+  const { obiettiviCompletati, modalitaGioco } = useGameContext();
+  const unlockTasse = tasseSbloccate(obiettiviCompletati, modalitaGioco);
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -25,7 +29,7 @@ export default function LeggiScreen() {
   // Mappa emoji per le leggi
   const getEmojiLegge = (titolo: string): string => {
     const emojiMap: Record<string, string> = {
-      "Tassa sulla Produzione": "📊",
+      "Imposta sul Valore Aggiunto": "📊",
       "Tassa sul Patrimonio": "💎",
       "Tassa sul Reddito": "💰",
       "Reddito di Cittadinanza": "🪙",
@@ -50,7 +54,7 @@ export default function LeggiScreen() {
   // Aggiungi le leggi ai rispettivi temi (riorganizzate logicamente)
   leggiData.forEach((legge) => {
     if (
-      legge.titolo === "Tassa sulla Produzione" ||
+      legge.titolo === "Imposta sul Valore Aggiunto" ||
       legge.titolo === "Tassa sul Patrimonio" ||
       legge.titolo === "Tassa sul Reddito" ||
       legge.titolo === "Reddito di Cittadinanza"
@@ -111,12 +115,15 @@ export default function LeggiScreen() {
   const renderLeggeCard = (legge: LeggeConTema | typeof gestioneSpeciale) => {
     const isLegge = "id" in legge;
     const path = getNavigationPath(legge.titolo);
-    const isClickable = path !== null;
+    const tassaId = isLegge ? tassaIdDaTitoloLegge(legge.titolo) : null;
+    const tassaBloccata =
+      tassaId != null && tassaId !== "prelievo" && !unlockTasse.has(tassaId);
+    const isClickable = path !== null && !tassaBloccata;
 
     return (
       <Pressable
         key={isLegge ? legge.id : "schiavitu"}
-        style={styles.card}
+        style={[styles.card, tassaBloccata && styles.cardLocked]}
         onPress={isClickable ? () => router.push(path) : undefined}
         disabled={!isClickable}
       >
@@ -125,7 +132,7 @@ export default function LeggiScreen() {
           {legge.titolo}
         </Text>
         <Text style={styles.line} numberOfLines={2}>
-          {legge.descrizione}
+          {tassaBloccata ? "Sblocca avanzando negli Obiettivi del ramo fiscale." : legge.descrizione}
         </Text>
         {isLegge && (
           <Text style={styles.chip}>
@@ -133,12 +140,12 @@ export default function LeggiScreen() {
             <Text
               style={[
                 styles.chipValue,
-                legge.stato === "In vigore" && styles.chipActive,
-                legge.stato === "Proposta" && styles.chipProposed,
-                legge.stato === "Abrogata" && styles.chipRepealed
+                !tassaBloccata && legge.stato === "In vigore" && styles.chipActive,
+                (tassaBloccata || legge.stato === "Proposta") && styles.chipProposed,
+                !tassaBloccata && legge.stato === "Abrogata" && styles.chipRepealed
               ]}
             >
-              {legge.stato}
+              {tassaBloccata ? "Bloccata" : legge.stato}
             </Text>
           </Text>
         )}
@@ -259,6 +266,10 @@ const styles = StyleSheet.create({
     borderColor: "rgba(148,163,184,0.6)",
     marginBottom: 4,
     minHeight: 70
+  },
+  cardLocked: {
+    opacity: 0.72,
+    borderColor: "rgba(100,116,139,0.5)"
   },
   cardTitle: {
     color: "#e5e7eb",
