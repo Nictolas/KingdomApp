@@ -602,6 +602,10 @@ export class KingdomMapScene extends Phaser.Scene {
           });
           return !occupied && !doorway;
         });
+        for (let i = freeCandidates.length - 1; i > 0; i -= 1) {
+          const j = Math.floor(Math.random() * (i + 1));
+          [freeCandidates[i], freeCandidates[j]] = [freeCandidates[j], freeCandidates[i]];
+        }
         const destination = freeCandidates.find((cell) => this.bridge.attemptCharacterIdleStep(characterId, view.logicalCell, cell));
         if (destination != null) {
           const pos = this.characterPosition(destination, snapshot);
