@@ -99,6 +99,10 @@ export default function GridGame() {
             <Text style={styles.navEmoji}>📌</Text>
             <Text style={styles.navLabel}>Eventi</Text>
           </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/razze")}>
+            <Text style={styles.navEmoji}>🧬</Text>
+            <Text style={styles.navLabel}>Razze</Text>
+          </Pressable>
         </View>
       </View>
       <View style={[styles.block, styles.blockLast]}>
