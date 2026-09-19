@@ -519,15 +519,24 @@ export class KingdomMapScene extends Phaser.Scene {
       const character = snapshot.characters.find((c) => c.id === characterId);
       const view = this.characterViews.get(characterId);
       if (!character?.idleRoamAllowed || !view?.root?.active || (character.path?.length ?? 0) >= 2 || this.chatBusy.has(characterId)) return;
-      const nearby = snapshot.characters.find((other) => {
-        if (other.id === characterId || !other.idleRoamAllowed || (other.path?.length ?? 0) >= 2 || this.chatBusy.has(other.id)) return false;
-        const otherView = this.characterViews.get(other.id);
-        if (!otherView?.root?.active) return false;
-        const aCol = view.logicalCell % snapshot.cols, aRow = Math.floor(view.logicalCell / snapshot.cols);
-        const bCol = otherView.logicalCell % snapshot.cols, bRow = Math.floor(otherView.logicalCell / snapshot.cols);
-        const distance = Math.abs(aCol - bCol) + Math.abs(aRow - bRow);
-        return distance >= 1 && distance <= 3;
-      });
+      const nearby = snapshot.characters
+        .filter((other) => {
+          if (other.id === characterId || !other.idleRoamAllowed || (other.path?.length ?? 0) >= 2 || this.chatBusy.has(other.id)) return false;
+          const otherView = this.characterViews.get(other.id);
+          if (!otherView?.root?.active) return false;
+          const aCol = view.logicalCell % snapshot.cols, aRow = Math.floor(view.logicalCell / snapshot.cols);
+          const bCol = otherView.logicalCell % snapshot.cols, bRow = Math.floor(otherView.logicalCell / snapshot.cols);
+          const distance = Math.abs(aCol - bCol) + Math.abs(aRow - bRow);
+          return distance >= 1 && distance <= 3;
+        })
+        .sort((a, b) => {
+          const aView = this.characterViews.get(a.id)!;
+          const bView = this.characterViews.get(b.id)!;
+          const fromCol = view.logicalCell % snapshot.cols, fromRow = Math.floor(view.logicalCell / snapshot.cols);
+          const aDistance = Math.abs(fromCol - (aView.logicalCell % snapshot.cols)) + Math.abs(fromRow - Math.floor(aView.logicalCell / snapshot.cols));
+          const bDistance = Math.abs(fromCol - (bView.logicalCell % snapshot.cols)) + Math.abs(fromRow - Math.floor(bView.logicalCell / snapshot.cols));
+          return aDistance - bDistance;
+        })[0];
       const pairKey = nearby ? [characterId, nearby.id].sort((a, b) => a - b).join(":") : null;
       const pairOnCooldown = pairKey != null && (this.chatPairCooldownUntil.get(pairKey) ?? 0) > this.time.now;
       if (nearby && !pairOnCooldown) {
