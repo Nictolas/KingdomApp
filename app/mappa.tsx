@@ -14,7 +14,7 @@ import {
   type ViewStyle
 } from "react-native";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
-import { Redirect, useRouter } from "expo-router";
+import { Redirect, useFocusEffect, useRouter } from "expo-router";
 import { edificiData } from "../src/data/edificiData";
 import { useGameContext } from "../src/context/GameContext";
 import {
@@ -113,7 +113,7 @@ import { abitanteHaBisognoMensa } from "../src/game/mensaPubblica";
 import { abitanteVuoleNegozio, compraEMangiaAlNegozio, tentaSnackDaInventario } from "../src/game/negozio";
 import { MapTerrainCell } from "../src/components/MapTerrainCell";
 import { MapWaterCellsLayer } from "../src/components/MapWaterCellsLayer";
-import { PhaserMapSurface } from "../src/components/PhaserMapSurface";
+import { PhaserMapSurface, type PhaserMapSurfaceHandle } from "../src/components/PhaserMapSurface";
 import { buildPhaserMapSnapshot } from "../src/phaser/adapters/buildPhaserMapSnapshot";
 import { findBuildingForInteriorCell } from "../src/game/buildingGeometry";
 import { assignUniqueCharacterCells } from "../src/game/characterCellOccupancy";
@@ -1155,6 +1155,26 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   /** True se l’ultimo gesto sulla mappa è stato un trascinamento (pan): non chiudere la sintesi. */
   const mapDraggedRef = useRef(false);
   const panStartPosRef = useRef<{ x: number; y: number } | null>(null);
+  const phaserMapRef = useRef<PhaserMapSurfaceHandle | null>(null);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== "web") return;
+      let cancelled = false;
+      const refresh = () => {
+        if (!cancelled) phaserMapRef.current?.refreshViewport();
+      };
+      const frame = requestAnimationFrame(refresh);
+      const shortDelay = setTimeout(refresh, 50);
+      const settledDelay = setTimeout(refresh, 200);
+      return () => {
+        cancelled = true;
+        cancelAnimationFrame(frame);
+        clearTimeout(shortDelay);
+        clearTimeout(settledDelay);
+      };
+    }, [])
+  );
 
   const {
     minuti: orologioMinuti,
@@ -3524,6 +3544,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         {Platform.OS === "web" ? (
           <View style={styles.phaserMainSurface}>
             <PhaserMapSurface
+              ref={phaserMapRef}
               snapshot={phaserSnapshot}
               onCellPress={onCellPress}
               onCellHover={setPreviewCellHover}
