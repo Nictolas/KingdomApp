@@ -1,3 +1,4 @@
+import { deriveBuildingGeometry, edificioHaIngressoPerimetrale } from "../../game/buildingGeometry";
 import {
   getErbaDecorSheetCoord,
   getErbaSheetCoord,
@@ -63,9 +64,12 @@ function artKeyForBuilding(name: string): PhaserMapBuilding["artKey"] {
 
 export function buildPhaserBuildings(
   state: MappaRuntimeState,
-  cols: number
+  cols: number,
+  rows?: number
 ): PhaserMapBuilding[] {
   const buildings: PhaserMapBuilding[] = [];
+  const effectiveRows =
+    rows ?? Math.max(1, ...Object.keys(state.edificiInMappa).map((key) => Math.floor(Number(key) / cols) + 3));
   for (const [indexText, building] of Object.entries(state.edificiInMappa)) {
     if (building.nome === "Strada" || building.footprintRef != null) continue;
     const anchor = Number(indexText);
@@ -79,7 +83,10 @@ export function buildPhaserBuildings(
       name: building.nome,
       emoji: building.emoji || BUILDING_EMOJI[building.nome] || "🏢",
       category: categoryForBuilding(building.nome),
-      artKey: artKeyForBuilding(building.nome)
+      artKey: artKeyForBuilding(building.nome),
+      geometry: deriveBuildingGeometry(anchor, footprint.w, footprint.h, cols, effectiveRows, {
+        ingressoPerimetrale: edificioHaIngressoPerimetrale(building.nome)
+      })
     });
   }
   return buildings.sort((a, b) => {
@@ -158,7 +165,7 @@ export function buildPhaserMapSnapshot(
     rows,
     cellSize,
     tiles,
-    buildings: buildPhaserBuildings(state, cols),
+    buildings: buildPhaserBuildings(state, cols, rows),
     characters,
     revision
   };
