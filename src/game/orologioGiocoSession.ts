@@ -57,6 +57,20 @@ export function getOrologioGiocoVelocitaSnapshot(): OrologioGiocoVelocita {
   return orologioGiocoVelocita;
 }
 
+/** Scala del tempo di simulazione per movimenti/animazioni: 0 in pausa, altrimenti la velocità corrente. */
+export function getOrologioSimTimeScaleSnapshot(): number {
+  if (getOrologioGiocoInPausaSnapshot()) return 0;
+  return orologioGiocoVelocita;
+}
+
+/** Durata reale di un'azione calibrata a velocità ×1. */
+export function scalaDurataRealeMs(
+  durataAVelocita1Ms: number,
+  velocita: OrologioGiocoVelocita = orologioGiocoVelocita
+): number {
+  return Math.max(16, durataAVelocita1Ms / velocita);
+}
+
 function notifyVelocitaListeners(): void {
   velocitaListeners.forEach((l) => l());
 }
