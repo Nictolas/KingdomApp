@@ -3,6 +3,7 @@ import { Alert } from "react-native";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
 import { risorseData, edificiData, pianetiData } from "../kingdomData";
 import { estraiCreditiLegacyDaRisorse } from "../data/risorseData";
+import { OBIETTIVI_CATALOGO, obiettiviSbloccati } from "../data/obiettiviCatalogo";
 import { runAvanzaMese } from "../game/avanzaMese";
 import { EVENTI_CATALOGO } from "../game/eventi/index";
 import { generaColoniaIniziale } from "../game/generazionePartita";
@@ -92,7 +93,8 @@ import { sincronizzaCuginoNobileConRe } from "../game/cuginoNobileAvventura";
 import { filtraEdificiInizialiPerModalita } from "../game/edificiInizialiModalita";
 import type { PersistableGameState } from "../persistence/gameStateMapping";
 import type { MappaRuntimeState } from "../game/mappaTypes";
-import { setMappaSessione } from "../game/mappaSessione";
+import { setMappaSessione, getMappaSessione } from "../game/mappaSessione";
+import { mappaHaPonteOperativo } from "../game/ponteMappa";
 
 const statoIniziale = generaColoniaIniziale();
 const capoReligiosoSoleIniziale =
@@ -565,6 +567,44 @@ export function useGameState() {
     setAnno(result.nuovoAnno);
     setOrdiniMercato([]);
     generaNuoviAbitantiProposti();
+
+    // Valuta i nuovi obiettivi completati a fine mese, solo in modalità Avventura.
+    if (gameMode === "avventura") {
+      const haPonte = mappaHaPonteOperativo(
+        getMappaSessione()?.edificiInMappa ?? {},
+        dopoCarcere.edifici
+      );
+      setObiettiviCompletati((prevCompletati) => {
+        const completatiSet = new Set(prevCompletati);
+        const sbloccati = obiettiviSbloccati(completatiSet);
+        let aggiornato = false;
+
+        for (const id of sbloccati) {
+          if (completatiSet.has(id)) continue;
+          const nodo = OBIETTIVI_CATALOGO.find((o) => o.id === id);
+          if (!nodo) continue;
+
+          const soddisfatto = nodo.condizione({
+            abitanti: pastiMese.abitanti,
+            edifici: dopoCarcere.edifici,
+            risorse: estraiCreditiLegacyDaRisorse(result.risorse).risorse,
+            mese: result.nuovoMese,
+            anno: result.nuovoAnno,
+            moneteGiocatore: stipendiMese.moneteGiocatore,
+            completati: completatiSet,
+            haPonteSulFiume: haPonte
+          });
+
+          if (soddisfatto) {
+            completatiSet.add(id);
+            aggiornato = true;
+          }
+        }
+
+        return aggiornato ? [...completatiSet] : prevCompletati;
+      });
+    }
+
     setIsLoading(false);
     (result.vittimeOmicidi ?? []).forEach((v) => {
       Alert.alert("Omicidio", `È stato trovato il cadavere di ${v.nome}.`);
@@ -581,7 +621,7 @@ export function useGameState() {
     if (result.avvisoDiario) {
       setDiarioRighe((prev) => [...prev, result.avvisoDiario!]);
     }
-  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore]);
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode]);
 
   const confermaMatrimonio = useCallback((idA: number, idB: number) => {
     setAbitanti((prev) =>
