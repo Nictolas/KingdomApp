@@ -1,11 +1,67 @@
 import { normalizeCapeFields } from "./capeMantello";
 import { normalizeKimonoVesteFields } from "./kimonoVeste";
-import { compatibleColorsForField, firstCompatibleColorForField } from "./registry";
+import {
+  canRenderCharacter,
+  compatibleCatalogOptions,
+  compatibleColorsForField,
+  firstCompatibleColorForField,
+  firstCompatibleHairColor
+} from "./registry";
 import type { CharacterAppearance, CharacterBodyFamily, CharacterRaceId } from "./types";
 
 export const DWARF_BEARD_STYLE = "winter";
+export const ELF_EARS_STYLE = "side_wolf_skintone";
+export const DWARF_CHILD_SHIRT = "child_shirt";
+export const DWARF_CHILD_PANTS = "child_pants";
+export const DWARF_CHILD_SKIRT = "child_skirt";
+export const DWARF_SHIRT_COLORS = [
+  "black", "blue", "brown", "gray", "green", "lavender", "lightblue", "pink", "red", "white"
+] as const;
+export const DWARF_PANTS_COLORS = [
+  "black", "blue", "brown", "darkblue", "green", "lightblue", "maroon", "red", "white"
+] as const;
+export const DWARF_SKIRT_COLORS = [
+  "black", "blue", "darkblue", "green", "lavender", "lightblue", "maroon", "pink", "red", "white"
+] as const;
 export const PREGNANT_BODY_TYPE = "pregnant";
 export const FARMER_TOOL = "watering_can";
+export const LUMBERJACK_TOOL = "axe";
+export const BLACKSMITH_TOOL = "hammer";
+export const MINER_TOOL = "pickaxe";
+export const MEDICO_CHAINMAIL = "chainmail";
+export const MEDICO_CRAVAT = "cravat";
+export const MEDICO_MASK = "plain_mask";
+export const MEDICO_SUNGLASSES = "sunglasses";
+export const MEDICO_HOOD_MAIL = "mail";
+export const GIUDICE_HAIR_STYLE = "wavy";
+export const GIUDICE_HAIR_COLOR = "white";
+export const GIUDICE_KIMONO = "kimono";
+export const MAGO_HAT = "magic_celestial";
+export const GUARDIA_HELMET = "helmet_barbuta";
+export const GUARDIA_HELMET_COLOR = "iron";
+
+function pickColorFromSeed(colors: readonly string[], seed: number): string {
+  if (colors.length === 0) return "purple";
+  return colors[((seed >>> 0) || 1) % colors.length]!;
+}
+
+/** Outfit LPC obbligatorio per i Nani: Child shirt + pants (M) / skirt (F). */
+export function dwarfChildOutfit(
+  sesso: "M" | "F" | null | undefined,
+  seed = 1
+): Pick<CharacterAppearance, "outfit" | "upperOutfit" | "lowerOutfit" | "outfitPrimaryColor" | "outfitSecondaryColor" | "fullOutfit" | "fullOutfitTrim" | "footwear"> {
+  const female = sesso === "F";
+  return {
+    outfit: DWARF_CHILD_SHIRT,
+    upperOutfit: DWARF_CHILD_SHIRT,
+    lowerOutfit: female ? DWARF_CHILD_SKIRT : DWARF_CHILD_PANTS,
+    outfitPrimaryColor: pickColorFromSeed(DWARF_SHIRT_COLORS, seed),
+    outfitSecondaryColor: pickColorFromSeed(female ? DWARF_SKIRT_COLORS : DWARF_PANTS_COLORS, seed + 17),
+    fullOutfit: "none",
+    fullOutfitTrim: "none",
+    footwear: "none"
+  };
+}
 
 export const RACE_BODY_FAMILY: Record<CharacterRaceId, CharacterBodyFamily> = {
   human: "humanAdult",
@@ -25,7 +81,8 @@ export function bodyFamilyFor(race: CharacterRaceId, ageGroup: "adult" | "teen" 
   return RACE_BODY_FAMILY[race];
 }
 
-/** I nani LPC usano sempre il corpo child (statura bassa) e la Winter Beard. */
+/** I nani LPC usano sempre il corpo child (statura bassa) e la Winter Beard (Santa), abbassata sul mento.
+ *  Gli elfi hanno sempre Side Wolf Ears Skintone (orecchie a punta). */
 export function enforceRaceBodyTypeRules(value: Partial<CharacterAppearance>): Partial<CharacterAppearance> {
   if (value.bodyType === PREGNANT_BODY_TYPE) {
     const race = value.race ?? DEFAULT_CHARACTER_APPEARANCE.race;
@@ -34,32 +91,42 @@ export function enforceRaceBodyTypeRules(value: Partial<CharacterAppearance>): P
       bodyType: PREGNANT_BODY_TYPE,
       ageGroup: "adult",
       bodyFamily: bodyFamilyFor(race, "adult"),
-      beardStyle: "none"
+      beardStyle: "none",
+      earsStyle: race === "elf" ? ELF_EARS_STYLE : "none"
     };
   }
-  if (value.race !== "dwarf") return value;
-  const withBody = {
-    ...value,
-    bodyType: "child",
-    ageGroup: "child" as const,
-    bodyFamily: "humanChild" as const,
-    beardStyle: DWARF_BEARD_STYLE
-  };
-  const beardColors = compatibleColorsForField(
-    { ...DEFAULT_CHARACTER_APPEARANCE, ...withBody } as CharacterAppearance,
-    "beardColor",
-    "beard",
-    DWARF_BEARD_STYLE
-  );
-  const beardColor = withBody.beardColor && beardColors.includes(withBody.beardColor)
-    ? withBody.beardColor
-    : firstCompatibleColorForField(
+  if (value.race === "dwarf") {
+    const withBody = {
+      ...value,
+      bodyType: "child",
+      ageGroup: "child",
+      bodyFamily: "humanChild" as const,
+      beardStyle: DWARF_BEARD_STYLE,
+      earsStyle: "none"
+    };
+    const beardColors = compatibleColorsForField(
       { ...DEFAULT_CHARACTER_APPEARANCE, ...withBody } as CharacterAppearance,
       "beardColor",
       "beard",
       DWARF_BEARD_STYLE
     );
-  return { ...withBody, beardColor };
+    const beardColor = withBody.beardColor && beardColors.includes(withBody.beardColor)
+      ? withBody.beardColor
+      : firstCompatibleColorForField(
+        { ...DEFAULT_CHARACTER_APPEARANCE, ...withBody } as CharacterAppearance,
+        "beardColor",
+        "beard",
+        DWARF_BEARD_STYLE
+      );
+    return { ...withBody, beardColor };
+  }
+  if (value.race === "elf") {
+    return { ...value, earsStyle: ELF_EARS_STYLE };
+  }
+  if (value.earsStyle === ELF_EARS_STYLE) {
+    return { ...value, earsStyle: "none" };
+  }
+  return value;
 }
 
 export const DEFAULT_CHARACTER_APPEARANCE: CharacterAppearance = {
@@ -74,6 +141,7 @@ export const DEFAULT_CHARACTER_APPEARANCE: CharacterAppearance = {
   hairColor: "dark_brown",
   beardStyle: "none",
   beardColor: "dark_brown",
+  earsStyle: "none",
   outfit: "commoner",
   upperOutfit: "commoner",
   lowerOutfit: "commoner",
@@ -84,18 +152,120 @@ export const DEFAULT_CHARACTER_APPEARANCE: CharacterAppearance = {
   footwear: "none",
   footwearColor: "base",
   headwear: "none",
+  headwearColor: "iron",
+  neckwear: "none",
+  neckwearColor: "white",
+  facialMask: "none",
+  facialMaskColor: "white",
+  facialEyes: "none",
+  facialEyesColor: "black",
   cape: "none",
   capeTrim: "none",
   capeColor: "base",
   accessory: "none"
 };
 
-/** Gli agricoltori portano sempre l'annaffiatoio LPC (Tools → Watering Can). */
+/** Corporatura teen (kimono/elmetto): mai sui Nani, che restano sul corpo child. */
+function professionTeenBodyPatch(value: Partial<CharacterAppearance>): Partial<CharacterAppearance> {
+  const race = value.race ?? DEFAULT_CHARACTER_APPEARANCE.race;
+  if (race === "dwarf") {
+    return {
+      bodyType: "child",
+      ageGroup: "child",
+      bodyFamily: "humanChild"
+    };
+  }
+  return {
+    bodyType: "teen",
+    ageGroup: "teen",
+    bodyFamily: bodyFamilyFor(race, "teen")
+  };
+}
+
+/** Strumenti e abiti LPC obbligatori per occupazione (visibile in mappa/UI, non persistito). */
 export function enforceProfessionAccessoryRules(
   value: Partial<CharacterAppearance>,
-  lavoro?: string
+  lavoro?: string,
+  seed = 1
 ): Partial<CharacterAppearance> {
   if (lavoro === "Agricoltore") return { ...value, accessory: FARMER_TOOL };
+  if (lavoro === "Taglialegna") return { ...value, accessory: LUMBERJACK_TOOL };
+  if (lavoro === "Fabbro") return { ...value, accessory: BLACKSMITH_TOOL };
+  if (lavoro === "Minatore") return { ...value, accessory: MINER_TOOL };
+  if (lavoro === "Medico") {
+    return {
+      ...value,
+      accessory: "none",
+      headwear: MEDICO_HOOD_MAIL,
+      headwearColor: "iron",
+      beardStyle: "none",
+      hairStyle: "none",
+      hairColor: "none",
+      ...professionTeenBodyPatch(value),
+      fullOutfit: "kimono",
+      fullOutfitTrim: "none",
+      outfit: MEDICO_CHAINMAIL,
+      upperOutfit: MEDICO_CHAINMAIL,
+      lowerOutfit: "none",
+      outfitPrimaryColor: "black",
+      outfitSecondaryColor: "iron",
+      neckwear: MEDICO_CRAVAT,
+      neckwearColor: "white",
+      facialMask: MEDICO_MASK,
+      facialMaskColor: "white",
+      facialEyes: MEDICO_SUNGLASSES,
+      facialEyesColor: "black"
+    };
+  }
+  if (lavoro === "Giudice") {
+    return {
+      ...value,
+      accessory: "none",
+      ...professionTeenBodyPatch(value),
+      hairStyle: GIUDICE_HAIR_STYLE,
+      hairColor: GIUDICE_HAIR_COLOR,
+      beardStyle: "none",
+      beardColor: GIUDICE_HAIR_COLOR,
+      fullOutfit: GIUDICE_KIMONO,
+      fullOutfitTrim: "none",
+      outfit: "none",
+      upperOutfit: "none",
+      lowerOutfit: "none",
+      outfitPrimaryColor: "black",
+      outfitSecondaryColor: "charcoal",
+      footwear: "none",
+      headwear: "none"
+    };
+  }
+  if (lavoro === "Mago") {
+    const teenBase: Partial<CharacterAppearance> = {
+      ...value,
+      accessory: "none",
+      ...professionTeenBodyPatch(value),
+      beardStyle: "none"
+    };
+    const normalizedTeen = normalizeCharacterAppearance(teenBase);
+    const colori = compatibleColorsForField(normalizedTeen, "headwearColor", "headwear", MAGO_HAT);
+    const headwearColor = pickColorFromSeed(colori, seed);
+    return {
+      ...teenBase,
+      headwear: MAGO_HAT,
+      headwearColor
+    };
+  }
+  if (lavoro === "Guardia") {
+    return {
+      ...value,
+      accessory: "none",
+      ...professionTeenBodyPatch(value),
+      hairStyle: "none",
+      hairColor: "none",
+      beardStyle: "none",
+      beardColor: "none",
+      headwear: GUARDIA_HELMET,
+      headwearColor: GUARDIA_HELMET_COLOR
+    };
+  }
   return value;
 }
 
@@ -120,31 +290,187 @@ export function normalizeCharacterAppearance(value?: Partial<CharacterAppearance
     capeTrim: capeFields.capeTrim,
     footwear: normalized.footwear === "leather" ? "none" : normalized.footwear ?? "none",
     footwearColor: normalized.footwearColor ?? (normalized.footwear === "leather" ? "leather" : DEFAULT_CHARACTER_APPEARANCE.footwearColor),
+    headwearColor: normalized.headwearColor ?? DEFAULT_CHARACTER_APPEARANCE.headwearColor,
+    neckwear: normalized.neckwear ?? DEFAULT_CHARACTER_APPEARANCE.neckwear,
+    neckwearColor: normalized.neckwearColor ?? DEFAULT_CHARACTER_APPEARANCE.neckwearColor,
+    facialMask: normalized.facialMask ?? DEFAULT_CHARACTER_APPEARANCE.facialMask,
+    facialMaskColor: normalized.facialMaskColor ?? DEFAULT_CHARACTER_APPEARANCE.facialMaskColor,
+    facialEyes: normalized.facialEyes ?? DEFAULT_CHARACTER_APPEARANCE.facialEyes,
+    facialEyesColor: normalized.facialEyesColor ?? DEFAULT_CHARACTER_APPEARANCE.facialEyesColor,
+    earsStyle: normalized.earsStyle ?? DEFAULT_CHARACTER_APPEARANCE.earsStyle,
     bodyFamily: normalized.bodyFamily ?? bodyFamilyFor(race, ageGroup)
   }) as CharacterAppearance;
+}
+
+function pickCompatibleOutfit(current: string, available: string[], fallback: string): string {
+  return current !== "none" && available.includes(current) ? current : fallback;
+}
+
+/**
+ * Adatta capelli/abiti/accessori al catalogo LPC della corporatura corrente.
+ * Essenziale per i Nani (corpo child): outfit/capelli da adulto non esistono e
+ * senza questo fallback si finisce nello sprite CSS legacy.
+ */
+export function compatibilizzaPerCatalogo(value: CharacterAppearance): CharacterAppearance {
+  let appearance = normalizeCharacterAppearance(value);
+  if (canRenderCharacter(appearance, "idle")) return appearance;
+
+  const options = compatibleCatalogOptions(appearance);
+  const fallbackOutfit = options.upperOutfits.includes("commoner")
+    ? "commoner"
+    : options.upperOutfits[0] ?? "none";
+  const upperOutfit = pickCompatibleOutfit(appearance.upperOutfit, options.upperOutfits, fallbackOutfit);
+  const lowerOutfit = pickCompatibleOutfit(appearance.lowerOutfit, options.lowerOutfits, fallbackOutfit);
+  const fullOutfit = appearance.fullOutfit !== "none" && options.fullOutfits.includes(appearance.fullOutfit)
+    ? appearance.fullOutfit
+    : "none";
+  const hairStyle = appearance.hairStyle !== "none" && options.hairStyles.includes(appearance.hairStyle)
+    ? appearance.hairStyle
+    : options.hairStyles.includes("relm_short")
+      ? "relm_short"
+      : options.hairStyles[0] ?? "none";
+
+  appearance = normalizeCharacterAppearance({
+    ...appearance,
+    headwear: appearance.headwear !== "none" && !options.headwear.includes(appearance.headwear)
+      ? "none"
+      : appearance.headwear,
+    fullOutfit,
+    fullOutfitTrim: fullOutfit === "none" ? "none" : appearance.fullOutfitTrim,
+    upperOutfit,
+    lowerOutfit,
+    outfit: upperOutfit,
+    hairStyle,
+    footwear: appearance.footwear !== "none" && !options.footwear.includes(appearance.footwear)
+      ? "none"
+      : appearance.footwear,
+    accessory: "none",
+    neckwear: "none",
+    facialMask: "none",
+    facialEyes: "none"
+  });
+
+  if (appearance.hairStyle !== "none") {
+    appearance = normalizeCharacterAppearance({
+      ...appearance,
+      hairColor: firstCompatibleHairColor(appearance, appearance.hairStyle)
+    });
+  }
+
+  if (canRenderCharacter(appearance, "idle")) return appearance;
+
+  // Ultimo fallback: come l'esempio Razze (corpo + testa + Winter Beard + child clothes se disponibili).
+  const dwarfClothes =
+    appearance.race === "dwarf"
+      ? dwarfChildOutfit(
+          appearance.lowerOutfit === DWARF_CHILD_SKIRT ? "F" : "M",
+          (appearance.outfitPrimaryColor?.length ?? 1) + (appearance.beardColor?.length ?? 1)
+        )
+      : null;
+  return normalizeCharacterAppearance({
+    ...appearance,
+    hairStyle: appearance.race === "dwarf" ? "none" : hairStyle,
+    hairColor: appearance.race === "dwarf" ? "none" : appearance.hairColor,
+    headwear: "none",
+    ...(dwarfClothes ?? {
+      fullOutfit: "none",
+      fullOutfitTrim: "none",
+      upperOutfit: "none",
+      lowerOutfit: "none",
+      outfit: "none",
+      footwear: "none"
+    }),
+    neckwear: "none",
+    facialMask: "none",
+    facialEyes: "none",
+    accessory: "none",
+    cape: "none",
+    capeTrim: "none"
+  });
+}
+
+/** Adatta capelli, abiti e accessori al catalogo LPC della corporatura pregnant. */
+export function compatibilizzaPerGravidanza(value: CharacterAppearance): CharacterAppearance {
+  return compatibilizzaPerCatalogo(
+    normalizeCharacterAppearance({ ...value, bodyType: PREGNANT_BODY_TYPE })
+  );
+}
+
+/**
+ * Allinea l'aspetto LPC alla razza di gioco (es. Nano → dwarf + corpo child),
+ * senza mutare i dati persistiti finché non si passa da normalize/save.
+ */
+export function appearanceAlignedToRazza(
+  value: CharacterAppearance,
+  razza?: string | null
+): CharacterAppearance {
+  if (razza === "Nano") {
+    return normalizeCharacterAppearance({ ...value, race: "dwarf" });
+  }
+  if (razza === "Elfo") {
+    return normalizeCharacterAppearance({ ...value, race: "elf" });
+  }
+  return value;
 }
 
 /** Applica le regole pubbliche senza mutare i dati persistiti del personaggio. */
 export function appearanceForPublicSpace(
   value: CharacterAppearance,
-  rules: { isKing: boolean; nudismoAttivo: boolean; incinta?: boolean; lavoro?: string }
+  rules: {
+    isKing: boolean;
+    nudismoAttivo: boolean;
+    incinta?: boolean;
+    lavoro?: string;
+    seed?: number;
+    /** Razza di gioco (es. "Nano"): forza race LPC coerente prima delle altre regole. */
+    razza?: string | null;
+    /** Serve per pants vs skirt sui Nani. */
+    sesso?: "M" | "F" | null;
+  }
 ): CharacterAppearance {
-  const fallbackOutfit = !rules.nudismoAttivo ? "commoner" : "none";
+  const aligned = appearanceAlignedToRazza(value, rules.razza);
+  const seed = rules.seed ?? 1;
+  const isDwarf = aligned.race === "dwarf" || rules.razza === "Nano";
+  const dwarfSesso =
+    rules.sesso ??
+    (aligned.lowerOutfit === DWARF_CHILD_SKIRT ? "F" : "M");
+  const dwarfClothes = isDwarf ? dwarfChildOutfit(dwarfSesso, seed) : null;
+  const childLike = aligned.bodyType === "child" || isDwarf;
+  const catalog = compatibleCatalogOptions(aligned);
+  const fallbackOutfit = !rules.nudismoAttivo
+    ? (catalog.upperOutfits.includes("commoner") ? "commoner" : catalog.upperOutfits[0] ?? "none")
+    : "none";
+  const effectiveFallback = dwarfClothes
+    ? dwarfClothes.upperOutfit
+    : childLike && fallbackOutfit === "commoner" && !catalog.upperOutfits.includes("commoner")
+      ? "none"
+      : fallbackOutfit;
   const withPregnancy = rules.incinta
     ? {
-        ...value,
+        ...aligned,
         bodyType: PREGNANT_BODY_TYPE,
         ageGroup: "adult" as const,
-        bodyFamily: bodyFamilyFor(value.race, "adult"),
+        bodyFamily: bodyFamilyFor(aligned.race, "adult"),
         beardStyle: "none"
       }
-    : value;
-  const withProfession = enforceProfessionAccessoryRules(withPregnancy, rules.lavoro);
-  return normalizeCharacterAppearance({
+    : aligned;
+  const withDwarfClothes = dwarfClothes && !rules.incinta
+    ? { ...withPregnancy, ...dwarfClothes }
+    : withPregnancy;
+  const withProfession = enforceProfessionAccessoryRules(withDwarfClothes, rules.lavoro, seed);
+  const usaKimonoProfessionale = rules.lavoro === "Medico" || rules.lavoro === "Giudice";
+  const normalized = normalizeCharacterAppearance({
     ...withProfession,
     headwear: !rules.isKing && withProfession.headwear === "crown" ? "none" : withProfession.headwear,
-    outfit: withProfession.outfit === "none" ? fallbackOutfit : withProfession.outfit,
-    upperOutfit: withProfession.upperOutfit === "none" ? fallbackOutfit : withProfession.upperOutfit,
-    lowerOutfit: withProfession.lowerOutfit === "none" ? fallbackOutfit : withProfession.lowerOutfit
+    ...(dwarfClothes && !usaKimonoProfessionale
+      ? dwarfClothes
+      : {
+          outfit: withProfession.outfit === "none" && !usaKimonoProfessionale ? effectiveFallback : withProfession.outfit,
+          upperOutfit: withProfession.upperOutfit === "none" && !usaKimonoProfessionale ? effectiveFallback : withProfession.upperOutfit,
+          lowerOutfit: withProfession.lowerOutfit === "none" && !usaKimonoProfessionale
+            ? (dwarfClothes?.lowerOutfit ?? effectiveFallback)
+            : withProfession.lowerOutfit
+        })
   });
+  return rules.incinta ? compatibilizzaPerGravidanza(normalized) : compatibilizzaPerCatalogo(normalized);
 }
