@@ -99,6 +99,7 @@ export class KingdomMapScene extends Phaser.Scene {
   private static readonly MAX_CLAIM_FAILS_BEFORE_REPATH = 3;
   private lpcLoadCompleteListener: (() => void) | null = null;
   private unsubscribeSimTime: (() => void) | null = null;
+  private characterAssetsReadyNotified = false;
   private selectionRing: Phaser.GameObjects.Ellipse | null = null;
   private selectionAbitanteId: number | null = null;
   private readonly framePerformance = new PhaserFramePerformanceSampler(600);
@@ -195,6 +196,7 @@ export class KingdomMapScene extends Phaser.Scene {
     };
     this.configureTextureFrames(this.bridge.getSnapshot());
     this.renderSnapshot(this.bridge.getSnapshot());
+    this.tryNotifyCharacterAssetsReady(this.bridge.getSnapshot());
     this.configureCameraAndInput();
     this.unsubscribe = this.bridge.subscribe(() => {
       const snapshot = this.bridge.getSnapshot();
@@ -208,6 +210,7 @@ export class KingdomMapScene extends Phaser.Scene {
       if (changes.grid) this.renderGrid(snapshot);
       if (changes.interaction) this.renderInteraction(snapshot);
       this.renderedSnapshot = snapshot;
+      this.tryNotifyCharacterAssetsReady(snapshot);
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.unsubscribe?.();
@@ -255,12 +258,38 @@ export class KingdomMapScene extends Phaser.Scene {
     if (queued && !this.lpcLoadCompleteListener) {
       this.lpcLoadCompleteListener = () => {
         this.pendingLpcSourceIds.clear();
-        this.reconcileCharacters(this.bridge.getSnapshot());
+        const snapshot = this.bridge.getSnapshot();
+        this.reconcileCharacters(snapshot);
+        this.tryNotifyCharacterAssetsReady(snapshot);
       };
       this.load.on(Phaser.Loader.Events.COMPLETE, this.lpcLoadCompleteListener);
     }
     if (queued && !this.load.isLoading()) this.load.start();
     return ids.length > 0 && ids.every((id) => this.textures.exists(id));
+  }
+
+  private characterNeedsLpc(character: PhaserMapCharacter): boolean {
+    const appearance = character.characterAppearance;
+    if (!appearance || !canRenderCharacter(appearance, "idle") || !this.artUrls.getLpcLayerUrl) return false;
+    return this.collectLpcSourceIds(appearance).some((id) => !!this.artUrls.getLpcLayerUrl?.(id));
+  }
+
+  private lpcLayersReady(character: PhaserMapCharacter): boolean {
+    const appearance = character.characterAppearance;
+    if (!appearance || !canRenderCharacter(appearance, "idle")) return false;
+    const ids = this.collectLpcSourceIds(appearance).filter((id) => !!this.artUrls.getLpcLayerUrl?.(id));
+    return ids.length === 0 || ids.every((id) => this.textures.exists(id));
+  }
+
+  private tryNotifyCharacterAssetsReady(snapshot: PhaserMapSnapshot): void {
+    if (this.characterAssetsReadyNotified) return;
+    if (this.pendingLpcSourceIds.size > 0 || this.load.isLoading()) return;
+    const waitingForLpc = snapshot.characters.some(
+      (character) => this.characterNeedsLpc(character) && !this.lpcLayersReady(character)
+    );
+    if (waitingForLpc) return;
+    this.characterAssetsReadyNotified = true;
+    this.bridge.notifyCharacterAssetsReady();
   }
 
   private playLpcLayerWalk(sprite: Phaser.GameObjects.Sprite, sourceId: string, direction: "down" | "left" | "right" | "up"): void {
