@@ -73,6 +73,8 @@ export class KingdomMapScene extends Phaser.Scene {
   private interactionLayer: Phaser.GameObjects.Container | null = null;
   private gridLayer: Phaser.GameObjects.Graphics | null = null;
   private readonly characterViews = new Map<number, CharacterView>();
+  private readonly pendingLpcSourceIds = new Set<string>();
+  private lpcLoadCompleteListener: (() => void) | null = null;
   private selectionRing: Phaser.GameObjects.Ellipse | null = null;
   private selectionAbitanteId: number | null = null;
   private readonly framePerformance = new PhaserFramePerformanceSampler(600);
@@ -179,6 +181,10 @@ export class KingdomMapScene extends Phaser.Scene {
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.unsubscribe?.();
+      if (this.lpcLoadCompleteListener) {
+        this.load.off(Phaser.Loader.Events.COMPLETE, this.lpcLoadCompleteListener);
+        this.lpcLoadCompleteListener = null;
+      }
       if (this.perfEnabled) {
         delete (globalThis as any).__KINGDOM_PERF_PAN__;
         delete (globalThis as any).__KINGDOM_PERF_ZOOM__;
@@ -201,11 +207,19 @@ export class KingdomMapScene extends Phaser.Scene {
     const ids = this.collectLpcSourceIds(appearance);
     let queued = false;
     for (const id of ids) {
-      if (this.textures.exists(id)) continue;
+      if (this.textures.exists(id) || this.pendingLpcSourceIds.has(id)) continue;
       const url = this.artUrls.getLpcLayerUrl(id);
       if (!url) continue;
+      this.pendingLpcSourceIds.add(id);
       this.load.spritesheet(id, url, { frameWidth: 64, frameHeight: 64 });
       queued = true;
+    }
+    if (queued && !this.lpcLoadCompleteListener) {
+      this.lpcLoadCompleteListener = () => {
+        this.pendingLpcSourceIds.clear();
+        this.reconcileCharacters(this.bridge.getSnapshot());
+      };
+      this.load.on(Phaser.Loader.Events.COMPLETE, this.lpcLoadCompleteListener);
     }
     if (queued && !this.load.isLoading()) this.load.start();
     return ids.length > 0 && ids.every((id) => this.textures.exists(id));
