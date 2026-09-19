@@ -484,18 +484,74 @@ export class KingdomMapScene extends Phaser.Scene {
       this.stopIdleRoam(character.id);
       this.tweens.killTweensOf(view.root);
       const start = character.path?.[0] ?? character.cell;
-      this.placeCharacter(view.root, start, snapshot);
+      const finalPathCell = character.path?.[(character.path?.length ?? 0) - 1];
+      const enteringBuilding = snapshot.buildings.find(
+        (building) => finalPathCell != null && isGeometryEntryCell(building.geometry, finalPathCell)
+      );
+      const exitingBuilding = snapshot.buildings.find((building) => {
+        const footprint = building.geometry.footprint;
+        const col = character.cell % snapshot.cols;
+        const row = Math.floor(character.cell / snapshot.cols);
+        const pathStart = character.path?.[0];
+        return (
+          pathStart != null &&
+          isGeometryEntryCell(building.geometry, pathStart) &&
+          col >= footprint.col &&
+          col < footprint.col + footprint.width &&
+          row >= footprint.row &&
+          row < footprint.row + footprint.height
+        );
+      });
+
+      if (exitingBuilding && (exitingBuilding.geometry.entryPoints?.length ?? 0) <= 1) {
+        view.root.setPosition(
+          exitingBuilding.geometry.interiorSpawnPoint.x * snapshot.cellSize,
+          exitingBuilding.geometry.interiorSpawnPoint.y * snapshot.cellSize
+        );
+        this.updateCharacterDepth(view.root);
+      } else {
+        this.placeCharacter(view.root, start, snapshot);
+      }
+
       view.logicalCell = start;
       view.token = token;
-      const path = character.path?.slice(1) ?? [];
-      if (path.length > 0) {
+
+      const waypoints = (character.path?.slice(1) ?? []).map((cell) => ({
+        ...this.characterPosition(cell, snapshot),
+        cell
+      }));
+
+      if (exitingBuilding && (exitingBuilding.geometry.entryPoints?.length ?? 0) <= 1) {
+        waypoints.unshift({
+          x: (exitingBuilding.geometry.doorway.col + exitingBuilding.geometry.doorway.width / 2) * snapshot.cellSize,
+          y: (exitingBuilding.geometry.doorway.row + 0.92) * snapshot.cellSize,
+          cell: exitingBuilding.geometry.doorCell
+        });
+      }
+
+      if (enteringBuilding && (enteringBuilding.geometry.entryPoints?.length ?? 0) <= 1) {
+        waypoints.push(
+          {
+            x: (enteringBuilding.geometry.doorway.col + enteringBuilding.geometry.doorway.width / 2) * snapshot.cellSize,
+            y: (enteringBuilding.geometry.doorway.row + 0.92) * snapshot.cellSize,
+            cell: enteringBuilding.geometry.doorCell
+          },
+          {
+            x: enteringBuilding.geometry.interiorSpawnPoint.x * snapshot.cellSize,
+            y: enteringBuilding.geometry.interiorSpawnPoint.y * snapshot.cellSize,
+            cell: enteringBuilding.geometry.doorCell
+          }
+        );
+      }
+
+      if (waypoints.length > 0) {
         const animatedView = view;
         const pathToken = token;
         let currentCell = start;
 
         const moveNext = (index: number) => {
           if (!this.isActiveCharacterView(animatedView, character.id, pathToken)) return;
-          if (index >= path.length) {
+          if (index >= waypoints.length) {
             animatedView.logicalCell = currentCell;
             this.claimFailCounts.delete(character.id);
             this.setCharacterIdleFrame(animatedView, character);
@@ -503,13 +559,16 @@ export class KingdomMapScene extends Phaser.Scene {
             return;
           }
 
-          const nextCell = path[index]!;
-          const softSharedFinalCell = index === path.length - 1;
+          const waypoint = waypoints[index]!;
+          const softSharedEntry =
+            (finalPathCell != null && waypoint.cell === finalPathCell) ||
+            (enteringBuilding != null && waypoint.cell === enteringBuilding.geometry.doorCell);
+
           if (
-            nextCell !== currentCell &&
-            !this.bridge.attemptCharacterStep(character.id, currentCell, nextCell)
+            waypoint.cell !== currentCell &&
+            !this.bridge.attemptCharacterStep(character.id, currentCell, waypoint.cell)
           ) {
-            if (!softSharedFinalCell) {
+            if (!softSharedEntry) {
               const failures = (this.claimFailCounts.get(character.id) ?? 0) + 1;
               this.claimFailCounts.set(character.id, failures);
               if (failures < KingdomMapScene.MAX_CLAIM_FAILS_BEFORE_REPATH) {
@@ -518,24 +577,21 @@ export class KingdomMapScene extends Phaser.Scene {
               }
               this.claimFailCounts.delete(character.id);
               this.setCharacterIdleFrame(animatedView, character);
-              this.bridge.blockCharacterPath(character.id, currentCell, nextCell);
+              this.bridge.blockCharacterPath(character.id, currentCell, waypoint.cell);
               return;
             }
           }
 
           this.claimFailCounts.delete(character.id);
-          const pos = this.characterPosition(nextCell, snapshot);
-          const direction = this.directionForStep(currentCell, nextCell, snapshot.cols);
+          const direction = this.directionForStep(currentCell, waypoint.cell, snapshot.cols);
+          const nextCell = waypoint.cell;
           const tween = this.tweens.add({
             targets: animatedView.root,
-            x: pos.x,
-            y: pos.y,
+            x: waypoint.x,
+            y: waypoint.y,
             duration: 320,
             ease: "Linear",
-            onUpdate: () => {
-              animatedView.root.setDepth(Math.round(animatedView.root.y * 10));
-              this.worldLayer?.sort("depth");
-            },
+            onUpdate: () => this.updateCharacterDepth(animatedView.root),
             onStart: () => {
               if (!this.isActiveCharacterView(animatedView, character.id, pathToken)) {
                 tween.stop();
@@ -570,6 +626,7 @@ export class KingdomMapScene extends Phaser.Scene {
 
         moveNext(0);
       }
+    }
     }
     this.characterVisibilityDirty = true;
     this.renderSelectionMarker(snapshot);
