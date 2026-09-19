@@ -45,7 +45,6 @@ async function warmLpcLayerUrls(sourceIds: readonly string[]): Promise<void> {
 }
 
 const SPRITESHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spritesheet-full.png");
-const HUMAN_SHEET = require("../../assets/pixel-art/characters/human-colonist.png");
 const GOLEM_SHEET = require("../../assets/pixel-art/characters/stone-golem.png");
 const COMMAND_CENTER = require("../../assets/pixel-art/buildings/command-center.png");
 const DORMITORY = require("../../assets/pixel-art/buildings/dormitory.png");
@@ -106,7 +105,6 @@ export function PhaserMapSurface({
       });
       const sheetUrl = Asset.fromModule(SPRITESHEET).uri;
       const artUrls = {
-        human: Asset.fromModule(HUMAN_SHEET).uri,
         golem: Asset.fromModule(GOLEM_SHEET).uri,
         getLpcLayerUrl,
         buildings: {
