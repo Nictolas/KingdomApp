@@ -1133,6 +1133,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const [schedaWandererAbitante, setSchedaWandererAbitante] = useState<Abitante | null>(null);
   /** Selezione mappa: sintesi in barra inferiore al posto dei pulsanti risorse. */
   const [sintesiMappaAbitanteId, setSintesiMappaAbitanteId] = useState<number | null>(null);
+  /** Id abitante → partner della chiacchiera «in giro» (Phaser). */
+  const [chiacchieraConById, setChiacchieraConById] = useState<Record<number, number>>({});
   /** Bordi tra le celle: di default nascosti; il toggle nella barra risorse li attiva. */
   const [mostraGrigliaMappa, setMostraGrigliaMappa] = useState(false);
   const lastTapCell = useRef<number | null>(null);
