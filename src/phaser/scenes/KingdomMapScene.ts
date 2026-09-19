@@ -54,6 +54,7 @@ type CharacterView = {
   sprite: Phaser.GameObjects.Sprite;
   sprites: Phaser.GameObjects.Sprite[];
   usesLpc: boolean;
+  logicalCell: number;
   token: number;
   direction: 0 | 1 | 2 | 3;
 };
@@ -74,6 +75,8 @@ export class KingdomMapScene extends Phaser.Scene {
   private gridLayer: Phaser.GameObjects.Graphics | null = null;
   private readonly characterViews = new Map<number, CharacterView>();
   private readonly pendingLpcSourceIds = new Set<string>();
+  private readonly idleRoamTimers = new Map<number, Phaser.Time.TimerEvent>();
+  private static readonly IDLE_ROAM_PAUSE_MS = 1600;
   private lpcLoadCompleteListener: (() => void) | null = null;
   private selectionRing: Phaser.GameObjects.Ellipse | null = null;
   private selectionAbitanteId: number | null = null;
@@ -423,13 +426,19 @@ export class KingdomMapScene extends Phaser.Scene {
           this.characterLastPressAt.set(character.id, now);
           this.bridge.pressCharacter(character.id, doublePress);
         });
-        view = { root, sprite, sprites, usesLpc: useLpc, token: -1, direction: 0 };
+        view = { root, sprite, sprites, usesLpc: useLpc, logicalCell: character.cell, token: -1, direction: 0 };
         this.characterViews.set(character.id, view);
       }
-      if (view.token === token) continue;
+      if (view.token === token) {
+        if (character.idleRoamAllowed && (character.path?.length ?? 0) < 2) this.ensureIdleRoamScheduled(character.id);
+        else this.stopIdleRoam(character.id);
+        continue;
+      }
+      this.stopIdleRoam(character.id);
       this.tweens.killTweensOf(view.root);
       const start = character.path?.[0] ?? character.cell;
       this.placeCharacter(view.root, start, snapshot);
+      view.logicalCell = start;
       view.token = token;
       const path = character.path?.slice(1) ?? [];
       if (path.length > 0) {
@@ -482,6 +491,35 @@ export class KingdomMapScene extends Phaser.Scene {
     }
     this.characterVisibilityDirty = true;
     this.renderSelectionMarker(snapshot);
+  }
+
+  private stopIdleRoam(characterId: number): void {
+    const timer = this.idleRoamTimers.get(characterId);
+    if (timer) timer.remove(false);
+    this.idleRoamTimers.delete(characterId);
+  }
+
+  private ensureIdleRoamScheduled(characterId: number): void {
+    if (this.idleRoamTimers.has(characterId)) return;
+    const timer = this.time.delayedCall(KingdomMapScene.IDLE_ROAM_PAUSE_MS, () => {
+      this.idleRoamTimers.delete(characterId);
+      const snapshot = this.bridge.getSnapshot();
+      const character = snapshot.characters.find((c) => c.id === characterId);
+      const view = this.characterViews.get(characterId);
+      if (!character?.idleRoamAllowed || !view?.root?.active || (character.path?.length ?? 0) >= 2) return;
+      const dirs: Array<0 | 1 | 2 | 3> = [0, 1, 2, 3];
+      view.direction = dirs[Math.floor(Math.random() * dirs.length)] ?? view.direction;
+      if (view.usesLpc && character.characterAppearance) {
+        const layers = resolveCharacterLayers(character.characterAppearance, "idle");
+        const directionName = this.directionName(view.direction);
+        view.sprites.forEach((layerSprite, index) => {
+          const layer = layers[index];
+          if (layer && this.textures.exists(layer.sourceId)) layerSprite.setTexture(layer.sourceId).setFrame(LPC_DIRECTION_ROWS[directionName] * 2);
+        });
+      } else view.sprite.stop().setFrame(view.direction);
+      this.ensureIdleRoamScheduled(characterId);
+    });
+    this.idleRoamTimers.set(characterId, timer);
   }
 
   private clearSelectionRing(): void {
