@@ -29,6 +29,10 @@ export default function GridGame() {
             <Text style={styles.navLabel}>Fazioni</Text>
             <Text style={styles.navMeta}>{fazioni.length}</Text>
           </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/religioni")}>
+            <Text style={styles.navEmoji}>⛪</Text>
+            <Text style={styles.navLabel}>Religioni</Text>
+          </Pressable>
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/edifici")}>
             <Text style={styles.navEmoji}>🏗️</Text>
             <Text style={styles.navLabel}>Edifici</Text>
