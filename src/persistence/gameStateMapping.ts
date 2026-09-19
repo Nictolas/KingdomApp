@@ -42,6 +42,7 @@ export type PersistableGameState = {
   penaReati: PenaReatiConfig;
   politicaReligiosa: "ateismo-stato" | "religione-stato" | "liberta-culto";
   religioneDiStato: Abitante["religione"] | null;
+  religioniCustom?: import("../game/fedeleCulto").ReligioneCustom[];
   leggeRazzialeAttiva: boolean;
   razzaCampoLavoro: Razza | null;
   razzaCampoSterminio: Razza | null;
@@ -116,6 +117,7 @@ export function gameStateToGameSaveV1(state: PersistableGameState): GameSaveV1 {
       penaReati: state.penaReati,
       politicaReligiosa: state.politicaReligiosa,
       religioneDiStato: state.religioneDiStato,
+      religioniCustom: state.religioniCustom,
       leggeRazzialeAttiva: state.leggeRazzialeAttiva,
       razzaCampoLavoro: state.razzaCampoLavoro,
       razzaCampoSterminio: state.razzaCampoSterminio,
