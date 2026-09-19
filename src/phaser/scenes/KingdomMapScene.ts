@@ -4,6 +4,13 @@ import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
 import { CHILD_BEARD_OFFSET_Y_PX, LPC_DIRECTION_ROWS } from "../../character-system/lpcPack";
 import { canRenderCharacter, resolveCharacterLayers } from "../../character-system/registry";
 import { isGeometryEntryCell } from "../../game/buildingGeometry";
+import {
+  getOrologioSimTimeScaleSnapshot,
+  getOrologioGiocoVelocitaSnapshot,
+  scalaDurataRealeMs,
+  subscribeOrologioGiocoInPausa,
+  subscribeOrologioGiocoVelocita
+} from "../../game/orologioGiocoSession";
 import { PhaserFramePerformanceSampler, formatPhaserFramePerformance } from "../adapters/phaserFramePerformance";
 import {
   getPhaserDynamicSnapshotChanges,
@@ -91,6 +98,7 @@ export class KingdomMapScene extends Phaser.Scene {
   private static readonly CLAIM_RETRY_MS = 250;
   private static readonly MAX_CLAIM_FAILS_BEFORE_REPATH = 3;
   private lpcLoadCompleteListener: (() => void) | null = null;
+  private unsubscribeSimTime: (() => void) | null = null;
   private selectionRing: Phaser.GameObjects.Ellipse | null = null;
   private selectionAbitanteId: number | null = null;
   private readonly framePerformance = new PhaserFramePerformanceSampler(600);
@@ -178,6 +186,13 @@ export class KingdomMapScene extends Phaser.Scene {
       }).setScrollFactor(0).setDepth(INTERACTION_LAYER_DEPTH + 100);
     }
     this.configureCharacterAnimations();
+    this.syncCharacterSimTimeScale();
+    const unsubPausa = subscribeOrologioGiocoInPausa(() => this.syncCharacterSimTimeScale());
+    const unsubVelocita = subscribeOrologioGiocoVelocita(() => this.syncCharacterSimTimeScale());
+    this.unsubscribeSimTime = () => {
+      unsubPausa();
+      unsubVelocita();
+    };
     this.configureTextureFrames(this.bridge.getSnapshot());
     this.renderSnapshot(this.bridge.getSnapshot());
     this.configureCameraAndInput();
@@ -196,6 +211,8 @@ export class KingdomMapScene extends Phaser.Scene {
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
       this.unsubscribe?.();
+      this.unsubscribeSimTime?.();
+      this.unsubscribeSimTime = null;
       if (this.lpcLoadCompleteListener) {
         this.load.off(Phaser.Loader.Events.COMPLETE, this.lpcLoadCompleteListener);
         this.lpcLoadCompleteListener = null;
@@ -205,6 +222,12 @@ export class KingdomMapScene extends Phaser.Scene {
         delete (globalThis as any).__KINGDOM_PERF_ZOOM__;
       }
     });
+  }
+
+  private syncCharacterSimTimeScale(): void {
+    const scale = getOrologioSimTimeScaleSnapshot();
+    this.tweens.timeScale = scale;
+    this.anims.globalTimeScale = scale;
   }
 
   private collectLpcSourceIds(appearance: NonNullable<PhaserMapCharacter["characterAppearance"]>): string[] {
@@ -572,7 +595,13 @@ export class KingdomMapScene extends Phaser.Scene {
               const failures = (this.claimFailCounts.get(character.id) ?? 0) + 1;
               this.claimFailCounts.set(character.id, failures);
               if (failures < KingdomMapScene.MAX_CLAIM_FAILS_BEFORE_REPATH) {
-                this.time.delayedCall(KingdomMapScene.CLAIM_RETRY_MS, () => moveNext(index));
+                this.time.delayedCall(
+                  scalaDurataRealeMs(
+                    KingdomMapScene.CLAIM_RETRY_MS,
+                    getOrologioGiocoVelocitaSnapshot()
+                  ),
+                  () => moveNext(index)
+                );
                 return;
               }
               this.claimFailCounts.delete(character.id);
