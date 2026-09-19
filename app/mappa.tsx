@@ -3085,14 +3085,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const tryPhaserIdleStep = useCallback(
     (abitanteId: number, _fromCell: number, toCell: number) => {
-      const tile = phaserTiles[toCell];
-      if (!tile || tile.terrain === "water") return false;
+      if (!isWalkableCell(toCell)) return false;
       const insideBuilding = phaserBuildings.some((building) => building.geometry.cells.includes(toCell));
       if (insideBuilding) return false;
-      const occupied = phaserCharacters.some((character) => character.id !== abitanteId && character.cell === toCell);
-      return !occupied;
+      if (!tryClaimCellAbitante(abitanteId, toCell)) return false;
+      ultimaCellaAbitanteRef.current.set(abitanteId, toCell);
+      return true;
     },
-    [phaserTiles, phaserBuildings, phaserCharacters]
+    [isWalkableCell, phaserBuildings, tryClaimCellAbitante]
   );
 
   const handlePhaserCharacterPathComplete = useCallback((abitanteId: number, token: number) => {
