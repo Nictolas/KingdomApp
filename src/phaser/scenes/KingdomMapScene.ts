@@ -767,7 +767,7 @@ export class KingdomMapScene extends Phaser.Scene {
               });
             }
             this.chatBusy.add(characterId);
-            this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => { view.root.setDepth(Math.round(view.root.y * 10)); this.worldLayer?.sort("depth"); }, onComplete: () => { view.logicalCell = destination; this.chatBusy.delete(characterId); this.setCharacterIdleFrame(view, character); this.ensureIdleRoamScheduled(characterId); } });
+            this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => this.updateCharacterDepth(view.root), onComplete: () => { view.logicalCell = destination; this.chatBusy.delete(characterId); this.setCharacterIdleFrame(view, character); this.ensureIdleRoamScheduled(characterId); } });
             return;
           }
         }
@@ -844,7 +844,7 @@ export class KingdomMapScene extends Phaser.Scene {
             });
           }
           this.chatBusy.add(characterId);
-          this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => { view.root.setDepth(Math.round(view.root.y * 10)); this.worldLayer?.sort("depth"); }, onComplete: () => { view.logicalCell = destination; this.chatBusy.delete(characterId); this.setCharacterIdleFrame(view, character); this.ensureIdleRoamScheduled(characterId); } });
+          this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => this.updateCharacterDepth(view.root), onComplete: () => { view.logicalCell = destination; this.chatBusy.delete(characterId); this.setCharacterIdleFrame(view, character); this.ensureIdleRoamScheduled(characterId); } });
         }
       }
       if (view.usesLpc && character.characterAppearance) {
