@@ -36,6 +36,7 @@ const GOLEM_KEY = "stone-golem";
 const TILE_LAYER_DEPTH = 0;
 const BUILDING_LAYER_DEPTH = 10;
 const INTERACTION_LAYER_DEPTH = 30;
+const LOCATE_LAYER_DEPTH = 220;
 const WORLD_DEPTH_BASE = 100;
 
 function worldDepthForY(y: number): number {
@@ -88,6 +89,10 @@ export class KingdomMapScene extends Phaser.Scene {
   private worldLayer: Phaser.GameObjects.Container | null = null;
   private buildingViews: Phaser.GameObjects.Container[] = [];
   private interactionLayer: Phaser.GameObjects.Container | null = null;
+  private locateLayer: Phaser.GameObjects.Container | null = null;
+  private locateArrow: Phaser.GameObjects.Container | null = null;
+  private locateAbitanteId: number | null = null;
+  private locateCell: number | null = null;
   private gridLayer: Phaser.GameObjects.Graphics | null = null;
   private readonly characterViews = new Map<number, CharacterView>();
   private readonly pendingLpcSourceIds = new Set<string>();
@@ -167,6 +172,7 @@ export class KingdomMapScene extends Phaser.Scene {
     this.tileLayer = this.add.container(0, 0).setDepth(TILE_LAYER_DEPTH);
     this.worldLayer = this.add.container(0, 0).setDepth(BUILDING_LAYER_DEPTH);
     this.interactionLayer = this.add.container(0, 0).setDepth(INTERACTION_LAYER_DEPTH);
+    this.locateLayer = this.add.container(0, 0).setDepth(LOCATE_LAYER_DEPTH);
     this.gridLayer = this.add.graphics().setDepth(INTERACTION_LAYER_DEPTH - 1);
     this.perfEnabled = (globalThis as any).__KINGDOM_PERF_REQUESTED__ === true || (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("perf") === "1");
     if (this.perfEnabled) {
@@ -221,6 +227,7 @@ export class KingdomMapScene extends Phaser.Scene {
       if (changes.characters) this.reconcileCharacters(snapshot);
       if (changes.grid) this.renderGrid(snapshot);
       if (changes.interaction) this.renderInteraction(snapshot);
+      this.renderLocateMarker(snapshot);
       this.renderedSnapshot = snapshot;
       this.tryNotifyCharacterAssetsReady(snapshot);
     });
@@ -230,6 +237,7 @@ export class KingdomMapScene extends Phaser.Scene {
       this.unsubscribeSimTime = null;
       for (const timer of this.chatTalkTimers.values()) timer.remove(false);
       this.chatTalkTimers.clear();
+      this.clearLocateArrow();
       if (this.lpcLoadCompleteListener) {
         this.load.off(Phaser.Loader.Events.COMPLETE, this.lpcLoadCompleteListener);
         this.lpcLoadCompleteListener = null;
@@ -475,6 +483,7 @@ export class KingdomMapScene extends Phaser.Scene {
     this.reconcileCharacters(snapshot);
     this.renderGrid(snapshot);
     this.renderInteraction(snapshot);
+    this.renderLocateMarker(snapshot);
     this.renderedSnapshot = snapshot;
   }
 
@@ -922,6 +931,92 @@ export class KingdomMapScene extends Phaser.Scene {
     this.idleRoamTimers.set(characterId, timer);
   }
 
+  private clearLocateArrow(): void {
+    if (this.locateArrow) {
+      const bob = this.locateArrow.getAt(0) as Phaser.GameObjects.GameObject | undefined;
+      if (bob) this.tweens.killTweensOf(bob);
+      this.locateArrow.destroy(true);
+      this.locateArrow = null;
+    }
+    this.locateAbitanteId = null;
+    this.locateCell = null;
+  }
+
+  private centerCameraOnCell(cell: number): void {
+    const snapshot = this.bridge.getSnapshot();
+    if (cell < 0 || cell >= snapshot.cols * snapshot.rows) return;
+    const camera = this.cameras.main;
+    camera.setZoom(Math.max(camera.zoom, 1.35));
+    camera.centerOn(
+      (cell % snapshot.cols + 0.5) * snapshot.cellSize,
+      (Math.floor(cell / snapshot.cols) + 0.5) * snapshot.cellSize
+    );
+    this.characterVisibilityDirty = true;
+    this.waterViewportDirty = true;
+    this.staticTileVisibilityDirty = true;
+  }
+
+  private renderLocateMarker(snapshot: PhaserMapSnapshot): void {
+    if (!this.locateLayer) return;
+    const marker = snapshot.locateMarker ?? null;
+    if (!marker) {
+      this.clearLocateArrow();
+      return;
+    }
+
+    const changedTarget =
+      this.locateArrow == null || this.locateAbitanteId !== marker.abitanteId;
+
+    if (changedTarget) {
+      this.clearLocateArrow();
+      this.locateAbitanteId = marker.abitanteId;
+      this.locateCell = marker.cell;
+
+      const root = this.add.container(0, 0);
+      const bob = this.add.container(0, 0);
+      bob.add(
+        this.add
+          .text(0, 0, "▼", {
+            fontSize: `${Math.round(snapshot.cellSize * 0.72)}px`,
+            color: "#facc15",
+            stroke: "#422006",
+            strokeThickness: 4
+          })
+          .setOrigin(0.5, 0.85)
+      );
+      root.add(bob);
+      this.locateLayer.add(root);
+      this.locateArrow = root;
+      this.tweens.add({
+        targets: bob,
+        y: -10,
+        duration: 420,
+        yoyo: true,
+        repeat: -1,
+        ease: "Sine.easeInOut"
+      });
+      this.centerCameraOnCell(marker.cell);
+    } else {
+      this.locateCell = marker.cell;
+    }
+
+    this.syncLocateArrowPosition(snapshot.cellSize);
+  }
+
+  private syncLocateArrowPosition(cellSize: number): void {
+    if (!this.locateArrow || this.locateCell == null) return;
+    const view =
+      this.locateAbitanteId != null ? this.characterViews.get(this.locateAbitanteId) : undefined;
+    if (view) {
+      this.locateArrow.setPosition(view.root.x, view.root.y - cellSize * 0.95);
+      return;
+    }
+    const snapshot = this.bridge.getSnapshot();
+    const col = this.locateCell % snapshot.cols;
+    const row = Math.floor(this.locateCell / snapshot.cols);
+    this.locateArrow.setPosition((col + 0.5) * cellSize, (row + 0.15) * cellSize);
+  }
+
   private clearSelectionRing(): void {
     if (this.selectionRing) {
       this.tweens.killTweensOf(this.selectionRing);
@@ -1114,6 +1209,9 @@ export class KingdomMapScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
+    if (this.locateArrow) {
+      this.syncLocateArrowPosition(this.bridge.getSnapshot().cellSize);
+    }
     if (this.perfEnabled) {
       // Phaser's delta can be smoothed/clamped toward the target frame rate.
       // Use browser wall-clock time so CI/headless measurements reflect real frame stalls.
