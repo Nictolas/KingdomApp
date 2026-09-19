@@ -532,6 +532,8 @@ export class KingdomMapScene extends Phaser.Scene {
   private placeCharacter(root: Phaser.GameObjects.Container, cell: number, snapshot: PhaserMapSnapshot): void {
     const pos = this.characterPosition(cell, snapshot);
     root.setPosition(pos.x, pos.y);
+    root.setDepth(Math.round(pos.y * 10));
+    this.characterLayer?.sort("depth");
   }
 
   private renderBuildings(snapshot: PhaserMapSnapshot): void {
