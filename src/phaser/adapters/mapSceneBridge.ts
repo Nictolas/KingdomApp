@@ -18,6 +18,10 @@ export type PhaserMapBuilding = {
   category: "residence" | "industry" | "service" | "security" | "religion" | "special";
   artKey?: "command-center" | "dormitory" | "greenhouse" | "frontier-hut";
   geometry: BuildingGeometry;
+  /** True se l'istanza globale e ancora in costruzione. */
+  underConstruction?: boolean;
+  /** Avanzamento cantiere 0-100. */
+  progressoCostruzione?: number;
 };
 
 export type PhaserMapCharacter = {
