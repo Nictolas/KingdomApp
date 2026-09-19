@@ -90,9 +90,10 @@ export class KingdomMapScene extends Phaser.Scene {
   private readonly pendingLpcSourceIds = new Set<string>();
   private readonly idleRoamTimers = new Map<number, Phaser.Time.TimerEvent>();
   private static readonly IDLE_ROAM_PAUSE_MS = 1600;
-  private static readonly CHAT_TALK_MS = 2400;
+  private static readonly CHAT_TALK_GAME_MINUTES = 60;
   private readonly chatBusy = new Set<number>();
   private readonly chatPairCooldownUntil = new Map<string, number>();
+  private readonly chatTalkTimers = new Map<number, Phaser.Time.TimerEvent>();
   private static readonly CHAT_PAIR_COOLDOWN_MS = 240_000;
   private readonly claimFailCounts = new Map<number, number>();
   private static readonly CLAIM_RETRY_MS = 250;
@@ -216,6 +217,8 @@ export class KingdomMapScene extends Phaser.Scene {
       this.unsubscribe?.();
       this.unsubscribeSimTime?.();
       this.unsubscribeSimTime = null;
+      for (const timer of this.chatTalkTimers.values()) timer.remove(false);
+      this.chatTalkTimers.clear();
       if (this.lpcLoadCompleteListener) {
         this.load.off(Phaser.Loader.Events.COMPLETE, this.lpcLoadCompleteListener);
         this.lpcLoadCompleteListener = null;
@@ -231,6 +234,65 @@ export class KingdomMapScene extends Phaser.Scene {
     const scale = getOrologioSimTimeScaleSnapshot();
     this.tweens.timeScale = scale;
     this.anims.globalTimeScale = scale;
+  }
+
+  private clearChatTalkTimer(characterId: number): void {
+    const anchorId = characterId;
+    const timer = this.chatTalkTimers.get(anchorId);
+    if (!timer) return;
+    timer.remove(false);
+    this.chatTalkTimers.delete(anchorId);
+  }
+
+  private startChatTalkTimer(characterId: number, partnerId: number): void {
+    const anchorId = Math.min(characterId, partnerId);
+    this.clearChatTalkTimer(anchorId);
+    let remainingGameMinutes = KingdomMapScene.CHAT_TALK_GAME_MINUTES;
+
+    const finish = () => {
+      this.chatTalkTimers.delete(anchorId);
+      if (!this.chatBusy.has(characterId) || !this.chatBusy.has(partnerId)) return;
+      this.chatBusy.delete(characterId);
+      this.chatBusy.delete(partnerId);
+      this.bridge.notifyCharacterChatChange(characterId, null);
+      this.bridge.notifyCharacterChatChange(partnerId, null);
+      this.bridge.notifyCharacterChatFinished(characterId, partnerId);
+      const pairKey = [characterId, partnerId].sort((a, b) => a - b).join(":");
+      this.chatPairCooldownUntil.set(
+        pairKey,
+        this.time.now +
+          scalaDurataRealeMs(
+            KingdomMapScene.CHAT_PAIR_COOLDOWN_MS,
+            getOrologioGiocoVelocitaSnapshot()
+          )
+      );
+      this.ensureIdleRoamScheduled(characterId);
+      this.ensureIdleRoamScheduled(partnerId);
+    };
+
+    const tick = () => {
+      if (!this.chatBusy.has(characterId) || !this.chatBusy.has(partnerId)) {
+        this.chatTalkTimers.delete(anchorId);
+        return;
+      }
+      if (isPhaserSimulationPaused(this.bridge.getSnapshot())) {
+        const timer = this.time.delayedCall(400, tick);
+        this.chatTalkTimers.set(anchorId, timer);
+        return;
+      }
+      remainingGameMinutes -= 1;
+      if (remainingGameMinutes <= 0) {
+        finish();
+        return;
+      }
+      const timer = this.time.delayedCall(
+        scalaDurataRealeMs(1000, getOrologioGiocoVelocitaSnapshot()),
+        tick
+      );
+      this.chatTalkTimers.set(anchorId, timer);
+    };
+
+    tick();
   }
 
   private collectLpcSourceIds(appearance: NonNullable<PhaserMapCharacter["characterAppearance"]>): string[] {
@@ -787,30 +849,7 @@ export class KingdomMapScene extends Phaser.Scene {
           this.chatBusy.add(nearby.id);
           this.bridge.notifyCharacterChatChange(characterId, nearby.id);
           this.bridge.notifyCharacterChatChange(nearby.id, characterId);
-          if (pairKey) {
-            this.chatPairCooldownUntil.set(
-              pairKey,
-              this.time.now + scalaDurataRealeMs(
-                KingdomMapScene.CHAT_PAIR_COOLDOWN_MS,
-                getOrologioGiocoVelocitaSnapshot()
-              )
-            );
-          }
-          this.time.delayedCall(
-            scalaDurataRealeMs(
-              KingdomMapScene.CHAT_TALK_MS,
-              getOrologioGiocoVelocitaSnapshot()
-            ),
-            () => {
-            this.chatBusy.delete(characterId);
-            this.chatBusy.delete(nearby.id);
-            this.bridge.notifyCharacterChatChange(characterId, null);
-            this.bridge.notifyCharacterChatChange(nearby.id, null);
-            this.bridge.notifyCharacterChatFinished(characterId, nearby.id);
-            this.ensureIdleRoamScheduled(characterId);
-            this.ensureIdleRoamScheduled(nearby.id);
-            }
-          );
+          this.startChatTalkTimer(characterId, nearby.id);
           return;
         }
       }
