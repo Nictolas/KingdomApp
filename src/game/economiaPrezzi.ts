@@ -13,6 +13,9 @@ export const STIPENDIO_BASE_MONETE_GIORNO = 1;
 /** Stipendio base pubblico: monete al mese (display / default edificio). */
 export const STIPENDIO_BASE_MONETE_MESE = STIPENDIO_BASE_MONETE_GIORNO * GIORNI_MESE_ECONOMIA;
 
+/** Cassa iniziale delle imprese del regno. */
+export const CASSA_IMPRESA_SEED = 10;
+
 /** Costo monete per entrare al bar. */
 export const COSTO_BAR_MONETE = 2;
 
