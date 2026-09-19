@@ -116,6 +116,8 @@ import { MapWaterCellsLayer } from "../src/components/MapWaterCellsLayer";
 import { PhaserMapSurface } from "../src/components/PhaserMapSurface";
 import { buildPhaserMapSnapshot } from "../src/phaser/adapters/buildPhaserMapSnapshot";
 import { findBuildingForInteriorCell } from "../src/game/buildingGeometry";
+import { assignUniqueCharacterCells } from "../src/game/characterCellOccupancy";
+import { setUltimaCellaAbitanteRuntime } from "../src/game/mappaPersonaggiRuntimeStore";
 import type { PhaserMapCharacter, PhaserMapInteraction } from "../src/phaser/adapters/mapSceneBridge";
 import { MondoLoadingScreen } from "../src/components/MondoLoadingScreen";
 import {
@@ -3089,45 +3091,48 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     ]
   );
 
-  const phaserCharacters = useMemo<PhaserMapCharacter[]>(() =>
-    abitantiPerOverlayMappa
+  const phaserCharacters = useMemo<PhaserMapCharacter[]>(() => {
+    const candidates: PhaserMapCharacter[] = abitantiPerOverlayMappa
       .filter(abitanteVisibileSuMappaPhaser)
       .map((abitante, order) => {
-      const commute = commuteByAbitanteId[abitante.id];
-      const home = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
-      const fallback = (6 + Math.floor(order / 10) * 2) * cols + 3 + (order % 10) * 3;
-      const cell = ultimaCellaAbitanteRef.current.get(abitante.id) ?? home ?? fallback;
-      const idleRoamAllowed =
-        commute == null &&
-        !abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&
-        !abitanteSoggettoACoprifuoco(
-          abitante,
-          edifici,
-          {
-            attivo: coprifuocoAttivo,
-            inizioMinuti: coprifuocoInizioMinuti,
-            fineMinuti: coprifuocoFineMinuti
-          },
-          orologioMinuti
-        );
-      return {
-        id: abitante.id,
-        name: abitante.nome,
-        cell,
-        path: commute?.path,
-        pathToken: commute?.token ?? 0,
-        appearance: abitante.razza === "Golem" ? "golem" : "human",
-        characterAppearance: aspettoPerVisualizzazioneAbitante(abitante)?.characterAppearance,
-        markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined,
-        idleRoamAllowed
-      };
-    }),
-  [
+        const commute = commuteByAbitanteId[abitante.id];
+        const home = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
+        const fallback = (6 + Math.floor(order / 10) * 2) * cols + 3 + (order % 10) * 3;
+        const cell = ultimaCellaAbitanteRef.current.get(abitante.id) ?? home ?? fallback;
+        const idleRoamAllowed =
+          commute == null &&
+          !abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&
+          !abitanteSoggettoACoprifuoco(
+            abitante,
+            edifici,
+            {
+              attivo: coprifuocoAttivo,
+              inizioMinuti: coprifuocoInizioMinuti,
+              fineMinuti: coprifuocoFineMinuti
+            },
+            orologioMinuti
+          );
+        return {
+          id: abitante.id,
+          name: abitante.nome,
+          cell,
+          path: commute?.path,
+          pathToken: commute?.token ?? 0,
+          appearance: abitante.razza === "Golem" ? "golem" : "human",
+          characterAppearance: aspettoPerVisualizzazioneAbitante(abitante)?.characterAppearance,
+          markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined,
+          idleRoamAllowed
+        };
+      });
+    return assignUniqueCharacterCells(candidates, cols, rows, isWalkableCell);
+  }, [
     abitantiPerOverlayMappa,
     abitanteVisibileSuMappaPhaser,
     commuteByAbitanteId,
     cellaCasaPerAbitanteId,
     cols,
+    rows,
+    isWalkableCell,
     orologioMinuti,
     edifici,
     coprifuocoAttivo,
@@ -3144,6 +3149,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (!abitanteSuCellaRef.current.has(character.id)) {
         tryClaimCellAbitante(character.id, character.cell);
       }
+      setUltimaCellaAbitanteRuntime(character.id, character.cell);
     }
   }, [phaserCharacters, releaseCellAbitante, tryClaimCellAbitante]);
 
@@ -3175,10 +3181,12 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (findBuildingForInteriorCell(toCell, phaserBaseSnapshot.buildings, cols)) {
         releaseCellAbitante(abitanteId);
         ultimaCellaAbitanteRef.current.set(abitanteId, toCell);
+        setUltimaCellaAbitanteRuntime(abitanteId, toCell);
         return true;
       }
       if (!tryClaimCellAbitante(abitanteId, toCell)) return false;
       ultimaCellaAbitanteRef.current.set(abitanteId, toCell);
+      setUltimaCellaAbitanteRuntime(abitanteId, toCell);
       return true;
     },
     [phaserBaseSnapshot.buildings, cols, releaseCellAbitante, tryClaimCellAbitante]
@@ -3190,6 +3198,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (findBuildingForInteriorCell(toCell, phaserBaseSnapshot.buildings, cols)) return false;
       if (!tryClaimCellAbitante(abitanteId, toCell)) return false;
       ultimaCellaAbitanteRef.current.set(abitanteId, toCell);
+      setUltimaCellaAbitanteRuntime(abitanteId, toCell);
       return true;
     },
     [isWalkableCell, phaserBaseSnapshot.buildings, cols, tryClaimCellAbitante]
