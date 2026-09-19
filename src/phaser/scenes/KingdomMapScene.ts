@@ -517,8 +517,26 @@ export class KingdomMapScene extends Phaser.Scene {
         if (!otherView?.root?.active) return false;
         const aCol = view.logicalCell % snapshot.cols, aRow = Math.floor(view.logicalCell / snapshot.cols);
         const bCol = otherView.logicalCell % snapshot.cols, bRow = Math.floor(otherView.logicalCell / snapshot.cols);
-        return Math.abs(aCol - bCol) + Math.abs(aRow - bRow) === 1;
+        const distance = Math.abs(aCol - bCol) + Math.abs(aRow - bRow);
+        return distance >= 1 && distance <= 3;
       });
+      if (nearby) {
+        const otherView = this.characterViews.get(nearby.id);
+        if (otherView) {
+          const aCol = view.logicalCell % snapshot.cols, aRow = Math.floor(view.logicalCell / snapshot.cols);
+          const bCol = otherView.logicalCell % snapshot.cols, bRow = Math.floor(otherView.logicalCell / snapshot.cols);
+          const distance = Math.abs(aCol - bCol) + Math.abs(aRow - bRow);
+          if (distance > 1 && Math.random() < 0.35) {
+            const stepCol = aCol + Math.sign(bCol - aCol);
+            const stepRow = bCol === aCol ? aRow + Math.sign(bRow - aRow) : aRow;
+            const destination = stepRow * snapshot.cols + stepCol;
+            const pos = this.characterPosition(destination, snapshot);
+            view.direction = this.directionForStep(view.logicalCell, destination, snapshot.cols);
+            this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => { view.root.setDepth(Math.round(view.root.y * 10)); this.characterLayer?.sort("depth"); }, onComplete: () => { view.logicalCell = destination; this.ensureIdleRoamScheduled(characterId); } });
+            return;
+          }
+        }
+      }
       const pairKey = nearby ? [characterId, nearby.id].sort((a, b) => a - b).join(":") : null;
       const pairOnCooldown = pairKey != null && (this.chatPairCooldownUntil.get(pairKey) ?? 0) > this.time.now;
       if (nearby && !pairOnCooldown && Math.random() < 0.35 && !this.chatBusy.has(characterId) && !this.chatBusy.has(nearby.id)) {
