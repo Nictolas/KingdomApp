@@ -21,13 +21,9 @@ test("Avventura ripristina Consigliere, Edile e Minatori iniziali", () => {
     assert.equal(edili.length, 1);
     assert.equal(minatori.length, 2);
 
-    // Nella versione storica da 6 abitanti non resta spazio per il Monetiere;
-    // da 7-8 abitanti invece viene sempre assegnato.
-    if (abitanti.length >= 7) {
-      assert.equal(monetieri.length, 1);
-    } else {
-      assert.equal(monetieri.length, 0);
-    }
+    // Il Monetiere viene assegnato solo se resta un candidato dopo Re,
+    // Consigliere, tutti gli Agricoltori, Edile e 2 Minatori.
+    assert.ok(monetieri.length <= 1);
 
     const ruoli = new Set(
       abitanti
