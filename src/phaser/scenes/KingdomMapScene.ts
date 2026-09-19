@@ -510,7 +510,7 @@ export class KingdomMapScene extends Phaser.Scene {
       const snapshot = this.bridge.getSnapshot();
       const character = snapshot.characters.find((c) => c.id === characterId);
       const view = this.characterViews.get(characterId);
-      if (!character?.idleRoamAllowed || !view?.root?.active || (character.path?.length ?? 0) >= 2) return;
+      if (!character?.idleRoamAllowed || !view?.root?.active || (character.path?.length ?? 0) >= 2 || this.chatBusy.has(characterId)) return;
       const nearby = snapshot.characters.find((other) => {
         if (other.id === characterId || !other.idleRoamAllowed || (other.path?.length ?? 0) >= 2) return false;
         const otherView = this.characterViews.get(other.id);
