@@ -531,7 +531,11 @@ export class KingdomMapScene extends Phaser.Scene {
             const stepRow = bCol === aCol ? aRow + Math.sign(bRow - aRow) : aRow;
             const destination = stepRow * snapshot.cols + stepCol;
             const destinationOccupied = [...this.characterViews.entries()].some(([id, candidate]) => id !== characterId && candidate.logicalCell === destination);
-            if (destinationOccupied) {
+            const destinationIsDoor = snapshot.buildings.some((building) => {
+              const entries = building.geometry.entryPoints ?? [building.geometry.doorCell];
+              return entries.includes(destination);
+            });
+            if (destinationOccupied || destinationIsDoor) {
               this.ensureIdleRoamScheduled(characterId);
               return;
             }
