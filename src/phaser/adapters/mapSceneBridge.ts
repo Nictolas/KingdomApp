@@ -42,6 +42,8 @@ export type PhaserMapSnapshot = {
   buildings: readonly PhaserMapBuilding[];
   characters: readonly PhaserMapCharacter[];
   interaction?: PhaserMapInteraction;
+  /** Abitante selezionato col puntatore (cerchio sotto i piedi). */
+  selectedAbitanteId?: number | null;
   showGrid?: boolean;
   /** Pausa globale della simulazione; il renderer mantiene la scena interattiva ma congela le animazioni legate al tempo. */
   paused?: boolean;
