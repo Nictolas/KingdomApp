@@ -88,6 +88,7 @@ import { provaCreaReligioneCustom, type ReligioneCustom } from "../game/fedeleCu
 import { assicuraReligioneTempioChiese } from "../game/chiesa";
 import { isSimulationRunning, type GamePhase } from "../game/gamePhase";
 import type { GameMode } from "../game/gameMode";
+import { sincronizzaCuginoNobileConRe } from "../game/cuginoNobileAvventura";
 import { filtraEdificiInizialiPerModalita } from "../game/edificiInizialiModalita";
 import type { PersistableGameState } from "../persistence/gameStateMapping";
 import type { MappaRuntimeState } from "../game/mappaTypes";
@@ -676,8 +677,8 @@ export function useGameState() {
   const configuraGiocatore = useCallback((dati: DatiCreazioneGiocatore) => {
     const nomeCompleto = [dati.nome.trim(), dati.cognome.trim()].filter(Boolean).join(" ");
     if (!nomeCompleto) return;
-    setAbitanti((prev) =>
-      prev.map((a) =>
+    setAbitanti((prev) => {
+      const conRe = prev.map((a) =>
         a.id === ID_GIOCATORE
           ? {
               ...a,
@@ -691,8 +692,9 @@ export function useGameState() {
               emoji: "👑"
             }
           : a
-      )
-    );
+      );
+      return sincronizzaCuginoNobileConRe(conRe);
+    });
     setCreazioneGiocatoreAperta(false);
     setDiarioInizioVisto(true);
     gamePhaseRef.current = "activating";
