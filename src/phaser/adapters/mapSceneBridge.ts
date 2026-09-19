@@ -1,3 +1,4 @@
+import type { CharacterAppearance } from "../../character-system/types";
 export type PhaserMapTile = {
   index: number;
   frameX: number;
@@ -25,6 +26,7 @@ export type PhaserMapCharacter = {
   pathToken?: number;
   markerEmoji?: string;
   appearance?: "human" | "golem";
+  characterAppearance?: CharacterAppearance;
 };
 
 export type PhaserMapInteraction = {
