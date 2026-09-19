@@ -3073,10 +3073,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       ...phaserBaseSnapshot,
       characters: phaserCharacters,
       interaction: phaserInteraction,
+      selectedAbitanteId: sintesiMappaAbitanteId,
       showGrid: mostraGrigliaMappa,
       paused: orologioInPausa
     }),
-    [phaserBaseSnapshot, phaserCharacters, phaserInteraction, mostraGrigliaMappa, orologioInPausa]
+    [phaserBaseSnapshot, phaserCharacters, phaserInteraction, sintesiMappaAbitanteId, mostraGrigliaMappa, orologioInPausa]
   );
 
   const handlePhaserCharacterPathComplete = useCallback((abitanteId: number, token: number) => {
