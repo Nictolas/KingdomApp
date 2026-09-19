@@ -101,6 +101,8 @@ export type GameSaveV1 = {
     richiesteInAttesa: RichiestaInAttesa[];
     luoghiCultoRifiutati: ReligioneConCulto[];
     luoghiCultoPendentiMappa: { religione: ReligioneConCulto; edificioGlobaleId: number }[];
+    /** Id obiettivi completati in modalità Avventura. Assente nei salvataggi precedenti. */
+    obiettiviCompletati?: string[];
   };
   map: MappaRuntimeState;
 };
