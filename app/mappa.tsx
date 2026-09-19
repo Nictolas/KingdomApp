@@ -3207,9 +3207,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       cols,
       rows,
       CELL_SIZE_PX,
-      ++phaserRevisionRef.current
+      ++phaserRevisionRef.current,
+      [],
+      edifici
     ),
-    [mappaState, cols, rows]
+    [mappaState, cols, rows, edifici]
   );
   const locateMarker = useMemo(() => {
     if (locateAbitanteId == null) return null;
