@@ -1429,6 +1429,7 @@ export function useGameState() {
 
   return {
     gameMode,
+    modalitaGioco: gameMode,
     gamePhase,
     simulationEnabled,
     startNewGame,
