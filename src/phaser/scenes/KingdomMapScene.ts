@@ -543,7 +543,7 @@ export class KingdomMapScene extends Phaser.Scene {
               const entries = building.geometry.entryPoints ?? [building.geometry.doorCell];
               return entries.includes(destination);
             });
-            if (destinationOccupied || destinationIsDoor) {
+            if (destinationOccupied || destinationIsDoor || !this.bridge.attemptCharacterIdleStep(characterId, view.logicalCell, destination)) {
               this.ensureIdleRoamScheduled(characterId);
               return;
             }
