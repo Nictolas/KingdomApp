@@ -549,8 +549,18 @@ export class KingdomMapScene extends Phaser.Scene {
             }
             const pos = this.characterPosition(destination, snapshot);
             view.direction = this.directionForStep(view.logicalCell, destination, snapshot.cols);
+            if (view.usesLpc && character.characterAppearance) {
+              const layers = resolveCharacterLayers(character.characterAppearance, "walk");
+              const directionName = this.directionName(view.direction);
+              view.sprites.forEach((layerSprite, layerIndex) => {
+                const layer = layers[layerIndex];
+                if (!layer || !this.textures.exists(layer.sourceId)) { layerSprite.setVisible(false); return; }
+                layerSprite.setVisible(true).setTexture(layer.sourceId);
+                this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName);
+              });
+            }
             this.chatBusy.add(characterId);
-            this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => { view.root.setDepth(Math.round(view.root.y * 10)); this.characterLayer?.sort("depth"); }, onComplete: () => { view.logicalCell = destination; this.chatBusy.delete(characterId); this.ensureIdleRoamScheduled(characterId); } });
+            this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => { view.root.setDepth(Math.round(view.root.y * 10)); this.characterLayer?.sort("depth"); }, onComplete: () => { view.logicalCell = destination; this.chatBusy.delete(characterId); this.setCharacterIdleFrame(view, character); this.ensureIdleRoamScheduled(characterId); } });
             return;
           }
         }
