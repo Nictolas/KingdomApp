@@ -512,7 +512,7 @@ export class KingdomMapScene extends Phaser.Scene {
   }
 
   private ensureIdleRoamScheduled(characterId: number): void {
-    if (this.idleRoamTimers.has(characterId)) return;
+    if (this.idleRoamTimers.has(characterId) || this.chatBusy.has(characterId)) return;
     const timer = this.time.delayedCall(KingdomMapScene.IDLE_ROAM_PAUSE_MS, () => {
       this.idleRoamTimers.delete(characterId);
       const snapshot = this.bridge.getSnapshot();
