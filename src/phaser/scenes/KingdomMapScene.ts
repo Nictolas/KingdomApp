@@ -520,7 +520,7 @@ export class KingdomMapScene extends Phaser.Scene {
       const view = this.characterViews.get(characterId);
       if (!character?.idleRoamAllowed || !view?.root?.active || (character.path?.length ?? 0) >= 2 || this.chatBusy.has(characterId)) return;
       const nearby = snapshot.characters.find((other) => {
-        if (other.id === characterId || !other.idleRoamAllowed || (other.path?.length ?? 0) >= 2) return false;
+        if (other.id === characterId || !other.idleRoamAllowed || (other.path?.length ?? 0) >= 2 || this.chatBusy.has(other.id)) return false;
         const otherView = this.characterViews.get(other.id);
         if (!otherView?.root?.active) return false;
         const aCol = view.logicalCell % snapshot.cols, aRow = Math.floor(view.logicalCell / snapshot.cols);
