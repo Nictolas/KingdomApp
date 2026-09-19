@@ -159,6 +159,8 @@ type GameContextType = {
   setNomeAbitante: (abitanteId: number, nuovoNome: string) => void;
   /** Aggiorna un abitante (es. effetti bisogni da mappa). */
   aggiornaAbitanteById: (abitanteId: number, fn: (a: Abitante) => Abitante) => void;
+  /** Aggiorna un edificio senza sostituire il resto della lista. */
+  aggiornaEdificioById: (edificioId: number, fn: (e: Edificio) => Edificio) => void;
   /** Esito sociale di una chiacchiera «in giro» (amici/rivali, simmetrico). */
   applicaEsitoChiacchieraAbitanti: (idA: number, idB: number) => void;
   /** Accredita monete al tesoro del giocatore (es. pagamenti bar/negozio). */
