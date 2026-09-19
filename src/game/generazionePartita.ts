@@ -5,7 +5,7 @@ import { specializzazioneCasuale } from "./specializzazione";
 import { pianetiData, getEmojiRazza } from "../kingdomData";
 import { generaNomeAlieno } from "./nomiAlieni";
 import { generaAspettoCasuale } from "./personaggioAspetto";
-import { scegliNomeCognomeUmano } from "./nomiUmani";
+import { COGNOMI_UMANI, NOMI_UMANI_CON_SESSO, scegliNomeCognomeUmano } from "./nomiUmani";
 import { LAVORO_GIOCATORE, ETA_GIOCATORE_INIZIALE } from "./schiavituCommercio";
 import { redditoMensileLavoroDefault, STIPENDIO_BASE_MONETE_MESE } from "./economiaPrezzi";
 
@@ -304,6 +304,65 @@ export function generaColoniaIniziale(
     const agr = candidatiAgricoltore[Math.floor(Math.random() * candidatiAgricoltore.length)];
     agr.lavoro = "Agricoltore";
     if (!agr.ruoloSchiavitu) agr.reddito = redditoMensileLavoroDefault();
+  }
+
+  // Regola storica: 1 Consigliere iniziale, uomo umano di 60 anni.
+  const candidatiConsigliere = abitanti.filter(
+    (a) => a.id !== 1 && a.lavoro !== "Agricoltore"
+  );
+  if (candidatiConsigliere.length > 0) {
+    const consigliere =
+      candidatiConsigliere[Math.floor(Math.random() * candidatiConsigliere.length)]!;
+    const nomiMaschili = NOMI_UMANI_CON_SESSO.filter((n) => n.sesso === "M");
+    const nome = nomiMaschili[Math.floor(Math.random() * nomiMaschili.length)]!;
+    const cognome = COGNOMI_UMANI[Math.floor(Math.random() * COGNOMI_UMANI.length)]!;
+
+    consigliere.lavoro = "Consigliere";
+    consigliere.eta = 60;
+    consigliere.sesso = "M";
+    consigliere.razza = "Umano";
+    consigliere.specie = "umano";
+    consigliere.nome = `${nome.nome} ${cognome}`;
+    if (!consigliere.ruoloSchiavitu) consigliere.reddito = redditoMensileLavoroDefault();
+    if (isAvventura) {
+      consigliere.fazioni = normalizzaFazioni([...(consigliere.fazioni ?? []), "Rivoluzionari"]);
+    }
+  }
+
+  if (isAvventura) {
+    // Avventura storica: Edile, 2 Minatori e, se resta un abitante disponibile, 1 Monetiere.
+    const riservati = new Set(
+      abitanti
+        .filter(
+          (a) =>
+            a.id === 1 ||
+            a.lavoro === "Consigliere" ||
+            a.lavoro === "Agricoltore"
+        )
+        .map((a) => a.id)
+    );
+    const candidati = abitanti.filter((a) => !riservati.has(a.id));
+    for (let k = candidati.length - 1; k > 0; k--) {
+      const j = Math.floor(Math.random() * (k + 1));
+      [candidati[k], candidati[j]] = [candidati[j], candidati[k]];
+    }
+
+    let i = 0;
+    if (i < candidati.length) {
+      const abitante = candidati[i++]!;
+      abitante.lavoro = "Edile";
+      if (!abitante.ruoloSchiavitu) abitante.reddito = redditoMensileLavoroDefault();
+    }
+    for (let m = 0; m < 2 && i < candidati.length; m++, i++) {
+      const abitante = candidati[i]!;
+      abitante.lavoro = "Minatore";
+      if (!abitante.ruoloSchiavitu) abitante.reddito = redditoMensileLavoroDefault();
+    }
+    if (i < candidati.length) {
+      const abitante = candidati[i]!;
+      abitante.lavoro = "Monetiere";
+      if (!abitante.ruoloSchiavitu) abitante.reddito = redditoMensileLavoroDefault();
+    }
   }
 
   let exGovernatoreId: number | null = null;
