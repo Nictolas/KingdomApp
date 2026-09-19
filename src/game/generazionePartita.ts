@@ -106,8 +106,12 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
   }
 ];
 
-const NUM_ABITANTI_MIN = 15;
-const NUM_ABITANTI_MAX = 22;
+export type ModalitaGiocoGenerazione = "creativa" | "avventura";
+
+const NUM_ABITANTI_MIN_CREATIVA = 20;
+const NUM_ABITANTI_MAX_CREATIVA = 28;
+const NUM_ABITANTI_MIN_AVVENTURA = 6;
+const NUM_ABITANTI_MAX_AVVENTURA = 8;
 
 const PERSONALITÀ_POOL: { nome: string; peso: number }[] = [
   { nome: "Tiepido", peso: 35 },
@@ -150,10 +154,17 @@ function normalizzaFazioni(fazioni: string[]): string[] {
 }
 
 /** Genera la colonia iniziale casuale. Ogni partita usa questo risultato (non abitantiData). */
-export function generaColoniaIniziale(): { abitanti: Abitante[]; razzaNativi: Razza } {
+export function generaColoniaIniziale(
+  modalita: ModalitaGiocoGenerazione = "creativa"
+): { abitanti: Abitante[]; razzaNativi: Razza } {
+  const isAvventura = modalita === "avventura";
   const razzaNativi = RAZZE_ALIENE[Math.floor(Math.random() * RAZZE_ALIENE.length)];
-  const n = NUM_ABITANTI_MIN + Math.floor(Math.random() * (NUM_ABITANTI_MAX - NUM_ABITANTI_MIN + 1));
-  const numSchiavi = 4 + Math.floor(Math.random() * Math.max(0, n - 1 - 4)); // almeno 4, massimo n-1 (Re id 1 escluso)
+  const nMin = isAvventura ? NUM_ABITANTI_MIN_AVVENTURA : NUM_ABITANTI_MIN_CREATIVA;
+  const nMax = isAvventura ? NUM_ABITANTI_MAX_AVVENTURA : NUM_ABITANTI_MAX_CREATIVA;
+  const n = nMin + Math.floor(Math.random() * (nMax - nMin + 1));
+  const numSchiavi = isAvventura
+    ? 0
+    : 4 + Math.floor(Math.random() * Math.max(0, n - 1 - 4)); // almeno 4, massimo n-1 (Re id 1 escluso)
   const abitanti: Abitante[] = [];
   const indicesSchiavi = new Set<number>();
   while (indicesSchiavi.size < numSchiavi && n > 1) {
