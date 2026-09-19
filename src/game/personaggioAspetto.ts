@@ -6,6 +6,7 @@ import {
   normalizeCharacterAppearance
 } from "../character-system/appearance";
 import {
+  canRenderCharacter,
   compatibleCatalogOptions,
   compatibleColorsForField,
   firstCompatibleColorForField,
@@ -208,6 +209,72 @@ export function generaAspettoCasuale(
   };
 }
 
+/** Aspetto LPC del Capo Religioso/Sacerdote: kimono compatibile col corpo. */
+export function applicaAspettoCapoReligioso(
+  aspetto: AspettoPersonaggio,
+  random: () => number = Math.random
+): AspettoPersonaggio {
+  const current = aspetto.characterAppearance;
+  if (!current) return aspetto;
+
+  const isNano = current.race === "dwarf";
+  const bodyPatch = isNano
+    ? {
+        bodyType: "child" as const,
+        ageGroup: "child" as const,
+        bodyFamily: bodyFamilyFor("dwarf", "child"),
+        beardStyle: DWARF_BEARD_STYLE
+      }
+    : {
+        bodyType: "teen" as const,
+        ageGroup: "teen" as const,
+        bodyFamily: bodyFamilyFor(current.race, "teen")
+      };
+
+  const teenAppearance = normalizeCharacterAppearance({
+    ...current,
+    ...bodyPatch,
+    fullOutfit: "kimono",
+    outfit: "kimono",
+    upperOutfit: "none",
+    lowerOutfit: "none",
+    footwear: "none",
+    headwear: "none"
+  });
+  const options = compatibleCatalogOptions(teenAppearance);
+  const hairStyle = options.hairStyles.includes(teenAppearance.hairStyle)
+    ? teenAppearance.hairStyle
+    : options.hairStyles.length > 0
+      ? pick(options.hairStyles, random)
+      : "none";
+  const hairColor = options.hairColors.includes(teenAppearance.hairColor)
+    ? teenAppearance.hairColor
+    : firstCompatibleHairColor({ ...teenAppearance, hairStyle }, hairStyle);
+  const beardStyle = isNano
+    ? DWARF_BEARD_STYLE
+    : options.beardStyles.includes(teenAppearance.beardStyle)
+      ? teenAppearance.beardStyle
+      : "none";
+  const outfitPrimaryColor = options.outfitPrimaryColors.length > 0
+    ? pick(options.outfitPrimaryColors, random)
+    : firstCompatibleColorForField(
+        teenAppearance,
+        "outfitPrimaryColor",
+        "fullOutfit",
+        "kimono"
+      );
+  const characterAppearance = normalizeCharacterAppearance({
+    ...teenAppearance,
+    hairStyle,
+    hairColor,
+    beardStyle,
+    beardColor: isNano ? teenAppearance.beardColor : hairColor,
+    outfitPrimaryColor
+  });
+  if (!canRenderCharacter(characterAppearance, "idle")) return aspetto;
+  return { ...aspetto, characterAppearance };
+}
+
 /** Variante stabile per completare vecchi salvataggi senza cambiare volto a ogni caricamento. */
 export function generaAspettoDaSeed(
   razza: RazzaConAspetto,
@@ -263,7 +330,10 @@ export function aspettoPerVisualizzazioneAbitante(
       isKing: abitante.id === 1,
       nudismoAttivo: rules.nudismoAttivo === true,
       incinta: abitante.incinta === true,
-      lavoro: abitante.lavoro
+      lavoro: abitante.lavoro,
+      seed: abitante.id,
+      razza: abitante.razza,
+      sesso: abitante.sesso
     })
   };
 }
