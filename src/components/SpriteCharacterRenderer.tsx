@@ -12,7 +12,24 @@ import type {
   ResolvedCharacterLayer
 } from "../character-system/types";
 
-const LAYER_ORDER = ["hairBack", "body", "lowerBody", "outfit", "fullOutfit", "footwear", "raceFeatures", "beard", "cape", "hairFront", "headwear", "accessory"] as const;
+const LAYER_ORDER: readonly CharacterLayer[] = [
+  "hairBack",
+  "body",
+  "lowerBody",
+  "outfit",
+  "fullOutfit",
+  "footwear",
+  "raceFeatures",
+  "ears",
+  "beard",
+  "cape",
+  "hairFront",
+  "headwear",
+  "neck",
+  "facialMask",
+  "facialEyes",
+  "accessory"
+];
 
 function sourceFor(layer: ResolvedCharacterLayer) { return LPC_ASSET_SOURCES[layer.sourceId]; }
 
