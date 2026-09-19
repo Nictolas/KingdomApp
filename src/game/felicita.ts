@@ -7,7 +7,7 @@ import {
 } from "./bisogni";
 
 export type PoliticaReligiosa = "ateismo-stato" | "religione-stato" | "liberta-culto";
-export type ReligioneStato = "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni" | null;
+export type ReligioneStato = "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto delle Ombre" | string | null;
 export type LeggeDroghe = "vietate" | "legali" | "parziali";
 
 export type CalcolaFelicitàModificataInput = {
