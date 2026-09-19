@@ -89,6 +89,8 @@ export type PhaserMapActions = {
   onCharacterPress?: (characterId: number) => void;
   onCharacterDoublePress?: (characterId: number) => void;
   onCharacterPathComplete?: (characterId: number, pathToken: number) => void;
+  onCharacterStepAttempt?: (characterId: number, fromCell: number, toCell: number) => boolean;
+  onCharacterPathBlocked?: (characterId: number, fromCell: number, blockedCell: number) => void;
   /** Valida un passo idle prima che Phaser sposti realmente l'abitante. */
   onCharacterIdleStepAttempt?: (characterId: number, fromCell: number, toCell: number) => boolean;
   /** Segnala l'inizio/fine di una chiacchierata tra abitanti. */
@@ -146,6 +148,14 @@ export class MapSceneBridge {
 
   completeCharacterPath(characterId: number, pathToken: number): void {
     this.actions.onCharacterPathComplete?.(characterId, pathToken);
+  }
+
+  attemptCharacterStep(characterId: number, fromCell: number, toCell: number): boolean {
+    return this.actions.onCharacterStepAttempt?.(characterId, fromCell, toCell) ?? true;
+  }
+
+  blockCharacterPath(characterId: number, fromCell: number, blockedCell: number): void {
+    this.actions.onCharacterPathBlocked?.(characterId, fromCell, blockedCell);
   }
 
   attemptCharacterIdleStep(characterId: number, fromCell: number, toCell: number): boolean {
