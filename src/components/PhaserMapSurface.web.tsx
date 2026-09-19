@@ -3,6 +3,19 @@ import { Asset } from "expo-asset";
 import { StyleSheet, View } from "react-native";
 
 import type { PhaserMapActions, PhaserMapSnapshot } from "../phaser/adapters/mapSceneBridge";
+import { LPC_ASSET_SOURCES } from "../character-system/generated/lpcAssetSources";
+
+const lpcLayerUriCache = new Map<string, string>();
+
+function getLpcLayerUrl(sourceId: string): string | undefined {
+  const source = LPC_ASSET_SOURCES[sourceId as keyof typeof LPC_ASSET_SOURCES];
+  if (!source) return undefined;
+  const cached = lpcLayerUriCache.get(sourceId);
+  if (cached) return cached;
+  const uri = Asset.fromModule(source).uri;
+  if (uri) lpcLayerUriCache.set(sourceId, uri);
+  return uri;
+}
 
 const SPRITESHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spritesheet-full.png");
 const HUMAN_SHEET = require("../../assets/pixel-art/characters/human-colonist.png");
@@ -48,6 +61,7 @@ export function PhaserMapSurface({
       const artUrls = {
         human: Asset.fromModule(HUMAN_SHEET).uri,
         golem: Asset.fromModule(GOLEM_SHEET).uri,
+        getLpcLayerUrl,
         buildings: {
           "command-center": Asset.fromModule(COMMAND_CENTER).uri,
           dormitory: Asset.fromModule(DORMITORY).uri,
