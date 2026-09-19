@@ -38,7 +38,6 @@ const EMOJI_LAVORO: Record<string, string> = {
   Raccoglitore: "🌲",
   Monetiere: "🪙",
   Religioso: "⛪",
-  Sacerdote: "⛪",
   Edile: "🏗️",
   Esploratore: "🧭",
   Mago: "🧙",
