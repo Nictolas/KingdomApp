@@ -140,6 +140,7 @@ import {
 import {
   abitanteAlBarRoutineOra,
   abitanteInOrarioLavoroEdificio,
+  abitanteInOrarioOccupazione,
   fasciaPerEdificio,
   minutiInFascia,
   primoEdificioLavoroOrarioPerAbitante
@@ -3145,7 +3146,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         const cell = ultimaCellaAbitanteRef.current.get(abitante.id) ?? home ?? fallback;
         const idleRoamAllowed =
           commute == null &&
-          !abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&
+          !abitanteInOrarioOccupazione(abitante, orologioMinuti) &&
           !abitanteSoggettoACoprifuoco(
             abitante,
             edifici,
