@@ -1,9 +1,10 @@
 import type { Abitante, Edificio } from "../types";
 import { èNotteRoutineMappaDaBuio } from "./cicloCielo";
 import { abitanteVuoleBarPerBisogni } from "./bisogni";
-
-/** Fascia in minuti da mezzanotte [0, 1440). */
-export type FasciaOrariaMinuti = { inizio: number; fine: number };
+import { LAVORO_GUARDIA, NOME_CASTELLO } from "./castelloGuardie";
+import { elencoCantieri, NOME_UFFICIO_EDILE } from "./costruzioneEdifici";
+import { orarioPerEdificio, orarioPerLavoro, type FasciaOrariaMinuti } from "./orariLavoroCatalogo";
+import { ID_GIOCATORE } from "./schiavituCommercio";
 
 /** Giornata tipo ufficio / produzione (8:00–17:00). */
 const LAVORO_STANDARD: FasciaOrariaMinuti = { inizio: 8 * 60, fine: 17 * 60 };
@@ -13,17 +14,33 @@ export const FASCIA_PREGHIERA_CULTO: FasciaOrariaMinuti = { inizio: 10 * 60, fin
 
 /**
  * Edifici assegnabili con lavoratori: durante la fascia non mostriamo il personaggio in giro sulla mappa.
- * Stesso orario per tutti (personalizzabile per nome in seguito).
+ * L'orario deriva dal mestiere associato (catalogo in orariLavoroCatalogo).
  */
 const NOMI_CON_ORARIO_LAVORO = new Set<string>([
+  "Castello",
   "Serra",
-  "Raffineria Mineraria",
+  "Miniera",
+  "Fucina",
+  "Emporio",
+  "Falegnameria",
+  "Conceria",
+  "Forno",
+  "Cereria",
+  "Sartoria",
+  "Birrificio",
+  "Taverna",
+  "Spezieria",
+  "Armeria",
+  "Forgia",
+  "Chiesa",
+  "Lazzaretto",
+  "Scriptorium",
+  "Laboratorio Magico",
+  "Cripta Necromantica",
   "Laboratorio di Ricerca",
-  "Centrale Energetica",
   "Impianto di Riciclo",
-  "Dissalatore",
   "Ospedale",
-  "Hangar di Manutenzione",
+  "Remessa dei Carri",
   "Scuola",
   "Asilo",
   "Scuola Elementare",
@@ -36,11 +53,11 @@ const NOMI_CON_ORARIO_LAVORO = new Set<string>([
   "Caserma",
   "Centrale",
   "Bar",
-  "Spazioporto"
+  "Porto",
+  "Zecca",
+  "Bosco",
+  "Miniera"
 ]);
-
-/** Override opzionale per nome edificio (stessi minuti del resto del gioco). */
-const FASCE_CUSTOM: Partial<Record<string, FasciaOrariaMinuti>> = {};
 
 function normalizzaMinuti(m: number): number {
   return ((m % 1440) + 1440) % 1440;
@@ -56,22 +73,63 @@ export function minutiInFascia(minutiDaMezzanotte: number, fascia: FasciaOrariaM
   return t >= inizio && t < fine;
 }
 
+/**
+ * True se l’orologio ha appena lasciato la fascia (era dentro a `prev`, fuori a `cur`).
+ * Usato per far uscire i lavoratori a fine turno del loro mestiere (non a un’ora fissa globale).
+ */
+export function attraversaFineFasciaLavoro(
+  prevMinuti: number,
+  curMinuti: number,
+  fascia: FasciaOrariaMinuti
+): boolean {
+  return minutiInFascia(prevMinuti, fascia) && !minutiInFascia(curMinuti, fascia);
+}
+
 export function fasciaPerEdificio(e: Edificio): FasciaOrariaMinuti | null {
   if (e.tipo === "Prigione" || e.tipo === "Residenza") return null;
+  const daOccupazione = orarioPerEdificio(e);
+  if (daOccupazione) return daOccupazione;
   if (!NOMI_CON_ORARIO_LAVORO.has(e.nome)) return null;
-  return FASCE_CUSTOM[e.nome] ?? LAVORO_STANDARD;
+  return LAVORO_STANDARD;
 }
 
 /** Primo edificio produttivo a cui l’abitante è assegnato (per ancoraggio mappa). */
 export function primoEdificioLavoroOrarioPerAbitante(
   abitanteId: number,
-  edificiList: Edificio[]
+  edificiList: Edificio[],
+  abitantiList?: readonly Pick<Abitante, "id" | "lavoro" | "casta">[]
 ): Edificio | undefined {
+  // Il Re risiede nel Castello ma non ha un orario da dipendente.
+  if (abitanteId === ID_GIOCATORE) return undefined;
+  const ab = abitantiList?.find((a) => a.id === abitanteId);
   for (const e of edificiList) {
     if (!(e.abitantiAssegnati ?? []).includes(abitanteId)) continue;
+    // Solo le Guardie hanno turno al Castello. Consigliere/Nobili (e chiunque altro
+    // assegnato) ne escono a inizio partita e non devono rientrare «per lavoro».
+    if (e.nome === NOME_CASTELLO || e.id === 1) {
+      if (!ab || ab.lavoro !== LAVORO_GUARDIA) continue;
+    }
     if (fasciaPerEdificio(e)) return e;
   }
   return undefined;
+}
+
+/**
+ * Destinazione fisica del turno di lavoro.
+ * Gli Edili dell’Ufficio Edile vanno al primo cantiere in lista (se c’è), altrimenti restano in Ufficio.
+ */
+export function destinazioneLavoroOrarioPerAbitante(
+  abitanteId: number,
+  edificiList: Edificio[],
+  abitantiList?: readonly Pick<Abitante, "id" | "lavoro" | "casta">[]
+): Edificio | undefined {
+  const sede = primoEdificioLavoroOrarioPerAbitante(abitanteId, edificiList, abitantiList);
+  if (!sede) return undefined;
+  if (sede.nome === NOME_UFFICIO_EDILE) {
+    const cantiere = elencoCantieri(edificiList)[0];
+    if (cantiere) return cantiere;
+  }
+  return sede;
 }
 
 /**
@@ -81,14 +139,29 @@ export function primoEdificioLavoroOrarioPerAbitante(
 export function abitanteInOrarioLavoroEdificio(
   abitanteId: number,
   minutiDaMezzanotte: number,
-  edificiList: Edificio[]
+  edificiList: Edificio[],
+  abitantiList?: readonly Pick<Abitante, "id" | "lavoro" | "casta">[]
 ): boolean {
-  for (const e of edificiList) {
-    if (!(e.abitantiAssegnati ?? []).includes(abitanteId)) continue;
-    const fascia = fasciaPerEdificio(e);
-    if (fascia && minutiInFascia(minutiDaMezzanotte, fascia)) return true;
-  }
-  return false;
+  if (abitanteId === ID_GIOCATORE) return false;
+  const sede = primoEdificioLavoroOrarioPerAbitante(abitanteId, edificiList, abitantiList);
+  if (!sede) return false;
+  const fascia = fasciaPerEdificio(sede);
+  if (!fascia) return false;
+  return minutiInFascia(minutiDaMezzanotte, fascia);
+}
+
+/**
+ * True se l’occupazione dell’abitante ha una fascia oraria e l’orologio è dentro quella fascia.
+ * Usato per interrompere idle/chiacchiere e mandarlo al lavoro.
+ */
+export function abitanteInOrarioOccupazione(
+  abitante: Pick<Abitante, "id" | "lavoro">,
+  minutiDaMezzanotte: number
+): boolean {
+  if (abitante.id === ID_GIOCATORE) return false;
+  const fascia = orarioPerLavoro(abitante.lavoro);
+  if (!fascia) return false;
+  return minutiInFascia(minutiDaMezzanotte, fascia);
 }
 
 /**
@@ -103,12 +176,13 @@ export function abitanteDisoccupatoAlBarOra(
   if (abitante.razza === "Golem") return false;
   if (abitante.lavoro !== "Disoccupato") return false;
   if (èNotteRoutineMappaDaBuio(buioCielo)) return false;
-  if (abitanteInOrarioLavoroEdificio(abitante.id, minutiDaMezzanotte, edificiList)) return false;
+  if (abitanteInOrarioLavoroEdificio(abitante.id, minutiDaMezzanotte, edificiList, [abitante]))
+    return false;
   return abitanteVuoleBarPerBisogni(abitante);
 }
 
 /**
- * Di giorno, fuori fascia lavoro: al Bar solo se i bisogni Divertimento/Socialità lo richiedono.
+ * Di giorno, fuori fascia lavoro: può andare al Bar (ritrovo sociale di default).
  */
 export function abitanteAlBarRoutineOra(
   abitante: Abitante,
@@ -118,8 +192,9 @@ export function abitanteAlBarRoutineOra(
 ): boolean {
   if (abitante.razza === "Golem") return false;
   if (èNotteRoutineMappaDaBuio(buioCielo)) return false;
-  if (abitanteInOrarioLavoroEdificio(abitante.id, minutiDaMezzanotte, edificiList)) return false;
-  return abitanteVuoleBarPerBisogni(abitante);
+  if (abitanteInOrarioLavoroEdificio(abitante.id, minutiDaMezzanotte, edificiList, [abitante]))
+    return false;
+  return true;
 }
 
 export function abitantiPresentiNelBarOra(
