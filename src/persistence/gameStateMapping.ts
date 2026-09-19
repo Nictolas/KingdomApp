@@ -117,7 +117,9 @@ export function gameStateToGameSaveV1(state: PersistableGameState): GameSaveV1 {
       penaReati: state.penaReati,
       politicaReligiosa: state.politicaReligiosa,
       religioneDiStato: state.religioneDiStato,
-      religioniCustom: state.religioniCustom,
+      ...(state.religioniCustom !== undefined
+        ? { religioniCustom: state.religioniCustom }
+        : {}),
       leggeRazzialeAttiva: state.leggeRazzialeAttiva,
       razzaCampoLavoro: state.razzaCampoLavoro,
       razzaCampoSterminio: state.razzaCampoSterminio,
