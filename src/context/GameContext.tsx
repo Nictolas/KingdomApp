@@ -30,6 +30,8 @@ type ScaglioneConfig = {
 
 type GameContextType = {
   gameMode: GameMode;
+  /** Alias UI legacy: stessa modalità di gameMode. */
+  modalitaGioco: "creativa" | "avventura";
   gamePhase: GamePhase;
   simulationEnabled: boolean;
   saveStatus: "idle" | "saving" | "saved" | "error";
