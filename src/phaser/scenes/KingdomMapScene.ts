@@ -31,7 +31,6 @@ import {
 } from "../adapters/phaserViewportCulling";
 
 const SHEET_KEY = "overworld";
-const HUMAN_KEY = "human-colonist";
 const GOLEM_KEY = "stone-golem";
 const TILE_LAYER_DEPTH = 0;
 const BUILDING_LAYER_DEPTH = 10;
@@ -57,7 +56,6 @@ function frameKey(x: number, y: number): string {
 }
 
 export type PhaserArtAssetUrls = {
-  human: string;
   golem: string;
   getLpcLayerUrl?: (sourceId: string) => string | undefined;
   buildings: Record<
@@ -155,7 +153,6 @@ export class KingdomMapScene extends Phaser.Scene {
 
   preload(): void {
     this.load.image(SHEET_KEY, this.sheetUrl);
-    this.load.spritesheet(HUMAN_KEY, this.artUrls.human, { frameWidth: 64, frameHeight: 64 });
     this.load.spritesheet(GOLEM_KEY, this.artUrls.golem, { frameWidth: 64, frameHeight: 64 });
     for (const [key, asset] of Object.entries(this.artUrls.buildings)) {
       if (typeof asset === "string") {
@@ -384,15 +381,13 @@ export class KingdomMapScene extends Phaser.Scene {
   }
 
   private configureCharacterAnimations(): void {
-    for (const texture of [HUMAN_KEY, GOLEM_KEY]) {
-      for (const [name, direction] of [["down", 0], ["left", 1], ["right", 2], ["up", 3]] as const) {
-        this.anims.create({
-          key: `${texture}-walk-${name}`,
-          frames: [direction, 4 + direction, 8 + direction, 4 + direction].map((frame) => ({ key: texture, frame })),
-          frameRate: 8,
-          repeat: -1
-        });
-      }
+    for (const [name, direction] of [["down", 0], ["left", 1], ["right", 2], ["up", 3]] as const) {
+      this.anims.create({
+        key: `${GOLEM_KEY}-walk-${name}`,
+        frames: [direction, 4 + direction, 8 + direction, 4 + direction].map((frame) => ({ key: GOLEM_KEY, frame })),
+        frameRate: 8,
+        repeat: -1
+      });
     }
   }
 
@@ -567,8 +562,11 @@ export class KingdomMapScene extends Phaser.Scene {
     for (const character of snapshot.characters) {
       const token = character.pathToken ?? 0;
       let view = this.characterViews.get(character.id);
-      const needsLpc = character.appearance !== "golem" && this.characterNeedsLpc(character);
-      const lpcReady = needsLpc && this.ensureLpcTextures(character);
+      const needsLpc = character.appearance !== "golem";
+      const lpcReady =
+        needsLpc &&
+        this.characterNeedsLpc(character) &&
+        this.ensureLpcTextures(character);
       if (needsLpc && !lpcReady) {
         if (view) {
           this.stopIdleRoam(character.id);
@@ -588,24 +586,39 @@ export class KingdomMapScene extends Phaser.Scene {
       if (!view) {
         const root = this.add.container(0, 0);
         const useLpc = lpcReady;
-        const idleLayers = useLpc && character.characterAppearance
-          ? resolveCharacterLayers(character.characterAppearance, "idle")
-          : [];
-        const texture = character.appearance === "golem" ? GOLEM_KEY : HUMAN_KEY;
-        const sprite = this.add.sprite(0, -snapshot.cellSize * 0.2, useLpc ? idleLayers[0]?.sourceId ?? texture : texture, 0)
-          .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
-        const sprites = useLpc
-          ? idleLayers.map((layer) => {
-              const scale = (snapshot.cellSize * 1.08) / 64;
-              const beardLift = layer.layer === "beard" && character.characterAppearance?.bodyType === "child" ? CHILD_BEARD_OFFSET_Y_PX * scale : 0;
-              return this.add.sprite(0, -snapshot.cellSize * 0.2 + beardLift, layer.sourceId, LPC_DIRECTION_ROWS.down * 2).setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
-            })
-          : [sprite];
-        if (useLpc) sprite.setVisible(false);
-        if (!character.appearance && character.markerEmoji) {
-          sprite.setVisible(false);
-          root.add(this.add.text(0, -snapshot.cellSize * 0.2, character.markerEmoji, { fontSize: "26px" }).setOrigin(0.5));
+        const idleLayers =
+          useLpc && character.characterAppearance
+            ? resolveCharacterLayers(character.characterAppearance, "idle")
+            : [];
+
+        let sprite: Phaser.GameObjects.Sprite;
+        let sprites: Phaser.GameObjects.Sprite[];
+
+        if (useLpc) {
+          if (idleLayers.length === 0) continue;
+          sprites = idleLayers.map((layer) => {
+            const scale = (snapshot.cellSize * 1.08) / 64;
+            const beardLift =
+              layer.layer === "beard" && character.characterAppearance?.bodyType === "child"
+                ? CHILD_BEARD_OFFSET_Y_PX * scale
+                : 0;
+            return this.add
+              .sprite(
+                0,
+                -snapshot.cellSize * 0.2 + beardLift,
+                layer.sourceId,
+                LPC_DIRECTION_ROWS.down * 2
+              )
+              .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
+          });
+          sprite = sprites[0]!;
+        } else {
+          sprite = this.add
+            .sprite(0, -snapshot.cellSize * 0.2, GOLEM_KEY, 0)
+            .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
+          sprites = [sprite];
         }
+
         root.add(sprites);
         this.worldLayer.add(root);
         root.setSize(snapshot.cellSize, snapshot.cellSize).setInteractive();
