@@ -21,7 +21,7 @@ import {
 } from "../../src/game/schiavituCommercio";
 import { AbitanteAvatarPreview } from "../../src/ui/AbitanteAvatarPreview";
 import { AbitanteInfoModal } from "../../src/ui/AbitanteInfoModal";
-import { PixelAvatarPreview } from "../../src/ui/PixelAvatarPreview";
+import { CircularSpriteFrame } from "../../src/ui/CircularSpriteFrame";
 
 const AVATAR_SIZE = 36;
 const AVATAR_OUTER = lpcSpriteCircleDiameter(AVATAR_SIZE) + 4;
@@ -192,12 +192,13 @@ export default function LavoriScreen() {
                             {card.lavoro === LAVORO_GIOCATORE && giocatore?.aspetto ? (
                               <AbitanteAvatarPreview abitante={giocatore} size={AVATAR_SIZE} liftPx={0} />
                             ) : (
-                              <PixelAvatarPreview
-                                razza="Umano"
-                                aspetto={
-                                  card.lavoro === LAVORO_GIOCATORE
-                                    ? generaAspettoEsempioOccupazione(LAVORO_GIOCATORE, card.slug)
-                                    : esempiOccupazione.get(card.lavoro)!
+                              <CircularSpriteFrame
+                                appearance={
+                                  (
+                                    card.lavoro === LAVORO_GIOCATORE
+                                      ? generaAspettoEsempioOccupazione(LAVORO_GIOCATORE, card.slug)
+                                      : esempiOccupazione.get(card.lavoro)!
+                                  ).characterAppearance!
                                 }
                                 size={AVATAR_SIZE}
                                 animate={false}
