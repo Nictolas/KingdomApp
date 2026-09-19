@@ -1123,6 +1123,11 @@ export class KingdomMapScene extends Phaser.Scene {
       this.buildingViews.push(base, overlay);
       this.worldLayer.add([base, overlay]);
 
+      if (building.underConstruction) {
+        this.renderCantiereBuilding(base, overlay, width, height, snapshot.cellSize, building);
+        continue;
+      }
+
       if (building.artKey) {
         const image = this.add.image(width / 2, height, building.artKey).setOrigin(0.5, 1);
         const scale = Math.min(
@@ -1219,6 +1224,62 @@ export class KingdomMapScene extends Phaser.Scene {
     }
 
     this.worldLayer.sort("depth");
+  }
+
+  /** Cantiere con avanzamento percentuale. */
+  private renderCantiereBuilding(
+    base: Phaser.GameObjects.Container,
+    overlay: Phaser.GameObjects.Container,
+    width: number,
+    height: number,
+    cellSize: number,
+    building: PhaserMapBuilding
+  ): void {
+    const prog = Math.max(0, Math.min(100, building.progressoCostruzione ?? 0));
+    const shadow = this.add
+      .rectangle(width / 2 + 2, height / 2 + 3, width - 4, height - 4, 0x000000, 0.22)
+      .setOrigin(0.5);
+    const body = this.add
+      .rectangle(width / 2, height / 2, width - 4, height - 6, 0x78716c, 1)
+      .setStrokeStyle(2, 0x44403c, 1);
+    const roof = this.add
+      .rectangle(
+        width / 2,
+        Math.max(6, height * 0.18),
+        width - 2,
+        Math.max(8, height * 0.28),
+        0xf59e0b,
+        0.9
+      )
+      .setStrokeStyle(2, 0xb45309, 1);
+    const emoji = this.add
+      .text(width / 2, height * 0.48, building.emoji || "🏗️", {
+        fontFamily: "Arial, sans-serif",
+        fontSize: `${Math.max(16, Math.min(32, cellSize * 0.7))}px`
+      })
+      .setOrigin(0.5);
+
+    const trackW = Math.max(14, width - 6);
+    const trackH = Math.max(5, Math.floor(cellSize * 0.14));
+    const trackY = -trackH - 3;
+    const track = this.add
+      .rectangle(width / 2, trackY, trackW, trackH, 0x1c1917, 0.9)
+      .setOrigin(0.5)
+      .setStrokeStyle(1, 0x44403c, 1);
+    const fillW = Math.max(2, (trackW - 2) * (prog / 100));
+    const fill = this.add
+      .rectangle(width / 2 - trackW / 2 + 1 + fillW / 2, trackY, fillW, trackH - 2, 0x4ade80, 1)
+      .setOrigin(0.5);
+    const label = this.add
+      .text(width / 2, trackY, `${prog}%`, {
+        fontFamily: "Arial, sans-serif",
+        fontSize: `${Math.max(9, Math.min(12, cellSize * 0.28))}px`,
+        color: "#f8fafc"
+      })
+      .setOrigin(0.5);
+
+    base.add([shadow, body, emoji]);
+    overlay.add([roof, track, fill, label]);
   }
 
   update(time: number, delta: number): void {
