@@ -3054,7 +3054,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         pathToken: commute?.token ?? 0,
         appearance: abitante.razza === "Golem" ? "golem" : "human",
         characterAppearance: aspettoPerVisualizzazioneAbitante(abitante)?.characterAppearance,
-        markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined
+        markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined,
+        idleRoamAllowed: commute == null
       };
     }),
   [abitantiPerOverlayMappa, commuteByAbitanteId, cellaCasaPerAbitanteId, cols]);
