@@ -445,6 +445,10 @@ export class KingdomMapScene extends Phaser.Scene {
               y: pos.y,
               duration: 320,
               ease: "Linear",
+              onUpdate: () => {
+                animatedView.root.setDepth(Math.round(animatedView.root.y * 10));
+                this.characterLayer?.sort("depth");
+              },
               onStart: () => {
                 const directionName = this.directionName(direction);
                 if (animatedView.usesLpc && character.characterAppearance) {
