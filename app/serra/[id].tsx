@@ -6,7 +6,12 @@ import { getServiDellaGlebaPerAssegnazioneEdificio } from "../../src/game/edific
 import { getStipendioMensileEdificio, STIPENDIO_BASE_MONETE_GIORNO } from "../../src/game/edificiPubblici";
 import { getEmojiAbitante } from "../../src/utils/getEmojiAbitante";
 import type { Abitante } from "../../src/types";
-import { COLTURE_SERRA, getColturaSerraDef, PRODUZIONE_SERRA_GIORNALIERA, GIORNI_PRODUZIONE_SERRA_PER_MESE } from "../../src/game/colturaSerra";
+import {
+  getColturaSerraDef,
+  getColtureSerraDisponibili,
+  PRODUZIONE_SERRA_GIORNALIERA,
+  GIORNI_PRODUZIONE_SERRA_PER_MESE
+} from "../../src/game/colturaSerra";
 
 export default function SerraScreenById() {
   const router = useRouter();
@@ -14,7 +19,16 @@ export default function SerraScreenById() {
   const idStr = Array.isArray(raw) ? raw[0] : raw;
   const edificioId = Number(idStr);
 
-  const { abitanti, edifici, assegnaServoDellaGlebaAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio, setColturaSerra } = useGameContext();
+  const {
+    abitanti,
+    edifici,
+    modalitaGioco,
+    coltureSerraSbloccate,
+    assegnaServoDellaGlebaAEdificio,
+    rimuoviAbitanteDaEdificio,
+    setStipendioEdificio,
+    setColturaSerra
+  } = useGameContext();
 
   const serra = useMemo(
     () => edifici.find((e) => e.id === edificioId && e.nome === "Serra"),
@@ -45,6 +59,7 @@ export default function SerraScreenById() {
 
   const coltura = getColturaSerraDef(serra.colturaItemId);
   const colturaSelezionata = serra.colturaItemId ?? coltura?.id ?? "mela";
+  const coltureDisponibili = getColtureSerraDisponibili(coltureSerraSbloccate, modalitaGioco);
   const produzioneGiornaliera =
     serra.stato === "Operativo" ? PRODUZIONE_SERRA_GIORNALIERA : 0;
   const produzioneMensile = produzioneGiornaliera * GIORNI_PRODUZIONE_SERRA_PER_MESE;
@@ -99,7 +114,7 @@ export default function SerraScreenById() {
       <Text style={styles.sectionSubtitle}>1 prodotto al giorno per Serra operativa</Text>
       <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
         <View style={styles.colturaGrid}>
-          {COLTURE_SERRA.map((c) => {
+          {coltureDisponibili.map((c) => {
             const selezionata = colturaSelezionata === c.id;
             return (
               <Pressable

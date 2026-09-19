@@ -103,6 +103,8 @@ export type GameSaveV1 = {
     luoghiCultoPendentiMappa: { religione: ReligioneConCulto; edificioGlobaleId: number }[];
     /** Id obiettivi completati in modalità Avventura. Assente nei salvataggi precedenti. */
     obiettiviCompletati?: string[];
+    /** Colture Serra sbloccate in Avventura. Assente nei salvataggi precedenti. */
+    coltureSerraSbloccate?: string[];
   };
   map: MappaRuntimeState;
 };

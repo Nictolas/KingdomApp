@@ -58,3 +58,44 @@ export function getColturaSerraDef(itemId: string | undefined): ColturaSerraDef 
   const id = itemId && isColturaSerraValida(itemId) ? itemId : COLTURA_SERRA_DEFAULT;
   return COLTURE_SERRA.find((c) => c.id === id);
 }
+
+
+/** Colture selezionabili: in Creativa tutte; in Avventura solo quelle sbloccate. */
+export function getColtureSerraDisponibili(
+  sbloccate: readonly string[] | undefined,
+  modalitaGioco: "creativa" | "avventura"
+): ColturaSerraDef[] {
+  if (modalitaGioco === "creativa") return COLTURE_SERRA;
+  const set = new Set((sbloccate ?? []).filter((id) => isColturaSerraValida(id)));
+  if (set.size === 0) {
+    const fallback = getColturaSerraDef(COLTURA_SERRA_DEFAULT)!;
+    return [fallback];
+  }
+  return COLTURE_SERRA.filter((c) => set.has(c.id));
+}
+
+export function tutteColtureSerraSbloccate(): string[] {
+  return [...COLTURE_SERRA_IDS];
+}
+
+/** Normalizza lo stato sblocchi Serra mantenendo compatibilità con i vecchi salvataggi. */
+export function normalizzaColtureSerraSbloccate(opts: {
+  sbloccate: unknown;
+  modalitaGioco: "creativa" | "avventura";
+  obiettiviCompletati?: readonly string[];
+  colturaSerraCorrente?: string;
+}): string[] {
+  if (opts.modalitaGioco === "creativa") return tutteColtureSerraSbloccate();
+  if (opts.obiettiviCompletati?.includes("raccolto_serra")) return tutteColtureSerraSbloccate();
+
+  const raw = Array.isArray(opts.sbloccate)
+    ? opts.sbloccate.filter((id): id is string => typeof id === "string" && isColturaSerraValida(id))
+    : [];
+  if (raw.length > 0) return [...new Set(raw)];
+
+  const fallback =
+    opts.colturaSerraCorrente && isColturaSerraValida(opts.colturaSerraCorrente)
+      ? opts.colturaSerraCorrente
+      : COLTURA_SERRA_DEFAULT;
+  return [fallback];
+}

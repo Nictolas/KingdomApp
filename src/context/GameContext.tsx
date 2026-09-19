@@ -34,6 +34,8 @@ type GameContextType = {
   modalitaGioco: "creativa" | "avventura";
   /** Id degli obiettivi completati; usato dalla futura schermata Obiettivi. */
   obiettiviCompletati: string[];
+  /** Colture disponibili nelle Serre; in Avventura vengono sbloccate dagli obiettivi. */
+  coltureSerraSbloccate: string[];
   gamePhase: GamePhase;
   simulationEnabled: boolean;
   saveStatus: "idle" | "saving" | "saved" | "error";
