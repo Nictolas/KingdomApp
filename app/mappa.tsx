@@ -3325,6 +3325,16 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               onCharacterDoublePress={handlePhaserCharacterDoublePress}
               onCharacterPathComplete={handlePhaserCharacterPathComplete}
               onCharacterIdleStepAttempt={tryPhaserIdleStep}
+              onCharacterChatChange={(abitanteId, chattingWithId) => {
+                // Collegamento ripristinato; lo stato persistente della chiacchierata verrà riagganciato separatamente.
+                void abitanteId;
+                void chattingWithId;
+              }}
+              onCharacterChatFinished={(abitanteIdA, abitanteIdB) => {
+                // Collegamento ripristinato; gli effetti relazionali verranno riagganciati separatamente.
+                void abitanteIdA;
+                void abitanteIdB;
+              }}
               onDragStateChange={handlePhaserDragStateChange}
             />
           </View>
