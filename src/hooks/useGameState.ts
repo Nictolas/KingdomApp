@@ -738,6 +738,7 @@ export function useGameState() {
     setPenaReati(state.penaReati);
     setPoliticaReligiosa(state.politicaReligiosa);
     setReligioneDiStato(state.religioneDiStato);
+    setReligioniCustom(state.religioniCustom ?? []);
     setCapoReligiosoSole(state.capoReligiosoSole);
     setCapoReligiosoAlieni(state.capoReligiosoAlieni);
     setPendingRichiestaLuogoCulto(state.pendingRichiestaLuogoCulto);
@@ -784,7 +785,7 @@ export function useGameState() {
       ultimoGiornoProduzioneSerra: ultimoGiornoProduzioneSerraRef.current,
       ultimoGiornoEconomiaPubblica: ultimoGiornoEconomiaPubblicaRef.current,
       tipoTassaReddito, flatTaxPercentuale, scaglioniConfig, politicaNascite, punteggioSanzioni,
-      penaDiMorteAttiva, penaReati, politicaReligiosa, religioneDiStato, leggeRazzialeAttiva,
+      penaDiMorteAttiva, penaReati, politicaReligiosa, religioneDiStato, religioniCustom, leggeRazzialeAttiva,
       razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, etaPensionabile, assegnoPensionati,
       leggeDroghe, divietoEspatrioAttivo, coprifuocoAttivo, coprifuocoInizioMinuti,
       coprifuocoFineMinuti, iusPrimaeNoctisAttivo, tipologieFamigliaAccettate,
@@ -796,7 +797,7 @@ export function useGameState() {
   }, [gameMode, gamePhase, diarioInizioVisto, abitanti, abitantiProposti, nextId, razzaNativi, nativiNonIntegrati,
     edifici, risorse, inventarioGiocatore, inventarioMensaByEdificioId, moneteGiocatore, prezzoResidenze,
     mese, anno, tipoTassaReddito, flatTaxPercentuale, scaglioniConfig, politicaNascite, punteggioSanzioni,
-    penaDiMorteAttiva, penaReati, politicaReligiosa, religioneDiStato, leggeRazzialeAttiva,
+    penaDiMorteAttiva, penaReati, politicaReligiosa, religioneDiStato, religioniCustom, leggeRazzialeAttiva,
     razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, etaPensionabile, assegnoPensionati,
     leggeDroghe, divietoEspatrioAttivo, coprifuocoAttivo, coprifuocoInizioMinuti, coprifuocoFineMinuti,
     iusPrimaeNoctisAttivo, tipologieFamigliaAccettate, redditoCittadinanza, modalitaSanita,
