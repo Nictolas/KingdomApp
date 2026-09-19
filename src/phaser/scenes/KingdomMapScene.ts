@@ -81,6 +81,9 @@ export class KingdomMapScene extends Phaser.Scene {
   private readonly chatBusy = new Set<number>();
   private readonly chatPairCooldownUntil = new Map<string, number>();
   private static readonly CHAT_PAIR_COOLDOWN_MS = 240_000;
+  private readonly claimFailCounts = new Map<number, number>();
+  private static readonly CLAIM_RETRY_MS = 250;
+  private static readonly MAX_CLAIM_FAILS_BEFORE_REPATH = 3;
   private lpcLoadCompleteListener: (() => void) | null = null;
   private selectionRing: Phaser.GameObjects.Ellipse | null = null;
   private selectionAbitanteId: number | null = null;
@@ -386,6 +389,33 @@ export class KingdomMapScene extends Phaser.Scene {
     }
   }
 
+  private isActiveCharacterView(view: CharacterView, characterId: number, pathToken?: number): boolean {
+    if (this.characterViews.get(characterId) !== view) return false;
+    if (!view.root?.active) return false;
+    if (pathToken != null && view.token !== pathToken) return false;
+    return true;
+  }
+
+  private setCharacterIdleFrame(view: CharacterView, character: PhaserMapCharacter): void {
+    if (!view.root?.active) return;
+    if (view.usesLpc && character.characterAppearance) {
+      const layers = resolveCharacterLayers(character.characterAppearance, "idle");
+      const directionName = this.directionName(view.direction);
+      view.sprites.forEach((layerSprite, layerIndex) => {
+        if (!layerSprite?.active) return;
+        const layer = layers[layerIndex];
+        layerSprite.anims.stop();
+        if (!layer || !this.textures.exists(layer.sourceId)) {
+          layerSprite.setVisible(false);
+          return;
+        }
+        layerSprite.setVisible(true).setTexture(layer.sourceId).setFrame(LPC_DIRECTION_ROWS[directionName] * 2);
+      });
+      return;
+    }
+    if (view.sprite?.active) view.sprite.stop().setFrame(view.direction);
+  }
+
   private reconcileCharacters(snapshot: PhaserMapSnapshot): void {
     if (!this.characterLayer) return;
     const active = new Set(snapshot.characters.map((character) => character.id));
@@ -455,50 +485,85 @@ export class KingdomMapScene extends Phaser.Scene {
       const path = character.path?.slice(1) ?? [];
       if (path.length > 0) {
         const animatedView = view;
-        this.tweens.chain({
-          targets: view.root,
-          tweens: path.map((cell, index) => {
-            const previous = index === 0 ? start : path[index - 1];
-            const pos = this.characterPosition(cell, snapshot);
-            const direction = this.directionForStep(previous, cell, snapshot.cols);
-            return {
-              x: pos.x,
-              y: pos.y,
-              duration: 320,
-              ease: "Linear",
-              onUpdate: () => {
-                animatedView.root.setDepth(Math.round(animatedView.root.y * 10));
-                this.characterLayer?.sort("depth");
-              },
-              onStart: () => {
-                const directionName = this.directionName(direction);
-                if (animatedView.usesLpc && character.characterAppearance) {
-                  const layers = resolveCharacterLayers(character.characterAppearance, "walk");
-                  animatedView.sprites.forEach((layerSprite, layerIndex) => {
-                    const layer = layers[layerIndex];
-                    if (!layer || !this.textures.exists(layer.sourceId)) { layerSprite.setVisible(false); return; }
-                    layerSprite.setVisible(true).setTexture(layer.sourceId);
-                    this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName);
-                  });
-                } else animatedView.sprite.play(`${animatedView.sprite.texture.key}-walk-${directionName}`, true);
-                animatedView.direction = direction;
-              }
-            };
-          }),
-          onComplete: () => {
-            if (animatedView.usesLpc && character.characterAppearance) {
-              const layers = resolveCharacterLayers(character.characterAppearance, "idle");
-              const directionName = this.directionName(animatedView.direction);
-              animatedView.sprites.forEach((layerSprite, layerIndex) => {
-                const layer = layers[layerIndex];
-                layerSprite.anims.stop();
-                if (!layer || !this.textures.exists(layer.sourceId)) { layerSprite.setVisible(false); return; }
-                layerSprite.setVisible(true).setTexture(layer.sourceId).setFrame(LPC_DIRECTION_ROWS[directionName] * 2);
-              });
-            } else animatedView.sprite.stop().setFrame(animatedView.direction);
-            this.bridge.completeCharacterPath(character.id, token);
+        const pathToken = token;
+        let currentCell = start;
+
+        const moveNext = (index: number) => {
+          if (!this.isActiveCharacterView(animatedView, character.id, pathToken)) return;
+          if (index >= path.length) {
+            animatedView.logicalCell = currentCell;
+            this.claimFailCounts.delete(character.id);
+            this.setCharacterIdleFrame(animatedView, character);
+            this.bridge.completeCharacterPath(character.id, pathToken);
+            return;
           }
-        });
+
+          const nextCell = path[index]!;
+          const softSharedFinalCell = index === path.length - 1;
+          if (
+            nextCell !== currentCell &&
+            !this.bridge.attemptCharacterStep(character.id, currentCell, nextCell)
+          ) {
+            if (!softSharedFinalCell) {
+              const failures = (this.claimFailCounts.get(character.id) ?? 0) + 1;
+              this.claimFailCounts.set(character.id, failures);
+              if (failures < KingdomMapScene.MAX_CLAIM_FAILS_BEFORE_REPATH) {
+                this.time.delayedCall(KingdomMapScene.CLAIM_RETRY_MS, () => moveNext(index));
+                return;
+              }
+              this.claimFailCounts.delete(character.id);
+              this.setCharacterIdleFrame(animatedView, character);
+              this.bridge.blockCharacterPath(character.id, currentCell, nextCell);
+              return;
+            }
+          }
+
+          this.claimFailCounts.delete(character.id);
+          const pos = this.characterPosition(nextCell, snapshot);
+          const direction = this.directionForStep(currentCell, nextCell, snapshot.cols);
+          const tween = this.tweens.add({
+            targets: animatedView.root,
+            x: pos.x,
+            y: pos.y,
+            duration: 320,
+            ease: "Linear",
+            onUpdate: () => {
+              animatedView.root.setDepth(Math.round(animatedView.root.y * 10));
+              this.characterLayer?.sort("depth");
+            },
+            onStart: () => {
+              if (!this.isActiveCharacterView(animatedView, character.id, pathToken)) {
+                tween.stop();
+                return;
+              }
+              const directionName = this.directionName(direction);
+              if (animatedView.usesLpc && character.characterAppearance) {
+                const layers = resolveCharacterLayers(character.characterAppearance, "walk");
+                animatedView.sprites.forEach((layerSprite, layerIndex) => {
+                  const layer = layers[layerIndex];
+                  if (!layer || !this.textures.exists(layer.sourceId)) {
+                    layerSprite.setVisible(false);
+                    return;
+                  }
+                  layerSprite.setVisible(true).setTexture(layer.sourceId);
+                  this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName);
+                });
+              } else {
+                animatedView.sprite.play(`${animatedView.sprite.texture.key}-walk-${directionName}`, true);
+              }
+              animatedView.direction = direction;
+            },
+            onComplete: () => {
+              if (!this.isActiveCharacterView(animatedView, character.id, pathToken)) return;
+              currentCell = nextCell;
+              animatedView.logicalCell = nextCell;
+              moveNext(index + 1);
+            }
+          });
+          void tween;
+        };
+
+        moveNext(0);
       }
     }
     this.characterVisibilityDirty = true;
