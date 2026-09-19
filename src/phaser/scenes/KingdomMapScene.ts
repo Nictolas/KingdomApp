@@ -3,6 +3,7 @@ import Phaser from "phaser";
 import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
 import { CHILD_BEARD_OFFSET_Y_PX, LPC_DIRECTION_ROWS } from "../../character-system/lpcPack";
 import { canRenderCharacter, resolveCharacterLayers } from "../../character-system/registry";
+import { isGeometryEntryCell } from "../../game/buildingGeometry";
 import { PhaserFramePerformanceSampler, formatPhaserFramePerformance } from "../adapters/phaserFramePerformance";
 import {
   getPhaserDynamicSnapshotChanges,
@@ -618,10 +619,9 @@ export class KingdomMapScene extends Phaser.Scene {
             if (bRow !== aRow) approachCandidates.push((aRow + Math.sign(bRow - aRow)) * snapshot.cols + aCol);
             const destination = approachCandidates.find((cell) => {
               const occupied = [...this.characterViews.entries()].some(([id, candidate]) => id !== characterId && candidate.logicalCell === cell);
-              const doorway = snapshot.buildings.some((building) => {
-                const entries = building.geometry.entryPoints ?? [building.geometry.doorCell];
-                return entries.includes(cell);
-              });
+              const doorway = snapshot.buildings.some((building) =>
+                isGeometryEntryCell(building.geometry, cell)
+              );
               return !occupied && !doorway && this.bridge.attemptCharacterIdleStep(characterId, view.logicalCell, cell);
             });
             if (destination == null) {
@@ -680,10 +680,9 @@ export class KingdomMapScene extends Phaser.Scene {
         const candidates = [row + 1 < snapshot.rows ? view.logicalCell + snapshot.cols : null, col > 0 ? view.logicalCell - 1 : null, col + 1 < snapshot.cols ? view.logicalCell + 1 : null, row > 0 ? view.logicalCell - snapshot.cols : null].filter((cell): cell is number => cell != null);
         const freeCandidates = candidates.filter((cell) => {
           const occupied = [...this.characterViews.entries()].some(([id, candidate]) => id !== characterId && candidate.logicalCell === cell);
-          const doorway = snapshot.buildings.some((building) => {
-            const entries = building.geometry.entryPoints ?? [building.geometry.doorCell];
-            return entries.includes(cell);
-          });
+          const doorway = snapshot.buildings.some((building) =>
+            isGeometryEntryCell(building.geometry, cell)
+          );
           return !occupied && !doorway;
         });
         for (let i = freeCandidates.length - 1; i > 0; i -= 1) {
