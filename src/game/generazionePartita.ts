@@ -8,6 +8,7 @@ import { generaAspettoCasuale } from "./personaggioAspetto";
 import { COGNOMI_UMANI, NOMI_UMANI_CON_SESSO, scegliNomeCognomeUmano } from "./nomiUmani";
 import { LAVORO_GIOCATORE, ETA_GIOCATORE_INIZIALE } from "./schiavituCommercio";
 import { redditoMensileLavoroDefault, STIPENDIO_BASE_MONETE_MESE } from "./economiaPrezzi";
+import { aggiungiCuginoNobileConSchiaviAvventura } from "./cuginoNobileAvventura";
 
 /** Regole di generazione casuale della colonia iniziale (per la pagina "Generazione Partita"). */
 export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] = [
@@ -462,10 +463,16 @@ export function generaColoniaIniziale(
     }
   }
 
+  const listaFinale = isAvventura
+    ? aggiungiCuginoNobileConSchiaviAvventura(abitanti)
+    : abitanti;
+
   return {
-    abitanti: abitanti.map((abitante) => abitanteConInventarioIniziale({
+    abitanti: listaFinale.map((abitante) => abitanteConInventarioIniziale({
       ...abitante,
-      ...(abitante.razza !== "Golem" && { aspetto: generaAspettoCasuale(abitante.razza ?? "Umano") })
+      ...(abitante.razza !== "Golem" && !abitante.aspetto && {
+        aspetto: generaAspettoCasuale(abitante.razza ?? "Umano")
+      })
     })),
     razzaNativi
   };
