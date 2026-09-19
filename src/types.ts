@@ -51,6 +51,9 @@ export type Casta = "Schiavo" | "Servo della gleba" | "Cittadino" | "Nobile" | "
 /** @deprecated Usare Casta */
 export type Ceto = Casta;
 
+/** Regime alimentare dell'abitante. */
+export type Alimentazione = "Onnivoro" | "Vegetariano" | "Vegano";
+
 /** Relazione con punteggio 1-100 (amicizia o rivalità). */
 export type RelazionePunteggio = { id: number; punteggio: number };
 
@@ -66,6 +69,8 @@ export type Abitante = {
   /** Legge, Medicina, Educazione o Agraria. */
   specializzazione?: Specializzazione;
   personalità: string;
+  /** Opzionale per compatibilità con i salvataggi precedenti. */
+  alimentazione?: Alimentazione;
   amici: RelazionePunteggio[]; // ID + punteggio amicizia 1-100
   rivali: RelazionePunteggio[]; // ID + punteggio rivalità 1-100
   coniugeId?: number; // ID del coniuge (se presente)
