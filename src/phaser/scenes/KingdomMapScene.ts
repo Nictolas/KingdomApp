@@ -231,6 +231,7 @@ export class KingdomMapScene extends Phaser.Scene {
       if (changes.grid) this.renderGrid(snapshot);
       if (changes.interaction) this.renderInteraction(snapshot);
       this.renderLocateMarker(snapshot);
+      this.renderSelectionMarker(snapshot);
       this.renderedSnapshot = snapshot;
       this.tryNotifyCharacterAssetsReady(snapshot);
     });
@@ -243,6 +244,7 @@ export class KingdomMapScene extends Phaser.Scene {
       this.chatTalkTimers.clear();
       this.chatPartnerById.clear();
       this.chatBusy.clear();
+      this.clearSelectionRing();
       this.clearLocateArrow();
       if (this.lpcLoadCompleteListener) {
         this.load.off(Phaser.Loader.Events.COMPLETE, this.lpcLoadCompleteListener);
