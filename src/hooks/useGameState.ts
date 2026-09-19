@@ -73,7 +73,13 @@ import {
   setOrologioGiocoBloccatoDallaFase,
   subscribeGiornoGioco
 } from "../game/orologioGiocoSession";
-import { GIORNI_PRODUZIONE_SERRA_PER_MESE, isColturaSerraValida } from "../game/colturaSerra";
+import {
+  COLTURA_SERRA_DEFAULT,
+  GIORNI_PRODUZIONE_SERRA_PER_MESE,
+  isColturaSerraValida,
+  normalizzaColtureSerraSbloccate,
+  tutteColtureSerraSbloccate
+} from "../game/colturaSerra";
 import {
   applicaProduzioneSerraInventarioGiocatore,
   calcolaProduzioneSerraPerPeriodo
@@ -152,6 +158,7 @@ function calcolaPendingRichiestaLuogoCulto(
 export function useGameState() {
   const [gameMode, setGameMode] = useState<GameMode>("avventura");
   const [obiettiviCompletati, setObiettiviCompletati] = useState<string[]>([]);
+  const [coltureSerraSbloccate, setColtureSerraSbloccate] = useState<string[]>([COLTURA_SERRA_DEFAULT]);
   const [gamePhase, setGamePhase] = useState<GamePhase>("loading");
   const gamePhaseRef = useRef<GamePhase>(gamePhase);
   gamePhaseRef.current = gamePhase;
@@ -708,6 +715,7 @@ export function useGameState() {
     const colonia = generaColoniaIniziale(mode);
     setGameMode(mode);
     setObiettiviCompletati([]);
+    setColtureSerraSbloccate(mode === "creativa" ? tutteColtureSerraSbloccate() : [COLTURA_SERRA_DEFAULT]);
     setAbitanti(colonia.abitanti);
     setRazzaNativi(colonia.razzaNativi);
     setEdifici(creaEdificiIniziali(colonia.abitanti, mode));
@@ -757,6 +765,14 @@ export function useGameState() {
   const restorePersistableState = useCallback((state: PersistableGameState) => {
     setGameMode(state.gameMode);
     setObiettiviCompletati(state.obiettiviCompletati ?? []);
+    setColtureSerraSbloccate(
+      normalizzaColtureSerraSbloccate({
+        sbloccate: state.coltureSerraSbloccate,
+        modalitaGioco: state.gameMode,
+        obiettiviCompletati: state.obiettiviCompletati,
+        colturaSerraCorrente: state.edifici.find((e) => e.nome === "Serra")?.colturaItemId
+      })
+    );
     gamePhaseRef.current = "restoring";
     setGamePhase("restoring");
     setOrologioGiocoBloccatoDallaFase(true);
@@ -842,7 +858,7 @@ export function useGameState() {
       redditoCittadinanza, modalitaSanita, ordiniMercato, eventiInCorso, soddisfazioneFazioni,
       pendingAssimilazione, pendingMatrimonio, messaggioEmigrazione, diarioRighe,
       capoReligiosoSole, capoReligiosoAlieni, pendingRichiestaLuogoCulto, richiesteInAttesa,
-      luoghiCultoRifiutati, luoghiCultoPendentiMappa, obiettiviCompletati, mappa
+      luoghiCultoRifiutati, luoghiCultoPendentiMappa, obiettiviCompletati, coltureSerraSbloccate, mappa
     };
   }, [gameMode, gamePhase, diarioInizioVisto, abitanti, abitantiProposti, nextId, razzaNativi, nativiNonIntegrati,
     edifici, risorse, inventarioGiocatore, inventarioMensaByEdificioId, moneteGiocatore, prezzoResidenze,
@@ -854,8 +870,16 @@ export function useGameState() {
     ordiniMercato, eventiInCorso, soddisfazioneFazioni, pendingAssimilazione, pendingMatrimonio,
     messaggioEmigrazione, diarioRighe, capoReligiosoSole, capoReligiosoAlieni,
     pendingRichiestaLuogoCulto, richiesteInAttesa, luoghiCultoRifiutati, luoghiCultoPendentiMappa,
-    obiettiviCompletati]);
+    obiettiviCompletati, coltureSerraSbloccate]);
   const chiudiMessaggioEmigrazione = useCallback(() => setMessaggioEmigrazione(null), []);
+
+  useEffect(() => {
+    if (gameMode !== "creativa" && !obiettiviCompletati.includes("raccolto_serra")) return;
+    setColtureSerraSbloccate((prev) => {
+      const tutte = tutteColtureSerraSbloccate();
+      return prev.length === tutte.length && tutte.every((id) => prev.includes(id)) ? prev : tutte;
+    });
+  }, [gameMode, obiettiviCompletati]);
 
   /**
    * Ogni «Agricoltore» finisce in una Serra operativa con posto libero; poi il lavoro segue le assegnazioni.
@@ -956,12 +980,13 @@ export function useGameState() {
 
   const setColturaSerra = useCallback((edificioId: number, colturaItemId: string) => {
     if (!isColturaSerraValida(colturaItemId)) return;
+    if (gameMode === "avventura" && !coltureSerraSbloccate.includes(colturaItemId)) return;
     setEdifici((prev) =>
       prev.map((e) =>
         e.id === edificioId && e.nome === "Serra" ? { ...e, colturaItemId } : e
       )
     );
-  }, []);
+  }, [gameMode, coltureSerraSbloccate]);
 
   /** Crea un nuovo edificio nel modello di gioco a partire da una riga del catalogo (nuovo id univoco).
    *  Se `costoMateriale` > 0 e non c'è abbastanza Materiale Edile, restituisce null.
@@ -1490,6 +1515,7 @@ export function useGameState() {
     gameMode,
     modalitaGioco: gameMode,
     obiettiviCompletati,
+    coltureSerraSbloccate,
     gamePhase,
     simulationEnabled,
     startNewGame,
