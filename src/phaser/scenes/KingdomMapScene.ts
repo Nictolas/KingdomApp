@@ -507,6 +507,24 @@ export class KingdomMapScene extends Phaser.Scene {
       const character = snapshot.characters.find((c) => c.id === characterId);
       const view = this.characterViews.get(characterId);
       if (!character?.idleRoamAllowed || !view?.root?.active || (character.path?.length ?? 0) >= 2) return;
+      const nearby = snapshot.characters.find((other) => {
+        if (other.id === characterId || !other.idleRoamAllowed || (other.path?.length ?? 0) >= 2) return false;
+        const otherView = this.characterViews.get(other.id);
+        if (!otherView?.root?.active) return false;
+        const aCol = view.logicalCell % snapshot.cols, aRow = Math.floor(view.logicalCell / snapshot.cols);
+        const bCol = otherView.logicalCell % snapshot.cols, bRow = Math.floor(otherView.logicalCell / snapshot.cols);
+        return Math.abs(aCol - bCol) + Math.abs(aRow - bRow) === 1;
+      });
+      if (nearby && Math.random() < 0.35) {
+        const otherView = this.characterViews.get(nearby.id);
+        if (otherView) {
+          view.direction = this.directionForStep(view.logicalCell, otherView.logicalCell, snapshot.cols);
+          otherView.direction = this.directionForStep(otherView.logicalCell, view.logicalCell, snapshot.cols);
+          const otherCharacter = snapshot.characters.find((c) => c.id === nearby.id);
+          this.setCharacterIdleFrame(view, character);
+          if (otherCharacter) this.setCharacterIdleFrame(otherView, otherCharacter);
+        }
+      }
       const dirs: Array<0 | 1 | 2 | 3> = [0, 1, 2, 3];
       view.direction = dirs[Math.floor(Math.random() * dirs.length)] ?? view.direction;
       if (Math.random() < 0.3) {
