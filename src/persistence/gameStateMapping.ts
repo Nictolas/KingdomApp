@@ -72,6 +72,7 @@ export type PersistableGameState = {
   luoghiCultoRifiutati: ReligioneConCulto[];
   luoghiCultoPendentiMappa: GameSaveV1["events"]["luoghiCultoPendentiMappa"];
   obiettiviCompletati: string[];
+  coltureSerraSbloccate: string[];
   mappa: MappaRuntimeState;
 };
 
@@ -151,7 +152,8 @@ export function gameStateToGameSaveV1(state: PersistableGameState): GameSaveV1 {
       richiesteInAttesa: state.richiesteInAttesa,
       luoghiCultoRifiutati: state.luoghiCultoRifiutati,
       luoghiCultoPendentiMappa: state.luoghiCultoPendentiMappa,
-      obiettiviCompletati: state.obiettiviCompletati
+      obiettiviCompletati: state.obiettiviCompletati,
+      coltureSerraSbloccate: state.coltureSerraSbloccate
     },
     map: state.mappa
   });
@@ -175,6 +177,7 @@ export function gameSaveV1ToGameState(save: GameSaveV1): PersistableGameState {
     ...normalized.policies,
     ...normalized.events,
     obiettiviCompletati: normalized.events.obiettiviCompletati ?? [],
+    coltureSerraSbloccate: normalized.events.coltureSerraSbloccate ?? [],
     mappa: normalized.map
   };
 }
