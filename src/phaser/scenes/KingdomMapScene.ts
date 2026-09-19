@@ -29,6 +29,11 @@ const GOLEM_KEY = "stone-golem";
 const TILE_LAYER_DEPTH = 0;
 const BUILDING_LAYER_DEPTH = 10;
 const INTERACTION_LAYER_DEPTH = 30;
+const WORLD_DEPTH_BASE = 100;
+
+function worldDepthForY(y: number): number {
+  return WORLD_DEPTH_BASE + Math.round(y * 10);
+}
 
 const BUILDING_COLORS = {
   residence: { fill: 0xb45309, roof: 0xf59e0b, border: 0x451a03 },
@@ -70,8 +75,8 @@ export class KingdomMapScene extends Phaser.Scene {
   private readonly artUrls: PhaserArtAssetUrls;
   private unsubscribe: (() => void) | null = null;
   private tileLayer: Phaser.GameObjects.Container | null = null;
-  private buildingLayer: Phaser.GameObjects.Container | null = null;
-  private characterLayer: Phaser.GameObjects.Container | null = null;
+  private worldLayer: Phaser.GameObjects.Container | null = null;
+  private buildingViews: Phaser.GameObjects.Container[] = [];
   private interactionLayer: Phaser.GameObjects.Container | null = null;
   private gridLayer: Phaser.GameObjects.Graphics | null = null;
   private readonly characterViews = new Map<number, CharacterView>();
@@ -139,8 +144,7 @@ export class KingdomMapScene extends Phaser.Scene {
 
   create(): void {
     this.tileLayer = this.add.container(0, 0).setDepth(TILE_LAYER_DEPTH);
-    this.buildingLayer = this.add.container(0, 0).setDepth(BUILDING_LAYER_DEPTH);
-    this.characterLayer = this.add.container(0, 0).setDepth(BUILDING_LAYER_DEPTH + 1);
+    this.worldLayer = this.add.container(0, 0).setDepth(BUILDING_LAYER_DEPTH);
     this.interactionLayer = this.add.container(0, 0).setDepth(INTERACTION_LAYER_DEPTH);
     this.gridLayer = this.add.graphics().setDepth(INTERACTION_LAYER_DEPTH - 1);
     this.perfEnabled = (globalThis as any).__KINGDOM_PERF_REQUESTED__ === true || (typeof window !== "undefined" && new URLSearchParams(window.location.search).get("perf") === "1");
@@ -418,7 +422,7 @@ export class KingdomMapScene extends Phaser.Scene {
   }
 
   private reconcileCharacters(snapshot: PhaserMapSnapshot): void {
-    if (!this.characterLayer) return;
+    if (!this.worldLayer) return;
     const active = new Set(snapshot.characters.map((character) => character.id));
     for (const [id, view] of this.characterViews) {
       if (active.has(id)) continue;
@@ -459,7 +463,7 @@ export class KingdomMapScene extends Phaser.Scene {
           root.add(this.add.text(0, -snapshot.cellSize * 0.2, character.markerEmoji, { fontSize: "26px" }).setOrigin(0.5));
         }
         root.add(sprites);
-        this.characterLayer.add(root);
+        this.worldLayer.add(root);
         root.setSize(snapshot.cellSize, snapshot.cellSize).setInteractive();
         root.on("pointerup", (_pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
           event.stopPropagation();
@@ -530,7 +534,7 @@ export class KingdomMapScene extends Phaser.Scene {
             ease: "Linear",
             onUpdate: () => {
               animatedView.root.setDepth(Math.round(animatedView.root.y * 10));
-              this.characterLayer?.sort("depth");
+              this.worldLayer?.sort("depth");
             },
             onStart: () => {
               if (!this.isActiveCharacterView(animatedView, character.id, pathToken)) {
@@ -641,7 +645,7 @@ export class KingdomMapScene extends Phaser.Scene {
               });
             }
             this.chatBusy.add(characterId);
-            this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => { view.root.setDepth(Math.round(view.root.y * 10)); this.characterLayer?.sort("depth"); }, onComplete: () => { view.logicalCell = destination; this.chatBusy.delete(characterId); this.setCharacterIdleFrame(view, character); this.ensureIdleRoamScheduled(characterId); } });
+            this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => { view.root.setDepth(Math.round(view.root.y * 10)); this.worldLayer?.sort("depth"); }, onComplete: () => { view.logicalCell = destination; this.chatBusy.delete(characterId); this.setCharacterIdleFrame(view, character); this.ensureIdleRoamScheduled(characterId); } });
             return;
           }
         }
@@ -704,7 +708,7 @@ export class KingdomMapScene extends Phaser.Scene {
             });
           }
           this.chatBusy.add(characterId);
-          this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => { view.root.setDepth(Math.round(view.root.y * 10)); this.characterLayer?.sort("depth"); }, onComplete: () => { view.logicalCell = destination; this.chatBusy.delete(characterId); this.setCharacterIdleFrame(view, character); this.ensureIdleRoamScheduled(characterId); } });
+          this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => { view.root.setDepth(Math.round(view.root.y * 10)); this.worldLayer?.sort("depth"); }, onComplete: () => { view.logicalCell = destination; this.chatBusy.delete(characterId); this.setCharacterIdleFrame(view, character); this.ensureIdleRoamScheduled(characterId); } });
         }
       }
       if (view.usesLpc && character.characterAppearance) {
@@ -772,13 +776,18 @@ export class KingdomMapScene extends Phaser.Scene {
   private placeCharacter(root: Phaser.GameObjects.Container, cell: number, snapshot: PhaserMapSnapshot): void {
     const pos = this.characterPosition(cell, snapshot);
     root.setPosition(pos.x, pos.y);
-    root.setDepth(Math.round(pos.y * 10));
-    this.characterLayer?.sort("depth");
+    this.updateCharacterDepth(root);
+  }
+
+  private updateCharacterDepth(root: Phaser.GameObjects.Container): void {
+    root.setDepth(worldDepthForY(root.y));
+    this.worldLayer?.sort("depth");
   }
 
   private renderBuildings(snapshot: PhaserMapSnapshot): void {
-    if (!this.buildingLayer) return;
-    this.buildingLayer.removeAll(true);
+    if (!this.worldLayer) return;
+    for (const view of this.buildingViews) view.destroy(true);
+    this.buildingViews = [];
 
     for (const building of snapshot.buildings) {
       const col = building.anchor % snapshot.cols;
@@ -788,7 +797,11 @@ export class KingdomMapScene extends Phaser.Scene {
       const width = building.widthCells * snapshot.cellSize;
       const height = building.heightCells * snapshot.cellSize;
       const colors = BUILDING_COLORS[building.category];
-      const group = this.add.container(x, y);
+      const group = this.add
+        .container(x, y)
+        .setDepth(worldDepthForY(building.geometry.depthOrigin.y * snapshot.cellSize));
+      this.buildingViews.push(group);
+      this.worldLayer.add(group);
 
       if (building.artKey) {
         const image = this.add.image(width / 2, height, building.artKey).setOrigin(0.5, 1);
@@ -800,7 +813,6 @@ export class KingdomMapScene extends Phaser.Scene {
           color: "#ffffff", backgroundColor: "rgba(2,6,23,0.72)", padding: { x: 3, y: 1 }
         }).setOrigin(0.5, 1);
         group.add([shadow, image, label]);
-        this.buildingLayer.add(group);
         continue;
       }
 
@@ -830,8 +842,8 @@ export class KingdomMapScene extends Phaser.Scene {
         .setOrigin(0.5, 1);
 
       group.add([shadow, body, roof, emoji, label]);
-      this.buildingLayer.add(group);
     }
+    this.worldLayer.sort("depth");
   }
 
   update(time: number, delta: number): void {
