@@ -1,9 +1,10 @@
-import React, { useEffect, useRef } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Asset } from "expo-asset";
-import { StyleSheet, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import type { PhaserMapActions, PhaserMapSnapshot } from "../phaser/adapters/mapSceneBridge";
 import { LPC_ASSET_SOURCES } from "../character-system/generated/lpcAssetSources";
+import { canRenderCharacter, resolveCharacterLayers } from "../character-system/registry";
 
 const lpcLayerUriCache = new Map<string, string>();
 
@@ -15,6 +16,32 @@ function getLpcLayerUrl(sourceId: string): string | undefined {
   const uri = Asset.fromModule(source).uri;
   if (uri) lpcLayerUriCache.set(sourceId, uri);
   return uri;
+}
+
+function collectSnapshotLpcSourceIds(snapshot: PhaserMapSnapshot): string[] {
+  const ids = new Set<string>();
+  for (const character of snapshot.characters) {
+    const appearance = character.characterAppearance;
+    if (!appearance) continue;
+    for (const animation of ["idle", "walk"] as const) {
+      if (!canRenderCharacter(appearance, animation)) continue;
+      for (const layer of resolveCharacterLayers(appearance, animation)) ids.add(layer.sourceId);
+    }
+  }
+  return [...ids];
+}
+
+async function warmLpcLayerUrls(sourceIds: readonly string[]): Promise<void> {
+  await Promise.all(
+    sourceIds.map(async (sourceId) => {
+      if (lpcLayerUriCache.has(sourceId)) return;
+      const source = LPC_ASSET_SOURCES[sourceId as keyof typeof LPC_ASSET_SOURCES];
+      if (!source) return;
+      const asset = Asset.fromModule(source);
+      if (!asset.uri) await asset.downloadAsync();
+      if (asset.uri) lpcLayerUriCache.set(sourceId, asset.uri);
+    })
+  );
 }
 
 const SPRITESHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spritesheet-full.png");
@@ -42,6 +69,7 @@ export function PhaserMapSurface({
   onCharacterIdleStepAttempt,
   onCharacterChatChange,
   onCharacterChatFinished,
+  onCharacterAssetsReady,
   onDragStateChange
 }: Props) {
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -49,10 +77,21 @@ export function PhaserMapSurface({
     game: import("phaser").Game;
     bridge: import("../phaser/adapters/mapSceneBridge").MapSceneBridge;
   } | null>(null);
+  const [charactersReady, setCharactersReady] = useState(false);
+  const onCharacterAssetsReadyRef = useRef(onCharacterAssetsReady);
+  onCharacterAssetsReadyRef.current = onCharacterAssetsReady;
+
+  const markCharactersReady = useCallback(() => {
+    setCharactersReady(true);
+    onCharacterAssetsReadyRef.current?.();
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
+    setCharactersReady(false);
     void (async () => {
+      await warmLpcLayerUrls(collectSnapshotLpcSourceIds(snapshot));
+      if (cancelled || !hostRef.current) return;
       const Phaser = (await import("phaser")).default;
       const { MapSceneBridge } = await import("../phaser/adapters/mapSceneBridge");
       const { KingdomMapScene } = await import("../phaser/scenes/KingdomMapScene");
@@ -61,7 +100,9 @@ export function PhaserMapSurface({
       const bridge = new MapSceneBridge(snapshot, {
         onCellPress, onCellHover, onCharacterPress, onCharacterDoublePress,
         onCharacterPathComplete, onCharacterStepAttempt, onCharacterPathBlocked,
-        onCharacterIdleStepAttempt, onCharacterChatChange, onCharacterChatFinished, onDragStateChange
+        onCharacterIdleStepAttempt, onCharacterChatChange, onCharacterChatFinished,
+        onCharacterAssetsReady: markCharactersReady,
+        onDragStateChange
       });
       const sheetUrl = Asset.fromModule(SPRITESHEET).uri;
       const artUrls = {
@@ -110,13 +151,24 @@ export function PhaserMapSurface({
     runtimeRef.current?.bridge.setActions({
       onCellPress, onCellHover, onCharacterPress, onCharacterDoublePress,
       onCharacterPathComplete, onCharacterStepAttempt, onCharacterPathBlocked,
-      onCharacterIdleStepAttempt, onCharacterChatChange, onCharacterChatFinished, onDragStateChange
+      onCharacterIdleStepAttempt, onCharacterChatChange, onCharacterChatFinished,
+      onCharacterAssetsReady: markCharactersReady,
+      onDragStateChange
     });
-  }, [onCellPress, onCellHover, onCharacterPress, onCharacterDoublePress, onCharacterPathComplete, onCharacterStepAttempt, onCharacterPathBlocked, onCharacterIdleStepAttempt, onCharacterChatChange, onCharacterChatFinished, onDragStateChange]);
+  }, [onCellPress, onCellHover, onCharacterPress, onCharacterDoublePress, onCharacterPathComplete, onCharacterStepAttempt, onCharacterPathBlocked, onCharacterIdleStepAttempt, onCharacterChatChange, onCharacterChatFinished, markCharactersReady, onDragStateChange]);
 
   return (
     <View style={styles.root}>
       <div id="kingdom-phaser-host" ref={hostRef} style={hostStyle} />
+      {!charactersReady ? (
+        <View style={styles.loadingOverlay} pointerEvents="auto" accessibilityRole="progressbar">
+          <View style={styles.loadingCard}>
+            <Text style={styles.loadingTitle}>Preparazione abitanti</Text>
+            <Text style={styles.loadingSubtitle}>Carico gli aspetti personalizzati…</Text>
+            <ActivityIndicator size="small" style={styles.loadingSpinner} />
+          </View>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -139,5 +191,38 @@ const styles = StyleSheet.create({
     bottom: 0,
     overflow: "hidden",
     backgroundColor: "#18291c"
+  },
+  loadingOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(2, 6, 23, 0.82)",
+    zIndex: 5
+  },
+  loadingCard: {
+    minWidth: 260,
+    maxWidth: 360,
+    paddingVertical: 24,
+    paddingHorizontal: 28,
+    borderRadius: 16,
+    backgroundColor: "#0f172a",
+    borderWidth: 1,
+    borderColor: "rgba(148, 163, 184, 0.25)",
+    alignItems: "center"
+  },
+  loadingTitle: {
+    color: "#f8fafc",
+    fontSize: 18,
+    fontWeight: "700",
+    textAlign: "center"
+  },
+  loadingSubtitle: {
+    color: "rgba(203, 213, 245, 0.75)",
+    fontSize: 13,
+    textAlign: "center",
+    marginTop: 8
+  },
+  loadingSpinner: {
+    marginTop: 18
   }
 });
