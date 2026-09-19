@@ -877,6 +877,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     rimuoviEdificioPerId,
     serviPastoMensaAbitante,
     aggiornaAbitanteById,
+    applicaEsitoChiacchieraAbitanti,
     accreditaMoneteGiocatore,
     assumiCittadinoDisoccupatoAEdificio,
     appendDiarioRiga,
@@ -3113,6 +3114,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     []
   );
 
+  const handlePhaserCharacterChatFinished = useCallback(
+    (idA: number, idB: number) => {
+      applicaEsitoChiacchieraAbitanti(idA, idB);
+    },
+    [applicaEsitoChiacchieraAbitanti]
+  );
+
   const handlePhaserCharacterPathComplete = useCallback((abitanteId: number, token: number) => {
     const meta = commuteByAbitanteId[abitanteId];
     if (!meta || meta.token !== token) return;
@@ -3344,11 +3352,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               onCharacterPathComplete={handlePhaserCharacterPathComplete}
               onCharacterIdleStepAttempt={tryPhaserIdleStep}
               onCharacterChatChange={handlePhaserCharacterChatChange}
-              onCharacterChatFinished={(abitanteIdA, abitanteIdB) => {
-                // Collegamento ripristinato; gli effetti relazionali verranno riagganciati separatamente.
-                void abitanteIdA;
-                void abitanteIdB;
-              }}
+              onCharacterChatFinished={handlePhaserCharacterChatFinished}
               onDragStateChange={handlePhaserDragStateChange}
             />
           </View>
