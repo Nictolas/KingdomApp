@@ -19,9 +19,10 @@ import type { MappaRuntimeState } from "../../game/mappaTypes";
 import type { PhaserMapBuilding, PhaserMapCharacter, PhaserMapSnapshot, PhaserMapTile } from "./mapSceneBridge";
 
 const BUILDING_EMOJI: Record<string, string> = {
-  "Centro di Comando": "🏛️",
+  Castello: "🏰",
   Dormitorio: "🛏️",
   Capanna: "⛺",
+  Ponte: "🌉",
   Bar: "🍺",
   Tribunale: "⚖️",
   "Ufficio Immigrazione": "🛂",
@@ -29,33 +30,76 @@ const BUILDING_EMOJI: Record<string, string> = {
   Mercato: "🏪",
   Negozio: "🛍️",
   "Mensa Pubblica": "🍲",
-  Dissalatore: "💧",
-  Spazioporto: "🚀",
+  Acquedotto: "💧",
+  Porto: "⚓",
   Serra: "🌱",
   "Luogo di Culto del Sole": "☀️",
-  "Luogo di Culto degli Alieni": "👽",
+  "Luogo di Culto delle Ombre": "🌑",
   Carcere: "🔒",
   "Campo di Lavoro": "⛏️",
   "Campo di Sterminio": "☠️",
   Caserma: "🛡️",
   Centrale: "🚓",
-  Giacimento: "⛰️",
-  "Raffineria Mineraria": "⚙️"
+  Miniera: "⛏️",
+  Fucina: "🔥",
+  Emporio: "🧺",
+  Bosco: "🌲",
+  Falegnameria: "🪚",
+  Conceria: "🧴",
+  Forno: "🍞",
+  Cereria: "🕯️",
+  Sartoria: "👕",
+  Birrificio: "🍺",
+  Taverna: "🍲",
+  Spezieria: "⚗️",
+  Armeria: "🏹",
+  Forgia: "🔨",
+  Chiesa: "⛪",
+  Lazzaretto: "🏥",
+  Scriptorium: "📜",
+  Scuola: "📚",
+  "Laboratorio Magico": "🧙",
+  "Cripta Necromantica": "☠️"
 };
 
 function categoryForBuilding(name: string): PhaserMapBuilding["category"] {
   if (["Dormitorio", "Capanna", "Baracca"].includes(name)) return "residence";
-  if (["Serra", "Dissalatore", "Raffineria Mineraria", "Giacimento"].includes(name)) return "industry";
+  if (
+    [
+      "Serra",
+      "Acquedotto",
+      "Miniera",
+      "Fucina",
+      "Forgia",
+      "Falegnameria",
+      "Conceria",
+      "Forno",
+      "Cereria",
+      "Sartoria",
+      "Birrificio",
+      "Spezieria",
+      "Armeria",
+      "Laboratorio Magico",
+      "Cripta Necromantica",
+      "Raffineria Mineraria",
+      "Giacimento"
+    ].includes(name)
+  ) {
+    return "industry";
+  }
+  if (["Emporio", "Mercato", "Negozio", "Taverna", "Lazzaretto", "Scriptorium", "Scuola"].includes(name)) {
+    return "service";
+  }
   if (["Carcere", "Campo di Lavoro", "Campo di Sterminio", "Caserma", "Centrale"].includes(name)) {
     return "security";
   }
-  if (name.includes("Culto")) return "religion";
-  if (["Spazioporto", "Centro di Comando"].includes(name)) return "special";
+  if (name.includes("Culto") || name === "Chiesa") return "religion";
+  if (["Porto", "Castello", "Bosco"].includes(name)) return "special";
   return "service";
 }
 
 function artKeyForBuilding(name: string): PhaserMapBuilding["artKey"] {
-  if (name === "Centro di Comando") return "command-center";
+  if (name === "Castello" || name === "Centro di Comando") return "command-center";
   if (name === "Dormitorio") return "dormitory";
   if (name === "Serra") return "greenhouse";
   if (name === "Capanna") return "frontier-hut";
