@@ -4,6 +4,7 @@ import { useRouter } from "expo-router";
 import { fazioniData } from "../kingdomData";
 import { useGameContext } from "../context/GameContext";
 import type { Abitante } from "../types";
+import { isOccupazioneRimossa } from "../game/lavoriCatalogo";
 
 export default function GridGame() {
   const router = useRouter();
@@ -42,6 +43,13 @@ export default function GridGame() {
             <Text style={styles.navEmoji}>💎</Text>
             <Text style={styles.navLabel}>Ricchezza</Text>
             <Text style={styles.navMeta}>{abitanti.length}</Text>
+          </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/lavori")}>
+            <Text style={styles.navEmoji}>💼</Text>
+            <Text style={styles.navLabel}>Lavori</Text>
+            <Text style={styles.navMeta}>
+              {abitanti.filter((a) => a.razza !== "Golem" && (a.lavoro === "Disoccupato" || isOccupazioneRimossa(a.lavoro))).length} disoccupati
+            </Text>
           </Pressable>
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/")}>
             <Text style={styles.navEmoji}>🗺️</Text>
