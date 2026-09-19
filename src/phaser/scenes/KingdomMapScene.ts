@@ -1,7 +1,7 @@
 import Phaser from "phaser";
 
 import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
-import { LPC_DIRECTION_ROWS } from "../../character-system/lpcPack";
+import { CHILD_BEARD_OFFSET_Y_PX, LPC_DIRECTION_ROWS } from "../../character-system/lpcPack";
 import { canRenderCharacter, resolveCharacterLayers } from "../../character-system/registry";
 import { PhaserFramePerformanceSampler, formatPhaserFramePerformance } from "../adapters/phaserFramePerformance";
 import {
@@ -401,8 +401,11 @@ export class KingdomMapScene extends Phaser.Scene {
         const sprite = this.add.sprite(0, -snapshot.cellSize * 0.2, useLpc ? idleLayers[0]?.sourceId ?? texture : texture, 0)
           .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
         const sprites = useLpc
-          ? idleLayers.map((layer) => this.add.sprite(0, -snapshot.cellSize * 0.2, layer.sourceId, LPC_DIRECTION_ROWS.down * 2)
-              .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08))
+          ? idleLayers.map((layer) => {
+              const scale = (snapshot.cellSize * 1.08) / 64;
+              const beardLift = layer.layer === "beard" && character.characterAppearance?.bodyType === "child" ? CHILD_BEARD_OFFSET_Y_PX * scale : 0;
+              return this.add.sprite(0, -snapshot.cellSize * 0.2 + beardLift, layer.sourceId, LPC_DIRECTION_ROWS.down * 2).setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
+            })
           : [sprite];
         if (useLpc) sprite.setVisible(false);
         if (!character.appearance && character.markerEmoji) {
