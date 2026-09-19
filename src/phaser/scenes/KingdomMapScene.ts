@@ -413,9 +413,6 @@ export class KingdomMapScene extends Phaser.Scene {
           root.add(this.add.text(0, -snapshot.cellSize * 0.2, character.markerEmoji, { fontSize: "26px" }).setOrigin(0.5));
         }
         root.add(sprites);
-        root.add(this.add.text(0, snapshot.cellSize * 0.34, character.name, {
-          fontSize: "9px", color: "#ffffff", backgroundColor: "rgba(2,6,23,0.7)", padding: { x: 2, y: 1 }
-        }).setOrigin(0.5));
         this.characterLayer.add(root);
         root.setSize(snapshot.cellSize, snapshot.cellSize).setInteractive();
         root.on("pointerup", (_pointer: Phaser.Input.Pointer, _x: number, _y: number, event: Phaser.Types.Input.EventData) => {
