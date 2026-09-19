@@ -46,7 +46,7 @@ export type TitoloDiStudio = "Asilo" | "Elementare" | "Superiore" | "Università
 export type Specializzazione = "Legge" | "Medicina" | "Educazione" | "Agraria";
 
 /** Classe sociale dell'abitante (casta). */
-export type Casta = "Schiavo" | "Servo della gleba" | "Cittadino" | "Nobile";
+export type Casta = "Schiavo" | "Servo della gleba" | "Cittadino" | "Nobile" | "Clero";
 
 /** @deprecated Usare Casta */
 export type Ceto = Casta;
@@ -181,6 +181,8 @@ export type Edificio = {
   nome: string;
   emoji: string;
   tipo: string;
+  /** Flag economico per gli edifici-impresa. */
+  categoriaEconomica?: "Impresa";
   descrizione: string;
   capacità: number; // Numero di persone che può ospitare
   occupazione: number; // Numero attuale di persone
@@ -193,6 +195,10 @@ export type Edificio = {
   consumo?: string; // Cosa consuma (se applicabile)
   /** Stipendio mensile per ogni lavoratore assegnato (configurabile dall'utente). Costo edificio = stipendioPerLavoratore × numero lavoratori. */
   stipendioPerLavoratore?: number;
+  /** Cassa dell'impresa in monete. */
+  cassaMonete?: number;
+  /** Fatturato del mese corrente. */
+  fatturatoMeseMonete?: number;
   /** Solo Serra: id oggetto Cibo vegetale prodotto (1 unità/giorno). */
   colturaItemId?: string;
   /** Solo Chiesa: religione del tempio (non Ateo/Deista/Agnostico). */
