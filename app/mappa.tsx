@@ -1144,6 +1144,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const [schedaWandererAbitante, setSchedaWandererAbitante] = useState<Abitante | null>(null);
   /** Selezione mappa: sintesi in barra inferiore al posto dei pulsanti risorse. */
   const [sintesiMappaAbitanteId, setSintesiMappaAbitanteId] = useState<number | null>(null);
+  /** Freccia gialla Individua sulla mappa. */
+  const [locateAbitanteId, setLocateAbitanteId] = useState<number | null>(null);
   /** Id abitante → partner della chiacchiera «in giro» (Phaser). */
   const [chiacchieraConById, setChiacchieraConById] = useState<Record<number, number>>({});
   /** Bordi tra le celle: di default nascosti; il toggle nella barra risorse li attiva. */
@@ -3209,16 +3211,28 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     ),
     [mappaState, cols, rows]
   );
+  const locateMarker = useMemo(() => {
+    if (locateAbitanteId == null) return null;
+    const character = phaserCharacters.find((item) => item.id === locateAbitanteId);
+    const cell =
+      character?.cell ??
+      ultimaCellaAbitanteRef.current.get(locateAbitanteId) ??
+      cellaCasaPerAbitanteId.get(locateAbitanteId) ??
+      null;
+    return cell == null ? null : { cell, abitanteId: locateAbitanteId };
+  }, [locateAbitanteId, phaserCharacters, cellaCasaPerAbitanteId]);
+
   const phaserSnapshot = useMemo(
     () => ({
       ...phaserBaseSnapshot,
       characters: phaserCharacters,
       interaction: phaserInteraction,
+      locateMarker,
       selectedAbitanteId: sintesiMappaAbitanteId,
       showGrid: mostraGrigliaMappa,
       paused: orologioInPausa
     }),
-    [phaserBaseSnapshot, phaserCharacters, phaserInteraction, sintesiMappaAbitanteId, mostraGrigliaMappa, orologioInPausa]
+    [phaserBaseSnapshot, phaserCharacters, phaserInteraction, locateMarker, sintesiMappaAbitanteId, mostraGrigliaMappa, orologioInPausa]
   );
 
   const tryPhaserCharacterStep = useCallback(
@@ -3297,6 +3311,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   );
 
   const handlePhaserCharacterPress = useCallback((abitanteId: number) => {
+    setLocateAbitanteId(null);
     setSintesiMappaAbitanteId(abitanteId);
   }, []);
 
@@ -3308,6 +3323,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   }, [abitanti]);
 
   const handlePhaserDragStateChange = useCallback((dragging: boolean) => {
+    if (dragging) setLocateAbitanteId(null);
     mapDraggedRef.current = dragging;
   }, []);
 
@@ -3860,6 +3876,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                   </Text>
                 )}
               </View>
+              <Pressable
+                style={styles.sintesiSchedaBtn}
+                onPress={() => setLocateAbitanteId(sintesiMappaAbitante.id)}
+                accessibilityRole="button"
+                accessibilityLabel="Individua sulla mappa"
+              >
+                <Text style={styles.sintesiSchedaBtnText}>Individua</Text>
+              </Pressable>
               <Pressable
                 style={styles.sintesiSchedaBtn}
                 onPress={() => setSchedaWandererAbitante(sintesiMappaAbitante)}
