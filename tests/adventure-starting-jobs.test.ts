@@ -18,13 +18,10 @@ test("Avventura ripristina Consigliere, Edile e Minatori iniziali", () => {
     assert.equal(consiglieri[0]?.razza, "Umano");
     assert.ok(consiglieri[0]?.fazioni?.includes("Rivoluzionari"));
 
+    assert.equal(abitanti.filter((a) => a.lavoro === "Agricoltore").length, 1);
     assert.equal(edili.length, 1);
     assert.equal(minatori.length, 2);
-
-    // Il Monetiere viene assegnato solo se resta un candidato dopo Re,
-    // Consigliere, tutti gli Agricoltori, Edile e 2 Minatori.
-    // Gli Agricoltori casuali aggiuntivi possono quindi occupare gli ultimi posti disponibili.
-    assert.ok(monetieri.length <= 1);
+    assert.equal(monetieri.length, 1);
 
     const ruoli = new Set(
       abitanti
