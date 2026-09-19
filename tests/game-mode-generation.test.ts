@@ -9,8 +9,8 @@ test("Avventura e Creativa generano popolazioni iniziali diverse", () => {
     const creativa = generaColoniaIniziale("creativa");
 
     assert.ok(
-      avventura.abitanti.length >= 6 && avventura.abitanti.length <= 8,
-      `Avventura deve avere 6-8 abitanti, trovati ${avventura.abitanti.length}`
+      avventura.abitanti.length >= 7 && avventura.abitanti.length <= 8,
+      `Avventura deve avere 7-8 abitanti, trovati ${avventura.abitanti.length}`
     );
     assert.ok(
       creativa.abitanti.length >= 20 && creativa.abitanti.length <= 28,
