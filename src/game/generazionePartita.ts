@@ -247,40 +247,42 @@ export function generaColoniaIniziale(
     abitanti.push(ab);
   }
 
-  // Regola: 2-3 Nativi (razza = razzaNativi) integrati in colonia. La residenza iniziale per tutti (tranne Senzatetto) è nelle Capanne (useGameState).
-  const candidatiNativo = abitanti.filter((a) => a.id !== 1);
-  const numNativi = Math.min(candidatiNativo.length, 2 + Math.floor(Math.random() * 2)); // 2 o 3
-  for (let k = candidatiNativo.length - 1; k > 0; k--) {
-    const j = Math.floor(Math.random() * (k + 1));
-    [candidatiNativo[k], candidatiNativo[j]] = [candidatiNativo[j], candidatiNativo[k]];
-  }
-  for (let i = 0; i < numNativi && i < candidatiNativo.length; i++) {
-    const nat = candidatiNativo[i]!;
-    nat.razza = razzaNativi;
-    nat.specie = "alieno";
-    nat.nome = generaNomeAlieno(razzaNativi);
-    nat.emoji = getEmojiRazza(razzaNativi);
-    nat.fazioni = normalizzaFazioni([...(nat.fazioni ?? []), "Nativi"]);
-  }
-
-  // Regola: esattamente 1 Robot a inizio partita (razza "Golem", nome stile Unit-XXXX). Fazione "Golem" automatica.
-  // Robot non hanno Crediti, Reddito, Spese, Sesso, Salute, Peso, Paura, Lealtà. Orientamento sempre «Bi» (regola fondamentale).
-  const candidatiRobot = abitanti.filter((a) => a.id !== 1 && a.razza === "Umano");
-  if (candidatiRobot.length > 0) {
-    const bot = candidatiRobot[Math.floor(Math.random() * candidatiRobot.length)];
-    bot.razza = "Golem";
-    bot.nome = generaNomeAlieno("Golem");
-    bot.emoji = getEmojiRazza("Golem");
-    bot.fazioni = normalizzaFazioni([...(bot.fazioni ?? []), "Golem"]);
-    bot.crediti = 0;
-    bot.reddito = 0;
-    bot.spese = 0;
-    bot.sesso = undefined;
-    bot.orientamento = "Bi";
-    bot.salute = 0;
-    bot.peso = 0;
-    bot.paura = 0;
-    bot.lealtà = 0;
+  if (!isAvventura) {
+    // Regola: 2-3 Nativi (razza = razzaNativi) integrati in colonia. La residenza iniziale per tutti (tranne Senzatetto) è nelle Capanne (useGameState).
+    const candidatiNativo = abitanti.filter((a) => a.id !== 1);
+    const numNativi = Math.min(candidatiNativo.length, 2 + Math.floor(Math.random() * 2)); // 2 o 3
+    for (let k = candidatiNativo.length - 1; k > 0; k--) {
+      const j = Math.floor(Math.random() * (k + 1));
+      [candidatiNativo[k], candidatiNativo[j]] = [candidatiNativo[j], candidatiNativo[k]];
+    }
+    for (let i = 0; i < numNativi && i < candidatiNativo.length; i++) {
+      const nat = candidatiNativo[i]!;
+      nat.razza = razzaNativi;
+      nat.specie = "alieno";
+      nat.nome = generaNomeAlieno(razzaNativi);
+      nat.emoji = getEmojiRazza(razzaNativi);
+      nat.fazioni = normalizzaFazioni([...(nat.fazioni ?? []), "Nativi"]);
+    }
+  
+    // Regola: esattamente 1 Robot a inizio partita (razza "Golem", nome stile Unit-XXXX). Fazione "Golem" automatica.
+    // Robot non hanno Crediti, Reddito, Spese, Sesso, Salute, Peso, Paura, Lealtà. Orientamento sempre «Bi» (regola fondamentale).
+    const candidatiRobot = abitanti.filter((a) => a.id !== 1 && a.razza === "Umano");
+    if (candidatiRobot.length > 0) {
+      const bot = candidatiRobot[Math.floor(Math.random() * candidatiRobot.length)];
+      bot.razza = "Golem";
+      bot.nome = generaNomeAlieno("Golem");
+      bot.emoji = getEmojiRazza("Golem");
+      bot.fazioni = normalizzaFazioni([...(bot.fazioni ?? []), "Golem"]);
+      bot.crediti = 0;
+      bot.reddito = 0;
+      bot.spese = 0;
+      bot.sesso = undefined;
+      bot.orientamento = "Bi";
+      bot.salute = 0;
+      bot.peso = 0;
+      bot.paura = 0;
+      bot.lealtà = 0;
+    }
   }
 
   // Regola: 50% con Lavoro "Disoccupato" (il Re id 1 resta Re). Scegliamo floor(n/2) tra id 2..n.
@@ -304,52 +306,57 @@ export function generaColoniaIniziale(
     if (!agr.ruoloSchiavitu) agr.reddito = redditoMensileLavoroDefault();
   }
 
-  // Regola: almeno 1 Prigioniero a inizio partita = Ex Governatore (Umano, reato "Ex Governatore"), assegnato al Campo di Lavoro; compare in Tribunale.
   let exGovernatoreId: number | null = null;
-  const candidatiPrigioniero = abitanti.filter(
-    (a) => a.id !== 1 && a.lavoro !== "Agricoltore" && a.razza === "Umano"
-  );
-  if (candidatiPrigioniero.length > 0) {
-    const prig = candidatiPrigioniero[Math.floor(Math.random() * candidatiPrigioniero.length)];
-    exGovernatoreId = prig.id;
-    prig.lavoro = "Prigioniero";
-    prig.razza = "Umano";
-    prig.reati = ["Ex Governatore"];
-    if (!prig.ruoloSchiavitu) prig.reddito = 0;
-  }
-
-  // Regola: 4 abitanti con fazione "Lealisti", tra cui l'ex governatore.
-  const altriPerLealisti = abitanti.filter((a) => a.id !== 1 && a.id !== exGovernatoreId);
-  for (let k = altriPerLealisti.length - 1; k > 0; k--) {
-    const j = Math.floor(Math.random() * (k + 1));
-    [altriPerLealisti[k], altriPerLealisti[j]] = [altriPerLealisti[j], altriPerLealisti[k]];
-  }
-  const lealistiIds = new Set<number>();
-  if (exGovernatoreId != null) lealistiIds.add(exGovernatoreId);
-  for (let i = 0; i < altriPerLealisti.length && lealistiIds.size < 4; i++) {
-    lealistiIds.add(altriPerLealisti[i]!.id);
-  }
-  abitanti.forEach((a) => {
-    if (lealistiIds.has(a.id)) {
-      a.fazioni = normalizzaFazioni([...(a.fazioni ?? []), "Lealisti"]);
+  if (!isAvventura) {
+    // Regola: almeno 1 Prigioniero a inizio partita = Ex Governatore (Umano, reato "Ex Governatore"), assegnato al Campo di Lavoro; compare in Tribunale.
+    const candidatiPrigioniero = abitanti.filter(
+      (a) => a.id !== 1 && a.lavoro !== "Agricoltore" && a.razza === "Umano"
+    );
+    if (candidatiPrigioniero.length > 0) {
+      const prig = candidatiPrigioniero[Math.floor(Math.random() * candidatiPrigioniero.length)];
+      exGovernatoreId = prig.id;
+      prig.lavoro = "Prigioniero";
+      prig.razza = "Umano";
+      prig.reati = ["Ex Governatore"];
+      if (!prig.ruoloSchiavitu) prig.reddito = 0;
     }
-  });
-
-  // Regola: Rivoluzionari = Re (id 1) + 3 abitanti che hanno aiutato la Rivoluzione (escluso l'Ex Governatore).
-  const candidatiRivoluzionari = abitanti.filter((a) => a.id !== 1 && a.id !== exGovernatoreId);
-  for (let k = candidatiRivoluzionari.length - 1; k > 0; k--) {
-    const j = Math.floor(Math.random() * (k + 1));
-    [candidatiRivoluzionari[k], candidatiRivoluzionari[j]] = [candidatiRivoluzionari[j], candidatiRivoluzionari[k]];
-  }
-  const rivoluzionariIds = new Set<number>([1]);
-  for (let i = 0; i < candidatiRivoluzionari.length && rivoluzionariIds.size < 4; i++) {
-    rivoluzionariIds.add(candidatiRivoluzionari[i]!.id);
-  }
-  abitanti.forEach((a) => {
-    if (rivoluzionariIds.has(a.id)) {
-      a.fazioni = normalizzaFazioni([...(a.fazioni ?? []), "Rivoluzionari"]);
+  
+    // Regola: 4 abitanti con fazione "Lealisti", tra cui l'ex governatore.
+    const altriPerLealisti = abitanti.filter((a) => a.id !== 1 && a.id !== exGovernatoreId);
+    for (let k = altriPerLealisti.length - 1; k > 0; k--) {
+      const j = Math.floor(Math.random() * (k + 1));
+      [altriPerLealisti[k], altriPerLealisti[j]] = [altriPerLealisti[j], altriPerLealisti[k]];
     }
-  });
+    const lealistiIds = new Set<number>();
+    if (exGovernatoreId != null) lealistiIds.add(exGovernatoreId);
+    for (let i = 0; i < altriPerLealisti.length && lealistiIds.size < 4; i++) {
+      lealistiIds.add(altriPerLealisti[i]!.id);
+    }
+    abitanti.forEach((a) => {
+      if (lealistiIds.has(a.id)) {
+        a.fazioni = normalizzaFazioni([...(a.fazioni ?? []), "Lealisti"]);
+      }
+    });
+  
+    // Regola: Rivoluzionari = Re (id 1) + 3 abitanti che hanno aiutato la Rivoluzione (escluso l'Ex Governatore).
+    const candidatiRivoluzionari = abitanti.filter((a) => a.id !== 1 && a.id !== exGovernatoreId);
+    for (let k = candidatiRivoluzionari.length - 1; k > 0; k--) {
+      const j = Math.floor(Math.random() * (k + 1));
+      [candidatiRivoluzionari[k], candidatiRivoluzionari[j]] = [candidatiRivoluzionari[j], candidatiRivoluzionari[k]];
+    }
+    const rivoluzionariIds = new Set<number>([1]);
+    for (let i = 0; i < candidatiRivoluzionari.length && rivoluzionariIds.size < 4; i++) {
+      rivoluzionariIds.add(candidatiRivoluzionari[i]!.id);
+    }
+    abitanti.forEach((a) => {
+      if (rivoluzionariIds.has(a.id)) {
+        a.fazioni = normalizzaFazioni([...(a.fazioni ?? []), "Rivoluzionari"]);
+      }
+    });
+  } else {
+    const re = abitanti.find((a) => a.id === 1);
+    if (re) re.fazioni = normalizzaFazioni([...(re.fazioni ?? []), "Rivoluzionari"]);
+  }
 
   // Regola: 1 Omo, 2 Bi, il resto Etero (solo non-Robot; i Robot hanno sempre Bi, vedi sopra).
   const candidatiOrientamento = abitanti
@@ -367,21 +374,25 @@ export function generaColoniaIniziale(
     if (idx != null) abitanti[idx]!.orientamento = "Etero";
   }
 
-  // Regola: almeno 1 Capo Religioso con religione Culto del Sole a inizio partita.
-  const candidatiCapoReligioso = abitanti.filter((a) => a.id !== 1 && a.razza !== "Golem");
-  if (candidatiCapoReligioso.length > 0) {
-    const capo = candidatiCapoReligioso[Math.floor(Math.random() * candidatiCapoReligioso.length)]!;
-    capo.religione = "Culto del Sole";
-    capo.lavoro = "Capo Religioso";
-    if (!capo.ruoloSchiavitu) capo.reddito = redditoMensileLavoroDefault();
+  if (!isAvventura) {
+    // Regola: almeno 1 Capo Religioso con religione Culto del Sole a inizio partita.
+    const candidatiCapoReligioso = abitanti.filter((a) => a.id !== 1 && a.razza !== "Golem");
+    if (candidatiCapoReligioso.length > 0) {
+      const capo = candidatiCapoReligioso[Math.floor(Math.random() * candidatiCapoReligioso.length)]!;
+      capo.religione = "Culto del Sole";
+      capo.lavoro = "Capo Religioso";
+      if (!capo.ruoloSchiavitu) capo.reddito = redditoMensileLavoroDefault();
+    }
   }
 
-  // Regola: 1 abitante con stato "Incinta" a inizio partita (preferibilmente donna, non Re, non Golem)
-  const candidatiIncinta = abitanti.filter((a) => a.id !== 1 && a.razza !== "Golem");
-  if (candidatiIncinta.length > 0) {
-    const femmine = candidatiIncinta.filter((a) => a.sesso === "F");
-    const scelta = femmine.length > 0 ? femmine[Math.floor(Math.random() * femmine.length)]! : candidatiIncinta[Math.floor(Math.random() * candidatiIncinta.length)]!;
-    scelta.incinta = true;
+  if (!isAvventura) {
+    // Regola: 1 abitante con stato "Incinta" a inizio partita (preferibilmente donna, non Re, non Golem)
+    const candidatiIncinta = abitanti.filter((a) => a.id !== 1 && a.razza !== "Golem");
+    if (candidatiIncinta.length > 0) {
+      const femmine = candidatiIncinta.filter((a) => a.sesso === "F");
+      const scelta = femmine.length > 0 ? femmine[Math.floor(Math.random() * femmine.length)]! : candidatiIncinta[Math.floor(Math.random() * candidatiIncinta.length)]!;
+      scelta.incinta = true;
+    }
   }
 
   return {
