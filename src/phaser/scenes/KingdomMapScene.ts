@@ -538,7 +538,9 @@ export class KingdomMapScene extends Phaser.Scene {
           return aDistance - bDistance;
         })[0];
       const pairKey = nearby ? [characterId, nearby.id].sort((a, b) => a - b).join(":") : null;
-      const pairOnCooldown = pairKey != null && (this.chatPairCooldownUntil.get(pairKey) ?? 0) > this.time.now;
+      const pairCooldownUntil = pairKey != null ? (this.chatPairCooldownUntil.get(pairKey) ?? 0) : 0;
+      const pairOnCooldown = pairCooldownUntil > this.time.now;
+      if (pairKey && pairCooldownUntil > 0 && !pairOnCooldown) this.chatPairCooldownUntil.delete(pairKey);
       if (nearby && !pairOnCooldown) {
         const otherView = this.characterViews.get(nearby.id);
         if (otherView) {
