@@ -89,6 +89,8 @@ export type PhaserMapActions = {
   onCharacterPress?: (characterId: number) => void;
   onCharacterDoublePress?: (characterId: number) => void;
   onCharacterPathComplete?: (characterId: number, pathToken: number) => void;
+  /** Valida un passo idle prima che Phaser sposti realmente l'abitante. */
+  onCharacterIdleStepAttempt?: (characterId: number, fromCell: number, toCell: number) => boolean;
   onDragStateChange?: (dragging: boolean) => void;
 };
 
@@ -140,6 +142,10 @@ export class MapSceneBridge {
 
   completeCharacterPath(characterId: number, pathToken: number): void {
     this.actions.onCharacterPathComplete?.(characterId, pathToken);
+  }
+
+  attemptCharacterIdleStep(characterId: number, fromCell: number, toCell: number): boolean {
+    return this.actions.onCharacterIdleStepAttempt?.(characterId, fromCell, toCell) ?? false;
   }
 
   setDragging(dragging: boolean): void {
