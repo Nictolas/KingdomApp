@@ -77,6 +77,8 @@ export class KingdomMapScene extends Phaser.Scene {
   private readonly pendingLpcSourceIds = new Set<string>();
   private readonly idleRoamTimers = new Map<number, Phaser.Time.TimerEvent>();
   private static readonly IDLE_ROAM_PAUSE_MS = 1600;
+  private static readonly CHAT_TALK_MS = 2400;
+  private readonly chatBusy = new Set<number>();
   private lpcLoadCompleteListener: (() => void) | null = null;
   private selectionRing: Phaser.GameObjects.Ellipse | null = null;
   private selectionAbitanteId: number | null = null;
@@ -515,7 +517,7 @@ export class KingdomMapScene extends Phaser.Scene {
         const bCol = otherView.logicalCell % snapshot.cols, bRow = Math.floor(otherView.logicalCell / snapshot.cols);
         return Math.abs(aCol - bCol) + Math.abs(aRow - bRow) === 1;
       });
-      if (nearby && Math.random() < 0.35) {
+      if (nearby && Math.random() < 0.35 && !this.chatBusy.has(characterId) && !this.chatBusy.has(nearby.id)) {
         const otherView = this.characterViews.get(nearby.id);
         if (otherView) {
           view.direction = this.directionForStep(view.logicalCell, otherView.logicalCell, snapshot.cols);
@@ -523,6 +525,16 @@ export class KingdomMapScene extends Phaser.Scene {
           const otherCharacter = snapshot.characters.find((c) => c.id === nearby.id);
           this.setCharacterIdleFrame(view, character);
           if (otherCharacter) this.setCharacterIdleFrame(otherView, otherCharacter);
+          this.stopIdleRoam(nearby.id);
+          this.chatBusy.add(characterId);
+          this.chatBusy.add(nearby.id);
+          this.time.delayedCall(KingdomMapScene.CHAT_TALK_MS, () => {
+            this.chatBusy.delete(characterId);
+            this.chatBusy.delete(nearby.id);
+            this.ensureIdleRoamScheduled(characterId);
+            this.ensureIdleRoamScheduled(nearby.id);
+          });
+          return;
         }
       }
       const dirs: Array<0 | 1 | 2 | 3> = [0, 1, 2, 3];
