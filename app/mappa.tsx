@@ -3179,7 +3179,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         inizioMinuti: coprifuocoInizioMinuti,
         fineMinuti: coprifuocoFineMinuti
       },
-      esitoRapinaRecente: esitoRapinaByAbitanteId[sintesiMappaAbitante.id] ?? null
+      esitoRapinaRecente: esitoRapinaByAbitanteId[sintesiMappaAbitante.id] ?? null,
+      staChiacchierando: chiacchieraConById[sintesiMappaAbitante.id] != null
     });
   }, [
     sintesiMappaAbitante,
@@ -3195,7 +3196,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     coprifuocoAttivo,
     coprifuocoInizioMinuti,
     coprifuocoFineMinuti,
-    esitoRapinaByAbitanteId
+    esitoRapinaByAbitanteId,
+    chiacchieraConById
   ]);
 
   return (
