@@ -62,6 +62,8 @@ export type GameSaveV1 = {
     penaReati: PenaReatiConfig;
     politicaReligiosa: "ateismo-stato" | "religione-stato" | "liberta-culto";
     religioneDiStato: Abitante["religione"] | null;
+    /** Religioni create dal giocatore; assente nei vecchi salvataggi. */
+    religioniCustom?: import("../game/fedeleCulto").ReligioneCustom[];
     leggeRazzialeAttiva: boolean;
     razzaCampoLavoro: Razza | null;
     razzaCampoSterminio: Razza | null;
