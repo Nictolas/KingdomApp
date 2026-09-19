@@ -3097,6 +3097,22 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     [isWalkableCell, phaserBuildings, tryClaimCellAbitante]
   );
 
+  const handlePhaserCharacterChatChange = useCallback(
+    (abitanteId: number, chattingWithId: number | null) => {
+      setChiacchieraConById((prev) => {
+        if (chattingWithId == null) {
+          if (prev[abitanteId] == null) return prev;
+          const next = { ...prev };
+          delete next[abitanteId];
+          return next;
+        }
+        if (prev[abitanteId] === chattingWithId) return prev;
+        return { ...prev, [abitanteId]: chattingWithId };
+      });
+    },
+    []
+  );
+
   const handlePhaserCharacterPathComplete = useCallback((abitanteId: number, token: number) => {
     const meta = commuteByAbitanteId[abitanteId];
     if (!meta || meta.token !== token) return;
@@ -3327,11 +3343,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               onCharacterDoublePress={handlePhaserCharacterDoublePress}
               onCharacterPathComplete={handlePhaserCharacterPathComplete}
               onCharacterIdleStepAttempt={tryPhaserIdleStep}
-              onCharacterChatChange={(abitanteId, chattingWithId) => {
-                // Collegamento ripristinato; lo stato persistente della chiacchierata verrà riagganciato separatamente.
-                void abitanteId;
-                void chattingWithId;
-              }}
+              onCharacterChatChange={handlePhaserCharacterChatChange}
               onCharacterChatFinished={(abitanteIdA, abitanteIdB) => {
                 // Collegamento ripristinato; gli effetti relazionali verranno riagganciati separatamente.
                 void abitanteIdA;
