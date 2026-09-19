@@ -27,6 +27,8 @@ export type PhaserMapCharacter = {
   markerEmoji?: string;
   appearance?: "human" | "golem";
   characterAppearance?: CharacterAppearance;
+  /** Se true, può fare piccoli movimenti idle quando non sta seguendo un percorso. */
+  idleRoamAllowed?: boolean;
 };
 
 export type PhaserMapInteraction = {
