@@ -67,6 +67,8 @@ export class KingdomMapScene extends Phaser.Scene {
   private interactionLayer: Phaser.GameObjects.Container | null = null;
   private gridLayer: Phaser.GameObjects.Graphics | null = null;
   private readonly characterViews = new Map<number, CharacterView>();
+  private selectionRing: Phaser.GameObjects.Ellipse | null = null;
+  private selectionAbitanteId: number | null = null;
   private readonly framePerformance = new PhaserFramePerformanceSampler(600);
   private lastPerfWallClockAt: number | null = null;
   private perfWork = {
@@ -393,6 +395,37 @@ export class KingdomMapScene extends Phaser.Scene {
       }
     }
     this.characterVisibilityDirty = true;
+    this.renderSelectionMarker(snapshot);
+  }
+
+  private clearSelectionRing(): void {
+    if (this.selectionRing) {
+      this.tweens.killTweensOf(this.selectionRing);
+      if (this.selectionRing.scene) this.selectionRing.destroy();
+      this.selectionRing = null;
+    }
+    this.selectionAbitanteId = null;
+  }
+
+  private renderSelectionMarker(snapshot: PhaserMapSnapshot): void {
+    const id = snapshot.selectedAbitanteId ?? null;
+    if (id == null) {
+      this.clearSelectionRing();
+      return;
+    }
+    const view = this.characterViews.get(id);
+    if (!view) {
+      this.clearSelectionRing();
+      return;
+    }
+    const same = this.selectionRing != null && this.selectionAbitanteId === id && this.selectionRing.parentContainer === view.root;
+    if (same) return;
+    this.clearSelectionRing();
+    this.selectionAbitanteId = id;
+    const s = snapshot.cellSize;
+    const ring = this.add.ellipse(0, s * 0.25, s * 0.78, s * 0.3, 0x22c55e, 0.38).setStrokeStyle(2.5, 0x86efac, 0.95);
+    view.root.addAt(ring, 0);
+    this.selectionRing = ring;
   }
 
   private directionForStep(from: number, to: number, cols: number): 0 | 1 | 2 | 3 {
