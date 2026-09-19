@@ -92,7 +92,7 @@ export type Abitante = {
   ceto?: Casta;
   ruoloSchiavitu?: "schiavista" | "schiavo"; // Ruolo nella schiavitù
   schiavistaId?: number; // ID dello schiavista (se è schiavo)
-  religione: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto degli Alieni"; // Religione dell'abitante
+  religione: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto delle Ombre" | string; // Religione (canonica o creata dal giocatore)
   /** Livello scolastico (Asilo → Università). */
   titoloStudio?: TitoloDiStudio;
   specie?: "umano" | "alieno"; // Specie dell'abitante (alieno = non Umano)
@@ -195,6 +195,8 @@ export type Edificio = {
   stipendioPerLavoratore?: number;
   /** Solo Serra: id oggetto Cibo vegetale prodotto (1 unità/giorno). */
   colturaItemId?: string;
+  /** Solo Chiesa: religione del tempio (non Ateo/Deista/Agnostico). */
+  religioneTempio?: string;
   /** 0–100: avanzamento cantiere (solo se stato === "In costruzione"). Completato dagli edili dell'Ufficio Edile. */
   progressoCostruzione?: number;
 };
