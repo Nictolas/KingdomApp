@@ -541,7 +541,8 @@ export class KingdomMapScene extends Phaser.Scene {
             }
             const pos = this.characterPosition(destination, snapshot);
             view.direction = this.directionForStep(view.logicalCell, destination, snapshot.cols);
-            this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => { view.root.setDepth(Math.round(view.root.y * 10)); this.characterLayer?.sort("depth"); }, onComplete: () => { view.logicalCell = destination; this.ensureIdleRoamScheduled(characterId); } });
+            this.chatBusy.add(characterId);
+            this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => { view.root.setDepth(Math.round(view.root.y * 10)); this.characterLayer?.sort("depth"); }, onComplete: () => { view.logicalCell = destination; this.chatBusy.delete(characterId); this.ensureIdleRoamScheduled(characterId); } });
             return;
           }
         }
