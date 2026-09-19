@@ -57,7 +57,7 @@ export default function LavoriOccupazioneScreen() {
   }
 
   return (
-    <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
+    <SafeAreaView style={[styles.safe, maxHeight != null ? { maxHeight, overflow: "hidden" } : undefined]}>
       <View style={styles.header}>
         <Text style={styles.back} onPress={() => router.push("/lavori")}>← Lavori</Text>
         <Text style={styles.title}>{lavoro}</Text>
