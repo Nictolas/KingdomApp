@@ -23,6 +23,9 @@ export const LPC_FRAME_CROWN_OVERFLOW = 22;
 /** Vertical idle bob baked into LPC column 1 at 64px frame height. */
 export const LPC_IDLE_BOB_PX = 2;
 
+/** Offset verticale sul frame LPC 64×64 per allineare la barba al corpo child. */
+export const CHILD_BEARD_OFFSET_Y_PX = 6;
+
 export function lpcSpriteTopOverflowPx(displayFrameSize: number, frameWidth = 64): number {
   return Math.round(displayFrameSize * (LPC_FRAME_CROWN_OVERFLOW + LPC_IDLE_BOB_PX) / frameWidth);
 }
