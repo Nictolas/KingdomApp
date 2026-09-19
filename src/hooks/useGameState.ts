@@ -30,6 +30,7 @@ import { PENA_REATI_INIZIALE, type PenaReatiConfig, type ReatoPunibile } from ".
 import { generaAssimilati } from "../game/assimilazione";
 import { calcolaProduzioneConsumoPuro } from "../game/produzioneConsumo";
 import { calcolaFelicitàModificataPuro } from "../game/felicita";
+import { applicaEsitoChiacchieraSuLista } from "../game/relazioneChiacchiera";
 import { getEdificioAbitazione } from "../game/abitanteEdifici";
 import { generaImmigratiProposti } from "../game/immigrazione";
 import { getLavoroPerEdificio, autoAssegnaCittadiniDisoccupati, normalizzaLavoroEAgricoltura, edificioAccettaServiDellaGleba, isEdificioPubblicoConPostazioniLavoro, assumiCittadinoDisoccupatoInEdificio } from "../game/edificiLavoro";
@@ -1017,6 +1018,10 @@ export function useGameState() {
   }, []);
 
   /** Accredita monete al tesoro (sink bar/negozio → stipendi). */
+  const applicaEsitoChiacchieraAbitanti = useCallback((idA: number, idB: number) => {
+    setAbitanti((prev) => applicaEsitoChiacchieraSuLista(prev, idA, idB));
+  }, []);
+
   const accreditaMoneteGiocatore = useCallback((quantità: number) => {
     const q = Math.floor(quantità);
     if (q <= 0) return;
@@ -1488,6 +1493,7 @@ export function useGameState() {
     rimuoviMinistro,
     setNomeAbitante,
     aggiornaAbitanteById,
+    applicaEsitoChiacchieraAbitanti,
     accreditaMoneteGiocatore,
     appendDiarioRiga,
     setInventarioMensaEdificio,
