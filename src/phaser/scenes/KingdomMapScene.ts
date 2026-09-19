@@ -535,15 +535,18 @@ export class KingdomMapScene extends Phaser.Scene {
           const bCol = otherView.logicalCell % snapshot.cols, bRow = Math.floor(otherView.logicalCell / snapshot.cols);
           const distance = Math.abs(aCol - bCol) + Math.abs(aRow - bRow);
           if (distance > 1 && Math.random() < 0.35) {
-            const stepCol = aCol + Math.sign(bCol - aCol);
-            const stepRow = bCol === aCol ? aRow + Math.sign(bRow - aRow) : aRow;
-            const destination = stepRow * snapshot.cols + stepCol;
-            const destinationOccupied = [...this.characterViews.entries()].some(([id, candidate]) => id !== characterId && candidate.logicalCell === destination);
-            const destinationIsDoor = snapshot.buildings.some((building) => {
-              const entries = building.geometry.entryPoints ?? [building.geometry.doorCell];
-              return entries.includes(destination);
+            const approachCandidates: number[] = [];
+            if (bCol !== aCol) approachCandidates.push(aRow * snapshot.cols + aCol + Math.sign(bCol - aCol));
+            if (bRow !== aRow) approachCandidates.push((aRow + Math.sign(bRow - aRow)) * snapshot.cols + aCol);
+            const destination = approachCandidates.find((cell) => {
+              const occupied = [...this.characterViews.entries()].some(([id, candidate]) => id !== characterId && candidate.logicalCell === cell);
+              const doorway = snapshot.buildings.some((building) => {
+                const entries = building.geometry.entryPoints ?? [building.geometry.doorCell];
+                return entries.includes(cell);
+              });
+              return !occupied && !doorway && this.bridge.attemptCharacterIdleStep(characterId, view.logicalCell, cell);
             });
-            if (destinationOccupied || destinationIsDoor || !this.bridge.attemptCharacterIdleStep(characterId, view.logicalCell, destination)) {
+            if (destination == null) {
               this.ensureIdleRoamScheduled(characterId);
               return;
             }
