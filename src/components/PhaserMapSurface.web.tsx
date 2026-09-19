@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import React, { forwardRef, useCallback, useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Asset } from "expo-asset";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
@@ -55,8 +55,13 @@ type Props = PhaserMapActions & {
   snapshot: PhaserMapSnapshot;
 };
 
+export type PhaserMapSurfaceHandle = {
+  refreshViewport: () => void;
+  centerOnCell: (cellIndex: number, options?: { zoomIn?: boolean }) => void;
+};
+
 /** Superficie WebGL. React le passa dati e azioni, senza partecipare al render loop. */
-export function PhaserMapSurface({
+export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(function PhaserMapSurface({
   snapshot,
   onCellPress,
   onCellHover,
@@ -70,7 +75,7 @@ export function PhaserMapSurface({
   onCharacterChatFinished,
   onCharacterAssetsReady,
   onDragStateChange
-}: Props) {
+}, ref) {
   const hostRef = useRef<HTMLDivElement | null>(null);
   const runtimeRef = useRef<{
     game: import("phaser").Game;
@@ -79,6 +84,25 @@ export function PhaserMapSurface({
   const [charactersReady, setCharactersReady] = useState(false);
   const onCharacterAssetsReadyRef = useRef(onCharacterAssetsReady);
   onCharacterAssetsReadyRef.current = onCharacterAssetsReady;
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      refreshViewport: () => {
+        const runtime = runtimeRef.current;
+        const host = hostRef.current;
+        if (!runtime || !host) return;
+        const width = host.clientWidth;
+        const height = host.clientHeight;
+        if (width > 0 && height > 0) runtime.game.scale.resize(width, height);
+        runtime.bridge.refreshViewport();
+      },
+      centerOnCell: (cellIndex, options) => {
+        runtimeRef.current?.bridge.centerOnCell(cellIndex, options);
+      }
+    }),
+    []
+  );
 
   const markCharactersReady = useCallback(() => {
     setCharactersReady(true);
@@ -169,7 +193,7 @@ export function PhaserMapSurface({
       ) : null}
     </View>
   );
-}
+});
 
 const hostStyle: React.CSSProperties = {
   position: "absolute",
