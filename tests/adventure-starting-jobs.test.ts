@@ -23,6 +23,7 @@ test("Avventura ripristina Consigliere, Edile e Minatori iniziali", () => {
 
     // Il Monetiere viene assegnato solo se resta un candidato dopo Re,
     // Consigliere, tutti gli Agricoltori, Edile e 2 Minatori.
+    // Gli Agricoltori casuali aggiuntivi possono quindi occupare gli ultimi posti disponibili.
     assert.ok(monetieri.length <= 1);
 
     const ruoli = new Set(
