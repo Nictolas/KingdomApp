@@ -215,6 +215,10 @@ export class KingdomMapScene extends Phaser.Scene {
     this.renderSnapshot(this.bridge.getSnapshot());
     this.tryNotifyCharacterAssetsReady(this.bridge.getSnapshot());
     this.configureCameraAndInput();
+    this.bridge.registerSceneControls({
+      refreshViewport: () => this.refreshViewportAfterFocus(),
+      centerOnCell: (cellIndex, options) => this.centerCameraOnCell(cellIndex, options)
+    });
     this.unsubscribe = this.bridge.subscribe(() => {
       const snapshot = this.bridge.getSnapshot();
       if (snapshot.revision !== this.renderedRevision || this.renderedSnapshot == null) {
@@ -231,6 +235,7 @@ export class KingdomMapScene extends Phaser.Scene {
       this.tryNotifyCharacterAssetsReady(snapshot);
     });
     this.events.once(Phaser.Scenes.Events.SHUTDOWN, () => {
+      this.bridge.registerSceneControls(null);
       this.unsubscribe?.();
       this.unsubscribeSimTime?.();
       this.unsubscribeSimTime = null;
@@ -991,11 +996,27 @@ export class KingdomMapScene extends Phaser.Scene {
     this.locateCell = null;
   }
 
-  private centerCameraOnCell(cell: number): void {
+  private refreshViewportAfterFocus(): void {
+    const snapshot = this.bridge.getSnapshot();
+    const parent = this.scale.parentSize;
+    if (parent.width > 0 && parent.height > 0) {
+      this.scale.resize(parent.width, parent.height);
+    }
+    this.configureTextureFrames(snapshot);
+    this.renderedRevision = -1;
+    this.renderSnapshot(snapshot);
+    this.characterVisibilityDirty = true;
+    this.waterViewportDirty = true;
+    this.staticTileVisibilityDirty = true;
+  }
+
+  private centerCameraOnCell(cell: number, options?: { zoomIn?: boolean }): void {
     const snapshot = this.bridge.getSnapshot();
     if (cell < 0 || cell >= snapshot.cols * snapshot.rows) return;
     const camera = this.cameras.main;
-    camera.setZoom(Math.max(camera.zoom, 1.35));
+    if (options?.zoomIn !== false) {
+      camera.setZoom(Math.max(camera.zoom, 1.35));
+    }
     camera.centerOn(
       (cell % snapshot.cols + 0.5) * snapshot.cellSize,
       (Math.floor(cell / snapshot.cols) + 0.5) * snapshot.cellSize
