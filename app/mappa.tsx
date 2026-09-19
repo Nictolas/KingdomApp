@@ -117,7 +117,10 @@ import { PhaserMapSurface } from "../src/components/PhaserMapSurface";
 import { buildPhaserMapSnapshot } from "../src/phaser/adapters/buildPhaserMapSnapshot";
 import { findBuildingForInteriorCell } from "../src/game/buildingGeometry";
 import { assignUniqueCharacterCells } from "../src/game/characterCellOccupancy";
-import { setUltimaCellaAbitanteRuntime } from "../src/game/mappaPersonaggiRuntimeStore";
+import {
+  getMappaPersonaggiRuntime,
+  setUltimaCellaAbitanteRuntime
+} from "../src/game/mappaPersonaggiRuntimeStore";
 import type { PhaserMapCharacter, PhaserMapInteraction } from "../src/phaser/adapters/mapSceneBridge";
 import { MondoLoadingScreen } from "../src/components/MondoLoadingScreen";
 import {
@@ -1428,7 +1431,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     return m;
   }, [abitanti, edifici, edificiInMappa, residenzeMappa]);
 
-  const ultimaCellaAbitanteRef = useRef<Map<number, number>>(new Map());
+  const ultimaCellaAbitanteRef = useRef<Map<number, number>>(
+    new Map(
+      Object.entries(getMappaPersonaggiRuntime().ultimaCellaByAbitanteId).map(([id, cell]) => [
+        Number(id),
+        cell
+      ])
+    )
+  );
   /** Minuti assoluti (giorno*1440 + ora) dell’ultimo tentativo di rapina per abitante. */
   const ultimoTentativoRapinaAbsRef = useRef<Map<number, number>>(new Map());
   /** Esito testo scheda dopo una rapina risolta. */
