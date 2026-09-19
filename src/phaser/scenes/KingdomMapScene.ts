@@ -627,7 +627,6 @@ export class KingdomMapScene extends Phaser.Scene {
         moveNext(0);
       }
     }
-    }
     this.characterVisibilityDirty = true;
     this.renderSelectionMarker(snapshot);
   }
