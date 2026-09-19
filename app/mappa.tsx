@@ -3083,6 +3083,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     [phaserBaseSnapshot, phaserCharacters, phaserInteraction, sintesiMappaAbitanteId, mostraGrigliaMappa, orologioInPausa]
   );
 
+  const tryPhaserIdleStep = useCallback(
+    (abitanteId: number, _fromCell: number, toCell: number) => {
+      const tile = phaserTiles[toCell];
+      if (!tile || tile.terrain === "water") return false;
+      const insideBuilding = phaserBuildings.some((building) => building.geometry.cells.includes(toCell));
+      if (insideBuilding) return false;
+      const occupied = phaserCharacters.some((character) => character.id !== abitanteId && character.cell === toCell);
+      return !occupied;
+    },
+    [phaserTiles, phaserBuildings, phaserCharacters]
+  );
+
   const handlePhaserCharacterPathComplete = useCallback((abitanteId: number, token: number) => {
     const meta = commuteByAbitanteId[abitanteId];
     if (!meta || meta.token !== token) return;
@@ -3312,6 +3324,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               onCharacterPress={handlePhaserCharacterPress}
               onCharacterDoublePress={handlePhaserCharacterDoublePress}
               onCharacterPathComplete={handlePhaserCharacterPathComplete}
+              onCharacterIdleStepAttempt={tryPhaserIdleStep}
               onDragStateChange={handlePhaserDragStateChange}
             />
           </View>
