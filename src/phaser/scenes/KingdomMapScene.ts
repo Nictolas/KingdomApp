@@ -211,6 +211,16 @@ export class KingdomMapScene extends Phaser.Scene {
     return ids.length > 0 && ids.every((id) => this.textures.exists(id));
   }
 
+  private playLpcLayerWalk(sprite: Phaser.GameObjects.Sprite, sourceId: string, direction: "down" | "left" | "right" | "up"): void {
+    if (!sprite.active || !this.textures.exists(sourceId)) return;
+    const key = `${sourceId}-walk-${direction}`;
+    if (!this.anims.exists(key)) {
+      const row = LPC_DIRECTION_ROWS[direction];
+      this.anims.create({ key, frames: Array.from({ length: 9 }, (_, column) => ({ key: sourceId, frame: row * 9 + column })), frameRate: 10, repeat: -1 });
+    }
+    sprite.play(key, true);
+  }
+
   private configureCharacterAnimations(): void {
     for (const texture of [HUMAN_KEY, GOLEM_KEY]) {
       for (const [name, direction] of [["down", 0], ["left", 1], ["right", 2], ["up", 3]] as const) {
@@ -422,13 +432,31 @@ export class KingdomMapScene extends Phaser.Scene {
               duration: 320,
               ease: "Linear",
               onStart: () => {
-                animatedView.sprite.play(`${animatedView.sprite.texture.key}-walk-${this.directionName(direction)}`, true);
+                const directionName = this.directionName(direction);
+                if (animatedView.usesLpc && character.characterAppearance) {
+                  const layers = resolveCharacterLayers(character.characterAppearance, "walk");
+                  animatedView.sprites.forEach((layerSprite, layerIndex) => {
+                    const layer = layers[layerIndex];
+                    if (!layer || !this.textures.exists(layer.sourceId)) { layerSprite.setVisible(false); return; }
+                    layerSprite.setVisible(true).setTexture(layer.sourceId);
+                    this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName);
+                  });
+                } else animatedView.sprite.play(`${animatedView.sprite.texture.key}-walk-${directionName}`, true);
                 animatedView.direction = direction;
               }
             };
           }),
           onComplete: () => {
-            animatedView.sprite.stop().setFrame(animatedView.direction);
+            if (animatedView.usesLpc && character.characterAppearance) {
+              const layers = resolveCharacterLayers(character.characterAppearance, "idle");
+              const directionName = this.directionName(animatedView.direction);
+              animatedView.sprites.forEach((layerSprite, layerIndex) => {
+                const layer = layers[layerIndex];
+                layerSprite.anims.stop();
+                if (!layer || !this.textures.exists(layer.sourceId)) { layerSprite.setVisible(false); return; }
+                layerSprite.setVisible(true).setTexture(layer.sourceId).setFrame(LPC_DIRECTION_ROWS[directionName] * 2);
+              });
+            } else animatedView.sprite.stop().setFrame(animatedView.direction);
             this.bridge.completeCharacterPath(character.id, token);
           }
         });
