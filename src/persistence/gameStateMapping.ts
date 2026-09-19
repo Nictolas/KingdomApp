@@ -71,6 +71,7 @@ export type PersistableGameState = {
   richiesteInAttesa: RichiestaInAttesa[];
   luoghiCultoRifiutati: ReligioneConCulto[];
   luoghiCultoPendentiMappa: GameSaveV1["events"]["luoghiCultoPendentiMappa"];
+  obiettiviCompletati: string[];
   mappa: MappaRuntimeState;
 };
 
@@ -149,7 +150,8 @@ export function gameStateToGameSaveV1(state: PersistableGameState): GameSaveV1 {
       pendingRichiestaLuogoCulto: state.pendingRichiestaLuogoCulto,
       richiesteInAttesa: state.richiesteInAttesa,
       luoghiCultoRifiutati: state.luoghiCultoRifiutati,
-      luoghiCultoPendentiMappa: state.luoghiCultoPendentiMappa
+      luoghiCultoPendentiMappa: state.luoghiCultoPendentiMappa,
+      obiettiviCompletati: state.obiettiviCompletati
     },
     map: state.mappa
   });
@@ -172,6 +174,7 @@ export function gameSaveV1ToGameState(save: GameSaveV1): PersistableGameState {
     ...normalized.simulationCursors,
     ...normalized.policies,
     ...normalized.events,
+    obiettiviCompletati: normalized.events.obiettiviCompletati ?? [],
     mappa: normalized.map
   };
 }
