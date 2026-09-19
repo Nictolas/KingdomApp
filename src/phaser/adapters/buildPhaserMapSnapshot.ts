@@ -16,6 +16,7 @@ import {
   sandWaterEdgeMaskAt
 } from "../../game/terrainSpriteHelpers";
 import type { MappaRuntimeState } from "../../game/mappaTypes";
+import type { Edificio } from "../../types";
 import type { PhaserMapBuilding, PhaserMapCharacter, PhaserMapSnapshot, PhaserMapTile } from "./mapSceneBridge";
 
 const BUILDING_EMOJI: Record<string, string> = {
@@ -109,9 +110,11 @@ function artKeyForBuilding(name: string): PhaserMapBuilding["artKey"] {
 export function buildPhaserBuildings(
   state: MappaRuntimeState,
   cols: number,
-  rows?: number
+  rows?: number,
+  edificiGlobali: readonly Pick<Edificio, "id" | "stato" | "progressoCostruzione">[] = []
 ): PhaserMapBuilding[] {
   const buildings: PhaserMapBuilding[] = [];
+  const byId = new Map(edificiGlobali.map((e) => [e.id, e]));
   const effectiveRows =
     rows ?? Math.max(1, ...Object.keys(state.edificiInMappa).map((key) => Math.floor(Number(key) / cols) + 3));
   for (const [indexText, building] of Object.entries(state.edificiInMappa)) {
@@ -120,17 +123,22 @@ export function buildPhaserBuildings(
     const footprint = building.footprint ?? { w: 1, h: 1 };
     const col = anchor % cols;
     if (col + footprint.w > cols) continue;
+    const globaleId = building.edificioGlobaleId ?? building.id;
+    const globale = byId.get(globaleId);
+    const underConstruction = globale?.stato === "In costruzione";
     buildings.push({
       anchor,
       widthCells: footprint.w,
       heightCells: footprint.h,
       name: building.nome,
-      emoji: building.emoji || BUILDING_EMOJI[building.nome] || "🏢",
+      emoji: underConstruction ? "🏗️" : building.emoji || BUILDING_EMOJI[building.nome] || "🏢",
       category: categoryForBuilding(building.nome),
-      artKey: artKeyForBuilding(building.nome),
+      artKey: underConstruction ? undefined : artKeyForBuilding(building.nome),
       geometry: deriveBuildingGeometry(anchor, footprint.w, footprint.h, cols, effectiveRows, {
         ingressoPerimetrale: edificioHaIngressoPerimetrale(building.nome)
-      })
+      }),
+      underConstruction,
+      progressoCostruzione: underConstruction ? (globale?.progressoCostruzione ?? 0) : undefined
     });
   }
   return buildings.sort((a, b) => {
@@ -146,7 +154,8 @@ export function buildPhaserMapSnapshot(
   rows: number,
   cellSize: number,
   revision: number,
-  characters: readonly PhaserMapCharacter[] = []
+  characters: readonly PhaserMapCharacter[] = [],
+  edificiGlobali: readonly Pick<Edificio, "id" | "stato" | "progressoCostruzione">[] = []
 ): PhaserMapSnapshot {
   const stradaAssetAt = buildStradaAssetLookup(cols, rows, state.terrenoInMappa, state.edificiInMappa);
   const erbaAssetAt = buildErbaAssetLookup(
@@ -209,7 +218,7 @@ export function buildPhaserMapSnapshot(
     rows,
     cellSize,
     tiles,
-    buildings: buildPhaserBuildings(state, cols, rows),
+    buildings: buildPhaserBuildings(state, cols, rows, edificiGlobali),
     characters,
     revision
   };
