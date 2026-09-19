@@ -149,6 +149,7 @@ function calcolaPendingRichiestaLuogoCulto(
 
 export function useGameState() {
   const [gameMode, setGameMode] = useState<GameMode>("avventura");
+  const [obiettiviCompletati, setObiettiviCompletati] = useState<string[]>([]);
   const [gamePhase, setGamePhase] = useState<GamePhase>("loading");
   const gamePhaseRef = useRef<GamePhase>(gamePhase);
   gamePhaseRef.current = gamePhase;
@@ -666,6 +667,7 @@ export function useGameState() {
   const startNewGame = useCallback((mode: GameMode = "avventura") => {
     const colonia = generaColoniaIniziale(mode);
     setGameMode(mode);
+    setObiettiviCompletati([]);
     setAbitanti(colonia.abitanti);
     setRazzaNativi(colonia.razzaNativi);
     setEdifici(creaEdificiIniziali(colonia.abitanti, mode));
@@ -714,6 +716,7 @@ export function useGameState() {
 
   const restorePersistableState = useCallback((state: PersistableGameState) => {
     setGameMode(state.gameMode);
+    setObiettiviCompletati(state.obiettiviCompletati ?? []);
     gamePhaseRef.current = "restoring";
     setGamePhase("restoring");
     setOrologioGiocoBloccatoDallaFase(true);
@@ -799,7 +802,7 @@ export function useGameState() {
       redditoCittadinanza, modalitaSanita, ordiniMercato, eventiInCorso, soddisfazioneFazioni,
       pendingAssimilazione, pendingMatrimonio, messaggioEmigrazione, diarioRighe,
       capoReligiosoSole, capoReligiosoAlieni, pendingRichiestaLuogoCulto, richiesteInAttesa,
-      luoghiCultoRifiutati, luoghiCultoPendentiMappa, mappa
+      luoghiCultoRifiutati, luoghiCultoPendentiMappa, obiettiviCompletati, mappa
     };
   }, [gameMode, gamePhase, diarioInizioVisto, abitanti, abitantiProposti, nextId, razzaNativi, nativiNonIntegrati,
     edifici, risorse, inventarioGiocatore, inventarioMensaByEdificioId, moneteGiocatore, prezzoResidenze,
@@ -810,7 +813,8 @@ export function useGameState() {
     iusPrimaeNoctisAttivo, tipologieFamigliaAccettate, redditoCittadinanza, modalitaSanita,
     ordiniMercato, eventiInCorso, soddisfazioneFazioni, pendingAssimilazione, pendingMatrimonio,
     messaggioEmigrazione, diarioRighe, capoReligiosoSole, capoReligiosoAlieni,
-    pendingRichiestaLuogoCulto, richiesteInAttesa, luoghiCultoRifiutati, luoghiCultoPendentiMappa]);
+    pendingRichiestaLuogoCulto, richiesteInAttesa, luoghiCultoRifiutati, luoghiCultoPendentiMappa,
+    obiettiviCompletati]);
   const chiudiMessaggioEmigrazione = useCallback(() => setMessaggioEmigrazione(null), []);
 
   /**
@@ -1445,6 +1449,7 @@ export function useGameState() {
   return {
     gameMode,
     modalitaGioco: gameMode,
+    obiettiviCompletati,
     gamePhase,
     simulationEnabled,
     startNewGame,
