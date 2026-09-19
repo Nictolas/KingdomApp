@@ -88,6 +88,7 @@ import { provaCreaReligioneCustom, type ReligioneCustom } from "../game/fedeleCu
 import { assicuraReligioneTempioChiese } from "../game/chiesa";
 import { isSimulationRunning, type GamePhase } from "../game/gamePhase";
 import type { GameMode } from "../game/gameMode";
+import { filtraEdificiInizialiPerModalita } from "../game/edificiInizialiModalita";
 import type { PersistableGameState } from "../persistence/gameStateMapping";
 import type { MappaRuntimeState } from "../game/mappaTypes";
 import { setMappaSessione } from "../game/mappaSessione";
@@ -96,7 +97,7 @@ const statoIniziale = generaColoniaIniziale();
 const capoReligiosoSoleIniziale =
   statoIniziale.abitanti.find((a) => a.lavoro === "Capo Religioso" && a.religione === "Culto del Sole")?.id ?? null;
 
-function creaEdificiIniziali(abitantiIniziali: Abitante[]): Edificio[] {
+function creaEdificiIniziali(abitantiIniziali: Abitante[], mode: GameMode = "creativa"): Edificio[] {
   const tuttiId = abitantiIniziali.map((a) => a.id);
   const baraccaIds = abitantiIniziali.filter((a) => a.fazioni?.includes("Senzatetto")).map((a) => a.id);
   const dormitorioIds: number[] = [];
@@ -104,8 +105,7 @@ function creaEdificiIniziali(abitantiIniziali: Abitante[]): Edificio[] {
   const serraIds = agricoltore ? [agricoltore.id] : [];
   const prigionieriIds = abitantiIniziali.filter((a) => a.lavoro === "Prigioniero").map((a) => a.id);
   const capannaIds = tuttiId.filter((id) => !baraccaIds.includes(id));
-  return edificiData
-    .filter((e) => e.tipo !== "Luogo di Culto")
+  return filtraEdificiInizialiPerModalita(edificiData, mode)
     .map((e) => {
       let next: Edificio = e;
       if (e.id === 4) next = { ...e, abitantiAssegnati: baraccaIds, occupazione: baraccaIds.length };
@@ -667,7 +667,7 @@ export function useGameState() {
     setGameMode(mode);
     setAbitanti(colonia.abitanti);
     setRazzaNativi(colonia.razzaNativi);
-    setEdifici(creaEdificiIniziali(colonia.abitanti));
+    setEdifici(creaEdificiIniziali(colonia.abitanti, mode));
     setNextId(colonia.abitanti.length + 100);
     gamePhaseRef.current = "commander-creation";
     setGamePhase("commander-creation");
