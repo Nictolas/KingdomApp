@@ -600,6 +600,7 @@ export class KingdomMapScene extends Phaser.Scene {
             this.chatBusy.delete(nearby.id);
             this.bridge.notifyCharacterChatChange(characterId, null);
             this.bridge.notifyCharacterChatChange(nearby.id, null);
+            this.bridge.notifyCharacterChatFinished(characterId, nearby.id);
             this.ensureIdleRoamScheduled(characterId);
             this.ensureIdleRoamScheduled(nearby.id);
           });
