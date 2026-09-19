@@ -115,6 +115,11 @@ export type PhaserMapActions = {
   onDragStateChange?: (dragging: boolean) => void;
 };
 
+export type PhaserMapSceneControls = {
+  refreshViewport: () => void;
+  centerOnCell: (cellIndex: number, options?: { zoomIn?: boolean }) => void;
+};
+
 type Listener = () => void;
 
 /**
@@ -124,6 +129,7 @@ type Listener = () => void;
 export class MapSceneBridge {
   private snapshot: PhaserMapSnapshot;
   private actions: PhaserMapActions;
+  private sceneControls: PhaserMapSceneControls | null = null;
   private readonly listeners = new Set<Listener>();
 
   constructor(snapshot: PhaserMapSnapshot, actions: PhaserMapActions) {
@@ -141,6 +147,18 @@ export class MapSceneBridge {
 
   setActions(actions: PhaserMapActions): void {
     this.actions = actions;
+  }
+
+  registerSceneControls(controls: PhaserMapSceneControls | null): void {
+    this.sceneControls = controls;
+  }
+
+  refreshViewport(): void {
+    this.sceneControls?.refreshViewport();
+  }
+
+  centerOnCell(cellIndex: number, options?: { zoomIn?: boolean }): void {
+    this.sceneControls?.centerOnCell(cellIndex, options);
   }
 
   subscribe(listener: Listener): () => void {
