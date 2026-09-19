@@ -1164,6 +1164,16 @@ export class KingdomMapScene extends Phaser.Scene {
         continue;
       }
 
+      if (building.name === "Bosco") {
+        this.renderBoscoBuilding(base, overlay, width, height, snapshot.cellSize);
+        continue;
+      }
+
+      if (building.name === "Ponte") {
+        this.renderWoodenBridge(base, overlay, width, height, snapshot.cellSize);
+        continue;
+      }
+
       if (building.artKey) {
         const image = this.add.image(width / 2, height, building.artKey).setOrigin(0.5, 1);
         const scale = Math.min(
@@ -1260,6 +1270,149 @@ export class KingdomMapScene extends Phaser.Scene {
     }
 
     this.worldLayer.sort("depth");
+  }
+
+  /** Ponte basso in legno: assi, traverse e parapetti senza coprire il fiume. */
+  private renderWoodenBridge(
+    base: Phaser.GameObjects.Container,
+    overlay: Phaser.GameObjects.Container,
+    width: number,
+    height: number,
+    cellSize: number
+  ): void {
+    const g = this.add.graphics();
+    const margin = Math.max(2, Math.round(cellSize * 0.08));
+    const deckTop = margin + Math.round(cellSize * 0.17);
+    const deckH = height - deckTop - margin;
+
+    g.fillStyle(0x1c120b, 0.35).fillRoundedRect(margin + 2, deckTop + 3, width - margin * 2, deckH, 2);
+    g.fillStyle(0x5a351d, 1).fillRoundedRect(margin, deckTop, width - margin * 2, deckH, 2);
+    g.lineStyle(1, 0x2b190e, 1).strokeRoundedRect(margin, deckTop, width - margin * 2, deckH, 2);
+
+    const plankCount = 6;
+    const plankW = (width - margin * 2) / plankCount;
+    for (let i = 0; i < plankCount; i++) {
+      const x = margin + i * plankW;
+      g.fillStyle(i % 2 === 0 ? 0xa76636 : 0x8b4f29, 1).fillRect(x + 1, deckTop + 2, plankW - 1, deckH - 4);
+      g.lineStyle(1, 0x4a2a16, 0.85).lineBetween(x, deckTop + 1, x, deckTop + deckH - 1);
+      g.fillStyle(0xd6a060, 0.7).fillCircle(x + plankW * 0.5, deckTop + 5, 1);
+      g.fillStyle(0x2c1a10, 0.9).fillCircle(x + plankW * 0.5, deckTop + deckH - 5, 1);
+    }
+
+    g.fillStyle(0x3b2415, 1).fillRect(margin, deckTop + 2, width - margin * 2, 3);
+    g.fillStyle(0x3b2415, 1).fillRect(margin, deckTop + deckH - 5, width - margin * 2, 3);
+    base.add(g);
+
+    const rail = this.add.graphics();
+    rail.lineStyle(3, 0x4a2a16, 1);
+    rail.lineBetween(margin, deckTop, width - margin, deckTop);
+    rail.lineBetween(margin, deckTop + deckH, width - margin, deckTop + deckH);
+    rail.lineStyle(1, 0xc4864c, 1);
+    rail.lineBetween(margin, deckTop - 1, width - margin, deckTop - 1);
+    for (let i = 0; i <= 4; i++) {
+      const x = margin + ((width - margin * 2) * i) / 4;
+      rail.fillStyle(0x6b3d21, 1).fillRect(x - 2, deckTop - 4, 4, 8);
+      rail.fillRect(x - 2, deckTop + deckH - 4, 4, 8);
+    }
+    overlay.add(rail);
+  }
+
+  /** Bosco con suolo, alberi e chiome anteriori su overlay per l'occlusione. */
+  private renderBoscoBuilding(
+    base: Phaser.GameObjects.Container,
+    overlay: Phaser.GameObjects.Container,
+    width: number,
+    height: number,
+    cellSize: number
+  ): void {
+    const g = this.add.graphics();
+    g.fillStyle(0x14532d, 1).fillRect(0, 0, width, height);
+    g.fillStyle(0x166534, 0.85).fillRect(0, height * 0.35, width * 0.55, height * 0.65);
+    g.fillStyle(0x15803d, 0.8).fillRect(width * 0.5, height * 0.28, width * 0.5, height * 0.72);
+    g.fillStyle(0x3f6212, 0.55).fillRect(0, height * 0.72, width, height * 0.28);
+
+    type TreeSpec = { x: number; y: number; scale: number; crown: number; trunk: number };
+    const crowns = [0x166534, 0x15803d, 0x14532d, 0x22c55e, 0x4d7c0f, 0x3f6212] as const;
+    const trunks = [0x5c3a1e, 0x6b4423, 0x4a2f14] as const;
+    const treeCount = Math.max(6, Math.round(width / (cellSize * 0.85)));
+    const trees: TreeSpec[] = [];
+
+    for (let i = 0; i < treeCount; i++) {
+      const t = (i + 0.5) / treeCount;
+      trees.push({
+        x: 0.04 + t * 0.92,
+        y: 0.45 + ((i * 17) % 5) * 0.08,
+        scale: 0.75 + ((i * 11) % 5) * 0.08,
+        crown: crowns[i % crowns.length]!,
+        trunk: trunks[i % trunks.length]!
+      });
+    }
+
+    for (const tree of trees) {
+      const cx = width * tree.x;
+      const baseY = height * tree.y;
+      const trunkW = Math.max(3, cellSize * 0.14 * tree.scale);
+      const trunkH = cellSize * 0.42 * tree.scale;
+      const crownR = cellSize * 0.48 * tree.scale;
+
+      g.fillStyle(tree.trunk, 1).fillRect(cx - trunkW / 2, baseY - trunkH, trunkW, trunkH);
+      g.fillStyle(tree.crown, 1).fillTriangle(
+        cx,
+        baseY - trunkH - crownR * 1.35,
+        cx - crownR * 0.95,
+        baseY - trunkH + crownR * 0.15,
+        cx + crownR * 0.95,
+        baseY - trunkH + crownR * 0.15
+      );
+      g.fillStyle(0x052e16, 0.35).fillTriangle(
+        cx,
+        baseY - trunkH - crownR * 0.85,
+        cx - crownR * 0.7,
+        baseY - trunkH + crownR * 0.05,
+        cx + crownR * 0.55,
+        baseY - trunkH + crownR * 0.05
+      );
+      g.fillStyle(0x86efac, 0.28).fillCircle(
+        cx - crownR * 0.15,
+        baseY - trunkH - crownR * 0.55,
+        crownR * 0.22
+      );
+    }
+
+    g.fillStyle(0xa3e635, 0.22);
+    g.fillEllipse(width * 0.18, height * 0.88, cellSize * 0.55, cellSize * 0.28);
+    g.fillEllipse(width * 0.82, height * 0.86, cellSize * 0.48, cellSize * 0.24);
+    g.fillStyle(0x365314, 0.4).fillEllipse(width * 0.5, height * 0.94, width * 0.7, cellSize * 0.32);
+    base.add(g);
+
+    const canopy = this.add.graphics();
+    const frontCount = Math.max(3, Math.round(treeCount / 3));
+    for (let i = 0; i < frontCount; i++) {
+      const t = (i + 0.5) / frontCount;
+      const tree = {
+        x: 0.08 + t * 0.84,
+        y: 0.88 + ((i * 3) % 2) * 0.04,
+        scale: 0.8 + ((i * 7) % 3) * 0.06,
+        crown: crowns[(i + 2) % crowns.length]!,
+        trunk: trunks[i % trunks.length]!
+      };
+      const cx = width * tree.x;
+      const baseY = height * tree.y;
+      const trunkW = Math.max(3, cellSize * 0.12 * tree.scale);
+      const trunkH = cellSize * 0.36 * tree.scale;
+      const crownR = cellSize * 0.42 * tree.scale;
+
+      canopy.fillStyle(tree.trunk, 1).fillRect(cx - trunkW / 2, baseY - trunkH, trunkW, trunkH);
+      canopy.fillStyle(tree.crown, 1).fillTriangle(
+        cx,
+        baseY - trunkH - crownR * 1.25,
+        cx - crownR * 0.9,
+        baseY - trunkH + crownR * 0.1,
+        cx + crownR * 0.9,
+        baseY - trunkH + crownR * 0.1
+      );
+    }
+    overlay.add(canopy);
   }
 
   /** Cantiere con avanzamento percentuale. */
