@@ -376,7 +376,7 @@ export function sincronizzaLavoroDaEdifici(
   });
 
   let changed = false;
-  const next = abitanti.map((a) => {
+  const next: Abitante[] = abitanti.map((a): Abitante => {
     if (a.lavoro === "Pensionato" || isGiocatore(a)) return a;
     if (OCCUPAZIONI_RIMOSSE.has(a.lavoro)) {
       changed = true;
