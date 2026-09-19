@@ -3044,8 +3044,55 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     celleProtetteIniziali
   ]);
 
+  const abitanteVisibileSuMappaPhaser = useCallback(
+    (abitante: Abitante) => {
+      const inCommute = commuteByAbitanteId[abitante.id] != null;
+
+      const nascostoLavoro =
+        abitanteInOrarioLavoroEdificio(abitante.id, orologioMinuti, edifici) &&
+        lavoroArrivatiIds.has(abitante.id) &&
+        !inCommute;
+
+      const nascostoBar =
+        abitanteAlBarRoutineOra(abitante, orologioMinuti, statoCielo.buio, edifici) &&
+        Object.values(barArrivatiByEdificio).some((ids) => ids.includes(abitante.id)) &&
+        !inCommute;
+
+      const nascostoCulto =
+        abitanteNascostoNelCultoOra(
+          abitante,
+          orologioMinuti,
+          statoCielo.buio,
+          cultoArrivatiByEdificio
+        ) && !inCommute;
+
+      const homeCell = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
+      const nascostoCasa =
+        !inCommute &&
+        èNottePersonaggiInCasa &&
+        homeCell !== null &&
+        dormonoACasaIds.has(abitante.id);
+
+      return !nascostoLavoro && !nascostoBar && !nascostoCulto && !nascostoCasa;
+    },
+    [
+      commuteByAbitanteId,
+      orologioMinuti,
+      edifici,
+      lavoroArrivatiIds,
+      statoCielo.buio,
+      barArrivatiByEdificio,
+      cultoArrivatiByEdificio,
+      cellaCasaPerAbitanteId,
+      èNottePersonaggiInCasa,
+      dormonoACasaIds
+    ]
+  );
+
   const phaserCharacters = useMemo<PhaserMapCharacter[]>(() =>
-    abitantiPerOverlayMappa.map((abitante, order) => {
+    abitantiPerOverlayMappa
+      .filter(abitanteVisibileSuMappaPhaser)
+      .map((abitante, order) => {
       const commute = commuteByAbitanteId[abitante.id];
       const home = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
       const fallback = (6 + Math.floor(order / 10) * 2) * cols + 3 + (order % 10) * 3;
@@ -3077,6 +3124,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     }),
   [
     abitantiPerOverlayMappa,
+    abitanteVisibileSuMappaPhaser,
     commuteByAbitanteId,
     cellaCasaPerAbitanteId,
     cols,
