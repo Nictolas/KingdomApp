@@ -209,12 +209,20 @@ export function generaAspettoCasuale(
 }
 
 /** Variante stabile per completare vecchi salvataggi senza cambiare volto a ogni caricamento. */
-export function generaAspettoDaSeed(razza: RazzaConAspetto, seed: number): AspettoPersonaggio {
+export function generaAspettoDaSeed(
+  razza: RazzaConAspetto,
+  seed: number,
+  contesto: { sesso?: "M" | "F" } = {}
+): AspettoPersonaggio {
   let state = (seed >>> 0) || 1;
-  return generaAspettoCasuale(razza, () => {
-    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
-    return state / 0x100000000;
-  });
+  return generaAspettoCasuale(
+    razza,
+    () => {
+      state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+      return state / 0x100000000;
+    },
+    contesto
+  );
 }
 
 
