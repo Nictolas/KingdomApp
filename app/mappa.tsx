@@ -928,7 +928,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     const seen = new Set<string>();
     const out: Edificio[] = [];
     for (const row of edificiData) {
-      if (row.nome === "Centro di Comando") continue;
+      if (row.nome === "Castello") continue;
       /** Una sola Baracca è supportata dalla sync globale Senzatetto → edificio. */
       if (row.nome === "Baracca") continue;
       if (seen.has(row.nome)) continue;
@@ -2864,7 +2864,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (celle.some((i) => celleProtetteIniziali.has(i))) {
         Alert.alert(
           "Non demolibile",
-          "Questo edificio fa parte della colonia iniziale e non può essere rimosso."
+          "Questo edificio fa parte del Regno iniziale e non può essere rimosso."
         );
         return;
       }
@@ -3334,7 +3334,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             <Text style={styles.bannerTitleEmoji}>🏰</Text>
             <View>
               <Text style={styles.bannerTitle}>MyKingdom</Text>
-              <Text style={styles.bannerSubtitle}>Gestisci la tua colonia</Text>
+              <Text style={styles.bannerSubtitle}>Gestisci il tuo Regno</Text>
             </View>
           </View>
           <View style={styles.badge}>
@@ -4251,8 +4251,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               <Text style={styles.modalSubtitle}>
                 Posti sulla mappa: {occupantiCasaMappaIds.length}/{POSTI_PER_CASA_MAPPA} · Cella #{selectedResidenzaAnchor}
                 {edificioResidenzaAperta?.nome === "Dormitorio"
-                  ? "\nPuoi assegnare chi è già nel Dormitorio coloniale o far entrare chi non ha ancora residenza (non i Senzatetto)."
-                  : "\nI Senzatetto sono tutti in Baracca a livello colonia: qui scegli chi associare a questa baracca (max 6)."}
+                  ? "\nPuoi assegnare chi è già nel Dormitorio del Regno o far entrare chi non ha ancora residenza (non i Senzatetto)."
+                  : "\nI Senzatetto sono tutti in Baracca a livello Regno: qui scegli chi associare a questa baracca (max 6)."}
               </Text>
               <Text style={styles.casaPostiTitolo}>Posti</Text>
               <ScrollView style={styles.modalList} nestedScrollEnabled>
