@@ -40,6 +40,11 @@ export type PhaserMapInteraction = {
   valid: boolean;
 };
 
+export type PhaserLocateMarker = {
+  cell: number;
+  abitanteId: number;
+};
+
 export type PhaserMapSnapshot = {
   cols: number;
   rows: number;
@@ -48,6 +53,8 @@ export type PhaserMapSnapshot = {
   buildings: readonly PhaserMapBuilding[];
   characters: readonly PhaserMapCharacter[];
   interaction?: PhaserMapInteraction;
+  /** Freccia Individua: segue l'abitante o punta la cella nota. */
+  locateMarker?: PhaserLocateMarker | null;
   /** Abitante selezionato col puntatore (cerchio sotto i piedi). */
   selectedAbitanteId?: number | null;
   showGrid?: boolean;
