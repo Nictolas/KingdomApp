@@ -63,6 +63,7 @@ import { abitanteDeveAndareAlCultoOra, abitanteNascostoNelCultoOra } from "../sr
 import { RichiesteModal } from "../src/ui/RichiesteModal";
 import { EventiModal } from "../src/ui/EventiModal";
 import { CantiereModal } from "../src/ui/CantiereModal";
+import { ObiettivoSbloccatoModal } from "../src/ui/ObiettivoSbloccatoModal";
 import { calcolaEventiUI } from "../src/game/eventiDisponibili";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import {
@@ -939,7 +940,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     capoReligiosoAlieni,
     coprifuocoAttivo,
     coprifuocoInizioMinuti,
-    coprifuocoFineMinuti
+    coprifuocoFineMinuti,
+    obiettiviCompletati
   } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
@@ -1075,6 +1077,25 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   /** Modal elenco edifici (pulsante Costruisci). */
   const [mostraModalCostruisci, setMostraModalCostruisci] = useState(false);
+  const [obiettivoSbloccato, setObiettivoSbloccato] = useState<{
+    titolo: string;
+    messaggio: string;
+    emoji?: string;
+  } | null>(null);
+  const obiettiviCompletatiPrevRef = useRef(obiettiviCompletati);
+
+  useEffect(() => {
+    const prev = obiettiviCompletatiPrevRef.current;
+    obiettiviCompletatiPrevRef.current = obiettiviCompletati;
+    if (!prev.includes("primo_ponte") && obiettiviCompletati.includes("primo_ponte")) {
+      setObiettivoSbloccato({
+        titolo: "Obiettivo Sbloccato!",
+        messaggio: "Il tuo primo Ponte è pronto e attraversabile!",
+        emoji: "🌉"
+      });
+    }
+  }, [obiettiviCompletati]);
+
   /** Modal richieste rimandate (pulsante Richieste). */
   const [mostraModalRichieste, setMostraModalRichieste] = useState(false);
   /** Modal catalogo eventi (pulsante Eventi). */
@@ -4294,6 +4315,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         visible={mostraModalEventi}
         input={eventiUIInput}
         onClose={() => setMostraModalEventi(false)}
+      />
+
+      <ObiettivoSbloccatoModal
+        visible={obiettivoSbloccato != null}
+        titolo={obiettivoSbloccato?.titolo ?? ""}
+        messaggio={obiettivoSbloccato?.messaggio ?? ""}
+        emoji={obiettivoSbloccato?.emoji}
+        onOk={() => setObiettivoSbloccato(null)}
+        onVediObiettivi={() => {
+          setObiettivoSbloccato(null);
+          router.push("/obiettivi");
+        }}
       />
 
       <CantiereModal
