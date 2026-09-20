@@ -89,6 +89,7 @@ type GameContextType = {
   etaPensionabile: number;
   assegnoPensionati: number;
   leggeDroghe: "vietate" | "legali" | "parziali";
+  nudismoAttivo: boolean;
   divietoEspatrioAttivo: boolean;
   iusPrimaeNoctisAttivo: boolean;
   /** Coprifuoco: divieto di stare «In giro» in una fascia oraria. */
@@ -124,6 +125,7 @@ type GameContextType = {
   setEtaPensionabile: (eta: number) => void;
   setAssegnoPensionati: (importo: number) => void;
   setLeggeDroghe: (legge: "vietate" | "legali" | "parziali") => void;
+  setNudismoAttivo: (attivo: boolean) => void;
   setDivietoEspatrioAttivo: (attivo: boolean) => void;
   setIusPrimaeNoctisAttivo: (attivo: boolean) => void;
   setCoprifuocoAttivo: (attivo: boolean) => void;

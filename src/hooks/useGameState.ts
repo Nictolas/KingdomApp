@@ -731,6 +731,7 @@ export function useGameState() {
   
   // Configurazione legge sulle droghe
   const [leggeDroghe, setLeggeDroghe] = useState<"vietate" | "legali" | "parziali">("vietate"); // Stato delle droghe
+  const [nudismoAttivo, setNudismoAttivo] = useState(false);
   
   // Configurazione divieto di espatrio
   const [divietoEspatrioAttivo, setDivietoEspatrioAttivo] = useState(false);
@@ -1283,6 +1284,7 @@ export function useGameState() {
     setEtaPensionabile(state.etaPensionabile);
     setAssegnoPensionati(state.assegnoPensionati);
     setLeggeDroghe(state.leggeDroghe);
+    setNudismoAttivo(state.nudismoAttivo ?? false);
     setDivietoEspatrioAttivo(state.divietoEspatrioAttivo);
     setCoprifuocoAttivo(state.coprifuocoAttivo);
     setCoprifuocoInizioMinutiState(state.coprifuocoInizioMinuti);
@@ -1321,7 +1323,7 @@ export function useGameState() {
       tipoTassaReddito, flatTaxPercentuale, scaglioniConfig, tassaPatrimonioPercentuale, ivaPercentuale, politicaNascite, punteggioSanzioni,
       penaDiMorteAttiva, penaReati, politicaReligiosa, religioneDiStato, religioniCustom, leggeRazzialeAttiva,
       razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, etaPensionabile, assegnoPensionati,
-      leggeDroghe, divietoEspatrioAttivo, coprifuocoAttivo, coprifuocoInizioMinuti,
+      leggeDroghe, nudismoAttivo, divietoEspatrioAttivo, coprifuocoAttivo, coprifuocoInizioMinuti,
       coprifuocoFineMinuti, iusPrimaeNoctisAttivo, tipologieFamigliaAccettate,
       redditoCittadinanza, modalitaSanita, ordiniMercato, eventiInCorso, soddisfazioneFazioni,
       modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso,
@@ -1335,7 +1337,7 @@ export function useGameState() {
     mese, anno, tipoTassaReddito, flatTaxPercentuale, scaglioniConfig, tassaPatrimonioPercentuale, ivaPercentuale, politicaNascite, punteggioSanzioni,
     penaDiMorteAttiva, penaReati, politicaReligiosa, religioneDiStato, religioniCustom, leggeRazzialeAttiva,
     razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, etaPensionabile, assegnoPensionati,
-    leggeDroghe, divietoEspatrioAttivo, coprifuocoAttivo, coprifuocoInizioMinuti, coprifuocoFineMinuti,
+    leggeDroghe, nudismoAttivo, divietoEspatrioAttivo, coprifuocoAttivo, coprifuocoInizioMinuti, coprifuocoFineMinuti,
     iusPrimaeNoctisAttivo, tipologieFamigliaAccettate, redditoCittadinanza, modalitaSanita,
     ordiniMercato, eventiInCorso, soddisfazioneFazioni,
     modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso,
@@ -2266,6 +2268,7 @@ export function useGameState() {
     etaPensionabile,
     assegnoPensionati,
     leggeDroghe,
+    nudismoAttivo,
     divietoEspatrioAttivo,
     coprifuocoAttivo,
     coprifuocoInizioMinuti,
@@ -2292,6 +2295,7 @@ export function useGameState() {
     setEtaPensionabile,
     setAssegnoPensionati,
     setLeggeDroghe,
+    setNudismoAttivo,
     setDivietoEspatrioAttivo,
     setCoprifuocoAttivo,
     setCoprifuocoInizioMinuti,
