@@ -739,6 +739,7 @@ export function useGameState() {
     ultimoGiornoPastiRef.current = 0;
     ultimoGiornoProduzioneSerraRef.current = 1;
     ultimoGiornoEconomiaPubblicaRef.current = 1;
+    setOrologioGiocoBloccatoDallaFase(true);
     restoreOrologioGioco({ giorno: 1, minutiDaMezzanotte: 6 * 60, pausaManuale: false });
     setTassaPatrimonioPercentuale(TASSA_PATRIMONIO_PERCENTUALE_DEFAULT);
     setIvaPercentuale(IVA_PERCENTUALE_DEFAULT);
