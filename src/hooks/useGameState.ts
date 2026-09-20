@@ -49,6 +49,10 @@ import {
 import { applicaZeccaGiornaliera } from "../game/zeccaProduzione";
 import { pagaStipendiImpresaGiornalieri } from "../game/impresaCassa";
 import {
+  creaInventarioEmporioIniziale,
+  normalizzaInventarioEmporio
+} from "../game/emporioVendita";
+import {
   ASSEGNO_PENSIONATI_DEFAULT,
   REDDITO_CITTADINANZA_DEFAULT,
   STIPENDIO_BASE_MONETE_MESE,
@@ -200,12 +204,17 @@ export function useGameState() {
   const [inventarioMensaByEdificioId, setInventarioMensaByEdificioId] = useState<
     Record<number, VoceInventario[]>
   >({});
+  const [inventarioEmporioByEdificioId, setInventarioEmporioByEdificioId] = useState<
+    Record<number, VoceInventario[]>
+  >({});
   const inventarioGiocatoreRef = useRef(inventarioGiocatore);
   const inventarioMensaRef = useRef(inventarioMensaByEdificioId);
+  const inventarioEmporioRef = useRef(inventarioEmporioByEdificioId);
   const moneteGiocatoreRef = useRef(moneteGiocatore);
   const abitantiRef = useRef(abitanti);
   inventarioGiocatoreRef.current = inventarioGiocatore;
   inventarioMensaRef.current = inventarioMensaByEdificioId;
+  inventarioEmporioRef.current = inventarioEmporioByEdificioId;
   moneteGiocatoreRef.current = moneteGiocatore;
   abitantiRef.current = abitanti;
   const [risorse, setRisorse] = useState<Risorsa[]>(() => estraiCreditiLegacyDaRisorse(risorseData).risorse);
@@ -302,6 +311,7 @@ export function useGameState() {
         abitantiRef.current,
         edificiRef.current,
         inventarioMensaRef.current,
+        inventarioEmporioRef.current,
         giorno,
         ultimo
       );
@@ -311,7 +321,9 @@ export function useGameState() {
         pulisciModificatoriScaduti(a, giorno, meseRef.current, annoRef.current)
       );
       setAbitanti(abitantiConModificatoriPuliti);
+      setEdifici(result.edifici);
       setInventarioMensaByEdificioId(result.inventarioMensaByEdificioId);
+      setInventarioEmporioByEdificioId(result.inventarioEmporioByEdificioId);
       if (result.carestiaMensa) {
         setEventiInCorso((prev) => attivaEventoCarestia(prev, meseRef.current, annoRef.current));
       }
@@ -947,7 +959,12 @@ export function useGameState() {
     setColtureSerraSbloccate(mode === "creativa" ? tutteColtureSerraSbloccate() : [COLTURA_SERRA_DEFAULT]);
     setAbitanti(colonia.abitanti);
     setRazzaNativi(colonia.razzaNativi);
-    setEdifici(creaEdificiIniziali(colonia.abitanti, mode));
+    const edificiNuovi = creaEdificiIniziali(colonia.abitanti, mode);
+    setEdifici(edificiNuovi);
+    const emporio = edificiNuovi.find((e) => e.nome === "Emporio" && e.stato === "Operativo");
+    setInventarioEmporioByEdificioId(
+      emporio ? { [emporio.id]: creaInventarioEmporioIniziale() } : {}
+    );
     setNextId(colonia.abitanti.length + 100);
     gamePhaseRef.current = "commander-creation";
     setGamePhase("commander-creation");
@@ -1010,6 +1027,19 @@ export function useGameState() {
     setInventarioGiocatore(state.inventarioGiocatore);
     setMoneteGiocatore(state.moneteGiocatore);
     setInventarioMensaByEdificioId(state.inventarioMensaByEdificioId);
+    {
+      const salvato = state.inventarioEmporioByEdificioId ?? {};
+      const emporio = state.edifici.find((e) => e.nome === "Emporio" && e.stato === "Operativo");
+      setInventarioEmporioByEdificioId(
+        Object.keys(salvato).length > 0
+          ? Object.fromEntries(
+              Object.entries(salvato).map(([id, inv]) => [Number(id), normalizzaInventarioEmporio(inv)])
+            )
+          : emporio
+            ? { [emporio.id]: creaInventarioEmporioIniziale() }
+            : {}
+      );
+    }
     setRisorse(state.risorse);
     setEdifici(state.edifici);
     setMese(state.mese);
@@ -1087,7 +1117,7 @@ export function useGameState() {
       introductionCompleted: diarioInizioVisto,
       diarioInizioVisto,
       abitanti, abitantiProposti, nextId, razzaNativi, nativiNonIntegrati,
-      edifici, risorse, inventarioGiocatore, inventarioMensaByEdificioId, moneteGiocatore, prezzoResidenze,
+      edifici, risorse, inventarioGiocatore, inventarioMensaByEdificioId, inventarioEmporioByEdificioId, moneteGiocatore, prezzoResidenze,
       mese, anno, ...clock,
       ultimoGiornoPasti: ultimoGiornoPastiRef.current,
       ultimoGiornoProduzioneSerra: ultimoGiornoProduzioneSerraRef.current,
@@ -1104,7 +1134,7 @@ export function useGameState() {
       luoghiCultoRifiutati, luoghiCultoPendentiMappa, obiettiviCompletati, coltureSerraSbloccate, mappa
     };
   }, [gameMode, gamePhase, diarioInizioVisto, abitanti, abitantiProposti, nextId, razzaNativi, nativiNonIntegrati,
-    edifici, risorse, inventarioGiocatore, inventarioMensaByEdificioId, moneteGiocatore, prezzoResidenze,
+    edifici, risorse, inventarioGiocatore, inventarioMensaByEdificioId, inventarioEmporioByEdificioId, moneteGiocatore, prezzoResidenze,
     mese, anno, tipoTassaReddito, flatTaxPercentuale, scaglioniConfig, tassaPatrimonioPercentuale, ivaPercentuale, politicaNascite, punteggioSanzioni,
     penaDiMorteAttiva, penaReati, politicaReligiosa, religioneDiStato, religioniCustom, leggeRazzialeAttiva,
     razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, etaPensionabile, assegnoPensionati,
@@ -1804,6 +1834,7 @@ export function useGameState() {
     inventarioGiocatore,
     moneteGiocatore,
     inventarioMensaByEdificioId,
+    inventarioEmporioByEdificioId,
     risorse,
     edifici,
     mese,
