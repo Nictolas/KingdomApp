@@ -6,7 +6,15 @@ import {
   scegliAzioneTempoLibero
 } from "./bisogni";
 import { getCastaAbitante } from "./casta";
-import { elencoEdificiConPostoPerDisoccupato } from "./edificiLavoro";
+import { disoccupatoIdoneoPerEmporio, emporioHaPostoLibero } from "./emporioLavoro";
+import { boscoHaPostoLibero, disoccupatoIdoneoPerBosco, NOME_BOSCO } from "./boscoRaccolta";
+import { disoccupatoIdoneoPerMiniera, minieraHaPostoLibero, NOME_MINIERA } from "./minieraRaccolta";
+import { castelloHaPostoLiberoPerGuardia, disoccupatoIdoneoPerGuardia } from "./castelloGuardie";
+import {
+  edificioAccettaDisoccupatoCittadino,
+  elencoEdificiConPostoPerDisoccupato,
+  isEdificioImpresa
+} from "./edificiLavoro";
 import { fasciaPerEdificio, minutiInFascia, primoEdificioLavoroOrarioPerAbitante } from "./orariLavoroMappa";
 import {
   celleIngressoWalkableAttornoAdAnchor,
@@ -15,6 +23,48 @@ import {
   trovaCellaWalkablePiuVicina,
   trovaPercorsoVersoCelle
 } from "./mappaPathfinding";
+
+/**
+ * Sedi candidate per un disoccupato che deve ricollocarsi.
+ * Imprese raggiungibili → Castello → Miniera → Bosco per ultimo.
+ */
+export function sediCercaLavoroDisoccupatoInOrdine(
+  abitante: Abitante,
+  edificiList: Edificio[],
+  abitantiTutti?: Abitante[]
+): Edificio[] {
+  if (getCastaAbitante(abitante) === "Nobile") return [];
+
+  const impreseConPosto = edificiList
+    .filter(
+      (e) =>
+        isEdificioImpresa(e) &&
+        e.nome !== NOME_BOSCO &&
+        e.nome !== NOME_MINIERA &&
+        e.stato === "Operativo"
+    )
+    .filter((e) => {
+      if (e.nome === "Emporio") {
+        return disoccupatoIdoneoPerEmporio(abitante) && emporioHaPostoLibero([e]) != null;
+      }
+      return edificioAccettaDisoccupatoCittadino(abitante, e, abitantiTutti);
+    })
+    .sort((a, b) => a.id - b.id);
+
+  const castello = disoccupatoIdoneoPerGuardia(abitante)
+    ? castelloHaPostoLiberoPerGuardia(edificiList, abitantiTutti)
+    : undefined;
+  const miniera = disoccupatoIdoneoPerMiniera(abitante)
+    ? minieraHaPostoLibero(edificiList)
+    : undefined;
+  const bosco = disoccupatoIdoneoPerBosco(abitante)
+    ? boscoHaPostoLibero(edificiList)
+    : undefined;
+
+  return [...impreseConPosto, castello, miniera, bosco].filter(
+    (e): e is Edificio => e != null
+  );
+}
 
 /** Minimo tipo per celle edificio sulla mappa (come in app/mappa). */
 export type EdificioInCellaLike = {
