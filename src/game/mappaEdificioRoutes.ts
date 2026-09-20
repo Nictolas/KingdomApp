@@ -1,6 +1,6 @@
 /** Static route lookup used when opening buildings directly from the map. */
 export const EDIFICIO_TO_ROUTE: Readonly<Record<string, string>> = {
-  "Centro di Comando": "/amministrazione",
+  "Centro di Comando": "/castello",
   "Castello": "/castello",
   "Serra": "/serra",
   "Centrale Energetica": "/centrale-energetica",
