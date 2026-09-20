@@ -4,14 +4,35 @@ import { useRouter } from "expo-router";
 import { leggiData } from "../src/kingdomData";
 import { useGameContext } from "../src/context/GameContext";
 import { tassaIdDaTitoloLegge, tasseSbloccate } from "../src/game/tasseSblocco";
+import { resolveStatoLegge } from "../src/game/statoLeggi";
 import type { Legge } from "../src/types";
 
 type LeggeConTema = Legge & { tema: string };
 
 export default function LeggiScreen() {
   const router = useRouter();
-  const { obiettiviCompletati, modalitaGioco } = useGameContext();
+  const {
+    obiettiviCompletati,
+    modalitaGioco,
+    penaDiMorteAttiva,
+    leggeRazzialeAttiva,
+    divietoEspatrioAttivo,
+    iusPrimaeNoctisAttivo,
+    coprifuocoAttivo,
+    tassaPatrimonioPercentuale,
+    ivaPercentuale
+  } = useGameContext();
   const unlockTasse = tasseSbloccate(obiettiviCompletati, modalitaGioco);
+
+  const flagsStatoLeggi = {
+    penaDiMorteAttiva,
+    leggeRazzialeAttiva,
+    divietoEspatrioAttivo,
+    iusPrimaeNoctisAttivo,
+    coprifuocoAttivo,
+    tassaPatrimonioPercentuale,
+    ivaPercentuale
+  };
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -34,7 +55,7 @@ export default function LeggiScreen() {
       "Tassa sul Reddito": "💰",
       "Prelievo Forzoso": "👑",
       "Reddito di Cittadinanza": "🪙",
-      "Carta dei Diritti dei Coloni": "📜",
+      "Carta dei Diritti dei Sudditi": "📜",
       "Età minima sul lavoro": "👶",
       "Età pensionabile": "👴",
       "Pena di Morte": "⚰️",
@@ -63,7 +84,7 @@ export default function LeggiScreen() {
     ) {
       leggiPerTema.Fiscale.push({ ...legge, tema: "Fiscale" });
     } else if (
-      legge.titolo === "Carta dei Diritti dei Coloni" ||
+      legge.titolo === "Carta dei Diritti dei Sudditi" ||
       legge.titolo === "Età minima sul lavoro" ||
       legge.titolo === "Età pensionabile" ||
       legge.titolo === "Pena di Morte" ||
@@ -91,7 +112,7 @@ export default function LeggiScreen() {
   // Aggiungi Schiavitu come gestione separata
   const gestioneSpeciale = {
     titolo: "Schiavitu",
-    descrizione: "Gestisci schiavisti e schiavi nella colonia",
+    descrizione: "Gestisci schiavisti e schiavi nel Regno",
     tema: "Gestione"
   };
 
@@ -123,6 +144,9 @@ export default function LeggiScreen() {
     const tassaId = isLegge ? tassaIdDaTitoloLegge(legge.titolo) : null;
     const tassaBloccata =
       tassaId != null && tassaId !== "prelievo" && !unlockTasse.has(tassaId);
+    const statoEffettivo = isLegge
+      ? resolveStatoLegge(legge.titolo, flagsStatoLeggi)
+      : null;
     const isClickable = path !== null && !tassaBloccata;
 
     return (
@@ -145,12 +169,12 @@ export default function LeggiScreen() {
             <Text
               style={[
                 styles.chipValue,
-                !tassaBloccata && legge.stato === "In vigore" && styles.chipActive,
-                (tassaBloccata || legge.stato === "Proposta") && styles.chipProposed,
-                !tassaBloccata && legge.stato === "Abrogata" && styles.chipRepealed
+                !tassaBloccata && statoEffettivo === "In vigore" && styles.chipActive,
+                (tassaBloccata || statoEffettivo === "Proposta") && styles.chipProposed,
+                !tassaBloccata && statoEffettivo === "Abrogata" && styles.chipRepealed
               ]}
             >
-              {tassaBloccata ? "Bloccata" : legge.stato}
+              {tassaBloccata ? "Bloccata" : statoEffettivo}
             </Text>
           </Text>
         )}
