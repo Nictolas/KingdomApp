@@ -20,10 +20,16 @@ import {
 import { getEdificioAbitazione } from "./abitanteEdifici";
 import { tentaSnackDaInventario } from "./negozio";
 import { applicaBonusPastoGiorno } from "./soddisfazione";
+import {
+  applicaVenditeEccedenzeEmporioPerPeriodo,
+  eseguiAcquistoPastoDaEmporio
+} from "./emporioVendita";
 
 export type PastiGiornalieriResult = {
   abitanti: Abitante[];
+  edifici: Edificio[];
   inventarioMensaByEdificioId: Record<number, VoceInventario[]>;
+  inventarioEmporioByEdificioId: Record<number, VoceInventario[]>;
   carestiaMensa: boolean;
 };
 
@@ -71,12 +77,15 @@ function applicaPastoSingoloGiorno(
   abitanti: Abitante[],
   edifici: Edificio[],
   inventarioMensaByEdificioId: Record<number, VoceInventario[]>,
+  inventarioEmporioByEdificioId: Record<number, VoceInventario[]>,
   giorno: number
-): { abitanti: Abitante[]; inventarioMensaByEdificioId: Record<number, VoceInventario[]>; carestiaMensa: boolean } {
+): PastiGiornalieriResult {
   const mensaIds = idsMenseOperative(edifici);
   const mensaAttiva = mensaIds.length > 0;
   let nextAbitanti = abitanti.map(normalizzaAbitanteInventario);
+  let nextEdifici = edifici;
   let nextMensa = { ...inventarioMensaByEdificioId };
+  let nextEmporio = { ...inventarioEmporioByEdificioId };
   let carestiaMensa = false;
 
   for (let i = 0; i < nextAbitanti.length; i++) {
@@ -105,6 +114,21 @@ function applicaPastoSingoloGiorno(
     }
 
     if (!nutrito && casta !== "Schiavo") {
+      const acquisto = eseguiAcquistoPastoDaEmporio(a, nextEdifici, nextEmporio);
+      if (acquisto.ok) {
+        a = acquisto.abitante;
+        nextEdifici = acquisto.edifici;
+        nextEmporio = acquisto.inventarioEmporioByEdificioId;
+        const dopoAcquisto = consumaUnOggettoCiboConItem(a.inventario ?? [], a.personalità);
+        if (dopoAcquisto) {
+          a = { ...a, inventario: dopoAcquisto.inventario };
+          nutrito = true;
+          itemIdConsumato = dopoAcquisto.itemId;
+        }
+      }
+    }
+
+    if (!nutrito && casta !== "Schiavo") {
       if (!mensaAttiva) {
         carestiaMensa = true;
       } else {
@@ -124,7 +148,13 @@ function applicaPastoSingoloGiorno(
     }
   }
 
-  return { abitanti: nextAbitanti, inventarioMensaByEdificioId: nextMensa, carestiaMensa };
+  return {
+    abitanti: nextAbitanti,
+    edifici: nextEdifici,
+    inventarioMensaByEdificioId: nextMensa,
+    inventarioEmporioByEdificioId: nextEmporio,
+    carestiaMensa
+  };
 }
 
 /** Applica un pasto al giorno per ogni abitante nel periodo `(giornoDa, giornoA]`. */
@@ -132,15 +162,33 @@ export function applicaPastiGiornalieriPerPeriodo(
   abitanti: Abitante[],
   edifici: Edificio[],
   inventarioMensaByEdificioId: Record<number, VoceInventario[]>,
+  inventarioEmporioByEdificioId: Record<number, VoceInventario[]>,
   giornoDa: number,
   giornoA: number
 ): PastiGiornalieriResult {
   let nextAbitanti = abitanti;
+  let nextEdifici = edifici;
   let nextMensa = inventarioMensaByEdificioId;
+  let nextEmporio = inventarioEmporioByEdificioId;
   let carestiaMensa = false;
 
   for (let g = giornoDa + 1; g <= giornoA; g++) {
-    const res = applicaPastoSingoloGiorno(nextAbitanti, edifici, nextMensa, g);
+    const vendite = applicaVenditeEccedenzeEmporioPerPeriodo(
+      nextAbitanti,
+      nextEdifici,
+      nextEmporio,
+      1
+    );
+    nextAbitanti = vendite.abitanti;
+    nextEmporio = vendite.inventarioEmporioByEdificioId;
+
+    const res = applicaPastoSingoloGiorno(
+      nextAbitanti,
+      nextEdifici,
+      nextMensa,
+      nextEmporio,
+      g
+    );
     nextAbitanti = res.abitanti.map((a) => {
       let next = applicaDecayBisogniGiornaliero(a, {
         nomeResidenza: getEdificioAbitazione(a.id, edifici)?.nome ?? null
@@ -149,11 +197,19 @@ export function applicaPastiGiornalieriPerPeriodo(
       const snack = tentaSnackDaInventario(next);
       return snack ?? next;
     });
+    nextEdifici = res.edifici;
     nextMensa = res.inventarioMensaByEdificioId;
+    nextEmporio = res.inventarioEmporioByEdificioId;
     if (res.carestiaMensa) carestiaMensa = true;
   }
 
-  return { abitanti: nextAbitanti, inventarioMensaByEdificioId: nextMensa, carestiaMensa };
+  return {
+    abitanti: nextAbitanti,
+    edifici: nextEdifici,
+    inventarioMensaByEdificioId: nextMensa,
+    inventarioEmporioByEdificioId: nextEmporio,
+    carestiaMensa
+  };
 }
 
 /** Normalizza inventari e applica pasti fino al giorno di gioco corrente. */
@@ -161,12 +217,26 @@ export function normalizzaEAplicaPastiAbitanti(
   abitanti: Abitante[],
   edifici: Edificio[],
   inventarioMensaByEdificioId: Record<number, VoceInventario[]>,
+  inventarioEmporioByEdificioId: Record<number, VoceInventario[]>,
   giornoGioco: number,
   ultimoGiornoPasti: number
 ): PastiGiornalieriResult {
   const base = abitanti.map((a) => normalizzaAbitanteBisogni(normalizzaAbitanteInventario(a)));
   if (giornoGioco <= ultimoGiornoPasti) {
-    return { abitanti: base, inventarioMensaByEdificioId, carestiaMensa: false };
+    return {
+      abitanti: base,
+      edifici,
+      inventarioMensaByEdificioId,
+      inventarioEmporioByEdificioId,
+      carestiaMensa: false
+    };
   }
-  return applicaPastiGiornalieriPerPeriodo(base, edifici, inventarioMensaByEdificioId, ultimoGiornoPasti, giornoGioco);
+  return applicaPastiGiornalieriPerPeriodo(
+    base,
+    edifici,
+    inventarioMensaByEdificioId,
+    inventarioEmporioByEdificioId,
+    ultimoGiornoPasti,
+    giornoGioco
+  );
 }

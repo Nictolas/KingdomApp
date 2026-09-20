@@ -24,6 +24,7 @@ export type PersistableGameState = {
   risorse: Risorsa[];
   inventarioGiocatore: VoceInventario[];
   inventarioMensaByEdificioId: Record<number, VoceInventario[]>;
+  inventarioEmporioByEdificioId: Record<number, VoceInventario[]>;
   moneteGiocatore: number;
   prezzoResidenze: Record<string, number>;
   mese: number;
@@ -103,6 +104,7 @@ export function gameStateToGameSaveV1(state: PersistableGameState): GameSaveV1 {
       risorse: state.risorse,
       inventarioGiocatore: state.inventarioGiocatore,
       inventarioMensaByEdificioId: state.inventarioMensaByEdificioId,
+      inventarioEmporioByEdificioId: state.inventarioEmporioByEdificioId,
       moneteGiocatore: state.moneteGiocatore,
       prezzoResidenze: state.prezzoResidenze
     },
@@ -185,6 +187,7 @@ export function gameSaveV1ToGameState(save: GameSaveV1): PersistableGameState {
     diarioInizioVisto: normalized.diarioInizioVisto,
     ...normalized.population,
     ...normalized.colony,
+    inventarioEmporioByEdificioId: normalized.colony.inventarioEmporioByEdificioId ?? {},
     mese: normalized.calendar.mese,
     anno: normalized.calendar.anno,
     giorno: normalized.calendar.giorno,

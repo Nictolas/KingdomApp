@@ -51,6 +51,8 @@ type GameContextType = {
   moneteGiocatore: number;
   /** Scorte cibo per edificio Mensa Pubblica (chiave = id edificio). */
   inventarioMensaByEdificioId: Record<number, { itemId: string; quantità: number }[]>;
+  /** Scorte alimentari per edificio Emporio. */
+  inventarioEmporioByEdificioId: Record<number, { itemId: string; quantità: number }[]>;
   risorse: Risorsa[];
   edifici: Edificio[];
   mese: number;

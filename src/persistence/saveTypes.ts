@@ -37,6 +37,8 @@ export type GameSaveV1 = {
     risorse: Risorsa[];
     inventarioGiocatore: VoceInventario[];
     inventarioMensaByEdificioId: Record<number, VoceInventario[]>;
+    /** Scorte alimentari Emporio; assente nei salvataggi precedenti. */
+    inventarioEmporioByEdificioId?: Record<number, VoceInventario[]>;
     moneteGiocatore: number;
     prezzoResidenze: Record<string, number>;
   };

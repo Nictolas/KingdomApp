@@ -13,6 +13,11 @@ import { useGameContext } from "../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
 import { getStipendioMoneteGiornaliero } from "../src/game/edificiPubblici";
 import { getCassaImpresa, getFatturatoMeseImpresa } from "../src/game/impresaCassa";
+import {
+  PREZZO_ACQUISTO_ALIMENTO_EMPORIO,
+  PREZZO_VENDITA_ALIMENTO_EMPORIO
+} from "../src/game/emporioVendita";
+import { getOggettoInventario } from "../src/game/inventario";
 import { AbitanteAvatarPreview } from "../src/ui/AbitanteAvatarPreview";
 import type { Abitante } from "../src/types";
 
@@ -21,6 +26,7 @@ export default function EmporioScreen() {
   const {
     abitanti,
     edifici,
+    inventarioEmporioByEdificioId,
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,
     setStipendioEdificio
@@ -52,6 +58,8 @@ export default function EmporioScreen() {
   const stipendio = getStipendioMoneteGiornaliero(emporio);
   const cassa = getCassaImpresa(emporio);
   const fatturato = getFatturatoMeseImpresa(emporio);
+  const scorte = inventarioEmporioByEdificioId[emporio.id] ?? [];
+  const totaleScorte = scorte.reduce((tot, voce) => tot + Math.max(0, voce.quantità), 0);
 
   return (
     <SafeAreaView style={[styles.safe, maxHeight != null ? { maxHeight, overflow: "hidden" } : undefined]}>
@@ -84,6 +92,31 @@ export default function EmporioScreen() {
               <Text style={styles.wageBtnText}>+</Text>
             </Pressable>
           </View>
+        </View>
+
+        <View style={styles.infoCard}>
+          <Text style={styles.infoTitle}>Scorte alimentari</Text>
+          <Text style={styles.money}>{totaleScorte} unità</Text>
+          <Text style={styles.infoText}>
+            L’Emporio compra l’eccedenza da Raccoglitori e Agricoltori a {PREZZO_VENDITA_ALIMENTO_EMPORIO} moneta per unità.
+          </Text>
+          <Text style={styles.infoText}>
+            Gli abitanti senza cibo possono comprare una razione a {PREZZO_ACQUISTO_ALIMENTO_EMPORIO} monete.
+          </Text>
+          {scorte.length === 0 ? (
+            <Text style={styles.empty}>Magazzino vuoto</Text>
+          ) : (
+            <View style={styles.stockList}>
+              {scorte.map((voce) => {
+                const def = getOggettoInventario(voce.itemId);
+                return (
+                  <Text key={voce.itemId} style={styles.stockItem}>
+                    {def?.emoji ?? "📦"} {def?.nome ?? voce.itemId}: {voce.quantità}
+                  </Text>
+                );
+              })}
+            </View>
+          )}
         </View>
 
         <View style={styles.columns}>
@@ -170,6 +203,8 @@ const styles = StyleSheet.create({
   sectionTitle: { color: "#fff", fontSize: 13, fontWeight: "700" },
   sectionMeta: { color: "#94a3b8", fontSize: 10, marginBottom: 8 },
   empty: { color: "#64748b", fontSize: 11, fontStyle: "italic", paddingVertical: 12 },
+  stockList: { marginTop: 8, gap: 3 },
+  stockItem: { color: "#e2e8f0", fontSize: 11 },
   personCard: {
     alignItems: "center",
     backgroundColor: "#0f172a",
