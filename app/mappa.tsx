@@ -2975,6 +2975,55 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         return;
       }
 
+      if (e.nome === NOME_PONTE) {
+        const cur = mappaStateRef.current;
+        if (!isCellaOkPerPonte(cellIndex, cur.terrenoInMappa, cur.edificiInMappa)) {
+          Alert.alert("Non qui", "Il Ponte si costruisce su una cella di fiume libera.");
+          return;
+        }
+        if (moneteGiocatore < COSTO_PONTE_MONETE) {
+          Alert.alert(
+            "Monete insufficienti",
+            `Servono ${COSTO_PONTE_MONETE.toLocaleString("it-IT")} monete (disponibili nel Tesoro: ${moneteGiocatore.toLocaleString("it-IT")}).`
+          );
+          return;
+        }
+        const newId = aggiungiEdificioDaTemplate(ID_TEMPLATE_PONTE, {
+          costoMonete: COSTO_PONTE_MONETE,
+          costoMateriale: 0
+        });
+        if (newId == null) {
+          Alert.alert("Impossibile costruire", "Non riesco a creare il cantiere del Ponte.");
+          return;
+        }
+        let piazzato = false;
+        setMappaStatePersistente((stato) => {
+          const nextEdifici = { ...stato.edificiInMappa };
+          if (
+            !piazzaPonteSuCella(cellIndex, stato.terrenoInMappa, nextEdifici, {
+              edificioGlobaleId: newId
+            })
+          ) {
+            return stato;
+          }
+          piazzato = true;
+          return { ...stato, edificiInMappa: nextEdifici };
+        });
+        if (!piazzato) {
+          rimuoviEdificioPerId(newId);
+          Alert.alert("Non qui", "Il Ponte si costruisce su una cella di fiume libera.");
+          return;
+        }
+        uscitaCostruzione();
+        if (modalitaGioco === "avventura") {
+          Alert.alert(
+            "Cantiere sul fiume",
+            "Il Ponte è in costruzione. Gli Edili dell'Ufficio Edile lo avanzano di 1 punto per ogni ora di gioco."
+          );
+        }
+        return;
+      }
+
       const s = mappaStateRef.current;
       const { anchor, w, h } = calcolaAnchorEdificioMultiCella(
         cellIndex,
@@ -3015,7 +3064,15 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         return;
       }
 
+      const costoMonete = costoCostruzioneMonete(e.nome);
       const costoMateriale = costoMaterialeEdilePerFootprint(e.nome, w, h);
+      if (costoMonete > 0 && moneteGiocatore < costoMonete) {
+        Alert.alert(
+          "Monete insufficienti",
+          `Servono ${costoMonete.toLocaleString("it-IT")} monete (disponibili nel Tesoro: ${moneteGiocatore.toLocaleString("it-IT")}).`
+        );
+        return;
+      }
       if (!haMaterialeEdileSufficiente(risorse, costoMateriale)) {
         Alert.alert(
           "Materiale insufficiente",
@@ -3024,9 +3081,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         return;
       }
 
-      const newId = aggiungiEdificioDaTemplate(e.id, { costoMateriale });
+      const newId = aggiungiEdificioDaTemplate(e.id, { costoMateriale, costoMonete });
       if (newId == null) {
-        Alert.alert("Errore", "Impossibile creare questo tipo di edificio.");
+        Alert.alert(
+          "Errore",
+          costoMonete > 0
+            ? "Impossibile costruire: monete o risorse insufficienti."
+            : "Impossibile creare questo tipo di edificio."
+        );
         return;
       }
 
@@ -3049,7 +3111,15 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       });
       uscitaCostruzione();
     },
-    [setMappaStatePersistente, aggiungiEdificioDaTemplate, uscitaCostruzione, risorse]
+    [
+      setMappaStatePersistente,
+      aggiungiEdificioDaTemplate,
+      rimuoviEdificioPerId,
+      uscitaCostruzione,
+      risorse,
+      moneteGiocatore,
+      modalitaGioco
+    ]
   );
 
   const eseguiDemolizione = useCallback(
