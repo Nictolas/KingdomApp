@@ -1894,6 +1894,19 @@ export function useGameState() {
               rBosco.bottino!.voci
             )} nel Bosco.`
           ]);
+          for (const v of rBosco.bottino.voci) {
+            registraScambioCommerciale(
+              voceRegistrazioneRaccoltaBosco({
+                abitanteId: rBosco.bottino.abitanteId,
+                abitanteNome: rBosco.bottino.abitanteNome,
+                boscoId: rBosco.bottino.boscoId,
+                itemId: v.itemId,
+                itemNome: v.nome,
+                itemEmoji: v.emoji,
+                quantità: v.quantità
+              })
+            );
+          }
         }
         return true;
       }
@@ -1912,6 +1925,19 @@ export function useGameState() {
               rMiniera.bottino!.voci
             )} in Miniera.`
           ]);
+          for (const v of rMiniera.bottino.voci) {
+            registraScambioCommerciale(
+              voceRegistrazioneRaccoltaMiniera({
+                abitanteId: rMiniera.bottino.abitanteId,
+                abitanteNome: rMiniera.bottino.abitanteNome,
+                minieraId: rMiniera.bottino.minieraId,
+                itemId: v.itemId,
+                itemNome: v.nome,
+                itemEmoji: v.emoji,
+                quantità: v.quantità
+              })
+            );
+          }
         }
         return true;
       }
@@ -1924,7 +1950,7 @@ export function useGameState() {
       setEdifici(r.edifici);
       return true;
     },
-    [abitanti, edifici]
+    [abitanti, edifici, registraScambioCommerciale]
   );
 
   const trasferisciProprietaSchiavo = useCallback(
