@@ -43,7 +43,9 @@ export default function SoddisfazioneScreen() {
       <View style={styles.header}>
         <View style={{ width: 50 }} />
         <Text style={styles.title}>😌 Soddisfazione</Text>
-        <View style={{ width: 50 }} />
+        <Text style={styles.rulesLink} onPress={() => router.push("/regole-soddisfazione")}>
+          Regole
+        </Text>
       </View>
 
       <View style={{ flex: 1 }}>
@@ -114,6 +116,12 @@ const styles = StyleSheet.create({
   back: {
     color: "#93c5fd",
     fontSize: 12
+  },
+  rulesLink: {
+    color: "#93c5fd",
+    fontSize: 12,
+    width: 50,
+    textAlign: "right"
   },
   title: {
     color: "#ffffff",
