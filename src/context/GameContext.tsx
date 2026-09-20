@@ -7,6 +7,9 @@ import type { EventoDef } from "../game/eventi";
 import { DialogInizioPartitaModal } from "../ui/DialogInizioPartitaModal";
 import { CreazioneGiocatoreModal, type DatiCreazioneGiocatore } from "../ui/CreazioneGiocatoreModal";
 import { ConsigliereIntroModal } from "../ui/ConsigliereIntroModal";
+import { TutorialSpotlightProvider, useTutorialSpotlight } from "../tutorial/TutorialSpotlightContext";
+import { TutorialSpotlightOverlay } from "../tutorial/TutorialSpotlightOverlay";
+import { SPOTLIGHT_TARGET_IDS } from "../tutorial/spotlightTypes";
 import { RichiestaLuogoCultoModal } from "../ui/RichiestaLuogoCultoModal";
 import type { ReligioneConCulto } from "../game/luogoCulto";
 import type { RichiestaInAttesa } from "../game/richieste";
@@ -305,6 +308,12 @@ function IntroConsigliereDialogWrapper() {
     "Dato che hai succeduto tuo padre alla tenera età di 10 anni, ora ti aiuterò a imparare a guidare il tuo Regno!";
   const messaggioPonte =
     "Un fiume separa il nostro Regno, mio Re.\nPer unire le sponde piazzeremo un cantiere sul fiume: gli Edili dell'Ufficio Edile lo completeranno ora dopo ora.";
+  const { showSpotlight } = useTutorialSpotlight();
+
+  const onChiudiSuggerimentoPonte = () => {
+    chiudiSuggerimentoPonte();
+    showSpotlight({ targetId: SPOTLIGHT_TARGET_IDS.MAPPA_COSTRUISCI, padding: 10 });
+  };
 
   return (
     <>
@@ -318,7 +327,7 @@ function IntroConsigliereDialogWrapper() {
         visible={suggerimentoPonteAperto}
         consigliere={consigliere}
         messaggio={messaggioPonte}
-        onClose={chiudiSuggerimentoPonte}
+        onClose={onChiudiSuggerimentoPonte}
       />
     </>
   );
@@ -565,16 +574,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
   return (
     <GameContext.Provider value={contextValue}>
-      {children}
-      <CreazioneGiocatoreWrapper />
-      <IntroConsigliereDialogWrapper />
-      <RichiestaLuogoCultoDialogWrapper />
-      <EmigrazioneDialogWrapper />
-      <GameOverModal
-        visible={gameOverPerMorteRe}
-        description="Il Re è stato assassinato. Il regno è caduto..."
-        onRestart={nuovaPartita}
-      />
+      <TutorialSpotlightProvider>
+        {children}
+        <CreazioneGiocatoreWrapper />
+        <IntroConsigliereDialogWrapper />
+        <RichiestaLuogoCultoDialogWrapper />
+        <EmigrazioneDialogWrapper />
+        <GameOverModal
+          visible={gameOverPerMorteRe}
+          description="Il Re è stato assassinato. Il regno è caduto..."
+          onRestart={nuovaPartita}
+        />
+        <TutorialSpotlightOverlay />
+      </TutorialSpotlightProvider>
     </GameContext.Provider>
   );
 }
