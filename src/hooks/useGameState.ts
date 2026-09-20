@@ -103,6 +103,7 @@ import type { PersistableGameState } from "../persistence/gameStateMapping";
 import type { MappaRuntimeState } from "../game/mappaTypes";
 import { setMappaSessione, getMappaSessione } from "../game/mappaSessione";
 import { mappaHaPonteOperativo } from "../game/ponteMappa";
+import { pulisciModificatoriScaduti } from "../game/soddisfazione";
 import {
   indiceCalendarioGioco,
   indiceMeseDaGiornoGioco,
@@ -255,7 +256,10 @@ export function useGameState() {
       );
       ultimoGiornoPastiRef.current = giorno;
 
-      setAbitanti(result.abitanti);
+      const abitantiConModificatoriPuliti = result.abitanti.map((a) =>
+        pulisciModificatoriScaduti(a, giorno, meseRef.current, annoRef.current)
+      );
+      setAbitanti(abitantiConModificatoriPuliti);
       setInventarioMensaByEdificioId(result.inventarioMensaByEdificioId);
       if (result.carestiaMensa) {
         setEventiInCorso((prev) => attivaEventoCarestia(prev, meseRef.current, annoRef.current));
@@ -568,11 +572,14 @@ export function useGameState() {
     setEventiInCorso(result.eventiInCorso);
 
     const dopoCarcere = avanzaCarcereResiduoPuro(tasseMese.abitanti, result.edifici);
+    const abitantiConModificatoriPuliti = dopoCarcere.abitanti.map((a) =>
+      pulisciModificatoriScaduti(a, giornoGioco, result.nuovoMese, result.nuovoAnno)
+    );
     const risorseAggiornate = estraiCreditiLegacyDaRisorse(result.risorse).risorse;
     const moneteAggiornate =
       result.moneteGiocatore + tasseMese.gettitoPatrimonio + tasseMese.gettitoIva;
 
-    setAbitanti(dopoCarcere.abitanti);
+    setAbitanti(abitantiConModificatoriPuliti);
     setEdifici(dopoCarcere.edifici);
     setRisorse(risorseAggiornate);
     setMoneteGiocatore(moneteAggiornate);
@@ -598,7 +605,7 @@ export function useGameState() {
           if (!nodo) continue;
 
           const soddisfatto = nodo.condizione({
-            abitanti: dopoCarcere.abitanti,
+            abitanti: abitantiConModificatoriPuliti,
             edifici: dopoCarcere.edifici,
             risorse: risorseAggiornate,
             mese: result.nuovoMese,
@@ -633,7 +640,7 @@ export function useGameState() {
     if (result.avvisoDiario) {
       setDiarioRighe((prev) => [...prev, result.avvisoDiario!]);
     }
-  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode, obiettiviCompletati, tassaPatrimonioPercentuale, ivaPercentuale]);
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, giornoGioco, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode, obiettiviCompletati, tassaPatrimonioPercentuale, ivaPercentuale]);
 
   /**
    * Nessun pulsante «Skip Mese»: il cambio mese parte automaticamente ogni 30 giorni
