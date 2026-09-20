@@ -6,6 +6,7 @@
 import type { Abitante, Edificio } from "../types";
 import { getProduzioneCiboPerAbitante } from "./ciboConsumo";
 import { abitanteHaInventarioPersonale } from "./casta";
+import { ID_GIOCATORE } from "./schiavituCommercio";
 import {
   getMoneteInventarioAbitante,
   setMoneteInventarioAbitante
@@ -191,4 +192,101 @@ export function stimaGettitoTasse(input: {
   );
   const iva = calcolaIvaImporto(valore, input.ivaPercentuale);
   return { reddito, patrimonio, iva, totale: reddito + patrimonio + iva };
+}
+
+
+export type RisultatoPrelievoForzoso = {
+  abitanti: Abitante[];
+  gettito: number;
+  soggettiColpiti: number;
+  soggettiEsenti: number;
+};
+
+/**
+ * Prelievo forzoso immediato: fino a `importo` monete da ogni suddito con inventario.
+ * Esclude Re, Golem e caste senza inventario personale.
+ * Registra un malus di soddisfazione mensile, distinto dalla felicità.
+ */
+export function eseguiPrelievoForzoso(input: {
+  abitanti: Abitante[];
+  importoPerAbitante: number;
+  mese: number;
+  anno: number;
+}): RisultatoPrelievoForzoso {
+  const importo = Math.max(0, Math.floor(input.importoPerAbitante));
+  if (importo <= 0) {
+    return {
+      abitanti: input.abitanti,
+      gettito: 0,
+      soggettiColpiti: 0,
+      soggettiEsenti: input.abitanti.length
+    };
+  }
+
+  let gettito = 0;
+  let soggettiColpiti = 0;
+  let soggettiEsenti = 0;
+  let scadeMese = input.mese + 1;
+  let scadeAnno = input.anno;
+  if (scadeMese > 12) {
+    scadeMese = 1;
+    scadeAnno += 1;
+  }
+
+  const abitanti = input.abitanti.map((a) => {
+    if (a.id === ID_GIOCATORE || a.razza === "Golem" || !abitanteHaInventarioPersonale(a)) {
+      soggettiEsenti += 1;
+      return a;
+    }
+
+    const monete = getMoneteInventarioAbitante(a.inventario);
+    const prelievo = Math.min(monete, importo);
+    if (prelievo <= 0) {
+      soggettiEsenti += 1;
+      return a;
+    }
+
+    gettito += prelievo;
+    soggettiColpiti += 1;
+    const next = setMoneteInventarioAbitante(a, monete - prelievo);
+    const altriModificatori = (next.modificatoriSoddisfazione ?? []).filter(
+      (m) => m.id !== "prelievo_forzoso"
+    );
+    return {
+      ...next,
+      modificatoriSoddisfazione: [
+        ...altriModificatori,
+        {
+          id: "prelievo_forzoso",
+          delta: -3,
+          motivo: `Prelievo forzoso (${prelievo} monete)`,
+          durata: "mensile" as const,
+          scadeMese,
+          scadeAnno
+        }
+      ]
+    };
+  });
+
+  return { abitanti, gettito, soggettiColpiti, soggettiEsenti };
+}
+
+/** Anteprima del gettito senza mutare lo stato. */
+export function stimaPrelievoForzoso(
+  abitanti: Abitante[],
+  importoPerAbitante: number
+): { gettito: number; soggettiColpiti: number } {
+  const importo = Math.max(0, Math.floor(importoPerAbitante));
+  let gettito = 0;
+  let soggettiColpiti = 0;
+
+  for (const a of abitanti) {
+    if (a.id === ID_GIOCATORE || a.razza === "Golem" || !abitanteHaInventarioPersonale(a)) continue;
+    const prelievo = Math.min(getMoneteInventarioAbitante(a.inventario), importo);
+    if (prelievo <= 0) continue;
+    gettito += prelievo;
+    soggettiColpiti += 1;
+  }
+
+  return { gettito, soggettiColpiti };
 }

@@ -90,6 +90,16 @@ export type Abitante = {
   lealtà: number; // 0-100
   paura: number; // 0-100
   felicità: number; // 1-100
+  /** Modificatori della soddisfazione personale, distinti dalla felicità. */
+  modificatoriSoddisfazione?: {
+    id: string;
+    delta: number;
+    motivo: string;
+    durata: "permanente" | "giornaliero" | "mensile";
+    scadeGiorno?: number;
+    scadeMese?: number;
+    scadeAnno?: number;
+  }[];
   ministero?: string; // Ministero assegnato (se è ministro)
   /** Classe sociale: Schiavo, Servo della gleba, Cittadino o Nobile. */
   casta?: Casta;

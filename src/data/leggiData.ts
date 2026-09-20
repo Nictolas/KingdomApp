@@ -18,5 +18,6 @@ export const leggiData: Legge[] = [
   { id: 15, titolo: "Età pensionabile", descrizione: "Stabilisce a quale età gli abitanti vanno in pensione. I pensionati non lavorano e ricevono un assegno mensile. Età 61-70: +1 sanzione, 71-80: +2, 81+: +3.", stato: "In vigore" },
   { id: 16, titolo: "Reddito di Cittadinanza", descrizione: "Garantisce un reddito mensile minimo scelto dal giocatore a tutti i cittadini disoccupati non schiavi.", stato: "In vigore" },
   { id: 17, titolo: "Sanità", descrizione: "Definisce se il sistema sanitario della colonia è Privato o Pubblico, influenzando i costi dell'Ospedale e l'accesso alle cure.", stato: "In vigore" },
-  { id: 18, titolo: "Coprifuoco", descrizione: "Se attivo, in una fascia oraria scelta nessuno può stare «In giro» sulla mappa, tranne chi lavora alla Centrale (occupazione Sicurezza).", stato: "Proposta" }
+  { id: 18, titolo: "Coprifuoco", descrizione: "Se attivo, in una fascia oraria scelta nessuno può stare «In giro» sulla mappa, tranne chi lavora alla Centrale (occupazione Sicurezza).", stato: "Proposta" },
+  { id: 19, titolo: "Prelievo Forzoso", descrizione: "Potere del Re: preleva immediatamente fino a una quantità scelta di monete da ogni suddito imponibile e versa il gettito al Tesoro.", stato: "In vigore" }
 ];
