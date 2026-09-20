@@ -207,6 +207,13 @@ import {
   STRADA_FOOTPRINT_W
 } from "../src/game/stradaFootprint";
 import {
+  ID_TEMPLATE_PONTE,
+  NOME_PONTE,
+  PONTE_OPZIONE,
+  isCellaOkPerPonte,
+  piazzaPonteSuCella
+} from "../src/game/ponteMappa";
+import {
   buildCoastalAssetLookups,
   buildErbaAssetLookup,
   buildStradaAssetLookup,
@@ -951,6 +958,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     const out: Edificio[] = [];
     for (const row of edificiData) {
       if (row.nome === "Castello") continue;
+      /** Ponte: voce dedicata perché si piazza solo sul fiume. */
+      if (row.nome === NOME_PONTE) continue;
       /** Una sola Baracca è supportata dalla sync globale Senzatetto → edificio. */
       if (row.nome === "Baracca") continue;
       if (seen.has(row.nome)) continue;
@@ -2940,6 +2949,39 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         return;
       }
 
+      if (e.nome === NOME_PONTE) {
+        const cur = mappaStateRef.current;
+        if (!isCellaOkPerPonte(cellIndex, cur.terrenoInMappa, cur.edificiInMappa)) {
+          Alert.alert("Non qui", "Il Ponte si costruisce su una cella di fiume libera.");
+          return;
+        }
+
+        const newId = aggiungiEdificioDaTemplate(ID_TEMPLATE_PONTE, { costoMateriale: 0 });
+        if (newId == null) {
+          Alert.alert("Errore", "Impossibile creare il Ponte.");
+          return;
+        }
+
+        let piazzato = false;
+        setMappaStatePersistente((stato) => {
+          const nextEdifici = { ...stato.edificiInMappa };
+          if (!piazzaPonteSuCella(cellIndex, stato.terrenoInMappa, nextEdifici, { edificioGlobaleId: newId })) {
+            return stato;
+          }
+          piazzato = true;
+          return { ...stato, edificiInMappa: nextEdifici };
+        });
+
+        if (!piazzato) {
+          rimuoviEdificioPerId(newId);
+          Alert.alert("Non qui", "Il Ponte si costruisce su una cella di fiume libera.");
+          return;
+        }
+
+        uscitaCostruzione();
+        return;
+      }
+
       const s = mappaStateRef.current;
       const { anchor, w, h } = calcolaAnchorEdificioMultiCella(
         cellIndex,
@@ -3014,7 +3056,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       });
       uscitaCostruzione();
     },
-    [setMappaStatePersistente, aggiungiEdificioDaTemplate, uscitaCostruzione, risorse]
+    [setMappaStatePersistente, aggiungiEdificioDaTemplate, rimuoviEdificioPerId, uscitaCostruzione, risorse]
   );
 
   const eseguiDemolizione = useCallback(
@@ -3141,6 +3183,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (costruzioneSelezione) {
         const edificio = edificiInMappa[cellIndex];
         const terreno = terrenoInMappa[cellIndex] ?? "erba";
+        if (costruzioneSelezione.tipo === "ponte") {
+          handleScegliEdificio(cellIndex, PONTE_OPZIONE as unknown as Edificio);
+          return;
+        }
         if (edificio) return;
         const èDissalatore =
           costruzioneSelezione.tipo === "edificio" && costruzioneSelezione.edificio.nome === "Dissalatore";
@@ -3653,6 +3699,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           <Text style={styles.costruzioneBannerText} numberOfLines={2}>
             {costruzioneSelezione.tipo === "strada"
               ? "🛤️ Strada — area 2×2 su erba; tocca per piazzare. Riclicca Costruisci per uscire."
+              : costruzioneSelezione.tipo === "ponte"
+                ? "🌉 Ponte — tocca una cella libera del fiume per piazzarlo."
               : costruzioneSelezione.tipo === "terreno"
                 ? costruzioneSelezione.kind === "acqua"
                   ? "🌊 Acqua — area 2×2; tocca per piazzare. Riclicca Costruisci per uscire."
@@ -4224,6 +4272,19 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                   <Text style={styles.modalOptionCostruisciEmoji}>{STRADA_OPZIONE.emoji}</Text>
                   <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
                     {STRADA_OPZIONE.nome}
+                  </Text>
+                </Pressable>
+                <Pressable
+                  style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
+                  onPress={() => {
+                    setCostruzioneSelezione({ tipo: "ponte" });
+                    setMostraModalCostruisci(false);
+                    setMostraGrigliaMappa(true);
+                  }}
+                >
+                  <Text style={styles.modalOptionCostruisciEmoji}>{PONTE_OPZIONE.emoji}</Text>
+                  <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
+                    {PONTE_OPZIONE.nome}
                   </Text>
                 </Pressable>
               </View>
