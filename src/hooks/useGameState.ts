@@ -51,7 +51,8 @@ import {
   ASSEGNO_PENSIONATI_DEFAULT,
   REDDITO_CITTADINANZA_DEFAULT,
   STIPENDIO_BASE_MONETE_MESE,
-  TASSA_PATRIMONIO_PERCENTUALE_DEFAULT
+  TASSA_PATRIMONIO_PERCENTUALE_DEFAULT,
+  IVA_PERCENTUALE_DEFAULT
 } from "../game/economiaPrezzi";
 import { getCastaAbitante } from "../game/casta";
 import {
@@ -332,6 +333,7 @@ export function useGameState() {
   const [tassaPatrimonioPercentuale, setTassaPatrimonioPercentuale] = useState(
     TASSA_PATRIMONIO_PERCENTUALE_DEFAULT
   );
+  const [ivaPercentuale, setIvaPercentuale] = useState(IVA_PERCENTUALE_DEFAULT);
   
   // Configurazione politica sulle nascite
   const [politicaNascite, setPoliticaNascite] = useState<"figlio-unico" | "incentivi" | "nessuna">("nessuna");
@@ -549,7 +551,7 @@ export function useGameState() {
       tassaPatrimonioPercentuale: tasseUnlock.has("patrimonio")
         ? tassaPatrimonioPercentuale
         : 0,
-      ivaPercentuale: 0
+      ivaPercentuale: tasseUnlock.has("iva") ? ivaPercentuale : 0
     });
 
     setNativiNonIntegrati((prev) => prev + result.deltaNativiNonIntegrati);
@@ -570,7 +572,7 @@ export function useGameState() {
       );
     }
     const stipendiMese = pagaStipendiEdificiPubblici(
-      result.moneteGiocatore + tasseMese.gettitoPatrimonio,
+      result.moneteGiocatore + tasseMese.gettitoPatrimonio + tasseMese.gettitoIva,
       dopoCarcere.abitanti,
       dopoCarcere.edifici,
       GIORNI_STIPENDIO_EDIFICIO_PUBBLICO_MESE
@@ -649,7 +651,7 @@ export function useGameState() {
     if (result.avvisoDiario) {
       setDiarioRighe((prev) => [...prev, result.avvisoDiario!]);
     }
-  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode, obiettiviCompletati, tassaPatrimonioPercentuale]);
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode, obiettiviCompletati, tassaPatrimonioPercentuale, ivaPercentuale]);
 
   const confermaMatrimonio = useCallback((idA: number, idB: number) => {
     setAbitanti((prev) =>
@@ -737,6 +739,7 @@ export function useGameState() {
     setGameMode(mode);
     setObiettiviCompletati([]);
     setTassaPatrimonioPercentuale(TASSA_PATRIMONIO_PERCENTUALE_DEFAULT);
+    setIvaPercentuale(IVA_PERCENTUALE_DEFAULT);
     setColtureSerraSbloccate(mode === "creativa" ? tutteColtureSerraSbloccate() : [COLTURA_SERRA_DEFAULT]);
     setAbitanti(colonia.abitanti);
     setRazzaNativi(colonia.razzaNativi);
@@ -821,6 +824,7 @@ export function useGameState() {
     setFlatTaxPercentuale(state.flatTaxPercentuale);
     setScaglioniConfig(state.scaglioniConfig);
     setTassaPatrimonioPercentuale(state.tassaPatrimonioPercentuale);
+    setIvaPercentuale(state.ivaPercentuale);
     setPoliticaNascite(state.politicaNascite);
     setPunteggioSanzioni(state.punteggioSanzioni);
     setPenaDiMorteAttiva(state.penaDiMorteAttiva);
@@ -873,7 +877,7 @@ export function useGameState() {
       ultimoGiornoPasti: ultimoGiornoPastiRef.current,
       ultimoGiornoProduzioneSerra: ultimoGiornoProduzioneSerraRef.current,
       ultimoGiornoEconomiaPubblica: ultimoGiornoEconomiaPubblicaRef.current,
-      tipoTassaReddito, flatTaxPercentuale, scaglioniConfig, tassaPatrimonioPercentuale, politicaNascite, punteggioSanzioni,
+      tipoTassaReddito, flatTaxPercentuale, scaglioniConfig, tassaPatrimonioPercentuale, ivaPercentuale, politicaNascite, punteggioSanzioni,
       penaDiMorteAttiva, penaReati, politicaReligiosa, religioneDiStato, religioniCustom, leggeRazzialeAttiva,
       razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, etaPensionabile, assegnoPensionati,
       leggeDroghe, divietoEspatrioAttivo, coprifuocoAttivo, coprifuocoInizioMinuti,
@@ -885,7 +889,7 @@ export function useGameState() {
     };
   }, [gameMode, gamePhase, diarioInizioVisto, abitanti, abitantiProposti, nextId, razzaNativi, nativiNonIntegrati,
     edifici, risorse, inventarioGiocatore, inventarioMensaByEdificioId, moneteGiocatore, prezzoResidenze,
-    mese, anno, tipoTassaReddito, flatTaxPercentuale, scaglioniConfig, tassaPatrimonioPercentuale, politicaNascite, punteggioSanzioni,
+    mese, anno, tipoTassaReddito, flatTaxPercentuale, scaglioniConfig, tassaPatrimonioPercentuale, ivaPercentuale, politicaNascite, punteggioSanzioni,
     penaDiMorteAttiva, penaReati, politicaReligiosa, religioneDiStato, religioniCustom, leggeRazzialeAttiva,
     razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, etaPensionabile, assegnoPensionati,
     leggeDroghe, divietoEspatrioAttivo, coprifuocoAttivo, coprifuocoInizioMinuti, coprifuocoFineMinuti,
@@ -1559,6 +1563,7 @@ export function useGameState() {
     flatTaxPercentuale,
     scaglioniConfig,
     tassaPatrimonioPercentuale,
+    ivaPercentuale,
     politicaNascite,
     punteggioSanzioni,
     penaDiMorteAttiva,
@@ -1591,6 +1596,7 @@ export function useGameState() {
     setFlatTaxPercentuale,
     setScaglioniConfig,
     setTassaPatrimonioPercentuale,
+    setIvaPercentuale,
     setPoliticaNascite,
     setPenaDiMorteAttiva,
     setPoliticaReligiosa,
