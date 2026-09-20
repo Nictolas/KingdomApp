@@ -606,13 +606,15 @@ export function useGameState() {
       result.moneteGiocatore + tasseMese.gettitoPatrimonio + tasseMese.gettitoIva;
     const protesta = applicaEffettiProtestaMensile(
       disordineDopo.fase,
-      moneteDopoTasse
+      moneteDopoTasse,
+      abitantiConModificatoriPuliti,
+      dopoCarcere.edifici
     );
     const ribellione = applicaEffettiRibellioneMensile(
       disordineDopo.fase,
       protesta.moneteGiocatore,
-      abitantiConModificatoriPuliti,
-      dopoCarcere.edifici
+      protesta.abitanti,
+      protesta.edifici
     );
     const scomparsa = applicaScomparsaOstileMensile(
       ribellione.abitanti,
@@ -621,13 +623,21 @@ export function useGameState() {
       result.nuovoMese,
       result.nuovoAnno
     );
-    const sabotaggio = applicaSabotaggioOstileMensile(
-      scomparsa.abitanti,
-      scomparsa.edifici,
-      giornoGioco,
-      result.nuovoMese,
-      result.nuovoAnno
-    );
+    const sabotaggio =
+      disordineDopo.fase === "nessuna"
+        ? applicaSabotaggioOstileMensile(
+            scomparsa.abitanti,
+            scomparsa.edifici,
+            giornoGioco,
+            result.nuovoMese,
+            result.nuovoAnno
+          )
+        : {
+            edifici: scomparsa.edifici,
+            sabotatoreId: null,
+            edificioId: null,
+            messaggio: null
+          };
     const attentato = tentaAttentatoOstileMensile(
       scomparsa.abitanti,
       sabotaggio.edifici,
