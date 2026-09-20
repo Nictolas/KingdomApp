@@ -171,6 +171,7 @@ import {
   trovaAnchorEdificioGlobaleSuMappa,
   trovaCellaPortaEdificio
 } from "../src/game/commutePathsMappa";
+import { scegliAzioneCommuteBloccataLavoro } from "../src/game/commuteBloccataLavoro";
 import { SEZIONE_AMBIENTE, SEZIONI_COSTRUZIONE, type TerrenoCostruzioneKind } from "../src/game/costruzioneSezioni";
 import {
   costoMaterialeEdilePerFootprint,
@@ -1002,6 +1003,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const mappaStateRef = useRef(mappaState);
   mappaStateRef.current = mappaState;
+
+  /** Conta blocchi consecutivi della stessa commute di lavoro per evitare oscillazioni infinite. */
+  const blocchiLavoroRef = useRef<Map<number, { blockedCell: number; count: number }>>(new Map());
 
   /** Ripara edifici culto costruiti ma non ancora visibili sulla mappa (es. accettati da Richieste). */
   useEffect(() => {
@@ -2122,9 +2126,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         return true;
       };
 
-      let path: number[] | null = null;
+      let pathEvitandoAltri: number[] | null = null;
+      let pathAttraversoAltri: number[] | null = null;
       if (anchorDest != null) {
-        path = calcolaPercorsoVersoAnchorEdificio(
+        pathEvitandoAltri = calcolaPercorsoVersoAnchorEdificio(
           from,
           anchorDest,
           cols,
@@ -2132,30 +2137,83 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           isWalkableEvitandoAltri,
           edificiInMappa
         );
-        if (!path || path.length < 2) {
-          path = calcolaPercorsoVersoAnchorEdificio(from, anchorDest, cols, rows, isWalkableCell, edificiInMappa);
-        }
+        pathAttraversoAltri = calcolaPercorsoVersoAnchorEdificio(
+          from,
+          anchorDest,
+          cols,
+          rows,
+          isWalkableCell,
+          edificiInMappa
+        );
       }
+
+      const aggiornaCommuteConPath = (pathNorm: number[]) => {
+        setCommuteByAbitanteId((prev) => ({
+          ...prev,
+          [abitanteId]: {
+            path: pathNorm,
+            token: Date.now(),
+            purpose: info.purpose,
+            barEdificioId: meta?.barEdificioId,
+            mensaEdificioId: meta?.mensaEdificioId,
+            cultoEdificioId: meta?.cultoEdificioId,
+            negozioEdificioId: meta?.negozioEdificioId,
+            lavoroCercaEdificioId: meta?.lavoroCercaEdificioId,
+            rapinaTarget: meta?.rapinaTarget
+          }
+        }));
+      };
+
+      if (info.purpose === "work") {
+        const prevBlocco = blocchiLavoroRef.current.get(abitanteId);
+        const oscillazioniConsecutive =
+          prevBlocco?.blockedCell === info.blockedCell ? prevBlocco.count + 1 : 0;
+        blocchiLavoroRef.current.set(abitanteId, {
+          blockedCell: info.blockedCell,
+          count: oscillazioniConsecutive
+        });
+
+        const porta =
+          anchorDest != null
+            ? trovaCellaPortaEdificio(anchorDest, edificiInMappa, cols, rows, isWalkableCell)
+            : null;
+        const azione = scegliAzioneCommuteBloccataLavoro({
+          fromCell: from,
+          blockedCell: info.blockedCell,
+          cols,
+          pathEvitandoAltri,
+          pathAttraversoAltri,
+          giaAllIngresso: porta === from,
+          oscillazioniConsecutive
+        });
+
+        if (azione.tipo === "completa") {
+          blocchiLavoroRef.current.delete(abitanteId);
+          handleCommuteFinita(abitanteId, "work");
+          return;
+        }
+
+        if (azione.tipo === "usa_path") {
+          blocchiLavoroRef.current.delete(abitanteId);
+          aggiornaCommuteConPath(azione.path);
+          return;
+        }
+
+        aggiornaCommuteConPath(azione.path);
+        return;
+      }
+
+      const path =
+        pathEvitandoAltri && pathEvitandoAltri.length >= 2
+          ? pathEvitandoAltri
+          : pathAttraversoAltri;
 
       if (path && path.length >= 2) {
         const idxFrom = path.indexOf(from);
         const pathNorm =
           idxFrom >= 0 ? path.slice(idxFrom) : path[0] === from ? path : [from, ...path];
         if (pathNorm.length >= 2) {
-          setCommuteByAbitanteId((prev) => ({
-            ...prev,
-            [abitanteId]: {
-              path: pathNorm,
-              token: Date.now(),
-              purpose: info.purpose,
-              barEdificioId: meta?.barEdificioId,
-              mensaEdificioId: meta?.mensaEdificioId,
-              cultoEdificioId: meta?.cultoEdificioId,
-              negozioEdificioId: meta?.negozioEdificioId,
-              lavoroCercaEdificioId: meta?.lavoroCercaEdificioId,
-              rapinaTarget: meta?.rapinaTarget
-            }
-          }));
+          aggiornaCommuteConPath(pathNorm);
           return;
         }
       }
