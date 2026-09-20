@@ -105,6 +105,7 @@ import { setMappaSessione, getMappaSessione } from "../game/mappaSessione";
 import { mappaHaPonteOperativo } from "../game/ponteMappa";
 import { pulisciModificatoriScaduti } from "../game/soddisfazione";
 import {
+  applicaEffettiProtestaMensile,
   applicaEffettiRibellioneMensile,
   applicaSabotaggioOstileMensile,
   applicaScomparsaOstileMensile,
@@ -603,9 +604,13 @@ export function useGameState() {
     const avvisoDisordine = messaggioFaseDisordineSoddisfazione(disordineDopo);
     const moneteDopoTasse =
       result.moneteGiocatore + tasseMese.gettitoPatrimonio + tasseMese.gettitoIva;
+    const protesta = applicaEffettiProtestaMensile(
+      disordineDopo.fase,
+      moneteDopoTasse
+    );
     const ribellione = applicaEffettiRibellioneMensile(
       disordineDopo.fase,
-      moneteDopoTasse,
+      protesta.moneteGiocatore,
       abitantiConModificatoriPuliti,
       dopoCarcere.edifici
     );
@@ -699,6 +704,7 @@ export function useGameState() {
     const avvisiDiario = [
       result.avvisoDiario,
       avvisoDisordine,
+      ...protesta.messaggi,
       ...ribellione.messaggi,
       scomparsa.messaggio,
       sabotaggio.messaggio,
