@@ -18,7 +18,7 @@ import { createAsyncStoragePersistentStorage } from "../persistence/asyncStorage
 import { gameSaveV1ToGameState, gameStateToGameSaveV1 } from "../persistence/gameStateMapping";
 import { SaveRepository, type LoadSaveResult } from "../persistence/saveRepository";
 import { SAVE_FORMAT, SAVE_SCHEMA_VERSION, type SaveEnvelopeV1 } from "../persistence/saveTypes";
-import { decideStartup, runMutationThenSave, shouldAutosave, shouldConfirmNewGame } from "../persistence/saveRuntimePolicy";
+import { decideStartup, shouldAutosave, shouldConfirmNewGame } from "../persistence/saveRuntimePolicy";
 import { StartGameScreen } from "../ui/StartGameScreen";
 import { GameModeSelectionScreen } from "../ui/GameModeSelectionScreen";
 
@@ -135,7 +135,6 @@ type GameContextType = {
   setRedditoCittadinanza: (importo: number) => void;
   /** Imposta la modalità del sistema sanitario (Privata/Pubblica). */
   setModalitaSanita: (modalita: "privata" | "pubblica") => void;
-  avanzaMese: () => Promise<void>;
   assegnaAbitanteAEdificio: (abitanteId: number, edificioId: number) => void;
   rimuoviAbitanteDaEdificio: (abitanteId: number, edificioId: number) => void;
   setStipendioEdificio: (edificioId: number, stipendioPerLavoratore: number) => void;
@@ -444,18 +443,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
     };
   }, [salvaPartita]);
 
-  const avanzaMeseConSalvataggio = useCallback(async () => {
-    await runMutationThenSave(
-      gameState.avanzaMese,
-      async () => {
-        dirtyRef.current = true;
-        await new Promise((resolve) => setTimeout(resolve, 0));
-        await salvaPartita();
-      }
-    );
-  }, [gameState, salvaPartita]);
 
-  const contextValue = { ...gameState, avanzaMese: avanzaMeseConSalvataggio, saveStatus, salvaPartita };
+  const contextValue = { ...gameState, saveStatus, salvaPartita };
 
   if (startup === "mode-choice") {
     return (
