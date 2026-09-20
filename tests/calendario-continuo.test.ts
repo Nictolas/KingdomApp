@@ -28,10 +28,12 @@ test("la mappa non espone più Skip Mese e il cambio mese è automatico", () => 
   const mappa = readFileSync("app/mappa.tsx", "utf8");
   const hook = readFileSync("src/hooks/useGameState.ts", "utf8");
   const context = readFileSync("src/context/GameContext.tsx", "utf8");
+  const regole = readFileSync("app/regole.tsx", "utf8");
 
   assert.doesNotMatch(mappa, /Skip Mese/);
   assert.doesNotMatch(mappa, /onPress=\{avanzaMese\}/);
   assert.doesNotMatch(context, /avanzaMese:\s*\(\)/);
   assert.match(hook, /processaCambioMeseAutomatico/);
   assert.match(hook, /indiceMeseDaGiornoGioco\(giornoGioco/);
+  assert.doesNotMatch(regole, /regole-skip|Regole Skip|skippi il mese/);
 });
