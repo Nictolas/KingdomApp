@@ -7,6 +7,7 @@ import {
   isColturaSerraValida,
   PRODUZIONE_SERRA_GIORNALIERA
 } from "./colturaSerra";
+import { applicaMoltiplicatoreProduzione } from "./reModalita";
 
 export function isSerraOperativa(edificio: Edificio): boolean {
   return edificio.nome === "Serra" && edificio.stato === "Operativo";
@@ -21,7 +22,8 @@ export function getColturaItemIdSerra(edificio: Edificio): string | null {
 /** Quantità per itemId prodotte da tutte le Serre nel periodo indicato. */
 export function calcolaProduzioneSerraPerPeriodo(
   edifici: Edificio[],
-  giorni: number
+  giorni: number,
+  edificioBuffVisitaId?: number | null
 ): Map<string, number> {
   const out = new Map<string, number>();
   if (giorni <= 0) return out;
@@ -29,17 +31,28 @@ export function calcolaProduzioneSerraPerPeriodo(
   for (const edificio of edifici) {
     const coltura = getColturaItemIdSerra(edificio);
     if (!coltura) continue;
-    const qty = PRODUZIONE_SERRA_GIORNALIERA * giorni;
+    const produzioneBase = PRODUZIONE_SERRA_GIORNALIERA * giorni;
+    const qty = applicaMoltiplicatoreProduzione(
+      produzioneBase,
+      edificio.id === edificioBuffVisitaId
+    );
     out.set(coltura, (out.get(coltura) ?? 0) + qty);
   }
   return out;
 }
 
-export function calcolaProduzioneSerraMensile(edifici: Edificio[]): number {
+export function calcolaProduzioneSerraMensile(
+  edifici: Edificio[],
+  edificioBuffVisitaId?: number | null
+): number {
   let tot = 0;
   for (const edificio of edifici) {
     if (getColturaItemIdSerra(edificio)) {
-      tot += PRODUZIONE_SERRA_GIORNALIERA * GIORNI_PRODUZIONE_SERRA_PER_MESE;
+      const produzioneBase = PRODUZIONE_SERRA_GIORNALIERA * GIORNI_PRODUZIONE_SERRA_PER_MESE;
+      tot += applicaMoltiplicatoreProduzione(
+        produzioneBase,
+        edificio.id === edificioBuffVisitaId
+      );
     }
   }
   return tot;
