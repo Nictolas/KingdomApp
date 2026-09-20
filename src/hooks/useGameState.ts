@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect, useRef } from "react";
+import { useState, useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { Alert } from "react-native";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
 import { risorseData, edificiData, pianetiData } from "../kingdomData";
@@ -105,6 +105,11 @@ import type { PersistableGameState } from "../persistence/gameStateMapping";
 import type { MappaRuntimeState } from "../game/mappaTypes";
 import { setMappaSessione, getMappaSessione } from "../game/mappaSessione";
 import { mappaHaPonteOperativo } from "../game/ponteMappa";
+import {
+  indiceCalendarioGioco,
+  indiceMeseDaGiornoGioco,
+  offsetMesiPerCalendarioSalvato
+} from "../game/calendarioGioco";
 
 const statoIniziale = generaColoniaIniziale();
 const capoReligiosoSoleIniziale =
@@ -193,11 +198,17 @@ export function useGameState() {
   const ultimoGiornoPastiRef = useRef(0);
   const [mese, setMese] = useState(1);
   const [anno, setAnno] = useState(0);
+  const giornoGioco = useSyncExternalStore(
+    subscribeGiornoGioco,
+    getGiornoGiocoSnapshot,
+    getGiornoGiocoSnapshot
+  );
+  const offsetMesiOrologioRef = useRef(0);
   const meseRef = useRef(mese);
   const annoRef = useRef(anno);
   meseRef.current = mese;
   annoRef.current = anno;
-  const [isLoading, setIsLoading] = useState(false);
+  const [isLoading] = useState(false);
   const [abitantiProposti, setAbitantiProposti] = useState<Abitante[]>([]);
   const [nextId, setNextId] = useState(statoIniziale.abitanti.length + 100); // ID iniziale per nuovi abitanti
   const [ordiniMercato, setOrdiniMercato] = useState<OrdineMercato[]>([]);
@@ -511,10 +522,8 @@ export function useGameState() {
     [politicaReligiosa, religioneDiStato, leggeDroghe, edifici]
   );
 
-  const avanzaMese = useCallback(async () => {
+  const processaCambioMeseAutomatico = useCallback(() => {
     if (!isSimulationRunning(gamePhaseRef.current)) return;
-    setIsLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1000));
 
     const result = runAvanzaMese({
       abitanti,
@@ -559,46 +568,22 @@ export function useGameState() {
     if (result.pendingMatrimonio != null) setPendingMatrimonio(result.pendingMatrimonio);
     if (result.newIdNascita != null) setNextId(result.newIdNascita + 1);
     setEventiInCorso(result.eventiInCorso);
+
     const dopoCarcere = avanzaCarcereResiduoPuro(tasseMese.abitanti, result.edifici);
+    const risorseAggiornate = estraiCreditiLegacyDaRisorse(result.risorse).risorse;
+    const moneteAggiornate =
+      result.moneteGiocatore + tasseMese.gettitoPatrimonio + tasseMese.gettitoIva;
+
+    setAbitanti(dopoCarcere.abitanti);
     setEdifici(dopoCarcere.edifici);
-    setRisorse(estraiCreditiLegacyDaRisorse(result.risorse).risorse);
-    const produzioneSerraMese = calcolaProduzioneSerraPerPeriodo(
-      dopoCarcere.edifici,
-      GIORNI_PRODUZIONE_SERRA_PER_MESE
-    );
-    if (produzioneSerraMese.size > 0) {
-      setInventarioGiocatore((prev) =>
-        applicaProduzioneSerraInventarioGiocatore(prev, produzioneSerraMese)
-      );
-    }
-    const stipendiMese = pagaStipendiEdificiPubblici(
-      result.moneteGiocatore + tasseMese.gettitoPatrimonio + tasseMese.gettitoIva,
-      dopoCarcere.abitanti,
-      dopoCarcere.edifici,
-      GIORNI_STIPENDIO_EDIFICIO_PUBBLICO_MESE
-    );
-    setMoneteGiocatore(stipendiMese.moneteGiocatore);
-    const giornoPastiDa = ultimoGiornoPastiRef.current;
-    const giornoPastiA = giornoPastiDa + GIORNI_PRODUZIONE_SERRA_PER_MESE;
-    const pastiMese = applicaPastiGiornalieriPerPeriodo(
-      stipendiMese.abitanti,
-      dopoCarcere.edifici,
-      inventarioMensaRef.current,
-      giornoPastiDa,
-      giornoPastiA
-    );
-    ultimoGiornoPastiRef.current = giornoPastiA;
-    setAbitanti(pastiMese.abitanti);
-    setInventarioMensaByEdificioId(pastiMese.inventarioMensaByEdificioId);
-    if (pastiMese.carestiaMensa) {
-      setEventiInCorso((prev) => attivaEventoCarestia(prev, result.nuovoMese, result.nuovoAnno));
-    }
+    setRisorse(risorseAggiornate);
+    setMoneteGiocatore(moneteAggiornate);
     setMese(result.nuovoMese);
     setAnno(result.nuovoAnno);
     setOrdiniMercato([]);
     generaNuoviAbitantiProposti();
 
-    // Valuta i nuovi obiettivi completati a fine mese, solo in modalità Avventura.
+    // Valuta i nuovi obiettivi completati al cambio mese, solo in modalità Avventura.
     if (gameMode === "avventura") {
       const haPonte = mappaHaPonteOperativo(
         getMappaSessione()?.edificiInMappa ?? {},
@@ -615,12 +600,12 @@ export function useGameState() {
           if (!nodo) continue;
 
           const soddisfatto = nodo.condizione({
-            abitanti: pastiMese.abitanti,
+            abitanti: dopoCarcere.abitanti,
             edifici: dopoCarcere.edifici,
-            risorse: estraiCreditiLegacyDaRisorse(result.risorse).risorse,
+            risorse: risorseAggiornate,
             mese: result.nuovoMese,
             anno: result.nuovoAnno,
-            moneteGiocatore: stipendiMese.moneteGiocatore,
+            moneteGiocatore: moneteAggiornate,
             completati: completatiSet,
             haPonteSulFiume: haPonte
           });
@@ -635,7 +620,6 @@ export function useGameState() {
       });
     }
 
-    setIsLoading(false);
     (result.vittimeOmicidi ?? []).forEach((v) => {
       Alert.alert("Omicidio", `È stato trovato il cadavere di ${v.nome}.`);
     });
@@ -652,6 +636,19 @@ export function useGameState() {
       setDiarioRighe((prev) => [...prev, result.avvisoDiario!]);
     }
   }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode, obiettiviCompletati, tassaPatrimonioPercentuale, ivaPercentuale]);
+
+  /**
+   * Nessun pulsante «Skip Mese»: il cambio mese parte automaticamente ogni 30 giorni
+   * dell'orologio continuo. Se un salvataggio legacy aveva mese/anno più avanti del
+   * giorno globale, l'offset mantiene quella cronologia senza far tornare indietro il calendario.
+   */
+  useEffect(() => {
+    if (!simulationEnabled) return;
+    const indiceTarget = indiceMeseDaGiornoGioco(giornoGioco, offsetMesiOrologioRef.current);
+    const indiceAttuale = indiceCalendarioGioco(mese, anno);
+    if (indiceTarget <= indiceAttuale) return;
+    processaCambioMeseAutomatico();
+  }, [giornoGioco, mese, anno, simulationEnabled, processaCambioMeseAutomatico]);
 
   const confermaMatrimonio = useCallback((idA: number, idB: number) => {
     setAbitanti((prev) =>
@@ -738,6 +735,13 @@ export function useGameState() {
     const colonia = generaColoniaIniziale(mode);
     setGameMode(mode);
     setObiettiviCompletati([]);
+    setMese(1);
+    setAnno(0);
+    offsetMesiOrologioRef.current = 0;
+    ultimoGiornoPastiRef.current = 0;
+    ultimoGiornoProduzioneSerraRef.current = 1;
+    ultimoGiornoEconomiaPubblicaRef.current = 1;
+    restoreOrologioGioco({ giorno: 1, minutiDaMezzanotte: 6 * 60, pausaManuale: false });
     setTassaPatrimonioPercentuale(TASSA_PATRIMONIO_PERCENTUALE_DEFAULT);
     setIvaPercentuale(IVA_PERCENTUALE_DEFAULT);
     setColtureSerraSbloccate(mode === "creativa" ? tutteColtureSerraSbloccate() : [COLTURA_SERRA_DEFAULT]);
@@ -810,6 +814,11 @@ export function useGameState() {
     setEdifici(state.edifici);
     setMese(state.mese);
     setAnno(state.anno);
+    offsetMesiOrologioRef.current = offsetMesiPerCalendarioSalvato(
+      state.giorno,
+      state.mese,
+      state.anno
+    );
     setAbitantiProposti(state.abitantiProposti);
     setNextId(state.nextId);
     setOrdiniMercato(state.ordiniMercato);
@@ -1645,7 +1654,6 @@ export function useGameState() {
     serviPastoMensaAbitante,
     trasferisciCiboGiocatoreAMensa,
     calcolaFelicitàModificata,
-    avanzaMese,
     assegnaAbitanteAEdificio,
     rimuoviAbitanteDaEdificio,
     setStipendioEdificio,
