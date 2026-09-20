@@ -115,6 +115,11 @@ import {
   assumiDisoccupatoNellaMiniera,
   etichettaRaccoltoMiniera
 } from "../game/minieraRaccolta";
+import {
+  ricollocaSeLavoroIrraggiungibile,
+  type RisultatoRicollocaLavoro
+} from "../game/ricollocaLavoroIrraggiungibile";
+import type { EdificioInCellaLike } from "../game/commutePathsMappa";
 import { provaAssumiPrimoArrivoComeBaristaSeVuoto } from "../game/barEconomia";
 import {
   appendRegistrazioneScambio,
@@ -2053,6 +2058,75 @@ export function useGameState() {
     [abitanti, edifici, registraScambioCommerciale]
   );
 
+  /**
+   * Se la sede di lavoro non è raggiungibile, libera l'incarico e cerca un lavoro
+   * fisicamente raggiungibile; in ultima istanza ricolloca nel Bosco.
+   */
+  const ricollocaLavoroIrraggiungibileDaMappa = useCallback(
+    (
+      richieste: { abitanteId: number; fromCell: number }[],
+      edificiInMappa: Record<number, EdificioInCellaLike>,
+      cols: number,
+      rows: number,
+      isWalkable: (i: number) => boolean
+    ): Record<number, { path: number[] | null; nuovoEdificioId?: number }> => {
+      if (richieste.length === 0) return {};
+
+      let abitantiCur = abitantiRef.current;
+      let edificiCur = edificiRef.current;
+      const out: Record<number, { path: number[] | null; nuovoEdificioId?: number }> = {};
+      const bottini: NonNullable<RisultatoRicollocaLavoro["bottino"]>[] = [];
+
+      for (const req of richieste) {
+        const result = ricollocaSeLavoroIrraggiungibile(
+          req.abitanteId,
+          abitantiCur,
+          edificiCur,
+          req.fromCell,
+          edificiInMappa,
+          cols,
+          rows,
+          isWalkable
+        );
+        if (!result.ricollocato) continue;
+
+        abitantiCur = result.abitanti;
+        edificiCur = result.edifici;
+        if (result.bottino) bottini.push(result.bottino);
+        out[req.abitanteId] = {
+          path: result.pathVersoNuovo ?? null,
+          nuovoEdificioId: result.nuovoEdificioId
+        };
+      }
+
+      if (Object.keys(out).length === 0) return {};
+
+      abitantiRef.current = abitantiCur;
+      edificiRef.current = edificiCur;
+      setAbitanti(abitantiCur);
+      setEdifici(edificiCur);
+
+      for (const b of bottini) {
+        for (const v of b.voci) {
+          registraScambioCommerciale(
+            voceRegistrazioneRaccoltaBosco({
+              abitanteId: b.abitanteId,
+              abitanteNome: b.abitanteNome,
+              boscoId: b.boscoId,
+              itemId: v.itemId,
+              itemNome: v.nome,
+              itemEmoji: v.emoji,
+              quantità: v.quantità
+            })
+          );
+        }
+      }
+
+      return out;
+    },
+    [registraScambioCommerciale]
+  );
+
   const trasferisciProprietaSchiavo = useCallback(
     (schiavoId: number, nuovoProprietarioId: number | null, prezzo: number = PREZZO_SCHIAVO_DEFAULT) => {
       const result = trasferisciProprietaSchiavoPuro({
@@ -2241,6 +2315,7 @@ export function useGameState() {
     aggiungiAlCampoDiLavoroTuttiQuelliChe,
     assegnaServoDellaGlebaAEdificio,
     assumiCittadinoDisoccupatoAEdificio,
+    ricollocaLavoroIrraggiungibileDaMappa,
     provaAssumiBaristaBarVuotoDaMappa,
     incassaImpresa,
     applicaPagaETipBarFineTurno,
