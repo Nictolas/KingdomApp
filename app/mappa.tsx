@@ -1,6 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
-  ActivityIndicator,
   Alert,
   Dimensions,
   Modal,
@@ -874,8 +873,6 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     edifici,
     mese,
     anno,
-    isLoading,
-    avanzaMese,
     calcolaProduzioneConsumo,
     calcolaDeltaOrdiniMercato,
     calcolaDeltaTesoroMercato,
@@ -3400,7 +3397,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Banner in alto: MyKingdom, Mese/Anno, Diario, Skip Mese, Felicità, Lealtà, Paura, Menu */}
+      {/* Banner in alto: MyKingdom, Mese/Anno, Diario, Felicità, Lealtà, Paura, Menu */}
       <View style={styles.topBanner}>
         <View style={styles.topBannerInner}>
           <View style={styles.bannerTitleBlock}>
@@ -3460,23 +3457,6 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           <Pressable style={styles.diarioBtn} onPress={() => router.push("/diario")}>
             <Text style={styles.diarioBtnEmoji}>📖</Text>
             <Text style={styles.diarioBtnLabel}>Diario</Text>
-          </Pressable>
-          <Pressable
-            style={[styles.skipBtn, isLoading && styles.skipBtnDisabled]}
-            onPress={avanzaMese}
-            disabled={isLoading}
-          >
-            {isLoading ? (
-              <>
-                <ActivityIndicator size="small" color="#fff" />
-                <Text style={styles.skipBtnText}>Caricamento...</Text>
-              </>
-            ) : (
-              <>
-                <Text style={styles.skipBtnEmoji}>⏭️</Text>
-                <Text style={styles.skipBtnText}>Skip Mese</Text>
-              </>
-            )}
           </Pressable>
           <Pressable style={styles.indCard} onPress={() => router.push("/felicita")}>
             <Text style={styles.indEmoji}>😊</Text>
@@ -4560,24 +4540,6 @@ const styles = StyleSheet.create({
   },
   diarioBtnEmoji: { fontSize: 14 },
   diarioBtnLabel: { fontSize: 12, fontWeight: "600", color: "#e2e8f0" },
-  skipBtn: {
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "center",
-    backgroundColor: "#2563eb",
-    paddingVertical: 10,
-    paddingHorizontal: 16,
-    borderRadius: 14,
-    gap: 8,
-    borderWidth: 1,
-    borderColor: "rgba(59,130,246,0.5)"
-  },
-  skipBtnDisabled: {
-    backgroundColor: "rgba(37,99,235,0.5)",
-    opacity: 0.9
-  },
-  skipBtnEmoji: { fontSize: 18 },
-  skipBtnText: { fontSize: 14, fontWeight: "700", color: "#fff" },
   mapContainer: {
     flex: 1,
     minHeight: 120,
