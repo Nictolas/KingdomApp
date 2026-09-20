@@ -151,3 +151,81 @@ export function applicaSabotaggioOstileMensile(
       `(efficienza ${bersaglio.efficienza}→${nuovaEfficienza}).`
   };
 }
+
+
+export type RisultatoScomparsaOstile = {
+  abitanti: Abitante[];
+  edifici: Edificio[];
+  scomparsoId: number | null;
+  messaggio: string | null;
+};
+
+/**
+ * Conseguenza individuale minima per un Ostile con azione «scomparsa».
+ * Al massimo un abitante per cambio mese. Non è una morte: nessun lutto.
+ */
+export function applicaScomparsaOstileMensile(
+  abitanti: Abitante[],
+  edifici: Edificio[],
+  giornoGioco: number,
+  mese: number,
+  anno: number,
+  rng: () => number = Math.random
+): RisultatoScomparsaOstile {
+  const candidati = abitanti.filter((abitante) => {
+    if (abitante.id === 1 || abitante.razza === "Golem") return false;
+    const punti = calcolaPunteggioSoddisfazione(
+      abitante,
+      edifici,
+      giornoGioco,
+      mese,
+      anno
+    );
+    const fascia = fasciaDaPunteggio(punti);
+    return azioneProbabileSeOstile(abitante, fascia) === "scomparsa";
+  });
+
+  if (candidati.length === 0) {
+    return { abitanti, edifici, scomparsoId: null, messaggio: null };
+  }
+
+  const scomparso = candidati[Math.floor(rng() * candidati.length)]!;
+  const id = scomparso.id;
+
+  const superstiti = abitanti
+    .filter((abitante) => abitante.id !== id)
+    .map((abitante) => {
+      const amici = (abitante.amici ?? []).filter((r) => r.id !== id);
+      const rivali = (abitante.rivali ?? []).filter((r) => r.id !== id);
+      const figliIds = (abitante.figliIds ?? []).filter((x) => x !== id);
+      const genitoriIds = (abitante.genitoriIds ?? []).filter((x) => x !== id);
+      const nonniIds = (abitante.nonniIds ?? []).filter((x) => x !== id);
+
+      return {
+        ...abitante,
+        amici,
+        rivali,
+        ...(abitante.coniugeId === id ? { coniugeId: undefined } : {}),
+        ...(abitante.figliIds ? { figliIds } : {}),
+        ...(abitante.genitoriIds ? { genitoriIds } : {}),
+        ...(abitante.nonniIds ? { nonniIds } : {})
+      };
+    });
+
+  const edificiAggiornati = edifici.map((edificio) => {
+    const assegnati = (edificio.abitantiAssegnati ?? []).filter((x) => x !== id);
+    if (assegnati.length === (edificio.abitantiAssegnati?.length ?? 0)) return edificio;
+    return {
+      ...edificio,
+      abitantiAssegnati: assegnati,
+      occupazione: assegnati.length
+    };
+  });
+
+  return {
+    abitanti: superstiti,
+    edifici: edificiAggiornati,
+    scomparsoId: id,
+    messaggio: `Scomparsa: ${scomparso.nome} è sparito dal Regno senza lasciare tracce.`
+  };
+}
