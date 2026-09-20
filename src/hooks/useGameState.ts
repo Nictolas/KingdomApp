@@ -106,6 +106,7 @@ import { mappaHaPonteOperativo } from "../game/ponteMappa";
 import { pulisciModificatoriScaduti } from "../game/soddisfazione";
 import {
   applicaSabotaggioOstileMensile,
+  applicaScomparsaOstileMensile,
   messaggioFaseDisordineSoddisfazione,
   valutaFaseDisordineSoddisfazione
 } from "../game/disordineSoddisfazione";
@@ -264,7 +265,7 @@ export function useGameState() {
       const abitantiConModificatoriPuliti = result.abitanti.map((a) =>
         pulisciModificatoriScaduti(a, giorno, meseRef.current, annoRef.current)
       );
-      setAbitanti(abitantiConModificatoriPuliti);
+      setAbitanti(scomparsa.abitanti);
       setInventarioMensaByEdificioId(result.inventarioMensaByEdificioId);
       if (result.carestiaMensa) {
         setEventiInCorso((prev) => attivaEventoCarestia(prev, meseRef.current, annoRef.current));
@@ -598,9 +599,16 @@ export function useGameState() {
       result.nuovoAnno
     );
     const avvisoDisordine = messaggioFaseDisordineSoddisfazione(disordineDopo);
-    const sabotaggio = applicaSabotaggioOstileMensile(
+    const scomparsa = applicaScomparsaOstileMensile(
       abitantiConModificatoriPuliti,
       dopoCarcere.edifici,
+      giornoGioco,
+      result.nuovoMese,
+      result.nuovoAnno
+    );
+    const sabotaggio = applicaSabotaggioOstileMensile(
+      scomparsa.abitanti,
+      scomparsa.edifici,
       giornoGioco,
       result.nuovoMese,
       result.nuovoAnno
@@ -635,7 +643,7 @@ export function useGameState() {
           if (!nodo) continue;
 
           const soddisfatto = nodo.condizione({
-            abitanti: abitantiConModificatoriPuliti,
+            abitanti: scomparsa.abitanti,
             edifici: sabotaggio.edifici,
             risorse: risorseAggiornate,
             mese: result.nuovoMese,
@@ -667,7 +675,12 @@ export function useGameState() {
     if (result.messaggioNascita) {
       Alert.alert("Nascita", result.messaggioNascita);
     }
-    const avvisiDiario = [result.avvisoDiario, avvisoDisordine, sabotaggio.messaggio].filter(
+    const avvisiDiario = [
+      result.avvisoDiario,
+      avvisoDisordine,
+      scomparsa.messaggio,
+      sabotaggio.messaggio
+    ].filter(
       (riga): riga is string => !!riga
     );
     if (avvisiDiario.length > 0) {
