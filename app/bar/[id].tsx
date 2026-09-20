@@ -13,6 +13,8 @@ import { useOrologioGioco } from "../../src/hooks/useOrologioGioco";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../../src/game/edificiLavoro";
 import { getCastaAbitante } from "../../src/game/casta";
 import { getStipendioMensileEdificio, STIPENDIO_BASE_MONETE_GIORNO } from "../../src/game/edificiPubblici";
+import { COSTO_BAR_MONETE } from "../../src/game/barEconomia";
+import { getCassaImpresa, getFatturatoMeseImpresa } from "../../src/game/impresaCassa";
 import { getEmojiAbitante } from "../../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../../src/types";
@@ -101,6 +103,10 @@ export default function BarScreenById() {
           <Text style={styles.infoSubtext}>
             Luogo di ritrovo per bere, socializzare e rilassarsi dopo il lavoro.
           </Text>
+          <Text style={styles.infoText}>🍺 Birra: {COSTO_BAR_MONETE} monete</Text>
+          <Text style={styles.infoSubtext}>
+            Cassa: {getCassaImpresa(bar)} monete · Fatturato mese: {getFatturatoMeseImpresa(bar)} monete
+          </Text>
         </View>
 
         <View style={styles.dueColonne}>
@@ -110,7 +116,7 @@ export default function BarScreenById() {
               {addetti.length}/{cap} posti
             </Text>
             <Text style={styles.infoSubtext}>
-              Cittadini disoccupati si assumono da soli (Barista). Puoi assegnare Servi della gleba.
+              Se il Bar è vuoto, il primo abitante idoneo può diventare Barista. Puoi anche assegnare Servi della gleba.
             </Text>
             {addetti.length > 0 ? (
               <View style={styles.cardsContainer}>
@@ -163,7 +169,7 @@ export default function BarScreenById() {
             <Text style={styles.sectionTitle}>Clienti</Text>
             <Text style={styles.lavoratoriCount}>{clienti.length} presenti</Text>
             <Text style={styles.infoSubtext}>
-              Di giorno, fuori orario di lavoro, colonisti in visita; di notte sono a casa.
+              Di giorno, fuori orario di lavoro, abitanti in visita; di notte sono a casa.
             </Text>
             {clienti.length > 0 ? (
               <View style={styles.cardsContainer}>
