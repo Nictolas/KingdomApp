@@ -58,6 +58,8 @@ export type GameSaveV1 = {
     scaglioniConfig: ScaglioneSalvato[];
     /** Assente nei salvataggi precedenti al ripristino fiscale. */
     tassaPatrimonioPercentuale?: number;
+    /** Assente nei salvataggi precedenti al ripristino fiscale. */
+    ivaPercentuale?: number;
     politicaNascite: "figlio-unico" | "incentivi" | "nessuna";
     punteggioSanzioni: number;
     penaDiMorteAttiva: boolean;
