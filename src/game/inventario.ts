@@ -252,10 +252,10 @@ export function normalizzaAbitanteInventario(abitante: Abitante): Abitante {
 }
 
 /** Consuma 1 unità del primo oggetto Cibo disponibile e compatibile con la dieta; null se nessuno. */
-export function consumaUnOggettoCibo(
+export function consumaUnOggettoCiboConItem(
   inventario: VoceInventario[],
   personalità?: string
-): VoceInventario[] | null {
+): { inventario: VoceInventario[]; itemId: string } | null {
   const inv = normalizzaInventarioAbitante(inventario);
   const idx = inv.findIndex(
     (v) =>
@@ -264,8 +264,16 @@ export function consumaUnOggettoCibo(
       abitantePuòConsumareOggettoCibo(personalità ?? "", v.itemId)
   );
   if (idx < 0) return null;
+  const itemId = inv[idx]!.itemId;
   const next = inv.map((v, i) => (i === idx ? { ...v, quantità: v.quantità - 1 } : v));
-  return next;
+  return { inventario: next, itemId };
+}
+
+export function consumaUnOggettoCibo(
+  inventario: VoceInventario[],
+  personalità?: string
+): VoceInventario[] | null {
+  return consumaUnOggettoCiboConItem(inventario, personalità)?.inventario ?? null;
 }
 
 /** Trasferisce monete tra due abitanti con inventario; null se saldo insufficiente. */
