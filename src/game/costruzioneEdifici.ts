@@ -1,4 +1,5 @@
 import type { Abitante, Edificio, Risorsa } from "../types";
+import { edificioSiPagaInMonete } from "./edificiPrezzi";
 
 export const NOME_UFFICIO_EDILE = "Ufficio Edile";
 export const NOME_RISORSA_MATERIALE_EDILE = "Materiale Edile";
@@ -20,7 +21,7 @@ export function edificioParteInCostruzione(nome: string): boolean {
 
 /** Costo in Materiale Edile al piazzamento (Capanna = 0). */
 export function costoMaterialeEdilePerFootprint(nome: string, w: number, h: number): number {
-  if (nome === "Capanna") return 0;
+  if (nome === "Capanna" || edificioSiPagaInMonete(nome)) return 0;
   return Math.max(5, Math.floor(w) * Math.floor(h) * 8);
 }
 
