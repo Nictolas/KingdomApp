@@ -31,7 +31,7 @@ import { PENA_REATI_INIZIALE, type PenaReatiConfig, type ReatoPunibile } from ".
 import { generaAssimilati } from "../game/assimilazione";
 import { calcolaProduzioneConsumoPuro } from "../game/produzioneConsumo";
 import { calcolaFelicitàModificataPuro } from "../game/felicita";
-import { applicaTasseMensili } from "../game/tasse";
+import { applicaTasseMensili, eseguiPrelievoForzoso } from "../game/tasse";
 import { tasseSbloccate } from "../game/tasseSblocco";
 import { applicaEsitoChiacchieraSuLista } from "../game/relazioneChiacchiera";
 import { getEdificioAbitazione } from "../game/abitanteEdifici";
@@ -1173,6 +1173,29 @@ export function useGameState() {
     setDiarioRighe((prev) => [...prev, t]);
   }, []);
 
+  /**
+   * Prelievo forzoso immediato: fino all'importo indicato da ogni suddito imponibile.
+   * Il gettito va al Tesoro e il malus di soddisfazione resta separato dalla felicità.
+   */
+  const eseguiPrelievoForzosoRe = useCallback(
+    (importoPerAbitante: number): { gettito: number; soggettiColpiti: number } => {
+      const result = eseguiPrelievoForzoso({
+        abitanti,
+        importoPerAbitante,
+        mese,
+        anno
+      });
+      if (result.gettito <= 0) return { gettito: 0, soggettiColpiti: 0 };
+      setAbitanti(result.abitanti);
+      setMoneteGiocatore((prev) => prev + result.gettito);
+      appendDiarioRiga(
+        `Prelievo forzoso: ${result.gettito} monete raccolte da ${result.soggettiColpiti} abitanti (${Math.floor(importoPerAbitante)} monete/capo).`
+      );
+      return { gettito: result.gettito, soggettiColpiti: result.soggettiColpiti };
+    },
+    [abitanti, mese, anno, appendDiarioRiga]
+  );
+
   /** Aggiorna le scorte di una Mensa (es. furto). */
   const setInventarioMensaEdificio = useCallback(
     (edificioId: number, inventario: { itemId: string; quantità: number }[]) => {
@@ -1644,6 +1667,7 @@ export function useGameState() {
     applicaEsitoChiacchieraAbitanti,
     accreditaMoneteGiocatore,
     appendDiarioRiga,
+    eseguiPrelievoForzosoRe,
     setInventarioMensaEdificio,
     calcolaProduzioneConsumo,
     accettaImmigrante,
