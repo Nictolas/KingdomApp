@@ -317,6 +317,10 @@ export function useGameState() {
       const abitantiConModificatoriPuliti = result.abitanti.map((a) =>
         pulisciModificatoriScaduti(a, giorno, meseRef.current, annoRef.current)
       );
+      abitantiRef.current = abitantiConModificatoriPuliti;
+      edificiRef.current = result.edifici;
+      inventarioMensaRef.current = result.inventarioMensaByEdificioId;
+      inventarioEmporioRef.current = result.inventarioEmporioByEdificioId;
       setAbitanti(abitantiConModificatoriPuliti);
       setEdifici(result.edifici);
       setInventarioMensaByEdificioId(result.inventarioMensaByEdificioId);
