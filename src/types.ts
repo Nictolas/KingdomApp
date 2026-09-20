@@ -125,6 +125,11 @@ export type Abitante = {
   gravidanzaIniziataAnno?: number;
   /** Oggetti portati dall'abitante (monete, cibo, …). */
   inventario?: { itemId: string; quantità: number }[];
+  /** Ultimo raccolto dalla Serra (Agricoltore). */
+  ultimoRaccoltoSerra?: {
+    giorno: number;
+    voci: { itemId: string; emoji: string; nome: string; quantità: number }[];
+  };
   /** Ultimo giorno di gioco in cui ha consumato un oggetto Cibo dall'inventario. */
   ultimoGiornoCiboConsumato?: number;
   /** Bisogni 0–100 (Fame, Energia, Divertimento, Socialità, Igiene). */
@@ -214,7 +219,7 @@ export type Edificio = {
   cassaMonete?: number;
   /** Fatturato del mese corrente. */
   fatturatoMeseMonete?: number;
-  /** Solo Serra: id oggetto Cibo vegetale prodotto (1 unità/giorno). */
+  /** Solo Serra: id oggetto Cibo vegetale prodotto dagli Agricoltori. */
   colturaItemId?: string;
   /** Solo Chiesa: religione del tempio (non Ateo/Deista/Agnostico). */
   religioneTempio?: string;
