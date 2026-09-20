@@ -4,6 +4,7 @@ import {
   messaggioReatoSenzaLegge,
   type PenaReatiConfig
 } from "./reati";
+import { applicaLuttoFamiliareERimuoviMorti } from "./soddisfazione";
 
 export type RisultatoGiudizio =
   | { ok: false; messaggio: string }
@@ -35,7 +36,10 @@ export function condannaAMortePuro(
   edifici: Edificio[],
   abitanteId: number
 ): { nuoviAbitanti: Abitante[]; nuoviEdifici: Edificio[] } {
-  const nuoviAbitanti = abitanti.filter((a) => a.id !== abitanteId);
+  const nuoviAbitanti = applicaLuttoFamiliareERimuoviMorti(
+    abitanti,
+    new Set([abitanteId])
+  );
   const nuoviEdifici = edifici.map((e) => {
     const nuovi = (e.abitantiAssegnati ?? []).filter((id) => id !== abitanteId);
     return nuovi.length !== (e.abitantiAssegnati?.length ?? 0)
