@@ -16,6 +16,9 @@ export const STIPENDIO_BASE_MONETE_MESE = STIPENDIO_BASE_MONETE_GIORNO * GIORNI_
 /** Cassa iniziale delle imprese del regno. */
 export const CASSA_IMPRESA_SEED = 10;
 
+/** Tassa mensile sul fatturato delle imprese. */
+export const TASSA_IMPRESA_PERCENTUALE = 10;
+
 /** Costo monete per entrare al bar. */
 export const COSTO_BAR_MONETE = 2;
 
