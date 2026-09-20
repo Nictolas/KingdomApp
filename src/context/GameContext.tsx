@@ -196,6 +196,8 @@ type GameContextType = {
   aggiornaEdificioById: (edificioId: number, fn: (e: Edificio) => Edificio) => void;
   /** Esito sociale di una chiacchiera «in giro» (amici/rivali, simmetrico). */
   applicaEsitoChiacchieraAbitanti: (idA: number, idB: number) => void;
+  /** Adotta un abitante senza genitori vivi. */
+  adottaFiglio: (genitoreId: number, figlioId: number) => boolean;
   /** Accredita monete al tesoro del giocatore (es. pagamenti bar/negozio). */
   accreditaMoneteGiocatore: (quantità: number) => void;
   /** Appende una riga al diario (avvisi soft). */
