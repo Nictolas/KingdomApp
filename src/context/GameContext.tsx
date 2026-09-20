@@ -57,6 +57,7 @@ type GameContextType = {
   tipoTassaReddito: "flat" | "scaglioni";
   flatTaxPercentuale: number;
   scaglioniConfig: ScaglioneConfig[];
+  tassaPatrimonioPercentuale: number;
   politicaNascite: "figlio-unico" | "incentivi" | "nessuna";
   punteggioSanzioni: number;
   penaDiMorteAttiva: boolean;
@@ -100,6 +101,7 @@ type GameContextType = {
   setTipoTassaReddito: (tipo: "flat" | "scaglioni") => void;
   setFlatTaxPercentuale: (percentuale: number) => void;
   setScaglioniConfig: (config: ScaglioneConfig[]) => void;
+  setTassaPatrimonioPercentuale: (percentuale: number) => void;
   setPoliticaNascite: (politica: "figlio-unico" | "incentivi" | "nessuna") => void;
   setPenaDiMorteAttiva: (attiva: boolean) => void;
   setPoliticaReligiosa: (politica: "ateismo-stato" | "religione-stato" | "liberta-culto") => void;
