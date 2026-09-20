@@ -4,6 +4,8 @@ import { readFileSync } from "node:fs";
 
 import {
   STATO_RE_DEFAULT,
+  applicaMoltiplicatoreProduzione,
+  edificioBuffVisitaCorrente,
   setModalitaRePuro,
   tickModalitaReMensile,
   vulnerabileAttentato
@@ -63,6 +65,20 @@ test("In visita seleziona l'edificio e segnala il buff storico", () => {
   assert.equal(result.stato.popolaritaRe, 51);
 });
 
+test("il bonus visita è +15% solo sull'edificio operativo visitato", () => {
+  const visita = setModalitaRePuro(STATO_RE_DEFAULT, "in_visita", 2);
+  assert.equal(edificioBuffVisitaCorrente(visita, [castello, serra]), 2);
+  assert.equal(applicaMoltiplicatoreProduzione(100, true), 114);
+  assert.equal(applicaMoltiplicatoreProduzione(100, false), 100);
+  assert.equal(
+    edificioBuffVisitaCorrente(
+      visita,
+      [castello, { ...serra, stato: "Danneggiato" } as Edificio]
+    ),
+    null
+  );
+});
+
 test("nel Castello il Re non è vulnerabile agli attentati", () => {
   assert.equal(vulnerabileAttentato("nel_castello"), false);
   assert.equal(vulnerabileAttentato("a_giro"), true);
@@ -78,6 +94,8 @@ test("Castello e stato del Re sono ricollegati al gameplay", () => {
   assert.match(hook, /tickModalitaReMensile/);
   assert.match(hook, /setModalitaRe/);
   assert.match(hook, /popolaritaRe/);
+  assert.match(hook, /edificioBuffVisitaCorrente/);
+  assert.match(hook, /edificioBuffVisitaId: buffId/);
   assert.match(context, /modalitaRe: ModalitaRe/);
   assert.match(routes, /"Castello": "\/castello"/);
   assert.match(castlePage, /Modalità presenza/);
