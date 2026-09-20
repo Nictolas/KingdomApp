@@ -44,10 +44,10 @@ export const COLTURA_SERRA_DEFAULT = "mela";
 
 export const COLTURE_SERRA_IDS = COLTURE_SERRA.map((c) => c.id);
 
-/** Produzione base: 1 unità al giorno per ogni Serra operativa con coltura impostata. */
-export const PRODUZIONE_SERRA_GIORNALIERA = 1;
+/** Produzione base storica: 2 unità al giorno per ogni Agricoltore assegnato a una Serra operativa. */
+export const PRODUZIONE_SERRA_GIORNALIERA = 2;
 
-/** Giorni simulati per ogni Skip Mese (produzione Serra). */
+/** Giorni simulati per ogni mese (produzione Serra). */
 export const GIORNI_PRODUZIONE_SERRA_PER_MESE = 30;
 
 export function isColturaSerraValida(itemId: string): boolean {
