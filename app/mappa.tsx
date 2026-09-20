@@ -4380,6 +4380,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         calcolaFelicitàModificata={calcolaFelicitàModificata}
         etaMinimaLavoro={etaMinimaLavoro}
         onApriResidenzaMappa={handleApriResidenzaMappa}
+        onIndividua={(id) => {
+          setLocateAbitanteId(id);
+          setSchedaWandererAbitante(null);
+        }}
         azioneCorrente={
           schedaWandererAbitante
             ? descriviAzioneCorrenteAbitante(schedaWandererAbitante, {
