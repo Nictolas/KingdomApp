@@ -57,6 +57,7 @@ import { getCastaAbitante } from "../game/casta";
 import { nominaConsigliere as nominaConsiglierePuro } from "../game/consigliere";
 import {
   STATO_RE_DEFAULT,
+  edificioBuffVisitaCorrente,
   setModalitaRePuro,
   tickModalitaReMensile,
   type ModalitaRe,
@@ -249,6 +250,10 @@ export function useGameState() {
   const [mesiConsecutiviNelCastello, setMesiConsecutiviNelCastello] = useState(0);
   const [faseDisordine, setFaseDisordine] = useState<FaseDisordine>("nessuna");
   const [avvisoReAssenteEmesso, setAvvisoReAssenteEmesso] = useState(false);
+  const modalitaReRef = useRef<ModalitaRe>(modalitaRe);
+  const edificioVisitaReIdRef = useRef<number | null>(edificioVisitaReId);
+  modalitaReRef.current = modalitaRe;
+  edificioVisitaReIdRef.current = edificioVisitaReId;
   const modificaSoddisfazioneFazione = useCallback((fazione: string, delta: number) => {
     setSoddisfazioneFazioni((prev) => ({
       ...prev,
@@ -322,7 +327,18 @@ export function useGameState() {
       if (giorno <= ultimo) return;
       const giorni = giorno - ultimo;
       ultimoGiornoProduzioneSerraRef.current = giorno;
-      const produzione = calcolaProduzioneSerraPerPeriodo(edificiRef.current, giorni);
+      const buffId = edificioBuffVisitaCorrente(
+        {
+          modalitaRe: modalitaReRef.current,
+          edificioVisitaReId: edificioVisitaReIdRef.current
+        },
+        edificiRef.current
+      );
+      const produzione = calcolaProduzioneSerraPerPeriodo(
+        edificiRef.current,
+        giorni,
+        buffId
+      );
       if (produzione.size === 0) return;
       setInventarioGiocatore((prev) =>
         applicaProduzioneSerraInventarioGiocatore(prev, produzione)
@@ -578,6 +594,11 @@ export function useGameState() {
       anno
     ).fase;
 
+    const buffId = edificioBuffVisitaCorrente(
+      { modalitaRe, edificioVisitaReId },
+      edifici
+    );
+
     const result = runAvanzaMese({
       abitanti,
       edifici,
@@ -598,7 +619,8 @@ export function useGameState() {
       redditoCittadinanza,
       modalitaSanita,
       tipologieFamigliaAccettate,
-      moneteGiocatore
+      moneteGiocatore,
+      edificioBuffVisitaId: buffId
     });
 
     const tasseUnlock = tasseSbloccate(obiettiviCompletati, gameMode);
@@ -1436,9 +1458,13 @@ export function useGameState() {
         abitanti,
         edifici,
         risorse,
-        assegnoPensionati
+        assegnoPensionati,
+        edificioBuffVisitaId: edificioBuffVisitaCorrente(
+          { modalitaRe, edificioVisitaReId },
+          edifici
+        )
       }),
-    [abitanti, edifici, risorse, assegnoPensionati]
+    [abitanti, edifici, risorse, assegnoPensionati, modalitaRe, edificioVisitaReId]
   );
 
   const accettaImmigrante = useCallback((abitanteId: number) => {

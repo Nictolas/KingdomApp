@@ -70,6 +70,24 @@ export function sicurezzaMassima(modalita: ModalitaRe): boolean {
 /** Bonus produzione edificio in visita (moltiplicatore 1.15). */
 export const BONUS_PRODUZIONE_VISITA = 1.15;
 
+/** Id edificio con buff produzione se il Re è in visita su un edificio operativo. */
+export function edificioBuffVisitaCorrente(
+  stato: Pick<StatoRePolitica, "modalitaRe" | "edificioVisitaReId">,
+  edifici: Edificio[]
+): number | null {
+  if (stato.modalitaRe !== "in_visita") return null;
+  const id = stato.edificioVisitaReId;
+  if (id == null) return null;
+  const edificio = edifici.find((e) => e.id === id && e.stato === "Operativo");
+  return edificio ? id : null;
+}
+
+/** Applica il +15% storico solo a una quantità di produzione positiva. */
+export function applicaMoltiplicatoreProduzione(quantità: number, buff: boolean): number {
+  if (!buff || quantità <= 0) return quantità;
+  return Math.floor(quantità * BONUS_PRODUZIONE_VISITA);
+}
+
 export type TickReMeseResult = {
   stato: StatoRePolitica;
   avvisoDiario: string | null;
