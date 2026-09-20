@@ -1,9 +1,12 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useSyncExternalStore } from "react";
 import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
-import { getGiornoGiocoSnapshot } from "../src/game/orologioGiocoSession";
+import {
+  getGiornoGiocoSnapshot,
+  subscribeGiornoGioco
+} from "../src/game/orologioGiocoSession";
 import {
   calcolaPunteggioSoddisfazione,
   fasciaDaPunteggio
@@ -12,7 +15,11 @@ import {
 export default function SoddisfazioneScreen() {
   const router = useRouter();
   const { abitanti, edifici, mese, anno } = useGameContext();
-  const giornoGioco = getGiornoGiocoSnapshot();
+  const giornoGioco = useSyncExternalStore(
+    subscribeGiornoGioco,
+    getGiornoGiocoSnapshot,
+    getGiornoGiocoSnapshot
+  );
 
   const classifica = useMemo(() => {
     return [...abitanti]
