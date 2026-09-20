@@ -36,6 +36,8 @@ import {
 } from "../game/bisogni";
 import { CampoDiLavoroModal } from "./CampoDiLavoroModal";
 import { EdificioInfoModal } from "./EdificioInfoModal";
+import { FamigliaAlberoModal } from "./FamigliaAlberoModal";
+import { FamigliaDettaglioModal } from "./FamigliaDettaglioModal";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 import { AbitanteLpcAvatar } from "./AbitanteLpcAvatar";
 
@@ -53,6 +55,8 @@ type AbitanteInfoModalProps = {
   onApriResidenzaMappa?: (anchor: number) => void;
   /** Azione in corso sulla mappa, mostrata a destra del nome (es. “Sta andando a lavoro”). */
   azioneCorrente?: string | null;
+  /** Evidenzia l'abitante sulla mappa. */
+  onIndividua?: (abitanteId: number) => void;
 };
 
 function Row({
@@ -176,14 +180,15 @@ function InventarioCategoria({
 
 export function AbitanteInfoModal({
   visible,
-  abitante,
+  abitante: abitanteIniziale,
   edifici,
   onClose,
   getAbitanteNome,
   calcolaFelicitàModificata,
   etaMinimaLavoro = 18,
   onApriResidenzaMappa,
-  azioneCorrente = null
+  azioneCorrente = null,
+  onIndividua
 }: AbitanteInfoModalProps) {
   const router = useRouter();
   const {
@@ -193,12 +198,33 @@ export function AbitanteInfoModal({
     uccidiSchiavo
   } = useGameContext();
   const [edificioDettaglio, setEdificioDettaglio] = useState<Edificio | null>(null);
+  const [focusId, setFocusId] = useState<number | null>(null);
+  const [mostraFamiglia, setMostraFamiglia] = useState(false);
+  const [mostraAlbero, setMostraAlbero] = useState(false);
 
   useEffect(() => {
-    if (!visible) setEdificioDettaglio(null);
-  }, [visible]);
+    if (!visible) {
+      setEdificioDettaglio(null);
+      setMostraFamiglia(false);
+      setMostraAlbero(false);
+      setFocusId(null);
+      return;
+    }
+    if (abitanteIniziale) setFocusId(abitanteIniziale.id);
+  }, [visible, abitanteIniziale?.id]);
+
+  const abitante =
+    focusId == null
+      ? abitanteIniziale
+      : abitanti.find((a) => a.id === focusId) ?? abitanteIniziale;
 
   if (!abitante) return null;
+
+  const apriFamiliare = (id: number) => {
+    setFocusId(id);
+    setMostraFamiglia(false);
+    setMostraAlbero(false);
+  };
 
   const edificioAbitazione = getEdificioAbitazione(abitante.id, edifici);
   const edificiOccupazione = getEdificiOccupazione(abitante.id, edifici);
@@ -300,7 +326,15 @@ export function AbitanteInfoModal({
                   <Text style={styles.title} numberOfLines={1}>
                     {abitante.nome}
                   </Text>
-                  {azioneCorrente ? (
+                  {onIndividua ? (
+                    <Pressable
+                      style={({ pressed }) => [styles.individuaBtn, pressed && styles.individuaBtnPressed]}
+                      onPress={() => onIndividua(abitante.id)}
+                    >
+                      <Text style={styles.individuaBtnText}>📍 Individua</Text>
+                    </Pressable>
+                  ) : null}
+                  {azioneCorrente && focusId === abitanteIniziale?.id ? (
                     <Text style={styles.azioneCorrente} numberOfLines={2}>
                       {azioneCorrente}
                     </Text>
@@ -438,6 +472,12 @@ export function AbitanteInfoModal({
                   <>
                     <Row emoji="💍" value={abitante.coniugeId != null ? getAbitanteNome(abitante.coniugeId) : "—"} muted={abitante.coniugeId == null} />
                     <Row emoji="👶" value={(abitante.figliIds?.length ?? 0) > 0 ? (abitante.figliIds ?? []).map(getAbitanteNome).join(", ") : "—"} muted={!(abitante.figliIds?.length ?? 0)} />
+                    <Pressable
+                      style={({ pressed }) => [styles.famigliaBtn, pressed && styles.famigliaBtnPressed]}
+                      onPress={() => setMostraFamiglia(true)}
+                    >
+                      <Text style={styles.famigliaBtnText}>Dettagli e albero genealogico</Text>
+                    </Pressable>
                   </>
                 )}
               </Block>
@@ -523,6 +563,26 @@ export function AbitanteInfoModal({
       </Pressable>
       </Modal>
 
+      <FamigliaDettaglioModal
+        visible={mostraFamiglia}
+        onClose={() => setMostraFamiglia(false)}
+        abitante={abitante}
+        abitanti={abitanti}
+        onSelezionaAbitante={apriFamiliare}
+        onApriAlbero={() => {
+          setMostraFamiglia(false);
+          setMostraAlbero(true);
+        }}
+      />
+
+      <FamigliaAlberoModal
+        visible={mostraAlbero}
+        onClose={() => setMostraAlbero(false)}
+        focusId={abitante.id}
+        abitanti={abitanti}
+        onSelezionaAbitante={apriFamiliare}
+      />
+
       {edificioDettaglio?.nome === "Campo di Lavoro" ? (
         <CampoDiLavoroModal
           visible={edificioDettaglio != null}
@@ -603,6 +663,16 @@ const styles = StyleSheet.create({
     flexShrink: 1,
     maxWidth: "48%"
   },
+  individuaBtn: {
+    paddingVertical: 4,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: "rgba(250,204,21,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(250,204,21,0.35)"
+  },
+  individuaBtnPressed: { backgroundColor: "rgba(250,204,21,0.22)" },
+  individuaBtnText: { color: "#fde047", fontSize: 10, fontWeight: "700" },
   azioneCorrente: {
     flex: 1,
     minWidth: 0,
@@ -737,6 +807,18 @@ const styles = StyleSheet.create({
     color: "rgba(226,232,240,0.5)",
     fontStyle: "italic"
   },
+  famigliaBtn: {
+    marginTop: 6,
+    paddingVertical: 7,
+    paddingHorizontal: 8,
+    borderRadius: 8,
+    backgroundColor: "rgba(56,189,248,0.12)",
+    borderWidth: 1,
+    borderColor: "rgba(56,189,248,0.35)",
+    alignItems: "center"
+  },
+  famigliaBtnPressed: { backgroundColor: "rgba(56,189,248,0.22)" },
+  famigliaBtnText: { fontSize: 10, fontWeight: "700", color: "#7dd3fc", textAlign: "center" },
   inventarioCategoria: {
     marginBottom: 10
   },

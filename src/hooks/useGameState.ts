@@ -140,6 +140,7 @@ import { provaCreaReligioneCustom, type ReligioneCustom } from "../game/fedeleCu
 import { assicuraReligioneTempioChiese } from "../game/chiesa";
 import { isSimulationRunning, type GamePhase } from "../game/gamePhase";
 import type { GameMode } from "../game/gameMode";
+import { applicaAdozione, haGenitoriVivi } from "../game/famiglia";
 import { sincronizzaCuginoNobileConRe } from "../game/cuginoNobileAvventura";
 import { filtraEdificiInizialiPerModalita } from "../game/edificiInizialiModalita";
 import type { PersistableGameState } from "../persistence/gameStateMapping";
@@ -1681,6 +1682,16 @@ export function useGameState() {
     setAbitanti((prev) => applicaEsitoChiacchieraSuLista(prev, idA, idB));
   }, []);
 
+  const adottaFiglio = useCallback((genitoreId: number, figlioId: number): boolean => {
+    const prev = abitantiRef.current;
+    const genitore = prev.find((a) => a.id === genitoreId);
+    const figlio = prev.find((a) => a.id === figlioId);
+    if (!genitore || !figlio || haGenitoriVivi(figlio, prev) || (genitore.figliIds ?? []).includes(figlioId)) return false;
+    const next = applicaAdozione(genitore, figlio);
+    setAbitanti(prev.map((a) => a.id === genitoreId ? next.adottante : a.id === figlioId ? next.figlio : a));
+    return true;
+  }, []);
+
   const accreditaMoneteGiocatore = useCallback((quantità: number) => {
     const q = Math.floor(quantità);
     if (q <= 0) return;
@@ -2331,6 +2342,7 @@ export function useGameState() {
     aggiornaAbitanteById,
     aggiornaEdificioById,
     applicaEsitoChiacchieraAbitanti,
+    adottaFiglio,
     accreditaMoneteGiocatore,
     appendDiarioRiga,
     eseguiPrelievoForzosoRe,

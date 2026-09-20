@@ -75,7 +75,9 @@ export type Abitante = {
   rivali: RelazionePunteggio[]; // ID + punteggio rivalità 1-100
   coniugeId?: number; // ID del coniuge (se presente)
   figliIds?: number[]; // ID dei figli
+  figliAdottatiIds?: number[]; // sottoinsieme di figliIds adottati
   genitoriIds?: number[]; // ID dei genitori (1 o 2)
+  genitoriAdottiviIds?: number[]; // ID dei genitori adottivi
   nonniIds?: number[]; // ID dei nonni
   fazioni: string[]; // Ogni abitante può far parte di più fazioni (es. Cittadini, Nativi, Schiavi, Amministrazione, …)
   peso: number; // 0-100: indicatore peso (Denutrito 0-40, Normopeso 41-80, Sovrappeso 81-95, Obeso 96+)
