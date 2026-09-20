@@ -98,7 +98,11 @@ import {
   tutteColtureSerraSbloccate
 } from "../game/colturaSerra";
 import { applicaProduzioneSerraGiornaliera } from "../game/produzioneSerra";
-import { applicaRaccoltaBoscoGiornaliera } from "../game/boscoRaccolta";
+import {
+  applicaRaccoltaBoscoGiornaliera,
+  assumiDisoccupatoNelBosco,
+  etichettaRaccoltoBosco
+} from "../game/boscoRaccolta";
 import {
   haLuogoCulto,
   TEMPLATE_ID_LUOGO_CULTO,
@@ -1759,8 +1763,30 @@ export function useGameState() {
   /** Cittadino disoccupato che sulla mappa raggiunge un posto vacante → assunto. */
   const assumiCittadinoDisoccupatoAEdificio = useCallback(
     (abitanteId: number, edificioId: number): boolean => {
+      const edificio = edifici.find((e) => e.id === edificioId);
+
+      if (edificio?.nome === "Bosco") {
+        const rBosco = assumiDisoccupatoNelBosco(abitanti, edifici, abitanteId);
+        if (!rBosco.ok) return false;
+        abitantiRef.current = rBosco.abitanti;
+        edificiRef.current = rBosco.edifici;
+        setAbitanti(rBosco.abitanti);
+        setEdifici(rBosco.edifici);
+        if (rBosco.bottino) {
+          setDiarioRighe((prev) => [
+            ...prev,
+            `${rBosco.bottino!.abitanteNome} ha trovato ${etichettaRaccoltoBosco(
+              rBosco.bottino!.voci
+            )} nel Bosco.`
+          ]);
+        }
+        return true;
+      }
+
       const r = assumiCittadinoDisoccupatoInEdificio(abitanti, edifici, abitanteId, edificioId);
       if (!r.ok) return false;
+      abitantiRef.current = r.abitanti;
+      edificiRef.current = r.edifici;
       setAbitanti(r.abitanti);
       setEdifici(r.edifici);
       return true;

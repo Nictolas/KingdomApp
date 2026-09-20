@@ -102,6 +102,10 @@ import {
 import { getCastaAbitante, getEmojiCasta } from "../src/game/casta";
 import { aspettoPerVisualizzazioneAbitante } from "../src/game/personaggioAspetto";
 import { elencoEdificiConPostoPerDisoccupato } from "../src/game/edificiLavoro";
+import {
+  boscoHaPostoLibero,
+  disoccupatoIdoneoPerBosco
+} from "../src/game/boscoRaccolta";
 import { getEdificioAbitazione } from "../src/game/abitanteEdifici";
 import {
   getTotaleOggettiInventarioGiocatore,
@@ -2251,7 +2255,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       }
 
       if (puòCercareLavoro) {
-        const posti = elencoEdificiConPostoPerDisoccupato(a, edifici);
+        const postiOrdinari = elencoEdificiConPostoPerDisoccupato(a, edifici);
+        const bosco =
+          disoccupatoIdoneoPerBosco(a) ? boscoHaPostoLibero(edifici) : undefined;
+        const posti =
+          bosco && !postiOrdinari.some((e) => e.id === bosco.id)
+            ? [...postiOrdinari, bosco]
+            : postiOrdinari;
         let bestId: number | null = null;
         let bestPath: number[] | null = null;
         let bestLen = Infinity;
