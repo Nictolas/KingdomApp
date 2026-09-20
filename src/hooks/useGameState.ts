@@ -97,10 +97,7 @@ import {
   normalizzaColtureSerraSbloccate,
   tutteColtureSerraSbloccate
 } from "../game/colturaSerra";
-import {
-  applicaProduzioneSerraInventarioGiocatore,
-  calcolaProduzioneSerraPerPeriodo
-} from "../game/produzioneSerra";
+import { applicaProduzioneSerraGiornaliera } from "../game/produzioneSerra";
 import {
   haLuogoCulto,
   TEMPLATE_ID_LUOGO_CULTO,
@@ -320,6 +317,10 @@ export function useGameState() {
       const abitantiConModificatoriPuliti = result.abitanti.map((a) =>
         pulisciModificatoriScaduti(a, giorno, meseRef.current, annoRef.current)
       );
+      abitantiRef.current = abitantiConModificatoriPuliti;
+      edificiRef.current = result.edifici;
+      inventarioMensaRef.current = result.inventarioMensaByEdificioId;
+      inventarioEmporioRef.current = result.inventarioEmporioByEdificioId;
       setAbitanti(abitantiConModificatoriPuliti);
       setEdifici(result.edifici);
       setInventarioMensaByEdificioId(result.inventarioMensaByEdificioId);
@@ -334,7 +335,7 @@ export function useGameState() {
     return unsub;
   }, []);
 
-  /** Produzione Serra: 1 unità/giorno per ogni Serra operativa → inventario cibo giocatore. */
+  /** Serra: ogni Agricoltore produce 2 unità/giorno della coltura nel proprio inventario. */
   useEffect(() => {
     const applicaProduzioneSerra = () => {
       if (!isSimulationRunning(gamePhaseRef.current)) return;
@@ -350,15 +351,20 @@ export function useGameState() {
         },
         edificiRef.current
       );
-      const produzione = calcolaProduzioneSerraPerPeriodo(
+      const result = applicaProduzioneSerraGiornaliera(
+        abitantiRef.current,
         edificiRef.current,
+        giorno,
         giorni,
         buffId
       );
-      if (produzione.size === 0) return;
-      setInventarioGiocatore((prev) =>
-        applicaProduzioneSerraInventarioGiocatore(prev, produzione)
-      );
+      if (result.abitanti !== abitantiRef.current) {
+        abitantiRef.current = result.abitanti;
+        setAbitanti(result.abitanti);
+      }
+      if (result.messaggi.length > 0) {
+        setDiarioRighe((prev) => [...prev, ...result.messaggi]);
+      }
     };
     const unsub = subscribeGiornoGioco(applicaProduzioneSerra);
     return unsub;

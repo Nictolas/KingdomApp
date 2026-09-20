@@ -46,7 +46,9 @@ function SerraCard({
     .filter((a): a is Abitante => a != null);
   const disponibili = getServiDellaGlebaPerAssegnazioneEdificio(abitanti, edifici, serra);
   const stipendio = getStipendioMoneteGiornaliero(serra);
-  const produzioneGiorno = serra.stato === "Operativo" ? PRODUZIONE_SERRA_GIORNALIERA : 0;
+  const produzionePerAgricoltore =
+    serra.stato === "Operativo" ? PRODUZIONE_SERRA_GIORNALIERA : 0;
+  const produzioneGiorno = produzionePerAgricoltore * agricoltori.length;
 
   return (
     <View style={styles.serraCard}>
@@ -63,10 +65,10 @@ function SerraCard({
       <View style={styles.infoBox}>
         <Text style={styles.infoTitle}>Produzione attuale</Text>
         <Text style={styles.infoText}>
-          {produzioneGiorno} unità/giorno · {produzioneGiorno * GIORNI_PRODUZIONE_SERRA_PER_MESE} unità/mese
+          {produzioneGiorno} unità/giorno totali · {produzioneGiorno * GIORNI_PRODUZIONE_SERRA_PER_MESE} unità/mese
         </Text>
         <Text style={styles.infoMuted}>
-          La produzione viene accreditata all’inventario alimentare del regno.
+          {produzionePerAgricoltore} unità/giorno per Agricoltore, accreditate nel suo inventario personale.
         </Text>
       </View>
 

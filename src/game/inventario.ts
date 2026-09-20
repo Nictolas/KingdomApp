@@ -119,6 +119,23 @@ export function aggiungiMoneteInventarioAbitante(abitante: Abitante, quantità: 
   return { ...abitante, inventario: next, crediti: 0 };
 }
 
+export function aggiungiOggettoInventarioAbitante(
+  abitante: Abitante,
+  itemId: string,
+  quantità: number
+): Abitante {
+  if (quantità <= 0 || !abitanteHaInventarioPersonale(abitante) || !OGGETTI_INVENTARIO[itemId]) {
+    return abitante;
+  }
+  const inv = normalizzaInventarioAbitante(abitante.inventario);
+  const idx = inv.findIndex((v) => v.itemId === itemId);
+  const next =
+    idx >= 0
+      ? inv.map((v, i) => (i === idx ? { ...v, quantità: v.quantità + quantità } : v))
+      : [...inv, { itemId, quantità }];
+  return { ...abitante, inventario: next, crediti: 0 };
+}
+
 export function setMoneteInventarioAbitante(abitante: Abitante, quantità: number): Abitante {
   if (!abitanteHaInventarioPersonale(abitante)) {
     return { ...abitante, inventario: undefined, crediti: 0 };
