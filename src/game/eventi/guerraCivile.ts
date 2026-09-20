@@ -1,16 +1,16 @@
 import type { Abitante, Edificio } from "../../types";
 import type { EventoDef } from "./eventoTypes";
 import { modificaTesoro } from "./eventoTypes";
+import { applicaLuttoFamiliareERimuoviMorti } from "../soddisfazione";
 
 const CASERMA_MIN_BLOCCO = 3;
 const SOGLIA_SODDISFAZIONE_SICUREZZA_BLOCCO = 70;
 const CASERMA_MIN_MITIGAZIONE = 3;
 
-/** Rimuove gli abitanti con id in idsToRemove da abitanti e da tutti gli edifici. */
+/** Applica il lutto e rimuove le vittime da abitanti e da tutti gli edifici. */
 function rimuoviVittime(abitanti: Abitante[], edifici: Edificio[], idsToRemove: Set<number>): void {
-  for (let i = abitanti.length - 1; i >= 0; i--) {
-    if (idsToRemove.has(abitanti[i]!.id)) abitanti.splice(i, 1);
-  }
+  const superstiti = applicaLuttoFamiliareERimuoviMorti(abitanti, idsToRemove);
+  abitanti.splice(0, abitanti.length, ...superstiti);
   edifici.forEach((e) => {
     const nuovi = (e.abitantiAssegnati ?? []).filter((id) => !idsToRemove.has(id));
     if (nuovi.length !== (e.abitantiAssegnati?.length ?? 0)) {
