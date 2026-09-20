@@ -617,7 +617,7 @@ export function useGameState() {
     const moneteAggiornate =
       result.moneteGiocatore + tasseMese.gettitoPatrimonio + tasseMese.gettitoIva;
 
-    setAbitanti(abitantiConModificatoriPuliti);
+    setAbitanti(scomparsa.abitanti);
     setEdifici(sabotaggio.edifici);
     setRisorse(risorseAggiornate);
     setMoneteGiocatore(moneteAggiornate);
