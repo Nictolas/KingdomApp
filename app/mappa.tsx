@@ -4311,6 +4311,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         onClose={() => setMostraModalEventi(false)}
       />
 
+      <CantiereModal
+        visible={cantiereSelezionato != null && cantiereSelezionato.stato === "In costruzione"}
+        cantiere={cantiereSelezionato}
+        abitanti={abitanti}
+        edifici={edifici}
+        onClose={() => setCantiereSelezionatoId(null)}
+        onApriUfficioEdile={() => {
+          setCantiereSelezionatoId(null);
+          router.push("/ufficio-edile");
+        }}
+      />
+
       <Modal
         visible={mostraModalCostruisci}
         animationType="slide"
@@ -4344,6 +4356,22 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                     {STRADA_OPZIONE.nome}
                   </Text>
                 </Pressable>
+                <Pressable
+                  style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
+                  onPress={() => {
+                    setCostruzioneSelezione({ tipo: "ponte" });
+                    setMostraModalCostruisci(false);
+                    setMostraGrigliaMappa(true);
+                  }}
+                >
+                  <Text style={styles.modalOptionCostruisciEmoji}>{PONTE_OPZIONE.emoji}</Text>
+                  <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
+                    {PONTE_OPZIONE.nome}
+                  </Text>
+                  <Text style={styles.modalOptionCostruisciPrezzo}>
+                    💰 {COSTO_PONTE_MONETE.toLocaleString("it-IT")}
+                  </Text>
+                </Pressable>
               </View>
               <Text style={styles.modalSectionTitle}>{SEZIONE_AMBIENTE.titolo}</Text>
               <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
@@ -4368,7 +4396,41 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                 <View key={sezione.titolo}>
                   <Text style={styles.modalSectionTitle}>{sezione.titolo}</Text>
                   <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
-                    {sezione.edifici.map((e) => (
+                    {sezione.edifici.map((e) => {
+                      const prezzo = costoCostruzioneMonete(e.nome);
+                      return (
+                        <Pressable
+                          key={e.id}
+                          style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
+                          onPress={() => {
+                            setCostruzioneSelezione({ tipo: "edificio", edificio: e });
+                            setMostraModalCostruisci(false);
+                            setMostraGrigliaMappa(true);
+                          }}
+                        >
+                          <Text style={styles.modalOptionCostruisciEmoji}>{e.emoji}</Text>
+                          <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
+                            {e.nome}
+                          </Text>
+                          {prezzo > 0 ? (
+                            <Text style={styles.modalOptionCostruisciPrezzo}>
+                              💰 {prezzo.toLocaleString("it-IT")}
+                            </Text>
+                          ) : null}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+              {edificiCostruzionePerSezione.altri.length > 0 ? (
+                <Text style={styles.modalSectionTitle}>Altro</Text>
+              ) : null}
+              {edificiCostruzionePerSezione.altri.length > 0 ? (
+                <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
+                  {edificiCostruzionePerSezione.altri.map((e) => {
+                    const prezzo = costoCostruzioneMonete(e.nome);
+                    return (
                       <Pressable
                         key={e.id}
                         style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
@@ -4382,32 +4444,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                         <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
                           {e.nome}
                         </Text>
+                        {prezzo > 0 ? (
+                          <Text style={styles.modalOptionCostruisciPrezzo}>
+                            💰 {prezzo.toLocaleString("it-IT")}
+                          </Text>
+                        ) : null}
                       </Pressable>
-                    ))}
-                  </View>
-                </View>
-              ))}
-              {edificiCostruzionePerSezione.altri.length > 0 ? (
-                <Text style={styles.modalSectionTitle}>Altro</Text>
-              ) : null}
-              {edificiCostruzionePerSezione.altri.length > 0 ? (
-                <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
-                  {edificiCostruzionePerSezione.altri.map((e) => (
-                    <Pressable
-                      key={e.id}
-                      style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
-                      onPress={() => {
-                        setCostruzioneSelezione({ tipo: "edificio", edificio: e });
-                        setMostraModalCostruisci(false);
-                        setMostraGrigliaMappa(true);
-                      }}
-                    >
-                      <Text style={styles.modalOptionCostruisciEmoji}>{e.emoji}</Text>
-                      <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
-                        {e.nome}
-                      </Text>
-                    </Pressable>
-                  ))}
+                    );
+                  })}
                 </View>
               ) : null}
             </ScrollView>
@@ -5347,6 +5391,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "center",
     lineHeight: 14
+  },
+  modalOptionCostruisciPrezzo: {
+    color: "#fbbf24",
+    fontSize: 10,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: 4
   },
   modalOptionEmoji: {
     fontSize: 22,
