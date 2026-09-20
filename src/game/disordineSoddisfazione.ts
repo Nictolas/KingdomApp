@@ -2,6 +2,7 @@ import type { Abitante, Edificio } from "../types";
 import { ID_GIOCATORE } from "./schiavituCommercio";
 import { numGuardieNelCastello, trovaCastelloOperativo } from "./castelloGuardie";
 import {
+  applicaLuttoFamiliareERimuoviMorti,
   azioneProbabileSeOstile,
   calcolaPunteggioSoddisfazione,
   fasciaDaPunteggio
@@ -313,5 +314,99 @@ export function tentaAttentatoOstileMensile(
       saluteRe,
       messaggio: `Attentato: ${attentatore.nome} ha ferito il Re (salute ${saluteRe}).`
     }
+  };
+}
+
+
+export type RisultatoRibellioneMensile = {
+  moneteGiocatore: number;
+  abitanti: Abitante[];
+  edifici: Edificio[];
+  messaggi: string[];
+};
+
+/** Effetti storici della fase Ribellione (quota Ostili >= 10%). */
+export function applicaEffettiRibellioneMensile(
+  fase: FaseDisordineSoddisfazione,
+  moneteGiocatore: number,
+  abitanti: Abitante[],
+  edifici: Edificio[],
+  rng: () => number = Math.random
+): RisultatoRibellioneMensile {
+  if (fase !== "ribellione") {
+    return { moneteGiocatore, abitanti, edifici, messaggi: [] };
+  }
+
+  let monete = moneteGiocatore;
+  let nextAbitanti = [...abitanti];
+  let nextEdifici = edifici.map((edificio) => ({ ...edificio }));
+  const messaggi: string[] = [];
+
+  const perdita = Math.max(40, Math.floor(monete * 0.18));
+  const tolto = Math.min(monete, perdita);
+  monete -= tolto;
+  if (tolto > 0) {
+    messaggi.push(`Ribellione: saccheggi e caos (−${tolto} monete).`);
+  }
+
+  const bersagli = nextEdifici.filter(
+    (edificio) => edificio.stato === "Operativo" && edificio.nome !== "Castello"
+  );
+  if (bersagli.length > 0) {
+    const bersaglio = bersagli[Math.floor(rng() * bersagli.length)]!;
+    const indice = nextEdifici.findIndex((edificio) => edificio.id === bersaglio.id);
+    if (indice >= 0) {
+      const efficienza = Math.max(30, bersaglio.efficienza - 15);
+      const danneggiato = rng() < 0.35;
+      nextEdifici[indice] = {
+        ...bersaglio,
+        efficienza,
+        ...(danneggiato ? { stato: "Danneggiato" as const } : {})
+      };
+      messaggi.push(
+        danneggiato
+          ? `Assalto a ${bersaglio.nome}: edificio danneggiato.`
+          : `Assalto a ${bersaglio.nome}: efficienza ${bersaglio.efficienza}→${efficienza}.`
+      );
+    }
+  }
+
+  const civili = nextAbitanti.filter(
+    (abitante) => abitante.id !== ID_GIOCATORE && abitante.razza !== "Golem"
+  );
+  const nVittime = civili.length === 0 ? 0 : rng() < 0.55 ? 1 : rng() < 0.25 ? 2 : 0;
+
+  if (nVittime > 0) {
+    const idsMorti = new Set<number>();
+    const pool = [...civili];
+
+    for (let i = 0; i < nVittime && pool.length > 0; i++) {
+      const indice = Math.floor(rng() * pool.length);
+      idsMorti.add(pool[indice]!.id);
+      pool.splice(indice, 1);
+    }
+
+    const nomi = nextAbitanti
+      .filter((abitante) => idsMorti.has(abitante.id))
+      .map((abitante) => abitante.nome);
+
+    nextAbitanti = applicaLuttoFamiliareERimuoviMorti(nextAbitanti, idsMorti);
+    nextEdifici = nextEdifici.map((edificio) => {
+      const assegnati = (edificio.abitantiAssegnati ?? []).filter(
+        (id) => !idsMorti.has(id)
+      );
+      return assegnati.length !== (edificio.abitantiAssegnati?.length ?? 0)
+        ? { ...edificio, abitantiAssegnati: assegnati, occupazione: assegnati.length }
+        : edificio;
+    });
+
+    messaggi.push(`Scontri durante la Ribellione: morti ${nomi.join(", ")}.`);
+  }
+
+  return {
+    moneteGiocatore: Math.max(0, monete),
+    abitanti: nextAbitanti,
+    edifici: nextEdifici,
+    messaggi
   };
 }

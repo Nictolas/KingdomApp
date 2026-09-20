@@ -105,6 +105,7 @@ import { setMappaSessione, getMappaSessione } from "../game/mappaSessione";
 import { mappaHaPonteOperativo } from "../game/ponteMappa";
 import { pulisciModificatoriScaduti } from "../game/soddisfazione";
 import {
+  applicaEffettiRibellioneMensile,
   applicaSabotaggioOstileMensile,
   applicaScomparsaOstileMensile,
   messaggioFaseDisordineSoddisfazione,
@@ -600,9 +601,17 @@ export function useGameState() {
       result.nuovoAnno
     );
     const avvisoDisordine = messaggioFaseDisordineSoddisfazione(disordineDopo);
-    const scomparsa = applicaScomparsaOstileMensile(
+    const moneteDopoTasse =
+      result.moneteGiocatore + tasseMese.gettitoPatrimonio + tasseMese.gettitoIva;
+    const ribellione = applicaEffettiRibellioneMensile(
+      disordineDopo.fase,
+      moneteDopoTasse,
       abitantiConModificatoriPuliti,
-      dopoCarcere.edifici,
+      dopoCarcere.edifici
+    );
+    const scomparsa = applicaScomparsaOstileMensile(
+      ribellione.abitanti,
+      ribellione.edifici,
       giornoGioco,
       result.nuovoMese,
       result.nuovoAnno
@@ -622,8 +631,7 @@ export function useGameState() {
       result.nuovoAnno
     );
     const risorseAggiornate = estraiCreditiLegacyDaRisorse(result.risorse).risorse;
-    const moneteAggiornate =
-      result.moneteGiocatore + tasseMese.gettitoPatrimonio + tasseMese.gettitoIva;
+    const moneteAggiornate = ribellione.moneteGiocatore;
 
     setAbitanti(attentato.abitanti);
     setEdifici(sabotaggio.edifici);
@@ -691,6 +699,7 @@ export function useGameState() {
     const avvisiDiario = [
       result.avvisoDiario,
       avvisoDisordine,
+      ...ribellione.messaggi,
       scomparsa.messaggio,
       sabotaggio.messaggio,
       attentato.esito.messaggio
