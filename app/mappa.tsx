@@ -2783,6 +2783,26 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     [router]
   );
 
+  const cantiereSelezionato = useMemo(() => {
+    if (cantiereSelezionatoId == null) return null;
+    return edifici.find((e) => e.id === cantiereSelezionatoId) ?? null;
+  }, [cantiereSelezionatoId, edifici]);
+
+  const apriCantiereDaCella = useCallback(
+    (cellIndex: number) => {
+      const e = edificiInMappa[cellIndex];
+      if (!e || e.nome === "Strada") return false;
+      const anchor = e.footprintRef != null ? e.footprintRef : cellIndex;
+      const cap = edificiInMappa[anchor] ?? e;
+      const globaleId = cap.edificioGlobaleId ?? cap.id;
+      const globale = edifici.find((x) => x.id === globaleId);
+      if (globale?.stato !== "In costruzione") return false;
+      setCantiereSelezionatoId(globale.id);
+      return true;
+    },
+    [edificiInMappa, edifici]
+  );
+
   const edificioResidenzaAperta = useMemo(() => {
     if (selectedResidenzaAnchor === null) return null;
     return edificiInMappa[selectedResidenzaAnchor] ?? null;
