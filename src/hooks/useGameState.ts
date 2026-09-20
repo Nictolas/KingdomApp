@@ -410,7 +410,7 @@ export function useGameState() {
     );
   }, [simulationEnabled]);
 
-  // Richiesta Luogo di Culto: si attiva appena i requisiti sono soddisfatti (non allo Skip Mese).
+  // Richiesta Luogo di Culto: si attiva appena i requisiti sono soddisfatti, senza attendere il cambio mese.
   useEffect(() => {
     if (!simulationEnabled) return;
     if (pendingRichiestaLuogoCulto != null) return;
@@ -1504,7 +1504,7 @@ export function useGameState() {
     [abitanti, edifici]
   );
 
-  // Mercato: ordini di acquisto/vendita; si eseguono solo al cambio mese (Skip Mese)
+  // Mercato: ordini di acquisto/vendita; si eseguono al cambio mese automatico.
   const aggiungiOrdineMercato = useCallback(
     (tipo: "compra" | "vendi", risorsaId: number, quantità: number, prezzoUnitario: number): boolean => {
       const result = aggiungiOrdineMercatoPuro({
