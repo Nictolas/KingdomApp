@@ -3246,6 +3246,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (costruzioneSelezione) {
         const edificio = edificiInMappa[cellIndex];
         const terreno = terrenoInMappa[cellIndex] ?? "erba";
+        if (costruzioneSelezione.tipo === "ponte") {
+          if (edificio && edificio.nome !== NOME_PONTE) {
+            Alert.alert("Non qui", "Il Ponte si costruisce su una cella di fiume libera.");
+            return;
+          }
+          handleScegliEdificio(cellIndex, PONTE_OPZIONE as unknown as Edificio);
+          return;
+        }
         if (edificio) return;
         const èDissalatore =
           costruzioneSelezione.tipo === "edificio" && costruzioneSelezione.edificio.nome === "Dissalatore";
@@ -3267,6 +3275,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       }
       const edificio = edificiInMappa[cellIndex];
       const terreno = terrenoInMappa[cellIndex] ?? "erba";
+      if (apriCantiereDaCella(cellIndex)) {
+        lastTapCell.current = null;
+        return;
+      }
       /** Capanna: un tap apre subito la scheda a tutto schermo (presenze dentro/fuori). */
       if (edificio?.nome === "Capanna") {
         setSelectedResidenzaAnchor(getAnchorCellPerEdificio(cellIndex, edificiInMappa));
@@ -3309,7 +3321,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       cols,
       rows,
       handleScegliEdificio,
-      handlePiazzaTerreno
+      handlePiazzaTerreno,
+      apriCantiereDaCella
     ]
   );
 
