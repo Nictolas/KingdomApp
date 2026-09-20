@@ -236,7 +236,8 @@ export function applicaScomparsaOstileMensile(
 export type EsitoAttentatoOstile =
   | { tipo: "nessuno"; messaggio: null }
   | { tipo: "sventato"; attentatoreId: number; messaggio: string }
-  | { tipo: "ferito"; attentatoreId: number; saluteRe: number; messaggio: string };
+  | { tipo: "ferito"; attentatoreId: number; saluteRe: number; messaggio: string }
+  | { tipo: "mortale"; attentatoreId: number; messaggio: string };
 
 export function tentaAttentatoOstileMensile(
   abitanti: Abitante[],
@@ -286,6 +287,19 @@ export function tentaAttentatoOstileMensile(
   const re = abitanti.find((abitante) => abitante.id === ID_GIOCATORE);
   if (!re) {
     return { abitanti, esito: { tipo: "nessuno", messaggio: null } };
+  }
+
+  if (re.salute < 40 && rng() < 0.25) {
+    return {
+      abitanti: abitanti.map((abitante) =>
+        abitante.id === ID_GIOCATORE ? { ...abitante, salute: 0 } : abitante
+      ),
+      esito: {
+        tipo: "mortale",
+        attentatoreId: attentatore.id,
+        messaggio: `Il Re è stato assassinato da ${attentatore.nome}.`
+      }
+    };
   }
 
   const saluteRe = Math.max(1, re.salute - 35);
