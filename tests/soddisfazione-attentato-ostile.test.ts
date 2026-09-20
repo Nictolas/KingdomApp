@@ -69,6 +69,24 @@ test("un Ostile Psicopatico può ferire il Re", () => {
   assert.match(result.esito.messaggio ?? "", /Attentato/);
 });
 
+test("un attentato può uccidere un Re già gravemente ferito", () => {
+  const re = abitante(1, "Pragmatico", false, { salute: 30 });
+  const attentatore = abitante(2, "Psicopatico", true);
+
+  const result = tentaAttentatoOstileMensile(
+    [re, attentatore],
+    [],
+    31,
+    2,
+    0,
+    rngSequenza([0, 0, 0.9, 0])
+  );
+
+  assert.equal(result.esito.tipo, "mortale");
+  assert.equal(result.abitanti.find((a) => a.id === 1)?.salute, 0);
+  assert.match(result.esito.messaggio ?? "", /assassinato/);
+});
+
 test("tre Guardie nel Castello sventano l'attentato", () => {
   const abitanti = [
     abitante(1, "Pragmatico"),
