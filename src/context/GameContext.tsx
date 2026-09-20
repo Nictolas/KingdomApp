@@ -250,6 +250,8 @@ type GameContextType = {
   configuraGiocatore: (dati: DatiCreazioneGiocatore) => void;
   introConsigliereAperta: boolean;
   chiudiIntroConsigliere: () => void;
+  suggerimentoPonteAperto: boolean;
+  chiudiSuggerimentoPonte: () => void;
   diarioInizioVisto: boolean;
   messaggioEmigrazione: string | null;
   chiudiMessaggioEmigrazione: () => void;
@@ -286,7 +288,13 @@ function CreazioneGiocatoreWrapper() {
 }
 
 function IntroConsigliereDialogWrapper() {
-  const { introConsigliereAperta, chiudiIntroConsigliere, abitanti } = useGameContext();
+  const {
+    introConsigliereAperta,
+    chiudiIntroConsigliere,
+    suggerimentoPonteAperto,
+    chiudiSuggerimentoPonte,
+    abitanti
+  } = useGameContext();
   const re = abitanti.find((a) => a.id === ID_GIOCATORE);
   const consigliere = abitanti.find((a) => a.lavoro === "Consigliere" && a.id !== ID_GIOCATORE);
   const nomeCompletoRe = re?.nome?.trim() && re.nome !== "—" ? re.nome.trim() : "Sovrano";
@@ -295,14 +303,24 @@ function IntroConsigliereDialogWrapper() {
   const messaggio =
     `Benvenuto Re ${nomeRe}. Io sono ${nomeConsigliere}, il tuo Consigliere. ` +
     "Dato che hai succeduto tuo padre alla tenera età di 10 anni, ora ti aiuterò a imparare a guidare il tuo Regno!";
+  const messaggioPonte =
+    "Un fiume separa il nostro Regno, mio Re.\nPer unire le sponde piazzeremo un cantiere sul fiume: gli Edili dell'Ufficio Edile lo completeranno ora dopo ora.";
 
   return (
-    <ConsigliereIntroModal
-      visible={introConsigliereAperta}
-      consigliere={consigliere}
-      messaggio={messaggio}
-      onClose={chiudiIntroConsigliere}
-    />
+    <>
+      <ConsigliereIntroModal
+        visible={introConsigliereAperta}
+        consigliere={consigliere}
+        messaggio={messaggio}
+        onClose={chiudiIntroConsigliere}
+      />
+      <ConsigliereIntroModal
+        visible={suggerimentoPonteAperto}
+        consigliere={consigliere}
+        messaggio={messaggioPonte}
+        onClose={chiudiSuggerimentoPonte}
+      />
+    </>
   );
 }
 
