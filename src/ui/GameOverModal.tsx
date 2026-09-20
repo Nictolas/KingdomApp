@@ -5,9 +5,14 @@ import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscre
 type GameOverModalProps = {
   visible: boolean;
   onRestart: () => void;
+  description?: string;
 };
 
-export function GameOverModal({ visible, onRestart }: GameOverModalProps) {
+export function GameOverModal({
+  visible,
+  onRestart,
+  description = "Il regno è caduto..."
+}: GameOverModalProps) {
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
   return (
@@ -18,10 +23,7 @@ export function GameOverModal({ visible, onRestart }: GameOverModalProps) {
           <Text style={styles.emoji}>💀</Text>
           <Text style={styles.title}>Hai Perso!</Text>
           <View style={styles.titleUnderline} />
-          <Text style={styles.description}>
-            Il Re è stato catturato dall'Orco.{"\n"}
-            Il regno è caduto...
-          </Text>
+          <Text style={styles.description}>{description}</Text>
           
           <Pressable style={styles.restartButton} onPress={onRestart}>
             <Text style={styles.restartButtonText}>Ricomincia</Text>
