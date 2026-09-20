@@ -3,6 +3,7 @@ import { abitanteHaInventarioPersonale, getCastaAbitante } from "./casta";
 import { abitanteDeveConsumareCiboGiornaliero } from "./consumoCiboInventario";
 import {
   consumaUnOggettoCibo,
+  consumaUnOggettoCiboConItem,
   normalizzaAbitanteInventario,
   type VoceInventario
 } from "./inventario";
@@ -19,6 +20,7 @@ import {
 } from "./bisogni";
 import { getEdificioAbitazione } from "./abitanteEdifici";
 import { tentaSnackDaInventario } from "./negozio";
+import { applicaBonusPastoGiorno } from "./soddisfazione";
 
 export type PastiGiornalieriResult = {
   abitanti: Abitante[];
@@ -36,34 +38,34 @@ function tentaPastoDaMensa(
   inventarioMensaByEdificioId: Record<number, VoceInventario[]>,
   mensaIds: number[],
   personalità: string
-): { inventarioMensaByEdificioId: Record<number, VoceInventario[]>; ok: boolean } {
+): { inventarioMensaByEdificioId: Record<number, VoceInventario[]>; ok: boolean; itemId: string | null } {
   let next = { ...inventarioMensaByEdificioId };
   for (const id of mensaIds) {
     const inv = next[id] ?? [];
     const pasto = consumaPastoDaInventarioMensa(inv, personalità);
     if (pasto) {
       next = { ...next, [id]: pasto.inventarioMensa };
-      return { inventarioMensaByEdificioId: next, ok: true };
+      return { inventarioMensaByEdificioId: next, ok: true, itemId: pasto.itemId };
     }
   }
-  return { inventarioMensaByEdificioId: next, ok: false };
+  return { inventarioMensaByEdificioId: next, ok: false, itemId: null };
 }
 
 function tentaPastoDaPadrone(
   abitanti: Abitante[],
   schiavo: Abitante
-): { abitanti: Abitante[]; ok: boolean } {
+): { abitanti: Abitante[]; ok: boolean; itemId: string | null } {
   const padroneId = schiavo.schiavistaId;
-  if (padroneId == null) return { abitanti, ok: false };
+  if (padroneId == null) return { abitanti, ok: false, itemId: null };
   const idx = abitanti.findIndex((a) => a.id === padroneId);
-  if (idx < 0) return { abitanti, ok: false };
+  if (idx < 0) return { abitanti, ok: false, itemId: null };
   const padrone = abitanti[idx]!;
-  if (!padrone.inventario?.length) return { abitanti, ok: false };
-  const dopo = consumaUnOggettoCibo(padrone.inventario, schiavo.personalità);
-  if (!dopo) return { abitanti, ok: false };
+  if (!padrone.inventario?.length) return { abitanti, ok: false, itemId: null };
+  const dopo = consumaUnOggettoCiboConItem(padrone.inventario, schiavo.personalità);
+  if (!dopo) return { abitanti, ok: false, itemId: null };
   const next = [...abitanti];
-  next[idx] = { ...padrone, inventario: dopo };
-  return { abitanti: next, ok: true };
+  next[idx] = { ...padrone, inventario: dopo.inventario };
+  return { abitanti: next, ok: true, itemId: dopo.itemId };
 }
 
 function applicaPastoSingoloGiorno(
@@ -87,16 +89,19 @@ function applicaPastoSingoloGiorno(
 
     const casta = getCastaAbitante(a);
     let nutrito = false;
+    let itemIdConsumato: string | null = null;
 
     if (casta === "Schiavo") {
       const daPadrone = tentaPastoDaPadrone(nextAbitanti, a);
       nextAbitanti = daPadrone.abitanti;
       nutrito = daPadrone.ok;
+      itemIdConsumato = daPadrone.itemId;
     } else if (abitanteHaInventarioPersonale(a) && haCiboCompatibileInInventario(a.inventario, a.personalità)) {
-      const dopo = consumaUnOggettoCibo(a.inventario!, a.personalità);
+      const dopo = consumaUnOggettoCiboConItem(a.inventario!, a.personalità);
       if (dopo) {
-        a = { ...a, inventario: dopo };
+        a = { ...a, inventario: dopo.inventario };
         nutrito = true;
+        itemIdConsumato = dopo.itemId;
       }
     }
 
@@ -107,14 +112,16 @@ function applicaPastoSingoloGiorno(
         const daMensa = tentaPastoDaMensa(nextMensa, mensaIds, a.personalità);
         nextMensa = daMensa.inventarioMensaByEdificioId;
         nutrito = daMensa.ok;
+        itemIdConsumato = daMensa.itemId;
         if (!nutrito) carestiaMensa = true;
       }
     }
 
     if (nutrito) {
-      nextAbitanti[i] = applicaRecuperoFamePasto({ ...a, ultimoGiornoCiboConsumato: giorno });
+      const dopoPasto = applicaRecuperoFamePasto({ ...a, ultimoGiornoCiboConsumato: giorno });
+      nextAbitanti[i] = applicaBonusPastoGiorno(dopoPasto, giorno, itemIdConsumato);
     } else {
-      nextAbitanti[i] = a;
+      nextAbitanti[i] = applicaBonusPastoGiorno(a, giorno, null);
     }
   }
 
