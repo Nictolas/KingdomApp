@@ -64,6 +64,12 @@ export type PersistableGameState = {
   ordiniMercato: OrdineMercato[];
   eventiInCorso: EventoInCorso[];
   soddisfazioneFazioni: Record<string, number>;
+  modalitaRe: "nel_castello" | "a_giro" | "in_visita";
+  edificioVisitaReId: number | null;
+  popolaritaRe: number;
+  mesiConsecutiviNelCastello: number;
+  faseDisordine: "nessuna" | "protesta" | "ribellione";
+  avvisoReAssenteEmesso: boolean;
   pendingAssimilazione: number | null;
   pendingMatrimonio: GameSaveV1["events"]["pendingMatrimonio"];
   messaggioEmigrazione: string | null;
@@ -147,6 +153,12 @@ export function gameStateToGameSaveV1(state: PersistableGameState): GameSaveV1 {
       ordiniMercato: state.ordiniMercato,
       eventiInCorso: state.eventiInCorso,
       soddisfazioneFazioni: state.soddisfazioneFazioni,
+      modalitaRe: state.modalitaRe,
+      edificioVisitaReId: state.edificioVisitaReId,
+      popolaritaRe: state.popolaritaRe,
+      mesiConsecutiviNelCastello: state.mesiConsecutiviNelCastello,
+      faseDisordine: state.faseDisordine,
+      avvisoReAssenteEmesso: state.avvisoReAssenteEmesso,
       pendingAssimilazione: state.pendingAssimilazione,
       pendingMatrimonio: state.pendingMatrimonio,
       messaggioEmigrazione: state.messaggioEmigrazione,
@@ -184,6 +196,12 @@ export function gameSaveV1ToGameState(save: GameSaveV1): PersistableGameState {
       normalized.policies.tassaPatrimonioPercentuale ?? TASSA_PATRIMONIO_PERCENTUALE_DEFAULT,
     ivaPercentuale: normalized.policies.ivaPercentuale ?? IVA_PERCENTUALE_DEFAULT,
     ...normalized.events,
+    modalitaRe: normalized.events.modalitaRe ?? "a_giro",
+    edificioVisitaReId: normalized.events.edificioVisitaReId ?? null,
+    popolaritaRe: normalized.events.popolaritaRe ?? 50,
+    mesiConsecutiviNelCastello: normalized.events.mesiConsecutiviNelCastello ?? 0,
+    faseDisordine: normalized.events.faseDisordine ?? "nessuna",
+    avvisoReAssenteEmesso: normalized.events.avvisoReAssenteEmesso ?? false,
     obiettiviCompletati: normalized.events.obiettiviCompletati ?? [],
     coltureSerraSbloccate: normalized.events.coltureSerraSbloccate ?? [],
     mappa: normalized.map

@@ -54,6 +54,14 @@ import {
   IVA_PERCENTUALE_DEFAULT
 } from "../game/economiaPrezzi";
 import { getCastaAbitante } from "../game/casta";
+import { nominaConsigliere as nominaConsiglierePuro } from "../game/consigliere";
+import {
+  STATO_RE_DEFAULT,
+  setModalitaRePuro,
+  tickModalitaReMensile,
+  type ModalitaRe,
+  type FaseDisordine
+} from "../game/reModalita";
 import {
   PREZZO_SCHIAVO_DEFAULT,
   trasferisciProprietaSchiavoPuro,
@@ -235,12 +243,37 @@ export function useGameState() {
     Rivoluzionari: 80,
     Sicurezza: 80
   }));
+  const [modalitaRe, setModalitaReState] = useState<ModalitaRe>(STATO_RE_DEFAULT.modalitaRe);
+  const [edificioVisitaReId, setEdificioVisitaReId] = useState<number | null>(null);
+  const [popolaritaRe, setPopolaritaRe] = useState(STATO_RE_DEFAULT.popolaritaRe);
+  const [mesiConsecutiviNelCastello, setMesiConsecutiviNelCastello] = useState(0);
+  const [faseDisordine, setFaseDisordine] = useState<FaseDisordine>("nessuna");
+  const [avvisoReAssenteEmesso, setAvvisoReAssenteEmesso] = useState(false);
   const modificaSoddisfazioneFazione = useCallback((fazione: string, delta: number) => {
     setSoddisfazioneFazioni((prev) => ({
       ...prev,
       [fazione]: Math.max(1, Math.min(100, (prev[fazione] ?? 80) + delta))
     }));
   }, []);
+
+  const setModalitaRe = useCallback((modalita: ModalitaRe, edificioId?: number | null) => {
+    setModalitaReState((prevMod) => {
+      const next = setModalitaRePuro(
+        {
+          modalitaRe: prevMod,
+          edificioVisitaReId,
+          popolaritaRe,
+          mesiConsecutiviNelCastello,
+          faseDisordine,
+          avvisoReAssenteEmesso
+        },
+        modalita,
+        edificioId
+      );
+      setEdificioVisitaReId(next.edificioVisitaReId);
+      return next.modalitaRe;
+    });
+  }, [edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso]);
 
   // Baracca = tutti e solo i Senzatetto: sincronizza quando cambiano gli abitanti (es. nuovo immigrato approvato)
   useEffect(() => {
@@ -643,13 +676,32 @@ export function useGameState() {
       sabotaggio.edifici,
       giornoGioco,
       result.nuovoMese,
-      result.nuovoAnno
+      result.nuovoAnno,
+      undefined,
+      modalitaRe
+    );
+    const tickRe = tickModalitaReMensile(
+      {
+        modalitaRe,
+        edificioVisitaReId,
+        popolaritaRe,
+        mesiConsecutiviNelCastello,
+        faseDisordine: disordineDopo.fase,
+        avvisoReAssenteEmesso
+      },
+      sabotaggio.edifici
     );
     const risorseAggiornate = estraiCreditiLegacyDaRisorse(result.risorse).risorse;
     const moneteAggiornate = ribellione.moneteGiocatore;
 
     setAbitanti(attentato.abitanti);
     setEdifici(sabotaggio.edifici);
+    setModalitaReState(tickRe.stato.modalitaRe);
+    setEdificioVisitaReId(tickRe.stato.edificioVisitaReId);
+    setPopolaritaRe(tickRe.stato.popolaritaRe);
+    setMesiConsecutiviNelCastello(tickRe.stato.mesiConsecutiviNelCastello);
+    setAvvisoReAssenteEmesso(tickRe.stato.avvisoReAssenteEmesso);
+    setFaseDisordine(disordineDopo.fase);
     setRisorse(risorseAggiornate);
     setMoneteGiocatore(moneteAggiornate);
     setMese(result.nuovoMese);
@@ -714,6 +766,7 @@ export function useGameState() {
     const avvisiDiario = [
       result.avvisoDiario,
       avvisoDisordine,
+      tickRe.avvisoDiario,
       ...protesta.messaggi,
       ...ribellione.messaggi,
       scomparsa.messaggio,
@@ -725,7 +778,7 @@ export function useGameState() {
     if (avvisiDiario.length > 0) {
       setDiarioRighe((prev) => [...prev, ...avvisiDiario]);
     }
-  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, giornoGioco, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode, obiettiviCompletati, tassaPatrimonioPercentuale, ivaPercentuale]);
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, giornoGioco, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode, obiettiviCompletati, tassaPatrimonioPercentuale, ivaPercentuale, modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso]);
 
   /**
    * Nessun pulsante «Skip Mese»: il cambio mese parte automaticamente ogni 30 giorni
@@ -825,6 +878,12 @@ export function useGameState() {
     const colonia = generaColoniaIniziale(mode);
     setGameMode(mode);
     setObiettiviCompletati([]);
+    setModalitaReState(STATO_RE_DEFAULT.modalitaRe);
+    setEdificioVisitaReId(null);
+    setPopolaritaRe(STATO_RE_DEFAULT.popolaritaRe);
+    setMesiConsecutiviNelCastello(0);
+    setFaseDisordine("nessuna");
+    setAvvisoReAssenteEmesso(false);
     setMese(1);
     setAnno(0);
     offsetMesiOrologioRef.current = 0;
@@ -920,6 +979,12 @@ export function useGameState() {
     setMessaggioEmigrazione(state.messaggioEmigrazione);
     setDiarioRighe(state.diarioRighe);
     setSoddisfazioneFazioni(state.soddisfazioneFazioni);
+    setModalitaReState(state.modalitaRe ?? STATO_RE_DEFAULT.modalitaRe);
+    setEdificioVisitaReId(state.edificioVisitaReId ?? null);
+    setPopolaritaRe(state.popolaritaRe ?? STATO_RE_DEFAULT.popolaritaRe);
+    setMesiConsecutiviNelCastello(state.mesiConsecutiviNelCastello ?? 0);
+    setFaseDisordine(state.faseDisordine ?? "nessuna");
+    setAvvisoReAssenteEmesso(state.avvisoReAssenteEmesso ?? false);
     setTipoTassaReddito(state.tipoTassaReddito);
     setFlatTaxPercentuale(state.flatTaxPercentuale);
     setScaglioniConfig(state.scaglioniConfig);
@@ -983,6 +1048,7 @@ export function useGameState() {
       leggeDroghe, divietoEspatrioAttivo, coprifuocoAttivo, coprifuocoInizioMinuti,
       coprifuocoFineMinuti, iusPrimaeNoctisAttivo, tipologieFamigliaAccettate,
       redditoCittadinanza, modalitaSanita, ordiniMercato, eventiInCorso, soddisfazioneFazioni,
+      modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso,
       pendingAssimilazione, pendingMatrimonio, messaggioEmigrazione, diarioRighe,
       capoReligiosoSole, capoReligiosoAlieni, pendingRichiestaLuogoCulto, richiesteInAttesa,
       luoghiCultoRifiutati, luoghiCultoPendentiMappa, obiettiviCompletati, coltureSerraSbloccate, mappa
@@ -994,7 +1060,9 @@ export function useGameState() {
     razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, etaPensionabile, assegnoPensionati,
     leggeDroghe, divietoEspatrioAttivo, coprifuocoAttivo, coprifuocoInizioMinuti, coprifuocoFineMinuti,
     iusPrimaeNoctisAttivo, tipologieFamigliaAccettate, redditoCittadinanza, modalitaSanita,
-    ordiniMercato, eventiInCorso, soddisfazioneFazioni, pendingAssimilazione, pendingMatrimonio,
+    ordiniMercato, eventiInCorso, soddisfazioneFazioni,
+    modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso,
+    pendingAssimilazione, pendingMatrimonio,
     messaggioEmigrazione, diarioRighe, capoReligiosoSole, capoReligiosoAlieni,
     pendingRichiestaLuogoCulto, richiesteInAttesa, luoghiCultoRifiutati, luoghiCultoPendentiMappa,
     obiettiviCompletati, coltureSerraSbloccate]);
@@ -1203,6 +1271,13 @@ export function useGameState() {
     },
     [abitanti, edifici]
   );
+
+  const nominaConsigliere = useCallback((abitanteId: number) => {
+    const result = nominaConsiglierePuro(abitantiRef.current, edifici, abitanteId);
+    if (!result.ok) return;
+    setAbitanti(result.abitanti);
+    setEdifici(result.edifici);
+  }, [edifici]);
 
   const nominaMinistro = useCallback((abitanteId: number, ministero: string) => {
     setAbitanti((prevAbitanti) =>
@@ -1780,6 +1855,13 @@ export function useGameState() {
     condannaAMorte,
     soddisfazioneFazioni,
     modificaSoddisfazioneFazione,
+    modalitaRe,
+    edificioVisitaReId,
+    popolaritaRe,
+    faseDisordine,
+    mesiConsecutiviNelCastello,
+    setModalitaRe,
+    nominaConsigliere,
     nativiNonIntegrati,
     pendingAssimilazione,
     accettaAssimilazione,

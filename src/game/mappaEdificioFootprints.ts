@@ -24,14 +24,14 @@ export function aggiungiComplessoAmministrativo(
   const celle = getIndiciFootprint(anchor, w, h, cols);
   const anchorEd: EdificioInCellaMappa = {
     id: 1,
-    nome: "Centro di Comando",
-    emoji: "🏛️",
+    nome: "Castello",
+    emoji: "🏰",
     footprint: { w, h }
   };
   out[anchor] = anchorEd;
   for (const i of celle) {
     if (i === anchor) continue;
-    out[i] = { id: 1, nome: "Centro di Comando", emoji: "", footprintRef: anchor };
+    out[i] = { id: 1, nome: "Castello", emoji: "", footprintRef: anchor };
   }
   void rows;
 }

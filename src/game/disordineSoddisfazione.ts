@@ -1,6 +1,7 @@
 import type { Abitante, Edificio } from "../types";
 import { ID_GIOCATORE } from "./schiavituCommercio";
 import { numGuardieNelCastello, trovaCastelloOperativo } from "./castelloGuardie";
+import { vulnerabileAttentato, type ModalitaRe } from "./reModalita";
 import {
   applicaLuttoFamiliareERimuoviMorti,
   azioneProbabileSeOstile,
@@ -246,8 +247,12 @@ export function tentaAttentatoOstileMensile(
   giornoGioco: number,
   mese: number,
   anno: number,
-  rng: () => number = Math.random
+  rng: () => number = Math.random,
+  modalitaRe: ModalitaRe = "a_giro"
 ): { abitanti: Abitante[]; esito: EsitoAttentatoOstile } {
+  if (!vulnerabileAttentato(modalitaRe)) {
+    return { abitanti, esito: { tipo: "nessuno", messaggio: null } };
+  }
   const candidati = abitanti.filter((abitante) => {
     if (abitante.id === ID_GIOCATORE || abitante.razza === "Golem") return false;
     const punti = calcolaPunteggioSoddisfazione(
