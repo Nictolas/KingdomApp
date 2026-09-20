@@ -35,7 +35,7 @@ const abitante = {
 } as Abitante;
 
 test("un pasto giornaliero applica il bonus Soddisfazione", () => {
-  const result = applicaPastiGiornalieriPerPeriodo([abitante], [], {}, 0, 1);
+  const result = applicaPastiGiornalieriPerPeriodo([abitante], [], {}, {}, 0, 1);
   const aggiornato = result.abitanti[0]!;
   const bonus = aggiornato.modificatoriSoddisfazione?.find((m) => m.id === "pasto_giorno");
 
