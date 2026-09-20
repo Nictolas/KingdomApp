@@ -63,7 +63,8 @@ test("Raccoglitore riceve il bottino giornaliero e registra ultimo raccolto", ()
 
 test("runtime Bosco è ricollegato al cambio giorno", () => {
   const hook = readFileSync("src/hooks/useGameState.ts", "utf8");
+  const engine = readFileSync("src/game/boscoRaccolta.ts", "utf8");
   assert.match(hook, /applicaRaccoltaBoscoGiornaliera/);
   assert.match(hook, /ultimoGiornoRaccoltaBoscoRef/);
-  assert.match(hook, /ha trovato/);
+  assert.match(engine, /ha trovato/);
 });
