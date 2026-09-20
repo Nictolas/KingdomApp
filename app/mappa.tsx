@@ -62,6 +62,7 @@ import { LuogoCultoFullscreenModal } from "../src/ui/LuogoCultoFullscreenModal";
 import { abitanteDeveAndareAlCultoOra, abitanteNascostoNelCultoOra } from "../src/game/presenzaLuogoCulto";
 import { RichiesteModal } from "../src/ui/RichiesteModal";
 import { EventiModal } from "../src/ui/EventiModal";
+import { CantiereModal } from "../src/ui/CantiereModal";
 import { calcolaEventiUI } from "../src/game/eventiDisponibili";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import {
@@ -175,6 +176,7 @@ import { scegliAzioneCommuteBloccataLavoro } from "../src/game/commuteBloccataLa
 import { SEZIONE_AMBIENTE, SEZIONI_COSTRUZIONE, type TerrenoCostruzioneKind } from "../src/game/costruzioneSezioni";
 import {
   costoMaterialeEdilePerFootprint,
+  costoCostruzioneMonete,
   haMaterialeEdileSufficiente,
   quantitaMaterialeEdile
 } from "../src/game/costruzioneEdifici";
@@ -206,6 +208,14 @@ import {
   STRADA_FOOTPRINT_H,
   STRADA_FOOTPRINT_W
 } from "../src/game/stradaFootprint";
+import {
+  COSTO_PONTE_MONETE,
+  ID_TEMPLATE_PONTE,
+  NOME_PONTE,
+  PONTE_OPZIONE,
+  isCellaOkPerPonte,
+  piazzaPonteSuCella
+} from "../src/game/ponteMappa";
 import {
   buildCoastalAssetLookups,
   buildErbaAssetLookup,
