@@ -16,6 +16,9 @@ import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
 import { Redirect, useFocusEffect, useRouter } from "expo-router";
 import { edificiData } from "../src/data/edificiData";
 import { useGameContext } from "../src/context/GameContext";
+import { useTutorialSpotlightOptional } from "../src/tutorial/TutorialSpotlightContext";
+import { useSpotlightTarget } from "../src/tutorial/useSpotlightTarget";
+import { SPOTLIGHT_TARGET_IDS } from "../src/tutorial/spotlightTypes";
 import {
   applyTerrenoGrassAndSandContinuity,
   buildTerrenoFromRivers,
@@ -1352,14 +1355,23 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     setMostraGrigliaMappa(true);
   }, [modalitaDemolisci, uscitaDemolizione, uscitaCostruzione]);
 
+  const spotlight = useTutorialSpotlightOptional();
+
   const onCostruisciPress = useCallback(() => {
+    if (spotlight?.active?.targetId === SPOTLIGHT_TARGET_IDS.MAPPA_COSTRUISCI) {
+      spotlight.dismissSpotlight();
+    }
     setModalitaDemolisci(false);
     if (costruzioneTerrenoPersistente(costruzioneSelezione)) {
       uscitaCostruzione();
       return;
     }
     setMostraModalCostruisci(true);
-  }, [costruzioneSelezione, uscitaCostruzione]);
+  }, [costruzioneSelezione, uscitaCostruzione, spotlight]);
+
+  const costruisciSpotlightRef = useSpotlightTarget(SPOTLIGHT_TARGET_IDS.MAPPA_COSTRUISCI, {
+    onPress: onCostruisciPress
+  });
 
   const previewPiazzamento = useMemo(
     () =>
@@ -4243,17 +4255,19 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                           Griglia
                         </Text>
                       </Pressable>
-                      <Pressable
-                        style={[styles.grigliaMapToggle, costruzioneSelezione != null && styles.grigliaMapToggleOn]}
-                        onPress={onCostruisciPress}
-                        accessibilityRole="button"
-                        accessibilityLabel="Apri costruzione edifici"
-                      >
-                        <Text style={styles.grigliaMapToggleEmoji}>🔨</Text>
-                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                          Costruisci
-                        </Text>
-                      </Pressable>
+                      <View ref={costruisciSpotlightRef} collapsable={false}>
+                        <Pressable
+                          style={[styles.grigliaMapToggle, costruzioneSelezione != null && styles.grigliaMapToggleOn]}
+                          onPress={onCostruisciPress}
+                          accessibilityRole="button"
+                          accessibilityLabel="Apri costruzione edifici"
+                        >
+                          <Text style={styles.grigliaMapToggleEmoji}>🔨</Text>
+                          <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
+                            Costruisci
+                          </Text>
+                        </Pressable>
+                      </View>
                       <Pressable
                         style={[styles.grigliaMapToggle, modalitaDemolisci && styles.grigliaMapToggleDemolisciOn]}
                         onPress={onDemolisciPress}
