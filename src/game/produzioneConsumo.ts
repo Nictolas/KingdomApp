@@ -2,6 +2,7 @@ import type { Abitante, Edificio, Risorsa } from "../types";
 import { getConsumoCibo, getConsumoAcqua } from "./ciboConsumo";
 import { calcolaProduzioneSerraMensile } from "./produzioneSerra";
 import { getProduttivitaEffettiva } from "./bisogni";
+import { applicaMoltiplicatoreProduzione } from "./reModalita";
 
 export type CalcolaProduzioneConsumoInput = {
   abitanti: Abitante[];
@@ -9,13 +10,16 @@ export type CalcolaProduzioneConsumoInput = {
   risorse: Risorsa[];
   /** @deprecated Non più usato (Tesoro gestito a parte). */
   assegnoPensionati?: number;
+  /** Edificio visitato dal Re: solo la sua produzione riceve il +15%. */
+  edificioBuffVisitaId?: number | null;
 };
 
 /** Calcola produzione/consumo mensile per ogni risorsa a partire dallo stato corrente del regno. */
 export function calcolaProduzioneConsumoPuro({
   abitanti,
   edifici,
-  risorse
+  risorse,
+  edificioBuffVisitaId = null
 }: CalcolaProduzioneConsumoInput): Record<string, number> {
   const variazioni: Record<string, number> = {};
 
@@ -44,7 +48,11 @@ export function calcolaProduzioneConsumoPuro({
                     return sum + (abitante ? getProduttivitaEffettiva(abitante) : 0);
                   }, 0) / numAbitanti;
 
-                const produzione = Math.floor(numAbitanti * (produttivitàMedia / 10));
+                const produzioneBase = Math.floor(numAbitanti * (produttivitàMedia / 10));
+                const produzione = applicaMoltiplicatoreProduzione(
+                  produzioneBase,
+                  edificio.id === edificioBuffVisitaId
+                );
                 variazioni[r.nome] = (variazioni[r.nome] || 0) + produzione;
               }
             }
@@ -54,7 +62,10 @@ export function calcolaProduzioneConsumoPuro({
     }
   });
 
-  variazioni["__ciboInventarioSerra"] = calcolaProduzioneSerraMensile(edifici);
+  variazioni["__ciboInventarioSerra"] = calcolaProduzioneSerraMensile(
+    edifici,
+    edificioBuffVisitaId
+  );
 
   // Bonus +10% Cibo se il ministro dell'Agricoltura ha personalità "Pollice Verde"
   const totaleCiboProdotto = variazioni["__ciboProdotto"];
