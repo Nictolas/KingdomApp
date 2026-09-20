@@ -410,3 +410,34 @@ export function applicaEffettiRibellioneMensile(
     messaggi
   };
 }
+
+
+export type RisultatoProtestaMensile = {
+  moneteGiocatore: number;
+  messaggi: string[];
+};
+
+/**
+ * Effetto economico storico della fase Protesta.
+ * Il vandalismo -8 efficienza non viene duplicato qui perché è già coperto
+ * dal sabotaggio individuale degli Ostili.
+ */
+export function applicaEffettiProtestaMensile(
+  fase: FaseDisordineSoddisfazione,
+  moneteGiocatore: number
+): RisultatoProtestaMensile {
+  if (fase !== "protesta") {
+    return { moneteGiocatore, messaggi: [] };
+  }
+
+  const perdita = Math.max(15, Math.floor(moneteGiocatore * 0.08));
+  const tolto = Math.min(moneteGiocatore, perdita);
+
+  return {
+    moneteGiocatore: Math.max(0, moneteGiocatore - tolto),
+    messaggi:
+      tolto > 0
+        ? [`Proteste: scioperi e tasse non pagate (−${tolto} monete).`]
+        : []
+  };
+}
