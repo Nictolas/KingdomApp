@@ -32,6 +32,7 @@ export default function LeggiScreen() {
       "Imposta sul Valore Aggiunto": "📊",
       "Tassa sul Patrimonio": "💎",
       "Tassa sul Reddito": "💰",
+      "Prelievo Forzoso": "👑",
       "Reddito di Cittadinanza": "🪙",
       "Carta dei Diritti dei Coloni": "📜",
       "Età minima sul lavoro": "👶",
@@ -57,6 +58,7 @@ export default function LeggiScreen() {
       legge.titolo === "Imposta sul Valore Aggiunto" ||
       legge.titolo === "Tassa sul Patrimonio" ||
       legge.titolo === "Tassa sul Reddito" ||
+      legge.titolo === "Prelievo Forzoso" ||
       legge.titolo === "Reddito di Cittadinanza"
     ) {
       leggiPerTema.Fiscale.push({ ...legge, tema: "Fiscale" });
@@ -94,6 +96,7 @@ export default function LeggiScreen() {
   };
 
   const getNavigationPath = (titolo: string) => {
+    if (titolo === "Prelievo Forzoso") return "/prelievo-forzoso";
     if (titolo === "Imposta sul Valore Aggiunto") return "/imposta-valore-aggiunto";
     if (titolo === "Tassa sul Patrimonio") return "/tassa-patrimonio";
     if (titolo === "Tassa sul Reddito") return "/tassa-reddito";
