@@ -13,10 +13,7 @@ import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { abitanteHaInventarioPersonale } from "../src/game/casta";
 import { getMoneteInventarioAbitante } from "../src/game/inventario";
-import {
-  calcolaTassaPatrimonioImporto,
-  stimaGettitoTasse
-} from "../src/game/tasse";
+import { calcolaTassaPatrimonioImporto } from "../src/game/tasse";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { GateTassaSbloccata } from "../src/ui/GateTassaSbloccata";
 
@@ -32,13 +29,8 @@ function TassaPatrimonioScreenInner() {
   const router = useRouter();
   const {
     abitanti,
-    edifici,
     tassaPatrimonioPercentuale,
     setTassaPatrimonioPercentuale,
-    tipoTassaReddito,
-    flatTaxPercentuale,
-    scaglioniConfig,
-    ivaPercentuale
   } = useGameContext();
 
   const [inputPct, setInputPct] = useState(String(tassaPatrimonioPercentuale));
@@ -69,27 +61,8 @@ function TassaPatrimonioScreenInner() {
   );
 
   const gettito = useMemo(
-    () =>
-      stimaGettitoTasse({
-        abitanti,
-        edifici,
-        configReddito: {
-          tipo: tipoTassaReddito,
-          flatPercentuale: flatTaxPercentuale,
-          scaglioni: scaglioniConfig
-        },
-        tassaPatrimonioPercentuale,
-        ivaPercentuale
-      }).patrimonio,
-    [
-      abitanti,
-      edifici,
-      tipoTassaReddito,
-      flatTaxPercentuale,
-      scaglioniConfig,
-      tassaPatrimonioPercentuale,
-      ivaPercentuale
-    ]
+    () => soggetti.reduce((totale, voce) => totale + voce.tassa, 0),
+    [soggetti]
   );
 
   return (
