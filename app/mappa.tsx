@@ -918,6 +918,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     eventiInCorso,
     eventiCatalogo,
     punteggioSanzioni,
+    nudismoAttivo,
     divietoEspatrioAttivo,
     soddisfazioneFazioni,
     politicaNascite,
@@ -3331,7 +3332,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           path: commute?.path,
           pathToken: commute?.token ?? 0,
           appearance: abitante.razza === "Golem" ? "golem" : "human",
-          characterAppearance: aspettoPerVisualizzazioneAbitante(abitante)?.characterAppearance,
+          characterAppearance: aspettoPerVisualizzazioneAbitante(abitante, { nudismoAttivo })?.characterAppearance,
           markerEmoji: abitante.razza === "Golem" ? getEmojiAbitante(abitante) : undefined,
           idleRoamAllowed
         };
@@ -3347,6 +3348,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     isWalkableCell,
     orologioMinuti,
     edifici,
+    nudismoAttivo,
     coprifuocoAttivo,
     coprifuocoInizioMinuti,
     coprifuocoFineMinuti
