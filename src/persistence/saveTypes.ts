@@ -5,6 +5,7 @@ import type { ReligioneConCulto } from "../game/luogoCulto";
 import type { RichiestaInAttesa } from "../game/richieste";
 import type { VoceInventario } from "../game/inventario";
 import type { GameMode } from "../game/gameMode";
+import type { RegistrazioneScambio } from "../game/registrazioniScambi";
 
 export const SAVE_FORMAT = "mykingdom-save" as const;
 export const SAVE_SCHEMA_VERSION = 1 as const;
@@ -108,6 +109,8 @@ export type GameSaveV1 = {
     pendingMatrimonio: { idA: number; idB: number; nomeA: string; nomeB: string } | null;
     messaggioEmigrazione: string | null;
     diarioRighe: string[];
+    /** Registro economico/raccolte; assente nei salvataggi precedenti. */
+    registrazioniScambi?: RegistrazioneScambio[];
     capoReligiosoSole: number | null;
     capoReligiosoAlieni: number | null;
     pendingRichiestaLuogoCulto: { id: number; nome: string; religione: ReligioneConCulto } | null;
