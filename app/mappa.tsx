@@ -940,7 +940,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     capoReligiosoAlieni,
     coprifuocoAttivo,
     coprifuocoInizioMinuti,
-    coprifuocoFineMinuti
+    coprifuocoFineMinuti,
+    modalitaGioco
   } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
@@ -961,6 +962,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     const out: Edificio[] = [];
     for (const row of edificiData) {
       if (row.nome === "Castello") continue;
+      /** Ponte: voce speciale perché può essere piazzata solo sul fiume. */
+      if (row.nome === NOME_PONTE) continue;
       /** Una sola Baracca è supportata dalla sync globale Senzatetto → edificio. */
       if (row.nome === "Baracca") continue;
       if (seen.has(row.nome)) continue;
@@ -1171,6 +1174,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   /** Cella anchor del Luogo di Culto aperto dal doppio tocco. */
   const [selectedLuogoCultoAnchor, setSelectedLuogoCultoAnchor] = useState<number | null>(null);
+  /** Cantiere aperto dalla mappa. */
+  const [cantiereSelezionatoId, setCantiereSelezionatoId] = useState<number | null>(null);
   /** Scheda abitante aperta dal doppio tocco su un passeggiatore sulla mappa. */
   const [schedaWandererAbitante, setSchedaWandererAbitante] = useState<Abitante | null>(null);
   /** Selezione mappa: sintesi in barra inferiore al posto dei pulsanti risorse. */
