@@ -979,6 +979,12 @@ export function useGameState() {
     setMessaggioEmigrazione(state.messaggioEmigrazione);
     setDiarioRighe(state.diarioRighe);
     setSoddisfazioneFazioni(state.soddisfazioneFazioni);
+    setModalitaReState(state.modalitaRe ?? STATO_RE_DEFAULT.modalitaRe);
+    setEdificioVisitaReId(state.edificioVisitaReId ?? null);
+    setPopolaritaRe(state.popolaritaRe ?? STATO_RE_DEFAULT.popolaritaRe);
+    setMesiConsecutiviNelCastello(state.mesiConsecutiviNelCastello ?? 0);
+    setFaseDisordine(state.faseDisordine ?? "nessuna");
+    setAvvisoReAssenteEmesso(state.avvisoReAssenteEmesso ?? false);
     setTipoTassaReddito(state.tipoTassaReddito);
     setFlatTaxPercentuale(state.flatTaxPercentuale);
     setScaglioniConfig(state.scaglioniConfig);
@@ -1042,6 +1048,7 @@ export function useGameState() {
       leggeDroghe, divietoEspatrioAttivo, coprifuocoAttivo, coprifuocoInizioMinuti,
       coprifuocoFineMinuti, iusPrimaeNoctisAttivo, tipologieFamigliaAccettate,
       redditoCittadinanza, modalitaSanita, ordiniMercato, eventiInCorso, soddisfazioneFazioni,
+      modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso,
       pendingAssimilazione, pendingMatrimonio, messaggioEmigrazione, diarioRighe,
       capoReligiosoSole, capoReligiosoAlieni, pendingRichiestaLuogoCulto, richiesteInAttesa,
       luoghiCultoRifiutati, luoghiCultoPendentiMappa, obiettiviCompletati, coltureSerraSbloccate, mappa
@@ -1053,7 +1060,9 @@ export function useGameState() {
     razzaCampoLavoro, razzaCampoSterminio, etaMinimaLavoro, etaPensionabile, assegnoPensionati,
     leggeDroghe, divietoEspatrioAttivo, coprifuocoAttivo, coprifuocoInizioMinuti, coprifuocoFineMinuti,
     iusPrimaeNoctisAttivo, tipologieFamigliaAccettate, redditoCittadinanza, modalitaSanita,
-    ordiniMercato, eventiInCorso, soddisfazioneFazioni, pendingAssimilazione, pendingMatrimonio,
+    ordiniMercato, eventiInCorso, soddisfazioneFazioni,
+    modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso,
+    pendingAssimilazione, pendingMatrimonio,
     messaggioEmigrazione, diarioRighe, capoReligiosoSole, capoReligiosoAlieni,
     pendingRichiestaLuogoCulto, richiesteInAttesa, luoghiCultoRifiutati, luoghiCultoPendentiMappa,
     obiettiviCompletati, coltureSerraSbloccate]);
