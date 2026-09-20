@@ -130,6 +130,11 @@ export type Abitante = {
     giorno: number;
     voci: { itemId: string; emoji: string; nome: string; quantità: number }[];
   };
+  /** Ultimo bottino estratto in Miniera (Minatore). */
+  ultimoRaccoltoMiniera?: {
+    giorno: number;
+    voci: { itemId: string; emoji: string; nome: string; quantità: number }[];
+  };
   /** Ultimo raccolto dalla Serra (Agricoltore). */
   ultimoRaccoltoSerra?: {
     giorno: number;
