@@ -15,10 +15,12 @@ import {
 import type { EdificioInCellaMappa } from "./mappaTypes";
 import { isTerrenoAcqua, type TerrenoType } from "./riverGeneration";
 import { calcolaAnchorStrada2x2, footprintStrada2x2Valido } from "./stradaFootprint";
+import { isCellaOkPerPonte } from "./ponteMappa";
 
 /** Anteprima piazzamento in modalità Costruisci (stessa forma usata dalla mappa). */
 export type SelezioneCostruzioneAnteprima =
   | { tipo: "strada" }
+  | { tipo: "ponte" }
   | { tipo: "terreno"; kind: TerrenoCostruzioneKind }
   | { tipo: "edificio"; edificio: Edificio };
 
@@ -128,6 +130,12 @@ export function calcolaPreviewPiazzamento(
   rows: number
 ): { celle: number[]; valido: boolean } | null {
   if (hoverCell == null) return null;
+  if (selezione.tipo === "ponte") {
+    return {
+      celle: [hoverCell],
+      valido: isCellaOkPerPonte(hoverCell, terrenoInMappa, edificiInMappa)
+    };
+  }
   if (selezione.tipo === "strada" || selezione.tipo === "terreno") {
     const { anchor, w, h } = calcolaAnchorCostruzione2x2(hoverCell, cols, rows);
     if (anchor == null) {
