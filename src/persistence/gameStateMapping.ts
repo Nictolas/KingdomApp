@@ -8,6 +8,7 @@ import { normalizeGameSave } from "./saveValidation.ts";
 import type { GameSaveV1, SaveGamePhase, ScaglioneSalvato } from "./saveTypes.ts";
 import type { GameMode } from "../game/gameMode";
 import { TASSA_PATRIMONIO_PERCENTUALE_DEFAULT, IVA_PERCENTUALE_DEFAULT } from "../game/economiaPrezzi";
+import type { RegistrazioneScambio } from "../game/registrazioniScambi";
 
 /** Snapshot persistibile del runtime attuale, senza alcuno stato visuale. */
 export type PersistableGameState = {
@@ -75,6 +76,7 @@ export type PersistableGameState = {
   pendingMatrimonio: GameSaveV1["events"]["pendingMatrimonio"];
   messaggioEmigrazione: string | null;
   diarioRighe: string[];
+  registrazioniScambi: RegistrazioneScambio[];
   capoReligiosoSole: number | null;
   capoReligiosoAlieni: number | null;
   pendingRichiestaLuogoCulto: GameSaveV1["events"]["pendingRichiestaLuogoCulto"];
@@ -165,6 +167,7 @@ export function gameStateToGameSaveV1(state: PersistableGameState): GameSaveV1 {
       pendingMatrimonio: state.pendingMatrimonio,
       messaggioEmigrazione: state.messaggioEmigrazione,
       diarioRighe: state.diarioRighe,
+      registrazioniScambi: state.registrazioniScambi,
       capoReligiosoSole: state.capoReligiosoSole,
       capoReligiosoAlieni: state.capoReligiosoAlieni,
       pendingRichiestaLuogoCulto: state.pendingRichiestaLuogoCulto,
@@ -199,6 +202,7 @@ export function gameSaveV1ToGameState(save: GameSaveV1): PersistableGameState {
       normalized.policies.tassaPatrimonioPercentuale ?? TASSA_PATRIMONIO_PERCENTUALE_DEFAULT,
     ivaPercentuale: normalized.policies.ivaPercentuale ?? IVA_PERCENTUALE_DEFAULT,
     ...normalized.events,
+    registrazioniScambi: normalized.events.registrazioniScambi ?? [],
     modalitaRe: normalized.events.modalitaRe ?? "a_giro",
     edificioVisitaReId: normalized.events.edificioVisitaReId ?? null,
     popolaritaRe: normalized.events.popolaritaRe ?? 50,

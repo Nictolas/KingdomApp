@@ -8,7 +8,7 @@ import { isOccupazioneRimossa } from "../game/lavoriCatalogo";
 
 export default function GridGame() {
   const router = useRouter();
-  const { abitanti, edifici, abitantiProposti, salvaPartita, saveStatus, obiettiviCompletati } = useGameContext();
+  const { abitanti, edifici, abitantiProposti, salvaPartita, saveStatus, obiettiviCompletati, registrazioniScambi } = useGameContext();
 
   const criminali = abitanti.filter((a: Abitante) => (a.reati?.length ?? 0) > 0);
   const personalitàUniche = Array.from(new Set(abitanti.map((a: Abitante) => a.personalità))).filter(Boolean);
@@ -55,6 +55,11 @@ export default function GridGame() {
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/crediti")}>
             <Text style={styles.navEmoji}>📒</Text>
             <Text style={styles.navLabel}>Bilancio</Text>
+          </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/registrazioni")}>
+            <Text style={styles.navEmoji}>🧾</Text>
+            <Text style={styles.navLabel}>Registrazioni</Text>
+            <Text style={styles.navMeta}>{registrazioniScambi.length}</Text>
           </Pressable>
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/lavori")}>
             <Text style={styles.navEmoji}>💼</Text>

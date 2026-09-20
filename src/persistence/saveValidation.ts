@@ -161,6 +161,9 @@ function validateCoreValues(payload: Record<string, unknown>): void {
   for (const key of ["eventiInCorso", "richiesteInAttesa", "luoghiCultoRifiutati", "diarioRighe"] as const) {
     requireArray(events[key], `payload.events.${key}`);
   }
+  if (events.registrazioniScambi != null) {
+    requireArray(events.registrazioniScambi, "payload.events.registrazioniScambi");
+  }
   const map = requireRecord(payload.map, "payload.map");
   for (const key of ["edificiInMappa", "terrenoInMappa", "decorazioniInMappa", "residenzeMappa"] as const) {
     requireRecord(map[key], `payload.map.${key}`);
