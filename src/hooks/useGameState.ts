@@ -105,6 +105,7 @@ import { setMappaSessione, getMappaSessione } from "../game/mappaSessione";
 import { mappaHaPonteOperativo } from "../game/ponteMappa";
 import { pulisciModificatoriScaduti } from "../game/soddisfazione";
 import {
+  applicaSabotaggioOstileMensile,
   messaggioFaseDisordineSoddisfazione,
   valutaFaseDisordineSoddisfazione
 } from "../game/disordineSoddisfazione";
@@ -597,12 +598,19 @@ export function useGameState() {
       result.nuovoAnno
     );
     const avvisoDisordine = messaggioFaseDisordineSoddisfazione(disordineDopo);
+    const sabotaggio = applicaSabotaggioOstileMensile(
+      abitantiConModificatoriPuliti,
+      dopoCarcere.edifici,
+      giornoGioco,
+      result.nuovoMese,
+      result.nuovoAnno
+    );
     const risorseAggiornate = estraiCreditiLegacyDaRisorse(result.risorse).risorse;
     const moneteAggiornate =
       result.moneteGiocatore + tasseMese.gettitoPatrimonio + tasseMese.gettitoIva;
 
     setAbitanti(abitantiConModificatoriPuliti);
-    setEdifici(dopoCarcere.edifici);
+    setEdifici(sabotaggio.edifici);
     setRisorse(risorseAggiornate);
     setMoneteGiocatore(moneteAggiornate);
     setMese(result.nuovoMese);
@@ -614,7 +622,7 @@ export function useGameState() {
     if (gameMode === "avventura") {
       const haPonte = mappaHaPonteOperativo(
         getMappaSessione()?.edificiInMappa ?? {},
-        dopoCarcere.edifici
+        sabotaggio.edifici
       );
       setObiettiviCompletati((prevCompletati) => {
         const completatiSet = new Set(prevCompletati);
@@ -628,7 +636,7 @@ export function useGameState() {
 
           const soddisfatto = nodo.condizione({
             abitanti: abitantiConModificatoriPuliti,
-            edifici: dopoCarcere.edifici,
+            edifici: sabotaggio.edifici,
             risorse: risorseAggiornate,
             mese: result.nuovoMese,
             anno: result.nuovoAnno,
@@ -659,7 +667,7 @@ export function useGameState() {
     if (result.messaggioNascita) {
       Alert.alert("Nascita", result.messaggioNascita);
     }
-    const avvisiDiario = [result.avvisoDiario, avvisoDisordine].filter(
+    const avvisiDiario = [result.avvisoDiario, avvisoDisordine, sabotaggio.messaggio].filter(
       (riga): riga is string => !!riga
     );
     if (avvisiDiario.length > 0) {
