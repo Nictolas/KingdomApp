@@ -48,6 +48,8 @@ import {
 } from "../game/edificiPubblici";
 import { applicaZeccaGiornaliera } from "../game/zeccaProduzione";
 import {
+  aggiungiIncassoImpresa,
+  pagaFissoEDistribuisciTipBar,
   pagaStipendiImpresaGiornalieri,
   seedCassaImpresaSeMancante
 } from "../game/impresaCassa";
@@ -112,6 +114,7 @@ import {
   assumiDisoccupatoNellaMiniera,
   etichettaRaccoltoMiniera
 } from "../game/minieraRaccolta";
+import { provaAssumiPrimoArrivoComeBaristaSeVuoto } from "../game/barEconomia";
 import {
   appendRegistrazioneScambio,
   voceRegistrazioneCostruzione,
@@ -1611,6 +1614,53 @@ export function useGameState() {
     []
   );
 
+  /** Se il Bar è vuoto, il primo entrante idoneo diventa Barista. */
+  const provaAssumiBaristaBarVuotoDaMappa = useCallback(
+    (abitanteId: number, barEdificioId: number): boolean => {
+      const result = provaAssumiPrimoArrivoComeBaristaSeVuoto(
+        abitantiRef.current,
+        edificiRef.current,
+        abitanteId,
+        barEdificioId
+      );
+      if (!result.assunto) return false;
+      abitantiRef.current = result.abitanti;
+      edificiRef.current = result.edifici;
+      setAbitanti(result.abitanti);
+      setEdifici(result.edifici);
+      return true;
+    },
+    []
+  );
+
+  /** Accredita un incasso alla cassa/fatturato dell'impresa indicata. */
+  const incassaImpresa = useCallback((edificioId: number, monete: number) => {
+    const next = edificiRef.current.map((e) =>
+      e.id === edificioId ? aggiungiIncassoImpresa(e, monete) : e
+    );
+    edificiRef.current = next;
+    setEdifici(next);
+  }, []);
+
+  /** A fine turno Bar paga fisso e distribuisce la cassa residua come mance. */
+  const applicaPagaETipBarFineTurno = useCallback(
+    (baristiInServizioByBar: Record<number, number[]>) => {
+      let abitantiNext = abitantiRef.current;
+      const edificiNext = pagaFissoEDistribuisciTipBar(
+        edificiRef.current,
+        baristiInServizioByBar,
+        (id, fn) => {
+          abitantiNext = abitantiNext.map((a) => (a.id === id ? fn(a) : a));
+        }
+      );
+      abitantiRef.current = abitantiNext;
+      edificiRef.current = edificiNext;
+      setAbitanti(abitantiNext);
+      setEdifici(edificiNext);
+    },
+    []
+  );
+
   const applicaEsitoChiacchieraAbitanti = useCallback((idA: number, idB: number) => {
     setAbitanti((prev) => applicaEsitoChiacchieraSuLista(prev, idA, idB));
   }, []);
@@ -2182,6 +2232,9 @@ export function useGameState() {
     aggiungiAlCampoDiLavoroTuttiQuelliChe,
     assegnaServoDellaGlebaAEdificio,
     assumiCittadinoDisoccupatoAEdificio,
+    provaAssumiBaristaBarVuotoDaMappa,
+    incassaImpresa,
+    applicaPagaETipBarFineTurno,
     trasferisciProprietaSchiavo,
     uccidiSchiavo,
     nominaMinistro,
