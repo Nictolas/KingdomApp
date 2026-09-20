@@ -2,7 +2,6 @@ import type { Abitante, Edificio } from "../types";
 import { abitanteHaInventarioPersonale, getCastaAbitante } from "./casta";
 import { abitanteDeveConsumareCiboGiornaliero } from "./consumoCiboInventario";
 import {
-  consumaUnOggettoCibo,
   consumaUnOggettoCiboConItem,
   normalizzaAbitanteInventario,
   type VoceInventario
