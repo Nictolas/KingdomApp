@@ -21,6 +21,7 @@ let orologioGiocoGiorno = 1;
 const pausaListeners = new Set<() => void>();
 const velocitaListeners = new Set<() => void>();
 const giornoListeners = new Set<() => void>();
+const oraListeners = new Set<(orePassate: number) => void>();
 
 function notifyGiornoListeners(): void {
   giornoListeners.forEach((l) => l());
@@ -29,6 +30,11 @@ function notifyGiornoListeners(): void {
 export function subscribeGiornoGioco(listener: () => void): () => void {
   giornoListeners.add(listener);
   return () => giornoListeners.delete(listener);
+}
+
+export function subscribeOraGioco(listener: (orePassate: number) => void): () => void {
+  oraListeners.add(listener);
+  return () => oraListeners.delete(listener);
 }
 
 export function getGiornoGiocoSnapshot(): number {
@@ -142,12 +148,18 @@ export function syncOrologioGiocoDaWallClock(): number {
   const elapsedSeconds = Math.floor((Date.now() - orologioGiocoLastRealMs) / 1000);
   const catchUp =
     elapsedSeconds * MINUTI_GIOCO_PER_SECONDO_REALE * orologioGiocoVelocita;
+  const totalMinPrima = (orologioGiocoGiorno - 1) * 1440 + minutiPrima;
   const minutiTotali = minutiPrima + catchUp;
   orologioGiocoMinutiDaMezzanotte = minutiTotali % 1440;
   const giorniPassati = Math.floor(minutiTotali / 1440);
   if (giorniPassati > 0) {
     orologioGiocoGiorno += giorniPassati;
     notifyGiornoListeners();
+  }
+  const orePassate =
+    Math.floor((totalMinPrima + catchUp) / 60) - Math.floor(totalMinPrima / 60);
+  if (orePassate > 0) {
+    oraListeners.forEach((listener) => listener(orePassate));
   }
   orologioGiocoLastRealMs = Date.now();
   return orologioGiocoMinutiDaMezzanotte;

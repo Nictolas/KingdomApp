@@ -38,6 +38,7 @@ import { getEdificioAbitazione } from "../game/abitanteEdifici";
 import { generaImmigratiProposti } from "../game/immigrazione";
 import { getLavoroPerEdificio, autoAssegnaCittadiniDisoccupati, normalizzaLavoroEAgricoltura, edificioAccettaServiDellaGleba, isEdificioPubblicoConPostazioniLavoro, assumiCittadinoDisoccupatoInEdificio } from "../game/edificiLavoro";
 import {
+  avanzaCostruzioniEdifici,
   consumaMaterialeEdile,
   edificioParteInCostruzione,
   haMaterialeEdileSufficiente
@@ -96,7 +97,8 @@ import {
   getOrologioPersistableSnapshot,
   restoreOrologioGioco,
   setOrologioGiocoBloccatoDallaFase,
-  subscribeGiornoGioco
+  subscribeGiornoGioco,
+  subscribeOraGioco
 } from "../game/orologioGiocoSession";
 import {
   COLTURA_SERRA_DEFAULT,
@@ -404,6 +406,33 @@ export function useGameState() {
     const unsub = subscribeGiornoGioco(applicaPasti);
     return unsub;
   }, [registraScambioCommerciale]);
+
+  /** Cantieri: +1 progresso per ora di gioco per ogni Edile assegnato all'Ufficio Edile. */
+  useEffect(() => {
+    return subscribeOraGioco((orePassate) => {
+      if (!isSimulationRunning(gamePhaseRef.current)) return;
+      const result = avanzaCostruzioniEdifici(
+        edificiRef.current,
+        abitantiRef.current,
+        orePassate
+      );
+      if (result.edifici === edificiRef.current) return;
+
+      edificiRef.current = result.edifici;
+      setEdifici(result.edifici);
+
+      if (result.completati.length > 0) {
+        const msg = result.completati
+          .map((item) => `${item.nome} è stato completato.`)
+          .join(" ");
+        setDiarioRighe((prev) => [...prev, msg]);
+        Alert.alert(
+          result.completati.length === 1 ? "Cantiere completato" : "Cantieri completati",
+          msg
+        );
+      }
+    });
+  }, []);
 
   /** Serra: ogni Agricoltore produce 2 unità/giorno della coltura nel proprio inventario. */
   useEffect(() => {

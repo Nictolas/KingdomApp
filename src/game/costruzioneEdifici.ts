@@ -1,12 +1,11 @@
 import type { Abitante, Edificio, Risorsa } from "../types";
-import { getProduttivitaEffettiva } from "./bisogni";
 
 export const NOME_UFFICIO_EDILE = "Ufficio Edile";
 export const NOME_RISORSA_MATERIALE_EDILE = "Materiale Edile";
 export const PROGRESSO_COSTRUZIONE_COMPLETO = 100;
 
-/** Punti costruzione base per ogni edile assegnato allo Skip Mese (prima della produttività). */
-const PUNTI_BASE_PER_EDILE = 20;
+/** Punti di avanzamento per ogni Edile, ogni ora di gioco, sul cantiere attivo. */
+export const PUNTI_PER_EDILE_PER_ORA = 1;
 
 /**
  * Edifici piazzati già operativi (niente cantiere):
@@ -43,7 +42,7 @@ export function consumaMaterialeEdile(risorse: Risorsa[], costo: number): Risors
   );
 }
 
-/** Conta gli edili assegnati a Uffici Edili operativi. */
+/** Conta gli Edili assegnati a Uffici Edili operativi. */
 export function contaEdiliAssegnati(edifici: Edificio[]): number {
   let n = 0;
   for (const e of edifici) {
@@ -53,62 +52,74 @@ export function contaEdiliAssegnati(edifici: Edificio[]): number {
   return n;
 }
 
-function puntiLavoroEdili(edifici: Edificio[], abitanti: Abitante[]): number {
-  let punti = 0;
-  for (const e of edifici) {
-    if (e.nome !== NOME_UFFICIO_EDILE || e.stato !== "Operativo") continue;
-    for (const id of e.abitantiAssegnati ?? []) {
-      const a = abitanti.find((x) => x.id === id);
-      const produttivita = a ? getProduttivitaEffettiva(a) : 50;
-      // produttività tipica ~50 → moltiplicatore 1; min 0.4
-      const mult = Math.max(0.4, produttivita / 50);
-      punti += PUNTI_BASE_PER_EDILE * mult;
-    }
-  }
-  return Math.floor(punti);
-}
-
 export type AvanzaCostruzioniResult = {
   edifici: Edificio[];
   completati: { id: number; nome: string }[];
 };
 
 /**
- * Gli edili dell'Ufficio Edile avanzano i cantieri allo Skip Mese.
- * I punti totali si ripartiscono in modo uniforme tra gli edifici «In costruzione».
+ * Gli Edili avanzano il primo cantiere attivo:
+ * +1 punto per Edile per ogni ora di gioco trascorsa.
+ * Se il cantiere termina prima di esaurire le ore, il tempo residuo passa al successivo.
  */
 export function avanzaCostruzioniEdifici(
   edifici: Edificio[],
-  abitanti: Abitante[]
+  _abitanti?: Abitante[],
+  orePassate = 1
 ): AvanzaCostruzioniResult {
-  const cantieri = edifici.filter((e) => e.stato === "In costruzione");
-  if (cantieri.length === 0) return { edifici, completati: [] };
+  let oreRimanenti = Math.max(0, Math.floor(orePassate));
+  if (oreRimanenti <= 0) return { edifici, completati: [] };
 
-  const puntiTotali = puntiLavoroEdili(edifici, abitanti);
-  if (puntiTotali <= 0) return { edifici, completati: [] };
+  const nEdili = contaEdiliAssegnati(edifici);
+  if (nEdili <= 0) return { edifici, completati: [] };
 
-  const puntiPerCantiere = Math.max(1, Math.floor(puntiTotali / cantieri.length));
+  const puntiPerOra = nEdili * PUNTI_PER_EDILE_PER_ORA;
+  let next = edifici;
   const completati: { id: number; nome: string }[] = [];
-  const byId = new Map(cantieri.map((c) => [c.id, c]));
+  let changed = false;
 
-  const next = edifici.map((e) => {
-    if (e.stato !== "In costruzione" || !byId.has(e.id)) return e;
+  while (oreRimanenti > 0) {
+    const attivo = elencoCantieri(next)[0];
+    if (!attivo) break;
+
+    const progressoAttuale = attivo.progressoCostruzione ?? 0;
+    const manca = PROGRESSO_COSTRUZIONE_COMPLETO - progressoAttuale;
+    if (manca <= 0) {
+      changed = true;
+      completati.push({ id: attivo.id, nome: attivo.nome });
+      next = next.map((e) =>
+        e.id === attivo.id
+          ? { ...e, stato: "Operativo" as const, progressoCostruzione: undefined }
+          : e
+      );
+      continue;
+    }
+
+    const orePerFinire = Math.ceil(manca / puntiPerOra);
+    const oreUsate = Math.min(oreRimanenti, orePerFinire);
     const progresso = Math.min(
       PROGRESSO_COSTRUZIONE_COMPLETO,
-      (e.progressoCostruzione ?? 0) + puntiPerCantiere
+      progressoAttuale + oreUsate * puntiPerOra
     );
-    if (progresso >= PROGRESSO_COSTRUZIONE_COMPLETO) {
-      completati.push({ id: e.id, nome: e.nome });
-      return {
-        ...e,
-        stato: "Operativo" as const,
-        progressoCostruzione: undefined
-      };
-    }
-    return { ...e, progressoCostruzione: progresso };
-  });
+    oreRimanenti -= oreUsate;
+    changed = true;
 
-  return { edifici: next, completati };
+    if (progresso >= PROGRESSO_COSTRUZIONE_COMPLETO) {
+      completati.push({ id: attivo.id, nome: attivo.nome });
+      next = next.map((e) =>
+        e.id === attivo.id
+          ? { ...e, stato: "Operativo" as const, progressoCostruzione: undefined }
+          : e
+      );
+    } else {
+      next = next.map((e) =>
+        e.id === attivo.id ? { ...e, progressoCostruzione: progresso } : e
+      );
+      break;
+    }
+  }
+
+  return { edifici: changed ? next : edifici, completati };
 }
 
 /** Edifici ancora in cantiere (per UI Ufficio Edile). */
