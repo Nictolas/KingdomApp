@@ -44,7 +44,6 @@ import {
 } from "../game/costruzioneEdifici";
 import {
   creaMoneteGiocatoreIniziali,
-  GIORNI_STIPENDIO_EDIFICIO_PUBBLICO_MESE,
   pagaStipendiEdificiPubblici
 } from "../game/edificiPubblici";
 import {
@@ -63,7 +62,7 @@ import {
 } from "../game/schiavituCommercio";
 import { syncResidenzeBaraccaSenzatetto } from "../game/avanzaMese";
 import { attivaEventoCarestia } from "../game/eventi/attivaCarestia";
-import { applicaPastiGiornalieriPerPeriodo, normalizzaEAplicaPastiAbitanti } from "../game/pastoGiornaliero";
+import { normalizzaEAplicaPastiAbitanti } from "../game/pastoGiornaliero";
 import {
   creaInventarioGiocatoreIniziale,
   normalizzaInventarioMensa,
@@ -79,7 +78,6 @@ import {
 } from "../game/orologioGiocoSession";
 import {
   COLTURA_SERRA_DEFAULT,
-  GIORNI_PRODUZIONE_SERRA_PER_MESE,
   isColturaSerraValida,
   normalizzaColtureSerraSbloccate,
   tutteColtureSerraSbloccate
