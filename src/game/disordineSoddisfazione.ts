@@ -1,4 +1,6 @@
 import type { Abitante, Edificio } from "../types";
+import { ID_GIOCATORE } from "./schiavituCommercio";
+import { numGuardieNelCastello, trovaCastelloOperativo } from "./castelloGuardie";
 import {
   azioneProbabileSeOstile,
   calcolaPunteggioSoddisfazione,
@@ -227,5 +229,75 @@ export function applicaScomparsaOstileMensile(
     edifici: edificiAggiornati,
     scomparsoId: id,
     messaggio: `Scomparsa: ${scomparso.nome} è sparito dal Regno senza lasciare tracce.`
+  };
+}
+
+
+export type EsitoAttentatoOstile =
+  | { tipo: "nessuno"; messaggio: null }
+  | { tipo: "sventato"; attentatoreId: number; messaggio: string }
+  | { tipo: "ferito"; attentatoreId: number; saluteRe: number; messaggio: string };
+
+export function tentaAttentatoOstileMensile(
+  abitanti: Abitante[],
+  edifici: Edificio[],
+  giornoGioco: number,
+  mese: number,
+  anno: number,
+  rng: () => number = Math.random
+): { abitanti: Abitante[]; esito: EsitoAttentatoOstile } {
+  const candidati = abitanti.filter((abitante) => {
+    if (abitante.id === ID_GIOCATORE || abitante.razza === "Golem") return false;
+    const punti = calcolaPunteggioSoddisfazione(
+      abitante,
+      edifici,
+      giornoGioco,
+      mese,
+      anno
+    );
+    const fascia = fasciaDaPunteggio(punti);
+    return azioneProbabileSeOstile(abitante, fascia) === "attentato";
+  });
+
+  if (candidati.length === 0) {
+    return { abitanti, esito: { tipo: "nessuno", messaggio: null } };
+  }
+
+  const probabilita = Math.min(0.55, 0.12 + (candidati.length - 1) * 0.08);
+  if (rng() >= probabilita) {
+    return { abitanti, esito: { tipo: "nessuno", messaggio: null } };
+  }
+
+  const attentatore = candidati[Math.floor(rng() * candidati.length)]!;
+  const castello = trovaCastelloOperativo(edifici);
+  const guardie = castello ? numGuardieNelCastello(castello, ID_GIOCATORE, abitanti) : 0;
+
+  if (guardie >= 3 || rng() < 0.45) {
+    return {
+      abitanti,
+      esito: {
+        tipo: "sventato",
+        attentatoreId: attentatore.id,
+        messaggio: `Attentato sventato: ${attentatore.nome} ha cercato di colpire il Re.`
+      }
+    };
+  }
+
+  const re = abitanti.find((abitante) => abitante.id === ID_GIOCATORE);
+  if (!re) {
+    return { abitanti, esito: { tipo: "nessuno", messaggio: null } };
+  }
+
+  const saluteRe = Math.max(1, re.salute - 35);
+  return {
+    abitanti: abitanti.map((abitante) =>
+      abitante.id === ID_GIOCATORE ? { ...abitante, salute: saluteRe } : abitante
+    ),
+    esito: {
+      tipo: "ferito",
+      attentatoreId: attentatore.id,
+      saluteRe,
+      messaggio: `Attentato: ${attentatore.nome} ha ferito il Re (salute ${saluteRe}).`
+    }
   };
 }
