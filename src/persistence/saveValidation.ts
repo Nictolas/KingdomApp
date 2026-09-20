@@ -129,6 +129,9 @@ function validateCoreValues(payload: Record<string, unknown>): void {
   const colony = requireRecord(payload.colony, "payload.colony");
   requireFiniteNumber(colony.moneteGiocatore, "payload.colony.moneteGiocatore");
   requireRecord(colony.inventarioMensaByEdificioId, "payload.colony.inventarioMensaByEdificioId");
+  if (colony.inventarioEmporioByEdificioId != null) {
+    requireRecord(colony.inventarioEmporioByEdificioId, "payload.colony.inventarioEmporioByEdificioId");
+  }
   requireRecord(colony.prezzoResidenze, "payload.colony.prezzoResidenze");
   requireArray(colony.inventarioGiocatore, "payload.colony.inventarioGiocatore");
   requireArray(colony.risorse, "payload.colony.risorse").forEach((raw, index) => {
@@ -238,6 +241,12 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
   next.colony.inventarioGiocatore = normalizeInventario(next.colony.inventarioGiocatore);
   Object.keys(next.colony.inventarioMensaByEdificioId).forEach((key) => {
     next.colony.inventarioMensaByEdificioId[Number(key)] = normalizeInventario(next.colony.inventarioMensaByEdificioId[Number(key)] ?? []);
+  });
+  next.colony.inventarioEmporioByEdificioId ??= {};
+  Object.keys(next.colony.inventarioEmporioByEdificioId).forEach((key) => {
+    next.colony.inventarioEmporioByEdificioId![Number(key)] = normalizeInventario(
+      next.colony.inventarioEmporioByEdificioId![Number(key)] ?? []
+    );
   });
   next.population.abitanti = next.population.abitanti.map((a: Abitante) => ({
     ...a,
