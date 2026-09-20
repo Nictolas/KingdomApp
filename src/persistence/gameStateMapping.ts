@@ -55,7 +55,7 @@ export type PersistableGameState = {
   etaPensionabile: number;
   assegnoPensionati: number;
   leggeDroghe: "vietate" | "legali" | "parziali";
-  nudismoAttivo: boolean;
+  nudismoAttivo?: boolean;
   divietoEspatrioAttivo: boolean;
   coprifuocoAttivo: boolean;
   coprifuocoInizioMinuti: number;
