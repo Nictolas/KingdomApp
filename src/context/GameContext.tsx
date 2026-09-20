@@ -21,6 +21,9 @@ import { SAVE_FORMAT, SAVE_SCHEMA_VERSION, type SaveEnvelopeV1 } from "../persis
 import { decideStartup, shouldAutosave, shouldConfirmNewGame } from "../persistence/saveRuntimePolicy";
 import { StartGameScreen } from "../ui/StartGameScreen";
 import { GameModeSelectionScreen } from "../ui/GameModeSelectionScreen";
+import { GameOverModal } from "../ui/GameOverModal";
+import { ID_GIOCATORE } from "../game/schiavituCommercio";
+import { setOrologioGiocoBloccatoDallaFase } from "../game/orologioGiocoSession";
 
 type ScaglioneConfig = {
   min: number;
@@ -445,6 +448,18 @@ export function GameProvider({ children }: { children: ReactNode }) {
 
 
   const contextValue = { ...gameState, saveStatus, salvaPartita };
+  const re = gameState.abitanti.find((abitante) => abitante.id === ID_GIOCATORE);
+  const gameOverPerMorteRe =
+    startup === "active" &&
+    gameState.simulationEnabled &&
+    re != null &&
+    re.salute <= 0;
+
+  useEffect(() => {
+    if (gameOverPerMorteRe) {
+      setOrologioGiocoBloccatoDallaFase(true);
+    }
+  }, [gameOverPerMorteRe]);
 
   if (startup === "mode-choice") {
     return (
@@ -476,6 +491,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
       <CreazioneGiocatoreWrapper />
       <RichiestaLuogoCultoDialogWrapper />
       <EmigrazioneDialogWrapper />
+      <GameOverModal
+        visible={gameOverPerMorteRe}
+        description="Il Re è stato assassinato. Il regno è caduto..."
+        onRestart={nuovaPartita}
+      />
     </GameContext.Provider>
   );
 }
