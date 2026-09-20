@@ -17,6 +17,7 @@ import { getStipendioMensileEdificio } from "./edificiPubblici";
 import { redditoMensileLavoroDefault } from "./economiaPrezzi";
 import { generaAspettoCasuale } from "./personaggioAspetto";
 import { applicaLuttoFamiliareERimuoviMorti } from "./soddisfazione";
+import { applicaMoltiplicatoreProduzione } from "./reModalita";
 
 export type AvanzaMeseInput = {
   abitanti: Abitante[];
@@ -51,6 +52,8 @@ export type AvanzaMeseInput = {
   };
   /** Tesoro colonia (unica cassa monete). */
   moneteGiocatore: number;
+  /** Edificio visitato dal Re: solo la sua produzione riceve il +15%. */
+  edificioBuffVisitaId?: number | null;
 };
 
 export type AvanzaMeseOutput = {
@@ -177,7 +180,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     prezzoResidenze = {},
     redditoCittadinanza = 0,
     modalitaSanita = "privata",
-    moneteGiocatore: moneteGiocatoreIn
+    moneteGiocatore: moneteGiocatoreIn,
+    edificioBuffVisitaId = null
   } = input;
 
   let moneteGiocatore = Math.max(0, Math.floor(moneteGiocatoreIn));
@@ -561,9 +565,13 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
               if (risorsa.nome.toLowerCase().includes("cibo")) {
                 // Il cibo vegetale della Serra va nell'inventario (produzione giornaliera / Skip Mese).
                 if (edificio.nome === "Serra") return;
-                const produzioneTotale = edificio.abitantiAssegnati.reduce(
+                const produzioneBase = edificio.abitantiAssegnati.reduce(
                   (sum, id) => sum + getProduzioneCiboPerAbitante(id),
                   0
+                );
+                const produzioneTotale = applicaMoltiplicatoreProduzione(
+                  produzioneBase,
+                  edificio.id === edificioBuffVisitaId
                 );
                 totaleCiboProdotto += produzioneTotale;
                 nuovaQuantità += produzioneTotale;
@@ -573,7 +581,11 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
                     const abitante = abitantiConRedditoPadroni.find((a) => a.id === id);
                     return sum + (abitante ? getProduttivitaEffettiva(abitante) : 0);
                   }, 0) / numAbitanti;
-                nuovaQuantità += Math.floor(numAbitanti * (produttivitàMedia / 10));
+                const produzioneBase = Math.floor(numAbitanti * (produttivitàMedia / 10));
+                nuovaQuantità += applicaMoltiplicatoreProduzione(
+                  produzioneBase,
+                  edificio.id === edificioBuffVisitaId
+                );
               }
             }
           }
