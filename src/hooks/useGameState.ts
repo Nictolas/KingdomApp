@@ -104,6 +104,11 @@ import {
   etichettaRaccoltoBosco
 } from "../game/boscoRaccolta";
 import {
+  applicaRaccoltaMinieraGiornaliera,
+  assumiDisoccupatoNellaMiniera,
+  etichettaRaccoltoMiniera
+} from "../game/minieraRaccolta";
+import {
   haLuogoCulto,
   TEMPLATE_ID_LUOGO_CULTO,
   trovaCapoReligiosoSenzaLuogo,
@@ -227,6 +232,7 @@ export function useGameState() {
   edificiRef.current = edifici;
   const ultimoGiornoProduzioneSerraRef = useRef(getGiornoGiocoSnapshot());
   const ultimoGiornoRaccoltaBoscoRef = useRef(getGiornoGiocoSnapshot());
+  const ultimoGiornoRaccoltaMinieraRef = useRef(getGiornoGiocoSnapshot());
   const ultimoGiornoEconomiaPubblicaRef = useRef(getGiornoGiocoSnapshot());
   const ultimoGiornoPastiRef = useRef(0);
   const [mese, setMese] = useState(1);
@@ -401,6 +407,39 @@ export function useGameState() {
       }
     };
     const unsub = subscribeGiornoGioco(applicaProduzioneBosco);
+    return unsub;
+  }, []);
+
+  /** Miniera: bottino personale + deposito Metalli/Materiale Edile per ogni Minatore. */
+  useEffect(() => {
+    const applicaProduzioneMiniera = () => {
+      if (!isSimulationRunning(gamePhaseRef.current)) return;
+      const giorno = getGiornoGiocoSnapshot();
+      const ultimo = ultimoGiornoRaccoltaMinieraRef.current;
+      if (giorno <= ultimo) return;
+      const giorni = giorno - ultimo;
+      ultimoGiornoRaccoltaMinieraRef.current = giorno;
+
+      const result = applicaRaccoltaMinieraGiornaliera(
+        abitantiRef.current,
+        edificiRef.current,
+        risorseRef.current,
+        giorno,
+        giorni
+      );
+      if (result.abitanti !== abitantiRef.current) {
+        abitantiRef.current = result.abitanti;
+        setAbitanti(result.abitanti);
+      }
+      if (result.risorse !== risorseRef.current) {
+        risorseRef.current = result.risorse;
+        setRisorse(result.risorse);
+      }
+      if (result.messaggi.length > 0) {
+        setDiarioRighe((prev) => [...prev, ...result.messaggi]);
+      }
+    };
+    const unsub = subscribeGiornoGioco(applicaProduzioneMiniera);
     return unsub;
   }, []);
 
@@ -992,6 +1031,7 @@ export function useGameState() {
     ultimoGiornoPastiRef.current = 0;
     ultimoGiornoProduzioneSerraRef.current = 1;
     ultimoGiornoRaccoltaBoscoRef.current = 1;
+    ultimoGiornoRaccoltaMinieraRef.current = 1;
     ultimoGiornoEconomiaPubblicaRef.current = 1;
     setOrologioGiocoBloccatoDallaFase(true);
     restoreOrologioGioco({ giorno: 1, minutiDaMezzanotte: 6 * 60, pausaManuale: false });
@@ -1143,9 +1183,9 @@ export function useGameState() {
     setDiarioInizioVisto(state.diarioInizioVisto);
     ultimoGiornoPastiRef.current = state.ultimoGiornoPasti;
     ultimoGiornoProduzioneSerraRef.current = state.ultimoGiornoProduzioneSerra;
-    // I vecchi salvataggi non avevano un cursore Bosco dedicato: riparti dal giorno salvato,
-    // così il caricamento non duplica raccolti storici.
+    // I vecchi salvataggi non avevano cursori Bosco/Miniera dedicati: riparti dal giorno salvato.
     ultimoGiornoRaccoltaBoscoRef.current = state.giorno;
+    ultimoGiornoRaccoltaMinieraRef.current = state.giorno;
     ultimoGiornoEconomiaPubblicaRef.current = state.ultimoGiornoEconomiaPubblica;
     restoreOrologioGioco(state);
     setMappaSessione(state.mappa);
@@ -1778,6 +1818,24 @@ export function useGameState() {
             `${rBosco.bottino!.abitanteNome} ha trovato ${etichettaRaccoltoBosco(
               rBosco.bottino!.voci
             )} nel Bosco.`
+          ]);
+        }
+        return true;
+      }
+
+      if (edificio?.nome === "Miniera") {
+        const rMiniera = assumiDisoccupatoNellaMiniera(abitanti, edifici, abitanteId);
+        if (!rMiniera.ok) return false;
+        abitantiRef.current = rMiniera.abitanti;
+        edificiRef.current = rMiniera.edifici;
+        setAbitanti(rMiniera.abitanti);
+        setEdifici(rMiniera.edifici);
+        if (rMiniera.bottino) {
+          setDiarioRighe((prev) => [
+            ...prev,
+            `${rMiniera.bottino!.abitanteNome} ha estratto ${etichettaRaccoltoMiniera(
+              rMiniera.bottino!.voci
+            )} in Miniera.`
           ]);
         }
         return true;
