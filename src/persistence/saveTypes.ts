@@ -56,6 +56,8 @@ export type GameSaveV1 = {
     tipoTassaReddito: "flat" | "scaglioni";
     flatTaxPercentuale: number;
     scaglioniConfig: ScaglioneSalvato[];
+    /** Assente nei salvataggi precedenti al ripristino fiscale. */
+    tassaPatrimonioPercentuale?: number;
     politicaNascite: "figlio-unico" | "incentivi" | "nessuna";
     punteggioSanzioni: number;
     penaDiMorteAttiva: boolean;

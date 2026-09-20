@@ -41,6 +41,15 @@ export const ASSEGNO_PENSIONATI_DEFAULT = 12;
 /** Reddito di cittadinanza default (monete/mese); 0 = disattivato. */
 export const REDDITO_CITTADINANZA_DEFAULT = 0;
 
+/** Aliquota default Tassa sul Patrimonio (% monete in inventario / mese). */
+export const TASSA_PATRIMONIO_PERCENTUALE_DEFAULT = 5;
+
+/** Aliquota default Imposta sul Valore Aggiunto (% valore produzione / mese). */
+export const IVA_PERCENTUALE_DEFAULT = 10;
+
+/** Prezzo monete per 1 unità di output stimata (base imponibile IVA). */
+export const PREZZO_UNITA_VALORE_AGGIUNTO = 1;
+
 /**
  * Affitti mensili (monete) per nome residenza.
  * Allineati allo stipendio ~30/mese: dormitorio sostenibile, villa solo elite.
