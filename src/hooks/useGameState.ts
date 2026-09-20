@@ -1156,10 +1156,13 @@ export function useGameState() {
   /** Creazione personaggio Re a inizio partita (prima degli eventi). */
   const [creazioneGiocatoreAperta, setCreazioneGiocatoreAperta] = useState(false);
   const [diarioInizioVisto, setDiarioInizioVisto] = useState(false);
+  const [introConsigliereAperta, setIntroConsigliereAperta] = useState(false);
   const startNewGame = useCallback((mode: GameMode = "avventura") => {
     const colonia = generaColoniaIniziale(mode);
     setGameMode(mode);
     setObiettiviCompletati([]);
+    setDiarioInizioVisto(false);
+    setIntroConsigliereAperta(false);
     setRegistrazioniScambi([]);
     setModalitaReState(STATO_RE_DEFAULT.modalitaRe);
     setEdificioVisitaReId(null);
@@ -1215,6 +1218,17 @@ export function useGameState() {
       return sincronizzaCuginoNobileConRe(conRe);
     });
     setCreazioneGiocatoreAperta(false);
+    if (gameMode === "avventura") {
+      setIntroConsigliereAperta(true);
+      return;
+    }
+    setDiarioInizioVisto(true);
+    gamePhaseRef.current = "activating";
+    setGamePhase("activating");
+  }, [gameMode]);
+
+  const chiudiIntroConsigliere = useCallback(() => {
+    setIntroConsigliereAperta(false);
     setDiarioInizioVisto(true);
     gamePhaseRef.current = "activating";
     setGamePhase("activating");
@@ -1233,6 +1247,7 @@ export function useGameState() {
 
   const restorePersistableState = useCallback((state: PersistableGameState) => {
     setGameMode(state.gameMode);
+    setIntroConsigliereAperta(false);
     setObiettiviCompletati(state.obiettiviCompletati ?? []);
     setColtureSerraSbloccate(
       normalizzaColtureSerraSbloccate({
@@ -2406,6 +2421,8 @@ export function useGameState() {
     eventiCatalogo: EVENTI_CATALOGO,
     creazioneGiocatoreAperta,
     configuraGiocatore,
+    introConsigliereAperta,
+    chiudiIntroConsigliere,
     diarioInizioVisto,
     messaggioEmigrazione,
     chiudiMessaggioEmigrazione,

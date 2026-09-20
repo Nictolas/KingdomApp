@@ -6,6 +6,7 @@ import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza }
 import type { EventoDef } from "../game/eventi";
 import { DialogInizioPartitaModal } from "../ui/DialogInizioPartitaModal";
 import { CreazioneGiocatoreModal, type DatiCreazioneGiocatore } from "../ui/CreazioneGiocatoreModal";
+import { ConsigliereIntroModal } from "../ui/ConsigliereIntroModal";
 import { RichiestaLuogoCultoModal } from "../ui/RichiestaLuogoCultoModal";
 import type { ReligioneConCulto } from "../game/luogoCulto";
 import type { RichiestaInAttesa } from "../game/richieste";
@@ -247,6 +248,8 @@ type GameContextType = {
   eventiCatalogo: EventoDef[];
   creazioneGiocatoreAperta: boolean;
   configuraGiocatore: (dati: DatiCreazioneGiocatore) => void;
+  introConsigliereAperta: boolean;
+  chiudiIntroConsigliere: () => void;
   diarioInizioVisto: boolean;
   messaggioEmigrazione: string | null;
   chiudiMessaggioEmigrazione: () => void;
@@ -278,6 +281,27 @@ function CreazioneGiocatoreWrapper() {
     <CreazioneGiocatoreModal
       visible={creazioneGiocatoreAperta && pathname !== "/mappa-phaser-preview"}
       onConferma={configuraGiocatore}
+    />
+  );
+}
+
+function IntroConsigliereDialogWrapper() {
+  const { introConsigliereAperta, chiudiIntroConsigliere, abitanti } = useGameContext();
+  const re = abitanti.find((a) => a.id === ID_GIOCATORE);
+  const consigliere = abitanti.find((a) => a.lavoro === "Consigliere" && a.id !== ID_GIOCATORE);
+  const nomeCompletoRe = re?.nome?.trim() && re.nome !== "—" ? re.nome.trim() : "Sovrano";
+  const nomeRe = nomeCompletoRe.split(/\s+/)[0] || nomeCompletoRe;
+  const nomeConsigliere = consigliere?.nome?.trim() || "il tuo Consigliere";
+  const messaggio =
+    `Benvenuto Re ${nomeRe}. Io sono ${nomeConsigliere}, il tuo Consigliere. ` +
+    "Dato che hai succeduto tuo padre alla tenera età di 10 anni, ora ti aiuterò a imparare a guidare il tuo Regno!";
+
+  return (
+    <ConsigliereIntroModal
+      visible={introConsigliereAperta}
+      consigliere={consigliere}
+      messaggio={messaggio}
+      onClose={chiudiIntroConsigliere}
     />
   );
 }
@@ -525,6 +549,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     <GameContext.Provider value={contextValue}>
       {children}
       <CreazioneGiocatoreWrapper />
+      <IntroConsigliereDialogWrapper />
       <RichiestaLuogoCultoDialogWrapper />
       <EmigrazioneDialogWrapper />
       <GameOverModal
