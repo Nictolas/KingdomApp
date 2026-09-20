@@ -105,6 +105,10 @@ import { setMappaSessione, getMappaSessione } from "../game/mappaSessione";
 import { mappaHaPonteOperativo } from "../game/ponteMappa";
 import { pulisciModificatoriScaduti } from "../game/soddisfazione";
 import {
+  messaggioFaseDisordineSoddisfazione,
+  valutaFaseDisordineSoddisfazione
+} from "../game/disordineSoddisfazione";
+import {
   indiceCalendarioGioco,
   indiceMeseDaGiornoGioco,
   offsetMesiPerCalendarioSalvato
@@ -527,6 +531,15 @@ export function useGameState() {
   const processaCambioMeseAutomatico = useCallback(() => {
     if (!isSimulationRunning(gamePhaseRef.current)) return;
 
+    const faseDisordinePrima = valutaFaseDisordineSoddisfazione(
+      "nessuna",
+      abitanti,
+      edifici,
+      giornoGioco,
+      mese,
+      anno
+    ).fase;
+
     const result = runAvanzaMese({
       abitanti,
       edifici,
@@ -575,6 +588,15 @@ export function useGameState() {
     const abitantiConModificatoriPuliti = dopoCarcere.abitanti.map((a) =>
       pulisciModificatoriScaduti(a, giornoGioco, result.nuovoMese, result.nuovoAnno)
     );
+    const disordineDopo = valutaFaseDisordineSoddisfazione(
+      faseDisordinePrima,
+      abitantiConModificatoriPuliti,
+      dopoCarcere.edifici,
+      giornoGioco,
+      result.nuovoMese,
+      result.nuovoAnno
+    );
+    const avvisoDisordine = messaggioFaseDisordineSoddisfazione(disordineDopo);
     const risorseAggiornate = estraiCreditiLegacyDaRisorse(result.risorse).risorse;
     const moneteAggiornate =
       result.moneteGiocatore + tasseMese.gettitoPatrimonio + tasseMese.gettitoIva;
@@ -637,8 +659,11 @@ export function useGameState() {
     if (result.messaggioNascita) {
       Alert.alert("Nascita", result.messaggioNascita);
     }
-    if (result.avvisoDiario) {
-      setDiarioRighe((prev) => [...prev, result.avvisoDiario!]);
+    const avvisiDiario = [result.avvisoDiario, avvisoDisordine].filter(
+      (riga): riga is string => !!riga
+    );
+    if (avvisiDiario.length > 0) {
+      setDiarioRighe((prev) => [...prev, ...avvisiDiario]);
     }
   }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, giornoGioco, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode, obiettiviCompletati, tassaPatrimonioPercentuale, ivaPercentuale]);
 
