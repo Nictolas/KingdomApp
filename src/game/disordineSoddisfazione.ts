@@ -414,30 +414,56 @@ export function applicaEffettiRibellioneMensile(
 
 export type RisultatoProtestaMensile = {
   moneteGiocatore: number;
+  abitanti: Abitante[];
+  edifici: Edificio[];
   messaggi: string[];
 };
 
-/**
- * Effetto economico storico della fase Protesta.
- * Il vandalismo -8 efficienza non viene duplicato qui perché è già coperto
- * dal sabotaggio individuale degli Ostili.
- */
+/** Effetti storici della fase Protesta (quota Ostili >= 5%). */
 export function applicaEffettiProtestaMensile(
   fase: FaseDisordineSoddisfazione,
-  moneteGiocatore: number
+  moneteGiocatore: number,
+  abitanti: Abitante[],
+  edifici: Edificio[],
+  rng: () => number = Math.random
 ): RisultatoProtestaMensile {
   if (fase !== "protesta") {
-    return { moneteGiocatore, messaggi: [] };
+    return { moneteGiocatore, abitanti, edifici, messaggi: [] };
   }
 
-  const perdita = Math.max(15, Math.floor(moneteGiocatore * 0.08));
-  const tolto = Math.min(moneteGiocatore, perdita);
+  let monete = moneteGiocatore;
+  const nextEdifici = edifici.map((edificio) => ({ ...edificio }));
+  const messaggi: string[] = [];
+
+  const perdita = Math.max(15, Math.floor(monete * 0.08));
+  const tolto = Math.min(monete, perdita);
+  monete -= tolto;
+  if (tolto > 0) {
+    messaggi.push(`Proteste: scioperi e tasse non pagate (−${tolto} monete).`);
+  }
+
+  const bersagli = nextEdifici.filter(
+    (edificio) =>
+      edificio.stato === "Operativo" &&
+      edificio.nome !== "Castello" &&
+      edificio.tipo !== "Residenza"
+  );
+  if (bersagli.length > 0) {
+    const bersaglio = bersagli[Math.floor(rng() * bersagli.length)]!;
+    const indice = nextEdifici.findIndex((edificio) => edificio.id === bersaglio.id);
+    if (indice >= 0) {
+      const efficienza = Math.max(40, bersaglio.efficienza - 8);
+      nextEdifici[indice] = { ...bersaglio, efficienza };
+      messaggi.push(
+        `Vandalismo a ${bersaglio.nome}: efficienza ${bersaglio.efficienza}→${efficienza}.`
+      );
+    }
+  }
 
   return {
-    moneteGiocatore: Math.max(0, moneteGiocatore - tolto),
-    messaggi:
-      tolto > 0
-        ? [`Proteste: scioperi e tasse non pagate (−${tolto} monete).`]
-        : []
+    moneteGiocatore: Math.max(0, monete),
+    abitanti,
+    edifici: nextEdifici,
+    messaggi
   };
 }
