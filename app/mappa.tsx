@@ -94,7 +94,6 @@ import {
   applicaRecuperoEnergiaSonno,
   abitanteUsaBisogniUmani,
   abitanteVuolePrendereLavoro,
-  COSTO_BAR_MONETE,
   getBisogniAbitante,
   patchBisogni,
   scegliAzioneTempoLibero
@@ -113,9 +112,16 @@ import {
 import { getEdificioAbitazione } from "../src/game/abitanteEdifici";
 import {
   getTotaleOggettiInventarioGiocatore,
-  getMoneteInventarioAbitante,
-  provaSpendiMoneteInventarioAbitante
+  getMoneteInventarioAbitante
 } from "../src/game/inventario";
+import {
+  COSTO_BAR_MONETE,
+  EMOJI_BIRRA_BAR,
+  ITEM_BIRRA_BAR,
+  NOME_BIRRA_BAR,
+  pagaIngressoBar,
+  raggruppaBaristiInServizioPerBar
+} from "../src/game/barEconomia";
 import { abitanteHaBisognoMensa } from "../src/game/mensaPubblica";
 import { abitanteVuoleNegozio, compraEMangiaAlNegozio, tentaSnackDaInventario } from "../src/game/negozio";
 import { MapTerrainCell } from "../src/components/MapTerrainCell";
@@ -895,6 +901,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     applicaEsitoChiacchieraAbitanti,
     accreditaMoneteGiocatore,
     assumiCittadinoDisoccupatoAEdificio,
+    provaAssumiBaristaBarVuotoDaMappa,
+    incassaImpresa,
+    applicaPagaETipBarFineTurno,
+    registraScambioCommerciale,
     appendDiarioRiga,
     setInventarioMensaEdificio,
     inventarioMensaByEdificioId,
@@ -1746,6 +1756,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     }
 
     if (prev < LAVORO_FINE && cur >= LAVORO_FINE && lavoroArrivatiIds.size > 0) {
+      const baristiInServizio = raggruppaBaristiInServizioPerBar(lavoroArrivatiIds, edifici);
+      if (Object.keys(baristiInServizio).length > 0) {
+        applicaPagaETipBarFineTurno(baristiInServizio);
+      }
+
       const toPath = [...lavoroArrivatiIds];
       const nuove: Record<number, CommuteInfo> = {};
       for (const id of toPath) {
@@ -1893,7 +1908,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     coprifuocoFineMinuti,
     inventarioMensaByEdificioId,
     minutiAbsGioco,
-    provaCommuteRapina
+    provaCommuteRapina,
+    applicaPagaETipBarFineTurno
   ]);
 
   const handleCommuteFinita = useCallback(
@@ -1937,24 +1953,49 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
         setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
       } else if (purpose === "bar" && barEdificioId != null) {
-        const altriGiaNelBar = (barArrivatiByEdificio[barEdificioId] ?? []).filter(
-          (id) => id !== abitanteId
-        ).length;
-        setBarArrivatiByEdificio((p) => aggiungiAbitanteAlBarEdificio(p, barEdificioId, abitanteId));
+        const assuntoComeBarista = provaAssumiBaristaBarVuotoDaMappa(abitanteId, barEdificioId);
         setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
-        let spesaBar = 0;
-        aggiornaAbitanteById(abitanteId, (a) => {
-          const pagato = provaSpendiMoneteInventarioAbitante(a, COSTO_BAR_MONETE);
-          if (pagato) {
-            spesaBar = COSTO_BAR_MONETE;
-            return applicaRecuperoBar(pagato, altriGiaNelBar);
+
+        if (assuntoComeBarista) {
+          setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
+          setLavoroArrivatiIds((s) => new Set(s).add(abitanteId));
+        } else {
+          const altriGiaNelBar = (barArrivatiByEdificio[barEdificioId] ?? []).filter(
+            (id) => id !== abitanteId
+          ).length;
+          setBarArrivatiByEdificio((p) =>
+            aggiungiAbitanteAlBarEdificio(p, barEdificioId, abitanteId)
+          );
+
+          const cliente = abitanti.find((a) => a.id === abitanteId);
+          const pagato = cliente ? pagaIngressoBar(cliente) : null;
+          if (cliente && pagato) {
+            aggiornaAbitanteById(abitanteId, () =>
+              applicaRecuperoBar(pagato, altriGiaNelBar)
+            );
+            incassaImpresa(barEdificioId, COSTO_BAR_MONETE);
+            registraScambioCommerciale({
+              luogoEdificioId: barEdificioId,
+              luogoNome: "Bar",
+              daId: cliente.id,
+              daNome: cliente.nome,
+              aId: null,
+              aNome: "Bar",
+              itemId: ITEM_BIRRA_BAR,
+              itemNome: NOME_BIRRA_BAR,
+              itemEmoji: EMOJI_BIRRA_BAR,
+              prezzoMonete: COSTO_BAR_MONETE,
+              tipo: "scambio"
+            });
+          } else if (cliente) {
+            aggiornaAbitanteById(abitanteId, (a) =>
+              patchBisogni(a, {
+                divertimento: 8,
+                socialita: 5 + Math.min(10, altriGiaNelBar * 2)
+              })
+            );
           }
-          return patchBisogni(a, {
-            divertimento: 8,
-            socialita: 5 + Math.min(10, altriGiaNelBar * 2)
-          });
-        });
-        if (spesaBar > 0) accreditaMoneteGiocatore(spesaBar);
+        }
       } else if (purpose === "mensa" && mensaEdificioId != null) {
         serviPastoMensaAbitante(abitanteId, mensaEdificioId);
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
@@ -2014,6 +2055,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       aggiornaAbitanteById,
       accreditaMoneteGiocatore,
       assumiCittadinoDisoccupatoAEdificio,
+      provaAssumiBaristaBarVuotoDaMappa,
+      incassaImpresa,
+      registraScambioCommerciale,
       edifici,
       barArrivatiByEdificio,
       abitanti,

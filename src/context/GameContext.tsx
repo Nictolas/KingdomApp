@@ -164,6 +164,12 @@ type GameContextType = {
   assegnaServoDellaGlebaAEdificio: (abitanteId: number, edificioId: number) => void;
   /** Cittadino disoccupato assunto autonomamente in un edificio pubblico (es. mappa). */
   assumiCittadinoDisoccupatoAEdificio: (abitanteId: number, edificioId: number) => boolean;
+  /** Primo entrante idoneo assunto come Barista se il Bar è vuoto. */
+  provaAssumiBaristaBarVuotoDaMappa: (abitanteId: number, barEdificioId: number) => boolean;
+  /** Accredita un incasso alla cassa privata di un'impresa. */
+  incassaImpresa: (edificioId: number, monete: number) => void;
+  /** Paga stipendio fisso e distribuisce le mance ai Baristi in servizio. */
+  applicaPagaETipBarFineTurno: (baristiInServizioByBar: Record<number, number[]>) => void;
   /** Compra/vende/trasferisce uno schiavo. `nuovoProprietarioId: null` = colonia. Restituisce true se riuscito. */
   trasferisciProprietaSchiavo: (schiavoId: number, nuovoProprietarioId: number | null, prezzo?: number) => boolean;
   /** Uccide uno schiavo di proprietà (`uccisoreId: null` = colonia). Senza conseguenze legali. */
