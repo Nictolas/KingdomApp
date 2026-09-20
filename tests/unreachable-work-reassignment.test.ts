@@ -52,7 +52,7 @@ test("priorità ricollocamento include imprese e lascia Bosco come fallback fina
     [disoccupato]
   );
   assert.equal(sedi[0]?.nome, "Emporio");
-  assert.equal(sedi.at(-1)?.nome, "Bosco");
+  assert.equal(sedi[sedi.length - 1]?.nome, "Bosco");
 });
 
 test("lavoro senza accesso viene liberato e sostituito con una sede raggiungibile", () => {
