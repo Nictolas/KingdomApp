@@ -125,6 +125,11 @@ export type Abitante = {
   gravidanzaIniziataAnno?: number;
   /** Oggetti portati dall'abitante (monete, cibo, …). */
   inventario?: { itemId: string; quantità: number }[];
+  /** Ultimo bottino trovato nel Bosco (Raccoglitore). */
+  ultimoRaccoltoBosco?: {
+    giorno: number;
+    voci: { itemId: string; emoji: string; nome: string; quantità: number }[];
+  };
   /** Ultimo raccolto dalla Serra (Agricoltore). */
   ultimoRaccoltoSerra?: {
     giorno: number;

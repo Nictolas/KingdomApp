@@ -6,8 +6,9 @@ import {
   moneteInventarioSeedCasuali
 } from "./economiaPrezzi";
 import { COLTURE_SERRA } from "./colturaSerra";
+import { OGGETTI_CATALOGO } from "../data/oggettiCatalogo";
 
-export type CategoriaInventario = "Valuta" | "Cibo";
+export type CategoriaInventario = "Valuta" | "Cibo" | "Altro";
 
 export type TagCibo = "carne" | "latticini" | "uova";
 
@@ -21,6 +22,7 @@ export type OggettoInventarioDef = {
 };
 
 export const CATEGORIA_CIBO: CategoriaInventario = "Cibo";
+export const CATEGORIA_ALTRO: CategoriaInventario = "Altro";
 
 const OGGETTI_CIBO_ANIMALE: Record<string, OggettoInventarioDef> = {
   bistecca: { id: "bistecca", nome: "Bistecca", emoji: "🥩", categoria: CATEGORIA_CIBO, tagCibo: ["carne"] },
@@ -32,8 +34,26 @@ const OGGETTI_CIBO_VEGETALE: Record<string, OggettoInventarioDef> = Object.fromE
   COLTURE_SERRA.map((c) => [c.id, { id: c.id, nome: c.nome, emoji: c.emoji, categoria: CATEGORIA_CIBO }])
 );
 
+const OGGETTI_CATALOGO_MAP: Record<string, OggettoInventarioDef> = Object.fromEntries(
+  OGGETTI_CATALOGO.map((o) => [
+    o.id,
+    {
+      id: o.id,
+      nome: o.nome,
+      emoji: o.emoji,
+      categoria:
+        o.tipologia === "Valuta"
+          ? "Valuta"
+          : o.tipologia === "Cibo vegetale" || o.tipologia === "Cibo animale"
+            ? CATEGORIA_CIBO
+            : CATEGORIA_ALTRO
+    } satisfies OggettoInventarioDef
+  ])
+);
+
 export const OGGETTI_INVENTARIO: Record<string, OggettoInventarioDef> = {
   monete: { id: "monete", nome: "Monete", emoji: "💰", categoria: "Valuta" },
+  ...OGGETTI_CATALOGO_MAP,
   ...OGGETTI_CIBO_VEGETALE,
   ...OGGETTI_CIBO_ANIMALE
 };
@@ -233,10 +253,16 @@ export function normalizzaInventarioAbitante(inventario?: VoceInventario[]): Voc
   for (const base of INVENTARIO_INIZIALE) {
     if (!map.has(base.itemId)) map.set(base.itemId, base.quantità);
   }
-  return INVENTARIO_INIZIALE.map((b) => ({
+  const iniziali = INVENTARIO_INIZIALE.map((b) => ({
     itemId: b.itemId,
     quantità: map.get(b.itemId) ?? 0
   }));
+  const inizialiSet = new Set(INVENTARIO_INIZIALE.map((b) => b.itemId));
+  const extra = [...map.entries()]
+    .filter(([itemId]) => !inizialiSet.has(itemId))
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([itemId, quantità]) => ({ itemId, quantità }));
+  return [...iniziali, ...extra];
 }
 
 export function abitanteConInventarioIniziale<T extends Abitante>(abitante: T): T {

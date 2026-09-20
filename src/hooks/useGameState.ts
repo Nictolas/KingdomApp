@@ -98,6 +98,7 @@ import {
   tutteColtureSerraSbloccate
 } from "../game/colturaSerra";
 import { applicaProduzioneSerraGiornaliera } from "../game/produzioneSerra";
+import { applicaRaccoltaBoscoGiornaliera } from "../game/boscoRaccolta";
 import {
   haLuogoCulto,
   TEMPLATE_ID_LUOGO_CULTO,
@@ -221,6 +222,7 @@ export function useGameState() {
   const edificiRef = useRef(edifici);
   edificiRef.current = edifici;
   const ultimoGiornoProduzioneSerraRef = useRef(getGiornoGiocoSnapshot());
+  const ultimoGiornoRaccoltaBoscoRef = useRef(getGiornoGiocoSnapshot());
   const ultimoGiornoEconomiaPubblicaRef = useRef(getGiornoGiocoSnapshot());
   const ultimoGiornoPastiRef = useRef(0);
   const [mese, setMese] = useState(1);
@@ -367,6 +369,34 @@ export function useGameState() {
       }
     };
     const unsub = subscribeGiornoGioco(applicaProduzioneSerra);
+    return unsub;
+  }, []);
+
+  /** Bosco: ogni Raccoglitore assegnato trova 1 o 2 oggetti naturali al giorno. */
+  useEffect(() => {
+    const applicaProduzioneBosco = () => {
+      if (!isSimulationRunning(gamePhaseRef.current)) return;
+      const giorno = getGiornoGiocoSnapshot();
+      const ultimo = ultimoGiornoRaccoltaBoscoRef.current;
+      if (giorno <= ultimo) return;
+      const giorni = giorno - ultimo;
+      ultimoGiornoRaccoltaBoscoRef.current = giorno;
+
+      const result = applicaRaccoltaBoscoGiornaliera(
+        abitantiRef.current,
+        edificiRef.current,
+        giorno,
+        giorni
+      );
+      if (result.abitanti !== abitantiRef.current) {
+        abitantiRef.current = result.abitanti;
+        setAbitanti(result.abitanti);
+      }
+      if (result.messaggi.length > 0) {
+        setDiarioRighe((prev) => [...prev, ...result.messaggi]);
+      }
+    };
+    const unsub = subscribeGiornoGioco(applicaProduzioneBosco);
     return unsub;
   }, []);
 
@@ -957,6 +987,7 @@ export function useGameState() {
     offsetMesiOrologioRef.current = 0;
     ultimoGiornoPastiRef.current = 0;
     ultimoGiornoProduzioneSerraRef.current = 1;
+    ultimoGiornoRaccoltaBoscoRef.current = 1;
     ultimoGiornoEconomiaPubblicaRef.current = 1;
     setOrologioGiocoBloccatoDallaFase(true);
     restoreOrologioGioco({ giorno: 1, minutiDaMezzanotte: 6 * 60, pausaManuale: false });
@@ -1108,6 +1139,9 @@ export function useGameState() {
     setDiarioInizioVisto(state.diarioInizioVisto);
     ultimoGiornoPastiRef.current = state.ultimoGiornoPasti;
     ultimoGiornoProduzioneSerraRef.current = state.ultimoGiornoProduzioneSerra;
+    // I vecchi salvataggi non avevano un cursore Bosco dedicato: riparti dal giorno salvato,
+    // così il caricamento non duplica raccolti storici.
+    ultimoGiornoRaccoltaBoscoRef.current = state.giorno;
     ultimoGiornoEconomiaPubblicaRef.current = state.ultimoGiornoEconomiaPubblica;
     restoreOrologioGioco(state);
     setMappaSessione(state.mappa);
