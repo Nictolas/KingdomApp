@@ -265,7 +265,7 @@ export function useGameState() {
       const abitantiConModificatoriPuliti = result.abitanti.map((a) =>
         pulisciModificatoriScaduti(a, giorno, meseRef.current, annoRef.current)
       );
-      setAbitanti(scomparsa.abitanti);
+      setAbitanti(abitantiConModificatoriPuliti);
       setInventarioMensaByEdificioId(result.inventarioMensaByEdificioId);
       if (result.carestiaMensa) {
         setEventiInCorso((prev) => attivaEventoCarestia(prev, meseRef.current, annoRef.current));
