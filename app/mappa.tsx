@@ -179,6 +179,7 @@ import {
   haMaterialeEdileSufficiente,
   quantitaMaterialeEdile
 } from "../src/game/costruzioneEdifici";
+import { costoCostruzioneMonete } from "../src/game/edificiPrezzi";
 import {
   aggiungiAbitanteAlBarEdificio,
   rimuoviAbitanteDaTuttiBar,
@@ -2979,7 +2980,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           return;
         }
 
-        const newId = aggiungiEdificioDaTemplate(ID_TEMPLATE_PONTE, { costoMateriale: 0 });
+        const costoMonete = costoCostruzioneMonete(NOME_PONTE);
+        if (costoMonete > 0 && moneteGiocatore < costoMonete) {
+          Alert.alert(
+            "Monete insufficienti",
+            `Servono ${costoMonete.toLocaleString("it-IT")} monete (disponibili: ${moneteGiocatore.toLocaleString("it-IT")}).`
+          );
+          return;
+        }
+        const newId = aggiungiEdificioDaTemplate(ID_TEMPLATE_PONTE, {
+          costoMateriale: 0,
+          costoMonete
+        });
         if (newId == null) {
           Alert.alert("Errore", "Impossibile creare il Ponte.");
           return;
@@ -3045,7 +3057,15 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         return;
       }
 
+      const costoMonete = costoCostruzioneMonete(e.nome);
       const costoMateriale = costoMaterialeEdilePerFootprint(e.nome, w, h);
+      if (costoMonete > 0 && moneteGiocatore < costoMonete) {
+        Alert.alert(
+          "Monete insufficienti",
+          `Servono ${costoMonete.toLocaleString("it-IT")} monete (disponibili: ${moneteGiocatore.toLocaleString("it-IT")}).`
+        );
+        return;
+      }
       if (!haMaterialeEdileSufficiente(risorse, costoMateriale)) {
         Alert.alert(
           "Materiale insufficiente",
@@ -3054,7 +3074,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         return;
       }
 
-      const newId = aggiungiEdificioDaTemplate(e.id, { costoMateriale });
+      const newId = aggiungiEdificioDaTemplate(e.id, { costoMateriale, costoMonete });
       if (newId == null) {
         Alert.alert("Errore", "Impossibile creare questo tipo di edificio.");
         return;
@@ -3079,7 +3099,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       });
       uscitaCostruzione();
     },
-    [setMappaStatePersistente, aggiungiEdificioDaTemplate, rimuoviEdificioPerId, uscitaCostruzione, risorse]
+    [
+      setMappaStatePersistente,
+      aggiungiEdificioDaTemplate,
+      rimuoviEdificioPerId,
+      uscitaCostruzione,
+      risorse,
+      moneteGiocatore
+    ]
   );
 
   const eseguiDemolizione = useCallback(
@@ -4326,6 +4353,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                   <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
                     {PONTE_OPZIONE.nome}
                   </Text>
+                  <Text style={styles.modalOptionCostruisciPrezzo}>
+                    💰 {costoCostruzioneMonete(NOME_PONTE).toLocaleString("it-IT")}
+                  </Text>
                 </Pressable>
               </View>
               <Text style={styles.modalSectionTitle}>{SEZIONE_AMBIENTE.titolo}</Text>
@@ -4351,7 +4381,41 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                 <View key={sezione.titolo}>
                   <Text style={styles.modalSectionTitle}>{sezione.titolo}</Text>
                   <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
-                    {sezione.edifici.map((e) => (
+                    {sezione.edifici.map((e) => {
+                      const prezzo = costoCostruzioneMonete(e.nome);
+                      return (
+                        <Pressable
+                          key={e.id}
+                          style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
+                          onPress={() => {
+                            setCostruzioneSelezione({ tipo: "edificio", edificio: e });
+                            setMostraModalCostruisci(false);
+                            setMostraGrigliaMappa(true);
+                          }}
+                        >
+                          <Text style={styles.modalOptionCostruisciEmoji}>{e.emoji}</Text>
+                          <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
+                            {e.nome}
+                          </Text>
+                          {prezzo > 0 ? (
+                            <Text style={styles.modalOptionCostruisciPrezzo}>
+                              💰 {prezzo.toLocaleString("it-IT")}
+                            </Text>
+                          ) : null}
+                        </Pressable>
+                      );
+                    })}
+                  </View>
+                </View>
+              ))}
+              {edificiCostruzionePerSezione.altri.length > 0 ? (
+                <Text style={styles.modalSectionTitle}>Altro</Text>
+              ) : null}
+              {edificiCostruzionePerSezione.altri.length > 0 ? (
+                <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
+                  {edificiCostruzionePerSezione.altri.map((e) => {
+                    const prezzo = costoCostruzioneMonete(e.nome);
+                    return (
                       <Pressable
                         key={e.id}
                         style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
@@ -4365,32 +4429,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                         <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
                           {e.nome}
                         </Text>
+                        {prezzo > 0 ? (
+                          <Text style={styles.modalOptionCostruisciPrezzo}>
+                            💰 {prezzo.toLocaleString("it-IT")}
+                          </Text>
+                        ) : null}
                       </Pressable>
-                    ))}
-                  </View>
-                </View>
-              ))}
-              {edificiCostruzionePerSezione.altri.length > 0 ? (
-                <Text style={styles.modalSectionTitle}>Altro</Text>
-              ) : null}
-              {edificiCostruzionePerSezione.altri.length > 0 ? (
-                <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
-                  {edificiCostruzionePerSezione.altri.map((e) => (
-                    <Pressable
-                      key={e.id}
-                      style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
-                      onPress={() => {
-                        setCostruzioneSelezione({ tipo: "edificio", edificio: e });
-                        setMostraModalCostruisci(false);
-                        setMostraGrigliaMappa(true);
-                      }}
-                    >
-                      <Text style={styles.modalOptionCostruisciEmoji}>{e.emoji}</Text>
-                      <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
-                        {e.nome}
-                      </Text>
-                    </Pressable>
-                  ))}
+                    );
+                  })}
                 </View>
               ) : null}
             </ScrollView>
@@ -5330,6 +5376,13 @@ const styles = StyleSheet.create({
     fontWeight: "600",
     textAlign: "center",
     lineHeight: 14
+  },
+  modalOptionCostruisciPrezzo: {
+    color: "#fbbf24",
+    fontSize: 10,
+    fontWeight: "700",
+    textAlign: "center",
+    marginTop: 4
   },
   modalOptionEmoji: {
     fontSize: 22,
