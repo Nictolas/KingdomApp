@@ -106,6 +106,10 @@ import {
   boscoHaPostoLibero,
   disoccupatoIdoneoPerBosco
 } from "../src/game/boscoRaccolta";
+import {
+  minieraHaPostoLibero,
+  disoccupatoIdoneoPerMiniera
+} from "../src/game/minieraRaccolta";
 import { getEdificioAbitazione } from "../src/game/abitanteEdifici";
 import {
   getTotaleOggettiInventarioGiocatore,
@@ -2258,10 +2262,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         const postiOrdinari = elencoEdificiConPostoPerDisoccupato(a, edifici);
         const bosco =
           disoccupatoIdoneoPerBosco(a) ? boscoHaPostoLibero(edifici) : undefined;
-        const posti =
-          bosco && !postiOrdinari.some((e) => e.id === bosco.id)
-            ? [...postiOrdinari, bosco]
-            : postiOrdinari;
+        const miniera =
+          disoccupatoIdoneoPerMiniera(a) ? minieraHaPostoLibero(edifici) : undefined;
+        const posti = [...postiOrdinari];
+        if (bosco && !posti.some((e) => e.id === bosco.id)) posti.push(bosco);
+        if (miniera && !posti.some((e) => e.id === miniera.id)) posti.push(miniera);
         let bestId: number | null = null;
         let bestPath: number[] | null = null;
         let bestLen = Infinity;
