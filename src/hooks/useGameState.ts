@@ -109,6 +109,13 @@ import {
   etichettaRaccoltoMiniera
 } from "../game/minieraRaccolta";
 import {
+  appendRegistrazioneScambio,
+  voceRegistrazioneRaccoltaBosco,
+  voceRegistrazioneRaccoltaMiniera,
+  voceRegistrazioneRaccoltaSerra,
+  type RegistrazioneScambio
+} from "../game/registrazioniScambi";
+import {
   haLuogoCulto,
   TEMPLATE_ID_LUOGO_CULTO,
   trovaCapoReligiosoSenzaLuogo,
@@ -260,6 +267,26 @@ export function useGameState() {
   const [messaggioEmigrazione, setMessaggioEmigrazione] = useState<string | null>(null);
   /** Righe appendici al Diario (avvisi rischio Guerra Civile, ecc.). */
   const [diarioRighe, setDiarioRighe] = useState<string[]>([]);
+  const [registrazioniScambi, setRegistrazioniScambi] = useState<RegistrazioneScambio[]>([]);
+
+  const registraScambioCommerciale = useCallback(
+    (voce: Omit<RegistrazioneScambio, "id" | "giorno" | "minutiDaMezzanotte"> & { id?: string }) => {
+      const clock = getOrologioPersistableSnapshot();
+      const id =
+        voce.id ??
+        `${clock.giorno}-${clock.minutiDaMezzanotte}-${voce.luogoNome}-${voce.daId ?? "r"}-${voce.aId ?? "r"}-${voce.itemId}-${Date.now()}`;
+      setRegistrazioniScambi((prev) =>
+        appendRegistrazioneScambio(prev, {
+          ...voce,
+          id,
+          giorno: clock.giorno,
+          minutiDaMezzanotte: clock.minutiDaMezzanotte
+        })
+      );
+    },
+    []
+  );
+
 
   /** Soddisfazione 1-100 per fazioni tracciate (Rivoluzionari, Sicurezza). Partono a 80. */
   const [soddisfazioneFazioni, setSoddisfazioneFazioni] = useState<Record<string, number>>(() => ({
@@ -377,10 +404,25 @@ export function useGameState() {
       if (result.messaggi.length > 0) {
         setDiarioRighe((prev) => [...prev, ...result.messaggi]);
       }
+      for (const bottino of result.bottini) {
+        for (const v of bottino.voci) {
+          registraScambioCommerciale(
+            voceRegistrazioneRaccoltaSerra({
+              abitanteId: bottino.abitanteId,
+              abitanteNome: bottino.abitanteNome,
+              serraId: bottino.serraId,
+              itemId: v.itemId,
+              itemNome: v.nome,
+              itemEmoji: v.emoji,
+              quantità: v.quantità
+            })
+          );
+        }
+      }
     };
     const unsub = subscribeGiornoGioco(applicaProduzioneSerra);
     return unsub;
-  }, []);
+  }, [registraScambioCommerciale]);
 
   /** Bosco: ogni Raccoglitore assegnato trova 1 o 2 oggetti naturali al giorno. */
   useEffect(() => {
@@ -405,10 +447,25 @@ export function useGameState() {
       if (result.messaggi.length > 0) {
         setDiarioRighe((prev) => [...prev, ...result.messaggi]);
       }
+      for (const bottino of result.bottini) {
+        for (const v of bottino.voci) {
+          registraScambioCommerciale(
+            voceRegistrazioneRaccoltaBosco({
+              abitanteId: bottino.abitanteId,
+              abitanteNome: bottino.abitanteNome,
+              boscoId: bottino.boscoId,
+              itemId: v.itemId,
+              itemNome: v.nome,
+              itemEmoji: v.emoji,
+              quantità: v.quantità
+            })
+          );
+        }
+      }
     };
     const unsub = subscribeGiornoGioco(applicaProduzioneBosco);
     return unsub;
-  }, []);
+  }, [registraScambioCommerciale]);
 
   /** Miniera: bottino personale + deposito Metalli/Materiale Edile per ogni Minatore. */
   useEffect(() => {
@@ -438,10 +495,25 @@ export function useGameState() {
       if (result.messaggi.length > 0) {
         setDiarioRighe((prev) => [...prev, ...result.messaggi]);
       }
+      for (const bottino of result.bottini) {
+        for (const v of bottino.voci) {
+          registraScambioCommerciale(
+            voceRegistrazioneRaccoltaMiniera({
+              abitanteId: bottino.abitanteId,
+              abitanteNome: bottino.abitanteNome,
+              minieraId: bottino.minieraId,
+              itemId: v.itemId,
+              itemNome: v.nome,
+              itemEmoji: v.emoji,
+              quantità: v.quantità
+            })
+          );
+        }
+      }
     };
     const unsub = subscribeGiornoGioco(applicaProduzioneMiniera);
     return unsub;
-  }, []);
+  }, [registraScambioCommerciale]);
 
   /** All’avvio: i cittadini disoccupati prendono subito i posti vacanti (Bar, Serra, …). */
   useEffect(() => {
@@ -1019,6 +1091,7 @@ export function useGameState() {
     const colonia = generaColoniaIniziale(mode);
     setGameMode(mode);
     setObiettiviCompletati([]);
+    setRegistrazioniScambi([]);
     setModalitaReState(STATO_RE_DEFAULT.modalitaRe);
     setEdificioVisitaReId(null);
     setPopolaritaRe(STATO_RE_DEFAULT.popolaritaRe);
@@ -1139,6 +1212,7 @@ export function useGameState() {
     setPendingMatrimonio(state.pendingMatrimonio);
     setMessaggioEmigrazione(state.messaggioEmigrazione);
     setDiarioRighe(state.diarioRighe);
+    setRegistrazioniScambi(state.registrazioniScambi ?? []);
     setSoddisfazioneFazioni(state.soddisfazioneFazioni);
     setModalitaReState(state.modalitaRe ?? STATO_RE_DEFAULT.modalitaRe);
     setEdificioVisitaReId(state.edificioVisitaReId ?? null);
@@ -1214,6 +1288,7 @@ export function useGameState() {
       redditoCittadinanza, modalitaSanita, ordiniMercato, eventiInCorso, soddisfazioneFazioni,
       modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso,
       pendingAssimilazione, pendingMatrimonio, messaggioEmigrazione, diarioRighe,
+      registrazioniScambi,
       capoReligiosoSole, capoReligiosoAlieni, pendingRichiestaLuogoCulto, richiesteInAttesa,
       luoghiCultoRifiutati, luoghiCultoPendentiMappa, obiettiviCompletati, coltureSerraSbloccate, mappa
     };
@@ -1227,7 +1302,7 @@ export function useGameState() {
     ordiniMercato, eventiInCorso, soddisfazioneFazioni,
     modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso,
     pendingAssimilazione, pendingMatrimonio,
-    messaggioEmigrazione, diarioRighe, capoReligiosoSole, capoReligiosoAlieni,
+    messaggioEmigrazione, diarioRighe, registrazioniScambi, capoReligiosoSole, capoReligiosoAlieni,
     pendingRichiestaLuogoCulto, richiesteInAttesa, luoghiCultoRifiutati, luoghiCultoPendentiMappa,
     obiettiviCompletati, coltureSerraSbloccate]);
   const chiudiMessaggioEmigrazione = useCallback(() => setMessaggioEmigrazione(null), []);
@@ -2086,6 +2161,8 @@ export function useGameState() {
     messaggioEmigrazione,
     chiudiMessaggioEmigrazione,
     diarioRighe,
+    registrazioniScambi,
+    registraScambioCommerciale,
     pendingRichiestaLuogoCulto,
     accettaRichiestaLuogoCulto,
     rifiutaRichiestaLuogoCulto,
