@@ -78,6 +78,8 @@ export type GameSaveV1 = {
     etaPensionabile: number;
     assegnoPensionati: number;
     leggeDroghe: "vietate" | "legali" | "parziali";
+    /** Assente nei salvataggi creati dopo il refactoring che aveva rimosso la policy. */
+    nudismoAttivo?: boolean;
     divietoEspatrioAttivo: boolean;
     coprifuocoAttivo: boolean;
     coprifuocoInizioMinuti: number;
