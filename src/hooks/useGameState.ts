@@ -47,6 +47,7 @@ import {
   pagaStipendiEdificiPubblici
 } from "../game/edificiPubblici";
 import { applicaZeccaGiornaliera } from "../game/zeccaProduzione";
+import { pagaStipendiImpresaGiornalieri } from "../game/impresaCassa";
 import {
   ASSEGNO_PENSIONATI_DEFAULT,
   REDDITO_CITTADINANZA_DEFAULT,
@@ -386,6 +387,15 @@ export function useGameState() {
         edificiNext,
         giorni
       );
+      abitantiNext = pagato.abitanti;
+
+      const imprese = pagaStipendiImpresaGiornalieri(
+        abitantiNext,
+        edificiNext,
+        giorni
+      );
+      abitantiNext = imprese.abitanti;
+      edificiNext = imprese.edifici;
 
       const zecca = applicaZeccaGiornaliera(
         risorseRef.current,
@@ -403,7 +413,7 @@ export function useGameState() {
       }
 
       setMoneteGiocatore(zecca.moneteGiocatore);
-      setAbitanti(pagato.abitanti);
+      setAbitanti(abitantiNext);
       setEdifici(edificiNext);
     };
     const unsub = subscribeGiornoGioco(applicaEconomiaPubblica);
