@@ -95,6 +95,13 @@ export type GameSaveV1 = {
     ordiniMercato: OrdineMercato[];
     eventiInCorso: EventoInCorso[];
     soddisfazioneFazioni: Record<string, number>;
+    /** Stato della presenza/politica del Re; assente nei salvataggi precedenti. */
+    modalitaRe?: "nel_castello" | "a_giro" | "in_visita";
+    edificioVisitaReId?: number | null;
+    popolaritaRe?: number;
+    mesiConsecutiviNelCastello?: number;
+    faseDisordine?: "nessuna" | "protesta" | "ribellione";
+    avvisoReAssenteEmesso?: boolean;
     pendingAssimilazione: number | null;
     pendingMatrimonio: { idA: number; idB: number; nomeA: string; nomeB: string } | null;
     messaggioEmigrazione: string | null;
