@@ -108,6 +108,7 @@ import {
   applicaSabotaggioOstileMensile,
   applicaScomparsaOstileMensile,
   messaggioFaseDisordineSoddisfazione,
+  tentaAttentatoOstileMensile,
   valutaFaseDisordineSoddisfazione
 } from "../game/disordineSoddisfazione";
 import {
@@ -613,11 +614,18 @@ export function useGameState() {
       result.nuovoMese,
       result.nuovoAnno
     );
+    const attentato = tentaAttentatoOstileMensile(
+      scomparsa.abitanti,
+      sabotaggio.edifici,
+      giornoGioco,
+      result.nuovoMese,
+      result.nuovoAnno
+    );
     const risorseAggiornate = estraiCreditiLegacyDaRisorse(result.risorse).risorse;
     const moneteAggiornate =
       result.moneteGiocatore + tasseMese.gettitoPatrimonio + tasseMese.gettitoIva;
 
-    setAbitanti(scomparsa.abitanti);
+    setAbitanti(attentato.abitanti);
     setEdifici(sabotaggio.edifici);
     setRisorse(risorseAggiornate);
     setMoneteGiocatore(moneteAggiornate);
@@ -643,7 +651,7 @@ export function useGameState() {
           if (!nodo) continue;
 
           const soddisfatto = nodo.condizione({
-            abitanti: scomparsa.abitanti,
+            abitanti: attentato.abitanti,
             edifici: sabotaggio.edifici,
             risorse: risorseAggiornate,
             mese: result.nuovoMese,
@@ -675,11 +683,17 @@ export function useGameState() {
     if (result.messaggioNascita) {
       Alert.alert("Nascita", result.messaggioNascita);
     }
+    if (attentato.esito.tipo === "ferito") {
+      Alert.alert("Attentato", attentato.esito.messaggio);
+    } else if (attentato.esito.tipo === "sventato") {
+      Alert.alert("Attentato sventato", attentato.esito.messaggio);
+    }
     const avvisiDiario = [
       result.avvisoDiario,
       avvisoDisordine,
       scomparsa.messaggio,
-      sabotaggio.messaggio
+      sabotaggio.messaggio,
+      attentato.esito.messaggio
     ].filter(
       (riga): riga is string => !!riga
     );
