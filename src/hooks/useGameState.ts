@@ -46,6 +46,7 @@ import {
   creaMoneteGiocatoreIniziali,
   pagaStipendiEdificiPubblici
 } from "../game/edificiPubblici";
+import { applicaZeccaGiornaliera } from "../game/zeccaProduzione";
 import {
   ASSEGNO_PENSIONATI_DEFAULT,
   REDDITO_CITTADINANZA_DEFAULT,
@@ -207,6 +208,8 @@ export function useGameState() {
   moneteGiocatoreRef.current = moneteGiocatore;
   abitantiRef.current = abitanti;
   const [risorse, setRisorse] = useState<Risorsa[]>(() => estraiCreditiLegacyDaRisorse(risorseData).risorse);
+  const risorseRef = useRef(risorse);
+  risorseRef.current = risorse;
   const [edifici, setEdifici] = useState<Edificio[]>(edificiIniziali);
   const edificiRef = useRef(edifici);
   edificiRef.current = edifici;
@@ -384,7 +387,22 @@ export function useGameState() {
         giorni
       );
 
-      setMoneteGiocatore(pagato.moneteGiocatore);
+      const zecca = applicaZeccaGiornaliera(
+        risorseRef.current,
+        edificiNext,
+        pagato.moneteGiocatore,
+        giorni
+      );
+
+      if (zecca.moneteConiate > 0) {
+        setRisorse(zecca.risorse);
+        setDiarioRighe((prev) => [
+          ...prev,
+          `La Zecca ha coniato ${zecca.moneteConiate} monete per il Tesoro.`
+        ]);
+      }
+
+      setMoneteGiocatore(zecca.moneteGiocatore);
       setAbitanti(pagato.abitanti);
       setEdifici(edificiNext);
     };
