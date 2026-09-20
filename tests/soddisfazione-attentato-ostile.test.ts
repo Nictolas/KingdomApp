@@ -119,6 +119,21 @@ test("tre Guardie nel Castello sventano l'attentato", () => {
   assert.equal(result.abitanti.find((a) => a.id === 1)?.salute, 100);
 });
 
+test("nel Castello un attentato non può partire", () => {
+  const result = tentaAttentatoOstileMensile(
+    [abitante(1, "Pragmatico"), abitante(2, "Psicopatico", true)],
+    [],
+    31,
+    2,
+    0,
+    () => 0,
+    "nel_castello"
+  );
+
+  assert.equal(result.esito.tipo, "nessuno");
+  assert.equal(result.abitanti.find((a) => a.id === 1)?.salute, 100);
+});
+
 test("un Psicopatico non Ostile non tenta l'attentato", () => {
   const result = tentaAttentatoOstileMensile(
     [abitante(1, "Pragmatico"), abitante(2, "Psicopatico", false)],
