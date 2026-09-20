@@ -19,6 +19,7 @@ export default function LeggiScreen() {
     divietoEspatrioAttivo,
     iusPrimaeNoctisAttivo,
     coprifuocoAttivo,
+    nudismoAttivo,
     tassaPatrimonioPercentuale,
     ivaPercentuale
   } = useGameContext();
@@ -30,6 +31,7 @@ export default function LeggiScreen() {
     divietoEspatrioAttivo,
     iusPrimaeNoctisAttivo,
     coprifuocoAttivo,
+    nudismoAttivo,
     tassaPatrimonioPercentuale,
     ivaPercentuale
   };
@@ -68,7 +70,8 @@ export default function LeggiScreen() {
       "Divieto di espatrio": "🚧",
       "Ius primae noctis": "👑",
       "Sanità": "🏥",
-      "Coprifuoco": "🌙"
+      "Coprifuoco": "🌙",
+      "Nudismo": "🩳"
     };
     return emojiMap[titolo] || "📋";
   };
@@ -98,7 +101,8 @@ export default function LeggiScreen() {
       legge.titolo === "Divieto di espatrio" ||
       legge.titolo === "Ius primae noctis" ||
       legge.titolo === "Sanità" ||
-      legge.titolo === "Coprifuoco"
+      legge.titolo === "Coprifuoco" ||
+      legge.titolo === "Nudismo"
     ) {
       leggiPerTema["Società"].push({ ...legge, tema: "Società" });
     } else if (
@@ -135,6 +139,7 @@ export default function LeggiScreen() {
     if (titolo === "Ius primae noctis") return "/ius-primae-noctis";
     if (titolo === "Schiavitu") return "/schiavitu";
     if (titolo === "Coprifuoco") return "/coprifuoco";
+    if (titolo === "Nudismo") return "/nudismo";
     return null;
   };
 
