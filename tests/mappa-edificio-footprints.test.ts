@@ -78,14 +78,14 @@ test("aggiungiComplessoAmministrativo scrive il footprint 3x2 sul solo anchor sc
 
   assert.deepEqual(edifici[6], {
     id: 1,
-    nome: "Centro di Comando",
-    emoji: "🏛️",
+    nome: "Castello",
+    emoji: "🏰",
     footprint: { w: 3, h: 2 }
   });
   for (const i of [7, 8, 11, 12, 13]) {
     assert.deepEqual(edifici[i], {
       id: 1,
-      nome: "Centro di Comando",
+      nome: "Castello",
       emoji: "",
       footprintRef: 6
     });
