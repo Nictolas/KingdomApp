@@ -175,6 +175,8 @@ type GameContextType = {
   accreditaMoneteGiocatore: (quantità: number) => void;
   /** Appende una riga al diario (avvisi soft). */
   appendDiarioRiga: (riga: string) => void;
+  /** Esegue il prelievo forzoso e accredita il gettito al Tesoro. */
+  eseguiPrelievoForzosoRe: (importoPerAbitante: number) => { gettito: number; soggettiColpiti: number };
   /** Aggiorna scorte cibo di una Mensa Pubblica. */
   setInventarioMensaEdificio: (
     edificioId: number,
