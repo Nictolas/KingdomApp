@@ -5,6 +5,7 @@ export const EDIFICIO_TO_ROUTE: Readonly<Record<string, string>> = {
   "Zecca": "/zecca",
   "Emporio": "/emporio",
   "Porto": "/porto",
+  "Fucina": "/fucina",
   "Serra": "/serra",
   "Centrale Energetica": "/centrale-energetica",
   "Raffineria Mineraria": "/raffineria-mineraria",
