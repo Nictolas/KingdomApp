@@ -48,6 +48,10 @@ export default function GridGame() {
             <Text style={styles.navLabel}>Ricchezza</Text>
             <Text style={styles.navMeta}>{abitanti.length}</Text>
           </Pressable>
+          <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/soddisfazione")}>
+            <Text style={styles.navEmoji}>😌</Text>
+            <Text style={styles.navLabel}>Soddisfazione</Text>
+          </Pressable>
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/crediti")}>
             <Text style={styles.navEmoji}>📒</Text>
             <Text style={styles.navLabel}>Bilancio</Text>
