@@ -22,7 +22,8 @@ import { tentaSnackDaInventario } from "./negozio";
 import { applicaBonusPastoGiorno } from "./soddisfazione";
 import {
   applicaVenditeEccedenzeEmporioPerPeriodo,
-  eseguiAcquistoPastoDaEmporio
+  eseguiAcquistoPastoDaEmporio,
+  type EmporioScambio
 } from "./emporioVendita";
 
 export type PastiGiornalieriResult = {
@@ -30,6 +31,7 @@ export type PastiGiornalieriResult = {
   edifici: Edificio[];
   inventarioMensaByEdificioId: Record<number, VoceInventario[]>;
   inventarioEmporioByEdificioId: Record<number, VoceInventario[]>;
+  scambiEmporio: EmporioScambio[];
   carestiaMensa: boolean;
 };
 
@@ -86,6 +88,7 @@ function applicaPastoSingoloGiorno(
   let nextEdifici = edifici;
   let nextMensa = { ...inventarioMensaByEdificioId };
   let nextEmporio = { ...inventarioEmporioByEdificioId };
+  const scambiEmporio: EmporioScambio[] = [];
   let carestiaMensa = false;
 
   for (let i = 0; i < nextAbitanti.length; i++) {
@@ -119,6 +122,7 @@ function applicaPastoSingoloGiorno(
         a = acquisto.abitante;
         nextEdifici = acquisto.edifici;
         nextEmporio = acquisto.inventarioEmporioByEdificioId;
+        if (acquisto.scambio) scambiEmporio.push(acquisto.scambio);
         const dopoAcquisto = consumaUnOggettoCiboConItem(a.inventario ?? [], a.personalità);
         if (dopoAcquisto) {
           a = { ...a, inventario: dopoAcquisto.inventario };
@@ -153,6 +157,7 @@ function applicaPastoSingoloGiorno(
     edifici: nextEdifici,
     inventarioMensaByEdificioId: nextMensa,
     inventarioEmporioByEdificioId: nextEmporio,
+    scambiEmporio,
     carestiaMensa
   };
 }
@@ -170,6 +175,7 @@ export function applicaPastiGiornalieriPerPeriodo(
   let nextEdifici = edifici;
   let nextMensa = inventarioMensaByEdificioId;
   let nextEmporio = inventarioEmporioByEdificioId;
+  const scambiEmporio: EmporioScambio[] = [];
   let carestiaMensa = false;
 
   for (let g = giornoDa + 1; g <= giornoA; g++) {
@@ -181,6 +187,7 @@ export function applicaPastiGiornalieriPerPeriodo(
     );
     nextAbitanti = vendite.abitanti;
     nextEmporio = vendite.inventarioEmporioByEdificioId;
+    scambiEmporio.push(...vendite.scambi);
 
     const res = applicaPastoSingoloGiorno(
       nextAbitanti,
@@ -200,6 +207,7 @@ export function applicaPastiGiornalieriPerPeriodo(
     nextEdifici = res.edifici;
     nextMensa = res.inventarioMensaByEdificioId;
     nextEmporio = res.inventarioEmporioByEdificioId;
+    scambiEmporio.push(...res.scambiEmporio);
     if (res.carestiaMensa) carestiaMensa = true;
   }
 
@@ -208,6 +216,7 @@ export function applicaPastiGiornalieriPerPeriodo(
     edifici: nextEdifici,
     inventarioMensaByEdificioId: nextMensa,
     inventarioEmporioByEdificioId: nextEmporio,
+    scambiEmporio,
     carestiaMensa
   };
 }
@@ -228,6 +237,7 @@ export function normalizzaEAplicaPastiAbitanti(
       edifici,
       inventarioMensaByEdificioId,
       inventarioEmporioByEdificioId,
+      scambiEmporio: [],
       carestiaMensa: false
     };
   }

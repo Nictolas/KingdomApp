@@ -19,6 +19,17 @@ export const PREZZO_VENDITA_ALIMENTO_EMPORIO = 1;
 export const PREZZO_ACQUISTO_ALIMENTO_EMPORIO = PREZZO_CIBO_NEGOZIO;
 export const EMPORIO_SCORTE_CIBO_INIZIALI = 24;
 
+export type EmporioScambio = {
+  tipo: "produttore-vende" | "cliente-compra";
+  emporioId: number;
+  itemId: string;
+  prezzoMonete: number;
+  daId: number | null;
+  daNome: string;
+  aId: number | null;
+  aNome: string;
+};
+
 export function normalizzaInventarioEmporio(inventario?: VoceInventario[]): VoceInventario[] {
   const map = new Map<string, number>();
   for (const v of inventario ?? []) {
@@ -132,13 +143,21 @@ export function applicaVenditeEccedenzeEmporioPerPeriodo(
   edifici: Edificio[],
   inventarioEmporioByEdificioId: Record<number, VoceInventario[]>,
   giorni: number
-): { abitanti: Abitante[]; inventarioEmporioByEdificioId: Record<number, VoceInventario[]>; vendite: number } {
+): {
+  abitanti: Abitante[];
+  inventarioEmporioByEdificioId: Record<number, VoceInventario[]>;
+  vendite: number;
+  scambi: EmporioScambio[];
+} {
   const emporio = trovaEmporioOperativo(edifici);
-  if (!emporio || giorni <= 0) return { abitanti, inventarioEmporioByEdificioId, vendite: 0 };
+  if (!emporio || giorni <= 0) {
+    return { abitanti, inventarioEmporioByEdificioId, vendite: 0, scambi: [] };
+  }
 
   let nextAbitanti = abitanti;
   let nextInventari = { ...inventarioEmporioByEdificioId };
   let vendite = 0;
+  const scambi: EmporioScambio[] = [];
   for (let g = 0; g < giorni; g++) {
     for (const produttore of [...nextAbitanti]) {
       if (!produttoreHaEccedenzaCiboDaVendere(produttore)) continue;
@@ -149,12 +168,24 @@ export function applicaVenditeEccedenzeEmporioPerPeriodo(
         nextInventari[emporio.id]
       );
       if (!result.ok) continue;
+      const venditoreDopo = result.abitanti.find((a) => a.id === produttore.id);
+      const mercanteDopo = result.abitanti.find((a) => a.id === result.mercanteId);
       nextAbitanti = result.abitanti;
       nextInventari = { ...nextInventari, [emporio.id]: result.inventarioEmporio };
       vendite++;
+      scambi.push({
+        tipo: "produttore-vende",
+        emporioId: emporio.id,
+        itemId: result.itemId!,
+        prezzoMonete: PREZZO_VENDITA_ALIMENTO_EMPORIO,
+        daId: result.mercanteId ?? null,
+        daNome: mercanteDopo?.nome ?? "Mercante",
+        aId: produttore.id,
+        aNome: venditoreDopo?.nome ?? produttore.nome
+      });
     }
   }
-  return { abitanti: nextAbitanti, inventarioEmporioByEdificioId: nextInventari, vendite };
+  return { abitanti: nextAbitanti, inventarioEmporioByEdificioId: nextInventari, vendite, scambi };
 }
 
 function scegliAlimentoDaEmporioPerDieta(
@@ -208,17 +239,21 @@ export function eseguiAcquistoPastoDaEmporio(
   edifici: Edificio[];
   inventarioEmporioByEdificioId: Record<number, VoceInventario[]>;
   itemId: string | null;
+  emporioId: number | null;
+  scambio: EmporioScambio | null;
 } {
   const invMap = { ...inventarioEmporioByEdificioId };
   if (!abitantePuòComprarePastoAllEmporio(abitante, edifici, invMap)) {
-    return { ok: false, abitante, edifici, inventarioEmporioByEdificioId: invMap, itemId: null };
+    return { ok: false, abitante, edifici, inventarioEmporioByEdificioId: invMap, itemId: null, emporioId: null, scambio: null };
   }
   const emporio = trovaEmporioOperativo(edifici)!;
   const itemId = scegliAlimentoDaEmporioPerDieta(invMap[emporio.id], abitante.personalità);
-  if (!itemId) return { ok: false, abitante, edifici, inventarioEmporioByEdificioId: invMap, itemId: null };
+  if (!itemId) return { ok: false, abitante, edifici, inventarioEmporioByEdificioId: invMap, itemId: null, emporioId: emporio.id, scambio: null };
   const dopoSpesa = provaSpendiMoneteInventarioAbitante(abitante, PREZZO_ACQUISTO_ALIMENTO_EMPORIO);
   const invNext = rimuoviAlimentoInventarioEmporio(invMap[emporio.id], itemId, 1);
-  if (!dopoSpesa || !invNext) return { ok: false, abitante, edifici, inventarioEmporioByEdificioId: invMap, itemId: null };
+  if (!dopoSpesa || !invNext) {
+    return { ok: false, abitante, edifici, inventarioEmporioByEdificioId: invMap, itemId: null, emporioId: emporio.id, scambio: null };
+  }
   invMap[emporio.id] = invNext;
   return {
     ok: true,
@@ -229,7 +264,18 @@ export function eseguiAcquistoPastoDaEmporio(
       fatturatoMeseMonete: Math.max(0, Math.floor(e.fatturatoMeseMonete ?? 0)) + PREZZO_ACQUISTO_ALIMENTO_EMPORIO
     } : e),
     inventarioEmporioByEdificioId: invMap,
-    itemId
+    itemId,
+    emporioId: emporio.id,
+    scambio: {
+      tipo: "cliente-compra",
+      emporioId: emporio.id,
+      itemId,
+      prezzoMonete: PREZZO_ACQUISTO_ALIMENTO_EMPORIO,
+      daId: abitante.id,
+      daNome: abitante.nome,
+      aId: null,
+      aNome: "Emporio"
+    }
   };
 }
 

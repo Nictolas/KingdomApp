@@ -47,7 +47,10 @@ import {
   pagaStipendiEdificiPubblici
 } from "../game/edificiPubblici";
 import { applicaZeccaGiornaliera } from "../game/zeccaProduzione";
-import { pagaStipendiImpresaGiornalieri } from "../game/impresaCassa";
+import {
+  pagaStipendiImpresaGiornalieri,
+  seedCassaImpresaSeMancante
+} from "../game/impresaCassa";
 import {
   creaInventarioEmporioIniziale,
   normalizzaInventarioEmporio
@@ -80,6 +83,7 @@ import { attivaEventoCarestia } from "../game/eventi/attivaCarestia";
 import { normalizzaEAplicaPastiAbitanti } from "../game/pastoGiornaliero";
 import {
   creaInventarioGiocatoreIniziale,
+  getOggettoInventario,
   normalizzaInventarioMensa,
   type VoceInventario
 } from "../game/inventario";
@@ -110,6 +114,7 @@ import {
 } from "../game/minieraRaccolta";
 import {
   appendRegistrazioneScambio,
+  voceRegistrazioneCostruzione,
   voceRegistrazioneRaccoltaBosco,
   voceRegistrazioneRaccoltaMiniera,
   voceRegistrazioneRaccoltaSerra,
@@ -364,6 +369,22 @@ export function useGameState() {
       setEdifici(result.edifici);
       setInventarioMensaByEdificioId(result.inventarioMensaByEdificioId);
       setInventarioEmporioByEdificioId(result.inventarioEmporioByEdificioId);
+      for (const scambio of result.scambiEmporio) {
+        const def = getOggettoInventario(scambio.itemId);
+        registraScambioCommerciale({
+          luogoEdificioId: scambio.emporioId,
+          luogoNome: "Emporio",
+          daId: scambio.daId,
+          daNome: scambio.daNome,
+          aId: scambio.aId,
+          aNome: scambio.aNome,
+          itemId: scambio.itemId,
+          itemNome: def?.nome ?? scambio.itemId,
+          itemEmoji: def?.emoji ?? "📦",
+          prezzoMonete: scambio.prezzoMonete,
+          tipo: "scambio"
+        });
+      }
       if (result.carestiaMensa) {
         setEventiInCorso((prev) => attivaEventoCarestia(prev, meseRef.current, annoRef.current));
       }
@@ -372,7 +393,7 @@ export function useGameState() {
     applicaPasti();
     const unsub = subscribeGiornoGioco(applicaPasti);
     return unsub;
-  }, []);
+  }, [registraScambioCommerciale]);
 
   /** Serra: ogni Agricoltore produce 2 unità/giorno della coltura nel proprio inventario. */
   useEffect(() => {
@@ -1428,42 +1449,62 @@ export function useGameState() {
   const aggiungiEdificioDaTemplate = useCallback(
     (
       templateId: number,
-      options?: { costoMateriale?: number; stato?: Edificio["stato"] }
+      options?: { costoMateriale?: number; costoMonete?: number; stato?: Edificio["stato"] }
     ): number | null => {
       const template = edificiData.find((x) => x.id === templateId);
       if (!template) return null;
-      const costo = options?.costoMateriale ?? 0;
+      const costo = Math.max(0, Math.floor(options?.costoMateriale ?? 0));
+      const costoMonete = Math.max(0, Math.floor(options?.costoMonete ?? 0));
       if (!haMaterialeEdileSufficiente(risorse, costo)) return null;
+      if (costoMonete > 0 && moneteGiocatoreRef.current < costoMonete) return null;
 
       const stato =
         options?.stato ??
         (edificioParteInCostruzione(template.nome) ? "In costruzione" : "Operativo");
 
-      let createdId: number | null = null;
       if (costo > 0) {
-        setRisorse((prev) => consumaMaterialeEdile(prev, costo));
+        const risorseNext = consumaMaterialeEdile(risorseRef.current, costo);
+        risorseRef.current = risorseNext;
+        setRisorse(risorseNext);
       }
-      setEdifici((prev) => {
-        const newId = Math.max(0, ...prev.map((x) => x.id)) + 1;
-        createdId = newId;
-        const nuovo: Edificio = {
-          ...template,
-          id: newId,
-          abitantiAssegnati: [],
-          occupazione: 0,
-          stato,
-          progressoCostruzione: stato === "In costruzione" ? 0 : undefined,
-          stipendioPerLavoratore:
-            template.stipendioPerLavoratore ??
-            (isEdificioPubblicoConPostazioniLavoro({ ...template, stato: "Operativo" })
-              ? STIPENDIO_BASE_MONETE_MESE
-              : undefined)
-        };
-        return [...prev, nuovo];
+      if (costoMonete > 0) {
+        moneteGiocatoreRef.current = Math.max(0, moneteGiocatoreRef.current - costoMonete);
+        setMoneteGiocatore(moneteGiocatoreRef.current);
+      }
+
+      const createdId =
+        Math.max(0, ...edificiRef.current.map((x) => x.id), template.id, 0) + 1;
+      const nuovo: Edificio = seedCassaImpresaSeMancante({
+        ...template,
+        id: createdId,
+        abitantiAssegnati: [],
+        occupazione: 0,
+        stato,
+        progressoCostruzione: stato === "In costruzione" ? 0 : undefined,
+        stipendioPerLavoratore:
+          template.stipendioPerLavoratore ??
+          (isEdificioPubblicoConPostazioniLavoro({ ...template, stato: "Operativo" })
+            ? STIPENDIO_BASE_MONETE_MESE
+            : undefined)
       });
+      edificiRef.current = [...edificiRef.current, nuovo];
+      setEdifici(edificiRef.current);
+
+      const re = abitantiRef.current.find((a) => a.id === ID_GIOCATORE);
+      registraScambioCommerciale(
+        voceRegistrazioneCostruzione({
+          reId: ID_GIOCATORE,
+          reNome: re?.nome?.trim() || "Re",
+          itemId: `edificio-${template.id}`,
+          itemNome: template.nome,
+          itemEmoji: template.emoji ?? "🏗️",
+          prezzoMonete: costoMonete
+        })
+      );
+
       return createdId;
     },
-    [risorse]
+    [risorse, registraScambioCommerciale]
   );
 
   const rimuoviEdificioPerId = useCallback((id: number) => {

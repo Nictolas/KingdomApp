@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import {
   applicaVenditeEccedenzeEmporioPerPeriodo,
   creaInventarioEmporioIniziale,
+  eseguiAcquistoPastoDaEmporio,
   EMPORIO_SCORTE_CIBO_INIZIALI
 } from "../src/game/emporioVendita";
 import { getMoneteInventarioAbitante } from "../src/game/inventario";
@@ -60,6 +61,29 @@ test("un produttore vende automaticamente una eccedenza all'Emporio", () => {
   assert.equal(result.inventarioEmporioByEdificioId[emporio.id]?.[0]?.quantità, 1);
   assert.equal(getMoneteInventarioAbitante(result.abitanti.find((a) => a.id === 10)?.inventario), 1);
   assert.equal(getMoneteInventarioAbitante(result.abitanti.find((a) => a.id === 11)?.inventario), 4);
+  assert.equal(result.scambi.length, 1);
+  assert.equal(result.scambi[0]?.tipo, "produttore-vende");
+  assert.equal(result.scambi[0]?.prezzoMonete, 1);
+});
+
+test("acquisto cliente Emporio espone la transazione per il registro", () => {
+  const cliente = {
+    ...venditore,
+    id: 12,
+    nome: "Cliente",
+    lavoro: "Disoccupato",
+    inventario: [{ itemId: "monete", quantità: 5 }]
+  } as Abitante;
+  const result = eseguiAcquistoPastoDaEmporio(
+    cliente,
+    [emporio],
+    { [emporio.id]: [{ itemId: "mela", quantità: 2 }] }
+  );
+  assert.equal(result.ok, true);
+  assert.equal(result.scambio?.tipo, "cliente-compra");
+  assert.equal(result.scambio?.daId, 12);
+  assert.equal(result.scambio?.aNome, "Emporio");
+  assert.equal(result.scambio?.prezzoMonete, 3);
 });
 
 test("acquisto Emporio è collegato ai pasti e le scorte sono persistite", () => {

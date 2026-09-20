@@ -52,7 +52,9 @@ export default function RegistrazioniScreen() {
                     {r.tipo === "raccolta"
                       ? " · raccolta"
                       : r.tipo === "costruzione"
-                        ? ` · costruzione · ${r.prezzoMonete}💰`
+                        ? r.prezzoMonete > 0
+                          ? ` · costruzione · ${r.prezzoMonete}💰`
+                          : " · costruzione"
                         : ` · ${r.prezzoMonete}💰`}
                   </Text>
                   <Text style={styles.testo}>
