@@ -62,6 +62,7 @@ import { LuogoCultoFullscreenModal } from "../src/ui/LuogoCultoFullscreenModal";
 import { abitanteDeveAndareAlCultoOra, abitanteNascostoNelCultoOra } from "../src/game/presenzaLuogoCulto";
 import { RichiesteModal } from "../src/ui/RichiesteModal";
 import { EventiModal } from "../src/ui/EventiModal";
+import { CantiereModal } from "../src/ui/CantiereModal";
 import { calcolaEventiUI } from "../src/game/eventiDisponibili";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import {
@@ -1170,6 +1171,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   /** Cella anchor del Luogo di Culto aperto dal doppio tocco. */
   const [selectedLuogoCultoAnchor, setSelectedLuogoCultoAnchor] = useState<number | null>(null);
+  /** Cantiere aperto dalla mappa. */
+  const [cantiereSelezionatoId, setCantiereSelezionatoId] = useState<number | null>(null);
   /** Scheda abitante aperta dal doppio tocco su un passeggiatore sulla mappa. */
   const [schedaWandererAbitante, setSchedaWandererAbitante] = useState<Abitante | null>(null);
   /** Selezione mappa: sintesi in barra inferiore al posto dei pulsanti risorse. */
@@ -2777,6 +2780,26 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     [router]
   );
 
+  const cantiereSelezionato = useMemo(() => {
+    if (cantiereSelezionatoId == null) return null;
+    return edifici.find((e) => e.id === cantiereSelezionatoId) ?? null;
+  }, [cantiereSelezionatoId, edifici]);
+
+  const apriCantiereDaCella = useCallback(
+    (cellIndex: number) => {
+      const e = edificiInMappa[cellIndex];
+      if (!e || e.nome === "Strada") return false;
+      const anchor = e.footprintRef != null ? e.footprintRef : cellIndex;
+      const cap = edificiInMappa[anchor] ?? e;
+      const globaleId = cap.edificioGlobaleId ?? cap.id;
+      const globale = edifici.find((x) => x.id === globaleId);
+      if (globale?.stato !== "In costruzione") return false;
+      setCantiereSelezionatoId(globale.id);
+      return true;
+    },
+    [edificiInMappa, edifici]
+  );
+
   const edificioResidenzaAperta = useMemo(() => {
     if (selectedResidenzaAnchor === null) return null;
     return edificiInMappa[selectedResidenzaAnchor] ?? null;
@@ -3208,6 +3231,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       }
       const edificio = edificiInMappa[cellIndex];
       const terreno = terrenoInMappa[cellIndex] ?? "erba";
+      if (apriCantiereDaCella(cellIndex)) {
+        lastTapCell.current = null;
+        return;
+      }
       /** Capanna: un tap apre subito la scheda a tutto schermo (presenze dentro/fuori). */
       if (edificio?.nome === "Capanna") {
         setSelectedResidenzaAnchor(getAnchorCellPerEdificio(cellIndex, edificiInMappa));
@@ -3250,7 +3277,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       cols,
       rows,
       handleScegliEdificio,
-      handlePiazzaTerreno
+      handlePiazzaTerreno,
+      apriCantiereDaCella
     ]
   );
 
@@ -4239,6 +4267,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         visible={mostraModalEventi}
         input={eventiUIInput}
         onClose={() => setMostraModalEventi(false)}
+      />
+
+      <CantiereModal
+        visible={cantiereSelezionato != null && cantiereSelezionato.stato === "In costruzione"}
+        cantiere={cantiereSelezionato}
+        abitanti={abitanti}
+        edifici={edifici}
+        onClose={() => setCantiereSelezionatoId(null)}
+        onApriUfficioEdile={() => {
+          setCantiereSelezionatoId(null);
+          router.push("/ufficio-edile");
+        }}
       />
 
       <Modal
