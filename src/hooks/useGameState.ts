@@ -51,6 +51,7 @@ import {
   aggiungiIncassoImpresa,
   pagaFissoEDistribuisciTipBar,
   pagaStipendiImpresaGiornalieri,
+  prelevaTassaImpresaMensile,
   seedCassaImpresaSeMancante
 } from "../game/impresaCassa";
 import {
@@ -863,22 +864,27 @@ export function useGameState() {
     const abitantiConModificatoriPuliti = dopoCarcere.abitanti.map((a) =>
       pulisciModificatoriScaduti(a, giornoGioco, result.nuovoMese, result.nuovoAnno)
     );
+    const moneteDopoTasseCittadini =
+      result.moneteGiocatore + tasseMese.gettitoPatrimonio + tasseMese.gettitoIva;
+    const tasseImprese = prelevaTassaImpresaMensile(
+      dopoCarcere.edifici,
+      moneteDopoTasseCittadini
+    );
+
     const disordineDopo = valutaFaseDisordineSoddisfazione(
       faseDisordinePrima,
       abitantiConModificatoriPuliti,
-      dopoCarcere.edifici,
+      tasseImprese.edifici,
       giornoGioco,
       result.nuovoMese,
       result.nuovoAnno
     );
     const avvisoDisordine = messaggioFaseDisordineSoddisfazione(disordineDopo);
-    const moneteDopoTasse =
-      result.moneteGiocatore + tasseMese.gettitoPatrimonio + tasseMese.gettitoIva;
     const protesta = applicaEffettiProtestaMensile(
       disordineDopo.fase,
-      moneteDopoTasse,
+      tasseImprese.moneteGiocatore,
       abitantiConModificatoriPuliti,
-      dopoCarcere.edifici
+      tasseImprese.edifici
     );
     const ribellione = applicaEffettiRibellioneMensile(
       disordineDopo.fase,
@@ -1002,6 +1008,9 @@ export function useGameState() {
     }
     const avvisiDiario = [
       result.avvisoDiario,
+      tasseImprese.gettito > 0
+        ? `Tassa imprese: ${tasseImprese.gettito} monete versate al Tesoro.`
+        : null,
       avvisoDisordine,
       tickRe.avvisoDiario,
       ...protesta.messaggi,
