@@ -16,6 +16,7 @@ import { getProduttivitaEffettiva, normalizzaAbitanteBisogni } from "./bisogni";
 import { getStipendioMensileEdificio } from "./edificiPubblici";
 import { redditoMensileLavoroDefault } from "./economiaPrezzi";
 import { generaAspettoCasuale } from "./personaggioAspetto";
+import { applicaLuttoFamiliareERimuoviMorti } from "./soddisfazione";
 
 export type AvanzaMeseInput = {
   abitanti: Abitante[];
@@ -218,15 +219,14 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       }
     }
   }
-  abitantiRimasti = abitantiRimasti
-    .filter((a) => !idsVittime.has(a.id))
-    .map((a) => {
-      const n = reatiOmicidioPerKiller.get(a.id);
-      if (!n) return a;
-      const reati = [...(a.reati ?? [])];
-      for (let i = 0; i < n; i++) reati.push("Omicidio");
-      return { ...a, reati };
-    });
+  const abitantiConReatiOmicidio = abitantiRimasti.map((a) => {
+    const n = reatiOmicidioPerKiller.get(a.id);
+    if (!n) return a;
+    const reati = [...(a.reati ?? [])];
+    for (let i = 0; i < n; i++) reati.push("Omicidio");
+    return { ...a, reati };
+  });
+  abitantiRimasti = applicaLuttoFamiliareERimuoviMorti(abitantiConReatiOmicidio, idsVittime);
 
   // Rimuovi riferimenti ai morti (amici, rivali, coniugeId, figliIds, genitoriIds, nonniIds)
   const idsVivi = new Set(abitantiRimasti.map((a) => a.id));
