@@ -94,6 +94,7 @@ export default function LeggiScreen() {
   };
 
   const getNavigationPath = (titolo: string) => {
+    if (titolo === "Imposta sul Valore Aggiunto") return "/imposta-valore-aggiunto";
     if (titolo === "Tassa sul Patrimonio") return "/tassa-patrimonio";
     if (titolo === "Tassa sul Reddito") return "/tassa-reddito";
     if (titolo === "Legge sulle Nascite") return "/legge-nascite";

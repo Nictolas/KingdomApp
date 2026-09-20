@@ -7,7 +7,7 @@ import type { VoceInventario } from "../game/inventario";
 import { normalizeGameSave } from "./saveValidation.ts";
 import type { GameSaveV1, SaveGamePhase, ScaglioneSalvato } from "./saveTypes.ts";
 import type { GameMode } from "../game/gameMode";
-import { TASSA_PATRIMONIO_PERCENTUALE_DEFAULT } from "../game/economiaPrezzi";
+import { TASSA_PATRIMONIO_PERCENTUALE_DEFAULT, IVA_PERCENTUALE_DEFAULT } from "../game/economiaPrezzi";
 
 /** Snapshot persistibile del runtime attuale, senza alcuno stato visuale. */
 export type PersistableGameState = {
@@ -38,6 +38,7 @@ export type PersistableGameState = {
   flatTaxPercentuale: number;
   scaglioniConfig: ScaglioneSalvato[];
   tassaPatrimonioPercentuale: number;
+  ivaPercentuale: number;
   politicaNascite: "figlio-unico" | "incentivi" | "nessuna";
   punteggioSanzioni: number;
   penaDiMorteAttiva: boolean;
@@ -116,6 +117,7 @@ export function gameStateToGameSaveV1(state: PersistableGameState): GameSaveV1 {
       flatTaxPercentuale: state.flatTaxPercentuale,
       scaglioniConfig: state.scaglioniConfig,
       tassaPatrimonioPercentuale: state.tassaPatrimonioPercentuale,
+      ivaPercentuale: state.ivaPercentuale,
       politicaNascite: state.politicaNascite,
       punteggioSanzioni: state.punteggioSanzioni,
       penaDiMorteAttiva: state.penaDiMorteAttiva,
@@ -180,6 +182,7 @@ export function gameSaveV1ToGameState(save: GameSaveV1): PersistableGameState {
     ...normalized.policies,
     tassaPatrimonioPercentuale:
       normalized.policies.tassaPatrimonioPercentuale ?? TASSA_PATRIMONIO_PERCENTUALE_DEFAULT,
+    ivaPercentuale: normalized.policies.ivaPercentuale ?? IVA_PERCENTUALE_DEFAULT,
     ...normalized.events,
     obiettiviCompletati: normalized.events.obiettiviCompletati ?? [],
     coltureSerraSbloccate: normalized.events.coltureSerraSbloccate ?? [],
