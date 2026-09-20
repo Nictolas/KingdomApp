@@ -39,6 +39,6 @@ test("schermata Leggi usa stato dinamico e terminologia Regno", () => {
   assert.match(page, /statoEffettivo/);
   assert.doesNotMatch(page, /legge\.stato/);
   assert.doesNotMatch(page, /colonia|coloni/i);
-  assert.doesNotMatch(data, /colonia|coloni/i);
+  assert.doesNotMatch(data, /colonia|coloni|la Regno|della Regno|nella Regno/i);
   assert.match(data, /Carta dei Diritti dei Sudditi/);
 });
