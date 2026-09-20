@@ -164,6 +164,17 @@ type GameContextType = {
   assegnaServoDellaGlebaAEdificio: (abitanteId: number, edificioId: number) => void;
   /** Cittadino disoccupato assunto autonomamente in un edificio pubblico (es. mappa). */
   assumiCittadinoDisoccupatoAEdificio: (abitanteId: number, edificioId: number) => boolean;
+  /** Ricolloca i lavoratori la cui sede non è fisicamente raggiungibile. */
+  ricollocaLavoroIrraggiungibileDaMappa: (
+    richieste: { abitanteId: number; fromCell: number }[],
+    edificiInMappa: Record<
+      number,
+      { id: number; nome: string; edificioGlobaleId?: number; footprintRef?: number; footprint?: { w: number; h: number } }
+    >,
+    cols: number,
+    rows: number,
+    isWalkable: (i: number) => boolean
+  ) => Record<number, { path: number[] | null; nuovoEdificioId?: number }>;
   /** Primo entrante idoneo assunto come Barista se il Bar è vuoto. */
   provaAssumiBaristaBarVuotoDaMappa: (abitanteId: number, barEdificioId: number) => boolean;
   /** Accredita un incasso alla cassa privata di un'impresa. */

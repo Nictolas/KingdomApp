@@ -902,6 +902,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     applicaEsitoChiacchieraAbitanti,
     accreditaMoneteGiocatore,
     assumiCittadinoDisoccupatoAEdificio,
+    ricollocaLavoroIrraggiungibileDaMappa,
     provaAssumiBaristaBarVuotoDaMappa,
     incassaImpresa,
     applicaPagaETipBarFineTurno,
@@ -1718,33 +1719,61 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     }
 
     if (prev < LAVORO_INIZIO && cur >= LAVORO_INIZIO) {
-      setCommuteByAbitanteId((prevComm) => {
-        const out = { ...prevComm };
-        for (const a of abitanti) {
-          if (a.razza === "Golem") continue;
-          if (out[a.id]) continue;
-          const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
-          if (!lav) continue;
-          const fascia = fasciaPerEdificio(lav);
-          if (!fascia || !minutiInFascia(cur, fascia)) continue;
-          const homeCell = cellaCasaPerAbitanteId.get(a.id) ?? null;
-          const from =
-            ultimaCellaAbitanteRef.current.get(a.id) ?? (homeCell != null ? homeCell : null);
-          if (from == null) continue;
-          const path = pianificaCommuteVersoEdificioGlobaleDaCella(
-            from,
-            lav.id,
-            edificiInMappa,
-            cols,
-            rows,
-            isWalkableCell
-          );
-          if (path && path.length >= 2) {
-            out[a.id] = { path, token: Date.now(), purpose: "work" };
+      const nuoveCommute: Record<number, CommuteInfo> = {};
+      const richiesteRicollocamento: { abitanteId: number; fromCell: number }[] = [];
+
+      for (const a of abitanti) {
+        if (a.razza === "Golem") continue;
+        if (commuteByAbitanteId[a.id]) continue;
+        const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
+        if (!lav) continue;
+        const fascia = fasciaPerEdificio(lav);
+        if (!fascia || !minutiInFascia(cur, fascia)) continue;
+
+        const homeCell = cellaCasaPerAbitanteId.get(a.id) ?? null;
+        const from =
+          ultimaCellaAbitanteRef.current.get(a.id) ?? (homeCell != null ? homeCell : null);
+        if (from == null) continue;
+
+        const path = pianificaCommuteVersoEdificioGlobaleDaCella(
+          from,
+          lav.id,
+          edificiInMappa,
+          cols,
+          rows,
+          isWalkableCell
+        );
+        if (path && path.length >= 2) {
+          nuoveCommute[a.id] = { path, token: Date.now(), purpose: "work" };
+        } else {
+          richiesteRicollocamento.push({ abitanteId: a.id, fromCell: from });
+        }
+      }
+
+      if (richiesteRicollocamento.length > 0) {
+        const ricollocati = ricollocaLavoroIrraggiungibileDaMappa(
+          richiesteRicollocamento,
+          edificiInMappa,
+          cols,
+          rows,
+          isWalkableCell
+        );
+        for (const [idRaw, result] of Object.entries(ricollocati)) {
+          const id = Number(idRaw);
+          if (result.path && result.path.length >= 2) {
+            nuoveCommute[id] = {
+              path: result.path,
+              token: Date.now(),
+              purpose: "work"
+            };
           }
         }
-        return out;
-      });
+      }
+
+      if (Object.keys(nuoveCommute).length > 0) {
+        setCommuteByAbitanteId((prevComm) => ({ ...prevComm, ...nuoveCommute }));
+      }
+
       setBarArrivatiByEdificio((prev0) => {
         let acc = prev0;
         for (const a of abitanti) {
@@ -1913,7 +1942,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     inventarioMensaByEdificioId,
     minutiAbsGioco,
     provaCommuteRapina,
-    applicaPagaETipBarFineTurno
+    applicaPagaETipBarFineTurno,
+    commuteByAbitanteId,
+    ricollocaLavoroIrraggiungibileDaMappa
   ]);
 
   const handleCommuteFinita = useCallback(
