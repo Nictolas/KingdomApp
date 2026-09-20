@@ -25,6 +25,7 @@ import { GameModeSelectionScreen } from "../ui/GameModeSelectionScreen";
 import { GameOverModal } from "../ui/GameOverModal";
 import { ID_GIOCATORE } from "../game/schiavituCommercio";
 import { setOrologioGiocoBloccatoDallaFase } from "../game/orologioGiocoSession";
+import type { RegistrazioneScambio } from "../game/registrazioniScambi";
 
 type ScaglioneConfig = {
   min: number;
@@ -229,6 +230,10 @@ type GameContextType = {
   messaggioEmigrazione: string | null;
   chiudiMessaggioEmigrazione: () => void;
   diarioRighe: string[];
+  registrazioniScambi: RegistrazioneScambio[];
+  registraScambioCommerciale: (
+    voce: Omit<RegistrazioneScambio, "id" | "giorno" | "minutiDaMezzanotte"> & { id?: string }
+  ) => void;
   pendingRichiestaLuogoCulto: { id: number; nome: string; religione: ReligioneConCulto } | null;
   accettaRichiestaLuogoCulto: () => void;
   rifiutaRichiestaLuogoCulto: () => void;
