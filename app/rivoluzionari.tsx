@@ -45,11 +45,11 @@ export default function RivoluzionariScreen() {
           </Text>
         </View>
 
-        {/* Grazia Ex Governatore */}
+        {/* Grazia Ex Sovrano */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>⚖️ Grazia all'Ex Governatore</Text>
+          <Text style={styles.sectionTitle}>⚖️ Grazia all'Ex Sovrano</Text>
           <Text style={styles.text}>
-            Se al Tribunale grazi l'Ex Governatore, la Soddisfazione dei Rivoluzionari scende di 20 punti. Sono i tuoi
+            Se al Tribunale grazi l'Ex Sovrano, la Soddisfazione dei Rivoluzionari scende di 20 punti. Sono i tuoi
             ex alleati: perdonare il vecchio regime li delude.
           </Text>
         </View>
