@@ -944,7 +944,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     coprifuocoAttivo,
     coprifuocoInizioMinuti,
     coprifuocoFineMinuti,
-    obiettiviCompletati
+    obiettiviCompletati,
+    apriDialogPiazzaPonte
   } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
@@ -1377,14 +1378,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   });
 
   const scegliPonte = useCallback(() => {
+    const daTutorial = spotlight?.active?.targetId === SPOTLIGHT_TARGET_IDS.MAPPA_PONTE;
     pendingPonteSpotlightRef.current = false;
-    if (spotlight?.active?.targetId === SPOTLIGHT_TARGET_IDS.MAPPA_PONTE) {
-      spotlight.dismissSpotlight();
+    if (daTutorial) {
+      spotlight?.dismissSpotlight();
     }
     setCostruzioneSelezione({ tipo: "ponte" });
     setMostraModalCostruisci(false);
     setMostraGrigliaMappa(true);
-  }, [spotlight]);
+    if (daTutorial) {
+      setTimeout(() => apriDialogPiazzaPonte(), 150);
+    }
+  }, [spotlight, apriDialogPiazzaPonte]);
 
   const ponteSpotlightRef = useSpotlightTarget(SPOTLIGHT_TARGET_IDS.MAPPA_PONTE, {
     onPress: scegliPonte
