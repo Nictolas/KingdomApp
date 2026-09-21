@@ -2031,7 +2031,7 @@ export function useGameState() {
     [abitanti, edifici]
   );
 
-  // Tribunale: condanna a morte → rimuove l'abitante da colonia e edifici (logica pura in src/game/tribunale).
+  // Tribunale: condanna a morte → rimuove l'abitante dal regno e dagli edifici (logica pura in src/game/tribunale).
   const condannaAMorte = useCallback(
     (abitanteId: number) => {
       const { nuoviAbitanti, nuoviEdifici } = condannaAMortePuro(
