@@ -19,9 +19,9 @@ export default function CultoSoleScreen() {
   const capoReligioso = abitanti.find((a: Abitante) => a.id === capoReligiosoSole);
 
   // Abitanti disponibili per essere nominati capo religioso (non già capo di altro culto)
-  const { capoReligiosoAlieni } = useGameContext();
+  const { capoReligiosoOmbre } = useGameContext();
   const disponibiliPerCapo = abitanti.filter(
-    (a: Abitante) => a.id !== capoReligiosoAlieni && a.religione === "Culto del Sole"
+    (a: Abitante) => a.id !== capoReligiosoOmbre && a.religione === "Culto del Sole"
   );
 
   return (
