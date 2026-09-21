@@ -24,7 +24,7 @@ export default function MafiaScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Chi Sono</Text>
           <Text style={styles.text}>
-            La Mafia è un'organizzazione criminale che opera nell'ombra della colonia. Controlla attività illecite e
+            La Mafia è un'organizzazione criminale che opera nell'ombra del regno. Controlla attività illecite e
             mantiene una rete di influenze tra i coloni.
           </Text>
         </View>
