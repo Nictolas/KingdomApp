@@ -121,8 +121,8 @@ export default function MercatoScreen() {
         {regniData.map((regno) => {
           const risorsaCheCompra = risorse.find((r) => r.id === regno.compraRisorsaId);
           const risorsaCheVende = risorse.find((r) => r.id === regno.vendiRisorsaId);
-          const keyVendi = `p-${regno.id}-vendi`;
-          const keyCompra = `p-${regno.id}-compra`;
+          const keyVendi = `r-${regno.id}-vendi`;
+          const keyCompra = `r-${regno.id}-compra`;
           const qVendi = Math.floor(Number(quantitàInput[keyVendi]) || 0);
           const qCompra = Math.floor(Number(quantitàInput[keyCompra]) || 0);
           const qtàGiàInVendita =
