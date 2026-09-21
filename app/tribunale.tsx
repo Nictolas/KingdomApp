@@ -82,7 +82,7 @@ export default function TribunaleScreen() {
             <Text style={styles.infoText}>
               {giudice ? `Giudice: ${giudice.nome}` : "Nessun giudice assegnato"}
             </Text>
-            <Text style={styles.infoSubtext}>Imputati nella colonia: {imputati.length}</Text>
+            <Text style={styles.infoSubtext}>Imputati nel regno: {imputati.length}</Text>
           </View>
 
           <Pressable style={styles.reatiButton} onPress={() => router.push("/reati")}>
@@ -207,7 +207,7 @@ export default function TribunaleScreen() {
                 })}
               </View>
             ) : (
-              <Text style={styles.emptyText}>Nessun imputato nella colonia</Text>
+              <Text style={styles.emptyText}>Nessun imputato nel regno</Text>
             )}
           </View>
         </ScrollView>
