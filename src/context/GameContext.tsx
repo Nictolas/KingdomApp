@@ -255,6 +255,9 @@ type GameContextType = {
   chiudiIntroConsigliere: () => void;
   suggerimentoPonteAperto: boolean;
   chiudiSuggerimentoPonte: () => void;
+  dialogPiazzaPonteAperto: boolean;
+  apriDialogPiazzaPonte: () => void;
+  chiudiDialogPiazzaPonte: () => void;
   diarioInizioVisto: boolean;
   messaggioEmigrazione: string | null;
   chiudiMessaggioEmigrazione: () => void;
@@ -296,6 +299,8 @@ function IntroConsigliereDialogWrapper() {
     chiudiIntroConsigliere,
     suggerimentoPonteAperto,
     chiudiSuggerimentoPonte,
+    dialogPiazzaPonteAperto,
+    chiudiDialogPiazzaPonte,
     abitanti
   } = useGameContext();
   const re = abitanti.find((a) => a.id === ID_GIOCATORE);
@@ -308,6 +313,8 @@ function IntroConsigliereDialogWrapper() {
     "Dato che hai succeduto tuo padre alla tenera età di 10 anni, ora ti aiuterò a imparare a guidare il tuo Regno!";
   const messaggioPonte =
     "Un fiume separa il nostro Regno, mio Re.\nPer unire le sponde piazzeremo un cantiere sul fiume: gli Edili dell'Ufficio Edile lo completeranno ora dopo ora.";
+  const messaggioPiazzaPonte =
+    "Ben fatto mio Re!\nScegli il punto sul fiume: nascerà un cantiere con barra di avanzamento.\nAssumi Edili nell'Ufficio Edile: ogni ora avanzano di 1 punto a testa!";
   const { showSpotlight } = useTutorialSpotlight();
 
   const onChiudiSuggerimentoPonte = () => {
@@ -328,6 +335,12 @@ function IntroConsigliereDialogWrapper() {
         consigliere={consigliere}
         messaggio={messaggioPonte}
         onClose={onChiudiSuggerimentoPonte}
+      />
+      <ConsigliereIntroModal
+        visible={dialogPiazzaPonteAperto}
+        consigliere={consigliere}
+        messaggio={messaggioPiazzaPonte}
+        onClose={chiudiDialogPiazzaPonte}
       />
     </>
   );
