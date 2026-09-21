@@ -3,6 +3,7 @@ import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 import { edificiData } from "../src/data/edificiData.ts";
+import { EDIFICIO_COMPETENZA_RICHIESTA } from "../src/data/edificiCompetenze.ts";
 
 test("il catalogo edifici usa il Regno medievale fantasy", () => {
   const nomi = new Set(edificiData.map((edificio) => edificio.nome));
@@ -27,4 +28,11 @@ test("la mappa trasforma i Giacimenti in Miniere senza residui della Raffineria"
   assert.match(mappa, /MINIERA_EDIFICIO/);
   assert.match(mappa, /Trasformare in Miniera/);
   assert.doesNotMatch(mappa, /Raffineria Mineraria|RAFFINERIA_MINERARIA/);
+});
+
+
+test("le competenze edificio non conservano ID di edifici rimossi", () => {
+  assert.equal(EDIFICIO_COMPETENZA_RICHIESTA[6], undefined);
+  assert.ok(EDIFICIO_COMPETENZA_RICHIESTA[3]);
+  assert.ok(EDIFICIO_COMPETENZA_RICHIESTA[31]);
 });

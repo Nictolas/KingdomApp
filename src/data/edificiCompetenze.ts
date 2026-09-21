@@ -13,7 +13,6 @@ export const EDIFICIO_COMPETENZA_RICHIESTA: Record<number, CompetenzaEdificio> =
   21: { competenzaMinima: 25, nomeCompetenza: "Competenza Agricola" },          // Serra (seconda unità)
   3: { competenzaMinima: 35, nomeCompetenza: "Competenza Tecnica" },            // Miniera
   5: { competenzaMinima: 50, nomeCompetenza: "Competenza Scientifica" },       // Laboratorio di Ricerca
-  6: { competenzaMinima: 30, nomeCompetenza: "Competenza Tecnica" },            // Centrale Energetica
   7: { competenzaMinima: 40, nomeCompetenza: "Competenza Medica" },             // Ospedale
   11: { competenzaMinima: 35, nomeCompetenza: "Competenza Educativa" },        // Scuola
   12: { competenzaMinima: 45, nomeCompetenza: "Competenza Giuridica" },         // Tribunale
@@ -31,6 +30,6 @@ export const EDIFICIO_COMPETENZA_RICHIESTA: Record<number, CompetenzaEdificio> =
   28: { competenzaMinima: 20, nomeCompetenza: "Competenza Generale" },            // Negozio
   29: { competenzaMinima: 20, nomeCompetenza: "Competenza Generale" },             // Mensa Pubblica
   30: { competenzaMinima: 0, nomeCompetenza: "Competenza Generale" },            // Luogo di Culto del Sole
-  31: { competenzaMinima: 0, nomeCompetenza: "Competenza Generale" },            // Luogo di Culto degli Alieni
+  31: { competenzaMinima: 0, nomeCompetenza: "Competenza Generale" },            // Luogo di Culto delle Ombre
   33: { competenzaMinima: 25, nomeCompetenza: "Competenza Tecnica" }             // Ufficio Edile
 };
