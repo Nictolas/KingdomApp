@@ -26,8 +26,8 @@ export const regniData: RegnoInfo[] = [
 
 /** Restituisce l'emoji associata al popolo (es. Elfo → 🧝, Golem → 🗿). */
 export function getEmojiRazza(razza: Razza): string {
-  const p = regniData.find((x) => x.razza === razza);
-  if (p) return p.emoji;
+  const regno = regniData.find((x) => x.razza === razza);
+  if (regno) return regno.emoji;
   if (razza === "Umano") return "👤";
   if (razza === "Golem") return "🗿";
   return "🏰";
