@@ -13,9 +13,9 @@ export default function RegniScreen() {
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
 
-  const conteggioPerRazza = regniData.map((p) => ({
-    ...p,
-    count: abitanti.filter((a) => (a.razza ?? "Umano") === p.razza).length
+  const conteggioPerRazza = regniData.map((regno) => ({
+    ...regno,
+    count: abitanti.filter((a) => (a.razza ?? "Umano") === regno.razza).length
   }));
 
   return (
@@ -35,12 +35,12 @@ export default function RegniScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Regni ({regniData.length})</Text>
           <View style={styles.grid}>
-            {conteggioPerRazza.map((p) => (
-              <View key={p.id} style={styles.card}>
-                <Text style={styles.emoji}>{p.emoji}</Text>
-                <Text style={styles.cardTitle}>{p.nome}</Text>
+            {conteggioPerRazza.map((regno) => (
+              <View key={regno.id} style={styles.card}>
+                <Text style={styles.emoji}>{regno.emoji}</Text>
+                <Text style={styles.cardTitle}>{regno.nome}</Text>
                 <Text style={styles.cardDesc}>
-                  Razza: {p.razza} · Nel regno: {p.count} abitanti
+                  Razza: {regno.razza} · Nel regno: {regno.count} abitanti
                 </Text>
               </View>
             ))}
