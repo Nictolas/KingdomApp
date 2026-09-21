@@ -50,7 +50,7 @@ export type AvanzaMeseInput = {
     matrimonioConGolem: boolean;
     matrimonioIntercasta?: boolean;
   };
-  /** Tesoro colonia (unica cassa monete). */
+  /** Tesoro del regno (unica cassa monete). */
   moneteGiocatore: number;
   /** Edificio visitato dal Re: solo la sua produzione riceve il +15%. */
   edificioBuffVisitaId?: number | null;
@@ -71,7 +71,7 @@ export type AvanzaMeseOutput = {
   vittimeOmicidi: { nome: string }[];
   /** Coppia con amicizia >= 90 che chiede di sposarsi (compatibili per orientamento/sesso). */
   pendingMatrimonio: { idA: number; idB: number; nomeA: string; nomeB: string } | null;
-  /** Messaggio da mostrare in home quando si attiva l'evento Emigrazione (es. "Alessandro Ricci ha lasciato la colonia."). */
+  /** Messaggio da mostrare in home quando si attiva l'evento Emigrazione (es. "Alessandro Ricci ha lasciato il regno."). */
   messaggioEmigrazione: string | null;
   /** Abitante appena incinta (concepimento questo mese): mostra avviso "X è incinta.". */
   pendingGravidanza: { id: number; nome: string } | null;
@@ -118,7 +118,7 @@ export function canMarry(a: Abitante, b: Abitante): boolean {
 
 const SOGLIA_AMICIZIA_MATRIMONIO = 90;
 
-/** True se la coppia (a,b) è consentita dalla legge (robot, casta diversa, …). */
+/** True se la coppia (a,b) è consentita dalla legge (Golem, casta diversa, …). */
 function coppiaConsentitaLegge(
   a: Abitante,
   b: Abitante,
@@ -439,7 +439,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     (edificio.abitantiAssegnati ?? []).forEach((id) => idToCostoAbitazione.set(id, prezzo));
   });
 
-  /** Affitti pagati questo mese → accreditati alla risorsa Crediti colonia (non al tesoro moneteGiocatore). */
+  /** Affitti pagati questo mese → accreditati alla risorsa Crediti del regno (non al tesoro moneteGiocatore). */
   let totaleAffittiPagati = 0;
 
   // Aggiorna abitanti (invecchiamento, pensionamento, monete inventario, stanchezza/bisogni, peso, salute)
