@@ -74,11 +74,11 @@ export function trovaCellaSingolaConCuscino(
 
 /**
  * Sceglie deterministicamente l'anchor 3×2 del Complesso amministrativo più vicino
- * alla posizione preferita del Centro di Comando, mantenendo il cuscino libero.
+ * alla posizione preferita del Castello, mantenendo il cuscino libero.
  */
 export function scegliAnchorComplessoAmministrativo(cols: number, rows: number): number {
   const idx = getIndiciEdificiIniziali(cols, rows);
-  const preferred = idx.CENTRO_COMANDO_INDEX;
+  const preferred = idx.CASTELLO_INDEX;
   const pc = preferred % cols;
   const pr = Math.floor(preferred / cols);
   const w = ADMIN_FOOTPRINT_W;
