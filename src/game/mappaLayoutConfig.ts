@@ -36,7 +36,7 @@ export const DOPPIO_TAP_MS = 400;
 export function getIndiciEdificiIniziali(cols: number, rows: number) {
   const centro = Math.floor((cols * rows) / 2) - Math.floor(cols / 2);
   return {
-    CENTRO_COMANDO_INDEX: centro,
+    CASTELLO_INDEX: centro,
     TRIBUNALE_INDEX: centro + cols,
     SERRA_INDEX: centro - 1,
     SERRA_2_INDEX: centro - 4,
