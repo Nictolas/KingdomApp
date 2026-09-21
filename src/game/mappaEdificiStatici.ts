@@ -1,10 +1,10 @@
 import type { EdificioInCellaMappa } from "./mappaTypes";
 
 export const GIACIMENTO: EdificioInCellaMappa = { id: 0, nome: "Giacimento", emoji: "⛰️" };
-export const RAFFINERIA_MINERARIA: EdificioInCellaMappa = {
+export const MINIERA_EDIFICIO: EdificioInCellaMappa = {
   id: 3,
-  nome: "Raffineria Mineraria",
-  emoji: "⚙️"
+  nome: "Miniera",
+  emoji: "⛏️"
 };
 /** Opzione "Strada" per il dialog costruzione (cella diventa lastricato strada). */
 export const STRADA_OPZIONE: EdificioInCellaMappa = { id: -1, nome: "Strada", emoji: "🛤️" };
