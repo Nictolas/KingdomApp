@@ -1,4 +1,4 @@
-import type { Abitante, Edificio, Risorsa } from "../types";
+import type { Abitante, Edificio, Reato, Risorsa } from "../types";
 import { SAVE_FORMAT, SAVE_SCHEMA_VERSION, type GameSaveV1, type SaveEnvelopeV1 } from "./saveTypes.ts";
 import { generaAspettoDaSeed } from "../game/personaggioAspetto";
 import { normalizeGameMode } from "../game/gameMode";
@@ -235,6 +235,8 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
   };
   const normalizzaReligioneFantasy = (religione: Abitante["religione"] | null): Abitante["religione"] | null =>
     religione === "Culto degli Alieni" ? "Culto delle Ombre" : religione;
+  const normalizzaReatoFantasy = (reato: string): Reato =>
+    reato === "Ex Governatore" ? "Ex Sovrano" : reato as Reato;
   const normalizzaRazzaFantasy = (razza: unknown): Abitante["razza"] => {
     if (razza === "Robot") return "Golem";
     if (razza === "Grigi" || razza === "Insettoidi") return "Goblin";
@@ -282,7 +284,7 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     ...(a.id !== 1 && a.aspetto?.cappello === "corona" && {
       aspetto: { ...a.aspetto, cappello: "nessuno" }
     }),
-    fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f === "Culto degli Alieni" ? "Culto delle Ombre" : f),
+    fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f === "Culto degli Alieni" ? "Culto delle Ombre" : f),\n    reati: a.reati?.map((r) => normalizzaReatoFantasy(String(r))),\n    reati: a.reati?.map((r) => normalizzaReatoFantasy(String(r))),
     inventario: a.inventario ? normalizeInventario(a.inventario) : undefined
   }));
   next.population.abitantiProposti = next.population.abitantiProposti.map((a: Abitante) => ({
