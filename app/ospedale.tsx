@@ -55,7 +55,7 @@ export default function OspedaleScreen() {
             {dottore ? `Dottore: ${dottore.nome}` : "Nessun dottore assegnato"}
           </Text>
           <Text style={styles.infoSubtext}>
-            Malati nella colonia: {malati.length} · Incinte: {incinte.length}
+            Malati nel regno: {malati.length} · Incinte: {incinte.length}
           </Text>
         </View>
 
@@ -166,7 +166,7 @@ export default function OspedaleScreen() {
               ))}
             </View>
           ) : (
-            <Text style={styles.emptyText}>Nessun malato nella colonia</Text>
+            <Text style={styles.emptyText}>Nessun malato nel regno</Text>
           )}
         </View>
 
@@ -187,7 +187,7 @@ export default function OspedaleScreen() {
               ))}
             </View>
           ) : (
-            <Text style={styles.emptyText}>Nessuna persona incinta nella colonia</Text>
+            <Text style={styles.emptyText}>Nessuna persona incinta nel regno</Text>
           )}
         </View>
       </ScrollView>

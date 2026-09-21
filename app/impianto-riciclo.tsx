@@ -34,7 +34,7 @@ export default function ImpiantoRicicloScreen() {
       <View style={styles.infoCard}>
         <Text style={styles.infoTitle}>Smaltimento Rifiuti</Text>
         <Text style={styles.infoSubtext}>
-          Tratta e smaltisce i rifiuti della colonia.
+          Tratta e smaltisce i rifiuti del regno.
         </Text>
         <Text style={styles.infoSubtext}>
           {abitantiAssegnati.length} abitante{abitantiAssegnati.length !== 1 ? "i" : ""} assegnato

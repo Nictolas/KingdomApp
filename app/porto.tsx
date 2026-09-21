@@ -52,7 +52,7 @@ export default function PortoScreen() {
               <Text style={styles.linkDesc}>Candidati in attesa di entrare nel regno</Text>
             </View>
           </Pressable>
-          <Pressable style={styles.linkCard} onPress={() => router.push("/pianeti")}>
+          <Pressable style={styles.linkCard} onPress={() => router.push("/regni")}>
             <Text style={styles.linkEmoji}>🧭</Text>
             <View style={styles.linkContent}>
               <Text style={styles.linkTitle}>Terre lontane</Text>

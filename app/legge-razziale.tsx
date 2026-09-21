@@ -164,7 +164,7 @@ export default function LeggeRazzialeScreen() {
         <View style={styles.descCard}>
           <Text style={styles.descTitle}>Descrizione</Text>
           <Text style={styles.descText}>
-            La legge razziale consente di discriminare e perseguitare specifiche razze nella colonia. Questa legge è
+            La legge razziale consente di discriminare e perseguitare specifiche razze nel regno. Questa legge è
             estremamente controversa e ha gravi conseguenze diplomatiche.
           </Text>
         </View>
