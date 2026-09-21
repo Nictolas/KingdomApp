@@ -90,7 +90,9 @@ export type GameSaveV1 = {
       interrazziale: boolean;
       arcobaleno: boolean;
       monogenitoriale: boolean;
-      matrimonioUmanoRobot: boolean;
+      matrimonioConGolem: boolean;
+      /** @deprecated Compatibilità con salvataggi precedenti. */
+      matrimonioUmanoRobot?: boolean;
       matrimonioIntercasta: boolean;
     };
     redditoCittadinanza: number;
