@@ -21,7 +21,7 @@ export default function GenerazionePartitaScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={true}>
         <Text style={styles.intro}>
-          Ogni partita la colonia iniziale è generata a caso. Di seguito le regole di distribuzione attualmente in uso.
+          Ogni partita il regno iniziale è generato a caso. Di seguito le regole di distribuzione attualmente in uso.
         </Text>
 
         <View style={[styles.griglia, isDesktop && styles.grigliaDesktop]}>
