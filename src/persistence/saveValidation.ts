@@ -94,9 +94,12 @@ function validateReferences(payload: Record<string, unknown>): void {
     if (!risorseIds.has(risorsaId)) throw new SaveValidationError(`L'ordine ${index} usa una risorsa inesistente.`);
   });
 
-  for (const key of ["capoReligiosoSole", "capoReligiosoAlieni"] as const) {
-    assertOptionalResidentId(events[key], abitantiIds, `payload.events.${key}`);
-  }
+  assertOptionalResidentId(events.capoReligiosoSole, abitantiIds, "payload.events.capoReligiosoSole");
+  assertOptionalResidentId(
+    events.capoReligiosoOmbre ?? events.capoReligiosoAlieni,
+    abitantiIds,
+    "payload.events.capoReligiosoOmbre"
+  );
   if (events.pendingMatrimonio != null) {
     const p = requireRecord(events.pendingMatrimonio, "payload.events.pendingMatrimonio");
     assertOptionalResidentId(p.idA, abitantiIds, "pendingMatrimonio.idA");
@@ -214,6 +217,10 @@ function cloneSaveValue<T>(value: T): T {
 export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
   const next = cloneSaveValue(payload);
   next.gameMode = normalizeGameMode(next.gameMode);
+  const eventiLegacy = next.events as GameSaveV1["events"] & { capoReligiosoAlieni?: number | null };
+  next.events.capoReligiosoOmbre =
+    next.events.capoReligiosoOmbre ?? eventiLegacy.capoReligiosoAlieni ?? null;
+  delete eventiLegacy.capoReligiosoAlieni;
   const senzaSpecieLegacy = (abitante: Abitante): Abitante => {
     const copia = { ...(abitante as Abitante & { specie?: unknown }) };
     delete copia.specie;
