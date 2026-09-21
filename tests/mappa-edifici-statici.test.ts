@@ -9,7 +9,6 @@ import {
   RAFFINERIA_MINERARIA,
   SERRA_2_EDIFICIO,
   SERRA_EDIFICIO,
-  SPAZIOPORTO_EDIFICIO,
   STRADA_OPZIONE,
   TRIBUNALE_EDIFICIO
 } from "../src/game/mappaEdificiStatici";
@@ -24,8 +23,7 @@ test("static map building templates preserve ids, names and emoji", () => {
     TRIBUNALE_EDIFICIO,
     SERRA_EDIFICIO,
     SERRA_2_EDIFICIO,
-    CAPANNA,
-    SPAZIOPORTO_EDIFICIO
+    CAPANNA
   ];
   assert.deepEqual(
     entries.map(({ id, nome, emoji }) => ({ id, nome, emoji })),
@@ -38,8 +36,7 @@ test("static map building templates preserve ids, names and emoji", () => {
       { id: 12, nome: "Tribunale", emoji: "⚖️" },
       { id: 2, nome: "Serra", emoji: "🌱" },
       { id: 21, nome: "Serra", emoji: "🌱" },
-      { id: 20, nome: "Capanna", emoji: "⛺" },
-      { id: 19, nome: "Spazioporto", emoji: "🚀" }
+      { id: 20, nome: "Capanna", emoji: "⛺" }
     ]
   );
 });
