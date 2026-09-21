@@ -92,7 +92,7 @@ export function createSaveEnvelope() {
         politicaNascite: "nessuna",
         punteggioSanzioni: 1,
         penaDiMorteAttiva: false,
-        penaReati: { Omicidio: 20, Stupro: 15, Furto: 2, Spaccio: 3, Evasione: 5, "Ex Governatore": 10 },
+        penaReati: { Omicidio: 20, Stupro: 15, Furto: 2, Spaccio: 3, Evasione: 5, "Ex Sovrano": 10 },
         politicaReligiosa: "liberta-culto",
         religioneDiStato: null,
         leggeRazzialeAttiva: false,
