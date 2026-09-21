@@ -285,7 +285,7 @@ export function AbitanteInfoModal({
     proprietarioSchiavo === undefined
       ? undefined
       : proprietarioSchiavo === null
-        ? "Colonia"
+        ? "Corona"
         : getAbitanteNome(proprietarioSchiavo);
 
   const puoComprareColonia =
@@ -364,10 +364,10 @@ export function AbitanteInfoModal({
               <Block title="📋 Anagrafica">
                 <Row emoji="🎂" value={`${abitante.eta} anni`} />
                 <Row
-                  emoji="🪐"
+                  emoji="🧝"
                   label="Razza"
                   value={abitante.razza ?? "Umano"}
-                  onPress={() => apriPagina("/pianeti")}
+                  onPress={() => apriPagina("/razze")}
                 />
                 <Row
                   emoji={getEmojiCasta(casta)}
@@ -527,7 +527,7 @@ export function AbitanteInfoModal({
                     onPress={() => trasferisciProprietaSchiavo(abitante.id, null, PREZZO_SCHIAVO_DEFAULT)}
                   >
                     <Text style={styles.azioneBtnText}>
-                      Colonia compra ({PREZZO_SCHIAVO_DEFAULT} 💰)
+                      Corona compra ({PREZZO_SCHIAVO_DEFAULT} 💰)
                     </Text>
                   </Pressable>
                 )}
@@ -536,7 +536,7 @@ export function AbitanteInfoModal({
                     style={[styles.azioneBtn, styles.azioneBtnPericolo]}
                     onPress={() => uccidiSchiavo(null, abitante.id)}
                   >
-                    <Text style={styles.azioneBtnTextPericolo}>Colonia uccide (senza reato)</Text>
+                    <Text style={styles.azioneBtnTextPericolo}>Corona uccide (senza reato)</Text>
                   </Pressable>
                 )}
                 {abitanti
