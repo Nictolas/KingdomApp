@@ -674,7 +674,7 @@ export function useGameState() {
   
   // Capo religioso e fedeli per ogni culto
   const [capoReligiosoSole, setCapoReligiosoSole] = useState<number | null>(capoReligiosoSoleIniziale);
-  const [capoReligiosoOmbre, setCapoReligiosoAlieni] = useState<number | null>(null);
+  const [capoReligiosoOmbre, setCapoReligiosoOmbre] = useState<number | null>(null);
   const [pendingRichiestaLuogoCulto, setPendingRichiestaLuogoCulto] = useState<{
     id: number;
     nome: string;
@@ -1336,7 +1336,7 @@ export function useGameState() {
     setReligioneDiStato(state.religioneDiStato);
     setReligioniCustom(state.religioniCustom ?? []);
     setCapoReligiosoSole(state.capoReligiosoSole);
-    setCapoReligiosoAlieni(state.capoReligiosoOmbre);
+    setCapoReligiosoOmbre(state.capoReligiosoOmbre);
     setPendingRichiestaLuogoCulto(state.pendingRichiestaLuogoCulto);
     setLuoghiCultoPendentiMappa(state.luoghiCultoPendentiMappa);
     setRichiesteInAttesa(state.richiesteInAttesa);
@@ -2364,7 +2364,7 @@ export function useGameState() {
     setRazzaCampoLavoro,
     setRazzaCampoSterminio,
     setCapoReligiosoSole,
-    setCapoReligiosoAlieni,
+    setCapoReligiosoOmbre,
     setEtaMinimaLavoro,
     setEtaPensionabile,
     setAssegnoPensionati,
