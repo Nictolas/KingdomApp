@@ -10,7 +10,7 @@ export const fazioniData: Fazione[] = [
   { id: 7, nome: "Nativi", emoji: "🌿", descrizione: "Antiche popolazioni del territorio, integrate o in tensione con il regno." },
   { id: 8, nome: "Schiavi", emoji: "⛓️", descrizione: "Coloni ridotti in schiavitù; privi di diritti civili." },
   { id: 9, nome: "Culto del Sole", emoji: "☀️", descrizione: "Tempio dedicato al culto del Sole. Aperto a tutti gli abitanti." },
-  { id: 10, nome: "Culto degli Alieni", emoji: "👽", descrizione: "Tempio dedicato al culto degli Alieni. Riservato solo agli alieni." },
+  { id: 10, nome: "Culto delle Ombre", emoji: "🌑", descrizione: "Culto misterico legato alle ombre e ai popoli non umani del regno." },
   { id: 11, nome: "Lealisti", emoji: "🔵", descrizione: "Difendono l'ordine tradizionale e restano fedeli alla Madre Patria; tra loro l'ex governatore." },
   { id: 12, nome: "Golem", emoji: "🗿", descrizione: "Custodi di pietra animati dalla magia runica. Ogni Golem appartiene automaticamente alla fazione." },
   { id: 13, nome: "Sicurezza", emoji: "🚔", descrizione: "Forze di sicurezza e difesa della colonia. Vigilano sull'ordine e sulla protezione." },
