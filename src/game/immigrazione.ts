@@ -79,7 +79,6 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
       felicità: 40 + Math.floor(Math.random() * 50),
       religione: RELIGIONI[Math.floor(Math.random() * RELIGIONI.length)],
       razza,
-      specie: isUmano ? "umano" : "alieno",
       ...(razza !== "Golem" && { aspetto: generaAspettoCasuale(razza) }),
       ...(sesso != null && { sesso }),
       specializzazione: specializzazioneCasuale()
