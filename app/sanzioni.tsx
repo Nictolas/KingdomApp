@@ -93,7 +93,7 @@ export default function SanzioniScreen() {
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Sistema di Sanzioni</Text>
           <Text style={styles.infoText}>
-            La Comunità Interplanetaria monitora le politiche della colonia. <Text style={styles.infoBold}>Soglia critica: 5 punti</Text> → sanzioni economiche e diplomatiche.
+            Le potenze straniere monitorano le politiche del regno. <Text style={styles.infoBold}>Soglia critica: 5 punti</Text> → sanzioni economiche e diplomatiche.
           </Text>
         </View>
 
