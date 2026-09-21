@@ -16,22 +16,22 @@ import { getMoneteInventarioAbitante } from "../src/game/inventario";
 
 type FazioneItem = { emoji: string; nome: string };
 
-/** Restituisce l'array emoji+nome per fazioni + Culto del Sole / Culto degli Alieni se presenti. */
+/** Restituisce l'array emoji+nome per fazioni + Culto del Sole / Culto delle Ombre se presenti. */
 function getFazioniConReligione(a: Abitante): FazioneItem[] {
   const items: FazioneItem[] = (a.fazioni ?? []).map((nome) => {
     const f = fazioniData.find((x) => x.nome === nome);
     return { emoji: f?.emoji ?? nome, nome };
   });
   if (a.religione === "Culto del Sole") items.push({ emoji: "☀️", nome: "Culto del Sole" });
-  if (a.religione === "Culto degli Alieni") items.push({ emoji: "👽", nome: "Culto degli Alieni" });
+  if (a.religione === "Culto delle Ombre") items.push({ emoji: "🌑", nome: "Culto delle Ombre" });
   return items;
 }
 
-/** Stringa per ordinamento: emoji fazioni + eventuale emoji religione (Culto Sole/Alieni). */
+/** Stringa per ordinamento: emoji fazioni + eventuale emoji religione (Culto Sole/Ombre). */
 function getFazioniEmojiDisplay(fazioni: string[] | undefined, religione?: Abitante["religione"]): string {
   let s = !fazioni?.length ? "" : fazioni.map((nome) => fazioniData.find((f) => f.nome === nome)?.emoji ?? nome).join(" ");
   if (religione === "Culto del Sole") s += " ☀️";
-  if (religione === "Culto degli Alieni") s += " 👽";
+  if (religione === "Culto delle Ombre") s += " 🌑";
   return s || "—";
 }
 
