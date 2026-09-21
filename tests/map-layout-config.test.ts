@@ -35,7 +35,7 @@ test("footprint principali mantengono le dimensioni correnti", () => {
 
 test("gli edifici iniziali restano ancorati alle stesse celle nella mappa 50x50", () => {
   assert.deepEqual(getIndiciEdificiIniziali(50, 50), {
-    CENTRO_COMANDO_INDEX: 1225,
+    CASTELLO_INDEX: 1225,
     SPAZIOPORTO_INDEX: 1226,
     TRIBUNALE_INDEX: 1275,
     SERRA_INDEX: 1224,
