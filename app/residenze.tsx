@@ -33,7 +33,7 @@ export default function ResidenzeScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={true}>
         <Text style={styles.intro}>
-          Costi in crediti ed energia sono mensili (ogni Skip Mese). L'energia è consumata per ogni residente (es. Baracca 0, Dormitorio 1 MW/abitante). Colonia e catalogo unificati.
+          Costi in crediti ed energia sono mensili (al cambio mese automatico). L'energia è consumata per ogni residente (es. Baracca 0, Dormitorio 1 MW/abitante). Regno e catalogo unificati.
         </Text>
 
         <View style={styles.sezione}>
