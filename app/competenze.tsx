@@ -31,7 +31,7 @@ export default function CompetenzeScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.subtitle}>
-          Catalogo delle competenze riconosciute nella colonia. Ogni abitante ha un livello di competenza generale; alcune competenze speciali influenzano edifici e ruoli.
+          Catalogo delle competenze riconosciute nel regno. Ogni abitante ha un livello di competenza generale; alcune competenze speciali influenzano edifici e ruoli.
         </Text>
 
         <View style={styles.grid}>
