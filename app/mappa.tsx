@@ -283,7 +283,7 @@ import {
   CAPANNA,
   DECORAZIONI_EMOJI,
   GIACIMENTO,
-  RAFFINERIA_MINERARIA,
+  MINIERA_EDIFICIO,
   SERRA_2_EDIFICIO,
   SERRA_EDIFICIO,
   STRADA_OPZIONE
@@ -3652,7 +3652,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const handleTrasformaGiacimento = useCallback((cellIndex: number) => {
     setMappaStatePersistente((s) => {
-      const nextEdifici = { ...s.edificiInMappa, [cellIndex]: RAFFINERIA_MINERARIA };
+      const nextEdifici = { ...s.edificiInMappa, [cellIndex]: MINIERA_EDIFICIO };
       applicaRegoleConfineTerreno(nextEdifici, s.terrenoInMappa, FIXED_MAP_COLS, FIXED_MAP_ROWS, {
         collegaEdificiAllaStrada: false
       });
@@ -4523,9 +4523,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           onPress={() => setSelectedCellForTransformDialog(null)}
         >
           <Pressable style={styles.modalContent} onPress={(e) => e.stopPropagation()}>
-            <Text style={styles.modalTitle}>Trasformare in Raffineria Mineraria?</Text>
+            <Text style={styles.modalTitle}>Trasformare in Miniera?</Text>
             <Text style={styles.modalSubtitle}>
-              Vuoi trasformare questo Giacimento ⛰️ nell'edificio Raffineria Mineraria ⚙️?
+              Vuoi trasformare questo Giacimento ⛰️ in una Miniera ⛏️?
             </Text>
             <View style={styles.modalButtonsRow}>
               <Pressable
