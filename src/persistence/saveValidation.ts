@@ -262,7 +262,6 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     ...senzaSpecieLegacy(a),
     razza: normalizzaRazzaFantasy(a.razza),
     religione: normalizzaReligioneFantasy(a.religione) ?? "Ateo",
-    religione: normalizzaReligioneFantasy(a.religione) ?? "Ateo",
     ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
       aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
     }),
@@ -275,6 +274,7 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
   next.population.abitantiProposti = next.population.abitantiProposti.map((a: Abitante) => ({
     ...senzaSpecieLegacy(a),
     razza: normalizzaRazzaFantasy(a.razza),
+    religione: normalizzaReligioneFantasy(a.religione) ?? "Ateo",
     ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
       aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
     }),
