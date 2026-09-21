@@ -78,7 +78,7 @@ type GameContextType = {
   razzaCampoLavoro: Razza | null;
   razzaCampoSterminio: Razza | null;
   capoReligiosoSole: number | null;
-  capoReligiosoAlieni: number | null;
+  capoReligiosoOmbre: number | null;
   religioneDiStato: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto delle Ombre" | string | null;
   religioniCustom: import("../game/fedeleCulto").ReligioneCustom[];
   creaReligioneCustom: (input: {
