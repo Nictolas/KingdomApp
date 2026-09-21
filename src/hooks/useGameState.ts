@@ -1378,7 +1378,7 @@ export function useGameState() {
             : {}
       );
     }
-    setRisorse(state.risorse);
+    setRisorse(estraiCreditiLegacyDaRisorse(state.risorse).risorse);
     setEdifici(state.edifici);
     setMese(state.mese);
     setAnno(state.anno);
