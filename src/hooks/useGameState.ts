@@ -1978,11 +1978,11 @@ export function useGameState() {
     });
   }, []);
 
-  // Tribunale: grazia un criminale (logica pura in src/game/tribunale); se Ex Governatore → Rivoluzionari -20.
+  // Tribunale: grazia un criminale (logica pura in src/game/tribunale); se Ex Sovrano → Rivoluzionari -20.
   const graziaCriminale = useCallback(
     (abitanteId: number) => {
       const criminale = abitanti.find((a) => a.id === abitanteId);
-      if (criminale?.reati?.includes("Ex Governatore")) {
+      if (criminale?.reati?.includes("Ex Sovrano")) {
         modificaSoddisfazioneFazione("Rivoluzionari", -20);
       }
       setAbitanti((prev) => graziaCriminalePuro(prev, abitanteId));

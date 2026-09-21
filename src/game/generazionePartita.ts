@@ -47,8 +47,8 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     punti: [
       "Ogni abitante ha sempre la fazione «Cittadini» più una di: Amministrazione, Lavoratori, Scienziati, Esploratori (scelta a caso).",
       "Almeno 4 abitanti sono «Schiavi»: hanno fazione Schiavi (e non Cittadini), ruoloSchiavitu «schiavo», monete/reddito/spese a 0.",
-      "4 abitanti hanno la fazione «Lealisti», tra cui l'ex governatore (prigioniero in Tribunale).",
-      "Il Re e 3 altri abitanti (escluso l'Ex Governatore) hanno la fazione «Rivoluzionari»: chi ha fatto la Rivoluzione.",
+      "4 abitanti hanno la fazione «Lealisti», tra cui l'ex sovrano (prigioniero in Tribunale).",
+      "Il Re e 3 altri abitanti (escluso l'Ex Sovrano) hanno la fazione «Rivoluzionari»: chi ha fatto la Rivoluzione.",
       "Ci sono alcuni Immigrati fin da inizio partita."
     ]
   },
@@ -82,7 +82,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
       `Il primo abitante (id 1) è «${LAVORO_GIOCATORE}» con ${ETA_GIOCATORE_INIZIALE} anni e competenza alta.`,
       "Il 50% degli abitanti deve avere come Lavoro «Disoccupato»; il restante a caso tra: Tecnico, Ricercatore, Ingegnere, Medico, Agricoltore, Meccanico, Esploratore, Comunicatore, Sicurezza, Amministratore.",
       "A inizio partita c'è almeno 1 lavoratore assegnato alla Serra: un abitante con Lavoro «Agricoltore».",
-      "A inizio partita c'è almeno 1 abitante con Lavoro «Prigioniero»: è l'Ex Governatore (Razza Umano, reato «Ex Governatore»), assegnato al Campo di Lavoro; compare in Tribunale."
+      "A inizio partita c'è almeno 1 abitante con Lavoro «Prigioniero»: è l'Ex Sovrano (Razza Umano, reato «Ex Sovrano»), assegnato al Campo di Lavoro; compare in Tribunale."
     ]
   },
   {
@@ -369,29 +369,29 @@ export function generaRegnoIniziale(
     }
   }
 
-  let exGovernatoreId: number | null = null;
+  let exSovranoId: number | null = null;
   if (!isAvventura) {
-    // Regola: almeno 1 Prigioniero a inizio partita = Ex Governatore (Umano, reato "Ex Governatore"), assegnato al Campo di Lavoro; compare in Tribunale.
+    // Regola: almeno 1 Prigioniero a inizio partita = Ex Sovrano (Umano, reato "Ex Sovrano"), assegnato al Campo di Lavoro; compare in Tribunale.
     const candidatiPrigioniero = abitanti.filter(
       (a) => a.id !== 1 && a.lavoro !== "Agricoltore" && a.razza === "Umano"
     );
     if (candidatiPrigioniero.length > 0) {
       const prig = candidatiPrigioniero[Math.floor(Math.random() * candidatiPrigioniero.length)];
-      exGovernatoreId = prig.id;
+      exSovranoId = prig.id;
       prig.lavoro = "Prigioniero";
       prig.razza = "Umano";
-      prig.reati = ["Ex Governatore"];
+      prig.reati = ["Ex Sovrano"];
       if (!prig.ruoloSchiavitu) prig.reddito = 0;
     }
   
-    // Regola: 4 abitanti con fazione "Lealisti", tra cui l'ex governatore.
-    const altriPerLealisti = abitanti.filter((a) => a.id !== 1 && a.id !== exGovernatoreId);
+    // Regola: 4 abitanti con fazione "Lealisti", tra cui l'ex sovrano.
+    const altriPerLealisti = abitanti.filter((a) => a.id !== 1 && a.id !== exSovranoId);
     for (let k = altriPerLealisti.length - 1; k > 0; k--) {
       const j = Math.floor(Math.random() * (k + 1));
       [altriPerLealisti[k], altriPerLealisti[j]] = [altriPerLealisti[j], altriPerLealisti[k]];
     }
     const lealistiIds = new Set<number>();
-    if (exGovernatoreId != null) lealistiIds.add(exGovernatoreId);
+    if (exSovranoId != null) lealistiIds.add(exSovranoId);
     for (let i = 0; i < altriPerLealisti.length && lealistiIds.size < 4; i++) {
       lealistiIds.add(altriPerLealisti[i]!.id);
     }
@@ -401,8 +401,8 @@ export function generaRegnoIniziale(
       }
     });
   
-    // Regola: Rivoluzionari = Re (id 1) + 3 abitanti che hanno aiutato la Rivoluzione (escluso l'Ex Governatore).
-    const candidatiRivoluzionari = abitanti.filter((a) => a.id !== 1 && a.id !== exGovernatoreId);
+    // Regola: Rivoluzionari = Re (id 1) + 3 abitanti che hanno aiutato la Rivoluzione (escluso l'Ex Sovrano).
+    const candidatiRivoluzionari = abitanti.filter((a) => a.id !== 1 && a.id !== exSovranoId);
     for (let k = candidatiRivoluzionari.length - 1; k > 0; k--) {
       const j = Math.floor(Math.random() * (k + 1));
       [candidatiRivoluzionari[k], candidatiRivoluzionari[j]] = [candidatiRivoluzionari[j], candidatiRivoluzionari[k]];

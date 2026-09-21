@@ -217,7 +217,7 @@ const RIGHE_FAZIONE: RigaFazione[] = [
     stato: "Attivo"
   },
   {
-    situazione: "Grazia all’Ex Governatore",
+    situazione: "Grazia all’Ex Sovrano",
     delta: "−20 Rivoluzionari",
     scala: "1–100",
     condizioni: "Soddisfazione di fazione, non punti personali.",
