@@ -60,7 +60,7 @@ export default function PersonalitaScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.subtitle}>
-          Catalogo delle personalità (con conteggio attuale nella colonia).
+          Catalogo delle personalità (con conteggio attuale nel regno).
         </Text>
 
         <View style={[styles.grid, isDesktop && styles.gridDesktop]}>
