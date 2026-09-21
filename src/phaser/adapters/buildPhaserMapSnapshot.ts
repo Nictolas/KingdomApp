@@ -100,7 +100,7 @@ function categoryForBuilding(name: string): PhaserMapBuilding["category"] {
 }
 
 function artKeyForBuilding(name: string): PhaserMapBuilding["artKey"] {
-  if (name === "Castello" || name === "Centro di Comando") return "command-center";
+  if (name === "Castello") return "command-center";
   if (name === "Dormitorio") return "dormitory";
   if (name === "Serra") return "greenhouse";
   if (name === "Capanna") return "frontier-hut";
