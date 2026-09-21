@@ -217,6 +217,13 @@ function cloneSaveValue<T>(value: T): T {
 export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
   const next = cloneSaveValue(payload);
   next.gameMode = normalizeGameMode(next.gameMode);
+  const famiglieLegacy = next.policies.tipologieFamigliaAccettate as
+    GameSaveV1["policies"]["tipologieFamigliaAccettate"] & { matrimonioUmanoRobot?: boolean };
+  next.policies.tipologieFamigliaAccettate.matrimonioConGolem =
+    next.policies.tipologieFamigliaAccettate.matrimonioConGolem ??
+    famiglieLegacy.matrimonioUmanoRobot ??
+    false;
+  delete famiglieLegacy.matrimonioUmanoRobot;
   const eventiLegacy = next.events as GameSaveV1["events"] & { capoReligiosoAlieni?: number | null };
   next.events.capoReligiosoOmbre =
     next.events.capoReligiosoOmbre ?? eventiLegacy.capoReligiosoAlieni ?? null;
