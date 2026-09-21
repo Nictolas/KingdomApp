@@ -45,9 +45,9 @@ export type AvanzaMeseInput = {
   redditoCittadinanza?: number;
   /** Modalità del sistema sanitario (Privata/Pubblica) per i costi dell'Ospedale. */
   modalitaSanita?: "privata" | "pubblica";
-  /** Configurazione legge famiglie (matrimonio umano-robot, intercasta, …). */
+  /** Configurazione legge famiglie (matrimonio umano-Golem, intercasta, …). */
   tipologieFamigliaAccettate?: {
-    matrimonioUmanoRobot: boolean;
+    matrimonioConGolem: boolean;
     matrimonioIntercasta?: boolean;
   };
   /** Tesoro colonia (unica cassa monete). */
@@ -122,12 +122,12 @@ const SOGLIA_AMICIZIA_MATRIMONIO = 90;
 function coppiaConsentitaLegge(
   a: Abitante,
   b: Abitante,
-  tipologie?: { matrimonioUmanoRobot: boolean; matrimonioIntercasta?: boolean }
+  tipologie?: { matrimonioConGolem: boolean; matrimonioIntercasta?: boolean }
 ): boolean {
-  const unoRobot = (a.razza ?? "Umano") === "Golem";
-  const altroRobot = (b.razza ?? "Umano") === "Golem";
-  if (unoRobot !== altroRobot) {
-    return tipologie?.matrimonioUmanoRobot === true;
+  const unoGolem = (a.razza ?? "Umano") === "Golem";
+  const altroGolem = (b.razza ?? "Umano") === "Golem";
+  if (unoGolem !== altroGolem) {
+    return tipologie?.matrimonioConGolem === true;
   }
   const castaA = getCastaAbitante(a);
   const castaB = getCastaAbitante(b);
@@ -140,7 +140,7 @@ function coppiaConsentitaLegge(
 /** True se esiste almeno una coppia (non sposata, amicizia ≥90, compatibile) che può generare pendingMatrimonio allo Skip Mese. */
 export function esisteCoppiaMatrimonioPossibile(
   abitanti: Abitante[],
-  tipologieFamigliaAccettate?: { matrimonioUmanoRobot: boolean; matrimonioIntercasta?: boolean }
+  tipologieFamigliaAccettate?: { matrimonioConGolem: boolean; matrimonioIntercasta?: boolean }
 ): boolean {
   for (const a of abitanti) {
     if (a.coniugeId != null) continue;
@@ -407,7 +407,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     return out;
   });
 
-  // Auto-assign: Disoccupati (non Robot) con competenza sufficiente vanno in edifici con posti liberi;
+  // Auto-assign: Disoccupati (non Golem) con competenza sufficiente vanno in edifici con posti liberi;
   // poi Agricoltori nelle Serre e lavoro allineato alle assegnazioni.
   let edificiConAuto = autoAssegnaDisoccupati(abitantiRimasti, nuoviEdifici);
   edificiConAuto = autoAssegnaCittadiniDisoccupati(abitantiRimasti, edificiConAuto);
@@ -602,10 +602,10 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       }
     });
 
-    // Fazione Robots: 2 energia per ogni membro Robot
+    // Fazione Golem: 2 energia per ogni membro Golem
     if (risorsa.nome === "Energia") {
-      const numRobots = abitantiConRedditoPadroni.filter((a) => a.razza === "Golem").length;
-      nuovaQuantità -= numRobots * 2;
+      const numGolem = abitantiConRedditoPadroni.filter((a) => a.razza === "Golem").length;
+      nuovaQuantità -= numGolem * 2;
       // Residenze: consumo energia per abitante (es. Baracca 0, Dormitorio 1 MW/abitante)
       edificiConAuto.forEach((edificio) => {
         if (edificio.stato !== "Operativo" || edificio.tipo !== "Residenza") return;
@@ -813,7 +813,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   });
   moneteGiocatore = Math.max(0, moneteGiocatore);
 
-  // Matrimonio: coppie con amicizia >= 90, non già sposate, compatibili (orientamento/sesso) e consentite dalla legge (es. umano-robot)
+  // Matrimonio: coppie con amicizia >= 90, non già sposate, compatibili (orientamento/sesso) e consentite dalla legge (es. umano-Golem)
   const tipologie = input.tipologieFamigliaAccettate;
   let pendingMatrimonio: AvanzaMeseOutput["pendingMatrimonio"] = null;
   for (const a of abitantiEv) {
