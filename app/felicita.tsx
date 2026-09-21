@@ -120,7 +120,7 @@ export default function FelicitaScreen() {
           <Text style={styles.modTitle}>5. Emigrazione (avanzaMese.ts)</Text>
           <View style={styles.modItem}>
             <Text style={styles.modBullet}>•</Text>
-            <Text style={styles.modText}>Se la <Text style={styles.modBold}>felicità modificata</Text> è ≤ 10 e l’abitante ha almeno 100 crediti, e il divieto di espatrio non è attivo, c’è il 50% di probabilità ogni mese che l’abitante emigri (venga rimosso dal regno).</Text>
+            <Text style={styles.modText}>Se la <Text style={styles.modBold}>felicità modificata</Text> è ≤ 10 e l’abitante ha almeno 100 monete, e il divieto di espatrio non è attivo, c’è il 50% di probabilità ogni mese che l’abitante emigri (venga rimosso dal regno).</Text>
           </View>
         </View>
           </View>
