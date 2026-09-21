@@ -62,6 +62,8 @@ import {
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 import { CapannaFullscreenModal } from "../src/ui/CapannaFullscreenModal";
 import { LuogoCultoFullscreenModal } from "../src/ui/LuogoCultoFullscreenModal";
+import { CampoDiLavoroModal } from "../src/ui/CampoDiLavoroModal";
+import { EdificioInfoModal } from "../src/ui/EdificioInfoModal";
 import { abitanteDeveAndareAlCultoOra, abitanteNascostoNelCultoOra } from "../src/game/presenzaLuogoCulto";
 import { RichiesteModal } from "../src/ui/RichiesteModal";
 import { EventiModal } from "../src/ui/EventiModal";
@@ -896,6 +898,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     rimuoviAbitanteDaEdificio,
     aggiungiEdificioDaTemplate,
     rimuoviEdificioPerId,
+    aggiungiAlCampoDiLavoroTuttiQuelliChe,
     serviPastoMensaAbitante,
     aggiornaAbitanteById,
     applicaEsitoChiacchieraAbitanti,
@@ -1183,6 +1186,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   /** Cella anchor del Luogo di Culto aperto dal doppio tocco. */
   const [selectedLuogoCultoAnchor, setSelectedLuogoCultoAnchor] = useState<number | null>(null);
+  /** Edifici senza pagina dedicata: modali aperte dal doppio tocco. */
+  const [selectedCampoLavoroId, setSelectedCampoLavoroId] = useState<number | null>(null);
+  const [selectedEdificioInfoId, setSelectedEdificioInfoId] = useState<number | null>(null);
   /** Cantiere aperto dalla mappa. */
   const [cantiereSelezionatoId, setCantiereSelezionatoId] = useState<number | null>(null);
   /** Scheda abitante aperta dal doppio tocco su un passeggiatore sulla mappa. */
@@ -3338,6 +3344,20 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             setSelectedResidenzaAnchor(getAnchorCellPerEdificio(cellIndex, edificiInMappa));
           } else if (èNomeLuogoCulto(edificio.nome)) {
             setSelectedLuogoCultoAnchor(getAnchorCellPerEdificio(cellIndex, edificiInMappa));
+          } else if (
+            edificio.nome === "Campo di Lavoro" ||
+            edificio.nome === "Negozio" ||
+            edificio.nome === "Campo di Sterminio"
+          ) {
+            const anchor = getAnchorCellPerEdificio(cellIndex, edificiInMappa);
+            const cap = edificiInMappa[anchor] ?? edificio;
+            const globaleId = cap.edificioGlobaleId ?? cap.id;
+            const globale = edifici.find((x) => x.id === globaleId);
+            if (globale?.nome === "Campo di Lavoro") {
+              setSelectedCampoLavoroId(globale.id);
+            } else if (globale?.nome === "Negozio" || globale?.nome === "Campo di Sterminio") {
+              setSelectedEdificioInfoId(globale.id);
+            }
           } else {
             openRouteForEdificio(edificio.nome, edificio.id);
           }
@@ -3351,6 +3371,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       modalitaDemolisci,
       handleDemolisci,
       costruzioneSelezione,
+      edifici,
       edificiInMappa,
       terrenoInMappa,
       openRouteForEdificio,
@@ -4646,6 +4667,20 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           }}
         />
       ) : null}
+
+      <CampoDiLavoroModal
+        visible={selectedCampoLavoroId !== null}
+        edificio={selectedCampoLavoroId == null ? null : edifici.find((e) => e.id === selectedCampoLavoroId) ?? null}
+        abitanti={abitanti}
+        aggiungiAlCampoDiLavoroTuttiQuelliChe={aggiungiAlCampoDiLavoroTuttiQuelliChe}
+        onClose={() => setSelectedCampoLavoroId(null)}
+      />
+
+      <EdificioInfoModal
+        visible={selectedEdificioInfoId !== null}
+        edificio={selectedEdificioInfoId == null ? null : edifici.find((e) => e.id === selectedEdificioInfoId) ?? null}
+        onClose={() => setSelectedEdificioInfoId(null)}
+      />
 
       {edificioResidenzaAperta?.nome === "Capanna" && selectedResidenzaAnchor !== null ? (
         <CapannaFullscreenModal

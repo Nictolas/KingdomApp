@@ -19,7 +19,7 @@ const RELIGIONI: string[] = [
   "Deista",
   "Agnostico",
   "Culto del Sole",
-  "Culto degli Alieni"
+  "Culto delle Ombre"
 ];
 
 type Abitante = import("../types").Abitante;
