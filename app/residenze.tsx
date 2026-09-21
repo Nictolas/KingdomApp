@@ -33,7 +33,7 @@ export default function ResidenzeScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={true}>
         <Text style={styles.intro}>
-          Costi in crediti ed energia sono mensili (al cambio mese automatico). L'energia è consumata per ogni residente (es. Baracca 0, Dormitorio 1 MW/abitante). Regno e catalogo unificati.
+          Costi in monete e consumi sono mensili (al cambio mese automatico). I consumi sono calcolati per ogni residente. Regno e catalogo unificati.
         </Text>
 
         <View style={styles.sezione}>
@@ -101,7 +101,7 @@ export default function ResidenzeScreen() {
                   </View>
                   {ed != null && (
                     <>
-                      <Text style={styles.abitantiLabel}>Assegnati in colonia</Text>
+                      <Text style={styles.abitantiLabel}>Assegnati nel Regno</Text>
                       <ScrollView style={styles.abitantiLista} nestedScrollEnabled showsVerticalScrollIndicator={true}>
                         {assegnati.length === 0 ? (
                           <Text style={styles.abitantiVuoto}>Nessuno</Text>

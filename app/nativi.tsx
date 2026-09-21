@@ -48,7 +48,7 @@ export default function NativiScreen() {
 
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Nativi integrati ({nativiIntegrati.length})</Text>
-          <Text style={styles.sectionDesc}>Abitanti della colonia che sono anche Nativi (inclusi eventuali Schiavi)</Text>
+          <Text style={styles.sectionDesc}>Abitanti del Regno che sono anche Nativi (inclusi eventuali Schiavi)</Text>
           {nativiIntegrati.length > 0 ? (
             <View style={styles.grid}>
               {nativiIntegrati.map((a: Abitante) => {
@@ -67,7 +67,7 @@ export default function NativiScreen() {
               })}
             </View>
           ) : (
-            <Text style={styles.emptyText}>Nessun nativo integrato in colonia</Text>
+            <Text style={styles.emptyText}>Nessun nativo integrato nel Regno</Text>
           )}
         </View>
       </ScrollView>
