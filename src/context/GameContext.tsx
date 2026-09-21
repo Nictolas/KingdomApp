@@ -30,6 +30,7 @@ import { GameOverModal } from "../ui/GameOverModal";
 import { ID_GIOCATORE } from "../game/schiavituCommercio";
 import { setOrologioGiocoBloccatoDallaFase } from "../game/orologioGiocoSession";
 import type { RegistrazioneScambio } from "../game/registrazioniScambi";
+import { warmStartupCharacterAssets } from "../game/warmStartupCharacters";
 
 type ScaglioneConfig = {
   min: number;
@@ -406,6 +407,19 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const result = await repository.loadBestAvailable();
         if (cancelled) return;
         pendingLoadRef.current = result;
+
+        // Precarica gli sprite LPC del Re e del Consigliere prima della schermata iniziale.
+        try {
+          const abitantiDaScaldare =
+            result.source === "none"
+              ? gameState.abitanti
+              : gameSaveV1ToGameState(result.save.payload).abitanti;
+          await warmStartupCharacterAssets(abitantiDaScaldare);
+        } catch {
+          // Il preload è un'ottimizzazione: non deve impedire l'avvio della partita.
+        }
+        if (cancelled) return;
+
         if (decideStartup(result) === "start-new") {
           setStartup("mode-choice");
         } else {
