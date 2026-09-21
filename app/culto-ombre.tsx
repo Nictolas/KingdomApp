@@ -7,7 +7,7 @@ import type { Abitante } from "../src/types";
 
 export default function CultoOmbreScreen() {
   const router = useRouter();
-  const { abitanti, capoReligiosoOmbre, setCapoReligiosoAlieni } = useGameContext();
+  const { abitanti, capoReligiosoOmbre, setCapoReligiosoOmbre } = useGameContext();
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -51,7 +51,7 @@ export default function CultoOmbreScreen() {
                 <Text style={styles.capoInfo}>{capoReligioso.lavoro}</Text>
                 <Pressable
                   style={styles.removeButton}
-                  onPress={() => setCapoReligiosoAlieni(null)}
+                  onPress={() => setCapoReligiosoOmbre(null)}
                 >
                   <Text style={styles.removeButtonText}>Rimuovi</Text>
                 </Pressable>
@@ -68,7 +68,7 @@ export default function CultoOmbreScreen() {
                       <Pressable
                         key={abitante.id}
                         style={styles.fedeleItem}
-                        onPress={() => setCapoReligiosoAlieni(abitante.id)}
+                        onPress={() => setCapoReligiosoOmbre(abitante.id)}
                       >
                         <AbitanteAvatarPreview abitante={abitante} size={32} />
                         <View style={styles.fedeleContent}>
