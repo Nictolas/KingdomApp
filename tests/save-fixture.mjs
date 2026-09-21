@@ -112,7 +112,7 @@ export function createSaveEnvelope() {
           interrazziale: true,
           arcobaleno: true,
           monogenitoriale: true,
-          matrimonioUmanoRobot: false,
+          matrimonioConGolem: false,
           matrimonioIntercasta: false
         },
         redditoCittadinanza: 0,
