@@ -278,6 +278,7 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     ...senzaSpecieLegacy(a),
     razza: normalizzaRazzaFantasy(a.razza),
     religione: normalizzaReligioneFantasy(a.religione) ?? "Ateo",
+    ministero: a.ministero === "Finanze Coloniali" ? "Finanze del Regno" : a.ministero,
     ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
       aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
     }),
@@ -292,6 +293,7 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     ...senzaSpecieLegacy(a),
     razza: normalizzaRazzaFantasy(a.razza),
     religione: normalizzaReligioneFantasy(a.religione) ?? "Ateo",
+    ministero: a.ministero === "Finanze Coloniali" ? "Finanze del Regno" : a.ministero,
     ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
       aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
     }),

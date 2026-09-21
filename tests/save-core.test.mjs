@@ -61,6 +61,15 @@ test("i vecchi riferimenti al Culto degli Alieni migrano al Culto delle Ombre", 
   assert.equal(restored.payload.policies.religioneDiStato, "Culto delle Ombre");
 });
 
+test("i vecchi salvataggi con Finanze Coloniali migrano a Finanze del Regno", () => {
+  const save = createSaveEnvelope();
+  save.payload.population.abitanti[0].ministero = "Finanze Coloniali";
+
+  const restored = deserializeSave(serializeSave(save));
+
+  assert.equal(restored.payload.population.abitanti[0].ministero, "Finanze del Regno");
+});
+
 test("i vecchi salvataggi con capoReligiosoAlieni migrano a capoReligiosoOmbre", () => {
   const save = createSaveEnvelope();
   delete save.payload.events.capoReligiosoOmbre;
