@@ -6,7 +6,7 @@ export const eventoRivoluzionariDelusi: EventoDef = {
   nome: "Rivoluzionari delusi",
   emoji: "🔴",
   descrizione:
-    "I Rivoluzionari sono scontenti delle tue scelte (es. grazia all'Ex Governatore). Tensione e calo di lealtà tra i tuoi ex alleati.",
+    "I Rivoluzionari sono scontenti delle tue scelte (es. grazia all'Ex Sovrano). Tensione e calo di lealtà tra i tuoi ex alleati.",
   durataMesi: 2,
   probabilità: 0.6,
   condizione: (_abitanti, _risorse, _edifici, _punteggioSanzioni, _divietoEspatrio, _calcolaFelicità, soddisfazioneFazioni) => {
