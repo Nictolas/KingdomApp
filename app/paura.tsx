@@ -27,7 +27,7 @@ export default function PauraScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.mediaCard}>
-          <Text style={styles.mediaLabel}>Paura media (colonia)</Text>
+          <Text style={styles.mediaLabel}>Paura media (regno)</Text>
           <Text style={styles.mediaValue}>{pauraMedia}%</Text>
           <Text style={styles.mediaSubtext}>
             Media della paura degli abitanti non Golem ({n} abitanti). Valore base 0–100.
