@@ -19,14 +19,14 @@ export default function SchiaviScreen() {
   const schiaviPrivati = abitanti.filter((a) => getCastaAbitante(a) === "Schiavo");
 
   const compratori = [
-    { id: null as number | null, nome: "Colonia" },
+    { id: null as number | null, nome: "Corona" },
     ...abitanti
       .filter((a) => getCastaAbitante(a) !== "Schiavo" && getCastaAbitante(a) !== "Servo della gleba" && a.razza !== "Golem")
       .map((a) => ({ id: a.id as number | null, nome: a.nome }))
   ];
 
   const getPadroneNome = (schiavistaId?: number): string => {
-    if (schiavistaId == null) return "Colonia";
+    if (schiavistaId == null) return "Corona";
     const padrone = abitanti.find((a) => a.id === schiavistaId);
     return padrone ? padrone.nome : `ID ${schiavistaId}`;
   };
@@ -55,12 +55,12 @@ export default function SchiaviScreen() {
         <Text style={styles.cardTitle}>{schiavo.nome}</Text>
         <Text style={styles.cardLavoro}>{schiavo.lavoro}</Text>
         <Text style={variant === "stato" ? styles.badgeStato : styles.cardPadrone}>
-          Padrone: {variant === "stato" ? "Colonia" : getPadroneNome(schiavo.schiavistaId)}
+          Padrone: {variant === "stato" ? "Corona" : getPadroneNome(schiavo.schiavistaId)}
         </Text>
         {acquirentiValidi.length > 0 && (
           <View style={styles.azioni}>
             {acquirentiValidi.slice(0, 3).map((c) => (
-              <Pressable key={c.id ?? "colonia"} style={styles.btnCompra} onPress={() => handleCompra(schiavo.id, c.id)}>
+              <Pressable key={c.id ?? "corona"} style={styles.btnCompra} onPress={() => handleCompra(schiavo.id, c.id)}>
                 <Text style={styles.btnCompraText}>{c.nome} ({PREZZO_SCHIAVO_DEFAULT}💰)</Text>
               </Pressable>
             ))}
@@ -70,7 +70,7 @@ export default function SchiaviScreen() {
           <View style={styles.azioni}>
             {puoUccidereSchiavo(null, schiavo, abitanti) && (
               <Pressable style={styles.btnUccidi} onPress={() => handleUccidi(null, schiavo.id)}>
-                <Text style={styles.btnUccidiText}>Colonia uccide</Text>
+                <Text style={styles.btnUccidiText}>Corona uccide</Text>
               </Pressable>
             )}
             {padroniUccisori.map((p) => (
@@ -95,13 +95,13 @@ export default function SchiaviScreen() {
       <View style={{ flex: 1 }}>
         <ScrollView contentContainerStyle={styles.content}>
           <Text style={styles.subtitle}>
-            Servi della gleba (colonia) e Schiavi privati. Compravendita a {PREZZO_SCHIAVO_DEFAULT} monete.
+            Servi della gleba (Corona) e Schiavi privati. Compravendita a {PREZZO_SCHIAVO_DEFAULT} monete.
             Il reddito degli Schiavi privati va al padrone; uccidere il proprio schiavo non genera reati.
           </Text>
 
           <View style={styles.section}>
             <Text style={styles.sectionTitle}>Servi della gleba ({serviDellaGleba.length})</Text>
-            <Text style={styles.sectionDesc}>Proprietà della colonia · assegnabili da Postazioni di lavoro</Text>
+            <Text style={styles.sectionDesc}>Proprietà della Corona · assegnabili da Postazioni di lavoro</Text>
             {serviDellaGleba.length > 0 ? (
               <View style={styles.grid}>{serviDellaGleba.map((s) => renderCard(s, "stato"))}</View>
             ) : (
