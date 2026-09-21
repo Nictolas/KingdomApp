@@ -318,7 +318,6 @@ import {
   aggiungiBarFootprint,
   aggiungiDormitorioFootprint,
   aggiungiSerraFootprint,
-  aggiungiSpazioportoFootprint,
   aggiungiTribunaleFootprint
 } from "../src/game/mappaEdificiInizialiPiazzamento";
 
@@ -373,8 +372,6 @@ function getEdificiIniziali(
 
   aggiungiComplessoAmministrativo(cols, rows, out, adminAnchor);
   estendiVietatoConFootprintECuscino(adminAnchor, ADMIN_FOOTPRINT_W, ADMIN_FOOTPRINT_H, cols, rows, vietato);
-
-  aggiungiSpazioportoFootprint(cols, rows, riverSet, vietato, out, idx.SPAZIOPORTO_INDEX);
 
   aggiungiSerraFootprint(cols, rows, riverSet, vietato, out, idx.SERRA_INDEX, SERRA_EDIFICIO);
   aggiungiSerraFootprint(cols, rows, riverSet, vietato, out, idx.SERRA_2_INDEX, SERRA_2_EDIFICIO);
