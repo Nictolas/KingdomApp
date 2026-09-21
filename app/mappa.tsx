@@ -3371,6 +3371,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       modalitaDemolisci,
       handleDemolisci,
       costruzioneSelezione,
+      edifici,
       edificiInMappa,
       terrenoInMappa,
       openRouteForEdificio,
