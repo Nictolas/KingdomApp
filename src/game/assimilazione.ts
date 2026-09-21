@@ -1,7 +1,7 @@
 import type { Abitante, Razza } from "../types";
 import { abitanteConInventarioIniziale } from "./inventario";
 import { specializzazioneCasuale } from "./specializzazione";
-import { generaNomeAlieno } from "./nomiAlieni";
+import { generaNomeFantasy } from "./nomiFantasy";
 import { redditoMensileLavoroDefault } from "./economiaPrezzi";
 import { generaAspettoCasuale } from "./personaggioAspetto";
 
@@ -36,7 +36,7 @@ export function generaAssimilati({
   for (let i = 0; i < count; i++) {
     nuoviAbitanti.push(abitanteConInventarioIniziale({
       id: nextId + i,
-      nome: generaNomeAlieno(razzaNativi),
+      nome: generaNomeFantasy(razzaNativi),
       emoji: emojiNativo,
       eta: 18 + Math.floor(Math.random() * 40),
       lavoro: lavori[Math.floor(Math.random() * lavori.length)],
@@ -57,7 +57,6 @@ export function generaAssimilati({
       felicità: 50 + Math.floor(Math.random() * 40),
       religione: religioni[Math.floor(Math.random() * religioni.length)],
       razza: razzaNativi,
-      specie: "alieno",
       ...(razzaNativi !== "Golem" && { aspetto: generaAspettoCasuale(razzaNativi) }),
       specializzazione: specializzazioneCasuale()
     }));
