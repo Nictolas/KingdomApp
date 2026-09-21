@@ -117,7 +117,7 @@ export function abitanteDeveAndareAlCultoOra(
   edifici: Edificio[]
 ): boolean {
   if (abitante.razza === "Golem") return false;
-  if (abitante.religione !== "Culto del Sole" && abitante.religione !== "Culto degli Alieni") {
+  if (abitante.religione !== "Culto del Sole" && abitante.religione !== "Culto delle Ombre") {
     return false;
   }
   if (!abitanteInOrarioPreghieraCulto(minutiDaMezzanotte, buioCielo)) return false;

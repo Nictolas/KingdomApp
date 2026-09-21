@@ -9,6 +9,7 @@ test("il vecchio Culto degli Alieni non è più una route canonica", () => {
     "src/game/fedeleCulto.ts",
     "src/game/generazionePartita.ts",
     "src/game/immigrazione.ts",
+    "src/game/presenzaLuogoCulto.ts",
     "src/data/fazioniData.ts",
     "app/fazioni.tsx"
   ];
