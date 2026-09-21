@@ -5,7 +5,17 @@ import { existsSync, readFileSync } from "node:fs";
 test("il vecchio Culto degli Alieni non è più una route canonica", () => {
   assert.equal(existsSync("app/culto-alieni.tsx"), false);
 
-  const source = readFileSync("src/game/fedeleCulto.ts", "utf8");
-  assert.doesNotMatch(source, /Culto degli Alieni/);
-  assert.match(source, /Culto delle Ombre/);
+  const files = [
+    "src/game/fedeleCulto.ts",
+    "src/game/generazionePartita.ts",
+    "src/game/immigrazione.ts",
+    "src/data/fazioniData.ts",
+    "app/fazioni.tsx"
+  ];
+
+  for (const path of files) {
+    const source = readFileSync(path, "utf8");
+    assert.doesNotMatch(source, /Culto degli Alieni|\/culto-alieni/);
+    assert.match(source, /Culto delle Ombre|culto-ombre/);
+  }
 });
