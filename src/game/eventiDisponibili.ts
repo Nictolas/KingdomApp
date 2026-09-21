@@ -127,7 +127,7 @@ export function calcolaEventiUI(input: EventiUIInput): {
   } else {
     const capo = trovaCapoReligiosoSenzaLuogo(abitanti, edifici, undefined, {
       sole: capoReligiosoSole,
-      alieni: capoReligiosoOmbre
+      ombre: capoReligiosoOmbre
     });
     if (
       capo &&
