@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { readFileSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 
 test("la Mappa usa Porto e Culto delle Ombre senza renderer sci-fi attivi", () => {
   const mappa = readFileSync("app/mappa.tsx", "utf8");
