@@ -21,9 +21,9 @@ export default function GridGame() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={contentWrapStyle} showsVerticalScrollIndicator={false}>
-      {/* Navigazione: Colonia */}
+      {/* Navigazione: Regno */}
       <View style={styles.block}>
-        <Text style={styles.blockTitle}>🏘️ Colonia</Text>
+        <Text style={styles.blockTitle}>🏰 Regno</Text>
         <View style={[styles.navGrid, isDesktop && styles.navGridWide]}>
           <Pressable style={[styles.navCard, isDesktop && styles.navCardWide]} onPress={() => router.push("/fazioni")}>
             <Text style={styles.navEmoji}>⚔️</Text>
