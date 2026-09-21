@@ -470,8 +470,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
       lastPersistableStateTokenRef.current = null;
       lastMapTokenRef.current = null;
       dirtyRef.current = true;
-      setStartup("active");
       gameState.startNewGame(mode);
+      setStartup("active");
     })();
   }, [gameState]);
 
