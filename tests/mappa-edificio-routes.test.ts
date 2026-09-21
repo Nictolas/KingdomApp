@@ -13,7 +13,6 @@ test("la tabella route della mappa mantiene esattamente i mapping correnti", () 
     Serra: "/serra",
     Miniera: "/miniera",
     Bosco: "/bosco",
-    "Centrale Energetica": "/centrale-energetica",
     "Raffineria Mineraria": "/raffineria-mineraria",
     "Impianto di Riciclo": "/impianto-riciclo",
     Baracca: "/residenze",
@@ -44,4 +43,5 @@ test("la mappa usa solo i nomi fantasy correnti per i routing rimossi dalla vecc
   assert.equal(EDIFICIO_TO_ROUTE.Porto, "/porto");
   assert.equal(EDIFICIO_TO_ROUTE["Centro di Comando"], undefined);
   assert.equal(EDIFICIO_TO_ROUTE.Spazioporto, undefined);
+  assert.equal(EDIFICIO_TO_ROUTE["Centrale Energetica"], undefined);
 });
