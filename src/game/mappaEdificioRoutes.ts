@@ -31,6 +31,5 @@ export const EDIFICIO_TO_ROUTE: Readonly<Record<string, string>> = {
   "Bar": "/bar",
   "Mensa Pubblica": "/mensa",
   "Caserma": "/caserma",
-  "Carcere": "/carcere",
-  "Spazioporto": "/spazioporto"
+  "Carcere": "/carcere"
 };
