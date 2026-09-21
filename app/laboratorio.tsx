@@ -38,7 +38,7 @@ export default function LaboratorioScreen() {
         <Text style={styles.infoSubtext}>Livello: {laboratorio.livello}</Text>
       </View>
       <View style={styles.stipendioCard}>
-        <Text style={styles.stipendioLabel}>Stipendio mensile per ricercatore (crediti)</Text>
+        <Text style={styles.stipendioLabel}>Stipendio mensile per ricercatore (monete)</Text>
         <TextInput
           style={styles.stipendioInput}
           value={String(laboratorio.stipendioPerLavoratore ?? 0)}
@@ -49,7 +49,7 @@ export default function LaboratorioScreen() {
           }}
         />
         <Text style={styles.infoSubtext}>
-          Totale: {(laboratorio.stipendioPerLavoratore ?? 0) * abitantiAssegnati.length} crediti/mese
+          Totale: {(laboratorio.stipendioPerLavoratore ?? 0) * abitantiAssegnati.length} monete/mese
         </Text>
       </View>
     </View>,
