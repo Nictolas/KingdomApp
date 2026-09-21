@@ -79,7 +79,7 @@ import {
   RpgFootprintUfficioEdile2x2,
   RpgFootprintCantiere,
   RpgFootprintLuogoCultoSole2x2,
-  RpgFootprintLuogoCultoAlieni2x2,
+  RpgFootprintLuogoCultoOmbre2x2,
   RpgFootprintCarcere2x2,
   RpgFootprintCampoLavoro2x2,
   RpgFootprintCampoSterminio2x2,
@@ -89,7 +89,6 @@ import {
   RpgFootprintNegozio2x2,
   RpgFootprintDissalatore2x2,
   RpgFootprintSerra2x1,
-  RpgFootprintSpazioporto4x3
 } from "../src/components/RpgFootprintBuilding";
 import { MapWandererCharacter } from "../src/components/MapWandererCharacter";
 import { abitanteSoggettoACoprifuoco } from "../src/game/coprifuoco";
@@ -250,8 +249,6 @@ import {
   NEGOZIO_FOOTPRINT_W,
   SERRA_FOOTPRINT_H,
   SERRA_FOOTPRINT_W,
-  SPAZIOPORTO_FOOTPRINT_H,
-  SPAZIOPORTO_FOOTPRINT_W,
   TRIBUNALE_FOOTPRINT_H,
   TRIBUNALE_FOOTPRINT_W,
   UFFICIO_EDILE_FOOTPRINT_H,
@@ -598,11 +595,11 @@ type FootprintVariant =
   | "negozio"
   | "mensa"
   | "dissalatore"
-  | "spazioporto"
+  | "porto"
   | "serra"
   | "capanna"
   | "luogo_culto_sole"
-  | "luogo_culto_alieni"
+  | "luogo_culto_ombre"
   | "carcere"
   | "campo_lavoro"
   | "campo_sterminio"
@@ -673,10 +670,10 @@ function EdificioFootprintGfx({
     );
   }
 
-  if (variant === "luogo_culto_alieni" && w === 2 && h === 2) {
+  if (variant === "luogo_culto_ombre" && w === 2 && h === 2) {
     return (
       <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
-        <RpgFootprintLuogoCultoAlieni2x2 width={width} height={height} />
+        <RpgFootprintLuogoCultoOmbre2x2 width={width} height={height} />
       </View>
     );
   }
@@ -769,14 +766,6 @@ function EdificioFootprintGfx({
     );
   }
 
-  if (variant === "spazioporto" && w === SPAZIOPORTO_FOOTPRINT_W && h === SPAZIOPORTO_FOOTPRINT_H) {
-    return (
-      <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
-        <RpgFootprintSpazioporto4x3 width={width} height={height} />
-      </View>
-    );
-  }
-
   if (variant === "serra" && w === SERRA_FOOTPRINT_W && h === SERRA_FOOTPRINT_H) {
     return (
       <View style={[styles.footprintAbsolute, { left, top, width, height }]} pointerEvents="none">
@@ -819,7 +808,7 @@ function EdificioFootprintGfx({
 }
 
 /**
- * Lastrica con celle "Strada" i percorsi Manhattan tra edifici chiave (centro ↔ spazioporto/serra).
+ * Lastrica con celle "Strada" i percorsi Manhattan tra edifici chiave (centro ↔ edifici iniziali).
  * Il collegamento non dipende più dal layer vettoriale grigio sopra la griglia.
  */
 function piazzaStradeInizialiTraEdifici(
@@ -2785,7 +2774,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                           : e.nome === "Acquedotto"
                             ? "dissalatore"
                             : e.nome === "Porto"
-                              ? "spazioporto"
+                              ? "porto"
                               : e.nome === "Serra"
                                 ? "serra"
                                 : e.nome === "Capanna"
@@ -2793,7 +2782,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                                   : e.nome === "Luogo di Culto del Sole"
                                     ? "luogo_culto_sole"
                                     : e.nome === "Luogo di Culto delle Ombre"
-                                      ? "luogo_culto_alieni"
+                                      ? "luogo_culto_ombre"
                                       : e.nome === "Carcere"
                                         ? "carcere"
                                         : e.nome === "Campo di Lavoro"

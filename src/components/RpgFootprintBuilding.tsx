@@ -495,9 +495,9 @@ export function RpgFootprintLuogoCultoSole2x2(props: Props) {
   return <RpgFootprintEdificioPietra2x2 {...props} emoji="☀️" />;
 }
 
-/** Luogo di Culto degli Alieni 2×2. */
-export function RpgFootprintLuogoCultoAlieni2x2(props: Props) {
-  return <RpgFootprintEdificioPietra2x2 {...props} emoji="👽" />;
+/** Luogo di Culto delle Ombre 2×2. */
+export function RpgFootprintLuogoCultoOmbre2x2(props: Props) {
+  return <RpgFootprintEdificioPietra2x2 {...props} emoji="🌑" />;
 }
 
 export function RpgFootprintCarcere2x2(props: Props) {

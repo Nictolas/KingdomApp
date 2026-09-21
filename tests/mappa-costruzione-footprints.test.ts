@@ -17,9 +17,9 @@ test("FOOTPRINT_COSTRUZIONE conserva tutti i 18 mapping e le dimensioni correnti
     Negozio: { w: 2, h: 2 },
     "Mensa Pubblica": { w: 2, h: 2 },
     Dissalatore: { w: 2, h: 2 },
-    Spazioporto: { w: 4, h: 3 },
+    Porto: { w: 4, h: 3 },
     "Luogo di Culto del Sole": { w: 2, h: 2 },
-    "Luogo di Culto degli Alieni": { w: 2, h: 2 },
+    "Luogo di Culto delle Ombre": { w: 2, h: 2 },
     Carcere: { w: 2, h: 2 },
     "Campo di Lavoro": { w: 2, h: 2 },
     "Campo di Sterminio": { w: 2, h: 2 }
