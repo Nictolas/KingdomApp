@@ -60,7 +60,7 @@ export default function ScuolaScreen() {
         </View>
 
         <View style={styles.stipendioCard}>
-          <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (crediti)</Text>
+          <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (monete)</Text>
           <TextInput
             style={styles.stipendioInput}
             value={String(scuola.stipendioPerLavoratore ?? 0)}
@@ -71,7 +71,7 @@ export default function ScuolaScreen() {
             }}
           />
           <Text style={styles.infoSubtext}>
-            Totale: {(scuola.stipendioPerLavoratore ?? 0) * (scuola.abitantiAssegnati?.length ?? 0)} crediti/mese
+            Totale: {(scuola.stipendioPerLavoratore ?? 0) * (scuola.abitantiAssegnati?.length ?? 0)} monete/mese
           </Text>
         </View>
 
