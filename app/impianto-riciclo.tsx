@@ -46,7 +46,7 @@ export default function ImpiantoRicicloScreen() {
         <Text style={styles.infoSubtext}>Consumo: Rifiuti</Text>
       </View>
       <View style={styles.stipendioCard}>
-        <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (crediti)</Text>
+        <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (monete)</Text>
         <TextInput
           style={styles.stipendioInput}
           value={String(impianto.stipendioPerLavoratore ?? 0)}
@@ -57,7 +57,7 @@ export default function ImpiantoRicicloScreen() {
           }}
         />
         <Text style={styles.infoSubtext}>
-          Totale: {(impianto.stipendioPerLavoratore ?? 0) * abitantiAssegnati.length} crediti/mese
+          Totale: {(impianto.stipendioPerLavoratore ?? 0) * abitantiAssegnati.length} monete/mese
         </Text>
       </View>
     </View>,
