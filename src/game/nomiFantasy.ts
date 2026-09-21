@@ -3,7 +3,7 @@ import type { Razza } from "../types";
 const pick = <T>(arr: T[]): T => arr[Math.floor(Math.random() * arr.length)]!;
 
 /** Genera un nome fantasy per un abitante non umano. */
-export function generaNomeAlieno(razza: Razza): string {
+export function generaNomeFantasy(razza: Razza): string {
   switch (razza) {
     case "Umano":
       return "";
