@@ -43,7 +43,7 @@ export default function RicchezzaScreen() {
         ))}
 
         {classifica.length === 0 ? (
-          <Text style={styles.empty}>Nessun abitante in colonia.</Text>
+          <Text style={styles.empty}>Nessun abitante nel Regno.</Text>
         ) : null}
       </ScrollView>
 
