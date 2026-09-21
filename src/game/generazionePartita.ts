@@ -3,7 +3,7 @@ import { abitanteConInventarioIniziale } from "./inventario";
 import { inferTitoloStudioPerEta } from "./titoloStudio";
 import { specializzazioneCasuale } from "./specializzazione";
 import { pianetiData, getEmojiRazza } from "../kingdomData";
-import { generaNomeAlieno } from "./nomiAlieni";
+import { generaNomeFantasy } from "./nomiFantasy";
 import { generaAspettoCasuale } from "./personaggioAspetto";
 import { COGNOMI_UMANI, NOMI_UMANI_CON_SESSO, scegliNomeCognomeUmano } from "./nomiUmani";
 import { LAVORO_GIOCATORE, ETA_GIOCATORE_INIZIALE } from "./schiavituCommercio";
@@ -140,7 +140,7 @@ function pesaScelta<T>(pool: { nome: T; peso: number }[]): T {
 }
 
 const RELIGIONI: Abitante["religione"][] = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto degli Alieni"];
-const RAZZE_ALIENE: Razza[] = ["Elfo", "Nano", "Orco", "Goblin"];
+const RAZZE_NON_UMANE: Razza[] = ["Elfo", "Nano", "Orco", "Goblin"];
 const FAZIONI_RUOLO = ["Amministrazione", "Lavoratori", "Scienziati", "Esploratori", "Intellettuali", "Ambientalisti"];
 const LAVORI = [
   "Disoccupato", "Tecnico", "Ricercatore", "Ingegnere", "Medico", "Agricoltore",
@@ -159,7 +159,7 @@ export function generaColoniaIniziale(
   modalita: ModalitaGiocoGenerazione = "creativa"
 ): { abitanti: Abitante[]; razzaNativi: Razza } {
   const isAvventura = modalita === "avventura";
-  const razzaNativi = RAZZE_ALIENE[Math.floor(Math.random() * RAZZE_ALIENE.length)];
+  const razzaNativi = RAZZE_NON_UMANE[Math.floor(Math.random() * RAZZE_NON_UMANE.length)];
   const nMin = isAvventura ? NUM_ABITANTI_MIN_AVVENTURA : NUM_ABITANTI_MIN_CREATIVA;
   const nMax = isAvventura ? NUM_ABITANTI_MAX_AVVENTURA : NUM_ABITANTI_MAX_CREATIVA;
   const n = nMin + Math.floor(Math.random() * (nMax - nMin + 1));
@@ -260,7 +260,7 @@ export function generaColoniaIniziale(
       const nat = candidatiNativo[i]!;
       nat.razza = razzaNativi;
       nat.specie = "alieno";
-      nat.nome = generaNomeAlieno(razzaNativi);
+      nat.nome = generaNomeFantasy(razzaNativi);
       nat.emoji = getEmojiRazza(razzaNativi);
       nat.fazioni = normalizzaFazioni([...(nat.fazioni ?? []), "Nativi"]);
     }
@@ -271,7 +271,7 @@ export function generaColoniaIniziale(
     if (candidatiRobot.length > 0) {
       const bot = candidatiRobot[Math.floor(Math.random() * candidatiRobot.length)];
       bot.razza = "Golem";
-      bot.nome = generaNomeAlieno("Golem");
+      bot.nome = generaNomeFantasy("Golem");
       bot.emoji = getEmojiRazza("Golem");
       bot.fazioni = normalizzaFazioni([...(bot.fazioni ?? []), "Golem"]);
       bot.crediti = 0;
