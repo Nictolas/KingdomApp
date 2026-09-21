@@ -1160,6 +1160,7 @@ export function useGameState() {
   const [suggerimentoPonteAperto, setSuggerimentoPonteAperto] = useState(false);
   const [dialogPiazzaPonteAperto, setDialogPiazzaPonteAperto] = useState(false);
   const startNewGame = useCallback((mode: GameMode = "avventura") => {
+    setMappaSessione(null);
     const regno = generaRegnoIniziale(mode);
     setGameMode(mode);
     setObiettiviCompletati([]);

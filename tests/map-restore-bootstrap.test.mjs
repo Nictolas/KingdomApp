@@ -59,3 +59,14 @@ test("MappaScreen con una sessione esistente parte ready e non genera una nuova 
   assertBefore(screen, "const session = getMappaSessione()", 'return { status: "ready", state: normalizeMappaSessione(session) }');
   assertBefore(screen, 'if (boot.status === "ready") return;', "buildInitialMappa(");
 });
+
+
+test("Nuova Partita azzera la sessione mappa prima di riattivare l'app", () => {
+  const gameStateSource = readRepoFile("src/hooks/useGameState.ts");
+  const startNewGame = sliceBetween(gameStateSource, "const startNewGame = useCallback", "const configuraGiocatore");
+  assertBefore(startNewGame, "setMappaSessione(null)", 'setGamePhase("commander-creation")');
+
+  const contextSource = readRepoFile("src/context/GameContext.tsx");
+  const avvia = sliceBetween(contextSource, "const avviaNuovaPartita = useCallback", "const annullaSceltaModalita");
+  assertBefore(avvia, "gameState.startNewGame(mode)", 'setStartup("active")');
+});
