@@ -15,13 +15,13 @@ export default function CultoOmbreScreen() {
   const maxHeight = isDesktop ? containerHeight : undefined;
 
   // Fedeli del Culto delle Ombre (abitanti con religione "Culto delle Ombre" e razza non Umana)
-  const isNonUmano = (a: Abitante) => (a.razza ?? "Umano") !== "Umano" || a.specie === "alieno";
+  const isNonUmano = (a: Abitante) => (a.razza ?? "Umano") !== "Umano";
   const fedeli = abitanti.filter(
     (a: Abitante) => a.religione === "Culto delle Ombre" && isNonUmano(a)
   );
   const capoReligioso = abitanti.find((a: Abitante) => a.id === capoReligiosoOmbre);
 
-  // Abitanti disponibili per essere nominati capo religioso (non già capo di altro culto, non-umani con culto degli alieni)
+  // Abitanti disponibili per essere nominati capo religioso (non già capo di altro culto, non-umani con Culto delle Ombre)
   const { capoReligiosoSole } = useGameContext();
   const disponibiliPerCapo = abitanti.filter(
     (a: Abitante) =>
