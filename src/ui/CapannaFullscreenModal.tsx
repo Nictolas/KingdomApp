@@ -116,7 +116,7 @@ export function CapannaFullscreenModal({
           <Text style={styles.heroEmoji}>⛺</Text>
           <Text style={styles.title}>Capanna</Text>
           <Text style={styles.subtitle}>
-            Residenza coloniale · Cella #{anchor} · {occupantiIds.length}/{postiPerCasa} posti
+            Residenza del Regno · Cella #{anchor} · {occupantiIds.length}/{postiPerCasa} posti
           </Text>
           <Text style={styles.hint}>
             Accanto a ogni nome: se è dentro la capanna o fuori, e dove si trova (viaggio, bar, lavoro…).

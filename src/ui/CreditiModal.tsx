@@ -48,7 +48,7 @@ export function CreditiModal({ visible, abitanti, edifici, onClose }: CreditiMod
 
           {/* Entrate dagli abitanti */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Redditi abitanti (Crediti colonia)</Text>
+            <Text style={styles.sectionTitle}>Redditi abitanti (monete del Regno)</Text>
             <ScrollView style={styles.list} showsVerticalScrollIndicator={false}>
               {entrateAbitanti.map(({ abitante, reddito, spese, netto }) => (
                 <View key={abitante.id} style={styles.item}>
@@ -106,7 +106,7 @@ export function CreditiModal({ visible, abitanti, edifici, onClose }: CreditiMod
           </View>
 
           <View style={styles.totaleFinaleContainer}>
-            <Text style={styles.totaleFinaleLabel}>Saldo Crediti (senza stipendi tesoro):</Text>
+            <Text style={styles.totaleFinaleLabel}>Saldo monete (senza stipendi Tesoro):</Text>
             <Text
               style={[
                 styles.totaleFinaleValore,
@@ -114,7 +114,7 @@ export function CreditiModal({ visible, abitanti, edifici, onClose }: CreditiMod
               ]}
             >
               {totaleNettoCrediti >= 0 ? "+" : ""}
-              {totaleNettoCrediti} <Text style={styles.unità}>crediti</Text>
+              {totaleNettoCrediti} <Text style={styles.unità}>monete</Text>
             </Text>
           </View>
 
