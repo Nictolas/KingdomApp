@@ -214,6 +214,11 @@ function cloneSaveValue<T>(value: T): T {
 export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
   const next = cloneSaveValue(payload);
   next.gameMode = normalizeGameMode(next.gameMode);
+  const senzaSpecieLegacy = (abitante: Abitante): Abitante => {
+    const copia = { ...(abitante as Abitante & { specie?: unknown }) };
+    delete copia.specie;
+    return copia;
+  };
   const normalizzaRazzaFantasy = (razza: unknown): Abitante["razza"] => {
     if (razza === "Robot") return "Golem";
     if (razza === "Grigi" || razza === "Insettoidi") return "Goblin";
@@ -252,7 +257,7 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     );
   });
   next.population.abitanti = next.population.abitanti.map((a: Abitante) => ({
-    ...a,
+    ...senzaSpecieLegacy(a),
     razza: normalizzaRazzaFantasy(a.razza),
     ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
       aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
@@ -264,7 +269,7 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     inventario: a.inventario ? normalizeInventario(a.inventario) : undefined
   }));
   next.population.abitantiProposti = next.population.abitantiProposti.map((a: Abitante) => ({
-    ...a,
+    ...senzaSpecieLegacy(a),
     razza: normalizzaRazzaFantasy(a.razza),
     ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
       aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)

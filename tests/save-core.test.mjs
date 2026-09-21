@@ -48,6 +48,15 @@ test("i vecchi salvataggi fantascientifici migrano ai popoli fantasy", () => {
   assert.deepEqual(restored.payload.population.abitanti[0].fazioni, ["Golem"]);
 });
 
+test("i vecchi salvataggi con specie aliena restano caricabili e il campo legacy viene rimosso", () => {
+  const save = createSaveEnvelope();
+  save.payload.population.abitanti[0].specie = "alieno";
+
+  const restored = deserializeSave(serializeSave(save));
+
+  assert.equal("specie" in restored.payload.population.abitanti[0], false);
+});
+
 test("Infinity negli scaglioni fiscali sopravvive al round trip", () => {
   const restored = deserializeSave(serializeSave(createSaveEnvelope()));
   assert.equal(restored.payload.policies.scaglioniConfig.at(-1).max, Infinity);

@@ -176,8 +176,6 @@ export function generaColoniaIniziale(
     const èSchiavo = indicesSchiavi.has(i);
     // Re sempre umano; tutti gli altri umani a inizio partita (1 Nativo verrà impostato dopo il loop).
     const razza: Razza = "Umano";
-    const isUmano = true;
-    const specie: "umano" | "alieno" = "umano";
     const isRe = i === 1;
     const picked = isRe ? null : scegliNomeCognomeUmano();
     const nome = isRe ? "—" : picked!.nomeCompleto;
@@ -230,7 +228,6 @@ export function generaColoniaIniziale(
       felicità: 40 + Math.floor(Math.random() * 51),
       religione: RELIGIONI[Math.floor(Math.random() * RELIGIONI.length)],
       razza,
-      specie,
       sesso,
       orientamento: isRe ? undefined : "Etero",
       specializzazione: specializzazioneCasuale()
@@ -259,7 +256,6 @@ export function generaColoniaIniziale(
     for (let i = 0; i < numNativi && i < candidatiNativo.length; i++) {
       const nat = candidatiNativo[i]!;
       nat.razza = razzaNativi;
-      nat.specie = "alieno";
       nat.nome = generaNomeFantasy(razzaNativi);
       nat.emoji = getEmojiRazza(razzaNativi);
       nat.fazioni = normalizzaFazioni([...(nat.fazioni ?? []), "Nativi"]);
@@ -330,7 +326,6 @@ export function generaColoniaIniziale(
     consigliere.eta = 60;
     consigliere.sesso = "M";
     consigliere.razza = "Umano";
-    consigliere.specie = "umano";
     consigliere.nome = `${nome.nome} ${cognome}`;
     if (!consigliere.ruoloSchiavitu) consigliere.reddito = redditoMensileLavoroDefault();
     if (isAvventura) {
