@@ -38,7 +38,7 @@ export default function SicurezzaScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>Chi Sono</Text>
           <Text style={styles.text}>
-            La fazione Sicurezza rappresenta le forze di ordine e difesa della colonia: guardie, polizia e militari.
+            La fazione Sicurezza rappresenta le forze di ordine e difesa del regno: guardie, polizia e militari.
             Garantiscono la protezione dei coloni e il rispetto delle leggi.
           </Text>
         </View>
@@ -95,7 +95,7 @@ export default function SicurezzaScreen() {
             <View style={styles.effettoContent}>
               <Text style={styles.effettoTitolo}>Stabilità</Text>
               <Text style={styles.effettoDescrizione}>
-                Una colonia con leggi chiare e forze di sicurezza efficienti riduce la paura e il crimine, aumentando
+                Un regno con leggi chiare e forze di sicurezza efficienti riduce la paura e il crimine, aumentando
                 la lealtà dei cittadini.
               </Text>
             </View>
