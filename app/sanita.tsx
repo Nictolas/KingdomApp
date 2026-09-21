@@ -47,7 +47,7 @@ export default function SanitaScreen() {
             <Text style={styles.optionTitle}>Sanità Pubblica</Text>
             <Text style={styles.optionText}>
               Gli stipendi dell&apos;Ospedale vengono pagati dal regno e compaiono tra i costi in
-              Crediti. In cambio, le cure possono essere considerate gratuite per gli abitanti.
+              Monete. In cambio, le cure possono essere considerate gratuite per gli abitanti.
             </Text>
           </Pressable>
 
