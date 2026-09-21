@@ -674,7 +674,7 @@ export function useGameState() {
   
   // Capo religioso e fedeli per ogni culto
   const [capoReligiosoSole, setCapoReligiosoSole] = useState<number | null>(capoReligiosoSoleIniziale);
-  const [capoReligiosoAlieni, setCapoReligiosoAlieni] = useState<number | null>(null);
+  const [capoReligiosoOmbre, setCapoReligiosoAlieni] = useState<number | null>(null);
   const [pendingRichiestaLuogoCulto, setPendingRichiestaLuogoCulto] = useState<{
     id: number;
     nome: string;
@@ -694,21 +694,21 @@ export function useGameState() {
         if (capoReligiosoSole != null && a.id === capoReligiosoSole) {
           return { ...a, lavoro: "Capo Religioso", religione: "Culto del Sole" as const };
         }
-        if (capoReligiosoAlieni != null && a.id === capoReligiosoAlieni) {
+        if (capoReligiosoOmbre != null && a.id === capoReligiosoOmbre) {
           return { ...a, lavoro: "Capo Religioso", religione: "Culto delle Ombre" as const };
         }
         if (a.lavoro === "Capo Religioso") {
           if (a.religione === "Culto del Sole" && a.id !== capoReligiosoSole) {
             return { ...a, lavoro: "Disoccupato", reddito: a.ruoloSchiavitu ? 0 : 0 };
           }
-          if (a.religione === "Culto delle Ombre" && a.id !== capoReligiosoAlieni) {
+          if (a.religione === "Culto delle Ombre" && a.id !== capoReligiosoOmbre) {
             return { ...a, lavoro: "Disoccupato", reddito: a.ruoloSchiavitu ? 0 : 0 };
           }
         }
         return a;
       })
     );
-  }, [capoReligiosoSole, capoReligiosoAlieni, simulationEnabled]);
+  }, [capoReligiosoSole, capoReligiosoOmbre, simulationEnabled]);
 
   // Rimuove i template di catalogo (id 30/31) se finiti per errore nell'elenco edifici.
   useEffect(() => {
@@ -731,7 +731,7 @@ export function useGameState() {
       abitanti,
       edifici,
       capoReligiosoSole,
-      capoReligiosoAlieni,
+      capoReligiosoOmbre,
       richiesteInAttesa,
       luoghiCultoRifiutati
     );
@@ -740,7 +740,7 @@ export function useGameState() {
     abitanti,
     edifici,
     capoReligiosoSole,
-    capoReligiosoAlieni,
+    capoReligiosoOmbre,
     pendingRichiestaLuogoCulto,
     richiesteInAttesa,
     luoghiCultoRifiutati,
@@ -1336,7 +1336,7 @@ export function useGameState() {
     setReligioneDiStato(state.religioneDiStato);
     setReligioniCustom(state.religioniCustom ?? []);
     setCapoReligiosoSole(state.capoReligiosoSole);
-    setCapoReligiosoAlieni(state.capoReligiosoAlieni);
+    setCapoReligiosoAlieni(state.capoReligiosoOmbre);
     setPendingRichiestaLuogoCulto(state.pendingRichiestaLuogoCulto);
     setLuoghiCultoPendentiMappa(state.luoghiCultoPendentiMappa);
     setRichiesteInAttesa(state.richiesteInAttesa);
@@ -1393,7 +1393,7 @@ export function useGameState() {
       modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso,
       pendingAssimilazione, pendingMatrimonio, messaggioEmigrazione, diarioRighe,
       registrazioniScambi,
-      capoReligiosoSole, capoReligiosoAlieni, pendingRichiestaLuogoCulto, richiesteInAttesa,
+      capoReligiosoSole, capoReligiosoOmbre, pendingRichiestaLuogoCulto, richiesteInAttesa,
       luoghiCultoRifiutati, luoghiCultoPendentiMappa, obiettiviCompletati, coltureSerraSbloccate, mappa
     };
   }, [gameMode, gamePhase, diarioInizioVisto, abitanti, abitantiProposti, nextId, razzaNativi, nativiNonIntegrati,
@@ -1406,7 +1406,7 @@ export function useGameState() {
     ordiniMercato, eventiInCorso, soddisfazioneFazioni,
     modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso,
     pendingAssimilazione, pendingMatrimonio,
-    messaggioEmigrazione, diarioRighe, registrazioniScambi, capoReligiosoSole, capoReligiosoAlieni,
+    messaggioEmigrazione, diarioRighe, registrazioniScambi, capoReligiosoSole, capoReligiosoOmbre,
     pendingRichiestaLuogoCulto, richiesteInAttesa, luoghiCultoRifiutati, luoghiCultoPendentiMappa,
     obiettiviCompletati, coltureSerraSbloccate]);
   const chiudiMessaggioEmigrazione = useCallback(() => setMessaggioEmigrazione(null), []);
@@ -2334,7 +2334,7 @@ export function useGameState() {
     razzaCampoLavoro,
     razzaCampoSterminio,
     capoReligiosoSole,
-    capoReligiosoAlieni,
+    capoReligiosoOmbre,
     religioneDiStato,
     religioniCustom,
     creaReligioneCustom,
