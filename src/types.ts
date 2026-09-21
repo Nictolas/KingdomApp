@@ -37,7 +37,7 @@ export type Character = {
 };
 
 // Nuovi tipi per il gestionale del regno
-export type Reato = "Omicidio" | "Stupro" | "Furto" | "Spaccio" | "Evasione" | "Ex Governatore";
+export type Reato = "Omicidio" | "Stupro" | "Furto" | "Spaccio" | "Evasione" | "Ex Sovrano";
 
 /** Livello di istruzione completato o in corso. */
 export type TitoloDiStudio = "Asilo" | "Elementare" | "Superiore" | "Università";
@@ -112,7 +112,7 @@ export type Abitante = {
   religione: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto delle Ombre" | string; // Religione (canonica o creata dal giocatore)
   /** Livello scolastico (Asilo → Università). */
   titoloStudio?: TitoloDiStudio;
-  razza?: Razza; // Razza/Pianeta di origine dell'abitante
+  razza?: Razza; // Razza di origine dell'abitante
   /** Aspetto modulare scelto nell'editor del Re o generato per l'abitante. */
   aspetto?: AspettoPersonaggio;
   reati?: Reato[]; // Se presente e non vuoto, l'abitante è considerato imputato
