@@ -15,7 +15,8 @@ test("la Mappa usa Porto e Culto delle Ombre senza renderer sci-fi attivi", () =
   assert.doesNotMatch(mappa, /RpgFootprintSpazioporto4x3|luogo_culto_alieni|\? "spazioporto"/);
 
   assert.match(renderer, /RpgFootprintLuogoCultoOmbre2x2/);
-  assert.doesNotMatch(renderer, /RpgFootprintLuogoCultoAlieni2x2/);
+  assert.match(renderer, /emoji="🌑"/);
+  assert.doesNotMatch(renderer, /RpgFootprintLuogoCultoAlieni2x2|RpgFootprintSpazioporto4x3|spRocketMini|HangarGlassPane/);
 
   assert.match(layout, /PORTO_FOOTPRINT_W = 4/);
   assert.match(layout, /PORTO_FOOTPRINT_H = 3/);
