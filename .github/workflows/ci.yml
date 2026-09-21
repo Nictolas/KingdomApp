@@ -40,4 +40,5 @@ jobs:
         run: npm test
 
       - name: Build web
+        if: github.event_name == 'workflow_dispatch'
         run: npm run build:web
