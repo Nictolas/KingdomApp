@@ -16,7 +16,7 @@ export type PhaserMapBuilding = {
   name: string;
   emoji: string;
   category: "residence" | "industry" | "service" | "security" | "religion" | "special";
-  artKey?: "command-center" | "dormitory" | "greenhouse" | "frontier-hut";
+  artKey?: "castle" | "dormitory" | "greenhouse" | "frontier-hut";
   geometry: BuildingGeometry;
   /** True se l'istanza globale e ancora in costruzione. */
   underConstruction?: boolean;

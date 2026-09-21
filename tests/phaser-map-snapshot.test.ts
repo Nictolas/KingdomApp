@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { existsSync } from "node:fs";
 import test from "node:test";
 
 import { OVERWORLD_SHEET_PX, getStradaSheetCoord } from "../src/game/overworldSpritesheetLayout.ts";
@@ -120,4 +121,23 @@ test("una nuova revisione riflette le modifiche del terreno senza stato Phaser s
   assert.equal(first.tiles[12].animation, undefined);
   assert.equal(next.tiles[12].animation, "water");
   assert.equal(next.revision, 2);
+});
+
+
+test("il Castello usa la art key fantasy dedicata", () => {
+  const state: MappaRuntimeState = {
+    edificiInMappa: {
+      6: { id: 1, nome: "Castello", emoji: "🏰", footprint: { w: 3, h: 2 } }
+    },
+    terrenoInMappa: {},
+    decorazioniInMappa: {},
+    residenzeMappa: {}
+  };
+
+  const [castello] = buildPhaserBuildings(state, 5);
+
+  assert.equal(castello.name, "Castello");
+  assert.equal(castello.artKey, "castle");
+  assert.equal(existsSync("assets/pixel-art/buildings/castle.png"), true);
+  assert.equal(existsSync("assets/pixel-art/buildings/command-center.png"), false);
 });
