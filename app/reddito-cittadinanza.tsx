@@ -31,7 +31,7 @@ export default function RedditoCittadinanzaScreen() {
         <View style={styles.card}>
           <Text style={styles.sectionTitle}>Importo mensile</Text>
           <Text style={styles.sectionSubtitle}>
-            Importo in crediti dato ogni mese a tutti gli abitanti <Text style={styles.bold}>non schiavi</Text> con
+            Importo in monete dato ogni mese a tutti gli abitanti <Text style={styles.bold}>non schiavi</Text> con
             lavoro <Text style={styles.bold}>"Disoccupato"</Text>. L'importo entra nel loro reddito.
           </Text>
           <View style={styles.inputRow}>
@@ -44,7 +44,7 @@ export default function RedditoCittadinanzaScreen() {
                 setRedditoCittadinanza(isNaN(n) ? 0 : Math.max(0, n));
               }}
             />
-            <Text style={styles.inputUnit}>crediti/mese</Text>
+            <Text style={styles.inputUnit}>monete/mese</Text>
           </View>
           <Text style={styles.helperText}>
             Impostando 0 il Reddito di Cittadinanza è di fatto disattivato.
@@ -62,9 +62,9 @@ export default function RedditoCittadinanzaScreen() {
                   <Text style={styles.itemEmoji}>{getEmojiAbitante(a)}</Text>
                   <View style={styles.itemContent}>
                     <Text style={styles.itemNome}>{a.nome}</Text>
-                    <Text style={styles.itemDetail}>Reddito attuale: {a.reddito} crediti/mese</Text>
+                    <Text style={styles.itemDetail}>Reddito attuale: {a.reddito} monete/mese</Text>
                     <Text style={styles.itemDetail}>
-                      Reddito con cittadinanza: {a.reddito + (redditoCittadinanza ?? 0)} crediti/mese
+                      Reddito con cittadinanza: {a.reddito + (redditoCittadinanza ?? 0)} monete/mese
                     </Text>
                   </View>
                 </View>
