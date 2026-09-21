@@ -6,8 +6,6 @@ import {
   DORMITORIO_FOOTPRINT_W,
   SERRA_FOOTPRINT_H,
   SERRA_FOOTPRINT_W,
-  SPAZIOPORTO_FOOTPRINT_H,
-  SPAZIOPORTO_FOOTPRINT_W,
   TRIBUNALE_FOOTPRINT_H,
   TRIBUNALE_FOOTPRINT_W
 } from "./mappaLayoutConfig";
@@ -20,7 +18,6 @@ import {
 import {
   BAR_EDIFICIO,
   DORMITORIO,
-  SPAZIOPORTO_EDIFICIO,
   TRIBUNALE_EDIFICIO
 } from "./mappaEdificiStatici";
 
@@ -150,27 +147,5 @@ export function aggiungiSerraFootprint(
     spec,
     SERRA_FOOTPRINT_W,
     SERRA_FOOTPRINT_H
-  );
-}
-
-/** Piazza lo spazioporto iniziale come footprint, con fallback 1x1 se necessario. */
-export function aggiungiSpazioportoFootprint(
-  cols: number,
-  rows: number,
-  riverSet: Set<number>,
-  vietato: Set<number>,
-  out: Record<number, EdificioInCellaMappa>,
-  preferred: number
-): void {
-  aggiungiFootprintIniziale(
-    cols,
-    rows,
-    riverSet,
-    vietato,
-    out,
-    preferred,
-    SPAZIOPORTO_EDIFICIO,
-    SPAZIOPORTO_FOOTPRINT_W,
-    SPAZIOPORTO_FOOTPRINT_H
   );
 }
