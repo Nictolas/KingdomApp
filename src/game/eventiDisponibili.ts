@@ -151,7 +151,7 @@ export function calcolaEventiUI(input: EventiUIInput): {
     nome: "Matrimonio",
     emoji: "💒",
     descrizione: puòMatrimonio
-      ? "Una coppia compatibile con amicizia ≥90 può chiedere di sposarsi allo Skip Mese."
+      ? "Una coppia compatibile con amicizia ≥90 può chiedere di sposarsi al cambio mese automatico."
       : "Serve una coppia con amicizia ≥90 e compatibile (orientamento/sesso).",
     stato: puòMatrimonio ? "disponibile" : "possibile"
   };
@@ -176,7 +176,7 @@ export function calcolaEventiUI(input: EventiUIInput): {
       id: "nascita",
       nome: "Nascita",
       emoji: "👶",
-      descrizione: "Le coppie sposate possono concepire allo Skip Mese (Legge sulle Nascite attiva).",
+      descrizione: "Le coppie sposate possono concepire al cambio mese automatico (Legge sulle Nascite attiva).",
       stato: "disponibile"
     });
   } else {
