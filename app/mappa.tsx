@@ -1356,10 +1356,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   }, [modalitaDemolisci, uscitaDemolizione, uscitaCostruzione]);
 
   const spotlight = useTutorialSpotlightOptional();
+  const pendingPonteSpotlightRef = useRef(false);
 
   const onCostruisciPress = useCallback(() => {
-    if (spotlight?.active?.targetId === SPOTLIGHT_TARGET_IDS.MAPPA_COSTRUISCI) {
-      spotlight.dismissSpotlight();
+    const daTutorial = spotlight?.active?.targetId === SPOTLIGHT_TARGET_IDS.MAPPA_COSTRUISCI;
+    if (daTutorial) {
+      pendingPonteSpotlightRef.current = true;
+      spotlight?.dismissSpotlight();
     }
     setModalitaDemolisci(false);
     if (costruzioneTerrenoPersistente(costruzioneSelezione)) {
@@ -1372,6 +1375,32 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const costruisciSpotlightRef = useSpotlightTarget(SPOTLIGHT_TARGET_IDS.MAPPA_COSTRUISCI, {
     onPress: onCostruisciPress
   });
+
+  const scegliPonte = useCallback(() => {
+    pendingPonteSpotlightRef.current = false;
+    if (spotlight?.active?.targetId === SPOTLIGHT_TARGET_IDS.MAPPA_PONTE) {
+      spotlight.dismissSpotlight();
+    }
+    setCostruzioneSelezione({ tipo: "ponte" });
+    setMostraModalCostruisci(false);
+    setMostraGrigliaMappa(true);
+  }, [spotlight]);
+
+  const ponteSpotlightRef = useSpotlightTarget(SPOTLIGHT_TARGET_IDS.MAPPA_PONTE, {
+    onPress: scegliPonte
+  });
+
+  useEffect(() => {
+    if (!mostraModalCostruisci || !pendingPonteSpotlightRef.current) return;
+    const id = setTimeout(() => {
+      if (!pendingPonteSpotlightRef.current) return;
+      spotlight?.showSpotlight({
+        targetId: SPOTLIGHT_TARGET_IDS.MAPPA_PONTE,
+        padding: 10
+      });
+    }, 150);
+    return () => clearTimeout(id);
+  }, [mostraModalCostruisci, spotlight?.showSpotlight]);
 
   const previewPiazzamento = useMemo(
     () =>
@@ -4388,22 +4417,20 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                     {STRADA_OPZIONE.nome}
                   </Text>
                 </Pressable>
-                <Pressable
-                  style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
-                  onPress={() => {
-                    setCostruzioneSelezione({ tipo: "ponte" });
-                    setMostraModalCostruisci(false);
-                    setMostraGrigliaMappa(true);
-                  }}
-                >
-                  <Text style={styles.modalOptionCostruisciEmoji}>{PONTE_OPZIONE.emoji}</Text>
-                  <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
-                    {PONTE_OPZIONE.nome}
-                  </Text>
-                  <Text style={styles.modalOptionCostruisciPrezzo}>
-                    💰 {costoCostruzioneMonete(NOME_PONTE).toLocaleString("it-IT")}
-                  </Text>
-                </Pressable>
+                <View ref={ponteSpotlightRef} collapsable={false}>
+                  <Pressable
+                    style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
+                    onPress={scegliPonte}
+                  >
+                    <Text style={styles.modalOptionCostruisciEmoji}>{PONTE_OPZIONE.emoji}</Text>
+                    <Text style={styles.modalOptionCostruisciNome} numberOfLines={2}>
+                      {PONTE_OPZIONE.nome}
+                    </Text>
+                    <Text style={styles.modalOptionCostruisciPrezzo}>
+                      💰 {costoCostruzioneMonete(NOME_PONTE).toLocaleString("it-IT")}
+                    </Text>
+                  </Pressable>
+                </View>
               </View>
               <Text style={styles.modalSectionTitle}>{SEZIONE_AMBIENTE.titolo}</Text>
               <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
