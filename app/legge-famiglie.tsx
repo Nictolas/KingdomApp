@@ -38,7 +38,7 @@ export default function LeggeFamiglieScreen() {
       descrizione: "Famiglia composta da un solo genitore e i suoi figli."
     },
     {
-      chiave: "matrimonioUmanoRobot" as const,
+      chiave: "matrimonioConGolem" as const,
       emoji: "🤖💒",
       titolo: "Matrimonio con i Golem",
       descrizione: "Consenti unioni tra abitanti mortali e Golem animati dalla magia."
