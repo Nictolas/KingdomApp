@@ -6,7 +6,7 @@ export const eventoEmigrazione: EventoDef = {
   nome: "Emigrazione",
   emoji: "✈️",
   descrizione:
-    "Un abitante con Felicità pari o inferiore al 50% lascia la colonia per cercare fortuna altrove.",
+    "Un abitante con Felicità pari o inferiore al 50% lascia il regno per cercare fortuna altrove.",
   durataMesi: 1,
   probabilità: 1,
   condizione: (abitanti, _r, _e, _p, divietoEspatrioAttivo, calcolaFelicitàModificata) => {
@@ -38,10 +38,10 @@ export const eventoEmigrazione: EventoDef = {
     });
     const messaggio =
       nomi.length === 1
-        ? `${nomi[0]} ha lasciato la colonia.`
+        ? `${nomi[0]} ha lasciato il regno.`
         : nomi.length === 2
-          ? `${nomi[0]} e ${nomi[1]} hanno lasciato la colonia.`
-          : `${nomi.slice(0, -1).join(", ")} e ${nomi[nomi.length - 1]} hanno lasciato la colonia.`;
+          ? `${nomi[0]} e ${nomi[1]} hanno lasciato il regno.`
+          : `${nomi.slice(0, -1).join(", ")} e ${nomi[nomi.length - 1]} hanno lasciato il regno.`;
     return { messaggioExtra: messaggio };
   },
   applicaMensile: () => {}

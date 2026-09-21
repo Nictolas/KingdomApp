@@ -6,7 +6,7 @@ export const eventoProtesteAutoctoni: EventoDef = {
   nome: "Proteste degli Autoctoni",
   emoji: "✊",
   descrizione:
-    "La popolazione nativa del pianeta manifesta contro l'espansione della colonia. Rischio di tensione sociale e calo di felicità.",
+    "La popolazione autoctona manifesta contro l'espansione del regno. Rischio di tensione sociale e calo di felicità.",
   durataMesi: 2,
   probabilità: 0.25,
   condizione: (abitanti) => {

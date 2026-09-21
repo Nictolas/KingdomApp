@@ -26,7 +26,7 @@ export const eventoGuerraCivile: EventoDef = {
   nome: "Guerra Civile",
   emoji: "⚔️",
   descrizione:
-    "I Lealisti sono diventati la maggioranza (50%+1) della colonia. Scoppia un conflitto interno tra lealisti e rivoluzionari. La Caserma (3+ addetti) e la Soddisfazione Sicurezza bloccano l'evento o ne mitigano gli effetti.",
+    "I Lealisti sono diventati la maggioranza (50%+1) del regno. Scoppia un conflitto interno tra lealisti e rivoluzionari. La Caserma (3+ addetti) e la Soddisfazione Sicurezza bloccano l'evento o ne mitigano gli effetti.",
   durataMesi: 3,
   probabilità: 0.5,
   condizione: (abitanti, _risorse, edifici, _p, _d, _c, soddisfazioneFazioni) => {

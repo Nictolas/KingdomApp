@@ -2,7 +2,7 @@ import type { Abitante, Risorsa, Edificio } from "../../types";
 
 export type EventoAttivazioneCtx = {
   calcolaFelicitàModificata?: (a: Abitante) => number;
-  /** Bag mutabile: eventi che toccano soldi colonia aggiornano il Tesoro qui. */
+  /** Bag mutabile: eventi che toccano soldi del regno aggiornano il Tesoro qui. */
   tesoro?: { monete: number };
 };
 
@@ -43,7 +43,7 @@ export function modificaRisorsa(risorse: Risorsa[], nome: string, delta: number)
   if (r) r.quantità = Math.max(0, r.quantità + delta);
 }
 
-/** Modifica il Tesoro colonia (monete) negli eventi. */
+/** Modifica il Tesoro del regno (monete) negli eventi. */
 export function modificaTesoro(ctx: EventoAttivazioneCtx | undefined, delta: number): void {
   if (!ctx?.tesoro) return;
   ctx.tesoro.monete = Math.max(0, ctx.tesoro.monete + delta);
