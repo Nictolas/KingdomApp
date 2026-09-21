@@ -2,7 +2,7 @@ import type { Abitante, Razza } from "../types";
 import { abitanteConInventarioIniziale } from "./inventario";
 import { inferTitoloStudioPerEta } from "./titoloStudio";
 import { specializzazioneCasuale } from "./specializzazione";
-import { pianetiData, getEmojiRazza } from "../kingdomData";
+import { regniData, getEmojiRazza } from "../kingdomData";
 import { generaNomeFantasy } from "./nomiFantasy";
 import { generaAspettoCasuale } from "./personaggioAspetto";
 import { COGNOMI_UMANI, NOMI_UMANI_CON_SESSO, scegliNomeCognomeUmano } from "./nomiUmani";
