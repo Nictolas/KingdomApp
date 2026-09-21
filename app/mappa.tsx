@@ -937,7 +937,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     pendingRichiestaLuogoCulto,
     luoghiCultoRifiutati,
     capoReligiosoSole,
-    capoReligiosoAlieni,
+    capoReligiosoOmbre,
     coprifuocoAttivo,
     coprifuocoInizioMinuti,
     coprifuocoFineMinuti,
@@ -1120,7 +1120,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       richiesteInAttesa,
       luoghiCultoRifiutati,
       capoReligiosoSole,
-      capoReligiosoAlieni
+      capoReligiosoOmbre
     }),
     [
       abitanti,
@@ -1139,7 +1139,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       richiesteInAttesa,
       luoghiCultoRifiutati,
       capoReligiosoSole,
-      capoReligiosoAlieni
+      capoReligiosoOmbre
     ]
   );
 
@@ -2882,7 +2882,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     const religione = religioneDaNomeEdificioLuogoCulto(e.nome);
     if (!religione) return null;
     const edificioGlobaleId = e.edificioGlobaleId ?? e.id;
-    const capoId = religione === "Culto del Sole" ? capoReligiosoSole : capoReligiosoAlieni;
+    const capoId = religione === "Culto del Sole" ? capoReligiosoSole : capoReligiosoOmbre;
     return {
       anchor: selectedLuogoCultoAnchor,
       nome: e.nome,
@@ -2890,7 +2890,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       edificioGlobaleId,
       capoId
     };
-  }, [selectedLuogoCultoAnchor, edificiInMappa, capoReligiosoSole, capoReligiosoAlieni]);
+  }, [selectedLuogoCultoAnchor, edificiInMappa, capoReligiosoSole, capoReligiosoOmbre]);
 
   const handleApriResidenzaMappa = useCallback(
     (anchor: number) => {
@@ -4651,7 +4651,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           cultoArrivatiByEdificio={cultoArrivatiByEdificio}
           onApriGestioneCulto={() => {
             const route =
-              luogoCultoModalCtx.religione === "Culto del Sole" ? "/culto-sole" : "/culto-alieni";
+              luogoCultoModalCtx.religione === "Culto del Sole" ? "/culto-sole" : "/culto-ombre";
             setSelectedLuogoCultoAnchor(null);
             router.push(route);
           }}
