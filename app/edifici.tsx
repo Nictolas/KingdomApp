@@ -1,210 +1,98 @@
-import React, { useState } from "react";
-import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import React from "react";
+import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { useGameContext } from "../src/context/GameContext";
-import type { Edificio } from "../src/types";
-import { EDIFICIO_COMPETENZA_RICHIESTA } from "../src/data/edificiCompetenze";
-import { EdificioInfoModal } from "../src/ui/EdificioInfoModal";
-import { CampoDiLavoroModal } from "../src/ui/CampoDiLavoroModal";
+import { EDIFICI_CATENA_PRODUTTIVA } from "../src/data/edificiCatenaProduttiva";
 
-/** Colonne richieste: Produzione, Servizi, Punizione. Nomi come in edificiData. */
-const COLONNA_PRODUZIONE: string[] = [
-  "Serra",
-  "Raffineria Mineraria", // Miniera
-  "Laboratorio di Ricerca", // Laboratorio
-  "Centrale Energetica", // Centrale
-  "Impianto di Riciclo",
-  "Dissalatore"
-];
-const COLONNA_SERVIZI: string[] = [
-  "Centro di Comando",
-  "Baracca", // Residenze (card mostrata come "Residenze")
-  "Capanna", // Capanne coloniali (residenza)
-  "Bar",
-  "Scuola",
-  "Asilo",
-  "Scuola Elementare",
-  "Scuola Superiore",
-  "Università",
-  "Ospedale",
-  "Centrale",   // Polizia
-  "Caserma",   // Militari
-  "Spazioporto",
-  "Ufficio Immigrazione",
-  "Ufficio Edile",
-  "Mercato"
-];
-const COLONNA_PUNIZIONE: string[] = ["Tribunale", "Carcere", "Campo di Lavoro", "Campo di Sterminio"];
+const COLS = [
+  { key: "edificio", label: "Edificio", width: 170 },
+  { key: "tipologia", label: "Tipologia", width: 100 },
+  { key: "richiede", label: "Richiede", width: 200 },
+  { key: "lavoratore", label: "Lavoratore", width: 140 },
+  { key: "produce", label: "Produce", width: 170 },
+  { key: "serveA", label: "Serve a", width: 180 }
+] as const;
 
-function getEdificiPerColonna(edifici: Edificio[], nomi: string[]): Edificio[] {
-  const out: Edificio[] = [];
-  for (const nome of nomi) {
-    if (nome === "Serra") {
-      out.push(...edifici.filter((e) => e.nome === "Serra"));
-    } else if (nome === "Bar") {
-      out.push(...edifici.filter((e) => e.nome === "Bar"));
-    } else {
-      const e = edifici.find((x) => x.nome === nome);
-      if (e) out.push(e);
-    }
-  }
-  return out;
-}
-
-function CardEdificio({
-  e,
-  titleOverride,
-  onPress
-}: {
-  key?: number;
-  e: Edificio;
-  titleOverride?: string;
-  onPress: () => void;
-}) {
-  const competenza =
-    EDIFICIO_COMPETENZA_RICHIESTA[e.id] ??
-    (e.nome === "Bar" ? EDIFICIO_COMPETENZA_RICHIESTA[17] : undefined);
-  return (
-    <Pressable style={styles.card} onPress={onPress}>
-      <Text style={styles.emoji}>{e.emoji}</Text>
-      <Text style={styles.cardTitle}>{titleOverride ?? e.nome}</Text>
-      <Text style={styles.cardTipo}>{e.tipo}</Text>
-      {competenza && (
-        <Text style={styles.cardCompetenza} numberOfLines={1}>{competenza.nomeCompetenza} (≥{competenza.competenzaMinima}%)</Text>
-      )}
-    </Pressable>
-  );
-}
+const TABLE_MIN_WIDTH = COLS.reduce((s, c) => s + c.width, 0);
 
 export default function EdificiScreen() {
   const router = useRouter();
-  const { edifici, abitanti, aggiungiAlCampoDiLavoroTuttiQuelliChe } = useGameContext();
-  const [selectedEdificio, setSelectedEdificio] = useState<Edificio | null>(null);
-
-  const isCampoDiLavoro = selectedEdificio?.nome === "Campo di Lavoro";
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
 
-  const produzione = getEdificiPerColonna(edifici, COLONNA_PRODUZIONE);
-  const servizi = getEdificiPerColonna(edifici, COLONNA_SERVIZI);
-  const punizione = getEdificiPerColonna(edifici, COLONNA_PUNIZIONE);
-
-  const handlePress = (e: Edificio) => {
-    if (e.nome === "Serra") {
-      router.push(`/serra/${e.id}`);
-    } else if (e.nome === "Centrale Energetica") {
-      router.push("/centrale-energetica");
-    } else if (e.nome === "Raffineria Mineraria") {
-      router.push("/raffineria-mineraria");
-    } else if (e.nome === "Impianto di Riciclo") {
-      router.push("/impianto-riciclo");
-    } else if (e.nome === "Baracca" || e.nome === "Capanna") {
-      router.push("/residenze");
-    } else if (e.nome === "Scuola" || e.nome === "Asilo" || e.nome === "Scuola Elementare" || e.nome === "Scuola Superiore" || e.nome === "Università") {
-      router.push("/scuola");
-    } else if (e.nome === "Ospedale") {
-      router.push("/ospedale");
-    } else if (e.nome === "Centrale") {
-      router.push("/centrale");
-    } else if (e.nome === "Tribunale") {
-      router.push("/tribunale");
-    } else if (e.nome === "Carcere") {
-      router.push("/carcere");
-    } else if (e.nome === "Centro di Comando") {
-      router.push("/ministri");
-    } else if (e.nome === "Dissalatore") {
-      router.push("/dissalatore");
-    } else if (e.nome === "Laboratorio di Ricerca") {
-      router.push("/laboratorio");
-    } else if (e.nome === "Bar") {
-      router.push(`/bar/${e.id}`);
-    } else if (e.nome === "Caserma") {
-      router.push("/caserma");
-    } else if (e.nome === "Spazioporto") {
-      router.push("/spazioporto");
-    } else if (e.nome === "Ufficio Immigrazione") {
-      router.push("/immigrazione");
-    } else if (e.nome === "Ufficio Edile") {
-      router.push("/ufficio-edile");
-    } else if (e.nome === "Mercato") {
-      router.push("/mercato");
-    } else {
-      setSelectedEdificio(e);
-    }
-  };
-
   return (
-    <SafeAreaView style={[styles.safe, maxHeight ? { maxHeight, overflow: "hidden" } : undefined]}>
+    <SafeAreaView style={[styles.safe, maxHeight && { maxHeight, overflow: "hidden" }]}>
       <View style={styles.header}>
         <View style={{ width: 50 }} />
-        <Text style={styles.title}>Edifici</Text>
+        <Text style={styles.title}>🏗️ Edifici</Text>
         <View style={{ width: 50 }} />
       </View>
 
       <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.content} style={isDesktop ? styles.scrollFlex : undefined}>
-        <View style={styles.columns}>
-          <View style={styles.column}>
-            <Text style={styles.columnTitle}>Produzione</Text>
-            <Text style={styles.columnSubtitle}>Serra, Miniera, Laboratorio, Centrale, Impianto di Riciclo</Text>
-            <View style={styles.cardGrid}>
-              {produzione.map((e) => (
-                <CardEdificio
-                  key={e.id}
-                  e={e}
-                  titleOverride={e.nome === "Serra" ? `Serra (${e.id === 2 ? "1" : "2"})` : undefined}
-                  onPress={() => handlePress(e)}
-                />
-              ))}
-            </View>
-          </View>
-          <View style={styles.column}>
-            <Text style={styles.columnTitle}>Servizi</Text>
-            <Text style={styles.columnSubtitle}>Centro di Comando, Residenze, Scuola, Ospedale, Centrale (polizia), Caserma (militari)</Text>
-            <View style={styles.cardGrid}>
-              {servizi.map((e) => (
-                <CardEdificio
-                  key={e.id}
-                  e={e}
-                  titleOverride={e.nome === "Baracca" ? "Residenze" : undefined}
-                  onPress={() => handlePress(e)}
-                />
-              ))}
-            </View>
-          </View>
-          <View style={styles.column}>
-            <Text style={styles.columnTitle}>Punizione</Text>
-            <Text style={styles.columnSubtitle}>Tribunale, Carcere, Campo di Lavoro, Campo di Sterminio</Text>
-            <View style={styles.cardGrid}>
-              {punizione.map((e) => (
-                <CardEdificio key={e.id} e={e} onPress={() => handlePress(e)} />
-              ))}
-            </View>
-          </View>
-        </View>
-      </ScrollView>
+        <ScrollView
+          style={isDesktop ? styles.scrollFlex : undefined}
+          contentContainerStyle={styles.content}
+          showsVerticalScrollIndicator
+        >
+          <Text style={styles.subtitle}>
+            Catena produttiva: tipologia (Impresa = economia, Servizio = pubblico), input, lavoratori, output e destinatari.
+          </Text>
 
-      {isCampoDiLavoro ? (
-        <CampoDiLavoroModal
-          visible={selectedEdificio !== null}
-          edificio={selectedEdificio}
-          abitanti={abitanti}
-          aggiungiAlCampoDiLavoroTuttiQuelliChe={aggiungiAlCampoDiLavoroTuttiQuelliChe}
-          onClose={() => setSelectedEdificio(null)}
-        />
-      ) : (
-        <EdificioInfoModal
-          visible={selectedEdificio !== null}
-          edificio={selectedEdificio}
-          onClose={() => setSelectedEdificio(null)}
-        />
-      )}
+          <ScrollView horizontal showsHorizontalScrollIndicator nestedScrollEnabled>
+            <View style={[styles.table, { minWidth: TABLE_MIN_WIDTH }]}>
+              <View style={[styles.row, styles.headerRow]}>
+                {COLS.map((col) => (
+                  <View key={col.key} style={[styles.cell, { width: col.width }]}>
+                    <Text style={styles.headerCellText}>{col.label}</Text>
+                  </View>
+                ))}
+              </View>
+
+              {EDIFICI_CATENA_PRODUTTIVA.map((row, index) => (
+                <View
+                  key={row.nome}
+                  style={[styles.row, index % 2 === 1 && styles.rowAlt]}
+                >
+                  <View style={[styles.cell, { width: COLS[0].width }]}>
+                    <Text style={styles.edificioCell}>
+                      {row.emoji} {row.nome}
+                    </Text>
+                  </View>
+                  <View style={[styles.cell, { width: COLS[1].width }]}>
+                    <Text
+                      style={[
+                        styles.tipologiaText,
+                        row.tipologia === "Impresa" ? styles.tipologiaImpresa : styles.tipologiaServizio
+                      ]}
+                    >
+                      {row.tipologia}
+                    </Text>
+                  </View>
+                  <View style={[styles.cell, { width: COLS[2].width }]}>
+                    <Text style={styles.cellText}>{row.richiede}</Text>
+                  </View>
+                  <View style={[styles.cell, { width: COLS[3].width }]}>
+                    <Text style={styles.cellText}>{row.lavoratore}</Text>
+                  </View>
+                  <View style={[styles.cell, { width: COLS[4].width }]}>
+                    <Text style={styles.cellText}>{row.produce}</Text>
+                  </View>
+                  <View style={[styles.cell, { width: COLS[5].width }]}>
+                    <Text style={styles.cellText}>{row.serveA}</Text>
+                  </View>
+                </View>
+              ))}
+            </View>
+          </ScrollView>
+        </ScrollView>
       </View>
+
       <View style={styles.footer}>
-        <Text style={styles.back} onPress={() => router.back()}>← Home</Text>
+        <Text style={styles.back} onPress={() => router.back()}>
+          ← Home
+        </Text>
       </View>
     </SafeAreaView>
   );
@@ -244,66 +132,69 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    paddingBottom: 12,
-    flex: 1
+    paddingBottom: 16
   },
   scrollFlex: {
     flex: 1
   },
-  columns: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 16
+  subtitle: {
+    color: "rgba(203,213,245,0.75)",
+    fontSize: 11,
+    lineHeight: 15,
+    marginBottom: 12
   },
-  column: {
-    minWidth: 180,
-    flex: 1
-  },
-  columnTitle: {
-    color: "#e5e7eb",
-    fontSize: 13,
-    fontWeight: "700",
-    marginBottom: 2
-  },
-  columnSubtitle: {
-    color: "rgba(148,163,184,0.8)",
-    fontSize: 9,
-    marginBottom: 8
-  },
-  cardGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6
-  },
-  card: {
-    backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 6,
-    padding: 6,
+  table: {
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.6)",
-    alignItems: "center",
-    minWidth: 90
+    borderColor: "rgba(148,163,184,0.4)",
+    borderRadius: 8,
+    overflow: "hidden",
+    backgroundColor: "rgba(15,23,42,0.95)"
   },
-  emoji: {
-    fontSize: 24,
-    marginBottom: 2
+  row: {
+    flexDirection: "row",
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: "rgba(148,163,184,0.35)"
   },
-  cardTitle: {
-    color: "#e5e7eb",
-    fontSize: 10,
-    fontWeight: "700",
-    marginBottom: 1,
-    textAlign: "center"
+  rowAlt: {
+    backgroundColor: "rgba(30,41,59,0.55)"
   },
-  cardTipo: {
+  headerRow: {
+    backgroundColor: "rgba(30,41,59,0.95)",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(148,163,184,0.55)"
+  },
+  cell: {
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    justifyContent: "center",
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: "rgba(148,163,184,0.25)"
+  },
+  headerCellText: {
     color: "#93c5fd",
-    fontSize: 8,
-    textAlign: "center"
+    fontSize: 11,
+    fontWeight: "700",
+    textTransform: "uppercase",
+    letterSpacing: 0.3
   },
-  cardCompetenza: {
-    color: "rgba(203,213,245,0.7)",
-    fontSize: 7,
-    textAlign: "center",
-    marginTop: 2
+  edificioCell: {
+    color: "#f8fafc",
+    fontSize: 12,
+    fontWeight: "700"
+  },
+  tipologiaText: {
+    fontSize: 11,
+    fontWeight: "700"
+  },
+  tipologiaImpresa: {
+    color: "#86efac"
+  },
+  tipologiaServizio: {
+    color: "#93c5fd"
+  },
+  cellText: {
+    color: "#e2e8f0",
+    fontSize: 11,
+    lineHeight: 15
   }
 });
