@@ -7,7 +7,7 @@ import type { Abitante } from "../src/types";
 
 export default function CultoOmbreScreen() {
   const router = useRouter();
-  const { abitanti, capoReligiosoAlieni, setCapoReligiosoAlieni } = useGameContext();
+  const { abitanti, capoReligiosoOmbre, setCapoReligiosoAlieni } = useGameContext();
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -19,7 +19,7 @@ export default function CultoOmbreScreen() {
   const fedeli = abitanti.filter(
     (a: Abitante) => a.religione === "Culto delle Ombre" && isNonUmano(a)
   );
-  const capoReligioso = abitanti.find((a: Abitante) => a.id === capoReligiosoAlieni);
+  const capoReligioso = abitanti.find((a: Abitante) => a.id === capoReligiosoOmbre);
 
   // Abitanti disponibili per essere nominati capo religioso (non già capo di altro culto, non-umani con culto degli alieni)
   const { capoReligiosoSole } = useGameContext();
