@@ -15,7 +15,7 @@ const RELIGIONE_COLORI: Record<string, string> = {
   Deista: "#8b5cf6",
   Agnostico: "#06b6d4",
   "Culto del Sole": "#f59e0b",
-  "Culto degli Alieni": "#22c55e"
+  "Culto delle Ombre": "#22c55e"
 };
 
 export function coloriReligione(nome: string): string {
