@@ -50,7 +50,7 @@ export default function UfficioEdileScreen() {
               Edili: {edili.length}/{ufficio.capacità ?? 12}
             </Text>
             <Text style={styles.infoSubtext}>
-              Gli edili assegnati avanzano i cantieri a ogni Skip Mese. Più edili = costruzione più rapida.
+              Gli edili assegnati avanzano i cantieri ogni ora di gioco. Più edili = costruzione più rapida.
             </Text>
             {edili.length === 0 && cantieri.length > 0 && (
               <Text style={[styles.infoSubtext, styles.infoWarn]}>
