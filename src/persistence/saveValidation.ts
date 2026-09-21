@@ -284,7 +284,8 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     ...(a.id !== 1 && a.aspetto?.cappello === "corona" && {
       aspetto: { ...a.aspetto, cappello: "nessuno" }
     }),
-    fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f === "Culto degli Alieni" ? "Culto delle Ombre" : f),\n    reati: a.reati?.map((r) => normalizzaReatoFantasy(String(r))),\n    reati: a.reati?.map((r) => normalizzaReatoFantasy(String(r))),
+    fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f === "Culto degli Alieni" ? "Culto delle Ombre" : f),
+    reati: a.reati?.map((r) => normalizzaReatoFantasy(String(r))),
     inventario: a.inventario ? normalizeInventario(a.inventario) : undefined
   }));
   next.population.abitantiProposti = next.population.abitantiProposti.map((a: Abitante) => ({
@@ -297,7 +298,8 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     ...(a.aspetto?.cappello === "corona" && {
       aspetto: { ...a.aspetto, cappello: "nessuno" }
     }),
-    fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f === "Culto degli Alieni" ? "Culto delle Ombre" : f)
+    fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f === "Culto degli Alieni" ? "Culto delle Ombre" : f),
+    reati: a.reati?.map((r) => normalizzaReatoFantasy(String(r)))
   }));
   next.policies.religioneDiStato = normalizzaReligioneFantasy(next.policies.religioneDiStato);
   next.policies.razzaCampoLavoro = normalizzaRazzaFantasy(next.policies.razzaCampoLavoro) ?? null;
