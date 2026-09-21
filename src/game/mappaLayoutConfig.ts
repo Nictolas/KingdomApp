@@ -19,8 +19,8 @@ export const NEGOZIO_FOOTPRINT_W = 2;
 export const NEGOZIO_FOOTPRINT_H = 2;
 export const DISSALATORE_FOOTPRINT_W = 2;
 export const DISSALATORE_FOOTPRINT_H = 2;
-export const SPAZIOPORTO_FOOTPRINT_W = 4;
-export const SPAZIOPORTO_FOOTPRINT_H = 3;
+export const PORTO_FOOTPRINT_W = 4;
+export const PORTO_FOOTPRINT_H = 3;
 export const SERRA_FOOTPRINT_W = 2;
 export const SERRA_FOOTPRINT_H = 1;
 export const CAPANNA_FOOTPRINT_W = 2;
@@ -37,7 +37,6 @@ export function getIndiciEdificiIniziali(cols: number, rows: number) {
   const centro = Math.floor((cols * rows) / 2) - Math.floor(cols / 2);
   return {
     CENTRO_COMANDO_INDEX: centro,
-    SPAZIOPORTO_INDEX: centro + 1,
     TRIBUNALE_INDEX: centro + cols,
     SERRA_INDEX: centro - 1,
     SERRA_2_INDEX: centro - 4,
