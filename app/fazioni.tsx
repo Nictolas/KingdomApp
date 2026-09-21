@@ -26,7 +26,7 @@ const FAZIONE_TO_PATH: Record<string, string> = {
   Mafia: "/mafia",
   Schiavi: "/schiavi",
   Nativi: "/nativi",
-  Golem: "/fazione/robots",
+  Golem: "/fazione/golem",
   Senzatetto: "/fazione/senzatetto",
   Immigrati: "/fazione/immigrati",
   "Culto del Sole": "/culto-sole",

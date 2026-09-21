@@ -18,7 +18,7 @@ const SLUG_TO_NOME: Record<string, string> = {
   esploratori: "Esploratori",
   intellettuali: "Intellettuali",
   ambientalisti: "Ambientalisti",
-  robots: "Golem",
+  golem: "Golem",
   senzatetto: "Senzatetto",
   immigrati: "Immigrati"
 };
