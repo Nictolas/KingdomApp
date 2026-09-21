@@ -14,7 +14,7 @@ import {
 /** Stipendio base: 1 moneta al giorno per ogni lavoratore negli edifici pubblici. */
 export { STIPENDIO_BASE_MONETE_GIORNO };
 
-/** Giorni simulati per stipendi allo Skip Mese. */
+/** Giorni simulati per il calcolo mensile degli stipendi. */
 export const GIORNI_STIPENDIO_EDIFICIO_PUBBLICO_MESE = GIORNI_MESE_ECONOMIA;
 
 /**
@@ -91,7 +91,7 @@ export function pagaStipendiEdificiPubblici(
   };
 }
 
-/** Tesoro iniziale del giocatore (unica cassa colonia). */
+/** Tesoro iniziale del giocatore (unica cassa del regno). */
 export function creaMoneteGiocatoreIniziali(): number {
   return MONETE_GIOCATORE_INIZIALI;
 }
