@@ -28,7 +28,7 @@ export type EventiUIInput = {
   soddisfazioneFazioni: Record<string, number>;
   politicaNascite: "figlio-unico" | "incentivi" | "nessuna";
   tipologieFamigliaAccettate?: {
-    matrimonioUmanoRobot: boolean;
+    matrimonioConGolem: boolean;
     matrimonioIntercasta?: boolean;
   };
   pendingAssimilazione: number | null;
@@ -36,7 +36,7 @@ export type EventiUIInput = {
   richiesteInAttesa: RichiestaInAttesa[];
   luoghiCultoRifiutati: ReligioneConCulto[];
   capoReligiosoSole: number | null;
-  capoReligiosoAlieni: number | null;
+  capoReligiosoOmbre: number | null;
 };
 
 function esisteCoppiaSposata(abitanti: Abitante[]): boolean {
@@ -65,7 +65,7 @@ export function calcolaEventiUI(input: EventiUIInput): {
     richiesteInAttesa,
     luoghiCultoRifiutati,
     capoReligiosoSole,
-    capoReligiosoAlieni
+    capoReligiosoOmbre
   } = input;
 
   const idsInCorso = new Set(eventiInCorso.map((e) => e.id));
@@ -101,7 +101,7 @@ export function calcolaEventiUI(input: EventiUIInput): {
       id: "assimilazione-pending",
       nome: "Assimilazione",
       emoji: "🤝",
-      descrizione: `${pendingAssimilazione} nativi vogliono unirsi alla colonia. Rispondi dalla pagina Eventi o attendi.`,
+      descrizione: `${pendingAssimilazione} nativi vogliono unirsi al regno. Rispondi dalla pagina Eventi o attendi.`,
       stato: "in-attesa"
     });
   }
@@ -127,11 +127,11 @@ export function calcolaEventiUI(input: EventiUIInput): {
   } else {
     const capo = trovaCapoReligiosoSenzaLuogo(abitanti, edifici, undefined, {
       sole: capoReligiosoSole,
-      alieni: capoReligiosoAlieni
+      alieni: capoReligiosoOmbre
     });
     if (
       capo &&
-      (capo.religione === "Culto del Sole" || capo.religione === "Culto degli Alieni") &&
+      (capo.religione === "Culto del Sole" || capo.religione === "Culto delle Ombre") &&
       !luoghiCultoRifiutati.includes(capo.religione as ReligioneConCulto)
     ) {
       disponibili.push({
