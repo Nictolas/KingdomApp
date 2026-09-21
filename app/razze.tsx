@@ -2,6 +2,8 @@ import React from "react";
 import { SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { generaAspettoDaSeed } from "../src/game/personaggioAspetto";
+import { CircularSpriteFrame } from "../src/ui/CircularSpriteFrame";
 import type { Razza } from "../src/types";
 
 const RAZZE: readonly Razza[] = ["Umano", "Elfo", "Nano", "Orco", "Goblin", "Golem"];
@@ -13,6 +15,14 @@ const EMOJI_RAZZA: Record<Razza, string> = {
   Orco: "👹",
   Goblin: "👺",
   Golem: "🗿"
+};
+
+const PREVIEW_SEED: Record<Exclude<Razza, "Golem">, number> = {
+  Umano: 42,
+  Elfo: 84,
+  Nano: 126,
+  Orco: 168,
+  Goblin: 210
 };
 
 export default function RazzeScreen() {
@@ -31,9 +41,21 @@ export default function RazzeScreen() {
         <View style={styles.grid}>
           {RAZZE.map((razza) => {
             const count = abitanti.filter((abitante) => (abitante.razza ?? "Umano") === razza).length;
+            const aspetto = razza === "Golem" ? null : generaAspettoDaSeed(razza, PREVIEW_SEED[razza]);
+
             return (
               <View key={razza} style={styles.card}>
-                <Text style={styles.emoji}>{EMOJI_RAZZA[razza]}</Text>
+                {aspetto?.characterAppearance ? (
+                  <View style={styles.avatarWrap}>
+                    <CircularSpriteFrame
+                      appearance={aspetto.characterAppearance}
+                      size={52}
+                      animate={false}
+                    />
+                  </View>
+                ) : (
+                  <Text style={styles.emoji}>{EMOJI_RAZZA[razza]}</Text>
+                )}
                 <Text style={styles.race}>{razza}</Text>
                 <Text style={styles.count}>{count} abitanti</Text>
               </View>
@@ -72,6 +94,7 @@ const styles = StyleSheet.create({
     borderColor: "rgba(148,163,184,0.35)",
     backgroundColor: "rgba(15,23,42,0.96)"
   },
+  avatarWrap: { marginBottom: 6, alignItems: "center", justifyContent: "center" },
   emoji: { fontSize: 34, marginBottom: 6 },
   race: { color: "#f1f5f9", fontSize: 14, fontWeight: "800", textAlign: "center" },
   count: { color: "#93c5fd", fontSize: 11, marginTop: 6, fontWeight: "700" },

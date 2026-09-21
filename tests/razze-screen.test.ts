@@ -14,3 +14,12 @@ test("Razze è di nuovo disponibile dal menu", () => {
     assert.match(screen, new RegExp(razza));
   }
 });
+
+test("Razze mostra di nuovo anteprime LPC per le razze renderizzabili", () => {
+  const screen = readFileSync("app/razze.tsx", "utf8");
+
+  assert.match(screen, /generaAspettoDaSeed/);
+  assert.match(screen, /CircularSpriteFrame/);
+  assert.match(screen, /appearance=\{aspetto\.characterAppearance\}/);
+  assert.match(screen, /razza === "Golem" \? null/);
+});
