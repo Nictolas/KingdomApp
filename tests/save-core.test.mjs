@@ -72,6 +72,15 @@ test("i vecchi salvataggi con capoReligiosoAlieni migrano a capoReligiosoOmbre",
   assert.equal("capoReligiosoAlieni" in restored.payload.events, false);
 });
 
+test("i vecchi salvataggi con Ex Governatore migrano a Ex Sovrano", () => {
+  const save = createSaveEnvelope();
+  save.payload.population.abitanti[0].reati = ["Ex Governatore"];
+
+  const restored = deserializeSave(serializeSave(save));
+
+  assert.deepEqual(restored.payload.population.abitanti[0].reati, ["Ex Sovrano"]);
+});
+
 test("i vecchi salvataggi con specie aliena restano caricabili e il campo legacy viene rimosso", () => {
   const save = createSaveEnvelope();
   save.payload.population.abitanti[0].specie = "alieno";
