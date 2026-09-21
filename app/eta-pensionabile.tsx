@@ -49,7 +49,7 @@ export default function EtaPensionabileScreen() {
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Configurazione attuale</Text>
           <Text style={styles.infoText}>Età pensionabile: {etaPensionabile} anni</Text>
-          <Text style={styles.infoText}>Assegno mensile ai pensionati: {assegnoPensionati} crediti</Text>
+          <Text style={styles.infoText}>Assegno mensile ai pensionati: {assegnoPensionati} monete</Text>
           {haSanzione && (
             <Text style={styles.warningText}>
               ⚠️ Questa età pensionabile aumenta il punteggio sanzioni della Comunità Interplanetaria di +{sanzionePunti} punto/s.
@@ -92,7 +92,7 @@ export default function EtaPensionabileScreen() {
         </View>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Assegno mensile ai pensionati (crediti)</Text>
+          <Text style={styles.sectionTitle}>Assegno mensile ai pensionati (monete)</Text>
           <View style={styles.assegnoRow}>
             <TextInput
               style={styles.input}
@@ -128,7 +128,7 @@ export default function EtaPensionabileScreen() {
           <View style={styles.effettoRow}>
             <Text style={styles.effettoEmoji}>💰</Text>
             <Text style={styles.effettoText}>
-              Ogni pensionato riceve mensilmente l&apos;assegno in crediti (costo per il regno)
+              Ogni pensionato riceve mensilmente l&apos;assegno in monete (costo per il regno)
             </Text>
           </View>
           <View style={styles.effettoRow}>
