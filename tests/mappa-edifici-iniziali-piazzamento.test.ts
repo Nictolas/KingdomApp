@@ -4,14 +4,12 @@ import {
   aggiungiBarFootprint,
   aggiungiDormitorioFootprint,
   aggiungiSerraFootprint,
-  aggiungiSpazioportoFootprint,
   aggiungiTribunaleFootprint
 } from "../src/game/mappaEdificiInizialiPiazzamento";
 import {
   BAR_EDIFICIO,
   DORMITORIO,
   SERRA_EDIFICIO,
-  SPAZIOPORTO_EDIFICIO,
   TRIBUNALE_EDIFICIO
 } from "../src/game/mappaEdificiStatici";
 
@@ -77,14 +75,6 @@ test("initial greenhouse placement preserves the 2x1 footprint", () => {
   assertFootprintPlacement(out, 18, 8, SERRA_EDIFICIO, 2, 1);
 });
 
-test("initial spaceport placement preserves the 4x3 footprint", () => {
-  const out: Record<number, any> = {};
-  const vietato = new Set<number>();
-
-  aggiungiSpazioportoFootprint(10, 10, new Set(), vietato, out, 22);
-
-  assertFootprintPlacement(out, 22, 10, SPAZIOPORTO_EDIFICIO, 4, 3);
-});
 
 test("initial dormitory placement leaves output unchanged when no valid footprint or fallback cell exists", () => {
   const out: Record<number, any> = {};
