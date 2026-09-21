@@ -6,7 +6,7 @@ import {
   DECORAZIONI_EMOJI,
   DORMITORIO,
   GIACIMENTO,
-  RAFFINERIA_MINERARIA,
+  MINIERA_EDIFICIO,
   SERRA_2_EDIFICIO,
   SERRA_EDIFICIO,
   STRADA_OPZIONE,
@@ -16,7 +16,7 @@ import {
 test("static map building templates preserve ids, names and emoji", () => {
   const entries = [
     GIACIMENTO,
-    RAFFINERIA_MINERARIA,
+    MINIERA_EDIFICIO,
     STRADA_OPZIONE,
     DORMITORIO,
     BAR_EDIFICIO,
@@ -29,7 +29,7 @@ test("static map building templates preserve ids, names and emoji", () => {
     entries.map(({ id, nome, emoji }) => ({ id, nome, emoji })),
     [
       { id: 0, nome: "Giacimento", emoji: "⛰️" },
-      { id: 3, nome: "Raffineria Mineraria", emoji: "⚙️" },
+      { id: 3, nome: "Miniera", emoji: "⛏️" },
       { id: -1, nome: "Strada", emoji: "🛤️" },
       { id: 14, nome: "Dormitorio", emoji: "🛏️" },
       { id: 17, nome: "Bar", emoji: "🍺" },

@@ -7,8 +7,6 @@ export function getRouteForEdificio(edificio: Edificio): string | null {
       return `/serra/${edificio.id}`;
     case "Bar":
       return `/bar/${edificio.id}`;
-    case "Raffineria Mineraria":
-      return "/raffineria-mineraria";
     case "Impianto di Riciclo":
       return "/impianto-riciclo";
     case "Baracca":

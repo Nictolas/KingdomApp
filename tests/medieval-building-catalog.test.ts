@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { existsSync, readFileSync } from "node:fs";
 import test from "node:test";
 
 import { edificiData } from "../src/data/edificiData.ts";
@@ -16,4 +17,14 @@ test("il catalogo edifici usa il Regno medievale fantasy", () => {
 
   assert.ok(nomi.has("Luogo di Culto delle Ombre"));
   assert.equal(nomi.has("Luogo di Culto degli Alieni"), false);
+});
+
+
+test("la mappa trasforma i Giacimenti in Miniere senza residui della Raffineria", () => {
+  const mappa = readFileSync("app/mappa.tsx", "utf8");
+
+  assert.equal(existsSync("app/raffineria-mineraria.tsx"), false);
+  assert.match(mappa, /MINIERA_EDIFICIO/);
+  assert.match(mappa, /Trasformare in Miniera/);
+  assert.doesNotMatch(mappa, /Raffineria Mineraria|RAFFINERIA_MINERARIA/);
 });
