@@ -38,7 +38,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
   {
     titolo: "Religione",
     punti: [
-      "Distribuzione uniforme tra: Ateo, Deista, Agnostico, Culto del Sole, Culto degli Alieni.",
+      "Distribuzione uniforme tra: Ateo, Deista, Agnostico, Culto del Sole, Culto delle Ombre.",
       "A inizio partita c'è sempre un abitante con Occupazione «Capo Religioso» e Religione «Culto del Sole»."
     ]
   },
@@ -139,7 +139,7 @@ function pesaScelta<T>(pool: { nome: T; peso: number }[]): T {
   return pool[pool.length - 1].nome;
 }
 
-const RELIGIONI: Abitante["religione"][] = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto degli Alieni"];
+const RELIGIONI: Abitante["religione"][] = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto delle Ombre"];
 const RAZZE_NON_UMANE: Razza[] = ["Elfo", "Nano", "Orco", "Goblin"];
 const FAZIONI_RUOLO = ["Amministrazione", "Lavoratori", "Scienziati", "Esploratori", "Intellettuali", "Ambientalisti"];
 const LAVORI = [

@@ -24,7 +24,7 @@ const PERSONALITÀ = [
 const RAZZE_IMMIGRATI: Razza[] = ["Umano", "Elfo", "Nano", "Orco", "Goblin", "Golem"];
 const EMOJI_UMANI_M: string[] = ["👨", "👨‍🔬", "👨‍💼", "👨‍🔧", "👨‍🌾"];
 const EMOJI_UMANI_F: string[] = ["👩", "👩‍🔬", "👩‍💼", "👩‍🔧", "👩‍🌾"];
-const RELIGIONI: Abitante["religione"][] = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto degli Alieni"];
+const RELIGIONI: Abitante["religione"][] = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto delle Ombre"];
 
 /**
  * Genera 0-5 nuovi abitanti proposti per immigrazione (usa Math.random).

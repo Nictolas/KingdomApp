@@ -219,6 +219,8 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     delete copia.specie;
     return copia;
   };
+  const normalizzaReligioneFantasy = (religione: Abitante["religione"] | null): Abitante["religione"] | null =>
+    religione === "Culto degli Alieni" ? "Culto delle Ombre" : religione;
   const normalizzaRazzaFantasy = (razza: unknown): Abitante["razza"] => {
     if (razza === "Robot") return "Golem";
     if (razza === "Grigi" || razza === "Insettoidi") return "Goblin";
@@ -259,26 +261,29 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
   next.population.abitanti = next.population.abitanti.map((a: Abitante) => ({
     ...senzaSpecieLegacy(a),
     razza: normalizzaRazzaFantasy(a.razza),
+    religione: normalizzaReligioneFantasy(a.religione) ?? "Ateo",
     ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
       aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
     }),
     ...(a.id !== 1 && a.aspetto?.cappello === "corona" && {
       aspetto: { ...a.aspetto, cappello: "nessuno" }
     }),
-    fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f),
+    fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f === "Culto degli Alieni" ? "Culto delle Ombre" : f),
     inventario: a.inventario ? normalizeInventario(a.inventario) : undefined
   }));
   next.population.abitantiProposti = next.population.abitantiProposti.map((a: Abitante) => ({
     ...senzaSpecieLegacy(a),
     razza: normalizzaRazzaFantasy(a.razza),
+    religione: normalizzaReligioneFantasy(a.religione) ?? "Ateo",
     ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
       aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
     }),
     ...(a.aspetto?.cappello === "corona" && {
       aspetto: { ...a.aspetto, cappello: "nessuno" }
     }),
-    fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f)
+    fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f === "Culto degli Alieni" ? "Culto delle Ombre" : f)
   }));
+  next.policies.religioneDiStato = normalizzaReligioneFantasy(next.policies.religioneDiStato);
   next.policies.razzaCampoLavoro = normalizzaRazzaFantasy(next.policies.razzaCampoLavoro) ?? null;
   next.policies.razzaCampoSterminio = normalizzaRazzaFantasy(next.policies.razzaCampoSterminio) ?? null;
   return next;
