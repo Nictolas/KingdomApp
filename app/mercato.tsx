@@ -81,7 +81,7 @@ export default function MercatoScreen() {
             <Text style={styles.saldoLabel}>Tesoro</Text>
             <Text style={styles.saldoValue}>{moneteGiocatore}</Text>
           </View>
-          <Text style={styles.saldoHint}>Ordini eseguiti al Skip Mese</Text>
+          <Text style={styles.saldoHint}>Ordini eseguiti al cambio mese automatico</Text>
         </View>
 
         {ordiniMercato.length > 0 && (
