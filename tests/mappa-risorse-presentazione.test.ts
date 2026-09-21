@@ -4,7 +4,7 @@ import { getResourceEmoji, getResourceRoute } from "../src/game/mappaRisorsePres
 
 test("getResourceEmoji preserves every map resource mapping", () => {
   assert.equal(getResourceEmoji({ nome: "Cibo" }), "🍱");
-  assert.equal(getResourceEmoji({ nome: "Energia" }), "⚡");
+  assert.equal(getResourceEmoji({ nome: "Energia Magica" }), "✨");
   assert.equal(getResourceEmoji({ nome: "Acqua potabile" }), "💧");
   assert.equal(getResourceEmoji({ nome: "Materiale Edile" }), "🧱");
   assert.equal(getResourceEmoji({ nome: "Medicine" }), "💊");
@@ -15,7 +15,7 @@ test("getResourceEmoji preserves every map resource mapping", () => {
 
 test("getResourceRoute preserves navigable resources and fallback", () => {
   assert.equal(getResourceRoute({ nome: "Cibo" }), "/cibo");
-  assert.equal(getResourceRoute({ nome: "Energia" }), "/energia");
+  assert.equal(getResourceRoute({ nome: "Energia Magica" }), null);
   assert.equal(getResourceRoute({ nome: "Acqua potabile" }), "/acqua");
   assert.equal(getResourceRoute({ nome: "Rifiuti" }), "/rifiuti");
   assert.equal(getResourceRoute({ nome: "Materiale Edile" }), null);
@@ -23,5 +23,5 @@ test("getResourceRoute preserves navigable resources and fallback", () => {
 
 test("resource presentation matching remains case-insensitive and substring-based", () => {
   assert.equal(getResourceEmoji({ nome: "Scorte di CIBO" }), "🍱");
-  assert.equal(getResourceRoute({ nome: "Produzione ENERGIA" }), "/energia");
+  assert.equal(getResourceEmoji({ nome: "Riserva di ENERGIA MAGICA" }), "✨");
 });
