@@ -101,7 +101,9 @@ export function haLuogoCulto(
 
 export type CapiReligiosiIds = {
   sole: number | null;
-  alieni: number | null;
+  ombre?: number | null;
+  /** @deprecated Compatibilità interna con vecchi chiamanti. */
+  alieni?: number | null;
 };
 
 function raccogliCapiReligiosi(abitanti: Abitante[], capiIds?: CapiReligiosiIds): Abitante[] {
@@ -117,7 +119,8 @@ function raccogliCapiReligiosi(abitanti: Abitante[], capiIds?: CapiReligiosiIds)
     if (a.lavoro === "Capo Religioso" || a.lavoro === "Capo Spirituale") aggiungi(a);
   }
   if (capiIds?.sole != null) aggiungi(abitanti.find((a) => a.id === capiIds.sole));
-  if (capiIds?.alieni != null) aggiungi(abitanti.find((a) => a.id === capiIds.alieni));
+  const capoOmbreId = capiIds?.ombre ?? capiIds?.alieni ?? null;
+  if (capoOmbreId != null) aggiungi(abitanti.find((a) => a.id === capoOmbreId));
 
   return out;
 }
@@ -128,11 +131,12 @@ export function trovaCapoReligiosoSenzaLuogo(
   mappa?: MappaRuntimeState | null,
   capiIds?: CapiReligiosiIds
 ): Abitante | null {
+  const capoOmbreId = capiIds?.ombre ?? capiIds?.alieni ?? null;
   for (const a of raccogliCapiReligiosi(abitanti, capiIds)) {
     const religione =
       a.id === capiIds?.sole
         ? "Culto del Sole"
-        : a.id === capiIds?.alieni
+        : a.id === capoOmbreId
           ? "Culto delle Ombre"
           : a.religione;
     if (!RELIGIONI_CON_CULTO.includes(religione as ReligioneConCulto)) continue;
