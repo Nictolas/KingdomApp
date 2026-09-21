@@ -788,14 +788,14 @@ export function useGameState() {
     interrazziale: boolean;
     arcobaleno: boolean;
     monogenitoriale: boolean;
-    matrimonioUmanoRobot: boolean;
+    matrimonioConGolem: boolean;
     matrimonioIntercasta: boolean;
   }>({
     tradizionale: true,
     interrazziale: true,
     arcobaleno: true,
     monogenitoriale: true,
-    matrimonioUmanoRobot: false,
+    matrimonioConGolem: false,
     matrimonioIntercasta: false
   });
 
