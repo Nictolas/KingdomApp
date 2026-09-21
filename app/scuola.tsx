@@ -166,7 +166,7 @@ export default function ScuolaScreen() {
               ))}
             </View>
           ) : (
-            <Text style={styles.emptyText}>Nessun bambino nella colonia</Text>
+            <Text style={styles.emptyText}>Nessun bambino nel regno</Text>
           )}
         </View>
       </ScrollView>
