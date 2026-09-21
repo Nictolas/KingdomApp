@@ -137,7 +137,7 @@ function coppiaConsentitaLegge(
   return true;
 }
 
-/** True se esiste almeno una coppia (non sposata, amicizia ≥90, compatibile) che può generare pendingMatrimonio allo Skip Mese. */
+/** True se esiste almeno una coppia (non sposata, amicizia ≥90, compatibile) che può generare pendingMatrimonio al cambio mese automatico. */
 export function esisteCoppiaMatrimonioPossibile(
   abitanti: Abitante[],
   tipologieFamigliaAccettate?: { matrimonioConGolem: boolean; matrimonioIntercasta?: boolean }
@@ -563,7 +563,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
             const numAbitanti = edificio.abitantiAssegnati.length;
             if (numAbitanti > 0) {
               if (risorsa.nome.toLowerCase().includes("cibo")) {
-                // Il cibo vegetale della Serra va nell'inventario (produzione giornaliera / Skip Mese).
+                // Il cibo vegetale della Serra va nell'inventario (produzione giornaliera / cambio mese automatico).
                 if (edificio.nome === "Serra") return;
                 const produzioneBase = edificio.abitantiAssegnati.reduce(
                   (sum, id) => sum + getProduzioneCiboPerAbitante(id),
