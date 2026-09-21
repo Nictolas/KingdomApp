@@ -48,7 +48,7 @@ export default function CentraleScreen() {
         </View>
 
         <View style={styles.stipendioCard}>
-          <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (crediti)</Text>
+          <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (monete)</Text>
           <TextInput
             style={styles.stipendioInput}
             value={String(centrale.stipendioPerLavoratore ?? 0)}
@@ -59,7 +59,7 @@ export default function CentraleScreen() {
             }}
           />
           <Text style={styles.infoSubtext}>
-            Totale: {(centrale.stipendioPerLavoratore ?? 0) * addettiIds.length} crediti/mese
+            Totale: {(centrale.stipendioPerLavoratore ?? 0) * addettiIds.length} monete/mese
           </Text>
         </View>
 

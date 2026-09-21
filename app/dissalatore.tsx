@@ -55,7 +55,7 @@ export default function DissalatoreScreen() {
         <Text style={styles.infoSubtext}>Produce: Acqua potabile</Text>
       </View>
       <View style={styles.stipendioCard}>
-        <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (crediti)</Text>
+        <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (monete)</Text>
         <TextInput
           style={styles.stipendioInput}
           value={String(dissalatore.stipendioPerLavoratore ?? 0)}
@@ -66,7 +66,7 @@ export default function DissalatoreScreen() {
           }}
         />
         <Text style={styles.infoSubtext}>
-          Totale: {(dissalatore.stipendioPerLavoratore ?? 0) * abitantiAssegnati.length} crediti/mese
+          Totale: {(dissalatore.stipendioPerLavoratore ?? 0) * abitantiAssegnati.length} monete/mese
         </Text>
       </View>
     </View>,

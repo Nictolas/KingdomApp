@@ -57,7 +57,7 @@ export default function CasermaScreen() {
         </View>
 
         <View style={styles.stipendioCard}>
-          <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (crediti)</Text>
+          <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (monete)</Text>
           <TextInput
             style={styles.stipendioInput}
             value={String(caserma.stipendioPerLavoratore ?? 0)}
@@ -68,7 +68,7 @@ export default function CasermaScreen() {
             }}
           />
           <Text style={styles.infoSubtext}>
-            Totale: {(caserma.stipendioPerLavoratore ?? 0) * addettiIds.length} crediti/mese
+            Totale: {(caserma.stipendioPerLavoratore ?? 0) * addettiIds.length} monete/mese
           </Text>
         </View>
 
