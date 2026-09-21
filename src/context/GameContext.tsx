@@ -105,7 +105,7 @@ type GameContextType = {
     interrazziale: boolean;
     arcobaleno: boolean;
     monogenitoriale: boolean;
-    matrimonioUmanoRobot: boolean;
+    matrimonioConGolem: boolean;
     matrimonioIntercasta: boolean;
   };
   /** Modalità del sistema sanitario: influisce sui costi dell'Ospedale. */
@@ -140,7 +140,7 @@ type GameContextType = {
     interrazziale: boolean;
     arcobaleno: boolean;
     monogenitoriale: boolean;
-    matrimonioUmanoRobot: boolean;
+    matrimonioConGolem: boolean;
     matrimonioIntercasta: boolean;
   }) => void;
   /** Importo mensile del Reddito di Cittadinanza per ogni disoccupato non schiavo. */

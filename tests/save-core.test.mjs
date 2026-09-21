@@ -81,6 +81,17 @@ test("i vecchi salvataggi con specie aliena restano caricabili e il campo legacy
   assert.equal("specie" in restored.payload.population.abitanti[0], false);
 });
 
+test("i vecchi salvataggi con matrimonioUmanoRobot migrano a matrimonioConGolem", () => {
+  const save = createSaveEnvelope();
+  delete save.payload.policies.tipologieFamigliaAccettate.matrimonioConGolem;
+  save.payload.policies.tipologieFamigliaAccettate.matrimonioUmanoRobot = true;
+
+  const restored = deserializeSave(serializeSave(save));
+
+  assert.equal(restored.payload.policies.tipologieFamigliaAccettate.matrimonioConGolem, true);
+  assert.equal("matrimonioUmanoRobot" in restored.payload.policies.tipologieFamigliaAccettate, false);
+});
+
 test("Infinity negli scaglioni fiscali sopravvive al round trip", () => {
   const restored = deserializeSave(serializeSave(createSaveEnvelope()));
   assert.equal(restored.payload.policies.scaglioniConfig.at(-1).max, Infinity);
