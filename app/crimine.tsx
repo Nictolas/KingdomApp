@@ -37,7 +37,7 @@ export default function CrimineScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.subtitle}>
-          Reati presenti nella colonia (criminali totali: {criminali.length}).
+          Reati presenti nel regno (criminali totali: {criminali.length}).
         </Text>
 
         <View style={styles.grid}>
