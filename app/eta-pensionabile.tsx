@@ -128,7 +128,7 @@ export default function EtaPensionabileScreen() {
           <View style={styles.effettoRow}>
             <Text style={styles.effettoEmoji}>💰</Text>
             <Text style={styles.effettoText}>
-              Ogni pensionato riceve mensilmente l&apos;assegno in crediti (costo per la colonia)
+              Ogni pensionato riceve mensilmente l&apos;assegno in crediti (costo per il regno)
             </Text>
           </View>
           <View style={styles.effettoRow}>
