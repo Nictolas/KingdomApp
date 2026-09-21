@@ -226,7 +226,7 @@ function TassaRedditoScreenInner() {
             <Text style={styles.totaleTasse}>-{totaleTasse} crediti</Text>
           </View>
           <View style={styles.totaleRowFinale}>
-            <Text style={styles.totaleLabelFinale}>Entrate nette dalla colonia:</Text>
+            <Text style={styles.totaleLabelFinale}>Entrate nette dal regno:</Text>
             <Text style={styles.totaleNetto}>{totaleRedditiNetto} crediti</Text>
           </View>
         </View>
