@@ -127,7 +127,7 @@ export function createSaveEnvelope() {
         messaggioEmigrazione: null,
         diarioRighe: ["La colonia è operativa."],
         capoReligiosoSole: null,
-        capoReligiosoAlieni: null,
+        capoReligiosoOmbre: null,
         pendingRichiestaLuogoCulto: null,
         richiesteInAttesa: [],
         luoghiCultoRifiutati: [],

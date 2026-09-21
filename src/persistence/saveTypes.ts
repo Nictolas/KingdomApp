@@ -114,7 +114,9 @@ export type GameSaveV1 = {
     /** Registro economico/raccolte; assente nei salvataggi precedenti. */
     registrazioniScambi?: RegistrazioneScambio[];
     capoReligiosoSole: number | null;
-    capoReligiosoAlieni: number | null;
+    capoReligiosoOmbre: number | null;
+    /** @deprecated Compatibilità con salvataggi precedenti. */
+    capoReligiosoAlieni?: number | null;
     pendingRichiestaLuogoCulto: { id: number; nome: string; religione: ReligioneConCulto } | null;
     richiesteInAttesa: RichiestaInAttesa[];
     luoghiCultoRifiutati: ReligioneConCulto[];

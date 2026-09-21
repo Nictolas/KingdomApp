@@ -79,7 +79,7 @@ export type PersistableGameState = {
   diarioRighe: string[];
   registrazioniScambi: RegistrazioneScambio[];
   capoReligiosoSole: number | null;
-  capoReligiosoAlieni: number | null;
+  capoReligiosoOmbre: number | null;
   pendingRichiestaLuogoCulto: GameSaveV1["events"]["pendingRichiestaLuogoCulto"];
   richiesteInAttesa: RichiestaInAttesa[];
   luoghiCultoRifiutati: ReligioneConCulto[];
@@ -171,7 +171,7 @@ export function gameStateToGameSaveV1(state: PersistableGameState): GameSaveV1 {
       diarioRighe: state.diarioRighe,
       registrazioniScambi: state.registrazioniScambi,
       capoReligiosoSole: state.capoReligiosoSole,
-      capoReligiosoAlieni: state.capoReligiosoAlieni,
+      capoReligiosoOmbre: state.capoReligiosoOmbre,
       pendingRichiestaLuogoCulto: state.pendingRichiestaLuogoCulto,
       richiesteInAttesa: state.richiesteInAttesa,
       luoghiCultoRifiutati: state.luoghiCultoRifiutati,

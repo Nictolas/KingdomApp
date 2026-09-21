@@ -61,6 +61,17 @@ test("i vecchi riferimenti al Culto degli Alieni migrano al Culto delle Ombre", 
   assert.equal(restored.payload.policies.religioneDiStato, "Culto delle Ombre");
 });
 
+test("i vecchi salvataggi con capoReligiosoAlieni migrano a capoReligiosoOmbre", () => {
+  const save = createSaveEnvelope();
+  delete save.payload.events.capoReligiosoOmbre;
+  save.payload.events.capoReligiosoAlieni = 1;
+
+  const restored = deserializeSave(serializeSave(save));
+
+  assert.equal(restored.payload.events.capoReligiosoOmbre, 1);
+  assert.equal("capoReligiosoAlieni" in restored.payload.events, false);
+});
+
 test("i vecchi salvataggi con specie aliena restano caricabili e il campo legacy viene rimosso", () => {
   const save = createSaveEnvelope();
   save.payload.population.abitanti[0].specie = "alieno";
