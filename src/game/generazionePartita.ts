@@ -10,12 +10,12 @@ import { LAVORO_GIOCATORE, ETA_GIOCATORE_INIZIALE } from "./schiavituCommercio";
 import { redditoMensileLavoroDefault, STIPENDIO_BASE_MONETE_MESE } from "./economiaPrezzi";
 import { aggiungiCuginoNobileConSchiaviAvventura } from "./cuginoNobileAvventura";
 
-/** Regole di generazione casuale della colonia iniziale (per la pagina "Generazione Partita"). */
+/** Regole di generazione casuale della regno iniziale (per la pagina "Generazione Partita"). */
 export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] = [
   {
     titolo: "Numero abitanti",
     punti: [
-      "La colonia iniziale ha tra 15 e 22 abitanti (numero estratto a caso)."
+      "La regno iniziale ha tra 15 e 22 abitanti (numero estratto a caso)."
     ]
   },
   {
@@ -56,7 +56,7 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     titolo: "Casta",
     punti: [
       "Il Re ha casta «Nobile».",
-      "Gli abitanti con ruoloSchiavitu «schiavo» hanno casta «Servo della gleba» (schiavi della colonia).",
+      "Gli abitanti con ruoloSchiavitu «schiavo» hanno casta «Servo della gleba» (schiavi della Corona).",
       "Tutti gli altri abitanti hanno casta «Cittadino»."
     ]
   },
@@ -154,8 +154,8 @@ function normalizzaFazioni(fazioni: string[]): string[] {
   return fazioni;
 }
 
-/** Genera la colonia iniziale casuale. Ogni partita usa questo risultato (non abitantiData). */
-export function generaColoniaIniziale(
+/** Genera la regno iniziale casuale. Ogni partita usa questo risultato (non abitantiData). */
+export function generaRegnoIniziale(
   modalita: ModalitaGiocoGenerazione = "creativa"
 ): { abitanti: Abitante[]; razzaNativi: Razza } {
   const isAvventura = modalita === "avventura";
@@ -246,7 +246,7 @@ export function generaColoniaIniziale(
   }
 
   if (!isAvventura) {
-    // Regola: 2-3 Nativi (razza = razzaNativi) integrati in colonia. La residenza iniziale per tutti (tranne Senzatetto) è nelle Capanne (useGameState).
+    // Regola: 2-3 Nativi (razza = razzaNativi) integrati nel regno. La residenza iniziale per tutti (tranne Senzatetto) è nelle Capanne (useGameState).
     const candidatiNativo = abitanti.filter((a) => a.id !== 1);
     const numNativi = Math.min(candidatiNativo.length, 2 + Math.floor(Math.random() * 2)); // 2 o 3
     for (let k = candidatiNativo.length - 1; k > 0; k--) {
@@ -261,11 +261,11 @@ export function generaColoniaIniziale(
       nat.fazioni = normalizzaFazioni([...(nat.fazioni ?? []), "Nativi"]);
     }
   
-    // Regola: esattamente 1 Robot a inizio partita (razza "Golem", nome stile Unit-XXXX). Fazione "Golem" automatica.
-    // Robot non hanno Crediti, Reddito, Spese, Sesso, Salute, Peso, Paura, Lealtà. Orientamento sempre «Bi» (regola fondamentale).
-    const candidatiRobot = abitanti.filter((a) => a.id !== 1 && a.razza === "Umano");
-    if (candidatiRobot.length > 0) {
-      const bot = candidatiRobot[Math.floor(Math.random() * candidatiRobot.length)];
+    // Regola: esattamente 1 Golem a inizio partita (razza "Golem", nome stile Unit-XXXX). Fazione "Golem" automatica.
+    // I Golem non hanno Crediti, Reddito, Spese, Sesso, Salute, Peso, Paura, Lealtà. Orientamento sempre «Bi» (regola fondamentale).
+    const candidatiGolem = abitanti.filter((a) => a.id !== 1 && a.razza === "Umano");
+    if (candidatiGolem.length > 0) {
+      const bot = candidatiGolem[Math.floor(Math.random() * candidatiGolem.length)];
       bot.razza = "Golem";
       bot.nome = generaNomeFantasy("Golem");
       bot.emoji = getEmojiRazza("Golem");
@@ -421,7 +421,7 @@ export function generaColoniaIniziale(
     if (re) re.fazioni = normalizzaFazioni([...(re.fazioni ?? []), "Rivoluzionari"]);
   }
 
-  // Regola: 1 Omo, 2 Bi, il resto Etero (solo non-Robot; i Robot hanno sempre Bi, vedi sopra).
+  // Regola: 1 Omo, 2 Bi, il resto Etero (solo non-Golem; i Golem hanno sempre Bi, vedi sopra).
   const candidatiOrientamento = abitanti
     .map((_, idx) => idx)
     .filter((idx) => abitanti[idx]!.razza !== "Golem");
