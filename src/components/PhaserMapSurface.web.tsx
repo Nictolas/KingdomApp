@@ -46,7 +46,7 @@ async function warmLpcLayerUrls(sourceIds: readonly string[]): Promise<void> {
 
 const SPRITESHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/spritesheet-full.png");
 const GOLEM_SHEET = require("../../assets/pixel-art/characters/stone-golem.png");
-const COMMAND_CENTER = require("../../assets/pixel-art/buildings/command-center.png");
+const CASTLE = require("../../assets/pixel-art/buildings/castle.png");
 const DORMITORY = require("../../assets/pixel-art/buildings/dormitory.png");
 const GREENHOUSE = require("../../assets/pixel-art/buildings/greenhouse.png");
 const FRONTIER_HUT = require("../../assets/pixel-art/buildings/frontier-hut.png");
@@ -132,7 +132,7 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
         golem: Asset.fromModule(GOLEM_SHEET).uri,
         getLpcLayerUrl,
         buildings: {
-          "command-center": Asset.fromModule(COMMAND_CENTER).uri,
+          castle: Asset.fromModule(CASTLE).uri,
           dormitory: Asset.fromModule(DORMITORY).uri,
           greenhouse: Asset.fromModule(GREENHOUSE).uri,
           "frontier-hut": Asset.fromModule(FRONTIER_HUT).uri
