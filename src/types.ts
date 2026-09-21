@@ -112,7 +112,6 @@ export type Abitante = {
   religione: "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto delle Ombre" | string; // Religione (canonica o creata dal giocatore)
   /** Livello scolastico (Asilo → Università). */
   titoloStudio?: TitoloDiStudio;
-  specie?: "umano" | "alieno"; // Specie dell'abitante (alieno = non Umano)
   razza?: Razza; // Razza/Pianeta di origine dell'abitante
   /** Aspetto modulare scelto nell'editor del Re o generato per l'abitante. */
   aspetto?: AspettoPersonaggio;
