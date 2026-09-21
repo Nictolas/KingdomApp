@@ -82,7 +82,6 @@ function categoryForBuilding(name: string): PhaserMapBuilding["category"] {
       "Armeria",
       "Laboratorio Magico",
       "Cripta Necromantica",
-      "Raffineria Mineraria",
       "Giacimento"
     ].includes(name)
   ) {
