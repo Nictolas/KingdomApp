@@ -2,7 +2,7 @@ import type { Abitante, Razza } from "../types";
 import { abitanteConInventarioIniziale } from "./inventario";
 import { specializzazioneCasuale } from "./specializzazione";
 import { getEmojiRazza } from "../kingdomData";
-import { generaNomeAlieno } from "./nomiAlieni";
+import { generaNomeFantasy } from "./nomiFantasy";
 import { scegliNomeCognomeUmano } from "./nomiUmani";
 import { redditoMensileLavoroDefault } from "./economiaPrezzi";
 import { generaAspettoCasuale } from "./personaggioAspetto";
@@ -47,7 +47,7 @@ export function generaImmigratiProposti(nextId: number): GeneraImmigratiProposti
         ? EMOJI_UMANI_M[Math.floor(Math.random() * EMOJI_UMANI_M.length)]
         : EMOJI_UMANI_F[Math.floor(Math.random() * EMOJI_UMANI_F.length)];
     } else {
-      nome = generaNomeAlieno(razza);
+      nome = generaNomeFantasy(razza);
       emoji = getEmojiRazza(razza);
     }
     const fazioniIniziali =
