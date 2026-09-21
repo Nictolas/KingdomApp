@@ -4,7 +4,7 @@ export const leggiData: Legge[] = [
   { id: 1, titolo: "Imposta sul Valore Aggiunto", descrizione: "Imposta sul valore della produzione degli edifici operativi. Aliquota configurabile; gettito al Tesoro a fine mese.", stato: "In vigore" },
   { id: 2, titolo: "Carta dei Diritti dei Sudditi", descrizione: "Riconosce alcuni diritti fondamentali a tutti i membri del Regno.", stato: "Proposta" },
   { id: 3, titolo: "Regolamento sull'Uso dell'Energia", descrizione: "Stabilisce norme per l'utilizzo efficiente dell'energia nel Regno.", stato: "In vigore" },
-  { id: 4, titolo: "Tassa sul Patrimonio", descrizione: "Una tassa progressiva sul patrimonio degli abitanti basata sui loro crediti accumulati.", stato: "In vigore" },
+  { id: 4, titolo: "Tassa sul Patrimonio", descrizione: "Una tassa progressiva sul patrimonio degli abitanti basata sulle monete accumulate.", stato: "In vigore" },
   { id: 5, titolo: "Tassa sul Reddito", descrizione: "Sistema di tassazione progressiva sul reddito mensile degli abitanti con scaglioni fiscali.", stato: "In vigore" },
   { id: 6, titolo: "Età minima sul lavoro", descrizione: "Stabilisce che i minori di 18 anni non possono essere impiegati in lavori pericolosi o a tempo pieno.", stato: "In vigore" },
   { id: 7, titolo: "Legge sulle Nascite", descrizione: "Politiche per regolare la crescita demografica del Regno.", stato: "In vigore" },

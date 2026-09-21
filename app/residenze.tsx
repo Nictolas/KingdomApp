@@ -38,7 +38,7 @@ export default function ResidenzeScreen() {
 
         <View style={styles.sezione}>
           <View style={styles.gridSeiColonne}>
-            {RESIDENZE_CATALOGO.map((r) => {
+            {RESIDENZE_CATALOGO.filter((r) => getEdificioByName(r.nome) != null).map((r) => {
               const ed = getEdificioByName(r.nome);
               let assegnati = ed
                 ? (ed.abitantiAssegnati ?? []).map((id) => getAbitanteById(id)).filter((a): a is NonNullable<typeof a> => a != null)

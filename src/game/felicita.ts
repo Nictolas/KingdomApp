@@ -14,7 +14,7 @@ export type CalcolaFelicitàModificataInput = {
   politicaReligiosa: PoliticaReligiosa;
   religioneDiStato: ReligioneStato;
   leggeDroghe: LeggeDroghe;
-  /** Nome edificio residenza (es. "Villetta") per bonus catalogo. */
+  /** Nome edificio residenza (es. "Dormitorio") per bonus catalogo. */
   nomeResidenza?: string | null;
 };
 
