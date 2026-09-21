@@ -1158,6 +1158,7 @@ export function useGameState() {
   const [diarioInizioVisto, setDiarioInizioVisto] = useState(false);
   const [introConsigliereAperta, setIntroConsigliereAperta] = useState(false);
   const [suggerimentoPonteAperto, setSuggerimentoPonteAperto] = useState(false);
+  const [dialogPiazzaPonteAperto, setDialogPiazzaPonteAperto] = useState(false);
   const startNewGame = useCallback((mode: GameMode = "avventura") => {
     const colonia = generaColoniaIniziale(mode);
     setGameMode(mode);
@@ -1165,6 +1166,7 @@ export function useGameState() {
     setDiarioInizioVisto(false);
     setIntroConsigliereAperta(false);
     setSuggerimentoPonteAperto(false);
+    setDialogPiazzaPonteAperto(false);
     setRegistrazioniScambi([]);
     setModalitaReState(STATO_RE_DEFAULT.modalitaRe);
     setEdificioVisitaReId(null);
@@ -1241,6 +1243,14 @@ export function useGameState() {
     setGamePhase("activating");
   }, []);
 
+  const apriDialogPiazzaPonte = useCallback(() => {
+    setDialogPiazzaPonteAperto(true);
+  }, []);
+
+  const chiudiDialogPiazzaPonte = useCallback(() => {
+    setDialogPiazzaPonteAperto(false);
+  }, []);
+
   // Un ciclo separato chiude l'introduzione prima di permettere qualunque effetto automatico.
   useEffect(() => {
     if (gamePhase !== "activating") return;
@@ -1256,6 +1266,7 @@ export function useGameState() {
     setGameMode(state.gameMode);
     setIntroConsigliereAperta(false);
     setSuggerimentoPonteAperto(false);
+    setDialogPiazzaPonteAperto(false);
     setObiettiviCompletati(state.obiettiviCompletati ?? []);
     setColtureSerraSbloccate(
       normalizzaColtureSerraSbloccate({
@@ -2433,6 +2444,9 @@ export function useGameState() {
     chiudiIntroConsigliere,
     suggerimentoPonteAperto,
     chiudiSuggerimentoPonte,
+    dialogPiazzaPonteAperto,
+    apriDialogPiazzaPonte,
+    chiudiDialogPiazzaPonte,
     diarioInizioVisto,
     messaggioEmigrazione,
     chiudiMessaggioEmigrazione,
