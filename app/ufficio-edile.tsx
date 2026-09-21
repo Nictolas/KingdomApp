@@ -60,7 +60,7 @@ export default function UfficioEdileScreen() {
           </View>
 
           <View style={styles.stipendioCard}>
-            <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (crediti)</Text>
+            <Text style={styles.stipendioLabel}>Stipendio mensile per lavoratore (monete)</Text>
             <TextInput
               style={styles.stipendioInput}
               value={String(ufficio.stipendioPerLavoratore ?? 0)}
@@ -71,7 +71,7 @@ export default function UfficioEdileScreen() {
               }}
             />
             <Text style={styles.infoSubtext}>
-              Totale: {(ufficio.stipendioPerLavoratore ?? 0) * ediliIds.length} crediti/mese
+              Totale: {(ufficio.stipendioPerLavoratore ?? 0) * ediliIds.length} monete/mese
             </Text>
           </View>
 
