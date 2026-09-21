@@ -11,7 +11,7 @@ import {
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
-import { pianetiData } from "../src/kingdomData";
+import { regniData } from "../src/kingdomData";
 import type { Risorsa } from "../src/types";
 
 /** Emoji per risorsa (per UI). */
@@ -51,7 +51,7 @@ export default function MercatoScreen() {
     .reduce((s, o) => s + o.quantità * o.prezzoUnitario, 0);
   const moneteDisponibili = moneteGiocatore - moneteImpegnate;
 
-  const handleOrdinePianeta = (
+  const handleOrdineRegno = (
     tipo: "compra" | "vendi",
     risorsaId: number,
     prezzoUnitario: number,
@@ -112,40 +112,40 @@ export default function MercatoScreen() {
 
         <View style={styles.sectionBar}>
           <Text style={styles.sectionTitle}>🏰 Regni mercantili</Text>
-          <Pressable onPress={() => router.push("/pianeti")} hitSlop={8}>
+          <Pressable onPress={() => router.push("/regni")} hitSlop={8}>
             <Text style={styles.link}>Tutti →</Text>
           </Pressable>
         </View>
 
         <View style={[styles.grid6, { gap }]}>
-        {pianetiData.map((pianeta) => {
-          const risorsaCheCompra = risorse.find((r) => r.id === pianeta.compraRisorsaId);
-          const risorsaCheVende = risorse.find((r) => r.id === pianeta.vendiRisorsaId);
-          const keyVendi = `p-${pianeta.id}-vendi`;
-          const keyCompra = `p-${pianeta.id}-compra`;
+        {regniData.map((regno) => {
+          const risorsaCheCompra = risorse.find((r) => r.id === regno.compraRisorsaId);
+          const risorsaCheVende = risorse.find((r) => r.id === regno.vendiRisorsaId);
+          const keyVendi = `r-${regno.id}-vendi`;
+          const keyCompra = `r-${regno.id}-compra`;
           const qVendi = Math.floor(Number(quantitàInput[keyVendi]) || 0);
           const qCompra = Math.floor(Number(quantitàInput[keyCompra]) || 0);
           const qtàGiàInVendita =
             risorsaCheCompra &&
             ordiniMercato
-              .filter((o) => o.tipo === "vendi" && o.risorsaId === pianeta.compraRisorsaId)
+              .filter((o) => o.tipo === "vendi" && o.risorsaId === regno.compraRisorsaId)
               .reduce((s, o) => s + o.quantità, 0);
           const puòVendere =
             risorsaCheCompra &&
             risorsaCheCompra.quantità - (qtàGiàInVendita ?? 0) >= qVendi &&
             qVendi > 0;
-          const costoCompra = qCompra * pianeta.prezzoAcquisto;
+          const costoCompra = qCompra * regno.prezzoAcquisto;
           const puòComprare =
             risorsaCheVende &&
             moneteDisponibili >= costoCompra &&
             qCompra > 0;
 
           return (
-            <View key={pianeta.id} style={[styles.planetCard, { width: colWidth }]}>
-              <View style={styles.planetHeader}>
-                <Text style={styles.planetEmoji}>{pianeta.emoji}</Text>
-                <View style={styles.planetNomeWrap}>
-                  <Text style={styles.planetNome} numberOfLines={2}>{pianeta.nome}</Text>
+            <View key={regno.id} style={[styles.regnoCard, { width: colWidth }]}>
+              <View style={styles.regnoHeader}>
+                <Text style={styles.regnoEmoji}>{regno.emoji}</Text>
+                <View style={styles.regnoNomeWrap}>
+                  <Text style={styles.regnoNome} numberOfLines={2}>{regno.nome}</Text>
                   {risorsaCheCompra && (
                     <Text style={styles.disponibilitaInline}>
                       {risorsaCheCompra.quantità} {risorsaCheCompra.unità}
@@ -156,7 +156,7 @@ export default function MercatoScreen() {
               <View style={styles.trades}>
                 <View style={styles.tradeRow}>
                   <Text style={styles.tradeShort} numberOfLines={1}>
-                    {getEmojiRisorsa(risorsaCheCompra)} Vendi @{pianeta.prezzoVendita}
+                    {getEmojiRisorsa(risorsaCheCompra)} Vendi @{regno.prezzoVendita}
                   </Text>
                   <View style={styles.tradeActions}>
                     <TextInput
@@ -173,17 +173,17 @@ export default function MercatoScreen() {
                       style={[styles.btn, styles.btnVendi, !puòVendere && styles.btnDisabled]}
                       onPress={() =>
                         risorsaCheCompra &&
-                        handleOrdinePianeta("vendi", pianeta.compraRisorsaId, pianeta.prezzoVendita, keyVendi)
+                        handleOrdineRegno("vendi", regno.compraRisorsaId, regno.prezzoVendita, keyVendi)
                       }
                       disabled={!puòVendere}
                     >
-                      <Text style={styles.btnText}>Vendi{qVendi > 0 ? ` +${qVendi * pianeta.prezzoVendita}` : ""}</Text>
+                      <Text style={styles.btnText}>Vendi{qVendi > 0 ? ` +${qVendi * regno.prezzoVendita}` : ""}</Text>
                     </Pressable>
                   </View>
                 </View>
                 <View style={styles.tradeRow}>
                   <Text style={styles.tradeShort} numberOfLines={1}>
-                    {getEmojiRisorsa(risorsaCheVende)} Compra @{pianeta.prezzoAcquisto}
+                    {getEmojiRisorsa(risorsaCheVende)} Compra @{regno.prezzoAcquisto}
                   </Text>
                   <View style={styles.tradeActions}>
                     <TextInput
@@ -199,7 +199,7 @@ export default function MercatoScreen() {
                     <Pressable
                       style={[styles.btn, styles.btnCompra, !puòComprare && styles.btnDisabled]}
                       onPress={() =>
-                        handleOrdinePianeta("compra", pianeta.vendiRisorsaId, pianeta.prezzoAcquisto, keyCompra)
+                        handleOrdineRegno("compra", regno.vendiRisorsaId, regno.prezzoAcquisto, keyCompra)
                       }
                       disabled={!puòComprare}
                     >
@@ -311,22 +311,22 @@ const styles = StyleSheet.create({
     flexDirection: "row",
     flexWrap: "wrap"
   },
-  planetCard: {
+  regnoCard: {
     backgroundColor: "rgba(30,41,59,0.5)",
     borderRadius: 6,
     padding: 6,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.25)"
   },
-  planetHeader: {
+  regnoHeader: {
     flexDirection: "row",
     alignItems: "flex-start",
     marginBottom: 4,
     gap: 4
   },
-  planetEmoji: { fontSize: 18 },
-  planetNomeWrap: { flex: 1, minWidth: 0 },
-  planetNome: { color: "#e2e8f0", fontSize: 10, fontWeight: "700" },
+  regnoEmoji: { fontSize: 18 },
+  regnoNomeWrap: { flex: 1, minWidth: 0 },
+  regnoNome: { color: "#e2e8f0", fontSize: 10, fontWeight: "700" },
   disponibilitaInline: {
     color: "rgba(148,163,184,0.55)",
     fontSize: 9

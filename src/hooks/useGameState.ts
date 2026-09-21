@@ -1,7 +1,7 @@
 import { useState, useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { Alert } from "react-native";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
-import { risorseData, edificiData, pianetiData } from "../kingdomData";
+import { risorseData, edificiData, regniData } from "../kingdomData";
 import { estraiCreditiLegacyDaRisorse } from "../data/risorseData";
 import { OBIETTIVI_CATALOGO, obiettiviSbloccati } from "../data/obiettiviCatalogo";
 import { runAvanzaMese } from "../game/avanzaMese";
@@ -1881,7 +1881,7 @@ export function useGameState() {
     const count = pendingAssimilazione ?? 0;
     setPendingAssimilazione(null);
     if (count <= 0) return;
-    const emojiNativo = pianetiData.find((p) => p.razza === razzaNativi)?.emoji ?? "🌿";
+    const emojiNativo = regniData.find((p) => p.razza === razzaNativi)?.emoji ?? "🌿";
     const { nuoviAbitanti, nextIdDopo } = generaAssimilati({
       razzaNativi,
       count,

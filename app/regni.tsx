@@ -1,10 +1,10 @@
 import React from "react";
 import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
-import { pianetiData } from "../src/kingdomData";
+import { regniData } from "../src/kingdomData";
 import { useGameContext } from "../src/context/GameContext";
 
-export default function PianetiScreen() {
+export default function RegniScreen() {
   const router = useRouter();
   const { abitanti } = useGameContext();
 
@@ -13,9 +13,9 @@ export default function PianetiScreen() {
   const containerHeight = isDesktop ? width * (9 / 16) : undefined;
   const maxHeight = isDesktop ? containerHeight : undefined;
 
-  const conteggioPerRazza = pianetiData.map((p) => ({
-    ...p,
-    count: abitanti.filter((a) => (a.razza ?? "Umano") === p.razza).length
+  const conteggioPerRazza = regniData.map((regno) => ({
+    ...regno,
+    count: abitanti.filter((a) => (a.razza ?? "Umano") === regno.razza).length
   }));
 
   return (
@@ -33,14 +33,14 @@ export default function PianetiScreen() {
         </Text>
 
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Regni ({pianetiData.length})</Text>
+          <Text style={styles.sectionTitle}>Regni ({regniData.length})</Text>
           <View style={styles.grid}>
-            {conteggioPerRazza.map((p) => (
-              <View key={p.id} style={styles.card}>
-                <Text style={styles.emoji}>{p.emoji}</Text>
-                <Text style={styles.cardTitle}>{p.nome}</Text>
+            {conteggioPerRazza.map((regno) => (
+              <View key={regno.id} style={styles.card}>
+                <Text style={styles.emoji}>{regno.emoji}</Text>
+                <Text style={styles.cardTitle}>{regno.nome}</Text>
                 <Text style={styles.cardDesc}>
-                  Razza: {p.razza} · In colonia: {p.count} abitanti
+                  Razza: {regno.razza} · Nel regno: {regno.count} abitanti
                 </Text>
               </View>
             ))}

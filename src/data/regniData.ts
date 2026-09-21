@@ -1,22 +1,22 @@
 import type { Razza } from "../types";
 
-/** Risorsa che il pianeta COMPRA da noi (noi vendiamo). Id risorsa in risorseData. */
-export type PianetaInfo = {
+/** Risorsa che il regno COMPRA da noi (noi vendiamo). Id risorsa in risorseData. */
+export type RegnoInfo = {
   id: number;
   nome: string;
   emoji: string;
   razza: Razza;
-  /** Id risorsa che il pianeta compra da noi → noi vendiamo questa risorsa al pianeta. */
+  /** Id risorsa che il regno compra da noi → noi vendiamo questa risorsa al regno. */
   compraRisorsaId: number;
-  /** Id risorsa che il pianeta vende a noi → noi compriamo questa risorsa dal pianeta. */
+  /** Id risorsa che il regno vende a noi → noi compriamo questa risorsa dal regno. */
   vendiRisorsaId: number;
-  /** Prezzo (crediti/unità) quando vendiamo noi al pianeta (per compraRisorsaId). */
+  /** Prezzo (crediti/unità) quando vendiamo noi al regno (per compraRisorsaId). */
   prezzoVendita: number;
-  /** Prezzo (crediti/unità) quando compriamo noi dal pianeta (per vendiRisorsaId). */
+  /** Prezzo (crediti/unità) quando compriamo noi dal regno (per vendiRisorsaId). */
   prezzoAcquisto: number;
 };
 
-export const pianetiData: PianetaInfo[] = [
+export const regniData: RegnoInfo[] = [
   { id: 1, nome: "Regni degli Elfi", emoji: "🧝", razza: "Elfo", compraRisorsaId: 7, vendiRisorsaId: 3, prezzoVendita: 9, prezzoAcquisto: 6 },
   { id: 2, nome: "Clan dei Nani", emoji: "⛏️", razza: "Nano", compraRisorsaId: 6, vendiRisorsaId: 4, prezzoVendita: 5, prezzoAcquisto: 10 },
   { id: 3, nome: "Tribù degli Orchi", emoji: "🪓", razza: "Orco", compraRisorsaId: 2, vendiRisorsaId: 8, prezzoVendita: 4, prezzoAcquisto: 9 },
@@ -26,8 +26,8 @@ export const pianetiData: PianetaInfo[] = [
 
 /** Restituisce l'emoji associata al popolo (es. Elfo → 🧝, Golem → 🗿). */
 export function getEmojiRazza(razza: Razza): string {
-  const p = pianetiData.find((x) => x.razza === razza);
-  if (p) return p.emoji;
+  const regno = regniData.find((x) => x.razza === razza);
+  if (regno) return regno.emoji;
   if (razza === "Umano") return "👤";
   if (razza === "Golem") return "🗿";
   return "🏰";
