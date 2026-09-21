@@ -1378,7 +1378,7 @@ export function useGameState() {
             : {}
       );
     }
-    setRisorse(state.risorse);
+    setRisorse(estraiCreditiLegacyDaRisorse(state.risorse).risorse);
     setEdifici(state.edifici);
     setMese(state.mese);
     setAnno(state.anno);
@@ -1390,7 +1390,11 @@ export function useGameState() {
     setAbitantiProposti(state.abitantiProposti);
     setNextId(state.nextId);
     setOrdiniMercato(state.ordiniMercato);
-    setEventiInCorso(state.eventiInCorso);
+    setEventiInCorso(
+      state.eventiInCorso.map((evento) =>
+        evento.id === "tempesta-solare" ? { ...evento, id: "tempesta-arcana" } : evento
+      )
+    );
     setNativiNonIntegrati(state.nativiNonIntegrati);
     setPendingAssimilazione(state.pendingAssimilazione);
     setPendingMatrimonio(state.pendingMatrimonio);

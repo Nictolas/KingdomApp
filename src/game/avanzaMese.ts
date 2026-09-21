@@ -6,7 +6,7 @@ import {
   getMoneteInventarioAbitante,
   setMoneteInventarioAbitante
 } from "./inventario";
-import { RESIDENZE_CATALOGO, RESIDENZE_ENERGIA_PER_ABITANTE } from "../data/residenzeData";
+import { RESIDENZE_CATALOGO } from "../data/residenzeData";
 import { getCastaAbitante, isCastaCoercibile } from "./casta";
 import { autoAssegnaCittadiniDisoccupati, autoAssegnaDisoccupati, isEdificioPubblicoConPostazioniLavoro, normalizzaLavoroEAgricoltura } from "./edificiLavoro";
 import { avanzaCostruzioniEdifici } from "./costruzioneEdifici";
@@ -18,6 +18,7 @@ import { redditoMensileLavoroDefault } from "./economiaPrezzi";
 import { generaAspettoCasuale } from "./personaggioAspetto";
 import { applicaLuttoFamiliareERimuoviMorti } from "./soddisfazione";
 import { applicaMoltiplicatoreProduzione } from "./reModalita";
+import { estraiCreditiLegacyDaRisorse } from "../data/risorseData";
 
 export type AvanzaMeseInput = {
   abitanti: Abitante[];
@@ -185,8 +186,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   } = input;
 
   let moneteGiocatore = Math.max(0, Math.floor(moneteGiocatoreIn));
-  // Scarta legacy Crediti se ancora presenti nell'array.
-  const risorseSenzaCrediti = risorse.filter((r) => r.nome !== "Crediti");
+  // Normalizza risorse legacy prima del calcolo mensile.
+  const risorseSenzaCrediti = estraiCreditiLegacyDaRisorse(risorse).risorse;
 
   // Baracca contiene tutti e solo i Senzatetto; sincronizza prima di procedere.
   let edificiSync = syncResidenzeBaraccaSenzatetto(edifici, abitanti);
@@ -602,17 +603,10 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       }
     });
 
-    // Fazione Golem: 2 energia per ogni membro Golem
-    if (risorsa.nome === "Energia") {
+    // I Golem sono animati dall'Energia Magica: 2 mana per Golem al mese.
+    if (risorsa.nome === "Energia Magica") {
       const numGolem = abitantiConRedditoPadroni.filter((a) => a.razza === "Golem").length;
       nuovaQuantità -= numGolem * 2;
-      // Residenze: consumo energia per abitante (es. Baracca 0, Dormitorio 1 MW/abitante)
-      edificiConAuto.forEach((edificio) => {
-        if (edificio.stato !== "Operativo" || edificio.tipo !== "Residenza") return;
-        const perAbitante = RESIDENZE_ENERGIA_PER_ABITANTE[edificio.nome] ?? 0;
-        const numAbitanti = (edificio.abitantiAssegnati ?? []).length;
-        nuovaQuantità -= perAbitante * numAbitanti;
-      });
     }
 
     if (risorsa.nome.toLowerCase().includes("cibo") && totaleCiboProdotto > 0) {

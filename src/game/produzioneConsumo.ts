@@ -121,11 +121,11 @@ export function calcolaProduzioneConsumoPuro({
     }
   });
 
-  // Golem: 2 energia per ogni Golem
+  // Golem: 2 mana di Energia Magica per ogni Golem
   const numGolem = abitanti.filter((a) => a.razza === "Golem").length;
   if (numGolem > 0) {
     risorse.forEach((r) => {
-      if (r.nome === "Energia") {
+      if (r.nome === "Energia Magica") {
         variazioni[r.nome] = (variazioni[r.nome] || 0) - numGolem * 2;
       }
     });

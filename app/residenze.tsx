@@ -33,7 +33,7 @@ export default function ResidenzeScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content} showsVerticalScrollIndicator={true}>
         <Text style={styles.intro}>
-          Costi in monete e consumi sono mensili (al cambio mese automatico). I consumi sono calcolati per ogni residente. Regno e catalogo unificati.
+          I costi in monete sono mensili (al cambio mese automatico). Regno e catalogo sono unificati.
         </Text>
 
         <View style={styles.sezione}>
@@ -46,8 +46,6 @@ export default function ResidenzeScreen() {
               if (r.fazioneRichiesta != null) {
                 assegnati = assegnati.filter((a) => a.fazioni?.includes(r.fazioneRichiesta!));
               }
-              const numAbitanti = assegnati.length;
-              const energiaConsumata = r.energiaPerAbitante * numAbitanti;
               return (
                 <View key={r.id} style={[styles.colonna, isDesktop && styles.colonnaDesktop]}>
                   <View style={styles.cardHeader}>
@@ -67,7 +65,7 @@ export default function ResidenzeScreen() {
                     <Text style={styles.cardValorePositivo}>+{r.felicità}</Text>
                   </View>
                   <View style={styles.cardRow}>
-                    <Text style={styles.cardLabel}>Prezzo (cr/mese)</Text>
+                    <Text style={styles.cardLabel}>Prezzo (monete/mese)</Text>
                   </View>
                   <View style={styles.prezzoRow}>
                     {r.nome === "Baracca" || r.nome === "Capanna" ? (
@@ -85,15 +83,7 @@ export default function ResidenzeScreen() {
                         }}
                       />
                     )}
-                    <Text style={styles.prezzoUnit}>cr/mese</Text>
-                  </View>
-                  <View style={styles.cardRow}>
-                    <Text style={styles.cardLabel}>Energia richiesta</Text>
-                    <Text style={styles.cardValore}>{r.energiaPerAbitante} MW/abitante</Text>
-                  </View>
-                  <View style={styles.cardRow}>
-                    <Text style={styles.cardLabel}>Energia consumata</Text>
-                    <Text style={styles.cardValore}>{energiaConsumata} MW/mese</Text>
+                    <Text style={styles.prezzoUnit}>monete/mese</Text>
                   </View>
                   <View style={styles.cardRow}>
                     <Text style={styles.cardLabel}>Posti per unità</Text>

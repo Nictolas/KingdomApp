@@ -6,7 +6,7 @@ import { eventoProtesteAutoctoni } from "./protesteAutoctoni";
 import { eventoAttentato } from "./attentato";
 import { eventoCarestia } from "./carestia";
 import { eventoPandemia } from "./pandemia";
-import { eventoTempestaSolare } from "./tempestaSolare";
+import { eventoTempestaArcana } from "./tempestaArcana";
 import { eventoMinacceGeopolitiche } from "./minacceGeopolitiche";
 import { eventoAssimilazione } from "./assimilazione";
 import { eventoEmigrazione } from "./emigrazione";
@@ -19,7 +19,7 @@ export const EVENTI_CATALOGO: EventoDef[] = [
   eventoAttentato,
   eventoCarestia,
   eventoPandemia,
-  eventoTempestaSolare,
+  eventoTempestaArcana,
   eventoMinacceGeopolitiche,
   eventoAssimilazione,
   eventoEmigrazione,
