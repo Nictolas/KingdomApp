@@ -6,7 +6,7 @@ import { estraiCreditiLegacyDaRisorse } from "../data/risorseData";
 import { OBIETTIVI_CATALOGO, obiettiviSbloccati } from "../data/obiettiviCatalogo";
 import { runAvanzaMese } from "../game/avanzaMese";
 import { EVENTI_CATALOGO } from "../game/eventi/index";
-import { generaColoniaIniziale } from "../game/generazionePartita";
+import { generaRegnoIniziale } from "../game/generazionePartita";
 import {
   ID_GIOCATORE,
   LAVORO_GIOCATORE,
@@ -165,7 +165,7 @@ import {
   offsetMesiPerCalendarioSalvato
 } from "../game/calendarioGioco";
 
-const statoIniziale = generaColoniaIniziale();
+const statoIniziale = generaRegnoIniziale();
 const capoReligiosoSoleIniziale =
   statoIniziale.abitanti.find((a) => a.lavoro === "Capo Religioso" && a.religione === "Culto del Sole")?.id ?? null;
 
@@ -1160,7 +1160,7 @@ export function useGameState() {
   const [suggerimentoPonteAperto, setSuggerimentoPonteAperto] = useState(false);
   const [dialogPiazzaPonteAperto, setDialogPiazzaPonteAperto] = useState(false);
   const startNewGame = useCallback((mode: GameMode = "avventura") => {
-    const colonia = generaColoniaIniziale(mode);
+    const regno = generaRegnoIniziale(mode);
     setGameMode(mode);
     setObiettiviCompletati([]);
     setDiarioInizioVisto(false);
@@ -1187,15 +1187,15 @@ export function useGameState() {
     setTassaPatrimonioPercentuale(TASSA_PATRIMONIO_PERCENTUALE_DEFAULT);
     setIvaPercentuale(IVA_PERCENTUALE_DEFAULT);
     setColtureSerraSbloccate(mode === "creativa" ? tutteColtureSerraSbloccate() : [COLTURA_SERRA_DEFAULT]);
-    setAbitanti(colonia.abitanti);
-    setRazzaNativi(colonia.razzaNativi);
-    const edificiNuovi = creaEdificiIniziali(colonia.abitanti, mode);
+    setAbitanti(regno.abitanti);
+    setRazzaNativi(regno.razzaNativi);
+    const edificiNuovi = creaEdificiIniziali(regno.abitanti, mode);
     setEdifici(edificiNuovi);
     const emporio = edificiNuovi.find((e) => e.nome === "Emporio" && e.stato === "Operativo");
     setInventarioEmporioByEdificioId(
       emporio ? { [emporio.id]: creaInventarioEmporioIniziale() } : {}
     );
-    setNextId(colonia.abitanti.length + 100);
+    setNextId(regno.abitanti.length + 100);
     gamePhaseRef.current = "commander-creation";
     setGamePhase("commander-creation");
     setCreazioneGiocatoreAperta(true);
