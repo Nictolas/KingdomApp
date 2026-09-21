@@ -48,6 +48,19 @@ test("i vecchi salvataggi fantascientifici migrano ai popoli fantasy", () => {
   assert.deepEqual(restored.payload.population.abitanti[0].fazioni, ["Golem"]);
 });
 
+test("i vecchi riferimenti al Culto degli Alieni migrano al Culto delle Ombre", () => {
+  const save = createSaveEnvelope();
+  save.payload.population.abitanti[0].religione = "Culto degli Alieni";
+  save.payload.population.abitanti[0].fazioni = ["Culto degli Alieni"];
+  save.payload.policies.religioneDiStato = "Culto degli Alieni";
+
+  const restored = deserializeSave(serializeSave(save));
+
+  assert.equal(restored.payload.population.abitanti[0].religione, "Culto delle Ombre");
+  assert.deepEqual(restored.payload.population.abitanti[0].fazioni, ["Culto delle Ombre"]);
+  assert.equal(restored.payload.policies.religioneDiStato, "Culto delle Ombre");
+});
+
 test("i vecchi salvataggi con specie aliena restano caricabili e il campo legacy viene rimosso", () => {
   const save = createSaveEnvelope();
   save.payload.population.abitanti[0].specie = "alieno";
