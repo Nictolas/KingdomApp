@@ -1162,19 +1162,101 @@ export function useGameState() {
   const startNewGame = useCallback((mode: GameMode = "avventura") => {
     setMappaSessione(null);
     const regno = generaRegnoIniziale(mode);
+    const inventarioGiocatoreNuovo = creaInventarioGiocatoreIniziale();
+    const moneteGiocatoreNuove = creaMoneteGiocatoreIniziali();
+    const risorseNuove = estraiCreditiLegacyDaRisorse(risorseData).risorse;
+    const capoSoleNuovo =
+      regno.abitanti.find((a) => a.lavoro === "Capo Religioso" && a.religione === "Culto del Sole")?.id ?? null;
+
     setGameMode(mode);
     setObiettiviCompletati([]);
+    setColtureSerraSbloccate(mode === "creativa" ? tutteColtureSerraSbloccate() : [COLTURA_SERRA_DEFAULT]);
     setDiarioInizioVisto(false);
     setIntroConsigliereAperta(false);
     setSuggerimentoPonteAperto(false);
     setDialogPiazzaPonteAperto(false);
     setRegistrazioniScambi([]);
+    setDiarioRighe([]);
+    setMessaggioEmigrazione(null);
+
+    setInventarioGiocatore(inventarioGiocatoreNuovo);
+    setMoneteGiocatore(moneteGiocatoreNuove);
+    setInventarioMensaByEdificioId({});
+    setRisorse(risorseNuove);
+    inventarioGiocatoreRef.current = inventarioGiocatoreNuovo;
+    inventarioMensaRef.current = {};
+    moneteGiocatoreRef.current = moneteGiocatoreNuove;
+    risorseRef.current = risorseNuove;
+
+    setAbitanti(regno.abitanti);
+    setRazzaNativi(regno.razzaNativi);
+    setAbitantiProposti([]);
+    setOrdiniMercato([]);
+    setEventiInCorso([]);
+    setNativiNonIntegrati(100 + Math.floor(Math.random() * 101));
+    setPendingAssimilazione(null);
+    setPendingMatrimonio(null);
+    abitantiRef.current = regno.abitanti;
+    eventiInCorsoRef.current = [];
+
+    setSoddisfazioneFazioni({ Rivoluzionari: 80, Sicurezza: 80 });
     setModalitaReState(STATO_RE_DEFAULT.modalitaRe);
     setEdificioVisitaReId(null);
     setPopolaritaRe(STATO_RE_DEFAULT.popolaritaRe);
     setMesiConsecutiviNelCastello(0);
     setFaseDisordine("nessuna");
     setAvvisoReAssenteEmesso(false);
+
+    setTipoTassaReddito("scaglioni");
+    setFlatTaxPercentuale(15);
+    setScaglioniConfig([
+      { min: 0, max: 300, percentuale: 0 },
+      { min: 301, max: 800, percentuale: 10 },
+      { min: 801, max: 1500, percentuale: 20 },
+      { min: 1501, max: Infinity, percentuale: 30 }
+    ]);
+    setTassaPatrimonioPercentuale(TASSA_PATRIMONIO_PERCENTUALE_DEFAULT);
+    setIvaPercentuale(IVA_PERCENTUALE_DEFAULT);
+    setPoliticaNascite("nessuna");
+    setPunteggioSanzioni(1);
+    setPenaDiMorteAttiva(true);
+    setPenaReati({ ...PENA_REATI_INIZIALE });
+
+    setPoliticaReligiosa("liberta-culto");
+    setReligioneDiStato(null);
+    setReligioniCustom([]);
+    setCapoReligiosoSole(capoSoleNuovo);
+    setCapoReligiosoOmbre(null);
+    setPendingRichiestaLuogoCulto(null);
+    setLuoghiCultoPendentiMappa([]);
+    setRichiesteInAttesa([]);
+    setLuoghiCultoRifiutati([]);
+
+    setLeggeRazzialeAttiva(false);
+    setRazzaCampoLavoro(null);
+    setRazzaCampoSterminio(null);
+    setEtaMinimaLavoro(18);
+    setEtaPensionabile(65);
+    setAssegnoPensionati(ASSEGNO_PENSIONATI_DEFAULT);
+    setLeggeDroghe("vietate");
+    setNudismoAttivo(false);
+    setDivietoEspatrioAttivo(false);
+    setCoprifuocoAttivo(false);
+    setCoprifuocoInizioMinutiState(22 * 60);
+    setCoprifuocoFineMinutiState(6 * 60);
+    setIusPrimaeNoctisAttivo(false);
+    setTipologieFamigliaAccettate({
+      tradizionale: true,
+      interrazziale: true,
+      arcobaleno: true,
+      monogenitoriale: true,
+      matrimonioConGolem: false,
+      matrimonioIntercasta: false
+    });
+    setRedditoCittadinanza(REDDITO_CITTADINANZA_DEFAULT);
+    setModalitaSanita("privata");
+    setPrezzoResidenzeState({});
+
     setMese(1);
     setAnno(0);
     offsetMesiOrologioRef.current = 0;
@@ -1185,17 +1267,15 @@ export function useGameState() {
     ultimoGiornoEconomiaPubblicaRef.current = 1;
     setOrologioGiocoBloccatoDallaFase(true);
     restoreOrologioGioco({ giorno: 1, minutiDaMezzanotte: 6 * 60, pausaManuale: false });
-    setTassaPatrimonioPercentuale(TASSA_PATRIMONIO_PERCENTUALE_DEFAULT);
-    setIvaPercentuale(IVA_PERCENTUALE_DEFAULT);
-    setColtureSerraSbloccate(mode === "creativa" ? tutteColtureSerraSbloccate() : [COLTURA_SERRA_DEFAULT]);
-    setAbitanti(regno.abitanti);
-    setRazzaNativi(regno.razzaNativi);
+
     const edificiNuovi = creaEdificiIniziali(regno.abitanti, mode);
     setEdifici(edificiNuovi);
+    edificiRef.current = edificiNuovi;
     const emporio = edificiNuovi.find((e) => e.nome === "Emporio" && e.stato === "Operativo");
-    setInventarioEmporioByEdificioId(
-      emporio ? { [emporio.id]: creaInventarioEmporioIniziale() } : {}
-    );
+    const inventarioEmporioNuovo = emporio ? { [emporio.id]: creaInventarioEmporioIniziale() } : {};
+    setInventarioEmporioByEdificioId(inventarioEmporioNuovo);
+    inventarioEmporioRef.current = inventarioEmporioNuovo;
+
     setNextId(regno.abitanti.length + 100);
     gamePhaseRef.current = "commander-creation";
     setGamePhase("commander-creation");
