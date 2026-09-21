@@ -1400,7 +1400,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       });
     }, 150);
     return () => clearTimeout(id);
-  }, [mostraModalCostruisci, spotlight]);
+  }, [mostraModalCostruisci, spotlight?.showSpotlight]);
 
   const previewPiazzamento = useMemo(
     () =>
