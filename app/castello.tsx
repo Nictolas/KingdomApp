@@ -1,5 +1,14 @@
 import React, { useMemo, useState, useSyncExternalStore } from "react";
-import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import {
+  Modal,
+  Pressable,
+  SafeAreaView,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+  useWindowDimensions
+} from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { tornaAllaMappa } from "../src/navigation/tornaAllaMappa";
@@ -11,7 +20,6 @@ import {
   CAPACITA_GUARDIE_CASTELLO,
   listaGuardieCastello,
   listaNobiliNelCastello,
-  NOME_CASTELLO,
   trovaCastelloOperativo
 } from "../src/game/castelloGuardie";
 import { getCastaAbitante } from "../src/game/casta";
@@ -41,7 +49,6 @@ import { capitalizzaNomePersona } from "../src/game/nomiUmani";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
-/** Suddivide "Nome Cognome" in nome e cognome (ultimo spazio). */
 function splitNomeCognome(nome: string): { nome: string; cognome: string } {
   const t = (nome ?? "").trim();
   const lastSpace = t.lastIndexOf(" ");
@@ -49,8 +56,14 @@ function splitNomeCognome(nome: string): { nome: string; cognome: string } {
   return { nome: t.slice(0, lastSpace).trim(), cognome: t.slice(lastSpace + 1).trim() };
 }
 
+function nomeMinisteroCompatto(ministero: string): string {
+  return ministero.replace(/^Ministero (dell'|di |del )?/, "");
+}
+
 export default function CastelloScreen() {
   const router = useRouter();
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= 1100;
   const {
     abitanti,
     aggiornaAbitanteById,
@@ -81,8 +94,7 @@ export default function CastelloScreen() {
   const re = abitanti.find((a) => a.id === ID_GIOCATORE);
   const consigliere = useMemo(() => trovaConsigliere(abitanti), [abitanti]);
   const consigliereNelCastello = useMemo(
-    () =>
-      consigliereAssegnatoAlCastello(consigliere, edifici) && modalitaRe !== "a_giro",
+    () => consigliereAssegnatoAlCastello(consigliere, edifici) && modalitaRe !== "a_giro",
     [consigliere, edifici, modalitaRe]
   );
   const listaCandidatiConsigliere = useMemo(
@@ -96,28 +108,31 @@ export default function CastelloScreen() {
   );
   const nobili = useMemo(() => {
     if (!castello) return [];
-    return listaNobiliNelCastello(castello, abitanti).filter(
-      (a) => a.id !== consigliere?.id
-    );
+    return listaNobiliNelCastello(castello, abitanti).filter((a) => a.id !== consigliere?.id);
   }, [castello, abitanti, consigliere?.id]);
   const guardieInServizio = useMemo(() => {
     if (!castello) return 0;
     return guardie.filter((a) =>
-      lavoratoreDentroEdificioOra(a.id, castello.id, orologioMinuti, edifici, lavoroArrivatiMappa, abitanti)
+      lavoratoreDentroEdificioOra(
+        a.id,
+        castello.id,
+        orologioMinuti,
+        edifici,
+        lavoroArrivatiMappa,
+        abitanti
+      )
     ).length;
   }, [castello, guardie, orologioMinuti, edifici, lavoroArrivatiMappa, abitanti]);
 
-  const { width } = Dimensions.get("window");
-  const isDesktop = width > 768;
-  const containerHeight = isDesktop ? width * (9 / 16) : undefined;
-  const maxHeight = isDesktop ? containerHeight : undefined;
-
-  const ministriAssegnati = useMemo(() => {
-    return ministeriDisponibili.map((ministero) => ({
-      ministero,
-      abitante: abitanti.find((a) => a.ministero === ministero) ?? null
-    }));
-  }, [abitanti]);
+  const ministriAssegnati = useMemo(
+    () =>
+      ministeriDisponibili.map((ministero) => ({
+        ministero,
+        abitante: abitanti.find((a) => a.ministero === ministero) ?? null
+      })),
+    [abitanti]
+  );
+  const numeroMinistriAssegnati = ministriAssegnati.filter(({ abitante }) => abitante != null).length;
 
   const getAbitanteNome = (id: number) => abitanti.find((a) => a.id === id)?.nome ?? `ID ${id}`;
 
@@ -135,10 +150,7 @@ export default function CastelloScreen() {
   }, [re]);
 
   const handleSalvaAspetto = (dati: DatiCreazioneGiocatore) => {
-    const nomeCompleto = [
-      capitalizzaNomePersona(dati.nome),
-      capitalizzaNomePersona(dati.cognome)
-    ]
+    const nomeCompleto = [capitalizzaNomePersona(dati.nome), capitalizzaNomePersona(dati.cognome)]
       .filter(Boolean)
       .join(" ");
     if (!nomeCompleto || !re) return;
@@ -159,260 +171,270 @@ export default function CastelloScreen() {
     setCandidatoConsigliere(null);
   };
 
-  return (
-    <SafeAreaView style={[styles.safe, maxHeight != null ? { maxHeight, overflow: "hidden" as const } : undefined]}>
-      <View style={styles.header}>
-        <View style={{ width: 50 }} />
-        <Text style={styles.title}>Castello</Text>
-        <View style={{ width: 50 }} />
-      </View>
+  const disordineLabel =
+    faseDisordine === "nessuna" ? "Nessuno" : faseDisordine === "protesta" ? "Proteste" : "Ribellione";
 
-      <View style={{ flex: 1 }}>
-        <ScrollView contentContainerStyle={styles.content}>
-          {re ? (
-            <View style={styles.reSection}>
-              <Text style={styles.sectionLabel}>Il Re</Text>
-              <View style={[styles.card, styles.cardRe]}>
-                <AbitanteAvatarPreview abitante={re} />
-                <Text style={styles.cardTitle}>{re.nome}</Text>
-                <Text style={styles.line}>{re.lavoro}</Text>
-                <Text style={styles.line}>Popolarità: {popolaritaRe}/100</Text>
-                <Text style={styles.line}>
-                  Disordine:{" "}
-                  {faseDisordine === "nessuna"
-                    ? "nessuno"
-                    : faseDisordine === "protesta"
-                      ? "proteste"
-                      : "ribellione"}
-                </Text>
-                <Pressable style={styles.modificaButton} onPress={() => setShowEditAspetto(true)}>
-                  <Text style={styles.modificaButtonText}>Modifica avatar</Text>
-                </Pressable>
-              </View>
+  const statoPresenzaRe = (() => {
+    if (modalitaRe === "a_giro") return "Il Re è sulla mappa · +Popolarità";
+    if (modalitaRe === "in_visita") {
+      const nomeEdificio =
+        edificioVisitaReId == null
+          ? "edificio produttivo"
+          : edifici.find((e) => e.id === edificioVisitaReId)?.nome ?? `#${edificioVisitaReId}`;
+      return `In visita: ${nomeEdificio} · +Produzione`;
+    }
+    if (mesiConsecutiviNelCastello >= 3) {
+      return `${mesiConsecutiviNelCastello} mesi nel Castello · popolarità in calo`;
+    }
+    if (mesiConsecutiviNelCastello > 0) return `${mesiConsecutiviNelCastello} mesi nel Castello`;
+    return "Nel Castello · protetto";
+  })();
 
-              <Text style={styles.sectionLabel}>Modalità presenza</Text>
-              <View style={styles.modalitaRow}>
-                {(
-                  [
-                    { id: "nel_castello" as const, label: "🏰 Castello", hint: "Sicuro" },
-                    { id: "a_giro" as const, label: "👑 A giro", hint: "+Popolarità" },
-                    { id: "in_visita" as const, label: "🏭 Visita", hint: "+Produzione" }
-                  ] as const
-                ).map((opt) => (
-                  <Pressable
-                    key={opt.id}
-                    style={[styles.modalitaBtn, modalitaRe === opt.id && styles.modalitaBtnAttivo]}
-                    onPress={() => {
-                      if (opt.id === "a_giro") {
-                        if (modalitaRe !== "a_giro") {
-                          impostaReUscitaCastelloPending();
-                        }
-                        setModalitaRe("a_giro");
-                      } else if (opt.id === "in_visita") {
-                        azzeraReUscitaCastelloPending();
-                        const target =
-                          edificioVisitaReId ??
-                          edifici.find((e) => e.nome !== "Castello" && e.stato === "Operativo")?.id ??
-                          null;
-                        setModalitaRe("in_visita", target);
-                      } else {
-                        azzeraReUscitaCastelloPending();
-                        setModalitaRe(opt.id);
-                      }
-                    }}
-                  >
-                    <Text style={styles.modalitaBtnText}>{opt.label}</Text>
-                    <Text style={styles.modalitaHint}>{opt.hint}</Text>
-                  </Pressable>
-                ))}
-              </View>
-              {modalitaRe === "nel_castello" && mesiConsecutiviNelCastello > 0 ? (
-                <Text style={styles.line}>
-                  Mesi nel castello: {mesiConsecutiviNelCastello}
-                  {mesiConsecutiviNelCastello >= 3 ? " (popolarità in calo)" : ""}
-                </Text>
-              ) : null}
-              {modalitaRe === "a_giro" ? (
-                <Text style={styles.hintAGiro}>
-                  Il Re è uscito dal Castello e si muove sulla mappa.
-                </Text>
-              ) : null}
-              {modalitaRe === "in_visita" && edificioVisitaReId != null ? (
-                <Text style={styles.line}>
-                  Visita: {edifici.find((e) => e.id === edificioVisitaReId)?.nome ?? `#${edificioVisitaReId}`}
-                </Text>
-              ) : null}
+  const cambiaModalitaRe = (nuovaModalita: "nel_castello" | "a_giro" | "in_visita") => {
+    if (nuovaModalita === "a_giro") {
+      if (modalitaRe !== "a_giro") impostaReUscitaCastelloPending();
+      setModalitaRe("a_giro");
+      return;
+    }
+    if (nuovaModalita === "in_visita") {
+      azzeraReUscitaCastelloPending();
+      const target =
+        edificioVisitaReId ??
+        edifici.find((e) => e.nome !== "Castello" && e.stato === "Operativo")?.id ??
+        null;
+      setModalitaRe("in_visita", target);
+      return;
+    }
+    azzeraReUscitaCastelloPending();
+    setModalitaRe("nel_castello");
+  };
+
+  const dashboard = (
+    <View style={[styles.dashboard, isDesktop && styles.dashboardDesktop]}>
+      <View style={[styles.column, isDesktop && styles.commandColumn]}>
+        {re ? (
+          <View style={[styles.panel, styles.kingPanel]}>
+            <View style={styles.panelHeader}>
+              <Text style={styles.sectionLabel}>Corona</Text>
+              <Text style={styles.panelBadge}>RE</Text>
             </View>
-          ) : null}
+            <View style={styles.personRow}>
+              <AbitanteAvatarPreview abitante={re} size={56} />
+              <View style={styles.personInfo}>
+                <Text style={styles.personName} numberOfLines={1}>{re.nome}</Text>
+                <Text style={styles.personMeta}>{re.lavoro}</Text>
+                <View style={styles.inlineStats}>
+                  <Text style={styles.statStrong}>★ {popolaritaRe}/100</Text>
+                  <Text style={styles.statMuted}>{disordineLabel}</Text>
+                </View>
+              </View>
+              <Pressable style={styles.smallGoldButton} onPress={() => setShowEditAspetto(true)}>
+                <Text style={styles.smallGoldButtonText}>Avatar</Text>
+              </Pressable>
+            </View>
 
-          <View style={styles.consigliereSection}>
+            <Text style={styles.microLabel}>PRESENZA DEL RE</Text>
+            <View style={styles.presenceRow}>
+              {([
+                { id: "nel_castello" as const, label: "🏰 Castello" },
+                { id: "a_giro" as const, label: "👑 A giro" },
+                { id: "in_visita" as const, label: "⚒ Visita" }
+              ] as const).map((opt) => (
+                <Pressable
+                  key={opt.id}
+                  style={[styles.presenceButton, modalitaRe === opt.id && styles.presenceButtonActive]}
+                  onPress={() => cambiaModalitaRe(opt.id)}
+                >
+                  <Text style={styles.presenceButtonText}>{opt.label}</Text>
+                </Pressable>
+              ))}
+            </View>
+            <Text
+              style={[
+                styles.presenceStatus,
+                modalitaRe === "a_giro" && styles.presenceStatusPositive,
+                mesiConsecutiviNelCastello >= 3 && modalitaRe === "nel_castello" && styles.presenceStatusWarning
+              ]}
+              numberOfLines={2}
+            >
+              {statoPresenzaRe}
+            </Text>
+          </View>
+        ) : null}
+
+        <View style={[styles.panel, styles.advisorPanel]}>
+          <View style={styles.panelHeader}>
             <Text style={styles.sectionLabel}>Consigliere</Text>
-            <View style={[styles.card, styles.cardConsigliere]}>
-              {consigliere ? (
-                <>
-                  <AbitanteAvatarPreview abitante={consigliere} />
-                  <Text style={styles.cardTitle}>{consigliere.nome}</Text>
-                  <Text style={styles.line}>{consigliere.lavoro}</Text>
-                  <Text
-                    style={[
-                      styles.line,
-                      consigliereNelCastello ? styles.presenzaLabelInServizio : styles.presenzaFuori
-                    ]}
-                  >
-                    {consigliereNelCastello ? "Nel Castello" : "Fuori dal Castello"}
-                  </Text>
-                </>
-              ) : (
-                <Text style={styles.nonAssegnato}>Nessun Consigliere</Text>
-              )}
+            <Text style={[styles.statusDotText, consigliereNelCastello && styles.statusDotTextActive]}>
+              {consigliere ? (consigliereNelCastello ? "● Presente" : "● Fuori") : "Vacante"}
+            </Text>
+          </View>
+          {consigliere ? (
+            <View style={styles.personRow}>
+              <AbitanteAvatarPreview abitante={consigliere} size={44} />
+              <View style={styles.personInfo}>
+                <Text style={styles.personName} numberOfLines={1}>{consigliere.nome}</Text>
+                <Text style={styles.personMeta} numberOfLines={1}>{consigliere.lavoro}</Text>
+              </View>
               <Pressable
-                style={styles.cambiaConsigliereButton}
+                style={styles.smallBlueButton}
                 onPress={() => {
                   setCandidatoConsigliere(null);
                   setShowCambiaConsigliere(true);
                 }}
               >
-                <Text style={styles.cambiaConsigliereButtonText}>
-                  {consigliere ? "Cambia Consigliere" : "Nomina Consigliere"}
-                </Text>
+                <Text style={styles.smallBlueButtonText}>Cambia</Text>
               </Pressable>
             </View>
-          </View>
-
-          <View style={styles.nobiliSection}>
-            <Text style={styles.sectionLabel}>Nobili</Text>
-            <View style={styles.guardieCard}>
-              <Text style={styles.guardieHint}>
-                I Nobili vivono nel Castello come il Re e il Consigliere.
-              </Text>
-              {nobili.length > 0 ? (
-                <View style={styles.guardieList}>
-                  {nobili.map((a) => (
-                    <Pressable
-                      key={a.id}
-                      style={styles.guardiaCard}
-                      onPress={() => setSelectedAbitante(a)}
-                    >
-                      <AbitanteAvatarPreview abitante={a} />
-                      <View style={styles.guardiaInfo}>
-                        <Text style={styles.guardiaNome}>{a.nome}</Text>
-                        <Text style={styles.guardiaMeta}>
-                          {a.lavoro} · {getCastaAbitante(a)} · {a.eta}a
-                        </Text>
-                      </View>
-                    </Pressable>
-                  ))}
-                </View>
-              ) : (
-                <Text style={styles.emptyGuardie}>Nessun altro Nobile nel Castello.</Text>
-              )}
-            </View>
-          </View>
-
-          <View style={styles.guardieSection}>
-            <Text style={styles.sectionLabel}>Guardie</Text>
-            <View style={styles.guardieCard}>
-              <Text style={styles.guardieCount}>
-                {guardie.length}/{CAPACITA_GUARDIE_CASTELLO} posti · {guardieInServizio} in servizio
-              </Text>
-              <Text style={styles.guardieHint}>
-                Le Guardie vengono assunte quando i Disoccupati chiedono lavoro al {NOME_CASTELLO}.{" "}
-                <Text style={styles.legendVerde}>Verde = attualmente in Castello.</Text>
-              </Text>
-              {guardie.length > 0 && castello ? (
-                <View style={styles.guardieList}>
-                  {guardie.map((a) => {
-                    const presenza = etichettaDoveSiTrovaAddetto(
-                      a,
-                      castello.id,
-                      orologioMinuti,
-                      statoCielo.buio,
-                      edifici,
-                      lavoroArrivatiMappa,
-                      abitanti
-                    );
-                    return (
-                      <Pressable
-                        key={a.id}
-                        style={[
-                          styles.guardiaCard,
-                          presenza.inServizio ? styles.guardiaCardInServizio : styles.guardiaCardAssente
-                        ]}
-                        onPress={() => setSelectedAbitante(a)}
-                      >
-                        <AbitanteAvatarPreview abitante={a} />
-                        <View style={styles.guardiaInfo}>
-                          <Text style={styles.guardiaNome}>{a.nome}</Text>
-                          <Text style={styles.guardiaMeta}>
-                            {a.lavoro} · {getCastaAbitante(a)} · {a.competenza}%
-                          </Text>
-                          <Text
-                            style={[
-                              styles.presenzaLabel,
-                              presenza.inServizio && styles.presenzaLabelInServizio
-                            ]}
-                          >
-                            {presenza.testo}
-                          </Text>
-                        </View>
-                        <Pressable
-                          style={styles.removeButton}
-                          onPress={(e) => {
-                            e.stopPropagation?.();
-                            rimuoviAbitanteDaEdificio(a.id, castello.id);
-                          }}
-                        >
-                          <Text style={styles.removeButtonText}>Rimuovi</Text>
-                        </Pressable>
-                      </Pressable>
-                    );
-                  })}
-                </View>
-              ) : (
-                <Text style={styles.emptyGuardie}>Nessuna Guardia assegnata.</Text>
-              )}
-            </View>
-          </View>
-
-          <View style={styles.ministriSection}>
-            <Text style={styles.sectionLabel}>Ministri</Text>
-            <View style={styles.ministriList}>
-              {ministriAssegnati.map(({ ministero, abitante }) => (
-                <View key={ministero} style={styles.ministroRow}>
-                  {abitante ? (
-                    <AbitanteAvatarPreview abitante={abitante} size={36} />
-                  ) : (
-                    <View style={styles.avatarPlaceholder} />
-                  )}
-                  <View style={styles.ministroInfo}>
-                    <Text style={styles.ministroNome} numberOfLines={1}>
-                      {ministero.replace(/^Ministero (dell'|di |del )?/, "")}
-                    </Text>
-                    <Text style={styles.ministroAssegnato} numberOfLines={1}>
-                      {abitante?.nome ?? "Non assegnato"}
-                    </Text>
-                  </View>
-                </View>
-              ))}
-            </View>
-            <Pressable style={styles.scegliMinistriButton} onPress={() => router.push("/ministri")}>
-              <Text style={styles.scegliMinistriButtonText}>Scegli i Ministri</Text>
+          ) : (
+            <Pressable
+              style={styles.primaryButton}
+              onPress={() => {
+                setCandidatoConsigliere(null);
+                setShowCambiaConsigliere(true);
+              }}
+            >
+              <Text style={styles.primaryButtonText}>Nomina Consigliere</Text>
             </Pressable>
-          </View>
-        </ScrollView>
+          )}
+        </View>
       </View>
 
-      <View style={styles.footer}>
-        <Text
-          style={styles.back}
-          onPress={() => {
-            // L’uscita animata parte al focus della mappa (se «A giro» è attivo).
-            tornaAllaMappa(router);
-          }}
-        >
-          ← Indietro
-        </Text>
+      <View style={[styles.column, isDesktop && styles.ministersColumn]}>
+        <View style={[styles.panel, styles.fillPanel]}>
+          <View style={styles.panelHeader}>
+            <Text style={styles.sectionLabel}>Governo</Text>
+            <Text style={styles.panelCounter}>{numeroMinistriAssegnati}/{ministriAssegnati.length} Ministri</Text>
+          </View>
+          <View style={styles.ministersGrid}>
+            {ministriAssegnati.map(({ ministero, abitante }) => (
+              <View
+                key={ministero}
+                style={[styles.ministerTile, isDesktop ? styles.ministerTileDesktop : styles.ministerTileMobile]}
+              >
+                {abitante ? (
+                  <AbitanteAvatarPreview abitante={abitante} size={34} />
+                ) : (
+                  <View style={styles.avatarPlaceholder}><Text style={styles.avatarPlaceholderText}>—</Text></View>
+                )}
+                <View style={styles.ministerInfo}>
+                  <Text style={styles.ministerName} numberOfLines={1}>{nomeMinisteroCompatto(ministero)}</Text>
+                  <Text style={[styles.ministerAssigned, !abitante && styles.vacantText]} numberOfLines={1}>
+                    {abitante?.nome ?? "Vacante"}
+                  </Text>
+                </View>
+              </View>
+            ))}
+          </View>
+          <Pressable style={styles.primaryButton} onPress={() => router.push("/ministri")}>
+            <Text style={styles.primaryButtonText}>Gestisci Ministri</Text>
+          </Pressable>
+        </View>
       </View>
+
+      <View style={[styles.column, isDesktop && styles.courtColumn]}>
+        <View style={styles.panel}>
+          <View style={styles.panelHeader}>
+            <Text style={styles.sectionLabel}>Nobili</Text>
+            <Text style={styles.panelCounter}>{nobili.length} residenti</Text>
+          </View>
+          {nobili.length > 0 ? (
+            <View style={styles.compactList}>
+              {nobili.slice(0, 3).map((a) => (
+                <Pressable key={a.id} style={styles.compactPersonRow} onPress={() => setSelectedAbitante(a)}>
+                  <AbitanteAvatarPreview abitante={a} size={30} />
+                  <View style={styles.personInfo}>
+                    <Text style={styles.compactPersonName} numberOfLines={1}>{a.nome}</Text>
+                    <Text style={styles.compactPersonMeta} numberOfLines={1}>{a.lavoro} · {a.eta}a</Text>
+                  </View>
+                  <Text style={styles.chevron}>›</Text>
+                </Pressable>
+              ))}
+              {nobili.length > 3 ? <Text style={styles.moreText}>+ {nobili.length - 3} altri Nobili</Text> : null}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>Nessun altro Nobile nel Castello.</Text>
+          )}
+        </View>
+
+        <View style={[styles.panel, styles.fillPanel]}>
+          <View style={styles.panelHeader}>
+            <Text style={styles.sectionLabel}>Guardie</Text>
+            <Text style={styles.panelCounter}>{guardie.length}/{CAPACITA_GUARDIE_CASTELLO} · {guardieInServizio} in servizio</Text>
+          </View>
+          {guardie.length > 0 && castello ? (
+            <View style={styles.compactList}>
+              {guardie.map((a) => {
+                const presenza = etichettaDoveSiTrovaAddetto(
+                  a,
+                  castello.id,
+                  orologioMinuti,
+                  statoCielo.buio,
+                  edifici,
+                  lavoroArrivatiMappa,
+                  abitanti
+                );
+                return (
+                  <Pressable
+                    key={a.id}
+                    style={[styles.guardRow, presenza.inServizio && styles.guardRowActive]}
+                    onPress={() => setSelectedAbitante(a)}
+                  >
+                    <AbitanteAvatarPreview abitante={a} size={32} />
+                    <View style={styles.personInfo}>
+                      <Text style={styles.compactPersonName} numberOfLines={1}>{a.nome}</Text>
+                      <Text style={styles.compactPersonMeta} numberOfLines={1}>
+                        {getCastaAbitante(a)} · {a.competenza}% · {presenza.testo}
+                      </Text>
+                    </View>
+                    <Pressable
+                      style={styles.removeButton}
+                      onPress={(e) => {
+                        e.stopPropagation?.();
+                        rimuoviAbitanteDaEdificio(a.id, castello.id);
+                      }}
+                    >
+                      <Text style={styles.removeButtonText}>Rimuovi</Text>
+                    </Pressable>
+                  </Pressable>
+                );
+              })}
+            </View>
+          ) : (
+            <Text style={styles.emptyText}>Nessuna Guardia assegnata.</Text>
+          )}
+          <Text style={styles.helperText}>Le Guardie vengono assunte dai Disoccupati che chiedono lavoro al Castello.</Text>
+        </View>
+      </View>
+    </View>
+  );
+
+  return (
+    <SafeAreaView style={styles.safe}>
+      <View style={styles.header}>
+        <Pressable style={styles.backButton} onPress={() => tornaAllaMappa(router)}>
+          <Text style={styles.backButtonText}>← Mappa</Text>
+        </Pressable>
+        <Text style={styles.title}>Castello</Text>
+        {isDesktop ? (
+          <View style={styles.headerStats}>
+            <View style={styles.headerChip}><Text style={styles.headerChipLabel}>Popolarità</Text><Text style={styles.headerChipValue}>{popolaritaRe}</Text></View>
+            <View style={styles.headerChip}><Text style={styles.headerChipLabel}>Disordine</Text><Text style={styles.headerChipValue}>{disordineLabel}</Text></View>
+            <View style={styles.headerChip}><Text style={styles.headerChipLabel}>Nobili</Text><Text style={styles.headerChipValue}>{nobili.length}</Text></View>
+            <View style={styles.headerChip}><Text style={styles.headerChipLabel}>Guardie</Text><Text style={styles.headerChipValue}>{guardie.length}/{CAPACITA_GUARDIE_CASTELLO}</Text></View>
+          </View>
+        ) : (
+          <View style={styles.headerSpacer} />
+        )}
+      </View>
+
+      {isDesktop ? (
+        <View style={styles.desktopViewport}>{dashboard}</View>
+      ) : (
+        <ScrollView contentContainerStyle={styles.mobileScrollContent} showsVerticalScrollIndicator={false}>
+          {dashboard}
+        </ScrollView>
+      )}
 
       {initialEditDati ? (
         <CreazioneGiocatoreModal
@@ -439,25 +461,18 @@ export default function CastelloScreen() {
             onPress={(e) => e.stopPropagation()}
           >
             <Text style={styles.modalTitle}>Scegli il Consigliere</Text>
-            <Text style={styles.modalHint}>
-              Il Consigliere vive nel Castello e ti guida all’inizio dell’avventura.
-            </Text>
+            <Text style={styles.modalHint}>Il Consigliere vive nel Castello e ti guida all’inizio dell’avventura.</Text>
             <ScrollView style={styles.modalList} showsVerticalScrollIndicator={false}>
               {listaCandidatiConsigliere.map((a) => (
                 <Pressable
                   key={a.id}
-                  style={[
-                    styles.candidatoRow,
-                    candidatoConsigliere?.id === a.id && styles.candidatoRowAttivo
-                  ]}
+                  style={[styles.candidatoRow, candidatoConsigliere?.id === a.id && styles.candidatoRowAttivo]}
                   onPress={() => setCandidatoConsigliere(a)}
                 >
                   <AbitanteAvatarPreview abitante={a} size={40} />
                   <View style={styles.candidatoInfo}>
                     <Text style={styles.candidatoNome}>{a.nome}</Text>
-                    <Text style={styles.candidatoMeta}>
-                      {a.lavoro} · {a.eta} anni
-                    </Text>
+                    <Text style={styles.candidatoMeta}>{a.lavoro} · {a.eta} anni</Text>
                   </View>
                 </Pressable>
               ))}
@@ -466,10 +481,7 @@ export default function CastelloScreen() {
               ) : null}
             </ScrollView>
             <View style={styles.modalActions}>
-              <Pressable
-                style={styles.modalCancel}
-                onPress={() => setShowCambiaConsigliere(false)}
-              >
+              <Pressable style={styles.modalCancel} onPress={() => setShowCambiaConsigliere(false)}>
                 <Text style={styles.modalCancelText}>Annulla</Text>
               </Pressable>
               <Pressable
@@ -503,242 +515,405 @@ const styles = StyleSheet.create({
     backgroundColor: "#050816"
   },
   header: {
+    minHeight: 44,
     flexDirection: "row",
     alignItems: "center",
-    justifyContent: "space-between",
     paddingHorizontal: 12,
     paddingVertical: 6,
+    gap: 10,
     borderBottomWidth: StyleSheet.hairlineWidth,
-    borderBottomColor: "rgba(148,163,184,0.6)"
+    borderBottomColor: "rgba(148,163,184,0.45)",
+    backgroundColor: "#070b18"
   },
-  footer: {
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 12,
-    paddingVertical: 10,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(148,163,184,0.6)"
+  backButton: {
+    minWidth: 72,
+    paddingVertical: 6,
+    paddingHorizontal: 8,
+    borderRadius: 6,
+    borderWidth: 1,
+    borderColor: "rgba(96,165,250,0.35)",
+    backgroundColor: "rgba(37,99,235,0.08)"
   },
-  back: {
+  backButtonText: {
     color: "#93c5fd",
-    fontSize: 12
+    fontSize: 11,
+    fontWeight: "700"
   },
   title: {
     color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "700"
+    fontSize: 15,
+    fontWeight: "800"
   },
-  content: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    paddingBottom: 16
+  headerSpacer: {
+    flex: 1
   },
-  reSection: {
-    marginBottom: 16
+  headerStats: {
+    flex: 1,
+    flexDirection: "row",
+    justifyContent: "flex-end",
+    gap: 6
+  },
+  headerChip: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 999,
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.24)",
+    backgroundColor: "rgba(15,23,42,0.72)"
+  },
+  headerChipLabel: {
+    color: "#64748b",
+    fontSize: 9,
+    fontWeight: "700",
+    textTransform: "uppercase"
+  },
+  headerChipValue: {
+    color: "#e2e8f0",
+    fontSize: 10,
+    fontWeight: "800"
+  },
+  desktopViewport: {
+    flex: 1,
+    minHeight: 0,
+    padding: 10,
+    overflow: "hidden"
+  },
+  mobileScrollContent: {
+    padding: 10,
+    paddingBottom: 18
+  },
+  dashboard: {
+    gap: 10
+  },
+  dashboardDesktop: {
+    flex: 1,
+    minHeight: 0,
+    flexDirection: "row",
+    alignItems: "stretch"
+  },
+  column: {
+    gap: 10
+  },
+  commandColumn: {
+    flex: 0.9,
+    minWidth: 0
+  },
+  ministersColumn: {
+    flex: 1.25,
+    minWidth: 0
+  },
+  courtColumn: {
+    flex: 1,
+    minWidth: 0
+  },
+  panel: {
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 1,
+    borderColor: "rgba(71,85,105,0.72)",
+    backgroundColor: "rgba(15,23,42,0.92)"
+  },
+  fillPanel: {
+    flex: 1,
+    minHeight: 0
+  },
+  kingPanel: {
+    borderColor: "rgba(234,179,8,0.45)",
+    backgroundColor: "rgba(234,179,8,0.055)"
+  },
+  advisorPanel: {
+    borderColor: "rgba(59,130,246,0.38)"
+  },
+  panelHeader: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    marginBottom: 8
   },
   sectionLabel: {
     color: "#93c5fd",
-    fontSize: 11,
-    fontWeight: "700",
-    marginBottom: 6,
-    textTransform: "uppercase",
-    letterSpacing: 0.5
-  },
-  card: {
-    backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.6)",
-    alignItems: "center",
-    marginBottom: 10
-  },
-  cardRe: {
-    borderColor: "rgba(234,179,8,0.5)",
-    backgroundColor: "rgba(234,179,8,0.06)"
-  },
-  cardTitle: {
-    color: "#e5e7eb",
-    fontSize: 13,
-    fontWeight: "700",
-    marginBottom: 2,
-    textAlign: "center"
-  },
-  line: {
-    color: "#cbd5f5",
     fontSize: 10,
-    marginBottom: 1,
-    textAlign: "center"
+    fontWeight: "800",
+    textTransform: "uppercase",
+    letterSpacing: 0.6
   },
-  modificaButton: {
-    backgroundColor: "#eab308",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    marginTop: 8,
-    width: "100%",
-    alignItems: "center"
+  panelBadge: {
+    color: "#fde68a",
+    fontSize: 9,
+    fontWeight: "900",
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 999,
+    backgroundColor: "rgba(234,179,8,0.14)"
   },
-  modificaButtonText: {
-    color: "#0f172a",
-    fontSize: 11,
+  panelCounter: {
+    color: "#94a3b8",
+    fontSize: 9,
     fontWeight: "700"
   },
-  modalitaRow: {
+  personRow: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 9
+  },
+  personInfo: {
+    flex: 1,
+    minWidth: 0
+  },
+  personName: {
+    color: "#f1f5f9",
+    fontSize: 12,
+    fontWeight: "800"
+  },
+  personMeta: {
+    color: "#94a3b8",
+    fontSize: 9,
+    marginTop: 1
+  },
+  inlineStats: {
     flexDirection: "row",
     flexWrap: "wrap",
-    gap: 6,
-    marginBottom: 8
+    gap: 8,
+    marginTop: 4
   },
-  modalitaBtn: {
-    flex: 1,
-    minWidth: 90,
-    backgroundColor: "rgba(15,23,42,0.95)",
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.45)",
-    borderRadius: 8,
-    paddingVertical: 8,
-    paddingHorizontal: 6,
-    alignItems: "center"
-  },
-  modalitaBtnAttivo: {
-    borderColor: "rgba(234,179,8,0.7)",
-    backgroundColor: "rgba(234,179,8,0.12)"
-  },
-  modalitaBtnText: {
-    color: "#f8fafc",
-    fontSize: 11,
-    fontWeight: "700"
-  },
-  modalitaHint: {
-    color: "rgba(203,213,245,0.65)",
+  statStrong: {
+    color: "#fde68a",
     fontSize: 9,
-    marginTop: 2
+    fontWeight: "800"
   },
-  hintAGiro: {
-    color: "#4ade80",
-    fontSize: 10,
-    textAlign: "center",
-    marginBottom: 6
-  },
-  consigliereSection: {
-    marginBottom: 16
-  },
-  cardConsigliere: {
-    borderColor: "rgba(59,130,246,0.45)",
-    backgroundColor: "rgba(59,130,246,0.06)"
-  },
-  nobiliSection: {
-    marginBottom: 16
-  },
-  nonAssegnato: {
-    color: "rgba(203,213,245,0.7)",
-    fontSize: 12,
-    marginBottom: 6
-  },
-  cambiaConsigliereButton: {
-    backgroundColor: "#2563eb",
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
-    marginTop: 8,
-    width: "100%",
-    alignItems: "center"
-  },
-  cambiaConsigliereButtonText: {
-    color: "#ffffff",
-    fontSize: 11,
-    fontWeight: "700"
-  },
-  guardieSection: {
-    marginBottom: 16
-  },
-  guardieCard: {
-    backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 10,
-    borderWidth: 1,
-    borderColor: "rgba(96,165,250,0.45)"
-  },
-  guardieCount: {
-    color: "#ffffff",
-    fontSize: 14,
-    fontWeight: "700",
-    marginBottom: 4
-  },
-  guardieHint: {
-    color: "rgba(203,213,245,0.7)",
+  statMuted: {
+    color: "#cbd5e1",
     fontSize: 9,
-    marginBottom: 8
-  },
-  legendVerde: {
-    color: "#86efac",
     fontWeight: "600"
   },
-  guardieList: {
-    gap: 6
-  },
-  guardiaCard: {
+  smallGoldButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
     borderRadius: 6,
-    padding: 8,
+    backgroundColor: "#eab308"
+  },
+  smallGoldButtonText: {
+    color: "#111827",
+    fontSize: 9,
+    fontWeight: "900"
+  },
+  microLabel: {
+    color: "#64748b",
+    fontSize: 8,
+    fontWeight: "800",
+    letterSpacing: 0.5,
+    marginTop: 11,
+    marginBottom: 5
+  },
+  presenceRow: {
+    flexDirection: "row",
+    gap: 5
+  },
+  presenceButton: {
+    flex: 1,
+    minWidth: 0,
+    alignItems: "center",
+    paddingVertical: 6,
+    paddingHorizontal: 4,
+    borderRadius: 6,
     borderWidth: 1,
+    borderColor: "rgba(100,116,139,0.45)",
+    backgroundColor: "rgba(15,23,42,0.7)"
+  },
+  presenceButtonActive: {
+    borderColor: "rgba(234,179,8,0.72)",
+    backgroundColor: "rgba(234,179,8,0.13)"
+  },
+  presenceButtonText: {
+    color: "#e2e8f0",
+    fontSize: 9,
+    fontWeight: "800"
+  },
+  presenceStatus: {
+    color: "#94a3b8",
+    fontSize: 9,
+    textAlign: "center",
+    marginTop: 6,
+    minHeight: 12
+  },
+  presenceStatusPositive: {
+    color: "#86efac"
+  },
+  presenceStatusWarning: {
+    color: "#fbbf24"
+  },
+  statusDotText: {
+    color: "#64748b",
+    fontSize: 9,
+    fontWeight: "700"
+  },
+  statusDotTextActive: {
+    color: "#86efac"
+  },
+  smallBlueButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: "#2563eb"
+  },
+  smallBlueButtonText: {
+    color: "#ffffff",
+    fontSize: 9,
+    fontWeight: "800"
+  },
+  primaryButton: {
+    marginTop: 9,
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    borderRadius: 7,
+    alignItems: "center",
+    backgroundColor: "#2563eb"
+  },
+  primaryButtonText: {
+    color: "#ffffff",
+    fontSize: 10,
+    fontWeight: "800"
+  },
+  ministersGrid: {
+    flexDirection: "row",
+    flexWrap: "wrap",
+    alignContent: "flex-start",
+    gap: 6,
+    flex: 1,
+    minHeight: 0
+  },
+  ministerTile: {
+    minHeight: 56,
     flexDirection: "row",
     alignItems: "center",
-    gap: 8
+    gap: 7,
+    padding: 7,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: "rgba(71,85,105,0.58)",
+    backgroundColor: "rgba(2,6,23,0.36)"
   },
-  guardiaCardInServizio: {
-    backgroundColor: "rgba(22,101,52,0.38)",
-    borderColor: "rgba(74,222,128,0.5)"
+  ministerTileDesktop: {
+    width: "49%"
   },
-  guardiaCardAssente: {
-    backgroundColor: "rgba(15,23,42,0.95)",
-    borderColor: "rgba(148,163,184,0.6)"
+  ministerTileMobile: {
+    width: "48.8%"
   },
-  guardiaInfo: {
-    flex: 1
+  avatarPlaceholder: {
+    width: 34,
+    height: 34,
+    borderRadius: 17,
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "rgba(100,116,139,0.18)"
   },
-  guardiaNome: {
-    color: "#e5e7eb",
-    fontSize: 11,
+  avatarPlaceholderText: {
+    color: "#64748b",
+    fontSize: 14,
+    fontWeight: "700"
+  },
+  ministerInfo: {
+    flex: 1,
+    minWidth: 0
+  },
+  ministerName: {
+    color: "#93c5fd",
+    fontSize: 8,
+    fontWeight: "800",
+    textTransform: "uppercase"
+  },
+  ministerAssigned: {
+    color: "#e2e8f0",
+    fontSize: 10,
     fontWeight: "700",
-    marginBottom: 2
+    marginTop: 2
   },
-  guardiaMeta: {
-    color: "rgba(203,213,245,0.7)",
-    fontSize: 9
+  vacantText: {
+    color: "#fbbf24"
   },
-  presenzaLabel: {
-    marginTop: 3,
+  compactList: {
+    gap: 5
+  },
+  compactPersonRow: {
+    minHeight: 42,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingHorizontal: 6,
+    paddingVertical: 5,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: "rgba(71,85,105,0.48)",
+    backgroundColor: "rgba(2,6,23,0.28)"
+  },
+  compactPersonName: {
+    color: "#e2e8f0",
+    fontSize: 10,
+    fontWeight: "800"
+  },
+  compactPersonMeta: {
+    color: "#94a3b8",
+    fontSize: 8,
+    marginTop: 1
+  },
+  chevron: {
+    color: "#64748b",
+    fontSize: 18,
+    lineHeight: 18
+  },
+  moreText: {
+    color: "#94a3b8",
     fontSize: 9,
-    fontWeight: "700",
-    color: "rgba(203,213,245,0.55)"
+    fontStyle: "italic",
+    textAlign: "center",
+    paddingTop: 2
   },
-  presenzaLabelInServizio: {
-    color: "#bbf7d0"
+  guardRow: {
+    minHeight: 45,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    paddingHorizontal: 6,
+    paddingVertical: 5,
+    borderRadius: 7,
+    borderWidth: 1,
+    borderColor: "rgba(71,85,105,0.55)",
+    backgroundColor: "rgba(2,6,23,0.34)"
   },
-  presenzaFuori: {
-    color: "rgba(203,213,245,0.55)"
+  guardRowActive: {
+    borderColor: "rgba(74,222,128,0.38)",
+    backgroundColor: "rgba(22,101,52,0.2)"
   },
   removeButton: {
-    backgroundColor: "#ef4444",
-    paddingHorizontal: 10,
+    paddingHorizontal: 7,
     paddingVertical: 4,
-    borderRadius: 4
+    borderRadius: 5,
+    backgroundColor: "rgba(239,68,68,0.9)"
   },
   removeButtonText: {
     color: "#ffffff",
-    fontSize: 9,
-    fontWeight: "600"
+    fontSize: 8,
+    fontWeight: "800"
   },
-  emptyGuardie: {
-    color: "rgba(203,213,245,0.55)",
+  emptyText: {
+    color: "#64748b",
     fontSize: 9,
     fontStyle: "italic",
-    marginTop: 4
+    paddingVertical: 6
+  },
+  helperText: {
+    color: "#64748b",
+    fontSize: 8,
+    lineHeight: 11,
+    marginTop: 7
   },
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(5, 8, 22, 0.9)",
+    backgroundColor: "rgba(5,8,22,0.9)",
     justifyContent: "center",
     alignItems: "center",
     padding: 16
@@ -825,54 +1000,6 @@ const styles = StyleSheet.create({
   },
   modalConfirmText: {
     color: "#ffffff",
-    fontWeight: "700"
-  },
-  ministriSection: {
-    marginBottom: 8
-  },
-  ministriList: {
-    gap: 6,
-    marginBottom: 10
-  },
-  ministroRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 10,
-    backgroundColor: "rgba(15,23,42,0.95)",
-    borderRadius: 8,
-    padding: 8,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.45)"
-  },
-  avatarPlaceholder: {
-    width: 36,
-    height: 36,
-    borderRadius: 18,
-    backgroundColor: "rgba(148,163,184,0.2)"
-  },
-  ministroInfo: {
-    flex: 1
-  },
-  ministroNome: {
-    color: "#93c5fd",
-    fontSize: 10,
-    fontWeight: "700",
-    textTransform: "uppercase"
-  },
-  ministroAssegnato: {
-    color: "#e5e7eb",
-    fontSize: 12,
-    fontWeight: "600"
-  },
-  scegliMinistriButton: {
-    backgroundColor: "#3b82f6",
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: "center"
-  },
-  scegliMinistriButtonText: {
-    color: "#ffffff",
-    fontSize: 13,
     fontWeight: "700"
   }
 });
