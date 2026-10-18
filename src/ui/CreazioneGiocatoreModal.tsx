@@ -18,6 +18,7 @@ import {
 } from "../game/personaggioAspetto";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 import { CharacterCreationPreview } from "./CharacterCreationPreview";
+import { RoyalThroneBackground } from "./RoyalThroneBackground";
 import { canRenderCharacter, compatibleCatalogOptions, compatibleColorsForField, firstCompatibleColorForField, firstCompatibleHairColor } from "../character-system/registry";
 import { bodyFamilyFor, normalizeCharacterAppearance } from "../character-system/appearance";
 import { groupCapeMantelloSections, isCapeTrim } from "../character-system/capeMantello";
@@ -589,6 +590,12 @@ export function CreazioneGiocatoreModal({
           ]}
           onPress={(e) => e.stopPropagation()}
         >
+          {!isDesktop ? (
+            <View pointerEvents="none" style={styles.throneBackground}>
+              <RoyalThroneBackground />
+              <View style={styles.throneTint} />
+            </View>
+          ) : null}
           <View style={styles.accentLine} />
           <View style={styles.header}>
             <Text style={styles.title}>{titolo ?? (mode === "outfit" ? "Abiti Sacerdote" : mode === "edit" ? "Modifica il Re" : "Crea il tuo Re")}</Text>
@@ -1064,6 +1071,14 @@ const styles = StyleSheet.create({
     backgroundColor: "#0f172a",
     justifyContent: "flex-start",
     alignItems: "stretch"
+  },
+  throneBackground: {
+    ...StyleSheet.absoluteFillObject,
+    overflow: "hidden"
+  },
+  throneTint: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: "rgba(3, 12, 37, 0.31)"
   },
   modalCardMobile: {
     backgroundColor: "#0f172a",
