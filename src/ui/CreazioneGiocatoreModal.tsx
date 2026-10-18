@@ -16,7 +16,8 @@ import {
   type AspettoPersonaggio,
   type RazzaGiocatore
 } from "../game/personaggioAspetto";
-import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
+import { DESKTOP_MODAL_BREAKPOINT } from "./modalFullscreenStyles";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { CharacterCreationPreview } from "./CharacterCreationPreview";
 import { canRenderCharacter, compatibleCatalogOptions, compatibleColorsForField, firstCompatibleColorForField, firstCompatibleHairColor } from "../character-system/registry";
 import { bodyFamilyFor, normalizeCharacterAppearance } from "../character-system/appearance";
@@ -401,6 +402,8 @@ export function CreazioneGiocatoreModal({
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
+  const EditorContainer: React.ElementType = isDesktop ? View : ScrollView;
+  const FieldsContainer: React.ElementType = isDesktop ? ScrollView : View;
   const spriteAppearance = aspetto.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, "teen");
   const catalogOptions = compatibleCatalogOptions(spriteAppearance);
   const torsoOutfitsAll = filterTorsoOutfitOptions(catalogOptions.upperOutfits, spriteAppearance.bodyType);
@@ -558,28 +561,26 @@ export function CreazioneGiocatoreModal({
   };
 
   return (
-    <Modal visible={visible} transparent animationType="fade">
-      <Pressable
-        style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]}
-        onPress={onAnnulla}
-      >
-        <Pressable
-          style={[styles.modalCard, isDesktop && modalContentFullscreen, isDesktop && styles.modalCardDesktop]}
-          onPress={(e) => e.stopPropagation()}
-        >
+    <Modal visible={visible} transparent={false} animationType="fade" onRequestClose={onAnnulla}>
+      <View style={styles.modalBackdrop}>
+        <SafeAreaView style={[styles.modalCard, isDesktop && styles.modalCardDesktop]} edges={["top", "bottom"]}>
           <View style={styles.accentLine} />
           <View style={styles.header}>
-            <View style={styles.emojiWrap}><Text style={styles.emoji}>🛡️</Text></View>
             <Text style={styles.title}>{titolo ?? (mode === "outfit" ? "Abiti Sacerdote" : mode === "edit" ? "Modifica il Re" : "Crea il tuo Re")}</Text>
-            <Text style={styles.subtitle}>Configura un personaggio pixel-art modulare</Text>
-            <View style={styles.titleUnderline} />
           </View>
 
-          <View style={[styles.editorLayout, isDesktop && styles.editorLayoutDesktop]}>
+          <EditorContainer
+            style={[styles.editorLayout, isDesktop && styles.editorLayoutDesktop]}
+            {...(!isDesktop ? {
+              contentContainerStyle: styles.editorLayoutMobileContent,
+              keyboardShouldPersistTaps: "handled" as const,
+              showsVerticalScrollIndicator: true
+            } : {})}
+          >
             <View style={[styles.previewColumn, isDesktop && styles.previewColumnDesktop]}>
-              <View style={styles.previewWrap}>
+              <View style={[styles.previewWrap, !isDesktop && styles.previewWrapMobile]}>
                 {canRenderCharacter(spriteAppearance, "idle") ? (
-                  <CharacterCreationPreview appearance={spriteAppearance} />
+                  <CharacterCreationPreview appearance={spriteAppearance} size={isDesktop ? 128 : 112} />
                 ) : (
                   <View style={styles.lpcPreviewError} accessibilityRole="alert">
                     <Text style={styles.lpcPreviewErrorTitle}>Anteprima LPC non disponibile</Text>
@@ -588,8 +589,8 @@ export function CreazioneGiocatoreModal({
                     </Text>
                   </View>
                 )}
-                <View style={styles.previewMeta}>
-                  <Text style={styles.previewHint}>Umano · 10 anni · corpo teen</Text>
+                <View style={[styles.previewMeta, !isDesktop && styles.previewMetaMobile]}>
+                  <Text style={styles.previewHint}>Umano · 10 anni</Text>
                   <Pressable style={styles.randomButton} onPress={() => {
                     const casualeTeen = generaAspettoCasuale(RAZZA_RE, Math.random, { eta: 15, sesso: sesso ?? undefined });
                     const next = forzaAspettoReTeen(casualeTeen);
@@ -603,16 +604,18 @@ export function CreazioneGiocatoreModal({
               </View>
             </View>
 
-            <View style={styles.controlsColumn}>
-              <View style={styles.tabs}>
-                {CREATION_TABS.map((tab) => <Pressable key={tab.id} accessibilityRole="tab" accessibilityState={{ selected: activeTab === tab.id }} style={[styles.tab, activeTab === tab.id && styles.tabSelected]} onPress={() => setActiveTab(tab.id)}><Text style={[styles.tabText, activeTab === tab.id && styles.tabTextSelected]}>{tab.label}</Text></Pressable>)}
+            <View style={isDesktop ? styles.controlsColumn : styles.controlsColumnMobile}>
+              <View style={[styles.tabs, !isDesktop && styles.tabsMobile]}>
+                {CREATION_TABS.map((tab) => <Pressable key={tab.id} accessibilityRole="tab" accessibilityState={{ selected: activeTab === tab.id }} style={[styles.tab, !isDesktop && styles.tabMobile, activeTab === tab.id && styles.tabSelected]} onPress={() => setActiveTab(tab.id)}><Text style={[styles.tabText, activeTab === tab.id && styles.tabTextSelected]}>{tab.label}</Text></Pressable>)}
               </View>
 
-              <ScrollView
-                style={styles.controlsScroll}
-                contentContainerStyle={styles.controlsScrollContent}
-                showsVerticalScrollIndicator
-                keyboardShouldPersistTaps="handled"
+              <FieldsContainer
+                style={isDesktop ? styles.controlsScroll : styles.controlsScrollMobile}
+                {...(isDesktop ? {
+                  contentContainerStyle: styles.controlsScrollContent,
+                  showsVerticalScrollIndicator: true,
+                  keyboardShouldPersistTaps: "handled" as const
+                } : {})}
               >
               {activeTab === "identity" ? <>
               <Text style={styles.sectionTitle}>Identità</Text>
@@ -985,9 +988,9 @@ export function CreazioneGiocatoreModal({
                 </View>;
               })}
               </> : null}
-              </ScrollView>
+              </FieldsContainer>
             </View>
-          </View>
+          </EditorContainer>
 
           <Pressable
             style={({ pressed }) => [
@@ -1015,8 +1018,8 @@ export function CreazioneGiocatoreModal({
               onCancel={() => setOutfitColorPicker(null)}
             />
           ) : null}
-        </Pressable>
-      </Pressable>
+        </SafeAreaView>
+      </View>
     </Modal>
   );
 }
@@ -1024,26 +1027,14 @@ export function CreazioneGiocatoreModal({
 const styles = StyleSheet.create({
   modalBackdrop: {
     flex: 1,
-    backgroundColor: "rgba(5, 8, 22, 0.92)",
-    justifyContent: "center",
-    alignItems: "center",
-    padding: 20
+    backgroundColor: "#0f172a"
   },
   modalCard: {
+    flex: 1,
+    width: "100%",
     backgroundColor: "#0f172a",
-    borderRadius: 20,
-    padding: 24,
-    minWidth: 320,
-    maxWidth: 440,
-    height: "92%",
-    maxHeight: "92%",
-    borderWidth: 1,
-    borderColor: "rgba(148, 163, 184, 0.25)",
-    elevation: 12,
-    shadowColor: "#000",
-    shadowOffset: { width: 0, height: 8 },
-    shadowOpacity: 0.45,
-    shadowRadius: 16,
+    paddingHorizontal: 16,
+    paddingVertical: 12,
     overflow: "hidden"
   },
   accentLine: {
@@ -1058,20 +1049,9 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    marginBottom: 16,
+    marginBottom: 8,
+    paddingTop: 4,
     flexShrink: 0
-  },
-  emojiWrap: {
-    width: 72,
-    height: 72,
-    borderRadius: 36,
-    backgroundColor: "rgba(59, 130, 246, 0.12)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginBottom: 12
-  },
-  emoji: {
-    fontSize: 36
   },
   title: {
     fontSize: 22,
@@ -1080,15 +1060,7 @@ const styles = StyleSheet.create({
     textAlign: "center",
     letterSpacing: 0.3
   },
-  modalCardDesktop: { width: "94%", maxWidth: 1040, height: "92%", borderRadius: 20, padding: 24 },
-  subtitle: { color: "#d6c39b", fontSize: 13, marginTop: 7, textAlign: "center" },
-  titleUnderline: {
-    width: 48,
-    height: 2,
-    backgroundColor: "rgba(148, 163, 184, 0.4)",
-    marginTop: 10,
-    borderRadius: 1
-  },
+  modalCardDesktop: { paddingHorizontal: 24, paddingVertical: 20 },
   sectionTitle: {
     color: "#93c5fd",
     fontSize: 13,
@@ -1099,17 +1071,23 @@ const styles = StyleSheet.create({
   },
   editorLayout: { width: "100%", flex: 1, minHeight: 0, overflow: "hidden" },
   editorLayoutDesktop: { flexDirection: "row", alignItems: "stretch", gap: 24 },
+  editorLayoutMobileContent: { paddingBottom: 16 },
+  controlsColumnMobile: { width: "100%" },
+  controlsScrollMobile: { paddingRight: 6, paddingBottom: 18 },
   previewColumn: { width: "100%" },
   previewColumnDesktop: { width: 300 },
   controlsColumn: { flex: 1, minHeight: 0, minWidth: 0 },
   controlsScroll: { flex: 1, minHeight: 0 },
   controlsScrollContent: { paddingRight: 8, paddingBottom: 12 },
   tabs: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 18 },
+  tabsMobile: { gap: 6, marginBottom: 12 },
+  tabMobile: { width: "31%", paddingHorizontal: 5, paddingVertical: 9, alignItems: "center", justifyContent: "center", minHeight: 38 },
   tab: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 9, borderWidth: 1, borderColor: "rgba(148, 163, 184, 0.35)", backgroundColor: "rgba(30, 41, 59, 0.72)" },
   tabSelected: { borderColor: "#60a5fa", backgroundColor: "rgba(59, 130, 246, 0.24)" },
   tabText: { color: "rgba(203, 213, 245, 0.76)", fontSize: 12, fontWeight: "700" },
   tabTextSelected: { color: "#eff6ff" },
   previewWrap: { alignItems: "center", marginBottom: 18, gap: 10, backgroundColor: "rgba(120,83,45,0.16)", borderWidth: 1, borderColor: "rgba(214,195,155,0.25)", borderRadius: 14, padding: 14 },
+  previewWrapMobile: { padding: 4, borderWidth: 0, backgroundColor: "transparent", marginBottom: 10, gap: 5 },
   lpcPreviewError: {
     width: "100%",
     minHeight: 160,
@@ -1135,6 +1113,7 @@ const styles = StyleSheet.create({
     textAlign: "center"
   },
   previewMeta: { alignItems: "center", gap: 8 },
+  previewMetaMobile: { gap: 4 },
   previewHint: { color: "#f3ddb0", fontSize: 12, fontWeight: "800", textTransform: "capitalize" },
   randomButton: { backgroundColor: "#5c3b20", borderWidth: 1, borderColor: "#d6b56f", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
   randomButtonText: { color: "#fff4d6", fontSize: 12, fontWeight: "800" },
