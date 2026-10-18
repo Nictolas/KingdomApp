@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
-  useWindowDimensions,
+  Dimensions,
   Modal,
   Pressable,
   ScrollView,
@@ -18,7 +18,6 @@ import {
 } from "../game/personaggioAspetto";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 import { CharacterCreationPreview } from "./CharacterCreationPreview";
-import { RoyalThroneBackground } from "./RoyalThroneBackground";
 import { canRenderCharacter, compatibleCatalogOptions, compatibleColorsForField, firstCompatibleColorForField, firstCompatibleHairColor } from "../character-system/registry";
 import { bodyFamilyFor, normalizeCharacterAppearance } from "../character-system/appearance";
 import { groupCapeMantelloSections, isCapeTrim } from "../character-system/capeMantello";
@@ -41,7 +40,6 @@ import {
   partitionLongsleeveTorsoOptions
 } from "../character-system/lpcCatalogSections";
 import { CircularSpriteFrame } from "./CircularSpriteFrame";
-import { useSafeAreaInsets } from "react-native-safe-area-context";
 import type { CharacterAppearance, CharacterLayer } from "../character-system/types";
 
 export type DatiCreazioneGiocatore = {
@@ -401,10 +399,8 @@ export function CreazioneGiocatoreModal({
     setOutfitColorPicker(null);
   }, [visible, mode, initial]);
 
-  const { width, height } = useWindowDimensions();
-  const insets = useSafeAreaInsets();
+  const { width } = Dimensions.get("window");
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
-  const mobilePreviewSize = height < 700 ? 92 : 112;
   const spriteAppearance = aspetto.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, "teen");
   const catalogOptions = compatibleCatalogOptions(spriteAppearance);
   const torsoOutfitsAll = filterTorsoOutfitOptions(catalogOptions.upperOutfits, spriteAppearance.bodyType);
@@ -561,51 +557,29 @@ export function CreazioneGiocatoreModal({
     });
   };
 
-  const tabButtons = CREATION_TABS.map((tab) => (
-    <Pressable
-      key={tab.id}
-      accessibilityRole="tab"
-      accessibilityState={{ selected: activeTab === tab.id }}
-      style={[styles.tab, !isDesktop && styles.tabMobile, activeTab === tab.id && styles.tabSelected]}
-      onPress={() => setActiveTab(tab.id)}
-    >
-      <Text style={[styles.tabText, activeTab === tab.id && styles.tabTextSelected]}>{tab.label}</Text>
-    </Pressable>
-  ));
-
   return (
-    <Modal visible={visible} transparent={isDesktop} animationType="fade" statusBarTranslucent={!isDesktop}>
+    <Modal visible={visible} transparent animationType="fade">
       <Pressable
-        style={[styles.modalBackdrop, !isDesktop && styles.modalBackdropMobile, isDesktop && modalBackdropFullscreen]}
+        style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]}
         onPress={onAnnulla}
       >
         <Pressable
-          style={[
-            styles.modalCard,
-            !isDesktop && modalContentFullscreen,
-            !isDesktop && styles.modalCardMobile,
-            !isDesktop && { paddingTop: Math.max(12, insets.top + 8), paddingBottom: Math.max(12, insets.bottom + 8) },
-            isDesktop && modalContentFullscreen,
-            isDesktop && styles.modalCardDesktop
-          ]}
+          style={[styles.modalCard, isDesktop && modalContentFullscreen, isDesktop && styles.modalCardDesktop]}
           onPress={(e) => e.stopPropagation()}
         >
-          {!isDesktop ? (
-            <View pointerEvents="none" style={styles.throneBackground}>
-              <RoyalThroneBackground />
-              <View style={styles.throneTint} />
-            </View>
-          ) : null}
           <View style={styles.accentLine} />
           <View style={styles.header}>
+            <View style={styles.emojiWrap}><Text style={styles.emoji}>🛡️</Text></View>
             <Text style={styles.title}>{titolo ?? (mode === "outfit" ? "Abiti Sacerdote" : mode === "edit" ? "Modifica il Re" : "Crea il tuo Re")}</Text>
+            <Text style={styles.subtitle}>Configura un personaggio pixel-art modulare</Text>
+            <View style={styles.titleUnderline} />
           </View>
 
           <View style={[styles.editorLayout, isDesktop && styles.editorLayoutDesktop]}>
             <View style={[styles.previewColumn, isDesktop && styles.previewColumnDesktop]}>
-              <View style={[styles.previewWrap, !isDesktop && styles.previewWrapMobile]}>
+              <View style={styles.previewWrap}>
                 {canRenderCharacter(spriteAppearance, "idle") ? (
-                  <CharacterCreationPreview appearance={spriteAppearance} size={isDesktop ? 128 : mobilePreviewSize} compact={!isDesktop} />
+                  <CharacterCreationPreview appearance={spriteAppearance} />
                 ) : (
                   <View style={styles.lpcPreviewError} accessibilityRole="alert">
                     <Text style={styles.lpcPreviewErrorTitle}>Anteprima LPC non disponibile</Text>
@@ -614,9 +588,9 @@ export function CreazioneGiocatoreModal({
                     </Text>
                   </View>
                 )}
-                <View style={[styles.previewMeta, !isDesktop && styles.previewMetaMobile]}>
-                  <Text style={styles.previewHint}>Umano · 10 anni</Text>
-                  <Pressable style={[styles.randomButton, !isDesktop && styles.randomButtonMobile]} onPress={() => {
+                <View style={styles.previewMeta}>
+                  <Text style={styles.previewHint}>Umano · 10 anni · corpo teen</Text>
+                  <Pressable style={styles.randomButton} onPress={() => {
                     const casualeTeen = generaAspettoCasuale(RAZZA_RE, Math.random, { eta: 15, sesso: sesso ?? undefined });
                     const next = forzaAspettoReTeen(casualeTeen);
                     if (next.characterAppearance && canRenderCharacter(next.characterAppearance, "idle")) {
@@ -630,20 +604,9 @@ export function CreazioneGiocatoreModal({
             </View>
 
             <View style={styles.controlsColumn}>
-              {isDesktop ? (
-                <View style={styles.tabs}>{tabButtons}</View>
-              ) : (
-                <ScrollView
-                  horizontal
-                  style={styles.tabsMobileScroll}
-                  contentContainerStyle={styles.tabsMobile}
-                  showsHorizontalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
-                  accessibilityLabel="Categorie di personalizzazione, scorri orizzontalmente"
-                >
-                  {tabButtons}
-                </ScrollView>
-              )}
+              <View style={styles.tabs}>
+                {CREATION_TABS.map((tab) => <Pressable key={tab.id} accessibilityRole="tab" accessibilityState={{ selected: activeTab === tab.id }} style={[styles.tab, activeTab === tab.id && styles.tabSelected]} onPress={() => setActiveTab(tab.id)}><Text style={[styles.tabText, activeTab === tab.id && styles.tabTextSelected]}>{tab.label}</Text></Pressable>)}
+              </View>
 
               <ScrollView
                 style={styles.controlsScroll}
@@ -1066,32 +1029,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
     padding: 20
   },
-  modalBackdropMobile: {
-    padding: 0,
-    backgroundColor: "#0f172a",
-    justifyContent: "flex-start",
-    alignItems: "stretch"
-  },
-  throneBackground: {
-    ...StyleSheet.absoluteFillObject,
-    overflow: "hidden"
-  },
-  throneTint: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: "rgba(3, 12, 37, 0.31)"
-  },
-  modalCardMobile: {
-    backgroundColor: "#0f172a",
-    borderWidth: 0,
-    borderRadius: 0,
-    minWidth: 0,
-    width: "100%",
-    maxWidth: "100%",
-    paddingHorizontal: 14,
-    paddingVertical: 12,
-    elevation: 0,
-    shadowOpacity: 0
-  },
   modalCard: {
     backgroundColor: "#0f172a",
     borderRadius: 20,
@@ -1121,8 +1058,20 @@ const styles = StyleSheet.create({
   },
   header: {
     alignItems: "center",
-    marginBottom: 8,
+    marginBottom: 16,
     flexShrink: 0
+  },
+  emojiWrap: {
+    width: 72,
+    height: 72,
+    borderRadius: 36,
+    backgroundColor: "rgba(59, 130, 246, 0.12)",
+    alignItems: "center",
+    justifyContent: "center",
+    marginBottom: 12
+  },
+  emoji: {
+    fontSize: 36
   },
   title: {
     fontSize: 22,
@@ -1132,6 +1081,14 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3
   },
   modalCardDesktop: { width: "94%", maxWidth: 1040, height: "92%", borderRadius: 20, padding: 24 },
+  subtitle: { color: "#d6c39b", fontSize: 13, marginTop: 7, textAlign: "center" },
+  titleUnderline: {
+    width: 48,
+    height: 2,
+    backgroundColor: "rgba(148, 163, 184, 0.4)",
+    marginTop: 10,
+    borderRadius: 1
+  },
   sectionTitle: {
     color: "#93c5fd",
     fontSize: 13,
@@ -1146,17 +1103,13 @@ const styles = StyleSheet.create({
   previewColumnDesktop: { width: 300 },
   controlsColumn: { flex: 1, minHeight: 0, minWidth: 0 },
   controlsScroll: { flex: 1, minHeight: 0 },
-  controlsScrollContent: { paddingRight: 8, paddingBottom: 18 },
+  controlsScrollContent: { paddingRight: 8, paddingBottom: 12 },
   tabs: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 18 },
-  tabsMobileScroll: { flexGrow: 0, flexShrink: 0, marginBottom: 8 },
-  tabsMobile: { flexDirection: "row", alignItems: "center", gap: 8, paddingRight: 16 },
-  tabMobile: { minWidth: 84, alignItems: "center", paddingHorizontal: 12, paddingVertical: 10 },
   tab: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 9, borderWidth: 1, borderColor: "rgba(148, 163, 184, 0.35)", backgroundColor: "rgba(30, 41, 59, 0.72)" },
   tabSelected: { borderColor: "#60a5fa", backgroundColor: "rgba(59, 130, 246, 0.24)" },
   tabText: { color: "rgba(203, 213, 245, 0.76)", fontSize: 12, fontWeight: "700" },
   tabTextSelected: { color: "#eff6ff" },
   previewWrap: { alignItems: "center", marginBottom: 18, gap: 10, backgroundColor: "rgba(120,83,45,0.16)", borderWidth: 1, borderColor: "rgba(214,195,155,0.25)", borderRadius: 14, padding: 14 },
-  previewWrapMobile: { marginBottom: 8, padding: 0, gap: 5, borderWidth: 0, backgroundColor: "transparent" },
   lpcPreviewError: {
     width: "100%",
     minHeight: 160,
@@ -1182,10 +1135,8 @@ const styles = StyleSheet.create({
     textAlign: "center"
   },
   previewMeta: { alignItems: "center", gap: 8 },
-  previewMetaMobile: { gap: 4 },
   previewHint: { color: "#f3ddb0", fontSize: 12, fontWeight: "800", textTransform: "capitalize" },
   randomButton: { backgroundColor: "#5c3b20", borderWidth: 1, borderColor: "#d6b56f", paddingHorizontal: 14, paddingVertical: 8, borderRadius: 8 },
-  randomButtonMobile: { paddingVertical: 5, paddingHorizontal: 12 },
   randomButtonText: { color: "#fff4d6", fontSize: 12, fontWeight: "800" },
   field: {
     marginBottom: 14
