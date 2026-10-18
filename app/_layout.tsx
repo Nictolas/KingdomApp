@@ -3,7 +3,6 @@ import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
 import { Platform } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
-import { SafeAreaProvider } from "react-native-safe-area-context";
 import { GameProvider } from "../src/context/GameContext";
 
 const globalStyle = { flex: 1, userSelect: "none" as const };
@@ -67,16 +66,14 @@ export default function RootLayout() {
 
   return (
     <GestureHandlerRootView style={globalStyle}>
-      <SafeAreaProvider>
-        <GameProvider>
-          <StatusBar style="light" />
-          <Stack
-            screenOptions={{
-              headerShown: false
-            }}
-          />
-        </GameProvider>
-      </SafeAreaProvider>
+      <GameProvider>
+        <StatusBar style="light" />
+        <Stack
+          screenOptions={{
+            headerShown: false
+          }}
+        />
+      </GameProvider>
     </GestureHandlerRootView>
   );
 }
