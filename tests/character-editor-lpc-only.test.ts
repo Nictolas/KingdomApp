@@ -20,3 +20,21 @@ test("character creation uses only the Universal LPC editor", () => {
   assert.equal(immigrationSource.includes("AbitanteLpcAvatar"), true);
   assert.equal(residentModalSource.includes("AbitanteLpcAvatar"), true);
 });
+
+test("mobile character creation is fullscreen with scrollable options and two rotation buttons", () => {
+  const editor = readFileSync(resolve(process.cwd(), "src/ui/CreazioneGiocatoreModal.tsx"), "utf8");
+  const preview = readFileSync(resolve(process.cwd(), "src/ui/CharacterCreationPreview.tsx"), "utf8");
+
+  assert.ok(editor.includes("transparent={false}"));
+  assert.ok(editor.includes("contentContainerStyle: styles.editorLayoutMobileContent"));
+  assert.ok(editor.includes("controlsScrollMobile"));
+  assert.ok(editor.includes("SafeAreaView"));
+  assert.equal(editor.includes("🛡️"), false);
+  assert.equal(editor.includes("Configura un personaggio pixel-art modulare"), false);
+  assert.equal(editor.toLowerCase().includes("corpo teen"), false);
+  assert.equal(editor.includes('maxWidth: 440'), false);
+
+  const rotationControls = [...preview.matchAll(/accessibilityLabel="Ruota a (sinistra|destra)"/g)];
+  assert.deepEqual(rotationControls.map((match) => match[1]), ["sinistra", "destra"]);
+  assert.equal(preview.includes("styles.dpad"), false);
+});
