@@ -1,7 +1,9 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
-  Dimensions,
+  KeyboardAvoidingView,
   Modal,
+  Platform,
+  useWindowDimensions,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -375,6 +377,8 @@ export function CreazioneGiocatoreModal({
   const [orientamento, setOrientamento] = useState<"Etero" | "Omo" | "Bi" | "Asessuale" | null>(null);
   const [aspetto, setAspetto] = useState<AspettoPersonaggio>(ASPETTO_RE_DEFAULT);
   const [activeTab, setActiveTab] = useState<CreationTab>("identity");
+  const [textInputFocused, setTextInputFocused] = useState(false);
+  const categoryScrollRef = useRef<ScrollView>(null);
   const [outfitColorPicker, setOutfitColorPicker] = useState<OutfitColorPickerState | null>(null);
 
   useEffect(() => {
@@ -397,12 +401,14 @@ export function CreazioneGiocatoreModal({
     setOrientamento(source?.orientamento ?? null);
     setAspetto(source?.aspetto ?? ASPETTO_RE_DEFAULT);
     setActiveTab(mode === "outfit" ? "busto" : "identity");
+    setTextInputFocused(false);
     setOutfitColorPicker(null);
   }, [visible, mode, initial]);
 
-  const { width, height } = Dimensions.get("window");
+  const { width, height } = useWindowDimensions();
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
-  const mobilePreviewSize = height < 700 ? 92 : 112;
+  const compactMobile = !isDesktop && height < 760;
+  const mobilePreviewSize = height < 680 ? 78 : height < 860 ? 98 : 116;
   const spriteAppearance = aspetto.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, "teen");
   const catalogOptions = compatibleCatalogOptions(spriteAppearance);
   const torsoOutfitsAll = filterTorsoOutfitOptions(catalogOptions.upperOutfits, spriteAppearance.bodyType);
@@ -559,13 +565,27 @@ export function CreazioneGiocatoreModal({
     });
   };
 
+  const activeTabIndex = CREATION_TABS.findIndex((tab) => tab.id === activeTab);
+  const selectTab = (tabId: CreationTab) => {
+    setTextInputFocused(false);
+    setActiveTab(tabId);
+    const index = CREATION_TABS.findIndex((tab) => tab.id === tabId);
+    if (!isDesktop && index >= 0) {
+      categoryScrollRef.current?.scrollTo({ x: Math.max(0, (index - 1) * 92), animated: true });
+    }
+  };
+  const stepTab = (delta: -1 | 1) => {
+    const target = CREATION_TABS[Math.min(CREATION_TABS.length - 1, Math.max(0, activeTabIndex + delta))];
+    if (target) selectTab(target.id);
+  };
+
   const tabButtons = CREATION_TABS.map((tab) => (
     <Pressable
       key={tab.id}
       accessibilityRole="tab"
       accessibilityState={{ selected: activeTab === tab.id }}
       style={[styles.tab, !isDesktop && styles.tabMobile, activeTab === tab.id && styles.tabSelected]}
-      onPress={() => setActiveTab(tab.id)}
+      onPress={() => selectTab(tab.id)}
     >
       <Text style={[styles.tabText, activeTab === tab.id && styles.tabTextSelected]}>{tab.label}</Text>
     </Pressable>
@@ -573,6 +593,7 @@ export function CreazioneGiocatoreModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade">
+      <KeyboardAvoidingView style={styles.keyboardRoot} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <Pressable
         style={[styles.modalBackdrop, !isDesktop && styles.modalBackdropMobile, isDesktop && modalBackdropFullscreen]}
         onPress={onAnnulla}
@@ -582,6 +603,7 @@ export function CreazioneGiocatoreModal({
             styles.modalCard,
             !isDesktop && modalContentFullscreen,
             !isDesktop && styles.modalCardMobile,
+            compactMobile && styles.modalCardMobileCompact,
             isDesktop && modalContentFullscreen,
             isDesktop && styles.modalCardDesktop
           ]}
@@ -594,11 +616,12 @@ export function CreazioneGiocatoreModal({
             </View>
           ) : null}
           <View style={styles.accentLine} />
-          <View style={styles.header}>
+          <View style={[styles.header, compactMobile && styles.headerCompact]}>
             <Text style={styles.title}>{titolo ?? (mode === "outfit" ? "Abiti Sacerdote" : mode === "edit" ? "Modifica il Re" : "Crea il tuo Re")}</Text>
           </View>
 
           <View style={[styles.editorLayout, isDesktop && styles.editorLayoutDesktop]}>
+            {(!textInputFocused || isDesktop) && (
             <View style={[styles.previewColumn, isDesktop && styles.previewColumnDesktop]}>
               <View style={[styles.previewWrap, !isDesktop && styles.previewWrapMobile]}>
                 {canRenderCharacter(spriteAppearance, "idle") ? (
@@ -625,21 +648,45 @@ export function CreazioneGiocatoreModal({
                 </View>
               </View>
             </View>
+            )}
 
             <View style={styles.controlsColumn}>
               {isDesktop ? (
                 <View style={styles.tabs}>{tabButtons}</View>
               ) : (
-                <ScrollView
-                  horizontal
-                  style={styles.tabsMobileScroll}
-                  contentContainerStyle={styles.tabsMobile}
-                  showsHorizontalScrollIndicator={false}
-                  keyboardShouldPersistTaps="handled"
-                  accessibilityLabel="Categorie di personalizzazione, scorri orizzontalmente"
-                >
-                  {tabButtons}
-                </ScrollView>
+                <View style={styles.tabsMobileRow}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Categoria precedente"
+                    accessibilityState={{ disabled: activeTabIndex <= 0 }}
+                    disabled={activeTabIndex <= 0}
+                    style={[styles.tabStepButton, activeTabIndex <= 0 && styles.tabStepButtonDisabled]}
+                    onPress={() => stepTab(-1)}
+                  >
+                    <Text style={styles.tabStepText}>‹</Text>
+                  </Pressable>
+                  <ScrollView
+                    ref={categoryScrollRef}
+                    horizontal
+                    style={styles.tabsMobileScroll}
+                    contentContainerStyle={styles.tabsMobile}
+                    showsHorizontalScrollIndicator={false}
+                    keyboardShouldPersistTaps="handled"
+                    accessibilityLabel="Categorie di personalizzazione, scorri orizzontalmente"
+                  >
+                    {tabButtons}
+                  </ScrollView>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel="Categoria successiva"
+                    accessibilityState={{ disabled: activeTabIndex >= CREATION_TABS.length - 1 }}
+                    disabled={activeTabIndex >= CREATION_TABS.length - 1}
+                    style={[styles.tabStepButton, activeTabIndex >= CREATION_TABS.length - 1 && styles.tabStepButtonDisabled]}
+                    onPress={() => stepTab(1)}
+                  >
+                    <Text style={styles.tabStepText}>›</Text>
+                  </Pressable>
+                </View>
               )}
 
               <ScrollView
@@ -652,11 +699,11 @@ export function CreazioneGiocatoreModal({
               <Text style={styles.sectionTitle}>Identità</Text>
               <View style={styles.field}>
                 <Text style={styles.label}>Nome</Text>
-                <TextInput style={styles.input} value={nome} onChangeText={setNome} placeholder="Nome" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="words" />
+                <TextInput style={styles.input} value={nome} onChangeText={setNome} onFocus={() => setTextInputFocused(true)} onBlur={() => setTextInputFocused(false)} placeholder="Nome" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="words" />
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Cognome</Text>
-                <TextInput style={styles.input} value={cognome} onChangeText={setCognome} placeholder="Cognome" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="words" />
+                <TextInput style={styles.input} value={cognome} onChangeText={setCognome} onFocus={() => setTextInputFocused(true)} onBlur={() => setTextInputFocused(false)} placeholder="Cognome" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="words" />
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Genere</Text>
@@ -1051,11 +1098,13 @@ export function CreazioneGiocatoreModal({
           ) : null}
         </Pressable>
       </Pressable>
+      </KeyboardAvoidingView>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  keyboardRoot: { flex: 1 },
   modalBackdrop: {
     flex: 1,
     backgroundColor: "rgba(5, 8, 22, 0.92)",
@@ -1086,10 +1135,11 @@ const styles = StyleSheet.create({
     maxWidth: "100%",
     paddingHorizontal: 14,
     paddingTop: 20,
-    paddingBottom: 16,
+    paddingBottom: 24,
     elevation: 0,
     shadowOpacity: 0
   },
+  modalCardMobileCompact: { paddingTop: 10, paddingBottom: 16 },
   modalCard: {
     backgroundColor: "#0f172a",
     borderRadius: 20,
@@ -1122,6 +1172,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     flexShrink: 0
   },
+  headerCompact: { marginBottom: 4 },
   title: {
     fontSize: 22,
     fontWeight: "800",
@@ -1146,9 +1197,13 @@ const styles = StyleSheet.create({
   controlsScroll: { flex: 1, minHeight: 0 },
   controlsScrollContent: { paddingRight: 8, paddingBottom: 18 },
   tabs: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 18 },
-  tabsMobileScroll: { flexGrow: 0, flexShrink: 0, marginBottom: 8 },
+  tabsMobileRow: { flexDirection: "row", alignItems: "center", gap: 4, marginBottom: 8 },
+  tabStepButton: { width: 44, height: 44, borderRadius: 10, borderWidth: 1, borderColor: "rgba(147,197,253,0.52)", backgroundColor: "rgba(15,35,76,0.88)", alignItems: "center", justifyContent: "center" },
+  tabStepButtonDisabled: { opacity: 0.35 },
+  tabStepText: { color: "#eff6ff", fontSize: 27, fontWeight: "700" },
+  tabsMobileScroll: { flex: 1, minWidth: 0, flexGrow: 1, flexShrink: 1 },
   tabsMobile: { flexDirection: "row", alignItems: "center", gap: 8, paddingRight: 16 },
-  tabMobile: { minWidth: 84, alignItems: "center", paddingHorizontal: 12, paddingVertical: 10 },
+  tabMobile: { minWidth: 84, minHeight: 44, alignItems: "center", justifyContent: "center", paddingHorizontal: 12, paddingVertical: 10 },
   tab: { paddingHorizontal: 18, paddingVertical: 10, borderRadius: 9, borderWidth: 1, borderColor: "rgba(148, 163, 184, 0.35)", backgroundColor: "rgba(30, 41, 59, 0.72)" },
   tabSelected: { borderColor: "#60a5fa", backgroundColor: "rgba(59, 130, 246, 0.24)" },
   tabText: { color: "rgba(203, 213, 245, 0.76)", fontSize: 12, fontWeight: "700" },
