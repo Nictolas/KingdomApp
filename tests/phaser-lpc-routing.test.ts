@@ -8,5 +8,6 @@ test("Phaser usa LPC solo per personaggi con aspetto LPC valido", () => {
   assert.match(source, /const needsLpc = this\.characterNeedsLpc\(character\);/);
   assert.doesNotMatch(source, /const needsLpc = character\.appearance !== "golem";/);
   assert.match(source, /const canSpawnGolem = character\.appearance === "golem";/);
-  assert.match(source, /const canSpawnEmoji = !!character\.markerEmoji;/);\n  assert.equal(existsSync("assets/pixel-art/characters/human-colonist.png"), false);
+  assert.match(source, /const canSpawnEmoji = !!character\.markerEmoji;/);
+  assert.equal(existsSync("assets/pixel-art/characters/human-colonist.png"), false);
 });
