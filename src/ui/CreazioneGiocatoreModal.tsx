@@ -1070,11 +1070,11 @@ const styles = StyleSheet.create({
     alignItems: "stretch"
   },
   throneBackground: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute", top: 0, right: 0, bottom: 0, left: 0,
     overflow: "hidden"
   },
   throneTint: {
-    ...StyleSheet.absoluteFillObject,
+    position: "absolute", top: 0, right: 0, bottom: 0, left: 0,
     backgroundColor: "rgba(3, 12, 37, 0.31)"
   },
   modalCardMobile: {
