@@ -859,14 +859,11 @@ export function CreazioneGiocatoreModal({
 
               {activeTab === "hair" ? <>
               <Text style={styles.sectionTitle}>Capelli</Text>
-              <View style={styles.field}>
-                <Text style={styles.label}>Colore capelli</Text>
-                <View style={styles.visualGrid}>{catalogOptions.hairColors.map((value) => <AppearanceOption key={value} label={readableOptionName("Colore capelli", value)} selected={spriteAppearance.hairColor === value} visibleLayers={["hairBack", "hairFront"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, hairColor: value })} onPress={() => updateSpriteAppearance({ hairColor: spriteAppearance.hairColor === value ? "none" : value })} />)}</View>
-              </View>
+
               <View style={styles.field}>
                 <Text style={styles.label}>Stile capelli</Text>
                 <View style={styles.visualGrid}>{catalogOptions.hairStyles.map((value) => {
-                  const hairColor = firstCompatibleHairColor(spriteAppearance, value);
+                  const hairColor = colorForHairStyle(value);
                   return <AppearanceOption key={value} label={readableOptionName("Stile capelli", value)} selected={spriteAppearance.hairStyle === value} visibleLayers={["hairBack", "hairFront"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, hairStyle: value, hairColor })} onPress={() => updateSpriteAppearance(spriteAppearance.hairStyle === value ? { hairStyle: "none", hairColor: "none" } : { hairStyle: value, hairColor })} />;
                 })}</View>
               </View>
@@ -879,9 +876,7 @@ export function CreazioneGiocatoreModal({
                   <Text style={styles.label}>{label}</Text>
                   <View style={styles.visualGrid}>{options.map((value) => {
                     const selected = spriteAppearance.fullOutfit === "none" && spriteAppearance.upperOutfit === value;
-                    const previewColor = selected
-                      ? spriteAppearance.outfitPrimaryColor
-                      : firstCompatibleColorForField(spriteAppearance, "outfitPrimaryColor", "outfit", value);
+                    const previewColor = colorForOption("upper", value);
                     return (
                       <AppearanceOption
                         key={value}
@@ -889,11 +884,7 @@ export function CreazioneGiocatoreModal({
                         selected={selected}
                         visibleLayers={["outfit"]}
                         appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", upperOutfit: value, outfitPrimaryColor: previewColor })}
-                        onPress={() => openOutfitColorPicker({
-                          kind: "upper",
-                          semanticId: value,
-                          label: readableOptionName(label, value)
-                        })}
+                        onPress={() => applyOutfitColorPicker({ kind: "upper", semanticId: value, label: formatSemanticLabel(value) }, previewColor)}
                       />
                     );
                   })}</View>
@@ -911,14 +902,7 @@ export function CreazioneGiocatoreModal({
                     const selected = isFullOutfit
                       ? spriteAppearance.fullOutfit === value
                       : spriteAppearance.fullOutfit === "none" && spriteAppearance.upperOutfit === value;
-                    const previewColor = selected
-                      ? spriteAppearance.outfitPrimaryColor
-                      : firstCompatibleColorForField(
-                        spriteAppearance,
-                        "outfitPrimaryColor",
-                        isFullOutfit ? "fullOutfit" : "outfit",
-                        value
-                      );
+                    const previewColor = colorForOption(isFullOutfit ? "fullOutfit" : "upper", value);
                     const previewAppearance = isFullOutfit
                       ? normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: value, outfitPrimaryColor: previewColor })
                       : normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", upperOutfit: value, outfitPrimaryColor: previewColor });
@@ -929,11 +913,7 @@ export function CreazioneGiocatoreModal({
                         selected={selected}
                         visibleLayers={isFullOutfit ? ["fullOutfit"] : ["outfit"]}
                         appearance={previewAppearance}
-                        onPress={() => openOutfitColorPicker({
-                          kind: isFullOutfit ? "fullOutfit" : "upper",
-                          semanticId: value,
-                          label: readableOptionName(label, value)
-                        })}
+                        onPress={() => applyOutfitColorPicker({ kind: isFullOutfit ? "fullOutfit" : "upper", semanticId: value, label: formatSemanticLabel(value) }, previewColor)}
                       />
                     );
                   })}</View>
@@ -950,9 +930,7 @@ export function CreazioneGiocatoreModal({
                     if (isKimonoVesteTrim(value)) {
                       const selected = spriteAppearance.fullOutfitTrim === value;
                       const base = kimonoBaseForTrim(value)!;
-                      const previewColor = selected
-                        ? spriteAppearance.outfitPrimaryColor
-                        : firstCompatibleColorForField(spriteAppearance, "outfitPrimaryColor", "fullOutfit", value);
+                      const previewColor = colorForOption("fullOutfitTrim", value);
                       return (
                         <AppearanceOption
                           key={value}
@@ -973,11 +951,7 @@ export function CreazioneGiocatoreModal({
                               updateSpriteAppearance({ fullOutfitTrim: "none" });
                               return;
                             }
-                            openOutfitColorPicker({
-                              kind: "fullOutfitTrim",
-                              semanticId: value,
-                              label: formatSemanticLabel(value)
-                            }, { forceDialog: true });
+                            applyOutfitColorPicker({ kind: "fullOutfitTrim", semanticId: value, label: formatSemanticLabel(value) }, previewColor);
                           }}
                         />
                       );
@@ -988,9 +962,7 @@ export function CreazioneGiocatoreModal({
                     const previewTrim = compatibleTrim && spriteAppearance.fullOutfitTrim === compatibleTrim
                       ? spriteAppearance.fullOutfitTrim
                       : "none";
-                    const previewColor = selected
-                      ? spriteAppearance.outfitPrimaryColor
-                      : firstCompatibleColorForField(spriteAppearance, "outfitPrimaryColor", "fullOutfit", value);
+                    const previewColor = colorForOption("fullOutfit", value);
                     return (
                       <AppearanceOption
                         key={value}
@@ -1006,11 +978,7 @@ export function CreazioneGiocatoreModal({
                           upperOutfit: "none",
                           lowerOutfit: "none"
                         })}
-                        onPress={() => openOutfitColorPicker({
-                          kind: "fullOutfit",
-                          semanticId: value,
-                          label: formatSemanticLabel(value)
-                        }, { forceDialog: true })}
+                        onPress={() => applyOutfitColorPicker({ kind: "fullOutfit", semanticId: value, label: formatSemanticLabel(value) }, previewColor)}
                       />
                     );
                   })}</View>
@@ -1026,9 +994,7 @@ export function CreazioneGiocatoreModal({
                   <View style={styles.visualGrid}>{options.map((value) => {
                     if (isCapeTrim(value)) {
                       const selected = spriteAppearance.capeTrim === value;
-                      const previewColor = selected
-                        ? spriteAppearance.capeColor
-                        : firstCompatibleColorForField(spriteAppearance, "capeColor", "cape", value);
+                      const previewColor = colorForOption("capeTrim", value);
                       return (
                         <AppearanceOption
                           key={value}
@@ -1047,20 +1013,14 @@ export function CreazioneGiocatoreModal({
                               updateSpriteAppearance({ capeTrim: "none" });
                               return;
                             }
-                            openOutfitColorPicker({
-                              kind: "capeTrim",
-                              semanticId: value,
-                              label: formatSemanticLabel(value)
-                            }, { forceDialog: true });
+                            applyOutfitColorPicker({ kind: "capeTrim", semanticId: value, label: formatSemanticLabel(value) }, previewColor);
                           }}
                         />
                       );
                     }
 
                     const selected = spriteAppearance.cape === value;
-                    const previewColor = selected
-                      ? spriteAppearance.capeColor
-                      : firstCompatibleColorForField(spriteAppearance, "capeColor", "cape", value);
+                    const previewColor = colorForOption("cape", value);
                     return (
                       <AppearanceOption
                         key={`${label}-${value}`}
@@ -1073,11 +1033,7 @@ export function CreazioneGiocatoreModal({
                           cape: value,
                           capeColor: previewColor
                         })}
-                        onPress={() => openOutfitColorPicker({
-                          kind: "cape",
-                          semanticId: value,
-                          label: formatSemanticLabel(value)
-                        }, { forceDialog: true })}
+                        onPress={() => applyOutfitColorPicker({ kind: "cape", semanticId: value, label: formatSemanticLabel(value) }, previewColor)}
                       />
                     );
                   })}</View>
@@ -1092,9 +1048,7 @@ export function CreazioneGiocatoreModal({
                   <Text style={styles.label}>{label}</Text>
                   <View style={styles.visualGrid}>{options.map((value) => {
                     const selected = spriteAppearance.fullOutfit === "none" && spriteAppearance.lowerOutfit === value;
-                    const previewColor = selected
-                      ? spriteAppearance.outfitSecondaryColor
-                      : firstCompatibleColorForField(spriteAppearance, "outfitSecondaryColor", "lowerBody", value);
+                    const previewColor = colorForOption("lower", value);
                     return (
                       <AppearanceOption
                         key={value}
@@ -1102,11 +1056,7 @@ export function CreazioneGiocatoreModal({
                         selected={selected}
                         visibleLayers={["lowerBody"]}
                         appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", lowerOutfit: value, outfitSecondaryColor: previewColor })}
-                        onPress={() => openOutfitColorPicker({
-                          kind: "lower",
-                          semanticId: value,
-                          label: readableOptionName(label, value)
-                        })}
+                        onPress={() => applyOutfitColorPicker({ kind: "lower", semanticId: value, label: formatSemanticLabel(value) }, previewColor)}
                       />
                     );
                   })}</View>
@@ -1121,9 +1071,7 @@ export function CreazioneGiocatoreModal({
                   <Text style={styles.label}>{label}</Text>
                   <View style={styles.visualGrid}>{options.map((value) => {
                     const selected = spriteAppearance.fullOutfit === "none" && spriteAppearance.lowerOutfit === value;
-                    const previewColor = selected
-                      ? spriteAppearance.outfitSecondaryColor
-                      : firstCompatibleColorForField(spriteAppearance, "outfitSecondaryColor", "lowerBody", value);
+                    const previewColor = colorForOption("lower", value);
                     return (
                       <AppearanceOption
                         key={value}
@@ -1131,11 +1079,7 @@ export function CreazioneGiocatoreModal({
                         selected={selected}
                         visibleLayers={["lowerBody"]}
                         appearance={normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", lowerOutfit: value, outfitSecondaryColor: previewColor })}
-                        onPress={() => openOutfitColorPicker({
-                          kind: "lower",
-                          semanticId: value,
-                          label: readableOptionName(label, value)
-                        })}
+                        onPress={() => applyOutfitColorPicker({ kind: "lower", semanticId: value, label: formatSemanticLabel(value) }, previewColor)}
                       />
                     );
                   })}</View>
@@ -1152,9 +1096,7 @@ export function CreazioneGiocatoreModal({
                   <Text style={styles.label}>{label}</Text>
                   <View style={styles.visualGrid}>{options.map((value) => {
                     const selected = spriteAppearance.footwear === value;
-                    const previewColor = selected
-                      ? spriteAppearance.footwearColor
-                      : firstCompatibleColorForField(spriteAppearance, "footwear", "footwear", value);
+                    const previewColor = colorForOption("footwear", value);
                     return (
                       <AppearanceOption
                         key={value}
@@ -1162,11 +1104,7 @@ export function CreazioneGiocatoreModal({
                         selected={selected}
                         visibleLayers={["footwear"]}
                         appearance={normalizeCharacterAppearance({ ...spriteAppearance, footwear: value, footwearColor: previewColor })}
-                        onPress={() => openOutfitColorPicker({
-                          kind: "footwear",
-                          semanticId: value,
-                          label: readableOptionName(label, value.replace(/^feet_/, ""))
-                        })}
+                        onPress={() => applyOutfitColorPicker({ kind: "footwear", semanticId: value, label: formatSemanticLabel(value) }, previewColor)}
                       />
                     );
                   })}</View>
@@ -1183,9 +1121,7 @@ export function CreazioneGiocatoreModal({
                   <Text style={styles.label}>{label}</Text>
                   <View style={styles.visualGrid}>{options.map((value) => {
                     const selected = spriteAppearance.footwear === value;
-                    const previewColor = selected
-                      ? spriteAppearance.footwearColor
-                      : firstCompatibleColorForField(spriteAppearance, "footwear", "footwear", value);
+                    const previewColor = colorForOption("footwear", value);
                     return (
                       <AppearanceOption
                         key={value}
@@ -1193,11 +1129,7 @@ export function CreazioneGiocatoreModal({
                         selected={selected}
                         visibleLayers={["footwear"]}
                         appearance={normalizeCharacterAppearance({ ...spriteAppearance, footwear: value, footwearColor: previewColor })}
-                        onPress={() => openOutfitColorPicker({
-                          kind: "footwear",
-                          semanticId: value,
-                          label: readableOptionName(label, value.replace(/^feet_/, ""))
-                        })}
+                        onPress={() => applyOutfitColorPicker({ kind: "footwear", semanticId: value, label: formatSemanticLabel(value) }, previewColor)}
                       />
                     );
                   })}</View>
