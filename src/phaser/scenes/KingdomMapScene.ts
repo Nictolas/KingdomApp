@@ -59,6 +59,7 @@ function frameKey(x: number, y: number): string {
 export type PhaserArtAssetUrls = {
   golem: string;
   getLpcLayerUrl?: (sourceId: string) => string | undefined;
+  getLpcLayerFrameSize?: (sourceId: string) => number;
   buildings: Record<
     NonNullable<PhaserMapBuilding["artKey"]>,
     string | { base: string; overlay?: string; doorway?: string }
@@ -370,7 +371,8 @@ export class KingdomMapScene extends Phaser.Scene {
       const url = this.artUrls.getLpcLayerUrl(id);
       if (!url) continue;
       this.pendingLpcSourceIds.add(id);
-      this.load.spritesheet(id, url, { frameWidth: 64, frameHeight: 64 });
+      const pixelSize = this.artUrls.getLpcLayerFrameSize?.(id) ?? 64;
+      this.load.spritesheet(id, url, { frameWidth: pixelSize, frameHeight: pixelSize });
       queued = true;
     }
     if (queued && !this.lpcLoadCompleteListener) {
