@@ -7,9 +7,12 @@ import { LPC_ASSET_SOURCES } from "../character-system/generated/lpcAssetSources
 import { canRenderCharacter, resolveCharacterLayers, CHARACTER_ASSETS } from "../character-system/registry";
 import { refineLpcSpriteUrl, LPC_HD_FRAME_PX } from "../character-system/lpcHdRuntime.web";
 import type { LpcArtLayer } from "../character-system/lpcPixelArtRefinement";
+import { lpcLookFromSearch } from "../character-system/lpcVisualExperiment";
 import { pixelArtCanvasResolution } from "../phaser/adapters/pixelArtCanvasResolution";
 
 const lpcLayerUriCache = new Map<string, string>();
+// True A/B: classic uses original 64px LPC files AND original proportions.
+const lpcHdEnabled = typeof window !== "undefined" && lpcLookFromSearch(window.location.search) === "refined";
 const lpcHighDetailSourceIds = new Set<string>();
 const lpcHighDetailPendingIds = new Set<string>();
 const LPC_HD_PILOT_MAX_LAYERS = 24;
@@ -55,7 +58,7 @@ async function warmLpcLayerUrls(sourceIds: readonly string[]): Promise<void> {
       if (!asset.uri) await asset.downloadAsync();
       if (!asset.uri) return;
       const role = lpcHdRoles.get(sourceId);
-      if (role && lpcHighDetailSourceIds.size + lpcHighDetailPendingIds.size < LPC_HD_PILOT_MAX_LAYERS) {
+      if (lpcHdEnabled && role && lpcHighDetailSourceIds.size + lpcHighDetailPendingIds.size < LPC_HD_PILOT_MAX_LAYERS) {
         lpcHighDetailPendingIds.add(sourceId);
         try {
           const enhanced = await refineLpcSpriteUrl(asset.uri, role);
