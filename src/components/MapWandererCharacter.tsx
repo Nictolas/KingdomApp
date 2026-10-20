@@ -2,6 +2,13 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { getOrologioGiocoInPausaSnapshot } from "../game/orologioGiocoSession";
 import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
+import {
+  frameGroupStart,
+  segmentMoveDurationMs,
+  walkFrameFromElapsedMs,
+  walkIndexInGroup,
+  type WanderDirection
+} from "../game/mapWandererMotion";
 
 const DOPPIO_TAP_MS = 400;
 
@@ -11,25 +18,12 @@ const CHARACTER_SHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld
 const FRAME_PX = 64;
 const FRAMES = 12;
 
-/** Spostamento tra celle: durata e pausa prima del prossimo passo. */
-const MOVE_DURATION_MS = 560;
-const MOVE_DURATION_ROAD_MS = 340;
+/** Pausa tra i passi del girovago. */
 const IDLE_BEFORE_NEXT_MS = 2200;
 /** Retry più rapido se la cella davanti è occupata durante una commute. */
 const CLAIM_RETRY_MS = 900;
 /** Dopo N fallimenti di claim, chiede al genitore un nuovo percorso. */
 const MAX_CLAIM_FAILS_BEFORE_REPATH = 3;
-
-function segmentMoveDurationMs(
-  from: number,
-  to: number,
-  isRoadCell?: (cellIndex: number) => boolean
-): number {
-  if (isRoadCell?.(from) || isRoadCell?.(to)) return MOVE_DURATION_ROAD_MS;
-  return MOVE_DURATION_MS;
-}
-
-export type WanderDirection = "n" | "s" | "e" | "w";
 
 function orthogonalNeighbors(index: number, cols: number, rows: number): number[] {
   const c = index % cols;
@@ -48,42 +42,6 @@ function directionBetween(from: number, to: number, cols: number): WanderDirecti
   if (to === from - cols) return "n";
   if (to === from + cols) return "s";
   return "s";
-}
-
-function frameGroupStart(dir: WanderDirection): number {
-  switch (dir) {
-    case "s":
-      return 0;
-    case "n":
-      return 6;
-    case "e":
-    case "w":
-      /**
-       * Gruppo NE (3–5): movimento E/O su griglia; il gruppo SE (9–11) è pensato per diagonale
-       * e spesso dà sensazione di moonwalk su spostamento solo orizzontale.
-       */
-      return 3;
-    default:
-      return 0;
-  }
-}
-
-/**
- * Ordine dei 3 frame nel gruppo SE (9–11): camminata “in avanti” sullo sheet = 0→1→2.
- * - Est: ordine normale (coerente con lo spostamento a destra).
- * - Ovest: stesso gruppo + flip orizzontale → per non avere moonwalk serve ciclo invertito 2→1→0.
- */
-function walkIndexInGroup(direction: WanderDirection, walkFrame: number, isMoving: boolean): number {
-  if (!isMoving) return 0;
-  const k = Math.min(2, walkFrame % 3);
-  if (direction === "w") return 2 - k;
-  return k;
-}
-
-/** Frame camminata (0–2) sincronizzati sul tempo lineare: ritmo costante, non sull’easing della posizione. */
-function walkFrameFromLinearMoveT(t: number): number {
-  if (t >= 1) return 0;
-  return Math.min(2, Math.floor(t * 3));
 }
 
 type MapWandererCharacterProps = {
@@ -311,7 +269,7 @@ export function MapWandererCharacter({
         y: fromY + (toY - fromY) * t
       });
       if (t < 1) {
-        setWalkFrame(walkFrameFromLinearMoveT(t));
+        setWalkFrame(walkFrameFromElapsedMs(now - start));
         rafRef.current = requestAnimationFrame(step);
       } else {
         setPixelPos({ x: toX, y: toY });
@@ -381,7 +339,7 @@ export function MapWandererCharacter({
           y: fromY + (toY - fromY) * t
         });
         if (t < 1) {
-          setWalkFrame(walkFrameFromLinearMoveT(t));
+          setWalkFrame(walkFrameFromElapsedMs(now - start));
           rafRef.current = requestAnimationFrame(step);
         } else {
           setPixelPos({ x: toX, y: toY });
