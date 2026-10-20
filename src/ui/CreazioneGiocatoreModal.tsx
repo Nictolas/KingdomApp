@@ -214,11 +214,6 @@ type OutfitColorPickerRequest = {
   label: string;
 };
 
-type OutfitColorPickerState = {
-  request: OutfitColorPickerRequest;
-  colors: string[];
-};
-
 function colorsForOutfitPicker(
   appearance: CharacterAppearance,
   request: OutfitColorPickerRequest
@@ -237,166 +232,6 @@ function colorsForOutfitPicker(
     case "footwear":
       return compatibleColorsForField(appearance, "footwear", "footwear", request.semanticId);
   }
-}
-
-function resolveOutfitPickerColors(
-  appearance: CharacterAppearance,
-  request: OutfitColorPickerRequest
-): string[] {
-  return colorsForOutfitPicker(appearance, request);
-}
-
-function previewAppearanceForOutfitPicker(
-  appearance: CharacterAppearance,
-  request: OutfitColorPickerRequest,
-  color: string
-): CharacterAppearance {
-  switch (request.kind) {
-    case "fullOutfit": {
-      const compatibleTrim = kimonoTrimForBase(request.semanticId);
-      return normalizeCharacterAppearance({
-        ...appearance,
-        fullOutfit: request.semanticId,
-        fullOutfitTrim: compatibleTrim && appearance.fullOutfitTrim === compatibleTrim ? appearance.fullOutfitTrim : "none",
-        outfit: request.semanticId,
-        outfitPrimaryColor: color,
-        upperOutfit: "none",
-        lowerOutfit: "none"
-      });
-    }
-    case "fullOutfitTrim":
-      return normalizeCharacterAppearance({
-        ...appearance,
-        fullOutfit: kimonoBaseForTrim(request.semanticId) ?? appearance.fullOutfit,
-        fullOutfitTrim: request.semanticId,
-        outfit: kimonoBaseForTrim(request.semanticId) ?? appearance.fullOutfit,
-        outfitPrimaryColor: color,
-        upperOutfit: "none",
-        lowerOutfit: "none"
-      });
-    case "upper":
-      return normalizeCharacterAppearance({
-        ...appearance,
-        fullOutfit: "none",
-        upperOutfit: request.semanticId,
-        outfitPrimaryColor: color
-      });
-    case "lower":
-      return normalizeCharacterAppearance({
-        ...appearance,
-        fullOutfit: "none",
-        lowerOutfit: request.semanticId,
-        outfitSecondaryColor: color
-      });
-    case "footwear":
-      return normalizeCharacterAppearance({
-        ...appearance,
-        footwear: request.semanticId,
-        footwearColor: color
-      });
-    case "cape":
-      return normalizeCharacterAppearance({
-        ...appearance,
-        cape: request.semanticId,
-        capeColor: color
-      });
-    case "capeTrim":
-      return normalizeCharacterAppearance({
-        ...appearance,
-        capeTrim: request.semanticId,
-        capeColor: color
-      });
-  }
-}
-
-function visibleLayersForOutfitPicker(kind: OutfitColorPickerKind): readonly CharacterLayer[] {
-  switch (kind) {
-    case "fullOutfit":
-    case "fullOutfitTrim":
-      return ["body", "raceFeatures", "fullOutfit"];
-    case "upper":
-      return ["outfit"];
-    case "lower":
-      return ["lowerBody"];
-    case "footwear":
-      return ["footwear"];
-    case "cape":
-    case "capeTrim":
-      return ["cape"];
-  }
-}
-
-function visibleSemanticIdsForOutfitPicker(request: OutfitColorPickerRequest): Partial<Record<CharacterLayer, string>> {
-  if (request.kind === "fullOutfit" || request.kind === "fullOutfitTrim") {
-    return { fullOutfit: request.semanticId };
-  }
-  if (request.kind === "cape" || request.kind === "capeTrim") {
-    return { cape: request.semanticId };
-  }
-  return {};
-}
-
-function OutfitColorPickerDialog({
-  picker,
-  appearance,
-  onSelect,
-  onCancel
-}: {
-  picker: OutfitColorPickerState;
-  appearance: CharacterAppearance;
-  onSelect: (color: string) => void;
-  onCancel: () => void;
-}) {
-  const { request, colors } = picker;
-  const visibleLayers = visibleLayersForOutfitPicker(request.kind);
-  const visibleSemanticIds = visibleSemanticIdsForOutfitPicker(request);
-  const currentColor = request.kind === "fullOutfit" || request.kind === "fullOutfitTrim" || request.kind === "upper"
-    ? appearance.outfitPrimaryColor
-    : request.kind === "cape" || request.kind === "capeTrim"
-      ? appearance.capeColor
-    : request.kind === "lower"
-      ? appearance.outfitSecondaryColor
-      : appearance.footwearColor;
-
-  return (
-    <View style={styles.colorPickerOverlay} pointerEvents="box-none">
-      <Pressable style={styles.colorPickerBackdrop} onPress={onCancel} accessibilityLabel="Chiudi selezione colore" />
-      <View style={styles.colorPickerCard}>
-        <Text style={styles.colorPickerTitle}>Scegli il colore</Text>
-        <Text style={styles.colorPickerSubtitle}>{request.label}</Text>
-        <ScrollView style={styles.colorPickerScroll} contentContainerStyle={styles.colorPickerGrid} keyboardShouldPersistTaps="handled">
-          {colors.map((color) => (
-            <AppearanceOption
-              key={color}
-              label={formatSemanticLabel(color)}
-              selected={currentColor === color && (
-                request.kind === "fullOutfit"
-                  ? appearance.fullOutfit === request.semanticId
-                  : request.kind === "fullOutfitTrim"
-                    ? appearance.fullOutfitTrim === request.semanticId
-                    : request.kind === "cape"
-                      ? appearance.cape === request.semanticId
-                      : request.kind === "capeTrim"
-                        ? appearance.capeTrim === request.semanticId
-                    : request.kind === "upper"
-                    ? appearance.upperOutfit === request.semanticId
-                    : request.kind === "lower"
-                      ? appearance.lowerOutfit === request.semanticId
-                      : appearance.footwear === request.semanticId
-              )}
-              visibleLayers={visibleLayers}
-              visibleSemanticIds={visibleSemanticIds}
-              appearance={previewAppearanceForOutfitPicker(appearance, request, color)}
-              onPress={() => onSelect(color)}
-            />
-          ))}
-        </ScrollView>
-        <Pressable style={styles.colorPickerCancel} onPress={onCancel} accessibilityRole="button">
-          <Text style={styles.colorPickerCancelText}>Annulla</Text>
-        </Pressable>
-      </View>
-    </View>
-  );
 }
 
 const KIMONO_VESTE_PREVIEW_LAYERS = ["body", "raceFeatures", "fullOutfit"] as const;
@@ -423,7 +258,6 @@ export function CreazioneGiocatoreModal({
   const [paletteSelections, setPaletteSelections] = useState<Partial<Record<CreationTab, string>>>({});
   const [textInputFocused, setTextInputFocused] = useState(false);
   const categoryScrollRef = useRef<ScrollView>(null);
-  const [outfitColorPicker, setOutfitColorPicker] = useState<OutfitColorPickerState | null>(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -447,7 +281,6 @@ export function CreazioneGiocatoreModal({
     setActiveTab(mode === "outfit" ? "busto" : "identity");
     setPaletteSelections({});
     setTextInputFocused(false);
-    setOutfitColorPicker(null);
   }, [visible, mode, initial]);
 
   const { width, height } = useWindowDimensions();
@@ -525,16 +358,6 @@ export function CreazioneGiocatoreModal({
     });
   };
 
-  const openOutfitColorPicker = (request: OutfitColorPickerRequest, options?: { forceDialog?: boolean }) => {
-    const colors = resolveOutfitPickerColors(spriteAppearance, request);
-    if (colors.length === 0) return;
-    if (!options?.forceDialog && colors.length <= 1) {
-      applyOutfitColorPicker(request, colors[0] ?? "base");
-      return;
-    }
-    setOutfitColorPicker({ request, colors });
-  };
-
   const applyOutfitColorPicker = (request: OutfitColorPickerRequest, color: string) => {
     switch (request.kind) {
       case "fullOutfit": {
@@ -586,7 +409,6 @@ export function CreazioneGiocatoreModal({
         });
         break;
     }
-    setOutfitColorPicker(null);
   };
 
   const valido =
@@ -639,7 +461,7 @@ export function CreazioneGiocatoreModal({
         : activeTab === "maniche" ? (asset.slot === "outfit" || asset.slot === "fullOutfit") && asset.colorField === field
         : asset.slot === slot && asset.colorField === field))
       .map((asset) => asset.color))].sort();
-  }, [activeTab, spriteAppearance.bodyType]);
+  }, [activeTab, spriteAppearance.bodyType, spriteAppearance.cape, spriteAppearance.fullOutfit]);
 
   const currentCategoryColor = activeTab === "hair" ? spriteAppearance.hairColor
     : activeTab === "mantello" ? spriteAppearance.capeColor
@@ -686,8 +508,8 @@ export function CreazioneGiocatoreModal({
       : activeTab === "mantello" ? mantelloSections
       : activeTab === "pantaloni" ? pantaloniSections
       : activeTab === "gonne" ? gonneSections : [];
-    const inCategory = activeTab === "scarpe" || activeTab === "calze"
-      ? catalogOptions.footwear.includes(equipped)
+    const inCategory = activeTab === "scarpe" ? scarpeFootwearSections.some(([, tokens]) => tokens.some((token) => equipped.includes(token)))
+      : activeTab === "calze" ? calzeFootwearSections.some(([, tokens]) => tokens.some((token) => equipped.includes(token)))
       : categories.some(({ options }) => options.includes(equipped));
     if (!inCategory) return;
     const kind: OutfitColorPickerKind = activeTab === "mantello" ? "cape"
@@ -1158,14 +980,6 @@ export function CreazioneGiocatoreModal({
             </Pressable>
           ) : null}
 
-          {outfitColorPicker ? (
-            <OutfitColorPickerDialog
-              picker={outfitColorPicker}
-              appearance={spriteAppearance}
-              onSelect={(color) => applyOutfitColorPicker(outfitColorPicker.request, color)}
-              onCancel={() => setOutfitColorPicker(null)}
-            />
-          ) : null}
         </Pressable>
       </Pressable>
       </KeyboardAvoidingView>
@@ -1437,52 +1251,6 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: "700",
     letterSpacing: 0.5
-  },
-  colorPickerOverlay: {
-    ...StyleSheet.absoluteFill,
-    zIndex: 20,
-    alignItems: "center",
-    justifyContent: "center",
-    padding: 16
-  },
-  colorPickerBackdrop: {
-    ...StyleSheet.absoluteFill,
-    backgroundColor: "rgba(2, 6, 23, 0.72)"
-  },
-  colorPickerCard: {
-    width: "100%",
-    maxWidth: 420,
-    maxHeight: "78%",
-    backgroundColor: "#111827",
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: "rgba(148, 163, 184, 0.35)",
-    padding: 18,
-    zIndex: 21
-  },
-  colorPickerTitle: {
-    color: "#f1f5f9",
-    fontSize: 16,
-    fontWeight: "800",
-    textAlign: "center"
-  },
-  colorPickerSubtitle: {
-    color: "#93c5fd",
-    fontSize: 12,
-    fontWeight: "600",
-    textAlign: "center",
-    marginTop: 6,
-    marginBottom: 14
-  },
-  colorPickerScroll: {
-    maxHeight: 360
-  },
-  colorPickerGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 10,
-    justifyContent: "center",
-    paddingBottom: 8
   },
   colorPickerCancel: {
     marginTop: 12,
