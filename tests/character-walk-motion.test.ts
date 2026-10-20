@@ -26,4 +26,5 @@ test("Phaser evita reset al frame up e usa tempi di camminata coerenti", () => {
   assert.doesNotMatch(scene, /setTexture\(layer\.sourceId\);\s*this\.playLpcLayerWalk/);
   assert.match(scene, /if \(sprite\.texture\.key !== sourceId\) \{[\s\S]*?sprite\.setTexture\(sourceId, firstFrame\)/);
   assert.match(scene, /lpcFrameForRow\(LPC_DIRECTION_ROWS\[directionName\], layer\.sheet\.columns\)/);
+  assert.match(scene, /this\.ensureIdleRoamScheduled\(characterId\); \} \}\);\s*\/\/ Mantiene attiva la camminata fino al completamento del tween\.\s*return;/);
 });

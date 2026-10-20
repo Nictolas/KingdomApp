@@ -993,6 +993,8 @@ export class KingdomMapScene extends Phaser.Scene {
           }
           this.chatBusy.add(characterId);
           this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: characterStepDurationMs(view.root.x, view.root.y, pos.x, pos.y), ease: "Linear", onUpdate: () => this.updateCharacterDepth(view.root), onComplete: () => { view.logicalCell = destination; this.chatBusy.delete(characterId); this.setCharacterIdleFrame(view, character); this.ensureIdleRoamScheduled(characterId); } });
+          // Mantiene attiva la camminata fino al completamento del tween.
+          return;
         }
       }
       if (view.usesLpc && character.characterAppearance) {
