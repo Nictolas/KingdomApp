@@ -359,6 +359,8 @@ export function CreazioneGiocatoreModal({
   };
 
   const applyOutfitColorPicker = (request: OutfitColorPickerRequest, color: string) => {
+    // Keep the palette in sync with the actual color worn when changing an item.
+    setPaletteSelections((prev) => ({ ...prev, [activeTab]: color }));
     switch (request.kind) {
       case "fullOutfit": {
         const compatibleTrim = kimonoTrimForBase(request.semanticId);
@@ -600,6 +602,7 @@ export function CreazioneGiocatoreModal({
                     const next = forzaAspettoReTeen(casualeTeen);
                     if (next.characterAppearance && canRenderCharacter(next.characterAppearance, "idle")) {
                       setAspetto(next);
+                      setPaletteSelections({});
                     }
                   }}>
                     <Text style={styles.randomButtonText}>🎲 Sorprendimi</Text>
@@ -686,7 +689,14 @@ export function CreazioneGiocatoreModal({
                 <Text style={styles.label}>Stile capelli</Text>
                 <View style={styles.visualGrid}>{catalogOptions.hairStyles.map((value) => {
                   const hairColor = colorForHairStyle(value);
-                  return <AppearanceOption key={value} label={readableOptionName("Stile capelli", value)} selected={spriteAppearance.hairStyle === value} visibleLayers={["hairBack", "hairFront"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, hairStyle: value, hairColor })} onPress={() => updateSpriteAppearance(spriteAppearance.hairStyle === value ? { hairStyle: "none", hairColor: "none" } : { hairStyle: value, hairColor })} />;
+                  return <AppearanceOption key={value} label={readableOptionName("Stile capelli", value)} selected={spriteAppearance.hairStyle === value} visibleLayers={["hairBack", "hairFront"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, hairStyle: value, hairColor })} onPress={() => {
+                     if (spriteAppearance.hairStyle === value) {
+                       updateSpriteAppearance({ hairStyle: "none", hairColor: "none" });
+                     } else {
+                       setPaletteSelections((prev) => ({ ...prev, hair: hairColor }));
+                       updateSpriteAppearance({ hairStyle: value, hairColor });
+                     }
+                   }} />;
                 })}</View>
               </View>
               </> : null}
