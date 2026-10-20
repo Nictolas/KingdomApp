@@ -4,6 +4,7 @@ import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
 import { CHILD_BEARD_OFFSET_Y_PX, LPC_DIRECTION_ROWS } from "../../character-system/lpcPack";
 import { characterStepDurationMs, lpcFrameForRow } from "../adapters/characterWalkMotion";
 import { getLpcVisualGeometry } from "../adapters/lpcCharacterGeometry";
+import { lpcLookFromSearch } from "../../character-system/lpcVisualExperiment";
 import { canRenderCharacter, resolveCharacterLayers } from "../../character-system/registry";
 import { isGeometryEntryCell } from "../../game/buildingGeometry";
 import {
@@ -35,10 +36,7 @@ import {
 const SHEET_KEY = "overworld";
 const GOLEM_KEY = "stone-golem";
 // A/B prova grafica: aggiungi ?lpcLook=classic all'URL per la versione originale.
-const LPC_VISUAL_MODE: "classic" | "refined" =
-  typeof window !== "undefined" && new URLSearchParams(window.location.search).get("lpcLook") === "classic"
-    ? "classic"
-    : "refined";
+const LPC_VISUAL_MODE = lpcLookFromSearch(typeof window !== "undefined" ? window.location.search : "");
 const TILE_LAYER_DEPTH = 0;
 const BUILDING_LAYER_DEPTH = 10;
 const INTERACTION_LAYER_DEPTH = 30;
