@@ -8,8 +8,21 @@ export async function refineLpcSpriteUrl(url: string, layer: LpcArtLayer): Promi
   const image = new Image();
   image.crossOrigin = "anonymous";
   await new Promise<void>((resolve, reject) => {
-    image.onload = () => resolve();
-    image.onerror = () => reject(new Error("Unable to load LPC sheet for refinement"));
+    // A slow or cross-origin asset must never trap the entire map in its loader.
+    const expiry = window.setTimeout(() => {
+      image.onload = null;
+      image.onerror = null;
+      image.src = "";
+      reject(new Error("LPC refinement load timed out"));
+    }, 3500);
+    image.onload = () => {
+      window.clearTimeout(expiry);
+      resolve();
+    };
+    image.onerror = () => {
+      window.clearTimeout(expiry);
+      reject(new Error("Unable to load LPC sheet for refinement"));
+    };
     image.src = url;
   });
 
