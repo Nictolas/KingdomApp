@@ -11,6 +11,7 @@ import { pixelArtCanvasResolution } from "../phaser/adapters/pixelArtCanvasResol
 
 const lpcLayerUriCache = new Map<string, string>();
 const lpcHighDetailSourceIds = new Set<string>();
+const lpcHighDetailPendingIds = new Set<string>();
 const LPC_HD_PILOT_MAX_LAYERS = 24;
 const lpcHdRoles = new Map<string, LpcArtLayer>();
 for (const layer of CHARACTER_ASSETS) {
@@ -54,14 +55,17 @@ async function warmLpcLayerUrls(sourceIds: readonly string[]): Promise<void> {
       if (!asset.uri) await asset.downloadAsync();
       if (!asset.uri) return;
       const role = lpcHdRoles.get(sourceId);
-      if (role && lpcHighDetailSourceIds.size < LPC_HD_PILOT_MAX_LAYERS) {
+      if (role && lpcHighDetailSourceIds.size + lpcHighDetailPendingIds.size < LPC_HD_PILOT_MAX_LAYERS) {
+        lpcHighDetailPendingIds.add(sourceId);
         try {
           const enhanced = await refineLpcSpriteUrl(asset.uri, role);
           lpcHighDetailSourceIds.add(sourceId);
           lpcLayerUriCache.set(sourceId, enhanced);
           return;
         } catch {
-          // Same content stays available with its native 64x64 frame size.
+          // Original sheet remains usable at 64x64 when image/Canvas is unavailable.
+        } finally {
+          lpcHighDetailPendingIds.delete(sourceId);
         }
       }
       lpcLayerUriCache.set(sourceId, asset.uri);
