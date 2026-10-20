@@ -9,7 +9,11 @@ import {
   firstCompatibleColorForField,
   resolveCharacterLayers
 } from "../src/character-system/registry.ts";
-import { filterTorsoOutfitOptions, partitionLongsleeveTorsoOptions } from "../src/character-system/lpcCatalogSections.ts";
+import {
+  filterTorsoOutfitOptions, partitionLongsleeveTorsoOptions,
+  groupCatalogOptionsByLpcSections, LPC_TORSO_SECTIONS, LPC_MANICHE_TORSO_SECTIONS
+} from "../src/character-system/lpcCatalogSections.ts";
+import creditsJson from "../src/character-system/generated/lpc-credits.json";
 
 test("Busto e Maniche sono due indumenti persistenti sovrapposti e con colori indipendenti", () => {
   const base = creaCharacterAppearance("Umano", "teen");
@@ -51,4 +55,25 @@ test("Busto e Maniche sono due indumenti persistenti sovrapposti e con colori in
   assert.equal(restored.upperOutfit, busto, "Il Busto deve essere salvato");
   assert.equal(restored.sleeveOutfit, manica, "Le Maniche devono essere salvate separatamente");
   assert.equal(restored.sleeveColor, sleeveColor, "Il colore delle maniche deve essere salvato");
+});
+
+test("Shirts · Sleeves viene mostrato solo in Maniche, non in Busto", () => {
+  const base = creaCharacterAppearance("Umano", "teen");
+  const all = filterTorsoOutfitOptions(compatibleCatalogOptions(base).upperOutfits, base.bodyType);
+  const { rest: busti, manicheSleeves: maniche } = partitionLongsleeveTorsoOptions(all, base.bodyType);
+  const definitions = creditsJson as Record<string, { definition: string }>;
+  const shortSleeves = [...new Set(LPC_RUNTIME_MANIFEST.assets
+    .filter((asset) =>
+      asset.bodyType === base.bodyType && asset.slot === "outfit" &&
+      definitions[asset.attributionId]?.definition?.includes("/sleeves/") &&
+      !definitions[asset.attributionId]?.definition?.includes("longsleeve") &&
+      all.includes(asset.semanticId))
+    .map((asset) => asset.semanticId))];
+  assert.ok(shortSleeves.length > 0, "La collezione LPC teen deve contenere Shirts · Sleeves");
+  assert.ok(shortSleeves.every((id) => maniche.includes(id)), "Tutti gli Shirts · Sleeves devono essere nella scheda Maniche");
+  assert.ok(shortSleeves.every((id) => !busti.includes(id)), "Shirts · Sleeves non devono apparire nella scheda Busto");
+  const bustoGroups = groupCatalogOptionsByLpcSections(busti, base.bodyType, "outfit", LPC_TORSO_SECTIONS);
+  const manicheGroups = groupCatalogOptionsByLpcSections(maniche, base.bodyType, "outfit", LPC_MANICHE_TORSO_SECTIONS);
+  assert.ok(!bustoGroups.some((g) => g.label === "Shirts · Sleeves"));
+  assert.ok(manicheGroups.some((g) => g.label === "Shirts · Sleeves"));
 });
