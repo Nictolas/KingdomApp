@@ -35,5 +35,6 @@ test("all LPC layers resize after setTexture switches between 64px and HD 128px"
   assert.match(scene, /setTexture\(sourceId, firstFrame\)\.setDisplaySize\(size\.width, size\.height\)/);
   assert.match(scene, /setTexture\(layer\.sourceId\)\.setFrame\(lpcFrameForRow\(LPC_DIRECTION_ROWS\[directionName\], layer\.sheet\.columns\)\)\.setDisplaySize\(size\.width, size\.height\)/);
   assert.equal((scene.match(/this\.playLpcLayerWalk\(/g) ?? []).length, 3);
+  assert.match(scene, /layerSprite\.anims\.stop\(\);\s*layerSprite\.setTexture\(layer\.sourceId\)/);
   assert.equal((scene.match(/getLpcVisualGeometry\(/g) ?? []).length >= 3, true);
 });
