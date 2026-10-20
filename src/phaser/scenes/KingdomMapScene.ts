@@ -832,7 +832,7 @@ export class KingdomMapScene extends Phaser.Scene {
                     return;
                   }
                   layerSprite.setVisible(true);
-                  this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName, snapshot.cellSize, character.characterAppearance.bodyType);
+                  this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName, snapshot.cellSize, character.characterAppearance?.bodyType ?? "male");
                 });
               } else {
                 animatedView.sprite.play(`${animatedView.sprite.texture.key}-walk-${directionName}`, true);
@@ -932,7 +932,7 @@ export class KingdomMapScene extends Phaser.Scene {
                 const layer = layers[layerIndex];
                 if (!layer || !this.textures.exists(layer.sourceId)) { layerSprite.setVisible(false); return; }
                 layerSprite.setVisible(true);
-                this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName, snapshot.cellSize, character.characterAppearance.bodyType);
+                this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName, snapshot.cellSize, character.characterAppearance?.bodyType ?? "male");
               });
             }
             this.chatBusy.add(characterId);
@@ -988,7 +988,7 @@ export class KingdomMapScene extends Phaser.Scene {
               const layer = layers[layerIndex];
               if (!layer || !this.textures.exists(layer.sourceId)) { layerSprite.setVisible(false); return; }
               layerSprite.setVisible(true);
-              this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName, snapshot.cellSize, character.characterAppearance.bodyType);
+              this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName, snapshot.cellSize, character.characterAppearance?.bodyType ?? "male");
             });
           }
           this.chatBusy.add(characterId);

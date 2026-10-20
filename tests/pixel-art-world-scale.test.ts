@@ -29,9 +29,9 @@ test("sprite proporzionati al 118% e zoom iniziale mobile 112%", () => {
   assert.match(scene, /const CHARACTER_VISUAL_SCALE = 1\.18;/);
   assert.match(scene, /const MOBILE_INITIAL_CAMERA_ZOOM = 1\.12;/);
   assert.match(scene, /setDisplaySize\(displaySize, displaySize\)/);
-  assert.equal((scene.match(/\.setDisplaySize\(displaySize, displaySize\)/g) ?? []).length, 2);
+  assert.equal((scene.match(/\.setDisplaySize\(displaySize, displaySize\)/g) ?? []).length, 1);
   assert.match(scene, /const displaySize = snapshot\.cellSize \* CHARACTER_VISUAL_SCALE;/);
-  assert.match(scene, /const scale = displaySize \/ 64;/);
+  assert.match(scene, /getLpcVisualGeometry\(snapshot.cellSize/);
   assert.match(scene, /camera\.setZoom\(this\.scale\.width <= MOBILE_VIEWPORT_MAX_WIDTH \? MOBILE_INITIAL_CAMERA_ZOOM : 1\)/);
   assert.match(scene, /root\.setSize\(snapshot\.cellSize, snapshot\.cellSize\)\.setInteractive\(\)/);
 });

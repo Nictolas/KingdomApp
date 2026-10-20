@@ -41,7 +41,7 @@ export async function refineLpcSpriteUrl(url: string, layer: LpcArtLayer): Promi
   dest.height = enhanced.height;
   const destContext = dest.getContext("2d");
   if (!destContext) throw new Error("LPC output canvas unavailable");
-  destContext.putImageData(new ImageData(enhanced.pixels, enhanced.width, enhanced.height), 0, 0);
+  destContext.putImageData(new ImageData(new Uint8ClampedArray(enhanced.pixels), enhanced.width, enhanced.height), 0, 0);
 
   const result = dest.toDataURL("image/png");
   if (!result.startsWith("data:image/png;base64,")) {

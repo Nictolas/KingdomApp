@@ -1,4 +1,4 @@
-import creditsJson from "./generated/lpc-credits.json";
+import { LPC_CREDIT_DEFINITIONS } from "./generated/lpcCreditDefinitions";
 import manifestJson from "./generated/lpc-manifest.json";
 import {
   isKimonoVesteAbito,
@@ -14,12 +14,8 @@ type ManifestAsset = {
   attributionId: string;
 };
 
-const credits = creditsJson as Record<string, { definition: string }>;
+const definitionByAttribution = LPC_CREDIT_DEFINITIONS;
 const manifestAssets = (manifestJson as { assets: ManifestAsset[] }).assets;
-
-const definitionByAttribution = Object.fromEntries(
-  Object.entries(credits).map(([id, entry]) => [id, entry.definition])
-);
 
 const semanticDefinitionCache = new Map<string, Map<string, string>>();
 

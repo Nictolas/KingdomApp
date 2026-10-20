@@ -13,7 +13,7 @@ import {
   filterTorsoOutfitOptions, partitionLongsleeveTorsoOptions,
   groupCatalogOptionsByLpcSections, LPC_TORSO_SECTIONS, LPC_MANICHE_TORSO_SECTIONS
 } from "../src/character-system/lpcCatalogSections.ts";
-import creditsJson from "../src/character-system/generated/lpc-credits.json";
+import { LPC_CREDIT_DEFINITIONS } from "../src/character-system/generated/lpcCreditDefinitions";
 
 test("Busto e Maniche sono due indumenti persistenti sovrapposti e con colori indipendenti", () => {
   const base = creaCharacterAppearance("Umano", "teen");
@@ -61,12 +61,12 @@ test("Shirts · Sleeves viene mostrato solo in Maniche, non in Busto", () => {
   const base = creaCharacterAppearance("Umano", "teen");
   const all = filterTorsoOutfitOptions(compatibleCatalogOptions(base).upperOutfits, base.bodyType);
   const { rest: busti, manicheSleeves: maniche } = partitionLongsleeveTorsoOptions(all, base.bodyType);
-  const definitions = creditsJson as Record<string, { definition: string }>;
+  const definitions = LPC_CREDIT_DEFINITIONS;
   const shortSleeves = [...new Set(LPC_RUNTIME_MANIFEST.assets
     .filter((asset) =>
       asset.bodyType === base.bodyType && asset.slot === "outfit" &&
-      definitions[asset.attributionId]?.definition?.includes("/sleeves/") &&
-      !definitions[asset.attributionId]?.definition?.includes("longsleeve") &&
+      definitions[asset.attributionId]?.includes("/sleeves/") &&
+      !definitions[asset.attributionId]?.includes("longsleeve") &&
       all.includes(asset.semanticId))
     .map((asset) => asset.semanticId))];
   assert.ok(shortSleeves.length > 0, "La collezione LPC teen deve contenere Shirts · Sleeves");
