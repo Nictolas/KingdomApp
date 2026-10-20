@@ -114,9 +114,10 @@ export function isKimonoManicheFullOutfit(semanticId: string): boolean {
   return (KIMONO_MANICHE_FULL_OUTFIT_IDS as readonly string[]).includes(semanticId);
 }
 
-/** Maniche · capi «longsleeves» separati (LPC torso/shirts/sleeves). */
+/** Maniche · tutti gli asset separati LPC torso/shirts/sleeves, non solo longsleeves. */
 export const LPC_MANICHE_TORSO_SECTIONS: readonly LpcCatalogSection[] = [
-  { label: "Longsleeves", match: (definition) => definition.includes("/sleeves/") && definition.includes("longsleeve") }
+  { label: "Longsleeves", match: (definition) => definition.includes("/sleeves/") && definition.includes("longsleeve") },
+  { label: "Shirts · Sleeves", match: (definition) => definition.includes("/sleeves/") && !definition.includes("longsleeve") }
 ];
 
 /** @deprecated Usare LPC_MANICHE_TORSO_SECTIONS */
@@ -127,14 +128,6 @@ export const LPC_TORSO_SECTIONS: readonly LpcCatalogSection[] = [
   { label: "Longsleeve", match: (definition) => definition.includes("/longsleeve/") },
   { label: "Shirts · Shortsleeve", match: (definition) => definition.includes("/shortsleeve/") },
   { label: "Shirts · Sleeveless", match: (definition) => definition.includes("/sleeveless/") },
-  {
-    label: "Shirts · Sleeves",
-    match: (definition) =>
-      definition.includes("/sleeves/") &&
-      !definition.includes("longsleeve") &&
-      !definition.includes("/shortsleeve/") &&
-      !definition.includes("/sleeveless/")
-  },
   { label: "Shirts · Tunic", match: (definition) => definition.includes("tunic") },
   { label: "Apron", match: (definition) => definition.includes("/aprons/") },
   { label: "Chainmail", match: (definition) => definition.includes("chainmail") }
@@ -188,6 +181,11 @@ export function isLongsleeveTorsoOption(semanticId: string, definition: string):
   return isManicheLongsleevesTorsoOption(semanticId, definition);
 }
 
+/** Classifica anche le maniche corte e separate sotto Maniche, non sotto Busto. */
+export function isManicheTorsoOption(_semanticId: string, definition: string): boolean {
+  return definition.includes("/sleeves/");
+}
+
 export function partitionLongsleeveTorsoOptions(options: readonly string[], bodyType: string): {
   manicheSleeves: string[];
   rest: string[];
@@ -197,7 +195,7 @@ export function partitionLongsleeveTorsoOptions(options: readonly string[], body
   const rest: string[] = [];
   for (const option of options) {
     const definition = definitions.get(option) ?? "";
-    if (isManicheLongsleevesTorsoOption(option, definition)) {
+    if (isManicheTorsoOption(option, definition)) {
       manicheSleeves.push(option);
     } else {
       rest.push(option);
