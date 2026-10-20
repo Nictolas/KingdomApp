@@ -34,6 +34,11 @@ import {
 
 const SHEET_KEY = "overworld";
 const GOLEM_KEY = "stone-golem";
+// A/B prova grafica: aggiungi ?lpcLook=classic all'URL per la versione originale.
+const LPC_VISUAL_MODE: "classic" | "refined" =
+  typeof window !== "undefined" && new URLSearchParams(window.location.search).get("lpcLook") === "classic"
+    ? "classic"
+    : "refined";
 const TILE_LAYER_DEPTH = 0;
 const BUILDING_LAYER_DEPTH = 10;
 const INTERACTION_LAYER_DEPTH = 30;
@@ -423,7 +428,7 @@ export class KingdomMapScene extends Phaser.Scene {
     // setTexture() senza frame mostra per un istante la prima riga ("up").
     // Non reimpostare la texture a ogni cella e conserva la direzione corretta al cambio.
     if (sprite.texture.key !== sourceId) {
-      const size = getLpcVisualGeometry(cellSize, bodyType);
+      const size = getLpcVisualGeometry(cellSize, bodyType, LPC_VISUAL_MODE);
       sprite.setTexture(sourceId, firstFrame).setDisplaySize(size.width, size.height);
     }
     sprite.play(key, true);
@@ -584,7 +589,7 @@ export class KingdomMapScene extends Phaser.Scene {
     if (view.usesLpc && character.characterAppearance) {
       const layers = resolveCharacterLayers(character.characterAppearance, "idle");
       const directionName = this.directionName(view.direction);
-      const size = getLpcVisualGeometry(this.bridge.getSnapshot().cellSize, character.characterAppearance.bodyType);
+      const size = getLpcVisualGeometry(this.bridge.getSnapshot().cellSize, character.characterAppearance.bodyType, LPC_VISUAL_MODE);
       view.sprites.forEach((layerSprite, layerIndex) => {
         if (!layerSprite?.active) return;
         const layer = layers[layerIndex];
@@ -644,7 +649,7 @@ export class KingdomMapScene extends Phaser.Scene {
 
         if (useLpc) {
           if (idleLayers.length === 0) continue;
-          const size = getLpcVisualGeometry(snapshot.cellSize, character.characterAppearance?.bodyType ?? "male");
+          const size = getLpcVisualGeometry(snapshot.cellSize, character.characterAppearance?.bodyType ?? "male", LPC_VISUAL_MODE);
           sprites = idleLayers.map((layer) => {
             const beardLift =
               layer.layer === "beard" && character.characterAppearance?.bodyType === "child"
@@ -988,7 +993,7 @@ export class KingdomMapScene extends Phaser.Scene {
       if (view.usesLpc && character.characterAppearance) {
         const layers = resolveCharacterLayers(character.characterAppearance, "idle");
         const directionName = this.directionName(view.direction);
-        const size = getLpcVisualGeometry(snapshot.cellSize, character.characterAppearance.bodyType);
+        const size = getLpcVisualGeometry(snapshot.cellSize, character.characterAppearance.bodyType, LPC_VISUAL_MODE);
         view.sprites.forEach((layerSprite, index) => {
           const layer = layers[index];
           if (layer && this.textures.exists(layer.sourceId)) layerSprite.setTexture(layer.sourceId).setFrame(lpcFrameForRow(LPC_DIRECTION_ROWS[directionName], layer.sheet.columns)).setDisplaySize(size.width, size.height);
