@@ -21,7 +21,7 @@ const bar = {
   abitantiAssegnati: [],
   stipendioPerLavoratore: 30,
   cassaMonete: 10
-} as Edificio;
+} as unknown as Edificio;
 
 const cliente = {
   id: 5,

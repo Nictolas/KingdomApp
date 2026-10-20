@@ -50,7 +50,7 @@ function edificio(id: number, nome: string, tipo: string, efficienza: number): E
     capacità: 10,
     occupazione: 0,
     abitantiAssegnati: []
-  } as Edificio;
+  } as unknown as Edificio;
 }
 
 test("un Ostile da sabotaggio riduce di 8 l'efficienza di un edificio", () => {

@@ -17,7 +17,7 @@ const emporio = {
   occupazione: 0,
   abitantiAssegnati: [],
   cassaMonete: 10
-} as Edificio;
+} as unknown as Edificio;
 
 test("cassa Impresa incassa e paga senza andare sotto zero", () => {
   const incasso = aggiungiIncassoImpresa(emporio, 5);

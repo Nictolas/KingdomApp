@@ -10,7 +10,7 @@ test("Avventura non applica i seed iniziali esclusivi della Creativa", () => {
     assert.equal(abitanti.some((a) => a.razza === "Golem"), false);
     assert.equal(abitanti.some((a) => a.fazioni?.includes("Nativi")), false);
     assert.equal(abitanti.some((a) => a.lavoro === "Prigioniero"), false);
-    assert.equal(abitanti.some((a) => a.reati?.includes("Ex Governatore")), false);
+    assert.equal(abitanti.some((a) => a.reati?.includes("Ex Sovrano")), false);
     assert.equal(abitanti.some((a) => a.incinta), false);
     assert.equal(abitanti.some((a) => a.lavoro === "Capo Religioso"), false);
 
@@ -24,7 +24,7 @@ test("Creativa conserva i seed iniziali completi", () => {
 
   assert.ok(abitanti.some((a) => a.razza === "Golem"));
   assert.ok(abitanti.some((a) => a.fazioni?.includes("Nativi")));
-  assert.ok(abitanti.some((a) => a.reati?.includes("Ex Governatore")));
+  assert.ok(abitanti.some((a) => a.reati?.includes("Ex Sovrano")));
   assert.ok(abitanti.some((a) => a.incinta));
   assert.ok(abitanti.some((a) => a.lavoro === "Capo Religioso"));
 });

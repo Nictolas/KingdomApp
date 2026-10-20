@@ -8,8 +8,6 @@ import type { Edificio } from "../src/types";
 
 function edificio(input: Partial<Edificio> & Pick<Edificio, "id" | "nome">): Edificio {
   return {
-    id: input.id,
-    nome: input.nome,
     emoji: input.emoji ?? "🏗️",
     tipo: input.tipo ?? "Infrastruttura",
     descrizione: input.descrizione ?? "",

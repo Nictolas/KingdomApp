@@ -248,7 +248,7 @@ export function AbitanteInfoModal({
     router.push("/postazioni-lavoro");
   };
 
-  const apriPagina = (path: "/religione" | "/personalita" | "/pianeti" | "/scuola" | "/casta") => {
+  const apriPagina = (path: "/religione" | "/personalita" | "/pianeti" | "/scuola" | "/casta" | "/razze") => {
     onClose();
     router.push(path);
   };

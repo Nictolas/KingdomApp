@@ -185,7 +185,6 @@ export function abitanteDaGenitoreDeceduto(g: GenitoreDecedutoRe): Abitante {
     religione: "Ateo",
     sesso: g.sesso,
     razza: "Umano",
-    specie: "umano",
     aspetto: g.aspetto
   };
 }

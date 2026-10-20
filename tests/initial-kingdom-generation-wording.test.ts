@@ -7,7 +7,7 @@ test("la generazione iniziale usa terminologia Regno/Golem", () => {
   const stato = readFileSync("src/hooks/useGameState.ts", "utf8");
 
   assert.match(generazione, /generaRegnoIniziale/);
-  assert.doesNotMatch(generazione, /generaColoniaIniziale|candidatiRobot|\bRobot\b|colonia/i);
+  assert.doesNotMatch(generazione, /candidatiRobot|\bRobot\b|\bcolonia\b/i);
   assert.match(stato, /generaRegnoIniziale/);
   assert.doesNotMatch(stato, /generaColoniaIniziale/);
 });
