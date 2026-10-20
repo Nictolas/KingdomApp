@@ -3,6 +3,7 @@ import Phaser from "phaser";
 import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
 import { CHILD_BEARD_OFFSET_Y_PX, LPC_DIRECTION_ROWS } from "../../character-system/lpcPack";
 import { characterStepDurationMs, lpcFrameForRow } from "../adapters/characterWalkMotion";
+import { getLpcVisualGeometry } from "../adapters/lpcCharacterGeometry";
 import { canRenderCharacter, resolveCharacterLayers } from "../../character-system/registry";
 import { isGeometryEntryCell } from "../../game/buildingGeometry";
 import {
@@ -412,7 +413,7 @@ export class KingdomMapScene extends Phaser.Scene {
     this.bridge.notifyCharacterAssetsReady();
   }
 
-  private playLpcLayerWalk(sprite: Phaser.GameObjects.Sprite, sourceId: string, direction: "down" | "left" | "right" | "up"): void {
+  private playLpcLayerWalk(sprite: Phaser.GameObjects.Sprite, sourceId: string, direction: "down" | "left" | "right" | "up", cellSize: number, bodyType: string): void {
     if (!sprite.active || !this.textures.exists(sourceId)) return;
     const key = `${sourceId}-walk-${direction}`;
     const firstFrame = lpcFrameForRow(LPC_DIRECTION_ROWS[direction], 9);
@@ -421,7 +422,10 @@ export class KingdomMapScene extends Phaser.Scene {
     }
     // setTexture() senza frame mostra per un istante la prima riga ("up").
     // Non reimpostare la texture a ogni cella e conserva la direzione corretta al cambio.
-    if (sprite.texture.key !== sourceId) sprite.setTexture(sourceId, firstFrame);
+    if (sprite.texture.key !== sourceId) {
+      const size = getLpcVisualGeometry(cellSize, bodyType);
+      sprite.setTexture(sourceId, firstFrame).setDisplaySize(size.width, size.height);
+    }
     sprite.play(key, true);
   }
 
@@ -580,6 +584,7 @@ export class KingdomMapScene extends Phaser.Scene {
     if (view.usesLpc && character.characterAppearance) {
       const layers = resolveCharacterLayers(character.characterAppearance, "idle");
       const directionName = this.directionName(view.direction);
+      const size = getLpcVisualGeometry(this.bridge.getSnapshot().cellSize, character.characterAppearance.bodyType);
       view.sprites.forEach((layerSprite, layerIndex) => {
         if (!layerSprite?.active) return;
         const layer = layers[layerIndex];
@@ -588,7 +593,7 @@ export class KingdomMapScene extends Phaser.Scene {
           layerSprite.setVisible(false);
           return;
         }
-        layerSprite.setVisible(true).setTexture(layer.sourceId).setFrame(lpcFrameForRow(LPC_DIRECTION_ROWS[directionName], layer.sheet.columns));
+        layerSprite.setVisible(true).setTexture(layer.sourceId).setFrame(lpcFrameForRow(LPC_DIRECTION_ROWS[directionName], layer.sheet.columns)).setDisplaySize(size.width, size.height);
       });
       return;
     }
@@ -639,20 +644,20 @@ export class KingdomMapScene extends Phaser.Scene {
 
         if (useLpc) {
           if (idleLayers.length === 0) continue;
+          const size = getLpcVisualGeometry(snapshot.cellSize, character.characterAppearance?.bodyType ?? "male");
           sprites = idleLayers.map((layer) => {
-            const scale = (snapshot.cellSize * 1.08) / 64;
             const beardLift =
               layer.layer === "beard" && character.characterAppearance?.bodyType === "child"
-                ? CHILD_BEARD_OFFSET_Y_PX * scale
+                ? CHILD_BEARD_OFFSET_Y_PX * size.pixelsToDisplayY
                 : 0;
             return this.add
               .sprite(
                 0,
-                -snapshot.cellSize * 0.2 + beardLift,
+                size.offsetY + beardLift,
                 layer.sourceId,
                 LPC_DIRECTION_ROWS.down * 2
               )
-              .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
+              .setDisplaySize(size.width, size.height);
           });
           sprite = sprites[0]!;
         } else {
@@ -817,7 +822,7 @@ export class KingdomMapScene extends Phaser.Scene {
                     return;
                   }
                   layerSprite.setVisible(true);
-                  this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName);
+                  this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName, snapshot.cellSize, character.characterAppearance.bodyType);
                 });
               } else {
                 animatedView.sprite.play(`${animatedView.sprite.texture.key}-walk-${directionName}`, true);
@@ -917,7 +922,7 @@ export class KingdomMapScene extends Phaser.Scene {
                 const layer = layers[layerIndex];
                 if (!layer || !this.textures.exists(layer.sourceId)) { layerSprite.setVisible(false); return; }
                 layerSprite.setVisible(true);
-                this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName);
+                this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName, snapshot.cellSize, character.characterAppearance.bodyType);
               });
             }
             this.chatBusy.add(characterId);
@@ -973,7 +978,7 @@ export class KingdomMapScene extends Phaser.Scene {
               const layer = layers[layerIndex];
               if (!layer || !this.textures.exists(layer.sourceId)) { layerSprite.setVisible(false); return; }
               layerSprite.setVisible(true);
-              this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName);
+              this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName, snapshot.cellSize, character.characterAppearance.bodyType);
             });
           }
           this.chatBusy.add(characterId);
@@ -983,9 +988,10 @@ export class KingdomMapScene extends Phaser.Scene {
       if (view.usesLpc && character.characterAppearance) {
         const layers = resolveCharacterLayers(character.characterAppearance, "idle");
         const directionName = this.directionName(view.direction);
+        const size = getLpcVisualGeometry(snapshot.cellSize, character.characterAppearance.bodyType);
         view.sprites.forEach((layerSprite, index) => {
           const layer = layers[index];
-          if (layer && this.textures.exists(layer.sourceId)) layerSprite.setTexture(layer.sourceId).setFrame(lpcFrameForRow(LPC_DIRECTION_ROWS[directionName], layer.sheet.columns));
+          if (layer && this.textures.exists(layer.sourceId)) layerSprite.setTexture(layer.sourceId).setFrame(lpcFrameForRow(LPC_DIRECTION_ROWS[directionName], layer.sheet.columns)).setDisplaySize(size.width, size.height);
         });
       } else view.sprite.stop().setFrame(view.direction);
       this.ensureIdleRoamScheduled(characterId);
