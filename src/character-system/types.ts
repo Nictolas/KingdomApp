@@ -46,6 +46,10 @@ export type CharacterAppearance = {
   /** Identificatore storico del completo; resta per compatibilità con i salvataggi precedenti. */
   outfit: string;
   upperOutfit: string;
+  /** Maniche indipendenti dal busto, disegnate sopra gli altri indumenti. */
+  sleeveOutfit: string;
+  /** Colore delle maniche distinto da outfitPrimaryColor. */
+  sleeveColor: string;
   lowerOutfit: string;
   fullOutfit: string;
   /** Rifinitura LPC sovrapposta all'abito (es. kimono_trim su kimono). */
