@@ -30,12 +30,10 @@ import {
   filterTorsoOutfitOptions,
   groupCatalogOptionsByLpcSections,
   groupKimonoVesteSections,
-  isKimonoManicheFullOutfit,
   isKimonoVesteAbito,
   isKimonoVesteTrim,
   kimonoBaseForTrim,
   kimonoTrimForBase,
-  LPC_KIMONO_MANICHE_SECTIONS,
   LPC_MANICHE_TORSO_SECTIONS,
   LPC_PANTS_SECTIONS,
   LPC_SKIRTS_SECTIONS,
@@ -206,7 +204,7 @@ function ColorPalette({ colors, selected, onSelect }: {
   );
 }
 
-type OutfitColorPickerKind = "upper" | "fullOutfit" | "fullOutfitTrim" | "cape" | "capeTrim" | "lower" | "footwear";
+type OutfitColorPickerKind = "upper" | "sleeve" | "fullOutfit" | "fullOutfitTrim" | "cape" | "capeTrim" | "lower" | "footwear";
 
 type OutfitColorPickerRequest = {
   kind: OutfitColorPickerKind;
@@ -226,6 +224,7 @@ function colorsForOutfitPicker(
     case "capeTrim":
       return compatibleColorsForField(appearance, "capeColor", "cape", request.semanticId);
     case "upper":
+    case "sleeve":
       return compatibleColorsForField(appearance, "outfitPrimaryColor", "outfit", request.semanticId);
     case "lower":
       return compatibleColorsForField(appearance, "outfitSecondaryColor", "lowerBody", request.semanticId);
@@ -293,12 +292,11 @@ export function CreazioneGiocatoreModal({
   const { manicheSleeves: manicheTorsoOutfits, rest: bustoTorsoOutfits } = partitionLongsleeveTorsoOptions(torsoOutfitsAll, spriteAppearance.bodyType);
   const bustoSections = groupCatalogOptionsByLpcSections(bustoTorsoOutfits, spriteAppearance.bodyType, "outfit", LPC_TORSO_SECTIONS);
   const manicheTorsoSections = groupCatalogOptionsByLpcSections(manicheTorsoOutfits, spriteAppearance.bodyType, "outfit", LPC_MANICHE_TORSO_SECTIONS);
-  const kimonoManicheOutfits = catalogOptions.fullOutfits.filter(isKimonoManicheFullOutfit);
-  const vesteKimonoOutfits = catalogOptions.fullOutfits.filter((id) => !isKimonoManicheFullOutfit(id));
-  const manicheKimonoSections = groupCatalogOptionsByLpcSections(kimonoManicheOutfits, spriteAppearance.bodyType, "fullOutfit", LPC_KIMONO_MANICHE_SECTIONS);
-  const manicheSections = [...manicheTorsoSections, ...manicheKimonoSections];
+  // Solo gli asset LPC effettivamente sovrapponibili al busto sono maniche.
+  // I kimono longsleeve/oversize sono abiti completi: appartengono a "Veste".
+  const manicheSections = manicheTorsoSections;
   const vesteSections = groupKimonoVesteSections(
-    vesteKimonoOutfits,
+    catalogOptions.fullOutfits,
     isKimonoVesteAbito(spriteAppearance.fullOutfit) ? spriteAppearance.fullOutfit : undefined
   );
   const mantelloSections = groupCapeMantelloSections(
@@ -389,6 +387,9 @@ export function CreazioneGiocatoreModal({
       case "upper":
         updateOutfit(request.semanticId, spriteAppearance.lowerOutfit, color, spriteAppearance.outfitSecondaryColor);
         break;
+      case "sleeve":
+        updateSpriteAppearance({ sleeveOutfit: request.semanticId, sleeveColor: color });
+        break;
       case "lower":
         updateOutfit(spriteAppearance.upperOutfit, request.semanticId, spriteAppearance.outfitPrimaryColor, color);
         break;
@@ -460,12 +461,13 @@ export function CreazioneGiocatoreModal({
     return [...new Set(LPC_RUNTIME_MANIFEST.assets
       .filter((asset) => asset.bodyType === spriteAppearance.bodyType && options.has(asset.semanticId) &&
         (activeTab === "hair" ? asset.slot === "hairBack" || asset.slot === "hairFront"
-        : activeTab === "maniche" ? (asset.slot === "outfit" || asset.slot === "fullOutfit") && asset.colorField === field
+        : activeTab === "maniche" ? asset.slot === "outfit" && asset.colorField === field
         : asset.slot === slot && asset.colorField === field))
       .map((asset) => asset.color))].sort();
   }, [activeTab, spriteAppearance.bodyType, spriteAppearance.cape, spriteAppearance.fullOutfit]);
 
   const currentCategoryColor = activeTab === "hair" ? spriteAppearance.hairColor
+    : activeTab === "maniche" ? spriteAppearance.sleeveColor
     : activeTab === "mantello" ? spriteAppearance.capeColor
     : activeTab === "pantaloni" || activeTab === "gonne" ? spriteAppearance.outfitSecondaryColor
     : activeTab === "scarpe" || activeTab === "calze" ? spriteAppearance.footwearColor
@@ -475,6 +477,7 @@ export function CreazioneGiocatoreModal({
   const colorForOption = (kind: OutfitColorPickerKind, semanticId: string) => {
     const available = colorsForOutfitPicker(spriteAppearance, { kind, semanticId, label: "" });
     const fallback = kind === "cape" || kind === "capeTrim" ? spriteAppearance.capeColor
+      : kind === "sleeve" ? spriteAppearance.sleeveColor
       : kind === "lower" ? spriteAppearance.outfitSecondaryColor
       : kind === "footwear" ? spriteAppearance.footwearColor : spriteAppearance.outfitPrimaryColor;
     return available.includes(selectedCategoryColor) ? selectedCategoryColor
@@ -501,6 +504,7 @@ export function CreazioneGiocatoreModal({
       return;
     }
     const equipped = activeTab === "mantello" ? spriteAppearance.cape
+      : activeTab === "maniche" ? spriteAppearance.sleeveOutfit
       : activeTab === "pantaloni" || activeTab === "gonne" ? spriteAppearance.lowerOutfit
       : activeTab === "scarpe" || activeTab === "calze" ? spriteAppearance.footwear
       : activeTab === "veste" ? spriteAppearance.fullOutfit : spriteAppearance.upperOutfit;
@@ -515,12 +519,13 @@ export function CreazioneGiocatoreModal({
       : categories.some(({ options }) => options.includes(equipped));
     if (!inCategory) return;
     const kind: OutfitColorPickerKind = activeTab === "mantello" ? "cape"
+      : activeTab === "maniche" ? "sleeve"
       : activeTab === "pantaloni" || activeTab === "gonne" ? "lower"
       : activeTab === "scarpe" || activeTab === "calze" ? "footwear"
-      : activeTab === "veste" || (activeTab === "maniche" && isKimonoManicheFullOutfit(equipped))
-      ? "fullOutfit" : "upper";
+      : activeTab === "veste" ? "fullOutfit" : "upper";
     if (!colorsForOutfitPicker(spriteAppearance, { kind, semanticId: equipped, label: "" }).includes(color)) return;
     if (kind === "cape") updateSpriteAppearance({ capeColor: color });
+    else if (kind === "sleeve") updateSpriteAppearance({ sleeveColor: color });
     else if (kind === "lower") updateSpriteAppearance({ outfitSecondaryColor: color });
     else if (kind === "footwear") updateSpriteAppearance({ footwearColor: color });
     else updateSpriteAppearance({ outfitPrimaryColor: color });
@@ -730,22 +735,23 @@ export function CreazioneGiocatoreModal({
                 <View key={label} style={styles.field}>
                   <Text style={styles.label}>{label}</Text>
                   <View style={styles.visualGrid}>{options.map((value) => {
-                    const isFullOutfit = isKimonoManicheFullOutfit(value);
-                    const selected = isFullOutfit
-                      ? spriteAppearance.fullOutfit === value
-                      : spriteAppearance.fullOutfit === "none" && spriteAppearance.upperOutfit === value;
-                    const previewColor = colorForOption(isFullOutfit ? "fullOutfit" : "upper", value);
-                    const previewAppearance = isFullOutfit
-                      ? normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: value, outfitPrimaryColor: previewColor })
-                      : normalizeCharacterAppearance({ ...spriteAppearance, fullOutfit: "none", upperOutfit: value, outfitPrimaryColor: previewColor });
+                    const selected = spriteAppearance.sleeveOutfit === value;
+                    const previewColor = colorForOption("sleeve", value);
                     return (
                       <AppearanceOption
                         key={value}
                         label={readableOptionName(label, value)}
                         selected={selected}
-                        visibleLayers={isFullOutfit ? ["fullOutfit"] : ["outfit"]}
-                        appearance={previewAppearance}
-                        onPress={() => applyOutfitColorPicker({ kind: isFullOutfit ? "fullOutfit" : "upper", semanticId: value, label: formatSemanticLabel(value) }, previewColor)}
+                        visibleLayers={["outfit"]}
+                        visibleSemanticIds={{ outfit: value }}
+                        appearance={normalizeCharacterAppearance({ ...spriteAppearance, sleeveOutfit: value, sleeveColor: previewColor })}
+                        onPress={() => {
+                          if (selected) {
+                            updateSpriteAppearance({ sleeveOutfit: "none" });
+                          } else {
+                            applyOutfitColorPicker({ kind: "sleeve", semanticId: value, label: formatSemanticLabel(value) }, previewColor);
+                          }
+                        }}
                       />
                     );
                   })}</View>
