@@ -5,6 +5,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 import type { PhaserMapActions, PhaserMapSnapshot } from "../phaser/adapters/mapSceneBridge";
 import { LPC_ASSET_SOURCES } from "../character-system/generated/lpcAssetSources";
 import { canRenderCharacter, resolveCharacterLayers } from "../character-system/registry";
+import { pixelArtCanvasResolution } from "../phaser/adapters/pixelArtCanvasResolution";
 
 const lpcLayerUriCache = new Map<string, string>();
 
@@ -141,6 +142,8 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
       const game = new Phaser.Game({
         type: Phaser.WEBGL,
         parent: hostRef.current,
+        // WebGL a densita fisica: evita canvas sfocato su iPhone Retina.
+        resolution: pixelArtCanvasResolution(window.devicePixelRatio, hostRef.current.clientWidth, hostRef.current.clientHeight),
         backgroundColor: "#18291c",
         transparent: false,
         scale: {
@@ -150,7 +153,7 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
         },
         render: {
           antialias: false,
-          pixelArt: false,
+          pixelArt: true,
           roundPixels: true
         },
         scene: [new KingdomMapScene(bridge, sheetUrl, artUrls)]
@@ -201,6 +204,7 @@ const hostStyle: React.CSSProperties = {
   width: "100%",
   height: "100%",
   overflow: "hidden",
+  imageRendering: "pixelated",
   touchAction: "none"
 };
 
