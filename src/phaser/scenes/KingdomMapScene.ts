@@ -2,6 +2,7 @@ import Phaser from "phaser";
 
 import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
 import { CHILD_BEARD_OFFSET_Y_PX, LPC_DIRECTION_ROWS } from "../../character-system/lpcPack";
+import { characterStepDurationMs, lpcFrameForRow } from "../adapters/characterWalkMotion";
 import { canRenderCharacter, resolveCharacterLayers } from "../../character-system/registry";
 import { isGeometryEntryCell } from "../../game/buildingGeometry";
 import {
@@ -412,10 +413,13 @@ export class KingdomMapScene extends Phaser.Scene {
   private playLpcLayerWalk(sprite: Phaser.GameObjects.Sprite, sourceId: string, direction: "down" | "left" | "right" | "up"): void {
     if (!sprite.active || !this.textures.exists(sourceId)) return;
     const key = `${sourceId}-walk-${direction}`;
+    const firstFrame = lpcFrameForRow(LPC_DIRECTION_ROWS[direction], 9);
     if (!this.anims.exists(key)) {
-      const row = LPC_DIRECTION_ROWS[direction];
-      this.anims.create({ key, frames: Array.from({ length: 9 }, (_, column) => ({ key: sourceId, frame: row * 9 + column })), frameRate: 10, repeat: -1 });
+      this.anims.create({ key, frames: Array.from({ length: 9 }, (_, column) => ({ key: sourceId, frame: firstFrame + column })), frameRate: 10, repeat: -1 });
     }
+    // setTexture() senza frame mostra per un istante la prima riga ("up").
+    // Non reimpostare la texture a ogni cella e conserva la direzione corretta al cambio.
+    if (sprite.texture.key !== sourceId) sprite.setTexture(sourceId, firstFrame);
     sprite.play(key, true);
   }
 
@@ -582,7 +586,7 @@ export class KingdomMapScene extends Phaser.Scene {
           layerSprite.setVisible(false);
           return;
         }
-        layerSprite.setVisible(true).setTexture(layer.sourceId).setFrame(LPC_DIRECTION_ROWS[directionName] * 2);
+        layerSprite.setVisible(true).setTexture(layer.sourceId).setFrame(lpcFrameForRow(LPC_DIRECTION_ROWS[directionName], layer.sheet.columns));
       });
       return;
     }
@@ -792,7 +796,7 @@ export class KingdomMapScene extends Phaser.Scene {
             targets: animatedView.root,
             x: waypoint.x,
             y: waypoint.y,
-            duration: 320,
+            duration: characterStepDurationMs(animatedView.root.x, animatedView.root.y, waypoint.x, waypoint.y),
             ease: "Linear",
             onUpdate: () => this.updateCharacterDepth(animatedView.root),
             onStart: () => {
@@ -810,7 +814,7 @@ export class KingdomMapScene extends Phaser.Scene {
                     layerSprite.setVisible(false);
                     return;
                   }
-                  layerSprite.setVisible(true).setTexture(layer.sourceId);
+                  layerSprite.setVisible(true);
                   this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName);
                 });
               } else {
@@ -910,12 +914,12 @@ export class KingdomMapScene extends Phaser.Scene {
               view.sprites.forEach((layerSprite, layerIndex) => {
                 const layer = layers[layerIndex];
                 if (!layer || !this.textures.exists(layer.sourceId)) { layerSprite.setVisible(false); return; }
-                layerSprite.setVisible(true).setTexture(layer.sourceId);
+                layerSprite.setVisible(true);
                 this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName);
               });
             }
             this.chatBusy.add(characterId);
-            this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => this.updateCharacterDepth(view.root), onComplete: () => { view.logicalCell = destination; this.chatBusy.delete(characterId); this.setCharacterIdleFrame(view, character); this.ensureIdleRoamScheduled(characterId); } });
+            this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: characterStepDurationMs(view.root.x, view.root.y, pos.x, pos.y), ease: "Linear", onUpdate: () => this.updateCharacterDepth(view.root), onComplete: () => { view.logicalCell = destination; this.chatBusy.delete(characterId); this.setCharacterIdleFrame(view, character); this.ensureIdleRoamScheduled(characterId); } });
             return;
           }
         }
@@ -966,12 +970,12 @@ export class KingdomMapScene extends Phaser.Scene {
             view.sprites.forEach((layerSprite, layerIndex) => {
               const layer = layers[layerIndex];
               if (!layer || !this.textures.exists(layer.sourceId)) { layerSprite.setVisible(false); return; }
-              layerSprite.setVisible(true).setTexture(layer.sourceId);
+              layerSprite.setVisible(true);
               this.playLpcLayerWalk(layerSprite, layer.sourceId, directionName);
             });
           }
           this.chatBusy.add(characterId);
-          this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: 320, ease: "Linear", onUpdate: () => this.updateCharacterDepth(view.root), onComplete: () => { view.logicalCell = destination; this.chatBusy.delete(characterId); this.setCharacterIdleFrame(view, character); this.ensureIdleRoamScheduled(characterId); } });
+          this.tweens.add({ targets: view.root, x: pos.x, y: pos.y, duration: characterStepDurationMs(view.root.x, view.root.y, pos.x, pos.y), ease: "Linear", onUpdate: () => this.updateCharacterDepth(view.root), onComplete: () => { view.logicalCell = destination; this.chatBusy.delete(characterId); this.setCharacterIdleFrame(view, character); this.ensureIdleRoamScheduled(characterId); } });
         }
       }
       if (view.usesLpc && character.characterAppearance) {
@@ -979,7 +983,7 @@ export class KingdomMapScene extends Phaser.Scene {
         const directionName = this.directionName(view.direction);
         view.sprites.forEach((layerSprite, index) => {
           const layer = layers[index];
-          if (layer && this.textures.exists(layer.sourceId)) layerSprite.setTexture(layer.sourceId).setFrame(LPC_DIRECTION_ROWS[directionName] * 2);
+          if (layer && this.textures.exists(layer.sourceId)) layerSprite.setTexture(layer.sourceId).setFrame(lpcFrameForRow(LPC_DIRECTION_ROWS[directionName], layer.sheet.columns));
         });
       } else view.sprite.stop().setFrame(view.direction);
       this.ensureIdleRoamScheduled(characterId);
