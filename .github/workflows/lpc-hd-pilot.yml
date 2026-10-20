@@ -1,7 +1,8 @@
 name: LPC pixel-art HD pilot
 on:
-  push:
-    branches: [fix/mykingdom-character-motion-20261020]
+  pull_request:
+    branches: [ui/compact-castle-dashboard]
+    types: [opened, synchronize]
     paths:
       - scripts/build_lpc_hd_pilot.py
       - .github/workflows/lpc-hd-pilot.yml
@@ -13,6 +14,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
         with:
+          ref: ${{ github.event.pull_request.head.ref }}
           persist-credentials: true
       - uses: actions/setup-python@v5
         with:
@@ -21,7 +23,11 @@ jobs:
         run: python -m pip install 'Pillow>=11,<13'
       - name: Generate four prototype sprite sheets and visual comparison
         run: python scripts/build_lpc_hd_pilot.py
-      - name: Preserve results on draft branch
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mykingdom-lpc-hd-pilot
+          path: assets/character-packs/lpc/hd-pilot/
+      - name: Preserve results on isolated draft branch
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
