@@ -996,7 +996,10 @@ export class KingdomMapScene extends Phaser.Scene {
         const size = getLpcVisualGeometry(snapshot.cellSize, character.characterAppearance.bodyType, LPC_VISUAL_MODE);
         view.sprites.forEach((layerSprite, index) => {
           const layer = layers[index];
-          if (layer && this.textures.exists(layer.sourceId)) layerSprite.setTexture(layer.sourceId).setFrame(lpcFrameForRow(LPC_DIRECTION_ROWS[directionName], layer.sheet.columns)).setDisplaySize(size.width, size.height);
+          if (layer && this.textures.exists(layer.sourceId)) {
+            layerSprite.anims.stop();
+            layerSprite.setTexture(layer.sourceId).setFrame(lpcFrameForRow(LPC_DIRECTION_ROWS[directionName], layer.sheet.columns)).setDisplaySize(size.width, size.height);
+          }
         });
       } else view.sprite.stop().setFrame(view.direction);
       this.ensureIdleRoamScheduled(characterId);
