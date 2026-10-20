@@ -29,6 +29,7 @@ function abitante(id: number, nome: string, extra: Partial<Abitante> = {}): Abit
     salute: 100,
     reddito: 0,
     spese: 0,
+    religione: "Ateo",
     lealtà: 50,
     paura: 0,
     felicità: 50,

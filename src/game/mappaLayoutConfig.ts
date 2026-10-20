@@ -28,7 +28,9 @@ export const CAPANNA_FOOTPRINT_H = 1;
 export const COSTRUZIONE_TERRENO_FOOTPRINT_W = 2;
 export const COSTRUZIONE_TERRENO_FOOTPRINT_H = 2;
 
-export const CELL_SIZE_PX = 40;
+// Scala grafica nativa condivisa da terreno e fotogrammi LPC (64 x 64 pixel).
+// Le dimensioni logiche del regno restano 50 x 50 celle.
+export const CELL_SIZE_PX = 64;
 export const GAP = 0;
 export const DOPPIO_TAP_MS = 400;
 

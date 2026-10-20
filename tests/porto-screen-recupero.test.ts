@@ -9,7 +9,7 @@ test("Porto è ripristinato e collegato alla mappa", () => {
   assert.match(page, /⚓ Porto/);
   assert.match(page, /router\.push\("\/mercato"\)/);
   assert.match(page, /router\.push\("\/immigrazione"\)/);
-  assert.match(page, /router\.push\("\/pianeti"\)/);
+  assert.match(page, /router\.push\("\/regni"\)/);
   assert.match(page, /Regni|Terre lontane/);
   assert.match(routes, /"Porto": "\/porto"/);
 });

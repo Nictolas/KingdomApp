@@ -127,5 +127,5 @@ export function avanzaCostruzioniEdifici(
 export function elencoCantieri(edifici: Edificio[]): Edificio[] {
   return edifici
     .filter((e) => e.stato === "In costruzione")
-    .sort((a, b) => (a.progressoCostruzione ?? 0) - (b.progressoCostruzione ?? 0) || a.id - b.id);
+    .sort((a, b) => a.id - b.id); // Priorità ai cantieri più vecchi: gli Edili li finiscono prima
 }

@@ -10,7 +10,6 @@ import { compatibleCatalogOptions } from "../character-system/registry";
 import type { Abitante } from "../types";
 import {
   aspettoPerVisualizzazioneAbitante,
-  creaAspettoConsigliereIniziale,
   creaCharacterAppearance
 } from "./personaggioAspetto";
 
@@ -80,7 +79,7 @@ export function collectStartupLpcSourceIds(abitanti?: readonly Abitante[]): stri
     razza: dalSalvataggio?.razza ?? "Umano",
     lavoro: "Consigliere",
     sesso: dalSalvataggio?.sesso === "F" ? "F" : "M",
-    aspetto: dalSalvataggio?.aspetto ?? creaAspettoConsigliereIniziale(),
+    aspetto: dalSalvataggio?.aspetto,
     incinta: dalSalvataggio?.incinta
   })) {
     ids.add(id);

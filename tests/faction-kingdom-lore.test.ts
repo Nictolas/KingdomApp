@@ -7,5 +7,5 @@ test("le descrizioni delle fazioni usano lore medieval-fantasy del Regno", () =>
 
   assert.doesNotMatch(source, /colonia|Madre Patria|pianeta/i);
   assert.match(source, /regno/i);
-  assert.match(source, /ex governatore deposto/i);
+  assert.match(source, /ex sovrano deposto/i);
 });

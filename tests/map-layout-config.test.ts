@@ -13,22 +13,22 @@ import {
   FIXED_MAP_COLS,
   FIXED_MAP_ROWS,
   GAP,
-  SPAZIOPORTO_FOOTPRINT_H,
-  SPAZIOPORTO_FOOTPRINT_W,
+  PORTO_FOOTPRINT_H,
+  PORTO_FOOTPRINT_W,
   getIndiciEdificiIniziali
 } from "../src/game/mappaLayoutConfig.ts";
 
 test("configurazione base della mappa resta stabile", () => {
   assert.equal(FIXED_MAP_COLS, 50);
   assert.equal(FIXED_MAP_ROWS, 50);
-  assert.equal(CELL_SIZE_PX, 40);
+  assert.equal(CELL_SIZE_PX, 64);
   assert.equal(GAP, 0);
   assert.equal(DOPPIO_TAP_MS, 400);
 });
 
 test("footprint principali mantengono le dimensioni correnti", () => {
   assert.deepEqual([ADMIN_FOOTPRINT_W, ADMIN_FOOTPRINT_H], [3, 2]);
-  assert.deepEqual([SPAZIOPORTO_FOOTPRINT_W, SPAZIOPORTO_FOOTPRINT_H], [4, 3]);
+  assert.deepEqual([PORTO_FOOTPRINT_W, PORTO_FOOTPRINT_H], [4, 3]);
   assert.deepEqual([CAPANNA_FOOTPRINT_W, CAPANNA_FOOTPRINT_H], [2, 1]);
   assert.deepEqual([BAR_FOOTPRINT_W, BAR_FOOTPRINT_H], [2, 2]);
 });
@@ -36,7 +36,6 @@ test("footprint principali mantengono le dimensioni correnti", () => {
 test("gli edifici iniziali restano ancorati alle stesse celle nella mappa 50x50", () => {
   assert.deepEqual(getIndiciEdificiIniziali(50, 50), {
     CASTELLO_INDEX: 1225,
-    SPAZIOPORTO_INDEX: 1226,
     TRIBUNALE_INDEX: 1275,
     SERRA_INDEX: 1224,
     SERRA_2_INDEX: 1221,

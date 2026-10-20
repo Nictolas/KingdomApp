@@ -7,7 +7,7 @@ test("LPC adult keeps uniform layer geometry in idle and walking", () => {
   const adult = getLpcVisualGeometry(64, "male");
   assert.ok(adult.height > adult.width);
   assert.ok(adult.height / adult.width <= 1.11);
-  assert.equal(adult.width, 64 * 1.08);
+  assert.equal(adult.width, 64 * 1.18);
   assert.equal(adult.offsetY + adult.height / 2, -64 * 0.2 + adult.width / 2);
   assert.deepEqual(getLpcVisualGeometry(64, "female"), adult);
 });

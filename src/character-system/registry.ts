@@ -37,18 +37,18 @@ function siblingAssets(asset: ManifestAsset, pool: ManifestAsset[]): ManifestAss
   );
 }
 
-function resolvedColorForAsset(asset: ManifestAsset, appearance: CharacterAppearance, pool: ManifestAsset[]): string {
+function resolvedColorForAsset(asset: ManifestAsset, appearance: CharacterAppearance, pool: ManifestAsset[], preferredColor?: string): string {
   if (!asset.colorField) return asset.color;
-  const desired = colorValueForField(asset.colorField, appearance);
+  const desired = preferredColor ?? colorValueForField(asset.colorField, appearance);
   const available = [...new Set(siblingAssets(asset, pool).map((other) => other.color))].sort();
   if (available.includes(desired)) return desired;
   if (available.includes("base")) return "base";
   return available[0] ?? desired;
 }
 
-function assetColorMatches(asset: ManifestAsset, appearance: CharacterAppearance, pool: ManifestAsset[]): boolean {
+function assetColorMatches(asset: ManifestAsset, appearance: CharacterAppearance, pool: ManifestAsset[], preferredColor?: string): boolean {
   if (!asset.colorField) return asset.color === "base";
-  return asset.color === resolvedColorForAsset(asset, appearance, pool);
+  return asset.color === resolvedColorForAsset(asset, appearance, pool, preferredColor);
 }
 
 function semanticForSlot(asset: ManifestAsset, appearance: CharacterAppearance, pool: ManifestAsset[]): boolean {
@@ -64,10 +64,11 @@ function semanticForSlot(asset: ManifestAsset, appearance: CharacterAppearance, 
     return assetColorMatches(asset, appearance, pool);
   }
   if (asset.slot === "outfit") {
-    if (appearance.fullOutfit !== "none") return false;
-    if (appearance.upperOutfit === "none") return false;
-    if (asset.semanticId !== appearance.upperOutfit) return false;
-    return assetColorMatches(asset, appearance, pool);
+    const isBusto = appearance.fullOutfit === "none" && appearance.upperOutfit !== "none" && asset.semanticId === appearance.upperOutfit;
+    const isManiche = appearance.sleeveOutfit !== "none" && asset.semanticId === appearance.sleeveOutfit;
+    if (!isBusto && !isManiche) return false;
+    // Entrambi gli elementi usano il layer LPC "outfit", ma hanno ID e colori indipendenti.
+    return assetColorMatches(asset, appearance, pool, isManiche && !isBusto ? appearance.sleeveColor : undefined);
   }
   if (asset.slot === "lowerBody") {
     if (appearance.fullOutfit !== "none") return false;
@@ -113,10 +114,21 @@ export function resolveCharacterLayers(appearance: CharacterAppearance, animatio
   const sheet = generatedLpcSheet(animation);
   if (!sheet || !LPC_RUNTIME_MANIFEST.options.bodyTypes.includes(appearance.bodyType)) return [];
   const pool = LPC_RUNTIME_MANIFEST.assets.filter((asset) => asset.animation === animation && asset.bodyType === appearance.bodyType);
+  const isManicheAsset = (asset: ManifestAsset) => asset.slot === "outfit" &&
+    appearance.sleeveOutfit !== "none" && asset.semanticId === appearance.sleeveOutfit &&
+    asset.semanticId !== appearance.upperOutfit;
+  const garmentSlot = appearance.fullOutfit !== "none" ? "fullOutfit" : "outfit";
+  const garmentId = appearance.fullOutfit !== "none" ? appearance.fullOutfit : appearance.upperOutfit;
+  const garmentTop = Math.max(-Infinity, ...pool
+    .filter((asset) => asset.slot === garmentSlot && asset.semanticId === garmentId)
+    .map((asset) => asset.zPos));
+  // Garantisce che le maniche siano disegnate sopra il busto, senza alterare l'ordine degli altri strati LPC.
+  const layerZ = (asset: ManifestAsset) => isManicheAsset(asset)
+    ? Math.max(asset.zPos, garmentTop + 0.01) : asset.zPos;
   const layers = pool
     .filter((asset) => semanticForSlot(asset, appearance, pool))
-    .sort((a, b) => a.zPos - b.zPos)
-    .map((asset): ResolvedCharacterLayer => ({ id: asset.id, assetPack: LPC_PACK_ID, layer: asset.slot, semanticId: asset.semanticId, zPos: asset.zPos, bodyFamilies: [familyForBodyType(asset.bodyType)], races: ACTIVE_SPRITE_RACES, sheetId: sheet.id, sourceId: asset.sourceKey, tint: "none", attributionId: asset.attributionId, sheet }));
+    .sort((a, b) => layerZ(a) - layerZ(b))
+    .map((asset): ResolvedCharacterLayer => ({ id: asset.id, assetPack: LPC_PACK_ID, layer: asset.slot, semanticId: asset.semanticId, zPos: layerZ(asset), bodyFamilies: [familyForBodyType(asset.bodyType)], races: ACTIVE_SPRITE_RACES, sheetId: sheet.id, sourceId: asset.sourceKey, tint: "none", attributionId: asset.attributionId, sheet }));
 
   if (appearance.accessory !== "none" && !layers.some((layer) => layer.layer === "accessory")) {
     const toolAnimation = animation === "idle" ? "walk" : animation;
@@ -150,6 +162,7 @@ export function resolveCharacterLayers(appearance: CharacterAppearance, animatio
   if (!slots.has("body") || !slots.has("raceFeatures")) return [];
   if (appearance.fullOutfit !== "none" && !slots.has("fullOutfit")) return [];
   if (appearance.fullOutfit === "none" && appearance.upperOutfit !== "none" && !slots.has("outfit")) return [];
+  if (appearance.sleeveOutfit !== "none" && !layers.some((layer) => layer.layer === "outfit" && layer.semanticId === appearance.sleeveOutfit)) return [];
   if (appearance.fullOutfit === "none" && appearance.lowerOutfit !== "none" && !slots.has("lowerBody")) return [];
   if (appearance.hairStyle !== "none" && !slots.has("hairFront") && !slots.has("hairBack")) return [];
   if (appearance.beardStyle !== "none" && !slots.has("beard")) return [];

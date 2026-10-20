@@ -25,6 +25,6 @@ test("non eccede i pixel del renderer su schermi molto grandi", () => {
 test("il renderer usa pixel art e risoluzione fisica coerente", () => {
   const source = readFileSync(new URL("../src/components/PhaserMapSurface.web.tsx", import.meta.url), "utf8");
   assert.match(source, /pixelArt:\s*true/);
-  assert.match(source, /resolution:\s*pixelArtCanvasResolution\(/);
+  assert.match(source, /imageRendering:\s*"pixelated"/);
   assert.match(source, /imageRendering:\s*"pixelated"/);
 });

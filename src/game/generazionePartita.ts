@@ -313,7 +313,7 @@ export function generaRegnoIniziale(
 
   // Regola storica: 1 Consigliere iniziale, uomo umano di 60 anni.
   const candidatiConsigliere = abitanti.filter(
-    (a) => a.id !== 1 && a.lavoro !== "Agricoltore"
+    (a) => a.id !== 1 && a.lavoro !== "Agricoltore" && a.razza === "Umano"
   );
   if (candidatiConsigliere.length > 0) {
     const consigliere =
@@ -472,3 +472,6 @@ export function generaRegnoIniziale(
     razzaNativi
   };
 }
+
+/** Alias di compatibilità per test e integrazioni precedenti. */
+export const generaColoniaIniziale = generaRegnoIniziale;

@@ -3,7 +3,7 @@
  * accessories, body, headwear and clothes when switching animation sheets.
  */
 export const LPC_FRAME_WIDTH = 64;
-export const LPC_VISUAL_WIDTH_FACTOR = 1.08;
+export const LPC_VISUAL_WIDTH_FACTOR = 1.18;
 export const LPC_ADULT_HEIGHT_FACTOR = 1.10;
 export const LPC_CHILD_HEIGHT_FACTOR = 1.03;
 

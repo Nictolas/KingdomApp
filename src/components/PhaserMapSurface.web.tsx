@@ -8,7 +8,6 @@ import { canRenderCharacter, resolveCharacterLayers, CHARACTER_ASSETS } from "..
 import { refineLpcSpriteUrl, LPC_HD_FRAME_PX } from "../character-system/lpcHdRuntime.web";
 import type { LpcArtLayer } from "../character-system/lpcPixelArtRefinement";
 import { lpcLookFromSearch } from "../character-system/lpcVisualExperiment";
-import { pixelArtCanvasResolution } from "../phaser/adapters/pixelArtCanvasResolution";
 
 const lpcLayerUriCache = new Map<string, string>();
 // True A/B: classic uses original 64px LPC files AND original proportions.
@@ -174,8 +173,6 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
       const game = new Phaser.Game({
         type: Phaser.WEBGL,
         parent: hostRef.current,
-        // WebGL a densita fisica: evita canvas sfocato su iPhone Retina.
-        resolution: pixelArtCanvasResolution(window.devicePixelRatio, hostRef.current.clientWidth, hostRef.current.clientHeight),
         backgroundColor: "#18291c",
         transparent: false,
         scale: {
