@@ -4,9 +4,26 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import type { PhaserMapActions, PhaserMapSnapshot } from "../phaser/adapters/mapSceneBridge";
 import { LPC_ASSET_SOURCES } from "../character-system/generated/lpcAssetSources";
-import { canRenderCharacter, resolveCharacterLayers } from "../character-system/registry";
+import { canRenderCharacter, resolveCharacterLayers, CHARACTER_ASSETS } from "../character-system/registry";
+import { refineLpcSpriteUrl, LPC_HD_FRAME_PX } from "../character-system/lpcHdRuntime.web";
+import type { LpcArtLayer } from "../character-system/lpcPixelArtRefinement";
+import { lpcLookFromSearch } from "../character-system/lpcVisualExperiment";
+import { pixelArtCanvasResolution } from "../phaser/adapters/pixelArtCanvasResolution";
 
 const lpcLayerUriCache = new Map<string, string>();
+// True A/B: classic uses original 64px LPC files AND original proportions.
+const lpcHdEnabled = typeof window !== "undefined" && lpcLookFromSearch(window.location.search) === "refined";
+const lpcHighDetailSourceIds = new Set<string>();
+const lpcHighDetailPendingIds = new Set<string>();
+const LPC_HD_PILOT_MAX_LAYERS = 24;
+const lpcHdRoles = new Map<string, LpcArtLayer>();
+for (const layer of CHARACTER_ASSETS) {
+  if (layer.layer === "body" || layer.layer === "raceFeatures") {
+    lpcHdRoles.set(layer.sourceId, layer.layer);
+  }
+}
+const getLpcLayerFrameSize = (sourceId: string): number =>
+  lpcHighDetailSourceIds.has(sourceId) ? LPC_HD_FRAME_PX : 64;
 
 function getLpcLayerUrl(sourceId: string): string | undefined {
   const source = LPC_ASSET_SOURCES[sourceId as keyof typeof LPC_ASSET_SOURCES];
@@ -39,7 +56,22 @@ async function warmLpcLayerUrls(sourceIds: readonly string[]): Promise<void> {
       if (!source) return;
       const asset = Asset.fromModule(source);
       if (!asset.uri) await asset.downloadAsync();
-      if (asset.uri) lpcLayerUriCache.set(sourceId, asset.uri);
+      if (!asset.uri) return;
+      const role = lpcHdRoles.get(sourceId);
+      if (lpcHdEnabled && role && lpcHighDetailSourceIds.size + lpcHighDetailPendingIds.size < LPC_HD_PILOT_MAX_LAYERS) {
+        lpcHighDetailPendingIds.add(sourceId);
+        try {
+          const enhanced = await refineLpcSpriteUrl(asset.uri, role);
+          lpcHighDetailSourceIds.add(sourceId);
+          lpcLayerUriCache.set(sourceId, enhanced);
+          return;
+        } catch {
+          // Original sheet remains usable at 64x64 when image/Canvas is unavailable.
+        } finally {
+          lpcHighDetailPendingIds.delete(sourceId);
+        }
+      }
+      lpcLayerUriCache.set(sourceId, asset.uri);
     })
   );
 }
@@ -131,6 +163,7 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
       const artUrls = {
         golem: Asset.fromModule(GOLEM_SHEET).uri,
         getLpcLayerUrl,
+        getLpcLayerFrameSize,
         buildings: {
           castle: Asset.fromModule(CASTLE).uri,
           dormitory: Asset.fromModule(DORMITORY).uri,
@@ -141,6 +174,8 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
       const game = new Phaser.Game({
         type: Phaser.WEBGL,
         parent: hostRef.current,
+        // WebGL a densita fisica: evita canvas sfocato su iPhone Retina.
+        resolution: pixelArtCanvasResolution(window.devicePixelRatio, hostRef.current.clientWidth, hostRef.current.clientHeight),
         backgroundColor: "#18291c",
         transparent: false,
         scale: {
@@ -150,7 +185,7 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
         },
         render: {
           antialias: false,
-          pixelArt: false,
+          pixelArt: true,
           roundPixels: true
         },
         scene: [new KingdomMapScene(bridge, sheetUrl, artUrls)]
@@ -201,6 +236,7 @@ const hostStyle: React.CSSProperties = {
   width: "100%",
   height: "100%",
   overflow: "hidden",
+  imageRendering: "pixelated",
   touchAction: "none"
 };
 
