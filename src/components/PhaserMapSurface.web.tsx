@@ -4,10 +4,22 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import type { PhaserMapActions, PhaserMapSnapshot } from "../phaser/adapters/mapSceneBridge";
 import { LPC_ASSET_SOURCES } from "../character-system/generated/lpcAssetSources";
-import { canRenderCharacter, resolveCharacterLayers } from "../character-system/registry";
+import { canRenderCharacter, resolveCharacterLayers, CHARACTER_ASSETS } from "../character-system/registry";
+import { refineLpcSpriteUrl, LPC_HD_FRAME_PX } from "../character-system/lpcHdRuntime.web";
+import type { LpcArtLayer } from "../character-system/lpcPixelArtRefinement";
 import { pixelArtCanvasResolution } from "../phaser/adapters/pixelArtCanvasResolution";
 
 const lpcLayerUriCache = new Map<string, string>();
+const lpcHighDetailSourceIds = new Set<string>();
+const LPC_HD_PILOT_MAX_LAYERS = 24;
+const lpcHdRoles = new Map<string, LpcArtLayer>();
+for (const layer of CHARACTER_ASSETS) {
+  if (layer.layer === "body" || layer.layer === "raceFeatures") {
+    lpcHdRoles.set(layer.sourceId, layer.layer);
+  }
+}
+const getLpcLayerFrameSize = (sourceId: string): number =>
+  lpcHighDetailSourceIds.has(sourceId) ? LPC_HD_FRAME_PX : 64;
 
 function getLpcLayerUrl(sourceId: string): string | undefined {
   const source = LPC_ASSET_SOURCES[sourceId as keyof typeof LPC_ASSET_SOURCES];
@@ -40,7 +52,19 @@ async function warmLpcLayerUrls(sourceIds: readonly string[]): Promise<void> {
       if (!source) return;
       const asset = Asset.fromModule(source);
       if (!asset.uri) await asset.downloadAsync();
-      if (asset.uri) lpcLayerUriCache.set(sourceId, asset.uri);
+      if (!asset.uri) return;
+      const role = lpcHdRoles.get(sourceId);
+      if (role && lpcHighDetailSourceIds.size < LPC_HD_PILOT_MAX_LAYERS) {
+        try {
+          const enhanced = await refineLpcSpriteUrl(asset.uri, role);
+          lpcHighDetailSourceIds.add(sourceId);
+          lpcLayerUriCache.set(sourceId, enhanced);
+          return;
+        } catch {
+          // Same content stays available with its native 64x64 frame size.
+        }
+      }
+      lpcLayerUriCache.set(sourceId, asset.uri);
     })
   );
 }
@@ -132,6 +156,7 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
       const artUrls = {
         golem: Asset.fromModule(GOLEM_SHEET).uri,
         getLpcLayerUrl,
+        getLpcLayerFrameSize,
         buildings: {
           castle: Asset.fromModule(CASTLE).uri,
           dormitory: Asset.fromModule(DORMITORY).uri,
