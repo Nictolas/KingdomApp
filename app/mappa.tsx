@@ -60,6 +60,7 @@ import {
   èResidenzaMappa
 } from "../src/game/residenzaMappa";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
+import { ResidentPortrait } from "../src/ui/ResidentPortrait";
 import { CapannaFullscreenModal } from "../src/ui/CapannaFullscreenModal";
 import { LuogoCultoFullscreenModal } from "../src/ui/LuogoCultoFullscreenModal";
 import { CampoDiLavoroModal } from "../src/ui/CampoDiLavoroModal";
@@ -4175,53 +4176,58 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
       {/* Menu fisso in basso: risorse/pulsanti, oppure sintesi abitante selezionato */}
       <View style={styles.bottomBar} pointerEvents="box-none">
-        <View style={styles.bottomBarInner}>
+        <View style={[styles.bottomBarInner, sintesiMappaAbitante && styles.bottomBarInnerResident]}>
           {sintesiMappaAbitante ? (
-            <View style={styles.sintesiAbitanteRow}>
-              <Text style={styles.sintesiEmoji}>{getEmojiAbitante(sintesiMappaAbitante)}</Text>
-              <View style={styles.sintesiMain}>
-                <Text style={styles.sintesiNome} numberOfLines={1}>
-                  {sintesiMappaAbitante.nome}
-                  <Text style={styles.sintesiAzioneInline}>
-                    {" · "}
+            <View style={styles.sintesiAbitantePanel}>
+              <View style={styles.sintesiAbitanteRow}>
+                <ResidentPortrait abitante={sintesiMappaAbitante} nudismoAttivo={nudismoAttivo} />
+                <View style={styles.sintesiMain}>
+                  <Text style={styles.sintesiNome} numberOfLines={1}>
+                    {sintesiMappaAbitante.nome}
+                  </Text>
+                  <Text style={styles.sintesiAzioneInline} numberOfLines={1}>
                     {azioneSintesiMappa ?? "—"}
                   </Text>
-                </Text>
-                <Text style={styles.sintesiAnagrafica} numberOfLines={1}>
-                  {sintesiMappaAbitante.eta} anni · {sintesiMappaAbitante.razza ?? "Umano"}
-                  {sintesiMappaAbitante.sesso ? ` · ${sintesiMappaAbitante.sesso}` : ""} ·{" "}
-                  {getEmojiCasta(getCastaAbitante(sintesiMappaAbitante))}{" "}
-                  {getCastaAbitante(sintesiMappaAbitante)} · {sintesiMappaAbitante.lavoro}
-                </Text>
+                  <Text style={styles.sintesiAnagrafica} numberOfLines={2}>
+                    {sintesiMappaAbitante.eta} anni · {sintesiMappaAbitante.razza ?? "Umano"}
+                    {sintesiMappaAbitante.sesso ? ` · ${sintesiMappaAbitante.sesso}` : ""} ·{" "}
+                    {getEmojiCasta(getCastaAbitante(sintesiMappaAbitante))}{" "}
+                    {getCastaAbitante(sintesiMappaAbitante)} · {sintesiMappaAbitante.lavoro}
+                  </Text>
+                </View>
+              </View>
+              <View style={styles.sintesiAbitanteFooter}>
                 {abitanteUsaBisogniUmani(sintesiMappaAbitante) ? (
-                  <Text style={styles.sintesiBisogni} numberOfLines={1}>
+                  <Text style={styles.sintesiBisogni} numberOfLines={2}>
                     {(() => {
                       const b = getBisogniAbitante(sintesiMappaAbitante);
                       return `🍽️${b.fame}  ⚡${b.energia}  🎉${b.divertimento}  💬${b.socialita}  🧼${b.igiene}`;
                     })()}
                   </Text>
                 ) : (
-                  <Text style={styles.sintesiBisogni} numberOfLines={1}>
+                  <Text style={styles.sintesiBisogni} numberOfLines={2}>
                     🔋 Energia {getBisogniAbitante(sintesiMappaAbitante).energia}
                   </Text>
                 )}
+                <View style={styles.sintesiAbitanteActions}>
+                  <Pressable
+                    style={styles.sintesiSchedaBtn}
+                    onPress={() => setLocateAbitanteId(sintesiMappaAbitante.id)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Individua sulla mappa"
+                  >
+                    <Text style={styles.sintesiSchedaBtnText}>Individua</Text>
+                  </Pressable>
+                  <Pressable
+                    style={styles.sintesiSchedaBtn}
+                    onPress={() => setSchedaWandererAbitante(sintesiMappaAbitante)}
+                    accessibilityRole="button"
+                    accessibilityLabel="Apri scheda completa"
+                  >
+                    <Text style={styles.sintesiSchedaBtnText}>Scheda</Text>
+                  </Pressable>
+                </View>
               </View>
-              <Pressable
-                style={styles.sintesiSchedaBtn}
-                onPress={() => setLocateAbitanteId(sintesiMappaAbitante.id)}
-                accessibilityRole="button"
-                accessibilityLabel="Individua sulla mappa"
-              >
-                <Text style={styles.sintesiSchedaBtnText}>Individua</Text>
-              </Pressable>
-              <Pressable
-                style={styles.sintesiSchedaBtn}
-                onPress={() => setSchedaWandererAbitante(sintesiMappaAbitante)}
-                accessibilityRole="button"
-                accessibilityLabel="Apri scheda completa"
-              >
-                <Text style={styles.sintesiSchedaBtnText}>Scheda</Text>
-              </Pressable>
             </View>
           ) : (
           <ScrollView
@@ -4995,56 +5001,80 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     paddingHorizontal: 12
   },
+  bottomBarInnerResident: {
+    height: 160,
+    minHeight: 160,
+    maxHeight: 160,
+    paddingVertical: 10,
+    paddingHorizontal: 12
+  },
   bottomBarScroll: {
     flexGrow: 0,
     height: 66
   },
+  sintesiAbitantePanel: {
+    width: "100%",
+    gap: 8
+  },
   sintesiAbitanteRow: {
     flexDirection: "row",
     alignItems: "center",
-    gap: 8,
-    height: 66
-  },
-  sintesiEmoji: {
-    fontSize: 22,
-    width: 28,
-    textAlign: "center"
+    gap: 12,
+    minHeight: 76
   },
   sintesiMain: {
     flex: 1,
     minWidth: 0,
     justifyContent: "center",
-    gap: 0
+    gap: 3
   },
   sintesiNome: {
     color: "#f8fafc",
-    fontSize: 12,
+    fontSize: 17,
     fontWeight: "800"
   },
   sintesiAzioneInline: {
     color: "#93c5fd",
-    fontSize: 11,
-    fontWeight: "600"
+    fontSize: 13,
+    fontWeight: "700"
   },
   sintesiAnagrafica: {
-    color: "rgba(203,213,245,0.85)",
-    fontSize: 9
+    color: "rgba(203,213,245,0.9)",
+    fontSize: 11,
+    lineHeight: 15
+  },
+  sintesiAbitanteFooter: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "space-between",
+    gap: 8,
+    minHeight: 46
   },
   sintesiBisogni: {
-    color: "rgba(226,232,240,0.9)",
-    fontSize: 9,
+    flex: 1,
+    minWidth: 0,
+    color: "rgba(226,232,240,0.92)",
+    fontSize: 11,
+    lineHeight: 16,
     fontVariant: ["tabular-nums"]
+  },
+  sintesiAbitanteActions: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 7,
+    flexShrink: 0
   },
   sintesiSchedaBtn: {
     backgroundColor: "#3b82f6",
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    borderRadius: 8,
-    alignSelf: "center"
+    paddingHorizontal: 11,
+    minHeight: 44,
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center"
   },
   sintesiSchedaBtnText: {
     color: "#ffffff",
-    fontSize: 11,
+    fontSize: 12,
     fontWeight: "700"
   },
   risorseRow: {
