@@ -3,14 +3,14 @@
  *
  * Il pan web viene applicato immediatamente tramite transform CSS, mentre React
  * aggiorna il sottoinsieme di celle renderizzate nel frame seguente. A zoom 0.5x
- * manteniamo quindi le 16 celle storiche: con celle da 40 px equivalgono a 320 px
- * sullo schermo, cioè il margine minimo già tollerato dal comportamento attuale.
+ * manteniamo 16 celle di margine, con griglia nativa da 64 px.
+ * Il culling continua a ragionare in celle logiche, non in pixel.
  */
 export const MAP_VIEWPORT_MARGIN_CELLS = 16;
 
 /**
  * Margine desiderato espresso in larghezze-cella sullo schermo.
- * Con CELL_SIZE_PX=40 equivale ad almeno 320 px indipendentemente dallo zoom.
+ * Si calcola in celle logiche per restare valido con il layout 64x64.
  */
 export const MAP_VIEWPORT_TARGET_SCREEN_MARGIN_CELLS = 8;
 

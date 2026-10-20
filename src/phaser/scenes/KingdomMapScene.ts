@@ -42,6 +42,10 @@ const BUILDING_LAYER_DEPTH = 10;
 const INTERACTION_LAYER_DEPTH = 30;
 const LOCATE_LAYER_DEPTH = 220;
 const WORLD_DEPTH_BASE = 100;
+// Più leggibilità sulla mappa senza modificare celle, percorsi e ingombri degli edifici.
+const CHARACTER_VISUAL_SCALE = 1.18;
+const MOBILE_INITIAL_CAMERA_ZOOM = 1.12;
+const MOBILE_VIEWPORT_MAX_WIDTH = 768;
 
 function worldDepthForY(y: number): number {
   return WORLD_DEPTH_BASE + Math.round(y * 10);
@@ -491,7 +495,7 @@ export class KingdomMapScene extends Phaser.Scene {
     this.waterSprites = [];
     this.waterViewportDirty = true;
 
-    const bleed = 1;
+    // Tessere native 64x64: nessun ingrandimento frazionario dei pixel.
     for (const tile of snapshot.tiles) {
       const col = tile.index % snapshot.cols;
       const row = Math.floor(tile.index / snapshot.cols);
@@ -502,7 +506,7 @@ export class KingdomMapScene extends Phaser.Scene {
           SHEET_KEY,
           frameKey(tile.frameX, tile.frameY)
         )
-        .setDisplaySize(snapshot.cellSize + bleed, snapshot.cellSize + bleed);
+        .setDisplaySize(snapshot.cellSize, snapshot.cellSize);
       this.tileLayer.add(sprite);
       this.registerStaticTileView(sprite, tile.index);
       if (tile.animation === "water") this.waterSprites.push(sprite);
@@ -644,6 +648,9 @@ export class KingdomMapScene extends Phaser.Scene {
 
         let sprite: Phaser.GameObjects.Sprite;
         let sprites: Phaser.GameObjects.Sprite[];
+        const displaySize = snapshot.cellSize * CHARACTER_VISUAL_SCALE;
+        // Conserva il punto d'appoggio dei piedi anche dopo l'ingrandimento.
+        const spriteY = -snapshot.cellSize * 0.2 - (displaySize - snapshot.cellSize) * 0.45;
 
         if (useLpc) {
           if (idleLayers.length === 0) continue;
@@ -668,8 +675,8 @@ export class KingdomMapScene extends Phaser.Scene {
           const canSpawnEmoji = !!character.markerEmoji;
           if (!canSpawnGolem && !canSpawnEmoji) continue;
           sprite = this.add
-            .sprite(0, -snapshot.cellSize * 0.2, GOLEM_KEY, 0)
-            .setDisplaySize(snapshot.cellSize * 1.08, snapshot.cellSize * 1.08);
+            .sprite(0, spriteY, GOLEM_KEY, 0)
+            .setDisplaySize(displaySize, displaySize);
           sprites = [sprite];
         }
 
@@ -1728,7 +1735,14 @@ export class KingdomMapScene extends Phaser.Scene {
   private configureCameraAndInput(): void {
     const camera = this.cameras.main;
     camera.setRoundPixels(true);
-    camera.setZoom(1);
+    // All'avvio mostra il nucleo del regno, anche con tessere 64x64.
+    camera.setZoom(this.scale.width <= MOBILE_VIEWPORT_MAX_WIDTH ? MOBILE_INITIAL_CAMERA_ZOOM : 1);
+    const initialMap = this.bridge.getSnapshot();
+    camera.centerOn(initialMap.cols * initialMap.cellSize / 2, initialMap.rows * initialMap.cellSize / 2);
+    // Il culling era stato calcolato prima del riposizionamento della camera.
+    this.staticTileVisibilityDirty = true;
+    this.characterVisibilityDirty = true;
+    this.waterViewportDirty = true;
 
     this.input.on("pointerdown", (pointer: Phaser.Input.Pointer) => {
       if (!pointer.leftButtonDown()) return;
