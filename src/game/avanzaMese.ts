@@ -856,13 +856,13 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     const righe = cicloVita.mortiVecchiaia.map(a =>
       `${a.nome} è morto/a di vecchiaia a ${a.eta} anni.`
     );
-    avvisoDiario = [avvisoDiario, ...righe].filter(Boolean).join("\\n");
+    avvisoDiario = [avvisoDiario, ...righe].filter(Boolean).join("\n");
   }
   if (cicloVita?.successione) {
     const { predecessore, erede, eredeMinorenne } = cicloVita.successione;
     const riga = `Successione: alla morte di ${predecessore}, il trono passa a ${erede}.` +
       (eredeMinorenne ? " L'erede è minorenne: il Consiglio esercita la reggenza." : "");
-    avvisoDiario = [avvisoDiario, riga].filter(Boolean).join("\\n");
+    avvisoDiario = [avvisoDiario, riga].filter(Boolean).join("\n");
   }
   // Sincronizza Baracca dopo crescita, decessi e successione.
   const edificiEvSync = syncResidenzeBaraccaSenzatetto(edificiFinali, abitantiFinali);
