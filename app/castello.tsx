@@ -1,13 +1,15 @@
 import React, { useMemo, useState, useSyncExternalStore } from "react";
 import {
   Modal,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
-  useWindowDimensions
+  useWindowDimensions,
+  type ViewStyle
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
@@ -64,6 +66,13 @@ export default function CastelloScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1100;
+  // Le web app iOS con viewport-fit=cover devono rispettare gli inset CSS di Safari.
+  const topSafeArea = Platform.OS === "web" && !isDesktop
+    ? ({ paddingTop: "env(safe-area-inset-top, 0px)" } as unknown as ViewStyle)
+    : undefined;
+  const bottomSafeArea = Platform.OS === "web"
+    ? ({ paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" } as unknown as ViewStyle)
+    : undefined;
   const {
     abitanti,
     aggiornaAbitanteById,
@@ -410,9 +419,14 @@ export default function CastelloScreen() {
   );
 
   return (
-    <SafeAreaView style={styles.safe}>
+    <SafeAreaView style={[styles.safe, topSafeArea]}>
       <View style={styles.header}>
-        <Pressable style={styles.backButton} onPress={() => tornaAllaMappa(router)}>
+        <Pressable
+          style={styles.backButton}
+          onPress={() => tornaAllaMappa(router)}
+          accessibilityRole="button"
+          accessibilityLabel="Torna alla mappa"
+        >
           <Text style={styles.backButtonText}>← Mappa</Text>
         </Pressable>
         <Text style={styles.title}>Castello</Text>
@@ -424,7 +438,15 @@ export default function CastelloScreen() {
             <View style={styles.headerChip}><Text style={styles.headerChipLabel}>Guardie</Text><Text style={styles.headerChipValue}>{guardie.length}/{CAPACITA_GUARDIE_CASTELLO}</Text></View>
           </View>
         ) : (
-          <View style={styles.headerSpacer} />
+          <Pressable
+            style={styles.closeButton}
+            onPress={() => tornaAllaMappa(router)}
+            accessibilityRole="button"
+            accessibilityLabel="Chiudi Castello e torna alla mappa"
+            hitSlop={8}
+          >
+            <Text style={styles.closeButtonText}>×</Text>
+          </Pressable>
         )}
       </View>
 
@@ -435,6 +457,19 @@ export default function CastelloScreen() {
           {dashboard}
         </ScrollView>
       )}
+
+      {!isDesktop ? (
+        <View style={[styles.mobileCloseFooter, bottomSafeArea]}>
+          <Pressable
+            style={styles.mobileCloseAction}
+            onPress={() => tornaAllaMappa(router)}
+            accessibilityRole="button"
+            accessibilityLabel="Chiudi Castello e torna alla mappa"
+          >
+            <Text style={styles.mobileCloseActionText}>← Torna alla mappa</Text>
+          </Pressable>
+        </View>
+      ) : null}
 
       {initialEditDati ? (
         <CreazioneGiocatoreModal
@@ -515,7 +550,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#050816"
   },
   header: {
-    minHeight: 44,
+    minHeight: 56,
     flexDirection: "row",
     alignItems: "center",
     paddingHorizontal: 12,
@@ -526,26 +561,43 @@ const styles = StyleSheet.create({
     backgroundColor: "#070b18"
   },
   backButton: {
-    minWidth: 72,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    borderRadius: 6,
+    minWidth: 86,
+    minHeight: 44,
+    justifyContent: "center",
+    alignItems: "center",
+    paddingHorizontal: 10,
+    borderRadius: 10,
     borderWidth: 1,
     borderColor: "rgba(96,165,250,0.35)",
-    backgroundColor: "rgba(37,99,235,0.08)"
+    backgroundColor: "rgba(37,99,235,0.18)"
   },
   backButtonText: {
     color: "#93c5fd",
-    fontSize: 11,
+    fontSize: 14,
     fontWeight: "700"
+  },
+  closeButton: {
+    minWidth: 44,
+    minHeight: 44,
+    borderRadius: 12,
+    backgroundColor: "rgba(51,65,85,0.5)",
+    borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.5)",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  closeButtonText: {
+    color: "#f8fafc",
+    fontSize: 29,
+    lineHeight: 34,
+    fontWeight: "500"
   },
   title: {
     color: "#ffffff",
-    fontSize: 15,
-    fontWeight: "800"
-  },
-  headerSpacer: {
-    flex: 1
+    fontSize: 20,
+    fontWeight: "800",
+    flex: 1,
+    textAlign: "center"
   },
   headerStats: {
     flex: 1,
@@ -584,6 +636,27 @@ const styles = StyleSheet.create({
   mobileScrollContent: {
     padding: 10,
     paddingBottom: 18
+  },
+  mobileCloseFooter: {
+    paddingHorizontal: 16,
+    paddingTop: 12,
+    paddingBottom: 12,
+    borderTopWidth: 1,
+    borderTopColor: "rgba(96,165,250,0.35)",
+    backgroundColor: "#080f21"
+  },
+  mobileCloseAction: {
+    minHeight: 52,
+    width: "100%",
+    borderRadius: 13,
+    backgroundColor: "#2563eb",
+    justifyContent: "center",
+    alignItems: "center"
+  },
+  mobileCloseActionText: {
+    color: "#ffffff",
+    fontSize: 17,
+    fontWeight: "800"
   },
   dashboard: {
     gap: 10
