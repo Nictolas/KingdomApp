@@ -148,6 +148,14 @@ export function toggleOrologioGiocoPausa(): void {
 }
 
 /** Aggiorna il tempo in base al clock reale e restituisce i minuti da mezzanotte [0, 1440). */
+/** Carry sub-second jitter between timer polls, with capped catch-up after a stall. */
+export function calcolaProgressoOrologio(lastRealMs: number, nowRealMs: number): {secondi: number; nextReferenceMs: number} {
+  const deltaMs = Math.max(0, nowRealMs - lastRealMs);
+  if (deltaMs > 5000) return { secondi: 5, nextReferenceMs: nowRealMs };
+  const secondi = Math.floor(deltaMs / 1000);
+  return { secondi, nextReferenceMs: lastRealMs + secondi * 1000 };
+}
+
 export function syncOrologioGiocoDaWallClock(): number {
   if (orologioGiocoLastRealMs == null) {
     orologioGiocoLastRealMs = Date.now();
@@ -159,7 +167,7 @@ export function syncOrologioGiocoDaWallClock(): number {
   }
   const minutiPrima = orologioGiocoMinutiDaMezzanotte;
   // Se Safari ha sospeso i timer senza notificare visibilitychange, non recuperare ore offline.
-  const elapsedSeconds = Math.min(5, Math.max(0, Math.floor((Date.now() - orologioGiocoLastRealMs) / 1000)));
+  const { secondi: elapsedSeconds, nextReferenceMs } = calcolaProgressoOrologio(orologioGiocoLastRealMs, Date.now());
   const catchUp =
     elapsedSeconds * MINUTI_GIOCO_PER_SECONDO_REALE * orologioGiocoVelocita;
   const totalMinPrima = (orologioGiocoGiorno - 1) * 1440 + minutiPrima;
@@ -175,7 +183,7 @@ export function syncOrologioGiocoDaWallClock(): number {
   if (orePassate > 0) {
     oraListeners.forEach((listener) => listener(orePassate));
   }
-  orologioGiocoLastRealMs = Date.now();
+  orologioGiocoLastRealMs = nextReferenceMs;
   return orologioGiocoMinutiDaMezzanotte;
 }
 

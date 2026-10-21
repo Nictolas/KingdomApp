@@ -3428,9 +3428,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     }
     return {
       mode: "select",
-      hoverCell: previewCellHover,
-      affectedCells: previewCellHover == null ? [] : [previewCellHover],
-      valid: previewCellHover != null
+      hoverCell: null,
+      affectedCells: [],
+      valid: false
     };
   }, [
     costruzioneSelezione,
