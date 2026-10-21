@@ -13,6 +13,7 @@ import {
   vietatoFootprintECuscinoDaEdificiIniziali
 } from "./mappaPiazzamentoFootprint";
 import type { EdificioInCellaMappa } from "./mappaTypes";
+import { cellaNellaForestaNord, footprintIntersecaForestaNord } from "./mappaForestaConfine";
 import { isTerrenoAcqua, type TerrenoType } from "./riverGeneration";
 import { calcolaAnchorStrada2x2, footprintStrada2x2Valido } from "./stradaFootprint";
 import { isCellaOkPerPonte } from "./ponteMappa";
@@ -56,7 +57,7 @@ export function footprintTerreno2x2Valido(
     cols
   );
   for (const i of celle) {
-    if (edificiInMappa[i]) return false;
+    if (cellaNellaForestaNord(i, cols, rows) || edificiInMappa[i]) return false;
     if (kind === "acqua") {
       if (isAcqua(i, cols, rows)) continue;
       const t = terrenoInMappa[i] ?? "erba";
@@ -84,6 +85,7 @@ export function edificioRispettaCriteriPiazzamento(
   cols: number,
   rows: number
 ): boolean {
+  if (footprintIntersecaForestaNord(anchor, w, h, cols, rows)) return false;
   if (nomeEdificio === "Dissalatore") {
     return footprintDissalatoreMareSabbiaValido(anchor, cols, rows, terrenoInMappa, edificiInMappa);
   }
@@ -104,6 +106,8 @@ export function calcolaAnchorEdificioMultiCella(
   const dim = FOOTPRINT_COSTRUZIONE[nomeEdificio] ?? { w: 1, h: 1 };
   const w = dim.w;
   const h = dim.h;
+  // Vietato riorientare un tocco sul bosco verso una costruzione altrove.
+  if (cellaNellaForestaNord(cellIndex, cols, rows)) return { anchor: null, w, h };
   if (nomeEdificio === "Dissalatore") {
     const anchor = trovaAnchorDissalatore(cellIndex, edificiInMappa, terrenoInMappa, cols, rows);
     return { anchor, w, h };

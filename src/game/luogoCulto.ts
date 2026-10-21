@@ -3,6 +3,7 @@ import type { Abitante, Edificio } from "../types";
 import type { EdificioInCellaMappa, MappaRuntimeState } from "./mappaTypes";
 import type { TerrenoType } from "./riverGeneration";
 import { isMareAttivo } from "./mareCosta";
+import { footprintIntersecaForestaNord } from "./mappaForestaConfine";
 import { getMappaSessione, setMappaSessione } from "./mappaSessione";
 
 export { MAP_COLS, MAP_ROWS };
@@ -257,7 +258,7 @@ function puòPiazzareFootprintConCuscino(
 ): boolean {
   const ac = anchor % cols;
   const ar = Math.floor(anchor / cols);
-  if (ac + w > cols || ar + h > rows) return false;
+  if (ac + w > cols || ar + h > rows || footprintIntersecaForestaNord(anchor, w, h, cols, rows)) return false;
   for (let dr = 0; dr < h; dr++) {
     for (let dc = 0; dc < w; dc++) {
       const i = (ar + dr) * cols + (ac + dc);

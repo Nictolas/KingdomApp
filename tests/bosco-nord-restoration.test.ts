@@ -24,7 +24,7 @@ test("il Bosco 5x5 ricompare in alto senza sovrapporsi agli edifici", () => {
   const anchors = keys.filter(k => dopo.edificiInMappa[k]?.nome === "Bosco" && dopo.edificiInMappa[k]?.footprintRef == null);
   assert.equal(anchors.length, 1);
   const anchor = anchors[0]!;
-  assert.ok(Math.floor(anchor / COLS) >= 4 && Math.floor(anchor / COLS) <= 11, "the forest must be in the northern strip, well above the settlement");
+  assert.ok(Math.floor(anchor / COLS) === 1, "the forest must be in the northern strip, well above the settlement");
   assert.equal(dopo.edificiInMappa[anchor]?.id, BOSCO_ID);
   assert.deepEqual(dopo.edificiInMappa[anchor]?.footprint, { w: 5, h: 5 });
   const cells = getIndiciFootprint(anchor, 5, 5, COLS);
@@ -115,7 +115,7 @@ test("un Bosco 5x5 creato nella precedente posizione centrale si sposta a nord s
     .find(i => result.edificiInMappa[i]?.nome === "Bosco" &&
       result.edificiInMappa[i]?.footprintRef == null)!;
   assert.ok(newAnchor !== oldAnchor);
-  assert.ok(Math.floor(newAnchor / COLS) >= 4 && Math.floor(newAnchor / COLS) <= 11);
+  assert.ok(Math.floor(newAnchor / COLS) === 1);
   assert.equal(result.edificiInMappa[25 * COLS + 25]?.nome, "Castello");
   assert.equal(result.edificiInMappa[19 * COLS + 17]?.nome, "Capanna");
   for (const i of originalCells) assert.equal(result.edificiInMappa[i], undefined);
@@ -141,7 +141,7 @@ test("un bosco centrale precedente rimane al suo posto se non c'e' spazio sicuro
 
 test("un Bosco gia' nella zona nord non viene riportato verso il centro", () => {
   const prior = mappa();
-  const anchor = 2 * COLS + 22;
+  const anchor = 1 * COLS + 22;
   for (const i of getIndiciFootprint(anchor, 5, 5, COLS)) {
     prior.edificiInMappa[i] = i === anchor
       ? { id: BOSCO_ID, nome: "Bosco", emoji: "🌲", footprint: { w: 5, h: 5 } }

@@ -1,4 +1,5 @@
 import type { TerrenoType } from "./riverGeneration";
+import { footprintIntersecaForestaNord } from "./mappaForestaConfine";
 import type { EdificioInCellaMappa } from "./mappaTypes";
 import {
   DISSALATORE_FOOTPRINT_H,
@@ -27,6 +28,7 @@ export function footprintDissalatoreMareSabbiaValido(
   terrenoInMappa: Record<number, TerrenoType>,
   edificiInMappa: Record<number, EdificioInCellaMappa>
 ): boolean {
+  if (footprintIntersecaForestaNord(anchor, DISSALATORE_FOOTPRINT_W, DISSALATORE_FOOTPRINT_H, cols, rows)) return false;
   const w = DISSALATORE_FOOTPRINT_W;
   const h = DISSALATORE_FOOTPRINT_H;
   const ac = anchor % cols;

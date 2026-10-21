@@ -28,8 +28,8 @@ test("hover normale non genera un rettangolo di anteprima", () => {
 test("la foresta disegna un nastro orizzontale sull'intera larghezza mappa", () => {
   const scene = readFileSync(new URL("../src/phaser/scenes/KingdomMapScene.ts", import.meta.url), "utf8");
   assert.match(scene, /renderBoscoBuilding\(base, overlay, snapshot\.cols \* snapshot\.cellSize/);
-  assert.match(scene, /northernRow = 2/);
-  assert.match(scene, /for \(let row = 0; row < 5; row\+\+\)/);
-  assert.match(scene, /const step = cellSize \* 0\.64/);
+  assert.match(scene, /northernRow = 0/);
+  assert.match(scene, /layoutNorthernForestTrees\(width, cellSize\)/);
+  assert.doesNotMatch(scene, /const step = cellSize \* 0\.64/);
   assert.match(scene, /northern-forest-tree-0/);
 });
