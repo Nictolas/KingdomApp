@@ -1,10 +1,11 @@
 /**
- * Orologio di gioco globale: 1 secondo reale = 30 minuti in-game.
+ * Orologio di gioco globale: 1 secondo reale = 6 minuti in-game (4 ore reali per anno).
  * Condiviso tra mappa, Bar e altre schermate che devono usare lo stesso tempo.
  */
 
 /** Minuti di gioco aggiunti per ogni secondo trascorso nel mondo reale. */
-export const MINUTI_GIOCO_PER_SECONDO_REALE = 30;
+import { MINUTI_GIOCO_PER_SECONDO_REALE } from "./tempoSimulazioneConfig";
+export { MINUTI_GIOCO_PER_SECONDO_REALE } from "./tempoSimulazioneConfig";
 
 export const OROLOGIO_GIOCO_VELOCITA = [1, 2, 4] as const;
 export type OrologioGiocoVelocita = (typeof OROLOGIO_GIOCO_VELOCITA)[number];
@@ -12,6 +13,7 @@ export type OrologioGiocoVelocita = (typeof OROLOGIO_GIOCO_VELOCITA)[number];
 let orologioGiocoMinutiDaMezzanotte = 6 * 60;
 let orologioGiocoLastRealMs: number | null = null;
 let orologioGiocoInPausa = false;
+let orologioGiocoSospesoDallApp = false;
 let orologioGiocoVelocita: OrologioGiocoVelocita = 1;
 // Parte bloccato: la creazione del Re non deve far avanzare il mondo.
 let orologioGiocoBloccatoDallaFase = true;
@@ -51,7 +53,7 @@ export function subscribeOrologioGiocoInPausa(listener: () => void): () => void 
 }
 
 export function getOrologioGiocoInPausaSnapshot(): boolean {
-  return orologioGiocoInPausa || orologioGiocoBloccatoDallaFase;
+  return orologioGiocoInPausa || orologioGiocoBloccatoDallaFase || orologioGiocoSospesoDallApp;
 }
 
 export function subscribeOrologioGiocoVelocita(listener: () => void): () => void {
@@ -107,6 +109,7 @@ export function restoreOrologioGioco(input: { giorno: number; minutiDaMezzanotte
   orologioGiocoMinutiDaMezzanotte = ((Math.trunc(input.minutiDaMezzanotte) % 1440) + 1440) % 1440;
   orologioGiocoInPausa = input.pausaManuale;
   orologioGiocoVelocita = 1;
+  orologioGiocoSospesoDallApp = false;
   orologioGiocoLastRealMs = Date.now();
   notifyGiornoListeners();
   notifyPausaListeners();
@@ -119,6 +122,16 @@ export function getOrologioPersistableSnapshot() {
     minutiDaMezzanotte: orologioGiocoMinutiDaMezzanotte,
     pausaManuale: orologioGiocoInPausa
   };
+}
+
+/** Il tempo non trascorre in background: nessun recupero al ritorno.
+ * Non salvare questa sospensione come pausa manuale dell'utente.
+ */
+export function setOrologioGiocoSospesoDallApp(sospeso: boolean): void {
+  if (orologioGiocoSospesoDallApp === sospeso) return;
+  orologioGiocoSospesoDallApp = sospeso;
+  orologioGiocoLastRealMs = Date.now();
+  notifyPausaListeners();
 }
 
 export function setOrologioGiocoInPausa(pausa: boolean): void {
@@ -145,7 +158,7 @@ export function syncOrologioGiocoDaWallClock(): number {
     return orologioGiocoMinutiDaMezzanotte;
   }
   const minutiPrima = orologioGiocoMinutiDaMezzanotte;
-  const elapsedSeconds = Math.floor((Date.now() - orologioGiocoLastRealMs) / 1000);
+  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - orologioGiocoLastRealMs) / 1000));
   const catchUp =
     elapsedSeconds * MINUTI_GIOCO_PER_SECONDO_REALE * orologioGiocoVelocita;
   const totalMinPrima = (orologioGiocoGiorno - 1) * 1440 + minutiPrima;
