@@ -1,5 +1,6 @@
 import React, { useMemo } from "react";
-import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { BuildingScreenShell, BUILDING_WIDE_BREAKPOINT } from "../../src/ui/BuildingScreenShell";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useGameContext } from "../../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../../src/game/edificiLavoro";
@@ -35,10 +36,8 @@ export default function SerraScreenById() {
     [edifici, edificioId]
   );
 
-  const { width } = Dimensions.get("window");
-  const isDesktop = width > 768;
-  const containerHeight = isDesktop ? width * (9 / 16) : undefined;
-  const maxHeight = isDesktop ? containerHeight : undefined;
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= BUILDING_WIDE_BREAKPOINT;
 
   const abitantiAssegnati = serra ? abitanti.filter((a) => serra.abitantiAssegnati.includes(a.id)) : [];
   const abitantiDisponibili = useMemo(() => {
@@ -69,7 +68,7 @@ export default function SerraScreenById() {
     edificioId === 2 ? "Serra (unità 1)" : edificioId === 21 ? "Serra (unità 2)" : `Serra (#${edificioId})`;
 
   const colContent = [
-    <View key="produzione" style={styles.column}>
+    <View key="produzione" style={[styles.column, isDesktop && styles.columnWide]}>
       <Text style={styles.sectionTitle}>Produzione</Text>
       <View style={styles.infoCard}>
         <Text style={styles.infoTitle}>Coltura attiva</Text>
@@ -82,7 +81,7 @@ export default function SerraScreenById() {
           </Text>
         </Text>
         <Text style={styles.infoSubtext}>
-          ≈ {produzioneMensile} unità/mese (Skip Mese)
+          ≈ {produzioneMensile} unità/mese
         </Text>
         <Text style={styles.infoSubtext}>
           L&apos;inventario cibo del giocatore riceve la produzione
@@ -93,7 +92,7 @@ export default function SerraScreenById() {
           Stipendio mensile per lavoratore ({STIPENDIO_BASE_MONETE_GIORNO} moneta/giorno)
         </Text>
         <TextInput
-          style={styles.stipendioInput}
+          style={[styles.stipendioInput, Platform.OS === "web" && { fontSize: 16 }]}
           value={String(getStipendioMensileEdificio(serra))}
           keyboardType="number-pad"
           onChangeText={(text) => {
@@ -109,10 +108,10 @@ export default function SerraScreenById() {
         </Text>
       </View>
     </View>,
-    <View key="coltura" style={styles.column}>
+    <View key="coltura" style={[styles.column, isDesktop && styles.columnWide]}>
       <Text style={styles.sectionTitle}>Scegli coltura</Text>
       <Text style={styles.sectionSubtitle}>1 prodotto al giorno per Serra operativa</Text>
-      <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
+      <View>
         <View style={styles.colturaGrid}>
           {coltureDisponibili.map((c) => {
             const selezionata = colturaSelezionata === c.id;
@@ -130,12 +129,12 @@ export default function SerraScreenById() {
             );
           })}
         </View>
-      </ScrollView>
+      </View>
     </View>,
-    <View key="assegnati" style={styles.column}>
+    <View key="assegnati" style={[styles.column, isDesktop && styles.columnWide]}>
       <Text style={styles.sectionTitle}>Abitanti Assegnati</Text>
       {abitantiAssegnati.length > 0 ? (
-        <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
+        <View>
           {abitantiAssegnati.map((a: Abitante) => (
             <View key={a.id} style={styles.card}>
               <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
@@ -149,16 +148,16 @@ export default function SerraScreenById() {
               </Pressable>
             </View>
           ))}
-        </ScrollView>
+        </View>
       ) : (
         <Text style={styles.emptyText}>Nessun abitante assegnato</Text>
       )}
     </View>,
-    <View key="disponibili" style={styles.column}>
+    <View key="disponibili" style={[styles.column, isDesktop && styles.columnWide]}>
       <Text style={styles.sectionTitle}>Assegna lavoratori</Text>
       <Text style={styles.sectionSubtitle}>Servi della gleba disponibili</Text>
       {abitantiDisponibili.length > 0 ? (
-        <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
+        <View>
           {abitantiDisponibili.map((a: Abitante) => (
             <View key={a.id} style={styles.card}>
               <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
@@ -175,7 +174,7 @@ export default function SerraScreenById() {
               )}
             </View>
           ))}
-        </ScrollView>
+        </View>
       ) : (
         <Text style={styles.emptyText}>Nessun Servo della gleba disponibile</Text>
       )}
@@ -183,30 +182,16 @@ export default function SerraScreenById() {
   ];
 
   return (
-    <SafeAreaView style={[styles.safe, maxHeight ? { maxHeight, overflow: "hidden" } : undefined]}>
-      <View style={styles.header}>
-        <View style={{ width: 50 }} />
-        <Text style={styles.title}>{titoloSerra}</Text>
-        <View style={{ width: 50 }} />
-      </View>
-
-      <View style={{ flex: 1 }}>
-        <ScrollView
-          style={isDesktop ? styles.scrollViewFlex : undefined}
-          horizontal={!isDesktop}
-          contentContainerStyle={[styles.content, isDesktop && styles.contentRow]}
-          showsHorizontalScrollIndicator={false}
-        >
-          {colContent}
-        </ScrollView>
-      </View>
-      <View style={styles.footer}>
-        <Text style={styles.back} onPress={() => router.back()}>
-          ← Edifici
-        </Text>
-      </View>
-    </SafeAreaView>
+    <BuildingScreenShell
+      title={titoloSerra}
+      onBack={() => router.back()}
+      backLabel="Edifici"
+      contentStyle={isDesktop ? styles.contentRow : styles.contentColumn}
+    >
+      {colContent}
+    </BuildingScreenShell>
   );
+
 }
 
 const styles = StyleSheet.create({
@@ -240,30 +225,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: "700"
   },
-  scrollViewFlex: {
-    flex: 1
-  },
-  content: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    paddingBottom: 12,
-    flex: 1
-  },
-  contentRow: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    gap: 12,
-    flexGrow: 1
-  },
-  column: {
-    flex: 1,
-    minWidth: 220,
-    maxWidth: 360
-  },
-  listScroll: {
-    flex: 1,
-    maxHeight: 400
-  },
+  contentColumn: { gap: 22, justifyContent: "flex-start" as const },
+  contentRow: { flexDirection: "row" as const, alignItems: "flex-start" as const, gap: 14 },
+  column: { width: "100%" as const, minWidth: 0 },
+  columnWide: { flex: 1, width: "auto" as const, minWidth: 210, maxWidth: 340 },
   sectionSubtitle: {
     color: "rgba(203,213,245,0.7)",
     fontSize: 10,
@@ -318,7 +283,7 @@ const styles = StyleSheet.create({
     justifyContent: "center"
   },
   colturaChip: {
-    width: 88,
+    width: "31%",
     alignItems: "center",
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 6,
