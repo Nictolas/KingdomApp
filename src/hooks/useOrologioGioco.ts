@@ -18,7 +18,7 @@ export type UseOrologioGiocoResult = {
   setVelocita: (velocita: OrologioGiocoVelocita) => void;
 };
 
-/** Minuti da mezzanotte [0, 1440), aggiornati ogni secondo reale (1 sec = 30 min in-game). */
+/** Minuti da mezzanotte [0, 1440), aggiornati ogni secondo reale (1 sec = 6 min in-game). */
 export function useOrologioGioco(): UseOrologioGiocoResult {
   const [minuti, setMinuti] = useState(() => syncOrologioGiocoDaWallClock());
   const inPausa = useSyncExternalStore(
