@@ -1,5 +1,5 @@
 import Phaser from "phaser";
-import { layoutNorthernForestTrees } from "../../game/forestaSpriteGrid";
+import { layoutNorthernForestTrees, ritaglioAlphaAlbero } from "../../game/forestaSpriteGrid";
 
 import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
 import { CHILD_BEARD_OFFSET_Y_PX, LPC_DIRECTION_ROWS } from "../../character-system/lpcPack";
@@ -1393,7 +1393,7 @@ export class KingdomMapScene extends Phaser.Scene {
   ): void {
     const treeKeys = ["northern-forest-tree-0", "northern-forest-tree-1"];
     const textureHeight = Math.ceil(6 * cellSize);
-    const cacheKey = "northern-forest-grid-v3-" + Math.ceil(width) + "-" + textureHeight;
+    const cacheKey = "northern-forest-grid-v4-compact-" + Math.ceil(width) + "-" + textureHeight;
     const ready = treeKeys.every(key => this.textures.exists(key));
     const trees = layoutNorthernForestTrees(width, cellSize);
     if (ready && !this.textures.exists(cacheKey)) {
@@ -1413,11 +1413,15 @@ export class KingdomMapScene extends Phaser.Scene {
           smallCtx.imageSmoothingEnabled = true;
           smallCtx.drawImage(this.textures.get(key).getSourceImage() as CanvasImageSource, 0, 0, small.width, small.height);
         }
-        return small;
+        const bounds = smallCtx
+          ? ritaglioAlphaAlbero(smallCtx.getImageData(0, 0, small.width, small.height).data, small.width, small.height)
+          : { x: 0, y: 0, width: small.width, height: small.height };
+        return { image: small, bounds };
       });
       for (const tree of trees) {
         const source = pixelTrees[tree.variante];
-        ctx.drawImage(source, tree.x, tree.y, tree.width, tree.height);
+        const { x, y, width: cropW, height: cropH } = source.bounds;
+        ctx.drawImage(source.image, x, y, cropW, cropH, tree.x, tree.y, tree.width, tree.height);
       }
       texture.refresh();
     }

@@ -15,6 +15,18 @@ import {
 } from "./orariLavoroMappa";
 import { abitanteNascostoNelCultoOra } from "./presenzaLuogoCulto";
 
+/** Recupera il nome completo dal vero ID del partner di conversazione. */
+export function nomeInterlocutoreChiacchiera(
+  abitanteId: number,
+  interlocutoreById: Readonly<Record<number, number>>,
+  abitanti: ReadonlyArray<Pick<Abitante, "id" | "nome">>
+): string | null {
+  const partnerId = interlocutoreById[abitanteId];
+  if (partnerId == null || partnerId === abitanteId) return null;
+  const nome = abitanti.find((altro) => altro.id === partnerId)?.nome.trim();
+  return nome || null;
+}
+
 export type CommuteInfoAzione = {
   purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro";
   barEdificioId?: number;
@@ -77,6 +89,8 @@ export function descriviAzioneCorrenteAbitante(
     esitoRapinaRecente?: string | null;
     /** Due abitanti «in giro» fermi a chiacchierare. */
     staChiacchierando?: boolean;
+    /** Nome completo del partner effettivo, se disponibile. */
+    nomeInterlocutoreChiacchiera?: string | null;
   }
 ): string {
   const {
@@ -120,7 +134,10 @@ export function descriviAzioneCorrenteAbitante(
 
   if (esitoRapinaRecente) return esitoRapinaRecente;
 
-  if (opts.staChiacchierando) return "Sta chiacchierando";
+  if (opts.staChiacchierando) {
+    const nome = opts.nomeInterlocutoreChiacchiera?.trim();
+    return nome ? `Sta chiacchierando con ${nome}` : "Sta chiacchierando";
+  }
 
   const èNotte = buioCielo > 0.5;
   if (èNotte && haCasa && dormonoACasaIds.has(abitante.id)) {

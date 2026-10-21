@@ -198,7 +198,7 @@ import {
   OROLOGIO_GIOCO_VELOCITA
 } from "../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../src/hooks/useOrologioGioco";
-import { descriviAzioneCorrenteAbitante } from "../src/game/azioneAbitanteMappa";
+import { descriviAzioneCorrenteAbitante, nomeInterlocutoreChiacchiera } from "../src/game/azioneAbitanteMappa";
 import {
   abitantePuòTentareRapina,
   resolveRapina,
@@ -3718,7 +3718,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         fineMinuti: coprifuocoFineMinuti
       },
       esitoRapinaRecente: esitoRapinaByAbitanteId[sintesiMappaAbitante.id] ?? null,
-      staChiacchierando: chiacchieraConById[sintesiMappaAbitante.id] != null
+      staChiacchierando: chiacchieraConById[sintesiMappaAbitante.id] != null,
+      nomeInterlocutoreChiacchiera: nomeInterlocutoreChiacchiera(sintesiMappaAbitante.id, chiacchieraConById, abitanti)
     });
   }, [
     sintesiMappaAbitante,
@@ -3735,7 +3736,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     coprifuocoInizioMinuti,
     coprifuocoFineMinuti,
     esitoRapinaByAbitanteId,
-    chiacchieraConById
+    chiacchieraConById,
+    abitanti
   ]);
 
   return (
@@ -4657,7 +4659,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                   inizioMinuti: coprifuocoInizioMinuti,
                   fineMinuti: coprifuocoFineMinuti
                 },
-                esitoRapinaRecente: esitoRapinaByAbitanteId[schedaWandererAbitante.id] ?? null
+                esitoRapinaRecente: esitoRapinaByAbitanteId[schedaWandererAbitante.id] ?? null,
+                staChiacchierando: chiacchieraConById[schedaWandererAbitante.id] != null,
+                nomeInterlocutoreChiacchiera: nomeInterlocutoreChiacchiera(schedaWandererAbitante.id, chiacchieraConById, abitanti)
               })
             : null
         }
