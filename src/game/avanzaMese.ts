@@ -864,6 +864,12 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
       (eredeMinorenne ? " L'erede è minorenne: il Consiglio esercita la reggenza." : "");
     avvisoDiario = [avvisoDiario, riga].filter(Boolean).join("\n");
   }
+  // Niente proposte di matrimonio o gravidanza rivolte a persone decedute.
+  const viventiIds = new Set(abitantiFinali.map(a => a.id));
+  if (pendingMatrimonio && (!viventiIds.has(pendingMatrimonio.idA) || !viventiIds.has(pendingMatrimonio.idB))) {
+    pendingMatrimonio = null;
+  }
+  if (pendingGravidanza && !viventiIds.has(pendingGravidanza.id)) pendingGravidanza = null;
   // Sincronizza Baracca dopo crescita, decessi e successione.
   const edificiEvSync = syncResidenzeBaraccaSenzatetto(edificiFinali, abitantiFinali);
 
