@@ -450,7 +450,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   // Aggiorna abitanti (invecchiamento, pensionamento, monete inventario, stanchezza/bisogni, peso, salute)
   const nuoviAbitanti = abitantiConLavoro.map((abitante) => {
     let eta = abitante.eta;
-    if (avanzaAnno) eta += 1;
+    if (avanzaAnno && abitante.razza !== "Golem") eta += 1;
 
     let lavoro = abitante.lavoro;
     if (
