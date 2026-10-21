@@ -142,13 +142,10 @@ export function applicaCicloVitaAnnuale(
   }
 
   const edificiPuliti = edifici.map(edificio => {
-    const assegnati = (edificio.abitantiAssegnati ?? [])
+    if (!edificio.abitantiAssegnati) return edificio;
+    const assegnati = edificio.abitantiAssegnati
       .filter(id => !mortiIds.has(id) && id !== nuovoReEredeId);
-    return {
-      ...edificio,
-      abitantiAssegnati: assegnati,
-      occupazione: assegnati.length
-    };
+    return { ...edificio, abitantiAssegnati: assegnati, occupazione: assegnati.length };
   });
 
   return {
