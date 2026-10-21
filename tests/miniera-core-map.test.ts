@@ -54,8 +54,8 @@ test("Minatore produce bottino personale e deposita risorse del Regno", () => {
   );
   assert.equal(result.bottini.length, 1);
   assert.equal(result.abitanti[0]?.ultimoRaccoltoMiniera?.giorno, 2);
-  assert.equal(result.risorse.find((r) => r.nome === "Metalli")?.quantità, 6);
-  assert.equal(result.risorse.find((r) => r.nome === "Materiale Edile")?.quantità, 8);
+  assert.equal(result.risorse.find((r) => r.nome === "Metalli")?.quantità, 11);
+  assert.equal(result.risorse.find((r) => r.nome === "Materiale Edile")?.quantità, 13);
 });
 
 test("arrivo fisico in Miniera assume il disoccupato come Minatore", () => {

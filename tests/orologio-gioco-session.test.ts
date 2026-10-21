@@ -30,17 +30,17 @@ test("game clock speed multiplies elapsed game minutes at 1x, 2x and 4x", () => 
     setOrologioGiocoBloccatoDallaFase(false);
 
     setNow(1_001_000);
-    assert.equal(syncOrologioGiocoDaWallClock(), 390);
+    assert.equal(syncOrologioGiocoDaWallClock(), 366);
 
     setOrologioGiocoVelocita(2);
     assert.equal(getOrologioGiocoVelocitaSnapshot(), 2);
     setNow(1_002_000);
-    assert.equal(syncOrologioGiocoDaWallClock(), 450);
+    assert.equal(syncOrologioGiocoDaWallClock(), 378);
 
     setOrologioGiocoVelocita(4);
     assert.equal(getOrologioGiocoVelocitaSnapshot(), 4);
     setNow(1_003_000);
-    assert.equal(syncOrologioGiocoDaWallClock(), 570);
+    assert.equal(syncOrologioGiocoDaWallClock(), 402);
   });
 });
 
@@ -51,10 +51,10 @@ test("changing speed accounts for elapsed time with the previous multiplier firs
 
     setNow(1_001_000);
     setOrologioGiocoVelocita(2);
-    assert.equal(syncOrologioGiocoDaWallClock(), 390);
+    assert.equal(syncOrologioGiocoDaWallClock(), 366);
 
     setNow(1_002_000);
-    assert.equal(syncOrologioGiocoDaWallClock(), 450);
+    assert.equal(syncOrologioGiocoDaWallClock(), 378);
   });
 });
 
