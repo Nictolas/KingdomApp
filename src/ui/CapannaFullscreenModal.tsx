@@ -1,14 +1,12 @@
 import React, { useMemo } from "react";
 import {
   Modal,
-  Pressable,
-  SafeAreaView,
-  ScrollView,
   StyleSheet,
   Text,
   View
 } from "react-native";
 import { StatusBar } from "expo-status-bar";
+import { BuildingScreenShell } from "./BuildingScreenShell";
 import type { Abitante, Edificio } from "../types";
 import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import { badgePresenzaCapanna, statoPresenzaOccupanteCapanna } from "../game/presenzaCapanna";
@@ -101,20 +99,9 @@ export function CapannaFullscreenModal({
       statusBarTranslucent
     >
       <StatusBar style="light" />
-      <SafeAreaView style={styles.root}>
-        <View style={styles.header}>
-          <View style={styles.headerTop}>
-            <Pressable
-              onPress={onClose}
-              style={({ pressed }) => [styles.closeBtn, pressed && styles.closeBtnPressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Chiudi"
-            >
-              <Text style={styles.closeBtnText}>✕</Text>
-            </Pressable>
-          </View>
+      <BuildingScreenShell title="Capanna" onBack={onClose} backLabel="Chiudi">
+        <View style={styles.intro}>
           <Text style={styles.heroEmoji}>⛺</Text>
-          <Text style={styles.title}>Capanna</Text>
           <Text style={styles.subtitle}>
             Residenza del Regno · Cella #{anchor} · {occupantiIds.length}/{postiPerCasa} posti
           </Text>
@@ -122,12 +109,6 @@ export function CapannaFullscreenModal({
             Accanto a ogni nome: se è dentro la capanna o fuori, e dove si trova (viaggio, bar, lavoro…).
           </Text>
         </View>
-
-        <ScrollView
-          style={styles.scroll}
-          contentContainerStyle={styles.scrollContent}
-          showsVerticalScrollIndicator={false}
-        >
           <View style={styles.section}>
             <Text style={styles.listaTitolo}>Chi abita qui</Text>
             {rows.length === 0 ? (
@@ -169,13 +150,21 @@ export function CapannaFullscreenModal({
               ))
             )}
           </View>
-        </ScrollView>
-      </SafeAreaView>
+      </BuildingScreenShell>
     </Modal>
   );
 }
 
 const styles = StyleSheet.create({
+  intro: {
+    backgroundColor: "rgba(15,23,42,0.75)",
+    paddingHorizontal: 14,
+    paddingVertical: 18,
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: "rgba(251,191,36,0.2)",
+    marginBottom: 18
+  },
   root: {
     flex: 1,
     backgroundColor: "#070b14"

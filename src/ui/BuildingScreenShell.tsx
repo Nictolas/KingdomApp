@@ -20,6 +20,8 @@ type BuildingScreenShellProps = {
   children: ReactNode;
   backLabel?: string;
   footerActions?: ReactNode;
+  headerActions?: ReactNode;
+  scrollable?: boolean;
   contentStyle?: StyleProp<ViewStyle>;
 };
 
@@ -34,6 +36,8 @@ export function BuildingScreenShell({
   onBack,
   backLabel = "Edifici",
   footerActions,
+  headerActions,
+  scrollable = true,
   contentStyle,
   children
 }: BuildingScreenShellProps) {
@@ -48,10 +52,17 @@ export function BuildingScreenShell({
     typeof window !== "undefined" &&
     (window.matchMedia?.("(display-mode: standalone)").matches ||
       Boolean((window.navigator as Navigator & { standalone?: boolean }).standalone));
-  const paddingTop = Math.max(insets.top, webStandalone && !isWide ? 48 : 0);
+  const safeAreaStyle: ViewStyle = Platform.OS === "web"
+    ? ({
+        paddingTop: webStandalone && !isWide
+          ? "max(env(safe-area-inset-top, 0px), 48px)"
+          : "env(safe-area-inset-top, 0px)",
+        paddingBottom: "env(safe-area-inset-bottom, 0px)"
+      } as unknown as ViewStyle)
+    : { paddingTop: insets.top, paddingBottom: insets.bottom };
 
   return (
-    <View style={[styles.root, { paddingTop, paddingBottom: insets.bottom }]}>
+    <View style={[styles.root, safeAreaStyle]}>
       <View style={styles.header}>
         <Pressable
           onPress={onBack}
@@ -62,17 +73,23 @@ export function BuildingScreenShell({
           <Text style={styles.headerBackLabel}>‹</Text>
         </Pressable>
         <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
-        <View style={styles.headerBack} />
+        {headerActions ? <View style={styles.headerActions}>{headerActions}</View> : <View style={styles.headerBack} />}
       </View>
 
-      <ScrollView
-        style={styles.scroll}
-        contentContainerStyle={[styles.content, isWide && styles.contentWide, contentStyle]}
-        showsVerticalScrollIndicator
-        keyboardShouldPersistTaps="handled"
-      >
-        {children}
-      </ScrollView>
+      {scrollable ? (
+        <ScrollView
+          style={styles.scroll}
+          contentContainerStyle={[styles.content, isWide && styles.contentWide, contentStyle]}
+          showsVerticalScrollIndicator
+          keyboardShouldPersistTaps="handled"
+        >
+          {children}
+        </ScrollView>
+      ) : (
+        <View style={[styles.staticContent, styles.content, isWide && styles.contentWide, contentStyle]}>
+          {children}
+        </View>
+      )}
 
       <View style={styles.footer}>
         <Pressable onPress={onBack} style={styles.footerBack} accessibilityRole="button">
@@ -95,6 +112,8 @@ const styles = StyleSheet.create({
     borderBottomColor: "rgba(148,163,184,0.45)",
     backgroundColor: "#0b1225"
   },
+  headerActions: { flexDirection: "row", alignItems: "center", flexShrink: 1 },
+  staticContent: { flex: 1, minHeight: 0 },
   headerBack: { width: 42, height: 44, alignItems: "center", justifyContent: "center" },
   headerBackLabel: { fontSize: 34, color: "#93c5fd", lineHeight: 39 },
   headerTitle: { flex: 1, textAlign: "center", color: "#f8fafc", fontWeight: "700", fontSize: 18 },
