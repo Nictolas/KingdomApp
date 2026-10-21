@@ -17,6 +17,7 @@ import { getStipendioMensileEdificio } from "./edificiPubblici";
 import { redditoMensileLavoroDefault } from "./economiaPrezzi";
 import { generaAspettoCasuale } from "./personaggioAspetto";
 import { applicaLuttoFamiliareERimuoviMorti } from "./soddisfazione";
+import { applicaCicloVitaAnnuale, type SuccessioneDinastica } from "./cicloVitaAnnuale";
 import { applicaMoltiplicatoreProduzione } from "./reModalita";
 import { estraiCreditiLegacyDaRisorse } from "../data/risorseData";
 
@@ -80,6 +81,9 @@ export type AvanzaMeseOutput = {
   messaggioNascita: string | null;
   /** ID assegnato al neonato (se creato); il hook deve fare setNextId(value + 1). */
   newIdNascita: number | null;
+  /** Decessi naturali e passaggio di corona al termine dell\'anno. */
+  mortiVecchiaia: { id: number; nome: string; eta: number }[];
+  successioneDinastica: SuccessioneDinastica | null;
   /** Avviso da appendere al Diario (es. rischio Guerra Civile). */
   avvisoDiario: string | null;
 };
@@ -842,11 +846,29 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     avvisoDiario = avvisoDiario ? `${avvisoDiario}\n${msgCantieri}` : msgCantieri;
   }
 
-  // Sincronizza di nuovo Baracca con i Senzatetto (dopo aggiornamento fazioni in nuoviAbitanti)
-  const edificiEvSync = syncResidenzeBaraccaSenzatetto(edificiEv, abitantiEv);
+  // Compleanni, crescita, morti naturali e successione: una sola volta ogni anno.
+  const cicloVita = avanzaAnno
+    ? applicaCicloVitaAnnuale(abitantiEv, edificiEv, nuovoAnno)
+    : null;
+  const abitantiFinali = cicloVita?.abitanti ?? abitantiEv;
+  const edificiFinali = cicloVita?.edifici ?? edificiEv;
+  if (cicloVita?.mortiVecchiaia.length) {
+    const righe = cicloVita.mortiVecchiaia.map(a =>
+      `${a.nome} è morto/a di vecchiaia a ${a.eta} anni.`
+    );
+    avvisoDiario = [avvisoDiario, ...righe].filter(Boolean).join("\\n");
+  }
+  if (cicloVita?.successione) {
+    const { predecessore, erede, eredeMinorenne } = cicloVita.successione;
+    const riga = `Successione: alla morte di ${predecessore}, il trono passa a ${erede}.` +
+      (eredeMinorenne ? " L'erede è minorenne: il Consiglio esercita la reggenza." : "");
+    avvisoDiario = [avvisoDiario, riga].filter(Boolean).join("\\n");
+  }
+  // Sincronizza Baracca dopo crescita, decessi e successione.
+  const edificiEvSync = syncResidenzeBaraccaSenzatetto(edificiFinali, abitantiFinali);
 
   return {
-    abitanti: abitantiEv,
+    abitanti: abitantiFinali,
     edifici: edificiEvSync,
     risorse: risorseDopoOrdini,
     moneteGiocatore,
@@ -861,6 +883,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     pendingGravidanza,
     messaggioNascita,
     newIdNascita,
+    mortiVecchiaia: cicloVita?.mortiVecchiaia ?? [],
+    successioneDinastica: cicloVita?.successione ?? null,
     avvisoDiario
   };
 }
