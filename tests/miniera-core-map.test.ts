@@ -77,6 +77,6 @@ test("runtime e mappa includono Miniera", () => {
   assert.match(hook, /applicaRaccoltaMinieraGiornaliera/);
   assert.match(hook, /ultimoGiornoRaccoltaMinieraRef/);
   assert.match(hook, /edificio\?\.nome === "Miniera"/);
-  assert.match(map, /minieraHaPostoLibero/);
-  assert.match(map, /disoccupatoIdoneoPerMiniera/);
+  assert.match(map, /cercaPercorsoLavoroDisoccupato/);
+  assert.match(readFileSync("src/game/commutePathsMappa.ts", "utf8"), /minieraHaPostoLibero/);
 });
