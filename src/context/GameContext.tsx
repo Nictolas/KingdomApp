@@ -547,24 +547,40 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [salvaPartita, startup]);
 
   useEffect(() => {
-    // Congela PRIMA di salvare: il clock non deve recuperare il tempo passato fuori dall'app.
+    // Stati indipendenti: un evento 'active' non deve riprendere il clock
+    // se Safari ha ancora la pagina nascosta.
+    let appSospesa = AppState.currentState === "background" || AppState.currentState === "inactive";
+    let paginaNascosta = typeof document !== "undefined" && document.visibilityState === "hidden";
+    const aggiornaSospensione = () => setOrologioGiocoSospesoDallApp(appSospesa || paginaNascosta);
     const subscription = AppState.addEventListener("change", (next) => {
-      setOrologioGiocoSospesoDallApp(next !== "active");
-      if (next !== "active" && dirtyRef.current) void salvaPartita();
+      appSospesa = next !== "active";
+      aggiornaSospensione();
+      if (appSospesa && dirtyRef.current) void salvaPartita();
     });
     const visibility = () => {
       if (typeof document === "undefined") return;
-      const hidden = document.visibilityState === "hidden";
-      setOrologioGiocoSospesoDallApp(hidden);
-      if (hidden && dirtyRef.current) void salvaPartita();
+      paginaNascosta = document.visibilityState === "hidden";
+      aggiornaSospensione();
+      if (paginaNascosta && dirtyRef.current) void salvaPartita();
     };
-    if (typeof document !== "undefined") {
-      document.addEventListener("visibilitychange", visibility);
-      visibility();
+    const pagehide = () => {
+      paginaNascosta = true;
+      aggiornaSospensione();
+      if (dirtyRef.current) void salvaPartita();
+    };
+    if (typeof document !== "undefined") document.addEventListener("visibilitychange", visibility);
+    if (typeof window !== "undefined") {
+      window.addEventListener("pagehide", pagehide);
+      window.addEventListener("pageshow", visibility);
     }
+    aggiornaSospensione();
     return () => {
       subscription.remove();
       if (typeof document !== "undefined") document.removeEventListener("visibilitychange", visibility);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("pagehide", pagehide);
+        window.removeEventListener("pageshow", visibility);
+      }
       setOrologioGiocoSospesoDallApp(false);
     };
   }, [salvaPartita]);
