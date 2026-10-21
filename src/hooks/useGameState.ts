@@ -5,6 +5,7 @@ import { risorseData, edificiData, regniData } from "../kingdomData";
 import { estraiCreditiLegacyDaRisorse } from "../data/risorseData";
 import { OBIETTIVI_CATALOGO, obiettiviSbloccati } from "../data/obiettiviCatalogo";
 import { runAvanzaMese } from "../game/avanzaMese";
+import { FATTORE_ECONOMIA_GIORNALIERA } from "../game/tempoSimulazioneConfig";
 import { EVENTI_CATALOGO } from "../game/eventi/index";
 import { generaRegnoIniziale } from "../game/generazionePartita";
 import {
@@ -608,14 +609,14 @@ export function useGameState() {
         moneteGiocatoreRef.current,
         abitantiNext,
         edificiNext,
-        giorni
+        giorni * FATTORE_ECONOMIA_GIORNALIERA
       );
       abitantiNext = pagato.abitanti;
 
       const imprese = pagaStipendiImpresaGiornalieri(
         abitantiNext,
         edificiNext,
-        giorni
+        giorni * FATTORE_ECONOMIA_GIORNALIERA
       );
       abitantiNext = imprese.abitanti;
       edificiNext = imprese.edifici;
@@ -624,7 +625,7 @@ export function useGameState() {
         risorseRef.current,
         edificiNext,
         pagato.moneteGiocatore,
-        giorni
+        giorni * FATTORE_ECONOMIA_GIORNALIERA
       );
 
       if (zecca.moneteConiate > 0) {
