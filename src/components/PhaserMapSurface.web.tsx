@@ -81,6 +81,8 @@ const CASTLE = require("../../assets/pixel-art/buildings/castle.png");
 const DORMITORY = require("../../assets/pixel-art/buildings/dormitory.png");
 const GREENHOUSE = require("../../assets/pixel-art/buildings/greenhouse.png");
 const FRONTIER_HUT = require("../../assets/pixel-art/buildings/frontier-hut.png");
+const FOREST_TREE_1 = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/tree_1.png");
+const FOREST_TREE_2 = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/tree_2.png");
 
 type Props = PhaserMapActions & {
   snapshot: PhaserMapSnapshot;
@@ -125,7 +127,10 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
         if (!runtime || !host) return;
         const width = host.clientWidth;
         const height = host.clientHeight;
-        if (width > 0 && height > 0) runtime.game.scale.resize(width, height);
+        if (width >= 2 && height >= 2 &&
+            (runtime.game.scale.width !== width || runtime.game.scale.height !== height)) {
+          runtime.game.scale.resize(width, height);
+        }
         runtime.bridge.refreshViewport();
       },
       centerOnCell: (cellIndex, options) => {
@@ -161,6 +166,7 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
       const sheetUrl = Asset.fromModule(SPRITESHEET).uri;
       const artUrls = {
         golem: Asset.fromModule(GOLEM_SHEET).uri,
+        forestTrees: [Asset.fromModule(FOREST_TREE_1).uri, Asset.fromModule(FOREST_TREE_2).uri],
         getLpcLayerUrl,
         getLpcLayerFrameSize,
         buildings: {

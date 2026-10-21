@@ -66,6 +66,7 @@ function frameKey(x: number, y: number): string {
 
 export type PhaserArtAssetUrls = {
   golem: string;
+  forestTrees?: readonly string[];
   getLpcLayerUrl?: (sourceId: string) => string | undefined;
   getLpcLayerFrameSize?: (sourceId: string) => number;
   buildings: Record<
@@ -165,6 +166,7 @@ export class KingdomMapScene extends Phaser.Scene {
 
   preload(): void {
     this.load.image(SHEET_KEY, this.sheetUrl);
+    this.artUrls.forestTrees?.forEach((url, index) => this.load.image(`northern-forest-tree-${index}`, url));
     this.load.spritesheet(GOLEM_KEY, this.artUrls.golem, { frameWidth: 64, frameHeight: 64 });
     for (const [key, asset] of Object.entries(this.artUrls.buildings)) {
       if (typeof asset === "string") {
@@ -559,7 +561,7 @@ export class KingdomMapScene extends Phaser.Scene {
     if (!this.interactionLayer) return;
     this.interactionLayer.removeAll(true);
     const interaction = snapshot.interaction;
-    if (!interaction || interaction.hoverCell == null) return;
+    if (!interaction || interaction.mode === "select" || interaction.hoverCell == null) return;
 
     const color = interaction.mode === "demolish"
       ? (interaction.valid ? 0xf97316 : 0xef4444)
@@ -1029,7 +1031,10 @@ export class KingdomMapScene extends Phaser.Scene {
     const snapshot = this.bridge.getSnapshot();
     const parent = this.scale.parentSize;
     if (parent.width > 0 && parent.height > 0) {
-      this.scale.resize(parent.width, parent.height);
+      if (parent.width >= 2 && parent.height >= 2 &&
+          (this.scale.width !== parent.width || this.scale.height !== parent.height)) {
+        this.scale.resize(parent.width, parent.height);
+      }
     }
     this.configureTextureFrames(snapshot);
     this.renderedRevision = -1;
@@ -1215,7 +1220,15 @@ export class KingdomMapScene extends Phaser.Scene {
       }
 
       if (building.name === "Bosco") {
-        this.renderBoscoBuilding(base, overlay, width, height, snapshot.cellSize);
+        // Il Bosco rimane un edificio 5×5 nei salvataggi, ma la grafica
+        // diventa una fascia continua lungo tutto il bordo settentrionale.
+        const northernRow = 0;
+        base.setPosition(0, northernRow * snapshot.cellSize);
+        overlay.setPosition(0, northernRow * snapshot.cellSize);
+        base.setDepth(worldDepthForY((northernRow + 0.05) * snapshot.cellSize));
+        // La foresta parte dal limite settentrionale, senza mare sopra.
+        overlay.setDepth(worldDepthForY((northernRow + 1.8) * snapshot.cellSize));
+        this.renderBoscoBuilding(base, overlay, snapshot.cols * snapshot.cellSize, 5 * snapshot.cellSize, snapshot.cellSize);
         continue;
       }
 
@@ -1367,113 +1380,72 @@ export class KingdomMapScene extends Phaser.Scene {
     overlay.add(rail);
   }
 
-  /** Bosco con suolo, alberi e chiome anteriori su overlay per l'occlusione. */
+  /** Foresta settentrionale: una singola texture pixel-art per centinaia di chiome.
+   * Il 5x5 nei salvataggi identifica il luogo di raccolta; la fascia e' solo grafica.
+   */
   private renderBoscoBuilding(
     base: Phaser.GameObjects.Container,
     overlay: Phaser.GameObjects.Container,
     width: number,
-    height: number,
+    _height: number,
     cellSize: number
   ): void {
-    const g = this.add.graphics();
-    // Il terreno della mappa resta visibile: nessun rettangolo opaco 5x5.
-    // Piccole ombre organiche sotto gli alberi, non un tappeto verde artificiale.
-    g.fillStyle(0x14532d, 0.16);
-    for (let r = 0; r < 4; r++) {
-      for (let col = 0; col < 5; col++) {
-        const x = ((col + 0.5 + (r % 2) * 0.3) / 5) * width;
-        const y = ((r + 0.65) / 4) * height;
-        g.fillEllipse(x, y, cellSize * 0.8, cellSize * 0.32);
-      }
-    }
-
-    type TreeSpec = { x: number; y: number; scale: number; crown: number; trunk: number };
-    const crowns = [0x166534, 0x15803d, 0x14532d, 0x22c55e, 0x4d7c0f, 0x3f6212] as const;
-    const trunks = [0x5c3a1e, 0x6b4423, 0x4a2f14] as const;
-    const treeCount = Math.max(15, Math.round((width * height) / (cellSize * cellSize) * 0.8));
-    const trees: TreeSpec[] = [];
-
-    // Riempie il Bosco anche in profondità: non soltanto una fila in basso.
-    // Distribuzione deterministica, stabile nei salvataggi e tra i render.
-    for (let i = 0; i < treeCount; i++) {
-      const col = i % 5;
-      const row = Math.floor(i / 5);
-      const rows = Math.ceil(treeCount / 5);
-      trees.push({
-        x: (col + 0.5 + ((row * 7 + col * 3) % 5 - 2) * 0.07) / 5,
-        y: (row + 0.7 + ((i * 11) % 5 - 2) * 0.055) / rows,
-        scale: 0.77 + ((i * 11) % 5) * 0.075,
-        crown: crowns[i % crowns.length]!,
-        trunk: trunks[i % trunks.length]!
+    const treeKeys = ["northern-forest-tree-0", "northern-forest-tree-1"];
+    const textureHeight = Math.ceil(6 * cellSize);
+    const cacheKey = `northern-forest-band-${Math.ceil(width)}-${textureHeight}`;
+    const ready = treeKeys.every(key => this.textures.exists(key));
+    if (ready && !this.textures.exists(cacheKey)) {
+      const texture = this.textures.createCanvas(cacheKey, Math.ceil(width), textureHeight);
+      if (!texture) return;
+      const ctx = texture.getContext();
+      ctx.clearRect(0, 0, Math.ceil(width), textureHeight);
+      ctx.imageSmoothingEnabled = false;
+      // Portiamo gli asset originali a pixel da 30x45 prima di ingrandirli:
+      // il pixel resta netto, senza contorni vettoriali anti-alias.
+      const pixelTrees = treeKeys.map((key) => {
+        const small = document.createElement("canvas");
+        small.width = 30;
+        small.height = 45;
+        const smallCtx = small.getContext("2d");
+        if (smallCtx) {
+          smallCtx.imageSmoothingEnabled = true;
+          smallCtx.drawImage(this.textures.get(key).getSourceImage() as CanvasImageSource, 0, 0, small.width, small.height);
+        }
+        return small;
       });
+      const step = cellSize * 0.64;
+      // Più file sovrapposte; nessun rettangolo opaco, nessun albero isolato.
+      for (let row = 0; row < 6; row++) {
+        const y = (1.05 + row * 0.9) * cellSize;
+        for (let i = -1; i <= Math.ceil(width / step) + 1; i++) {
+          const seed = i * 37 + row * 101 + 1000;
+          const jitterX = ((seed * 17) % 13 - 6) * cellSize * 0.015;
+          const jitterY = ((seed * 7) % 9 - 4) * cellSize * 0.018;
+          const x = i * step + (row % 2) * step * 0.5 + jitterX;
+          const scale = 0.86 + ((seed * 11) % 7) * 0.045;
+          const treeW = cellSize * 1.28 * scale;
+          const treeH = cellSize * 1.93 * scale;
+          const source = pixelTrees[Math.abs(seed) % 2]!;
+          const brightness = 0.78 + ((Math.abs(seed) * 3) % 6) * 0.055;
+          ctx.filter = `brightness(${brightness.toFixed(2)}) saturate(1.14)`;
+          ctx.drawImage(source, x - treeW / 2, y + jitterY - treeH, treeW, treeH);
+        }
+      }
+      ctx.filter = "none";
+      texture.refresh();
     }
-    trees.sort((a, b) => a.y - b.y);
-
-    for (const tree of trees) {
-      const cx = width * tree.x;
-      const baseY = height * tree.y;
-      const trunkW = Math.max(3, cellSize * 0.14 * tree.scale);
-      const trunkH = cellSize * 0.42 * tree.scale;
-      const crownR = cellSize * 0.48 * tree.scale;
-
-      g.fillStyle(tree.trunk, 1).fillRect(cx - trunkW / 2, baseY - trunkH, trunkW, trunkH);
-      g.fillStyle(tree.crown, 1).fillTriangle(
-        cx,
-        baseY - trunkH - crownR * 1.35,
-        cx - crownR * 0.95,
-        baseY - trunkH + crownR * 0.15,
-        cx + crownR * 0.95,
-        baseY - trunkH + crownR * 0.15
-      );
-      g.fillStyle(0x052e16, 0.35).fillTriangle(
-        cx,
-        baseY - trunkH - crownR * 0.85,
-        cx - crownR * 0.7,
-        baseY - trunkH + crownR * 0.05,
-        cx + crownR * 0.55,
-        baseY - trunkH + crownR * 0.05
-      );
-      g.fillStyle(0x86efac, 0.28).fillCircle(
-        cx - crownR * 0.15,
-        baseY - trunkH - crownR * 0.55,
-        crownR * 0.22
-      );
+    if (ready) {
+      overlay.add(this.add.image(0, 0, cacheKey).setOrigin(0, 0));
+      return;
     }
-
-    g.fillStyle(0xa3e635, 0.22);
-    g.fillEllipse(width * 0.18, height * 0.88, cellSize * 0.55, cellSize * 0.28);
-    g.fillEllipse(width * 0.82, height * 0.86, cellSize * 0.48, cellSize * 0.24);
-    g.fillStyle(0x365314, 0.4).fillEllipse(width * 0.5, height * 0.94, width * 0.7, cellSize * 0.32);
+    // Fallback con geometrie se gli asset non sono pronti.
+    const g = this.add.graphics();
+    for (let c = 0; c < Math.ceil(width / cellSize); c++) {
+      const x = (c + 0.5) * cellSize;
+      g.fillStyle(0x14532d, 1);
+      g.fillTriangle(x, 0, x - cellSize * 0.45, cellSize * 4, x + cellSize * 0.45, cellSize * 4);
+    }
     base.add(g);
-
-    const canopy = this.add.graphics();
-    const frontCount = Math.max(3, Math.round(treeCount / 3));
-    for (let i = 0; i < frontCount; i++) {
-      const t = (i + 0.5) / frontCount;
-      const tree = {
-        x: 0.08 + t * 0.84,
-        y: 0.88 + ((i * 3) % 2) * 0.04,
-        scale: 0.8 + ((i * 7) % 3) * 0.06,
-        crown: crowns[(i + 2) % crowns.length]!,
-        trunk: trunks[i % trunks.length]!
-      };
-      const cx = width * tree.x;
-      const baseY = height * tree.y;
-      const trunkW = Math.max(3, cellSize * 0.12 * tree.scale);
-      const trunkH = cellSize * 0.36 * tree.scale;
-      const crownR = cellSize * 0.42 * tree.scale;
-
-      canopy.fillStyle(tree.trunk, 1).fillRect(cx - trunkW / 2, baseY - trunkH, trunkW, trunkH);
-      canopy.fillStyle(tree.crown, 1).fillTriangle(
-        cx,
-        baseY - trunkH - crownR * 1.25,
-        cx - crownR * 0.9,
-        baseY - trunkH + crownR * 0.1,
-        cx + crownR * 0.9,
-        baseY - trunkH + crownR * 0.1
-      );
-    }
-    overlay.add(canopy);
   }
 
   /** Cantiere con avanzamento percentuale. */

@@ -24,7 +24,7 @@ test("il Bosco 5x5 ricompare in alto senza sovrapporsi agli edifici", () => {
   const anchors = keys.filter(k => dopo.edificiInMappa[k]?.nome === "Bosco" && dopo.edificiInMappa[k]?.footprintRef == null);
   assert.equal(anchors.length, 1);
   const anchor = anchors[0]!;
-  assert.ok(Math.floor(anchor / COLS) >= 4 && Math.floor(anchor / COLS) <= 11, "the forest must be in the northern strip, well above the settlement");
+  assert.equal(Math.floor(anchor / COLS), 1, "the collection site must be inside the protected northern forest");
   assert.equal(dopo.edificiInMappa[anchor]?.id, BOSCO_ID);
   assert.deepEqual(dopo.edificiInMappa[anchor]?.footprint, { w: 5, h: 5 });
   const cells = getIndiciFootprint(anchor, 5, 5, COLS);
@@ -115,7 +115,7 @@ test("un Bosco 5x5 creato nella precedente posizione centrale si sposta a nord s
     .find(i => result.edificiInMappa[i]?.nome === "Bosco" &&
       result.edificiInMappa[i]?.footprintRef == null)!;
   assert.ok(newAnchor !== oldAnchor);
-  assert.ok(Math.floor(newAnchor / COLS) >= 4 && Math.floor(newAnchor / COLS) <= 11);
+  assert.equal(Math.floor(newAnchor / COLS), 1);
   assert.equal(result.edificiInMappa[25 * COLS + 25]?.nome, "Castello");
   assert.equal(result.edificiInMappa[19 * COLS + 17]?.nome, "Capanna");
   for (const i of originalCells) assert.equal(result.edificiInMappa[i], undefined);
@@ -139,7 +139,7 @@ test("un bosco centrale precedente rimane al suo posto se non c'e' spazio sicuro
   assert.equal(result.edificiInMappa[oldAnchor]?.nome, "Bosco");
 });
 
-test("un Bosco gia' nella zona nord non viene riportato verso il centro", () => {
+test("un Bosco legacy a riga 2 viene spostato nella nuova fascia protetta", () => {
   const prior = mappa();
   const anchor = 2 * COLS + 22;
   for (const i of getIndiciFootprint(anchor, 5, 5, COLS)) {
@@ -147,7 +147,12 @@ test("un Bosco gia' nella zona nord non viene riportato verso il centro", () => 
       ? { id: BOSCO_ID, nome: "Bosco", emoji: "🌲", footprint: { w: 5, h: 5 } }
       : { id: BOSCO_ID, nome: "Bosco", emoji: "", footprintRef: anchor };
   }
-  assert.equal(ripristinaBoscoNord(prior, COLS, ROWS), prior);
+  const moved = ripristinaBoscoNord(prior, COLS, ROWS);
+  assert.notEqual(moved, prior);
+  const nuovo = Object.entries(moved.edificiInMappa).find(([,e]) => e.nome === "Bosco" && e.footprintRef == null);
+  assert.ok(nuovo);
+  assert.equal(Math.floor(Number(nuovo[0]) / COLS), 1);
+  assert.equal(moved.edificiInMappa[anchor], undefined);
 });
 
 test("migrazione del Bosco centrale e' idempotente e non duplica il footprint", () => {
@@ -163,7 +168,7 @@ test("migrazione del Bosco centrale e' idempotente e non duplica il footprint", 
     i => result.edificiInMappa[i]?.nome === "Bosco" && result.edificiInMappa[i]?.footprintRef == null
   );
   assert.equal(anchors.length, 1);
-  assert.ok(Math.floor(anchors[0]! / COLS) <= 11);
+  assert.equal(Math.floor(anchors[0]! / COLS), 1);
   assert.equal(Object.values(result.edificiInMappa).filter(e => e.nome === "Bosco").length, 25);
   assert.equal(ripristinaBoscoNord(result, COLS, ROWS), result);
 });

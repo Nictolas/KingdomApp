@@ -56,7 +56,9 @@ test("MappaScreen con una sessione esistente parte ready e non genera una nuova 
   const source = readRepoFile("app/mappa.tsx");
   const screen = source.slice(source.indexOf("export function MappaScreen()"));
 
-  assertBefore(screen, "const session = getMappaSessione()", 'return { status: "ready", state: normalizeMappaSessione(session) }');
+  assertBefore(screen, "const session = getMappaSessione()", "const normalized = normalizeMappaSessione(session);");
+  assertBefore(screen, "const normalized = normalizeMappaSessione(session);", "setMappaSessione(normalized);");
+  assertBefore(screen, "setMappaSessione(normalized);", 'return { status: "ready", state: normalized }');
   assertBefore(screen, 'if (boot.status === "ready") return;', "buildInitialMappa(");
 });
 

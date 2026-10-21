@@ -10,6 +10,7 @@ import {
   isAcqua
 } from "./mappaGeometry";
 import type { EdificioInCellaMappa } from "./mappaTypes";
+import { footprintIntersecaForestaNord } from "./mappaForestaConfine";
 
 /** Verifica che footprint e cuscino siano liberi da celle vietate, acqua e fiume. */
 export function puòPiazzareFootprintConCuscino(
@@ -23,7 +24,7 @@ export function puòPiazzareFootprintConCuscino(
 ): boolean {
   const ac = anchor % cols;
   const ar = Math.floor(anchor / cols);
-  if (ac + w > cols || ar + h > rows) return false;
+  if (ac + w > cols || ar + h > rows || footprintIntersecaForestaNord(anchor, w, h, cols, rows)) return false;
   for (let dr = 0; dr < h; dr++) {
     for (let dc = 0; dc < w; dc++) {
       const i = (ar + dr) * cols + (ac + dc);

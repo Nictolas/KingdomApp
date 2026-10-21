@@ -5,6 +5,7 @@ import {
   DISSALATORE_FOOTPRINT_W
 } from "./mappaLayoutConfig";
 import { getIndiciFootprint, isAcqua } from "./mappaGeometry";
+import { footprintIntersecaForestaNord } from "./mappaForestaConfine";
 
 /** Sabbia = terreno sabbia su terraferma (non mare). */
 export function cellaÈSabbiaDissalatore(
@@ -31,7 +32,7 @@ export function footprintDissalatoreMareSabbiaValido(
   const h = DISSALATORE_FOOTPRINT_H;
   const ac = anchor % cols;
   const ar = Math.floor(anchor / cols);
-  if (ac + w > cols || ar + h > rows) return false;
+  if (ac + w > cols || ar + h > rows || footprintIntersecaForestaNord(anchor, w, h, cols, rows)) return false;
   const celle = getIndiciFootprint(anchor, w, h, cols);
   let nMare = 0;
   let nSabbia = 0;

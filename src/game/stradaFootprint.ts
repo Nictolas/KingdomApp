@@ -1,3 +1,4 @@
+import { cellaNellaForestaNord } from "./mappaForestaConfine";
 import {
   hasOrthogonalSandNeighbor,
   hasOrthogonalWaterNeighbor,
@@ -34,7 +35,7 @@ export function isCellaOkPerStrada(
   rows: number,
   terrenoInMappa: Record<number, TerrenoType>
 ): boolean {
-  if (isMareCell(index, cols, rows)) return false;
+  if (cellaNellaForestaNord(index, cols, rows) || isMareCell(index, cols, rows)) return false;
   const t = terrenoInMappa[index] ?? "erba";
   if (t !== "erba") return false;
   if (hasOrthogonalWaterNeighbor(index, terrenoInMappa, cols, rows)) return false;
@@ -82,6 +83,7 @@ export function footprintStrada2x2Valido(
 ): boolean {
   const celle = getIndiciFootprint(anchor, STRADA_FOOTPRINT_W, STRADA_FOOTPRINT_H, cols);
   for (const i of celle) {
+    if (cellaNellaForestaNord(i, cols, rows)) return false;
     const edificio = edificiInMappa[i];
     if (edificio && edificio.nome !== "Strada") return false;
     if (edificio?.nome === "Strada") continue;

@@ -1,10 +1,11 @@
 import { getIndiciFootprint, isAcqua } from "./mappaGeometry";
 import type { MappaRuntimeState } from "./mappaTypes";
+import { righeForestaNord } from "./mappaForestaConfine";
 
 /**
  * Bosco di raccolta nella fascia settentrionale della mappa, sopra l'abitato.
- * Per 50 righe la fascia preferita e' 4-11 (centro ideale 8), non la riga 20
- * usata dalla precedente correzione che lo lasciava accanto al Castello.
+ * Il punto di raccolta 5x5 occupa le righe 1-5 della foresta,
+ * che inizia dalla riga 0 e prosegue da sinistra a destra.
  */
 export const BOSCO_ID = 51;
 export const BOSCO_NORD_LATO = 5;
@@ -22,22 +23,12 @@ export function trovaAnchorBoscoNord(
   const lato = BOSCO_NORD_LATO;
   if (cols < lato + 4 || rows < lato + 5) return null;
 
-  // Fascia nord REALE della mappa: per 50 righe cerca intorno alla riga 8.
-  // Non scendere nell'abitato pur di trovare una zona libera.
-  const targetRow = Math.floor(rows * 0.16);
+  // La raccolta 5x5 sta nel bosco, l'ingresso e' alla prima riga edificabile.
+  if (righeForestaNord(cols, rows) < lato + 1) return null;
   const centro = Math.floor((cols - lato) / 2);
-  const minRow = Math.max(2, Math.floor(rows * 0.08));
-  const maxRow = Math.min(rows - lato - 2, Math.ceil(rows * 0.22));
   const candidati: { indice: number; distanza: number }[] = [];
-
-  for (let r = minRow; r <= maxRow; r++) {
-    for (let c = 2; c <= cols - lato - 2; c++) {
-      const index = r * cols + c;
-      candidati.push({
-        indice: index,
-        distanza: Math.abs(r - targetRow) * 5 + Math.abs(c - centro)
-      });
-    }
+  for (let c = 1; c <= cols - lato - 1; c++) {
+    candidati.push({ indice: cols + c, distanza: Math.abs(c - centro) });
   }
   candidati.sort((a, b) => a.distanza - b.distanza || a.indice - b.indice);
 
@@ -61,10 +52,8 @@ export function trovaAnchorBoscoNord(
   return null;
 }
 
-/** La correzione precedente ha creato un Bosco 5x5 nella zona centrale
- * (righe 13-24 per 50x50). Migra SOLO quel footprint completo, riconoscibile
- * da id/nome/riferimenti, verso la fascia nord. I boschi gia' a nord non
- * vengono spostati; quelli di altro tipo o posizione non vengono toccati.
+/** Migra solo il Bosco di raccolta completo che non si trova alla riga 1.
+ * Se la fascia e' occupata, il salvataggio resta invariato.
  */
 function boscoCentraleDaRiposizionare(
   state: MappaRuntimeState,
@@ -78,8 +67,7 @@ function boscoCentraleDaRiposizionare(
       edificio.footprintRef != null ||
       edificio.footprint?.w !== BOSCO_NORD_LATO ||
       edificio.footprint?.h !== BOSCO_NORD_LATO ||
-      Math.floor(anchor / cols) < Math.floor(rows * 0.26) ||
-      Math.floor(anchor / cols) > Math.ceil(rows * 0.50)
+      Math.floor(anchor / cols) === 1
     ) continue;
     const celle = getIndiciFootprint(anchor, BOSCO_NORD_LATO, BOSCO_NORD_LATO, cols);
     if (celle.every(idx => {
