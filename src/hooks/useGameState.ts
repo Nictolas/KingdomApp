@@ -894,6 +894,17 @@ export function useGameState() {
     setNativiNonIntegrati((prev) => prev + result.deltaNativiNonIntegrati);
     if (result.pendingAssimilazione != null) setPendingAssimilazione(result.pendingAssimilazione);
     if (result.pendingMatrimonio != null) setPendingMatrimonio(result.pendingMatrimonio);
+    if (result.mortiVecchiaia.length > 0 || result.successioneDinastica) {
+      const idsVivi = new Set(result.abitanti.map(a => a.id));
+      // Il validatore dei salvataggi non ammette referenti religiosi o
+      // richieste che puntino a persone defunte.
+      setCapoReligiosoSole(prev => prev != null && !idsVivi.has(prev) ? null : prev);
+      setCapoReligiosoOmbre(prev => prev != null && !idsVivi.has(prev) ? null : prev);
+      setPendingRichiestaLuogoCulto(prev => prev && !idsVivi.has(prev.id) ? null : prev);
+      setPendingMatrimonio(prev =>
+        prev && (!idsVivi.has(prev.idA) || !idsVivi.has(prev.idB)) ? null : prev
+      );
+    }
     if (result.newIdNascita != null) setNextId(result.newIdNascita + 1);
     setEventiInCorso(result.eventiInCorso);
 
