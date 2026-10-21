@@ -18,7 +18,7 @@ export const ResidentPortrait = memo(function ResidentPortrait({
 }) {
   const appearance = useMemo(
     () => aspettoPerVisualizzazioneAbitante(abitante, { nudismoAttivo })?.characterAppearance,
-    [abitante.id, abitante.razza, abitante.aspetto, abitante.lavoro, abitante.incinta, abitante.sesso, nudismoAttivo]
+    [abitante.id, abitante.eta, abitante.razza, abitante.aspetto, abitante.lavoro, abitante.incinta, abitante.sesso, nudismoAttivo]
   );
 
   const canShowPortrait = appearance != null && canRenderCharacter(appearance, "idle");

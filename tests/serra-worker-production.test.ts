@@ -31,16 +31,16 @@ const serra = {
   colturaItemId: "mela"
 } as Edificio;
 
-test("Serra produce 2 unità al giorno per Agricoltore", () => {
-  assert.equal(PRODUZIONE_SERRA_GIORNALIERA, 2);
+test("Serra mantiene la produzione mensile nel calendario di cinque giorni", () => {
+  assert.equal(PRODUZIONE_SERRA_GIORNALIERA, 12);
   const result = applicaProduzioneSerraGiornaliera([agricoltore], [serra], 2, 1);
   const ada = result.abitanti[0]!;
   assert.equal(
     ada.inventario?.find((v) => v.itemId === "mela")?.quantità,
-    3
+    13
   );
   assert.equal(ada.ultimoRaccoltoSerra?.giorno, 2);
-  assert.equal(ada.ultimoRaccoltoSerra?.voci[0]?.quantità, 2);
+  assert.equal(ada.ultimoRaccoltoSerra?.voci[0]?.quantità, 12);
 });
 
 test("produzione mensile Serra dipende dal numero di Agricoltori", () => {

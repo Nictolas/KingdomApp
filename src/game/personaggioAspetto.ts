@@ -300,6 +300,7 @@ export function generaAspettoDaSeed(
 export function aspettoPerVisualizzazioneAbitante(
   abitante: {
     id: number;
+    eta?: number;
     razza?: string | null;
     aspetto?: AspettoPersonaggio;
     lavoro?: string;
@@ -324,16 +325,30 @@ export function aspettoPerVisualizzazioneAbitante(
   }
   if (!aspetto.characterAppearance) return aspetto;
 
-  return {
-    ...aspetto,
-    characterAppearance: appearanceForPublicSpace(aspetto.characterAppearance, {
-      isKing: abitante.id === 1,
-      nudismoAttivo: rules.nudismoAttivo === true,
-      incinta: abitante.incinta === true,
-      lavoro: abitante.lavoro,
-      seed: abitante.id,
-      razza: abitante.razza,
-      sesso: abitante.sesso
-    })
-  };
+  const pubblico = appearanceForPublicSpace(aspetto.characterAppearance, {
+    isKing: abitante.id === 1,
+    nudismoAttivo: rules.nudismoAttivo === true,
+    incinta: abitante.incinta === true,
+    lavoro: abitante.lavoro,
+    seed: abitante.id,
+    razza: abitante.razza,
+    sesso: abitante.sesso
+  });
+
+  // Il corpo cambia con gli anni, senza rigenerare pelle/colore/vestiti e
+  // senza mutare l'aspetto memorizzato nei vecchi salvataggi.
+  const eta = abitante.eta;
+  if (eta == null) return { ...aspetto, characterAppearance: pubblico };
+  const bodyType = razza === "Nano" ? "child"
+    : eta < 13 ? "child"
+    : eta < 18 ? "teen"
+    : abitante.sesso === "F" ? "female" : "male";
+  const ageGroup = bodyType === "child" ? "child" : bodyType === "teen" ? "teen" : "adult";
+  if (pubblico.bodyType === bodyType && pubblico.ageGroup === ageGroup) {
+    return { ...aspetto, characterAppearance: pubblico };
+  }
+  const aggiornato = normalizeCharacterAppearance({
+    ...pubblico, bodyType, ageGroup, bodyFamily: bodyFamilyFor(pubblico.race, ageGroup)
+  });
+  return { ...aspetto, characterAppearance: canRenderCharacter(aggiornato, "idle") ? aggiornato : pubblico };
 }

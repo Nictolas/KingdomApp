@@ -1,3 +1,4 @@
+import { FATTORE_ECONOMIA_GIORNALIERA, GIORNI_PER_MESE_GIOCO } from "./tempoSimulazioneConfig";
 /** Colture vegetali selezionabili in ogni Serra. */
 export type ColturaSerraDef = {
   id: string;
@@ -45,10 +46,10 @@ export const COLTURA_SERRA_DEFAULT = "mela";
 export const COLTURE_SERRA_IDS = COLTURE_SERRA.map((c) => c.id);
 
 /** Produzione base storica: 2 unità al giorno per ogni Agricoltore assegnato a una Serra operativa. */
-export const PRODUZIONE_SERRA_GIORNALIERA = 2;
+export const PRODUZIONE_SERRA_GIORNALIERA = 2 * FATTORE_ECONOMIA_GIORNALIERA;
 
 /** Giorni simulati per ogni mese (produzione Serra). */
-export const GIORNI_PRODUZIONE_SERRA_PER_MESE = 30;
+export const GIORNI_PRODUZIONE_SERRA_PER_MESE = GIORNI_PER_MESE_GIOCO;
 
 export function isColturaSerraValida(itemId: string): boolean {
   return COLTURE_SERRA_IDS.includes(itemId);

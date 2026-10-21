@@ -49,7 +49,7 @@ test("normalizzazione inventario conserva materiali raccolti", () => {
 });
 
 test("Raccoglitore riceve il bottino giornaliero e registra ultimo raccolto", () => {
-  const atteso = raccoltoBoscoDelGiorno(raccoglitore.id, 2);
+  const atteso = raccoltoBoscoDelGiorno(raccoglitore.id, 2).map(v => ({ ...v, quantità: v.quantità * 6 }));
   const result = applicaRaccoltaBoscoGiornaliera([raccoglitore], [bosco], 2, 1);
   const lino = result.abitanti[0]!;
 

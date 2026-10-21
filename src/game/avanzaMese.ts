@@ -17,6 +17,7 @@ import { getStipendioMensileEdificio } from "./edificiPubblici";
 import { redditoMensileLavoroDefault } from "./economiaPrezzi";
 import { generaAspettoCasuale } from "./personaggioAspetto";
 import { applicaLuttoFamiliareERimuoviMorti } from "./soddisfazione";
+import { applicaCicloVitaAnnuale, type SuccessioneDinastica } from "./cicloVitaAnnuale";
 import { applicaMoltiplicatoreProduzione } from "./reModalita";
 import { estraiCreditiLegacyDaRisorse } from "../data/risorseData";
 
@@ -80,6 +81,9 @@ export type AvanzaMeseOutput = {
   messaggioNascita: string | null;
   /** ID assegnato al neonato (se creato); il hook deve fare setNextId(value + 1). */
   newIdNascita: number | null;
+  /** Decessi naturali e passaggio di corona al termine dell\'anno. */
+  mortiVecchiaia: { id: number; nome: string; eta: number }[];
+  successioneDinastica: SuccessioneDinastica | null;
   /** Avviso da appendere al Diario (es. rischio Guerra Civile). */
   avvisoDiario: string | null;
 };
@@ -376,7 +380,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   // Invecchiamento: +1 anno quando si cambia anno. Calcola chi diventa pensionato per rimuoverli dagli edifici.
   const idsPensionati = new Set<number>();
   abitantiRimasti.forEach((a) => {
-    const etaNext = avanzaAnno ? a.eta + 1 : a.eta;
+    const etaNext = avanzaAnno && a.razza !== "Golem" ? a.eta + 1 : a.eta;
     if (
       etaNext >= etaPensionabile &&
       a.lavoro !== LAVORO_GIOCATORE &&
@@ -446,7 +450,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   // Aggiorna abitanti (invecchiamento, pensionamento, monete inventario, stanchezza/bisogni, peso, salute)
   const nuoviAbitanti = abitantiConLavoro.map((abitante) => {
     let eta = abitante.eta;
-    if (avanzaAnno) eta += 1;
+    if (avanzaAnno && abitante.razza !== "Golem") eta += 1;
 
     let lavoro = abitante.lavoro;
     if (
@@ -842,11 +846,35 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     avvisoDiario = avvisoDiario ? `${avvisoDiario}\n${msgCantieri}` : msgCantieri;
   }
 
-  // Sincronizza di nuovo Baracca con i Senzatetto (dopo aggiornamento fazioni in nuoviAbitanti)
-  const edificiEvSync = syncResidenzeBaraccaSenzatetto(edificiEv, abitantiEv);
+  // Compleanni, crescita, morti naturali e successione: una sola volta ogni anno.
+  const cicloVita = avanzaAnno
+    ? applicaCicloVitaAnnuale(abitantiEv, edificiEv, nuovoAnno)
+    : null;
+  const abitantiFinali = cicloVita?.abitanti ?? abitantiEv;
+  const edificiFinali = cicloVita?.edifici ?? edificiEv;
+  if (cicloVita?.mortiVecchiaia.length) {
+    const righe = cicloVita.mortiVecchiaia.map(a =>
+      `${a.nome} è morto/a di vecchiaia a ${a.eta} anni.`
+    );
+    avvisoDiario = [avvisoDiario, ...righe].filter(Boolean).join("\n");
+  }
+  if (cicloVita?.successione) {
+    const { predecessore, erede, eredeMinorenne } = cicloVita.successione;
+    const riga = `Successione: alla morte di ${predecessore}, il trono passa a ${erede}.` +
+      (eredeMinorenne ? " L'erede è minorenne: il Consiglio esercita la reggenza." : "");
+    avvisoDiario = [avvisoDiario, riga].filter(Boolean).join("\n");
+  }
+  // Niente proposte di matrimonio o gravidanza rivolte a persone decedute.
+  const viventiIds = new Set(abitantiFinali.map(a => a.id));
+  if (pendingMatrimonio && (!viventiIds.has(pendingMatrimonio.idA) || !viventiIds.has(pendingMatrimonio.idB))) {
+    pendingMatrimonio = null;
+  }
+  if (pendingGravidanza && !viventiIds.has(pendingGravidanza.id)) pendingGravidanza = null;
+  // Sincronizza Baracca dopo crescita, decessi e successione.
+  const edificiEvSync = syncResidenzeBaraccaSenzatetto(edificiFinali, abitantiFinali);
 
   return {
-    abitanti: abitantiEv,
+    abitanti: abitantiFinali,
     edifici: edificiEvSync,
     risorse: risorseDopoOrdini,
     moneteGiocatore,
@@ -861,6 +889,8 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
     pendingGravidanza,
     messaggioNascita,
     newIdNascita,
+    mortiVecchiaia: cicloVita?.mortiVecchiaia ?? [],
+    successioneDinastica: cicloVita?.successione ?? null,
     avvisoDiario
   };
 }

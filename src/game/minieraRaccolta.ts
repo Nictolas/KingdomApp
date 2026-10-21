@@ -1,3 +1,4 @@
+import { FATTORE_ECONOMIA_GIORNALIERA } from "./tempoSimulazioneConfig";
 import type { Abitante, Edificio, Risorsa } from "../types";
 import { isGiocatore } from "./schiavituCommercio";
 import { getCastaAbitante } from "./casta";
@@ -141,8 +142,8 @@ function depositaRisorseMiniera(
   giorni: number
 ): Risorsa[] {
   if (minatori <= 0 || giorni <= 0) return risorse;
-  const metalli = minatori * giorni * METALLI_DEPOSITO_PER_MINATORE_GIORNO;
-  const materiale = minatori * giorni * MATERIALE_EDILE_DEPOSITO_PER_MINATORE_GIORNO;
+  const metalli = minatori * giorni * METALLI_DEPOSITO_PER_MINATORE_GIORNO * FATTORE_ECONOMIA_GIORNALIERA;
+  const materiale = minatori * giorni * MATERIALE_EDILE_DEPOSITO_PER_MINATORE_GIORNO * FATTORE_ECONOMIA_GIORNALIERA;
   return risorse.map((r) => {
     if (r.nome === "Metalli") return { ...r, quantità: r.quantità + metalli };
     if (r.nome === "Materiale Edile") return { ...r, quantità: r.quantità + materiale };
@@ -242,7 +243,8 @@ export function applicaRaccoltaMinieraGiornaliera(
     for (let g = 0; g < giorni; g++) {
       const giorno = giornoCorrente - giorni + g + 1;
       if (next.ultimoRaccoltoMiniera?.giorno === giorno) continue;
-      const voci = raccoltoMinieraDelGiorno(a.id, giorno);
+      const voci = raccoltoMinieraDelGiorno(a.id, giorno)
+        .map(v => ({ ...v, quantità: v.quantità * FATTORE_ECONOMIA_GIORNALIERA }));
       for (const v of voci) {
         next = aggiungiOggettoInventarioAbitante(next, v.itemId, v.quantità);
       }

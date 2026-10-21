@@ -5,6 +5,7 @@ import { risorseData, edificiData, regniData } from "../kingdomData";
 import { estraiCreditiLegacyDaRisorse } from "../data/risorseData";
 import { OBIETTIVI_CATALOGO, obiettiviSbloccati } from "../data/obiettiviCatalogo";
 import { runAvanzaMese } from "../game/avanzaMese";
+import { FATTORE_ECONOMIA_GIORNALIERA } from "../game/tempoSimulazioneConfig";
 import { EVENTI_CATALOGO } from "../game/eventi/index";
 import { generaRegnoIniziale } from "../game/generazionePartita";
 import {
@@ -186,7 +187,7 @@ function creaEdificiIniziali(abitantiIniziali: Abitante[], mode: GameMode = "cre
       else if (e.id === 21) next = { ...e, abitantiAssegnati: [], occupazione: 0 };
       else if (e.id === 9) next = { ...e, abitantiAssegnati: prigionieriIds, occupazione: prigionieriIds.length };
       else if (e.id === 20) next = { ...e, abitantiAssegnati: capannaIds, occupazione: capannaIds.length };
-      // Attività iniziali con posti lavoro: stipendio base 1 moneta/giorno (30/mese).
+      // Attività iniziali: stipendio mensile invariato, distribuito su 5 giorni di calendario.
       if (
         next.stipendioPerLavoratore == null &&
         isEdificioPubblicoConPostazioniLavoro({ ...next, stato: "Operativo" })
@@ -608,14 +609,14 @@ export function useGameState() {
         moneteGiocatoreRef.current,
         abitantiNext,
         edificiNext,
-        giorni
+        giorni * FATTORE_ECONOMIA_GIORNALIERA
       );
       abitantiNext = pagato.abitanti;
 
       const imprese = pagaStipendiImpresaGiornalieri(
         abitantiNext,
         edificiNext,
-        giorni
+        giorni * FATTORE_ECONOMIA_GIORNALIERA
       );
       abitantiNext = imprese.abitanti;
       edificiNext = imprese.edifici;
@@ -624,7 +625,7 @@ export function useGameState() {
         risorseRef.current,
         edificiNext,
         pagato.moneteGiocatore,
-        giorni
+        giorni * FATTORE_ECONOMIA_GIORNALIERA
       );
 
       if (zecca.moneteConiate > 0) {
@@ -893,6 +894,17 @@ export function useGameState() {
     setNativiNonIntegrati((prev) => prev + result.deltaNativiNonIntegrati);
     if (result.pendingAssimilazione != null) setPendingAssimilazione(result.pendingAssimilazione);
     if (result.pendingMatrimonio != null) setPendingMatrimonio(result.pendingMatrimonio);
+    if (result.mortiVecchiaia.length > 0 || result.successioneDinastica) {
+      const idsVivi = new Set(result.abitanti.map(a => a.id));
+      // Il validatore dei salvataggi non ammette referenti religiosi o
+      // richieste che puntino a persone defunte.
+      setCapoReligiosoSole(prev => prev != null && !idsVivi.has(prev) ? null : prev);
+      setCapoReligiosoOmbre(prev => prev != null && !idsVivi.has(prev) ? null : prev);
+      setPendingRichiestaLuogoCulto(prev => prev && !idsVivi.has(prev.id) ? null : prev);
+      setPendingMatrimonio(prev =>
+        prev && (!idsVivi.has(prev.idA) || !idsVivi.has(prev.idB)) ? null : prev
+      );
+    }
     if (result.newIdNascita != null) setNextId(result.newIdNascita + 1);
     setEventiInCorso(result.eventiInCorso);
 
@@ -1063,7 +1075,7 @@ export function useGameState() {
   }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, giornoGioco, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode, obiettiviCompletati, tassaPatrimonioPercentuale, ivaPercentuale, modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso]);
 
   /**
-   * Nessun pulsante «Skip Mese»: il cambio mese parte automaticamente ogni 30 giorni
+   * Nessun pulsante «Skip Mese»: il cambio mese parte automaticamente ogni 5 giorni
    * dell'orologio continuo. Se un salvataggio legacy aveva mese/anno più avanti del
    * giorno globale, l'offset mantiene quella cronologia senza far tornare indietro il calendario.
    */

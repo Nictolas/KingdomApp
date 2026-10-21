@@ -28,7 +28,7 @@ import { StartGameScreen } from "../ui/StartGameScreen";
 import { GameModeSelectionScreen } from "../ui/GameModeSelectionScreen";
 import { GameOverModal } from "../ui/GameOverModal";
 import { ID_GIOCATORE } from "../game/schiavituCommercio";
-import { setOrologioGiocoBloccatoDallaFase } from "../game/orologioGiocoSession";
+import { setOrologioGiocoBloccatoDallaFase, setOrologioGiocoSospesoDallApp } from "../game/orologioGiocoSession";
 import type { RegistrazioneScambio } from "../game/registrazioniScambi";
 import { warmStartupCharacterAssets } from "../game/warmStartupCharacters";
 
@@ -547,16 +547,48 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [salvaPartita, startup]);
 
   useEffect(() => {
+    // Stati indipendenti: un evento 'active' non deve riprendere il clock
+    // se Safari ha ancora la pagina nascosta.
+    let appSospesa = AppState.currentState === "background" || AppState.currentState === "inactive";
+    let paginaNascosta = typeof document !== "undefined" && document.visibilityState === "hidden";
+    let eraSospesa = false;
+    const aggiornaSospensione = () => {
+      const sospesa = appSospesa || paginaNascosta;
+      setOrologioGiocoSospesoDallApp(sospesa);
+      // Salva anche il minuto corrente: nell'intervallo fra due giorni il token
+      // di dirty tracking puo' non variare. Una sola scrittura per sospensione.
+      if (sospesa && !eraSospesa && latestStateRef.current.simulationEnabled) {
+        void salvaPartita();
+      }
+      eraSospesa = sospesa;
+    };
     const subscription = AppState.addEventListener("change", (next) => {
-      if (next !== "active" && dirtyRef.current) void salvaPartita();
+      appSospesa = next !== "active";
+      aggiornaSospensione();
     });
     const visibility = () => {
-      if (typeof document !== "undefined" && document.visibilityState === "hidden" && dirtyRef.current) void salvaPartita();
+      if (typeof document === "undefined") return;
+      paginaNascosta = document.visibilityState === "hidden";
+      aggiornaSospensione();
+    };
+    const pagehide = () => {
+      paginaNascosta = true;
+      aggiornaSospensione();
     };
     if (typeof document !== "undefined") document.addEventListener("visibilitychange", visibility);
+    if (typeof window !== "undefined") {
+      window.addEventListener("pagehide", pagehide);
+      window.addEventListener("pageshow", visibility);
+    }
+    aggiornaSospensione();
     return () => {
       subscription.remove();
       if (typeof document !== "undefined") document.removeEventListener("visibilitychange", visibility);
+      if (typeof window !== "undefined") {
+        window.removeEventListener("pagehide", pagehide);
+        window.removeEventListener("pageshow", visibility);
+      }
+      setOrologioGiocoSospesoDallApp(false);
     };
   }, [salvaPartita]);
 

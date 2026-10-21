@@ -1,6 +1,6 @@
 /** Calendario del gioco basato sull'orologio continuo. */
-export const GIORNI_PER_MESE_GIOCO = 30;
-export const MESI_PER_ANNO_GIOCO = 12;
+import { GIORNI_PER_MESE_GIOCO, MESI_PER_ANNO_GIOCO } from "./tempoSimulazioneConfig";
+export { GIORNI_PER_MESE_GIOCO, MESI_PER_ANNO_GIOCO } from "./tempoSimulazioneConfig";
 
 export function indiceCalendarioGioco(mese: number, anno: number): number {
   const m = Math.max(1, Math.min(MESI_PER_ANNO_GIOCO, Math.trunc(mese)));
@@ -10,7 +10,7 @@ export function indiceCalendarioGioco(mese: number, anno: number): number {
 
 /**
  * Indice mese derivato dal giorno globale dell'orologio.
- * Giorni 1-30 => mese indice 0, 31-60 => 1, ecc.
+ * Giorni 1-5 => mese indice 0, 6-10 => 1, ecc.
  * offsetMesi mantiene compatibili salvataggi creati quando mese/anno erano avanzati manualmente.
  */
 export function indiceMeseDaGiornoGioco(giorno: number, offsetMesi = 0): number {

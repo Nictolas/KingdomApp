@@ -8,20 +8,20 @@ import {
   offsetMesiPerCalendarioSalvato
 } from "../src/game/calendarioGioco";
 
-test("il calendario cambia mese ogni 30 giorni dell'orologio continuo", () => {
+test("il calendario cambia mese ogni 5 giorni dell'orologio continuo", () => {
   assert.equal(indiceMeseDaGiornoGioco(1), 0);
-  assert.equal(indiceMeseDaGiornoGioco(30), 0);
-  assert.equal(indiceMeseDaGiornoGioco(31), 1);
-  assert.equal(indiceMeseDaGiornoGioco(60), 1);
-  assert.equal(indiceMeseDaGiornoGioco(61), 2);
-  assert.equal(indiceMeseDaGiornoGioco(361), 12);
+  assert.equal(indiceMeseDaGiornoGioco(5), 0);
+  assert.equal(indiceMeseDaGiornoGioco(6), 1);
+  assert.equal(indiceMeseDaGiornoGioco(10), 1);
+  assert.equal(indiceMeseDaGiornoGioco(11), 2);
+  assert.equal(indiceMeseDaGiornoGioco(61), 12);
   assert.equal(indiceCalendarioGioco(1, 1), 12);
 });
 
 test("i salvataggi legacy mantengono mese e anno già raggiunti", () => {
   const offset = offsetMesiPerCalendarioSalvato(15, 5, 0);
   assert.equal(indiceMeseDaGiornoGioco(15, offset), 4);
-  assert.equal(indiceMeseDaGiornoGioco(31, offset), 5);
+  assert.equal(indiceMeseDaGiornoGioco(20, offset), 5);
 });
 
 test("la mappa non espone più Skip Mese e il cambio mese è automatico", () => {

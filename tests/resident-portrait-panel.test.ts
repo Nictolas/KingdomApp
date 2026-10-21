@@ -14,7 +14,7 @@ test("resident panel grows only when an inhabitant is selected", () => {
 
 test("resident identity shows LPC portrait instead of an emoji", () => {
   const residentStart = map.indexOf("{sintesiMappaAbitante ? (");
-  const residentEnd = map.indexOf(") : (\n          <ScrollView", residentStart);
+  const residentEnd = map.indexOf("<ScrollView", residentStart);
   assert.ok(residentStart >= 0 && residentEnd > residentStart);
   const residentBlock = map.slice(residentStart, residentEnd);
   assert.match(residentBlock, /<ResidentPortrait abitante=\{sintesiMappaAbitante\} nudismoAttivo=\{nudismoAttivo\}/);
