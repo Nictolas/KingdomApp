@@ -168,3 +168,28 @@ test("grandchild inherits even when a direct royal child died earlier", () => {
   assert.equal(output.abitanti.find(a => a.id === 1)?.nome, "Nipote");
   assert.equal(output.successione?.erede, "Nipote");
 });
+
+test("old-age death leaves no dangling IDs that would invalidate saves", () => {
+  const mother = resident(2, 110, { nome: "Madre", figliIds: [3] });
+  const child = resident(3, 25, { genitoriIds: [2], amici: [{ id: 2, punteggio: 80 }] });
+  const king = resident(1, 30, { lavoro: "Re" });
+  const out = applicaCicloVitaAnnuale([king, mother, child], [building([2, 3])], 15);
+  const allIds = new Set(out.abitanti.map(a => a.id));
+  for (const a of out.abitanti) {
+    for (const id of [...a.genitoriIds ?? [], ...a.figliIds ?? [], ...a.nonniIds ?? []]) {
+      assert.ok(allIds.has(id), "Missing family ID " + id);
+    }
+    for (const friend of a.amici) assert.ok(allIds.has(friend.id));
+    if (a.coniugeId != null) assert.ok(allIds.has(a.coniugeId));
+  }
+  assert.deepEqual(out.abitanti.find(a => a.id === 3)?.genitoriIds, []);
+  assert.deepEqual(out.edifici[0].abitantiAssegnati, [3]);
+});
+
+test("monthly simulation cleans dangling ritual leaders and family requests", () => {
+  const hooks = readFileSync(new URL("../src/hooks/useGameState.ts", import.meta.url), "utf8");
+  const monthly = readFileSync(new URL("../src/game/avanzaMese.ts", import.meta.url), "utf8");
+  assert.match(hooks, /setCapoReligiosoSole\(prev => prev != null && !idsVivi\.has\(prev\)/);
+  assert.match(hooks, /setPendingRichiestaLuogoCulto\(prev => prev && !idsVivi\.has\(prev\.id\)/);
+  assert.match(monthly, /pendingMatrimonio && \(!viventiIds\.has\(pendingMatrimonio\.idA\)/);
+});
