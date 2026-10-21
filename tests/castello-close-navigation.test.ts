@@ -5,11 +5,11 @@ import test from "node:test";
 const source = readFileSync(new URL("../app/castello.tsx", import.meta.url), "utf8");
 
 test("il Castello mostra il pulsante fisso in basso soltanto su mobile", () => {
-  const scrollEnd = source.indexOf("{initialEditDati ? (");
-  const scrollSection = source.slice(source.indexOf("{isDesktop ? (\n        <View style={styles.desktopViewport}"), scrollEnd);
-  assert.match(scrollSection, /<ScrollView contentContainerStyle=\{styles\.mobileScrollContent\}/);
-  assert.match(scrollSection, /!isDesktop \? \(\s*<View style=\{\[styles\.mobileCloseFooter, bottomSafeArea\]\}>/);
-  assert.match(scrollSection, /<Text style=\{styles\.mobileCloseActionText\}>← Torna alla mappa<\/Text>/);
+  // Verifica i componenti direttamente: l'indentazione JSX non e' parte del contratto UI.
+
+  assert.match(source, /<ScrollView contentContainerStyle=\{styles\.mobileScrollContent\}/);
+  assert.match(source, /!isDesktop \? \(\s*<View style=\{\[styles\.mobileCloseFooter, bottomSafeArea\]\}>/);
+  assert.match(source, /<Text style=\{styles\.mobileCloseActionText\}>← Torna alla mappa<\/Text>/);
   assert.match(source, /mobileCloseAction:\s*\{\s*minHeight: 52,/);
 });
 

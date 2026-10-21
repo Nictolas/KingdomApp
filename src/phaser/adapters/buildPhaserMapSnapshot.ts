@@ -16,6 +16,7 @@ import {
   sandWaterEdgeMaskAt
 } from "../../game/terrainSpriteHelpers";
 import type { MappaRuntimeState } from "../../game/mappaTypes";
+import { righeForestaNord } from "../../game/mappaForestaConfine";
 import type { Edificio } from "../../types";
 import type { PhaserMapBuilding, PhaserMapCharacter, PhaserMapSnapshot, PhaserMapTile } from "./mapSceneBridge";
 
@@ -171,12 +172,20 @@ export function buildPhaserMapSnapshot(
     state.edificiInMappa
   );
 
+  const hasNorthernForest = Object.values(state.edificiInMappa).some((e) => e.nome === "Bosco");
+  const forestFloorRows = hasNorthernForest ? righeForestaNord(cols, rows) : 0;
+  const forestFloor = getErbaSheetCoord("centro");
   const tiles: PhaserMapTile[] = [];
   for (let index = 0; index < cols * rows; index++) {
     const terreno = state.terrenoInMappa[index] ?? "erba";
     const edificio = state.edificiInMappa[index];
     const strada = edificio?.nome === "Strada";
 
+    // Aspetto coerente anche in un vecchio salvataggio che conteneva mare al nord.
+    if (Math.floor(index / cols) < forestFloorRows) {
+      tiles.push({ index, frameX: forestFloor.x, frameY: forestFloor.y });
+      continue;
+    }
     if (isTerrenoAcqua(index, state.terrenoInMappa, cols, rows)) {
       const coord = getWaterSheetCoord(0);
       tiles.push({ index, frameX: coord.x, frameY: coord.y, animation: "water" });

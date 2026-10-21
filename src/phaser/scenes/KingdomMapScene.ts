@@ -1,4 +1,5 @@
 import Phaser from "phaser";
+import { layoutNorthernForestTrees } from "../../game/forestaSpriteGrid";
 
 import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
 import { CHILD_BEARD_OFFSET_Y_PX, LPC_DIRECTION_ROWS } from "../../character-system/lpcPack";
@@ -1226,7 +1227,7 @@ export class KingdomMapScene extends Phaser.Scene {
         base.setPosition(0, northernRow * snapshot.cellSize);
         overlay.setPosition(0, northernRow * snapshot.cellSize);
         base.setDepth(worldDepthForY((northernRow + 0.05) * snapshot.cellSize));
-        // La foresta parte dal limite settentrionale, senza mare sopra.
+        // La foresta è dietro agli edifici della costa, non copre le loro facciate.
         overlay.setDepth(worldDepthForY((northernRow + 1.8) * snapshot.cellSize));
         this.renderBoscoBuilding(base, overlay, snapshot.cols * snapshot.cellSize, 5 * snapshot.cellSize, snapshot.cellSize);
         continue;
@@ -1392,16 +1393,17 @@ export class KingdomMapScene extends Phaser.Scene {
   ): void {
     const treeKeys = ["northern-forest-tree-0", "northern-forest-tree-1"];
     const textureHeight = Math.ceil(6 * cellSize);
-    const cacheKey = `northern-forest-band-${Math.ceil(width)}-${textureHeight}`;
+    const cacheKey = "northern-forest-grid-v3-" + Math.ceil(width) + "-" + textureHeight;
     const ready = treeKeys.every(key => this.textures.exists(key));
+    const trees = layoutNorthernForestTrees(width, cellSize);
     if (ready && !this.textures.exists(cacheKey)) {
       const texture = this.textures.createCanvas(cacheKey, Math.ceil(width), textureHeight);
       if (!texture) return;
       const ctx = texture.getContext();
       ctx.clearRect(0, 0, Math.ceil(width), textureHeight);
       ctx.imageSmoothingEnabled = false;
-      // Portiamo gli asset originali a pixel da 30x45 prima di ingrandirli:
-      // il pixel resta netto, senza contorni vettoriali anti-alias.
+      // Sagome pixel-art riconoscibili: una casella per ogni albero,
+      // nessun offset casuale e nessuna chioma sovrapposta a quella vicina.
       const pixelTrees = treeKeys.map((key) => {
         const small = document.createElement("canvas");
         small.width = 30;
@@ -1413,37 +1415,24 @@ export class KingdomMapScene extends Phaser.Scene {
         }
         return small;
       });
-      const step = cellSize * 0.64;
-      // Più file sovrapposte; nessun rettangolo opaco, nessun albero isolato.
-      for (let row = 0; row < 6; row++) {
-        const y = (1.05 + row * 0.9) * cellSize;
-        for (let i = -1; i <= Math.ceil(width / step) + 1; i++) {
-          const seed = i * 37 + row * 101 + 1000;
-          const jitterX = ((seed * 17) % 13 - 6) * cellSize * 0.015;
-          const jitterY = ((seed * 7) % 9 - 4) * cellSize * 0.018;
-          const x = i * step + (row % 2) * step * 0.5 + jitterX;
-          const scale = 0.86 + ((seed * 11) % 7) * 0.045;
-          const treeW = cellSize * 1.28 * scale;
-          const treeH = cellSize * 1.93 * scale;
-          const source = pixelTrees[Math.abs(seed) % 2]!;
-          const brightness = 0.78 + ((Math.abs(seed) * 3) % 6) * 0.055;
-          ctx.filter = `brightness(${brightness.toFixed(2)}) saturate(1.14)`;
-          ctx.drawImage(source, x - treeW / 2, y + jitterY - treeH, treeW, treeH);
-        }
+      for (const tree of trees) {
+        const source = pixelTrees[tree.variante];
+        ctx.drawImage(source, tree.x, tree.y, tree.width, tree.height);
       }
-      ctx.filter = "none";
       texture.refresh();
     }
     if (ready) {
       overlay.add(this.add.image(0, 0, cacheKey).setOrigin(0, 0));
       return;
     }
-    // Fallback con geometrie se gli asset non sono pronti.
+    // Fallback pixel-art ordinato, usando le stesse coordinate senza sovrapposizioni.
     const g = this.add.graphics();
-    for (let c = 0; c < Math.ceil(width / cellSize); c++) {
-      const x = (c + 0.5) * cellSize;
-      g.fillStyle(0x14532d, 1);
-      g.fillTriangle(x, 0, x - cellSize * 0.45, cellSize * 4, x + cellSize * 0.45, cellSize * 4);
+    for (const tree of trees) {
+      const x = tree.x + tree.width / 2;
+      const y = tree.y + tree.height;
+      g.fillStyle(tree.variante === 0 ? 0x166534 : 0x15803d, 1);
+      g.fillTriangle(x, tree.y, tree.x, y - cellSize * 0.12, tree.x + tree.width, y - cellSize * 0.12);
+      g.fillStyle(0x6b4423, 1).fillRect(x - tree.width * 0.08, y - cellSize * 0.24, tree.width * 0.16, cellSize * 0.24);
     }
     base.add(g);
   }

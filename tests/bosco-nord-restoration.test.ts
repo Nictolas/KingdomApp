@@ -152,7 +152,9 @@ test("un Bosco legacy a riga 2 viene spostato nella nuova fascia protetta", () =
   const nuovo = Object.entries(moved.edificiInMappa).find(([,e]) => e.nome === "Bosco" && e.footprintRef == null);
   assert.ok(nuovo);
   assert.equal(Math.floor(Number(nuovo[0]) / COLS), 1);
-  assert.equal(moved.edificiInMappa[anchor], undefined);
+  // La vecchia cella puo' restare occupata dal nuovo footprint sovrapposto:
+  // deve essere collegata al nuovo anchor, non a quello storico.
+  assert.equal(moved.edificiInMappa[anchor]?.footprintRef, Number(nuovo[0]));
 });
 
 test("migrazione del Bosco centrale e' idempotente e non duplica il footprint", () => {
