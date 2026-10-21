@@ -284,8 +284,60 @@ export function CreazioneGiocatoreModal({
 
   const { width, height } = useWindowDimensions();
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
-  const compactMobile = !isDesktop && height < 760;
-  const mobilePreviewSize = height < 680 ? 78 : height < 860 ? 98 : 116;
+  // iOS changes the visual viewport while its keyboard is open. Keep the
+  // creation scene at its original height instead of reflowing the whole modal.
+  const [webModalHeight, setWebModalHeight] = useState<number | null>(null);
+  useEffect(() => {
+    if (!visible || isDesktop || Platform.OS !== "web" || typeof window === "undefined" || typeof document === "undefined") return;
+    const body = document.body;
+    const html = document.documentElement;
+    const scrollY = window.scrollY;
+    let lastWidth = window.innerWidth;
+    const previous = {
+      position: body.style.position,
+      top: body.style.top,
+      left: body.style.left,
+      right: body.style.right,
+      width: body.style.width,
+      overflow: body.style.overflow,
+      htmlOverflow: html.style.overflow
+    };
+
+    setWebModalHeight(window.innerHeight);
+    // The form has its own ScrollView: never let Safari scroll the underlying
+    // page to reveal a focused input.
+    body.style.position = "fixed";
+    body.style.top = `-${scrollY}px`;
+    body.style.left = "0";
+    body.style.right = "0";
+    body.style.width = "100%";
+    body.style.overflow = "hidden";
+    html.style.overflow = "hidden";
+
+    const handleResize = () => {
+      // Rotate the device normally, but ignore keyboard-only height changes.
+      if (Math.abs(window.innerWidth - lastWidth) > 48) {
+        lastWidth = window.innerWidth;
+        setWebModalHeight(window.innerHeight);
+      }
+    };
+    window.addEventListener("resize", handleResize);
+    return () => {
+      window.removeEventListener("resize", handleResize);
+      body.style.position = previous.position;
+      body.style.top = previous.top;
+      body.style.left = previous.left;
+      body.style.right = previous.right;
+      body.style.width = previous.width;
+      body.style.overflow = previous.overflow;
+      html.style.overflow = previous.htmlOverflow;
+      window.scrollTo(0, scrollY);
+    };
+  }, [visible, isDesktop]);
+
+  const layoutHeight = Platform.OS === "web" && !isDesktop ? webModalHeight ?? height : height;
+  const compactMobile = !isDesktop && layoutHeight < 760;
+  const mobilePreviewSize = layoutHeight < 680 ? 78 : layoutHeight < 860 ? 98 : 116;
   const spriteAppearance = aspetto.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, "teen");
   const catalogOptions = compatibleCatalogOptions(spriteAppearance);
   const torsoOutfitsAll = filterTorsoOutfitOptions(catalogOptions.upperOutfits, spriteAppearance.bodyType);
@@ -559,7 +611,7 @@ export function CreazioneGiocatoreModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade">
-      <KeyboardAvoidingView style={styles.keyboardRoot} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView style={[styles.keyboardRoot, Platform.OS === "web" && !isDesktop && webModalHeight != null && { height: webModalHeight, flex: 0 }]} behavior={Platform.OS === "ios" ? "padding" : undefined}>
       <Pressable
         style={[styles.modalBackdrop, !isDesktop && styles.modalBackdropMobile, isDesktop && modalBackdropFullscreen]}
         onPress={onAnnulla}
@@ -587,7 +639,7 @@ export function CreazioneGiocatoreModal({
           </View>
 
           <View style={[styles.editorLayout, isDesktop && styles.editorLayoutDesktop]}>
-            {(!textInputFocused || isDesktop) && (
+            {(!textInputFocused || isDesktop || Platform.OS === "web") && (
             <View style={[styles.previewColumn, isDesktop && styles.previewColumnDesktop]}>
               <View style={[styles.previewWrap, !isDesktop && styles.previewWrapMobile]}>
                 {canRenderCharacter(spriteAppearance, "idle") ? (
@@ -667,11 +719,11 @@ export function CreazioneGiocatoreModal({
               <Text style={styles.sectionTitle}>Identità</Text>
               <View style={styles.field}>
                 <Text style={styles.label}>Nome</Text>
-                <TextInput style={styles.input} value={nome} onChangeText={setNome} onFocus={() => setTextInputFocused(true)} onBlur={() => setTextInputFocused(false)} placeholder="Nome" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="words" />
+                <TextInput style={[styles.input, Platform.OS === "web" && !isDesktop && styles.inputMobileWeb]} value={nome} onChangeText={setNome} onFocus={() => setTextInputFocused(true)} onBlur={() => setTextInputFocused(false)} placeholder="Nome" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="words" />
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Cognome</Text>
-                <TextInput style={styles.input} value={cognome} onChangeText={setCognome} onFocus={() => setTextInputFocused(true)} onBlur={() => setTextInputFocused(false)} placeholder="Cognome" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="words" />
+                <TextInput style={[styles.input, Platform.OS === "web" && !isDesktop && styles.inputMobileWeb]} value={cognome} onChangeText={setCognome} onFocus={() => setTextInputFocused(true)} onBlur={() => setTextInputFocused(false)} placeholder="Cognome" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="words" />
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Genere</Text>
@@ -1004,7 +1056,7 @@ export function CreazioneGiocatoreModal({
 }
 
 const styles = StyleSheet.create({
-  keyboardRoot: { flex: 1 },
+  keyboardRoot: { flex: 1, overflow: "hidden" },
 
   palettePanel: { marginBottom: 16 },
   paletteTitle: { color: "#f3ddb0", fontSize: 13, fontWeight: "800", marginBottom: 8 },
@@ -1169,6 +1221,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 10
   },
+  // At least 16px prevents automatic Safari zoom when a name field receives focus.
+  inputMobileWeb: { fontSize: 16 },
   chipRow: {
     flexDirection: "row",
     gap: 8
