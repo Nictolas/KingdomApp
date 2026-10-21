@@ -380,7 +380,7 @@ export function runAvanzaMese(input: AvanzaMeseInput): AvanzaMeseOutput {
   // Invecchiamento: +1 anno quando si cambia anno. Calcola chi diventa pensionato per rimuoverli dagli edifici.
   const idsPensionati = new Set<number>();
   abitantiRimasti.forEach((a) => {
-    const etaNext = avanzaAnno ? a.eta + 1 : a.eta;
+    const etaNext = avanzaAnno && a.razza !== "Golem" ? a.eta + 1 : a.eta;
     if (
       etaNext >= etaPensionabile &&
       a.lavoro !== LAVORO_GIOCATORE &&
