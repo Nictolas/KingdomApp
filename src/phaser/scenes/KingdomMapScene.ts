@@ -1222,11 +1222,11 @@ export class KingdomMapScene extends Phaser.Scene {
       if (building.name === "Bosco") {
         // Il Bosco rimane un edificio 5×5 nei salvataggi, ma la grafica
         // diventa una fascia continua lungo tutto il bordo settentrionale.
-        const northernRow = 2;
+        const northernRow = 0;
         base.setPosition(0, northernRow * snapshot.cellSize);
         overlay.setPosition(0, northernRow * snapshot.cellSize);
         base.setDepth(worldDepthForY((northernRow + 0.05) * snapshot.cellSize));
-        // La foresta è dietro agli edifici della costa, non copre le loro facciate.
+        // La foresta parte dal limite settentrionale, senza mare sopra.
         overlay.setDepth(worldDepthForY((northernRow + 1.8) * snapshot.cellSize));
         this.renderBoscoBuilding(base, overlay, snapshot.cols * snapshot.cellSize, 5 * snapshot.cellSize, snapshot.cellSize);
         continue;
@@ -1415,7 +1415,7 @@ export class KingdomMapScene extends Phaser.Scene {
       });
       const step = cellSize * 0.64;
       // Più file sovrapposte; nessun rettangolo opaco, nessun albero isolato.
-      for (let row = 0; row < 5; row++) {
+      for (let row = 0; row < 6; row++) {
         const y = (1.05 + row * 0.9) * cellSize;
         for (let i = -1; i <= Math.ceil(width / step) + 1; i++) {
           const seed = i * 37 + row * 101 + 1000;

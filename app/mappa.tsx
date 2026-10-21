@@ -293,6 +293,7 @@ import {
 } from "../src/game/mappaEdificiStatici";
 import { getStradeIniziali } from "../src/game/mappaStradeIniziali";
 import { ripristinaBoscoNord } from "../src/game/mappaBoscoNord";
+import { cellaNellaForestaNord } from "../src/game/mappaForestaConfine";
 import {
   calcolaAnchorCostruzione2x2,
   calcolaAnchorEdificioMultiCella,
@@ -439,7 +440,7 @@ function piazzaCapanneEgiacimentiProcedurali(
   const poolGi: number[] = [];
   const tot = cols * rows;
   for (let i = 0; i < tot; i++) {
-    if (isAcqua(i, cols, rows) || riverSet.has(i) || occupato.has(i)) continue;
+    if (cellaNellaForestaNord(i, cols, rows) || isAcqua(i, cols, rows) || riverSet.has(i) || occupato.has(i)) continue;
     poolGi.push(i);
   }
   poolGi.sort(() => Math.random() - 0.5);
@@ -468,7 +469,7 @@ function getInitialEdificiInMappa(
   const vietatoEdifici = vietatoFootprintECuscinoDaEdificiIniziali(edificiIniziali, cols, rows);
   const erbaLibera: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {
-    if (!isAcqua(i, cols, rows) && !riverSet.has(i) && !vietatoEdifici.has(i)) erbaLibera.push(i);
+    if (!cellaNellaForestaNord(i, cols, rows) && !isAcqua(i, cols, rows) && !riverSet.has(i) && !vietatoEdifici.has(i)) erbaLibera.push(i);
   }
   const shuffled = [...erbaLibera].sort(() => Math.random() - 0.5);
   const nCapanne = 5 + Math.floor(Math.random() * 5);
@@ -515,7 +516,9 @@ async function buildInitialMappa(
 
   const totaleCelle = cols * rows;
   const borderIndices = new Set<number>();
-  for (let i = 0; i < totaleCelle; i++) if (isAcqua(i, cols, rows)) borderIndices.add(i);
+  for (let i = 0; i < totaleCelle; i++) {
+    if (isAcqua(i, cols, rows) || cellaNellaForestaNord(i, cols, rows)) borderIndices.add(i);
+  }
   const adminAnchor = scegliAnchorComplessoAmministrativo(cols, rows);
 
   await report(12, "Posizionamento edifici…");
@@ -556,7 +559,7 @@ async function buildInitialMappa(
   await report(86, "Distribuzione decorazioni…");
   const celleLibere: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {
-    if (isAcqua(i, cols, rows) || riverSet.has(i) || edificiInMappa[i]) continue;
+    if (cellaNellaForestaNord(i, cols, rows) || isAcqua(i, cols, rows) || riverSet.has(i) || edificiInMappa[i]) continue;
     celleLibere.push(i);
   }
   const shuffled = [...celleLibere].sort(() => Math.random() - 0.5);
@@ -853,7 +856,9 @@ export function MappaScreen() {
   >(() => {
     const session = getMappaSessione();
     if (session) {
-      return { status: "ready", state: normalizeMappaSessione(session) };
+      const normalized = normalizeMappaSessione(session);
+      if (normalized !== session) setMappaSessione(normalized);
+      return { status: "ready", state: normalized };
     }
     return { status: "loading", progress: 0, label: "Avvio…" };
   });
@@ -3299,6 +3304,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         return;
       }
       if (costruzioneSelezione) {
+        if (cellaNellaForestaNord(cellIndex, cols, rows)) {
+          Alert.alert("Foresta protetta", "Non è possibile costruire né modificare il terreno nella foresta settentrionale.");
+          return;
+        }
         const edificio = edificiInMappa[cellIndex];
         const terreno = terrenoInMappa[cellIndex] ?? "erba";
         if (costruzioneSelezione.tipo === "ponte") {

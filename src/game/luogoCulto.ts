@@ -3,6 +3,8 @@ import type { Abitante, Edificio } from "../types";
 import type { EdificioInCellaMappa, MappaRuntimeState } from "./mappaTypes";
 import type { TerrenoType } from "./riverGeneration";
 import { isMareAttivo } from "./mareCosta";
+import { footprintIntersecaForestaNord } from "./mappaForestaConfine";
+import { FIXED_MAP_COLS, FIXED_MAP_ROWS } from "./mappaLayoutConfig";
 import { getMappaSessione, setMappaSessione } from "./mappaSessione";
 
 export { MAP_COLS, MAP_ROWS };
@@ -257,7 +259,7 @@ function puòPiazzareFootprintConCuscino(
 ): boolean {
   const ac = anchor % cols;
   const ar = Math.floor(anchor / cols);
-  if (ac + w > cols || ar + h > rows) return false;
+  if (ac + w > cols || ar + h > rows || footprintIntersecaForestaNord(anchor, w, h, cols, rows)) return false;
   for (let dr = 0; dr < h; dr++) {
     for (let dc = 0; dc < w; dc++) {
       const i = (ar + dr) * cols + (ac + dc);
@@ -327,13 +329,13 @@ export function piazzaLuogoCultoSuMappa(
   const session = mappa ?? getMappaSessione();
   if (!session) return false;
 
-  const anchor = trovaAnchorCasuale2x2(session.edificiInMappa, session.terrenoInMappa, MAP_COLS, MAP_ROWS);
+  const anchor = trovaAnchorCasuale2x2(session.edificiInMappa, session.terrenoInMappa, FIXED_MAP_COLS, FIXED_MAP_ROWS);
   if (anchor == null) return false;
 
   const nome = nomeEdificioLuogoCulto(religione);
   const emoji = emojiLuogoCulto(religione);
   const nextEdifici = { ...session.edificiInMappa };
-  applicaFootprint2x2(nextEdifici, anchor, MAP_COLS, {
+  applicaFootprint2x2(nextEdifici, anchor, FIXED_MAP_COLS, {
     id: TEMPLATE_ID_LUOGO_CULTO[religione],
     nome,
     emoji,
