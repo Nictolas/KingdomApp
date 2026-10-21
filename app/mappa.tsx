@@ -292,6 +292,7 @@ import {
   STRADA_OPZIONE
 } from "../src/game/mappaEdificiStatici";
 import { getStradeIniziali } from "../src/game/mappaStradeIniziali";
+import { ripristinaBoscoNord } from "../src/game/mappaBoscoNord";
 import {
   calcolaAnchorCostruzione2x2,
   calcolaAnchorEdificioMultiCella,
@@ -457,7 +458,12 @@ function getInitialEdificiInMappa(
   riverSet: Set<number>,
   adminAnchor: number
 ): Record<number, EdificioInCella> {
-  const edificiIniziali = getEdificiIniziali(cols, rows, riverSet, adminAnchor);
+  const edificiIniziali = ripristinaBoscoNord({
+    edificiInMappa: getEdificiIniziali(cols, rows, riverSet, adminAnchor),
+    terrenoInMappa: {},
+    decorazioniInMappa: {},
+    residenzeMappa: {}
+  }, cols, rows).edificiInMappa;
   const totaleCelle = cols * rows;
   const vietatoEdifici = vietatoFootprintECuscinoDaEdificiIniziali(edificiIniziali, cols, rows);
   const erbaLibera: number[] = [];
@@ -834,8 +840,10 @@ function piazzaStradeInizialiTraEdifici(
 }
 
 function normalizeMappaSessione(state: MappaRuntimeState): MappaRuntimeState {
-  if (state.residenzeMappa) return state;
-  return { ...state, residenzeMappa: {} };
+  // Migrazione conservativa: ripristina il Bosco se e soltanto se manca.
+  // Non modifica un Bosco preesistente e non sovrascrive case o strade.
+  const coerente = state.residenzeMappa ? state : { ...state, residenzeMappa: {} };
+  return ripristinaBoscoNord(coerente, FIXED_MAP_COLS, FIXED_MAP_ROWS);
 }
 
 export function MappaScreen() {
@@ -994,7 +1002,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   }, []);
 
   const [mappaState, setMappaState] = useState<MappaRuntimeState>(() => {
-    const session = getMappaSessione() ?? initialMappaState;
+    const session = normalizeMappaSessione(getMappaSessione() ?? initialMappaState);
     setMappaSessione(session);
     return session;
   });
