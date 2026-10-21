@@ -45,9 +45,8 @@ test("mappa include Bosco nella cerca lavoro e GameState usa la logica speciale"
   const map = readFileSync("app/mappa.tsx", "utf8");
   const hook = readFileSync("src/hooks/useGameState.ts", "utf8");
 
-  assert.match(map, /boscoHaPostoLibero/);
-  assert.match(map, /disoccupatoIdoneoPerBosco/);
-  assert.match(map, /if \(bosco && !posti\.some\(\(e\) => e\.id === bosco\.id\)\) posti\.push\(bosco\)/);
+  assert.match(map, /cercaPercorsoLavoroDisoccupato\(/);
+  assert.match(map, /casta === "Servo della gleba"/);
   assert.match(hook, /edificio\?\.nome === "Bosco"/);
   assert.match(hook, /assumiDisoccupatoNelBosco/);
   assert.match(hook, /etichettaRaccoltoBosco/);

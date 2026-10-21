@@ -188,7 +188,8 @@ export function descriviAzioneCorrenteAbitante(
   if (abitanteCercaLavoroPerSoldi(abitante, monete)) return "Cerca lavoro";
   if (
     abitanteVuolePrendereLavoro(abitante) &&
-    getCastaAbitante(abitante) === "Cittadino"
+    (getCastaAbitante(abitante) === "Cittadino" ||
+      getCastaAbitante(abitante) === "Servo della gleba")
   ) {
     return "Cerca lavoro";
   }

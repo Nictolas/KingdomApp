@@ -21,7 +21,7 @@ test("il generatore di nuove partite produce prima acqua, poi edifici e infine s
     "buildTerrenoFromRivers(riverIndices, sandIndices)",
     "riverSetDaTerreno(terrenoInMappa)",
     "scegliAnchorComplessoAmministrativo(cols, rows, riverSet)",
-    "getInitialEdificiInMappa(cols, rows, riverSet, adminAnchor)",
+    "getInitialEdificiInMappa(cols, rows, riverSet, adminAnchor, terrenoInMappa)",
     "piazzaStradeInizialiTraEdifici(",
     "applicaRegoleConfineTerreno("
   ];

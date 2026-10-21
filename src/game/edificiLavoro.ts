@@ -195,7 +195,7 @@ export function autoAssegnaCittadiniDisoccupati(abitanti: Abitante[], edifici: E
   );
 }
 
-/** True se il cittadino disoccupato può essere assunto in quell'edificio (posti + competenza). */
+/** Cittadini e Servi della gleba disoccupati possono ottenere impieghi idonei. */
 export function edificioAccettaDisoccupatoCittadino(
   abitante: Abitante,
   edificio: Edificio,
@@ -204,8 +204,8 @@ export function edificioAccettaDisoccupatoCittadino(
   if (isGiocatore(abitante)) return false;
   if (!abitanteVuolePrendereLavoro(abitante)) return false;
   if (abitante.razza === "Golem") return false;
-  if (getCastaAbitante(abitante) !== "Cittadino") return false;
-  // Miniera/Bosco: assunzione solo via mappa (non auto-assign cittadini).
+  if (getCastaAbitante(abitante) !== "Cittadino" && getCastaAbitante(abitante) !== "Servo della gleba") return false;
+  // Miniera/Bosco: assunzione speciale tramite mappa.
   if (edificio.nome === "Miniera" || edificio.nome === "Bosco") return false;
   const accettato =
     isEdificioPubblicoConPostazioniLavoro(edificio) ||
@@ -235,7 +235,7 @@ export function elencoEdificiConPostoPerDisoccupato(
 }
 
 /**
- * Assume un cittadino disoccupato in un edificio pubblico (es. arrivo sulla mappa «cerca lavoro»).
+ * Assume un Cittadino o Servo della gleba quando raggiunge l'impiego.
  */
 export function assumiCittadinoDisoccupatoInEdificio(
   abitanti: Abitante[],
@@ -285,7 +285,7 @@ export function getLavoroPerEdificio(edificio: Edificio): string | undefined {
 
 /**
  * Servi della gleba assegnabili a un posto di lavoro dal giocatore.
- * Esclude solo chi è già in un edificio-lavoro (non le residenze Capanna/Baracca/Dormitorio).
+ * Richiede disoccupazione effettiva, indipendentemente dalla residenza.
  */
 export function getServiDellaGlebaAssegnabili(abitanti: Abitante[], edifici: Edificio[]): Abitante[] {
   const giàAssegnatiLavoro = new Set<number>();
@@ -296,7 +296,7 @@ export function getServiDellaGlebaAssegnabili(abitanti: Abitante[], edifici: Edi
 
   return abitanti.filter((a) => {
     if (getCastaAbitante(a) !== "Servo della gleba") return false;
-    if (a.lavoro === "Pensionato" || a.lavoro === "Prigioniero" || a.razza === "Golem") return false;
+    if (a.lavoro !== "Disoccupato" || a.razza === "Golem") return false;
     if (giàAssegnatiLavoro.has(a.id)) return false;
     return true;
   });
