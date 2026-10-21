@@ -23,7 +23,8 @@ export const CASTA_CATALOGO: CastaInfo[] = [
     emoji: "🌾",
     regole: [
       "Sono gli schiavi del giocatore (proprietà della colonia).",
-      "Quando un posto ha posti di lavoro vacanti, il giocatore può assegnare un Servo della gleba a quel lavoro (es. Serra, Bar, Ospedale, Tribunale).",
+      "Se è Disoccupato, cerca autonomamente qualsiasi lavoro per cui è idoneo; il Bosco è il ripiego finale.",
+      "Se è Disoccupato, il giocatore può assegnarlo manualmente a un posto disponibile (es. Serra, Bar, Ospedale, Tribunale).",
       "Riceve il cibo dalla Mensa pubblica."
     ]
   },

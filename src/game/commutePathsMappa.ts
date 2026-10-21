@@ -11,9 +11,7 @@ import { boscoHaPostoLibero, disoccupatoIdoneoPerBosco, NOME_BOSCO } from "./bos
 import { disoccupatoIdoneoPerMiniera, minieraHaPostoLibero, NOME_MINIERA } from "./minieraRaccolta";
 import { castelloHaPostoLiberoPerGuardia, disoccupatoIdoneoPerGuardia } from "./castelloGuardie";
 import {
-  edificioAccettaDisoccupatoCittadino,
-  elencoEdificiConPostoPerDisoccupato,
-  isEdificioImpresa
+  elencoEdificiConPostoPerDisoccupato
 } from "./edificiLavoro";
 import { fasciaPerEdificio, minutiInFascia, primoEdificioLavoroOrarioPerAbitante } from "./orariLavoroMappa";
 import {
@@ -33,23 +31,14 @@ export function sediCercaLavoroDisoccupatoInOrdine(
   edificiList: Edificio[],
   abitantiTutti?: Abitante[]
 ): Edificio[] {
-  if (getCastaAbitante(abitante) === "Nobile") return [];
-
-  const impreseConPosto = edificiList
-    .filter(
-      (e) =>
-        isEdificioImpresa(e) &&
-        e.nome !== NOME_BOSCO &&
-        e.nome !== NOME_MINIERA &&
-        e.stato === "Operativo"
-    )
-    .filter((e) => {
-      if (e.nome === "Emporio") {
-        return disoccupatoIdoneoPerEmporio(abitante) && emporioHaPostoLibero([e]) != null;
-      }
-      return edificioAccettaDisoccupatoCittadino(abitante, e, abitantiTutti);
-    })
-    .sort((a, b) => a.id - b.id);
+  const casta = getCastaAbitante(abitante);
+  if (!abitanteVuolePrendereLavoro(abitante) ||
+      (casta !== "Cittadino" && casta !== "Servo della gleba")) return [];
+  // Entrambe le caste cercano impieghi compatibili; il Bosco è il ripiego finale.
+  const postiOrdinari = elencoEdificiConPostoPerDisoccupato(abitante, edificiList, abitantiTutti)
+    .filter(e => ![NOME_BOSCO, NOME_MINIERA, "Castello"].includes(e.nome))
+    .filter(e => e.nome !== "Emporio" ||
+      (disoccupatoIdoneoPerEmporio(abitante) && emporioHaPostoLibero([e]) != null));
 
   const castello = disoccupatoIdoneoPerGuardia(abitante)
     ? castelloHaPostoLiberoPerGuardia(edificiList, abitantiTutti)
@@ -61,9 +50,22 @@ export function sediCercaLavoroDisoccupatoInOrdine(
     ? boscoHaPostoLibero(edificiList)
     : undefined;
 
-  return [...impreseConPosto, castello, miniera, bosco].filter(
+  return [...postiOrdinari, castello, miniera, bosco].filter(
     (e): e is Edificio => e != null
   );
+}
+
+/** Sceglie il primo lavoro idoneo e raggiungibile, lasciando il Bosco per ultimo. */
+export function cercaPercorsoLavoroDisoccupato(
+  abitante: Abitante, from: number, edificiList: Edificio[],
+  edificiInMappa: Record<number, EdificioInCellaLike>, cols: number, rows: number,
+  isWalkable: (i: number) => boolean, abitantiTutti?: Abitante[]
+): { path: number[]; edificioId: number } | null {
+  for (const e of sediCercaLavoroDisoccupatoInOrdine(abitante, edificiList, abitantiTutti)) {
+    const path = pianificaCommuteVersoEdificioGlobaleDaCella(from, e.id, edificiInMappa, cols, rows, isWalkable);
+    if (path && path.length >= 2) return { path, edificioId: e.id };
+  }
+  return null;
 }
 
 /** Minimo tipo per celle edificio sulla mappa (come in app/mappa). */
@@ -127,6 +129,18 @@ export function trovaCellaPortaEdificio(
   const doorCol = anchorCol + Math.floor(footprint.w / 2);
   const doorRow = anchorRow + footprint.h;
   if (doorCol < 0 || doorCol >= cols || doorRow < 0 || doorRow >= rows) return null;
+  if (edificio?.nome === NOME_BOSCO) {
+    // Ingresso al Bosco: cinque celle frontali possibili, a partire dal centro.
+    const centro = Math.floor(footprint.w / 2);
+    for (const offset of Array.from({ length: footprint.w }, (_, i) => i)
+      .sort((a, b) => Math.abs(a - centro) - Math.abs(b - centro))) {
+      const col = anchorCol + offset;
+      if (col < 0 || col >= cols) continue;
+      const cell = doorRow * cols + col;
+      if (isWalkable(cell)) return cell;
+    }
+    return null;
+  }
   const doorCell = doorRow * cols + doorCol;
   return isWalkable(doorCell) ? doorCell : null;
 }
@@ -386,27 +400,12 @@ export function pianificaCommuteMattina(
   };
 
   const pathVersoCercaLavoro = (): RisultatoCommuteMattina => {
-    if (getCastaAbitante(abitante) !== "Cittadino") return { path: null };
-    if (!abitanteVuolePrendereLavoro(abitante)) return { path: null };
-    const posti = elencoEdificiConPostoPerDisoccupato(abitante, edificiList);
-    if (posti.length === 0) return { path: null };
-    let bestId: number | null = null;
-    let bestLen = Infinity;
-    let bestPath: number[] | null = null;
-    for (const e of posti) {
-      const anchor = trovaAnchorEdificioGlobaleSuMappa(e.id, edificiInMappa);
-      if (anchor == null) continue;
-      const from = fromBase ?? anchor;
-      const path = calcolaPercorsoVersoAnchorEdificio(from, anchor, cols, rows, isWalkable, edificiInMappa);
-      if (path == null || path.length < 2) continue;
-      if (path.length < bestLen) {
-        bestLen = path.length;
-        bestId = e.id;
-        bestPath = path;
-      }
-    }
-    if (bestId == null || bestPath == null) return { path: null };
-    return { path: bestPath, purpose: "cerca_lavoro", lavoroCercaEdificioId: bestId };
+    if (fromBase == null) return { path: null };
+    const scelta = cercaPercorsoLavoroDisoccupato(
+      abitante, fromBase, edificiList, edificiInMappa, cols, rows, isWalkable
+    );
+    return scelta ? { path: scelta.path, purpose: "cerca_lavoro",
+      lavoroCercaEdificioId: scelta.edificioId } : { path: null };
   };
 
   const provaAzioneLibera = (): RisultatoCommuteMattina => {
