@@ -10,6 +10,14 @@ import {
 } from "../src/game/tempoSimulazioneConfig";
 import { indiceMeseDaGiornoGioco, offsetMesiPerCalendarioSalvato } from "../src/game/calendarioGioco";
 import {
+  getOrologioMinutiSnapshot,
+  restoreOrologioGioco,
+  setOrologioGiocoBloccatoDallaFase,
+  setOrologioGiocoSospesoDallApp,
+  syncOrologioGiocoDaWallClock
+} from "../src/game/orologioGiocoSession";
+import { GIORNI_PRODUZIONE_SERRA_PER_MESE, PRODUZIONE_SERRA_GIORNALIERA } from "../src/game/colturaSerra";
+import {
   applicaCicloVitaAnnuale,
   faseVita,
   lavoroDopoCrescita,
@@ -120,4 +128,42 @@ test("hidden webapp freezes game clock and save remains a manual-pause snapshot"
   assert.match(context, /setOrologioGiocoSospesoDallApp\(hidden\)/);
   assert.match(monthly, /applicaCicloVitaAnnuale\(abitantiEv, edificiEv, nuovoAnno\)/);
   assert.match(monthly, /mesiTrascorsi < 9/);
+});
+
+test("an hour spent offline never advances the clock, and does not create manual pause", () => {
+  const originalNow = Date.now;
+  let now = 1_000_000;
+  try {
+    Date.now = () => now;
+    restoreOrologioGioco({ giorno: 1, minutiDaMezzanotte: 360, pausaManuale: false });
+    setOrologioGiocoBloccatoDallaFase(false);
+    now += 1000;
+    syncOrologioGiocoDaWallClock();
+    assert.equal(getOrologioMinutiSnapshot(), 366);
+    setOrologioGiocoSospesoDallApp(true);
+    now += 3_600_000;
+    syncOrologioGiocoDaWallClock();
+    assert.equal(getOrologioMinutiSnapshot(), 366);
+    setOrologioGiocoSospesoDallApp(false);
+    now += 1000;
+    syncOrologioGiocoDaWallClock();
+    assert.equal(getOrologioMinutiSnapshot(), 372);
+  } finally {
+    Date.now = originalNow;
+    setOrologioGiocoSospesoDallApp(false);
+    setOrologioGiocoBloccatoDallaFase(true);
+  }
+});
+
+test("daily farming output still matches prior monthly farming after calendar change", () => {
+  assert.equal(GIORNI_PRODUZIONE_SERRA_PER_MESE, 5);
+  assert.equal(PRODUZIONE_SERRA_GIORNALIERA * GIORNI_PRODUZIONE_SERRA_PER_MESE, 60);
+});
+
+test("grandchild inherits even when a direct royal child died earlier", () => {
+  const king = resident(1, 110, { nome: "Re", lavoro: "Re", figliIds: [6] });
+  const grandchild = resident(10, 22, { nome: "Nipote", genitoriIds: [6] });
+  const output = applicaCicloVitaAnnuale([king, grandchild], [], 15);
+  assert.equal(output.abitanti.find(a => a.id === 1)?.nome, "Nipote");
+  assert.equal(output.successione?.erede, "Nipote");
 });
