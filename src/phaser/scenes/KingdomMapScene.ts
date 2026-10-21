@@ -1376,27 +1376,38 @@ export class KingdomMapScene extends Phaser.Scene {
     cellSize: number
   ): void {
     const g = this.add.graphics();
-    g.fillStyle(0x14532d, 1).fillRect(0, 0, width, height);
-    g.fillStyle(0x166534, 0.85).fillRect(0, height * 0.35, width * 0.55, height * 0.65);
-    g.fillStyle(0x15803d, 0.8).fillRect(width * 0.5, height * 0.28, width * 0.5, height * 0.72);
-    g.fillStyle(0x3f6212, 0.55).fillRect(0, height * 0.72, width, height * 0.28);
+    // Il terreno della mappa resta visibile: nessun rettangolo opaco 5x5.
+    // Piccole ombre organiche sotto gli alberi, non un tappeto verde artificiale.
+    g.fillStyle(0x14532d, 0.16);
+    for (let r = 0; r < 4; r++) {
+      for (let col = 0; col < 5; col++) {
+        const x = ((col + 0.5 + (r % 2) * 0.3) / 5) * width;
+        const y = ((r + 0.65) / 4) * height;
+        g.fillEllipse(x, y, cellSize * 0.8, cellSize * 0.32);
+      }
+    }
 
     type TreeSpec = { x: number; y: number; scale: number; crown: number; trunk: number };
     const crowns = [0x166534, 0x15803d, 0x14532d, 0x22c55e, 0x4d7c0f, 0x3f6212] as const;
     const trunks = [0x5c3a1e, 0x6b4423, 0x4a2f14] as const;
-    const treeCount = Math.max(6, Math.round(width / (cellSize * 0.85)));
+    const treeCount = Math.max(15, Math.round((width * height) / (cellSize * cellSize) * 0.8));
     const trees: TreeSpec[] = [];
 
+    // Riempie il Bosco anche in profondità: non soltanto una fila in basso.
+    // Distribuzione deterministica, stabile nei salvataggi e tra i render.
     for (let i = 0; i < treeCount; i++) {
-      const t = (i + 0.5) / treeCount;
+      const col = i % 5;
+      const row = Math.floor(i / 5);
+      const rows = Math.ceil(treeCount / 5);
       trees.push({
-        x: 0.04 + t * 0.92,
-        y: 0.45 + ((i * 17) % 5) * 0.08,
-        scale: 0.75 + ((i * 11) % 5) * 0.08,
+        x: (col + 0.5 + ((row * 7 + col * 3) % 5 - 2) * 0.07) / 5,
+        y: (row + 0.7 + ((i * 11) % 5 - 2) * 0.055) / rows,
+        scale: 0.77 + ((i * 11) % 5) * 0.075,
         crown: crowns[i % crowns.length]!,
         trunk: trunks[i % trunks.length]!
       });
     }
+    trees.sort((a, b) => a.y - b.y);
 
     for (const tree of trees) {
       const cx = width * tree.x;
