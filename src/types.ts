@@ -77,6 +77,8 @@ export type Abitante = {
   figliIds?: number[]; // ID dei figli
   figliAdottatiIds?: number[]; // sottoinsieme di figliIds adottati
   genitoriIds?: number[]; // ID dei genitori (1 o 2)
+  /** Archivio dinastico facoltativo: compatibile con i salvataggi esistenti. */
+  storiaSovrani?: { nome: string; eta: number; anno: number; causa: "vecchiaia" }[];
   genitoriAdottiviIds?: number[]; // ID dei genitori adottivi
   nonniIds?: number[]; // ID dei nonni
   fazioni: string[]; // Ogni abitante può far parte di più fazioni (es. Cittadini, Nativi, Schiavi, Amministrazione, …)
