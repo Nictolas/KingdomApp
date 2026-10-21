@@ -11,6 +11,9 @@
       "web"
     ],
     "userInterfaceStyle": "automatic",
+    "web": {
+      "favicon": "./assets/icon.png"
+    },
     "assetBundlePatterns": [
       "**/*"
     ],
