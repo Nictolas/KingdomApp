@@ -125,7 +125,8 @@ test("hidden webapp freezes game clock and save remains a manual-pause snapshot"
   assert.match(clock, /setOrologioGiocoSospesoDallApp\(/);
   assert.match(clock, /orologioGiocoSospesoDallApp/);
   assert.match(context, /document\.visibilityState === "hidden"/);
-  assert.match(context, /setOrologioGiocoSospesoDallApp\(hidden\)/);
+  assert.match(context, /setOrologioGiocoSospesoDallApp\(sospesa\)/);
+  assert.match(context, /if \(sospesa && !eraSospesa && latestStateRef\.current\.simulationEnabled\)/);
   assert.match(monthly, /applicaCicloVitaAnnuale\(abitantiEv, edificiEv, nuovoAnno\)/);
   assert.match(monthly, /mesiTrascorsi < 9/);
 });
