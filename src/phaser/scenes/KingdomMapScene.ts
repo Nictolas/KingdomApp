@@ -1226,7 +1226,8 @@ export class KingdomMapScene extends Phaser.Scene {
         base.setPosition(0, northernRow * snapshot.cellSize);
         overlay.setPosition(0, northernRow * snapshot.cellSize);
         base.setDepth(worldDepthForY((northernRow + 0.05) * snapshot.cellSize));
-        overlay.setDepth(worldDepthForY((northernRow + 5.8) * snapshot.cellSize));
+        // La foresta è dietro agli edifici della costa, non copre le loro facciate.
+        overlay.setDepth(worldDepthForY((northernRow + 1.8) * snapshot.cellSize));
         this.renderBoscoBuilding(base, overlay, snapshot.cols * snapshot.cellSize, 5 * snapshot.cellSize, snapshot.cellSize);
         continue;
       }
@@ -1399,6 +1400,19 @@ export class KingdomMapScene extends Phaser.Scene {
       const ctx = texture.getContext();
       ctx.clearRect(0, 0, Math.ceil(width), textureHeight);
       ctx.imageSmoothingEnabled = false;
+      // Portiamo gli asset originali a pixel da 30x45 prima di ingrandirli:
+      // il pixel resta netto, senza contorni vettoriali anti-alias.
+      const pixelTrees = treeKeys.map((key) => {
+        const small = document.createElement("canvas");
+        small.width = 30;
+        small.height = 45;
+        const smallCtx = small.getContext("2d");
+        if (smallCtx) {
+          smallCtx.imageSmoothingEnabled = true;
+          smallCtx.drawImage(this.textures.get(key).getSourceImage() as CanvasImageSource, 0, 0, small.width, small.height);
+        }
+        return small;
+      });
       const step = cellSize * 0.64;
       // Più file sovrapposte; nessun rettangolo opaco, nessun albero isolato.
       for (let row = 0; row < 5; row++) {
@@ -1411,9 +1425,9 @@ export class KingdomMapScene extends Phaser.Scene {
           const scale = 0.86 + ((seed * 11) % 7) * 0.045;
           const treeW = cellSize * 1.28 * scale;
           const treeH = cellSize * 1.93 * scale;
-          const source = this.textures.get(treeKeys[Math.abs(seed) % 2]!).getSourceImage() as CanvasImageSource;
-          const brightness = 0.52 + ((seed * 3) % 6) * 0.065;
-          ctx.filter = `brightness(${brightness.toFixed(2)}) saturate(0.88)`;
+          const source = pixelTrees[Math.abs(seed) % 2]!;
+          const brightness = 0.78 + ((Math.abs(seed) * 3) % 6) * 0.055;
+          ctx.filter = `brightness(${brightness.toFixed(2)}) saturate(1.14)`;
           ctx.drawImage(source, x - treeW / 2, y + jitterY - treeH, treeW, treeH);
         }
       }
