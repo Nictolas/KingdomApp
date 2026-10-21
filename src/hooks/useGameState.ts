@@ -187,7 +187,7 @@ function creaEdificiIniziali(abitantiIniziali: Abitante[], mode: GameMode = "cre
       else if (e.id === 21) next = { ...e, abitantiAssegnati: [], occupazione: 0 };
       else if (e.id === 9) next = { ...e, abitantiAssegnati: prigionieriIds, occupazione: prigionieriIds.length };
       else if (e.id === 20) next = { ...e, abitantiAssegnati: capannaIds, occupazione: capannaIds.length };
-      // Attività iniziali con posti lavoro: stipendio base 1 moneta/giorno (30/mese).
+      // Attività iniziali: stipendio mensile invariato, distribuito su 5 giorni di calendario.
       if (
         next.stipendioPerLavoratore == null &&
         isEdificioPubblicoConPostazioniLavoro({ ...next, stato: "Operativo" })
@@ -1064,7 +1064,7 @@ export function useGameState() {
   }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, giornoGioco, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode, obiettiviCompletati, tassaPatrimonioPercentuale, ivaPercentuale, modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso]);
 
   /**
-   * Nessun pulsante «Skip Mese»: il cambio mese parte automaticamente ogni 30 giorni
+   * Nessun pulsante «Skip Mese»: il cambio mese parte automaticamente ogni 5 giorni
    * dell'orologio continuo. Se un salvataggio legacy aveva mese/anno più avanti del
    * giorno globale, l'offset mantiene quella cronologia senza far tornare indietro il calendario.
    */
