@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useSyncExternalStore } from "react";
-import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
+import { BuildingScreenShell, BUILDING_WIDE_BREAKPOINT } from "../../src/ui/BuildingScreenShell";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useGameContext } from "../../src/context/GameContext";
 import { computeStatoCielo } from "../../src/game/cicloCielo";
@@ -37,10 +38,8 @@ export default function BarScreenById() {
     () => getBarArrivatiMappaSnapshotForEdificio(edificioId)
   );
 
-  const { width } = Dimensions.get("window");
-  const isDesktop = width > 768;
-  const containerHeight = isDesktop ? width * (9 / 16) : undefined;
-  const maxHeight = isDesktop ? containerHeight : undefined;
+  const { width } = useWindowDimensions();
+  const isDesktop = width >= BUILDING_WIDE_BREAKPOINT;
 
   const bar = useMemo(
     () => edifici.find((e) => e.id === edificioId && e.nome === "Bar"),
@@ -76,15 +75,12 @@ export default function BarScreenById() {
   const cap = bar.capacità ?? 20;
 
   return (
-    <SafeAreaView style={[styles.safe, maxHeight ? { maxHeight, overflow: "hidden" } : undefined]}>
-      <View style={styles.header}>
-        <View style={{ width: 50 }} />
-        <Text style={styles.title}>{titoloBar}</Text>
-        <View style={{ width: 50 }} />
-      </View>
-
-      <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.content}>
+    <>
+      <BuildingScreenShell
+        title={titoloBar}
+        onBack={() => router.back()}
+        backLabel="Edifici"
+      >
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Stato Bar</Text>
           <View style={styles.clockRow}>
@@ -109,8 +105,8 @@ export default function BarScreenById() {
           </Text>
         </View>
 
-        <View style={styles.dueColonne}>
-          <View style={[styles.colonna, styles.lavoratoriCard]}>
+        <View style={[styles.dueColonne, isDesktop && styles.dueColonneWide]}>
+          <View style={[styles.colonna, isDesktop && styles.colonnaWide, styles.lavoratoriCard]}>
             <Text style={styles.sectionTitle}>Lavoratori</Text>
             <Text style={styles.lavoratoriCount}>
               {addetti.length}/{cap} posti
@@ -165,7 +161,7 @@ export default function BarScreenById() {
             </View>
           </View>
 
-          <View style={[styles.colonna, styles.clientiCard]}>
+          <View style={[styles.colonna, isDesktop && styles.colonnaWide, styles.clientiCard]}>
             <Text style={styles.sectionTitle}>Clienti</Text>
             <Text style={styles.lavoratoriCount}>{clienti.length} presenti</Text>
             <Text style={styles.infoSubtext}>
@@ -194,6 +190,8 @@ export default function BarScreenById() {
             )}
           </View>
         </View>
+
+      </BuildingScreenShell>
 
         <Modal visible={dropdownVisible} transparent animationType="fade" onRequestClose={() => setDropdownVisible(false)}>
           <Pressable style={[styles.modalOverlay, isDesktop && modalBackdropFullscreen]} onPress={() => setDropdownVisible(false)}>
@@ -230,12 +228,7 @@ export default function BarScreenById() {
             </Pressable>
           </Pressable>
         </Modal>
-      </ScrollView>
-      </View>
-      <View style={styles.footer}>
-        <Text style={styles.back} onPress={() => router.back()}>← Edifici</Text>
-      </View>
-    </SafeAreaView>
+    </>
   );
 }
 
@@ -260,7 +253,7 @@ const styles = StyleSheet.create({
   },
   back: { color: "#93c5fd", fontSize: 12 },
   title: { color: "#ffffff", fontSize: 14, fontWeight: "700" },
-  content: { paddingHorizontal: 12, paddingVertical: 8, paddingBottom: 24 },
+  content: { paddingHorizontal: 0, paddingVertical: 0, paddingBottom: 20 },
   infoCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 6,
@@ -321,19 +314,19 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     padding: 6,
     color: "#e5e7eb",
-    fontSize: 14,
+    fontSize: 16,
     minWidth: 80
   },
   dueColonne: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 10,
-    marginTop: 10
+    flexDirection: "column",
+    alignItems: "stretch",
+    gap: 12,
+    marginTop: 10,
+    width: "100%"
   },
-  colonna: {
-    flex: 1,
-    minWidth: 0
-  },
+  dueColonneWide: { flexDirection: "row", alignItems: "flex-start" },
+  colonna: { width: "100%", minWidth: 0 },
+  colonnaWide: { flex: 1, width: "auto" },
   clientiCard: {
     backgroundColor: "rgba(15,23,42,0.95)",
     borderRadius: 8,

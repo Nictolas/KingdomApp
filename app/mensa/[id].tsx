@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
-import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { BuildingScreenShell } from "../../src/ui/BuildingScreenShell";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useGameContext } from "../../src/context/GameContext";
 import { abitanteHaBisognoMensa } from "../../src/game/mensaPubblica";
@@ -37,11 +38,6 @@ export default function MensaScreenById() {
   const { minuti: orologioMinuti, inPausa: orologioInPausa, togglePausa: toggleOrologioPausa } =
     useOrologioGioco();
 
-  const { width } = Dimensions.get("window");
-  const isDesktop = width > 768;
-  const containerHeight = isDesktop ? width * (9 / 16) : undefined;
-  const maxHeight = isDesktop ? containerHeight : undefined;
-
   const mensa = useMemo(
     () => edifici.find((e) => e.id === edificioId && e.nome === "Mensa Pubblica"),
     [edifici, edificioId]
@@ -78,15 +74,12 @@ export default function MensaScreenById() {
   };
 
   return (
-    <SafeAreaView style={[styles.safe, maxHeight ? { maxHeight, overflow: "hidden" } : undefined]}>
-      <View style={styles.header}>
-        <View style={{ width: 50 }} />
-        <Text style={styles.title}>{titolo}</Text>
-        <View style={{ width: 50 }} />
-      </View>
-
-      <View style={{ flex: 1 }}>
-      <ScrollView contentContainerStyle={styles.content}>
+    <>
+      <BuildingScreenShell
+        title={titolo}
+        onBack={() => router.back()}
+        backLabel="Edifici"
+      >
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Stato Mensa</Text>
           <View style={styles.clockRow}>
@@ -201,14 +194,7 @@ export default function MensaScreenById() {
             onEndEditing={(e) => setStipendioEdificio(edificioId, parseInt(e.nativeEvent.text, 10) || 0)}
           />
         </View>
-      </ScrollView>
-      </View>
-
-      <View style={styles.footer}>
-        <Pressable onPress={() => router.back()} accessibilityLabel="Esci dalla Mensa Pubblica">
-          <Text style={styles.back}>← Indietro</Text>
-        </Pressable>
-      </View>
+      </BuildingScreenShell>
 
       <Modal visible={dropdownVisible} transparent animationType="fade">
         <Pressable style={modalBackdropFullscreen} onPress={() => setDropdownVisible(false)}>
@@ -233,7 +219,7 @@ export default function MensaScreenById() {
           </Pressable>
         </Pressable>
       </Modal>
-    </SafeAreaView>
+    </>
   );
 }
 
@@ -256,7 +242,7 @@ const styles = StyleSheet.create({
     borderTopColor: "rgba(255,255,255,0.12)"
   },
   back: { color: "#93c5fd", fontSize: 15, fontWeight: "600" },
-  content: { padding: 16, paddingBottom: 32 },
+  content: { padding: 0, paddingBottom: 16 },
   infoCard: {
     backgroundColor: "#252545",
     borderRadius: 12,
@@ -296,6 +282,7 @@ const styles = StyleSheet.create({
     padding: 16
   },
   stipendioInput: {
+    fontSize: 16,
     backgroundColor: "#1a1a2e",
     color: "#fff",
     borderRadius: 8,

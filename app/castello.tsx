@@ -1,15 +1,12 @@
 import React, { useMemo, useState, useSyncExternalStore } from "react";
 import {
   Modal,
-  Platform,
   Pressable,
-  SafeAreaView,
   ScrollView,
   StyleSheet,
   Text,
   View,
-  useWindowDimensions,
-  type ViewStyle
+  useWindowDimensions
 } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
@@ -49,6 +46,7 @@ import {
 } from "../src/ui/CreazioneGiocatoreModal";
 import { capitalizzaNomePersona } from "../src/game/nomiUmani";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
+import { BuildingScreenShell } from "../src/ui/BuildingScreenShell";
 import type { Abitante } from "../src/types";
 
 function splitNomeCognome(nome: string): { nome: string; cognome: string } {
@@ -66,13 +64,6 @@ export default function CastelloScreen() {
   const router = useRouter();
   const { width } = useWindowDimensions();
   const isDesktop = width >= 1100;
-  // Le web app iOS con viewport-fit=cover devono rispettare gli inset CSS di Safari.
-  const topSafeArea = Platform.OS === "web" && !isDesktop
-    ? ({ paddingTop: "env(safe-area-inset-top, 0px)" } as unknown as ViewStyle)
-    : undefined;
-  const bottomSafeArea = Platform.OS === "web"
-    ? ({ paddingBottom: "calc(12px + env(safe-area-inset-bottom, 0px))" } as unknown as ViewStyle)
-    : undefined;
   const {
     abitanti,
     aggiornaAbitanteById,
@@ -419,57 +410,24 @@ export default function CastelloScreen() {
   );
 
   return (
-    <SafeAreaView style={[styles.safe, topSafeArea]}>
-      <View style={styles.header}>
-        <Pressable
-          style={styles.backButton}
-          onPress={() => tornaAllaMappa(router)}
-          accessibilityRole="button"
-          accessibilityLabel="Torna alla mappa"
-        >
-          <Text style={styles.backButtonText}>← Mappa</Text>
-        </Pressable>
-        <Text style={styles.title}>Castello</Text>
-        {isDesktop ? (
+    <View style={styles.safe}>
+      <BuildingScreenShell
+        title="Castello"
+        onBack={() => tornaAllaMappa(router)}
+        backLabel="Torna alla mappa"
+        scrollable={!isDesktop}
+        contentStyle={isDesktop ? styles.desktopViewport : styles.mobileScrollContent}
+        headerActions={isDesktop ? (
           <View style={styles.headerStats}>
             <View style={styles.headerChip}><Text style={styles.headerChipLabel}>Popolarità</Text><Text style={styles.headerChipValue}>{popolaritaRe}</Text></View>
             <View style={styles.headerChip}><Text style={styles.headerChipLabel}>Disordine</Text><Text style={styles.headerChipValue}>{disordineLabel}</Text></View>
             <View style={styles.headerChip}><Text style={styles.headerChipLabel}>Nobili</Text><Text style={styles.headerChipValue}>{nobili.length}</Text></View>
             <View style={styles.headerChip}><Text style={styles.headerChipLabel}>Guardie</Text><Text style={styles.headerChipValue}>{guardie.length}/{CAPACITA_GUARDIE_CASTELLO}</Text></View>
           </View>
-        ) : (
-          <Pressable
-            style={styles.closeButton}
-            onPress={() => tornaAllaMappa(router)}
-            accessibilityRole="button"
-            accessibilityLabel="Chiudi Castello e torna alla mappa"
-            hitSlop={8}
-          >
-            <Text style={styles.closeButtonText}>×</Text>
-          </Pressable>
-        )}
-      </View>
-
-      {isDesktop ? (
-        <View style={styles.desktopViewport}>{dashboard}</View>
-      ) : (
-        <ScrollView contentContainerStyle={styles.mobileScrollContent} showsVerticalScrollIndicator={false}>
-          {dashboard}
-        </ScrollView>
-      )}
-
-      {!isDesktop ? (
-        <View style={[styles.mobileCloseFooter, bottomSafeArea]}>
-          <Pressable
-            style={styles.mobileCloseAction}
-            onPress={() => tornaAllaMappa(router)}
-            accessibilityRole="button"
-            accessibilityLabel="Chiudi Castello e torna alla mappa"
-          >
-            <Text style={styles.mobileCloseActionText}>← Torna alla mappa</Text>
-          </Pressable>
-        </View>
-      ) : null}
+        ) : undefined}
+      >
+        {dashboard}
+      </BuildingScreenShell>
 
       {initialEditDati ? (
         <CreazioneGiocatoreModal
@@ -540,7 +498,7 @@ export default function CastelloScreen() {
         calcolaFelicitàModificata={calcolaFelicitàModificata}
         etaMinimaLavoro={etaMinimaLavoro}
       />
-    </SafeAreaView>
+    </View>
   );
 }
 
@@ -600,7 +558,7 @@ const styles = StyleSheet.create({
     textAlign: "center"
   },
   headerStats: {
-    flex: 1,
+    flexShrink: 1,
     flexDirection: "row",
     justifyContent: "flex-end",
     gap: 6
