@@ -292,7 +292,7 @@ export function CreazioneGiocatoreModal({
     const body = document.body;
     const html = document.documentElement;
     const scrollY = window.scrollY;
-    const originalWidth = window.innerWidth;
+    let lastWidth = window.innerWidth;
     const previous = {
       position: body.style.position,
       top: body.style.top,
@@ -316,7 +316,8 @@ export function CreazioneGiocatoreModal({
 
     const handleResize = () => {
       // Rotate the device normally, but ignore keyboard-only height changes.
-      if (Math.abs(window.innerWidth - originalWidth) > 48) {
+      if (Math.abs(window.innerWidth - lastWidth) > 48) {
+        lastWidth = window.innerWidth;
         setWebModalHeight(window.innerHeight);
       }
     };
