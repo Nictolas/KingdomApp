@@ -24,7 +24,7 @@ test("il Bosco 5x5 ricompare in alto senza sovrapporsi agli edifici", () => {
   const anchors = keys.filter(k => dopo.edificiInMappa[k]?.nome === "Bosco" && dopo.edificiInMappa[k]?.footprintRef == null);
   assert.equal(anchors.length, 1);
   const anchor = anchors[0]!;
-  assert.ok(Math.floor(anchor / COLS) >= 17 && Math.floor(anchor / COLS) <= 23, "the forest must be visible above the settlement");
+  assert.ok(Math.floor(anchor / COLS) >= 4 && Math.floor(anchor / COLS) <= 11, "the forest must be in the northern strip, well above the settlement");
   assert.equal(dopo.edificiInMappa[anchor]?.id, BOSCO_ID);
   assert.deepEqual(dopo.edificiInMappa[anchor]?.footprint, { w: 5, h: 5 });
   const cells = getIndiciFootprint(anchor, 5, 5, COLS);
@@ -101,9 +101,9 @@ test("la mappa nuova e la sessione ripristinata usano entrambe il recupero del B
   assert.match(source, /normalizeMappaSessione\(getMappaSessione\(\) \?\? initialMappaState\)/);
 });
 
-test("un Bosco 5x5 creato troppo a nord viene spostato in vista senza perdere edifici", () => {
+test("un Bosco 5x5 creato nella precedente posizione centrale si sposta a nord senza perdere edifici", () => {
   const prior = mappa();
-  const oldAnchor = 2 * COLS + 22;
+  const oldAnchor = 20 * COLS + 22;
   const originalCells = getIndiciFootprint(oldAnchor, 5, 5, COLS);
   for (const i of originalCells) prior.edificiInMappa[i] = i === oldAnchor
     ? { id: BOSCO_ID, nome: "Bosco", emoji: "🌲", footprint: { w: 5, h: 5 } }
@@ -115,7 +115,7 @@ test("un Bosco 5x5 creato troppo a nord viene spostato in vista senza perdere ed
     .find(i => result.edificiInMappa[i]?.nome === "Bosco" &&
       result.edificiInMappa[i]?.footprintRef == null)!;
   assert.ok(newAnchor !== oldAnchor);
-  assert.ok(Math.floor(newAnchor / COLS) >= 17 && Math.floor(newAnchor / COLS) <= 23);
+  assert.ok(Math.floor(newAnchor / COLS) >= 4 && Math.floor(newAnchor / COLS) <= 11);
   assert.equal(result.edificiInMappa[25 * COLS + 25]?.nome, "Castello");
   assert.equal(result.edificiInMappa[19 * COLS + 17]?.nome, "Capanna");
   for (const i of originalCells) assert.equal(result.edificiInMappa[i], undefined);
@@ -123,18 +123,47 @@ test("un Bosco 5x5 creato troppo a nord viene spostato in vista senza perdere ed
   assert.equal(ripristinaBoscoNord(result, COLS, ROWS), result);
 });
 
-test("un bosco precedente rimane al suo posto se non c'e' spazio sicuro in vista", () => {
+test("un bosco centrale precedente rimane al suo posto se non c'e' spazio sicuro a nord", () => {
   const prior = mappa();
-  const oldAnchor = 2 * COLS + 22;
+  const oldAnchor = 20 * COLS + 22;
   for (const i of getIndiciFootprint(oldAnchor, 5, 5, COLS)) {
     prior.edificiInMappa[i] = i === oldAnchor
       ? { id: BOSCO_ID, nome: "Bosco", emoji: "🌲", footprint: { w: 5, h: 5 } }
       : { id: BOSCO_ID, nome: "Bosco", emoji: "", footprintRef: oldAnchor };
   }
-  for (let r = 12; r <= 27; r++)
+  for (let r = 4; r <= 16; r++)
     for (let c = 1; c < COLS - 1; c++)
       prior.edificiInMappa[r * COLS + c] = { id: -1, nome: "Strada", emoji: "" };
   const result = ripristinaBoscoNord(prior, COLS, ROWS);
   assert.equal(result, prior);
   assert.equal(result.edificiInMappa[oldAnchor]?.nome, "Bosco");
+});
+
+test("un Bosco gia' nella zona nord non viene riportato verso il centro", () => {
+  const prior = mappa();
+  const anchor = 2 * COLS + 22;
+  for (const i of getIndiciFootprint(anchor, 5, 5, COLS)) {
+    prior.edificiInMappa[i] = i === anchor
+      ? { id: BOSCO_ID, nome: "Bosco", emoji: "🌲", footprint: { w: 5, h: 5 } }
+      : { id: BOSCO_ID, nome: "Bosco", emoji: "", footprintRef: anchor };
+  }
+  assert.equal(ripristinaBoscoNord(prior, COLS, ROWS), prior);
+});
+
+test("migrazione del Bosco centrale e' idempotente e non duplica il footprint", () => {
+  const prior = mappa();
+  const oldAnchor = 18 * COLS + 20;
+  for (const i of getIndiciFootprint(oldAnchor, 5, 5, COLS)) {
+    prior.edificiInMappa[i] = i === oldAnchor
+      ? { id: BOSCO_ID, nome: "Bosco", emoji: "🌲", footprint: { w: 5, h: 5 } }
+      : { id: BOSCO_ID, nome: "Bosco", emoji: "", footprintRef: oldAnchor };
+  }
+  const result = ripristinaBoscoNord(prior, COLS, ROWS);
+  const anchors = Object.keys(result.edificiInMappa).map(Number).filter(
+    i => result.edificiInMappa[i]?.nome === "Bosco" && result.edificiInMappa[i]?.footprintRef == null
+  );
+  assert.equal(anchors.length, 1);
+  assert.ok(Math.floor(anchors[0]! / COLS) <= 11);
+  assert.equal(Object.values(result.edificiInMappa).filter(e => e.nome === "Bosco").length, 25);
+  assert.equal(ripristinaBoscoNord(result, COLS, ROWS), result);
 });

@@ -2,9 +2,9 @@ import { getIndiciFootprint, isAcqua } from "./mappaGeometry";
 import type { MappaRuntimeState } from "./mappaTypes";
 
 /**
- * Bosco di raccolta visibile nella fascia a nord dell'abitato.
- * Il centro della telecamera iniziale e' intorno alla riga 25: una
- * foresta inserita in riga 2 esisteva, ma restava fuori dallo schermo.
+ * Bosco di raccolta nella fascia settentrionale della mappa, sopra l'abitato.
+ * Per 50 righe la fascia preferita e' 4-11 (centro ideale 8), non la riga 20
+ * usata dalla precedente correzione che lo lasciava accanto al Castello.
  */
 export const BOSCO_ID = 51;
 export const BOSCO_NORD_LATO = 5;
@@ -22,13 +22,12 @@ export function trovaAnchorBoscoNord(
   const lato = BOSCO_NORD_LATO;
   if (cols < lato + 4 || rows < lato + 5) return null;
 
-  // Posizione verso la parte superiore della VISTA INIZIALE, non del mondo.
-  // Per una mappa 50x50 si parte da riga 20: 5 celle di bosco sopra il
-  // Castello (riga ~25), in buona parte dentro la prima inquadratura desktop.
-  const targetRow = Math.floor(rows * 0.40);
+  // Fascia nord REALE della mappa: per 50 righe cerca intorno alla riga 8.
+  // Non scendere nell'abitato pur di trovare una zona libera.
+  const targetRow = Math.floor(rows * 0.16);
   const centro = Math.floor((cols - lato) / 2);
-  const minRow = Math.max(2, Math.floor(rows * 0.27));
-  const maxRow = Math.min(rows - lato - 2, Math.ceil(rows * 0.47));
+  const minRow = Math.max(2, Math.floor(rows * 0.08));
+  const maxRow = Math.min(rows - lato - 2, Math.ceil(rows * 0.22));
   const candidati: { indice: number; distanza: number }[] = [];
 
   for (let r = minRow; r <= maxRow; r++) {
@@ -62,11 +61,12 @@ export function trovaAnchorBoscoNord(
   return null;
 }
 
-/** La prima posizione errata era nelle righe 2-14, troppo lontana
- * dalla telecamera. Sposta SOLO quell'ingombro 5x5 completo creato dal
- * ripristino precedente, senza toccare boschi o costruzioni di altro tipo.
+/** La correzione precedente ha creato un Bosco 5x5 nella zona centrale
+ * (righe 13-24 per 50x50). Migra SOLO quel footprint completo, riconoscibile
+ * da id/nome/riferimenti, verso la fascia nord. I boschi gia' a nord non
+ * vengono spostati; quelli di altro tipo o posizione non vengono toccati.
  */
-function boscoLegacyDaRiposizionare(
+function boscoCentraleDaRiposizionare(
   state: MappaRuntimeState,
   cols: number,
   rows: number
@@ -78,7 +78,8 @@ function boscoLegacyDaRiposizionare(
       edificio.footprintRef != null ||
       edificio.footprint?.w !== BOSCO_NORD_LATO ||
       edificio.footprint?.h !== BOSCO_NORD_LATO ||
-      Math.floor(anchor / cols) >= Math.floor(rows * 0.30)
+      Math.floor(anchor / cols) < Math.floor(rows * 0.26) ||
+      Math.floor(anchor / cols) > Math.ceil(rows * 0.50)
     ) continue;
     const celle = getIndiciFootprint(anchor, BOSCO_NORD_LATO, BOSCO_NORD_LATO, cols);
     if (celle.every(idx => {
@@ -97,7 +98,7 @@ export function ripristinaBoscoNord(
 ): MappaRuntimeState {
   const containsBosco = Object.values(state.edificiInMappa).some(e => e.nome === "Bosco");
   if (containsBosco) {
-    const previousAnchor = boscoLegacyDaRiposizionare(state, cols, rows);
+    const previousAnchor = boscoCentraleDaRiposizionare(state, cols, rows);
     if (previousAnchor == null) return state;
     const oldCells = new Set(getIndiciFootprint(previousAnchor, BOSCO_NORD_LATO, BOSCO_NORD_LATO, cols));
     const filtered = Object.fromEntries(
