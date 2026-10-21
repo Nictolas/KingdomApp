@@ -1,3 +1,4 @@
+import { FATTORE_ECONOMIA_GIORNALIERA } from "./tempoSimulazioneConfig";
 import type { Abitante, Edificio } from "../types";
 import { isGiocatore } from "./schiavituCommercio";
 import { getCastaAbitante } from "./casta";
@@ -292,7 +293,8 @@ export function applicaRaccoltaBoscoGiornaliera(
     for (let g = 0; g < giorni; g++) {
       const giorno = giornoCorrente - giorni + g + 1;
       if (next.ultimoRaccoltoBosco?.giorno === giorno) continue;
-      const voci = raccoltoBoscoDelGiorno(a.id, giorno);
+      const voci = raccoltoBoscoDelGiorno(a.id, giorno)
+        .map(v => ({ ...v, quantità: v.quantità * FATTORE_ECONOMIA_GIORNALIERA }));
       for (const v of voci) {
         next = aggiungiOggettoInventarioAbitante(next, v.itemId, v.quantità);
       }
