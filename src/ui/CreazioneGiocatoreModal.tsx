@@ -255,7 +255,7 @@ export function CreazioneGiocatoreModal({
   const [aspetto, setAspetto] = useState<AspettoPersonaggio>(ASPETTO_RE_DEFAULT);
   const [activeTab, setActiveTab] = useState<CreationTab>("identity");
   const [paletteSelections, setPaletteSelections] = useState<Partial<Record<CreationTab, string>>>({});
-  const [textInputFocused, setTextInputFocused] = useState(false);
+  const [stableWebHeight, setStableWebHeight] = useState<number | null>(null);
   const categoryScrollRef = useRef<ScrollView>(null);
 
   useEffect(() => {
@@ -279,11 +279,28 @@ export function CreazioneGiocatoreModal({
     setAspetto(source?.aspetto ?? ASPETTO_RE_DEFAULT);
     setActiveTab(mode === "outfit" ? "busto" : "identity");
     setPaletteSelections({});
-    setTextInputFocused(false);
   }, [visible, mode, initial]);
 
-  const { width, height } = useWindowDimensions();
+  // iOS Safari modifica l'altezza visibile quando apre la tastiera.
+  // Manteniamo il layout della creazione ancorato all'altezza iniziale.
+  useEffect(() => {
+    if (Platform.OS !== "web" || !visible || typeof window === "undefined") return;
+    setStableWebHeight(window.innerHeight);
+    const { documentElement, body } = document;
+    const previousHtmlOverflow = documentElement.style.overflow;
+    const previousBodyOverflow = body.style.overflow;
+    documentElement.style.overflow = "hidden";
+    body.style.overflow = "hidden";
+    return () => {
+      documentElement.style.overflow = previousHtmlOverflow;
+      body.style.overflow = previousBodyOverflow;
+    };
+  }, [visible]);
+
+  const { width, height: windowHeight } = useWindowDimensions();
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
+  const height = !isDesktop && Platform.OS === "web" && stableWebHeight !== null
+    ? stableWebHeight : windowHeight;
   const compactMobile = !isDesktop && height < 760;
   const mobilePreviewSize = height < 680 ? 78 : height < 860 ? 98 : 116;
   const spriteAppearance = aspetto.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, "teen");
@@ -533,7 +550,6 @@ export function CreazioneGiocatoreModal({
 
   const activeTabIndex = CREATION_TABS.findIndex((tab) => tab.id === activeTab);
   const selectTab = (tabId: CreationTab) => {
-    setTextInputFocused(false);
     setActiveTab(tabId);
     const index = CREATION_TABS.findIndex((tab) => tab.id === tabId);
     if (!isDesktop && index >= 0) {
@@ -559,7 +575,15 @@ export function CreazioneGiocatoreModal({
 
   return (
     <Modal visible={visible} transparent animationType="fade">
-      <KeyboardAvoidingView style={styles.keyboardRoot} behavior={Platform.OS === "ios" ? "padding" : undefined}>
+      <KeyboardAvoidingView
+        style={[
+          styles.keyboardRoot,
+          !isDesktop && Platform.OS === "web" && stableWebHeight !== null
+            ? { height: stableWebHeight, minHeight: stableWebHeight, flexShrink: 0 }
+            : null
+        ]}
+        behavior={Platform.OS === "ios" ? "padding" : undefined}
+      >
       <Pressable
         style={[styles.modalBackdrop, !isDesktop && styles.modalBackdropMobile, isDesktop && modalBackdropFullscreen]}
         onPress={onAnnulla}
@@ -587,7 +611,7 @@ export function CreazioneGiocatoreModal({
           </View>
 
           <View style={[styles.editorLayout, isDesktop && styles.editorLayoutDesktop]}>
-            {(!textInputFocused || isDesktop) && (
+            {(
             <View style={[styles.previewColumn, isDesktop && styles.previewColumnDesktop]}>
               <View style={[styles.previewWrap, !isDesktop && styles.previewWrapMobile]}>
                 {canRenderCharacter(spriteAppearance, "idle") ? (
@@ -667,11 +691,11 @@ export function CreazioneGiocatoreModal({
               <Text style={styles.sectionTitle}>Identità</Text>
               <View style={styles.field}>
                 <Text style={styles.label}>Nome</Text>
-                <TextInput style={styles.input} value={nome} onChangeText={setNome} onFocus={() => setTextInputFocused(true)} onBlur={() => setTextInputFocused(false)} placeholder="Nome" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="words" />
+                <TextInput style={styles.input} value={nome} onChangeText={setNome} placeholder="Nome" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="words" />
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Cognome</Text>
-                <TextInput style={styles.input} value={cognome} onChangeText={setCognome} onFocus={() => setTextInputFocused(true)} onBlur={() => setTextInputFocused(false)} placeholder="Cognome" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="words" />
+                <TextInput style={styles.input} value={cognome} onChangeText={setCognome} placeholder="Cognome" placeholderTextColor="rgba(148,163,184,0.5)" autoCapitalize="words" />
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Genere</Text>
@@ -1165,7 +1189,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "rgba(148, 163, 184, 0.35)",
     color: "#f1f5f9",
-    fontSize: 14,
+    // Con meno di 16 px Safari iOS ingrandisce automaticamente la pagina al focus.
+    fontSize: Platform.OS === "web" ? 16 : 14,
     paddingHorizontal: 12,
     paddingVertical: 10
   },
