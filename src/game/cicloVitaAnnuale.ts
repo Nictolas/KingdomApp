@@ -141,6 +141,24 @@ export function applicaCicloVitaAnnuale(
     }
   }
 
+  // Il validatore dei salvataggi richiede riferimenti verso abitanti esistenti.
+  // Ripulisci anche i legami delle persone morte naturalmente: non devono
+  // impedire di caricare una partita dopo una successione o un funerale.
+  const viventiIds = new Set(viventi.map(a => a.id));
+  const ripulisci = (a: Abitante): Abitante => ({
+    ...a,
+    coniugeId: a.coniugeId != null && viventiIds.has(a.coniugeId) ? a.coniugeId : undefined,
+    schiavistaId: a.schiavistaId != null && viventiIds.has(a.schiavistaId) ? a.schiavistaId : undefined,
+    figliIds: a.figliIds?.filter(id => viventiIds.has(id)),
+    figliAdottatiIds: a.figliAdottatiIds?.filter(id => viventiIds.has(id)),
+    genitoriIds: a.genitoriIds?.filter(id => viventiIds.has(id)),
+    genitoriAdottiviIds: a.genitoriAdottiviIds?.filter(id => viventiIds.has(id)),
+    nonniIds: a.nonniIds?.filter(id => viventiIds.has(id)),
+    amici: a.amici.filter(r => viventiIds.has(r.id)),
+    rivali: a.rivali.filter(r => viventiIds.has(r.id))
+  });
+  viventi = viventi.map(ripulisci);
+
   const edificiPuliti = edifici.map(edificio => {
     if (!edificio.abitantiAssegnati) return edificio;
     const assegnati = edificio.abitantiAssegnati
