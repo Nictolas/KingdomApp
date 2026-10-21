@@ -28,7 +28,7 @@ import { StartGameScreen } from "../ui/StartGameScreen";
 import { GameModeSelectionScreen } from "../ui/GameModeSelectionScreen";
 import { GameOverModal } from "../ui/GameOverModal";
 import { ID_GIOCATORE } from "../game/schiavituCommercio";
-import { setOrologioGiocoBloccatoDallaFase } from "../game/orologioGiocoSession";
+import { setOrologioGiocoBloccatoDallaFase, setOrologioGiocoSospesoDallApp } from "../game/orologioGiocoSession";
 import type { RegistrazioneScambio } from "../game/registrazioniScambi";
 import { warmStartupCharacterAssets } from "../game/warmStartupCharacters";
 
@@ -547,16 +547,25 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [salvaPartita, startup]);
 
   useEffect(() => {
+    // Congela PRIMA di salvare: il clock non deve recuperare il tempo passato fuori dall'app.
     const subscription = AppState.addEventListener("change", (next) => {
+      setOrologioGiocoSospesoDallApp(next !== "active");
       if (next !== "active" && dirtyRef.current) void salvaPartita();
     });
     const visibility = () => {
-      if (typeof document !== "undefined" && document.visibilityState === "hidden" && dirtyRef.current) void salvaPartita();
+      if (typeof document === "undefined") return;
+      const hidden = document.visibilityState === "hidden";
+      setOrologioGiocoSospesoDallApp(hidden);
+      if (hidden && dirtyRef.current) void salvaPartita();
     };
-    if (typeof document !== "undefined") document.addEventListener("visibilitychange", visibility);
+    if (typeof document !== "undefined") {
+      document.addEventListener("visibilitychange", visibility);
+      visibility();
+    }
     return () => {
       subscription.remove();
       if (typeof document !== "undefined") document.removeEventListener("visibilitychange", visibility);
+      setOrologioGiocoSospesoDallApp(false);
     };
   }, [salvaPartita]);
 
