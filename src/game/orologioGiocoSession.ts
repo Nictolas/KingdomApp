@@ -158,7 +158,8 @@ export function syncOrologioGiocoDaWallClock(): number {
     return orologioGiocoMinutiDaMezzanotte;
   }
   const minutiPrima = orologioGiocoMinutiDaMezzanotte;
-  const elapsedSeconds = Math.max(0, Math.floor((Date.now() - orologioGiocoLastRealMs) / 1000));
+  // Se Safari ha sospeso i timer senza notificare visibilitychange, non recuperare ore offline.
+  const elapsedSeconds = Math.min(5, Math.max(0, Math.floor((Date.now() - orologioGiocoLastRealMs) / 1000)));
   const catchUp =
     elapsedSeconds * MINUTI_GIOCO_PER_SECONDO_REALE * orologioGiocoVelocita;
   const totalMinPrima = (orologioGiocoGiorno - 1) * 1440 + minutiPrima;
