@@ -5,7 +5,7 @@ import {
   abitanteVuolePrendereLavoro,
   getBisogniAbitante
 } from "./bisogni";
-import { getCastaAbitante } from "./casta";
+import { puoCercareLavoroAutonomamente } from "./edificiLavoro";
 import { abitanteSoggettoACoprifuoco, type ConfigCoprifuoco } from "./coprifuoco";
 import { getMoneteInventarioAbitante } from "./inventario";
 import {
@@ -187,8 +187,7 @@ export function descriviAzioneCorrenteAbitante(
   const monete = getMoneteInventarioAbitante(abitante.inventario);
   if (abitanteCercaLavoroPerSoldi(abitante, monete)) return "Cerca lavoro";
   if (
-    abitanteVuolePrendereLavoro(abitante) &&
-    getCastaAbitante(abitante) === "Cittadino"
+    puoCercareLavoroAutonomamente(abitante)
   ) {
     return "Cerca lavoro";
   }
