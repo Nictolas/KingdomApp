@@ -24,7 +24,7 @@ test("il Bosco 5x5 ricompare in alto senza sovrapporsi agli edifici", () => {
   const anchors = keys.filter(k => dopo.edificiInMappa[k]?.nome === "Bosco" && dopo.edificiInMappa[k]?.footprintRef == null);
   assert.equal(anchors.length, 1);
   const anchor = anchors[0]!;
-  assert.ok(Math.floor(anchor / COLS) < 15, "the forest must be in the northern portion");
+  assert.ok(Math.floor(anchor / COLS) >= 17 && Math.floor(anchor / COLS) <= 23, "the forest must be visible above the settlement");
   assert.equal(dopo.edificiInMappa[anchor]?.id, BOSCO_ID);
   assert.deepEqual(dopo.edificiInMappa[anchor]?.footprint, { w: 5, h: 5 });
   const cells = getIndiciFootprint(anchor, 5, 5, COLS);
@@ -70,7 +70,7 @@ test("non cancella case, strade, decorazioni o fiumi gia' salvati", () => {
 
 test("se la zona e' occupata non forza alcuna sovrapposizione", () => {
   const piena = mappa();
-  for (let r = 1; r < 22; r++) for (let c = 1; c < COLS-1; c++) {
+  for (let r = 1; r < 27; r++) for (let c = 1; c < COLS-1; c++) {
     piena.edificiInMappa[r*COLS+c] = { id: -1, nome: "Strada", emoji: "" };
   }
   assert.equal(trovaAnchorBoscoNord(piena, COLS, ROWS), null);
@@ -99,4 +99,42 @@ test("la mappa nuova e la sessione ripristinata usano entrambe il recupero del B
   assert.match(source, /const edificiIniziali = ripristinaBoscoNord\(/);
   assert.match(source, /function normalizeMappaSessione[\s\S]*return ripristinaBoscoNord\(coerente, FIXED_MAP_COLS, FIXED_MAP_ROWS\)/);
   assert.match(source, /normalizeMappaSessione\(getMappaSessione\(\) \?\? initialMappaState\)/);
+});
+
+test("un Bosco 5x5 creato troppo a nord viene spostato in vista senza perdere edifici", () => {
+  const prior = mappa();
+  const oldAnchor = 2 * COLS + 22;
+  const originalCells = getIndiciFootprint(oldAnchor, 5, 5, COLS);
+  for (const i of originalCells) prior.edificiInMappa[i] = i === oldAnchor
+    ? { id: BOSCO_ID, nome: "Bosco", emoji: "🌲", footprint: { w: 5, h: 5 } }
+    : { id: BOSCO_ID, nome: "Bosco", emoji: "", footprintRef: oldAnchor };
+  prior.edificiInMappa[19 * COLS + 17] = { id: 20, nome: "Capanna", emoji: "🏠" };
+  const result = ripristinaBoscoNord(prior, COLS, ROWS);
+  assert.notEqual(result, prior);
+  const newAnchor = Object.keys(result.edificiInMappa).map(Number)
+    .find(i => result.edificiInMappa[i]?.nome === "Bosco" &&
+      result.edificiInMappa[i]?.footprintRef == null)!;
+  assert.ok(newAnchor !== oldAnchor);
+  assert.ok(Math.floor(newAnchor / COLS) >= 17 && Math.floor(newAnchor / COLS) <= 23);
+  assert.equal(result.edificiInMappa[25 * COLS + 25]?.nome, "Castello");
+  assert.equal(result.edificiInMappa[19 * COLS + 17]?.nome, "Capanna");
+  for (const i of originalCells) assert.equal(result.edificiInMappa[i], undefined);
+  assert.equal(result.edificiInMappa[newAnchor]?.id, BOSCO_ID);
+  assert.equal(ripristinaBoscoNord(result, COLS, ROWS), result);
+});
+
+test("un bosco precedente rimane al suo posto se non c'e' spazio sicuro in vista", () => {
+  const prior = mappa();
+  const oldAnchor = 2 * COLS + 22;
+  for (const i of getIndiciFootprint(oldAnchor, 5, 5, COLS)) {
+    prior.edificiInMappa[i] = i === oldAnchor
+      ? { id: BOSCO_ID, nome: "Bosco", emoji: "🌲", footprint: { w: 5, h: 5 } }
+      : { id: BOSCO_ID, nome: "Bosco", emoji: "", footprintRef: oldAnchor };
+  }
+  for (let r = 12; r <= 27; r++)
+    for (let c = 1; c < COLS - 1; c++)
+      prior.edificiInMappa[r * COLS + c] = { id: -1, nome: "Strada", emoji: "" };
+  const result = ripristinaBoscoNord(prior, COLS, ROWS);
+  assert.equal(result, prior);
+  assert.equal(result.edificiInMappa[oldAnchor]?.nome, "Bosco");
 });
