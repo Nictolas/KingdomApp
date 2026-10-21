@@ -62,6 +62,7 @@ import {
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 import { ResidentPortrait } from "../src/ui/ResidentPortrait";
 import { CapannaFullscreenModal } from "../src/ui/CapannaFullscreenModal";
+import { DormitorioFullscreenModal } from "../src/ui/DormitorioFullscreenModal";
 import { LuogoCultoFullscreenModal } from "../src/ui/LuogoCultoFullscreenModal";
 import { CampoDiLavoroModal } from "../src/ui/CampoDiLavoroModal";
 import { EdificioInfoModal } from "../src/ui/EdificioInfoModal";
@@ -4687,6 +4688,22 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           commuteByAbitanteId={commuteByAbitanteId}
           barArrivatiByEdificio={barArrivatiByEdificio}
           postiPerCasa={POSTI_PER_CASA_MAPPA}
+        />
+      ) : edificioResidenzaAperta?.nome === "Dormitorio" && selectedResidenzaAnchor !== null ? (
+        <DormitorioFullscreenModal
+          visible
+          anchor={selectedResidenzaAnchor}
+          occupantiIds={occupantiCasaMappaIds}
+          postiPerCasa={POSTI_PER_CASA_MAPPA}
+          abitanti={abitanti}
+          candidati={candidatiPerCasaMappa}
+          onClose={() => setSelectedResidenzaAnchor(null)}
+          onRemove={handleRimuoviDaCasaMappa}
+          onAdd={handleAggiungiACasaMappa}
+          onOpenResidenze={() => {
+            setSelectedResidenzaAnchor(null);
+            router.push("/residenze");
+          }}
         />
       ) : (
         <Modal
