@@ -294,6 +294,7 @@ import {
 import { getStradeIniziali } from "../src/game/mappaStradeIniziali";
 import { ripristinaBoscoNord } from "../src/game/mappaBoscoNord";
 import { cellaNellaForestaNord } from "../src/game/mappaForestaConfine";
+import { fasciaTerraEdificiIniziali, preservaTerraIntornoEdificiIniziali } from "../src/game/mappaDistanzaAcquaEdificiIniziali";
 import {
   calcolaAnchorCostruzione2x2,
   calcolaAnchorEdificioMultiCella,
@@ -440,7 +441,7 @@ function piazzaCapanneEgiacimentiProcedurali(
   const poolGi: number[] = [];
   const tot = cols * rows;
   for (let i = 0; i < tot; i++) {
-    if (cellaNellaForestaNord(i, cols, rows) || isAcqua(i, cols, rows) || riverSet.has(i) || occupato.has(i)) continue;
+    if (cellaNellaForestaNord(i, cols, rows) || isAcqua(i, cols, rows) || riverSet.has(i) || haVicinoFiume(i, riverSet, cols, rows) || occupato.has(i)) continue;
     poolGi.push(i);
   }
   poolGi.sort(() => Math.random() - 0.5);
@@ -487,7 +488,7 @@ function getInitialEdificiInMappa(
 }
 
 /**
- * Stato iniziale mappa. Ordine: edifici → strade → fiumi/sabbia → confini acqua → decorazioni.
+ * Stato iniziale: acqua e terreno → edifici → strade → rifinitura → decorazioni.
  * Eseguito in fasi async così la UI può mostrare l’avanzamento.
  */
 export type { MappaRuntimeState } from "../src/game/mappaTypes";
@@ -519,47 +520,42 @@ async function buildInitialMappa(
   for (let i = 0; i < totaleCelle; i++) {
     if (isAcqua(i, cols, rows) || cellaNellaForestaNord(i, cols, rows)) borderIndices.add(i);
   }
-  const adminAnchor = scegliAnchorComplessoAmministrativo(cols, rows);
-
-  await report(12, "Posizionamento edifici…");
-  const edificiInMappa = getInitialEdificiInMappa(cols, rows, new Set(), adminAnchor);
-  const terrenoInMappa: Record<number, TerrenoType> = {};
-
-  await report(28, "Costruzione della rete stradale…");
-  piazzaStradeInizialiTraEdifici(edificiInMappa, terrenoInMappa, cols, rows);
-  assicuraEdificiCollegatiDaStrada(edificiInMappa, terrenoInMappa, cols, rows, STRADA_OPZIONE);
-
-  await report(48, "Generazione fiumi e coste…");
-  const vietatoPerFiumi = new Set<number>([...borderIndices, ...Object.keys(edificiInMappa).map(Number)]);
+  // Prima nasce il territorio: l'acqua non si deve adattare agli edifici.
+  await report(12, "Generazione fiumi e coste…");
   const { riverIndices, sandIndices } = generateRivers({
     cols,
     rows,
     numSources: 2 + Math.floor(Math.random() * 2),
     maxLength: 60,
     bifurcationProbability: 0.1,
-    forbiddenIndices: vietatoPerFiumi
+    forbiddenIndices: borderIndices
   });
-  const riverSet = new Set(riverIndices);
+  const terrenoInMappa: Record<number, TerrenoType> = buildTerrenoFromRivers(riverIndices, sandIndices);
+  applyTerrenoGrassAndSandContinuity(terrenoInMappa, cols, rows);
+  // Include eventuali celle diventate fiume durante la continuità dei terreni.
+  const riverSet = riverSetDaTerreno(terrenoInMappa);
 
-  const giacimentoIndices = new Set(
-    Object.keys(edificiInMappa)
-      .map(Number)
-      .filter((i) => edificiInMappa[i]?.nome === "Giacimento")
-  );
-  const excludeSand = new Set<number>(giacimentoIndices);
-  for (const j of indiciViciniOrtogonaliStrada(edificiInMappa, cols, rows)) {
-    excludeSand.add(j);
-  }
-  Object.assign(terrenoInMappa, buildTerrenoFromRivers(riverIndices, sandIndices, excludeSand));
+  // Gli edifici iniziali vengono scelti DOPO il fiume e rispettano il
+  // cuscino di un'intera casella (anche in diagonale) intorno ai footprint.
+  await report(36, "Posizionamento edifici…");
+  const adminAnchor = scegliAnchorComplessoAmministrativo(cols, rows, riverSet);
+  const edificiInMappa = getInitialEdificiInMappa(cols, rows, riverSet, adminAnchor);
+  const fasciaSicurezzaEdifici = fasciaTerraEdificiIniziali(edificiInMappa, cols, rows);
 
-  await report(68, "Rifinitura terreno e confini…");
-  applyTerrenoGrassAndSandContinuity(terrenoInMappa, cols, rows, excludeSand);
+  await report(58, "Costruzione della rete stradale…");
+  piazzaStradeInizialiTraEdifici(edificiInMappa, terrenoInMappa, cols, rows);
+  assicuraEdificiCollegatiDaStrada(edificiInMappa, terrenoInMappa, cols, rows, STRADA_OPZIONE);
+
+  // Solo per il mondo appena creato: protezione da eventuale acqua
+  // introdotta nei passaggi finali di autotiling, senza spostare gli edifici.
+  await report(75, "Rifinitura terreno e confini…");
   applicaRegoleConfineTerreno(edificiInMappa, terrenoInMappa, cols, rows);
+  preservaTerraIntornoEdificiIniziali(terrenoInMappa, fasciaSicurezzaEdifici, cols, rows);
 
   await report(86, "Distribuzione decorazioni…");
   const celleLibere: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {
-    if (cellaNellaForestaNord(i, cols, rows) || isAcqua(i, cols, rows) || riverSet.has(i) || edificiInMappa[i]) continue;
+    if (cellaNellaForestaNord(i, cols, rows) || isTerrenoAcqua(i, terrenoInMappa, cols, rows) || edificiInMappa[i]) continue;
     celleLibere.push(i);
   }
   const shuffled = [...celleLibere].sort(() => Math.random() - 0.5);

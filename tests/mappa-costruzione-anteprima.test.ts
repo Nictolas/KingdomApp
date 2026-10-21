@@ -128,7 +128,8 @@ test("multicell building anchor preserves configured footprint and a valid prefe
 
 test("multicell building anchor falls back to the nearest free anchor and keeps desalination rules", () => {
   assert.deepEqual(calcolaAnchorEdificioMultiCella(0, "Bar", {}, {}, 7, 7), {
-    anchor: 16,
+    // Posizione valida vicino alla costa: il divieto riguarda solo la generazione iniziale.
+    anchor: 8,
     w: 2,
     h: 2
   });

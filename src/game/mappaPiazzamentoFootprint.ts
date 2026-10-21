@@ -77,7 +77,11 @@ export function trovaCellaSingolaConCuscino(
  * Sceglie deterministicamente l'anchor 3×2 del Complesso amministrativo più vicino
  * alla posizione preferita del Castello, mantenendo il cuscino libero.
  */
-export function scegliAnchorComplessoAmministrativo(cols: number, rows: number): number {
+export function scegliAnchorComplessoAmministrativo(
+  cols: number,
+  rows: number,
+  riverSet: Set<number> = new Set<number>()
+): number {
   const idx = getIndiciEdificiIniziali(cols, rows);
   const preferred = idx.CASTELLO_INDEX;
   const pc = preferred % cols;
@@ -91,11 +95,10 @@ export function scegliAnchorComplessoAmministrativo(cols: number, rows: number):
   let bestAnchor = preferred;
   let bestD = Infinity;
   const vietatoVuoto = new Set<number>();
-  const fiumiVuoti = new Set<number>();
   for (let ar = minR; ar <= maxR; ar++) {
     for (let ac = minC; ac <= maxC; ac++) {
       const anchor = ar * cols + ac;
-      if (!puòPiazzareFootprintConCuscino(anchor, w, h, cols, rows, fiumiVuoti, vietatoVuoto)) continue;
+      if (!puòPiazzareFootprintConCuscino(anchor, w, h, cols, rows, riverSet, vietatoVuoto)) continue;
       const d = Math.abs(ar - pr) + Math.abs(ac - pc);
       if (d < bestD) {
         bestD = d;
@@ -137,4 +140,51 @@ export function vietatoFootprintECuscinoDaEdificiIniziali(
     }
   }
   return vietato;
+}
+
+/**
+ * Solo in modalità Costruisci: il footprint deve poggiare su terra ma può
+ * toccare una cella di mare/fiume. Conserva il divieto di sovrapporre edifici
+ * e i cuscini intorno alle costruzioni esistenti.
+ *
+ * NON usare durante la generazione iniziale, che richiede la fascia asciutta.
+ */
+export function puòPiazzareFootprintManualeVicinoAcqua(
+  anchor: number,
+  w: number,
+  h: number,
+  cols: number,
+  rows: number,
+  riverSet: Set<number>,
+  vietato: Set<number>
+): boolean {
+  if (!Number.isInteger(anchor) || anchor < 0 || !Number.isInteger(w) || !Number.isInteger(h) || w < 1 || h < 1) return false;
+  const ac = anchor % cols;
+  const ar = Math.floor(anchor / cols);
+  if (ac + w > cols || ar + h > rows || footprintIntersecaForestaNord(anchor, w, h, cols, rows)) return false;
+  for (const i of getIndiciFootprint(anchor, w, h, cols)) {
+    if (vietato.has(i) || isAcqua(i, cols, rows) || riverSet.has(i)) return false;
+  }
+  // Il cuscino attorno all'edificio può essere acqua, ma non un'altra costruzione.
+  for (const i of getIndiciCuscinoErba(anchor, w, h, cols, rows)) {
+    if (vietato.has(i)) return false;
+  }
+  return true;
+}
+
+/** Ricerca solo per costruzioni volontarie, senza forzare distanza dall'acqua. */
+export function trovaAnchorFootprintManualeVicinoAcqua(
+  w: number, h: number, preferred: number, cols: number, rows: number,
+  riverSet: Set<number>, vietato: Set<number>
+): number | null {
+  const pc = preferred % cols;
+  const pr = Math.floor(preferred / cols);
+  const candidati = Array.from({ length: cols * rows }, (_, i) => i).sort((a, b) =>
+    (Math.abs(Math.floor(a / cols) - pr) + Math.abs(a % cols - pc)) -
+    (Math.abs(Math.floor(b / cols) - pr) + Math.abs(b % cols - pc))
+  );
+  for (const anchor of candidati) {
+    if (puòPiazzareFootprintManualeVicinoAcqua(anchor, w, h, cols, rows, riverSet, vietato)) return anchor;
+  }
+  return null;
 }
