@@ -55,7 +55,7 @@ function scegliErede(re: Abitante, viventi: Abitante[]): Abitante | undefined {
       (a.genitoriIds ?? []).includes(re.id) ||
       (a.genitoriAdottiviIds ?? []).includes(re.id))
   );
-  const figliIds = new Set(diretti.map(a => a.id));
+  const figliIds = new Set([...(re.figliIds ?? []), ...diretti.map(a => a.id)]);
   const nipoti = viventi.filter(a =>
     !figliIds.has(a.id) && a.id !== re.id &&
     (a.genitoriIds ?? []).some(id => figliIds.has(id))
