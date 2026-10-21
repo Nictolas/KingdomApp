@@ -195,16 +195,22 @@ export function autoAssegnaCittadiniDisoccupati(abitanti: Abitante[], edifici: E
   );
 }
 
-/** True se il cittadino disoccupato può essere assunto in quell'edificio (posti + competenza). */
+/** Cittadini e Servi della gleba cercano autonomamente qualsiasi lavoro disponibile.
+ * I Servi della gleba disoccupati possono anche essere assegnati dal giocatore.
+ */
+export function puoCercareLavoroAutonomamente(abitante: Abitante): boolean {
+  if (isGiocatore(abitante) || !abitanteVuolePrendereLavoro(abitante) || abitante.razza === "Golem") return false;
+  const casta = getCastaAbitante(abitante);
+  return casta === "Cittadino" || casta === "Servo della gleba";
+}
+
+/** Verifica i requisiti di assunzione per Cittadini e Servi della gleba. */
 export function edificioAccettaDisoccupatoCittadino(
   abitante: Abitante,
   edificio: Edificio,
   tuttiAbitanti?: Abitante[]
 ): boolean {
-  if (isGiocatore(abitante)) return false;
-  if (!abitanteVuolePrendereLavoro(abitante)) return false;
-  if (abitante.razza === "Golem") return false;
-  if (getCastaAbitante(abitante) !== "Cittadino") return false;
+  if (!puoCercareLavoroAutonomamente(abitante)) return false;
   // Miniera/Bosco: assunzione solo via mappa (non auto-assign cittadini).
   if (edificio.nome === "Miniera" || edificio.nome === "Bosco") return false;
   const accettato =
@@ -285,7 +291,7 @@ export function getLavoroPerEdificio(edificio: Edificio): string | undefined {
 
 /**
  * Servi della gleba assegnabili a un posto di lavoro dal giocatore.
- * Esclude solo chi è già in un edificio-lavoro (non le residenze Capanna/Baracca/Dormitorio).
+ * Ammette solo disoccupati; un impiego già occupato non viene sovrascritto.
  */
 export function getServiDellaGlebaAssegnabili(abitanti: Abitante[], edifici: Edificio[]): Abitante[] {
   const giàAssegnatiLavoro = new Set<number>();
@@ -296,7 +302,7 @@ export function getServiDellaGlebaAssegnabili(abitanti: Abitante[], edifici: Edi
 
   return abitanti.filter((a) => {
     if (getCastaAbitante(a) !== "Servo della gleba") return false;
-    if (a.lavoro === "Pensionato" || a.lavoro === "Prigioniero" || a.razza === "Golem") return false;
+    if (a.lavoro !== "Disoccupato" || a.razza === "Golem") return false;
     if (giàAssegnatiLavoro.has(a.id)) return false;
     return true;
   });

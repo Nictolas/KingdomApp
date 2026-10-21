@@ -43,11 +43,13 @@ test("arrivo al Bosco assume il disoccupato come Raccoglitore", () => {
 
 test("mappa include Bosco nella cerca lavoro e GameState usa la logica speciale", () => {
   const map = readFileSync("app/mappa.tsx", "utf8");
+  const commute = readFileSync("src/game/commutePathsMappa.ts", "utf8");
   const hook = readFileSync("src/hooks/useGameState.ts", "utf8");
 
-  assert.match(map, /boscoHaPostoLibero/);
-  assert.match(map, /disoccupatoIdoneoPerBosco/);
-  assert.match(map, /if \(bosco && !posti\.some\(\(e\) => e\.id === bosco\.id\)\) posti\.push\(bosco\)/);
+  assert.match(commute, /boscoHaPostoLibero/);
+  assert.match(commute, /disoccupatoIdoneoPerBosco/);
+  assert.match(map, /cercaPercorsoLavoroDisoccupato\(/);
+  assert.match(map, /puoCercareLavoroAutonomamente\(a\)/);
   assert.match(hook, /edificio\?\.nome === "Bosco"/);
   assert.match(hook, /assumiDisoccupatoNelBosco/);
   assert.match(hook, /etichettaRaccoltoBosco/);

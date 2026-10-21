@@ -107,15 +107,9 @@ import {
 } from "../src/game/bisogni";
 import { getCastaAbitante, getEmojiCasta } from "../src/game/casta";
 import { aspettoPerVisualizzazioneAbitante } from "../src/game/personaggioAspetto";
-import { elencoEdificiConPostoPerDisoccupato } from "../src/game/edificiLavoro";
-import {
-  boscoHaPostoLibero,
-  disoccupatoIdoneoPerBosco
-} from "../src/game/boscoRaccolta";
-import {
-  minieraHaPostoLibero,
-  disoccupatoIdoneoPerMiniera
-} from "../src/game/minieraRaccolta";
+import { puoCercareLavoroAutonomamente } from "../src/game/edificiLavoro";
+
+
 import { getEdificioAbitazione } from "../src/game/abitanteEdifici";
 import {
   getTotaleOggettiInventarioGiocatore,
@@ -167,6 +161,7 @@ import {
 } from "../src/game/orariLavoroMappa";
 import {
   calcolaPercorsoVersoAnchorEdificio,
+  cercaPercorsoLavoroDisoccupato,
   pianificaCommuteMattina,
   pianificaCommuteSeraACasa,
   pianificaCommuteVersoBarDaCella,
@@ -458,11 +453,12 @@ function getInitialEdificiInMappa(
   cols: number,
   rows: number,
   riverSet: Set<number>,
-  adminAnchor: number
+  adminAnchor: number,
+  terrenoPreesistente: Record<number, TerrenoType> = {}
 ): Record<number, EdificioInCella> {
   const edificiIniziali = ripristinaBoscoNord({
     edificiInMappa: getEdificiIniziali(cols, rows, riverSet, adminAnchor),
-    terrenoInMappa: {},
+    terrenoInMappa: terrenoPreesistente,
     decorazioniInMappa: {},
     residenzeMappa: {}
   }, cols, rows).edificiInMappa;
@@ -539,7 +535,7 @@ async function buildInitialMappa(
   // cuscino di un'intera casella (anche in diagonale) intorno ai footprint.
   await report(36, "Posizionamento edifici…");
   const adminAnchor = scegliAnchorComplessoAmministrativo(cols, rows, riverSet);
-  const edificiInMappa = getInitialEdificiInMappa(cols, rows, riverSet, adminAnchor);
+  const edificiInMappa = getInitialEdificiInMappa(cols, rows, riverSet, adminAnchor, terrenoInMappa);
   const fasciaSicurezzaEdifici = fasciaTerraEdificiIniziali(edificiInMappa, cols, rows);
 
   await report(58, "Costruzione della rete stradale…");
@@ -2402,8 +2398,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         haCasa: homeCell != null
       });
 
-      const puòCercareLavoro =
-        getCastaAbitante(a) === "Cittadino" && abitanteVuolePrendereLavoro(a);
+      const puòCercareLavoro = puoCercareLavoroAutonomamente(a);
 
       if (azione === "mensa") {
         const mensaId = scegliMensaEdificioIdPiuVicino(
@@ -2475,39 +2470,15 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       }
 
       if (puòCercareLavoro) {
-        const postiOrdinari = elencoEdificiConPostoPerDisoccupato(a, edifici);
-        const bosco =
-          disoccupatoIdoneoPerBosco(a) ? boscoHaPostoLibero(edifici) : undefined;
-        const miniera =
-          disoccupatoIdoneoPerMiniera(a) ? minieraHaPostoLibero(edifici) : undefined;
-        const posti = [...postiOrdinari];
-        if (bosco && !posti.some((e) => e.id === bosco.id)) posti.push(bosco);
-        if (miniera && !posti.some((e) => e.id === miniera.id)) posti.push(miniera);
-        let bestId: number | null = null;
-        let bestPath: number[] | null = null;
-        let bestLen = Infinity;
-        for (const e of posti) {
-          const path = pianificaCommuteVersoEdificioGlobaleDaCella(
-            from,
-            e.id,
-            edificiInMappa,
-            cols,
-            rows,
-            isWalkableCell
-          );
-          if (!path || path.length < 2) continue;
-          if (path.length < bestLen) {
-            bestLen = path.length;
-            bestId = e.id;
-            bestPath = path;
-          }
-        }
-        if (bestId != null && bestPath != null) {
+        const scelta = cercaPercorsoLavoroDisoccupato(
+          a, from, edifici, edificiInMappa, cols, rows, isWalkableCell, abitanti
+        );
+        if (scelta) {
           nuoveCommuteById[a.id] = {
-            path: bestPath,
+            path: scelta.path,
             token: Date.now(),
             purpose: "cerca_lavoro",
-            lavoroCercaEdificioId: bestId
+            lavoroCercaEdificioId: scelta.edificioId
           };
           continue;
         }
