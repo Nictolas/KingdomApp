@@ -551,22 +551,29 @@ export function GameProvider({ children }: { children: ReactNode }) {
     // se Safari ha ancora la pagina nascosta.
     let appSospesa = AppState.currentState === "background" || AppState.currentState === "inactive";
     let paginaNascosta = typeof document !== "undefined" && document.visibilityState === "hidden";
-    const aggiornaSospensione = () => setOrologioGiocoSospesoDallApp(appSospesa || paginaNascosta);
+    let eraSospesa = false;
+    const aggiornaSospensione = () => {
+      const sospesa = appSospesa || paginaNascosta;
+      setOrologioGiocoSospesoDallApp(sospesa);
+      // Salva anche il minuto corrente: nell'intervallo fra due giorni il token
+      // di dirty tracking puo' non variare. Una sola scrittura per sospensione.
+      if (sospesa && !eraSospesa && latestStateRef.current.simulationEnabled) {
+        void salvaPartita();
+      }
+      eraSospesa = sospesa;
+    };
     const subscription = AppState.addEventListener("change", (next) => {
       appSospesa = next !== "active";
       aggiornaSospensione();
-      if (appSospesa && dirtyRef.current) void salvaPartita();
     });
     const visibility = () => {
       if (typeof document === "undefined") return;
       paginaNascosta = document.visibilityState === "hidden";
       aggiornaSospensione();
-      if (paginaNascosta && dirtyRef.current) void salvaPartita();
     };
     const pagehide = () => {
       paginaNascosta = true;
       aggiornaSospensione();
-      if (dirtyRef.current) void salvaPartita();
     };
     if (typeof document !== "undefined") document.addEventListener("visibilitychange", visibility);
     if (typeof window !== "undefined") {
