@@ -16,7 +16,6 @@ test("mobile web creator locks the underlying page without resizing with the key
 
 test("mobile Safari name fields do not trigger input autozoom or hide the preview", () => {
   assert.match(source, /inputMobileWeb: \{ fontSize: 16 \}/);
-  assert.match(source, /value=\{nome\}[^\n]*styles\.inputMobileWeb/); // covered below by direct field checks
   assert.match(source, /Platform\.OS === "web" && !isDesktop && styles\.inputMobileWeb\]\} value=\{nome\}/);
   assert.match(source, /Platform\.OS === "web" && !isDesktop && styles\.inputMobileWeb\]\} value=\{cognome\}/);
   assert.match(source, /!textInputFocused \|\| isDesktop \|\| Platform\.OS === "web"/);
