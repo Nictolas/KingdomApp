@@ -7,7 +7,6 @@ import {
   Text,
   View
 } from "react-native";
-import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import {
   BOTTINO_BOSCO,
@@ -18,7 +17,6 @@ import { AbitanteAvatarPreview } from "../src/ui/AbitanteAvatarPreview";
 import type { Abitante } from "../src/types";
 
 export default function BoscoScreen() {
-  const router = useRouter();
   const { abitanti, edifici } = useGameContext();
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -47,7 +45,7 @@ export default function BoscoScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <Text style={styles.title}>🌲 Bosco non presente</Text>
-        <Text style={styles.back} onPress={() => router.back()}>← Indietro</Text>
+        
       </SafeAreaView>
     );
   }
@@ -55,7 +53,7 @@ export default function BoscoScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Text style={styles.back} onPress={() => router.back()}>← Indietro</Text>
+        <View style={{ width: 70 }} />
         <Text style={styles.title}>🌲 Bosco</Text>
         <View style={{ width: 70 }} />
       </View>
