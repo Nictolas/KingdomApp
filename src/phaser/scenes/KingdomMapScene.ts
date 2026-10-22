@@ -106,6 +106,7 @@ export class KingdomMapScene extends Phaser.Scene {
   private locateArrow: Phaser.GameObjects.Container | null = null;
   private locateAbitanteId: number | null = null;
   private locateCell: number | null = null;
+  private locateBuildingAnchor: number | null = null;
   private lastLocateCameraCullPosition: { x: number; y: number } | null = null;
   private gridLayer: Phaser.GameObjects.Graphics | null = null;
   private readonly characterViews = new Map<number, CharacterView>();
@@ -1031,6 +1032,7 @@ export class KingdomMapScene extends Phaser.Scene {
     }
     this.locateAbitanteId = null;
     this.locateCell = null;
+    this.locateBuildingAnchor = null;
     this.lastLocateCameraCullPosition = null;
   }
 
@@ -1097,6 +1099,7 @@ export class KingdomMapScene extends Phaser.Scene {
       this.clearLocateArrow();
       this.locateAbitanteId = marker.abitanteId;
       this.locateCell = marker.cell;
+      this.locateBuildingAnchor = marker.buildingAnchor ?? null;
 
       const root = this.add.container(0, 0);
       const bob = this.add.container(0, 0);
@@ -1124,6 +1127,7 @@ export class KingdomMapScene extends Phaser.Scene {
       this.centerCameraOnCell(marker.cell);
     } else {
       this.locateCell = marker.cell;
+      this.locateBuildingAnchor = marker.buildingAnchor ?? null;
     }
 
     this.syncLocateArrowPosition(snapshot.cellSize);
@@ -1143,7 +1147,8 @@ export class KingdomMapScene extends Phaser.Scene {
       snapshot.cols,
       cellSize,
       snapshot.buildings,
-      this.renderedRoofTopByAnchor
+      this.renderedRoofTopByAnchor,
+      this.locateBuildingAnchor
     );
     this.locateArrow.setPosition(target.arrow.x, target.arrow.y);
     return target;
