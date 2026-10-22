@@ -121,6 +121,31 @@ export function trovaAnchorBarSuMappa(edificiInMappa: Record<number, EdificioInC
   return null;
 }
 
+/** La foresta ha cinque accessi frontali; chi cerca lavoro deve poter
+ * scegliere quello realmente raggiungibile, non solo il centrale.
+ */
+export function celleIngressoBoscoWalkable(
+  anchor: number,
+  edificiInMappa: Record<number, EdificioInCellaLike>,
+  cols: number,
+  rows: number,
+  isWalkable: (i: number) => boolean
+): number[] {
+  const edificio = edificiInMappa[anchor];
+  if (edificio?.nome !== NOME_BOSCO) return [];
+  const fp = edificio.footprint ?? { w: 1, h: 1 };
+  const doorRow = Math.floor(anchor / cols) + fp.h;
+  if (doorRow >= rows) return [];
+  const result: number[] = [];
+  for (let dc = 0; dc < fp.w; dc++) {
+    const col = anchor % cols + dc;
+    if (col >= cols) continue;
+    const cell = doorRow * cols + col;
+    if (isWalkable(cell)) result.push(cell);
+  }
+  return result;
+}
+
 /** Unico accesso frontale: cella esterna sotto la porta centrale del footprint. */
 export function trovaCellaPortaEdificio(
   anchor: number,
@@ -137,16 +162,10 @@ export function trovaCellaPortaEdificio(
   const doorRow = anchorRow + footprint.h;
   if (doorCol < 0 || doorCol >= cols || doorRow < 0 || doorRow >= rows) return null;
   if (edificio?.nome === NOME_BOSCO) {
-    // Ingresso al Bosco: cinque celle frontali possibili, a partire dal centro.
-    const centro = Math.floor(footprint.w / 2);
-    for (const offset of Array.from({ length: footprint.w }, (_, i) => i)
-      .sort((a, b) => Math.abs(a - centro) - Math.abs(b - centro))) {
-      const col = anchorCol + offset;
-      if (col < 0 || col >= cols) continue;
-      const cell = doorRow * cols + col;
-      if (isWalkable(cell)) return cell;
-    }
-    return null;
+    const accessi = celleIngressoBoscoWalkable(anchor, edificiInMappa, cols, rows, isWalkable);
+    const centro = anchorCol + Math.floor(footprint.w / 2);
+    accessi.sort((a, b) => Math.abs(a % cols - centro) - Math.abs(b % cols - centro));
+    return accessi[0] ?? null;
   }
   const doorCell = doorRow * cols + doorCol;
   return isWalkable(doorCell) ? doorCell : null;
@@ -257,6 +276,11 @@ export function calcolaPercorsoVersoAnchorEdificio(
     : null;
   const goals = new Set<number>();
   if (portaDest != null) goals.add(portaDest);
+  if (edificiInMappa?.[anchorDest]?.nome === NOME_BOSCO) {
+    for (const accesso of celleIngressoBoscoWalkable(anchorDest, edificiInMappa, cols, rows, isWalkable)) {
+      goals.add(accesso);
+    }
+  }
   if (!edificiInMappa) {
     for (const cell of celleIngressoWalkableAttornoAdAnchor(anchorDest, cols, rows, isWalkable)) goals.add(cell);
   }
