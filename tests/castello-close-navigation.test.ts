@@ -15,7 +15,7 @@ test("il Castello condivide header e navigazione fissa con gli edifici", () => {
   // Le schede fullscreen nella mappa (senza route edificio) conservano
   // comunque la propria chiusura fissa IN BASSO.
   assert.match(shell, /showModalExit/);
-  assert.match(shell, /style=\{styles\.modalExitButton\}/);
+  assert.match(shell, /<BuildingModalBottomExit onClose=\{onBack\}/);
 });
 
 test("il ritorno del Castello mantiene tornaAllaMappa senza rimontare la scena", () => {
