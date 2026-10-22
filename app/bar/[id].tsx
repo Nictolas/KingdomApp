@@ -1,3 +1,4 @@
+import { tornaAllaMappa } from "../../src/navigation/tornaAllaMappa";
 import React, { useMemo, useState, useSyncExternalStore } from "react";
 import { Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { BuildingScreenShell, BUILDING_WIDE_BREAKPOINT } from "../../src/ui/BuildingScreenShell";
@@ -78,8 +79,8 @@ export default function BarScreenById() {
     <>
       <BuildingScreenShell
         title={titoloBar}
-        onBack={() => router.back()}
-        backLabel="Edifici"
+        onBack={() => tornaAllaMappa(router)}
+        backLabel="Mappa"
       >
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Stato Bar</Text>

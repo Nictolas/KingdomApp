@@ -230,6 +230,7 @@ export class KingdomMapScene extends Phaser.Scene {
     this.configureCameraAndInput();
     this.bridge.registerSceneControls({
       refreshViewport: () => this.refreshViewportAfterFocus(),
+      resumeInteractions: () => this.resumeInteractionAfterFocus(),
       centerOnCell: (cellIndex, options) => this.centerCameraOnCell(cellIndex, options)
     });
     this.unsubscribe = this.bridge.subscribe(() => {
@@ -1026,6 +1027,21 @@ export class KingdomMapScene extends Phaser.Scene {
     }
     this.locateAbitanteId = null;
     this.locateCell = null;
+  }
+
+  /**
+   * Durante la navigazione mobile Phaser può perdere pointerup mentre una
+   * Pressable dell'edificio prende il controllo. Non ricreiamo la mappa:
+   * azzeriamo solo il trascinamento e riabilitiamo l'input della scena.
+   */
+  private resumeInteractionAfterFocus(): void {
+    this.dragPointerId = null;
+    this.dragged = false;
+    this.hoveredCell = null;
+    this.input.enabled = true;
+    this.input.resetPointers();
+    this.bridge.setDragging(false);
+    this.bridge.hoverCell(null);
   }
 
   private refreshViewportAfterFocus(): void {

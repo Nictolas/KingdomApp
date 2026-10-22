@@ -1212,24 +1212,59 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const panStartPosRef = useRef<{ x: number; y: number } | null>(null);
   const phaserMapRef = useRef<PhaserMapSurfaceHandle | null>(null);
 
+  const restoreMapInput = useCallback(() => {
+    if (Platform.OS !== "web") return;
+    // IOS/Web: i componenti fullscreen possono interrompere pointerup
+    // sul canvas prima di ridare il controllo al giocatore.
+    mapDraggedRef.current = false;
+    panStartPosRef.current = null;
+    phaserMapRef.current?.resumeInteractions();
+    phaserMapRef.current?.refreshViewport();
+  }, []);
+
   useFocusEffect(
     useCallback(() => {
       if (Platform.OS !== "web") return;
       let cancelled = false;
       const refresh = () => {
-        if (!cancelled) phaserMapRef.current?.refreshViewport();
+        if (!cancelled) restoreMapInput();
       };
       const frame = requestAnimationFrame(refresh);
       const shortDelay = setTimeout(refresh, 50);
-      const settledDelay = setTimeout(refresh, 200);
+      const settledDelay = setTimeout(refresh, 350);
       return () => {
         cancelled = true;
         cancelAnimationFrame(frame);
         clearTimeout(shortDelay);
         clearTimeout(settledDelay);
       };
-    }, [])
+    }, [restoreMapInput])
   );
+
+  // Le modali fullscreen (Capanna, Dormitorio e altre schede mappa)
+  // non cambiano route: useFocusEffect da solo non sarebbe richiamato.
+  const mapModalOpen =
+    selectedResidenzaAnchor !== null ||
+    selectedLuogoCultoAnchor !== null ||
+    selectedCampoLavoroId !== null ||
+    selectedEdificioInfoId !== null ||
+    cantiereSelezionatoId !== null ||
+    schedaWandererAbitante !== null;
+  const mapModalWasOpenRef = useRef(false);
+  useEffect(() => {
+    if (mapModalOpen) {
+      mapModalWasOpenRef.current = true;
+      return;
+    }
+    if (!mapModalWasOpenRef.current || Platform.OS !== "web") return;
+    mapModalWasOpenRef.current = false;
+    const first = setTimeout(restoreMapInput, 50);
+    const settled = setTimeout(restoreMapInput, 350);
+    return () => {
+      clearTimeout(first);
+      clearTimeout(settled);
+    };
+  }, [mapModalOpen, restoreMapInput]);
 
   const {
     minuti: orologioMinuti,

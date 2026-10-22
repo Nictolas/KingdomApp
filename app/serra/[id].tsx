@@ -1,3 +1,4 @@
+import { tornaAllaMappa } from "../../src/navigation/tornaAllaMappa";
 import React, { useMemo } from "react";
 import { Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
 import { BuildingScreenShell, BUILDING_WIDE_BREAKPOINT } from "../../src/ui/BuildingScreenShell";
@@ -184,8 +185,8 @@ export default function SerraScreenById() {
   return (
     <BuildingScreenShell
       title={titoloSerra}
-      onBack={() => router.back()}
-      backLabel="Edifici"
+      onBack={() => tornaAllaMappa(router)}
+      backLabel="Mappa"
       contentStyle={isDesktop ? styles.contentRow : styles.contentColumn}
     >
       {colContent}
