@@ -13,7 +13,9 @@ import {
   type ViewStyle
 } from "react-native";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
-import { Redirect, useFocusEffect, useRouter } from "expo-router";
+import { Redirect, useFocusEffect, usePathname, useRouter } from "expo-router";
+import { consumeBuildingExitForMapRecovery } from "../src/navigation/mapReturnRecovery";
+import type { PhaserCameraView } from "../src/phaser/scenes/KingdomMapScene";
 import { edificiData } from "../src/data/edificiData";
 import { useGameContext } from "../src/context/GameContext";
 import { useTutorialSpotlightOptional } from "../src/tutorial/TutorialSpotlightContext";
@@ -1222,6 +1224,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const mapDraggedRef = useRef(false);
   const panStartPosRef = useRef<{ x: number; y: number } | null>(null);
   const phaserMapRef = useRef<PhaserMapSurfaceHandle | null>(null);
+  const [phaserSurfaceRevision, setPhaserSurfaceRevision] = useState(0);
+  const cameraBeforeBuildingReturnRef = useRef<PhaserCameraView | null>(null);
+  const pathname = usePathname();
+
+  const recoverCanvasAfterBuildingExit = useCallback(() => {
+    if (Platform.OS !== "web" || !consumeBuildingExitForMapRecovery()) return;
+    // La vecchia scena può mostrare frame ma non ricevere più eventi touch:
+    // una nuova istanza WebGL ripristina i listener e il canvas senza
+    // reinizializzare il GameProvider o la sessione salvata.
+    cameraBeforeBuildingReturnRef.current = phaserMapRef.current?.captureCamera() ?? null;
+    setPhaserSurfaceRevision((old) => old + 1);
+  }, []);
 
   const restoreMapInput = useCallback(() => {
     if (Platform.OS !== "web") return;
@@ -1236,6 +1250,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   useFocusEffect(
     useCallback(() => {
       if (Platform.OS !== "web") return;
+      recoverCanvasAfterBuildingExit();
       let cancelled = false;
       const refresh = () => {
         if (!cancelled) restoreMapInput();
@@ -1249,8 +1264,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         clearTimeout(shortDelay);
         clearTimeout(settledDelay);
       };
-    }, [restoreMapInput])
+    }, [restoreMapInput, recoverCanvasAfterBuildingExit])
   );
+
+  // Fallback quando Safari ripristina la route via history senza notificare
+  // subito a React Navigation il focus della vecchia schermata.
+  useEffect(() => {
+    if (pathname === "/") recoverCanvasAfterBuildingExit();
+  }, [pathname, recoverCanvasAfterBuildingExit]);
 
   // Le modali fullscreen (Capanna, Dormitorio e altre schede mappa)
   // non cambiano route: useFocusEffect da solo non sarebbe richiamato.
@@ -3989,7 +4010,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         {Platform.OS === "web" ? (
           <View style={styles.phaserMainSurface}>
             <PhaserMapSurface
+              key={phaserSurfaceRevision}
               ref={phaserMapRef}
+              initialCamera={cameraBeforeBuildingReturnRef.current}
               snapshot={phaserSnapshot}
               onCellPress={onCellPress}
               onCellHover={setPreviewCellHover}
