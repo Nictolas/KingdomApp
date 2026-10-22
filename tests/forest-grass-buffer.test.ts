@@ -6,7 +6,8 @@ import {
   RIGHE_ERBA_SOTTO_FORESTA,
   cellaNellaFasciaErbaSottoForesta,
   cellaNellaForestaNord,
-  proteggiFasciaErbaSottoForesta
+  proteggiFasciaErbaSottoForesta,
+  rimuoviStradeInizialiDallaFasciaErba
 } from "../src/game/mappaForestaConfine.ts";
 import { isAcqua } from "../src/game/mappaGeometry.ts";
 import { generateRivers, isMareCell, isTerrenoAcqua } from "../src/game/riverGeneration.ts";
@@ -76,6 +77,20 @@ test("gli edifici iniziali non occupano il prato, ma le costruzioni manuali rest
   assert.equal(puòPiazzareFootprintManualeVicinoAcqua(6 * cols + 20, 2, 1, cols, rows, new Set(), new Set()), true);
 });
 
+test("le strade prodotte dai passaggi finali non coprono la fascia verde", () => {
+  const edifici: Record<number, { nome: string }> = {
+    [6 * cols]: { nome: "Strada" },
+    [7 * cols + 25]: { nome: "Strada" },
+    [7 * cols + 26]: { nome: "Casa" },
+    [8 * cols + 25]: { nome: "Strada" }
+  };
+  rimuoviStradeInizialiDallaFasciaErba(edifici, cols, rows);
+  assert.equal(edifici[6 * cols], undefined);
+  assert.equal(edifici[7 * cols + 25], undefined);
+  assert.equal(edifici[7 * cols + 26]?.nome, "Casa");
+  assert.equal(edifici[8 * cols + 25]?.nome, "Strada");
+});
+
 test("il Bosco non impone di costruire una strada sulla cintura erbosa", () => {
   assert.deepEqual(elencoAncoreEdificiNonStrada({
     50: { id: 51, nome: "Bosco", emoji: "🌲", footprint: { w: 5, h: 5 } },
@@ -89,5 +104,6 @@ test("la generazione protegge l'erba prima degli edifici e dopo l'ultima rifinit
   assert.match(source, /generateRivers\([\s\S]*?forbiddenIndices: borderIndices/);
   assert.match(source, /applyTerrenoGrassAndSandContinuity\(terrenoInMappa, cols, rows\);\s*proteggiFasciaErbaSottoForesta\(terrenoInMappa, cols, rows\);/);
   assert.match(source, /preservaTerraIntornoEdificiIniziali\([\s\S]*?proteggiFasciaErbaSottoForesta\(terrenoInMappa, cols, rows\);/);
+  assert.ok(source.includes("rimuoviStradeInizialiDallaFasciaErba(edificiInMappa, cols, rows)"));
   assert.match(source, /cellaNellaFasciaErbaSottoForesta\(i, cols, rows\).*?borderIndices\.add\(i\)/);
 });
