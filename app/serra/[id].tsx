@@ -16,6 +16,7 @@ import {
 } from "../../src/game/colturaSerra";
 
 export default function SerraScreenById() {
+  const router = useRouter();
   const raw = useLocalSearchParams<{ id: string | string[] }>().id;
   const idStr = Array.isArray(raw) ? raw[0] : raw;
   const edificioId = Number(idStr);
