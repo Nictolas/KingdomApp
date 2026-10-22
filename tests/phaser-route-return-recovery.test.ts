@@ -83,5 +83,5 @@ test("tutte le route edificio condividono il recupero, senza perdere la sessione
   assert.ok(surface.includes("resizeObserver.observe(host)"));
   assert.ok(map.includes("phaserMapRef.current?.resumeInteractions()"));
   assert.ok(map.includes("phaserMapRef.current?.refreshViewport()"));
-  assert.ok(nav.includes('router.navigate("/mappa")'));
+  assert.ok(nav.includes('router.navigate("/")'));
 });

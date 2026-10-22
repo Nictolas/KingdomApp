@@ -1,9 +1,10 @@
-import { Redirect } from "expo-router";
+import { MappaScreen } from "./mappa";
 
-/** Unica route che monta Phaser: /mappa.
- * La home / resta un alias, ma non crea una seconda istanza WebGL.
+/**
+ * La home / monta l'unica istanza di MappaScreen e del canvas Phaser.
+ * /mappa e' solo un alias che rimanda qui: MAI due Redirect incrociati.
  */
 export default function Index() {
-  return <Redirect href="/mappa" />;
+  return <MappaScreen />;
 }
 
