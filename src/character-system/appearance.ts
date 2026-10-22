@@ -504,7 +504,7 @@ export function copriBustoFemminile(
   appearance: CharacterAppearance,
   sesso?: "M" | "F" | null
 ): CharacterAppearance {
-  if (sesso !== "F" || appearance.fullOutfit !== "none") return appearance;
+  if (sesso !== "F" || appearance.fullOutfit !== "none" || isGuardChainmailOutfit(appearance.upperOutfit)) return appearance;
   const options = compatibleCatalogOptions(appearance);
   const candidati = [
     appearance.upperOutfit,
