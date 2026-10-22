@@ -62,9 +62,10 @@ export function BuildingScreenShell({
         paddingTop: webStandalone && !isWide
           ? "max(env(safe-area-inset-top, 0px), 48px)"
           : "env(safe-area-inset-top, 0px)",
-        paddingBottom: "env(safe-area-inset-bottom, 0px)"
+        // La barra inferiore comune o del modal gestisce gia' la safe area.
+        paddingBottom: 0
       } as unknown as ViewStyle)
-    : { paddingTop: insets.top, paddingBottom: insets.bottom };
+    : { paddingTop: insets.top, paddingBottom: 0 };
 
   return (
     <View style={[styles.root, safeAreaStyle]}>
