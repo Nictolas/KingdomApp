@@ -60,3 +60,14 @@ test("anche Bosco assente e schermate Bar/Serra/Mensa mancanti restano navigabil
   assert.match(src("src/ui/BuildingScreenShell.tsx"), /showModalExit\s*=\s*!isBuildingRoute\(usePathname\(\)\)/);
   assert.match(src("src/ui/BuildingScreenShell.tsx"), /<BuildingModalBottomExit onClose=\{onBack\}/);
 });
+
+test("Luoghi di Culto e finestre info/Campo chiudono soltanto con barra sotto lo scroll", () => {
+  const culto = src("src/ui/LuogoCultoFullscreenModal.tsx");
+  assert.doesNotMatch(culto, /style=\{\(\{ pressed \}\) => \[styles\.closeBtn/);
+  assert.match(culto, /<BuildingModalBottomExit onClose=\{onClose\}\s*\/>/);
+  for (const file of ["src/ui/EdificioInfoModal.tsx", "src/ui/CampoDiLavoroModal.tsx"]) {
+    const code = src(file);
+    assert.match(code, /<BuildingModalBottomExit onClose=\{onClose\}\s*\/>/);
+    assert.doesNotMatch(code, /<Pressable style=\{styles\.closeButton\} onPress=\{onClose\}>/);
+  }
+});
