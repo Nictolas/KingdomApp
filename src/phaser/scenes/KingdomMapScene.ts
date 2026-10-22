@@ -91,10 +91,13 @@ type StaticTileView = {
   cell: number;
 };
 
+export type PhaserCameraView = { scrollX: number; scrollY: number; zoom: number };
+
 export class KingdomMapScene extends Phaser.Scene {
   private readonly bridge: MapSceneBridge;
   private readonly sheetUrl: string;
   private readonly artUrls: PhaserArtAssetUrls;
+  private readonly restoreCamera: PhaserCameraView | null;
   private unsubscribe: (() => void) | null = null;
   private tileLayer: Phaser.GameObjects.Container | null = null;
   private worldLayer: Phaser.GameObjects.Container | null = null;
@@ -163,11 +166,12 @@ export class KingdomMapScene extends Phaser.Scene {
   private hoveredCell: number | null = null;
   private readonly characterLastPressAt = new Map<number, number>();
 
-  constructor(bridge: MapSceneBridge, sheetUrl: string, artUrls: PhaserArtAssetUrls) {
+  constructor(bridge: MapSceneBridge, sheetUrl: string, artUrls: PhaserArtAssetUrls, restoreCamera: PhaserCameraView | null = null) {
     super({ key: "kingdom-map" });
     this.bridge = bridge;
     this.sheetUrl = sheetUrl;
     this.artUrls = artUrls;
+    this.restoreCamera = restoreCamera;
   }
 
   preload(): void {
@@ -233,6 +237,15 @@ export class KingdomMapScene extends Phaser.Scene {
     this.renderSnapshot(this.bridge.getSnapshot());
     this.tryNotifyCharacterAssetsReady(this.bridge.getSnapshot());
     this.configureCameraAndInput();
+    // Preserva l'inquadratura mentre si ricrea il solo canvas al rientro
+    // da un edificio; non interferisce con la generazione del mondo.
+    if (this.restoreCamera) {
+      this.cameras.main.setZoom(this.restoreCamera.zoom);
+      this.cameras.main.setScroll(this.restoreCamera.scrollX, this.restoreCamera.scrollY);
+      this.characterVisibilityDirty = true;
+      this.staticTileVisibilityDirty = true;
+      this.waterViewportDirty = true;
+    }
     this.bridge.registerSceneControls({
       refreshViewport: () => this.refreshViewportAfterFocus(),
       resumeInteractions: () => this.resumeInteractionAfterFocus(),

@@ -26,11 +26,16 @@ test("tutte le pagine edificio (anche quelle future nel catalogo) ricevono la ba
 
 test("il navigatore contiene un solo pulsante globale sotto lo Stack, fuori dallo scroll", () => {
   const layout = src("app/_layout.tsx");
-  const footer = src("src/navigation/BuildingBottomExit.tsx");
+  const footer = src("src/navigation/BuildingBottomExit.web.tsx");
+  const nativeFooter = src("src/navigation/BuildingBottomExit.tsx");
   assert.match(layout, /<Stack[\s\S]*<BuildingBottomExit\s*\/>/);
   assert.match(footer, /isBuildingRoute\(pathname\)/);
   assert.match(footer, /accessibilityLabel="Torna alla mappa"/);
-  assert.match(footer, /minHeight: 52/);
+  assert.match(footer, /minHeight: 56/);
+  assert.match(footer, /createPortal\(/);
+  assert.match(footer, /position: "fixed"/);
+  assert.match(footer, /document\.body/);
+  assert.match(nativeFooter, /Math\.max\(insets\.bottom, 12\)/);
   assert.match(footer, /env\(safe-area-inset-bottom/);
   assert.match(footer, /tornaAllaMappa\(router\)/);
 });

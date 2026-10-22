@@ -3,6 +3,7 @@ import { Asset } from "expo-asset";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import type { PhaserMapActions, PhaserMapSnapshot } from "../phaser/adapters/mapSceneBridge";
+import type { PhaserCameraView } from "../phaser/scenes/KingdomMapScene";
 import { restoreMapAfterNavigation, recoverStalledPhaserRender } from "../phaser/restoreMapAfterNavigation";
 import { LPC_ASSET_SOURCES } from "../character-system/generated/lpcAssetSources";
 import { canRenderCharacter, resolveCharacterLayers, CHARACTER_ASSETS } from "../character-system/registry";
@@ -87,9 +88,11 @@ const FOREST_TREE_2 = require("../../assets/tilesets/DEMO-vector-rpg-overworld-t
 
 type Props = PhaserMapActions & {
   snapshot: PhaserMapSnapshot;
+  initialCamera?: PhaserCameraView | null;
 };
 
 export type PhaserMapSurfaceHandle = {
+  captureCamera: () => PhaserCameraView | null;
   refreshViewport: () => void;
   resumeInteractions: () => void;
   centerOnCell: (cellIndex: number, options?: { zoomIn?: boolean }) => void;
@@ -98,6 +101,7 @@ export type PhaserMapSurfaceHandle = {
 /** Superficie WebGL. React le passa dati e azioni, senza partecipare al render loop. */
 export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(function PhaserMapSurface({
   snapshot,
+  initialCamera = null,
   onCellPress,
   onCellHover,
   onCharacterPress,
@@ -124,6 +128,14 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
   useImperativeHandle(
     ref,
     () => ({
+      captureCamera: () => {
+        const runtime = runtimeRef.current;
+        if (!runtime || !runtime.game.isBooted) return null;
+        const scene = runtime.game.scene.getScene("kingdom-map");
+        const camera = scene?.cameras?.main;
+        if (!camera) return null;
+        return { scrollX: camera.scrollX, scrollY: camera.scrollY, zoom: camera.zoom };
+      },
       refreshViewport: () => {
         const runtime = runtimeRef.current;
         const host = hostRef.current;
@@ -205,7 +217,7 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
           pixelArt: true,
           roundPixels: true
         },
-        scene: [new KingdomMapScene(bridge, sheetUrl, artUrls)]
+        scene: [new KingdomMapScene(bridge, sheetUrl, artUrls, initialCamera)]
       });
       lastRenderedAtRef.current = Date.now();
       game.events.on("postrender", () => {

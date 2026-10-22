@@ -1,27 +1,19 @@
 import React from "react";
 import { usePathname, useRouter } from "expo-router";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { tornaAllaMappa } from "./tornaAllaMappa";
 import { isBuildingRoute } from "./isBuildingRoute";
 
-/**
- * Unico pulsante di uscita per TUTTE le pagine di edifici.
- * E' fratello dello Stack: resta fisso al margine inferiore dello schermo,
- * non appartiene alla ScrollView della singola pagina.
- */
+/** Versione nativa. Sulla webapp Safari viene usata la variante .web.tsx. */
 export function BuildingBottomExit() {
   const pathname = usePathname();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   if (!isBuildingRoute(pathname)) return null;
 
-  const safeBottom = Platform.OS === "web"
-    ? ("max(env(safe-area-inset-bottom, 0px), 10px)" as unknown as number)
-    : Math.max(insets.bottom, 10);
-
   return (
-    <View style={[styles.wrapper, { paddingBottom: safeBottom }]}>
+    <View style={[styles.wrapper, { bottom: Math.max(insets.bottom, 12) }]}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel="Torna alla mappa"
@@ -35,18 +27,9 @@ export function BuildingBottomExit() {
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    width: "100%",
-    flexShrink: 0,
-    paddingTop: 10,
-    paddingHorizontal: 16,
-    backgroundColor: "#0b1225",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#475569",
-    zIndex: 100
-  },
+  wrapper: { position: "absolute", left: 12, right: 12, zIndex: 10000 },
   button: {
-    minHeight: 52,
+    minHeight: 56,
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 12,

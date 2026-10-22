@@ -26,7 +26,7 @@ test("il ritorno del Castello mantiene tornaAllaMappa senza rimontare la scena",
 
 test("la base comune rispetta la status bar e la Home bar su iPhone", () => {
   assert.match(shell, /env\(safe-area-inset-top, 0px\)/);
-  const fixedExit = readFileSync(new URL("../src/navigation/BuildingBottomExit.tsx", import.meta.url), "utf8");
+  const fixedExit = readFileSync(new URL("../src/navigation/BuildingBottomExit.web.tsx", import.meta.url), "utf8");
   const modalExit = readFileSync(new URL("../src/ui/BuildingModalBottomExit.tsx", import.meta.url), "utf8");
   assert.match(fixedExit, /env\(safe-area-inset-bottom, 0px\)/);
   assert.match(modalExit, /env\(safe-area-inset-bottom, 0px\)/);
