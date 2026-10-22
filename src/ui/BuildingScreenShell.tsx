@@ -1,9 +1,9 @@
 import React, { type ReactNode } from "react";
 import { usePathname } from "expo-router";
 import { isBuildingRoute } from "../navigation/isBuildingRoute";
+import { BuildingModalBottomExit } from "./BuildingModalBottomExit";
 import {
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -89,21 +89,8 @@ export function BuildingScreenShell({
         </View>
       )}
 
-      {showModalExit ? (
-        <View style={styles.modalExitBar}>
-          <Pressable
-            style={styles.modalExitButton}
-            onPress={onBack}
-            accessibilityRole="button"
-            accessibilityLabel={backLabel}
-          >
-            <Text style={styles.modalExitText}>← {backLabel}</Text>
-          </Pressable>
-          {footerActions ? <View style={styles.footerActions}>{footerActions}</View> : null}
-        </View>
-      ) : footerActions ? (
-        <View style={styles.footerActions}>{footerActions}</View>
-      ) : null}
+      {showModalExit ? <BuildingModalBottomExit onClose={onBack} label={backLabel} /> : null}
+      {footerActions ? <View style={styles.footerActions}>{footerActions}</View> : null}
     </View>
   );
 }
@@ -126,8 +113,5 @@ const styles = StyleSheet.create({
   scroll: { flex: 1, minHeight: 0 },
   content: { width: "100%", flexGrow: 1, paddingHorizontal: 16, paddingVertical: 18, paddingBottom: 32 },
   contentWide: { maxWidth: 1280, alignSelf: "center", paddingHorizontal: 24 },
-    modalExitBar: { paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#0b1225", borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: "#475569" },
-  modalExitButton: { minHeight: 52, borderRadius: 12, backgroundColor: "#2563eb", borderWidth: 1, borderColor: "#60a5fa", alignItems: "center", justifyContent: "center" },
-  modalExitText: { fontSize: 17, fontWeight: "800", color: "#ffffff" },
-  footerActions: { alignItems: "flex-end", justifyContent: "center", padding: 8 }
+    footerActions: { alignItems: "flex-end", justifyContent: "center", padding: 8 }
 });
