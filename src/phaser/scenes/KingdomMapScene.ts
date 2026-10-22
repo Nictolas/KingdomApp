@@ -99,11 +99,14 @@ export class KingdomMapScene extends Phaser.Scene {
   private tileLayer: Phaser.GameObjects.Container | null = null;
   private worldLayer: Phaser.GameObjects.Container | null = null;
   private buildingViews: Phaser.GameObjects.Container[] = [];
+  /** Bordo superiore in coordinate mondo degli sprite effettivamente disegnati. */
+  private readonly renderedRoofTopByAnchor = new Map<number, number>();
   private interactionLayer: Phaser.GameObjects.Container | null = null;
   private locateLayer: Phaser.GameObjects.Container | null = null;
   private locateArrow: Phaser.GameObjects.Container | null = null;
   private locateAbitanteId: number | null = null;
   private locateCell: number | null = null;
+  private locateBuildingAnchor: number | null = null;
   private lastLocateCameraCullPosition: { x: number; y: number } | null = null;
   private gridLayer: Phaser.GameObjects.Graphics | null = null;
   private readonly characterViews = new Map<number, CharacterView>();
@@ -1029,6 +1032,7 @@ export class KingdomMapScene extends Phaser.Scene {
     }
     this.locateAbitanteId = null;
     this.locateCell = null;
+    this.locateBuildingAnchor = null;
     this.lastLocateCameraCullPosition = null;
   }
 
@@ -1095,6 +1099,7 @@ export class KingdomMapScene extends Phaser.Scene {
       this.clearLocateArrow();
       this.locateAbitanteId = marker.abitanteId;
       this.locateCell = marker.cell;
+      this.locateBuildingAnchor = marker.buildingAnchor ?? null;
 
       const root = this.add.container(0, 0);
       const bob = this.add.container(0, 0);
@@ -1122,6 +1127,7 @@ export class KingdomMapScene extends Phaser.Scene {
       this.centerCameraOnCell(marker.cell);
     } else {
       this.locateCell = marker.cell;
+      this.locateBuildingAnchor = marker.buildingAnchor ?? null;
     }
 
     this.syncLocateArrowPosition(snapshot.cellSize);
@@ -1140,7 +1146,9 @@ export class KingdomMapScene extends Phaser.Scene {
       this.locateCell,
       snapshot.cols,
       cellSize,
-      snapshot.buildings
+      snapshot.buildings,
+      this.renderedRoofTopByAnchor,
+      this.locateBuildingAnchor
     );
     this.locateArrow.setPosition(target.arrow.x, target.arrow.y);
     return target;
@@ -1242,6 +1250,7 @@ export class KingdomMapScene extends Phaser.Scene {
     if (!this.worldLayer) return;
     for (const view of this.buildingViews) view.destroy(true);
     this.buildingViews = [];
+    this.renderedRoofTopByAnchor.clear();
 
     for (const building of snapshot.buildings) {
       const col = building.anchor % snapshot.cols;
@@ -1292,6 +1301,10 @@ export class KingdomMapScene extends Phaser.Scene {
           (height + snapshot.cellSize * 0.75) / image.height
         );
         image.setScale(scale);
+        // La dimensione reale dell'immagine è spesso superiore al footprint.
+        // Registriamo il bordo superiore DOPO la scalatura; sarà usato per
+        // posizionare "Individua" sopra il tetto visibile, non sulla facciata.
+        this.renderedRoofTopByAnchor.set(building.anchor, y + height - image.displayHeight);
 
         const shadow = this.add.ellipse(
           width / 2 + 2,

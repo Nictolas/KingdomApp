@@ -47,6 +47,9 @@ export type PhaserMapInteraction = {
 export type PhaserLocateMarker = {
   cell: number;
   abitanteId: number;
+  /** Edificio in cui l'abitante si trova realmente, anche se lo sprite
+   * è nascosto mentre lavora, dorme, prega o visita il Bar. */
+  buildingAnchor?: number;
 };
 
 export type PhaserMapSnapshot = {

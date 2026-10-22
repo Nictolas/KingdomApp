@@ -62,6 +62,106 @@ test("la freccia della residenza illustrata resta sopra anche ai tetti sporgenti
   assert.ok(illustrated.arrow.y < normal.arrow.y);
 });
 
+test("un edificio illustrato usa il bordo reale del tetto, non l'offset stimato", () => {
+  const greenhouse = { ...bar, name: "Serra", artKey: "greenhouse" as const };
+  const inside = {
+    x: (geometry.footprint.col + 1.5) * cellSize,
+    y: (geometry.footprint.row + 1.5) * cellSize
+  };
+
+  // Esempio realistico: lo sprite è alto più del footprint e sporge
+  // di 2,2 celle. Il vecchio offset di 0,75 celle cadeva sulla facciata.
+  const roofTop = geometry.footprint.row * cellSize - cellSize * 2.2;
+  const measured = resolveLocateTrackingPosition(
+    inside,
+    geometry.doorCell,
+    cols,
+    cellSize,
+    [greenhouse],
+    new Map([[anchor, roofTop]])
+  );
+  const previousEstimate = resolveLocateTrackingPosition(
+    inside,
+    geometry.doorCell,
+    cols,
+    cellSize,
+    [greenhouse]
+  );
+  assert.equal(measured.buildingAnchor, anchor);
+  assert.ok(measured.arrow.y < roofTop, "la freccia deve stare sopra il vero tetto");
+  assert.ok(previousEstimate.arrow.y > roofTop, "la vecchia posizione finiva sull'edificio");
+  assert.deepEqual(measured.focus, inside, "il tracking della camera non deve cambiare");
+});
+
+test("il tetto misurato viene aggiornato se l'edificio cambia dimensione o posizione", () => {
+  const inside = {
+    x: (geometry.footprint.col + 0.5) * cellSize,
+    y: (geometry.footprint.row + 0.5) * cellSize
+  };
+  const firstRoof = 3 * cellSize;
+  const secondRoof = 2.5 * cellSize;
+  const roofs = new Map([[anchor, firstRoof]]);
+  const first = resolveLocateTrackingPosition(inside, geometry.doorCell, cols, cellSize, [bar], roofs);
+  roofs.set(anchor, secondRoof);
+  const second = resolveLocateTrackingPosition(inside, geometry.doorCell, cols, cellSize, [bar], roofs);
+  assert.equal(second.arrow.y - first.arrow.y, secondRoof - firstRoof);
+});
+
+test("Phaser misura lo sprite scalato e passa il tetto reale al calcolo Individua", () => {
+  const source = readFileSync(new URL("../src/phaser/scenes/KingdomMapScene.ts", import.meta.url), "utf8");
+  assert.match(source, /renderedRoofTopByAnchor = new Map<number, number>\(\)/);
+  assert.match(source, /this\.renderedRoofTopByAnchor\.clear\(\)/);
+  assert.match(source, /this\.renderedRoofTopByAnchor\.set\(building\.anchor, y \+ height - image\.displayHeight\)/);
+  assert.match(source, /snapshot\.buildings,\s*this\.renderedRoofTopByAnchor,\s*this\.locateBuildingAnchor\s*\)/);
+});
+
+test("lavoratore nascosto: freccia sopra la Serra nonostante la vecchia cella fuori dall'edificio", () => {
+  const serra = { ...bar, name: "Serra", artKey: "greenhouse" as const };
+  const staleCell = geometry.doorCell + cols * 2;
+  const rooftop = geometry.footprint.row * cellSize - 1.2 * cellSize;
+  const target = resolveLocateTrackingPosition(
+    null,
+    staleCell,
+    cols,
+    cellSize,
+    [serra],
+    new Map([[anchor, rooftop]]),
+    anchor
+  );
+  assert.equal(target.buildingAnchor, anchor);
+  assert.ok(target.arrow.y < rooftop);
+  assert.equal(target.arrow.x, (geometry.footprint.col + geometry.footprint.width / 2) * cellSize);
+  assert.deepEqual(target.focus, {
+    x: (geometry.footprint.col + geometry.footprint.width / 2) * cellSize,
+    y: (geometry.footprint.row + geometry.footprint.height / 2) * cellSize
+  }, "la camera inquadra la Serra mentre il lavoratore è nascosto");
+});
+
+test("sede confermata prevale sulla posizione animata residua fuori dal perimetro", () => {
+  const staleSprite = { x: (geometry.footprint.col + 3) * cellSize, y: (geometry.footprint.row + 2) * cellSize };
+  const target = resolveLocateTrackingPosition(staleSprite, geometry.doorCell, cols, cellSize, [bar], undefined, anchor);
+  assert.equal(target.buildingAnchor, anchor);
+  assert.ok(target.arrow.y < geometry.footprint.row * cellSize);
+});
+
+test("quando il lavoratore riparte, la freccia torna sul personaggio e non sulla sede", () => {
+  const outside = { x: (geometry.footprint.col + 3) * cellSize, y: (geometry.footprint.row + 2) * cellSize };
+  const target = resolveLocateTrackingPosition(outside, geometry.doorCell, cols, cellSize, [bar], undefined, null);
+  assert.equal(target.buildingAnchor, null);
+  assert.equal(target.arrow.x, outside.x);
+});
+
+test("la mappa collega l'occupazione lavorativa all'edificio, anche con sprite nascosto", () => {
+  const source = readFileSync(new URL("../app/mappa.tsx", import.meta.url), "utf8");
+  const phaser = readFileSync(new URL("../src/phaser/scenes/KingdomMapScene.ts", import.meta.url), "utf8");
+  assert.match(source, /lavoroArrivatiIds\.has\(locateAbitanteId\)/);
+  assert.match(source, /primoEdificioLavoroOrarioPerAbitante\(/);
+  assert.match(source, /trovaAnchorEdificioGlobaleSuMappa\(/);
+  assert.match(source, /buildingAnchor: occupiedBuildingAnchor \?\? undefined/);
+  assert.match(phaser, /this\.locateBuildingAnchor = marker\.buildingAnchor \?\? null/);
+  assert.match(phaser, /this\.renderedRoofTopByAnchor,\s*this\.locateBuildingAnchor/);
+});
+
 test("un edificio sul bordo nord non fa uscire la freccia fuori dalla mappa", () => {
   const top = { ...bar, anchor: 3, geometry: deriveBuildingGeometry(3, 2, 2, cols, 18) };
   const target = resolveLocateTrackingPosition({ x: 4 * cellSize, y: cellSize }, 3, cols, cellSize, [top]);

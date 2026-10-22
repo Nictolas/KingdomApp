@@ -3574,13 +3574,75 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const locateMarker = useMemo(() => {
     if (locateAbitanteId == null) return null;
     const character = phaserCharacters.find((item) => item.id === locateAbitanteId);
+    const abitante = abitanti.find((item) => item.id === locateAbitanteId);
+    const inCommute = commuteByAbitanteId[locateAbitanteId] != null;
+
+    // Un lavoratore che è entrato nella Serra, nel Bar o in un'altra sede
+    // non viene più disegnato da Phaser. In quel caso l'ultima cella nota
+    // potrebbe essere davanti alla porta: non è la posizione dell'edificio.
+    let occupiedBuildingAnchor: number | null = null;
+    if (!inCommute) {
+      let occupiedEdificioId: number | null = null;
+      if (
+        lavoroArrivatiIds.has(locateAbitanteId) &&
+        abitanteInOrarioLavoroEdificio(locateAbitanteId, orologioMinuti, edifici, abitanti)
+      ) {
+        occupiedEdificioId = primoEdificioLavoroOrarioPerAbitante(
+          locateAbitanteId,
+          edifici,
+          abitanti
+        )?.id ?? null;
+      }
+      if (occupiedEdificioId == null && abitante &&
+          abitanteAlBarRoutineOra(abitante, orologioMinuti, statoCielo.buio, edifici)) {
+        for (const [id, arrivati] of Object.entries(barArrivatiByEdificio)) {
+          if (arrivati.includes(locateAbitanteId)) {
+            occupiedEdificioId = Number(id);
+            break;
+          }
+        }
+      }
+      if (occupiedEdificioId == null) {
+        for (const [id, arrivati] of Object.entries(cultoArrivatiByEdificio)) {
+          if (arrivati.includes(locateAbitanteId)) {
+            occupiedEdificioId = Number(id);
+            break;
+          }
+        }
+      }
+      if (occupiedEdificioId != null) {
+        occupiedBuildingAnchor = trovaAnchorEdificioGlobaleSuMappa(
+          occupiedEdificioId,
+          edificiInMappa
+        );
+      } else if (èNottePersonaggiInCasa && dormonoACasaIds.has(locateAbitanteId)) {
+        occupiedBuildingAnchor = cellaCasaPerAbitanteId.get(locateAbitanteId) ?? null;
+      }
+      // Evita di associare una vecchia sede demolita o non rappresentata.
+      if (occupiedBuildingAnchor != null &&
+          !phaserBaseSnapshot.buildings.some((building) => building.anchor === occupiedBuildingAnchor)) {
+        occupiedBuildingAnchor = null;
+      }
+    }
+
     const cell =
+      occupiedBuildingAnchor ??
       character?.cell ??
       ultimaCellaAbitanteRef.current.get(locateAbitanteId) ??
       cellaCasaPerAbitanteId.get(locateAbitanteId) ??
       null;
-    return cell == null ? null : { cell, abitanteId: locateAbitanteId };
-  }, [locateAbitanteId, phaserCharacters, cellaCasaPerAbitanteId]);
+    return cell == null ? null : {
+      cell,
+      abitanteId: locateAbitanteId,
+      buildingAnchor: occupiedBuildingAnchor ?? undefined
+    };
+  }, [
+    locateAbitanteId, phaserCharacters, abitanti, commuteByAbitanteId,
+    lavoroArrivatiIds, orologioMinuti, edifici, edificiInMappa,
+    barArrivatiByEdificio, cultoArrivatiByEdificio, statoCielo.buio,
+    èNottePersonaggiInCasa, dormonoACasaIds, cellaCasaPerAbitanteId,
+    phaserBaseSnapshot.buildings
+  ]);
 
   const phaserSnapshot = useMemo(
     () => ({
