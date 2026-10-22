@@ -286,7 +286,7 @@ import {
 } from "../src/game/mappaEdificiStatici";
 import { getStradeIniziali } from "../src/game/mappaStradeIniziali";
 import { ripristinaBoscoNord } from "../src/game/mappaBoscoNord";
-import { cellaNellaFasciaErbaSottoForesta, cellaNellaForestaNord, proteggiFasciaErbaSottoForesta } from "../src/game/mappaForestaConfine";
+import { cellaNellaFasciaErbaSottoForesta, cellaNellaForestaNord, proteggiFasciaErbaSottoForesta, rimuoviStradeInizialiDallaFasciaErba } from "../src/game/mappaForestaConfine";
 import { fasciaTerraEdificiIniziali, preservaTerraIntornoEdificiIniziali } from "../src/game/mappaDistanzaAcquaEdificiIniziali";
 import {
   calcolaAnchorCostruzione2x2,
@@ -546,8 +546,9 @@ async function buildInitialMappa(
   await report(75, "Rifinitura terreno e confini…");
   applicaRegoleConfineTerreno(edificiInMappa, terrenoInMappa, cols, rows);
   preservaTerraIntornoEdificiIniziali(terrenoInMappa, fasciaSicurezzaEdifici, cols, rows);
-  // L'autotiling può aver aggiunto sabbia/acqua: la fascia nord resta prato.
+  // L'autotiling puo' aver aggiunto sabbia/acqua/strade: il prato nord resta libero.
   proteggiFasciaErbaSottoForesta(terrenoInMappa, cols, rows);
+  rimuoviStradeInizialiDallaFasciaErba(edificiInMappa, cols, rows);
 
   await report(86, "Distribuzione decorazioni…");
   const celleLibere: number[] = [];
