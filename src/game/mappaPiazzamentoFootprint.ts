@@ -10,7 +10,7 @@ import {
   isAcqua
 } from "./mappaGeometry";
 import type { EdificioInCellaMappa } from "./mappaTypes";
-import { footprintIntersecaForestaNord } from "./mappaForestaConfine";
+import { cellaNellaFasciaErbaSottoForesta, footprintIntersecaForestaNord } from "./mappaForestaConfine";
 
 /** Verifica che footprint e cuscino siano liberi da celle vietate, acqua e fiume. */
 export function puòPiazzareFootprintConCuscino(
@@ -28,7 +28,7 @@ export function puòPiazzareFootprintConCuscino(
   for (let dr = 0; dr < h; dr++) {
     for (let dc = 0; dc < w; dc++) {
       const i = (ar + dr) * cols + (ac + dc);
-      if (vietato.has(i) || isAcqua(i, cols, rows) || riverSet.has(i)) return false;
+      if (vietato.has(i) || isAcqua(i, cols, rows) || riverSet.has(i) || cellaNellaFasciaErbaSottoForesta(i, cols, rows)) return false;
     }
   }
   for (const i of getIndiciCuscinoErba(anchor, w, h, cols, rows)) {
