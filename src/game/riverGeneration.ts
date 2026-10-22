@@ -3,7 +3,7 @@
  * e direzione preferenziale. Supporta biforcazioni e biomi (sabbia adiacente).
  */
 
-import { cellaNellaForestaNord, righeForestaNord } from "./mappaForestaConfine";
+import { cellaNellaFasciaErbaSottoForesta, cellaNellaForestaNord, righeForestaNord } from "./mappaForestaConfine";
 
 export type TerrenoType = "erba" | "river" | "sabbia";
 
@@ -370,7 +370,7 @@ export function buildTerrenoFromRivers(
 export function isMareCell(index: number, cols: number, rows: number): boolean {
   const row = Math.floor(index / cols);
   const col = index % cols;
-  if (cellaNellaForestaNord(index, cols, rows)) return false;
+  if (cellaNellaForestaNord(index, cols, rows) || cellaNellaFasciaErbaSottoForesta(index, cols, rows)) return false;
   return (row === 0 && righeForestaNord(cols, rows) === 0) || row === rows - 1 || col === 0 || col === cols - 1;
 }
 
