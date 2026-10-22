@@ -47,6 +47,14 @@
     { "id": "noble_pants", "slot": "lowerBody", "definition": "legs/pants/legs_pants.json", "semantic": "noble", "colors": ["black"], "colorField": "outfitSecondaryColor", "required": true },
     { "id": "noble_crown", "slot": "headwear", "definition": "headwear/hats/formal/hat_formal_crown.json", "semantic": "crown", "colors": ["crown_gold"], "colorField": "headwear" },
 
-    { "id": "tool_watering_can", "slot": "accessory", "definition": "tools/tool_watering_can.json", "semantic": "watering_can", "colors": ["base"], "bodyTypes": ["male", "female", "teen", "muscular", "pregnant"] }
+    { "id": "tool_watering_can", "slot": "accessory", "definition": "tools/tool_watering_can.json", "semantic": "watering_can", "colors": ["base"], "bodyTypes": ["male", "female", "teen", "muscular", "pregnant"] },
+    {"id":"tool_axe","slot":"accessory","definition":"tools/tool_axe.json","semantic":"axe","colors":["base"],"bodyTypes":["male","female","teen","muscular","pregnant"]},
+    {"id":"tool_hammer","slot":"accessory","definition":"tools/tool_hammer.json","semantic":"hammer","colors":["base"],"bodyTypes":["male","female","teen","muscular","pregnant"]},
+    {"id":"tool_pickaxe","slot":"accessory","definition":"tools/tool_pickaxe.json","semantic":"pickaxe","colors":["base"],"bodyTypes":["male","female","teen","muscular","pregnant"]},
+    {"id":"guard_helmet_barbuta","slot":"headwear","definition":"headwear/helmets/helmets/hat_helmet_barbuta.json","semantic":"helmet_barbuta","colors":["iron"],"colorField":"headwearColor","bodyTypes":["male","female","teen","muscular","pregnant"]},
+    {"id":"wizard_hat_celestial","slot":"headwear","definition":"headwear/hats/magic/hat_magic_celestial.json","semantic":"magic_celestial","colors":["purple"],"colorField":"headwearColor","bodyTypes":["male","female","teen","muscular","pregnant"]},
+    {"id":"medic_cravat","slot":"neck","definition":"headwear/neck/neck_cravat.json","semantic":"cravat","colors":["white"],"colorField":"neckwearColor","bodyTypes":["male","female","teen","muscular","pregnant"]},
+    {"id":"medic_plain_mask","slot":"facialMask","definition":"headwear/accessories/facial_mask_plain.json","semantic":"plain_mask","colors":["white"],"colorField":"facialMaskColor","bodyTypes":["male","female","teen","muscular","pregnant"]},
+    {"id":"medic_sunglasses","slot":"facialEyes","definition":"headwear/accessories/glasses/facial_glasses_sunglasses.json","semantic":"sunglasses","colors":["black"],"colorField":"facialEyesColor","bodyTypes":["male","female","teen","muscular","pregnant"]}
   ]
 }

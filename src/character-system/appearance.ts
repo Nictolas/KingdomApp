@@ -28,11 +28,40 @@ export const FARMER_TOOL = "watering_can";
 export const LUMBERJACK_TOOL = "axe";
 export const BLACKSMITH_TOOL = "hammer";
 export const MINER_TOOL = "pickaxe";
-export const MEDICO_CHAINMAIL = "chainmail";
+/**
+ * Nell'LPC manifest la corazza "guard_chainmail" ha semanticId "guard".
+ * È riservata esclusivamente agli abitanti con lavoro Guardia.
+ */
+export const GUARD_CHAINMAIL_OUTFIT = "guard";
+export function isGuardChainmailOutfit(outfit?: string | null): boolean {
+  return outfit === GUARD_CHAINMAIL_OUTFIT || outfit === "chainmail";
+}
+
+/** Ripristina gli abiti civili nei salvataggi precedenti o negli editor non militari. */
+export function stripGuardChainmailFromCivilian(appearance: CharacterAppearance): CharacterAppearance {
+  const upperOutfit = isGuardChainmailOutfit(appearance.upperOutfit) ? "none" : appearance.upperOutfit;
+  const sleeveOutfit = isGuardChainmailOutfit(appearance.sleeveOutfit) ? "none" : appearance.sleeveOutfit;
+  const lowerOutfit = isGuardChainmailOutfit(appearance.lowerOutfit) ? "none" : appearance.lowerOutfit;
+  const fullOutfit = isGuardChainmailOutfit(appearance.fullOutfit) ? "none" : appearance.fullOutfit;
+  const outfit = isGuardChainmailOutfit(appearance.outfit) ? upperOutfit : appearance.outfit;
+  if (outfit === appearance.outfit && upperOutfit === appearance.upperOutfit &&
+      sleeveOutfit === appearance.sleeveOutfit && lowerOutfit === appearance.lowerOutfit &&
+      fullOutfit === appearance.fullOutfit) return appearance;
+  return normalizeCharacterAppearance({
+    ...appearance,
+    outfit,
+    upperOutfit,
+    sleeveOutfit,
+    lowerOutfit,
+    fullOutfit,
+    fullOutfitTrim: fullOutfit === "none" ? "none" : appearance.fullOutfitTrim
+  });
+}
+
 export const MEDICO_CRAVAT = "cravat";
 export const MEDICO_MASK = "plain_mask";
 export const MEDICO_SUNGLASSES = "sunglasses";
-export const MEDICO_HOOD_MAIL = "mail";
+// I copricapi in maglia metallica sono riservati all'equipaggiamento militare.
 export const GIUDICE_HAIR_STYLE = "wavy";
 export const GIUDICE_HAIR_COLOR = "white";
 export const GIUDICE_KIMONO = "kimono";
@@ -184,33 +213,59 @@ function professionTeenBodyPatch(value: Partial<CharacterAppearance>): Partial<C
   };
 }
 
+/**
+ * Cambia il vestiario soltanto nell'aspetto visualizzato: non muta mai
+ * il vestito civile registrato nel salvataggio.
+ * Usa semanticId già effettivamente presenti nel manifest LPC.
+ */
+function professionUniform(
+  value: Partial<CharacterAppearance>,
+  upperOutfit: "farmer" | "traveler" | "commoner",
+  colors: { shirt: string; pants: string },
+  accessory: string
+): Partial<CharacterAppearance> {
+  return {
+    ...value,
+    accessory,
+    fullOutfit: "none",
+    fullOutfitTrim: "none",
+    outfit: upperOutfit,
+    upperOutfit,
+    lowerOutfit: upperOutfit,
+    sleeveOutfit: "none",
+    outfitPrimaryColor: colors.shirt,
+    outfitSecondaryColor: colors.pants
+  };
+}
+
 /** Strumenti e abiti LPC obbligatori per occupazione (visibile in mappa/UI, non persistito). */
 export function enforceProfessionAccessoryRules(
   value: Partial<CharacterAppearance>,
   lavoro?: string,
   seed = 1
 ): Partial<CharacterAppearance> {
-  if (lavoro === "Agricoltore") return { ...value, accessory: FARMER_TOOL };
-  if (lavoro === "Taglialegna") return { ...value, accessory: LUMBERJACK_TOOL };
-  if (lavoro === "Fabbro") return { ...value, accessory: BLACKSMITH_TOOL };
-  if (lavoro === "Minatore") return { ...value, accessory: MINER_TOOL };
+  if (lavoro === "Agricoltore") return professionUniform(value, "farmer", { shirt: "tan", pants: "brown" }, FARMER_TOOL);
+  if (lavoro === "Taglialegna") return professionUniform(value, "traveler", { shirt: "forest", pants: "brown" }, LUMBERJACK_TOOL);
+  if (lavoro === "Fabbro") return professionUniform(value, "farmer", { shirt: "tan", pants: "brown" }, BLACKSMITH_TOOL);
+  if (lavoro === "Minatore") return professionUniform(value, "commoner", { shirt: "brown", pants: "charcoal" }, MINER_TOOL);
   if (lavoro === "Medico") {
     return {
       ...value,
       accessory: "none",
-      headwear: MEDICO_HOOD_MAIL,
-      headwearColor: "iron",
+      headwear: "none",
+      headwearColor: "base",
       beardStyle: "none",
       hairStyle: "none",
       hairColor: "none",
       ...professionTeenBodyPatch(value),
       fullOutfit: "kimono",
       fullOutfitTrim: "none",
-      outfit: MEDICO_CHAINMAIL,
-      upperOutfit: MEDICO_CHAINMAIL,
+      outfit: "none",
+      upperOutfit: "none",
       lowerOutfit: "none",
-      outfitPrimaryColor: "black",
-      outfitSecondaryColor: "iron",
+      // La veste bianca è disponibile come kimono teen nel catalogo attuale.
+      outfitPrimaryColor: "white",
+      outfitSecondaryColor: "charcoal",
       neckwear: MEDICO_CRAVAT,
       neckwearColor: "white",
       facialMask: MEDICO_MASK,
@@ -244,15 +299,26 @@ export function enforceProfessionAccessoryRules(
       ...value,
       accessory: "none",
       ...professionTeenBodyPatch(value),
-      beardStyle: "none"
+      beardStyle: "none",
+      fullOutfit: "kimono",
+      fullOutfitTrim: "none",
+      outfit: "none",
+      upperOutfit: "none",
+      lowerOutfit: "none",
+      sleeveOutfit: "none",
+      outfitPrimaryColor: "purple",
+      cape: "solid",
+      capeTrim: "none",
+      capeColor: "base"
     };
     const normalizedTeen = normalizeCharacterAppearance(teenBase);
     const colori = compatibleColorsForField(normalizedTeen, "headwearColor", "headwear", MAGO_HAT);
-    const headwearColor = pickColorFromSeed(colori, seed);
     return {
       ...teenBase,
-      headwear: MAGO_HAT,
-      headwearColor
+      // Quando il cappello LPC non è nel pacchetto, conserva la veste
+      // viola senza chiedere al renderer di caricare uno sprite inesistente.
+      headwear: colori.length > 0 ? MAGO_HAT : "none",
+      headwearColor: colori.length > 0 ? pickColorFromSeed(colori, seed) : "base"
     };
   }
   if (lavoro === "Guardia") {
@@ -265,7 +331,17 @@ export function enforceProfessionAccessoryRules(
       beardStyle: "none",
       beardColor: "none",
       headwear: GUARDIA_HELMET,
-      headwearColor: GUARDIA_HELMET_COLOR
+      headwearColor: GUARDIA_HELMET_COLOR,
+      // L'armatura si sovrappone agli abiti civili mentre si è in servizio.
+      // Il dato aspetto originale non viene modificato o salvato.
+      outfit: GUARD_CHAINMAIL_OUTFIT,
+      upperOutfit: GUARD_CHAINMAIL_OUTFIT,
+      lowerOutfit: GUARD_CHAINMAIL_OUTFIT,
+      outfitSecondaryColor: "black",
+      sleeveOutfit: "none",
+      fullOutfit: "none",
+      fullOutfitTrim: "none",
+      outfitPrimaryColor: "base"
     };
   }
   return value;
@@ -434,7 +510,13 @@ export function appearanceForPublicSpace(
     sesso?: "M" | "F" | null;
   }
 ): CharacterAppearance {
-  const aligned = appearanceAlignedToRazza(value, rules.razza);
+  const isGuard = rules.lavoro === "Guardia";
+  // I civili (inclusi ex Guardie e Medici) non possono conservare la cotta di maglia,
+  // neppure se era stata selezionata in un vecchio salvataggio.
+  const aligned = appearanceAlignedToRazza(
+    isGuard ? value : stripGuardChainmailFromCivilian(value),
+    rules.razza
+  );
   const seed = rules.seed ?? 1;
   const isDwarf = aligned.race === "dwarf" || rules.razza === "Nano";
   const dwarfSesso =
@@ -468,7 +550,7 @@ export function appearanceForPublicSpace(
   const normalized = normalizeCharacterAppearance({
     ...withProfession,
     headwear: !rules.isKing && withProfession.headwear === "crown" ? "none" : withProfession.headwear,
-    ...(dwarfClothes && !usaKimonoProfessionale
+    ...(dwarfClothes && !usaKimonoProfessionale && !isGuard
       ? dwarfClothes
       : {
           outfit: withProfession.outfit === "none" && !usaKimonoProfessionale ? effectiveFallback : withProfession.outfit,
@@ -478,5 +560,19 @@ export function appearanceForPublicSpace(
             : withProfession.lowerOutfit
         })
   });
-  return rules.incinta ? compatibilizzaPerGravidanza(normalized) : compatibilizzaPerCatalogo(normalized);
+  const compatible = rules.incinta
+    ? compatibilizzaPerGravidanza(normalized)
+    : compatibilizzaPerCatalogo(normalized);
+  if (!isGuard) return compatible;
+  // Le Guardie devono indossare sempre la Chainmail, anche se il catalogo
+  // corporeo (es. Nano/child) richiede un fallback per altri strati.
+  return normalizeCharacterAppearance({
+    ...compatible,
+    outfit: GUARD_CHAINMAIL_OUTFIT,
+    upperOutfit: GUARD_CHAINMAIL_OUTFIT,
+    sleeveOutfit: "none",
+    fullOutfit: "none",
+    fullOutfitTrim: "none",
+    outfitPrimaryColor: "base"
+  });
 }

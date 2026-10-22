@@ -81,7 +81,14 @@ function semanticForSlot(asset: ManifestAsset, appearance: CharacterAppearance, 
     if (asset.semanticId !== appearance.footwear) return false;
     return assetColorMatches(asset, appearance, pool);
   }
-  if (asset.slot === "headwear") return appearance.headwear !== "none" && asset.semanticId === appearance.headwear;
+  if (asset.slot === "headwear") return appearance.headwear !== "none" &&
+    asset.semanticId === appearance.headwear && assetColorMatches(asset, appearance, pool);
+  if (asset.slot === "neck") return appearance.neckwear !== "none" &&
+    asset.semanticId === appearance.neckwear && assetColorMatches(asset, appearance, pool);
+  if (asset.slot === "facialMask") return appearance.facialMask !== "none" &&
+    asset.semanticId === appearance.facialMask && assetColorMatches(asset, appearance, pool);
+  if (asset.slot === "facialEyes") return appearance.facialEyes !== "none" &&
+    asset.semanticId === appearance.facialEyes && assetColorMatches(asset, appearance, pool);
   if (asset.slot === "cape") {
     if (appearance.cape === "none") return false;
     const matchesBase = asset.semanticId === appearance.cape;
@@ -129,6 +136,35 @@ export function resolveCharacterLayers(appearance: CharacterAppearance, animatio
     .filter((asset) => semanticForSlot(asset, appearance, pool))
     .sort((a, b) => layerZ(a) - layerZ(b))
     .map((asset): ResolvedCharacterLayer => ({ id: asset.id, assetPack: LPC_PACK_ID, layer: asset.slot, semanticId: asset.semanticId, zPos: layerZ(asset), bodyFamilies: [familyForBodyType(asset.bodyType)], races: ACTIVE_SPRITE_RACES, sheetId: sheet.id, sourceId: asset.sourceKey, tint: "none", attributionId: asset.attributionId, sheet }));
+
+  // L'asset LPC guard_chainmail esiste per male/female/teen ma non per
+  // child/pregnant. Le Guardie Nane mantengono il corpo child e ricevono
+  // lo strato militare teen, senza alterare razza o aspetto persistito.
+  if (appearance.fullOutfit === "none" &&
+      appearance.upperOutfit === "guard" &&
+      !layers.some((layer) => layer.layer === "outfit" && layer.semanticId === "guard")) {
+    const guardOverlay = LPC_RUNTIME_MANIFEST.assets.filter((asset) =>
+      asset.animation === animation &&
+      asset.bodyType === "teen" &&
+      asset.slot === "outfit" &&
+      asset.semanticId === "guard"
+    );
+    layers.push(...guardOverlay.map((asset): ResolvedCharacterLayer => ({
+      id: asset.id,
+      assetPack: LPC_PACK_ID,
+      layer: asset.slot,
+      semanticId: asset.semanticId,
+      zPos: asset.zPos,
+      bodyFamilies: [familyForBodyType(appearance.bodyType)],
+      races: ACTIVE_SPRITE_RACES,
+      sheetId: sheet.id,
+      sourceId: asset.sourceKey,
+      tint: "none",
+      attributionId: asset.attributionId,
+      sheet
+    })));
+    layers.sort((a, b) => a.zPos - b.zPos);
+  }
 
   if (appearance.accessory !== "none" && !layers.some((layer) => layer.layer === "accessory")) {
     const toolAnimation = animation === "idle" ? "walk" : animation;
