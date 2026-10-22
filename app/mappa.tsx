@@ -3376,10 +3376,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         lastTapCell.current = null;
         return;
       }
-      /** Bosco: una sola pressione su qualsiasi casella delle 5×5.
-       * Il doppio tocco sulla stessa tessera non è affidabile su mobile.
+      /** Bosco: un tocco su qualunque albero della fascia settentrionale,
+       * oppure sulla sede 5x5 di raccolta. Il doppio tap della stessa cella
+       * e' inaffidabile sui touchscreen (ed e' facile toccare alberi laterali).
        */
-      if (edificio?.nome === "Bosco") {
+      if (edificio?.nome === "Bosco" || cellaNellaForestaNord(cellIndex, cols, rows)) {
         openRouteForEdificio("Bosco");
         lastTapCell.current = null;
         return;
