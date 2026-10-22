@@ -3573,15 +3573,19 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (!visibleIds.has(id)) releaseCellAbitante(id);
     }
     for (const character of phaserCharacters) {
-      // Se lo spawn precedente era nel Bosco, la nuova cella esterna
-      // diventa immediatamente la posizione runtime utilizzata ai prossimi render.
-      ultimaCellaAbitanteRef.current.set(character.id, character.cell);
-      if (!abitanteSuCellaRef.current.has(character.id)) {
+      // Migra solamente gli spawn legacy nella foresta: evita di sovrascrivere
+      // la cella di chi sta già camminando verso lavoro/casa.
+      const oldCell = ultimaCellaAbitanteRef.current.get(character.id);
+      if (oldCell == null || cellaNellaForestaNord(oldCell, cols, rows)) {
+        ultimaCellaAbitanteRef.current.set(character.id, character.cell);
+      }
+      const claimedCell = abitanteSuCellaRef.current.get(character.id);
+      if (claimedCell == null || cellaNellaForestaNord(claimedCell, cols, rows)) {
         tryClaimCellAbitante(character.id, character.cell);
       }
       setUltimaCellaAbitanteRuntime(character.id, character.cell);
     }
-  }, [phaserCharacters, releaseCellAbitante, tryClaimCellAbitante]);
+  }, [phaserCharacters, cols, rows, releaseCellAbitante, tryClaimCellAbitante]);
 
   const phaserRevisionRef = useRef(0);
   const phaserBaseSnapshot = useMemo(
