@@ -77,7 +77,9 @@ export function elencoAncoreEdificiNonStrada(edifici: Record<number, EdificioMap
   for (const ks of Object.keys(edifici)) {
     const i = Number(ks);
     const e = edifici[i];
-    if (!e || e.nome === "Strada") continue;
+    // Il Bosco e' una risorsa naturale accessibile a piedi, non richiede strade.
+    // In particolare, lasciare erbosa la fascia a sud degli alberi.
+    if (!e || e.nome === "Strada" || e.nome === "Bosco") continue;
     if (e.footprintRef != null) continue;
     out.push(i);
   }
