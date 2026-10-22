@@ -159,6 +159,7 @@ import {
 } from "../src/game/orariLavoroMappa";
 import {
   calcolaPercorsoVersoAnchorEdificio,
+  celleIngressoBoscoWalkable,
   cercaPercorsoLavoroDisoccupato,
   pianificaCommuteMattina,
   pianificaCommuteSeraACasa,
@@ -2266,6 +2267,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         if (anchor == null) return;
         const porta = trovaCellaPortaEdificio(anchor, edificiInMappa, cols, rows, isWalkableCell);
         if (porta != null) goalLiberi.add(porta);
+        for (const accesso of celleIngressoBoscoWalkable(anchor, edificiInMappa, cols, rows, isWalkableCell)) {
+          goalLiberi.add(accesso);
+        }
       };
 
       let anchorDest: number | null = null;
@@ -2352,7 +2356,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           cols,
           pathEvitandoAltri,
           pathAttraversoAltri,
-          giaAllIngresso: porta === from,
+          giaAllIngresso: porta === from ||
+            (anchorDest != null && celleIngressoBoscoWalkable(
+              anchorDest, edificiInMappa, cols, rows, isWalkableCell
+            ).includes(from)),
           oscillazioniConsecutive
         });
 
