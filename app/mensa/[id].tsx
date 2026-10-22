@@ -20,6 +20,7 @@ import { modalBackdropFullscreen, modalContentFullscreen } from "../../src/ui/mo
 import type { Abitante } from "../../src/types";
 
 export default function MensaScreenById() {
+  const router = useRouter();
   const raw = useLocalSearchParams<{ id: string | string[] }>().id;
   const idStr = Array.isArray(raw) ? raw[0] : raw;
   const edificioId = Number(idStr);
