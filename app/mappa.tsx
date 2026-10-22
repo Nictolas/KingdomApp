@@ -1565,6 +1565,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const isWalkableCell = useCallback(
     (i: number) => {
+      // Il Bosco a nord è uno sfondo non percorribile: nessuno può
+      // comparirvi o usarlo nei percorsi, nemmeno chi ci lavora.
+      if (cellaNellaForestaNord(i, cols, rows)) return false;
       if (isAcqua(i, cols, rows)) return false;
       if ((terrenoInMappa[i] ?? "erba") === "river") return false;
       if (decorazioniInMappa[i]) return false;
@@ -1655,6 +1658,19 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         runtimePersonaggiInizialeRef.current.ultimaCellaByAbitanteId
       ) as Record<number, CommuteInfo>
   );
+
+  // Ripara i percorsi di vecchie partite generati quando la foresta
+  // era considerata erba libera. Non altera i salvataggi degli abitanti.
+  useEffect(() => {
+    setCommuteByAbitanteId((prev) => {
+      const valid = Object.entries(prev).filter(([, info]) =>
+        !info.path.some((cell) => cellaNellaForestaNord(cell, cols, rows))
+      );
+      return valid.length === Object.keys(prev).length
+        ? prev
+        : (Object.fromEntries(valid) as Record<number, CommuteInfo>);
+    });
+  }, [cols, rows]);
 
   useEffect(() => {
     patchMappaPersonaggiRuntime({
@@ -3528,7 +3544,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           idleRoamAllowed
         };
       });
-    return assignUniqueCharacterCells(candidates, cols, rows, isWalkableCell);
+    return assignUniqueCharacterCells(
+      candidates,
+      cols,
+      rows,
+      isWalkableCell,
+      (cell) => cellaNellaForestaNord(cell, cols, rows)
+    ).filter((character) => !cellaNellaForestaNord(character.cell, cols, rows));
   }, [
     abitantiPerOverlayMappa,
     abitanteVisibileSuMappaPhaser,
@@ -3551,6 +3573,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (!visibleIds.has(id)) releaseCellAbitante(id);
     }
     for (const character of phaserCharacters) {
+      // Se lo spawn precedente era nel Bosco, la nuova cella esterna
+      // diventa immediatamente la posizione runtime utilizzata ai prossimi render.
+      ultimaCellaAbitanteRef.current.set(character.id, character.cell);
       if (!abitanteSuCellaRef.current.has(character.id)) {
         tryClaimCellAbitante(character.id, character.cell);
       }
@@ -3659,6 +3684,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const tryPhaserCharacterStep = useCallback(
     (abitanteId: number, _fromCell: number, toCell: number) => {
+      // La foresta è vietata anche se il Bosco risulta un edificio con
+      // footprint: non applicare qui l'eccezione generica degli interni.
+      if (cellaNellaForestaNord(toCell, cols, rows)) return false;
       if (findBuildingForInteriorCell(toCell, phaserBaseSnapshot.buildings, cols)) {
         releaseCellAbitante(abitanteId);
         ultimaCellaAbitanteRef.current.set(abitanteId, toCell);
@@ -3670,7 +3698,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       setUltimaCellaAbitanteRuntime(abitanteId, toCell);
       return true;
     },
-    [phaserBaseSnapshot.buildings, cols, releaseCellAbitante, tryClaimCellAbitante]
+    [phaserBaseSnapshot.buildings, cols, rows, releaseCellAbitante, tryClaimCellAbitante]
   );
 
   const tryPhaserIdleStep = useCallback(
@@ -4155,11 +4183,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                         isWalkable={isWalkableCell}
                         isRoadCell={isRoadCell}
                         instanceId={abitante.id}
-                        fixedCell={fixedCellNotte}
+                        fixedCell={fixedCellNotte != null && cellaNellaForestaNord(fixedCellNotte, cols, rows) ? null : fixedCellNotte}
                         preferredSpawnCell={
                           ultimaCellaAbitanteRef.current.get(abitante.id) ?? homeCell ?? null
                         }
-                        commutePath={infoCommute?.path ?? null}
+                        commutePath={infoCommute?.path?.some((cell) => cellaNellaForestaNord(cell, cols, rows)) ? null : (infoCommute?.path ?? null)}
                         commuteToken={infoCommute?.token ?? 0}
                         commutePurpose={infoCommute?.purpose ?? null}
                         onCommuteComplete={(purpose) => {
