@@ -16,7 +16,6 @@ import {
 } from "../../src/game/colturaSerra";
 
 export default function SerraScreenById() {
-  const router = useRouter();
   const raw = useLocalSearchParams<{ id: string | string[] }>().id;
   const idStr = Array.isArray(raw) ? raw[0] : raw;
   const edificioId = Number(idStr);
@@ -50,9 +49,7 @@ export default function SerraScreenById() {
     return (
       <SafeAreaView style={styles.safe}>
         <Text style={styles.title}>Serra non trovata</Text>
-        <Text style={styles.back} onPress={() => router.back()}>
-          ← Indietro
-        </Text>
+        
       </SafeAreaView>
     );
   }
