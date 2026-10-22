@@ -22,7 +22,7 @@ import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscre
 import { CharacterCreationPreview } from "./CharacterCreationPreview";
 import { RoyalThroneBackground } from "./RoyalThroneBackground";
 import { LPC_RUNTIME_MANIFEST, canRenderCharacter, compatibleCatalogOptions, compatibleColorsForField, firstCompatibleColorForField, firstCompatibleHairColor } from "../character-system/registry";
-import { bodyFamilyFor, normalizeCharacterAppearance } from "../character-system/appearance";
+import { bodyFamilyFor, isGuardChainmailOutfit, normalizeCharacterAppearance, stripGuardChainmailFromCivilian } from "../character-system/appearance";
 import { groupCapeMantelloSections, isCapeTrim } from "../character-system/capeMantello";
 import {
   filterPantsOptions,
@@ -276,7 +276,11 @@ export function CreazioneGiocatoreModal({
     setCognome(source?.cognome ?? "");
     setSesso(source?.sesso ?? null);
     setOrientamento(source?.orientamento ?? null);
-    setAspetto(source?.aspetto ?? ASPETTO_RE_DEFAULT);
+    // La Chainmail appartiene solo alle Guardie, non all'editor del Re/Sacerdote.
+    const initialAppearance = source?.aspetto ?? ASPETTO_RE_DEFAULT;
+    setAspetto(initialAppearance.characterAppearance
+      ? { ...initialAppearance, characterAppearance: stripGuardChainmailFromCivilian(initialAppearance.characterAppearance) }
+      : initialAppearance);
     setActiveTab(mode === "outfit" ? "busto" : "identity");
     setPaletteSelections({});
   }, [visible, mode, initial]);
@@ -305,7 +309,7 @@ export function CreazioneGiocatoreModal({
   const mobilePreviewSize = height < 680 ? 78 : height < 860 ? 98 : 116;
   const spriteAppearance = aspetto.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, "teen");
   const catalogOptions = compatibleCatalogOptions(spriteAppearance);
-  const torsoOutfitsAll = filterTorsoOutfitOptions(catalogOptions.upperOutfits, spriteAppearance.bodyType);
+  const torsoOutfitsAll = filterTorsoOutfitOptions(catalogOptions.upperOutfits, spriteAppearance.bodyType).filter((id) => !isGuardChainmailOutfit(id));
   const { manicheSleeves: manicheTorsoOutfits, rest: bustoTorsoOutfits } = partitionLongsleeveTorsoOptions(torsoOutfitsAll, spriteAppearance.bodyType);
   const bustoSections = groupCatalogOptionsByLpcSections(bustoTorsoOutfits, spriteAppearance.bodyType, "outfit", LPC_TORSO_SECTIONS);
   const manicheTorsoSections = groupCatalogOptionsByLpcSections(manicheTorsoOutfits, spriteAppearance.bodyType, "outfit", LPC_MANICHE_TORSO_SECTIONS);
