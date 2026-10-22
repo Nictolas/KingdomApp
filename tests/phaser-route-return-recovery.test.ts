@@ -92,13 +92,15 @@ test("watchdog Phaser: solo dopo lunga assenza di frame riavvia RAF senza smonta
   const { game, actions } = fakeGame({
     paused: false, loopRunning: true, sleeping: false, scenePaused: false
   });
-  const loop = game.loop as typeof game.loop & { sleep: () => void };
-  loop.sleep = () => {
-    actions.push("sleep loop");
-    (game.loop as { running: boolean }).running = false;
+  let active = true;
+  const loop = {
+    get running() { return active; },
+    sleep: () => { actions.push("sleep loop"); active = false; },
+    wake: () => { actions.push("wake loop"); active = true; }
   };
-  assert.equal(recoverStalledPhaserRender(game as typeof game & { loop: typeof loop }, 1500), false);
+  const recoverable = { ...game, loop };
+  assert.equal(recoverStalledPhaserRender(recoverable, 1500), false);
   assert.deepEqual(actions, []);
-  assert.equal(recoverStalledPhaserRender(game as typeof game & { loop: typeof loop }, 7000), true);
+  assert.equal(recoverStalledPhaserRender(recoverable, 7000), true);
   assert.deepEqual(actions, ["sleep loop", "wake loop"]);
 });
