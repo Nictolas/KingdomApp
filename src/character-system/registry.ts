@@ -81,7 +81,14 @@ function semanticForSlot(asset: ManifestAsset, appearance: CharacterAppearance, 
     if (asset.semanticId !== appearance.footwear) return false;
     return assetColorMatches(asset, appearance, pool);
   }
-  if (asset.slot === "headwear") return appearance.headwear !== "none" && asset.semanticId === appearance.headwear;
+  if (asset.slot === "headwear") return appearance.headwear !== "none" &&
+    asset.semanticId === appearance.headwear && assetColorMatches(asset, appearance, pool);
+  if (asset.slot === "neck") return appearance.neckwear !== "none" &&
+    asset.semanticId === appearance.neckwear && assetColorMatches(asset, appearance, pool);
+  if (asset.slot === "facialMask") return appearance.facialMask !== "none" &&
+    asset.semanticId === appearance.facialMask && assetColorMatches(asset, appearance, pool);
+  if (asset.slot === "facialEyes") return appearance.facialEyes !== "none" &&
+    asset.semanticId === appearance.facialEyes && assetColorMatches(asset, appearance, pool);
   if (asset.slot === "cape") {
     if (appearance.cape === "none") return false;
     const matchesBase = asset.semanticId === appearance.cape;
