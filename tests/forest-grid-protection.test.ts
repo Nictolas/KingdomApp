@@ -40,7 +40,10 @@ test("la prima riga da ovest a est appartiene al bosco e non è mare", () => {
   }
   assert.equal(cellaNellaForestaNord(5 * cols + 49, cols, rows), true);
   assert.equal(cellaNellaForestaNord(6 * cols + 20, cols, rows), false);
-  assert.equal(isMareCell(6 * cols, cols, rows), true);
+  // Le due righe subito sotto il Bosco sono prato protetto, anche sul bordo ovest.
+  assert.equal(isMareCell(6 * cols, cols, rows), false);
+  assert.equal(isMareCell(7 * cols, cols, rows), false);
+  assert.equal(isMareCell(8 * cols, cols, rows), true);
 });
 
 test("Bosco 5x5 di raccolta protetto, righe 1-5, ingresso da sud e migrazione idempotente", () => {
@@ -65,7 +68,9 @@ test("il giocatore non può edificare, tracciare strade o modificare terreno in 
   for (const kind of ["acqua", "erba", "spiaggia"] as const) {
     assert.equal(footprintTerreno2x2Valido(kind, north, cols, rows, {}, {}), false);
   }
-  assert.equal(puòPiazzareFootprintConCuscino(south, 2, 1, cols, rows, new Set(), new Set()), true);
+  // Nella fascia di erba riservata non nascono edifici iniziali.
+  assert.equal(puòPiazzareFootprintConCuscino(south, 2, 1, cols, rows, new Set(), new Set()), false);
+  assert.equal(puòPiazzareFootprintConCuscino(8 * cols + 20, 2, 1, cols, rows, new Set(), new Set()), true);
 });
 
 test("il rendering non mostra vecchi fiumi e mare sopra la foresta", () => {
