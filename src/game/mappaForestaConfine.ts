@@ -35,6 +35,21 @@ export function proteggiFasciaErbaSottoForesta(
   }
 }
 
+/** Solo nel generatore iniziale: l'autostrada non può coprire il prato protetto.
+ * Le costruzioni successive del giocatore non sono modificate.
+ */
+export function rimuoviStradeInizialiDallaFasciaErba(
+  edifici: Record<number, { nome: string }>,
+  cols: number,
+  rows: number
+): void {
+  for (let index = 0; index < cols * rows; index++) {
+    if (cellaNellaFasciaErbaSottoForesta(index, cols, rows) && edifici[index]?.nome === "Strada") {
+      delete edifici[index];
+    }
+  }
+}
+
 /** Blocca anche i footprint che intersecano soltanto in parte il bosco. */
 export function footprintIntersecaForestaNord(
   anchor: number, w: number, h: number, cols: number, rows: number
