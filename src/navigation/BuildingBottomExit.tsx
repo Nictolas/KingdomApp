@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { createPortal } from "react-dom";
 import { usePathname, useRouter } from "expo-router";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
@@ -6,47 +7,70 @@ import { tornaAllaMappa } from "./tornaAllaMappa";
 import { isBuildingRoute } from "./isBuildingRoute";
 
 /**
- * Unico pulsante di uscita per TUTTE le pagine di edifici.
- * E' fratello dello Stack: resta fisso al margine inferiore dello schermo,
- * non appartiene alla ScrollView della singola pagina.
+ * Unica uscita delle pagine edificio, indipendente dal contenuto scorrevole.
+ *
+ * Expo Router Stack può occupare già tutta la viewport su Safari/PWA: un
+ * footer flex DOPO lo Stack finisce sotto al bordo inferiore (BUG-026).
+ * Su web il pulsante è quindi un portale DOM con position:fixed nella
+ * viewport reale, non un altro figlio che allunga l'altezza del layout.
  */
 export function BuildingBottomExit() {
   const pathname = usePathname();
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => { setMounted(true); }, []);
+
   if (!isBuildingRoute(pathname)) return null;
 
-  const safeBottom = Platform.OS === "web"
-    ? ("max(env(safe-area-inset-bottom, 0px), 10px)" as unknown as number)
-    : Math.max(insets.bottom, 10);
+  const button = (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel="Torna alla mappa"
+      onPress={() => tornaAllaMappa(router)}
+      style={styles.button}
+    >
+      <Text style={styles.label}>← Torna alla mappa</Text>
+    </Pressable>
+  );
+
+  if (Platform.OS === "web") {
+    if (!mounted || typeof document === "undefined") return null;
+    return createPortal(
+      <div
+        data-testid="building-bottom-exit"
+        style={{
+          position: "fixed",
+          left: 12,
+          right: 12,
+          bottom: "calc(12px + env(safe-area-inset-bottom, 0px))",
+          zIndex: 2147483000,
+          boxSizing: "border-box",
+          pointerEvents: "auto"
+        }}
+      >
+        {button}
+      </div>,
+      document.body
+    );
+  }
 
   return (
-    <View style={[styles.wrapper, { paddingBottom: safeBottom }]}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Torna alla mappa"
-        onPress={() => tornaAllaMappa(router)}
-        style={styles.button}
-      >
-        <Text style={styles.label}>← Torna alla mappa</Text>
-      </Pressable>
+    <View style={[styles.nativeWrapper, { bottom: Math.max(insets.bottom, 12) }]}>
+      {button}
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  wrapper: {
-    width: "100%",
-    flexShrink: 0,
-    paddingTop: 10,
-    paddingHorizontal: 16,
-    backgroundColor: "#0b1225",
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "#475569",
-    zIndex: 100
+  nativeWrapper: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    zIndex: 10000
   },
   button: {
-    minHeight: 52,
+    minHeight: 56,
     justifyContent: "center",
     alignItems: "center",
     borderRadius: 12,
