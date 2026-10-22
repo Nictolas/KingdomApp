@@ -130,6 +130,35 @@ export function resolveCharacterLayers(appearance: CharacterAppearance, animatio
     .sort((a, b) => layerZ(a) - layerZ(b))
     .map((asset): ResolvedCharacterLayer => ({ id: asset.id, assetPack: LPC_PACK_ID, layer: asset.slot, semanticId: asset.semanticId, zPos: layerZ(asset), bodyFamilies: [familyForBodyType(asset.bodyType)], races: ACTIVE_SPRITE_RACES, sheetId: sheet.id, sourceId: asset.sourceKey, tint: "none", attributionId: asset.attributionId, sheet }));
 
+  // L'asset LPC guard_chainmail esiste per male/female/teen ma non per
+  // child/pregnant. Le Guardie Nane mantengono il corpo child e ricevono
+  // lo strato militare teen, senza alterare razza o aspetto persistito.
+  if (appearance.fullOutfit === "none" &&
+      appearance.upperOutfit === "guard" &&
+      !layers.some((layer) => layer.layer === "outfit" && layer.semanticId === "guard")) {
+    const guardOverlay = LPC_RUNTIME_MANIFEST.assets.filter((asset) =>
+      asset.animation === animation &&
+      asset.bodyType === "teen" &&
+      asset.slot === "outfit" &&
+      asset.semanticId === "guard"
+    );
+    layers.push(...guardOverlay.map((asset): ResolvedCharacterLayer => ({
+      id: asset.id,
+      assetPack: LPC_PACK_ID,
+      layer: asset.slot,
+      semanticId: asset.semanticId,
+      zPos: asset.zPos,
+      bodyFamilies: [familyForBodyType(appearance.bodyType)],
+      races: ACTIVE_SPRITE_RACES,
+      sheetId: sheet.id,
+      sourceId: asset.sourceKey,
+      tint: "none",
+      attributionId: asset.attributionId,
+      sheet
+    })));
+    layers.sort((a, b) => a.zPos - b.zPos);
+  }
+
   if (appearance.accessory !== "none" && !layers.some((layer) => layer.layer === "accessory")) {
     const toolAnimation = animation === "idle" ? "walk" : animation;
     const toolSheet = generatedLpcSheet(toolAnimation);
