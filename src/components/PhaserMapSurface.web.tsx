@@ -3,6 +3,7 @@ import { Asset } from "expo-asset";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import type { PhaserMapActions, PhaserMapSnapshot } from "../phaser/adapters/mapSceneBridge";
+import { restoreMapAfterNavigation } from "../phaser/restoreMapAfterNavigation";
 import { LPC_ASSET_SOURCES } from "../character-system/generated/lpcAssetSources";
 import { canRenderCharacter, resolveCharacterLayers, CHARACTER_ASSETS } from "../character-system/registry";
 import { refineLpcSpriteUrl, LPC_HD_FRAME_PX } from "../character-system/lpcHdRuntime.web";
@@ -136,11 +137,13 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
       },
       resumeInteractions: () => {
         const runtime = runtimeRef.current;
-        if (!runtime) return;
-        // Phaser documenta resetPointers per i casi in cui componenti esterni
-        // sottraggono il focus / la sequenza di input al suo canvas.
+        const host = hostRef.current;
+        if (!runtime || !host || host.clientWidth < 2 || host.clientHeight < 2) return;
+        // Quando una route edificio nasconde la mappa, Phaser puo' lasciare
+        // l'intero Game in pausa mentre l'orologio React continua a scorrere.
+        // Prima riattiva il rendering, poi libera puntatori e drag della scena.
+        restoreMapAfterNavigation(runtime.game);
         runtime.game.input.enabled = true;
-        // Il reset dei puntatori appartiene al plugin input della scena.
         runtime.bridge.resumeInteractions();
       },
       centerOnCell: (cellIndex, options) => {
@@ -210,6 +213,37 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
       cancelled = true;
       runtimeRef.current?.game.destroy(true);
       runtimeRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    // Anche una route web mantenuta nello stack puo' tornare visibile
+    // senza provocare un nuovo mount o un evento focus di React Navigation.
+    // ResizeObserver ripristina la mappa quando il canvas riacquista dimensioni.
+    const recoverVisibleMap = () => {
+      if (document.hidden || host.clientWidth < 2 || host.clientHeight < 2) return;
+      const runtime = runtimeRef.current;
+      if (!runtime) return;
+      restoreMapAfterNavigation(runtime.game);
+      runtime.game.input.enabled = true;
+      runtime.bridge.resumeInteractions();
+      runtime.bridge.refreshViewport();
+    };
+    const onVisibility = () => {
+      if (!document.hidden) recoverVisibleMap();
+    };
+    const resizeObserver = new ResizeObserver(recoverVisibleMap);
+    resizeObserver.observe(host);
+    window.addEventListener("focus", recoverVisibleMap);
+    window.addEventListener("pageshow", recoverVisibleMap);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      resizeObserver.disconnect();
+      window.removeEventListener("focus", recoverVisibleMap);
+      window.removeEventListener("pageshow", recoverVisibleMap);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 
