@@ -1,7 +1,6 @@
 import React, { type ReactNode } from "react";
 import {
   Platform,
-  Pressable,
   ScrollView,
   StyleSheet,
   Text,
@@ -33,9 +32,7 @@ type BuildingScreenShellProps = {
  */
 export function BuildingScreenShell({
   title,
-  onBack,
-  backLabel = "Edifici",
-  footerActions,
+   footerActions,
   headerActions,
   scrollable = true,
   contentStyle,
@@ -64,16 +61,9 @@ export function BuildingScreenShell({
   return (
     <View style={[styles.root, safeAreaStyle]}>
       <View style={styles.header}>
-        <Pressable
-          onPress={onBack}
-          style={styles.headerBack}
-          accessibilityRole="button"
-          accessibilityLabel={`Torna a ${backLabel}`}
-        >
-          <Text style={styles.headerBackLabel}>‹</Text>
-        </Pressable>
+        <View style={styles.headerSpacer} />
         <Text style={styles.headerTitle} numberOfLines={1}>{title}</Text>
-        {headerActions ? <View style={styles.headerActions}>{headerActions}</View> : <View style={styles.headerBack} />}
+        {headerActions ? <View style={styles.headerActions}>{headerActions}</View> : <View style={styles.headerSpacer} />}
       </View>
 
       {scrollable ? (
@@ -91,12 +81,7 @@ export function BuildingScreenShell({
         </View>
       )}
 
-      <View style={styles.footer}>
-        <Pressable onPress={onBack} style={styles.footerBack} accessibilityRole="button">
-          <Text style={styles.footerBackLabel}>← {backLabel}</Text>
-        </Pressable>
-        {footerActions ? <View style={styles.footerActions}>{footerActions}</View> : null}
-      </View>
+      {footerActions ? <View style={styles.footerActions}>{footerActions}</View> : null}
     </View>
   );
 }
@@ -114,24 +99,10 @@ const styles = StyleSheet.create({
   },
   headerActions: { flexDirection: "row", alignItems: "center", flexShrink: 1 },
   staticContent: { flex: 1, minHeight: 0 },
-  headerBack: { width: 42, height: 44, alignItems: "center", justifyContent: "center" },
-  headerBackLabel: { fontSize: 34, color: "#93c5fd", lineHeight: 39 },
+  headerSpacer: { width: 42, height: 44 },
   headerTitle: { flex: 1, textAlign: "center", color: "#f8fafc", fontWeight: "700", fontSize: 18 },
   scroll: { flex: 1, minHeight: 0 },
   content: { width: "100%", flexGrow: 1, paddingHorizontal: 16, paddingVertical: 18, paddingBottom: 32 },
   contentWide: { maxWidth: 1280, alignSelf: "center", paddingHorizontal: 24 },
-  footer: {
-    minHeight: 55,
-    flexDirection: "row",
-    alignItems: "center",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-    borderTopWidth: StyleSheet.hairlineWidth,
-    borderTopColor: "rgba(148,163,184,0.45)",
-    backgroundColor: "#0b1225",
-    gap: 12
-  },
-  footerBack: { minHeight: 40, justifyContent: "center", paddingHorizontal: 4 },
-  footerBackLabel: { color: "#93c5fd", fontSize: 16, fontWeight: "600" },
-  footerActions: { flex: 1, alignItems: "flex-end", justifyContent: "center" }
+    footerActions: { flex: 1, alignItems: "flex-end", justifyContent: "center" }
 });
