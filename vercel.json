@@ -1,5 +1,5 @@
 {
-  "buildCommand": "npm run build:web",
+  "buildCommand": "npm run typecheck && npm test && npm run build:web",
   "outputDirectory": "dist",
   "git": {
     "deploymentEnabled": false
