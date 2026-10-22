@@ -4,6 +4,7 @@ import test from "node:test";
 
 import {
   restoreMapAfterNavigation,
+  recoverStalledPhaserRender,
   type RecoverablePhaserGame
 } from "../src/phaser/restoreMapAfterNavigation.ts";
 
@@ -83,5 +84,23 @@ test("tutte le route edificio condividono il recupero, senza perdere la sessione
   assert.ok(surface.includes("resizeObserver.observe(host)"));
   assert.ok(map.includes("phaserMapRef.current?.resumeInteractions()"));
   assert.ok(map.includes("phaserMapRef.current?.refreshViewport()"));
-  assert.ok(nav.includes('router.navigate("/")'));
+  assert.ok(nav.includes("router.back()"));
+  assert.ok(surface.includes("recoverStalledPhaserRender(runtime.game, stalled)"));
+});
+
+test("watchdog Phaser: solo dopo lunga assenza di frame riavvia RAF senza smontare scena", () => {
+  const { game, actions } = fakeGame({
+    paused: false, loopRunning: true, sleeping: false, scenePaused: false
+  });
+  let active = true;
+  const loop = {
+    get running() { return active; },
+    sleep: () => { actions.push("sleep loop"); active = false; },
+    wake: () => { actions.push("wake loop"); active = true; }
+  };
+  const recoverable = { ...game, loop };
+  assert.equal(recoverStalledPhaserRender(recoverable, 1500), false);
+  assert.deepEqual(actions, []);
+  assert.equal(recoverStalledPhaserRender(recoverable, 7000), true);
+  assert.deepEqual(actions, ["sleep loop", "wake loop"]);
 });

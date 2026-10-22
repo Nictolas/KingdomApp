@@ -3,7 +3,7 @@ import { Asset } from "expo-asset";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import type { PhaserMapActions, PhaserMapSnapshot } from "../phaser/adapters/mapSceneBridge";
-import { restoreMapAfterNavigation } from "../phaser/restoreMapAfterNavigation";
+import { restoreMapAfterNavigation, recoverStalledPhaserRender } from "../phaser/restoreMapAfterNavigation";
 import { LPC_ASSET_SOURCES } from "../character-system/generated/lpcAssetSources";
 import { canRenderCharacter, resolveCharacterLayers, CHARACTER_ASSETS } from "../character-system/registry";
 import { refineLpcSpriteUrl, LPC_HD_FRAME_PX } from "../character-system/lpcHdRuntime.web";
@@ -116,6 +116,7 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
     game: import("phaser").Game;
     bridge: import("../phaser/adapters/mapSceneBridge").MapSceneBridge;
   } | null>(null);
+  const lastRenderedAtRef = useRef(Date.now());
   const [charactersReady, setCharactersReady] = useState(false);
   const onCharacterAssetsReadyRef = useRef(onCharacterAssetsReady);
   onCharacterAssetsReadyRef.current = onCharacterAssetsReady;
@@ -206,6 +207,10 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
         },
         scene: [new KingdomMapScene(bridge, sheetUrl, artUrls)]
       });
+      lastRenderedAtRef.current = Date.now();
+      game.events.on("postrender", () => {
+        lastRenderedAtRef.current = Date.now();
+      });
       runtimeRef.current = { game, bridge };
     })();
 
@@ -234,12 +239,29 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
     const onVisibility = () => {
       if (!document.hidden) recoverVisibleMap();
     };
+    // Safari/mobile puo' conservare il Game in memoria ma sospendere il RAF
+    // quando un edificio viene chiuso. Il clock React resta invece attivo.
+    // Effettua il recupero soltanto a pagina e canvas effettivamente visibili.
+    const watchdog = window.setInterval(() => {
+      if (document.hidden || window.location.pathname !== "/" ||
+          host.clientWidth < 2 || host.clientHeight < 2) return;
+      const runtime = runtimeRef.current;
+      if (!runtime) return;
+      const stalled = Date.now() - lastRenderedAtRef.current;
+      if (recoverStalledPhaserRender(runtime.game, stalled)) {
+        lastRenderedAtRef.current = Date.now();
+        runtime.game.input.enabled = true;
+        runtime.bridge.resumeInteractions();
+        runtime.bridge.refreshViewport();
+      }
+    }, 2500);
     const resizeObserver = new ResizeObserver(recoverVisibleMap);
     resizeObserver.observe(host);
     window.addEventListener("focus", recoverVisibleMap);
     window.addEventListener("pageshow", recoverVisibleMap);
     document.addEventListener("visibilitychange", onVisibility);
     return () => {
+      window.clearInterval(watchdog);
       resizeObserver.disconnect();
       window.removeEventListener("focus", recoverVisibleMap);
       window.removeEventListener("pageshow", recoverVisibleMap);
