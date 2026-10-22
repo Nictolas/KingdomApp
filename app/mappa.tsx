@@ -159,6 +159,7 @@ import {
 } from "../src/game/orariLavoroMappa";
 import {
   calcolaPercorsoVersoAnchorEdificio,
+  celleIngressoBoscoWalkable,
   cercaPercorsoLavoroDisoccupato,
   pianificaCommuteMattina,
   pianificaCommuteSeraACasa,
@@ -286,6 +287,7 @@ import {
 } from "../src/game/mappaEdificiStatici";
 import { getStradeIniziali } from "../src/game/mappaStradeIniziali";
 import { ripristinaBoscoNord } from "../src/game/mappaBoscoNord";
+import { assicuraAccessoPedonaleBosco } from "../src/game/mappaBoscoAccesso";
 import { cellaNellaFasciaErbaSottoForesta, cellaNellaForestaNord, proteggiFasciaErbaSottoForesta, rimuoviStradeInizialiDallaFasciaErba } from "../src/game/mappaForestaConfine";
 import { fasciaTerraEdificiIniziali, preservaTerraIntornoEdificiIniziali } from "../src/game/mappaDistanzaAcquaEdificiIniziali";
 import {
@@ -564,8 +566,12 @@ async function buildInitialMappa(
     decorazioniInMappa[idx] = DECORAZIONI_EMOJI[Math.floor(Math.random() * DECORAZIONI_EMOJI.length)]!;
   }
 
+  const world = assicuraAccessoPedonaleBosco(
+    { edificiInMappa, terrenoInMappa, decorazioniInMappa, residenzeMappa: {} },
+    cols, rows
+  );
   await report(100, "Mondo pronto!");
-  return { edificiInMappa, terrenoInMappa, decorazioniInMappa, residenzeMappa: {} };
+  return world;
 }
 
 /**
@@ -840,7 +846,8 @@ function normalizeMappaSessione(state: MappaRuntimeState): MappaRuntimeState {
   // Migrazione conservativa: ripristina il Bosco se e soltanto se manca.
   // Non modifica un Bosco preesistente e non sovrascrive case o strade.
   const coerente = state.residenzeMappa ? state : { ...state, residenzeMappa: {} };
-  return ripristinaBoscoNord(coerente, FIXED_MAP_COLS, FIXED_MAP_ROWS);
+  const conBosco = ripristinaBoscoNord(coerente, FIXED_MAP_COLS, FIXED_MAP_ROWS);
+  return assicuraAccessoPedonaleBosco(conBosco, FIXED_MAP_COLS, FIXED_MAP_ROWS);
 }
 
 export function MappaScreen() {
@@ -2260,6 +2267,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         if (anchor == null) return;
         const porta = trovaCellaPortaEdificio(anchor, edificiInMappa, cols, rows, isWalkableCell);
         if (porta != null) goalLiberi.add(porta);
+        for (const accesso of celleIngressoBoscoWalkable(anchor, edificiInMappa, cols, rows, isWalkableCell)) {
+          goalLiberi.add(accesso);
+        }
       };
 
       let anchorDest: number | null = null;
@@ -2346,7 +2356,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           cols,
           pathEvitandoAltri,
           pathAttraversoAltri,
-          giaAllIngresso: porta === from,
+          giaAllIngresso: porta === from ||
+            (anchorDest != null && celleIngressoBoscoWalkable(
+              anchorDest, edificiInMappa, cols, rows, isWalkableCell
+            ).includes(from)),
           oscillazioniConsecutive
         });
 

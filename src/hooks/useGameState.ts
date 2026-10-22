@@ -37,7 +37,7 @@ import { tasseSbloccate } from "../game/tasseSblocco";
 import { applicaEsitoChiacchieraSuLista } from "../game/relazioneChiacchiera";
 import { getEdificioAbitazione } from "../game/abitanteEdifici";
 import { generaImmigratiProposti } from "../game/immigrazione";
-import { getLavoroPerEdificio, autoAssegnaCittadiniDisoccupati, normalizzaLavoroEAgricoltura, edificioAccettaServiDellaGleba, isEdificioPubblicoConPostazioniLavoro, assumiCittadinoDisoccupatoInEdificio } from "../game/edificiLavoro";
+import { getLavoroPerEdificio, autoAssegnaCittadiniDisoccupati, normalizzaLavoroEAgricoltura, capienzaPostiLavoro, edificioAccettaServiDellaGleba, isEdificioPubblicoConPostazioniLavoro, assumiCittadinoDisoccupatoInEdificio } from "../game/edificiLavoro";
 import {
   avanzaCostruzioniEdifici,
   consumaMaterialeEdile,
@@ -1558,7 +1558,7 @@ export function useGameState() {
     if (lavoroEdificio && getCastaAbitante(abitante) !== "Servo della gleba") return;
     if (
       edificioCorrente.abitantiAssegnati.includes(abitanteId) ||
-      edificioCorrente.abitantiAssegnati.length >= edificioCorrente.capacità ||
+      edificioCorrente.abitantiAssegnati.length >= capienzaPostiLavoro(edificioCorrente) ||
       edificioCorrente.stato !== "Operativo"
     )
       return;
