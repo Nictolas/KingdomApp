@@ -41,14 +41,32 @@ export function resolveLocateTrackingPosition(
   cellSize: number,
   buildings: readonly LocateBuilding[],
   /** Altezza reale del tetto nello spazio mondo, misurata sullo sprite renderizzato. */
-  renderedRoofTopByAnchor?: ReadonlyMap<number, number>
+  renderedRoofTopByAnchor?: ReadonlyMap<number, number>,
+  /** Occupazione confermata dal motore di gioco: lo sprite può essere nascosto
+   * o la sua ultima posizione può essere fuori dall'edificio. */
+  occupiedBuildingAnchor?: number | null
 ): LocateTrackingPosition {
-  const focus = characterWorldPosition ?? {
-    x: ((fallbackCell % cols) + 0.5) * cellSize,
-    y: (Math.floor(fallbackCell / cols) + 0.5) * cellSize
-  };
+  const occupiedBuilding = occupiedBuildingAnchor == null
+    ? undefined
+    : buildings.find((item) =>
+        item.anchor === occupiedBuildingAnchor &&
+        item.name !== "Bosco" &&
+        item.name !== "Ponte"
+      );
+  const footprint = occupiedBuilding?.geometry.footprint;
+  const focus = characterWorldPosition ?? (
+    footprint
+      ? {
+          x: (footprint.col + footprint.width / 2) * cellSize,
+          y: (footprint.row + footprint.height / 2) * cellSize
+        }
+      : {
+          x: ((fallbackCell % cols) + 0.5) * cellSize,
+          y: (Math.floor(fallbackCell / cols) + 0.5) * cellSize
+        }
+  );
 
-  const building = locateBuildingAtPoint(focus, buildings, cellSize);
+  const building = occupiedBuilding ?? locateBuildingAtPoint(focus, buildings, cellSize);
   if (!building) {
     return {
       focus,
