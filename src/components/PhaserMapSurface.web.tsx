@@ -90,6 +90,7 @@ type Props = PhaserMapActions & {
 
 export type PhaserMapSurfaceHandle = {
   refreshViewport: () => void;
+  resumeInteractions: () => void;
   centerOnCell: (cellIndex: number, options?: { zoomIn?: boolean }) => void;
 };
 
@@ -132,6 +133,15 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
           runtime.game.scale.resize(width, height);
         }
         runtime.bridge.refreshViewport();
+      },
+      resumeInteractions: () => {
+        const runtime = runtimeRef.current;
+        if (!runtime) return;
+        // Phaser documenta resetPointers per i casi in cui componenti esterni
+        // sottraggono il focus / la sequenza di input al suo canvas.
+        runtime.game.input.enabled = true;
+        // Il reset dei puntatori appartiene al plugin input della scena.
+        runtime.bridge.resumeInteractions();
       },
       centerOnCell: (cellIndex, options) => {
         runtimeRef.current?.bridge.centerOnCell(cellIndex, options);

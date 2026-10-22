@@ -7,6 +7,7 @@ type Props = PhaserMapActions & { snapshot: PhaserMapSnapshot };
 
 export type PhaserMapSurfaceHandle = {
   refreshViewport: () => void;
+  resumeInteractions: () => void;
   centerOnCell: (cellIndex: number, options?: { zoomIn?: boolean }) => void;
 };
 
@@ -17,6 +18,7 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(
       ref,
       () => ({
         refreshViewport: () => {},
+        resumeInteractions: () => {},
         centerOnCell: () => {}
       }),
       []

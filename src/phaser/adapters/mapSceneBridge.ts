@@ -117,6 +117,8 @@ export type PhaserMapActions = {
 
 export type PhaserMapSceneControls = {
   refreshViewport: () => void;
+  /** Riattiva il puntatore dopo che una schermata edificio ha preso il focus. */
+  resumeInteractions: () => void;
   centerOnCell: (cellIndex: number, options?: { zoomIn?: boolean }) => void;
 };
 
@@ -155,6 +157,10 @@ export class MapSceneBridge {
 
   refreshViewport(): void {
     this.sceneControls?.refreshViewport();
+  }
+
+  resumeInteractions(): void {
+    this.sceneControls?.resumeInteractions();
   }
 
   centerOnCell(cellIndex: number, options?: { zoomIn?: boolean }): void {

@@ -1,3 +1,4 @@
+import { tornaAllaMappa } from "../../src/navigation/tornaAllaMappa";
 import React, { useMemo, useState } from "react";
 import { Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { BuildingScreenShell } from "../../src/ui/BuildingScreenShell";
@@ -77,8 +78,8 @@ export default function MensaScreenById() {
     <>
       <BuildingScreenShell
         title={titolo}
-        onBack={() => router.back()}
-        backLabel="Edifici"
+        onBack={() => tornaAllaMappa(router)}
+        backLabel="Mappa"
       >
         <View style={styles.infoCard}>
           <Text style={styles.infoTitle}>Stato Mensa</Text>
