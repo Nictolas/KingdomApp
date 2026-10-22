@@ -495,6 +495,34 @@ export function appearanceAlignedToRazza(
   return value;
 }
 
+/** Il torso delle abitanti femminili deve avere sempre un capo visibile.
+ * La veste integrale copre già il busto. Si sceglie soltanto dal catalogo
+ * compatibile col corpo attuale, anche in presenza del nudismo pubblico.
+ * Non modifica i dati salvati dell'abbigliamento.
+ */
+export function copriBustoFemminile(
+  appearance: CharacterAppearance,
+  sesso?: "M" | "F" | null
+): CharacterAppearance {
+  if (sesso !== "F" || appearance.fullOutfit !== "none") return appearance;
+  const options = compatibleCatalogOptions(appearance);
+  const candidati = [
+    appearance.upperOutfit,
+    "commoner",
+    "traveler",
+    ...options.upperOutfits
+  ].filter((v, i, all) => v !== "none" && options.upperOutfits.includes(v) && all.indexOf(v) === i);
+  for (const outfit of candidati) {
+    const vestita = normalizeCharacterAppearance({ ...appearance, upperOutfit: outfit, outfit });
+    if (canRenderCharacter(vestita, "idle")) return vestita;
+  }
+  // Preferisce comunque la prima maglia esistente al busto completamente nudo.
+  if (candidati.length > 0) {
+    return normalizeCharacterAppearance({ ...appearance, upperOutfit: candidati[0]!, outfit: candidati[0]! });
+  }
+  return appearance;
+}
+
 /** Applica le regole pubbliche senza mutare i dati persistiti del personaggio. */
 export function appearanceForPublicSpace(
   value: CharacterAppearance,
@@ -563,10 +591,10 @@ export function appearanceForPublicSpace(
   const compatible = rules.incinta
     ? compatibilizzaPerGravidanza(normalized)
     : compatibilizzaPerCatalogo(normalized);
-  if (!isGuard) return compatible;
+  if (!isGuard) return copriBustoFemminile(compatible, rules.sesso);
   // Le Guardie devono indossare sempre la Chainmail, anche se il catalogo
   // corporeo (es. Nano/child) richiede un fallback per altri strati.
-  return normalizeCharacterAppearance({
+  return copriBustoFemminile(normalizeCharacterAppearance({
     ...compatible,
     outfit: GUARD_CHAINMAIL_OUTFIT,
     upperOutfit: GUARD_CHAINMAIL_OUTFIT,
@@ -574,5 +602,5 @@ export function appearanceForPublicSpace(
     fullOutfit: "none",
     fullOutfitTrim: "none",
     outfitPrimaryColor: "base"
-  });
+  }), rules.sesso);
 }
