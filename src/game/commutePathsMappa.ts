@@ -24,7 +24,7 @@ import {
 
 /**
  * Sedi candidate per un disoccupato che deve ricollocarsi.
- * Imprese raggiungibili → Castello → Miniera → Bosco per ultimo.
+ * Lavori ordinari → Castello → Miniera/Bosco come due alternative di ripiego.
  */
 export function sediCercaLavoroDisoccupatoInOrdine(
   abitante: Abitante,
@@ -50,7 +50,14 @@ export function sediCercaLavoroDisoccupatoInOrdine(
     ? boscoHaPostoLibero(edificiList)
     : undefined;
 
-  return [...postiOrdinari, castello, miniera, bosco].filter(
+  // Miniera e Bosco sono entrambi mestieri di ripiego, non una gerarchia
+  // che riempie sempre 20 posti in Miniera lasciando il Bosco vuoto.
+  // La scelta stabile per id distribuisce i disoccupati senza sorteggi a ogni tick.
+  const lavoriDiRipiego = abitante.id % 2 === 0
+    ? [bosco, miniera]
+    : [miniera, bosco];
+
+  return [...postiOrdinari, castello, ...lavoriDiRipiego].filter(
     (e): e is Edificio => e != null
   );
 }
