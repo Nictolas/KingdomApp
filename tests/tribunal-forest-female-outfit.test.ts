@@ -82,6 +82,6 @@ test("copertura femminile mantenuta anche dopo aggiornamento eta e corpo LPC", (
 
 test("i cambi di lavoro sono collegati alla pagina Bosco già esistente", () => {
   const state = readFileSync(new URL("../src/hooks/useGameState.ts", import.meta.url), "utf8");
-  assert.match(state, /edificio\\?\\.nome === "Bosco"/);
-  assert.match(state, /assumiDisoccupatoNelBosco\\(abitanti, edifici, abitanteId\\)/);
+  assert.ok(state.includes('edificio?.nome === "Bosco"'));
+  assert.ok(state.includes("assumiDisoccupatoNelBosco(abitanti, edifici, abitanteId)"));
 });
