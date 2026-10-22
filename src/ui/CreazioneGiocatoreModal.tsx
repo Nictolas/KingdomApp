@@ -18,6 +18,7 @@ import {
   type AspettoPersonaggio,
   type RazzaGiocatore
 } from "../game/personaggioAspetto";
+import { generaIdentitaReCasuale } from "../game/nomiUmani";
 import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 import { CharacterCreationPreview } from "./CharacterCreationPreview";
 import { RoyalThroneBackground } from "./RoyalThroneBackground";
@@ -631,7 +632,14 @@ export function CreazioneGiocatoreModal({
                 <View style={[styles.previewMeta, !isDesktop && styles.previewMetaMobile]}>
                   <Text style={styles.previewHint}>Umano · 10 anni</Text>
                   <Pressable style={[styles.randomButton, !isDesktop && styles.randomButtonMobile]} onPress={() => {
-                    const casualeTeen = generaAspettoCasuale(RAZZA_RE, Math.random, { eta: 15, sesso: sesso ?? undefined });
+                    const identita = mode === "create" ? generaIdentitaReCasuale() : null;
+                    if (identita) {
+                      setNome(identita.nome);
+                      setCognome(identita.cognome);
+                      setSesso(identita.sesso);
+                      setOrientamento(identita.orientamento);
+                    }
+                    const casualeTeen = generaAspettoCasuale(RAZZA_RE, Math.random, { eta: 15, sesso: identita?.sesso ?? sesso ?? undefined });
                     const next = forzaAspettoReTeen(casualeTeen);
                     if (next.characterAppearance && canRenderCharacter(next.characterAppearance, "idle")) {
                       setAspetto(next);

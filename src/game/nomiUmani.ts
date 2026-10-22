@@ -28,6 +28,25 @@ export function scegliNomeCognomeUmano(): { nomeCompleto: string; sesso: "M" | "
   return { nomeCompleto: `${entry.nome} ${cognome}`, sesso: entry.sesso };
 }
 
+/** Identità completa casuale per l'editor del Re, usando i nomi già presenti nel gioco. */
+export function generaIdentitaReCasuale(random: () => number = Math.random): {
+  nome: string;
+  cognome: string;
+  sesso: "M" | "F";
+  orientamento: "Etero" | "Omo" | "Bi" | "Asessuale";
+} {
+  const scegli = <T,>(valori: readonly T[]): T =>
+    valori[Math.min(valori.length - 1, Math.floor(random() * valori.length))]!;
+  const persona = scegli(NOMI_UMANI_CON_SESSO);
+  const orientamenti = ["Etero", "Omo", "Bi", "Asessuale"] as const;
+  return {
+    nome: persona.nome,
+    cognome: scegli(COGNOMI_UMANI),
+    sesso: persona.sesso,
+    orientamento: scegli(orientamenti)
+  };
+}
+
 /** Maiuscole coerenti per nomi e cognomi salvati nell'editor del Re. */
 export function capitalizzaNomePersona(value: string): string {
   return value.trim().toLocaleLowerCase("it-IT").replace(/(^|[\s'-])(\p{L})/gu,
