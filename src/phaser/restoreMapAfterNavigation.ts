@@ -32,3 +32,21 @@ export function restoreMapAfterNavigation(game: RecoverablePhaserGame): boolean 
   }
   return true;
 }
+
+/**
+ * Quando la pagina rimane visibile ma nessun frame Phaser arriva da diversi
+ * secondi, la sola verifica di isPaused non basta: il TimeStep può aver perso
+ * la callback RAF. Riarmiamo il loop senza distruggere il Game o le scene.
+ * La chiamata deve avvenire SOLO sulla route mappa visibile.
+ */
+export function recoverStalledPhaserRender(
+  game: RecoverablePhaserGame & { loop: RecoverablePhaserGame["loop"] & { sleep: () => void } },
+  elapsedWithoutFrameMs: number,
+  stalledAfterMs = 6500
+): boolean {
+  if (!game.isBooted || elapsedWithoutFrameMs < stalledAfterMs) return false;
+  if (game.loop.running) game.loop.sleep();
+  game.loop.wake();
+  restoreMapAfterNavigation(game);
+  return true;
+}
