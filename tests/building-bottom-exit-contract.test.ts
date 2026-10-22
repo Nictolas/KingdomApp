@@ -58,5 +58,5 @@ test("anche Bosco assente e schermate Bar/Serra/Mensa mancanti restano navigabil
     assert.doesNotMatch(text, /← Indietro/, path);
   }
   assert.match(src("src/ui/BuildingScreenShell.tsx"), /showModalExit\s*=\s*!isBuildingRoute\(usePathname\(\)\)/);
-  assert.match(src("src/ui/BuildingScreenShell.tsx"), /style=\{styles\.modalExitButton\}/);
+  assert.match(src("src/ui/BuildingScreenShell.tsx"), /<BuildingModalBottomExit onClose=\{onBack\}/);
 });
