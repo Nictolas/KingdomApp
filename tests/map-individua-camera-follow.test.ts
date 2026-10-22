@@ -115,6 +115,53 @@ test("Phaser misura lo sprite scalato e passa il tetto reale al calcolo Individu
   assert.match(source, /snapshot\.buildings,\s*this\.renderedRoofTopByAnchor\s*\)/);
 });
 
+test("lavoratore nascosto: freccia sopra la Serra nonostante la vecchia cella fuori dall'edificio", () => {
+  const serra = { ...bar, name: "Serra", artKey: "greenhouse" as const };
+  const staleCell = geometry.doorCell + cols * 2;
+  const rooftop = geometry.footprint.row * cellSize - 1.2 * cellSize;
+  const target = resolveLocateTrackingPosition(
+    null,
+    staleCell,
+    cols,
+    cellSize,
+    [serra],
+    new Map([[anchor, rooftop]]),
+    anchor
+  );
+  assert.equal(target.buildingAnchor, anchor);
+  assert.ok(target.arrow.y < rooftop);
+  assert.equal(target.arrow.x, (geometry.footprint.col + geometry.footprint.width / 2) * cellSize);
+  assert.deepEqual(target.focus, {
+    x: (geometry.footprint.col + geometry.footprint.width / 2) * cellSize,
+    y: (geometry.footprint.row + geometry.footprint.height / 2) * cellSize
+  }, "la camera inquadra la Serra mentre il lavoratore è nascosto");
+});
+
+test("sede confermata prevale sulla posizione animata residua fuori dal perimetro", () => {
+  const staleSprite = { x: (geometry.footprint.col + 3) * cellSize, y: (geometry.footprint.row + 2) * cellSize };
+  const target = resolveLocateTrackingPosition(staleSprite, geometry.doorCell, cols, cellSize, [bar], undefined, anchor);
+  assert.equal(target.buildingAnchor, anchor);
+  assert.ok(target.arrow.y < geometry.footprint.row * cellSize);
+});
+
+test("quando il lavoratore riparte, la freccia torna sul personaggio e non sulla sede", () => {
+  const outside = { x: (geometry.footprint.col + 3) * cellSize, y: (geometry.footprint.row + 2) * cellSize };
+  const target = resolveLocateTrackingPosition(outside, geometry.doorCell, cols, cellSize, [bar], undefined, null);
+  assert.equal(target.buildingAnchor, null);
+  assert.equal(target.arrow.x, outside.x);
+});
+
+test("la mappa collega l'occupazione lavorativa all'edificio, anche con sprite nascosto", () => {
+  const source = readFileSync(new URL("../app/mappa.tsx", import.meta.url), "utf8");
+  const phaser = readFileSync(new URL("../src/phaser/scenes/KingdomMapScene.ts", import.meta.url), "utf8");
+  assert.match(source, /lavoroArrivatiIds\.has\(locateAbitanteId\)/);
+  assert.match(source, /primoEdificioLavoroOrarioPerAbitante\(/);
+  assert.match(source, /trovaAnchorEdificioGlobaleSuMappa\(/);
+  assert.match(source, /buildingAnchor: occupiedBuildingAnchor \?\? undefined/);
+  assert.match(phaser, /this\.locateBuildingAnchor = marker\.buildingAnchor \?\? null/);
+  assert.match(phaser, /this\.renderedRoofTopByAnchor,\s*this\.locateBuildingAnchor/);
+});
+
 test("un edificio sul bordo nord non fa uscire la freccia fuori dalla mappa", () => {
   const top = { ...bar, anchor: 3, geometry: deriveBuildingGeometry(3, 2, 2, cols, 18) };
   const target = resolveLocateTrackingPosition({ x: 4 * cellSize, y: cellSize }, 3, cols, cellSize, [top]);
