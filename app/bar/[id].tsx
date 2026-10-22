@@ -22,7 +22,6 @@ import { modalBackdropFullscreen, modalContentFullscreen } from "../../src/ui/mo
 import type { Abitante } from "../../src/types";
 
 export default function BarScreenById() {
-  const router = useRouter();
   const raw = useLocalSearchParams<{ id: string | string[] }>().id;
   const idStr = Array.isArray(raw) ? raw[0] : raw;
   const edificioId = Number(idStr);
@@ -64,9 +63,7 @@ export default function BarScreenById() {
     return (
       <SafeAreaView style={styles.safe}>
         <Text style={styles.title}>Bar non trovato</Text>
-        <Text style={styles.back} onPress={() => router.back()}>
-          ← Indietro
-        </Text>
+        
       </SafeAreaView>
     );
   }
