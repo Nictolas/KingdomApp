@@ -84,16 +84,19 @@ export function capienzaPostiLavoro(edificio: Edificio): number {
  */
 export function normalizzaGiudiciTribunale(abitanti: Abitante[], edifici: Edificio[]): Edificio[] {
   const byId = new Map(abitanti.map(a => [a.id, a]));
+  const giàAssegnati = new Set<number>();
   let changed = false;
   const result = edifici.map(e => {
     if (e.nome !== "Tribunale") return e;
     const candidati = [...new Set(e.abitantiAssegnati ?? [])]
+      .filter(id => !giàAssegnati.has(id))
       .filter(id => {
         const a = byId.get(id);
         return a && !isGiocatore(a) && a.lavoro !== "Pensionato" && a.lavoro !== "Prigioniero";
       });
     const occupante = candidati.find(id => byId.get(id)?.lavoro === "Giudice") ?? candidati[0];
     const ids = occupante == null ? [] : [occupante];
+    if (occupante != null) giàAssegnati.add(occupante);
     if (e.capacità === 1 && e.occupazione === ids.length &&
         (e.abitantiAssegnati ?? []).length === ids.length &&
         (e.abitantiAssegnati ?? []).every((id, i) => id === ids[i])) return e;
