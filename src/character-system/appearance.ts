@@ -61,7 +61,7 @@ export function stripGuardChainmailFromCivilian(appearance: CharacterAppearance)
 export const MEDICO_CRAVAT = "cravat";
 export const MEDICO_MASK = "plain_mask";
 export const MEDICO_SUNGLASSES = "sunglasses";
-export const MEDICO_HOOD_MAIL = "mail";
+// I copricapi in maglia metallica sono riservati all'equipaggiamento militare.
 export const GIUDICE_HAIR_STYLE = "wavy";
 export const GIUDICE_HAIR_COLOR = "white";
 export const GIUDICE_KIMONO = "kimono";
@@ -227,8 +227,8 @@ export function enforceProfessionAccessoryRules(
     return {
       ...value,
       accessory: "none",
-      headwear: MEDICO_HOOD_MAIL,
-      headwearColor: "iron",
+      headwear: "none",
+      headwearColor: "base",
       beardStyle: "none",
       hairStyle: "none",
       hairColor: "none",
@@ -239,7 +239,7 @@ export function enforceProfessionAccessoryRules(
       upperOutfit: "none",
       lowerOutfit: "none",
       outfitPrimaryColor: "black",
-      outfitSecondaryColor: "iron",
+      outfitSecondaryColor: "charcoal",
       neckwear: MEDICO_CRAVAT,
       neckwearColor: "white",
       facialMask: MEDICO_MASK,
