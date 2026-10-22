@@ -8,7 +8,6 @@ import {
   Text,
   View
 } from "react-native";
-import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
 import { getStipendioMoneteGiornaliero } from "../src/game/edificiPubblici";
@@ -22,7 +21,6 @@ import { AbitanteAvatarPreview } from "../src/ui/AbitanteAvatarPreview";
 import type { Abitante } from "../src/types";
 
 export default function EmporioScreen() {
-  const router = useRouter();
   const {
     abitanti,
     edifici,
@@ -50,7 +48,7 @@ export default function EmporioScreen() {
     return (
       <SafeAreaView style={styles.safe}>
         <Text style={styles.title}>🧺 Emporio non presente</Text>
-        <Text style={styles.back} onPress={() => router.back()}>← Indietro</Text>
+        
       </SafeAreaView>
     );
   }
@@ -64,7 +62,7 @@ export default function EmporioScreen() {
   return (
     <SafeAreaView style={[styles.safe, maxHeight != null ? { maxHeight, overflow: "hidden" } : undefined]}>
       <View style={styles.header}>
-        <Text style={styles.back} onPress={() => router.back()}>← Indietro</Text>
+        <View style={{ width: 70 }} />
         <Text style={styles.title}>🧺 Emporio</Text>
         <View style={{ width: 70 }} />
       </View>
