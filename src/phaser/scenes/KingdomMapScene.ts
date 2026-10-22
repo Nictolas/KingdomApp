@@ -4,6 +4,7 @@ import { layoutNorthernForestTrees, ritaglioAlphaAlbero } from "../../game/fores
 import { OVERWORLD_SHEET_PX } from "../../game/overworldSpritesheetLayout";
 import { CHILD_BEARD_OFFSET_Y_PX, LPC_DIRECTION_ROWS } from "../../character-system/lpcPack";
 import { characterStepDurationMs, lpcFrameForRow } from "../adapters/characterWalkMotion";
+import { resolveLocateTrackingPosition, type LocateTrackingPosition } from "../adapters/locateTracking";
 import { getLpcVisualGeometry } from "../adapters/lpcCharacterGeometry";
 import { lpcLookFromSearch } from "../../character-system/lpcVisualExperiment";
 import { canRenderCharacter, resolveCharacterLayers } from "../../character-system/registry";
@@ -103,6 +104,7 @@ export class KingdomMapScene extends Phaser.Scene {
   private locateArrow: Phaser.GameObjects.Container | null = null;
   private locateAbitanteId: number | null = null;
   private locateCell: number | null = null;
+  private lastLocateCameraCullPosition: { x: number; y: number } | null = null;
   private gridLayer: Phaser.GameObjects.Graphics | null = null;
   private readonly characterViews = new Map<number, CharacterView>();
   private readonly pendingLpcSourceIds = new Set<string>();
@@ -1027,6 +1029,7 @@ export class KingdomMapScene extends Phaser.Scene {
     }
     this.locateAbitanteId = null;
     this.locateCell = null;
+    this.lastLocateCameraCullPosition = null;
   }
 
   /**
@@ -1124,18 +1127,46 @@ export class KingdomMapScene extends Phaser.Scene {
     this.syncLocateArrowPosition(snapshot.cellSize);
   }
 
-  private syncLocateArrowPosition(cellSize: number): void {
-    if (!this.locateArrow || this.locateCell == null) return;
+  private syncLocateArrowPosition(cellSize: number): LocateTrackingPosition | null {
+    if (!this.locateArrow || this.locateCell == null) return null;
+    const snapshot = this.bridge.getSnapshot();
     const view =
       this.locateAbitanteId != null ? this.characterViews.get(this.locateAbitanteId) : undefined;
-    if (view) {
-      this.locateArrow.setPosition(view.root.x, view.root.y - cellSize * 0.95);
-      return;
+    const animatedPosition = view?.root?.active
+      ? { x: view.root.x, y: view.root.y }
+      : null;
+    const target = resolveLocateTrackingPosition(
+      animatedPosition,
+      this.locateCell,
+      snapshot.cols,
+      cellSize,
+      snapshot.buildings
+    );
+    this.locateArrow.setPosition(target.arrow.x, target.arrow.y);
+    return target;
+  }
+
+  /** Segue i tween reali (anche mentre cammina tra due celle), non soltanto i passi logici. */
+  private followLocatedCharacter(position: { x: number; y: number }, cellSize: number): void {
+    // Il trascinamento manuale disattiva Individua dalla callback React.
+    // Non contrastarlo durante il breve intervallo prima del nuovo snapshot.
+    if (this.dragPointerId != null) return;
+    const camera = this.cameras.main;
+    const beforeX = camera.scrollX;
+    const beforeY = camera.scrollY;
+    camera.centerOn(position.x, position.y);
+    if (Math.abs(camera.scrollX - beforeX) < 0.1 && Math.abs(camera.scrollY - beforeY) < 0.1) return;
+
+    // Evita il ricalcolo di migliaia di tile a ogni frame su smartphone.
+    // Il culling usa un margine esterno alla camera e può aggiornarsi ogni
+    // mezza cella, mentre la telecamera segue il personaggio fluidamente.
+    const previous = this.lastLocateCameraCullPosition;
+    if (!previous || Math.abs(position.x - previous.x) + Math.abs(position.y - previous.y) >= cellSize * 0.5) {
+      this.staticTileVisibilityDirty = true;
+      this.characterVisibilityDirty = true;
+      this.waterViewportDirty = true;
+      this.lastLocateCameraCullPosition = { ...position };
     }
-    const snapshot = this.bridge.getSnapshot();
-    const col = this.locateCell % snapshot.cols;
-    const row = Math.floor(this.locateCell / snapshot.cols);
-    this.locateArrow.setPosition((col + 0.5) * cellSize, (row + 0.15) * cellSize);
   }
 
   private clearSelectionRing(): void {
@@ -1515,7 +1546,9 @@ export class KingdomMapScene extends Phaser.Scene {
 
   update(time: number, delta: number): void {
     if (this.locateArrow) {
-      this.syncLocateArrowPosition(this.bridge.getSnapshot().cellSize);
+      const cellSize = this.bridge.getSnapshot().cellSize;
+      const tracking = this.syncLocateArrowPosition(cellSize);
+      if (tracking) this.followLocatedCharacter(tracking.focus, cellSize);
     }
     if (this.perfEnabled) {
       // Phaser's delta can be smoothed/clamped toward the target frame rate.
