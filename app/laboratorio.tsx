@@ -1,13 +1,11 @@
 import React, { useMemo } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
 export default function LaboratorioScreen() {
-  const router = useRouter();
   const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
 
   const { width } = Dimensions.get("window");
@@ -118,9 +116,7 @@ export default function LaboratorioScreen() {
         {colContent}
       </ScrollView>
       </View>
-      <View style={styles.footer}>
-        <Text style={styles.back} onPress={() => router.back()}>← Edifici</Text>
-      </View>
+      
     </SafeAreaView>
   );
 }

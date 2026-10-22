@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
@@ -8,7 +7,6 @@ import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modal
 import type { Abitante } from "../src/types";
 
 export default function ScuolaScreen() {
-  const router = useRouter();
   const { abitanti, edifici, etaMinimaLavoro, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
   const [dropdownProfessoreVisible, setDropdownProfessoreVisible] = useState(false);
 
@@ -171,9 +169,7 @@ export default function ScuolaScreen() {
         </View>
       </ScrollView>
     </View>
-    <View style={styles.footer}>
-      <Text style={styles.back} onPress={() => router.back()}>← Edifici</Text>
-    </View>
+    
     </SafeAreaView>
   );
 }

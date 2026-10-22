@@ -19,7 +19,10 @@ test("tutta la fascia settentrionale e le cinque celle del Bosco aprono direttam
   assert.match(map.slice(single, doubleTap), /lastTapCell\.current = null;/);
 });
 
-test("la pagina Bosco usa la stessa uscita pop delle altre schermate", () => {
+test("Bosco usa il pulsante universale fisso in basso, senza Indietro in alto", () => {
   const bosco = readFileSync(new URL("../app/bosco.tsx", import.meta.url), "utf8");
-  assert.match(bosco, /router\.back\(\)/);
+  const layout = readFileSync(new URL("../app/_layout.tsx", import.meta.url), "utf8");
+  assert.doesNotMatch(bosco, /router\.back\(\)|← Indietro/);
+  assert.match(layout, /<BuildingBottomExit\s*\/>/);
+  assert.equal(EDIFICIO_TO_ROUTE.Bosco, "/bosco");
 });

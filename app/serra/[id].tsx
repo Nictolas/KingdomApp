@@ -50,9 +50,7 @@ export default function SerraScreenById() {
     return (
       <SafeAreaView style={styles.safe}>
         <Text style={styles.title}>Serra non trovata</Text>
-        <Text style={styles.back} onPress={() => router.back()}>
-          ← Indietro
-        </Text>
+        
       </SafeAreaView>
     );
   }

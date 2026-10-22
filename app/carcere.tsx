@@ -1,12 +1,10 @@
 import React from "react";
 import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
 export default function CarcereScreen() {
-  const router = useRouter();
   const { abitanti, edifici } = useGameContext();
 
   const { width } = Dimensions.get("window");
@@ -62,11 +60,7 @@ export default function CarcereScreen() {
         </ScrollView>
       </View>
 
-      <View style={styles.footer}>
-        <Text style={styles.back} onPress={() => router.back()}>
-          ← Edifici
-        </Text>
-      </View>
+      
     </SafeAreaView>
   );
 }

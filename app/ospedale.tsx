@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getStatoSalute } from "../src/game/ciboConsumo";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
@@ -9,7 +8,6 @@ import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modal
 import type { Abitante } from "../src/types";
 
 export default function OspedaleScreen() {
-  const router = useRouter();
   const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
   const [dropdownDottoreVisible, setDropdownDottoreVisible] = useState(false);
 
@@ -192,9 +190,7 @@ export default function OspedaleScreen() {
         </View>
       </ScrollView>
     </View>
-    <View style={styles.footer}>
-      <Text style={styles.back} onPress={() => router.back()}>← Edifici</Text>
-    </View>
+    
     </SafeAreaView>
   );
 }

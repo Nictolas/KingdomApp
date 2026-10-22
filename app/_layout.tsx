@@ -1,9 +1,10 @@
 import { Stack } from "expo-router";
 import { StatusBar } from "expo-status-bar";
 import React, { useEffect } from "react";
-import { Platform } from "react-native";
+import { Platform, View } from "react-native";
 import { GestureHandlerRootView } from "react-native-gesture-handler";
 import { GameProvider } from "../src/context/GameContext";
+import { BuildingBottomExit } from "../src/navigation/BuildingBottomExit";
 
 const globalStyle = { flex: 1, userSelect: "none" as const };
 
@@ -68,11 +69,14 @@ export default function RootLayout() {
     <GestureHandlerRootView style={globalStyle}>
       <GameProvider>
         <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerShown: false
-          }}
-        />
+        <View style={{ flex: 1, minHeight: 0 }}>
+          <Stack
+            screenOptions={{
+              headerShown: false
+            }}
+          />
+          <BuildingBottomExit />
+        </View>
       </GameProvider>
     </GestureHandlerRootView>
   );

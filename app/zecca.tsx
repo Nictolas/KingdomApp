@@ -9,7 +9,6 @@ import {
   TextInput,
   View
 } from "react-native";
-import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
 import { getStipendioMoneteGiornaliero } from "../src/game/edificiPubblici";
@@ -25,7 +24,6 @@ import { AbitanteAvatarPreview } from "../src/ui/AbitanteAvatarPreview";
 import type { Abitante } from "../src/types";
 
 export default function ZeccaScreen() {
-  const router = useRouter();
   const {
     abitanti,
     edifici,
@@ -167,11 +165,7 @@ export default function ZeccaScreen() {
           {colContent}
         </ScrollView>
       </View>
-      <View style={styles.footer}>
-        <Text style={styles.back} onPress={() => router.back()}>
-          ← Indietro
-        </Text>
-      </View>
+      
     </SafeAreaView>
   );
 }

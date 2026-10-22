@@ -62,9 +62,7 @@ export default function PortoScreen() {
         </View>
       </ScrollView>
       </View>
-      <View style={styles.footer}>
-        <Text style={styles.back} onPress={() => router.back()}>← Edifici</Text>
-      </View>
+      
     </SafeAreaView>
   );
 }

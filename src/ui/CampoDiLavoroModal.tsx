@@ -1,3 +1,4 @@
+import { BuildingModalBottomExit } from "./BuildingModalBottomExit";
 import React, { useState, useMemo } from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Edificio, Razza } from "../types";
@@ -180,10 +181,9 @@ export function CampoDiLavoroModal({
               </Pressable>
             </View>
 
-            <Pressable style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeButtonText}>Chiudi</Text>
-            </Pressable>
+            
           </ScrollView>
+          <BuildingModalBottomExit onClose={onClose} />
         </Pressable>
       </Pressable>
 

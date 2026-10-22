@@ -1,3 +1,4 @@
+import { BuildingModalBottomExit } from "./BuildingModalBottomExit";
 import React, { useMemo } from "react";
 import {
   Modal,
@@ -189,16 +190,7 @@ export function LuogoCultoFullscreenModal({
       <StatusBar style="light" />
       <SafeAreaView style={[styles.root, { backgroundColor: theme.root }]}>
         <View style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.headerBg }]}>
-          <View style={styles.headerTop}>
-            <Pressable
-              onPress={onClose}
-              style={({ pressed }) => [styles.closeBtn, pressed && styles.closeBtnPressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Chiudi"
-            >
-              <Text style={styles.closeBtnText}>✕</Text>
-            </Pressable>
-          </View>
+          
           <Text style={styles.heroEmoji}>{heroEmoji}</Text>
           <Text style={styles.title}>{nomeEdificio}</Text>
           <Text style={[styles.subtitle, { color: theme.accent }]}>
@@ -338,6 +330,7 @@ export function LuogoCultoFullscreenModal({
             </Pressable>
           ) : null}
         </ScrollView>
+        <BuildingModalBottomExit onClose={onClose} />
       </SafeAreaView>
     </Modal>
   );
