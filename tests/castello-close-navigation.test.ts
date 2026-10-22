@@ -9,9 +9,13 @@ test("il Castello condivide header e navigazione fissa con gli edifici", () => {
   assert.match(castello, /<BuildingScreenShell[\s\S]*?title="Castello"/);
   assert.match(castello, /backLabel="Torna alla mappa"/);
   assert.match(castello, /onBack=\{\(\) => tornaAllaMappa\(router\)\}/);
-  assert.match(shell, /<View style=\{styles\.footer\}>/);
-  assert.match(shell, /<Pressable onPress=\{onBack\} style=\{styles\.footerBack\}/);
-  assert.match(shell, /<Pressable[\s\S]*?onPress=\{onBack\}[\s\S]*?style=\{styles\.headerBack\}/);
+  const layout = readFileSync(new URL("../app/_layout.tsx", import.meta.url), "utf8");
+  assert.match(layout, /<BuildingBottomExit\s*\/>/);
+  assert.doesNotMatch(shell, /styles\.headerBack|styles\.footerBack/);
+  // Le schede fullscreen nella mappa (senza route edificio) conservano
+  // comunque la propria chiusura fissa IN BASSO.
+  assert.match(shell, /showModalExit/);
+  assert.match(shell, /style=\{styles\.modalExitButton\}/);
 });
 
 test("il ritorno del Castello mantiene tornaAllaMappa senza rimontare la scena", () => {
