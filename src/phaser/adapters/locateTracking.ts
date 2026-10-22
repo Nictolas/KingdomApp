@@ -39,7 +39,9 @@ export function resolveLocateTrackingPosition(
   fallbackCell: number,
   cols: number,
   cellSize: number,
-  buildings: readonly LocateBuilding[]
+  buildings: readonly LocateBuilding[],
+  /** Altezza reale del tetto nello spazio mondo, misurata sullo sprite renderizzato. */
+  renderedRoofTopByAnchor?: ReadonlyMap<number, number>
 ): LocateTrackingPosition {
   const focus = characterWorldPosition ?? {
     x: ((fallbackCell % cols) + 0.5) * cellSize,
@@ -56,13 +58,16 @@ export function resolveLocateTrackingPosition(
   }
 
   const { col, row, width } = building.geometry.footprint;
-  // Gli edifici con artKey possono avere un tetto che sporge fino a ~0,75
-  // celle sopra il footprint. Posizioniamo la freccia sopra l'immagine.
-  const roofOverflow = building.artKey ? 0.75 * cellSize : 0;
-  const arrowY = Math.max(
-    cellSize * 0.35,
-    row * cellSize - roofOverflow - cellSize * 0.27
-  );
+  // Lo sprite illustrato può essere MOLTO più alto del suo footprint.
+  // Un offset fisso di 0,75 celle posizionava ancora la freccia davanti alla
+  // facciata della Serra. La scena misura invece il bordo superiore della
+  // vera immagine dopo averne applicato la scala.
+  const estimatedRoofTop = row * cellSize - (building.artKey ? 0.75 * cellSize : 0);
+  const measuredRoofTop = renderedRoofTopByAnchor?.get(building.anchor);
+  const roofTop = measuredRoofTop != null && Number.isFinite(measuredRoofTop)
+    ? measuredRoofTop
+    : estimatedRoofTop;
+  const arrowY = Math.max(cellSize * 0.35, roofTop - cellSize * 0.32);
   return {
     // La camera segue la persona, non il tetto.
     focus,
