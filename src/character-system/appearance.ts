@@ -213,16 +213,41 @@ function professionTeenBodyPatch(value: Partial<CharacterAppearance>): Partial<C
   };
 }
 
+/**
+ * Cambia il vestiario soltanto nell'aspetto visualizzato: non muta mai
+ * il vestito civile registrato nel salvataggio.
+ * Usa semanticId già effettivamente presenti nel manifest LPC.
+ */
+function professionUniform(
+  value: Partial<CharacterAppearance>,
+  upperOutfit: "farmer" | "traveler" | "commoner",
+  colors: { shirt: string; pants: string },
+  accessory: string
+): Partial<CharacterAppearance> {
+  return {
+    ...value,
+    accessory,
+    fullOutfit: "none",
+    fullOutfitTrim: "none",
+    outfit: upperOutfit,
+    upperOutfit,
+    lowerOutfit: upperOutfit,
+    sleeveOutfit: "none",
+    outfitPrimaryColor: colors.shirt,
+    outfitSecondaryColor: colors.pants
+  };
+}
+
 /** Strumenti e abiti LPC obbligatori per occupazione (visibile in mappa/UI, non persistito). */
 export function enforceProfessionAccessoryRules(
   value: Partial<CharacterAppearance>,
   lavoro?: string,
   seed = 1
 ): Partial<CharacterAppearance> {
-  if (lavoro === "Agricoltore") return { ...value, accessory: FARMER_TOOL };
-  if (lavoro === "Taglialegna") return { ...value, accessory: LUMBERJACK_TOOL };
-  if (lavoro === "Fabbro") return { ...value, accessory: BLACKSMITH_TOOL };
-  if (lavoro === "Minatore") return { ...value, accessory: MINER_TOOL };
+  if (lavoro === "Agricoltore") return professionUniform(value, "farmer", { shirt: "tan", pants: "brown" }, FARMER_TOOL);
+  if (lavoro === "Taglialegna") return professionUniform(value, "traveler", { shirt: "forest", pants: "brown" }, LUMBERJACK_TOOL);
+  if (lavoro === "Fabbro") return professionUniform(value, "farmer", { shirt: "tan", pants: "brown" }, BLACKSMITH_TOOL);
+  if (lavoro === "Minatore") return professionUniform(value, "commoner", { shirt: "brown", pants: "charcoal" }, MINER_TOOL);
   if (lavoro === "Medico") {
     return {
       ...value,
@@ -238,7 +263,8 @@ export function enforceProfessionAccessoryRules(
       outfit: "none",
       upperOutfit: "none",
       lowerOutfit: "none",
-      outfitPrimaryColor: "black",
+      // La veste bianca è disponibile come kimono teen nel catalogo attuale.
+      outfitPrimaryColor: "white",
       outfitSecondaryColor: "charcoal",
       neckwear: MEDICO_CRAVAT,
       neckwearColor: "white",
@@ -273,15 +299,26 @@ export function enforceProfessionAccessoryRules(
       ...value,
       accessory: "none",
       ...professionTeenBodyPatch(value),
-      beardStyle: "none"
+      beardStyle: "none",
+      fullOutfit: "kimono",
+      fullOutfitTrim: "none",
+      outfit: "none",
+      upperOutfit: "none",
+      lowerOutfit: "none",
+      sleeveOutfit: "none",
+      outfitPrimaryColor: "purple",
+      cape: "solid",
+      capeTrim: "none",
+      capeColor: "base"
     };
     const normalizedTeen = normalizeCharacterAppearance(teenBase);
     const colori = compatibleColorsForField(normalizedTeen, "headwearColor", "headwear", MAGO_HAT);
-    const headwearColor = pickColorFromSeed(colori, seed);
     return {
       ...teenBase,
-      headwear: MAGO_HAT,
-      headwearColor
+      // Quando il cappello LPC non è nel pacchetto, conserva la veste
+      // viola senza chiedere al renderer di caricare uno sprite inesistente.
+      headwear: colori.length > 0 ? MAGO_HAT : "none",
+      headwearColor: colori.length > 0 ? pickColorFromSeed(colori, seed) : "base"
     };
   }
   if (lavoro === "Guardia") {
@@ -299,6 +336,8 @@ export function enforceProfessionAccessoryRules(
       // Il dato aspetto originale non viene modificato o salvato.
       outfit: GUARD_CHAINMAIL_OUTFIT,
       upperOutfit: GUARD_CHAINMAIL_OUTFIT,
+      lowerOutfit: GUARD_CHAINMAIL_OUTFIT,
+      outfitSecondaryColor: "black",
       sleeveOutfit: "none",
       fullOutfit: "none",
       fullOutfitTrim: "none",
