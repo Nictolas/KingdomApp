@@ -15,7 +15,9 @@ test("il nord e' foresta e non mare su tutte le 50 colonne",()=>{
   for(let c=0;c<cols;c++){assert.equal(cellaNellaForestaNord(c,cols,rows),true);assert.equal(isAcqua(c,cols,rows),false);assert.equal(isMareCell(c,cols,rows),false);assert.equal(isTerrenoAcqua(c,{},cols,rows),false);}
   assert.equal(cellaNellaForestaNord(5*cols+49,cols,rows),true);
   assert.equal(cellaNellaForestaNord(6*cols+49,cols,rows),false);
-  assert.equal(isMareCell(6*cols,cols,rows),true);
+  assert.equal(isMareCell(6*cols,cols,rows),false);
+  assert.equal(isMareCell(7*cols,cols,rows),false);
+  assert.equal(isMareCell(8*cols,cols,rows),true);
 });
 test("Bosco 5x5 come sede raccolta dentro la foresta senza duplicazioni",()=>{
   const state=ripristinaBoscoNord(empty(),cols,rows);
@@ -39,7 +41,8 @@ test("nessun edificio, strada o modifica terreno puo' intersecare il bosco",()=>
   assert.equal(footprintIntersecaForestaNord(a,2,2,cols,rows),true);
   assert.equal(footprintIntersecaForestaNord(b,2,2,cols,rows),false);
   assert.equal(puòPiazzareFootprintConCuscino(a,2,1,cols,rows,new Set(),new Set()),false);
-  assert.equal(puòPiazzareFootprintConCuscino(b,2,1,cols,rows,new Set(),new Set()),true);
+  assert.equal(puòPiazzareFootprintConCuscino(b,2,1,cols,rows,new Set(),new Set()),false);
+  assert.equal(puòPiazzareFootprintConCuscino(8*cols+20,2,1,cols,rows,new Set(),new Set()),true);
   assert.equal(edificioRispettaCriteriPiazzamento("Capanna",a,2,1,{},{},cols,rows),false);
   assert.equal(calcolaAnchorEdificioMultiCella(a,"Capanna",{},{},cols,rows).anchor,null);
   assert.equal(footprintStrada2x2Valido(a,cols,rows,{},{}),false);
