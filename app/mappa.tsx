@@ -3376,6 +3376,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         lastTapCell.current = null;
         return;
       }
+      /** Bosco: una sola pressione su qualsiasi casella delle 5×5.
+       * Il doppio tocco sulla stessa tessera non è affidabile su mobile.
+       */
+      if (edificio?.nome === "Bosco") {
+        openRouteForEdificio("Bosco");
+        lastTapCell.current = null;
+        return;
+      }
       /** Serra: apre subito la pagina produzione / assegnazioni. */
       if (edificio?.nome === "Serra") {
         openRouteForEdificio(edificio.nome, edificio.id);
