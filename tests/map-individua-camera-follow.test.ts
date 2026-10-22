@@ -112,7 +112,7 @@ test("Phaser misura lo sprite scalato e passa il tetto reale al calcolo Individu
   assert.match(source, /renderedRoofTopByAnchor = new Map<number, number>\(\)/);
   assert.match(source, /this\.renderedRoofTopByAnchor\.clear\(\)/);
   assert.match(source, /this\.renderedRoofTopByAnchor\.set\(building\.anchor, y \+ height - image\.displayHeight\)/);
-  assert.match(source, /snapshot\.buildings,\s*this\.renderedRoofTopByAnchor\s*\)/);
+  assert.match(source, /snapshot\.buildings,\s*this\.renderedRoofTopByAnchor,\s*this\.locateBuildingAnchor\s*\)/);
 });
 
 test("lavoratore nascosto: freccia sopra la Serra nonostante la vecchia cella fuori dall'edificio", () => {
