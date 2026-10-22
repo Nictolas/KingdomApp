@@ -286,7 +286,7 @@ import {
 } from "../src/game/mappaEdificiStatici";
 import { getStradeIniziali } from "../src/game/mappaStradeIniziali";
 import { ripristinaBoscoNord } from "../src/game/mappaBoscoNord";
-import { cellaNellaForestaNord } from "../src/game/mappaForestaConfine";
+import { cellaNellaFasciaErbaSottoForesta, cellaNellaForestaNord, proteggiFasciaErbaSottoForesta } from "../src/game/mappaForestaConfine";
 import { fasciaTerraEdificiIniziali, preservaTerraIntornoEdificiIniziali } from "../src/game/mappaDistanzaAcquaEdificiIniziali";
 import {
   calcolaAnchorCostruzione2x2,
@@ -434,7 +434,7 @@ function piazzaCapanneEgiacimentiProcedurali(
   const poolGi: number[] = [];
   const tot = cols * rows;
   for (let i = 0; i < tot; i++) {
-    if (cellaNellaForestaNord(i, cols, rows) || isAcqua(i, cols, rows) || riverSet.has(i) || haVicinoFiume(i, riverSet, cols, rows) || occupato.has(i)) continue;
+    if (cellaNellaForestaNord(i, cols, rows) || cellaNellaFasciaErbaSottoForesta(i, cols, rows) || isAcqua(i, cols, rows) || riverSet.has(i) || haVicinoFiume(i, riverSet, cols, rows) || occupato.has(i)) continue;
     poolGi.push(i);
   }
   poolGi.sort(() => Math.random() - 0.5);
@@ -464,7 +464,7 @@ function getInitialEdificiInMappa(
   const vietatoEdifici = vietatoFootprintECuscinoDaEdificiIniziali(edificiIniziali, cols, rows);
   const erbaLibera: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {
-    if (!cellaNellaForestaNord(i, cols, rows) && !isAcqua(i, cols, rows) && !riverSet.has(i) && !vietatoEdifici.has(i)) erbaLibera.push(i);
+    if (!cellaNellaForestaNord(i, cols, rows) && !cellaNellaFasciaErbaSottoForesta(i, cols, rows) && !isAcqua(i, cols, rows) && !riverSet.has(i) && !vietatoEdifici.has(i)) erbaLibera.push(i);
   }
   const shuffled = [...erbaLibera].sort(() => Math.random() - 0.5);
   const nCapanne = 5 + Math.floor(Math.random() * 5);
@@ -512,7 +512,7 @@ async function buildInitialMappa(
   const totaleCelle = cols * rows;
   const borderIndices = new Set<number>();
   for (let i = 0; i < totaleCelle; i++) {
-    if (isAcqua(i, cols, rows) || cellaNellaForestaNord(i, cols, rows)) borderIndices.add(i);
+    if (isAcqua(i, cols, rows) || cellaNellaForestaNord(i, cols, rows) || cellaNellaFasciaErbaSottoForesta(i, cols, rows)) borderIndices.add(i);
   }
   // Prima nasce il territorio: l'acqua non si deve adattare agli edifici.
   await report(12, "Generazione fiumi e coste…");
@@ -526,6 +526,7 @@ async function buildInitialMappa(
   });
   const terrenoInMappa: Record<number, TerrenoType> = buildTerrenoFromRivers(riverIndices, sandIndices);
   applyTerrenoGrassAndSandContinuity(terrenoInMappa, cols, rows);
+  proteggiFasciaErbaSottoForesta(terrenoInMappa, cols, rows);
   // Include eventuali celle diventate fiume durante la continuità dei terreni.
   const riverSet = riverSetDaTerreno(terrenoInMappa);
 
@@ -545,11 +546,13 @@ async function buildInitialMappa(
   await report(75, "Rifinitura terreno e confini…");
   applicaRegoleConfineTerreno(edificiInMappa, terrenoInMappa, cols, rows);
   preservaTerraIntornoEdificiIniziali(terrenoInMappa, fasciaSicurezzaEdifici, cols, rows);
+  // L'autotiling può aver aggiunto sabbia/acqua: la fascia nord resta prato.
+  proteggiFasciaErbaSottoForesta(terrenoInMappa, cols, rows);
 
   await report(86, "Distribuzione decorazioni…");
   const celleLibere: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {
-    if (cellaNellaForestaNord(i, cols, rows) || isTerrenoAcqua(i, terrenoInMappa, cols, rows) || edificiInMappa[i]) continue;
+    if (cellaNellaForestaNord(i, cols, rows) || cellaNellaFasciaErbaSottoForesta(i, cols, rows) || isTerrenoAcqua(i, terrenoInMappa, cols, rows) || edificiInMappa[i]) continue;
     celleLibere.push(i);
   }
   const shuffled = [...celleLibere].sort(() => Math.random() - 0.5);
