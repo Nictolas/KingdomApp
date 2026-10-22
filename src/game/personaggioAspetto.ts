@@ -1,5 +1,6 @@
 import {
   appearanceForPublicSpace,
+  copriBustoFemminile,
   bodyFamilyFor,
   DWARF_BEARD_STYLE,
   FARMER_TOOL,
@@ -338,17 +339,18 @@ export function aspettoPerVisualizzazioneAbitante(
   // Il corpo cambia con gli anni, senza rigenerare pelle/colore/vestiti e
   // senza mutare l'aspetto memorizzato nei vecchi salvataggi.
   const eta = abitante.eta;
-  if (eta == null) return { ...aspetto, characterAppearance: pubblico };
+  if (eta == null) return { ...aspetto, characterAppearance: copriBustoFemminile(pubblico, abitante.sesso) };
   const bodyType = razza === "Nano" ? "child"
     : eta < 13 ? "child"
     : eta < 18 ? "teen"
     : abitante.sesso === "F" ? "female" : "male";
   const ageGroup = bodyType === "child" ? "child" : bodyType === "teen" ? "teen" : "adult";
   if (pubblico.bodyType === bodyType && pubblico.ageGroup === ageGroup) {
-    return { ...aspetto, characterAppearance: pubblico };
+    return { ...aspetto, characterAppearance: copriBustoFemminile(pubblico, abitante.sesso) };
   }
   const aggiornato = normalizeCharacterAppearance({
     ...pubblico, bodyType, ageGroup, bodyFamily: bodyFamilyFor(pubblico.race, ageGroup)
   });
-  return { ...aspetto, characterAppearance: canRenderCharacter(aggiornato, "idle") ? aggiornato : pubblico };
+  const finale = canRenderCharacter(aggiornato, "idle") ? aggiornato : pubblico;
+  return { ...aspetto, characterAppearance: copriBustoFemminile(finale, abitante.sesso) };
 }
