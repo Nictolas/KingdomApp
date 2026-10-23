@@ -16,6 +16,12 @@ export type EdificioPrezzoDef = {
 
 /** Catalogo prezzi costruibili a monete (ordine per fascia). */
 export const EDIFICI_PREZZO_MONETE: EdificioPrezzoDef[] = [
+  { nome: "Capanna del Cacciatore", emoji: "🏹", fascia: 1, prezzoMonete: 100 },
+  { nome: "Campo dei Taglialegna", emoji: "🪓", fascia: 1, prezzoMonete: 125 },
+  { nome: "Capanno del Guardaboschi", emoji: "🛖", fascia: 1, prezzoMonete: 140 },
+  { nome: "Erboristeria", emoji: "🌿", fascia: 2, prezzoMonete: 200 },
+  { nome: "Apiario", emoji: "🐝", fascia: 2, prezzoMonete: 175 },
+  { nome: "Vivaio forestale", emoji: "🌱", fascia: 2, prezzoMonete: 220 },
   { nome: "Emporio", emoji: "🧺", fascia: 1, prezzoMonete: 100 },
   { nome: "Falegnameria", emoji: "🪚", fascia: 1, prezzoMonete: 150 },
   { nome: "Conceria", emoji: "🧴", fascia: 1, prezzoMonete: 175 },
