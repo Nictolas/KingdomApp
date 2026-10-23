@@ -59,8 +59,9 @@ export function vietatoCiboDaDogma(dogmi: readonly DogmaReligioso[], itemId: str
 export function abitoPrescrittoDaDogma(
   dogmi: readonly DogmaReligioso[], destinatari: "fedeli" | "sacerdoti"
 ): VestitiPersonaggio | null {
-  return dogmi.find(d => d.tipo === "abito_obbligatorio" && d.destinatari === destinatari
-  )?.vestiti ?? null;
+  const obbligo = dogmi.find((d): d is Extract<DogmaReligioso, { tipo: "abito_obbligatorio" }> =>
+    d.tipo === "abito_obbligatorio" && d.destinatari === destinatari);
+  return obbligo?.vestiti ?? null;
 }
 
 export function rispettaDogmaAbito(
