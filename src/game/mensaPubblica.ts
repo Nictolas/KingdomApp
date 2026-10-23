@@ -119,7 +119,13 @@ export function serviPastoMensaTransaction(
 
   const pasto = consumaPastoDaInventarioMensa(mensaNorm, abitante.personalità, permesso);
   if (!pasto) {
-    return { abitante, inventarioMensa: mensaNorm, servito: false, carestiaMensa: true };
+    // Cibo presente ma proibito dalla fede/dieta del richiedente ≠
+    // carestia di tutta la colonia. La fame del singolo rimane invariata.
+    const scorteEsaurite = mensaNorm.every(voce => voce.quantità <= 0);
+    return {
+      abitante, inventarioMensa: mensaNorm,
+      servito: false, carestiaMensa: scorteEsaurite
+    };
   }
 
   return {
