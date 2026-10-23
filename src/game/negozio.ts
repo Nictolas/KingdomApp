@@ -7,7 +7,7 @@ import {
   SOGLIA_BISOGNO_AZIONE
 } from "./bisogni";
 import {
-  consumaUnOggettoCibo,
+  consumaUnOggettoCiboConItem,
   getMoneteInventarioAbitante,
   normalizzaInventarioAbitante,
   provaSpendiMoneteInventarioAbitante,
@@ -62,11 +62,14 @@ export function compraCiboAlNegozio(abitante: Abitante): Abitante | null {
 }
 
 /** Snack da inventario se Fame sotto soglia. */
-export function tentaSnackDaInventario(abitante: Abitante): Abitante | null {
+export function tentaSnackDaInventario(
+  abitante: Abitante,
+  permesso: (itemId: string) => boolean = () => true
+): Abitante | null {
   if (!abitanteHaInventarioPersonale(abitante)) return null;
   if (getBisogniAbitante(abitante).fame >= SOGLIA_BISOGNO_AZIONE) return null;
-  if (!haCiboCompatibileInInventario(abitante.inventario, abitante.personalità)) return null;
-  const dopo = consumaUnOggettoCibo(abitante.inventario!, abitante.personalità);
+  if (!haCiboCompatibileInInventario(abitante.inventario, abitante.personalità, permesso)) return null;
+  const dopo = consumaUnOggettoCiboConItem(abitante.inventario!, abitante.personalità, permesso)?.inventario ?? null;
   if (!dopo) return null;
   return applicaRecuperoFamePasto({ ...abitante, inventario: dopo });
 }
