@@ -14,6 +14,7 @@ export const EDIFICIO_TO_ROUTE: Readonly<Record<string, string>> = {
   "Erboristeria": "/sede-forestale",
   "Apiario": "/sede-forestale",
   "Vivaio forestale": "/sede-forestale",
+  "Cerchio dei Druidi": "/sede-forestale",
   "Impianto di Riciclo": "/impianto-riciclo",
   "Baracca": "/residenze",
   "Capanna": "/residenze",
