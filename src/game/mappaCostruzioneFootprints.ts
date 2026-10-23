@@ -36,6 +36,7 @@ export const FOOTPRINT_COSTRUZIONE: Record<string, MappaCostruzioneFootprint> = 
   "Erboristeria": { w: 1, h: 1 },
   "Apiario": { w: 1, h: 1 },
   "Vivaio forestale": { w: 1, h: 1 },
+  "Cerchio dei Druidi": { w: 1, h: 1 },
   Capanna: { w: CAPANNA_FOOTPRINT_W, h: CAPANNA_FOOTPRINT_H },
   Dormitorio: { w: DORMITORIO_FOOTPRINT_W, h: DORMITORIO_FOOTPRINT_H },
   Bar: { w: BAR_FOOTPRINT_W, h: BAR_FOOTPRINT_H },
