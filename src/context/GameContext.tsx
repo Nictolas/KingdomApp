@@ -89,9 +89,15 @@ type GameContextType = {
     descrizione?: string;
     aspettoSacerdote?: import("../game/personaggioAspetto").AspettoPersonaggio;
     dottrinaNaturalista?: import("../game/ecosistemaBosco").DottrinaNaturalista;
+    dogmi?: readonly import("../game/dogmiReligiosi").DogmaReligioso[];
   }) =>
     | { ok: true; religione: import("../game/fedeleCulto").ReligioneCustom }
     | { ok: false; errore: string };
+  modificaDogmiReligioneCustom: (
+    id: string,
+    dogmi: readonly import("../game/dogmiReligiosi").DogmaReligioso[],
+    dottrinaNaturalista?: import("../game/ecosistemaBosco").DottrinaNaturalista
+  ) => boolean;
   etaMinimaLavoro: number;
   etaPensionabile: number;
   assegnoPensionati: number;
