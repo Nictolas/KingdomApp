@@ -69,7 +69,14 @@ export const EDIFICIO_TO_LAVORO: Record<number, string> = {
   49: "Alchimista",         // Laboratorio Magico
   50: "Necromante",         // Cripta Necromantica
   51: "Raccoglitore",       // Bosco
-  52: "Monetiere"          // Zecca
+  52: "Monetiere",        // Zecca
+  54: "Cacciatore",
+  55: "Taglialegna",
+  56: "Guardaboschi",
+  57: "Erborista",
+  58: "Apicoltore",
+  59: "Silvicoltore"
+
 };
 
 const LAVORI_DA_EDIFICIO = new Set(Object.values(EDIFICIO_TO_LAVORO));
@@ -278,7 +285,8 @@ export function edificioAccettaServiDellaGleba(edificio: Edificio): boolean {
 /** Lavoro associato a un edificio (istanza): lookup per id catalogo o per nome del template). */
 export function getLavoroPerEdificio(edificio: Edificio): string | undefined {
   const direct = EDIFICIO_TO_LAVORO[edificio.id];
-  if (direct) return direct;
+  // IDs assegnati dinamicamente possono coincidere con ID di template.
+  if (direct && edificiData.some((tpl) => tpl.id === edificio.id && tpl.nome === edificio.nome)) return direct;
   const template = edificiData.find((t) => t.nome === edificio.nome);
   return template ? EDIFICIO_TO_LAVORO[template.id] : undefined;
 }
@@ -320,7 +328,7 @@ export function getServiDellaGlebaPerAssegnazioneEdificio(
 /** Competenza richiesta per auto-assign (istanze con id nuovo → stesso nome del catalogo). */
 export function getCompetenzaMinimaPerEdificio(edificio: Edificio): CompetenzaEdificio | undefined {
   const direct = EDIFICIO_COMPETENZA_RICHIESTA[edificio.id];
-  if (direct) return direct;
+  if (direct && edificiData.some((tpl) => tpl.id === edificio.id && tpl.nome === edificio.nome)) return direct;
   const template = edificiData.find((t) => t.nome === edificio.nome);
   return template ? EDIFICIO_COMPETENZA_RICHIESTA[template.id] : undefined;
 }
