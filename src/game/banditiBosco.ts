@@ -1,4 +1,5 @@
-import type { Abitante } from "../types";
+import type { Abitante, Edificio } from "../types";
+import { SEDE_PER_PROFESSIONE, type ProfessioneForestale } from "./turniForestali";
 import { abitanteHaInventarioPersonale } from "./casta";
 import { aggiungiMoneteInventarioAbitante } from "./inventario";
 
@@ -186,5 +187,81 @@ export function eseguiUdienzaBanditi(input: {
     tesoro: risultato.moneteTesoro,
     mostraParere: risultato.mostraParere,
     riuscito: true
+  };
+}
+
+/**
+ * Verifica giornaliera effettuata una sola volta per abitante.
+ * SOLO abitanti che hanno realmente lavorato nel Bosco possono essere colpiti.
+ * I Guardaboschi proteggono soltanto se assegnati al proprio presidio operativo
+ * e se hanno svolto almeno 30 minuti reali di pattuglia nello stesso giorno.
+ * Nessun bandito è mai creato come personaggio sulla mappa.
+ */
+export function applicaBanditiBoscoGiornalieri(input: {
+  abitanti: Abitante[];
+  edifici: Edificio[];
+  giorno: number;
+  mondoSeed?: number;
+}): {
+  abitanti: Abitante[];
+  eventi: RapinaBosco[];
+  guardaboschiAttivi: number;
+} {
+  const { abitanti, edifici, giorno } = input;
+  const bosco = edifici.some(e => e.nome === "Bosco" && e.stato === "Operativo");
+  if (!bosco) return { abitanti, eventi: [], guardaboschiAttivi: 0 };
+  const haSedeValida = (a: Abitante) => {
+    const nome = SEDE_PER_PROFESSIONE[a.lavoro as ProfessioneForestale];
+    if (nome === undefined) return false;
+    if (nome === null) {
+      return edifici.some(e => e.nome === "Bosco" &&
+        (e.abitantiAssegnati ?? []).includes(a.id));
+    }
+    return edifici.some(e => e.nome === nome && e.stato === "Operativo" &&
+      (e.abitantiAssegnati ?? []).includes(a.id));
+  };
+  const haLavorato = (a: Abitante) =>
+    a.ultimoIngressoBoscoGiorno === giorno &&
+    a.ultimoLavoroBosco?.giorno === giorno &&
+    a.ultimoLavoroBosco.minuti >= 30 &&
+    a.salute > 0 && haSedeValida(a);
+  const guardaboschiAttivi = abitanti.filter(a =>
+    a.lavoro === "Guardaboschi" && haLavorato(a)).length;
+  const eventi: RapinaBosco[] = [];
+  let mutated = false;
+  const next = abitanti.map(a => {
+    if (a.lavoro === "Guardaboschi" || !haLavorato(a) ||
+        a.ultimoControlloBanditiBoscoGiorno === giorno ||
+        (a.richiestaRapinaBosco && a.richiestaRapinaBosco.stato !== "chiusa")) {
+      return a;
+    }
+    mutated = true;
+    const controllo = { ...a, ultimoControlloBanditiBoscoGiorno: giorno };
+    if (!possibileAssaltoBanditi({
+      mondoSeed: input.mondoSeed ?? 1, giorno, abitanteId: a.id,
+      staLavorandoNelBosco: true, guardaboschiAttivi,
+      haGiaSubitoEventoOggi: false
+    })) return controllo;
+    const assalto = risolviAssaltoBanditi({
+      mondoSeed: input.mondoSeed ?? 1, giorno, abitanteId: a.id,
+      inventario: a.inventario ?? []
+    });
+    if (!assalto) return controllo;
+    eventi.push(assalto.evento);
+    const salute = assalto.evento.esito === "morte"
+      ? 0 : Math.max(0, a.salute - assalto.evento.dannoSalute);
+    // Valutazione monetaria provvisoria per beni diversi dalle monete.
+    const dannoMonete = assalto.evento.rubato.itemId === "monete"
+      ? assalto.evento.rubato.quantità : assalto.evento.rubato.quantità;
+    const richiesta = salute > 0
+      ? creaRichiestaBanditi(assalto.evento, dannoMonete) : null;
+    return {
+      ...controllo, inventario: assalto.inventario, salute,
+      richiestaRapinaBosco: richiesta ?? undefined
+    };
+  });
+  return {
+    abitanti: mutated ? next : abitanti,
+    eventi, guardaboschiAttivi
   };
 }
