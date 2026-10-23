@@ -488,3 +488,7 @@ export function generaRegnoIniziale(
     razzaNativi
   };
 }
+
+// Alias di compatibilita per le integrazioni precedenti alla rinomina Colonia -> Regno.
+/** @deprecated Usare generaRegnoIniziale. */
+export const generaColoniaIniziale = generaRegnoIniziale;

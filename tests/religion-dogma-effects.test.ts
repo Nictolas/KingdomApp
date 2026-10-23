@@ -104,7 +104,7 @@ test("Il ciclo giornaliero considera la religione specifica di ciascun abitante"
     ultimoGiornoCiboConsumato: 0
   };
   const esito = applicaPastiGiornalieriPerPeriodo(
-    [fedele], [] as Edificio[], {}, {}, 0, 1, [fede]
+    [fedele], [] as unknown as Edificio[], {}, {}, 0, 1, [fede]
   );
   assert.equal(esito.abitanti[0]?.ultimoGiornoCiboConsumato, 1);
   assert.equal(esito.abitanti[0]?.inventario?.find(v => v.itemId === "bistecca")?.quantità, 2);
@@ -147,7 +147,7 @@ test("Il motore giornaliero distingue il cibo tabù da una reale mancanza di sco
     ultimoGiornoCiboConsumato: 0
   };
   const mensa = { id: 95, nome: "Mensa Pubblica", stato: "Operativo",
-    abitantiAssegnati: [], capacità: 6 } as Edificio;
+    abitantiAssegnati: [], capacità: 6 } as unknown as Edificio;
   const r = applicaPastiGiornalieriPerPeriodo(
     [fedele], [mensa], { 95: [{ itemId: "bistecca", quantità: 4 }] }, {},
     0, 1, [fede]
@@ -164,7 +164,7 @@ test("Negozio: il tabù del cibo base impedisce vendita, pagamento e consumo", (
   assert.equal(compraEMangiaAlNegozio(cliente, vietaMele), null);
   assert.equal(compraCiboAlNegozio(cliente, vietaMele), null);
   assert.equal(abitanteVuoleNegozio(cliente, [
-    { id: 91, nome: "Negozio", stato: "Operativo" } as Edificio
+    { id: 91, nome: "Negozio", stato: "Operativo" } as unknown as Edificio
   ], vietaMele), false);
   assert.equal(cliente.inventario[0]?.quantità, 150);
 });
@@ -172,7 +172,7 @@ test("Negozio: il tabù del cibo base impedisce vendita, pagamento e consumo", (
 test("L'abitante raggiunge la mensa se il suo unico alimento è proibito", () => {
   const fed = { ...persona(92, "Raccoglitore", "ranger"),
     inventario: [{ itemId: "bistecca", quantità: 3 }] };
-  const mensa = { id: 93, nome: "Mensa Pubblica", stato: "Operativo" } as Edificio;
+  const mensa = { id: 93, nome: "Mensa Pubblica", stato: "Operativo" } as unknown as Edificio;
   assert.equal(abitanteHaBisognoMensa(fed, [mensa], [fede]), true);
   assert.equal(abitanteHaBisognoMensa(fed, [mensa]), false);
 });

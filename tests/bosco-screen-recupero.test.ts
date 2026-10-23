@@ -9,7 +9,8 @@ test("schermata Bosco mostra raccolta e ultimo bottino", () => {
 
   assert.ok(BOTTINO_BOSCO.length >= 26);
   assert.match(page, /Raccolta spontanea/);
-  assert.match(page, /1 o 2 oggetti naturali/);
+  assert.match(page, /almeno 30 minuti/);
+  assert.match(page, /risorse disponibili/);
   assert.match(page, /ultimoRaccoltoBosco/);
   assert.match(page, /Possibili bottini/);
   assert.match(page, /raggiungono fisicamente il Bosco/);

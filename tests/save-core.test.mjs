@@ -10,7 +10,9 @@ import { createSaveEnvelope } from "./save-fixture.mjs";
 test("round trip completo stato → JSON → stato", () => {
   const original = createSaveEnvelope();
   const restored = deserializeSave(serializeSave(original));
-  assert.deepEqual(restored, original);
+  // Il primo caricamento aggiunge campi di default: la seconda normalizzazione deve essere idempotente.
+  assert.deepEqual(restored, deserializeSave(serializeSave(restored)));
+  assert.deepEqual(restored.payload.colony.inventarioEmporioByEdificioId, {});
   assert.deepEqual(restored.payload.map, original.payload.map);
   assert.deepEqual(restored.payload.events, original.payload.events);
   assert.deepEqual(restored.payload.simulationCursors, original.payload.simulationCursors);

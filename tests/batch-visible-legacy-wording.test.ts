@@ -29,10 +29,11 @@ test("le schermate aggiornate non espongono terminologia legacy sci-fi/colonia",
   assert.doesNotMatch(readFileSync("app/personalita.tsx", "utf8"), /colonia/i);
   assert.doesNotMatch(readFileSync("app/rifiuti.tsx", "utf8"), /colonia/i);
 
+  // La vecchia pagina Religione inoltra al pannello unificato.
   const religione = readFileSync("app/religione.tsx", "utf8");
-  assert.match(religione, /Culto delle Ombre/);
-  assert.match(religione, /\/culto-ombre/);
-  assert.match(religione, /🌑/);
+  assert.match(religione, /Redirect href="\/religioni"/);
+  const cultoOmbre = readFileSync("app/culto-ombre.tsx", "utf8");
+  assert.match(cultoOmbre, /Culto delle Ombre/);
 
   const porto = readFileSync("app/porto.tsx", "utf8");
   assert.match(porto, /router\.push\("\/regni"\)/);

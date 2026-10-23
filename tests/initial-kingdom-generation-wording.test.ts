@@ -7,7 +7,9 @@ test("la generazione iniziale usa terminologia Regno/Golem", () => {
   const stato = readFileSync("src/hooks/useGameState.ts", "utf8");
 
   assert.match(generazione, /generaRegnoIniziale/);
-  assert.doesNotMatch(generazione, /generaColoniaIniziale|candidatiRobot|\bRobot\b|colonia/i);
+  // Esiste soltanto l'alias deprecato per i vecchi salvataggi/test.
+  assert.match(generazione, /generaColoniaIniziale = generaRegnoIniziale/);
+  assert.doesNotMatch(generazione, /candidatiRobot|\bRobot\b/i);
   assert.match(stato, /generaRegnoIniziale/);
   assert.doesNotMatch(stato, /generaColoniaIniziale/);
 });

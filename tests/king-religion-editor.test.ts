@@ -15,8 +15,8 @@ const create = (name: string, extra: Record<string, unknown> = {}) => {
   const r = provaCreaReligioneCustom({
     nome: name, fondatoreReId: ID_GIOCATORE, ...extra
   }, [], () => "test-" + name);
-  assert.equal(r.ok, true);
   if (!r.ok) throw new Error(r.errore);
+  assert.equal(r.ok, true);
   return r.religione;
 };
 

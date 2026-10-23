@@ -24,7 +24,7 @@ const fucina = {
   capacità: 2,
   occupazione: 1,
   abitantiAssegnati: [70]
-} as Edificio;
+} as unknown as Edificio;
 
 const emporio = {
   id: 135,
@@ -34,7 +34,7 @@ const emporio = {
   capacità: 4,
   occupazione: 0,
   abitantiAssegnati: []
-} as Edificio;
+} as unknown as Edificio;
 
 test("priorità ricollocamento include imprese e lascia Bosco come fallback finale", () => {
   const disoccupato = { ...lavoratore, lavoro: "Disoccupato" } as Abitante;
@@ -45,7 +45,7 @@ test("priorità ricollocamento include imprese e lascia Bosco come fallback fina
     capacità: 20,
     occupazione: 0,
     abitantiAssegnati: []
-  } as Edificio;
+  } as unknown as Edificio;
   const sedi = sediCercaLavoroDisoccupatoInOrdine(
     disoccupato,
     [emporio, bosco],

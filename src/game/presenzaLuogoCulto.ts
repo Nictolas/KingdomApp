@@ -17,7 +17,7 @@ export type StatoPresenzaLuogoCulto =
   | "a_casa_notte"
   | "in_giro";
 
-type CommutePurposeCulto = "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro";
+type CommutePurposeCulto = import("./mappaPersonaggiRuntimeStore").CommutePurposeMappa;
 
 export function statoPresenzaFedeleLuogoCulto(
   abitante: Abitante,
@@ -58,7 +58,8 @@ export function statoPresenzaFedeleLuogoCulto(
     }
     if (p === "home") return "viaggio_casa";
     if (p === "work") return "viaggio_lavoro";
-    return "viaggio_bar";
+    if (p === "bar") return "viaggio_bar";
+    return "in_giro";
   }
 
   const èNotte = buioCielo > 0.5;

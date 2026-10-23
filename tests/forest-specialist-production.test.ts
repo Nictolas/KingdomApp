@@ -11,7 +11,7 @@ import { OGGETTI_INVENTARIO } from "../src/game/inventario";
 const bosco = {
   id: 51, nome: "Bosco", stato: "Operativo",
   capacità: 20, abitantiAssegnati: [], occupazione: 0
-} as Edificio;
+} as unknown as Edificio;
 const mestieri = [
   [21, 54, "Cacciatore", "Capanna del Cacciatore"],
   [22, 55, "Taglialegna", "Campo dei Taglialegna"],
@@ -31,7 +31,7 @@ function edificio(id: number, nome: string, idLavoratore: number): Edificio {
   return {
     id, nome, stato: "Operativo", abitantiAssegnati: [idLavoratore],
     occupazione: 1, capacità: 4
-  } as Edificio;
+  } as unknown as Edificio;
 }
 
 test("I prodotti dei mestieri del Bosco sono oggetti reali del catalogo", () => {

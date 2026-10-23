@@ -6,6 +6,6 @@ test("Residenze usa cambio mese automatico e Regno", () => {
   const source = readFileSync("app/residenze.tsx", "utf8");
 
   assert.match(source, /cambio mese automatico/i);
-  assert.match(source, /Regno e catalogo unificati/);
+  assert.match(source, /Regno e catalogo sono unificati/);
   assert.doesNotMatch(source, /Skip Mese|Colonia e catalogo unificati/i);
 });

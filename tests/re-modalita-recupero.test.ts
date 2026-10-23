@@ -21,7 +21,7 @@ const castello = {
   capacità: 24,
   occupazione: 1,
   abitantiAssegnati: [1]
-} as Edificio;
+} as unknown as Edificio;
 
 const serra = {
   id: 2,
@@ -32,7 +32,7 @@ const serra = {
   capacità: 4,
   occupazione: 0,
   abitantiAssegnati: []
-} as Edificio;
+} as unknown as Edificio;
 
 test("il Re parte A giro con popolarità 50", () => {
   assert.equal(STATO_RE_DEFAULT.modalitaRe, "a_giro");
@@ -73,7 +73,7 @@ test("il bonus visita è +15% solo sull'edificio operativo visitato", () => {
   assert.equal(
     edificioBuffVisitaCorrente(
       visita,
-      [castello, { ...serra, stato: "Danneggiato" } as Edificio]
+      [castello, { ...serra, stato: "Danneggiato" } as unknown as Edificio]
     ),
     null
   );

@@ -14,7 +14,7 @@ const impresa = {
   abitantiAssegnati: [],
   cassaMonete: 50,
   fatturatoMeseMonete: 100
-} as Edificio;
+} as unknown as Edificio;
 
 test("tassa imprese preleva il 10% del fatturato dalla cassa e accredita il Tesoro", () => {
   const result = prelevaTassaImpresaMensile([impresa], 200);

@@ -79,7 +79,7 @@ export function modificatoreSoddisfazioneBosco(
     (dottrina.forestaSacra ? Math.max(0, RISERVE_BOSCO_INIZIALI.alberi - contenuto(scorte.alberi)) * 0.08 : 0) +
     (dottrina.tutelaFauna ? Math.max(0, RISERVE_BOSCO_INIZIALI.fauna - contenuto(scorte.fauna)) * 0.06 : 0) +
     (dottrina.tutelaVegetazione ? Math.max(0, RISERVE_BOSCO_INIZIALI.vegetazione - contenuto(scorte.vegetazione)) * 0.04 : 0);
-  return Math.max(-10, Math.min(0, -Math.round(perdite)));
+  return Math.max(-10, Math.min(0, -Math.round(perdite)) || 0);
 }
 
 /** Resa potenziale del lavoro forestale in rapporto alle scorte disponibili. */

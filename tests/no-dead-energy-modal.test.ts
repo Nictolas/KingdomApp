@@ -6,5 +6,6 @@ test("il vecchio EnergiaModal non esiste più ma la risorsa Energia resta simula
   assert.equal(existsSync("src/ui/EnergiaModal.tsx"), false);
 
   const simulazione = readFileSync("src/game/avanzaMese.ts", "utf8");
-  assert.match(simulazione, /risorsa\.nome === "Energia"/);
+  assert.match(simulazione, /risorsa\.nome === "Energia Magica"/);
+  assert.match(simulazione, /numGolem \* 2/);
 });

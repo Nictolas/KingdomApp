@@ -14,7 +14,7 @@ import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import { badgePresenzaCapanna, statoPresenzaOccupanteCapanna } from "../game/presenzaCapanna";
 
 type CommuteEntry = {
-  purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro";
+  purpose: import("../game/mappaPersonaggiRuntimeStore").CommutePurposeMappa;
 };
 
 export type CapannaFullscreenModalProps = {

@@ -15,8 +15,10 @@ import {
 } from "./orariLavoroMappa";
 import { abitanteNascostoNelCultoOra } from "./presenzaLuogoCulto";
 
+import type { CommutePurposeMappa } from "./mappaPersonaggiRuntimeStore";
+
 export type CommuteInfoAzione = {
-  purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro";
+  purpose: CommutePurposeMappa;
   barEdificioId?: number;
   mensaEdificioId?: number;
   cultoEdificioId?: number;

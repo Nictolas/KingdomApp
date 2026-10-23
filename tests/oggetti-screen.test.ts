@@ -10,6 +10,6 @@ test("Oggetti è di nuovo disponibile dal menu", () => {
   assert.match(menu, />Oggetti<\/Text>/);
 
   const screen = readFileSync("app/oggetti.tsx", "utf8");
-  assert.match(screen, /OGGETTI_INVENTARIO/);
-  assert.doesNotMatch(screen, /OGGETTI_CATALOGO/);
+  assert.match(screen, /OGGETTI_CATALOGO/);
+  assert.match(screen, /formatValoreOggetto/);
 });

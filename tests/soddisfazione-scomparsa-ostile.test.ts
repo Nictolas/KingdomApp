@@ -109,6 +109,8 @@ test("il cambio mese automatico salva la scomparsa e la registra nel Diario", ()
   const source = readFileSync("src/hooks/useGameState.ts", "utf8");
 
   assert.match(source, /applicaScomparsaOstileMensile/);
-  assert.match(source, /setAbitanti\(scomparsa\.abitanti\)/);
+  // La scomparsa prosegue nella catena degli eventi prima del commit unico di stato.
+  assert.match(source, /tentaAttentatoOstileMensile\(\s*scomparsa\.abitanti/);
+  assert.match(source, /setAbitanti\(attentato\.abitanti\)/);
   assert.match(source, /scomparsa\.messaggio/);
 });
