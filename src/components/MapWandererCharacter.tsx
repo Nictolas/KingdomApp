@@ -69,8 +69,8 @@ type MapWandererCharacterProps = {
    */
   commutePath?: number[] | null;
   commuteToken?: number;
-  commutePurpose?: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro" | null;
-  onCommuteComplete?: (purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro") => void;
+  commutePurpose?: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "udienza_banditi" | "cerca_lavoro" | null;
+  onCommuteComplete?: (purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "udienza_banditi" | "cerca_lavoro") => void;
   /**
    * Coda bloccata (cella occupata): il genitore dovrebbe ripianificare da `fromCell`
    * evitando gli altri abitanti.
@@ -78,7 +78,7 @@ type MapWandererCharacterProps = {
   onCommuteBlocked?: (info: {
     fromCell: number;
     blockedCell: number;
-    purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro";
+    purpose: "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "udienza_banditi" | "cerca_lavoro";
   }) => void;
   /** Chiamato quando il personaggio “arriva” su una cella (fine passo o snap). */
   onCellSettled?: (cellIndex: number) => void;
