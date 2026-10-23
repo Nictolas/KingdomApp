@@ -3,17 +3,19 @@ import {
   Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View
 } from "react-native";
 import { parereConsiglierePerRapina, type RichiestaRisarcimentoBanditi } from "../game/banditiBosco";
+import type { Abitante } from "../types";
+import { AbitanteAvatarPreview } from "./AbitanteAvatarPreview";
 
 export function RichiestaRapinaBoscoModal(props: {
   richiesta: RichiestaRisarcimentoBanditi;
   nomeVittima: string;
-  nomeConsigliere: string | null;
+  consigliere: Abitante | null;
   moneteTesoro: number;
   onRisarcisci: () => void;
   onIgnora: () => void;
 }) {
   const [mostraConsiglio, setMostraConsiglio] = useState(false);
-  const { richiesta, nomeConsigliere, nomeVittima, moneteTesoro } = props;
+  const { richiesta, consigliere, nomeVittima, moneteTesoro } = props;
   useEffect(() => setMostraConsiglio(false), [richiesta.id]);
   const consiglio = parereConsiglierePerRapina(richiesta);
   const sufficiente = moneteTesoro >= richiesta.dannoMonete;
@@ -28,7 +30,12 @@ export function RichiestaRapinaBoscoModal(props: {
             {mostraConsiglio ? (
               <>
                 <Text style={styles.heading}>🧙 Parere del Consigliere</Text>
-                <Text style={styles.speaker}>{nomeConsigliere}</Text>
+                {consigliere && (
+                  <View style={styles.avatar}>
+                    <AbitanteAvatarPreview abitante={consigliere} size={92} faceOnly />
+                  </View>
+                )}
+                <Text style={styles.speaker}>{consigliere?.nome}</Text>
                 <Text style={styles.text}>Maestà, ecco le conseguenze possibili:</Text>
                 <Text style={styles.option}>Se risarcisci</Text>
                 <Text style={styles.text}>{consiglio.risarcisci}</Text>
@@ -63,12 +70,12 @@ export function RichiestaRapinaBoscoModal(props: {
               <>
                 <Pressable accessibilityRole="button"
                   accessibilityLabel="Chiedi al consigliere, aiuto sulle due scelte"
-                  disabled={!nomeConsigliere}
-                  style={[styles.button, !nomeConsigliere && styles.disabled]}
+                  disabled={!consigliere}
+                  style={[styles.button, !consigliere && styles.disabled]}
                   onPress={() => setMostraConsiglio(true)}>
                   <Text style={styles.buttonText}>❔ Chiedi al consigliere</Text>
                 </Pressable>
-                {!nomeConsigliere && (
+                {!consigliere && (
                   <Text style={styles.note}>
                     Nessun Consigliere in carica. Puoi nominarne subito un altro.
                   </Text>
@@ -109,6 +116,7 @@ const styles = StyleSheet.create({
   body: { gap: 14, padding: 20 },
   heading: { fontSize: 20, color: "#f4edd8", fontWeight: "800", textAlign: "center" },
   speaker: { fontSize: 16, color: "#a5cefc", fontWeight: "700", textAlign: "center" },
+  avatar: { alignItems: "center", justifyContent: "center", paddingVertical: 8 },
   text: { color: "#e5edf8", fontSize: 15, lineHeight: 24 },
   option: { color: "#f0d28b", fontSize: 15, fontWeight: "700" },
   note: { color: "#aabbd1", fontSize: 12, lineHeight: 20 },
