@@ -500,6 +500,10 @@ export function useGameState() {
         giorno,
         giorni
       );
+      if (result.edifici !== edificiRef.current) {
+        edificiRef.current = result.edifici;
+        setEdifici(result.edifici);
+      }
       if (result.abitanti !== abitantiRef.current) {
         abitantiRef.current = result.abitanti;
         setAbitanti(result.abitanti);
