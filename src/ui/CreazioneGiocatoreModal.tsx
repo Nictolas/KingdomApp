@@ -42,6 +42,7 @@ import {
 } from "../character-system/lpcCatalogSections";
 import { CircularSpriteFrame } from "./CircularSpriteFrame";
 import type { CharacterAppearance, CharacterLayer } from "../character-system/types";
+import { applicaSoloAbitoSacerdote, soloCampiAbitoSacerdote } from "../game/soloAbitoSacerdote";
 
 export type DatiCreazioneGiocatore = {
   nome: string;
@@ -447,7 +448,10 @@ export function CreazioneGiocatoreModal({
   const updateSpriteAppearance = (patch: Partial<typeof spriteAppearance>) => {
     const patched = {
       ...aspetto,
-      characterAppearance: normalizeCharacterAppearance({ ...spriteAppearance, ...patch })
+      characterAppearance: normalizeCharacterAppearance({
+        ...spriteAppearance,
+        ...(mode === "outfit" ? soloCampiAbitoSacerdote(patch) : patch)
+      })
     };
     const next = mode === "outfit" ? patched : forzaAspettoReTeen(patched);
     if (next.characterAppearance && canRenderCharacter(next.characterAppearance, "idle")) {
@@ -555,11 +559,15 @@ export function CreazioneGiocatoreModal({
       sesso: sessoFinale,
       orientamento: orientamentoFinale,
       razza: initial?.razza ?? RAZZA_RE,
-      aspetto: mode === "outfit" ? aspetto : forzaAspettoReTeen(aspetto)
+      aspetto: mode === "outfit"
+        ? applicaSoloAbitoSacerdote(initial?.aspetto ?? ASPETTO_OUTFIT_DEFAULT, aspetto)
+        : forzaAspettoReTeen(aspetto)
     });
   };
 
-  const tabButtons = CREATION_TABS.map((tab) => (
+  const tabButtons = CREATION_TABS
+    .filter((tab) => mode !== "outfit" || (tab.id !== "identity" && tab.id !== "hair"))
+    .map((tab) => (
     <Pressable
       key={tab.id}
       accessibilityRole="tab"
@@ -612,7 +620,8 @@ export function CreazioneGiocatoreModal({
                   </View>
                 )}
                 <View style={[styles.previewMeta, !isDesktop && styles.previewMetaMobile]}>
-                  <Text style={styles.previewHint}>Umano · 10 anni</Text>
+                  <Text style={styles.previewHint}>{mode === "outfit" ? "Anteprima abito" : "Umano · 10 anni"}</Text>
+                  {mode !== "outfit" && (
                   <Pressable style={[styles.randomButton, !isDesktop && styles.randomButtonMobile]} onPress={() => {
                     const casualeTeen = generaAspettoCasuale(RAZZA_RE, Math.random, { eta: 15, sesso: sesso ?? undefined });
                     const next = forzaAspettoReTeen(casualeTeen);
@@ -622,6 +631,7 @@ export function CreazioneGiocatoreModal({
                   }}>
                     <Text style={styles.randomButtonText}>🎲 Sorprendimi</Text>
                   </Pressable>
+                  )}
                 </View>
               </View>
             </View>
@@ -648,7 +658,7 @@ export function CreazioneGiocatoreModal({
                 showsVerticalScrollIndicator
                 keyboardShouldPersistTaps="handled"
               >
-              {activeTab === "identity" ? <>
+              {mode !== "outfit" && activeTab === "identity" ? <>
               <Text style={styles.sectionTitle}>Identità</Text>
               <View style={styles.field}>
                 <Text style={styles.label}>Nome</Text>
@@ -672,7 +682,7 @@ export function CreazioneGiocatoreModal({
               </View>
               </> : null}
 
-              {activeTab === "hair" ? <>
+              {mode !== "outfit" && activeTab === "hair" ? <>
               <Text style={styles.sectionTitle}>Capelli</Text>
               <View style={styles.field}>
                 <Text style={styles.label}>Colore capelli</Text>

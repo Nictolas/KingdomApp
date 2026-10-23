@@ -574,7 +574,7 @@ export default function ReligioniScreen() {
             </Text>
             <Pressable style={styles.abitiBtn} onPress={() => setMostraAbiti(true)}>
               <Text style={styles.abitiBtnText}>
-                {aspettoSacerdote ? "✓ Aspetto sacerdotale personalizzato" : "Personalizza aspetto Sacerdote"}
+                {aspettoSacerdote ? "✓ Abito sacerdotale personalizzato" : "Personalizza abito Sacerdote"}
               </Text>
             </Pressable>
 
