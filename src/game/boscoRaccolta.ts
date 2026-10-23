@@ -324,6 +324,7 @@ export function applicaRaccoltaBoscoGiornaliera(
   const prelevati: RiserveBosco = { alberi: 0, fauna: 0, vegetazione: 0 };
   let cacciatoriOggi = 0;
   let silvicoltoriOggi = 0;
+  let druidiOggi = 0;
   const raccoglitori = new Set(bosco.abitantiAssegnati ?? []);
 
   const messaggi: string[] = [];
@@ -350,6 +351,12 @@ export function applicaRaccoltaBoscoGiornaliera(
       const tempo = next.ultimoLavoroBosco;
       if (tempo?.giorno !== giorno || tempo.minuti < 30) continue;
       if (a.lavoro === "Silvicoltore") { silvicoltoriOggi++; continue; }
+      if (a.lavoro === "Druido") {
+        // Il rituale non produce oggetti e richiede una fede che abbia
+        // consacrato realmente il Bosco: nessuna religione implicita.
+        if (stato.luogoSacro?.religione === a.religione) druidiOggi++;
+        continue;
+      }
       if (a.lavoro === "Guardaboschi") continue;
       if (a.lavoro === "Cacciatore") {
         if (cacciatoriOggi >= stato.quotaMassimaCacciatori) continue;
@@ -402,7 +409,7 @@ export function applicaRaccoltaBoscoGiornaliera(
   const stagione = (["primavera", "estate", "autunno", "inverno"] as const)[trimestre]!;
   stato = {
     ...stato,
-    riserve: rigeneraBoscoDopoPrelievi(stato.riserve, prelevati, silvicoltoriOggi, stagione),
+    riserve: rigeneraBoscoDopoPrelievi(stato.riserve, prelevati, silvicoltoriOggi, stagione, druidiOggi),
     ultimoGiornoAggiornato: giorno
   };
   const edificiNext = edifici.map(e => e.id === bosco.id ? { ...e, ecosistemaBosco: stato } : e);
