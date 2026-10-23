@@ -75,7 +75,8 @@ export const EDIFICIO_TO_LAVORO: Record<number, string> = {
   56: "Guardaboschi",
   57: "Erborista",
   58: "Apicoltore",
-  59: "Silvicoltore"
+  59: "Silvicoltore",
+  60: "Druido"
 
 };
 
