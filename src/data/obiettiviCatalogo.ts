@@ -45,6 +45,7 @@ export type StatoValutazioneObiettivi = {
   haPonteSulFiume?: boolean;
   religioniCustom?: readonly ReligioneCustom[];
   religioneDiStato?: string | null;
+  politicaReligiosa?: "ateismo-stato" | "religione-stato" | "liberta-culto";
 };
 
 export type ObiettivoNodo = {
@@ -405,7 +406,7 @@ export const OBIETTIVI_CATALOGO: ObiettivoNodo[] = [
     ricompensa: "Obiettivo raggiunto: il potere regio si fonda anche su una dottrina religiosa.",
     condizione: (s) => {
       const regnante = s.abitanti.some(a => a.id === ID_GIOCATORE && a.salute > 0);
-      if (!regnante || !s.religioneDiStato) return false;
+      if (!regnante || !s.religioneDiStato || s.politicaReligiosa !== "religione-stato") return false;
       return (s.religioniCustom ?? []).some(r =>
         r.nome === s.religioneDiStato &&
         r.fondatoreReId === ID_GIOCATORE &&
