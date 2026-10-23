@@ -22,7 +22,9 @@ export function aggiornaSoddisfazioneReligioniNaturaliste(
   const scorte = bosco
     ? normalizzaStatoEcosistemaBosco(bosco.ecosistemaBosco, 0).riserve
     : null;
-  const dottrine = new Map(religioniCustom.map(r => [r.nome, r.dottrinaNaturalista]));
+  const dottrine = new Map<string, ReligioneCustom["dottrinaNaturalista"]>(
+    religioniCustom.map(r => [r.nome, r.dottrinaNaturalista] as const)
+  );
   let changed = false;
   const result = abitanti.map(a => {
     const dottrina = dottrine.get(a.religione);
