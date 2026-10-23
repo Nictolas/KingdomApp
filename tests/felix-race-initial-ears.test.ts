@@ -59,7 +59,7 @@ test("Felix non perde i due livelli cat ears tra professioni, pregna, vecchio as
   assert.equal(a?.earsStyle,"cat_ears");
   assert.equal(a?.beardStyle,"none");
   for (const anim of ["idle","walk"] as const){
-    const layers=resolveCharacterLayers(a!,anim).filter(x=>x.layer==="ears");
+    const layers: ResolvedCharacterLayer[]=resolveCharacterLayers(a!,anim).filter(x=>x.layer==="ears");
     assert.equal(layers.length,4);
   }
   assert.equal(old.characterAppearance?.race,"human");
