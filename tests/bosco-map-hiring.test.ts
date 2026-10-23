@@ -49,7 +49,9 @@ test("mappa include Bosco nella cerca lavoro e GameState usa la logica speciale"
 
   assert.match(map, /boscoHaPostoLibero/);
   assert.match(map, /disoccupatoIdoneoPerBosco/);
-  assert.match(map, /\[\.\.\.postiOrdinari, bosco\]/);
+  assert.match(map, /const posti = \[\.\.\.postiOrdinari\]/);
+  assert.match(map, /if \(bosco && !posti\.some/);
+  assert.match(map, /ultimoIngressoBoscoGiorno: getGiornoGiocoSnapshot\(\)/);
   assert.match(hook, /edificio\?\.nome === "Bosco"/);
   assert.match(hook, /assumiDisoccupatoNelBosco/);
   assert.match(hook, /etichettaRaccoltoBosco/);
