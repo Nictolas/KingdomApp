@@ -179,6 +179,7 @@ import {
 } from "../src/game/commutePathsMappa";
 import { ID_GIOCATORE } from "../src/game/schiavituCommercio";
 import { orarioPerLavoro } from "../src/game/orariLavoroCatalogo";
+import { applicaBanditiBoscoGiornalieri, registraIngressoCastello } from "../src/game/banditiBosco";
 import { pianificaTappaTurnoForestale } from "../src/game/pianificaTappaForestale";
 import { scegliAzioneCommuteBloccataLavoro } from "../src/game/commuteBloccataLavoro";
 import {
@@ -1759,6 +1760,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     const percorsi: Record<number, CommuteInfo> = {};
     for (const ab of abitanti) {
       if (ab.razza === "Golem" || ab.id === ID_GIOCATORE) continue;
+      if (ab.richiestaRapinaBosco?.stato === "verso_castello") continue;
       const sedeNome = SEDE_PER_PROFESSIONE[ab.lavoro as ProfessioneForestale];
       if (sedeNome === undefined) continue; // anche Raccoglitore, senza capanna
       const destinazioneNome = sedeNome ?? "Bosco";
@@ -2107,7 +2109,23 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         const { [abitanteId]: _removed, ...rest } = prev;
         return rest;
       });
-      if (purpose === "home") {
+      if (purpose === "udienza_banditi") {
+        const meta = commuteByAbitanteId[abitanteId];
+        const castello = edifici.find(e => e.id === meta?.udienzaCastelloEdificioId &&
+          e.nome === "Castello" && e.stato === "Operativo");
+        const arrivato = !!castello && cellaArrivo != null &&
+          pathCorrente?.[pathCorrente.length - 1] === cellaArrivo &&
+          trovaAnchorEdificioGlobaleSuMappa(castello.id, edificiInMappa) != null;
+        if (arrivato) {
+          aggiornaAbitanteById(abitanteId, a => {
+            const richiesta = a.richiestaRapinaBosco;
+            if (!richiesta) return a;
+            const registrata = registraIngressoCastello(richiesta, abitanteId, "Castello", true);
+            return registrata === richiesta ? a : { ...a, richiestaRapinaBosco: registrata };
+          });
+          setLavoroArrivatiIds(prev => { const next = new Set(prev); next.delete(abitanteId); return next; });
+        }
+      } else if (purpose === "home") {
         const turnoCasa = turniForestaliRef.current[abitanteId];
         if (turnoCasa?.giorno === getGiornoGiocoSnapshot() &&
             turnoCasa.fase === "ritorno_casa") {
@@ -2305,7 +2323,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       isRoadCell,
       setInventarioMensaEdificio,
       appendDiarioRiga,
-      commuteByAbitanteId,
+      commuteByAbitanteId, edificiInMappa,
       salvaTurnoForestaleMappa
     ]
   );
@@ -2424,6 +2442,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       let anchorDest: number | null = null;
       if (info.purpose === "home") {
         anchorDest = cellaCasaPerAbitanteId.get(abitanteId) ?? null;
+      } else if (info.purpose === "udienza_banditi" && meta?.udienzaCastelloEdificioId != null) {
+        anchorDest = trovaAnchorEdificioGlobaleSuMappa(
+          meta.udienzaCastelloEdificioId, edificiInMappa
+        );
       } else if (info.purpose === "work") {
         const turno = turniForestaliRef.current[abitanteId];
         if (turno?.giorno === getGiornoGiocoSnapshot() && turno.fase === "verso_bosco") {
@@ -2493,7 +2515,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             cultoEdificioId: meta?.cultoEdificioId,
             negozioEdificioId: meta?.negozioEdificioId,
             lavoroCercaEdificioId: meta?.lavoroCercaEdificioId,
-            rapinaTarget: meta?.rapinaTarget
+            rapinaTarget: meta?.rapinaTarget,
+            udienzaCastelloEdificioId: meta?.udienzaCastelloEdificioId
           }
         }));
       };
