@@ -144,6 +144,7 @@ import type { DogmaReligioso } from "../game/dogmiReligiosi";
 import { convertiFedeliInEresia } from "../game/eresieReligiose";
 import { aggiornaSoddisfazioneReligioniNaturaliste } from "../game/reazioneReligioniBosco";
 import { aggiornaSoddisfazioneDogmiAbiti } from "../game/reazioneDogmiAbiti";
+import { indossaAbitoDellaFede } from "../game/vestiarioReligioso";
 import { assicuraReligioneTempioChiese } from "../game/chiesa";
 import { isSimulationRunning, type GamePhase } from "../game/gamePhase";
 import type { GameMode } from "../game/gameMode";
@@ -2487,6 +2488,19 @@ export function useGameState() {
     setPunteggioSanzioni(nuovoPunteggio);
   }, [calcolaPunteggioSanzioni, simulationEnabled]);
 
+  /** Ordine esplicito dalla scheda: cambia aspetto salvato e sprite LPC, non la sola etichetta. */
+  const indossaAbitoReligioso = useCallback((abitanteId: number): { ok: boolean; motivo?: string } => {
+    const abitante = abitantiRef.current.find(a => a.id === abitanteId);
+    if (!abitante) return { ok: false, motivo: "Abitante non trovato." };
+    const religioni = religioniCustomRef.current;
+    const dogmi = religioni.find(r => r.nome === abitante.religione)?.dogmi ?? [];
+    const esito = indossaAbitoDellaFede(abitante, dogmi);
+    if (!esito.ok) return { ok: false, motivo: esito.motivo };
+    const aggiornato = aggiornaSoddisfazioneDogmiAbiti([esito.abitante], religioni)[0]!;
+    setAbitanti(prev => prev.map(a => a.id === abitanteId ? aggiornato : a));
+    return { ok: true };
+  }, []);
+
   return {
     gameMode,
     modalitaGioco: gameMode,
@@ -2498,6 +2512,7 @@ export function useGameState() {
     restorePersistableState,
     createPersistableState,
     abitanti,
+    indossaAbitoReligioso,
     inventarioGiocatore,
     moneteGiocatore,
     inventarioMensaByEdificioId,
