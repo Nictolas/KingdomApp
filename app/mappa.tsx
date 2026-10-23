@@ -177,6 +177,7 @@ import {
   trovaAnchorEdificioGlobaleSuMappa,
   trovaCellaPortaEdificio
 } from "../src/game/commutePathsMappa";
+import { ID_GIOCATORE } from "../src/game/schiavituCommercio";
 import { orarioPerLavoro } from "../src/game/orariLavoroCatalogo";
 import { scegliAzioneCommuteBloccataLavoro } from "../src/game/commuteBloccataLavoro";
 import {
