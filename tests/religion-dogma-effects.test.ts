@@ -13,7 +13,11 @@ import {
   ID_DOGMA_ABITO_SACERDOTI
 } from "../src/game/reazioneDogmiAbiti";
 import { consumaUnOggettoCiboConItem } from "../src/game/inventario";
-import { consumaPastoDaInventarioMensa, serviPastoMensaTransaction } from "../src/game/mensaPubblica";
+import {
+  consumaPastoDaInventarioMensa, serviPastoMensaTransaction,
+  abitanteHaBisognoMensa
+} from "../src/game/mensaPubblica";
+import { compraEMangiaAlNegozio, compraCiboAlNegozio, abitanteVuoleNegozio } from "../src/game/negozio";
 import { applicaPastiGiornalieriPerPeriodo } from "../src/game/pastoGiornaliero";
 
 const creazione = provaCreaReligioneCustom({
@@ -151,4 +155,47 @@ test("Il motore giornaliero distingue il cibo tabù da una reale mancanza di sco
   assert.equal(r.carestiaMensa, false);
   assert.equal(r.abitanti[0]?.ultimoGiornoCiboConsumato, 0);
   assert.equal(r.inventarioMensaByEdificioId[95]?.find(v => v.itemId === "bistecca")?.quantità, 4);
+});
+
+test("Negozio: il tabù del cibo base impedisce vendita, pagamento e consumo", () => {
+  const cliente = { ...persona(90, "Raccoglitore", "ranger"),
+    inventario: [{ itemId: "monete", quantità: 150 }] };
+  const vietaMele = (id: string) => id !== "mela";
+  assert.equal(compraEMangiaAlNegozio(cliente, vietaMele), null);
+  assert.equal(compraCiboAlNegozio(cliente, vietaMele), null);
+  assert.equal(abitanteVuoleNegozio(cliente, [
+    { id: 91, nome: "Negozio", stato: "Operativo" } as Edificio
+  ], vietaMele), false);
+  assert.equal(cliente.inventario[0]?.quantità, 150);
+});
+
+test("L'abitante raggiunge la mensa se il suo unico alimento è proibito", () => {
+  const fed = { ...persona(92, "Raccoglitore", "ranger"),
+    inventario: [{ itemId: "bistecca", quantità: 3 }] };
+  const mensa = { id: 93, nome: "Mensa Pubblica", stato: "Operativo" } as Edificio;
+  assert.equal(abitanteHaBisognoMensa(fed, [mensa], [fede]), true);
+  assert.equal(abitanteHaBisognoMensa(fed, [mensa]), false);
+});
+
+test("Ministri di culto seguono abito sacerdotale senza doppio malus incompatibile", () => {
+  const sacerd = persona(94, "Sacerdote", "viandante");
+  const valutato = aggiornaSoddisfazioneDogmiAbiti([sacerd], [fede])[0]!;
+  assert.deepEqual(
+    valutato.modificatoriSoddisfazione?.map(m => m.id),
+    [ID_DOGMA_ABITO_SACERDOTI]
+  );
+  const vestito = persona(95, "Sacerdote", "mago");
+  assert.equal(aggiornaSoddisfazioneDogmiAbiti([vestito], [fede])[0], vestito);
+  const druido = persona(96, "Druido", "mago");
+  assert.equal(aggiornaSoddisfazioneDogmiAbiti([druido], [fede])[0], druido);
+});
+
+test("Mappa e scheda abitante mostrano e applicano i dogmi su ogni percorso reale", () => {
+  const mappa = readFileSync("app/mappa.tsx", "utf8");
+  const scheda = readFileSync("src/ui/AbitanteInfoModal.tsx", "utf8");
+  assert.match(mappa, /permessoCiboFedele\(a, religioniCustom\)/);
+  assert.match(mappa, /abitanteHaBisognoMensa\(a, edifici, religioniCustom\)/);
+  assert.match(mappa, /compraEMangiaAlNegozio\(a, permessoCiboFedele/);
+  assert.match(scheda, /Abito della fede/);
+  assert.match(scheda, /Alimenti vietati dalla fede/);
 });
