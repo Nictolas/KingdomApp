@@ -96,10 +96,12 @@ test("Teocrazia si sblocca solo con fede del re, dogma divino e religione di Sta
     edifici: [], risorse: [], mese: 1, anno: 1,
     moneteGiocatore: 100, completati: new Set<string>(),
     religioniCustom: [fede],
-    religioneDiStato: fede.nome
+    religioneDiStato: fede.nome,
+    politicaReligiosa: "religione-stato" as const
   };
   assert.equal(obj.condizione(game), true);
   assert.equal(obj.condizione({ ...game, religioneDiStato: "Culto del Sole" }), false);
+  assert.equal(obj.condizione({ ...game, politicaReligiosa: "liberta-culto" }), false);
   assert.equal(obj.condizione({ ...game, religioniCustom: [
     { ...fede, dogmi: [] }
   ] }), false);
