@@ -1,3 +1,4 @@
+import { ViewportBottomPortal } from "../src/navigation/BuildingBottomExit";
 import { calcolaPunteggioSoddisfazione } from "../src/game/soddisfazione";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
@@ -4302,7 +4303,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       </View>
 
       {/* Menu fisso in basso: risorse/pulsanti, oppure sintesi abitante selezionato */}
-      <View style={styles.bottomBar} pointerEvents="box-none">
+      <ViewportBottomPortal>
+      <View style={[styles.bottomBar, Platform.OS === "web" && styles.bottomBarPortalled]} pointerEvents="box-none">
         <View style={[styles.bottomBarInner, sintesiMappaAbitante && styles.bottomBarInnerResident]}>
           {sintesiMappaAbitante ? (
             <View style={styles.sintesiAbitantePanel}>
@@ -4436,6 +4438,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           </View>
         </View>
       </View>
+      </ViewportBottomPortal>
 
       <RichiesteModal
         visible={mostraModalRichieste}
@@ -5088,6 +5091,8 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     paddingHorizontal: 0
   },
+  /** Sul web il container e' dentro un portal fixed al viewport (non alla mappa). */
+  bottomBarPortalled: { position: "relative" },
   bottomBarInner: {
     width: "100%",
     height: Platform.OS === "web" ? 150 : 128,
@@ -5112,6 +5117,8 @@ const styles = StyleSheet.create({
   },
   bottomActionsRow: {
     height: 42,
+    minHeight: 42,
+    flexShrink: 0,
     flexDirection: "row",
     alignItems: "center",
     gap: 6,
@@ -5130,7 +5137,10 @@ const styles = StyleSheet.create({
   bottomActionText: { color: "#f8fafc", fontSize: 11, fontWeight: "700" },
   bottomBarScroll: {
     flexGrow: 0,
-    height: 66
+    flexShrink: 0,
+    height: 66,
+    maxHeight: 66,
+    minHeight: 66
   },
   sintesiAbitantePanel: {
     width: "100%",
