@@ -1,4 +1,6 @@
 import type { Abitante, Edificio } from "../types";
+import type { ReligioneCustom } from "./fedeleCulto";
+import { vietatoCiboDaDogma } from "./dogmiReligiosi";
 import { abitanteHaInventarioPersonale, getCastaAbitante } from "./casta";
 import { abitanteDeveConsumareCiboGiornaliero } from "./consumoCiboInventario";
 import { applicaRecuperoFamePasto } from "./bisogni";
@@ -51,14 +53,22 @@ export function mensaOperativaInColonia(edifici: Edificio[]): boolean {
  * Servo / senza cibo personale compatibile (e mensa operativa).
  * La Fame urgente alza la priorità nello scheduler, ma la mensa resta per chi non può mangiare da solo.
  */
-export function abitanteHaBisognoMensa(abitante: Abitante, edifici: Edificio[]): boolean {
+export function abitanteHaBisognoMensa(
+  abitante: Abitante,
+  edifici: Edificio[],
+  religioniCustom: readonly ReligioneCustom[] = []
+): boolean {
   if (!abitanteDeveConsumareCiboGiornaliero(abitante)) return false;
   if (!mensaOperativaInColonia(edifici)) return false;
   const casta = getCastaAbitante(abitante);
   if (casta === "Schiavo") return false;
   if (casta === "Servo della gleba") return true;
   if (!abitanteHaInventarioPersonale(abitante)) return true;
-  return !haCiboCompatibileInInventario(abitante.inventario, abitante.personalità);
+  const dogmi = religioniCustom.find(r => r.nome === abitante.religione)?.dogmi ?? [];
+  return !haCiboCompatibileInInventario(
+    abitante.inventario, abitante.personalità,
+    itemId => !vietatoCiboDaDogma(dogmi, itemId)
+  );
 }
 
 export function trasferisciCiboGiocatoreAMensaPuro(
