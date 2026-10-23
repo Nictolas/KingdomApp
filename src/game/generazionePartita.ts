@@ -312,12 +312,25 @@ export function generaRegnoIniziale(
   }
 
   // Regola storica: 1 Consigliere iniziale, uomo umano di 60 anni.
-  const candidatiConsigliere = abitanti.filter(
-    (a) => a.id !== 1 && a.lavoro !== "Agricoltore"
+  // Il Consigliere iniziale deve essere umano e non può essere sovrascritto da altri ruoli.
+  // In generazioni con pochi cittadini liberi, libera un candidato anziché perdere il ruolo.
+  const possibiliConsiglieri = abitanti.filter(
+    (a) => a.id !== 1 && a.lavoro !== "Agricoltore" && a.lavoro !== "Consigliere" && a.razza === "Umano"
   );
+  const liberi = possibiliConsiglieri.filter((a) => !a.ruoloSchiavitu);
+  const candidatiConsigliere = liberi.length ? liberi : possibiliConsiglieri;
   if (candidatiConsigliere.length > 0) {
     const consigliere =
       candidatiConsigliere[Math.floor(Math.random() * candidatiConsigliere.length)]!;
+    if (consigliere.ruoloSchiavitu) {
+      consigliere.ruoloSchiavitu = undefined;
+      consigliere.schiavistaId = undefined;
+      consigliere.casta = "Cittadino";
+      consigliere.fazioni = normalizzaFazioni([
+        ...(consigliere.fazioni ?? []).filter((f) => f !== "Schiavi"),
+        "Cittadini"
+      ]);
+    }
     const nomiMaschili = NOMI_UMANI_CON_SESSO.filter((n) => n.sesso === "M");
     const nome = nomiMaschili[Math.floor(Math.random() * nomiMaschili.length)]!;
     const cognome = COGNOMI_UMANI[Math.floor(Math.random() * COGNOMI_UMANI.length)]!;
@@ -439,7 +452,10 @@ export function generaRegnoIniziale(
 
   if (!isAvventura) {
     // Regola: almeno 1 Capo Religioso con religione Culto del Sole a inizio partita.
-    const candidatiCapoReligioso = abitanti.filter((a) => a.id !== 1 && a.razza !== "Golem");
+    const candidatiCapoReligioso = abitanti.filter(
+      (a) => a.id !== 1 && a.razza !== "Golem" &&
+        a.lavoro !== "Consigliere" && a.lavoro !== "Prigioniero" && a.lavoro !== "Agricoltore"
+    );
     if (candidatiCapoReligioso.length > 0) {
       const capo = candidatiCapoReligioso[Math.floor(Math.random() * candidatiCapoReligioso.length)]!;
       capo.religione = "Culto del Sole";
