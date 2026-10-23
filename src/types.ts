@@ -236,6 +236,8 @@ export type Edificio = {
   cassaMonete?: number;
   /** Fatturato del mese corrente. */
   fatturatoMeseMonete?: number;
+  /** Solo Bosco: riserve finite e leggi forestali, persistite con gli edifici. */
+  ecosistemaBosco?: import("./game/ecosistemaBosco").StatoEcosistemaBosco;
   /** Solo Serra: id oggetto Cibo vegetale prodotto dagli Agricoltori. */
   colturaItemId?: string;
   /** Solo Chiesa: religione del tempio (non Ateo/Deista/Agnostico). */
