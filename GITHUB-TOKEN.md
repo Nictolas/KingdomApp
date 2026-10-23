@@ -43,7 +43,7 @@ Quando esegui `.\crea-repo-github.ps1`, incolla il token quando richiesto.
 ## 🔒 Sicurezza
 
 - **Non condividere** il token con nessuno
-- **Non committare** il token nel codice (è già in `.gitignore`)
+- **Non committare** il token nel codice. Il file `.gitignore` non sostituisce un controllo dei segreti, e i token non vanno mai incorporati negli URL delle remote Git.
 - Se il token viene compromesso, **revocalo** subito e creane uno nuovo
 - Puoi revocare token da: https://github.com/settings/tokens
 
@@ -56,3 +56,6 @@ Se preferisci creare la repository manualmente:
 1. Vai su https://github.com/new
 2. Crea la repository
 3. Poi esegui `.\deploy-github.ps1` e segui le istruzioni
+
+
+**Nota di sicurezza aggiornata (23 ottobre 2026):** per il normale `git push` preferisci Git Credential Manager o autenticazione GitHub CLI. Non incollare PAT in indirizzi remoti HTTPS né passarli come argomenti della riga di comando.
