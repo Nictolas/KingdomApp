@@ -31,6 +31,7 @@ import type { DogmaReligioso } from "../src/game/dogmiReligiosi";
 import { VESTITI_DOGMA } from "../src/game/dogmiReligiosi";
 import { OGGETTI_INVENTARIO } from "../src/game/inventario";
 import { ReligionePieChart, coloriReligione } from "../src/ui/ReligionePieChart";
+import { ReligioneFedeliModal } from "../src/ui/ReligioneFedeliModal";
 import type { VestitiPersonaggio } from "../src/game/personaggioAspetto";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 
@@ -47,6 +48,7 @@ export default function ReligioniScreen() {
   const maxHeight = isDesktop ? width * (9 / 16) : undefined;
 
   const [mostraCrea, setMostraCrea] = useState(false);
+  const [religioneFedeliSelezionata, setReligioneFedeliSelezionata] = useState<string | null>(null);
   const [mostraAbiti, setMostraAbiti] = useState(false);
   const [nomeNuova, setNomeNuova] = useState("");
   const [emojiNuova, setEmojiNuova] = useState<string>(EMOJI_RELIGIONE_PRESET[0]!);
@@ -276,30 +278,37 @@ export default function ReligioniScreen() {
               const count = conteggi.get(nome) ?? 0;
               const custom = !èReligioneCanon(nome);
               return (
-                <Pressable
-                  key={nome}
-                  style={styles.card}
-                  onPress={() => {
-                    if (path) router.push(path);
-                    else router.push("/religione");
-                  }}
-                >
-                  <Text style={styles.emoji}>{emojiReligione(nome, religioniCustom)}</Text>
-                  <Text style={styles.cardTitle}>{nome}</Text>
-                  {custom ? (
-                    <Text style={styles.cardBadge}>
-                      {religioniCustom.find(r => r.nome === nome)?.origineReligione
-                        ? "Eresia di " + religioniCustom.find(r => r.nome === nome)?.origineReligione
-                        : "Fondata nel regno"}
+                <View key={nome} style={styles.card}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityLabel={"Esamina la religione " + nome}
+                    onPress={() => {
+                      setReligioneFedeliSelezionata(nome);
+                    }}
+                  >
+                    <Text style={styles.emoji}>{emojiReligione(nome, religioniCustom)}</Text>
+                    <Text style={styles.cardTitle}>{nome}</Text>
+                    {custom && (
+                      <Text style={styles.cardBadge}>
+                        {religioniCustom.find(r => r.nome === nome)?.origineReligione
+                          ? "Eresia di " + religioniCustom.find(r => r.nome === nome)?.origineReligione
+                          : "Fondata nel regno"}
+                      </Text>
+                    )}
+                    <Text style={styles.cardCount}>{count} abitanti</Text>
+                    <Text style={styles.cardDescrizione} numberOfLines={3}>
+                      {descrizioneReligione(nome, religioniCustom)}
                     </Text>
-                  ) : null}
-                  <Text style={styles.cardCount}>{count} abitanti</Text>
-                  <Text style={styles.cardDescrizione} numberOfLines={3}>
-                    {descrizioneReligione(nome, religioniCustom)}
-                  </Text>
+                    <Text style={styles.cardLink}>Vedi i fedeli →</Text>
+                  </Pressable>
+                  {path && (
+                    <Pressable accessibilityRole="button" style={styles.editBtn}
+                      onPress={() => router.push(path)}>
+                      <Text style={styles.editBtnText}>Apri il tempio</Text>
+                    </Pressable>
+                  )}
                   {custom && (
-                    <Pressable
-                      accessibilityRole="button"
+                    <Pressable accessibilityRole="button"
                       accessibilityLabel={"Modifica dogmi di " + nome}
                       style={styles.editBtn}
                       onPress={() => {
@@ -309,12 +318,7 @@ export default function ReligioniScreen() {
                       <Text style={styles.editBtnText}>Modifica dogmi</Text>
                     </Pressable>
                   )}
-                  {path ? (
-                    <Text style={styles.cardLink}>Apri tempio →</Text>
-                  ) : (
-                    <Text style={styles.cardLink}>Politica religiosa →</Text>
-                  )}
-                </Pressable>
+                </View>
               );
             })}
           </View>
@@ -355,6 +359,13 @@ export default function ReligioniScreen() {
           ← Menu
         </Text>
       </View>
+
+      <ReligioneFedeliModal
+        visible={religioneFedeliSelezionata !== null}
+        religione={religioneFedeliSelezionata ?? ""}
+        abitanti={abitanti}
+        onClose={() => setReligioneFedeliSelezionata(null)}
+      />
 
       <Modal
         visible={mostraCrea}
