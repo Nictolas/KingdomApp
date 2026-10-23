@@ -178,6 +178,16 @@ import {
   trovaCellaPortaEdificio
 } from "../src/game/commutePathsMappa";
 import { scegliAzioneCommuteBloccataLavoro } from "../src/game/commuteBloccataLavoro";
+import {
+  SEDE_PER_PROFESSIONE,
+  iniziaTurnoForestale,
+  segnalaArrivoTurnoForestale,
+  aggiornaTurnoForestale,
+  destinazioneTurnoForestale,
+  sospendiTurnoForestale,
+  type ProfessioneForestale,
+  type TurnoForestale
+} from "../src/game/turniForestali";
 import { SEZIONE_AMBIENTE, SEZIONI_COSTRUZIONE, type TerrenoCostruzioneKind } from "../src/game/costruzioneSezioni";
 import {
   costoMaterialeEdilePerFootprint,
@@ -1595,6 +1605,15 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   }, []);
 
   const runtimePersonaggiInizialeRef = useRef(getMappaPersonaggiRuntime());
+  const turniForestaliRef = useRef<Record<number, TurnoForestale>>(
+    runtimePersonaggiInizialeRef.current.turniForestaliByAbitanteId ?? {}
+  );
+  const salvaTurnoForestaleMappa = useCallback((turno: TurnoForestale) => {
+    turniForestaliRef.current = { ...turniForestaliRef.current, [turno.abitanteId]: turno };
+    patchMappaPersonaggiRuntime({
+      turniForestaliByAbitanteId: turniForestaliRef.current
+    });
+  }, []);
   const [dormonoACasaIds, setDormonoACasaIds] = useState<Set<number>>(
     () => new Set(runtimePersonaggiInizialeRef.current.dormonoACasaIds)
   );
@@ -1797,6 +1816,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
       for (const a of abitanti) {
         if (a.razza === "Golem") continue;
+        const turnoForestale = turniForestaliRef.current[a.id];
+        if (turnoForestale?.giorno === getGiornoGiocoSnapshot() &&
+            turnoForestale.fase !== "finito" && turnoForestale.fase !== "sospeso") continue;
         if (commuteByAbitanteId[a.id]) continue;
         const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
         if (!lav) continue;
