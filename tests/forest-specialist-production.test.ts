@@ -69,11 +69,12 @@ test("Niente prodotti se manca la sede reale, se è chiusa o non ci sono ore di 
   ], [bosco, edificio(54, "Capanna del Cacciatore", 21)], 2, 1).bottini.length, 0);
 });
 
-test("Guardaboschi e Silvicoltori non fabbricano inventario di caccia", () => {
-  const workers = [abitante(25, "Guardaboschi"), abitante(26, "Silvicoltore")];
+test("Guardaboschi, Silvicoltori e Druidi non fabbricano oggetti dal nulla", () => {
+  const workers = [abitante(25, "Guardaboschi"), abitante(26, "Silvicoltore"), abitante(27, "Druido")];
   const sedi = [
     edificio(56, "Capanno del Guardaboschi", 25),
-    edificio(59, "Vivaio forestale", 26)
+    edificio(59, "Vivaio forestale", 26),
+    edificio(60, "Cerchio dei Druidi", 27)
   ];
   const risultato = applicaRaccoltaBoscoGiornaliera(workers, [bosco, ...sedi], 2, 1);
   assert.equal(risultato.bottini.length, 0);
