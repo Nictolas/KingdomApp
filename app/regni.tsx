@@ -49,7 +49,7 @@ export default function RegniScreen() {
 
         <View style={styles.note}>
           <Text style={styles.noteText}>
-            Umani, Elfi, Nani, Orchi, Goblin e Golem possono vivere nel regno o arrivare come viandanti e immigrati.
+            Umani, Elfi, Nani, Orchi, Goblin, Felix e Golem possono vivere nel regno o arrivare come viandanti e immigrati.
           </Text>
         </View>
       </ScrollView>

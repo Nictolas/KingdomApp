@@ -2,7 +2,7 @@ import manifestJson from "./generated/lpc-manifest.json";
 import { LPC_PACK_ID, generatedLpcSheet } from "./lpcPack";
 import type { CharacterAnimationId, CharacterAppearance, CharacterAssetDefinition, CharacterBodyFamily, CharacterLayer, ResolvedCharacterLayer } from "./types";
 
-const ACTIVE_SPRITE_RACES = ["human", "elf", "dwarf", "halfling", "skeleton", "vampire", "goblin", "orc", "lizard"] as const;
+const ACTIVE_SPRITE_RACES = ["human", "elf", "dwarf", "halfling", "skeleton", "vampire", "goblin", "orc", "lizard", "felix"] as const;
 const requiredHeadStyle = (appearance: CharacterAppearance) => {
   if (appearance.race === "skeleton") return "skeleton";
   if (appearance.race === "vampire") return "vampire";
@@ -61,6 +61,9 @@ function semanticForSlot(asset: ManifestAsset, appearance: CharacterAppearance, 
     return asset.semanticId === appearance.headStyle &&
       (asset.color === "base" || asset.color === appearance.skinTone || matchesGreenOrcHead);
   }
+  if (asset.slot === "ears") return appearance.race === "felix" &&
+    (asset.semanticId === "cat_ears" || asset.semanticId === "cat_ears_skintone") &&
+    assetColorMatches(asset, appearance, pool);
   if (asset.slot === "hairFront" || asset.slot === "hairBack") return appearance.hairStyle !== "none" && asset.semanticId === appearance.hairStyle && asset.color === appearance.hairColor;
   if (asset.slot === "beard") return appearance.beardStyle !== "none" && asset.semanticId === appearance.beardStyle && asset.color === appearance.beardColor;
   if (asset.slot === "fullOutfit") {
@@ -203,6 +206,10 @@ export function resolveCharacterLayers(appearance: CharacterAppearance, animatio
 
   const slots = new Set(layers.map((layer) => layer.layer));
   if (!slots.has("body") || !slots.has("raceFeatures")) return [];
+  if (appearance.race === "felix" && (
+    layers.filter(x => x.layer === "ears" && x.semanticId === "cat_ears").length !== 2 ||
+    layers.filter(x => x.layer === "ears" && x.semanticId === "cat_ears_skintone").length !== 2
+  )) return [];
   if (appearance.fullOutfit !== "none" && !slots.has("fullOutfit")) return [];
   if (appearance.fullOutfit === "none" && appearance.upperOutfit !== "none" && !slots.has("outfit")) return [];
   if (appearance.sleeveOutfit !== "none" && !layers.some((layer) => layer.layer === "outfit" && layer.semanticId === appearance.sleeveOutfit)) return [];

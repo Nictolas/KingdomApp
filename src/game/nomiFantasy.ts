@@ -15,6 +15,8 @@ export function generaNomeFantasy(razza: Razza): string {
       return pick(["Goruk", "Mazga", "Thrag", "Urgash", "Brakka"]);
     case "Goblin":
       return pick(["Nib", "Skrit", "Grinza", "Mog", "Tik-Tak"]);
+    case "Felix":
+      return pick(["Miro", "Neko", "Luna", "Felis", "Micia", "Tigris", "Mao"]);
     case "Golem":
       return pick(["Basalto", "Runa", "Granito", "Selce", "Dolmen"]);
     default:

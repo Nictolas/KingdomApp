@@ -11,6 +11,9 @@ import type { CharacterAppearance, CharacterBodyFamily, CharacterRaceId } from "
 
 export const DWARF_BEARD_STYLE = "winter";
 export const ELF_EARS_STYLE = "side_wolf_skintone";
+export const FELIX_EARS_STYLE = "cat_ears";
+export const FELIX_EAR_COLORS = ["black","chestnut","blonde","ginger"] as const;
+export const FELIX_EAR_SKINTONES = ["light","amber","olive","brown"] as const;
 /** Coerente con le teste LPC verdi già presenti: tutti gli orchi hanno pelle verde. */
 export const ORC_GREEN_SKIN_TONE = "orc_green";
 export const GOBLIN_GREEN_SKIN_TONE = "orc_green";
@@ -104,7 +107,8 @@ export const RACE_BODY_FAMILY: Record<CharacterRaceId, CharacterBodyFamily> = {
   skeleton: "humanAdult",
   vampire: "humanAdult",
   goblin: "halflingAdult",
-  lizard: "humanAdult"
+  lizard: "humanAdult",
+  felix: "humanAdult"
 };
 
 export function bodyFamilyFor(race: CharacterRaceId, ageGroup: "adult" | "teen" | "child" = "adult"): CharacterBodyFamily {
@@ -124,13 +128,19 @@ export function enforceRaceBodyTypeRules(value: Partial<CharacterAppearance>): P
       ageGroup: "adult",
       bodyFamily: bodyFamilyFor(race, "adult"),
       beardStyle: "none",
-      earsStyle: race === "elf" ? ELF_EARS_STYLE : "none",
+      earsStyle: race === "elf" ? ELF_EARS_STYLE : race === "felix" ? FELIX_EARS_STYLE : "none",
       ...(race === "orc" ? {
         skinTone: ORC_GREEN_SKIN_TONE,
         headStyle: "orc_female"
       } : race === "goblin" ? {
         skinTone: GOBLIN_GREEN_SKIN_TONE, headStyle: "goblin"
       } : {})
+    };
+  }
+  if (value.race === "felix") {
+    return { ...value, headStyle: "human_head", earsStyle: FELIX_EARS_STYLE,
+      catEarsColor: FELIX_EAR_COLORS.includes(value.catEarsColor as typeof FELIX_EAR_COLORS[number]) ? value.catEarsColor : FELIX_EAR_COLORS[0],
+      catEarsSkintoneColor: FELIX_EAR_SKINTONES.includes(value.catEarsSkintoneColor as typeof FELIX_EAR_SKINTONES[number]) ? value.catEarsSkintoneColor : FELIX_EAR_SKINTONES[0]
     };
   }
   if (value.race === "dwarf") {
@@ -191,6 +201,8 @@ export const DEFAULT_CHARACTER_APPEARANCE: CharacterAppearance = {
   beardStyle: "none",
   beardColor: "dark_brown",
   earsStyle: "none",
+  catEarsColor: "black",
+  catEarsSkintoneColor: "light",
   outfit: "commoner",
   upperOutfit: "commoner",
   sleeveOutfit: "none",
@@ -511,6 +523,9 @@ export function appearanceAlignedToRazza(
   }
   if (razza === "Elfo") {
     return normalizeCharacterAppearance({ ...value, race: "elf" });
+  }
+  if (razza === "Felix") {
+    return normalizeCharacterAppearance({ ...value, race: "felix" });
   }
   if (razza === "Goblin") {
     return normalizeCharacterAppearance({ ...value, race: "goblin" });

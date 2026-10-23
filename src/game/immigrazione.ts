@@ -21,7 +21,7 @@ const PERSONALITÀ = [
   "Curioso", "Lavoratore", "Analitico", "Creativo",
   "Pragmatico", "Idealista", "Deciso", "Collaborativo"
 ];
-const RAZZE_IMMIGRATI: Razza[] = ["Umano", "Elfo", "Nano", "Orco", "Goblin", "Golem"];
+const RAZZE_IMMIGRATI: Razza[] = ["Umano", "Elfo", "Nano", "Orco", "Goblin", "Felix", "Golem"];
 const EMOJI_UMANI_M: string[] = ["👨", "👨‍🔬", "👨‍💼", "👨‍🔧", "👨‍🌾"];
 const EMOJI_UMANI_F: string[] = ["👩", "👩‍🔬", "👩‍💼", "👩‍🔧", "👩‍🌾"];
 const RELIGIONI: Abitante["religione"][] = ["Ateo", "Deista", "Agnostico", "Culto del Sole", "Culto delle Ombre"];

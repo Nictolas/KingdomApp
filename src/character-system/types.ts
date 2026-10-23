@@ -1,4 +1,4 @@
-export type CharacterRaceId = "human" | "elf" | "dwarf" | "halfling" | "orc" | "skeleton" | "vampire" | "goblin" | "lizard";
+export type CharacterRaceId = "human" | "elf" | "dwarf" | "halfling" | "orc" | "skeleton" | "vampire" | "goblin" | "lizard" | "felix";
 export type CharacterAgeGroup = "adult" | "teen" | "child";
 export type CharacterBodyFamily =
   | "humanAdult"
@@ -43,6 +43,10 @@ export type CharacterAppearance = {
   beardColor: string;
   /** Orecchie LPC (es. side_wolf_skintone per gli Elfi). */
   earsStyle: string;
+  /** Cat Ears / pelo esterno Felix; stabile e indipendente dalla pelle. */
+  catEarsColor: string;
+  /** Cat Ears Skintone / secondo strato Felix, colore indipendente. */
+  catEarsSkintoneColor: string;
   /** Identificatore storico del completo; resta per compatibilità con i salvataggi precedenti. */
   outfit: string;
   upperOutfit: string;
