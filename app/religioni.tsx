@@ -219,6 +219,57 @@ export default function ReligioniScreen() {
             <Text style={styles.creaBtnText}>Crea Religione</Text>
           </Pressable>
 
+
+          <Text style={styles.sectionTitle}>Governo e fede</Text>
+          <Text style={styles.modalHint}>
+            Politica religiosa e religione ufficiale del regno, comprese le fedi fondate dal Re.
+          </Text>
+          <View style={styles.optionsWrap}>
+            {([
+              ["liberta-culto", "🕊️ Libertà di culto"],
+              ["religione-stato", "⛪ Religione di Stato"],
+              ["ateismo-stato", "🚫 Ateismo di Stato"]
+            ] as const).map(([id, label]) => (
+              <Pressable key={id}
+                accessibilityRole="button"
+                accessibilityState={{ selected: politicaReligiosa === id }}
+                style={[styles.choice, politicaReligiosa === id && styles.choiceSelected]}
+                onPress={() => {
+                  setPoliticaReligiosa(id);
+                  if (id !== "religione-stato") setReligioneDiStato(null);
+                }}>
+                <Text style={styles.choiceText}>{label}</Text>
+              </Pressable>
+            ))}
+          </View>
+          {politicaReligiosa === "religione-stato" && (
+            <>
+              <Text style={styles.fieldLabel}>Scegli la religione di Stato</Text>
+              <View style={styles.optionsWrap}>
+                {opzioniReligioneStato.map(nome => (
+                  <Pressable key={nome}
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: religioneDiStato === nome }}
+                    style={[styles.choice, religioneDiStato === nome && styles.choiceSelected]}
+                    onPress={() => setReligioneDiStato(nome)}>
+                    <Text style={styles.choiceText}>{emojiReligione(nome, religioniCustom)} {nome}</Text>
+                  </Pressable>
+                ))}
+              </View>
+            </>
+          )}
+          <Text style={styles.sectionTitle}>Fedeli del regno</Text>
+          <View style={styles.chartBox}>
+            <ReligionePieChart slices={chartData} size={148} />
+            <Text style={styles.modalHint}>
+              Totale abitanti: {abitanti.filter(a => a.razza !== "Golem").length}.
+              Le nuove religioni vengono incluse automaticamente.
+            </Text>
+          </View>
+          {esitoFondazione && (
+            <Text accessibilityRole="text" style={styles.feedback}>{esitoFondazione}</Text>
+          )}
+          <Text style={styles.sectionTitle}>Religioni del regno</Text>
           <View style={styles.cardGrid}>
             {nomiReligioni.map((nome) => {
               const path = pathPerReligione(nome);
@@ -235,11 +286,29 @@ export default function ReligioniScreen() {
                 >
                   <Text style={styles.emoji}>{emojiReligione(nome, religioniCustom)}</Text>
                   <Text style={styles.cardTitle}>{nome}</Text>
-                  {custom ? <Text style={styles.cardBadge}>Creata</Text> : null}
+                  {custom ? (
+                    <Text style={styles.cardBadge}>
+                      {religioniCustom.find(r => r.nome === nome)?.origineReligione
+                        ? "Eresia di " + religioniCustom.find(r => r.nome === nome)?.origineReligione
+                        : "Fondata nel regno"}
+                    </Text>
+                  ) : null}
                   <Text style={styles.cardCount}>{count} abitanti</Text>
                   <Text style={styles.cardDescrizione} numberOfLines={3}>
                     {descrizioneReligione(nome, religioniCustom)}
                   </Text>
+                  {custom && (
+                    <Pressable
+                      accessibilityRole="button"
+                      accessibilityLabel={"Modifica dogmi di " + nome}
+                      style={styles.editBtn}
+                      onPress={() => {
+                        const religione = religioniCustom.find(r => r.nome === nome);
+                        if (religione) apriModifica(religione);
+                      }}>
+                      <Text style={styles.editBtnText}>Modifica dogmi</Text>
+                    </Pressable>
+                  )}
                   {path ? (
                     <Text style={styles.cardLink}>Apri tempio →</Text>
                   ) : (
@@ -295,11 +364,69 @@ export default function ReligioniScreen() {
       >
         <View style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]}>
           <ScrollView style={[styles.modalCard, isDesktop && modalContentFullscreen]} contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
-            <Text style={styles.modalTitle}>Crea Religione</Text>
+            <Text style={styles.modalTitle}>
+              {modificaReligioneId ? "Editor dei dogmi" : "Editor della religione del Re"}
+            </Text>
             <Text style={styles.modalHint}>
-              Aggiunge una religione al regno (oltre a {RELIGIONI_ELENCO.join(", ")}).
+              {modificaReligioneId
+                ? "Aggiorna i dogmi esistenti senza perdere fedeli, nome o culto d'origine."
+                : "Fonda una fede nuova o una corrente eretica ispirata a un culto già presente."}
             </Text>
 
+
+            {!modificaReligioneId && (
+              <>
+                <Text style={styles.fieldLabel}>Origine della fede</Text>
+                <View style={styles.optionsWrap}>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: tipoFondazione === "originale" }}
+                    style={[styles.choice, tipoFondazione === "originale" && styles.choiceSelected]}
+                    onPress={() => {
+                      setTipoFondazione("originale");
+                      setReligioneModello(null);
+                      setDogmiNuovi([]);
+                      setDottrinaNuova({ forestaSacra: false, tutelaFauna: false, tutelaVegetazione: false });
+                      setDescrizioneNuova("");
+                    }}>
+                    <Text style={styles.choiceText}>✨ Da zero</Text>
+                  </Pressable>
+                  <Pressable
+                    accessibilityRole="button"
+                    accessibilityState={{ selected: tipoFondazione === "eresia" }}
+                    style={[styles.choice, tipoFondazione === "eresia" && styles.choiceSelected]}
+                    onPress={() => {
+                      setTipoFondazione("eresia");
+                      if (!religioneModello && modelliEresia.length) usaModello(modelliEresia[0]!);
+                    }}>
+                    <Text style={styles.choiceText}>📜 Da un culto (eresia)</Text>
+                  </Pressable>
+                </View>
+                {tipoFondazione === "eresia" && (
+                  <>
+                    <Text style={styles.fieldLabel}>Scegli il culto di riferimento</Text>
+                    <View style={styles.optionsWrap}>
+                      {modelliEresia.map(nome => (
+                        <Pressable key={nome}
+                          accessibilityRole="button"
+                          accessibilityState={{ selected: religioneModello === nome }}
+                          style={[styles.choice, religioneModello === nome && styles.choiceSelected]}
+                          onPress={() => usaModello(nome)}>
+                          <Text style={styles.choiceText}>
+                            {emojiReligione(nome, religioniCustom)} {nome}
+                          </Text>
+                        </Pressable>
+                      ))}
+                    </View>
+                    <Text style={styles.modalHint}>
+                      Copia i dogmi disponibili dal modello; puoi cambiarli prima di fondare
+                      la nuova fede. Una quota limitata dei fedeli originari potrebbe aderire
+                      immediatamente, senza conversioni garantite.
+                    </Text>
+                  </>
+                )}
+              </>
+            )}
             <Text style={styles.fieldLabel}>Nome</Text>
             <TextInput
               style={styles.input}
@@ -309,6 +436,7 @@ export default function ReligioniScreen() {
               placeholderTextColor="rgba(148,163,184,0.5)"
               autoCapitalize="words"
               maxLength={40}
+              editable={!modificaReligioneId}
             />
 
             <Text style={styles.fieldLabel}>Emoji</Text>
@@ -360,9 +488,70 @@ export default function ReligioniScreen() {
               </Pressable>
             ))}
 
+
+            <Text style={styles.sectionTitle}>Dogmi e regole del culto</Text>
+            <Pressable accessibilityRole="checkbox"
+              accessibilityState={{ checked: dogmiNuovi.some(d => d.tipo === "sovrano_rappresentante_divino") }}
+              style={[styles.dottrinaChip, dogmiNuovi.some(d => d.tipo === "sovrano_rappresentante_divino") && styles.choiceSelected]}
+              onPress={cambiaSovranoDivino}>
+              <Text style={styles.choiceText}>
+                {dogmiNuovi.some(d => d.tipo === "sovrano_rappresentante_divino") ? "☑" : "☐"}
+                {" "}Il Re è il rappresentante di Dio sulla Terra
+              </Text>
+            </Pressable>
+            <Text style={styles.modalHint}>
+              Se questa fede diventa religione di Stato, sblocca l'obiettivo Teocrazia.
+            </Text>
+
+            <Text style={styles.fieldLabel}>Alimenti vietati ai fedeli</Text>
+            <TextInput style={styles.input}
+              value={ricercaAlimento} onChangeText={setRicercaAlimento}
+              placeholder="Cerca un alimento" placeholderTextColor="#94a3b8"
+              accessibilityLabel="Cerca alimento da vietare" />
+            <View style={styles.optionsWrap}>
+              {alimentiDisponibili.map(alimento => {
+                const scelto = dogmiNuovi.some(d => d.tipo === "alimento_vietato" && d.itemId === alimento.id);
+                return (
+                  <Pressable key={alimento.id} accessibilityRole="checkbox"
+                    accessibilityState={{ checked: scelto }}
+                    style={[styles.choice, scelto && styles.choiceSelected]}
+                    onPress={() => cambiaAlimento(alimento.id)}>
+                    <Text style={styles.choiceText}>
+                      {scelto ? "☑" : "☐"} {alimento.emoji} {alimento.nome}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+            <Text style={styles.modalHint}>
+              La lista è filtrabile; i divieti vengono registrati nel culto.
+              I loro effetti sul consumo saranno applicati in una fase successiva.
+            </Text>
+
+            {(["fedeli", "sacerdoti"] as const).map(gruppo => {
+              const attuale = dogmiNuovi.find(d => d.tipo === "abito_obbligatorio" && d.destinatari === gruppo);
+              const abito = attuale?.tipo === "abito_obbligatorio" ? attuale.vestiti : null;
+              return (
+                <View key={gruppo}>
+                  <Text style={styles.fieldLabel}>
+                    Abito prescritto ai {gruppo}
+                  </Text>
+                  <View style={styles.optionsWrap}>
+                    {[null, ...VESTITI_DOGMA].map(valore => (
+                      <Pressable key={valore ?? "nessuno"} accessibilityRole="button"
+                        accessibilityState={{ selected: abito === valore }}
+                        style={[styles.choice, abito === valore && styles.choiceSelected]}
+                        onPress={() => cambiaAbito(gruppo, valore)}>
+                        <Text style={styles.choiceText}>{valore ?? "Nessun obbligo"}</Text>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
+              );
+            })}
             <Pressable style={styles.abitiBtn} onPress={() => setMostraAbiti(true)}>
               <Text style={styles.abitiBtnText}>
-                {aspettoSacerdote ? "✓ Abiti Sacerdote personalizzati" : "Personalizza Abiti Sacerdote"}
+                {aspettoSacerdote ? "✓ Aspetto sacerdotale personalizzato" : "Personalizza aspetto Sacerdote"}
               </Text>
             </Pressable>
 
@@ -373,7 +562,7 @@ export default function ReligioniScreen() {
                 <Text style={styles.modalBtnSecondaryText}>Annulla</Text>
               </Pressable>
               <Pressable style={styles.modalBtnPrimary} onPress={confermaCrea}>
-                <Text style={styles.modalBtnPrimaryText}>Crea</Text>
+                <Text style={styles.modalBtnPrimaryText}>{modificaReligioneId ? "Salva dogmi" : "Fonda religione"}</Text>
               </Pressable>
             </View>
           </ScrollView>
@@ -572,6 +761,14 @@ const styles = StyleSheet.create({
   },
   emojiChipText: { fontSize: 18 },
   errore: { color: "#fca5a5", fontSize: 11, marginTop: 10 },
+  optionsWrap: { flexDirection: "row", flexWrap: "wrap", gap: 8, marginBottom: 10 },
+  choice: { borderRadius: 8, borderWidth: 1, borderColor: "rgba(148,163,184,0.55)", paddingHorizontal: 12, paddingVertical: 9, minHeight: 36, backgroundColor: "#1e293b" },
+  choiceSelected: { borderColor: "#60a5fa", backgroundColor: "#1e40af" },
+  choiceText: { color: "#e2e8f0", fontSize: 12, fontWeight: "600" },
+  chartBox: { alignItems: "center", justifyContent: "center", backgroundColor: "#0f172a", padding: 12, borderRadius: 10 },
+  feedback: { color: "#86efac", fontSize: 12, marginBottom: 10, fontWeight: "600" },
+  editBtn: { marginTop: 6, alignItems: "center", paddingVertical: 9, borderRadius: 8, borderColor: "#60a5fa", borderWidth: 1 },
+  editBtnText: { color: "#bfdbfe", fontSize: 11, fontWeight: "700" },
   modalActions: { flexDirection: "row", justifyContent: "flex-end", gap: 8, marginTop: 16 },
   modalBtnSecondary: {
     paddingHorizontal: 14,
