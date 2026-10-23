@@ -52,6 +52,8 @@ type GameContextType = {
   saveStatus: "idle" | "saving" | "saved" | "error";
   salvaPartita: () => Promise<void>;
   abitanti: Abitante[];
+  /** Cambio effettivo dell'abito prescritto, con asset LPC e salvataggio. */
+  indossaAbitoReligioso: (abitanteId: number) => { ok: boolean; motivo?: string };
   /** Inventario cibo del giocatore (colonia). */
   inventarioGiocatore: { itemId: string; quantità: number }[];
   /** Tesoro del giocatore (monete per stipendi edifici pubblici). */
