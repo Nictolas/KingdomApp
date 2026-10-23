@@ -20,12 +20,13 @@ import type { Abitante } from "../src/types";
 import { getGiornoGiocoSnapshot } from "../src/game/orologioGiocoSession";
 import {
   aggiornaLeggeCacciaBosco, normalizzaStatoEcosistemaBosco,
+  scegliLuogoSacroBosco,
   type IntensitaCaccia
 } from "../src/game/ecosistemaBosco";
 
 export default function BoscoScreen() {
   const router = useRouter();
-  const { abitanti, edifici, aggiornaEdificioById } = useGameContext();
+  const { abitanti, edifici, aggiornaEdificioById, religioniCustom } = useGameContext();
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
 
@@ -33,6 +34,25 @@ export default function BoscoScreen() {
   const ambiente = normalizzaStatoEcosistemaBosco(
     bosco?.ecosistemaBosco, getGiornoGiocoSnapshot() - 1
   );
+  const religioniNaturaliste = religioniCustom.filter(r =>
+    r.dottrinaNaturalista?.forestaSacra ||
+    r.dottrinaNaturalista?.tutelaFauna ||
+    r.dottrinaNaturalista?.tutelaVegetazione
+  );
+  const cambiaLuogoSacro = (nome: string | null) => {
+    if (!bosco) return;
+    aggiornaEdificioById(bosco.id, edificio => ({
+      ...edificio,
+      ecosistemaBosco: scegliLuogoSacroBosco(
+        normalizzaStatoEcosistemaBosco(
+          edificio.ecosistemaBosco, getGiornoGiocoSnapshot() - 1
+        ),
+        nome,
+        religioniCustom,
+        getGiornoGiocoSnapshot()
+      )
+    }));
+  };
   const modificaCaccia = (quota: number, intensita: IntensitaCaccia) => {
     if (!bosco) return;
     aggiornaEdificioById(bosco.id, (edificio) => ({
@@ -104,6 +124,52 @@ export default function BoscoScreen() {
             La raccolta consuma le scorte disponibili. La vegetazione e gli animali si
             rigenerano col tempo; i Silvicoltori favoriscono il recupero del Bosco.
           </Text>
+        </View>
+
+        <View style={styles.infoCard}>
+          <Text style={styles.infoTitle}>🌳 Luogo naturale sacro</Text>
+          <Text style={styles.infoText}>
+            {ambiente.luogoSacro
+              ? `Bosco consacrato alla religione: ${ambiente.luogoSacro.religione}`
+              : "Il Bosco non è stato consacrato a nessuna religione."}
+          </Text>
+          <Text style={styles.infoMuted}>
+            Il Re può riconoscere come sacra l'intera foresta per una religione
+            che attribuisce valore spirituale alla natura. Non aggiunge edifici
+            dentro il Bosco. I Druidi della religione prescelta, se vi lavorano
+            realmente, favoriscono la ricrescita della vegetazione.
+          </Text>
+          {religioniNaturaliste.length === 0 ? (
+            <Text style={styles.infoMuted}>
+              Per consacrare il Bosco, crea prima una religione con almeno una
+              dottrina naturalista nella schermata Religioni.
+            </Text>
+          ) : (
+            <View style={styles.controls}>
+              {religioniNaturaliste.map(r => (
+                <Pressable
+                  key={r.id}
+                  accessibilityRole="button"
+                  accessibilityLabel={`Consacra il Bosco a ${r.nome}`}
+                  accessibilityState={{ selected: ambiente.luogoSacro?.religione === r.nome }}
+                  style={[styles.action, ambiente.luogoSacro?.religione === r.nome && styles.actionSelected]}
+                  onPress={() => cambiaLuogoSacro(r.nome)}
+                >
+                  <Text style={styles.actionText}>{r.emoji} {r.nome}</Text>
+                </Pressable>
+              ))}
+              {ambiente.luogoSacro && (
+                <Pressable
+                  accessibilityRole="button"
+                  accessibilityLabel="Revoca la consacrazione del Bosco"
+                  style={styles.action}
+                  onPress={() => cambiaLuogoSacro(null)}
+                >
+                  <Text style={styles.actionText}>Revoca consacrazione</Text>
+                </Pressable>
+              )}
+            </View>
+          )}
         </View>
 
         <View style={styles.infoCard}>
