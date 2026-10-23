@@ -1,3 +1,7 @@
+import type { Abitante } from "../types";
+import { abitanteHaInventarioPersonale } from "./casta";
+import { aggiungiMoneteInventarioAbitante } from "./inventario";
+
 /**
  * Banditi del Bosco: SOLO eventi astratti. Non creare personaggi, sprite, accampamenti
  * o altre entità fisiche. Il cittadino derubato è invece un abitante già esistente.
@@ -57,9 +61,14 @@ export function risolviAssaltoBanditi(input: {
   const gravità = casualeDeterministico(input.mondoSeed, input.giorno, input.abitanteId, 24);
   const esito: EsitoAssalto = gravità < 0.003 ? "morte" : gravità < 0.10 ? "ferite" : "rapina";
   const dannoSalute = esito === "morte" ? 100 : esito === "ferite" ? 10 : 0;
+  // Sottrai da UNA sola voce, evitando doppi prelievi se un save legacy contiene duplicati.
+  let sottratto = false;
   return {
-    inventario: input.inventario.map((v) => v.itemId === scelta.itemId
-      ? { ...v, quantità: Math.max(0, v.quantità - quantità) } : { ...v }),
+    inventario: input.inventario.map((v) => {
+      if (sottratto || v !== scelta) return { ...v };
+      sottratto = true;
+      return { ...v, quantità: Math.max(0, v.quantità - quantità) };
+    }),
     evento: {
       id: "bosco-" + input.giorno + "-" + input.abitanteId,
       abitanteId: input.abitanteId, giorno: input.giorno, esito,
@@ -136,5 +145,46 @@ export function parereConsiglierePerRapina(
     risarcisci: "Compensare il cittadino costa " + richiesta.dannoMonete +
       " monete del Tesoro e può migliorare la sua Soddisfazione. Il furto originale non viene annullato.",
     ignora: "Ignorare la richiesta conserva le monete del Tesoro, ma può diminuire la Soddisfazione del cittadino."
+  };
+}
+
+
+/**
+ * Risolve atomicamente la decisione economica: nessuna creazione di monete,
+ * niente doppio risarcimento dopo un salvataggio/ripetizione del pulsante.
+ * Il Tesoro paga, lo stesso importo entra nell'inventario reale della vittima.
+ */
+export function eseguiUdienzaBanditi(input: {
+  richiesta: RichiestaRisarcimentoBanditi;
+  vittima: Abitante;
+  tesoro: number;
+  scelta: "risarcisci" | "ignora" | "chiedi_al_consigliere";
+}): {
+  richiesta: RichiestaRisarcimentoBanditi;
+  vittima: Abitante;
+  tesoro: number;
+  mostraParere: boolean;
+  riuscito: boolean;
+} {
+  if (input.vittima.id !== input.richiesta.abitanteId) {
+    return { ...input, mostraParere: false, riuscito: false };
+  }
+  if (input.scelta === "risarcisci" && !abitanteHaInventarioPersonale(input.vittima)) {
+    return { richiesta: input.richiesta, vittima: input.vittima,
+      tesoro: input.tesoro, mostraParere: false, riuscito: false };
+  }
+  const risultato = rispondiAReclamoBanditi(input.richiesta, input.scelta, input.tesoro);
+  if (!risultato.riuscito) {
+    return { richiesta: input.richiesta, vittima: input.vittima,
+      tesoro: input.tesoro, mostraParere: false, riuscito: false };
+  }
+  return {
+    richiesta: risultato.richiesta,
+    vittima: risultato.monetePerCittadino > 0
+      ? aggiungiMoneteInventarioAbitante(input.vittima, risultato.monetePerCittadino)
+      : input.vittima,
+    tesoro: risultato.moneteTesoro,
+    mostraParere: risultato.mostraParere,
+    riuscito: true
   };
 }
