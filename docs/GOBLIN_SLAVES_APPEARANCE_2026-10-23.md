@@ -2,6 +2,8 @@
 
 Data: 23 ottobre 2026
 
+> **Documento storico (PR #269).** La vecchia divisa con `skirts_slit` è stata sostituita: dal 23 ottobre 2026 l'unico indumento della casta Schiavo è **Short Shorts (Walnut)**. Consultare `docs/SLAVE_SHORT_SHORTS_WALNUT_2026-10-23.md` per la regola attuale.
+
 ## Regole
 - Tutti i Goblin hanno pelle verde `orc_green`, coerente con la palette già adottata dagli Orchi. Si applica nel generatore, nell'editor, nel renderer LPC e nei salvataggi precedenti.
 - La testa Goblin usa il layer LPC `goblin` nella variante verde `olive`; il corpo riutilizza i 12 sheet `orc_green`, senza mutare gli altri popoli.

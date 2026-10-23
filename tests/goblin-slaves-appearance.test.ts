@@ -30,7 +30,7 @@ test("Goblin vecchi salvataggi e nuova generazione sono verdi senza alterare ves
   assert.equal(restored.characterAppearance?.upperOutfit, legacy.characterAppearance?.upperOutfit);
   assert.deepEqual(normalizzaAspettoGoblin(restored), restored);
 });
-test("la casta Schiavo non ha capelli, barba o abiti diversi da Skirts: Skirt Slit", () => {
+test("la casta Schiavo non ha capelli, barba o abiti diversi da Short Shorts (Walnut)", () => {
   for (const race of ["Umano", "Orco", "Goblin"] as const) {
     for (const sex of ["M", "F"] as const) {
       const old = generaAspettoCasuale(race, () => 0.4, { sesso: sex, eta: 29 });
@@ -38,20 +38,20 @@ test("la casta Schiavo non ha capelli, barba o abiti diversi da Skirts: Skirt Sl
       const a = view.characterAppearance!;
       assert.equal(a.hairStyle, "none");
       for (const k of ["beardStyle","upperOutfit","sleeveOutfit","fullOutfit","footwear","headwear","neckwear","facialMask","facialEyes","cape","accessory"] as const) assert.equal(a[k], "none", k);
-      assert.equal(a.lowerOutfit, "skirts_slit");
+      assert.equal(a.lowerOutfit, "short_shorts");
       for (const animation of ["idle","walk"] as const) {
         const layers = resolveCharacterLayers(a, animation);
-        assert.ok(layers.some(x => x.layer === "lowerBody" && x.semanticId === "skirts_slit"));
+        assert.ok(layers.some(x => x.layer === "lowerBody" && x.semanticId === "short_shorts"));
         assert.ok(!layers.some(x => ["outfit","hairFront","hairBack","beard","footwear","headwear","cape"].includes(x.layer)));
       }
-      assert.notEqual(old.characterAppearance?.lowerOutfit, "skirts_slit");
+      assert.notEqual(old.characterAppearance?.lowerOutfit, "short_shorts");
     }
   }
 });
 test("la regola Schiavo cessa per i personaggi liberati", () => {
   const old = generaAspettoCasuale("Umano", () => 0.6);
   const slave = aspettoSchiavo(old.characterAppearance!);
-  assert.equal(slave.lowerOutfit, "skirts_slit");
+  assert.equal(slave.lowerOutfit, "short_shorts");
   const free = aspettoPerVisualizzazioneAbitante({ id: 55, razza: "Umano", casta: "Cittadino", aspetto: old });
-  assert.notEqual(free?.characterAppearance?.lowerOutfit, "skirts_slit");
+  assert.notEqual(free?.characterAppearance?.lowerOutfit, "short_shorts");
 });
