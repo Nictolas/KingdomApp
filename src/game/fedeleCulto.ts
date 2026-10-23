@@ -5,6 +5,7 @@
  */
 
 import type { Abitante } from "../types";
+import type { DottrinaNaturalista } from "./ecosistemaBosco";
 import type { ReligioneConCulto } from "./luogoCulto";
 import { RELIGIONI_CON_CULTO } from "./luogoCulto";
 
@@ -25,6 +26,8 @@ export type ReligioneCustom = {
   descrizione: string;
   /** Aspetto / abiti del Sacerdote per questa religione. */
   aspettoSacerdote?: import("./personaggioAspetto").AspettoPersonaggio;
+  /** Le tre convinzioni ecologiche sono facoltative e non dedotte dal nome. */
+  dottrinaNaturalista?: DottrinaNaturalista;
 };
 
 /** Non possono essere Religione del Tempio (Chiesa). */
@@ -187,6 +190,7 @@ export function provaCreaReligioneCustom(
     emoji?: string;
     descrizione?: string;
     aspettoSacerdote?: import("./personaggioAspetto").AspettoPersonaggio;
+    dottrinaNaturalista?: DottrinaNaturalista;
   },
   esistenti: readonly ReligioneCustom[],
   nextId: () => string
@@ -210,7 +214,12 @@ export function provaCreaReligioneCustom(
       nome,
       emoji,
       descrizione,
-      ...(input.aspettoSacerdote ? { aspettoSacerdote: input.aspettoSacerdote } : {})
+      ...(input.aspettoSacerdote ? { aspettoSacerdote: input.aspettoSacerdote } : {}),
+      ...(input.dottrinaNaturalista ? { dottrinaNaturalista: {
+        forestaSacra: input.dottrinaNaturalista.forestaSacra === true,
+        tutelaFauna: input.dottrinaNaturalista.tutelaFauna === true,
+        tutelaVegetazione: input.dottrinaNaturalista.tutelaVegetazione === true
+      } } : {})
     }
   };
 }
@@ -238,11 +247,20 @@ export function normalizzaReligioniCustom(raw: unknown): ReligioneCustom[] {
       o.aspettoSacerdote && typeof o.aspettoSacerdote === "object"
         ? (o.aspettoSacerdote as ReligioneCustom["aspettoSacerdote"])
         : undefined;
+    const rawDottrina = o.dottrinaNaturalista;
+    const d = rawDottrina && typeof rawDottrina === "object"
+      ? rawDottrina as Record<string, unknown> : null;
+    const dottrinaNaturalista = d ? {
+      forestaSacra: d.forestaSacra === true,
+      tutelaFauna: d.tutelaFauna === true,
+      tutelaVegetazione: d.tutelaVegetazione === true
+    } : undefined;
     out.push({
       id,
       nome,
       emoji,
       descrizione,
+      ...(dottrinaNaturalista ? { dottrinaNaturalista } : {}),
       ...(aspettoSacerdote ? { aspettoSacerdote } : {})
     });
   }
