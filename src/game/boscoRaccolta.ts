@@ -2,6 +2,7 @@ import type { Abitante, Edificio } from "../types";
 import { isGiocatore } from "./schiavituCommercio";
 import { getCastaAbitante } from "./casta";
 import { aggiungiOggettoInventarioAbitante } from "./inventario";
+import { probabilitaSuccessoForestale } from "./ecosistemaBosco";
 
 export type BoscoBottinoDef = {
   itemId: string;
@@ -288,6 +289,16 @@ export function applicaRaccoltaBoscoGiornaliera(
       const giorno = giornoCorrente - giorni + g;
       if (next.ultimoIngressoBoscoGiorno !== giorno) continue;
       if (next.ultimoRaccoltoBosco?.giorno === giorno) continue;
+      // Entrare nel Bosco non equivale a lavorare: servono minuti realmente
+      // trascorsi sul posto e salvati durante i tick di movimento.
+      const tempo = next.ultimoLavoroBosco;
+      if (tempo?.giorno !== giorno || tempo.minuti < 30) continue;
+      const competenza = Number.isFinite(next.competenza) ? next.competenza : 0;
+      const bonusTratti = /osservator|pazient|attent/i.test(next.personalità ?? "") ? 10 : 0;
+      const probabilità = probabilitaSuccessoForestale(100, competenza + bonusTratti, tempo.minuti);
+      // Esito deterministico fra ricaricamenti, senza nuove estrazioni a ogni render.
+      const lancio = (((a.id * 9301 + giorno * 49297) >>> 0) % 233280) / 233280;
+      if (lancio >= probabilità) continue;
       const voci = raccoltoBoscoDelGiorno(a.id, giorno);
       for (const v of voci) {
         next = aggiungiOggettoInventarioAbitante(next, v.itemId, v.quantità);
