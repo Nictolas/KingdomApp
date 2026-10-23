@@ -76,9 +76,9 @@ export function modificatoreSoddisfazioneBosco(
   scorte: RiserveBosco
 ): number {
   const perdite =
-    (dottrina.forestaSacra ? (100 - contenuto(scorte.alberi)) * 0.06 : 0) +
-    (dottrina.tutelaFauna ? (100 - contenuto(scorte.fauna)) * 0.04 : 0) +
-    (dottrina.tutelaVegetazione ? (100 - contenuto(scorte.vegetazione)) * 0.025 : 0);
+    (dottrina.forestaSacra ? Math.max(0, RISERVE_BOSCO_INIZIALI.alberi - contenuto(scorte.alberi)) * 0.08 : 0) +
+    (dottrina.tutelaFauna ? Math.max(0, RISERVE_BOSCO_INIZIALI.fauna - contenuto(scorte.fauna)) * 0.06 : 0) +
+    (dottrina.tutelaVegetazione ? Math.max(0, RISERVE_BOSCO_INIZIALI.vegetazione - contenuto(scorte.vegetazione)) * 0.04 : 0);
   return Math.max(-10, Math.min(0, -Math.round(perdite)));
 }
 
