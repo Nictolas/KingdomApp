@@ -13,7 +13,7 @@ import {
   ID_DOGMA_ABITO_SACERDOTI
 } from "../src/game/reazioneDogmiAbiti";
 import { consumaUnOggettoCiboConItem } from "../src/game/inventario";
-import { consumaPastoDaInventarioMensa } from "../src/game/mensaPubblica";
+import { consumaPastoDaInventarioMensa, serviPastoMensaTransaction } from "../src/game/mensaPubblica";
 import { applicaPastiGiornalieriPerPeriodo } from "../src/game/pastoGiornaliero";
 
 const creazione = provaCreaReligioneCustom({
@@ -116,4 +116,39 @@ test("Editor e stato di gioco passano dogmi a pasti, abiti e Teocrazia", () => {
   assert.match(game, /aggiornaSoddisfazioneDogmiAbiti/);
   assert.match(game, /religioniCustomRef\.current/);
   assert.match(obiettivi, /id: "teocrazia"/);
+});
+
+test("Un rifiuto religioso alla mensa non genera un falso evento di carestia", () => {
+  const fedele = persona(71, "Raccoglitore", "ranger");
+  const menu = [{ itemId: "bistecca", quantità: 3 }];
+  const permesso = (id: string) => !vietatoCiboDaDogma(fede.dogmi ?? [], id);
+  const rifiutato = serviPastoMensaTransaction(fedele, menu, 3, permesso);
+  assert.equal(rifiutato.servito, false);
+  assert.equal(rifiutato.carestiaMensa, false);
+  assert.equal(rifiutato.inventarioMensa.find(v => v.itemId === "bistecca")?.quantità, 3);
+  const vuota = serviPastoMensaTransaction(fedele, [], 3, permesso);
+  assert.equal(vuota.servito, false);
+  assert.equal(vuota.carestiaMensa, true);
+});
+
+test("Il motore giornaliero distingue il cibo tabù da una reale mancanza di scorte", () => {
+  const fedele = { ...persona(72, "Raccoglitore", "ranger"),
+    inventario: [
+      { itemId: "mela", quantità: 0 },
+      { itemId: "bistecca", quantità: 0 },
+      { itemId: "latte", quantità: 0 },
+      { itemId: "uovo", quantità: 0 },
+      { itemId: "monete", quantità: 0 }
+    ],
+    ultimoGiornoCiboConsumato: 0
+  };
+  const mensa = { id: 95, nome: "Mensa Pubblica", stato: "Operativo",
+    abitantiAssegnati: [], capacità: 6 } as Edificio;
+  const r = applicaPastiGiornalieriPerPeriodo(
+    [fedele], [mensa], { 95: [{ itemId: "bistecca", quantità: 4 }] }, {},
+    0, 1, [fede]
+  );
+  assert.equal(r.carestiaMensa, false);
+  assert.equal(r.abitanti[0]?.ultimoGiornoCiboConsumato, 0);
+  assert.equal(r.inventarioMensaByEdificioId[95]?.find(v => v.itemId === "bistecca")?.quantità, 4);
 });
