@@ -58,8 +58,8 @@ test("vecchi abitanti orchi con corpo umano e pelle rosa vengono corretti in vis
 test("la palette speciale Orc non compare tra i colori della pelle umana", () => {
   assert.ok(!compatibleCatalogOptions(creaCharacterAppearance("Umano")).skinTones.includes(ORC_GREEN_SKIN_TONE));
   const editor = readFileSync("src/ui/CreazioneGiocatoreModal.tsx", "utf8");
-  assert.match(editor, /spriteAppearance\.race !== "orc" \? \(/);
-  assert.match(editor, /Pelle verde obbligatoria per gli orchi/);
+  assert.match(editor, /spriteAppearance\.race !== "orc" && spriteAppearance\.race !== "goblin" \? \(/);
+  assert.match(editor, /Pelle verde obbligatoria per orchi e goblin/);
 });
 
 test("le immagini verdi LPC sono registrate nel manifest e nella mappa import Expo", () => {

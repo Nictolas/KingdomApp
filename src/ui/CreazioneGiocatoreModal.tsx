@@ -730,13 +730,13 @@ export function CreazioneGiocatoreModal({
                 <Text style={styles.label}>Orientamento sessuale</Text>
                 <View style={styles.chipRowWrap}>{ORIENTAMENTI.map((o) => <Pressable key={o.id} style={[styles.chip, orientamento === o.id && styles.chipSelected]} onPress={() => setOrientamento((current) => current === o.id ? null : o.id)}><Text style={[styles.chipText, orientamento === o.id && styles.chipTextSelected]}>{o.label}</Text></Pressable>)}</View>
               </View>
-              {spriteAppearance.race !== "orc" ? (
+              {spriteAppearance.race !== "orc" && spriteAppearance.race !== "goblin" ? (
               <View style={styles.field}>
                 <Text style={styles.label}>Colore pelle</Text>
                 <View style={styles.visualGrid}>{catalogOptions.skinTones.map((value) => <AppearanceOption key={value} label={readableOptionName("Colore pelle", value)} selected={spriteAppearance.skinTone === value} visibleLayers={["body", "raceFeatures"]} appearance={normalizeCharacterAppearance({ ...spriteAppearance, skinTone: value })} onPress={() => updateSpriteAppearance({ skinTone: value })} />)}</View>
               </View>
               ) : (
-                <Text style={styles.label}>Pelle verde obbligatoria per gli orchi.</Text>
+                <Text style={styles.label}>Pelle verde obbligatoria per orchi e goblin.</Text>
               )}
               </> : null}
 

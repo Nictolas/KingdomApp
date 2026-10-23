@@ -8,7 +8,7 @@ import {
   STILI_OCCHI,
   VESTITI_PERSONAGGIO,
   generaAspettoCasuale,
-  COLORE_PELLE_ORCO
+  COLORE_PELLE_ORCO, COLORE_PELLE_GOBLIN
 } from "../src/game/personaggioAspetto.ts";
 
 test("il generatore usa soltanto i pezzi disponibili nell'editor", () => {
@@ -29,7 +29,7 @@ test("Orchi e Goblin ricevono tonalità di pelle fantasy", () => {
   const goblin = generaAspettoCasuale("Goblin", () => 0.99);
 
   assert.equal(orco.colorePelle, COLORE_PELLE_ORCO);
-  assert.ok(["#79a86b", "#668f58", "#8aa66b"].includes(goblin.colorePelle));
+  assert.equal(goblin.colorePelle, COLORE_PELLE_GOBLIN);
 });
 
 test("ogni abitante iniziale non Golem nasce con un aspetto completo", () => {

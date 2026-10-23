@@ -13,6 +13,7 @@ export const DWARF_BEARD_STYLE = "winter";
 export const ELF_EARS_STYLE = "side_wolf_skintone";
 /** Coerente con le teste LPC verdi già presenti: tutti gli orchi hanno pelle verde. */
 export const ORC_GREEN_SKIN_TONE = "orc_green";
+export const GOBLIN_GREEN_SKIN_TONE = "orc_green";
 export const DWARF_CHILD_SHIRT = "child_shirt";
 export const DWARF_CHILD_PANTS = "child_pants";
 export const DWARF_CHILD_SKIRT = "child_skirt";
@@ -127,6 +128,8 @@ export function enforceRaceBodyTypeRules(value: Partial<CharacterAppearance>): P
       ...(race === "orc" ? {
         skinTone: ORC_GREEN_SKIN_TONE,
         headStyle: "orc_female"
+      } : race === "goblin" ? {
+        skinTone: GOBLIN_GREEN_SKIN_TONE, headStyle: "goblin"
       } : {})
     };
   }
@@ -154,6 +157,9 @@ export function enforceRaceBodyTypeRules(value: Partial<CharacterAppearance>): P
         DWARF_BEARD_STYLE
       );
     return { ...withBody, beardColor };
+  }
+  if (value.race === "goblin") {
+    return { ...value, skinTone: GOBLIN_GREEN_SKIN_TONE, headStyle: "goblin", earsStyle: "none" };
   }
   if (value.race === "orc") {
     return {
@@ -505,6 +511,9 @@ export function appearanceAlignedToRazza(
   }
   if (razza === "Elfo") {
     return normalizeCharacterAppearance({ ...value, race: "elf" });
+  }
+  if (razza === "Goblin") {
+    return normalizeCharacterAppearance({ ...value, race: "goblin" });
   }
   if (razza === "Orco") {
     return normalizeCharacterAppearance({ ...value, race: "orc" });
