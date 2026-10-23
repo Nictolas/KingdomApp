@@ -2067,6 +2067,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         return rest;
       });
       if (purpose === "home") {
+        const turnoCasa = turniForestaliRef.current[abitanteId];
+        if (turnoCasa?.giorno === getGiornoGiocoSnapshot() &&
+            turnoCasa.fase === "ritorno_casa") {
+          salvaTurnoForestaleMappa(
+            segnalaArrivoTurnoForestale(turnoCasa, "casa", orologioMinuti)
+          );
+        }
         setDormonoACasaIds((s) => new Set(s).add(abitanteId));
         aggiornaAbitanteById(abitanteId, (a) =>
           applicaRecuperoEnergiaSonno(a, {
@@ -2074,11 +2081,39 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           })
         );
       } else if (purpose === "work") {
-        // Segna presenza nel Bosco solo al termine di un vero percorso.
         const sede = primoEdificioLavoroOrarioPerAbitante(abitanteId, edifici);
-        if (sede?.nome === "Bosco") {
-          aggiornaAbitanteById(abitanteId, (ab) => ({
-            ...ab, ultimoIngressoBoscoGiorno: getGiornoGiocoSnapshot()
+        const ab = abitanti.find((a) => a.id === abitanteId);
+        const giorno = getGiornoGiocoSnapshot();
+        const corrente = turniForestaliRef.current[abitanteId];
+        const turno = corrente?.giorno === giorno ? corrente : null;
+        let arrivatoAlBosco = sede?.nome === "Bosco";
+
+        if (turno?.fase === "verso_bosco") {
+          // Unico passaggio verso il Bosco: callback di ARRIVO effettivo sulla mappa.
+          salvaTurnoForestaleMappa(
+            segnalaArrivoTurnoForestale(turno, "bosco", orologioMinuti)
+          );
+          arrivatoAlBosco = true;
+        } else if (turno?.fase === "ritorno_sede" || turno?.fase === "verso_sede") {
+          salvaTurnoForestaleMappa(
+            segnalaArrivoTurnoForestale(turno, "sede", orologioMinuti)
+          );
+        } else if (!turno && ab && sede && sede.stato === "Operativo") {
+          const nomeSede = SEDE_PER_PROFESSIONE[ab.lavoro as ProfessioneForestale];
+          if (nomeSede && nomeSede === sede.nome) {
+            const iniziale = iniziaTurnoForestale({
+              abitanteId, giorno, lavoro: ab.lavoro as ProfessioneForestale,
+              sedeId: sede.id, minuto: orologioMinuti
+            });
+            salvaTurnoForestaleMappa(
+              segnalaArrivoTurnoForestale(iniziale, "sede", orologioMinuti)
+            );
+          }
+        }
+
+        if (arrivatoAlBosco) {
+          aggiornaAbitanteById(abitanteId, (persona) => ({
+            ...persona, ultimoIngressoBoscoGiorno: giorno
           }));
         }
         setLavoroArrivatiIds((s) => new Set(s).add(abitanteId));
@@ -2209,7 +2244,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       isRoadCell,
       setInventarioMensaEdificio,
       appendDiarioRiga,
-      commuteByAbitanteId
+      commuteByAbitanteId,
+      salvaTurnoForestaleMappa
     ]
   );
 
