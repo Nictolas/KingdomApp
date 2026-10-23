@@ -194,7 +194,7 @@ export default function ReligioniScreen() {
         onRequestClose={() => setMostraCrea(false)}
       >
         <View style={[styles.modalBackdrop, isDesktop && modalBackdropFullscreen]}>
-          <View style={[styles.modalCard, isDesktop && modalContentFullscreen]}>
+          <ScrollView style={[styles.modalCard, isDesktop && modalContentFullscreen]} contentContainerStyle={styles.modalContent} keyboardShouldPersistTaps="handled">
             <Text style={styles.modalTitle}>Crea Religione</Text>
             <Text style={styles.modalHint}>
               Aggiunge una religione al regno (oltre a {RELIGIONI_ELENCO.join(", ")}).
@@ -249,7 +249,7 @@ export default function ReligioniScreen() {
                 key={chiave}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: dottrinaNuova[chiave] }}
-                style={[styles.emojiChip, dottrinaNuova[chiave] && styles.emojiChipAttivo]}
+                style={[styles.dottrinaChip, dottrinaNuova[chiave] && styles.emojiChipAttivo]}
                 onPress={() => setDottrinaNuova(prev => ({
                   ...prev, [chiave]: !prev[chiave]
                 }))}
@@ -276,7 +276,7 @@ export default function ReligioniScreen() {
                 <Text style={styles.modalBtnPrimaryText}>Crea</Text>
               </Pressable>
             </View>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
 
@@ -417,12 +417,13 @@ const styles = StyleSheet.create({
   modalCard: {
     width: "100%",
     maxWidth: 420,
+    maxHeight: "90%",
     backgroundColor: "#0f172a",
     borderRadius: 12,
     borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.45)",
-    padding: 16
+    borderColor: "rgba(148,163,184,0.45)"
   },
+  modalContent: { padding: 16 },
   modalTitle: { color: "#fff", fontSize: 16, fontWeight: "700", marginBottom: 6 },
   modalHint: { color: "rgba(203,213,245,0.7)", fontSize: 11, marginBottom: 12, lineHeight: 15 },
   fieldLabel: { color: "#cbd5e1", fontSize: 11, fontWeight: "600", marginBottom: 4, marginTop: 8 },
@@ -449,6 +450,12 @@ const styles = StyleSheet.create({
   },
   abitiBtnText: { color: "#bfdbfe", fontSize: 12, fontWeight: "700" },
   emojiRow: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  dottrinaChip: {
+    width: "100%", minHeight: 38, borderRadius: 8, borderWidth: 1,
+    borderColor: "rgba(148,163,184,0.35)", justifyContent: "center",
+    paddingHorizontal: 12, paddingVertical: 8, marginBottom: 6,
+    backgroundColor: "rgba(15,23,42,0.8)"
+  },
   emojiChip: {
     width: 36,
     height: 36,
