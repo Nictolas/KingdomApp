@@ -1,4 +1,6 @@
 import type { Abitante, Edificio } from "../types";
+import type { ReligioneCustom } from "./fedeleCulto";
+import { vietatoCiboDaDogma } from "./dogmiReligiosi";
 import { abitanteHaInventarioPersonale, getCastaAbitante } from "./casta";
 import { abitanteDeveConsumareCiboGiornaliero } from "./consumoCiboInventario";
 import {
@@ -44,12 +46,13 @@ function idsMenseOperative(edifici: Edificio[]): number[] {
 function tentaPastoDaMensa(
   inventarioMensaByEdificioId: Record<number, VoceInventario[]>,
   mensaIds: number[],
-  personalità: string
+  personalità: string,
+  permesso: (itemId: string) => boolean
 ): { inventarioMensaByEdificioId: Record<number, VoceInventario[]>; ok: boolean; itemId: string | null } {
   let next = { ...inventarioMensaByEdificioId };
   for (const id of mensaIds) {
     const inv = next[id] ?? [];
-    const pasto = consumaPastoDaInventarioMensa(inv, personalità);
+    const pasto = consumaPastoDaInventarioMensa(inv, personalità, permesso);
     if (pasto) {
       next = { ...next, [id]: pasto.inventarioMensa };
       return { inventarioMensaByEdificioId: next, ok: true, itemId: pasto.itemId };
@@ -60,7 +63,8 @@ function tentaPastoDaMensa(
 
 function tentaPastoDaPadrone(
   abitanti: Abitante[],
-  schiavo: Abitante
+  schiavo: Abitante,
+  permesso: (itemId: string) => boolean
 ): { abitanti: Abitante[]; ok: boolean; itemId: string | null } {
   const padroneId = schiavo.schiavistaId;
   if (padroneId == null) return { abitanti, ok: false, itemId: null };
@@ -68,7 +72,7 @@ function tentaPastoDaPadrone(
   if (idx < 0) return { abitanti, ok: false, itemId: null };
   const padrone = abitanti[idx]!;
   if (!padrone.inventario?.length) return { abitanti, ok: false, itemId: null };
-  const dopo = consumaUnOggettoCiboConItem(padrone.inventario, schiavo.personalità);
+  const dopo = consumaUnOggettoCiboConItem(padrone.inventario, schiavo.personalità, permesso);
   if (!dopo) return { abitanti, ok: false, itemId: null };
   const next = [...abitanti];
   next[idx] = { ...padrone, inventario: dopo.inventario };
@@ -80,7 +84,8 @@ function applicaPastoSingoloGiorno(
   edifici: Edificio[],
   inventarioMensaByEdificioId: Record<number, VoceInventario[]>,
   inventarioEmporioByEdificioId: Record<number, VoceInventario[]>,
-  giorno: number
+  giorno: number,
+  religioniCustom: readonly ReligioneCustom[]
 ): PastiGiornalieriResult {
   const mensaIds = idsMenseOperative(edifici);
   const mensaAttiva = mensaIds.length > 0;
@@ -94,6 +99,8 @@ function applicaPastoSingoloGiorno(
   for (let i = 0; i < nextAbitanti.length; i++) {
     let a = nextAbitanti[i]!;
     if (!abitanteDeveConsumareCiboGiornaliero(a)) continue;
+    const dogmi = religioniCustom.find(r => r.nome === a.religione)?.dogmi ?? [];
+    const permesso = (itemId: string) => !vietatoCiboDaDogma(dogmi, itemId);
 
     const ultimo = a.ultimoGiornoCiboConsumato;
     if (ultimo != null && giorno <= ultimo) continue;
@@ -103,12 +110,12 @@ function applicaPastoSingoloGiorno(
     let itemIdConsumato: string | null = null;
 
     if (casta === "Schiavo") {
-      const daPadrone = tentaPastoDaPadrone(nextAbitanti, a);
+      const daPadrone = tentaPastoDaPadrone(nextAbitanti, a, permesso);
       nextAbitanti = daPadrone.abitanti;
       nutrito = daPadrone.ok;
       itemIdConsumato = daPadrone.itemId;
-    } else if (abitanteHaInventarioPersonale(a) && haCiboCompatibileInInventario(a.inventario, a.personalità)) {
-      const dopo = consumaUnOggettoCiboConItem(a.inventario!, a.personalità);
+    } else if (abitanteHaInventarioPersonale(a) && haCiboCompatibileInInventario(a.inventario, a.personalità, permesso)) {
+      const dopo = consumaUnOggettoCiboConItem(a.inventario!, a.personalità, permesso);
       if (dopo) {
         a = { ...a, inventario: dopo.inventario };
         nutrito = true;
@@ -117,13 +124,13 @@ function applicaPastoSingoloGiorno(
     }
 
     if (!nutrito && casta !== "Schiavo") {
-      const acquisto = eseguiAcquistoPastoDaEmporio(a, nextEdifici, nextEmporio);
+      const acquisto = eseguiAcquistoPastoDaEmporio(a, nextEdifici, nextEmporio, permesso);
       if (acquisto.ok) {
         a = acquisto.abitante;
         nextEdifici = acquisto.edifici;
         nextEmporio = acquisto.inventarioEmporioByEdificioId;
         if (acquisto.scambio) scambiEmporio.push(acquisto.scambio);
-        const dopoAcquisto = consumaUnOggettoCiboConItem(a.inventario ?? [], a.personalità);
+        const dopoAcquisto = consumaUnOggettoCiboConItem(a.inventario ?? [], a.personalità, permesso);
         if (dopoAcquisto) {
           a = { ...a, inventario: dopoAcquisto.inventario };
           nutrito = true;
@@ -136,7 +143,7 @@ function applicaPastoSingoloGiorno(
       if (!mensaAttiva) {
         carestiaMensa = true;
       } else {
-        const daMensa = tentaPastoDaMensa(nextMensa, mensaIds, a.personalità);
+        const daMensa = tentaPastoDaMensa(nextMensa, mensaIds, a.personalità, permesso);
         nextMensa = daMensa.inventarioMensaByEdificioId;
         nutrito = daMensa.ok;
         itemIdConsumato = daMensa.itemId;
@@ -169,7 +176,8 @@ export function applicaPastiGiornalieriPerPeriodo(
   inventarioMensaByEdificioId: Record<number, VoceInventario[]>,
   inventarioEmporioByEdificioId: Record<number, VoceInventario[]>,
   giornoDa: number,
-  giornoA: number
+  giornoA: number,
+  religioniCustom: readonly ReligioneCustom[] = []
 ): PastiGiornalieriResult {
   let nextAbitanti = abitanti;
   let nextEdifici = edifici;
@@ -194,14 +202,18 @@ export function applicaPastiGiornalieriPerPeriodo(
       nextEdifici,
       nextMensa,
       nextEmporio,
-      g
+      g,
+      religioniCustom
     );
     nextAbitanti = res.abitanti.map((a) => {
       let next = applicaDecayBisogniGiornaliero(a, {
         nomeResidenza: getEdificioAbitazione(a.id, edifici)?.nome ?? null
       });
       next = applicaDrainEnergiaLavoro(next);
-      const snack = tentaSnackDaInventario(next);
+      const dogmi = religioniCustom.find(r => r.nome === next.religione)?.dogmi ?? [];
+      const snack = tentaSnackDaInventario(
+        next, itemId => !vietatoCiboDaDogma(dogmi, itemId)
+      );
       return snack ?? next;
     });
     nextEdifici = res.edifici;
@@ -228,7 +240,8 @@ export function normalizzaEAplicaPastiAbitanti(
   inventarioMensaByEdificioId: Record<number, VoceInventario[]>,
   inventarioEmporioByEdificioId: Record<number, VoceInventario[]>,
   giornoGioco: number,
-  ultimoGiornoPasti: number
+  ultimoGiornoPasti: number,
+  religioniCustom: readonly ReligioneCustom[] = []
 ): PastiGiornalieriResult {
   const base = abitanti.map((a) => normalizzaAbitanteBisogni(normalizzaAbitanteInventario(a)));
   if (giornoGioco <= ultimoGiornoPasti) {
@@ -247,6 +260,7 @@ export function normalizzaEAplicaPastiAbitanti(
     inventarioMensaByEdificioId,
     inventarioEmporioByEdificioId,
     ultimoGiornoPasti,
-    giornoGioco
+    giornoGioco,
+    religioniCustom
   );
 }
