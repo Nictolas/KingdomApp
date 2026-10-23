@@ -28,7 +28,8 @@ import {
   LAVORO_GIOCATORE
 } from "../game/schiavituCommercio";
 import { getTitoloStudioAbitante } from "../game/titoloStudio";
-import { CATEGORIA_CIBO, getVociInventarioPerCategoria } from "../game/inventario";
+import { CATEGORIA_CIBO, getVociInventarioPerCategoria, OGGETTI_INVENTARIO } from "../game/inventario";
+import { abitoPrescrittoDaDogma } from "../game/dogmiReligiosi";
 import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import {
   abitanteUsaBisogniUmani,
@@ -193,6 +194,7 @@ export function AbitanteInfoModal({
   const { width } = useWindowDimensions();
   const {
     abitanti,
+    religioniCustom,
     aggiungiAlCampoDiLavoroTuttiQuelliChe,
     trasferisciProprietaSchiavo,
     uccidiSchiavo
@@ -255,6 +257,19 @@ export function AbitanteInfoModal({
 
   const titoloStudio = getTitoloStudioAbitante(abitante, etaMinimaLavoro);
   const casta = getCastaAbitante(abitante);
+  const dogmiFede = religioniCustom.find(r => r.nome === abitante.religione)?.dogmi ?? [];
+  const ruoloReligioso = ["Sacerdote", "Capo Religioso", "Druido"].includes(abitante.lavoro);
+  const abitoSacerdotale = ruoloReligioso
+    ? abitoPrescrittoDaDogma(dogmiFede, "sacerdoti")
+    : null;
+  const abitoRichiesto = abitoSacerdotale ??
+    abitoPrescrittoDaDogma(dogmiFede, "fedeli");
+  const abitoConforme = !abitoRichiesto || abitante.aspetto?.vestiti === abitoRichiesto;
+  const cibiProibiti = dogmiFede
+    .filter((d): d is Extract<typeof d, { tipo: "alimento_vietato" }> =>
+      d.tipo === "alimento_vietato")
+    .map(d => OGGETTI_INVENTARIO[d.itemId]?.nome ?? d.itemId);
+
 
   const maggiorenne = abitante.eta >= etaMinimaLavoro;
   const lavoroDaMinore = LAVORI_DA_MINORE.includes(abitante.lavoro);
@@ -440,6 +455,21 @@ export function AbitanteInfoModal({
                   muted={!abitante.religione?.trim()}
                   onPress={abitante.religione?.trim() ? () => apriPagina("/religione") : undefined}
                 />
+                {abitoRichiesto && (
+                  <Row
+                    emoji="👘"
+                    label={abitoSacerdotale ? "Abito sacerdotale" : "Abito della fede"}
+                    value={abitoRichiesto + (abitoConforme ? " — conforme" : " — non conforme")}
+                    muted={!abitoConforme}
+                  />
+                )}
+                {cibiProibiti.length > 0 && (
+                  <Row
+                    emoji="🥣"
+                    label="Alimenti vietati dalla fede"
+                    value={cibiProibiti.join(", ")}
+                  />
+                )}
                 <Row
                   emoji="🎓"
                   label="Titolo di Studio"
