@@ -130,6 +130,8 @@ import {
 } from "../src/game/barEconomia";
 import { abitanteHaBisognoMensa } from "../src/game/mensaPubblica";
 import { abitanteVuoleNegozio, compraEMangiaAlNegozio, tentaSnackDaInventario } from "../src/game/negozio";
+import { vietatoCiboDaDogma } from "../src/game/dogmiReligiosi";
+import type { ReligioneCustom } from "../src/game/fedeleCulto";
 import { MapTerrainCell } from "../src/components/MapTerrainCell";
 import { MapWaterCellsLayer } from "../src/components/MapWaterCellsLayer";
 import { PhaserMapSurface, type PhaserMapSurfaceHandle } from "../src/components/PhaserMapSurface";
@@ -896,11 +898,20 @@ export function MappaScreen() {
   return <MappaScreenInner initialMappaState={boot.state} />;
 }
 
+function permessoCiboFedele(
+  abitante: Pick<Abitante, "religione">,
+  religioni: readonly ReligioneCustom[]
+): (itemId: string) => boolean {
+  const dogmi = religioni.find(r => r.nome === abitante.religione)?.dogmi ?? [];
+  return itemId => !vietatoCiboDaDogma(dogmi, itemId);
+}
+
 function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRuntimeState }) {
   const router = useRouter();
   const {
     risorse,
     abitanti,
+    religioniCustom,
     inventarioGiocatore,
     moneteGiocatore,
     edifici,
@@ -1959,7 +1970,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           continue;
         }
 
-        const snack = tentaSnackDaInventario(ab);
+        const snack = tentaSnackDaInventario(ab, permessoCiboFedele(ab, religioniCustom));
         if (snack) {
           aggiornaAbitanteById(id, () => snack);
           continue;
@@ -1972,8 +1983,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           oraAbsMinuti: minutiAbsGioco()
         });
         const azione = scegliAzioneTempoLibero(ab, {
-          puòUsareMensa: abitanteHaBisognoMensa(ab, edifici),
-          puòUsareNegozio: abitanteVuoleNegozio(ab, edifici),
+          puòUsareMensa: abitanteHaBisognoMensa(ab, edifici, religioniCustom),
+          puòUsareNegozio: abitanteVuoleNegozio(ab, edifici, permessoCiboFedele(ab, religioniCustom)),
           puòRapinare,
           haCasa: homeCell != null
         });
@@ -2069,6 +2080,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     orologioMinuti,
     statoCielo.buio,
     abitanti,
+    religioniCustom,
     edifici,
     edificiInMappa,
     cols,
@@ -2272,7 +2284,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         let spesaNegozio = 0;
         aggiornaAbitanteById(abitanteId, (a) => {
           const prima = getMoneteInventarioAbitante(a.inventario);
-          const dopo = compraEMangiaAlNegozio(a);
+          const dopo = compraEMangiaAlNegozio(a, permessoCiboFedele(a, religioniCustom));
           if (!dopo) return a;
           spesaNegozio = Math.max(0, prima - getMoneteInventarioAbitante(dopo.inventario));
           return dopo;
@@ -2320,6 +2332,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     },
     [
       serviPastoMensaAbitante,
+      religioniCustom,
       aggiornaAbitanteById,
       accreditaMoneteGiocatore,
       assumiCittadinoDisoccupatoAEdificio,
@@ -2721,7 +2734,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         continue;
       }
 
-      const snack = tentaSnackDaInventario(a);
+      const snack = tentaSnackDaInventario(a, permessoCiboFedele(a, religioniCustom));
       if (snack) {
         aggiornaAbitanteById(a.id, () => snack);
         continue;
@@ -2734,8 +2747,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         oraAbsMinuti: minutiAbsGioco()
       });
       const azione = scegliAzioneTempoLibero(a, {
-        puòUsareMensa: abitanteHaBisognoMensa(a, edifici),
-        puòUsareNegozio: abitanteVuoleNegozio(a, edifici),
+        puòUsareMensa: abitanteHaBisognoMensa(a, edifici, religioniCustom),
+        puòUsareNegozio: abitanteVuoleNegozio(a, edifici, permessoCiboFedele(a, religioniCustom)),
         puòRapinare,
         haCasa: homeCell != null
       });
@@ -2885,6 +2898,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     });
   }, [
     abitanti,
+    religioniCustom,
     edifici,
     edificiInMappa,
     statoCielo.buio,
