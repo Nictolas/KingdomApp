@@ -23,9 +23,9 @@ test("Re di 10 anni e Consigliere umano iniziale sempre presenti (entrambe le mo
   }
 });
 
-test("sette professioni, sei sedi senza obbligo geografico", () => {
-  assert.equal(Object.keys(SEDE_PER_PROFESSIONE).length, 7);
-  assert.equal(SEDI_FORESTALI.length, 6);
+test("otto professioni, sette sedi senza obbligo geografico", () => {
+  assert.equal(Object.keys(SEDE_PER_PROFESSIONE).length, 8);
+  assert.equal(SEDI_FORESTALI.length, 7);
   assert.equal(SEDE_PER_PROFESSIONE.Raccoglitore, null);
   assert.equal(SEDE_PER_PROFESSIONE.Cacciatore, "Capanna del Cacciatore");
   assert.throws(() => iniziaTurnoForestale({
