@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Dimensions, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useRouter } from "expo-router";
+import { usePathname, useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { ViewportBottomPortal } from "../src/navigation/BuildingBottomExit";
 import type { Edificio } from "../src/types";
@@ -102,6 +102,7 @@ function getRedditoDisplay(abitante: Abitante, etaMinimaLavoro: number, redditoC
 
 export default function AbitantiScreen() {
   const router = useRouter();
+  const pathname = usePathname();
   const { abitanti, edifici, calcolaFelicitàModificata, etaMinimaLavoro, redditoCittadinanza } = useGameContext();
   const [selectedAbitante, setSelectedAbitante] = useState<Abitante | null>(null);
   const [sortField, setSortField] = useState<SortField>(null);
@@ -621,6 +622,7 @@ export default function AbitantiScreen() {
         </ScrollView>
       </ScrollView>
       </View>
+      {pathname === "/abitanti" && selectedAbitante === null && (
       <ViewportBottomPortal>
         <View style={[styles.footer, styles.footerFixed, Platform.OS === "web" && styles.footerWebFixed]}>
           <Pressable
@@ -633,6 +635,7 @@ export default function AbitantiScreen() {
           </Pressable>
         </View>
       </ViewportBottomPortal>
+      )}
 
       <AbitanteInfoModal
         visible={selectedAbitante !== null}

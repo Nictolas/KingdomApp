@@ -33,9 +33,33 @@ test("HUD mobile: Demolisci si trova nella finestra Costruisci, non sulla barra 
 
 test("HUD mobile: barra più alta, pulsanti visibili anche selezionando un abitante", () => {
   assert.match(source,/bottomBarInnerResident:\s*\{\s*height:\s*230/);
-  assert.match(source,/height:\s*Platform\.OS === "web" \? 150 : 128/);
+  assert.match(source,/height:\s*Platform\.OS === "web" \? 174 : 164/);
   assert.match(source,/paddingBottom:\s*Platform\.OS === "web" \? 26 : 10/);
   const footer = source.slice(source.indexOf("{/* Menu fisso in basso:"),source.indexOf("<RichiesteModal"));
   assert.match(footer,/\{sintesiMappaAbitante \? \(/);
   assert.match(footer,/\)\}\s*<View style=\{styles\.bottomActionsRow\}>/);
+});
+
+test("HUD: il footer NON resta sopra la creazione del Re o altre modali fullscreen", () => {
+  assert.match(source, /const footerMappaVisibile =/);
+  assert.match(source, /!creazioneGiocatoreAperta/);
+  assert.match(source, /!mapModalOpen/);
+  assert.match(source, /!mostraModalCostruisci/);
+  assert.match(source, /!mostraModalRichieste/);
+  assert.match(source, /!mostraModalEventi/);
+  assert.match(source, /\{footerMappaVisibile && \(/);
+  const abitanti = readFileSync("app/abitanti.tsx", "utf8");
+  assert.match(abitanti, /pathname === "\/abitanti" && selectedAbitante === null/);
+  const portal = readFileSync("src/navigation/BuildingBottomExit.web.tsx", "utf8");
+  assert.match(portal, /zIndex: 1000/);
+});
+
+test("HUD: spazio riservato al footer fuori dal canvas e schede risorse non ritagliate", () => {
+  assert.match(source, /styles\.mapContainer,\s*Platform\.OS === "web" && footerMappaVisibile/);
+  assert.match(source, /mapFooterSpace: \{ marginBottom: 222 \}/);
+  assert.match(source, /mapResidentFooterSpace: \{ marginBottom: 276 \}/);
+  assert.match(source, /bottomBarScroll:\s*\{[\s\S]*?height: 88/);
+  assert.match(source, /risorseRow:\s*\{[\s\S]*?height: 88/);
+  assert.match(source, /risorseCard:\s*\{[\s\S]*?height: 84/);
+  assert.match(source, /bottomActionsRow:\s*\{[\s\S]*?minHeight: 46/);
 });

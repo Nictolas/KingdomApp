@@ -903,6 +903,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const {
     risorse,
     abitanti,
+    creazioneGiocatoreAperta,
     inventarioGiocatore,
     moneteGiocatore,
     edifici,
@@ -1287,6 +1288,16 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     selectedEdificioInfoId !== null ||
     cantiereSelezionatoId !== null ||
     schedaWandererAbitante !== null;
+  // Questo footer e' un portal nel body: non deve comparire sopra modali
+  // fullscreen o quando l'utente lascia la mappa (lo Stack tiene viva la pagina).
+  const footerMappaVisibile =
+    (pathname === "/" || pathname === "/mappa") &&
+    !creazioneGiocatoreAperta &&
+    !mapModalOpen &&
+    !mostraModalCostruisci &&
+    !mostraModalRichieste &&
+    !mostraModalEventi &&
+    obiettivoSbloccato === null;
   const mapModalWasOpenRef = useRef(false);
   useEffect(() => {
     if (mapModalOpen) {
@@ -3974,7 +3985,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       ) : null}
 
       {/* Contenitore mappa: viewport sfondo nero, griglia gestita da react-zoom-pan-pinch */}
-      <View style={styles.mapContainer}>
+      <View style={[
+        styles.mapContainer,
+        Platform.OS === "web" && footerMappaVisibile &&
+          (sintesiMappaAbitante ? styles.mapResidentFooterSpace : styles.mapFooterSpace)
+      ]}>
         {Platform.OS === "web" ? (
           <View style={styles.phaserMainSurface}>
             <PhaserMapSurface
@@ -4303,6 +4318,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       </View>
 
       {/* Menu fisso in basso: risorse/pulsanti, oppure sintesi abitante selezionato */}
+      {footerMappaVisibile && (
       <ViewportBottomPortal>
       <View style={[styles.bottomBar, Platform.OS === "web" && styles.bottomBarPortalled]} pointerEvents="box-none">
         <View style={[styles.bottomBarInner, sintesiMappaAbitante && styles.bottomBarInnerResident]}>
@@ -4439,6 +4455,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         </View>
       </View>
       </ViewportBottomPortal>
+      )}
 
       <RichiesteModal
         visible={mostraModalRichieste}
@@ -5053,6 +5070,10 @@ const styles = StyleSheet.create({
   },
   diarioBtnEmoji: { fontSize: 14 },
   diarioBtnLabel: { fontSize: 12, fontWeight: "600", color: "#e2e8f0" },
+  // Il canvas termina PRIMA del footer fisso, non scorre sotto i pulsanti.
+  // Include il margine di sicurezza per la home bar della PWA su iPhone.
+  mapFooterSpace: { marginBottom: 222 },
+  mapResidentFooterSpace: { marginBottom: 276 },
   mapContainer: {
     flex: 1,
     minHeight: 120,
@@ -5095,8 +5116,8 @@ const styles = StyleSheet.create({
   bottomBarPortalled: { position: "relative" },
   bottomBarInner: {
     width: "100%",
-    height: Platform.OS === "web" ? 150 : 128,
-    minHeight: Platform.OS === "web" ? 150 : 128,
+    height: Platform.OS === "web" ? 174 : 164,
+    minHeight: Platform.OS === "web" ? 174 : 164,
     overflow: "hidden",
     justifyContent: "space-between",
     backgroundColor: "rgba(5,8,22,0.92)",
@@ -5105,7 +5126,8 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderBottomWidth: 0,
     borderColor: "rgba(148,163,184,0.25)",
-    paddingVertical: 6,
+    paddingTop: 8,
+    paddingBottom: 10,
     paddingHorizontal: 12
   },
   bottomBarInnerResident: {
@@ -5116,8 +5138,8 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12
   },
   bottomActionsRow: {
-    height: 42,
-    minHeight: 42,
+    height: 46,
+    minHeight: 46,
     flexShrink: 0,
     flexDirection: "row",
     alignItems: "center",
@@ -5126,7 +5148,7 @@ const styles = StyleSheet.create({
   },
   bottomActionWrap: { flex: 1, minWidth: 0 },
   bottomActionBtn: {
-    height: 42,
+    height: 46,
     backgroundColor: "#1e293b",
     borderWidth: 1,
     borderColor: "#475569",
@@ -5138,9 +5160,9 @@ const styles = StyleSheet.create({
   bottomBarScroll: {
     flexGrow: 0,
     flexShrink: 0,
-    height: 66,
-    maxHeight: 66,
-    minHeight: 66
+    height: 88,
+    maxHeight: 88,
+    minHeight: 88
   },
   sintesiAbitantePanel: {
     width: "100%",
@@ -5212,15 +5234,15 @@ const styles = StyleSheet.create({
     gap: 8,
     alignItems: "center",
     paddingHorizontal: 0,
-    height: 66
+    height: 88
   },
   risorseCard: {
-    minWidth: 72,
-    height: 62,
+    minWidth: 88,
+    height: 84,
     justifyContent: "center",
     backgroundColor: "rgba(15,23,42,0.8)",
     borderRadius: 10,
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.15)"
@@ -5229,9 +5251,9 @@ const styles = StyleSheet.create({
     borderColor: "rgba(59,130,246,0.3)"
   },
   risorseEmoji: { fontSize: 18, marginBottom: 2 },
-  risorseName: { fontSize: 9, color: "rgba(248,250,252,0.85)", marginBottom: 1 },
+  risorseName: { fontSize: 11, color: "rgba(248,250,252,0.85)", marginBottom: 1 },
   risorseValueRow: { flexDirection: "row", alignItems: "baseline" },
-  risorseValue: { fontSize: 13, fontWeight: "800", color: "#f8fafc" },
+  risorseValue: { fontSize: 14, fontWeight: "800", color: "#f8fafc" },
   risorseUnit: { fontSize: 9, color: "rgba(148,163,184,0.8)", marginLeft: 1 },
   risorseDelta: { fontSize: 9, fontWeight: "700", marginTop: 1 },
   risorseDeltaPos: { color: "#4ade80" },

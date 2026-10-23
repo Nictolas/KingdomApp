@@ -16,7 +16,8 @@ export function ViewportBottomPortal({ children }: { children: React.ReactNode }
         left: 0,
         right: 0,
         bottom: "calc(8px + env(safe-area-inset-bottom, 0px))",
-        zIndex: 2147482000,
+        // Modali fullscreen sopra il footer, anche su Safari iPhone.
+        zIndex: 1000,
         boxSizing: "border-box",
         pointerEvents: "auto"
       }}
