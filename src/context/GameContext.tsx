@@ -90,8 +90,9 @@ type GameContextType = {
     aspettoSacerdote?: import("../game/personaggioAspetto").AspettoPersonaggio;
     dottrinaNaturalista?: import("../game/ecosistemaBosco").DottrinaNaturalista;
     dogmi?: readonly import("../game/dogmiReligiosi").DogmaReligioso[];
+    origineReligione?: string;
   }) =>
-    | { ok: true; religione: import("../game/fedeleCulto").ReligioneCustom }
+    | { ok: true; religione: import("../game/fedeleCulto").ReligioneCustom; convertiti: number }
     | { ok: false; errore: string };
   modificaDogmiReligioneCustom: (
     id: string,
