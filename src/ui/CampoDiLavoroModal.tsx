@@ -12,6 +12,7 @@ const RAZZE: Razza[] = [
   "Nano",
   "Orco",
   "Goblin",
+  "Felix",
   "Golem"
 ];
 

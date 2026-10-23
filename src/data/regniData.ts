@@ -29,6 +29,7 @@ export function getEmojiRazza(razza: Razza): string {
   const regno = regniData.find((x) => x.razza === razza);
   if (regno) return regno.emoji;
   if (razza === "Umano") return "👤";
+  if (razza === "Felix") return "🐱";
   if (razza === "Golem") return "🗿";
   return "🏰";
 }

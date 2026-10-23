@@ -22,10 +22,11 @@ export const REGOLE_GENERAZIONE_PARTITA: { titolo: string; punti: string[] }[] =
     titolo: "Razza",
     punti: [
       "Il Re è sempre di razza umana.",
-      "A parte 2-3 Nativi iniziali, tutti gli abitanti sono a inizio partita di razza umana.",
+      "A inizio partita sono presenti abitanti umani, 2-3 Nativi, 1 Golem e sempre 1 Felix (in entrambe le modalità).",
       "La razza dei Nativi (per l’evento Assimilazione) è scelta a caso tra le razze non umane.",
       "Ogni partita deve partire con 2-3 Nativi tra gli abitanti (razza = popolo nativo del territorio). Tutti gli abitanti non Senzatetto sono assegnati alle Capanne.",
-      "Ogni partita deve partire con 1 Golem. I Golem sono sempre bisessuali (orientamento «Bi»)."
+      "Ogni partita deve partire con 1 Golem. I Golem sono sempre bisessuali (orientamento «Bi»).",
+      "Ogni partita inizia con almeno 1 abitante Felix, con Cat Ears e Cat Ears Skintone di colori casuali."
     ]
   },
   {
@@ -461,6 +462,21 @@ export function generaRegnoIniziale(
   const listaFinale = isAvventura
     ? aggiungiCuginoNobileConSchiaviAvventura(abitanti)
     : abitanti;
+
+  // Si applica per ultimo: non sovrascrivere mai Golem, Consigliere o ex sovrano.
+  // Non si aggiungono nuovi abitanti: si assegna Felix a un residente ordinario.
+  const candidatiFelix = listaFinale.filter(a => a.id !== 1 && a.razza === "Umano" &&
+    a.lavoro !== "Consigliere" && a.lavoro !== "Prigioniero");
+  const sceltoFelix = candidatiFelix[Math.floor(Math.random() * candidatiFelix.length)];
+  if (sceltoFelix) {
+    sceltoFelix.razza = "Felix";
+    sceltoFelix.nome = generaNomeFantasy("Felix");
+    sceltoFelix.emoji = getEmojiRazza("Felix");
+    sceltoFelix.aspetto = generaAspettoCasuale("Felix", Math.random, {
+      eta: sceltoFelix.eta, sesso: sceltoFelix.sesso,
+      professione: sceltoFelix.lavoro
+    });
+  }
 
   return {
     abitanti: listaFinale.map((abitante) => abitanteConInventarioIniziale({

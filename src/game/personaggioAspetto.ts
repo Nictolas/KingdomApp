@@ -4,6 +4,8 @@ import {
   bodyFamilyFor,
   DWARF_BEARD_STYLE,
   FARMER_TOOL,
+  FELIX_EAR_COLORS,
+  FELIX_EAR_SKINTONES,
   normalizeCharacterAppearance
 } from "../character-system/appearance";
 import {
@@ -32,7 +34,7 @@ export type AspettoPersonaggio = {
   characterAppearance?: CharacterAppearance;
 };
 
-type RazzaConAspetto = RazzaGiocatore | "Goblin";
+type RazzaConAspetto = RazzaGiocatore | "Goblin" | "Felix";
 
 const raceId = (razza: RazzaConAspetto): CharacterRaceId =>
   ({
@@ -40,7 +42,8 @@ const raceId = (razza: RazzaConAspetto): CharacterRaceId =>
     Elfo: "elf",
     Nano: "dwarf",
     Orco: "orc",
-    Goblin: "goblin"
+    Goblin: "goblin",
+    Felix: "felix"
   } satisfies Record<RazzaConAspetto, CharacterRaceId>)[razza];
 
 export function testaObbligatoriaRazza(razza: RazzaConAspetto, sesso: "M" | "F" = "M"): string {
@@ -95,6 +98,11 @@ export const COLORE_PELLE_GOBLIN = COLORE_PELLE_ORCO;
 /** Aggiorna anche i vecchi salvataggi in memoria senza toccare vestiti o tratti. */
 export function normalizzaAspettoGoblin(aspetto: AspettoPersonaggio): AspettoPersonaggio {
   return { ...aspetto, colorePelle: COLORE_PELLE_GOBLIN, ...(aspetto.characterAppearance ? { characterAppearance: normalizeCharacterAppearance({ ...aspetto.characterAppearance, race: "goblin" }) } : {}) };
+}
+
+/** Impone sempre i due livelli di Cat Ears, preservando i colori già estratti. */
+export function normalizzaAspettoFelix(aspetto: AspettoPersonaggio): AspettoPersonaggio {
+  return aspetto.characterAppearance ? { ...aspetto, characterAppearance: normalizeCharacterAppearance({ ...aspetto.characterAppearance, race: "felix" }) } : aspetto;
 }
 
 export function normalizzaAspettoOrco(aspetto: AspettoPersonaggio): AspettoPersonaggio {
@@ -209,6 +217,10 @@ export function generaAspettoCasuale(
     skinTone: options.skinTones.length > 0 ? pick(options.skinTones, random) : baseAppearance.skinTone,
     hairStyle,
     hairColor,
+    ...(razza === "Felix" ? {
+      catEarsColor: pick(FELIX_EAR_COLORS, random),
+      catEarsSkintoneColor: pick(FELIX_EAR_SKINTONES, random)
+    } : {}),
     beardStyle,
     beardColor: razza === "Nano"
       ? (dwarfBeardColors.length > 0 ? pick(dwarfBeardColors, random) : hairColor)
@@ -342,6 +354,17 @@ export function goblinRenderizzabile(value: CharacterAppearance): CharacterAppea
   return sicuro;
 }
 
+/** Non sacrifica il rendering Felix per un vestito/capello LPC non compatibile. */
+export function felixRenderizzabile(value: CharacterAppearance): CharacterAppearance {
+  const felix = normalizeCharacterAppearance({ ...value, race: "felix" });
+  if (canRenderCharacter(felix, "idle") && canRenderCharacter(felix, "walk")) return felix;
+  const base = normalizeCharacterAppearance({ ...felix, hairStyle:"none", beardStyle:"none", headwear:"none", accessory:"none",
+    neckwear:"none", facialEyes:"none", facialMask:"none" });
+  if (canRenderCharacter(base, "idle") && canRenderCharacter(base, "walk")) return base;
+  return normalizeCharacterAppearance({ ...base, outfit:"none", upperOutfit:"none", sleeveOutfit:"none",
+    lowerOutfit:"none", fullOutfit:"none", footwear:"none", cape:"none", capeTrim:"none" });
+}
+
 /** Variante stabile per completare vecchi salvataggi senza cambiare volto a ogni caricamento. */
 export function generaAspettoDaSeed(
   razza: RazzaConAspetto,
@@ -382,7 +405,7 @@ export function aspettoPerVisualizzazioneAbitante(
 ): AspettoPersonaggio | undefined {
   if (abitante.razza === "Golem") return abitante.aspetto;
 
-  const razzeSupportate: readonly RazzaConAspetto[] = ["Umano", "Elfo", "Nano", "Orco", "Goblin"];
+  const razzeSupportate: readonly RazzaConAspetto[] = ["Umano", "Elfo", "Nano", "Orco", "Goblin", "Felix"];
   const razza = razzeSupportate.includes(abitante.razza as RazzaConAspetto)
     ? (abitante.razza as RazzaConAspetto)
     : "Umano";
@@ -399,6 +422,7 @@ export function aspettoPerVisualizzazioneAbitante(
   // Anche gli aspetti legacy già salvati non devono mai mostrare pelle umana.
   if (razza === "Orco") aspetto = normalizzaAspettoOrco(aspetto);
   if (razza === "Goblin") aspetto = normalizzaAspettoGoblin(aspetto);
+  if (razza === "Felix") aspetto = normalizzaAspettoFelix(aspetto);
 
   const schiavo = (abitante.casta ?? abitante.ceto) === "Schiavo" ||
     (!(abitante.casta ?? abitante.ceto) && abitante.ruoloSchiavitu === "schiavo" && abitante.schiavistaId != null);
@@ -417,7 +441,8 @@ export function aspettoPerVisualizzazioneAbitante(
   const finalize = (value: CharacterAppearance) => {
     const dressed = schiavo ? aspettoSchiavo(value) : copriBustoFemminile(value, abitante.sesso);
     const femaleSafe = aspettoSenzaBarbaDonna(dressed, abitante.sesso);
-    return razza === "Goblin" ? goblinRenderizzabile(femaleSafe) : femaleSafe;
+    return razza === "Goblin" ? goblinRenderizzabile(femaleSafe) :
+      razza === "Felix" ? felixRenderizzabile(femaleSafe) : femaleSafe;
   };
 
   // Il corpo cambia con gli anni, senza rigenerare pelle/colore/vestiti e

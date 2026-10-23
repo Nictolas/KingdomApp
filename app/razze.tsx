@@ -6,7 +6,7 @@ import { generaAspettoDaSeed } from "../src/game/personaggioAspetto";
 import { CircularSpriteFrame } from "../src/ui/CircularSpriteFrame";
 import type { Razza } from "../src/types";
 
-const RAZZE: readonly Razza[] = ["Umano", "Elfo", "Nano", "Orco", "Goblin", "Golem"];
+const RAZZE: readonly Razza[] = ["Umano", "Elfo", "Nano", "Orco", "Goblin", "Felix", "Golem"];
 
 const EMOJI_RAZZA: Record<Razza, string> = {
   Umano: "🧑",
@@ -14,6 +14,7 @@ const EMOJI_RAZZA: Record<Razza, string> = {
   Nano: "🧔",
   Orco: "👹",
   Goblin: "👺",
+  Felix: "🐱",
   Golem: "🗿"
 };
 
@@ -22,7 +23,8 @@ const PREVIEW_SEED: Record<Exclude<Razza, "Golem">, number> = {
   Elfo: 84,
   Nano: 126,
   Orco: 168,
-  Goblin: 210
+  Goblin: 210,
+  Felix: 252
 };
 
 export default function RazzeScreen() {
