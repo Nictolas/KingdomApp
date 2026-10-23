@@ -88,6 +88,7 @@ type GameContextType = {
     emoji?: string;
     descrizione?: string;
     aspettoSacerdote?: import("../game/personaggioAspetto").AspettoPersonaggio;
+    dottrinaNaturalista?: import("../game/ecosistemaBosco").DottrinaNaturalista;
   }) =>
     | { ok: true; religione: import("../game/fedeleCulto").ReligioneCustom }
     | { ok: false; errore: string };
