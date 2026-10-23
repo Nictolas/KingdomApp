@@ -112,7 +112,7 @@ import {
   assumiDisoccupatoNelBosco,
   etichettaRaccoltoBosco
 } from "../game/boscoRaccolta";
-import { applicaBanditiBoscoGiornalieri } from "../game/banditiBosco";
+import { applicaBanditiBoscoGiornalieri, eseguiUdienzaBanditi } from "../game/banditiBosco";
 import {
   applicaRaccoltaMinieraGiornaliera,
   assumiDisoccupatoNellaMiniera,
@@ -1790,6 +1790,46 @@ export function useGameState() {
     setAbitanti((prev) => prev.map((a) => (a.id === abitanteId ? fn(a) : a)));
   }, []);
 
+  /** Decisione sull'udienza SOLO quando la vittima ha raggiunto il Castello.
+   *  Il pagamento modifica insieme Tesoro, inventario e richiesta persistita.
+   */
+  const risolviUdienzaBanditi = useCallback((
+    abitanteId: number, scelta: "risarcisci" | "ignora"
+  ): boolean => {
+    const vittima = abitantiRef.current.find(a => a.id === abitanteId);
+    const richiesta = vittima?.richiestaRapinaBosco;
+    if (!vittima || !richiesta || richiesta.stato !== "pronta" || vittima.salute <= 0) return false;
+    const result = eseguiUdienzaBanditi({
+      richiesta, vittima, tesoro: moneteGiocatoreRef.current, scelta
+    });
+    if (!result.riuscito || result.mostraParere) return false;
+    const updated: Abitante = {
+      ...result.vittima,
+      richiestaRapinaBosco: result.richiesta,
+      modificatoriSoddisfazione: [
+        ...(result.vittima.modificatoriSoddisfazione ?? []),
+        {
+          id: "risposta-" + richiesta.id,
+          delta: scelta === "risarcisci" ? 2 : -2,
+          motivo: scelta === "risarcisci"
+            ? "Il Re ha risarcito la rapina nel Bosco"
+            : "Il Re ha ignorato la richiesta di risarcimento",
+          durata: "permanente" as const
+        }
+      ]
+    };
+    moneteGiocatoreRef.current = result.tesoro;
+    setMoneteGiocatore(result.tesoro);
+    const next = abitantiRef.current.map(a => a.id === abitanteId ? updated : a);
+    abitantiRef.current = next;
+    setAbitanti(next);
+    setDiarioRighe(prev => [...prev, scelta === "risarcisci"
+      ? "Risarcimento di " + richiesta.dannoMonete + " monete per la vittima della rapina."
+      : "Il Re ha ignorato la richiesta di una vittima dei banditi."]);
+    return true;
+  }, []);
+
+
   /** Accredita monete al tesoro (sink bar/negozio → stipendi). */
   const aggiornaEdificioById = useCallback(
     (edificioId: number, update: (e: Edificio) => Edificio) => {
@@ -2533,6 +2573,7 @@ export function useGameState() {
     mesiConsecutiviNelCastello,
     setModalitaRe,
     nominaConsigliere,
+    risolviUdienzaBanditi,
     nativiNonIntegrati,
     pendingAssimilazione,
     accettaAssimilazione,
