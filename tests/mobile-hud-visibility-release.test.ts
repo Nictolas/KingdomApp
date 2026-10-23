@@ -33,7 +33,7 @@ test("HUD mobile: Demolisci si trova nella finestra Costruisci, non sulla barra 
 
 test("HUD mobile: barra più alta, pulsanti visibili anche selezionando un abitante", () => {
   assert.match(source,/bottomBarInnerResident:\s*\{\s*height:\s*230/);
-  assert.match(source,/height:\s*Platform\.OS === "web" \? 150 : 128/);
+  assert.match(source,/height:\s*Platform\.OS === "web" \? 174 : 164/);
   assert.match(source,/paddingBottom:\s*Platform\.OS === "web" \? 26 : 10/);
   const footer = source.slice(source.indexOf("{/* Menu fisso in basso:"),source.indexOf("<RichiesteModal"));
   assert.match(footer,/\{sintesiMappaAbitante \? \(/);
