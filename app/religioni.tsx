@@ -18,17 +18,29 @@ import {
   emojiReligione,
   EMOJI_RELIGIONE_PRESET,
   RELIGIONI_ELENCO,
-  èReligioneCanon
+  èReligioneCanon,
+  elencoReligioniTempio,
+  type ReligioneCustom
 } from "../src/game/fedeleCulto";
 import { religioneTempioDi, trovaChiesaOperativa } from "../src/game/chiesa";
 import { CreazioneGiocatoreModal, type DatiCreazioneGiocatore } from "../src/ui/CreazioneGiocatoreModal";
 import type { AspettoPersonaggio } from "../src/game/personaggioAspetto";
 import type { DottrinaNaturalista } from "../src/game/ecosistemaBosco";
+import { dogmiDalModello, religioniModelloEresia } from "../src/game/eresieReligiose";
+import type { DogmaReligioso } from "../src/game/dogmiReligiosi";
+import { VESTITI_DOGMA } from "../src/game/dogmiReligiosi";
+import { OGGETTI_INVENTARIO } from "../src/game/inventario";
+import { ReligionePieChart, coloriReligione } from "../src/ui/ReligionePieChart";
+import type { VestitiPersonaggio } from "../src/game/personaggioAspetto";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 
 export default function ReligioniScreen() {
   const router = useRouter();
-  const { abitanti, edifici, religioniCustom, creaReligioneCustom } = useGameContext();
+  const {
+    abitanti, edifici, religioniCustom, creaReligioneCustom,
+    modificaDogmiReligioneCustom, politicaReligiosa, religioneDiStato,
+    setPoliticaReligiosa, setReligioneDiStato
+  } = useGameContext();
 
   const { width } = Dimensions.get("window");
   const isDesktop = width > 768;
@@ -43,6 +55,12 @@ export default function ReligioniScreen() {
     forestaSacra: false, tutelaFauna: false, tutelaVegetazione: false
   });
   const [aspettoSacerdote, setAspettoSacerdote] = useState<AspettoPersonaggio | null>(null);
+  const [tipoFondazione, setTipoFondazione] = useState<"originale" | "eresia">("originale");
+  const [religioneModello, setReligioneModello] = useState<string | null>(null);
+  const [modificaReligioneId, setModificaReligioneId] = useState<string | null>(null);
+  const [dogmiNuovi, setDogmiNuovi] = useState<DogmaReligioso[]>([]);
+  const [ricercaAlimento, setRicercaAlimento] = useState("");
+  const [esitoFondazione, setEsitoFondazione] = useState<string | null>(null);
   const [erroreCrea, setErroreCrea] = useState<string | null>(null);
 
   const nomiReligioni = useMemo(
@@ -61,6 +79,18 @@ export default function ReligioniScreen() {
   }, [abitanti, nomiReligioni]);
 
   const chiesa = useMemo(() => trovaChiesaOperativa(edifici), [edifici]);
+  const modelliEresia = useMemo(() => religioniModelloEresia(religioniCustom), [religioniCustom]);
+  const opzioniReligioneStato = useMemo(() => elencoReligioniTempio(religioniCustom), [religioniCustom]);
+  const alimentiDisponibili = useMemo(() => Object.values(OGGETTI_INVENTARIO)
+    .filter(o => o.categoria === "Cibo")
+    .filter(o => !ricercaAlimento || o.nome.toLowerCase().includes(ricercaAlimento.toLowerCase()))
+    .slice(0, 14), [ricercaAlimento]);
+  const chartData = useMemo(() => nomiReligioni.map(nome => ({
+    nome,
+    emoji: emojiReligione(nome, religioniCustom),
+    count: conteggi.get(nome) ?? 0,
+    color: coloriReligione(nome)
+  })), [nomiReligioni, religioniCustom, conteggi]);
 
   const pathPerReligione = (nome: string): string | null => {
     if (nome === "Culto del Sole") return "/culto-sole";
@@ -75,16 +105,81 @@ export default function ReligioniScreen() {
     setDescrizioneNuova("");
     setDottrinaNuova({ forestaSacra: false, tutelaFauna: false, tutelaVegetazione: false });
     setAspettoSacerdote(null);
+    setTipoFondazione("originale");
+    setReligioneModello(null);
+    setModificaReligioneId(null);
+    setDogmiNuovi([]);
+    setRicercaAlimento("");
     setErroreCrea(null);
     setMostraCrea(true);
   };
 
+  const usaModello = (nome: string) => {
+    const modello = religioniCustom.find(r => r.nome === nome);
+    const copiati = dogmiDalModello(nome, religioniCustom);
+    setTipoFondazione("eresia");
+    setReligioneModello(nome);
+    setDogmiNuovi(copiati.dogmi);
+    setDottrinaNuova(copiati.dottrinaNaturalista);
+    setEmojiNuova(emojiReligione(nome, religioniCustom));
+    setDescrizioneNuova(copiati.descrizione);
+    setAspettoSacerdote(modello?.aspettoSacerdote ?? null);
+  };
+
+  const apriModifica = (religione: ReligioneCustom) => {
+    setModificaReligioneId(religione.id);
+    setTipoFondazione(religione.origineReligione ? "eresia" : "originale");
+    setReligioneModello(religione.origineReligione ?? null);
+    setNomeNuova(religione.nome);
+    setDescrizioneNuova(religione.descrizione);
+    setEmojiNuova(religione.emoji);
+    setDottrinaNuova({
+      forestaSacra: religione.dottrinaNaturalista?.forestaSacra === true,
+      tutelaFauna: religione.dottrinaNaturalista?.tutelaFauna === true,
+      tutelaVegetazione: religione.dottrinaNaturalista?.tutelaVegetazione === true
+    });
+    setDogmiNuovi([...(religione.dogmi ?? [])]);
+    setRicercaAlimento("");
+    setErroreCrea(null);
+    setMostraCrea(true);
+  };
+
+  const cambiaAlimento = (itemId: string) => {
+    setDogmiNuovi(prev => prev.some(d =>
+      d.tipo === "alimento_vietato" && d.itemId === itemId)
+      ? prev.filter(d => d.tipo !== "alimento_vietato" || d.itemId !== itemId)
+      : [...prev, { tipo: "alimento_vietato", itemId }]);
+  };
+
+  const cambiaAbito = (destinatari: "fedeli" | "sacerdoti", vestiti: VestitiPersonaggio | null) => {
+    setDogmiNuovi(prev => [
+      ...prev.filter(d => !(d.tipo === "abito_obbligatorio" && d.destinatari === destinatari)),
+      ...(vestiti ? [{ tipo: "abito_obbligatorio" as const, destinatari, vestiti }] : [])
+    ]);
+  };
+
+  const cambiaSovranoDivino = () => {
+    setDogmiNuovi(prev => prev.some(d => d.tipo === "sovrano_rappresentante_divino")
+      ? prev.filter(d => d.tipo !== "sovrano_rappresentante_divino")
+      : [...prev, { tipo: "sovrano_rappresentante_divino" }]);
+  };
+
   const confermaCrea = () => {
+    if (modificaReligioneId) {
+      const ok = modificaDogmiReligioneCustom(modificaReligioneId, dogmiNuovi, dottrinaNuova);
+      if (!ok) { setErroreCrea("Religione non trovata."); return; }
+      setMostraCrea(false);
+      setEsitoFondazione("Dogmi aggiornati: la religione può evolvere nel tempo.");
+      return;
+    }
     const result = creaReligioneCustom({
       nome: nomeNuova,
       emoji: emojiNuova,
       descrizione: descrizioneNuova,
       dottrinaNaturalista: dottrinaNuova,
+      dogmi: dogmiNuovi,
+      ...(tipoFondazione === "eresia" && religioneModello
+        ? { origineReligione: religioneModello } : {}),
       ...(aspettoSacerdote ? { aspettoSacerdote } : {})
     });
     if (!result.ok) {
@@ -92,6 +187,11 @@ export default function ReligioniScreen() {
       return;
     }
     setMostraCrea(false);
+    setEsitoFondazione(result.convertiti != null && result.convertiti > 0
+      ? "Nuova eresia fondata. " + result.convertiti + " fedeli del culto originario si sono convertiti."
+      : tipoFondazione === "eresia"
+        ? "Nuova eresia fondata. Nessuna conversione immediata: i fedeli potranno arrivare in seguito."
+        : "Nuova religione fondata da zero, senza fedeli convertiti automaticamente.");
   };
 
   const salvaAbitiSacerdote = (dati: DatiCreazioneGiocatore) => {
