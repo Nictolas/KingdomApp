@@ -94,8 +94,15 @@ export function probabilitaSuccessoForestale(
   ));
 }
 
+export type LuogoSacroBosco = {
+  /** L'intera fascia forestale è il luogo naturale sacro: non un nuovo edificio. */
+  religione: string;
+  consacratoGiorno: number;
+};
+
 export type StatoEcosistemaBosco = {
   riserve: RiserveBosco;
+  luogoSacro?: LuogoSacroBosco;
   ultimoGiornoAggiornato: number;
   quotaMassimaCacciatori: number;
   intensitaCaccia: IntensitaCaccia;
@@ -116,7 +123,15 @@ export function normalizzaStatoEcosistemaBosco(
       ? Math.floor(dato!.ultimoGiornoAggiornato!) : giornoPrimaAttivazione,
     quotaMassimaCacciatori: persone(dato?.quotaMassimaCacciatori ?? 10),
     intensitaCaccia: dato?.intensitaCaccia === "leggera" || dato?.intensitaCaccia === "spietata"
-      ? dato.intensitaCaccia : "ordinaria"
+      ? dato.intensitaCaccia : "ordinaria",
+    ...(typeof dato?.luogoSacro?.religione === "string" &&
+      dato.luogoSacro.religione.trim().length > 0 &&
+      Number.isFinite(dato.luogoSacro.consacratoGiorno)
+      ? { luogoSacro: {
+        religione: dato.luogoSacro.religione.trim(),
+        consacratoGiorno: Math.max(0, Math.floor(dato.luogoSacro.consacratoGiorno))
+      } }
+      : {})
   };
 }
 
@@ -134,7 +149,8 @@ export function rigeneraBoscoDopoPrelievi(
   prima: RiserveBosco,
   prelevato: RiserveBosco,
   silvicoltoriAttivi: number,
-  stagione: StagioneBosco
+  stagione: StagioneBosco,
+  druidiAttivi = 0
 ): RiserveBosco {
   const residuo = {
     alberi: Math.max(0, contenuto(prima.alberi) - Math.max(0, prelevato.alberi)),
@@ -146,6 +162,36 @@ export function rigeneraBoscoDopoPrelievi(
   return {
     alberi: contenuto(residuo.alberi + t * (0.3 + persone(silvicoltoriAttivi) * 0.6)),
     fauna: contenuto(residuo.fauna + t * 1.1 * habitat),
-    vegetazione: contenuto(residuo.vegetazione + t * (0.8 + habitat * 0.9))
+    vegetazione: contenuto(residuo.vegetazione + t * (0.8 + habitat * 0.9 +
+      persone(druidiAttivi) * 0.45))
+  };
+}
+
+/**
+ * Il Re può riconoscere la fascia di Bosco come luogo sacro per UNA religione
+ * naturalista definita esplicitamente dal giocatore. Non genera nuove tile,
+ * edifici, alberi o NPC. Nessun mutamento quando la religione non è idonea.
+ */
+export function scegliLuogoSacroBosco(
+  stato: StatoEcosistemaBosco,
+  nomeReligione: string | null,
+  religioni: readonly { nome: string; dottrinaNaturalista?: DottrinaNaturalista }[],
+  giorno: number
+): StatoEcosistemaBosco {
+  if (nomeReligione === null) {
+    if (!stato.luogoSacro) return stato;
+    const { luogoSacro: _, ...senza } = stato;
+    return senza;
+  }
+  const religione = religioni.find(r => r.nome === nomeReligione);
+  const d = religione?.dottrinaNaturalista;
+  if (!d || !(d.forestaSacra || d.tutelaFauna || d.tutelaVegetazione)) return stato;
+  if (stato.luogoSacro?.religione === nomeReligione) return stato;
+  return {
+    ...stato,
+    luogoSacro: {
+      religione: nomeReligione,
+      consacratoGiorno: Math.max(0, Number.isFinite(giorno) ? Math.floor(giorno) : 0)
+    }
   };
 }
