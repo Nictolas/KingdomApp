@@ -18,7 +18,7 @@ export default function AbitantiRazzaScreen() {
     [abitanti, scheda]
   );
 
-  const gridWidth = Math.min(Math.max(width - 32, 0), 1120);
+  const gridWidth = Math.max(0, Math.min(width, 1120) - 32);
   const columns = width < 460 ? 2 : width < 720 ? 3 : width < 1080 ? 4 : 6;
   const cardWidth = Math.max(0, (gridWidth - 12 * (columns - 1)) / columns);
 

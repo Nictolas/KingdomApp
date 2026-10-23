@@ -10,8 +10,8 @@ export default function RazzeScreen() {
   const router = useRouter();
   const { abitanti } = useGameContext();
   const { width } = useWindowDimensions();
-  const maxWidth = Math.min(Math.max(width - 32, 0), 960);
-  const columns = width < 480 ? 2 : width < 760 ? 3 : 3;
+  const maxWidth = Math.max(0, Math.min(width, 960) - 32);
+  const columns = width < 480 ? 2 : 3;
   const cardWidth = Math.max(0, (maxWidth - 10 * (columns - 1)) / columns);
 
   return (
