@@ -93,3 +93,59 @@ export function probabilitaSuccessoForestale(
     (contenuto(riserva) / 100) * tempo
   ));
 }
+
+export type StatoEcosistemaBosco = {
+  riserve: RiserveBosco;
+  ultimoGiornoAggiornato: number;
+  quotaMassimaCacciatori: number;
+  intensitaCaccia: IntensitaCaccia;
+};
+
+export function normalizzaStatoEcosistemaBosco(
+  dato: Partial<StatoEcosistemaBosco> | undefined,
+  giornoPrimaAttivazione: number
+): StatoEcosistemaBosco {
+  const r = dato?.riserve;
+  return {
+    riserve: {
+      alberi: contenuto(r?.alberi ?? RISERVE_BOSCO_INIZIALI.alberi),
+      fauna: contenuto(r?.fauna ?? RISERVE_BOSCO_INIZIALI.fauna),
+      vegetazione: contenuto(r?.vegetazione ?? RISERVE_BOSCO_INIZIALI.vegetazione)
+    },
+    ultimoGiornoAggiornato: Number.isFinite(dato?.ultimoGiornoAggiornato)
+      ? Math.floor(dato!.ultimoGiornoAggiornato!) : giornoPrimaAttivazione,
+    quotaMassimaCacciatori: persone(dato?.quotaMassimaCacciatori ?? 10),
+    intensitaCaccia: dato?.intensitaCaccia === "leggera" || dato?.intensitaCaccia === "spietata"
+      ? dato.intensitaCaccia : "ordinaria"
+  };
+}
+
+export function aggiornaLeggeCacciaBosco(
+  stato: StatoEcosistemaBosco, quota: number, intensita: IntensitaCaccia
+): StatoEcosistemaBosco {
+  return {
+    ...stato,
+    quotaMassimaCacciatori: persone(quota),
+    intensitaCaccia: intensita
+  };
+}
+
+export function rigeneraBoscoDopoPrelievi(
+  prima: RiserveBosco,
+  prelevato: RiserveBosco,
+  silvicoltoriAttivi: number,
+  stagione: StagioneBosco
+): RiserveBosco {
+  const residuo = {
+    alberi: Math.max(0, contenuto(prima.alberi) - Math.max(0, prelevato.alberi)),
+    fauna: Math.max(0, contenuto(prima.fauna) - Math.max(0, prelevato.fauna)),
+    vegetazione: Math.max(0, contenuto(prima.vegetazione) - Math.max(0, prelevato.vegetazione))
+  };
+  const t = stagione === "inverno" ? 0.2 : stagione === "primavera" ? 1.5 : 1;
+  const habitat = residuo.alberi / 100;
+  return {
+    alberi: contenuto(residuo.alberi + t * (0.3 + persone(silvicoltoriAttivi) * 0.6)),
+    fauna: contenuto(residuo.fauna + t * 1.1 * habitat),
+    vegetazione: contenuto(residuo.vegetazione + t * (0.8 + habitat * 0.9))
+  };
+}
