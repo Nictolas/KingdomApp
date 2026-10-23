@@ -77,9 +77,7 @@ export default function BoscoScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Text style={styles.back} onPress={() => router.back()}>← Indietro</Text>
         <Text style={styles.title}>🌲 Bosco</Text>
-        <View style={{ width: 70 }} />
       </View>
 
       <ScrollView contentContainerStyle={[styles.content, isDesktop && styles.contentDesktop]}>
@@ -189,12 +187,25 @@ export default function BoscoScreen() {
           </View>
         )}
       </ScrollView>
+      <View style={styles.footer}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Esci dal Bosco e torna alla mappa"
+          style={styles.exitButton}
+          onPress={() => router.back()}
+        >
+          <Text style={styles.exitText}>← Esci dal Bosco</Text>
+        </Pressable>
+      </View>
     </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safe: { flex: 1, backgroundColor: "#050816" },
+  footer: { padding: 12, borderTopWidth: 1, borderTopColor: "#334155", backgroundColor: "#0f172a" },
+  exitButton: { backgroundColor: "#1d4f88", borderRadius: 10, padding: 15, alignItems: "center" },
+  exitText: { color: "#fff", fontSize: 15, fontWeight: "700" },
   header: {
     flexDirection: "row",
     alignItems: "center",
