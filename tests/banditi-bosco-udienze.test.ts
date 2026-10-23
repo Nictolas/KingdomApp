@@ -3,7 +3,7 @@ import test from "node:test";
 import {
   probabilitaRapinaBosco, possibileAssaltoBanditi, risolviAssaltoBanditi,
   creaRichiestaBanditi, registraIngressoCastello,
-  rispondiAReclamoBanditi, parereConsiglierePerRapina
+  rispondiAReclamoBanditi, parereConsiglierePerRapina, eseguiUdienzaBanditi
 } from "../src/game/banditiBosco";
 
 test("I guardaboschi riducono il rischio senza azzerarlo", () => {
@@ -65,4 +65,50 @@ test("Udienza rapina solo dopo vero ingresso nel Castello", () => {
   assert.equal(ignored.moneteTesoro, 100);
   assert.equal(ignored.richiesta.scelta, "ignora");
   assert.equal(creaRichiestaBanditi({ ...event, esito: "morte" }, 10), null);
+});
+
+
+test("Risarcimento atomico: Tesoro e inventario reali cambiano una sola volta", () => {
+  const q = registraIngressoCastello(creaRichiestaBanditi({
+    id: "bosco-4-20", abitanteId: 20, giorno: 4,
+    esito: "rapina", rubato: { itemId: "monete", quantità: 3 }, dannoSalute: 0
+  }, 3)!, 20, "Castello", true);
+  const abitante = {
+    id: 20, nome: "Dora", lavoro: "Raccoglitore", casta: "Cittadino",
+    inventario: [{ itemId: "monete", quantità: 2 }]
+  } as import("../src/types").Abitante;
+  const consulenza = eseguiUdienzaBanditi({
+    richiesta: q, vittima: abitante, tesoro: 10, scelta: "chiedi_al_consigliere"
+  });
+  assert.ok(consulenza.mostraParere);
+  assert.equal(consulenza.tesoro, 10);
+  assert.equal(consulenza.vittima, abitante);
+  assert.equal(consulenza.richiesta.stato, "pronta");
+
+  const risarcito = eseguiUdienzaBanditi({
+    richiesta: q, vittima: abitante, tesoro: 10, scelta: "risarcisci"
+  });
+  assert.equal(risarcito.tesoro, 7);
+  assert.equal(risarcito.vittima.inventario?.find(v => v.itemId === "monete")?.quantità, 5);
+  const duplicato = eseguiUdienzaBanditi({
+    richiesta: risarcito.richiesta, vittima: risarcito.vittima,
+    tesoro: risarcito.tesoro, scelta: "risarcisci"
+  });
+  assert.equal(duplicato.riuscito, false);
+  assert.equal(duplicato.tesoro, 7);
+  assert.equal(duplicato.vittima, risarcito.vittima);
+
+  const errato = eseguiUdienzaBanditi({
+    richiesta: q, vittima: { ...abitante, id: 21 }, tesoro: 10, scelta: "risarcisci"
+  });
+  assert.equal(errato.riuscito, false);
+});
+
+test("Inventario legacy con ID duplicato non produce furti doppi", () => {
+  const input = { mondoSeed: 4, giorno: 12, abitanteId: 20,
+    inventario: [{ itemId: "miele", quantità: 2 }, { itemId: "miele", quantità: 2 }] };
+  const risultato = risolviAssaltoBanditi(input)!;
+  assert.equal(input.inventario.reduce((s, v) => s + v.quantità, 0) -
+    risultato.inventario.reduce((s, v) => s + v.quantità, 0),
+    risultato.evento.rubato.quantità);
 });
