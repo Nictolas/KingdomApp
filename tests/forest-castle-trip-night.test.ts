@@ -44,3 +44,11 @@ test("La mappa usa il preservatore sia al mattino sia alla sera", () => {
   assert.match(src, /portaCastello/);
   assert.match(src, /cellaArrivo === portaCastello/);
 });
+
+test("L'aiuto presenta il ritratto del Consigliere effettivamente nominato", () => {
+  const ui = readFileSync("src/ui/RichiestaRapinaBoscoModal.tsx", "utf8");
+  const provider = readFileSync("src/context/GameContext.tsx", "utf8");
+  assert.match(ui, /AbitanteAvatarPreview/);
+  assert.match(ui, /abitante=\{consigliere\}/);
+  assert.match(provider, /consigliere=\{consigliere \?\? null\}/);
+});
