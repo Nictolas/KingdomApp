@@ -380,7 +380,7 @@ function RichiestaRapinaBoscoDialogWrapper() {
       key={richiesta.id}
       richiesta={richiesta}
       nomeVittima={vittima.nome}
-      nomeConsigliere={consigliere?.nome ?? null}
+      consigliere={consigliere ?? null}
       moneteTesoro={moneteGiocatore}
       onRisarcisci={() => risolviUdienzaBanditi(vittima.id, "risarcisci")}
       onIgnora={() => risolviUdienzaBanditi(vittima.id, "ignora")}
