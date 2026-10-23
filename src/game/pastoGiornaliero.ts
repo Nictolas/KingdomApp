@@ -147,7 +147,15 @@ function applicaPastoSingoloGiorno(
         nextMensa = daMensa.inventarioMensaByEdificioId;
         nutrito = daMensa.ok;
         itemIdConsumato = daMensa.itemId;
-        if (!nutrito) carestiaMensa = true;
+        // Il rispetto di un tabù o di una dieta personale può impedire
+        // un pasto senza che il regno sia realmente in carestia: il cibo
+        // rimane disponibile per gli altri abitanti.
+        if (!nutrito) {
+          const nessunCiboNelleMense = mensaIds.every(id =>
+            !(nextMensa[id] ?? []).some(voce => voce.quantità > 0)
+          );
+          if (nessunCiboNelleMense) carestiaMensa = true;
+        }
       }
     }
 
