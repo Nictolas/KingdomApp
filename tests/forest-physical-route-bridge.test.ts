@@ -15,7 +15,7 @@ const mappa = {
   14: { id: 60, nome: "Capanna del Cacciatore", edificioGlobaleId: 60 },
   18: { id: 51, nome: "Bosco", edificioGlobaleId: 51 }
 };
-const opzioni = { edifici, edificiInMappa: mappa, cols: 10, rows: 10, isWalkable: (i: number) => i >= 0 && i < 100 && !Object.hasOwn(mappa, i), casaEdificioId: 1 };
+const opzioni = { edifici, edificiInMappa: mappa, cols: 10, rows: 10, isWalkable: (i: number) => i >= 0 && i < 100 && !Object.prototype.hasOwnProperty.call(mappa, i), casaEdificioId: 1 };
 test("Il Cacciatore compie tappe su edifici realmente costruiti, senza generare coordinate finte", () => {
   let turno = iniziaTurnoForestale({ abitanteId: 3, giorno: 2, lavoro: "Cacciatore", sedeId: 60, minuto: 420 });
   const versoSede = pianificaTappaTurnoForestale({ ...opzioni, turno, cellaCorrente: 21 });
