@@ -140,6 +140,7 @@ import {
 } from "../game/luogoCulto";
 import { creaRichiestaLuogoCulto, type RichiestaInAttesa } from "../game/richieste";
 import { provaCreaReligioneCustom, type ReligioneCustom } from "../game/fedeleCulto";
+import { aggiornaSoddisfazioneReligioniNaturaliste } from "../game/reazioneReligioniBosco";
 import { assicuraReligioneTempioChiese } from "../game/chiesa";
 import { isSimulationRunning, type GamePhase } from "../game/gamePhase";
 import type { GameMode } from "../game/gameMode";
@@ -676,6 +677,17 @@ export function useGameState() {
     "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto delle Ombre" | string | null
   >(null);
   const [religioniCustom, setReligioniCustom] = useState<ReligioneCustom[]>([]);
+
+  /** Reazioni ecologiche aggiornate al mutare di fede, popolazione e scorte:
+   *  un solo modificatore per fedele, mai una penalità cumulativa per tick.
+   */
+  useEffect(() => {
+    if (!simulationEnabled) return;
+    setAbitanti(prev => aggiornaSoddisfazioneReligioniNaturaliste(
+      prev, edifici, religioniCustom
+    ));
+  }, [simulationEnabled, abitanti, edifici, religioniCustom]);
+
   
   // Capo religioso e fedeli per ogni culto
   const [capoReligiosoSole, setCapoReligiosoSole] = useState<number | null>(capoReligiosoSoleIniziale);
@@ -1526,6 +1538,7 @@ export function useGameState() {
       emoji?: string;
       descrizione?: string;
       aspettoSacerdote?: import("../game/personaggioAspetto").AspettoPersonaggio;
+      dottrinaNaturalista?: import("../game/ecosistemaBosco").DottrinaNaturalista;
     }) => {
       const result = provaCreaReligioneCustom(input, religioniCustom, () => `rel-${Date.now()}`);
       if (result.ok) {
