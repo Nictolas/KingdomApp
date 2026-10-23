@@ -5,6 +5,28 @@ import { Pressable, StyleSheet, Text } from "react-native";
 import { tornaAllaMappa } from "./tornaAllaMappa";
 import { isBuildingRoute } from "./isBuildingRoute";
 
+/** Controlli fissi sul viewport: evita clipping sotto lo Stack/Canvas nella PWA iPhone. */
+export function ViewportBottomPortal({ children }: { children: React.ReactNode }) {
+  if (typeof document === "undefined") return null;
+  return createPortal(
+    <div
+      data-testid="viewport-bottom-portal"
+      style={{
+        position: "fixed",
+        left: 0,
+        right: 0,
+        bottom: "calc(8px + env(safe-area-inset-bottom, 0px))",
+        zIndex: 2147482000,
+        boxSizing: "border-box",
+        pointerEvents: "auto"
+      }}
+    >
+      {children}
+    </div>,
+    document.body
+  );
+}
+
 /** Il bottone resta ancorato al visual viewport su Safari/PWA, NON dopo lo Stack. */
 export function BuildingBottomExit() {
   const pathname = usePathname();

@@ -5,6 +5,11 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 import { tornaAllaMappa } from "./tornaAllaMappa";
 import { isBuildingRoute } from "./isBuildingRoute";
 
+/** Su native i controlli restano nel contenitore React Native; sul web usiamo un portal. */
+export function ViewportBottomPortal({ children }: { children: React.ReactNode }) {
+  return <>{children}</>;
+}
+
 /** Versione nativa. Sulla webapp Safari viene usata la variante .web.tsx. */
 export function BuildingBottomExit() {
   const pathname = usePathname();

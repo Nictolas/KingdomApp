@@ -1,7 +1,8 @@
 import React, { useState, useMemo } from "react";
-import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Dimensions, Platform, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
+import { ViewportBottomPortal } from "../src/navigation/BuildingBottomExit";
 import type { Edificio } from "../src/types";
 import { getStatoSalute } from "../src/game/ciboConsumo";
 import { getAbitazioneAbitante } from "../src/game/abitanteEdifici";
@@ -620,9 +621,18 @@ export default function AbitantiScreen() {
         </ScrollView>
       </ScrollView>
       </View>
-      <View style={styles.footer}>
-        <Text style={styles.back} onPress={() => router.back()}>← Home</Text>
-      </View>
+      <ViewportBottomPortal>
+        <View style={[styles.footer, styles.footerFixed, Platform.OS === "web" && styles.footerWebFixed]}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Torna alla mappa"
+            style={styles.backButton}
+            onPress={() => router.canGoBack() ? router.back() : router.replace("/")}
+          >
+            <Text style={styles.back}>← Torna alla mappa</Text>
+          </Pressable>
+        </View>
+      </ViewportBottomPortal>
 
       <AbitanteInfoModal
         visible={selectedAbitante !== null}
@@ -659,9 +669,38 @@ const styles = StyleSheet.create({
     borderTopWidth: StyleSheet.hairlineWidth,
     borderTopColor: "rgba(148,163,184,0.6)"
   },
+  footerFixed: {
+    position: "absolute",
+    left: 12,
+    right: 12,
+    bottom: 12,
+    padding: 8,
+    borderRadius: 14,
+    backgroundColor: "#0f172a",
+    zIndex: 1000
+  },
+  footerWebFixed: {
+    position: "relative",
+    left: 0,
+    right: 0,
+    bottom: 0,
+    marginHorizontal: 12
+  },
+  backButton: {
+    width: "100%",
+    minHeight: 54,
+    borderRadius: 12,
+    backgroundColor: "#2563eb",
+    borderWidth: 1,
+    borderColor: "#60a5fa",
+    justifyContent: "center",
+    alignItems: "center"
+  },
   back: {
-    color: "#93c5fd",
-    fontSize: 12
+    color: "#ffffff",
+    fontSize: 16,
+    fontWeight: "800",
+    textAlign: "center"
   },
   title: {
     color: "#ffffff",
@@ -674,7 +713,7 @@ const styles = StyleSheet.create({
   content: {
     paddingHorizontal: 8,
     paddingVertical: 4,
-    paddingBottom: 6
+    paddingBottom: 104
   },
   superHeaderRow: {
     flexDirection: "row",
