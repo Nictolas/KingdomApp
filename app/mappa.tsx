@@ -602,6 +602,30 @@ type CommuteInfo = {
   udienzaCastelloEdificioId?: number;
 };
 
+/**
+ * Il normale ciclo alba/notte non deve cancellare i viaggi di persone
+ * che hanno già subito una rapina e stanno raggiungendo il Castello.
+ * Mantiene solo le commute già avviate e tuttora pendenti; i viaggi
+ * non ancora avviati vengono pianificati dall'effetto dedicato.
+ */
+export function preservaViaggiUdienzaDuranteCambioGiorno(
+  precedenti: Record<number, CommuteInfo>,
+  ordinari: Record<number, CommuteInfo>,
+  abitanti: readonly Abitante[]
+): Record<number, CommuteInfo> {
+  const pendenti = new Set(abitanti.filter(a =>
+    a.salute > 0 && a.richiestaRapinaBosco?.stato === "verso_castello"
+  ).map(a => a.id));
+  const mantenuti: Record<number, CommuteInfo> = {};
+  for (const [key, meta] of Object.entries(precedenti)) {
+    const id = Number(key);
+    if (pendenti.has(id) && meta.purpose === "udienza_banditi") {
+      mantenuti[id] = meta;
+    }
+  }
+  return { ...ordinari, ...mantenuti };
+}
+
 type FootprintVariant =
   | "amministrazione"
   | "dormitorio"
@@ -2950,6 +2974,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (notte) {
         const s = new Set<number>();
         for (const a of abitanti) {
+          if (a.richiestaRapinaBosco?.stato === "verso_castello") continue;
           if (cellaCasaPerAbitanteId.get(a.id) != null) s.add(a.id);
         }
         setDormonoACasaIds(s);
@@ -2966,6 +2991,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       const next: Record<number, CommuteInfo> = {};
       for (const a of abitanti) {
         if (a.razza === "Golem") continue;
+        if (a.richiestaRapinaBosco?.stato === "verso_castello") continue;
         const home = cellaCasaPerAbitanteId.get(a.id) ?? null;
         const ult = ultimaCellaAbitanteRef.current.get(a.id) ?? null;
         const fromBase = ult ?? home;
@@ -3023,11 +3049,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             purpose === "cerca_lavoro" ? mattina.lavoroCercaEdificioId : undefined
         };
       }
-      setCommuteByAbitanteId(next);
+      setCommuteByAbitanteId(prev =>
+        preservaViaggiUdienzaDuranteCambioGiorno(prev, next, abitanti)
+      );
       setLavoroArrivatiIds((prev) => {
         const s = new Set(prev);
         for (const a of abitanti) {
           if (a.razza === "Golem") continue;
+          if (a.richiestaRapinaBosco?.stato === "verso_castello") continue;
           if (next[a.id]?.purpose === "rapina") continue;
           // Fame critica eleggibile a rapina: non teletrasportare al lavoro.
           if (
@@ -3065,6 +3094,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       const next: Record<number, { path: number[]; token: number; purpose: "home" }> = {};
       const dormiSenzaPercorso: number[] = [];
       for (const a of abitanti) {
+        if (a.richiestaRapinaBosco?.stato === "verso_castello") continue;
         const home = cellaCasaPerAbitanteId.get(a.id);
         if (home == null) continue;
         const from = ultimaCellaAbitanteRef.current.get(a.id) ?? home;
@@ -3075,7 +3105,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           dormiSenzaPercorso.push(a.id);
         }
       }
-      setCommuteByAbitanteId(next);
+      setCommuteByAbitanteId(prev =>
+        preservaViaggiUdienzaDuranteCambioGiorno(prev, next, abitanti)
+      );
       if (dormiSenzaPercorso.length > 0) {
         setDormonoACasaIds((prev) => {
           const s = new Set(prev);
