@@ -2,7 +2,7 @@ import type { Abitante, Edificio } from "../types";
 import { isGiocatore } from "./schiavituCommercio";
 import { getCastaAbitante } from "./casta";
 import { aggiungiOggettoInventarioAbitante } from "./inventario";
-import { probabilitaSuccessoForestale } from "./ecosistemaBosco";
+import { probabilitaSuccessoForestale, normalizzaStatoEcosistemaBosco, rigeneraBoscoDopoPrelievi, type RiserveBosco } from "./ecosistemaBosco";
 import { SEDE_PER_PROFESSIONE, type ProfessioneForestale } from "./turniForestali";
 
 export type BoscoBottinoDef = {
@@ -292,14 +292,38 @@ export function forzaAssunzioneRaccoglitoreNelBosco(
   };
 }
 
+const FONTI_ANIMALI_BOSCO = new Set(["piccoli-animali", "selvaggina", "piume", "ossa", "corna", "pelli-e-pellicce", "uova-selvatiche", "nidi"]);
+const FONTI_ALBERI_BOSCO = new Set(["legno", "rami", "resina"]);
+function fonteBosco(itemId: string): keyof RiserveBosco {
+  if (FONTI_ANIMALI_BOSCO.has(itemId)) return "fauna";
+  if (FONTI_ALBERI_BOSCO.has(itemId)) return "alberi";
+  return "vegetazione";
+}
+
 export function applicaRaccoltaBoscoGiornaliera(
   abitanti: Abitante[],
   edifici: Edificio[],
   giornoCorrente: number,
   giorni: number
-): { abitanti: Abitante[]; messaggi: string[]; bottini: BottinoBoscoRegistrato[] } {
+): { abitanti: Abitante[]; edifici: Edificio[]; messaggi: string[]; bottini: BottinoBoscoRegistrato[] } {
   const bosco = trovaBoscoOperativo(edifici);
-  if (!bosco || giorni <= 0) return { abitanti, messaggi: [], bottini: [] };
+  if (!bosco || giorni <= 0) return { abitanti, edifici, messaggi: [], bottini: [] };
+  let stato = normalizzaStatoEcosistemaBosco(bosco.ecosistemaBosco, giornoCorrente - giorni - 1);
+  if (stato.ultimoGiornoAggiornato >= giornoCorrente - 1) {
+    return { abitanti, edifici, messaggi: [], bottini: [] };
+  }
+  // Recupera la rigenerazione dei giorni senza attività prima dell'ultimo.
+  for (let gg = stato.ultimoGiornoAggiornato + 1; gg < giornoCorrente - 1; gg++) {
+    const trimestre = Math.floor(((gg % 360) + 360) % 360 / 90);
+    const stagione = (["primavera", "estate", "autunno", "inverno"] as const)[trimestre]!;
+    stato = { ...stato, riserve: rigeneraBoscoDopoPrelievi(
+      stato.riserve, { alberi: 0, fauna: 0, vegetazione: 0 }, 0, stagione
+    ), ultimoGiornoAggiornato: gg };
+  }
+  const disponibili: RiserveBosco = { ...stato.riserve };
+  const prelevati: RiserveBosco = { alberi: 0, fauna: 0, vegetazione: 0 };
+  let cacciatoriOggi = 0;
+  let silvicoltoriOggi = 0;
   const raccoglitori = new Set(bosco.abitantiAssegnati ?? []);
 
   const messaggi: string[] = [];
