@@ -181,6 +181,7 @@ import { ID_GIOCATORE } from "../src/game/schiavituCommercio";
 import { orarioPerLavoro } from "../src/game/orariLavoroCatalogo";
 import { applicaBanditiBoscoGiornalieri, registraIngressoCastello } from "../src/game/banditiBosco";
 import { pianificaTappaTurnoForestale } from "../src/game/pianificaTappaForestale";
+import { preservaViaggiUdienzaDuranteCambioGiorno } from "../src/game/preservaViaggioUdienza";
 import { scegliAzioneCommuteBloccataLavoro } from "../src/game/commuteBloccataLavoro";
 import {
   SEDE_PER_PROFESSIONE,
@@ -601,30 +602,6 @@ type CommuteInfo = {
   rapinaTarget?: RapinaTarget;
   udienzaCastelloEdificioId?: number;
 };
-
-/**
- * Il normale ciclo alba/notte non deve cancellare i viaggi di persone
- * che hanno già subito una rapina e stanno raggiungendo il Castello.
- * Mantiene solo le commute già avviate e tuttora pendenti; i viaggi
- * non ancora avviati vengono pianificati dall'effetto dedicato.
- */
-export function preservaViaggiUdienzaDuranteCambioGiorno(
-  precedenti: Record<number, CommuteInfo>,
-  ordinari: Record<number, CommuteInfo>,
-  abitanti: readonly Abitante[]
-): Record<number, CommuteInfo> {
-  const pendenti = new Set(abitanti.filter(a =>
-    a.salute > 0 && a.richiestaRapinaBosco?.stato === "verso_castello"
-  ).map(a => a.id));
-  const mantenuti: Record<number, CommuteInfo> = {};
-  for (const [key, meta] of Object.entries(precedenti)) {
-    const id = Number(key);
-    if (pendenti.has(id) && meta.purpose === "udienza_banditi") {
-      mantenuti[id] = meta;
-    }
-  }
-  return { ...ordinari, ...mantenuti };
-}
 
 type FootprintVariant =
   | "amministrazione"
