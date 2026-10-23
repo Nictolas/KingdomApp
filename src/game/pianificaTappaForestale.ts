@@ -49,6 +49,6 @@ export function pianificaTappaTurnoForestale(input: {
     cellaCorrente, edificioId, edificiInMappa, cols, rows, isWalkable
   );
   // Anche un percorso di una cella richiede conferma fisica di arrivo.
-  if (!percorso?.length || percorso[0] !== cellaCorrente && !isWalkable(cellaCorrente)) return null;
+  if (!percorso?.length) return null;
   return { destinazione, edificioId, path: percorso };
 }
