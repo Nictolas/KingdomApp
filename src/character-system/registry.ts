@@ -57,7 +57,7 @@ function semanticForSlot(asset: ManifestAsset, appearance: CharacterAppearance, 
     // Le teste d'orco LPC sono già verdi nella variante olive; il nuovo corpo
     // orc_green riusa quelle teste anziché sovrapporre una testa umana marrone.
     const matchesGreenOrcHead =
-      appearance.race === "orc" && appearance.skinTone === "orc_green" && asset.color === "olive";
+      (appearance.race === "orc" || appearance.race === "goblin") && appearance.skinTone === "orc_green" && asset.color === "olive";
     return asset.semanticId === appearance.headStyle &&
       (asset.color === "base" || asset.color === appearance.skinTone || matchesGreenOrcHead);
   }
@@ -228,7 +228,7 @@ export function compatibleCatalogOptions(appearance: CharacterAppearance, option
     .filter((asset) => (asset.slot === "hairFront" || asset.slot === "hairBack") && asset.semanticId === appearance.hairStyle)
     .map((asset) => asset.color))].sort();
   return {
-    skinTones: appearance.race === "orc"
+    skinTones: appearance.race === "orc" || appearance.race === "goblin"
       ? ["orc_green"]
       : LPC_RUNTIME_MANIFEST.options.skinTones.filter((tone) => bodyAssets.some((asset) => asset.slot === "body" && asset.color === tone)),
     hairStyles: [...new Set([...values("hairFront"), ...values("hairBack")])].sort(),

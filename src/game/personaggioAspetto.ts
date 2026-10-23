@@ -90,8 +90,13 @@ export const ASPETTO_GIOCATORE_DEFAULT: AspettoPersonaggio = {
 
 /** Verde standard degli orchi (compatibile con la palette LPC della testa). */
 export const COLORE_PELLE_ORCO = "#39aa4e";
+export const COLORE_PELLE_GOBLIN = COLORE_PELLE_ORCO;
 
 /** Aggiorna anche i vecchi salvataggi in memoria senza toccare vestiti o tratti. */
+export function normalizzaAspettoGoblin(aspetto: AspettoPersonaggio): AspettoPersonaggio {
+  return { ...aspetto, colorePelle: COLORE_PELLE_GOBLIN, ...(aspetto.characterAppearance ? { characterAppearance: normalizeCharacterAppearance({ ...aspetto.characterAppearance, race: "goblin" }) } : {}) };
+}
+
 export function normalizzaAspettoOrco(aspetto: AspettoPersonaggio): AspettoPersonaggio {
   return {
     ...aspetto,
@@ -133,7 +138,7 @@ export function generaAspettoCasuale(
   const coloriPelle = razza === "Orco"
     ? [COLORE_PELLE_ORCO]
     : razza === "Goblin"
-      ? ["#79a86b", "#668f58", "#8aa66b"]
+      ? [COLORE_PELLE_GOBLIN]
       : COLORI_PELLE.filter((color) => color !== "#79a86b");
   const cappelli = razza === "Nano"
     ? ["nessuno", "berretto", "cappuccio"] as const
@@ -326,6 +331,10 @@ export function aspettoPerVisualizzazioneAbitante(
     lavoro?: string;
     incinta?: boolean;
     sesso?: "M" | "F" | null;
+    casta?: string | null;
+    ceto?: string | null;
+    ruoloSchiavitu?: string | null;
+    schiavistaId?: number | null;
   },
   rules: { nudismoAttivo?: boolean } = {}
 ): AspettoPersonaggio | undefined {
@@ -347,8 +356,11 @@ export function aspettoPerVisualizzazioneAbitante(
   if (!currentAppearance) return aspetto;
   // Anche gli aspetti legacy già salvati non devono mai mostrare pelle umana.
   if (razza === "Orco") aspetto = normalizzaAspettoOrco(aspetto);
+  if (razza === "Goblin") aspetto = normalizzaAspettoGoblin(aspetto);
 
-  const pubblico = appearanceForPublicSpace(currentAppearance, {
+  const schiavo = (abitante.casta ?? abitante.ceto) === "Schiavo" ||
+    (!(abitante.casta ?? abitante.ceto) && abitante.ruoloSchiavitu === "schiavo" && abitante.schiavistaId != null);
+  const pubblico = appearanceForPublicSpace(aspetto.characterAppearance!, {
     isKing: abitante.id === 1,
     nudismoAttivo: rules.nudismoAttivo === true,
     incinta: abitante.incinta === true,
@@ -361,18 +373,30 @@ export function aspettoPerVisualizzazioneAbitante(
   // Il corpo cambia con gli anni, senza rigenerare pelle/colore/vestiti e
   // senza mutare l'aspetto memorizzato nei vecchi salvataggi.
   const eta = abitante.eta;
-  if (eta == null) return { ...aspetto, characterAppearance: copriBustoFemminile(pubblico, abitante.sesso) };
+  if (eta == null) return { ...aspetto, characterAppearance: schiavo ? aspettoSchiavo(pubblico) : copriBustoFemminile(pubblico, abitante.sesso) };
   const bodyType = razza === "Nano" ? "child"
     : eta < 13 ? "child"
     : eta < 18 ? "teen"
     : abitante.sesso === "F" ? "female" : "male";
   const ageGroup = bodyType === "child" ? "child" : bodyType === "teen" ? "teen" : "adult";
   if (pubblico.bodyType === bodyType && pubblico.ageGroup === ageGroup) {
-    return { ...aspetto, characterAppearance: copriBustoFemminile(pubblico, abitante.sesso) };
+    return { ...aspetto, characterAppearance: schiavo ? aspettoSchiavo(pubblico) : copriBustoFemminile(pubblico, abitante.sesso) };
   }
   const aggiornato = normalizeCharacterAppearance({
     ...pubblico, bodyType, ageGroup, bodyFamily: bodyFamilyFor(pubblico.race, ageGroup)
   });
   const finale = canRenderCharacter(aggiornato, "idle") ? aggiornato : pubblico;
-  return { ...aspetto, characterAppearance: copriBustoFemminile(finale, abitante.sesso) };
+  return { ...aspetto, characterAppearance: schiavo ? aspettoSchiavo(finale) : copriBustoFemminile(finale, abitante.sesso) };
+}
+
+/** Uniforme visiva esclusiva della casta Schiavo, senza mutare i vestiti salvati. */
+export function aspettoSchiavo(a: CharacterAppearance): CharacterAppearance {
+  return normalizeCharacterAppearance({
+    ...a, hairStyle: "none", beardStyle: "none",
+    outfit: "none", upperOutfit: "none", sleeveOutfit: "none",
+    lowerOutfit: "skirts_slit", outfitSecondaryColor: "brown",
+    fullOutfit: "none", fullOutfitTrim: "none", footwear: "none",
+    headwear: "none", neckwear: "none", facialMask: "none", facialEyes: "none",
+    cape: "none", capeTrim: "none", accessory: "none"
+  });
 }
