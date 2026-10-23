@@ -84,6 +84,10 @@ test("Il codice della mappa conferma il Castello esclusivamente dopo fine commut
   assert.match(source.slice(pos, pos + 1200), /registraIngressoCastello\(/);
   assert.match(source, /pianificaCommuteVersoEdificioGlobaleDaCella\(/);
   assert.match(source, /udienzaCastelloEdificioId/);
+  assert.match(source, /applicaBanditiBoscoGiornalieri\(/);
+  const hook = fs.readFileSync("src/hooks/useGameState.ts", "utf8");
+  assert.doesNotMatch(hook, /applicaBanditiBoscoGiornalieri\(/);
+
 });
 
 test("La frequenza RNG rimane vicina al 3% e scende con i Guardaboschi", () => {
