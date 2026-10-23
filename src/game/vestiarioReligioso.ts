@@ -1,6 +1,6 @@
 import type { Abitante } from "../types";
 import type { DogmaReligioso } from "./dogmiReligiosi";
-import type { VestitiPersonaggio, RazzaGiocatore } from "./personaggioAspetto";
+import type { VestitiPersonaggio } from "./personaggioAspetto";
 import { abitoPrescrittoDaDogma } from "./dogmiReligiosi";
 import { aspettoPerVisualizzazioneAbitante, generaAspettoDaSeed } from "./personaggioAspetto";
 import { canRenderCharacter, compatibleCatalogOptions, firstCompatibleColorForField } from "../character-system/registry";
@@ -58,15 +58,15 @@ export function indossaAbitoDellaFede(
 
   // La resa pubblica del Nano usa sempre l'outfit LPC child obbligatorio;
   // sarebbe scorretto dichiarare conforme un abito che la mappa poi nasconde.
-  if (abitante.razza === "Nano" || abitante.eta < 13)
+  if (abitante.razza === "Nano" || abitante.eta < 13 || abitante.incinta === true)
     return { ok: false, motivo: "L'abito prescritto non ha ancora una variante LPC compatibile con questa corporatura." };
 
-  const razze: RazzaGiocatore[] = ["Umano", "Elfo", "Nano", "Orco"];
-  const razza = razze.includes(abitante.razza as RazzaGiocatore)
-    ? abitante.razza as RazzaGiocatore : "Umano";
+  const razze = ["Umano", "Elfo", "Nano", "Orco", "Goblin"] as const;
+  const razza = razze.find(r => r === abitante.razza) ?? "Umano";
   const saved = abitante.aspetto ?? generaAspettoDaSeed(razza, abitante.id, { sesso: abitante.sesso });
-  const visual = aspettoPerVisualizzazioneAbitante({ ...abitante, aspetto: saved });
-  const current = visual?.characterAppearance;
+  // Non persistere le varianti derivate solo dal rendering pubblico (es. cappello professionale).
+  const current = saved.characterAppearance ??
+    aspettoPerVisualizzazioneAbitante({ ...abitante, aspetto: saved })?.characterAppearance;
   if (!current) return { ok: false, motivo: "Non è disponibile un modello LPC per questo abitante." };
   const catalog = compatibleCatalogOptions(current);
   const upper = trovaStileDisponibile(catalog.upperOutfits, richiesto);
@@ -89,6 +89,14 @@ export function indossaAbitoDellaFede(
   });
   if (!canRenderCharacter(next, "idle") || !canRenderCharacter(next, "walk"))
     return { ok: false, motivo: "Lo sprite LPC dell'abito non è completo per idle e camminata." };
+
+  const pubblicato = aspettoPerVisualizzazioneAbitante({
+    ...abitante, aspetto: { ...saved, vestiti: richiesto, characterAppearance: next }
+  })?.characterAppearance;
+  if (!pubblicato || pubblicato.upperOutfit !== next.upperOutfit ||
+      pubblicato.fullOutfit !== "none" || !canRenderCharacter(pubblicato, "walk")) {
+    return { ok: false, motivo: "Le regole grafiche di questo personaggio nasconderebbero l'abito della fede." };
+  }
 
   return {
     ok: true,
