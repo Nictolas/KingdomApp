@@ -535,8 +535,9 @@ export default function ReligioniScreen() {
               })}
             </View>
             <Text style={styles.modalHint}>
-              La lista è filtrabile; i divieti vengono registrati nel culto.
-              I loro effetti sul consumo saranno applicati in una fase successiva.
+              I fedeli non acquistano né consumano gli alimenti vietati durante i
+              pasti automatici, in mensa o all'Emporio. Se non trovano alternative
+              compatibili possono restare affamati.
             </Text>
 
             {(["fedeli", "sacerdoti"] as const).map(gruppo => {
@@ -546,6 +547,11 @@ export default function ReligioniScreen() {
                 <View key={gruppo}>
                   <Text style={styles.fieldLabel}>
                     Abito prescritto ai {gruppo}
+                  </Text>
+                  <Text style={styles.modalHint}>
+                    Chi non indossa davvero l'abito richiesto perde Soddisfazione.
+                    La penalità non si accumula a ogni giornata e si annulla
+                    quando l'abitante cambia vestito o il dogma viene rimosso.
                   </Text>
                   <View style={styles.optionsWrap}>
                     {[null, ...VESTITI_DOGMA].map(valore => (
