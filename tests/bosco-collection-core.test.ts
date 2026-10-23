@@ -19,6 +19,7 @@ const raccoglitore = {
   casta: "Cittadino",
   razza: "Umano",
   personalità: "Neutrale",
+  competenza: 100,
   inventario: [
     { itemId: "monete", quantità: 5 },
     { itemId: "mela", quantità: 1 }
@@ -51,7 +52,7 @@ test("normalizzazione inventario conserva materiali raccolti", () => {
 test("Raccoglitore riceve il bottino giornaliero e registra ultimo raccolto", () => {
   const atteso = raccoltoBoscoDelGiorno(raccoglitore.id, 1);
   const result = applicaRaccoltaBoscoGiornaliera(
-    [{ ...raccoglitore, ultimoIngressoBoscoGiorno: 1 }], [bosco], 2, 1
+    [{ ...raccoglitore, ultimoIngressoBoscoGiorno: 1, ultimoLavoroBosco: { giorno: 1, minuti: 360 } }], [bosco], 2, 1
   );
   const lino = result.abitanti[0]!;
 
@@ -78,11 +79,47 @@ test("Raccoglitore assunto che non raggiunge il Bosco: NESSUN bottino", () => {
 });
 
 test("Il bottino non arriva due volte e non si recupera retroattivamente", () => {
-  const presente = { ...raccoglitore, ultimoIngressoBoscoGiorno: 4 };
+  const presente = { ...raccoglitore, ultimoIngressoBoscoGiorno: 4, ultimoLavoroBosco: { giorno: 4, minuti: 360 } };
   const prima = applicaRaccoltaBoscoGiornaliera([presente], [bosco], 5, 1);
   assert.equal(prima.bottini.length, 1);
   const doppia = applicaRaccoltaBoscoGiornaliera(prima.abitanti, [bosco], 5, 1);
   assert.equal(doppia.bottini.length, 0);
   const giorniSuccessivi = applicaRaccoltaBoscoGiornaliera(prima.abitanti, [bosco], 7, 2);
   assert.equal(giorniSuccessivi.bottini.length, 0);
+});
+
+test("Ingresso senza lavoro: nessun raccolto, anche se l'abitante arriva davvero", () => {
+  for (const minuti of [0, 1, 29]) {
+    const persona = {
+      ...raccoglitore,
+      ultimoIngressoBoscoGiorno: 8,
+      ultimoLavoroBosco: { giorno: 8, minuti }
+    };
+    const risultato = applicaRaccoltaBoscoGiornaliera([persona], [bosco], 9, 1);
+    assert.equal(risultato.bottini.length, 0);
+    assert.equal(risultato.abitanti[0], persona);
+  }
+  const arrivoNonTracciato = { ...raccoglitore, ultimoIngressoBoscoGiorno: 8 };
+  assert.equal(applicaRaccoltaBoscoGiornaliera([arrivoNonTracciato], [bosco], 9, 1).bottini.length, 0);
+});
+
+test("Il tempo lavorato deve appartenere allo stesso giorno del viaggio reale", () => {
+  const persona = {
+    ...raccoglitore,
+    ultimoIngressoBoscoGiorno: 8,
+    ultimoLavoroBosco: { giorno: 7, minuti: 400 }
+  };
+  assert.equal(applicaRaccoltaBoscoGiornaliera([persona], [bosco], 9, 1).bottini.length, 0);
+});
+
+test("Il risultato della raccolta è stabile quando si ricarica il salvataggio", () => {
+  const residente = {
+    ...raccoglitore,
+    ultimoIngressoBoscoGiorno: 1,
+    ultimoLavoroBosco: { giorno: 1, minuti: 360 }
+  };
+  const a = applicaRaccoltaBoscoGiornaliera([residente], [bosco], 2, 1);
+  const b = applicaRaccoltaBoscoGiornaliera([residente], [bosco], 2, 1);
+  assert.deepEqual(a.bottini, b.bottini);
+  assert.deepEqual(a.abitanti, b.abitanti);
 });
