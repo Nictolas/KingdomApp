@@ -87,7 +87,8 @@ export function consumaPastoDaInventarioMensa(
 ): { inventarioMensa: VoceInventario[]; itemId: string } | null {
   const inv = normalizzaInventarioMensa(inventarioMensa);
   const idx = inv.findIndex(
-    (v) => v.quantità > 0 && abitantePuòConsumareOggettoCibo(personalità, v.itemId)
+    (v) => v.quantità > 0 && abitantePuòConsumareOggettoCibo(personalità, v.itemId) &&
+      permesso(v.itemId)
   );
   if (idx < 0) return null;
   const itemId = inv[idx]!.itemId;
