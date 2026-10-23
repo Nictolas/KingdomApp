@@ -20,7 +20,7 @@ export function filtraEdificiInizialiPerModalita(
 ): Edificio[] {
   return edifici.filter((edificio) => {
     // Le basi forestali non esistono alla nascita del regno: il giocatore deve costruirle.
-    if (new Set(["Capanna del Cacciatore", "Campo dei Taglialegna", "Capanno del Guardaboschi", "Erboristeria", "Apiario", "Vivaio forestale"]).has(edificio.nome)) return false;
+    if (new Set(["Capanna del Cacciatore", "Campo dei Taglialegna", "Capanno del Guardaboschi", "Erboristeria", "Apiario", "Vivaio forestale", "Cerchio dei Druidi"]).has(edificio.nome)) return false;
     if (edificio.tipo === "Luogo di Culto") return false;
     if (edificio.nome === "Acquedotto" || edificio.nome === "Dissalatore" || edificio.nome === "Ponte") {
       return false;
