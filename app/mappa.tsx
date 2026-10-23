@@ -2052,11 +2052,23 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           })
         );
       } else if (purpose === "work") {
+        // Segna presenza nel Bosco solo al termine di un vero percorso.
+        const sede = primoEdificioLavoroOrarioPerAbitante(abitanteId, edifici);
+        if (sede?.nome === "Bosco") {
+          aggiornaAbitanteById(abitanteId, (ab) => ({
+            ...ab, ultimoIngressoBoscoGiorno: getGiornoGiocoSnapshot()
+          }));
+        }
         setLavoroArrivatiIds((s) => new Set(s).add(abitanteId));
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
         setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
       } else if (purpose === "cerca_lavoro" && lavoroCercaEdificioId != null) {
-        assumiCittadinoDisoccupatoAEdificio(abitanteId, lavoroCercaEdificioId);
+        const assunto = assumiCittadinoDisoccupatoAEdificio(abitanteId, lavoroCercaEdificioId);
+        if (assunto && edifici.some((e) => e.id === lavoroCercaEdificioId && e.nome === "Bosco")) {
+          aggiornaAbitanteById(abitanteId, (ab) => ({
+            ...ab, ultimoIngressoBoscoGiorno: getGiornoGiocoSnapshot()
+          }));
+        }
         setLavoroArrivatiIds((s) => new Set(s).add(abitanteId));
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
         setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
