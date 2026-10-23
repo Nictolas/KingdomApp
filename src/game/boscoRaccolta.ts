@@ -284,7 +284,9 @@ export function applicaRaccoltaBoscoGiornaliera(
     if (!raccoglitori.has(a.id) || a.lavoro !== LAVORO_RACCOGLITORE) return a;
     let next = a;
     for (let g = 0; g < giorni; g++) {
-      const giorno = giornoCorrente - giorni + g + 1;
+      // La raccolta si contabilizza alla mezzanotte SUCCESSIVA alla presenza reale.
+      const giorno = giornoCorrente - giorni + g;
+      if (next.ultimoIngressoBoscoGiorno !== giorno) continue;
       if (next.ultimoRaccoltoBosco?.giorno === giorno) continue;
       const voci = raccoltoBoscoDelGiorno(a.id, giorno);
       for (const v of voci) {
