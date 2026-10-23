@@ -1,9 +1,10 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useLocalSearchParams, useRouter } from "expo-router";
 import { useGameContext } from "../../src/context/GameContext";
 import { abitantiPerRazza, schedaDaSlug } from "../../src/game/razzeNavigazione";
 import { AbitanteAvatarPreview } from "../../src/ui/AbitanteAvatarPreview";
+import { AbitanteInfoModal } from "../../src/ui/AbitanteInfoModal";
 
 /** Schede dinamiche /razze/umani, /razze/nani, /razze/felix, ecc. */
 export default function AbitantiRazzaScreen() {
@@ -11,7 +12,10 @@ export default function AbitantiRazzaScreen() {
   const params = useLocalSearchParams<{ razza?: string | string[] }>();
   const slug = Array.isArray(params.razza) ? params.razza[0] : params.razza ?? "";
   const scheda = schedaDaSlug(slug);
-  const { abitanti } = useGameContext();
+  const { abitanti, edifici, calcolaFelicitàModificata, etaMinimaLavoro } = useGameContext();
+  const [selectedAbitanteId, setSelectedAbitanteId] = useState<number | null>(null);
+  const selectedAbitante = abitanti.find((a) => a.id === selectedAbitanteId) ?? null;
+  const getAbitanteNome = (id: number) => abitanti.find((a) => a.id === id)?.nome ?? "ID " + id;
   const { width } = useWindowDimensions();
   const elenco = useMemo(
     () => scheda ? abitantiPerRazza(abitanti, scheda.razza) : [],
@@ -52,7 +56,13 @@ export default function AbitantiRazzaScreen() {
           ) : (
             <View style={styles.grid} testID="griglia-abitanti-razza">
               {elenco.map((abitante) => (
-                <View key={abitante.id} style={[styles.residentCard, { width: cardWidth }]} testID={`abitante-razza-${abitante.id}`}>
+                <Pressable
+                  key={abitante.id}
+                  style={({ pressed }) => [styles.residentCard, { width: cardWidth }, pressed && styles.residentCardPressed]}
+                  accessibilityRole="button"
+                  accessibilityLabel={"Apri la scheda di " + abitante.nome}
+                  onPress={() => setSelectedAbitanteId(abitante.id)}
+                  testID={`abitante-razza-${abitante.id}`}>
                   <View style={styles.portraitWrap}>
                     {abitante.razza === "Golem" ? (
                       <Text style={styles.golemEmoji}>🗿</Text>
@@ -61,7 +71,7 @@ export default function AbitantiRazzaScreen() {
                     )}
                   </View>
                   <Text style={styles.name} numberOfLines={3}>{abitante.nome}</Text>
-                </View>
+                </Pressable>
               ))}
             </View>
           )}
@@ -78,6 +88,15 @@ export default function AbitantiRazzaScreen() {
       <Pressable style={styles.footer} accessibilityRole="button" onPress={() => router.replace("/razze")}>
         <Text style={styles.back}>← Tutte le razze</Text>
       </Pressable>
+      <AbitanteInfoModal
+        visible={selectedAbitante !== null}
+        abitante={selectedAbitante}
+        edifici={edifici}
+        onClose={() => setSelectedAbitanteId(null)}
+        getAbitanteNome={getAbitanteNome}
+        calcolaFelicitàModificata={calcolaFelicitàModificata}
+        etaMinimaLavoro={etaMinimaLavoro}
+      />
     </SafeAreaView>
   );
 }
@@ -101,6 +120,7 @@ const styles = StyleSheet.create({
     borderRadius: 13, alignItems: "center", justifyContent: "flex-start",
     paddingHorizontal: 9, paddingTop: 12, paddingBottom: 12
   },
+  residentCardPressed: { backgroundColor: "#26558c", borderColor: "#93c5fd" },
   portraitWrap: { height: 114, alignItems: "center", justifyContent: "center", marginBottom: 3 },
   golemEmoji: { fontSize: 58, textAlign: "center" },
   name: { color: "#ffffff", fontWeight: "800", fontSize: 13, textAlign: "center", lineHeight: 18 },

@@ -10,6 +10,7 @@ import {
 } from "../character-system/appearance";
 import {
   canRenderCharacter,
+  LPC_RUNTIME_MANIFEST,
   compatibleCatalogOptions,
   compatibleColorsForField,
   firstCompatibleColorForField,
@@ -365,6 +366,81 @@ export function felixRenderizzabile(value: CharacterAppearance): CharacterAppear
     lowerOutfit:"none", fullOutfit:"none", footwear:"none", cape:"none", capeTrim:"none" });
 }
 
+/**
+ * Alcuni aspetti preesistenti richiedono layer LPC assenti nella corporatura
+ * attuale (es. child_shirt sui Nani). Il resolver stretto scarta TUTTO lo
+ * sprite: adattiamo solo i campi impossibili, senza mutare il salvataggio.
+ * Regole obbligatorie di razza, genere, pelle e divise persistono inalterate.
+ */
+export function aspettoRenderizzabileAbitante(value: CharacterAppearance): CharacterAppearance {
+  const ready = (a: CharacterAppearance) =>
+    canRenderCharacter(a, "idle") && canRenderCharacter(a, "walk");
+  if (ready(value)) return value;
+  const base = normalizeCharacterAppearance(value);
+  if (ready(base)) return base;
+
+  const assets = LPC_RUNTIME_MANIFEST.assets.filter(
+    (a) => a.bodyType === base.bodyType && (a.animation === "idle" || a.animation === "walk")
+  );
+  const has = (slot: string, semantic: string) =>
+    assets.some((a) => a.slot === slot && a.semanticId === semantic && a.animation === "idle") &&
+    assets.some((a) => a.slot === slot && a.semanticId === semantic && a.animation === "walk");
+
+  // L'overlay Guardia può utilizzare lo sheet teen su corpo child; è legittimo.
+  const guardOverlay = base.upperOutfit === "guard" &&
+    LPC_RUNTIME_MANIFEST.assets.some(a => a.bodyType === "teen" && a.slot === "outfit" && a.semanticId === "guard");
+  const upperValid = base.upperOutfit === "none" || has("outfit", base.upperOutfit) || guardOverlay;
+  const lowerValid = base.lowerOutfit === "none" || has("lowerBody", base.lowerOutfit);
+  const fullValid = base.fullOutfit === "none" || has("fullOutfit", base.fullOutfit);
+  const hairValid = base.hairStyle === "none" ||
+    has("hairFront", base.hairStyle) || has("hairBack", base.hairStyle);
+  const beardValid = base.beardStyle === "none" || has("beard", base.beardStyle);
+  const headwearValid = base.headwear === "none" || has("headwear", base.headwear);
+  const footwearValid = base.footwear === "none" || has("footwear", base.footwear);
+
+  let candidate = normalizeCharacterAppearance({
+    ...base,
+    upperOutfit: upperValid ? base.upperOutfit : "none",
+    outfit: upperValid ? base.outfit : "none",
+    lowerOutfit: lowerValid ? base.lowerOutfit : "none",
+    fullOutfit: fullValid ? base.fullOutfit : "none",
+    fullOutfitTrim: fullValid ? base.fullOutfitTrim : "none",
+    sleeveOutfit: base.sleeveOutfit === "none" || has("outfit", base.sleeveOutfit)
+      ? base.sleeveOutfit : "none",
+    hairStyle: hairValid ? base.hairStyle : "none",
+    beardStyle: beardValid ? base.beardStyle : "none",
+    headwear: headwearValid ? base.headwear : "none",
+    footwear: footwearValid ? base.footwear : "none"
+  });
+  // Su vecchi salvataggi lo stile dei capelli può esistere ma il colore no.
+  if (candidate.hairStyle !== "none" && !assets.some(a =>
+    (a.slot === "hairFront" || a.slot === "hairBack") &&
+    a.semanticId === candidate.hairStyle && a.color === candidate.hairColor)) {
+    candidate = normalizeCharacterAppearance({
+      ...candidate, hairColor: firstCompatibleHairColor(candidate, candidate.hairStyle)
+    });
+  }
+  if (candidate.beardStyle !== "none" && !assets.some(a =>
+    a.slot === "beard" && a.semanticId === candidate.beardStyle && a.color === candidate.beardColor)) {
+    candidate = normalizeCharacterAppearance({
+      ...candidate,
+      beardColor: firstCompatibleColorForField(candidate, "beardColor", "beard", candidate.beardStyle)
+    });
+  }
+  if (ready(candidate)) return candidate;
+
+  // Non lasciare un ritratto completamente vuoto per un solo capo opzionale.
+  // L'aspetto originale (e le regole della casta) rimangono nei dati salvati.
+  candidate = normalizeCharacterAppearance({
+    ...candidate,
+    hairStyle: "none", beardStyle: "none", headwear: "none",
+    upperOutfit: "none", outfit: "none", sleeveOutfit: "none",
+    lowerOutfit: "none", fullOutfit: "none", fullOutfitTrim: "none",
+    footwear: "none"
+  });
+  return ready(candidate) ? candidate : base;
+}
+
 /** Variante stabile per completare vecchi salvataggi senza cambiare volto a ogni caricamento. */
 export function generaAspettoDaSeed(
   razza: RazzaConAspetto,
@@ -441,8 +517,9 @@ export function aspettoPerVisualizzazioneAbitante(
   const finalize = (value: CharacterAppearance) => {
     const dressed = schiavo ? aspettoSchiavo(value) : copriBustoFemminile(value, abitante.sesso);
     const femaleSafe = aspettoSenzaBarbaDonna(dressed, abitante.sesso);
-    return razza === "Goblin" ? goblinRenderizzabile(femaleSafe) :
+    const raceSafe = razza === "Goblin" ? goblinRenderizzabile(femaleSafe) :
       razza === "Felix" ? felixRenderizzabile(femaleSafe) : femaleSafe;
+    return aspettoRenderizzabileAbitante(raceSafe);
   };
 
   // Il corpo cambia con gli anni, senza rigenerare pelle/colore/vestiti e
