@@ -51,7 +51,7 @@ export function convertiFedeliInEresia(
     a.id !== 1
   );
   // Circa il 15% del culto originario, al massimo il 25% in una fondazione.
-  const max = Math.floor(candidati.length * 0.25);
+  const max = candidati.length > 0 ? Math.max(1, Math.floor(candidati.length * 0.25)) : 0;
   if (max === 0) return { abitanti: [...abitanti], convertitiIds: [] };
   const hash = (id: number) => {
     let h = (id * 2654435761) >>> 0;
