@@ -4881,4 +4881,8 @@ export const LPC_ASSET_SOURCES: Record<string, number> = {
   "lpc_orc_green_pregnant_walk": require("../../../assets/character-packs/lpc/generated/lpc_orc_green_pregnant_walk.png"),
   "lpc_orc_green_teen_idle": require("../../../assets/character-packs/lpc/generated/lpc_orc_green_teen_idle.png"),
   "lpc_orc_green_teen_walk": require("../../../assets/character-packs/lpc/generated/lpc_orc_green_teen_walk.png"),
+  "lpc_short_shorts_walnut_male_idle": require("../../../assets/character-packs/lpc/generated/lpc_short_shorts_walnut_male_idle.png"),
+  "lpc_short_shorts_walnut_male_walk": require("../../../assets/character-packs/lpc/generated/lpc_short_shorts_walnut_male_walk.png"),
+  "lpc_short_shorts_walnut_thin_idle": require("../../../assets/character-packs/lpc/generated/lpc_short_shorts_walnut_thin_idle.png"),
+  "lpc_short_shorts_walnut_thin_walk": require("../../../assets/character-packs/lpc/generated/lpc_short_shorts_walnut_thin_walk.png"),
 };

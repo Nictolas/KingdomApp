@@ -444,7 +444,7 @@ export function aspettoSchiavo(a: CharacterAppearance): CharacterAppearance {
   return normalizeCharacterAppearance({
     ...a, hairStyle: "none", beardStyle: "none",
     outfit: "none", upperOutfit: "none", sleeveOutfit: "none",
-    lowerOutfit: "skirts_slit", outfitSecondaryColor: "brown",
+    lowerOutfit: "short_shorts", outfitSecondaryColor: "walnut",
     fullOutfit: "none", fullOutfitTrim: "none", footwear: "none",
     headwear: "none", neckwear: "none", facialMask: "none", facialEyes: "none",
     cape: "none", capeTrim: "none", accessory: "none"
