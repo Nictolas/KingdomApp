@@ -27,7 +27,9 @@ export function aggiornaSoddisfazioneDogmiAbiti(
     const sacerdote = RUOLI_SACERDOTALI.has(a.lavoro)
       ? abitoPrescrittoDaDogma(dogmi, "sacerdoti") : null;
     const violations: { id: string; delta: number; motivo: string; durata: "permanente" }[] = [];
-    if (fedele && a.aspetto?.vestiti !== fedele) {
+    // Per Sacerdoti, Capi Religiosi e Druidi l'abito clericale prevale
+    // su quello dei fedeli: non si possono indossare due uniformi diverse.
+    if (fedele && !sacerdote && a.aspetto?.vestiti !== fedele) {
       violations.push({
         id: ID_DOGMA_ABITO_FEDELI, delta: -2,
         motivo: "Non rispetta gli abiti richiesti dalla propria fede", durata: "permanente"
