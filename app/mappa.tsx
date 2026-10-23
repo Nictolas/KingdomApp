@@ -2823,6 +2823,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     (nome: string, edificioId?: number) => {
       const route = EDIFICIO_TO_ROUTE[nome];
       if (!route) return;
+      if (route === "/sede-forestale" && edificioId != null) {
+        router.push(`/sede-forestale/${edificioId}`);
+        return;
+      }
       if (nome === "Serra" && edificioId != null) {
         router.push(`/serra/${edificioId}`);
         return;
