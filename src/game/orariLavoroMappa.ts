@@ -56,6 +56,12 @@ const NOMI_CON_ORARIO_LAVORO = new Set<string>([
   "Porto",
   "Zecca",
   "Bosco",
+  "Capanna del Cacciatore",
+  "Campo dei Taglialegna",
+  "Capanno del Guardaboschi",
+  "Erboristeria",
+  "Apiario",
+  "Vivaio forestale",
   "Miniera"
 ]);
 
