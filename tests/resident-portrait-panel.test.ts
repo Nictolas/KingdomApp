@@ -7,8 +7,8 @@ const portrait = readFileSync(new URL("../src/ui/ResidentPortrait.tsx", import.m
 
 test("resident panel grows only when an inhabitant is selected", () => {
   assert.match(map, /styles\.bottomBarInner, sintesiMappaAbitante && styles\.bottomBarInnerResident/);
-  assert.match(map, /bottomBarInnerResident:\s*\{\s*height: 160,/);
-  assert.match(map, /bottomBarInner:\s*\{[\s\S]*?height: 78,/);
+  assert.match(map, /bottomBarInnerResident:\s*\{\s*height: 230,/);
+  assert.match(map, /bottomBarInner:\s*\{[\s\S]*?height: Platform\.OS === "web" \? 150 : 128,/);
   assert.match(map, /sintesiAbitanteFooter:\s*\{[\s\S]*?minHeight: 46/);
 });
 

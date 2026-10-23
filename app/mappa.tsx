@@ -1,3 +1,4 @@
+import { calcolaPunteggioSoddisfazione } from "../src/game/soddisfazione";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -957,14 +958,17 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const deltaOrdini = calcolaDeltaOrdiniMercato();
   const deltaTesoroMercato = calcolaDeltaTesoroMercato();
 
-  const abitantiConFelicità = abitanti.filter((a) => a.razza !== "Golem");
-  const nConFelicità = abitantiConFelicità.length;
-  const felicitàMedia = nConFelicità ? Math.round(abitantiConFelicità.reduce((s, a) => s + calcolaFelicitàModificata(a), 0) / nConFelicità) : 0;
-  const nConLealtàPaura = abitantiConFelicità.length;
-  const lealtàMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.lealtà, 0) / nConLealtàPaura) : 0;
-  const pauraMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.paura, 0) / nConLealtàPaura) : 0;
-  const nDisoccupati = abitantiConFelicità.filter((a) => a.lavoro === "Disoccupato").length;
-  const disoccupazionePercent = nConFelicità ? Math.round((nDisoccupati / nConFelicità) * 100) : 0;
+  // La barra mostra la stessa Soddisfazione reale della pagina dedicata, non la vecchia Felicità.
+  const abitantiConSoddisfazione = abitanti.filter(a => a.id !== 1 && a.razza !== "Golem");
+  const soddisfazioneMediaRegno = abitantiConSoddisfazione.length > 0
+    ? (() => {
+        const total = abitantiConSoddisfazione.reduce(
+          (sum, a) => sum + calcolaPunteggioSoddisfazione(a, edifici, getGiornoGiocoSnapshot(), mese, anno), 0
+        );
+        const media = Math.round(total / abitantiConSoddisfazione.length * 10) / 10;
+        return (media > 0 ? "+" : "") + media;
+      })()
+    : "0";
 
   /** Una voce per nome (es. una sola "Serra") con id template del catalogo. */
   const edificiCatalogoModal = useMemo(() => {
@@ -1401,11 +1405,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const uscitaCostruzione = useCallback(() => {
     setCostruzioneSelezione(null);
     setPreviewCellHover(null);
+    setMostraGrigliaMappa(false);
   }, []);
 
   const uscitaDemolizione = useCallback(() => {
     setModalitaDemolisci(false);
     setConfermaDemolizionePending(null);
+    setMostraGrigliaMappa(false);
   }, []);
 
   const onDemolisciPress = useCallback(() => {
@@ -3881,95 +3887,56 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Banner in alto: MyKingdom, Mese/Anno, Diario, Felicità, Lealtà, Paura, Menu */}
+      {/* Header mobile su righe distinte: niente scorrimento orizzontale né statistiche obsolete. */}
       <View style={styles.topBanner}>
         <View style={styles.topBannerInner}>
-          <View style={styles.bannerTitleBlock}>
-            <Text style={styles.bannerTitleEmoji}>🏰</Text>
-            <View>
+          <View style={styles.topPrimaryRow}>
+            <View style={styles.bannerTitleBlock}>
+              <Text style={styles.bannerTitleEmoji}>🏰</Text>
               <Text style={styles.bannerTitle}>MyKingdom</Text>
-              <Text style={styles.bannerSubtitle}>Gestisci il tuo Regno</Text>
+            </View>
+            <View style={styles.topPrimaryActions}>
+              <Pressable style={styles.diarioBtn} onPress={() => router.push("/diario")}>
+                <Text style={styles.diarioBtnLabel}>📖 Diario</Text>
+              </Pressable>
+              <Pressable style={styles.menuBtn} onPress={() => router.push("/menu")}>
+                <Text style={styles.menuBtnText}>☰ Menu</Text>
+              </Pressable>
             </View>
           </View>
-          <View style={styles.badge}>
-            <View style={styles.badgeDateColumn}>
-              <View style={styles.badgeDateRow}>
-                <Text style={styles.badgeText}>📅 Mese {mese}</Text>
-                <Text style={styles.badgeText}>· Anno {anno}</Text>
+          <View style={styles.topSecondaryRow}>
+            <View style={styles.badge}>
+              <View style={styles.badgeDateColumn}>
+                <Text style={styles.badgeText}>Mese {mese} · Anno {anno}</Text>
+                <Text style={styles.badgeClock}>🕒 {formatOrologioGioco(orologioMinuti)}</Text>
               </View>
-              <View style={styles.badgeClockRow}>
-                <Text style={styles.badgeClock}>
-                  🕐 {formatOrologioGioco(orologioMinuti)}
-                  {orologioInPausa ? " · in pausa" : ""}
-                </Text>
-                <View style={styles.orologioControlliTempo}>
+              <View style={styles.orologioControlliTempo}>
+                <Pressable
+                  style={[styles.orologioPausaBtn, orologioInPausa && styles.orologioPausaBtnAttivo]}
+                  onPress={toggleOrologioPausa}
+                  accessibilityLabel={orologioInPausa ? "Riprendi il tempo" : "Metti in pausa il tempo"}
+                >
+                  <Text style={styles.orologioPausaBtnText}>{orologioInPausa ? "▶" : "⏸"}</Text>
+                </Pressable>
+                {OROLOGIO_GIOCO_VELOCITA.map(velocita => (
                   <Pressable
-                    style={[styles.orologioPausaBtn, orologioInPausa && styles.orologioPausaBtnAttivo]}
-                    onPress={toggleOrologioPausa}
-                    accessibilityLabel={orologioInPausa ? "Riprendi il tempo" : "Metti in pausa il tempo"}
+                    key={velocita}
+                    style={[styles.orologioVelocitaBtn, !orologioInPausa && orologioVelocita === velocita && styles.orologioVelocitaBtnAttivo]}
+                    onPress={() => setOrologioVelocita(velocita)}
+                    accessibilityLabel={"Velocità tempo " + velocita + " per"}
                   >
-                    <Text style={styles.orologioPausaBtnText}>{orologioInPausa ? "▶️" : "⏸️"}</Text>
+                    <Text style={[styles.orologioVelocitaBtnText, !orologioInPausa && orologioVelocita === velocita && styles.orologioVelocitaBtnTextAttivo]}>{velocita}×</Text>
                   </Pressable>
-                  {OROLOGIO_GIOCO_VELOCITA.map((velocita) => (
-                    <Pressable
-                      key={velocita}
-                      style={[
-                        styles.orologioVelocitaBtn,
-                        !orologioInPausa &&
-                          orologioVelocita === velocita &&
-                          styles.orologioVelocitaBtnAttivo
-                      ]}
-                      onPress={() => setOrologioVelocita(velocita)}
-                      accessibilityLabel={`Velocità tempo ${velocita} per`}
-                    >
-                      <Text
-                        style={[
-                          styles.orologioVelocitaBtnText,
-                          !orologioInPausa &&
-                            orologioVelocita === velocita &&
-                            styles.orologioVelocitaBtnTextAttivo
-                        ]}
-                      >
-                        {velocita}×
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+                ))}
               </View>
             </View>
+            <Pressable style={styles.headerStatBtn} onPress={() => router.push("/soddisfazione")}>
+              <Text style={styles.headerStatText}>💚 Soddisfazione {soddisfazioneMediaRegno}</Text>
+            </Pressable>
+            <Pressable style={styles.headerStatBtn} onPress={() => router.push("/abitanti")}>
+              <Text style={styles.headerStatText}>👥 {abitanti.length} abitanti</Text>
+            </Pressable>
           </View>
-          <Pressable style={styles.diarioBtn} onPress={() => router.push("/diario")}>
-            <Text style={styles.diarioBtnEmoji}>📖</Text>
-            <Text style={styles.diarioBtnLabel}>Diario</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/felicita")}>
-            <Text style={styles.indEmoji}>😊</Text>
-            <Text style={styles.indLabel}>Felicità</Text>
-            <Text style={styles.indValue}>{felicitàMedia}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/lealta")}>
-            <Text style={styles.indEmoji}>❤️</Text>
-            <Text style={styles.indLabel}>Lealtà</Text>
-            <Text style={styles.indValue}>{lealtàMedia}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/paura")}>
-            <Text style={styles.indEmoji}>😨</Text>
-            <Text style={styles.indLabel}>Paura</Text>
-            <Text style={styles.indValue}>{pauraMedia}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard}>
-            <Text style={styles.indEmoji}>📋</Text>
-            <Text style={styles.indLabel}>Disoccupazione</Text>
-            <Text style={styles.indValue}>{disoccupazionePercent}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/abitanti")}>
-            <Text style={styles.indEmoji}>👥</Text>
-            <Text style={styles.indLabel}>Abitanti</Text>
-            <Text style={styles.indValue}>{abitanti.length}</Text>
-          </Pressable>
-          <Pressable style={styles.menuBtn} onPress={() => router.push("/menu")}>
-            <Text style={styles.menuBtnText}>Menu</Text>
-          </Pressable>
         </View>
       </View>
 
@@ -4449,78 +4416,24 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                       </Text>
                     )}
                   </Pressable>
-                  {r.nome === "Rifiuti" && (
-                    <>
-                      <Pressable
-                        style={[styles.grigliaMapToggle, mostraGrigliaMappa && styles.grigliaMapToggleOn]}
-                        onPress={() => setMostraGrigliaMappa((v) => !v)}
-                        accessibilityRole="button"
-                        accessibilityLabel={mostraGrigliaMappa ? "Nascondi griglia sulla mappa" : "Mostra griglia sulla mappa"}
-                      >
-                        <Text style={styles.grigliaMapToggleEmoji}>#</Text>
-                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                          Griglia
-                        </Text>
-                      </Pressable>
-                      <View ref={costruisciSpotlightRef} collapsable={false}>
-                        <Pressable
-                          style={[styles.grigliaMapToggle, costruzioneSelezione != null && styles.grigliaMapToggleOn]}
-                          onPress={onCostruisciPress}
-                          accessibilityRole="button"
-                          accessibilityLabel="Apri costruzione edifici"
-                        >
-                          <Text style={styles.grigliaMapToggleEmoji}>🔨</Text>
-                          <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                            Costruisci
-                          </Text>
-                        </Pressable>
-                      </View>
-                      <Pressable
-                        style={[styles.grigliaMapToggle, modalitaDemolisci && styles.grigliaMapToggleDemolisciOn]}
-                        onPress={onDemolisciPress}
-                        accessibilityRole="button"
-                        accessibilityLabel={modalitaDemolisci ? "Esci dalla modalità demolizione" : "Demolisci edifici sulla mappa"}
-                      >
-                        <Text style={styles.grigliaMapToggleEmoji}>🧨</Text>
-                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                          Demolisci
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        style={[
-                          styles.grigliaMapToggle,
-                          richiesteInAttesa.length > 0 && styles.grigliaMapToggleRichiesteOn
-                        ]}
-                        onPress={() => setMostraModalRichieste(true)}
-                        accessibilityRole="button"
-                        accessibilityLabel="Apri richieste in sospeso"
-                      >
-                        <Text style={styles.grigliaMapToggleEmoji}>📋</Text>
-                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                          Richieste{richiesteInAttesa.length > 0 ? ` (${richiesteInAttesa.length})` : ""}
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        style={[
-                          styles.grigliaMapToggle,
-                          eventiAttiviCount > 0 && styles.grigliaMapToggleEventiOn
-                        ]}
-                        onPress={() => setMostraModalEventi(true)}
-                        accessibilityRole="button"
-                        accessibilityLabel="Apri elenco eventi disponibili"
-                      >
-                        <Text style={styles.grigliaMapToggleEmoji}>📌</Text>
-                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                          Eventi{eventiAttiviCount > 0 ? ` (${eventiAttiviCount})` : ""}
-                        </Text>
-                      </Pressable>
-                    </>
-                  )}
                 </React.Fragment>
               );
             })}
           </ScrollView>
           )}
+          <View style={styles.bottomActionsRow}>
+            <View ref={costruisciSpotlightRef} collapsable={false} style={styles.bottomActionWrap}>
+              <Pressable style={[styles.bottomActionBtn, (costruzioneSelezione != null || modalitaDemolisci) && styles.grigliaMapToggleOn]} onPress={onCostruisciPress} accessibilityRole="button" accessibilityLabel="Apri Costruisci, incluso Demolisci">
+                <Text style={styles.bottomActionText}>🔨 Costruisci</Text>
+              </Pressable>
+            </View>
+            <Pressable style={[styles.bottomActionBtn, styles.bottomActionWrap, richiesteInAttesa.length > 0 && styles.grigliaMapToggleRichiesteOn]} onPress={() => setMostraModalRichieste(true)} accessibilityRole="button">
+              <Text style={styles.bottomActionText}>📨 Richieste{richiesteInAttesa.length ? " (" + richiesteInAttesa.length + ")" : ""}</Text>
+            </Pressable>
+            <Pressable style={[styles.bottomActionBtn, styles.bottomActionWrap, eventiAttiviCount > 0 && styles.grigliaMapToggleEventiOn]} onPress={() => setMostraModalEventi(true)} accessibilityRole="button">
+              <Text style={styles.bottomActionText}>📅 Eventi{eventiAttiviCount ? " (" + eventiAttiviCount + ")" : ""}</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -4570,7 +4483,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       >
         <SafeAreaView style={styles.modalCostruisciRoot}>
           <View style={styles.modalCostruisciBody}>
-            <Text style={styles.modalTitle}>Cosa vuoi costruire?</Text>
+            <Text style={styles.modalTitle}>Costruisci o demolisci</Text>
             <Text style={styles.modalSubtitle}>
               Scegli un tipo, poi sposta il puntatore sulla mappa: l’anteprima colorata mostra dove andrà l’edificio. Tocca per
               confermare.
@@ -4582,6 +4495,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               showsVerticalScrollIndicator={false}
             >
               <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
+                <Pressable style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]} onPress={onDemolisciPress}>
+                  <Text style={styles.modalOptionCostruisciEmoji}>🧨</Text>
+                  <Text style={styles.modalOptionCostruisciNome}>Demolisci</Text>
+                </Pressable>
+
                 <Pressable
                   style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
                   onPress={() => {
@@ -5005,12 +4923,19 @@ const styles = StyleSheet.create({
   },
   topBannerInner: {
     width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: "column",
     gap: 8,
     paddingHorizontal: 12
   },
+  topPrimaryRow: {
+    flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8
+  },
+  topPrimaryActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  topSecondaryRow: {
+    flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6
+  },
+  headerStatBtn: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8, backgroundColor: "#17243c", minHeight: 32 },
+  headerStatText: { fontSize: 11, fontWeight: "700", color: "#e2e8f0" },
   bannerTitleBlock: {
     flexDirection: "row",
     alignItems: "center",
@@ -5165,11 +5090,10 @@ const styles = StyleSheet.create({
   },
   bottomBarInner: {
     width: "100%",
-    height: 78,
-    minHeight: 78,
-    maxHeight: 78,
+    height: Platform.OS === "web" ? 150 : 128,
+    minHeight: Platform.OS === "web" ? 150 : 128,
     overflow: "hidden",
-    justifyContent: "center",
+    justifyContent: "space-between",
     backgroundColor: "rgba(5,8,22,0.92)",
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
@@ -5180,12 +5104,30 @@ const styles = StyleSheet.create({
     paddingHorizontal: 12
   },
   bottomBarInnerResident: {
-    height: 160,
-    minHeight: 160,
-    maxHeight: 160,
-    paddingVertical: 10,
+    height: 230,
+    minHeight: 230,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === "web" ? 26 : 10,
     paddingHorizontal: 12
   },
+  bottomActionsRow: {
+    height: 42,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4
+  },
+  bottomActionWrap: { flex: 1, minWidth: 0 },
+  bottomActionBtn: {
+    height: 42,
+    backgroundColor: "#1e293b",
+    borderWidth: 1,
+    borderColor: "#475569",
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  bottomActionText: { color: "#f8fafc", fontSize: 11, fontWeight: "700" },
   bottomBarScroll: {
     flexGrow: 0,
     height: 66
