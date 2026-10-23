@@ -88,6 +88,23 @@ export const ASPETTO_GIOCATORE_DEFAULT: AspettoPersonaggio = {
   characterAppearance: creaCharacterAppearance("Umano")
 };
 
+/** Verde standard degli orchi (compatibile con la palette LPC della testa). */
+export const COLORE_PELLE_ORCO = "#39aa4e";
+
+/** Aggiorna anche i vecchi salvataggi in memoria senza toccare vestiti o tratti. */
+export function normalizzaAspettoOrco(aspetto: AspettoPersonaggio): AspettoPersonaggio {
+  return {
+    ...aspetto,
+    colorePelle: COLORE_PELLE_ORCO,
+    ...(aspetto.characterAppearance ? {
+      characterAppearance: normalizeCharacterAppearance({
+        ...aspetto.characterAppearance,
+        race: "orc"
+      })
+    } : {})
+  };
+}
+
 export const COLORI_CAPELLI = ["#24170f", "#6b3f24", "#b06a32", "#dfbd65", "#b9bec8"];
 export const COLORI_PELLE = ["#f2cfb0", "#e9b38f", "#bd795d", "#87513d", "#5a382c", "#79a86b"];
 
@@ -113,9 +130,11 @@ export function generaAspettoCasuale(
   random: () => number = Math.random,
   contesto: { eta?: number; sesso?: "M" | "F"; professione?: string } = {}
 ): AspettoPersonaggio {
-  const coloriPelle = razza === "Orco" || razza === "Goblin"
-    ? ["#79a86b", "#668f58", "#8aa66b"]
-    : COLORI_PELLE.filter((color) => color !== "#79a86b");
+  const coloriPelle = razza === "Orco"
+    ? [COLORE_PELLE_ORCO]
+    : razza === "Goblin"
+      ? ["#79a86b", "#668f58", "#8aa66b"]
+      : COLORI_PELLE.filter((color) => color !== "#79a86b");
   const cappelli = razza === "Nano"
     ? ["nessuno", "berretto", "cappuccio"] as const
     : CAPPELLI_PERSONAGGIO;
@@ -324,9 +343,12 @@ export function aspettoPerVisualizzazioneAbitante(
     });
     aspetto = aspetto ? { ...aspetto, characterAppearance: generato.characterAppearance } : generato;
   }
-  if (!aspetto.characterAppearance) return aspetto;
+  const currentAppearance = aspetto.characterAppearance;
+  if (!currentAppearance) return aspetto;
+  // Anche gli aspetti legacy già salvati non devono mai mostrare pelle umana.
+  if (razza === "Orco") aspetto = normalizzaAspettoOrco(aspetto);
 
-  const pubblico = appearanceForPublicSpace(aspetto.characterAppearance, {
+  const pubblico = appearanceForPublicSpace(currentAppearance, {
     isKing: abitante.id === 1,
     nudismoAttivo: rules.nudismoAttivo === true,
     incinta: abitante.incinta === true,
