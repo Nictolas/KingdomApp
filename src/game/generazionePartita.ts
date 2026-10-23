@@ -315,7 +315,7 @@ export function generaRegnoIniziale(
   // Il Consigliere iniziale deve essere umano e non può essere sovrascritto da altri ruoli.
   // In generazioni con pochi cittadini liberi, libera un candidato anziché perdere il ruolo.
   const possibiliConsiglieri = abitanti.filter(
-    (a) => a.id !== 1 && a.lavoro !== "Agricoltore" && a.lavoro !== "Consigliere" && a.razza === "Umano"
+    (a) => a.id !== 1 && a.lavoro !== "Agricoltore" && a.razza === "Umano"
   );
   const liberi = possibiliConsiglieri.filter((a) => !a.ruoloSchiavitu);
   const candidatiConsigliere = liberi.length ? liberi : possibiliConsiglieri;
@@ -386,7 +386,7 @@ export function generaRegnoIniziale(
   if (!isAvventura) {
     // Regola: almeno 1 Prigioniero a inizio partita = Ex Sovrano (Umano, reato "Ex Sovrano"), assegnato al Campo di Lavoro; compare in Tribunale.
     const candidatiPrigioniero = abitanti.filter(
-      (a) => a.id !== 1 && a.lavoro !== "Agricoltore" && a.razza === "Umano"
+      (a) => a.id !== 1 && a.lavoro !== "Agricoltore" && a.lavoro !== "Consigliere" && a.razza === "Umano"
     );
     if (candidatiPrigioniero.length > 0) {
       const prig = candidatiPrigioniero[Math.floor(Math.random() * candidatiPrigioniero.length)];
