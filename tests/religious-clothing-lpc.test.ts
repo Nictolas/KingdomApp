@@ -59,7 +59,7 @@ test("Cambio reale: aggiorna insieme abito salvato e outfit LPC renderizzabile",
   assert.equal(persona.aspetto?.vestiti, "ranger");
 });
 
-test("Dopo il cambio abito la penalitÃ  religiosa sparisce e non si accumula", () => {
+test("Dopo il cambio abito la penalità religiosa sparisce e non si accumula", () => {
   const persona = abitante(11);
   const religioni = [{ nome: "Fede custom", dogmi: [dogmi[0]!] }] as unknown as Parameters<typeof aggiornaSoddisfazioneDogmiAbiti>[1];
   const prima = aggiornaSoddisfazioneDogmiAbiti([persona], religioni)[0]!;
