@@ -1748,6 +1748,41 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     setBarArrivatiMappaSnapshot(m);
   }, [barArrivatiByEdificio]);
 
+  /** Inizio turno specializzato secondo l'ORA DEL MESTIERE, non alle 08:00 per tutti. */
+  useEffect(() => {
+    if (statoCielo.buio > 0.5) return;
+    const giorno = getGiornoGiocoSnapshot();
+    const percorsi: Record<number, CommuteInfo> = {};
+    for (const ab of abitanti) {
+      if (ab.razza === "Golem" || ab.id === ID_GIOCATORE) continue;
+      const sedeNome = SEDE_PER_PROFESSIONE[ab.lavoro as ProfessioneForestale];
+      if (!sedeNome) continue;
+      const fascia = orarioPerLavoro(ab.lavoro);
+      if (!fascia || !minutiInFascia(orologioMinuti, fascia)) continue;
+      const t = turniForestaliRef.current[ab.id];
+      if (t?.giorno === giorno) continue; // un solo turno giornaliero
+      if (commuteByAbitanteId[ab.id] || lavoroArrivatiIds.has(ab.id)) continue;
+      if (Object.values(barArrivatiByEdificio).some((ids) => ids.includes(ab.id))) continue;
+      const sede = primoEdificioLavoroOrarioPerAbitante(ab.id, edifici);
+      if (!sede || sede.nome !== sedeNome || sede.stato !== "Operativo") continue;
+      const from = ultimaCellaAbitanteRef.current.get(ab.id) ??
+        cellaCasaPerAbitanteId.get(ab.id) ?? null;
+      if (from == null) continue;
+      const path = pianificaCommuteVersoEdificioGlobaleDaCella(
+        from, sede.id, edificiInMappa, cols, rows, isWalkableCell
+      );
+      if (!path || path.length < 2) continue;
+      percorsi[ab.id] = { path, token: Date.now(), purpose: "work" };
+    }
+    if (Object.keys(percorsi).length > 0) {
+      setCommuteByAbitanteId((prev) => ({ ...percorsi, ...prev }));
+    }
+  }, [
+    orologioMinuti, statoCielo.buio, abitanti, edifici, edificiInMappa,
+    cols, rows, isWalkableCell, commuteByAbitanteId, lavoroArrivatiIds,
+    barArrivatiByEdificio, cellaCasaPerAbitanteId
+  ]);
+
   /** 8:00 → Bar / casa → lavoro; 17:00 → lavoro → Bar. */
   useEffect(() => {
     const prev = orologioPrevTickRef.current;
