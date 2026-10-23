@@ -179,6 +179,7 @@ import {
 } from "../src/game/commutePathsMappa";
 import { ID_GIOCATORE } from "../src/game/schiavituCommercio";
 import { orarioPerLavoro } from "../src/game/orariLavoroCatalogo";
+import { pianificaTappaTurnoForestale } from "../src/game/pianificaTappaForestale";
 import { scegliAzioneCommuteBloccataLavoro } from "../src/game/commuteBloccataLavoro";
 import {
   SEDE_PER_PROFESSIONE,
@@ -2321,18 +2322,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (from == null) continue;
 
       let path: number[] | null = null;
-      if (meta === "sede" && turno.sedeId != null) {
-        path = pianificaCommuteVersoEdificioGlobaleDaCella(
-          from, turno.sedeId, edificiInMappa, cols, rows, isWalkableCell
-        );
-      } else if (meta === "bosco") {
-        const bosco = edifici.find((e) => e.nome === "Bosco" && e.stato === "Operativo");
-        if (bosco) {
-          path = pianificaCommuteVersoEdificioGlobaleDaCella(
-            from, bosco.id, edificiInMappa, cols, rows, isWalkableCell
-          );
-        }
-      } else if (meta === "casa") {
+      if (meta !== "casa") {
+        // Unica funzione di routing per la sede assegnata e per il Bosco reale.
+        // Non conferma l'arrivo: il turno avanza soltanto nel callback di movimento.
+        path = pianificaTappaTurnoForestale({
+          turno: progredito, cellaCorrente: from, casaEdificioId: null,
+          edifici, edificiInMappa, cols, rows, isWalkable: isWalkableCell
+        })?.path ?? null;
+      } else {
         const home = cellaCasaPerAbitanteId.get(turno.abitanteId) ?? null;
         if (home != null) {
           path = pianificaCommuteSeraACasa(
