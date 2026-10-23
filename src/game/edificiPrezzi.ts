@@ -22,6 +22,7 @@ export const EDIFICI_PREZZO_MONETE: EdificioPrezzoDef[] = [
   { nome: "Erboristeria", emoji: "🌿", fascia: 2, prezzoMonete: 200 },
   { nome: "Apiario", emoji: "🐝", fascia: 2, prezzoMonete: 175 },
   { nome: "Vivaio forestale", emoji: "🌱", fascia: 2, prezzoMonete: 220 },
+  { nome: "Cerchio dei Druidi", emoji: "🔮", fascia: 2, prezzoMonete: 250 },
   { nome: "Emporio", emoji: "🧺", fascia: 1, prezzoMonete: 100 },
   { nome: "Falegnameria", emoji: "🪚", fascia: 1, prezzoMonete: 150 },
   { nome: "Conceria", emoji: "🧴", fascia: 1, prezzoMonete: 175 },
