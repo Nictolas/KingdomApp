@@ -1611,6 +1611,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   }, []);
 
   const runtimePersonaggiInizialeRef = useRef(getMappaPersonaggiRuntime());
+  const banditiControlliRef = useRef<Set<string>>(new Set());
   const turniForestaliRef = useRef<Record<number, TurnoForestale>>(
     runtimePersonaggiInizialeRef.current.turniForestaliByAbitanteId ?? {}
   );
@@ -2414,6 +2415,81 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     cols, rows, isWalkableCell, salvaTurnoForestaleMappa,
     aggiornaAbitanteById
   ]);
+
+
+  /**
+   * Assalti nel Bosco: evento invisibile, eseguito solo dopo una vera
+   * presenza produttiva sulla mappa. La vittima lascia il turno e raggiunge
+   * FISICAMENTE il Castello; nessuna udienza viene mostrata qui.
+   */
+  useEffect(() => {
+    const giorno = getGiornoGiocoSnapshot();
+    const eleggibili = abitanti.filter(a =>
+      a.ultimoLavoroBosco?.giorno === giorno &&
+      a.ultimoLavoroBosco.minuti >= 30 &&
+      a.ultimoControlloBanditiBoscoGiorno !== giorno &&
+      a.salute > 0 &&
+      !banditiControlliRef.current.has(giorno + ":" + a.id)
+    );
+    if (!eleggibili.length) return;
+    for (const a of eleggibili) {
+      banditiControlliRef.current.add(giorno + ":" + a.id);
+    }
+    const esito = applicaBanditiBoscoGiornalieri({ abitanti, edifici, giorno });
+    for (let i = 0; i < abitanti.length; i++) {
+      const updated = esito.abitanti[i]!;
+      if (updated === abitanti[i]) continue;
+      aggiornaAbitanteById(updated.id, () => updated);
+    }
+    for (const ev of esito.eventi) {
+      const turno = turniForestaliRef.current[ev.abitanteId];
+      if (turno?.giorno === giorno) {
+        salvaTurnoForestaleMappa(sospendiTurnoForestale(turno));
+      }
+      // La vittima deve essere VISIBILE mentre esce dal Bosco e attraversa
+      // la mappa. Non vengono mai creati banditi come entità.
+      setLavoroArrivatiIds(prev => {
+        const next = new Set(prev);
+        next.delete(ev.abitanteId);
+        return next;
+      });
+      appendDiarioRiga(ev.esito === "morte"
+        ? "Un lavoratore è morto in un assalto nel Bosco."
+        : "Un lavoratore è stato derubato nel Bosco e vuole rivolgersi al Re.");
+    }
+  }, [abitanti, edifici, orologioMinuti, aggiornaAbitanteById,
+    salvaTurnoForestaleMappa, appendDiarioRiga]);
+
+  /** Una richiesta pendente ha priorità su turno/tempo libero: percorso reale. */
+  useEffect(() => {
+    const castello = edifici.find(e => e.nome === "Castello" && e.stato === "Operativo");
+    if (!castello) return;
+    const percorsi: Record<number, CommuteInfo> = {};
+    for (const a of abitanti) {
+      if (a.richiestaRapinaBosco?.stato !== "verso_castello" || a.salute <= 0) continue;
+      if (commuteByAbitanteId[a.id]?.purpose === "udienza_banditi") continue;
+      const from = ultimaCellaAbitanteRef.current.get(a.id) ??
+        cellaCasaPerAbitanteId.get(a.id) ?? null;
+      if (from == null) continue;
+      const path = pianificaCommuteVersoEdificioGlobaleDaCella(
+        from, castello.id, edificiInMappa, cols, rows, isWalkableCell
+      );
+      if (!path || path.length < 2) continue; // mai teletrasporto
+      percorsi[a.id] = {
+        path, token: Date.now(), purpose: "udienza_banditi",
+        udienzaCastelloEdificioId: castello.id
+      };
+    }
+    if (Object.keys(percorsi).length > 0) {
+      setLavoroArrivatiIds(prev => {
+        const next = new Set(prev);
+        for (const key of Object.keys(percorsi)) next.delete(Number(key));
+        return next;
+      });
+      setCommuteByAbitanteId(prev => ({ ...prev, ...percorsi }));
+    }
+  }, [abitanti, edifici, commuteByAbitanteId, cellaCasaPerAbitanteId,
+    edificiInMappa, cols, rows, isWalkableCell, orologioMinuti]);
 
   /**
    * Commute bloccata da occupancy: ripianifica evitando celle occupate da altri.
