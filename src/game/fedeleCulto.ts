@@ -35,6 +35,8 @@ export type ReligioneCustom = {
   fondatoreReId?: number;
   /** Revisione delle regole: il culto può evolvere nel corso della partita. */
   versioneDogmi?: number;
+  /** Se presente, culto di origine dello scisma; assente per fede creata da zero. */
+  origineReligione?: string;
 };
 
 /** Non possono essere Religione del Tempio (Chiesa). */
@@ -200,6 +202,7 @@ export function provaCreaReligioneCustom(
     dottrinaNaturalista?: DottrinaNaturalista;
     dogmi?: readonly DogmaReligioso[];
     fondatoreReId?: number;
+    origineReligione?: string;
   },
   esistenti: readonly ReligioneCustom[],
   nextId: () => string
@@ -227,6 +230,10 @@ export function provaCreaReligioneCustom(
       ...(Number.isSafeInteger(input.fondatoreReId) && input.fondatoreReId! >= 0
         ? { fondatoreReId: input.fondatoreReId } : {}),
       versioneDogmi: 1,
+      ...(input.origineReligione && input.origineReligione !== nome &&
+        (["Culto del Sole", "Culto delle Ombre", ...esistenti.map(r => r.nome)]
+          .includes(input.origineReligione))
+        ? { origineReligione: input.origineReligione } : {}),
       dogmi: normalizzaDogmiReligiosi(input.dogmi ?? []),
       ...(input.dottrinaNaturalista ? { dottrinaNaturalista: {
         forestaSacra: input.dottrinaNaturalista.forestaSacra === true,
@@ -264,6 +271,9 @@ export function normalizzaReligioniCustom(raw: unknown): ReligioneCustom[] {
     const fondatoreReId = typeof o.fondatoreReId === "number" &&
       Number.isSafeInteger(o.fondatoreReId) && o.fondatoreReId >= 0
         ? o.fondatoreReId : undefined;
+    const origineReligione = typeof o.origineReligione === "string" &&
+      o.origineReligione.trim() && o.origineReligione !== nome
+        ? o.origineReligione.trim() : undefined;
     const versioneDogmi = typeof o.versioneDogmi === "number" &&
       Number.isSafeInteger(o.versioneDogmi) && o.versioneDogmi >= 1
         ? o.versioneDogmi : 1;
@@ -284,6 +294,7 @@ export function normalizzaReligioniCustom(raw: unknown): ReligioneCustom[] {
       ...(dogmi.length ? { dogmi } : {}),
       ...(fondatoreReId !== undefined ? { fondatoreReId } : {}),
       versioneDogmi,
+      ...(origineReligione ? { origineReligione } : {}),
       ...(aspettoSacerdote ? { aspettoSacerdote } : {})
     });
   }
