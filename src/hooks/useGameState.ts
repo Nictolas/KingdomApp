@@ -1033,6 +1033,7 @@ export function useGameState() {
             completati: completatiSet,
             religioniCustom,
             religioneDiStato,
+            politicaReligiosa,
             haPonteSulFiume: haPonte
           });
 
@@ -1081,7 +1082,7 @@ export function useGameState() {
     if (avvisiDiario.length > 0) {
       setDiarioRighe((prev) => [...prev, ...avvisiDiario]);
     }
-  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, giornoGioco, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode, obiettiviCompletati, religioniCustom, religioneDiStato, tassaPatrimonioPercentuale, ivaPercentuale, modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso]);
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, giornoGioco, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode, obiettiviCompletati, religioniCustom, religioneDiStato, politicaReligiosa, tassaPatrimonioPercentuale, ivaPercentuale, modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso]);
 
   /**
    * Nessun pulsante «Skip Mese»: il cambio mese parte automaticamente ogni 30 giorni
