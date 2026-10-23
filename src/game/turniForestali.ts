@@ -6,7 +6,7 @@
  */
 export type ProfessioneForestale =
   | "Raccoglitore" | "Cacciatore" | "Taglialegna" | "Guardaboschi"
-  | "Erborista" | "Apicoltore" | "Silvicoltore";
+  | "Erborista" | "Apicoltore" | "Silvicoltore" | "Druido";
 
 export const SEDE_PER_PROFESSIONE: Readonly<Record<ProfessioneForestale, string | null>> = {
   Raccoglitore: null,
@@ -15,7 +15,8 @@ export const SEDE_PER_PROFESSIONE: Readonly<Record<ProfessioneForestale, string 
   Guardaboschi: "Capanno del Guardaboschi",
   Erborista: "Erboristeria",
   Apicoltore: "Apiario",
-  Silvicoltore: "Vivaio forestale"
+  Silvicoltore: "Vivaio forestale",
+  Druido: "Cerchio dei Druidi"
 };
 
 /** Le sedi sono costruibili su qualsiasi terreno normalmente edificabile. */
