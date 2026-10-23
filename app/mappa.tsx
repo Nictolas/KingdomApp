@@ -2356,8 +2356,20 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (info.purpose === "home") {
         anchorDest = cellaCasaPerAbitanteId.get(abitanteId) ?? null;
       } else if (info.purpose === "work") {
-        const lav = primoEdificioLavoroOrarioPerAbitante(abitanteId, edifici);
-        anchorDest = lav ? trovaAnchorEdificioGlobaleSuMappa(lav.id, edificiInMappa) : null;
+        const turno = turniForestaliRef.current[abitanteId];
+        if (turno?.giorno === getGiornoGiocoSnapshot() && turno.fase === "verso_bosco") {
+          const bosco = edifici.find((e) => e.nome === "Bosco" && e.stato === "Operativo");
+          anchorDest = bosco
+            ? trovaAnchorEdificioGlobaleSuMappa(bosco.id, edificiInMappa)
+            : null;
+        } else if (turno?.giorno === getGiornoGiocoSnapshot() &&
+                   (turno.fase === "ritorno_sede" || turno.fase === "verso_sede")) {
+          anchorDest = turno.sedeId != null
+            ? trovaAnchorEdificioGlobaleSuMappa(turno.sedeId, edificiInMappa) : null;
+        } else {
+          const lav = primoEdificioLavoroOrarioPerAbitante(abitanteId, edifici);
+          anchorDest = lav ? trovaAnchorEdificioGlobaleSuMappa(lav.id, edificiInMappa) : null;
+        }
       } else if (info.purpose === "cerca_lavoro" && meta?.lavoroCercaEdificioId != null) {
         anchorDest = trovaAnchorEdificioGlobaleSuMappa(meta.lavoroCercaEdificioId, edificiInMappa);
       } else if (info.purpose === "bar" && meta?.barEdificioId != null) {
@@ -2500,6 +2512,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
     for (const a of abitanti) {
       if (a.razza === "Golem") continue;
+      const turnoForestale = turniForestaliRef.current[a.id];
+      if (turnoForestale?.giorno === getGiornoGiocoSnapshot() &&
+          turnoForestale.fase !== "finito" && turnoForestale.fase !== "sospeso") continue;
       if (commuteByAbitanteId[a.id]) continue;
       if (abitanteInOrarioLavoroEdificio(a.id, orologioMinuti, edifici) && lavoroArrivatiIds.has(a.id)) {
         continue;
@@ -2842,6 +2857,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           ) {
             continue;
           }
+          const turnoForestale = turniForestaliRef.current[a.id];
+          if (turnoForestale?.giorno === getGiornoGiocoSnapshot() &&
+              turnoForestale.fase !== "finito" && turnoForestale.fase !== "sospeso") continue;
           const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
           if (lav && !next[a.id]) {
             const fascia = fasciaPerEdificio(lav);
