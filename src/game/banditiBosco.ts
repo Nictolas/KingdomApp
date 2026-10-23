@@ -26,7 +26,7 @@ function casualeDeterministico(...numeri: number[]): number {
     hash = Math.imul(hash, 16777619) >>> 0;
     hash ^= hash >>> 13;
   }
-  return hash / 4294967296;
+  return (hash >>> 0) / 4294967296; // unsigned 32-bit, mai RNG negativo
 }
 
 /** Probabilità giornaliera indicativa, già ridotta dai Guardaboschi attivi. */
