@@ -177,6 +177,7 @@ import {
   trovaAnchorEdificioGlobaleSuMappa,
   trovaCellaPortaEdificio
 } from "../src/game/commutePathsMappa";
+import { orarioPerLavoro } from "../src/game/orariLavoroCatalogo";
 import { scegliAzioneCommuteBloccataLavoro } from "../src/game/commuteBloccataLavoro";
 import {
   SEDE_PER_PROFESSIONE,
@@ -2248,6 +2249,84 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       salvaTurnoForestaleMappa
     ]
   );
+
+  /**
+   * Il tempo della preparazione e del deposito avanza SOLO nel rispettivo edificio.
+   * Ogni tragitto ha una nuova path animata dalla cella realmente raggiunta.
+   * I turni sopravvivono al remount della mappa (runtimePersonaggiStore).
+   */
+  useEffect(() => {
+    if (statoCielo.buio > 0.5) return;
+    const giorno = getGiornoGiocoSnapshot();
+    const nuoviPercorsi: Record<number, CommuteInfo> = {};
+    const daRendereVisibili: number[] = [];
+
+    for (const turno of Object.values(turniForestaliRef.current)) {
+      if (turno.giorno !== giorno || turno.fase === "finito" || turno.fase === "sospeso") continue;
+      // Non rigenerare un percorso che Phaser sta ancora percorrendo.
+      if (commuteByAbitanteId[turno.abitanteId]) continue;
+      const fascia = orarioPerLavoro(turno.lavoro);
+      if (!fascia) continue;
+
+      const progredito = aggiornaTurnoForestale(turno, orologioMinuti, fascia.fine);
+      if (progredito === turno) continue;
+      salvaTurnoForestaleMappa(progredito);
+
+      // Nuovo percorso solo quando lo stato ha davvero cambiato tappa.
+      if (progredito.fase === turno.fase) continue;
+      const meta = destinazioneTurnoForestale(progredito);
+      if (!meta) continue;
+
+      const from =
+        ultimaCellaAbitanteRef.current.get(turno.abitanteId) ??
+        cellaCasaPerAbitanteId.get(turno.abitanteId) ?? null;
+      if (from == null) continue;
+
+      let path: number[] | null = null;
+      if (meta === "sede" && turno.sedeId != null) {
+        path = pianificaCommuteVersoEdificioGlobaleDaCella(
+          from, turno.sedeId, edificiInMappa, cols, rows, isWalkableCell
+        );
+      } else if (meta === "bosco") {
+        const bosco = edifici.find((e) => e.nome === "Bosco" && e.stato === "Operativo");
+        if (bosco) {
+          path = pianificaCommuteVersoEdificioGlobaleDaCella(
+            from, bosco.id, edificiInMappa, cols, rows, isWalkableCell
+          );
+        }
+      } else if (meta === "casa") {
+        const home = cellaCasaPerAbitanteId.get(turno.abitanteId) ?? null;
+        if (home != null) {
+          path = pianificaCommuteSeraACasa(
+            home, from, cols, rows, isWalkableCell, edificiInMappa
+          );
+        }
+      }
+
+      if (path && path.length >= 2) {
+        nuoviPercorsi[turno.abitanteId] = {
+          path, token: Date.now(), purpose: meta === "casa" ? "home" : "work"
+        };
+        daRendereVisibili.push(turno.abitanteId);
+      } else {
+        // Percorso irraggiungibile: NON teletrasportare né attribuire produzione.
+        salvaTurnoForestaleMappa(sospendiTurnoForestale(progredito));
+      }
+    }
+
+    if (daRendereVisibili.length > 0) {
+      setLavoroArrivatiIds((prev) => {
+        const next = new Set(prev);
+        for (const id of daRendereVisibili) next.delete(id);
+        return next;
+      });
+      setCommuteByAbitanteId((prev) => ({ ...prev, ...nuoviPercorsi }));
+    }
+  }, [
+    orologioMinuti, statoCielo.buio, commuteByAbitanteId,
+    edifici, edificiInMappa, cellaCasaPerAbitanteId,
+    cols, rows, isWalkableCell, salvaTurnoForestaleMappa
+  ]);
 
   /**
    * Commute bloccata da occupancy: ripianifica evitando celle occupate da altri.
