@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type DimensionValue } from "react-native";
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type DimensionValue } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import type { Abitante, Edificio } from "../types";
@@ -195,6 +195,7 @@ export function AbitanteInfoModal({
   const {
     abitanti,
     religioniCustom,
+    indossaAbitoReligioso,
     aggiungiAlCampoDiLavoroTuttiQuelliChe,
     trasferisciProprietaSchiavo,
     uccidiSchiavo
@@ -456,12 +457,27 @@ export function AbitanteInfoModal({
                   onPress={abitante.religione?.trim() ? () => apriPagina("/religione") : undefined}
                 />
                 {abitoRichiesto && (
-                  <Row
-                    emoji="👘"
-                    label={abitoSacerdotale ? "Abito sacerdotale" : "Abito della fede"}
-                    value={abitoRichiesto + (abitoConforme ? " — conforme" : " — non conforme")}
-                    muted={!abitoConforme}
-                  />
+                  <>
+                    <Row
+                      emoji="👘"
+                      label={abitoSacerdotale ? "Abito sacerdotale" : "Abito della fede"}
+                      value={abitoRichiesto + (abitoConforme ? " — conforme" : " — non conforme")}
+                      muted={!abitoConforme}
+                    />
+                    {!abitoConforme && (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Indossa l'abito prescritto dalla fede"
+                        style={({ pressed }) => [styles.famigliaBtn, pressed && styles.famigliaBtnPressed]}
+                        onPress={() => {
+                          const esito = indossaAbitoReligioso(abitante.id);
+                          if (!esito.ok) Alert.alert("Abito non disponibile", esito.motivo ?? "Impossibile cambiare abito.");
+                        }}
+                      >
+                        <Text style={styles.famigliaBtnText}>Indossa l'abito prescritto</Text>
+                      </Pressable>
+                    )}
+                  </>
                 )}
                 {cibiProibiti.length > 0 && (
                   <Row
