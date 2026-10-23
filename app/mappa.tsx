@@ -2115,9 +2115,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         const meta = commuteByAbitanteId[abitanteId];
         const castello = edifici.find(e => e.id === meta?.udienzaCastelloEdificioId &&
           e.nome === "Castello" && e.stato === "Operativo");
-        const arrivato = !!castello && cellaArrivo != null &&
-          pathCorrente != null && pathCorrente[pathCorrente.length - 1] === cellaArrivo &&
-          trovaAnchorEdificioGlobaleSuMappa(castello.id, edificiInMappa) != null;
+        const anchorCastello = castello
+          ? trovaAnchorEdificioGlobaleSuMappa(castello.id, edificiInMappa)
+          : null;
+        const portaCastello = anchorCastello != null
+          ? trovaCellaPortaEdificio(anchorCastello, edificiInMappa, cols, rows, isWalkableCell)
+          : null;
+        // La fine di un percorso qualsiasi NON costituisce un ingresso al Castello.
+        // Verifichiamo la porta reale della struttura richiesta.
+        const arrivato = !!castello && portaCastello != null &&
+          cellaArrivo === portaCastello &&
+          pathCorrente != null &&
+          pathCorrente[pathCorrente.length - 1] === portaCastello;
         if (arrivato) {
           aggiornaAbitanteById(abitanteId, a => {
             const richiesta = a.richiestaRapinaBosco;
@@ -2326,6 +2335,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       setInventarioMensaEdificio,
       appendDiarioRiga,
       commuteByAbitanteId, edificiInMappa,
+      cols, rows, isWalkableCell,
       salvaTurnoForestaleMappa
     ]
   );
