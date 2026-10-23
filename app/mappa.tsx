@@ -2148,6 +2148,16 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             salvaTurnoForestaleMappa(
               segnalaArrivoTurnoForestale(iniziale, "sede", orologioMinuti)
             );
+          } else if (nomeSede === null && sede.nome === "Bosco") {
+            // Il Raccoglitore non ha capanna: registra l'ingresso fisico e
+            // accumula soltanto le ore trascorse realmente nel Bosco.
+            const iniziale = iniziaTurnoForestale({
+              abitanteId, giorno, lavoro: "Raccoglitore",
+              sedeId: null, minuto: orologioMinuti
+            });
+            salvaTurnoForestaleMappa(
+              segnalaArrivoTurnoForestale(iniziale, "bosco", orologioMinuti)
+            );
           }
         }
 
@@ -2162,9 +2172,19 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       } else if (purpose === "cerca_lavoro" && lavoroCercaEdificioId != null) {
         const assunto = assumiCittadinoDisoccupatoAEdificio(abitanteId, lavoroCercaEdificioId);
         if (assunto && edifici.some((e) => e.id === lavoroCercaEdificioId && e.nome === "Bosco")) {
+          const giorno = getGiornoGiocoSnapshot();
           aggiornaAbitanteById(abitanteId, (ab) => ({
-            ...ab, ultimoIngressoBoscoGiorno: getGiornoGiocoSnapshot()
+            ...ab, ultimoIngressoBoscoGiorno: giorno
           }));
+          // L'assunzione avviene solo DOPO l'arrivo: da ora il turno
+          // del Raccoglitore può contabilizzare i minuti di presenza.
+          const iniziale = iniziaTurnoForestale({
+            abitanteId, giorno, lavoro: "Raccoglitore",
+            sedeId: null, minuto: orologioMinuti
+          });
+          salvaTurnoForestaleMappa(
+            segnalaArrivoTurnoForestale(iniziale, "bosco", orologioMinuti)
+          );
         }
         setLavoroArrivatiIds((s) => new Set(s).add(abitanteId));
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
@@ -2310,6 +2330,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       const progredito = aggiornaTurnoForestale(turno, orologioMinuti, fascia.fine);
       if (progredito === turno) continue;
       salvaTurnoForestaleMappa(progredito);
+      if (progredito.minutiNelBosco > turno.minutiNelBosco) {
+        // Persisti il tempo verificato anche nei salvataggi dell'abitante:
+        // chi resta in viaggio non avanza qui e non può ottenere bottino.
+        aggiornaAbitanteById(turno.abitanteId, (ab) => {
+          const attuale = ab.ultimoLavoroBosco;
+          if (attuale?.giorno === giorno && attuale.minuti >= progredito.minutiNelBosco) return ab;
+          return {
+            ...ab,
+            ultimoLavoroBosco: { giorno, minuti: progredito.minutiNelBosco }
+          };
+        });
+      }
 
       // Nuovo percorso solo quando lo stato ha davvero cambiato tappa.
       if (progredito.fase === turno.fase) continue;
@@ -2360,7 +2392,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   }, [
     orologioMinuti, statoCielo.buio, commuteByAbitanteId,
     edifici, edificiInMappa, cellaCasaPerAbitanteId,
-    cols, rows, isWalkableCell, salvaTurnoForestaleMappa
+    cols, rows, isWalkableCell, salvaTurnoForestaleMappa,
+    aggiornaAbitanteById
   ]);
 
   /**
