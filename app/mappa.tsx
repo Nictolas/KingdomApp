@@ -182,6 +182,7 @@ import { orarioPerLavoro } from "../src/game/orariLavoroCatalogo";
 import { scegliAzioneCommuteBloccataLavoro } from "../src/game/commuteBloccataLavoro";
 import {
   SEDE_PER_PROFESSIONE,
+  SEDI_FORESTALI,
   iniziaTurnoForestale,
   segnalaArrivoTurnoForestale,
   aggiornaTurnoForestale,
@@ -1757,7 +1758,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     for (const ab of abitanti) {
       if (ab.razza === "Golem" || ab.id === ID_GIOCATORE) continue;
       const sedeNome = SEDE_PER_PROFESSIONE[ab.lavoro as ProfessioneForestale];
-      if (!sedeNome) continue;
+      if (sedeNome === undefined) continue; // anche Raccoglitore, senza capanna
+      const destinazioneNome = sedeNome ?? "Bosco";
       const fascia = orarioPerLavoro(ab.lavoro);
       if (!fascia || !minutiInFascia(orologioMinuti, fascia)) continue;
       const t = turniForestaliRef.current[ab.id];
@@ -1765,7 +1767,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (commuteByAbitanteId[ab.id] || lavoroArrivatiIds.has(ab.id)) continue;
       if (Object.values(barArrivatiByEdificio).some((ids) => ids.includes(ab.id))) continue;
       const sede = primoEdificioLavoroOrarioPerAbitante(ab.id, edifici);
-      if (!sede || sede.nome !== sedeNome || sede.stato !== "Operativo") continue;
+      if (!sede || sede.nome !== destinazioneNome || sede.stato !== "Operativo") continue;
       const from = ultimaCellaAbitanteRef.current.get(ab.id) ??
         cellaCasaPerAbitanteId.get(ab.id) ?? null;
       if (from == null) continue;
@@ -2897,6 +2899,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           if (turnoForestale?.giorno === getGiornoGiocoSnapshot() &&
               turnoForestale.fase !== "finito" && turnoForestale.fase !== "sospeso") continue;
           const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
+          // Le professioni forestali non devono sparire dentro una sede se non ci sono ARRIVATE.
+          if (lav && (lav.nome === "Bosco" || SEDI_FORESTALI.includes(lav.nome))) continue;
           if (lav && !next[a.id]) {
             const fascia = fasciaPerEdificio(lav);
             if (fascia && minutiInFascia(orologioMinuti, fascia)) s.add(a.id);
