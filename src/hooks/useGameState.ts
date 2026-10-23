@@ -112,6 +112,7 @@ import {
   assumiDisoccupatoNelBosco,
   etichettaRaccoltoBosco
 } from "../game/boscoRaccolta";
+import { applicaBanditiBoscoGiornalieri } from "../game/banditiBosco";
 import {
   applicaRaccoltaMinieraGiornaliera,
   assumiDisoccupatoNellaMiniera,
@@ -504,12 +505,26 @@ export function useGameState() {
         edificiRef.current = result.edifici;
         setEdifici(result.edifici);
       }
-      if (result.abitanti !== abitantiRef.current) {
-        abitantiRef.current = result.abitanti;
-        setAbitanti(result.abitanti);
+      // Il controllo è unico a fine giornata e considera soltanto chi ha
+      // lavorato realmente, con protezione dei Guardaboschi di turno.
+      // L'eventuale richiesta resta pendente nell'abitante: qui NON appare
+      // nessuna udienza (si aprirà soltanto al vero arrivo al Castello).
+      const banditi = applicaBanditiBoscoGiornalieri({
+        abitanti: result.abitanti,
+        edifici: result.edifici,
+        giorno: giorno - 1
+      });
+      if (banditi.abitanti !== abitantiRef.current) {
+        abitantiRef.current = banditi.abitanti;
+        setAbitanti(banditi.abitanti);
       }
-      if (result.messaggi.length > 0) {
-        setDiarioRighe((prev) => [...prev, ...result.messaggi]);
+      if (result.messaggi.length || banditi.eventi.length) {
+        const avvisi = banditi.eventi.map((ev) =>
+          ev.esito === "morte"
+            ? "Un lavoratore ha perso la vita durante un assalto nel Bosco."
+            : "Un lavoratore è stato derubato nel Bosco."
+        );
+        setDiarioRighe((prev) => [...prev, ...result.messaggi, ...avvisi]);
       }
       for (const bottino of result.bottini) {
         for (const v of bottino.voci) {
