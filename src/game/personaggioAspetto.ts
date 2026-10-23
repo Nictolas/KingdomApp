@@ -189,9 +189,11 @@ export function generaAspettoCasuale(
       )
     : [];
 
-  const beardStyle = razza === "Nano"
-    ? DWARF_BEARD_STYLE
-    : bodyType === "male" && options.beardStyles.length > 1 && random() > 0.55
+  const beardStyle = contesto.sesso === "F"
+    ? "none"
+    : razza === "Nano"
+      ? DWARF_BEARD_STYLE
+      : bodyType === "male" && options.beardStyles.length > 1 && random() > 0.55
       ? pick(options.beardStyles.filter((value) => value !== "none"), random)
       : "none";
 
@@ -300,6 +302,46 @@ export function applicaAspettoCapoReligioso(
   return { ...aspetto, characterAppearance };
 }
 
+/** Regola sul genere: una Donna non ha mai baffi né barba, indipendentemente dalla razza. */
+export function aspettoSenzaBarbaDonna(
+  appearance: CharacterAppearance,
+  sesso?: "M" | "F" | null
+): CharacterAppearance {
+  return sesso === "F" && appearance.beardStyle !== "none"
+    ? { ...appearance, beardStyle: "none" }
+    : appearance;
+}
+
+/** Salvaguarda gli aspetti femminili presenti nei vecchi salvataggi. */
+export function normalizzaAspettoDonna(
+  aspetto: AspettoPersonaggio,
+  sesso?: "M" | "F" | null
+): AspettoPersonaggio {
+  if (sesso !== "F" || !aspetto.characterAppearance || aspetto.characterAppearance.beardStyle === "none") return aspetto;
+  return { ...aspetto, characterAppearance: aspettoSenzaBarbaDonna(aspetto.characterAppearance, sesso) };
+}
+
+/**
+ * Un Goblin non deve scomparire o ripiegare sul rendering legacy a causa
+ * di vecchi capelli/abiti LPC incompatibili con la corporatura.
+ * Non altera il salvataggio; mantiene il massimo numero di elementi validi.
+ */
+export function goblinRenderizzabile(value: CharacterAppearance): CharacterAppearance {
+  const a = normalizeCharacterAppearance({ ...value, race: "goblin" });
+  if (canRenderCharacter(a, "idle") && canRenderCharacter(a, "walk")) return a;
+  const senzaCapelli = normalizeCharacterAppearance({
+    ...a, hairStyle: "none", beardStyle: "none",
+    accessory: "none", headwear: "none", neckwear: "none", facialMask: "none", facialEyes: "none"
+  });
+  if (canRenderCharacter(senzaCapelli, "idle") && canRenderCharacter(senzaCapelli, "walk")) return senzaCapelli;
+  const sicuro = normalizeCharacterAppearance({
+    ...senzaCapelli, upperOutfit: "none", lowerOutfit: "none",
+    fullOutfit: "none", fullOutfitTrim: "none", outfit: "none",
+    sleeveOutfit: "none", footwear: "none", cape: "none", capeTrim: "none"
+  });
+  return sicuro;
+}
+
 /** Variante stabile per completare vecchi salvataggi senza cambiare volto a ogni caricamento. */
 export function generaAspettoDaSeed(
   razza: RazzaConAspetto,
@@ -370,23 +412,31 @@ export function aspettoPerVisualizzazioneAbitante(
     sesso: abitante.sesso
   });
 
+  // Regole grafiche applicate per ultime: lavoro, abiti e normalizzazione LPC
+  // non devono reintrodurre la barba per le Donne o una pelle rosa nei Goblin.
+  const finalize = (value: CharacterAppearance) => {
+    const dressed = schiavo ? aspettoSchiavo(value) : copriBustoFemminile(value, abitante.sesso);
+    const femaleSafe = aspettoSenzaBarbaDonna(dressed, abitante.sesso);
+    return razza === "Goblin" ? goblinRenderizzabile(femaleSafe) : femaleSafe;
+  };
+
   // Il corpo cambia con gli anni, senza rigenerare pelle/colore/vestiti e
   // senza mutare l'aspetto memorizzato nei vecchi salvataggi.
   const eta = abitante.eta;
-  if (eta == null) return { ...aspetto, characterAppearance: schiavo ? aspettoSchiavo(pubblico) : copriBustoFemminile(pubblico, abitante.sesso) };
+  if (eta == null) return { ...aspetto, characterAppearance: finalize(pubblico) };
   const bodyType = razza === "Nano" ? "child"
     : eta < 13 ? "child"
     : eta < 18 ? "teen"
     : abitante.sesso === "F" ? "female" : "male";
   const ageGroup = bodyType === "child" ? "child" : bodyType === "teen" ? "teen" : "adult";
   if (pubblico.bodyType === bodyType && pubblico.ageGroup === ageGroup) {
-    return { ...aspetto, characterAppearance: schiavo ? aspettoSchiavo(pubblico) : copriBustoFemminile(pubblico, abitante.sesso) };
+    return { ...aspetto, characterAppearance: finalize(pubblico) };
   }
   const aggiornato = normalizeCharacterAppearance({
     ...pubblico, bodyType, ageGroup, bodyFamily: bodyFamilyFor(pubblico.race, ageGroup)
   });
   const finale = canRenderCharacter(aggiornato, "idle") ? aggiornato : pubblico;
-  return { ...aspetto, characterAppearance: schiavo ? aspettoSchiavo(finale) : copriBustoFemminile(finale, abitante.sesso) };
+  return { ...aspetto, characterAppearance: finalize(finale) };
 }
 
 /** Uniforme visiva esclusiva della casta Schiavo, senza mutare i vestiti salvati. */

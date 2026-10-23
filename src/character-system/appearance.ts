@@ -139,7 +139,7 @@ export function enforceRaceBodyTypeRules(value: Partial<CharacterAppearance>): P
       bodyType: "child",
       ageGroup: "child",
       bodyFamily: "humanChild",
-      beardStyle: DWARF_BEARD_STYLE,
+      beardStyle: value.beardStyle === "none" ? "none" : DWARF_BEARD_STYLE,
       earsStyle: "none"
     };
     const beardColors = compatibleColorsForField(

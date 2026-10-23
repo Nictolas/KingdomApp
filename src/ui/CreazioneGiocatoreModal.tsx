@@ -88,7 +88,6 @@ function forzaAspettoReTeen(aspetto: AspettoPersonaggio): AspettoPersonaggio {
       bodyType: "teen",
       ageGroup: "teen",
       bodyFamily: bodyFamilyFor("human", "teen"),
-      beardStyle: "none",
       headwear: "crown"
     })
   };
@@ -138,11 +137,12 @@ function AppearanceOption({
   );
 }
 
-type CreationTab = "identity" | "hair" | "busto" | "maniche" | "veste" | "mantello" | "pantaloni" | "gonne" | "scarpe" | "calze";
+type CreationTab = "identity" | "hair" | "beard" | "busto" | "maniche" | "veste" | "mantello" | "pantaloni" | "gonne" | "scarpe" | "calze";
 
 const CREATION_TABS: { id: CreationTab; label: string }[] = [
   { id: "identity", label: "Identità" },
   { id: "hair", label: "Capelli" },
+  { id: "beard", label: "Baffi e barba" },
   { id: "busto", label: "Busto" },
   { id: "maniche", label: "Maniche" },
   { id: "veste", label: "Veste" },
@@ -281,7 +281,10 @@ export function CreazioneGiocatoreModal({
     // La Chainmail appartiene solo alle Guardie, non all'editor del Re/Sacerdote.
     const initialAppearance = source?.aspetto ?? ASPETTO_RE_DEFAULT;
     setAspetto(initialAppearance.characterAppearance
-      ? { ...initialAppearance, characterAppearance: stripGuardChainmailFromCivilian(initialAppearance.characterAppearance) }
+      ? { ...initialAppearance, characterAppearance: normalizeCharacterAppearance({
+          ...stripGuardChainmailFromCivilian(initialAppearance.characterAppearance),
+          ...(source?.sesso === "F" ? { beardStyle: "none" } : {})
+        }) }
       : initialAppearance);
     setActiveTab(mode === "outfit" ? "busto" : "identity");
     setPaletteSelections({});
@@ -354,7 +357,8 @@ export function CreazioneGiocatoreModal({
       ...aspetto,
       characterAppearance: normalizeCharacterAppearance({
         ...spriteAppearance,
-        ...(mode === "outfit" ? soloCampiAbitoSacerdote(patch) : patch)
+        ...(mode === "outfit" ? soloCampiAbitoSacerdote(patch) : patch),
+        ...(sesso === "F" ? { beardStyle: "none" } : {})
       })
     };
     const next = mode === "outfit" ? patched : forzaAspettoReTeen(patched);
@@ -459,7 +463,15 @@ export function CreazioneGiocatoreModal({
       razza: initial?.razza ?? RAZZA_RE,
       aspetto: mode === "outfit"
         ? applicaSoloAbitoSacerdote(initial?.aspetto ?? ASPETTO_OUTFIT_DEFAULT, aspetto)
-        : forzaAspettoReTeen(aspetto)
+        : forzaAspettoReTeen({
+            ...aspetto,
+            characterAppearance: aspetto.characterAppearance
+              ? normalizeCharacterAppearance({
+                  ...aspetto.characterAppearance,
+                  ...(sessoFinale === "F" ? { beardStyle: "none" } : {})
+                })
+              : undefined
+          })
     });
   };
 
@@ -474,11 +486,13 @@ export function CreazioneGiocatoreModal({
       : activeTab === "gonne" ? gonneSections : [];
     const options = new Set<string>(
       activeTab === "hair" ? catalogOptions.hairStyles
+      : activeTab === "beard" ? catalogOptions.beardStyles
       : activeTab === "scarpe" ? catalogOptions.footwear.filter((id) => scarpeFootwearSections.some(([, tokens]) => tokens.some((token) => id.includes(token))))
       : activeTab === "calze" ? catalogOptions.footwear.filter((id) => calzeFootwearSections.some(([, tokens]) => tokens.some((token) => id.includes(token))))
       : sections.flatMap(({ options }) => options)
     );
     const slot = activeTab === "hair" ? "hairFront"
+      : activeTab === "beard" ? "beard"
       : activeTab === "mantello" ? "cape"
       : activeTab === "pantaloni" || activeTab === "gonne" ? "lowerBody"
       : activeTab === "scarpe" || activeTab === "calze" ? "footwear"
@@ -489,12 +503,14 @@ export function CreazioneGiocatoreModal({
     return [...new Set(LPC_RUNTIME_MANIFEST.assets
       .filter((asset) => asset.bodyType === spriteAppearance.bodyType && options.has(asset.semanticId) &&
         (activeTab === "hair" ? asset.slot === "hairBack" || asset.slot === "hairFront"
+        : activeTab === "beard" ? asset.slot === "beard"
         : activeTab === "maniche" ? asset.slot === "outfit" && asset.colorField === field
         : asset.slot === slot && asset.colorField === field))
       .map((asset) => asset.color))].sort();
   }, [activeTab, spriteAppearance.bodyType, spriteAppearance.cape, spriteAppearance.fullOutfit]);
 
   const currentCategoryColor = activeTab === "hair" ? spriteAppearance.hairColor
+    : activeTab === "beard" ? spriteAppearance.beardColor
     : activeTab === "maniche" ? spriteAppearance.sleeveColor
     : activeTab === "mantello" ? spriteAppearance.capeColor
     : activeTab === "pantaloni" || activeTab === "gonne" ? spriteAppearance.outfitSecondaryColor
@@ -524,6 +540,13 @@ export function CreazioneGiocatoreModal({
   };
   const selectCategoryColor = (color: string) => {
     setPaletteSelections((prev) => ({ ...prev, [activeTab]: color }));
+    if (activeTab === "beard") {
+      if (sesso !== "F" && spriteAppearance.beardStyle !== "none" &&
+          compatibleColorsForField(spriteAppearance, "beardColor", "beard", spriteAppearance.beardStyle).includes(color)) {
+        updateSpriteAppearance({ beardColor: color });
+      }
+      return;
+    }
     if (activeTab === "hair") {
       if (spriteAppearance.hairStyle !== "none" && LPC_RUNTIME_MANIFEST.assets.some((asset) =>
         asset.bodyType === spriteAppearance.bodyType && asset.semanticId === spriteAppearance.hairStyle &&
@@ -562,7 +585,7 @@ export function CreazioneGiocatoreModal({
   // La paginazione mobile deve usare le stesse schede visibili, evitando che le frecce
   // possano riaprire Identità o Capelli in modalità abito sacerdotale.
   const selectableTabs = CREATION_TABS
-    .filter((tab) => mode !== "outfit" || (tab.id !== "identity" && tab.id !== "hair"));
+    .filter((tab) => mode !== "outfit" || (tab.id !== "identity" && tab.id !== "hair" && tab.id !== "beard"));
   const activeTabIndex = selectableTabs.findIndex((tab) => tab.id === activeTab);
   const selectTab = (tabId: CreationTab) => {
     const index = selectableTabs.findIndex((tab) => tab.id === tabId);
@@ -724,7 +747,15 @@ export function CreazioneGiocatoreModal({
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Genere</Text>
-                <View style={styles.chipRow}>{GENERI.map((g) => <Pressable key={g.id} style={[styles.chip, sesso === g.id && styles.chipSelected]} onPress={() => setSesso((current) => current === g.id ? null : g.id)}><Text style={[styles.chipText, sesso === g.id && styles.chipTextSelected]}>{g.label}</Text></Pressable>)}</View>
+                <View style={styles.chipRow}>{GENERI.map((g) => <Pressable key={g.id} style={[styles.chip, sesso === g.id && styles.chipSelected]} onPress={() => {
+                  setSesso((current) => current === g.id ? null : g.id);
+                  if (g.id === "F") setAspetto((current) => ({
+                    ...current,
+                    characterAppearance: current.characterAppearance
+                      ? normalizeCharacterAppearance({ ...current.characterAppearance, beardStyle: "none" })
+                      : undefined
+                  }));
+                }}><Text style={[styles.chipText, sesso === g.id && styles.chipTextSelected]}>{g.label}</Text></Pressable>)}</View>
               </View>
               <View style={styles.field}>
                 <Text style={styles.label}>Orientamento sessuale</Text>
@@ -757,6 +788,33 @@ export function CreazioneGiocatoreModal({
                    }} />;
                 })}</View>
               </View>
+              </> : null}
+
+              {mode !== "outfit" && activeTab === "beard" ? <>
+              <Text style={styles.sectionTitle}>Baffi e barba</Text>
+              {sesso === "F" ? (
+                <Text style={styles.label}>I personaggi di genere Donna non possono avere baffi o barba.</Text>
+              ) : (
+                <View style={styles.field}>
+                  <Text style={styles.label}>Stile</Text>
+                  <View style={styles.visualGrid}>
+                    {catalogOptions.beardStyles.map((value) => {
+                      const color = value === "none" ? spriteAppearance.beardColor
+                        : firstCompatibleColorForField(spriteAppearance, "beardColor", "beard", value);
+                      return <AppearanceOption
+                        key={value}
+                        label={value === "none" ? "Nessuno" : value === "mustache" ? "Baffi" : readableOptionName("Barba", value)}
+                        selected={spriteAppearance.beardStyle === value}
+                        visibleLayers={["beard"]}
+                        appearance={normalizeCharacterAppearance({
+                          ...spriteAppearance, beardStyle: value, beardColor: color
+                        })}
+                        onPress={() => updateSpriteAppearance({ beardStyle: value, beardColor: color })}
+                      />;
+                    })}
+                  </View>
+                </View>
+              )}
               </> : null}
 
               {activeTab === "busto" ? <>
