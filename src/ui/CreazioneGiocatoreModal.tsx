@@ -43,6 +43,7 @@ import {
 } from "../character-system/lpcCatalogSections";
 import { CircularSpriteFrame } from "./CircularSpriteFrame";
 import type { CharacterAppearance, CharacterLayer } from "../character-system/types";
+import { applicaSoloAbitoSacerdote, soloCampiAbitoSacerdote } from "../game/soloAbitoSacerdote";
 
 export type DatiCreazioneGiocatore = {
   nome: string;
@@ -351,7 +352,10 @@ export function CreazioneGiocatoreModal({
   const updateSpriteAppearance = (patch: Partial<typeof spriteAppearance>) => {
     const patched = {
       ...aspetto,
-      characterAppearance: normalizeCharacterAppearance({ ...spriteAppearance, ...patch })
+      characterAppearance: normalizeCharacterAppearance({
+        ...spriteAppearance,
+        ...(mode === "outfit" ? soloCampiAbitoSacerdote(patch) : patch)
+      })
     };
     const next = mode === "outfit" ? patched : forzaAspettoReTeen(patched);
     if (next.characterAppearance && canRenderCharacter(next.characterAppearance, "idle")) {
@@ -453,7 +457,9 @@ export function CreazioneGiocatoreModal({
       sesso: sessoFinale,
       orientamento: orientamentoFinale,
       razza: initial?.razza ?? RAZZA_RE,
-      aspetto: mode === "outfit" ? aspetto : forzaAspettoReTeen(aspetto)
+      aspetto: mode === "outfit"
+        ? applicaSoloAbitoSacerdote(initial?.aspetto ?? ASPETTO_OUTFIT_DEFAULT, aspetto)
+        : forzaAspettoReTeen(aspetto)
     });
   };
 
@@ -553,20 +559,25 @@ export function CreazioneGiocatoreModal({
     else updateSpriteAppearance({ outfitPrimaryColor: color });
   };
 
-  const activeTabIndex = CREATION_TABS.findIndex((tab) => tab.id === activeTab);
+  // La paginazione mobile deve usare le stesse schede visibili, evitando che le frecce
+  // possano riaprire Identità o Capelli in modalità abito sacerdotale.
+  const selectableTabs = CREATION_TABS
+    .filter((tab) => mode !== "outfit" || (tab.id !== "identity" && tab.id !== "hair"));
+  const activeTabIndex = selectableTabs.findIndex((tab) => tab.id === activeTab);
   const selectTab = (tabId: CreationTab) => {
+    const index = selectableTabs.findIndex((tab) => tab.id === tabId);
+    if (index < 0) return;
     setActiveTab(tabId);
-    const index = CREATION_TABS.findIndex((tab) => tab.id === tabId);
-    if (!isDesktop && index >= 0) {
+    if (!isDesktop) {
       categoryScrollRef.current?.scrollTo({ x: Math.max(0, (index - 1) * 92), animated: true });
     }
   };
   const stepTab = (delta: -1 | 1) => {
-    const target = CREATION_TABS[Math.min(CREATION_TABS.length - 1, Math.max(0, activeTabIndex + delta))];
+    const target = selectableTabs[Math.min(selectableTabs.length - 1, Math.max(0, activeTabIndex + delta))];
     if (target) selectTab(target.id);
   };
 
-  const tabButtons = CREATION_TABS.map((tab) => (
+  const tabButtons = selectableTabs.map((tab) => (
     <Pressable
       key={tab.id}
       accessibilityRole="tab"
@@ -630,7 +641,8 @@ export function CreazioneGiocatoreModal({
                   </View>
                 )}
                 <View style={[styles.previewMeta, !isDesktop && styles.previewMetaMobile]}>
-                  <Text style={styles.previewHint}>Umano · 10 anni</Text>
+                  <Text style={styles.previewHint}>{mode === "outfit" ? "Anteprima abito" : "Umano · 10 anni"}</Text>
+                  {mode !== "outfit" && (
                   <Pressable style={[styles.randomButton, !isDesktop && styles.randomButtonMobile]} onPress={() => {
                     const identita = mode === "create" ? generaIdentitaReCasuale() : null;
                     if (identita) {
@@ -648,6 +660,7 @@ export function CreazioneGiocatoreModal({
                   }}>
                     <Text style={styles.randomButtonText}>🎲 Sorprendimi</Text>
                   </Pressable>
+                  )}
                 </View>
               </View>
             </View>
@@ -682,9 +695,9 @@ export function CreazioneGiocatoreModal({
                   <Pressable
                     accessibilityRole="button"
                     accessibilityLabel="Categoria successiva"
-                    accessibilityState={{ disabled: activeTabIndex >= CREATION_TABS.length - 1 }}
-                    disabled={activeTabIndex >= CREATION_TABS.length - 1}
-                    style={[styles.tabStepButton, activeTabIndex >= CREATION_TABS.length - 1 && styles.tabStepButtonDisabled]}
+                    accessibilityState={{ disabled: activeTabIndex >= selectableTabs.length - 1 }}
+                    disabled={activeTabIndex >= selectableTabs.length - 1}
+                    style={[styles.tabStepButton, activeTabIndex >= selectableTabs.length - 1 && styles.tabStepButtonDisabled]}
                     onPress={() => stepTab(1)}
                   >
                     <Text style={styles.tabStepText}>›</Text>
@@ -699,7 +712,7 @@ export function CreazioneGiocatoreModal({
                 keyboardShouldPersistTaps="handled"
               >
               {activeTab !== "identity" ? <ColorPalette colors={categoryColors} selected={selectedCategoryColor} onSelect={selectCategoryColor} /> : null}
-              {activeTab === "identity" ? <>
+              {mode !== "outfit" && activeTab === "identity" ? <>
               <Text style={styles.sectionTitle}>Identità</Text>
               <View style={styles.field}>
                 <Text style={styles.label}>Nome</Text>
@@ -723,7 +736,7 @@ export function CreazioneGiocatoreModal({
               </View>
               </> : null}
 
-              {activeTab === "hair" ? <>
+              {mode !== "outfit" && activeTab === "hair" ? <>
               <Text style={styles.sectionTitle}>Capelli</Text>
 
               <View style={styles.field}>
