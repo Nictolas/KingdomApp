@@ -14,6 +14,7 @@ export type CommutePurposeMappa =
   | "culto"
   | "negozio"
   | "rapina"
+  | "udienza_banditi"
   | "cerca_lavoro"
   | "vende_emporio"
   | "re_uscita";
@@ -31,6 +32,7 @@ export type CommuteInfoMappa = {
   lavoroEdificioId?: number;
   emporioVenditaEdificioId?: number;
   rapinaTarget?: RapinaTarget;
+  udienzaCastelloEdificioId?: number;
 };
 
 export type MappaPersonaggiRuntimeState = {
