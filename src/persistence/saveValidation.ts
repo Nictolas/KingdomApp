@@ -1,6 +1,6 @@
 import type { Abitante, Edificio, Reato, Risorsa } from "../types";
 import { SAVE_FORMAT, SAVE_SCHEMA_VERSION, type GameSaveV1, type SaveEnvelopeV1 } from "./saveTypes.ts";
-import { generaAspettoDaSeed } from "../game/personaggioAspetto";
+import { generaAspettoDaSeed, normalizzaAspettoOrco } from "../game/personaggioAspetto";
 import { normalizeGameMode } from "../game/gameMode";
 
 export class SaveValidationError extends Error {
@@ -285,6 +285,12 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     ...(a.id !== 1 && a.aspetto?.cappello === "corona" && {
       aspetto: { ...a.aspetto, cappello: "nessuno" }
     }),
+    ...(normalizzaRazzaFantasy(a.razza) === "Orco" && a.aspetto && {
+      aspetto: normalizzaAspettoOrco({
+        ...a.aspetto,
+        ...(a.id !== 1 && a.aspetto.cappello === "corona" ? { cappello: "nessuno" as const } : {})
+      })
+    }),
     fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f === "Culto degli Alieni" ? "Culto delle Ombre" : f),
     reati: a.reati?.map((r) => normalizzaReatoFantasy(String(r))),
     inventario: a.inventario ? normalizeInventario(a.inventario) : undefined
@@ -299,6 +305,12 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     }),
     ...(a.aspetto?.cappello === "corona" && {
       aspetto: { ...a.aspetto, cappello: "nessuno" }
+    }),
+    ...(normalizzaRazzaFantasy(a.razza) === "Orco" && a.aspetto && {
+      aspetto: normalizzaAspettoOrco({
+        ...a.aspetto,
+        ...(a.aspetto.cappello === "corona" ? { cappello: "nessuno" as const } : {})
+      })
     }),
     fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f === "Culto degli Alieni" ? "Culto delle Ombre" : f),
     reati: a.reati?.map((r) => normalizzaReatoFantasy(String(r)))

@@ -11,6 +11,8 @@ import type { CharacterAppearance, CharacterBodyFamily, CharacterRaceId } from "
 
 export const DWARF_BEARD_STYLE = "winter";
 export const ELF_EARS_STYLE = "side_wolf_skintone";
+/** Coerente con le teste LPC verdi già presenti: tutti gli orchi hanno pelle verde. */
+export const ORC_GREEN_SKIN_TONE = "orc_green";
 export const DWARF_CHILD_SHIRT = "child_shirt";
 export const DWARF_CHILD_PANTS = "child_pants";
 export const DWARF_CHILD_SKIRT = "child_skirt";
@@ -121,7 +123,11 @@ export function enforceRaceBodyTypeRules(value: Partial<CharacterAppearance>): P
       ageGroup: "adult",
       bodyFamily: bodyFamilyFor(race, "adult"),
       beardStyle: "none",
-      earsStyle: race === "elf" ? ELF_EARS_STYLE : "none"
+      earsStyle: race === "elf" ? ELF_EARS_STYLE : "none",
+      ...(race === "orc" ? {
+        skinTone: ORC_GREEN_SKIN_TONE,
+        headStyle: "orc_female"
+      } : {})
     };
   }
   if (value.race === "dwarf") {
@@ -148,6 +154,14 @@ export function enforceRaceBodyTypeRules(value: Partial<CharacterAppearance>): P
         DWARF_BEARD_STYLE
       );
     return { ...withBody, beardColor };
+  }
+  if (value.race === "orc") {
+    return {
+      ...value,
+      skinTone: ORC_GREEN_SKIN_TONE,
+      headStyle: value.bodyType === "female" ? "orc_female" : "orc_male",
+      earsStyle: "none"
+    };
   }
   if (value.race === "elf") {
     return { ...value, earsStyle: ELF_EARS_STYLE };
@@ -491,6 +505,9 @@ export function appearanceAlignedToRazza(
   }
   if (razza === "Elfo") {
     return normalizeCharacterAppearance({ ...value, race: "elf" });
+  }
+  if (razza === "Orco") {
+    return normalizeCharacterAppearance({ ...value, race: "orc" });
   }
   return value;
 }

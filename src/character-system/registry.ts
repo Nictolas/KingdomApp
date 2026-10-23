@@ -7,7 +7,7 @@ const requiredHeadStyle = (appearance: CharacterAppearance) => {
   if (appearance.race === "skeleton") return "skeleton";
   if (appearance.race === "vampire") return "vampire";
   if (appearance.race === "goblin") return "goblin";
-  if (appearance.race === "orc") return appearance.bodyType === "female" ? "orc_female" : "orc_male";
+  if (appearance.race === "orc") return (appearance.bodyType === "female" || appearance.bodyType === "pregnant") ? "orc_female" : "orc_male";
   if (appearance.race === "lizard") return appearance.bodyType === "female" ? "lizard_female" : "lizard_male";
   return "human_head";
 };
@@ -53,7 +53,14 @@ function assetColorMatches(asset: ManifestAsset, appearance: CharacterAppearance
 
 function semanticForSlot(asset: ManifestAsset, appearance: CharacterAppearance, pool: ManifestAsset[]): boolean {
   if (asset.slot === "body") return asset.semanticId === appearance.bodyType && asset.color === appearance.skinTone;
-  if (asset.slot === "raceFeatures") return asset.semanticId === appearance.headStyle && (asset.color === "base" || asset.color === appearance.skinTone);
+  if (asset.slot === "raceFeatures") {
+    // Le teste d'orco LPC sono già verdi nella variante olive; il nuovo corpo
+    // orc_green riusa quelle teste anziché sovrapporre una testa umana marrone.
+    const matchesGreenOrcHead =
+      appearance.race === "orc" && appearance.skinTone === "orc_green" && asset.color === "olive";
+    return asset.semanticId === appearance.headStyle &&
+      (asset.color === "base" || asset.color === appearance.skinTone || matchesGreenOrcHead);
+  }
   if (asset.slot === "hairFront" || asset.slot === "hairBack") return appearance.hairStyle !== "none" && asset.semanticId === appearance.hairStyle && asset.color === appearance.hairColor;
   if (asset.slot === "beard") return appearance.beardStyle !== "none" && asset.semanticId === appearance.beardStyle && asset.color === appearance.beardColor;
   if (asset.slot === "fullOutfit") {
@@ -221,7 +228,9 @@ export function compatibleCatalogOptions(appearance: CharacterAppearance, option
     .filter((asset) => (asset.slot === "hairFront" || asset.slot === "hairBack") && asset.semanticId === appearance.hairStyle)
     .map((asset) => asset.color))].sort();
   return {
-    skinTones: LPC_RUNTIME_MANIFEST.options.skinTones.filter((tone) => bodyAssets.some((asset) => asset.slot === "body" && asset.color === tone)),
+    skinTones: appearance.race === "orc"
+      ? ["orc_green"]
+      : LPC_RUNTIME_MANIFEST.options.skinTones.filter((tone) => bodyAssets.some((asset) => asset.slot === "body" && asset.color === tone)),
     hairStyles: [...new Set([...values("hairFront"), ...values("hairBack")])].sort(),
     hairColors,
     beardStyles: ["none", ...values("beard")],
