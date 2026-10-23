@@ -143,6 +143,7 @@ import { provaCreaReligioneCustom, modificaDogmiReligioneCustom as evolviDogmiRe
 import type { DogmaReligioso } from "../game/dogmiReligiosi";
 import { convertiFedeliInEresia } from "../game/eresieReligiose";
 import { aggiornaSoddisfazioneReligioniNaturaliste } from "../game/reazioneReligioniBosco";
+import { aggiornaSoddisfazioneDogmiAbiti } from "../game/reazioneDogmiAbiti";
 import { assicuraReligioneTempioChiese } from "../game/chiesa";
 import { isSimulationRunning, type GamePhase } from "../game/gamePhase";
 import type { GameMode } from "../game/gameMode";
@@ -685,8 +686,9 @@ export function useGameState() {
    */
   useEffect(() => {
     if (!simulationEnabled) return;
-    setAbitanti(prev => aggiornaSoddisfazioneReligioniNaturaliste(
-      prev, edifici, religioniCustom
+    setAbitanti(prev => aggiornaSoddisfazioneDogmiAbiti(
+      aggiornaSoddisfazioneReligioniNaturaliste(prev, edifici, religioniCustom),
+      religioniCustom
     ));
   }, [simulationEnabled, abitanti, edifici, religioniCustom]);
 
