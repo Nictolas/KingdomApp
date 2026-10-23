@@ -23,6 +23,7 @@ import {
 import { religioneTempioDi, trovaChiesaOperativa } from "../src/game/chiesa";
 import { CreazioneGiocatoreModal, type DatiCreazioneGiocatore } from "../src/ui/CreazioneGiocatoreModal";
 import type { AspettoPersonaggio } from "../src/game/personaggioAspetto";
+import type { DottrinaNaturalista } from "../src/game/ecosistemaBosco";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 
 export default function ReligioniScreen() {
@@ -38,6 +39,9 @@ export default function ReligioniScreen() {
   const [nomeNuova, setNomeNuova] = useState("");
   const [emojiNuova, setEmojiNuova] = useState<string>(EMOJI_RELIGIONE_PRESET[0]!);
   const [descrizioneNuova, setDescrizioneNuova] = useState("");
+  const [dottrinaNuova, setDottrinaNuova] = useState<DottrinaNaturalista>({
+    forestaSacra: false, tutelaFauna: false, tutelaVegetazione: false
+  });
   const [aspettoSacerdote, setAspettoSacerdote] = useState<AspettoPersonaggio | null>(null);
   const [erroreCrea, setErroreCrea] = useState<string | null>(null);
 
@@ -69,6 +73,7 @@ export default function ReligioniScreen() {
     setNomeNuova("");
     setEmojiNuova(EMOJI_RELIGIONE_PRESET[0]!);
     setDescrizioneNuova("");
+    setDottrinaNuova({ forestaSacra: false, tutelaFauna: false, tutelaVegetazione: false });
     setAspettoSacerdote(null);
     setErroreCrea(null);
     setMostraCrea(true);
@@ -79,6 +84,7 @@ export default function ReligioniScreen() {
       nome: nomeNuova,
       emoji: emojiNuova,
       descrizione: descrizioneNuova,
+      dottrinaNaturalista: dottrinaNuova,
       ...(aspettoSacerdote ? { aspettoSacerdote } : {})
     });
     if (!result.ok) {
@@ -228,6 +234,31 @@ export default function ReligioniScreen() {
               multiline
               maxLength={160}
             />
+
+            <Text style={styles.fieldLabel}>Dottrina della natura (facoltativa)</Text>
+            <Text style={styles.modalHint}>
+              Le religioni naturaliste reagiscono al degrado reale del Bosco.
+              La Soddisfazione si ristabilisce quando l'ecosistema recupera.
+            </Text>
+            {([
+              ["forestaSacra", "🌳 Il Bosco è sacro"],
+              ["tutelaFauna", "🦌 Gli animali sono sacri"],
+              ["tutelaVegetazione", "🌿 Proteggere la vegetazione"]
+            ] as const).map(([chiave, testo]) => (
+              <Pressable
+                key={chiave}
+                accessibilityRole="checkbox"
+                accessibilityState={{ checked: dottrinaNuova[chiave] }}
+                style={[styles.emojiChip, dottrinaNuova[chiave] && styles.emojiChipAttivo]}
+                onPress={() => setDottrinaNuova(prev => ({
+                  ...prev, [chiave]: !prev[chiave]
+                }))}
+              >
+                <Text style={styles.emojiChipText}>
+                  {dottrinaNuova[chiave] ? "☑" : "☐"} {testo}
+                </Text>
+              </Pressable>
+            ))}
 
             <Pressable style={styles.abitiBtn} onPress={() => setMostraAbiti(true)}>
               <Text style={styles.abitiBtnText}>
