@@ -1,13 +1,13 @@
 /** Pure grid geometry helpers shared by the map runtime. */
 
 import type { TerrenoType } from "./riverGeneration";
-import { cellaNellaForestaNord, righeForestaNord } from "./mappaForestaConfine";
+import { cellaNellaFasciaErbaSottoForesta, cellaNellaForestaNord, righeForestaNord } from "./mappaForestaConfine";
 
 /** True for cells on the outer border of the map. */
 export function isAcqua(index: number, cols: number, rows: number): boolean {
   const row = Math.floor(index / cols);
   const col = index % cols;
-  if (cellaNellaForestaNord(index, cols, rows)) return false;
+  if (cellaNellaForestaNord(index, cols, rows) || cellaNellaFasciaErbaSottoForesta(index, cols, rows)) return false;
   return (row === 0 && righeForestaNord(cols, rows) === 0) || row === rows - 1 || col === 0 || col === cols - 1;
 }
 

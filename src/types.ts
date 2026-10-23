@@ -162,6 +162,7 @@ export type Razza =
   | "Nano"
   | "Orco"
   | "Goblin"
+  | "Felix"
   | "Golem";
 
 export type Ministro = {

@@ -3,6 +3,8 @@ import { Asset } from "expo-asset";
 import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import type { PhaserMapActions, PhaserMapSnapshot } from "../phaser/adapters/mapSceneBridge";
+import type { PhaserCameraView } from "../phaser/scenes/KingdomMapScene";
+import { restoreMapAfterNavigation, recoverStalledPhaserRender } from "../phaser/restoreMapAfterNavigation";
 import { LPC_ASSET_SOURCES } from "../character-system/generated/lpcAssetSources";
 import { canRenderCharacter, resolveCharacterLayers, CHARACTER_ASSETS } from "../character-system/registry";
 import { refineLpcSpriteUrl, LPC_HD_FRAME_PX } from "../character-system/lpcHdRuntime.web";
@@ -86,9 +88,11 @@ const FOREST_TREE_2 = require("../../assets/tilesets/DEMO-vector-rpg-overworld-t
 
 type Props = PhaserMapActions & {
   snapshot: PhaserMapSnapshot;
+  initialCamera?: PhaserCameraView | null;
 };
 
 export type PhaserMapSurfaceHandle = {
+  captureCamera: () => PhaserCameraView | null;
   refreshViewport: () => void;
   resumeInteractions: () => void;
   centerOnCell: (cellIndex: number, options?: { zoomIn?: boolean }) => void;
@@ -97,6 +101,7 @@ export type PhaserMapSurfaceHandle = {
 /** Superficie WebGL. React le passa dati e azioni, senza partecipare al render loop. */
 export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(function PhaserMapSurface({
   snapshot,
+  initialCamera = null,
   onCellPress,
   onCellHover,
   onCharacterPress,
@@ -115,6 +120,7 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
     game: import("phaser").Game;
     bridge: import("../phaser/adapters/mapSceneBridge").MapSceneBridge;
   } | null>(null);
+  const lastRenderedAtRef = useRef(Date.now());
   const [charactersReady, setCharactersReady] = useState(false);
   const onCharacterAssetsReadyRef = useRef(onCharacterAssetsReady);
   onCharacterAssetsReadyRef.current = onCharacterAssetsReady;
@@ -122,6 +128,14 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
   useImperativeHandle(
     ref,
     () => ({
+      captureCamera: () => {
+        const runtime = runtimeRef.current;
+        if (!runtime || !runtime.game.isBooted) return null;
+        const scene = runtime.game.scene.getScene("kingdom-map");
+        const camera = scene?.cameras?.main;
+        if (!camera) return null;
+        return { scrollX: camera.scrollX, scrollY: camera.scrollY, zoom: camera.zoom };
+      },
       refreshViewport: () => {
         const runtime = runtimeRef.current;
         const host = hostRef.current;
@@ -136,11 +150,13 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
       },
       resumeInteractions: () => {
         const runtime = runtimeRef.current;
-        if (!runtime) return;
-        // Phaser documenta resetPointers per i casi in cui componenti esterni
-        // sottraggono il focus / la sequenza di input al suo canvas.
+        const host = hostRef.current;
+        if (!runtime || !host || host.clientWidth < 2 || host.clientHeight < 2) return;
+        // Quando una route edificio nasconde la mappa, Phaser puo' lasciare
+        // l'intero Game in pausa mentre l'orologio React continua a scorrere.
+        // Prima riattiva il rendering, poi libera puntatori e drag della scena.
+        restoreMapAfterNavigation(runtime.game);
         runtime.game.input.enabled = true;
-        // Il reset dei puntatori appartiene al plugin input della scena.
         runtime.bridge.resumeInteractions();
       },
       centerOnCell: (cellIndex, options) => {
@@ -201,7 +217,11 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
           pixelArt: true,
           roundPixels: true
         },
-        scene: [new KingdomMapScene(bridge, sheetUrl, artUrls)]
+        scene: [new KingdomMapScene(bridge, sheetUrl, artUrls, initialCamera)]
+      });
+      lastRenderedAtRef.current = Date.now();
+      game.events.on("postrender", () => {
+        lastRenderedAtRef.current = Date.now();
       });
       runtimeRef.current = { game, bridge };
     })();
@@ -210,6 +230,54 @@ export const PhaserMapSurface = forwardRef<PhaserMapSurfaceHandle, Props>(functi
       cancelled = true;
       runtimeRef.current?.game.destroy(true);
       runtimeRef.current = null;
+    };
+  }, []);
+
+  useEffect(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    // Anche una route web mantenuta nello stack puo' tornare visibile
+    // senza provocare un nuovo mount o un evento focus di React Navigation.
+    // ResizeObserver ripristina la mappa quando il canvas riacquista dimensioni.
+    const recoverVisibleMap = () => {
+      if (document.hidden || host.clientWidth < 2 || host.clientHeight < 2) return;
+      const runtime = runtimeRef.current;
+      if (!runtime) return;
+      restoreMapAfterNavigation(runtime.game);
+      runtime.game.input.enabled = true;
+      runtime.bridge.resumeInteractions();
+      runtime.bridge.refreshViewport();
+    };
+    const onVisibility = () => {
+      if (!document.hidden) recoverVisibleMap();
+    };
+    // Safari/mobile puo' conservare il Game in memoria ma sospendere il RAF
+    // quando un edificio viene chiuso. Il clock React resta invece attivo.
+    // Effettua il recupero soltanto a pagina e canvas effettivamente visibili.
+    const watchdog = window.setInterval(() => {
+      if (document.hidden || window.location.pathname !== "/" ||
+          host.clientWidth < 2 || host.clientHeight < 2) return;
+      const runtime = runtimeRef.current;
+      if (!runtime) return;
+      const stalled = Date.now() - lastRenderedAtRef.current;
+      if (recoverStalledPhaserRender(runtime.game, stalled)) {
+        lastRenderedAtRef.current = Date.now();
+        runtime.game.input.enabled = true;
+        runtime.bridge.resumeInteractions();
+        runtime.bridge.refreshViewport();
+      }
+    }, 2500);
+    const resizeObserver = new ResizeObserver(recoverVisibleMap);
+    resizeObserver.observe(host);
+    window.addEventListener("focus", recoverVisibleMap);
+    window.addEventListener("pageshow", recoverVisibleMap);
+    document.addEventListener("visibilitychange", onVisibility);
+    return () => {
+      window.clearInterval(watchdog);
+      resizeObserver.disconnect();
+      window.removeEventListener("focus", recoverVisibleMap);
+      window.removeEventListener("pageshow", recoverVisibleMap);
+      document.removeEventListener("visibilitychange", onVisibility);
     };
   }, []);
 

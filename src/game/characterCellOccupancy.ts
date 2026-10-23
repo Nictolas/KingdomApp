@@ -41,20 +41,34 @@ export function assignUniqueCharacterCells<T extends CharacterCellLike>(
   characters: readonly T[],
   cols: number,
   rows: number,
-  isWalkable: (cell: number) => boolean
+  isWalkable: (cell: number) => boolean,
+  /** Celle vietate anche durante i percorsi di uscita dagli edifici (es. foresta nord). */
+  isForbidden: (cell: number) => boolean = () => false
 ): T[] {
   const occupied = new Set<number>();
+  const isSafeCell = (cell: number) => !isForbidden(cell) && isWalkable(cell);
   return characters.map((character) => {
+    const pathCrossesForbidden = character.path?.some(isForbidden) ?? false;
+    // Le celle interne degli edifici ordinari restano lecite durante l'uscita.
+    // La foresta invece non diventa percorribile solo perché un vecchio
+    // salvataggio contiene un path che inizia o passa da lì.
     const exitingInterior =
-      !!character.path?.length && character.cell >= 0 && !isWalkable(character.cell);
+      !!character.path?.length &&
+      character.cell >= 0 &&
+      !isForbidden(character.cell) &&
+      !pathCrossesForbidden &&
+      !isWalkable(character.cell);
     if (exitingInterior) {
       occupied.add(character.cell);
       occupied.add(character.path![0]!);
       return character;
     }
-    const cell = nearestFreeCell(character.cell, cols, rows, occupied, isWalkable);
+    const cell = nearestFreeCell(character.cell, cols, rows, occupied, isSafeCell);
     if (cell == null) return character;
     occupied.add(cell);
+    // Il percorso legacy che attraversa una cella vietata viene interrotto:
+    // il pianificatore ne potrà avviare uno nuovo con le regole aggiornate.
+    if (pathCrossesForbidden) return { ...character, cell, path: undefined };
     if (cell === character.cell) return character;
     const path = character.path?.length
       ? [cell, ...character.path.slice(character.path[0] === character.cell ? 1 : 0)]

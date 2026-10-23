@@ -74,6 +74,38 @@ export const EDIFICIO_TO_LAVORO: Record<number, string> = {
 
 const LAVORI_DA_EDIFICIO = new Set(Object.values(EDIFICIO_TO_LAVORO));
 
+/** Un Tribunale offre esattamente un posto di Giudice, anche nei vecchi salvataggi. */
+export function capienzaPostiLavoro(edificio: Edificio): number {
+  return edificio.nome === "Tribunale" ? 1 : (edificio.capacità ?? 0);
+}
+
+/** Conserva un solo Giudice per ogni Tribunale, senza toccare altri edifici.
+ * Preferisce chi esercita già il lavoro; i rimanenti sono ricollocabili.
+ */
+export function normalizzaGiudiciTribunale(abitanti: Abitante[], edifici: Edificio[]): Edificio[] {
+  const byId = new Map(abitanti.map(a => [a.id, a]));
+  const giàAssegnati = new Set<number>();
+  let changed = false;
+  const result = edifici.map(e => {
+    if (e.nome !== "Tribunale") return e;
+    const candidati = [...new Set(e.abitantiAssegnati ?? [])]
+      .filter(id => !giàAssegnati.has(id))
+      .filter(id => {
+        const a = byId.get(id);
+        return a && !isGiocatore(a) && a.lavoro !== "Pensionato" && a.lavoro !== "Prigioniero";
+      });
+    const occupante = candidati.find(id => byId.get(id)?.lavoro === "Giudice") ?? candidati[0];
+    const ids = occupante == null ? [] : [occupante];
+    if (occupante != null) giàAssegnati.add(occupante);
+    if (e.capacità === 1 && e.occupazione === ids.length &&
+        (e.abitantiAssegnati ?? []).length === ids.length &&
+        (e.abitantiAssegnati ?? []).every((id, i) => id === ids[i])) return e;
+    changed = true;
+    return { ...e, capacità: 1, abitantiAssegnati: ids, occupazione: ids.length };
+  });
+  return changed ? result : edifici;
+}
+
 const EDIFICI_PUBBLICI_ESCLUSI = new Set(["Campo di Lavoro", "Campo di Sterminio"]);
 
 /** True se l’edificio è un’Impresa (scheda Impresa; payroll può essere cassa o Tesoro). */
@@ -137,7 +169,7 @@ function assegnaDisoccupatiAEdificiPubblici(
     const slotLiberi =
       edificio.nome === "Castello"
         ? postiLiberiGuardieCastello(edificio, ID_GIOCATORE, perConsigliere)
-        : (edificio.capacità ?? 0) - edificio.abitantiAssegnati!.length;
+        : capienzaPostiLavoro(edificio) - edificio.abitantiAssegnati!.length;
     if (slotLiberi <= 0) continue;
 
     let aggiunti = 0;
@@ -216,7 +248,7 @@ export function edificioAccettaDisoccupatoCittadino(
   const postiLiberi =
     edificio.nome === "Castello"
       ? postiLiberiGuardieCastello(edificio, ID_GIOCATORE, tuttiAbitanti)
-      : (edificio.capacità ?? 0) - assegnati.length;
+      : capienzaPostiLavoro(edificio) - assegnati.length;
   if (postiLiberi <= 0) return false;
   const req = getCompetenzaMinimaPerEdificio(edificio);
   const min = req?.competenzaMinima ?? 0;
@@ -312,7 +344,7 @@ export function getServiDellaGlebaPerAssegnazioneEdificio(
   const postiLiberi =
     edificio.nome === "Castello"
       ? postiLiberiGuardieCastello(edificio, ID_GIOCATORE, abitanti)
-      : (edificio.capacità ?? 0) - (edificio.abitantiAssegnati ?? []).length;
+      : capienzaPostiLavoro(edificio) - (edificio.abitantiAssegnati ?? []).length;
   if (postiLiberi <= 0) return [];
   return getServiDellaGlebaAssegnabili(abitanti, edifici);
 }
@@ -343,7 +375,7 @@ export function elencoPostazioniLavoroOrdinato(edifici: Edificio[]): PostazioneL
         e.nome === "Castello"
           ? Math.min(CAPACITA_GUARDIE_CASTELLO, Math.max(0, (e.abitantiAssegnati ?? []).length - 1))
           : (e.abitantiAssegnati ?? []).length;
-      const massimi = e.nome === "Castello" ? CAPACITA_GUARDIE_CASTELLO : e.capacità ?? 0;
+      const massimi = e.nome === "Castello" ? CAPACITA_GUARDIE_CASTELLO : capienzaPostiLavoro(e);
       return {
         edificioId: e.id,
         nome: e.nome,
@@ -524,7 +556,8 @@ export function normalizzaLavoroEAgricoltura(abitanti: Abitante[], edifici: Edif
   abitanti: Abitante[];
   edifici: Edificio[];
 } {
-  const edifici1 = assicuraReNelCastello(abitanti, edifici);
+  const tribunaliNormalizzati = normalizzaGiudiciTribunale(abitanti, edifici);
+  const edifici1 = assicuraReNelCastello(abitanti, tribunaliNormalizzati);
   const edifici2 = assicuraAgricoltoriNelleSerre(abitanti, edifici1);
   const abitanti2 = sincronizzaLavoroDaEdifici(abitanti, edifici2);
   return { abitanti: abitanti2, edifici: edifici2 };

@@ -11,6 +11,12 @@ import type { CharacterAppearance, CharacterBodyFamily, CharacterRaceId } from "
 
 export const DWARF_BEARD_STYLE = "winter";
 export const ELF_EARS_STYLE = "side_wolf_skintone";
+export const FELIX_EARS_STYLE = "cat_ears";
+export const FELIX_EAR_COLORS = ["black","chestnut","blonde","ginger"] as const;
+export const FELIX_EAR_SKINTONES = ["light","amber","olive","brown"] as const;
+/** Coerente con le teste LPC verdi già presenti: tutti gli orchi hanno pelle verde. */
+export const ORC_GREEN_SKIN_TONE = "orc_green";
+export const GOBLIN_GREEN_SKIN_TONE = "orc_green";
 export const DWARF_CHILD_SHIRT = "child_shirt";
 export const DWARF_CHILD_PANTS = "child_pants";
 export const DWARF_CHILD_SKIRT = "child_skirt";
@@ -101,7 +107,8 @@ export const RACE_BODY_FAMILY: Record<CharacterRaceId, CharacterBodyFamily> = {
   skeleton: "humanAdult",
   vampire: "humanAdult",
   goblin: "halflingAdult",
-  lizard: "humanAdult"
+  lizard: "humanAdult",
+  felix: "humanAdult"
 };
 
 export function bodyFamilyFor(race: CharacterRaceId, ageGroup: "adult" | "teen" | "child" = "adult"): CharacterBodyFamily {
@@ -121,7 +128,19 @@ export function enforceRaceBodyTypeRules(value: Partial<CharacterAppearance>): P
       ageGroup: "adult",
       bodyFamily: bodyFamilyFor(race, "adult"),
       beardStyle: "none",
-      earsStyle: race === "elf" ? ELF_EARS_STYLE : "none"
+      earsStyle: race === "elf" ? ELF_EARS_STYLE : race === "felix" ? FELIX_EARS_STYLE : "none",
+      ...(race === "orc" ? {
+        skinTone: ORC_GREEN_SKIN_TONE,
+        headStyle: "orc_female"
+      } : race === "goblin" ? {
+        skinTone: GOBLIN_GREEN_SKIN_TONE, headStyle: "goblin"
+      } : {})
+    };
+  }
+  if (value.race === "felix") {
+    return { ...value, headStyle: "human_head", earsStyle: FELIX_EARS_STYLE,
+      catEarsColor: FELIX_EAR_COLORS.includes(value.catEarsColor as typeof FELIX_EAR_COLORS[number]) ? value.catEarsColor : FELIX_EAR_COLORS[0],
+      catEarsSkintoneColor: FELIX_EAR_SKINTONES.includes(value.catEarsSkintoneColor as typeof FELIX_EAR_SKINTONES[number]) ? value.catEarsSkintoneColor : FELIX_EAR_SKINTONES[0]
     };
   }
   if (value.race === "dwarf") {
@@ -130,7 +149,7 @@ export function enforceRaceBodyTypeRules(value: Partial<CharacterAppearance>): P
       bodyType: "child",
       ageGroup: "child",
       bodyFamily: "humanChild",
-      beardStyle: DWARF_BEARD_STYLE,
+      beardStyle: value.beardStyle === "none" ? "none" : DWARF_BEARD_STYLE,
       earsStyle: "none"
     };
     const beardColors = compatibleColorsForField(
@@ -148,6 +167,17 @@ export function enforceRaceBodyTypeRules(value: Partial<CharacterAppearance>): P
         DWARF_BEARD_STYLE
       );
     return { ...withBody, beardColor };
+  }
+  if (value.race === "goblin") {
+    return { ...value, skinTone: GOBLIN_GREEN_SKIN_TONE, headStyle: "goblin", earsStyle: "none" };
+  }
+  if (value.race === "orc") {
+    return {
+      ...value,
+      skinTone: ORC_GREEN_SKIN_TONE,
+      headStyle: value.bodyType === "female" ? "orc_female" : "orc_male",
+      earsStyle: "none"
+    };
   }
   if (value.race === "elf") {
     return { ...value, earsStyle: ELF_EARS_STYLE };
@@ -171,6 +201,8 @@ export const DEFAULT_CHARACTER_APPEARANCE: CharacterAppearance = {
   beardStyle: "none",
   beardColor: "dark_brown",
   earsStyle: "none",
+  catEarsColor: "black",
+  catEarsSkintoneColor: "light",
   outfit: "commoner",
   upperOutfit: "commoner",
   sleeveOutfit: "none",
@@ -492,7 +524,44 @@ export function appearanceAlignedToRazza(
   if (razza === "Elfo") {
     return normalizeCharacterAppearance({ ...value, race: "elf" });
   }
+  if (razza === "Felix") {
+    return normalizeCharacterAppearance({ ...value, race: "felix" });
+  }
+  if (razza === "Goblin") {
+    return normalizeCharacterAppearance({ ...value, race: "goblin" });
+  }
+  if (razza === "Orco") {
+    return normalizeCharacterAppearance({ ...value, race: "orc" });
+  }
   return value;
+}
+
+/** Il torso delle abitanti femminili deve avere sempre un capo visibile.
+ * La veste integrale copre già il busto. Si sceglie soltanto dal catalogo
+ * compatibile col corpo attuale, anche in presenza del nudismo pubblico.
+ * Non modifica i dati salvati dell'abbigliamento.
+ */
+export function copriBustoFemminile(
+  appearance: CharacterAppearance,
+  sesso?: "M" | "F" | null
+): CharacterAppearance {
+  if (sesso !== "F" || appearance.fullOutfit !== "none" || isGuardChainmailOutfit(appearance.upperOutfit)) return appearance;
+  const options = compatibleCatalogOptions(appearance);
+  const candidati = [
+    appearance.upperOutfit,
+    "commoner",
+    "traveler",
+    ...options.upperOutfits
+  ].filter((v, i, all) => v !== "none" && options.upperOutfits.includes(v) && all.indexOf(v) === i);
+  for (const outfit of candidati) {
+    const vestita = normalizeCharacterAppearance({ ...appearance, upperOutfit: outfit, outfit });
+    if (canRenderCharacter(vestita, "idle")) return vestita;
+  }
+  // Preferisce comunque la prima maglia esistente al busto completamente nudo.
+  if (candidati.length > 0) {
+    return normalizeCharacterAppearance({ ...appearance, upperOutfit: candidati[0]!, outfit: candidati[0]! });
+  }
+  return appearance;
 }
 
 /** Applica le regole pubbliche senza mutare i dati persistiti del personaggio. */
@@ -563,10 +632,10 @@ export function appearanceForPublicSpace(
   const compatible = rules.incinta
     ? compatibilizzaPerGravidanza(normalized)
     : compatibilizzaPerCatalogo(normalized);
-  if (!isGuard) return compatible;
+  if (!isGuard) return copriBustoFemminile(compatible, rules.sesso);
   // Le Guardie devono indossare sempre la Chainmail, anche se il catalogo
   // corporeo (es. Nano/child) richiede un fallback per altri strati.
-  return normalizeCharacterAppearance({
+  return copriBustoFemminile(normalizeCharacterAppearance({
     ...compatible,
     outfit: GUARD_CHAINMAIL_OUTFIT,
     upperOutfit: GUARD_CHAINMAIL_OUTFIT,
@@ -574,5 +643,5 @@ export function appearanceForPublicSpace(
     fullOutfit: "none",
     fullOutfitTrim: "none",
     outfitPrimaryColor: "base"
-  });
+  }), rules.sesso);
 }

@@ -4,7 +4,7 @@ import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import type { Razza } from "../src/types";
 
-const RAZZE: Razza[] = ["Umano", "Elfo", "Nano", "Orco", "Goblin", "Golem"];
+const RAZZE: Razza[] = ["Umano", "Elfo", "Nano", "Orco", "Goblin", "Felix", "Golem"];
 
 export default function LeggeRazzialeScreen() {
   const router = useRouter();

@@ -38,7 +38,7 @@ test("resolver seleziona idle/walk e fallback per asset mancanti", () => {
   assert.equal(resolveCharacterLayers(DEFAULT_CHARACTER_APPEARANCE, "walk")[0]!.sheet.id, "lpc-generated-walk");
   assert.equal(rendererKindFor(DEFAULT_CHARACTER_APPEARANCE, "walk"), "sprite");
   assert.equal(rendererKindFor(normalizeCharacterAppearance({ bodyType: "female" }), "walk"), "sprite");
-  assert.equal(rendererKindFor(normalizeCharacterAppearance({ race: "orc" }), "idle"), "legacy");
+  assert.equal(rendererKindFor(normalizeCharacterAppearance({ race: "orc" }), "idle"), "sprite");
 });
 
 test("catalogo generato non contiene ID duplicati e riusa le sorgenti condivise", () => {

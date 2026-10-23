@@ -1,6 +1,5 @@
 import React, { useMemo, useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
@@ -10,7 +9,6 @@ import type { Abitante } from "../src/types";
 const SOGLIA_SODDISFAZIONE_BLOCCO_GUERRA = 70;
 
 export default function CasermaScreen() {
-  const router = useRouter();
   const { abitanti, edifici, soddisfazioneFazioni, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
   const [dropdownVisible, setDropdownVisible] = useState(false);
 
@@ -136,9 +134,7 @@ export default function CasermaScreen() {
         </Modal>
       </ScrollView>
       </View>
-      <View style={styles.footer}>
-        <Text style={styles.back} onPress={() => router.back()}>← Edifici</Text>
-      </View>
+      
     </SafeAreaView>
   );
 }

@@ -56,9 +56,7 @@ export default function MensaScreenById() {
     return (
       <SafeAreaView style={styles.safe}>
         <Text style={styles.title}>Mensa non trovata</Text>
-        <Text style={styles.back} onPress={() => router.back()}>
-          ← Indietro
-        </Text>
+        
       </SafeAreaView>
     );
   }

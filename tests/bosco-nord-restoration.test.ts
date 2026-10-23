@@ -97,7 +97,8 @@ test("il Bosco e' un edificio Phaser selezionabile e raggiungibile dai Raccoglit
 test("la mappa nuova e la sessione ripristinata usano entrambe il recupero del Bosco", () => {
   const source = readFileSync(new URL("../app/mappa.tsx", import.meta.url), "utf8");
   assert.match(source, /const edificiIniziali = ripristinaBoscoNord\(/);
-  assert.match(source, /function normalizeMappaSessione[\s\S]*return ripristinaBoscoNord\(coerente, FIXED_MAP_COLS, FIXED_MAP_ROWS\)/);
+  assert.match(source, /function normalizeMappaSessione[\s\S]*const conBosco = ripristinaBoscoNord\(coerente, FIXED_MAP_COLS, FIXED_MAP_ROWS\)/);
+  assert.match(source, /return assicuraAccessoPedonaleBosco\(conBosco, FIXED_MAP_COLS, FIXED_MAP_ROWS\)/);
   assert.match(source, /normalizeMappaSessione\(getMappaSessione\(\) \?\? initialMappaState\)/);
 });
 

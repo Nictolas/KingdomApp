@@ -1,12 +1,16 @@
 import {
   appearanceForPublicSpace,
+  copriBustoFemminile,
   bodyFamilyFor,
   DWARF_BEARD_STYLE,
   FARMER_TOOL,
+  FELIX_EAR_COLORS,
+  FELIX_EAR_SKINTONES,
   normalizeCharacterAppearance
 } from "../character-system/appearance";
 import {
   canRenderCharacter,
+  LPC_RUNTIME_MANIFEST,
   compatibleCatalogOptions,
   compatibleColorsForField,
   firstCompatibleColorForField,
@@ -31,7 +35,7 @@ export type AspettoPersonaggio = {
   characterAppearance?: CharacterAppearance;
 };
 
-type RazzaConAspetto = RazzaGiocatore | "Goblin";
+type RazzaConAspetto = RazzaGiocatore | "Goblin" | "Felix";
 
 const raceId = (razza: RazzaConAspetto): CharacterRaceId =>
   ({
@@ -39,7 +43,8 @@ const raceId = (razza: RazzaConAspetto): CharacterRaceId =>
     Elfo: "elf",
     Nano: "dwarf",
     Orco: "orc",
-    Goblin: "goblin"
+    Goblin: "goblin",
+    Felix: "felix"
   } satisfies Record<RazzaConAspetto, CharacterRaceId>)[razza];
 
 export function testaObbligatoriaRazza(razza: RazzaConAspetto, sesso: "M" | "F" = "M"): string {
@@ -87,6 +92,33 @@ export const ASPETTO_GIOCATORE_DEFAULT: AspettoPersonaggio = {
   characterAppearance: creaCharacterAppearance("Umano")
 };
 
+/** Verde standard degli orchi (compatibile con la palette LPC della testa). */
+export const COLORE_PELLE_ORCO = "#39aa4e";
+export const COLORE_PELLE_GOBLIN = COLORE_PELLE_ORCO;
+
+/** Aggiorna anche i vecchi salvataggi in memoria senza toccare vestiti o tratti. */
+export function normalizzaAspettoGoblin(aspetto: AspettoPersonaggio): AspettoPersonaggio {
+  return { ...aspetto, colorePelle: COLORE_PELLE_GOBLIN, ...(aspetto.characterAppearance ? { characterAppearance: normalizeCharacterAppearance({ ...aspetto.characterAppearance, race: "goblin" }) } : {}) };
+}
+
+/** Impone sempre i due livelli di Cat Ears, preservando i colori già estratti. */
+export function normalizzaAspettoFelix(aspetto: AspettoPersonaggio): AspettoPersonaggio {
+  return aspetto.characterAppearance ? { ...aspetto, characterAppearance: normalizeCharacterAppearance({ ...aspetto.characterAppearance, race: "felix" }) } : aspetto;
+}
+
+export function normalizzaAspettoOrco(aspetto: AspettoPersonaggio): AspettoPersonaggio {
+  return {
+    ...aspetto,
+    colorePelle: COLORE_PELLE_ORCO,
+    ...(aspetto.characterAppearance ? {
+      characterAppearance: normalizeCharacterAppearance({
+        ...aspetto.characterAppearance,
+        race: "orc"
+      })
+    } : {})
+  };
+}
+
 export const COLORI_CAPELLI = ["#24170f", "#6b3f24", "#b06a32", "#dfbd65", "#b9bec8"];
 export const COLORI_PELLE = ["#f2cfb0", "#e9b38f", "#bd795d", "#87513d", "#5a382c", "#79a86b"];
 
@@ -112,9 +144,11 @@ export function generaAspettoCasuale(
   random: () => number = Math.random,
   contesto: { eta?: number; sesso?: "M" | "F"; professione?: string } = {}
 ): AspettoPersonaggio {
-  const coloriPelle = razza === "Orco" || razza === "Goblin"
-    ? ["#79a86b", "#668f58", "#8aa66b"]
-    : COLORI_PELLE.filter((color) => color !== "#79a86b");
+  const coloriPelle = razza === "Orco"
+    ? [COLORE_PELLE_ORCO]
+    : razza === "Goblin"
+      ? [COLORE_PELLE_GOBLIN]
+      : COLORI_PELLE.filter((color) => color !== "#79a86b");
   const cappelli = razza === "Nano"
     ? ["nessuno", "berretto", "cappuccio"] as const
     : CAPPELLI_PERSONAGGIO;
@@ -164,9 +198,11 @@ export function generaAspettoCasuale(
       )
     : [];
 
-  const beardStyle = razza === "Nano"
-    ? DWARF_BEARD_STYLE
-    : bodyType === "male" && options.beardStyles.length > 1 && random() > 0.55
+  const beardStyle = contesto.sesso === "F"
+    ? "none"
+    : razza === "Nano"
+      ? DWARF_BEARD_STYLE
+      : bodyType === "male" && options.beardStyles.length > 1 && random() > 0.55
       ? pick(options.beardStyles.filter((value) => value !== "none"), random)
       : "none";
 
@@ -182,6 +218,10 @@ export function generaAspettoCasuale(
     skinTone: options.skinTones.length > 0 ? pick(options.skinTones, random) : baseAppearance.skinTone,
     hairStyle,
     hairColor,
+    ...(razza === "Felix" ? {
+      catEarsColor: pick(FELIX_EAR_COLORS, random),
+      catEarsSkintoneColor: pick(FELIX_EAR_SKINTONES, random)
+    } : {}),
     beardStyle,
     beardColor: razza === "Nano"
       ? (dwarfBeardColors.length > 0 ? pick(dwarfBeardColors, random) : hairColor)
@@ -275,6 +315,132 @@ export function applicaAspettoCapoReligioso(
   return { ...aspetto, characterAppearance };
 }
 
+/** Regola sul genere: una Donna non ha mai baffi né barba, indipendentemente dalla razza. */
+export function aspettoSenzaBarbaDonna(
+  appearance: CharacterAppearance,
+  sesso?: "M" | "F" | null
+): CharacterAppearance {
+  return sesso === "F" && appearance.beardStyle !== "none"
+    ? { ...appearance, beardStyle: "none" }
+    : appearance;
+}
+
+/** Salvaguarda gli aspetti femminili presenti nei vecchi salvataggi. */
+export function normalizzaAspettoDonna(
+  aspetto: AspettoPersonaggio,
+  sesso?: "M" | "F" | null
+): AspettoPersonaggio {
+  if (sesso !== "F" || !aspetto.characterAppearance || aspetto.characterAppearance.beardStyle === "none") return aspetto;
+  return { ...aspetto, characterAppearance: aspettoSenzaBarbaDonna(aspetto.characterAppearance, sesso) };
+}
+
+/**
+ * Un Goblin non deve scomparire o ripiegare sul rendering legacy a causa
+ * di vecchi capelli/abiti LPC incompatibili con la corporatura.
+ * Non altera il salvataggio; mantiene il massimo numero di elementi validi.
+ */
+export function goblinRenderizzabile(value: CharacterAppearance): CharacterAppearance {
+  const a = normalizeCharacterAppearance({ ...value, race: "goblin" });
+  if (canRenderCharacter(a, "idle") && canRenderCharacter(a, "walk")) return a;
+  const senzaCapelli = normalizeCharacterAppearance({
+    ...a, hairStyle: "none", beardStyle: "none",
+    accessory: "none", headwear: "none", neckwear: "none", facialMask: "none", facialEyes: "none"
+  });
+  if (canRenderCharacter(senzaCapelli, "idle") && canRenderCharacter(senzaCapelli, "walk")) return senzaCapelli;
+  const sicuro = normalizeCharacterAppearance({
+    ...senzaCapelli, upperOutfit: "none", lowerOutfit: "none",
+    fullOutfit: "none", fullOutfitTrim: "none", outfit: "none",
+    sleeveOutfit: "none", footwear: "none", cape: "none", capeTrim: "none"
+  });
+  return sicuro;
+}
+
+/** Non sacrifica il rendering Felix per un vestito/capello LPC non compatibile. */
+export function felixRenderizzabile(value: CharacterAppearance): CharacterAppearance {
+  const felix = normalizeCharacterAppearance({ ...value, race: "felix" });
+  if (canRenderCharacter(felix, "idle") && canRenderCharacter(felix, "walk")) return felix;
+  const base = normalizeCharacterAppearance({ ...felix, hairStyle:"none", beardStyle:"none", headwear:"none", accessory:"none",
+    neckwear:"none", facialEyes:"none", facialMask:"none" });
+  if (canRenderCharacter(base, "idle") && canRenderCharacter(base, "walk")) return base;
+  return normalizeCharacterAppearance({ ...base, outfit:"none", upperOutfit:"none", sleeveOutfit:"none",
+    lowerOutfit:"none", fullOutfit:"none", footwear:"none", cape:"none", capeTrim:"none" });
+}
+
+/**
+ * Alcuni aspetti preesistenti richiedono layer LPC assenti nella corporatura
+ * attuale (es. child_shirt sui Nani). Il resolver stretto scarta TUTTO lo
+ * sprite: adattiamo solo i campi impossibili, senza mutare il salvataggio.
+ * Regole obbligatorie di razza, genere, pelle e divise persistono inalterate.
+ */
+export function aspettoRenderizzabileAbitante(value: CharacterAppearance): CharacterAppearance {
+  const ready = (a: CharacterAppearance) =>
+    canRenderCharacter(a, "idle") && canRenderCharacter(a, "walk");
+  if (ready(value)) return value;
+  const base = normalizeCharacterAppearance(value);
+  if (ready(base)) return base;
+
+  const assets = LPC_RUNTIME_MANIFEST.assets.filter(
+    (a) => a.bodyType === base.bodyType && (a.animation === "idle" || a.animation === "walk")
+  );
+  const has = (slot: string, semantic: string) =>
+    assets.some((a) => a.slot === slot && a.semanticId === semantic && a.animation === "idle") &&
+    assets.some((a) => a.slot === slot && a.semanticId === semantic && a.animation === "walk");
+
+  // L'overlay Guardia può utilizzare lo sheet teen su corpo child; è legittimo.
+  const guardOverlay = base.upperOutfit === "guard" &&
+    LPC_RUNTIME_MANIFEST.assets.some(a => a.bodyType === "teen" && a.slot === "outfit" && a.semanticId === "guard");
+  const upperValid = base.upperOutfit === "none" || has("outfit", base.upperOutfit) || guardOverlay;
+  const lowerValid = base.lowerOutfit === "none" || has("lowerBody", base.lowerOutfit);
+  const fullValid = base.fullOutfit === "none" || has("fullOutfit", base.fullOutfit);
+  const hairValid = base.hairStyle === "none" ||
+    has("hairFront", base.hairStyle) || has("hairBack", base.hairStyle);
+  const beardValid = base.beardStyle === "none" || has("beard", base.beardStyle);
+  const headwearValid = base.headwear === "none" || has("headwear", base.headwear);
+  const footwearValid = base.footwear === "none" || has("footwear", base.footwear);
+
+  let candidate = normalizeCharacterAppearance({
+    ...base,
+    upperOutfit: upperValid ? base.upperOutfit : "none",
+    outfit: upperValid ? base.outfit : "none",
+    lowerOutfit: lowerValid ? base.lowerOutfit : "none",
+    fullOutfit: fullValid ? base.fullOutfit : "none",
+    fullOutfitTrim: fullValid ? base.fullOutfitTrim : "none",
+    sleeveOutfit: base.sleeveOutfit === "none" || has("outfit", base.sleeveOutfit)
+      ? base.sleeveOutfit : "none",
+    hairStyle: hairValid ? base.hairStyle : "none",
+    beardStyle: beardValid ? base.beardStyle : "none",
+    headwear: headwearValid ? base.headwear : "none",
+    footwear: footwearValid ? base.footwear : "none"
+  });
+  // Su vecchi salvataggi lo stile dei capelli può esistere ma il colore no.
+  if (candidate.hairStyle !== "none" && !assets.some(a =>
+    (a.slot === "hairFront" || a.slot === "hairBack") &&
+    a.semanticId === candidate.hairStyle && a.color === candidate.hairColor)) {
+    candidate = normalizeCharacterAppearance({
+      ...candidate, hairColor: firstCompatibleHairColor(candidate, candidate.hairStyle)
+    });
+  }
+  if (candidate.beardStyle !== "none" && !assets.some(a =>
+    a.slot === "beard" && a.semanticId === candidate.beardStyle && a.color === candidate.beardColor)) {
+    candidate = normalizeCharacterAppearance({
+      ...candidate,
+      beardColor: firstCompatibleColorForField(candidate, "beardColor", "beard", candidate.beardStyle)
+    });
+  }
+  if (ready(candidate)) return candidate;
+
+  // Non lasciare un ritratto completamente vuoto per un solo capo opzionale.
+  // L'aspetto originale (e le regole della casta) rimangono nei dati salvati.
+  candidate = normalizeCharacterAppearance({
+    ...candidate,
+    hairStyle: "none", beardStyle: "none", headwear: "none",
+    upperOutfit: "none", outfit: "none", sleeveOutfit: "none",
+    lowerOutfit: "none", fullOutfit: "none", fullOutfitTrim: "none",
+    footwear: "none"
+  });
+  return ready(candidate) ? candidate : base;
+}
+
 /** Variante stabile per completare vecchi salvataggi senza cambiare volto a ogni caricamento. */
 export function generaAspettoDaSeed(
   razza: RazzaConAspetto,
@@ -306,12 +472,16 @@ export function aspettoPerVisualizzazioneAbitante(
     lavoro?: string;
     incinta?: boolean;
     sesso?: "M" | "F" | null;
+    casta?: string | null;
+    ceto?: string | null;
+    ruoloSchiavitu?: string | null;
+    schiavistaId?: number | null;
   },
   rules: { nudismoAttivo?: boolean } = {}
 ): AspettoPersonaggio | undefined {
   if (abitante.razza === "Golem") return abitante.aspetto;
 
-  const razzeSupportate: readonly RazzaConAspetto[] = ["Umano", "Elfo", "Nano", "Orco", "Goblin"];
+  const razzeSupportate: readonly RazzaConAspetto[] = ["Umano", "Elfo", "Nano", "Orco", "Goblin", "Felix"];
   const razza = razzeSupportate.includes(abitante.razza as RazzaConAspetto)
     ? (abitante.razza as RazzaConAspetto)
     : "Umano";
@@ -323,9 +493,16 @@ export function aspettoPerVisualizzazioneAbitante(
     });
     aspetto = aspetto ? { ...aspetto, characterAppearance: generato.characterAppearance } : generato;
   }
-  if (!aspetto.characterAppearance) return aspetto;
+  const currentAppearance = aspetto.characterAppearance;
+  if (!currentAppearance) return aspetto;
+  // Anche gli aspetti legacy già salvati non devono mai mostrare pelle umana.
+  if (razza === "Orco") aspetto = normalizzaAspettoOrco(aspetto);
+  if (razza === "Goblin") aspetto = normalizzaAspettoGoblin(aspetto);
+  if (razza === "Felix") aspetto = normalizzaAspettoFelix(aspetto);
 
-  const pubblico = appearanceForPublicSpace(aspetto.characterAppearance, {
+  const schiavo = (abitante.casta ?? abitante.ceto) === "Schiavo" ||
+    (!(abitante.casta ?? abitante.ceto) && abitante.ruoloSchiavitu === "schiavo" && abitante.schiavistaId != null);
+  const pubblico = appearanceForPublicSpace(aspetto.characterAppearance!, {
     isKing: abitante.id === 1,
     nudismoAttivo: rules.nudismoAttivo === true,
     incinta: abitante.incinta === true,
@@ -335,20 +512,43 @@ export function aspettoPerVisualizzazioneAbitante(
     sesso: abitante.sesso
   });
 
+  // Regole grafiche applicate per ultime: lavoro, abiti e normalizzazione LPC
+  // non devono reintrodurre la barba per le Donne o una pelle rosa nei Goblin.
+  const finalize = (value: CharacterAppearance) => {
+    const dressed = schiavo ? aspettoSchiavo(value) : copriBustoFemminile(value, abitante.sesso);
+    const femaleSafe = aspettoSenzaBarbaDonna(dressed, abitante.sesso);
+    const raceSafe = razza === "Goblin" ? goblinRenderizzabile(femaleSafe) :
+      razza === "Felix" ? felixRenderizzabile(femaleSafe) : femaleSafe;
+    return aspettoRenderizzabileAbitante(raceSafe);
+  };
+
   // Il corpo cambia con gli anni, senza rigenerare pelle/colore/vestiti e
   // senza mutare l'aspetto memorizzato nei vecchi salvataggi.
   const eta = abitante.eta;
-  if (eta == null) return { ...aspetto, characterAppearance: pubblico };
+  if (eta == null) return { ...aspetto, characterAppearance: finalize(pubblico) };
   const bodyType = razza === "Nano" ? "child"
     : eta < 13 ? "child"
     : eta < 18 ? "teen"
     : abitante.sesso === "F" ? "female" : "male";
   const ageGroup = bodyType === "child" ? "child" : bodyType === "teen" ? "teen" : "adult";
   if (pubblico.bodyType === bodyType && pubblico.ageGroup === ageGroup) {
-    return { ...aspetto, characterAppearance: pubblico };
+    return { ...aspetto, characterAppearance: finalize(pubblico) };
   }
   const aggiornato = normalizeCharacterAppearance({
     ...pubblico, bodyType, ageGroup, bodyFamily: bodyFamilyFor(pubblico.race, ageGroup)
   });
-  return { ...aspetto, characterAppearance: canRenderCharacter(aggiornato, "idle") ? aggiornato : pubblico };
+  const finale = canRenderCharacter(aggiornato, "idle") ? aggiornato : pubblico;
+  return { ...aspetto, characterAppearance: finalize(finale) };
+}
+
+/** Uniforme visiva esclusiva della casta Schiavo, senza mutare i vestiti salvati. */
+export function aspettoSchiavo(a: CharacterAppearance): CharacterAppearance {
+  return normalizeCharacterAppearance({
+    ...a, hairStyle: "none", beardStyle: "none",
+    outfit: "none", upperOutfit: "none", sleeveOutfit: "none",
+    lowerOutfit: "short_shorts", outfitSecondaryColor: "walnut",
+    fullOutfit: "none", fullOutfitTrim: "none", footwear: "none",
+    headwear: "none", neckwear: "none", facialMask: "none", facialEyes: "none",
+    cape: "none", capeTrim: "none", accessory: "none"
+  });
 }

@@ -1,6 +1,6 @@
 import type { Abitante, Edificio, Reato, Risorsa } from "../types";
 import { SAVE_FORMAT, SAVE_SCHEMA_VERSION, type GameSaveV1, type SaveEnvelopeV1 } from "./saveTypes.ts";
-import { generaAspettoDaSeed } from "../game/personaggioAspetto";
+import { generaAspettoDaSeed, normalizzaAspettoOrco, normalizzaAspettoGoblin, normalizzaAspettoFelix, normalizzaAspettoDonna } from "../game/personaggioAspetto";
 import { normalizeGameMode } from "../game/gameMode";
 
 export class SaveValidationError extends Error {
@@ -280,10 +280,22 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     religione: normalizzaReligioneFantasy(a.religione) ?? "Ateo",
     ministero: a.ministero === "Finanze Coloniali" ? "Finanze del Regno" : a.ministero,
     ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
-      aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
+      aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin" | "Felix", a.id)
     }),
     ...(a.id !== 1 && a.aspetto?.cappello === "corona" && {
       aspetto: { ...a.aspetto, cappello: "nessuno" }
+    }),
+    ...(normalizzaRazzaFantasy(a.razza) === "Felix" && a.aspetto && {
+      aspetto: normalizzaAspettoFelix(a.aspetto)
+    }),
+    ...(normalizzaRazzaFantasy(a.razza) === "Goblin" && a.aspetto && {
+      aspetto: normalizzaAspettoGoblin(a.aspetto)
+    }),
+    ...(normalizzaRazzaFantasy(a.razza) === "Orco" && a.aspetto && {
+      aspetto: normalizzaAspettoOrco({
+        ...a.aspetto,
+        ...(a.id !== 1 && a.aspetto.cappello === "corona" ? { cappello: "nessuno" as const } : {})
+      })
     }),
     fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f === "Culto degli Alieni" ? "Culto delle Ombre" : f),
     reati: a.reati?.map((r) => normalizzaReatoFantasy(String(r))),
@@ -295,14 +307,33 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     religione: normalizzaReligioneFantasy(a.religione) ?? "Ateo",
     ministero: a.ministero === "Finanze Coloniali" ? "Finanze del Regno" : a.ministero,
     ...(!a.aspetto && normalizzaRazzaFantasy(a.razza) !== "Golem" && {
-      aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin", a.id)
+      aspetto: generaAspettoDaSeed((normalizzaRazzaFantasy(a.razza) ?? "Umano") as "Umano" | "Elfo" | "Nano" | "Orco" | "Goblin" | "Felix", a.id)
     }),
     ...(a.aspetto?.cappello === "corona" && {
       aspetto: { ...a.aspetto, cappello: "nessuno" }
     }),
+    ...(normalizzaRazzaFantasy(a.razza) === "Felix" && a.aspetto && {
+      aspetto: normalizzaAspettoFelix(a.aspetto)
+    }),
+    ...(normalizzaRazzaFantasy(a.razza) === "Goblin" && a.aspetto && {
+      aspetto: normalizzaAspettoGoblin(a.aspetto)
+    }),
+    ...(normalizzaRazzaFantasy(a.razza) === "Orco" && a.aspetto && {
+      aspetto: normalizzaAspettoOrco({
+        ...a.aspetto,
+        ...(a.aspetto.cappello === "corona" ? { cappello: "nessuno" as const } : {})
+      })
+    }),
     fazioni: a.fazioni?.map((f) => f === "Robots" ? "Golem" : f === "Culto degli Alieni" ? "Culto delle Ombre" : f),
     reati: a.reati?.map((r) => normalizzaReatoFantasy(String(r)))
   }));
+  // La migrazione corregge anche i vecchi salvataggi con baffi/barba sulle Donne.
+  const femaleSafe = (a: Abitante): Abitante =>
+    a.sesso === "F" && a.aspetto
+      ? { ...a, aspetto: normalizzaAspettoDonna(a.aspetto, a.sesso) }
+      : a;
+  next.population.abitanti = next.population.abitanti.map(femaleSafe);
+  next.population.abitantiProposti = next.population.abitantiProposti.map(femaleSafe);
   next.policies.religioneDiStato = normalizzaReligioneFantasy(next.policies.religioneDiStato);
   next.policies.razzaCampoLavoro = normalizzaRazzaFantasy(next.policies.razzaCampoLavoro) ?? null;
   next.policies.razzaCampoSterminio = normalizzaRazzaFantasy(next.policies.razzaCampoSterminio) ?? null;

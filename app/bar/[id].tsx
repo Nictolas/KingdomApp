@@ -64,9 +64,7 @@ export default function BarScreenById() {
     return (
       <SafeAreaView style={styles.safe}>
         <Text style={styles.title}>Bar non trovato</Text>
-        <Text style={styles.back} onPress={() => router.back()}>
-          ← Indietro
-        </Text>
+        
       </SafeAreaView>
     );
   }

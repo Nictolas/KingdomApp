@@ -1,13 +1,11 @@
 import React from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
-import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 import { AbitanteLpcAvatar } from "../src/ui/AbitanteLpcAvatar";
 
 export default function ImmigrazioneScreen() {
-  const router = useRouter();
   const { abitantiProposti, accettaImmigrante, rifiutaImmigrante } = useGameContext();
 
   const { width } = Dimensions.get("window");
@@ -72,9 +70,7 @@ export default function ImmigrazioneScreen() {
         )}
       </ScrollView>
     </View>
-    <View style={styles.footer}>
-      <Text style={styles.back} onPress={() => router.back()}>← Home</Text>
-    </View>
+    
     </SafeAreaView>
   );
 }

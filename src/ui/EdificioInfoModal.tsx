@@ -1,3 +1,4 @@
+import { BuildingModalBottomExit } from "./BuildingModalBottomExit";
 import React from "react";
 import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { Edificio } from "../types";
@@ -110,10 +111,9 @@ export function EdificioInfoModal({ visible, edificio, onClose }: EdificioInfoMo
               </View>
             )}
 
-            <Pressable style={styles.closeButton} onPress={onClose}>
-              <Text style={styles.closeButtonText}>Chiudi</Text>
-            </Pressable>
+            
           </ScrollView>
+          <BuildingModalBottomExit onClose={onClose} />
         </Pressable>
       </Pressable>
     </Modal>
