@@ -189,7 +189,8 @@ export function uccidiSchiavoPuro(
   const { nuoviAbitanti, nuoviEdifici } = condannaAMortePuro(
     input.abitanti,
     input.edifici,
-    input.schiavoId
+    input.schiavoId,
+    input.uccisoreId === null || input.uccisoreId === ID_COMANDANTE
   );
   return { ok: true, abitanti: nuoviAbitanti, edifici: nuoviEdifici };
 }

@@ -25,7 +25,7 @@ export default function PersonalitaScreen() {
     { nome: "Salutista", emoji: "🥗", effetto: "+10% Salute" },
     { nome: "Empatico", emoji: "🩺", effetto: "+10% Competenza Medica" },
     { nome: "Depresso", emoji: "🌧️", effetto: "-10% qualsiasi produzione" },
-    { nome: "Carismatico", emoji: "✨", effetto: "+10% lealtà della fazione" },
+    { nome: "Carismatico", emoji: "✨", effetto: "Favorisce la soddisfazione dei compagni di fazione" },
     { nome: "Psicopatico", emoji: "🔪", effetto: "Rivalità ≥60 può portare a omicidio (soglia 90 per gli altri)" },
     { nome: "Stakanovista", emoji: "⚒️", effetto: "+15% produttività" },
     { nome: "Tiepido", emoji: "🌡️", effetto: "Nessun bonus né malus" },

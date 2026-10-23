@@ -61,8 +61,8 @@ export default function ResidenzeScreen() {
                     )}
                   </View>
                   <View style={styles.cardRow}>
-                    <Text style={styles.cardLabel}>Felicità</Text>
-                    <Text style={styles.cardValorePositivo}>+{r.felicità}</Text>
+                    <Text style={styles.cardLabel}>Qualità abitativa</Text>
+                    <Text style={styles.cardValorePositivo}>{r.felicità}</Text>
                   </View>
                   <View style={styles.cardRow}>
                     <Text style={styles.cardLabel}>Prezzo (monete/mese)</Text>

@@ -1,3 +1,4 @@
+import { propensioneRibellione } from "./statoSociale";
 import type { Abitante, Edificio } from "../types";
 import { ID_GIOCATORE } from "./schiavituCommercio";
 import { numGuardieNelCastello, trovaCastelloOperativo } from "./castelloGuardie";
@@ -22,13 +23,22 @@ export type SnapshotDisordineSoddisfazione = {
   avanzata: boolean;
 };
 
+/** Un solo punteggio di Soddisfazione; la funzione contestuale include leggi e bisogni. */
+function soddisfazionePerDisordine(
+  a: Abitante, edifici: Edificio[], giorno: number, mese: number, anno: number,
+  contestuale?: (a: Abitante) => number
+): number {
+  return contestuale ? (contestuale(a) - 50) / 10 : calcolaPunteggioSoddisfazione(a, edifici, giorno, mese, anno);
+}
+
 export function valutaFaseDisordineSoddisfazione(
   faseCorrente: FaseDisordineSoddisfazione,
   abitanti: Abitante[],
   edifici: Edificio[],
   giornoGioco: number,
   mese: number,
-  anno: number
+  anno: number,
+  contestuale?: (a: Abitante) => number
 ): SnapshotDisordineSoddisfazione {
   const popolazione = abitanti.filter((a) => a.id !== 1 && a.razza !== "Golem").length;
   if (popolazione <= 0) {
@@ -42,23 +52,22 @@ export function valutaFaseDisordineSoddisfazione(
   }
 
   let numOstili = 0;
+  let ostiliDispostiARibellarsi = 0;
   for (const abitante of abitanti) {
     if (abitante.id === 1 || abitante.razza === "Golem") continue;
-    const punti = calcolaPunteggioSoddisfazione(
-      abitante,
-      edifici,
-      giornoGioco,
-      mese,
-      anno
-    );
-    if (fasciaDaPunteggio(punti) === "Ostile") numOstili += 1;
+    const punti = soddisfazionePerDisordine(abitante, edifici, giornoGioco, mese, anno, contestuale);
+    if (fasciaDaPunteggio(punti) === "Ostile") {
+      numOstili += 1;
+      ostiliDispostiARibellarsi += propensioneRibellione(abitante);
+    }
   }
 
   const quotaOstili = numOstili / popolazione;
   let fase: FaseDisordineSoddisfazione = "nessuna";
 
-  if (quotaOstili >= SOGLIA_RIBELLIONE_OSTILI) fase = "ribellione";
-  else if (quotaOstili >= SOGLIA_PROTESTA_OSTILI) fase = "protesta";
+  const quotaDissensoManifesto = ostiliDispostiARibellarsi / popolazione;
+  if (quotaDissensoManifesto >= SOGLIA_RIBELLIONE_OSTILI) fase = "ribellione";
+  else if (quotaDissensoManifesto >= SOGLIA_PROTESTA_OSTILI) fase = "protesta";
 
   return {
     fase,
@@ -106,17 +115,12 @@ export function applicaSabotaggioOstileMensile(
   giornoGioco: number,
   mese: number,
   anno: number,
-  rng: () => number = Math.random
+  rng: () => number = Math.random,
+  contestuale?: (a: Abitante) => number
 ): RisultatoSabotaggioOstile {
   const candidati = abitanti.filter((abitante) => {
     if (abitante.id === 1 || abitante.razza === "Golem") return false;
-    const punti = calcolaPunteggioSoddisfazione(
-      abitante,
-      edifici,
-      giornoGioco,
-      mese,
-      anno
-    );
+    const punti = soddisfazionePerDisordine(abitante, edifici, giornoGioco, mese, anno, contestuale);
     const fascia = fasciaDaPunteggio(punti);
     return azioneProbabileSeOstile(abitante, fascia) === "sabotaggio";
   });
@@ -174,17 +178,12 @@ export function applicaScomparsaOstileMensile(
   giornoGioco: number,
   mese: number,
   anno: number,
-  rng: () => number = Math.random
+  rng: () => number = Math.random,
+  contestuale?: (a: Abitante) => number
 ): RisultatoScomparsaOstile {
   const candidati = abitanti.filter((abitante) => {
     if (abitante.id === 1 || abitante.razza === "Golem") return false;
-    const punti = calcolaPunteggioSoddisfazione(
-      abitante,
-      edifici,
-      giornoGioco,
-      mese,
-      anno
-    );
+    const punti = soddisfazionePerDisordine(abitante, edifici, giornoGioco, mese, anno, contestuale);
     const fascia = fasciaDaPunteggio(punti);
     return azioneProbabileSeOstile(abitante, fascia) === "scomparsa";
   });
@@ -248,20 +247,15 @@ export function tentaAttentatoOstileMensile(
   mese: number,
   anno: number,
   rng: () => number = Math.random,
-  modalitaRe: ModalitaRe = "a_giro"
+  modalitaRe: ModalitaRe = "a_giro",
+  contestuale?: (a: Abitante) => number
 ): { abitanti: Abitante[]; esito: EsitoAttentatoOstile } {
   if (!vulnerabileAttentato(modalitaRe)) {
     return { abitanti, esito: { tipo: "nessuno", messaggio: null } };
   }
   const candidati = abitanti.filter((abitante) => {
     if (abitante.id === ID_GIOCATORE || abitante.razza === "Golem") return false;
-    const punti = calcolaPunteggioSoddisfazione(
-      abitante,
-      edifici,
-      giornoGioco,
-      mese,
-      anno
-    );
+    const punti = soddisfazionePerDisordine(abitante, edifici, giornoGioco, mese, anno, contestuale);
     const fascia = fasciaDaPunteggio(punti);
     return azioneProbabileSeOstile(abitante, fascia) === "attentato";
   });

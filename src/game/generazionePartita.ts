@@ -223,9 +223,7 @@ export function generaRegnoIniziale(
       crediti,
       reddito,
       spese,
-      lealtà: 30 + Math.floor(Math.random() * 66),
-      paura: Math.floor(Math.random() * 41),
-      felicità: 40 + Math.floor(Math.random() * 51),
+      timore: Math.floor(Math.random() * 41),
       religione: RELIGIONI[Math.floor(Math.random() * RELIGIONI.length)],
       razza,
       sesso,
@@ -277,8 +275,8 @@ export function generaRegnoIniziale(
       bot.orientamento = "Bi";
       bot.salute = 0;
       bot.peso = 0;
-      bot.paura = 0;
-      bot.lealtà = 0;
+      bot.timore = 0;
+      bot.timore = 0;
     }
   }
 

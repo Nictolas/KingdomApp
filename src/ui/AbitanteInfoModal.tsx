@@ -1,3 +1,4 @@
+import { timoreAbitante } from "../game/statoSociale";
 import React, { useEffect, useState } from "react";
 import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type DimensionValue } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -281,8 +282,7 @@ export function AbitanteInfoModal({
       ? "Disoccupato"
       : abitante.lavoro;
 
-  const felicitàModificata = calcolaFelicitàModificata ? calcolaFelicitàModificata(abitante) : abitante.felicità;
-  const felicitàCambiata = abitante.razza !== "Golem" && felicitàModificata !== abitante.felicità;
+  const soddisfazioneEffettiva = calcolaFelicitàModificata ? Math.round((calcolaFelicitàModificata(abitante) - 50) / 10) : (abitante.modificatoriSoddisfazione ?? []).reduce((s,m) => s + m.delta, 0);
   const bisogni = getBisogniAbitante(abitante);
   const produttivitàEff = getProduttivitaEffettiva(abitante);
 
@@ -535,18 +535,9 @@ export function AbitanteInfoModal({
                 )}
               </Block>
 
-              <Block width={cardWidth} title="❤️ Sentimenti">
-                <Row emoji="❤️" label="Lealtà" value={abitante.razza === "Golem" ? "—" : `${abitante.lealtà}%`} />
-                <Row emoji="😨" label="Paura" value={abitante.razza === "Golem" ? "—" : `${abitante.paura}%`} />
-                <Row
-                  emoji="😊"
-                  label="Felicità"
-                  value={
-                    abitante.razza === "Golem"
-                      ? "—"
-                      : `${felicitàModificata}%${felicitàCambiata ? ` (base ${abitante.felicità})` : ""}`
-                  }
-                />
+              <Block width={cardWidth} title="Soddisfazione e Timore">
+                <Row emoji="💚" label="Soddisfazione" value={abitante.razza === "Golem" ? "—" : String(soddisfazioneEffettiva) + " punti"} />
+                <Row emoji="🛡️" label="Timore del Re" value={abitante.razza === "Golem" ? "—" : String(timoreAbitante(abitante)) + "%"} />
               </Block>
 
               {!isCastaCoercibile(casta) && (

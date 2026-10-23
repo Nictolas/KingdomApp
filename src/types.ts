@@ -89,10 +89,15 @@ export type Abitante = {
   crediti?: number;
   reddito: number; // Monete/mese (display; allineato allo stipendio base)
   spese: number; // Legacy display; saldo monete usa solo costi reali (affitto, bar, negozio)
-  lealtà: number; // 0-100
-  paura: number; // 0-100
-  felicità: number; // 1-100
-  /** Modificatori della soddisfazione personale, distinti dalla felicità. */
+  /** Timore del Re e delle Guardie (0-100): frena il dissenso manifesto, non la scontentezza. */
+  timore?: number;
+  /** @deprecated SOLO salvataggi anteriori alla migrazione, non usare nelle meccaniche. */
+  lealtà?: number;
+  /** @deprecated SOLO salvataggi anteriori alla migrazione, non usare nelle meccaniche. */
+  paura?: number;
+  /** @deprecated SOLO salvataggi anteriori alla migrazione, non usare nelle meccaniche. */
+  felicità?: number;
+  /** Unica statistica di consenso e benessere; modificatori permanenti o a scadenza. */
   modificatoriSoddisfazione?: {
     id: string;
     delta: number;

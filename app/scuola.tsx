@@ -9,7 +9,7 @@ import type { Abitante } from "../src/types";
 
 export default function ScuolaScreen() {
   const router = useRouter();
-  const { abitanti, edifici, etaMinimaLavoro, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
+  const { abitanti, edifici, etaMinimaLavoro, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio, calcolaFelicitàModificata } = useGameContext();
   const [dropdownProfessoreVisible, setDropdownProfessoreVisible] = useState(false);
 
   const { width } = Dimensions.get("window");
@@ -160,7 +160,7 @@ export default function ScuolaScreen() {
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{bambino.nome}</Text>
                     <Text style={styles.cardInfo}>Età: {bambino.eta} anni</Text>
-                    <Text style={styles.cardInfo}>Felicità: {bambino.razza === "Golem" ? "—" : `${bambino.felicità}/100`}</Text>
+                    <Text style={styles.cardInfo}>Soddisfazione: {bambino.razza === "Golem" ? "—" : `${Math.round((calcolaFelicitàModificata(bambino) - 50) / 10)} punti`}</Text>
                   </View>
                 </View>
               ))}

@@ -50,7 +50,7 @@ test("la morte applica il lutto a coniuge, genitore, figlio e fratello", () => {
   assert.equal(result.some((a) => a.id === 2), false);
   for (const id of [3, 4, 5, 6]) {
     const superstite = result.find((a) => a.id === id)!;
-    const lutto = superstite.modificatoriSoddisfazione?.find((m) => m.id === "lutto_familiare");
+    const lutto = superstite.modificatoriSoddisfazione?.find((m) => m.id === "lutto_2");
     assert.equal(lutto?.delta, -1);
     assert.equal(lutto?.durata, "permanente");
   }

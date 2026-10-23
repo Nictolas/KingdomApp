@@ -52,7 +52,7 @@ test("una vittima della Guerra Civile applica il lutto ai familiari", () => {
 
   assert.equal(abitanti.some((a) => a.id === 2), false);
   const superstite = abitanti.find((a) => a.id === 3)!;
-  const lutto = superstite.modificatoriSoddisfazione?.find((m) => m.id === "lutto_familiare");
+  const lutto = superstite.modificatoriSoddisfazione?.find((m) => m.id === "lutto_2");
   assert.equal(lutto?.delta, -1);
   assert.equal(lutto?.durata, "permanente");
 });

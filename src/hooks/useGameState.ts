@@ -1,3 +1,4 @@
+import { normalizzaStatoSociale } from "../game/statoSociale";
 import { useState, useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { Alert } from "react-native";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
@@ -232,7 +233,7 @@ export function useGameState() {
   const gamePhaseRef = useRef<GamePhase>(gamePhase);
   gamePhaseRef.current = gamePhase;
   const simulationEnabled = isSimulationRunning(gamePhase);
-  const [abitanti, setAbitanti] = useState<Abitante[]>(statoIniziale.abitanti);
+  const [abitanti, setAbitanti] = useState<Abitante[]>(() => statoIniziale.abitanti.map(normalizzaStatoSociale));
   const [razzaNativi, setRazzaNativi] = useState<Razza>(statoIniziale.razzaNativi);
   const [inventarioGiocatore, setInventarioGiocatore] = useState<VoceInventario[]>(() =>
     creaInventarioGiocatoreIniziale()
@@ -868,7 +869,8 @@ export function useGameState() {
       edifici,
       giornoGioco,
       mese,
-      anno
+      anno,
+      calcolaFelicitàModificata
     ).fase;
 
     const buffId = edificioBuffVisitaCorrente(
@@ -938,7 +940,8 @@ export function useGameState() {
       tasseImprese.edifici,
       giornoGioco,
       result.nuovoMese,
-      result.nuovoAnno
+      result.nuovoAnno,
+      calcolaFelicitàModificata
     );
     const avvisoDisordine = messaggioFaseDisordineSoddisfazione(disordineDopo);
     const protesta = applicaEffettiProtestaMensile(
@@ -958,7 +961,9 @@ export function useGameState() {
       ribellione.edifici,
       giornoGioco,
       result.nuovoMese,
-      result.nuovoAnno
+      result.nuovoAnno,
+      undefined,
+      calcolaFelicitàModificata
     );
     const sabotaggio =
       disordineDopo.fase === "nessuna"
@@ -967,7 +972,9 @@ export function useGameState() {
             scomparsa.edifici,
             giornoGioco,
             result.nuovoMese,
-            result.nuovoAnno
+            result.nuovoAnno,
+            undefined,
+            calcolaFelicitàModificata
           )
         : {
             edifici: scomparsa.edifici,
@@ -982,7 +989,8 @@ export function useGameState() {
       result.nuovoMese,
       result.nuovoAnno,
       undefined,
-      modalitaRe
+      modalitaRe,
+      calcolaFelicitàModificata
     );
     const tickRe = tickModalitaReMensile(
       {

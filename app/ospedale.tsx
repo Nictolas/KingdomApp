@@ -10,7 +10,7 @@ import type { Abitante } from "../src/types";
 
 export default function OspedaleScreen() {
   const router = useRouter();
-  const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
+  const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio, calcolaFelicitàModificata } = useGameContext();
   const [dropdownDottoreVisible, setDropdownDottoreVisible] = useState(false);
 
   const { width } = Dimensions.get("window");
@@ -160,7 +160,7 @@ export default function OspedaleScreen() {
                     <Text style={styles.cardTitle}>{malato.nome}</Text>
                     <Text style={styles.cardInfo}>Età: {malato.eta} anni</Text>
                     <Text style={styles.malatoPesoSalute}>Peso: {malato.razza === "Golem" ? "—" : `${malato.peso ?? 50}/100`} · Salute: {malato.razza === "Golem" ? "—" : getStatoSalute(malato)}</Text>
-                    <Text style={styles.cardInfo}>Felicità: {malato.razza === "Golem" ? "—" : `${malato.felicità}/100`}</Text>
+                    <Text style={styles.cardInfo}>Soddisfazione: {malato.razza === "Golem" ? "—" : `${Math.round((calcolaFelicitàModificata(malato) - 50) / 10)} punti`}</Text>
                   </View>
                 </View>
               ))}
@@ -181,7 +181,7 @@ export default function OspedaleScreen() {
                     <Text style={styles.cardTitle}>{persona.nome}</Text>
                     <Text style={styles.cardInfo}>Età: {persona.eta} anni</Text>
                     <Text style={styles.incintaSalute}>Salute: Incinta</Text>
-                    <Text style={styles.cardInfo}>Felicità: {persona.felicità}/100</Text>
+                    <Text style={styles.cardInfo}>Soddisfazione: {Math.round((calcolaFelicitàModificata(persona) - 50) / 10)} punti</Text>
                   </View>
                 </View>
               ))}

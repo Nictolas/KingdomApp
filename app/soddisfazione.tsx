@@ -8,13 +8,12 @@ import {
   subscribeGiornoGioco
 } from "../src/game/orologioGiocoSession";
 import {
-  calcolaPunteggioSoddisfazione,
   fasciaDaPunteggio
 } from "../src/game/soddisfazione";
 
 export default function SoddisfazioneScreen() {
   const router = useRouter();
-  const { abitanti, edifici, mese, anno } = useGameContext();
+  const { abitanti, edifici, mese, anno, calcolaFelicitàModificata } = useGameContext();
   const giornoGioco = useSyncExternalStore(
     subscribeGiornoGioco,
     getGiornoGiocoSnapshot,
@@ -23,9 +22,9 @@ export default function SoddisfazioneScreen() {
 
   const classifica = useMemo(() => {
     return [...abitanti]
-      .filter((a) => a.razza !== "Golem")
+      .filter((a) => a.id !== 1 && a.razza !== "Golem")
       .map((a) => {
-        const punteggio = calcolaPunteggioSoddisfazione(a, edifici, giornoGioco, mese, anno);
+        const punteggio = Math.round((calcolaFelicitàModificata(a) - 50) / 10 * 10) / 10;
         return {
           abitante: a,
           punteggio,
@@ -33,7 +32,7 @@ export default function SoddisfazioneScreen() {
         };
       })
       .sort((x, y) => y.punteggio - x.punteggio);
-  }, [abitanti, edifici, giornoGioco, mese, anno]);
+  }, [abitanti, edifici, giornoGioco, mese, anno, calcolaFelicitàModificata]);
 
   const n = classifica.length;
   const media =
@@ -48,7 +47,7 @@ export default function SoddisfazioneScreen() {
   return (
     <SafeAreaView style={[styles.safe, maxHeight != null ? { maxHeight, overflow: "hidden" as const } : undefined]}>
       <View style={styles.header}>
-        <View style={{ width: 50 }} />
+        <Text style={styles.rulesLink} onPress={() => router.push("/timore")}>Timore</Text>
         <Text style={styles.title}>😌 Soddisfazione</Text>
         <Text style={styles.rulesLink} onPress={() => router.push("/regole-soddisfazione")}>
           Regole

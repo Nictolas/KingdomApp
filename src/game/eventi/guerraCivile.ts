@@ -1,7 +1,7 @@
 import type { Abitante, Edificio } from "../../types";
 import type { EventoDef } from "./eventoTypes";
 import { modificaTesoro } from "./eventoTypes";
-import { applicaLuttoFamiliareERimuoviMorti } from "../soddisfazione";
+import { aggiungiModificatorePermanente, applicaLuttoFamiliareERimuoviMorti } from "../soddisfazione";
 
 const CASERMA_MIN_BLOCCO = 3;
 const SOGLIA_SODDISFAZIONE_SICUREZZA_BLOCCO = 70;
@@ -50,13 +50,10 @@ export const eventoGuerraCivile: EventoDef = {
     const inCaserma = caserma?.abitantiAssegnati?.length ?? 0;
     const mitigazione = inCaserma >= CASERMA_MIN_MITIGAZIONE;
 
-    // Malus: mitigato (-2 felicità, -1 lealtà) o pieno (-4, -3)
-    const deltaFelicità = mitigazione ? -2 : -4;
-    const deltaLealtà = mitigazione ? -1 : -3;
-    abitanti.forEach((a) => {
+    const delta = mitigazione ? -1 : -2;
+    abitanti.forEach((a, i) => {
       if (a.razza === "Golem") return;
-      (a as Abitante).felicità = Math.max(1, (a as Abitante).felicità + deltaFelicità);
-      (a as Abitante).lealtà = Math.max(0, (a as Abitante).lealtà + deltaLealtà);
+      abitanti[i] = aggiungiModificatorePermanente(a, "guerra_civile", delta, "Guerra civile");
     });
 
     // Vittime: pool Lealisti e Sicurezza (escluso il Re, id 1)
