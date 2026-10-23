@@ -20,13 +20,20 @@ export type RapinaBosco = {
 };
 
 function casualeDeterministico(...numeri: number[]): number {
+  // Avalanche del seed: distribuzione stabile e ben miscelata anche per ID
+  // consecutivi. Ogni risultato resta SEMPRE nell'intervallo [0, 1).
   let hash = 2166136261 >>> 0;
   for (const n of numeri) {
     hash ^= Math.trunc(n) >>> 0;
     hash = Math.imul(hash, 16777619) >>> 0;
-    hash ^= hash >>> 13;
+    hash ^= hash >>> 16;
   }
-  return (hash >>> 0) / 4294967296; // unsigned 32-bit, mai RNG negativo
+  hash ^= hash >>> 16;
+  hash = Math.imul(hash, 0x7feb352d) >>> 0;
+  hash ^= hash >>> 15;
+  hash = Math.imul(hash, 0x846ca68b) >>> 0;
+  hash ^= hash >>> 16;
+  return (hash >>> 0) / 4294967296;
 }
 
 /** Probabilità giornaliera indicativa, già ridotta dai Guardaboschi attivi. */
