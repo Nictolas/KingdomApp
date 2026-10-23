@@ -586,7 +586,7 @@ async function buildInitialMappa(
 const CIELO_ALPHA_NOTTE_MAX = 0.52;
 const CIELO_ALPHA_CALORE_TRAMONTO_MAX = 0.26;
 
-type CommutePurpose = "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro";
+type CommutePurpose = "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "udienza_banditi" | "cerca_lavoro";
 
 type CommuteInfo = {
   path: number[];
@@ -598,6 +598,7 @@ type CommuteInfo = {
   negozioEdificioId?: number;
   lavoroCercaEdificioId?: number;
   rapinaTarget?: RapinaTarget;
+  udienzaCastelloEdificioId?: number;
 };
 
 type FootprintVariant =
