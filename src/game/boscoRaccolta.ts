@@ -2,7 +2,6 @@ import type { Abitante, Edificio } from "../types";
 import { isGiocatore } from "./schiavituCommercio";
 import { getCastaAbitante } from "./casta";
 import { aggiungiOggettoInventarioAbitante } from "./inventario";
-import { getGiornoGiocoSnapshot } from "./orologioGiocoSession";
 
 export type BoscoBottinoDef = {
   itemId: string;
@@ -122,21 +121,16 @@ export function etichettaRaccoltoBosco(voci: VoceRaccoltoBosco[]): string {
   return voci.map((v) => `${v.emoji} ${v.nome}${v.quantità > 1 ? ` ×${v.quantità}` : ""}`).join(", ");
 }
 
+/**
+ * Assumere una persona non equivale a svolgere una giornata di raccolta.
+ * Il bottino viene attribuito soltanto da applicaRaccoltaBoscoGiornaliera.
+ */
 function applicaBottinoInizialeRaccoglitore(
   abitante: Abitante
 ): { abitante: Abitante; vociNuove: VoceRaccoltoBosco[] | null } {
-  const giorno = getGiornoGiocoSnapshot();
-  if (abitante.ultimoRaccoltoBosco?.giorno === giorno) {
-    return { abitante: { ...abitante, lavoro: LAVORO_RACCOGLITORE }, vociNuove: null };
-  }
-  const voci = raccoltoBoscoDelGiorno(abitante.id, giorno);
-  let next: Abitante = { ...abitante, lavoro: LAVORO_RACCOGLITORE };
-  for (const v of voci) {
-    next = aggiungiOggettoInventarioAbitante(next, v.itemId, v.quantità);
-  }
   return {
-    abitante: { ...next, ultimoRaccoltoBosco: { giorno, voci } },
-    vociNuove: voci
+    abitante: { ...abitante, lavoro: LAVORO_RACCOGLITORE },
+    vociNuove: null
   };
 }
 
