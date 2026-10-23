@@ -566,6 +566,12 @@ export default function ReligioniScreen() {
                 </View>
               );
             })}
+            <Text style={styles.modalHint}>
+              Se sono previsti entrambi gli obblighi, Sacerdoti, Capi Religiosi
+              e Druidi seguono l'abito sacerdotale, non due uniformi incompatibili.
+              Le norme influenzano la Soddisfazione, senza cambiare magicamente
+              i vestiti degli abitanti.
+            </Text>
             <Pressable style={styles.abitiBtn} onPress={() => setMostraAbiti(true)}>
               <Text style={styles.abitiBtnText}>
                 {aspettoSacerdote ? "✓ Aspetto sacerdotale personalizzato" : "Personalizza aspetto Sacerdote"}
