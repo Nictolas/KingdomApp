@@ -56,6 +56,7 @@ const ORARI_PER_LAVORO: Record<string, FasciaOrariaMinuti> = {
   Erborista: { inizio: h(7, 30), fine: h(16, 30) },
   Apicoltore: { inizio: h(6, 30), fine: h(15) },
   Silvicoltore: { inizio: h(7, 30), fine: h(16) },
+  Druido: { inizio: h(8), fine: h(16) },
   Esploratore: { inizio: h(7, 30), fine: h(17, 30) },
   Mago: { inizio: h(10), fine: h(19) },
   Cuoco: { inizio: h(6), fine: h(14) },
