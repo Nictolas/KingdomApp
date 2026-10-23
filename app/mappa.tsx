@@ -1612,6 +1612,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const runtimePersonaggiInizialeRef = useRef(getMappaPersonaggiRuntime());
   const banditiControlliRef = useRef<Set<string>>(new Set());
+  const ultimoGiornoBanditiRef = useRef<number>(-1);
   const turniForestaliRef = useRef<Record<number, TurnoForestale>>(
     runtimePersonaggiInizialeRef.current.turniForestaliByAbitanteId ?? {}
   );
@@ -2424,6 +2425,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
    */
   useEffect(() => {
     const giorno = getGiornoGiocoSnapshot();
+    if (ultimoGiornoBanditiRef.current !== giorno) {
+      ultimoGiornoBanditiRef.current = giorno;
+      banditiControlliRef.current.clear();
+    }
     const eleggibili = abitanti.filter(a =>
       a.ultimoLavoroBosco?.giorno === giorno &&
       a.ultimoLavoroBosco.minuti >= 30 &&
