@@ -10,11 +10,11 @@ import { orarioPerLavoro } from "../src/game/orariLavoroCatalogo";
 import { SEDE_PER_PROFESSIONE } from "../src/game/turniForestali";
 import type { Edificio } from "../src/types";
 
-test("Le sei sedi sono costruibili, hanno costo, posti e orario; non sono gratis all'inizio", () => {
+test("Le sette sedi sono costruibili, hanno costo, posti e orario; non sono gratis all'inizio", () => {
   const tutti = Object.entries(SEDE_PER_PROFESSIONE).filter(([,s]) => s !== null);
   const sezione = SEZIONI_COSTRUZIONE.find((s) => s.titolo === "Foresta");
   assert.ok(sezione);
-  assert.equal(tutti.length, 6);
+  assert.equal(tutti.length, 7);
   for (const [lavoro, nome] of tutti) {
     const template = edificiData.find((e) => e.nome === nome);
     assert.ok(template, nome!);
