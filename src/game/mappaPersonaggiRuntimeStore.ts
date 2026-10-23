@@ -4,6 +4,7 @@
  */
 
 import type { RapinaTarget } from "./rapina";
+import type { TurnoForestale } from "./turniForestali";
 
 export type CommutePurposeMappa =
   | "work"
@@ -38,6 +39,8 @@ export type MappaPersonaggiRuntimeState = {
   lavoroArrivatiIds: number[];
   /** Edificio in cui risulta arrivato al lavoro (sede o cantiere). */
   lavoroArrivoEdificioByAbitanteId: Record<number, number>;
+  /** Turni forestali pendenti conservati fra aperture e chiusure della mappa. */
+  turniForestaliByAbitanteId: Record<number, TurnoForestale>;
   barArrivatiByEdificio: Record<number, number[]>;
   /** Visitatori Emporio (venditori / cercatori non ancora assunti). */
   emporioArrivatiByEdificio: Record<number, number[]>;
@@ -54,6 +57,7 @@ function emptyState(): MappaPersonaggiRuntimeState {
     commuteByAbitanteId: {},
     lavoroArrivatiIds: [],
     lavoroArrivoEdificioByAbitanteId: {},
+    turniForestaliByAbitanteId: {},
     barArrivatiByEdificio: {},
     emporioArrivatiByEdificio: {},
     cultoArrivatiByEdificio: {},
