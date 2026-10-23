@@ -328,7 +328,7 @@ export function applicaRaccoltaBoscoGiornaliera(
       const bonusTratti = /osservator|pazient|attent/i.test(next.personalità ?? "") ? 10 : 0;
       const probabilità = probabilitaSuccessoForestale(100, competenza + bonusTratti, tempo.minuti);
       // Esito deterministico fra ricaricamenti, senza nuove estrazioni a ogni render.
-      const lancio = (((a.id * 9301 + giorno * 49297) >>> 0) % 233280) / 233280;
+      const lancio = (((a.id * 9301 + giorno * 49297) >>> 0) % 500000) / 500000;
       if (lancio >= probabilità) continue;
       const voci = prodottiProfessioneForestale(a.lavoro, a.id, giorno, tempo.minuti);
       if (!voci.length) continue;
