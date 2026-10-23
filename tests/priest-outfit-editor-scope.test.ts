@@ -77,7 +77,7 @@ test("abito sacerdote: la patch LPC accetta esclusivamente campi di vestiario", 
 
 test("abito sacerdote: l'editor toglie Identità, Capelli e Sorprendimi solo in modalità outfit", () => {
   const source = readFileSync("src/ui/CreazioneGiocatoreModal.tsx", "utf8");
-  assert.match(source, /mode !== "outfit" \|\| \(tab\.id !== "identity" && tab\.id !== "hair"\)/);
+  assert.match(source, /mode !== "outfit" \|\| \(tab\.id !== "identity" && tab\.id !== "hair" && tab\.id !== "beard"\)/);
   assert.match(source, /mode !== "outfit" && activeTab === "identity"/);
   assert.match(source, /mode !== "outfit" && activeTab === "hair"/);
   assert.match(source, /mode !== "outfit" && \(\s*<Pressable style=\{\[styles\.randomButton/);
