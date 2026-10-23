@@ -141,6 +141,7 @@ import {
 import { creaRichiestaLuogoCulto, type RichiestaInAttesa } from "../game/richieste";
 import { provaCreaReligioneCustom, modificaDogmiReligioneCustom as evolviDogmiReligiosi, type ReligioneCustom } from "../game/fedeleCulto";
 import type { DogmaReligioso } from "../game/dogmiReligiosi";
+import { convertiFedeliInEresia } from "../game/eresieReligiose";
 import { aggiornaSoddisfazioneReligioniNaturaliste } from "../game/reazioneReligioniBosco";
 import { assicuraReligioneTempioChiese } from "../game/chiesa";
 import { isSimulationRunning, type GamePhase } from "../game/gamePhase";
@@ -1543,6 +1544,7 @@ export function useGameState() {
       aspettoSacerdote?: import("../game/personaggioAspetto").AspettoPersonaggio;
       dottrinaNaturalista?: import("../game/ecosistemaBosco").DottrinaNaturalista;
       dogmi?: readonly DogmaReligioso[];
+      origineReligione?: string;
     }) => {
       const result = provaCreaReligioneCustom(
         { ...input, fondatoreReId: ID_GIOCATORE },
@@ -1551,6 +1553,24 @@ export function useGameState() {
       );
       if (result.ok) {
         setReligioniCustom((prev) => [...prev, result.religione]);
+        // Conversione UNA SOLA VOLTA alla fondazione. Le religioni create da
+        // zero non ottengono fedeli dal nulla. Nessun capo religioso esistente
+        // viene prelevato automaticamente dal culto originario.
+        const scisma = convertiFedeliInEresia(
+          abitantiRef.current,
+          result.religione.origineReligione ?? null,
+          result.religione.nome,
+          result.religione.id
+        );
+        if (scisma.convertitiIds.length > 0) {
+          abitantiRef.current = scisma.abitanti;
+          setAbitanti(scisma.abitanti);
+          setDiarioRighe(prev => [...prev,
+            scisma.convertitiIds.length + " fedeli hanno aderito alla nuova religione " +
+            result.religione.nome + "."
+          ]);
+        }
+        return { ...result, convertiti: scisma.convertitiIds.length };
       }
       return result;
     },
