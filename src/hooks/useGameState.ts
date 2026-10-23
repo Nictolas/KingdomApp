@@ -139,7 +139,8 @@ import {
   type ReligioneConCulto
 } from "../game/luogoCulto";
 import { creaRichiestaLuogoCulto, type RichiestaInAttesa } from "../game/richieste";
-import { provaCreaReligioneCustom, type ReligioneCustom } from "../game/fedeleCulto";
+import { provaCreaReligioneCustom, modificaDogmiReligioneCustom as evolviDogmiReligiosi, type ReligioneCustom } from "../game/fedeleCulto";
+import type { DogmaReligioso } from "../game/dogmiReligiosi";
 import { aggiornaSoddisfazioneReligioniNaturaliste } from "../game/reazioneReligioniBosco";
 import { assicuraReligioneTempioChiese } from "../game/chiesa";
 import { isSimulationRunning, type GamePhase } from "../game/gamePhase";
@@ -1029,6 +1030,8 @@ export function useGameState() {
             anno: result.nuovoAnno,
             moneteGiocatore: moneteAggiornate,
             completati: completatiSet,
+            religioniCustom,
+            religioneDiStato,
             haPonteSulFiume: haPonte
           });
 
@@ -1077,7 +1080,7 @@ export function useGameState() {
     if (avvisiDiario.length > 0) {
       setDiarioRighe((prev) => [...prev, ...avvisiDiario]);
     }
-  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, giornoGioco, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode, obiettiviCompletati, tassaPatrimonioPercentuale, ivaPercentuale, modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso]);
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, giornoGioco, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode, obiettiviCompletati, religioniCustom, religioneDiStato, tassaPatrimonioPercentuale, ivaPercentuale, modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso]);
 
   /**
    * Nessun pulsante «Skip Mese»: il cambio mese parte automaticamente ogni 30 giorni
@@ -1539,8 +1542,13 @@ export function useGameState() {
       descrizione?: string;
       aspettoSacerdote?: import("../game/personaggioAspetto").AspettoPersonaggio;
       dottrinaNaturalista?: import("../game/ecosistemaBosco").DottrinaNaturalista;
+      dogmi?: readonly DogmaReligioso[];
     }) => {
-      const result = provaCreaReligioneCustom(input, religioniCustom, () => `rel-${Date.now()}`);
+      const result = provaCreaReligioneCustom(
+        { ...input, fondatoreReId: ID_GIOCATORE },
+        religioniCustom,
+        () => `rel-${Date.now()}`
+      );
       if (result.ok) {
         setReligioniCustom((prev) => [...prev, result.religione]);
       }
@@ -1548,6 +1556,17 @@ export function useGameState() {
     },
     [religioniCustom]
   );
+
+  const modificaDogmiReligioneCustom = useCallback((
+    id: string, dogmi: readonly DogmaReligioso[],
+    dottrinaNaturalista?: import("../game/ecosistemaBosco").DottrinaNaturalista
+  ): boolean => {
+    if (!religioniCustom.some(r => r.id === id)) return false;
+    setReligioniCustom(prev =>
+      evolviDogmiReligiosi(prev, id, dogmi, dottrinaNaturalista)
+    );
+    return true;
+  }, [religioniCustom]);
 
   useEffect(() => {
     if (!simulationEnabled) return;
@@ -2481,6 +2500,7 @@ export function useGameState() {
     religioneDiStato,
     religioniCustom,
     creaReligioneCustom,
+    modificaDogmiReligioneCustom,
     etaMinimaLavoro,
     etaPensionabile,
     assegnoPensionati,
