@@ -11,6 +11,7 @@ import { TutorialSpotlightProvider, useTutorialSpotlight } from "../tutorial/Tut
 import { TutorialSpotlightOverlay } from "../tutorial/TutorialSpotlightOverlay";
 import { SPOTLIGHT_TARGET_IDS } from "../tutorial/spotlightTypes";
 import { RichiestaLuogoCultoModal } from "../ui/RichiestaLuogoCultoModal";
+import { RichiestaRapinaBoscoModal } from "../ui/RichiestaRapinaBoscoModal";
 import type { ReligioneConCulto } from "../game/luogoCulto";
 import type { RichiestaInAttesa } from "../game/richieste";
 import type { PenaReatiConfig, ReatoPunibile } from "../game/reati";
@@ -241,6 +242,8 @@ type GameContextType = {
   mesiConsecutiviNelCastello: number;
   setModalitaRe: (modalita: ModalitaRe, edificioId?: number | null) => void;
   nominaConsigliere: (abitanteId: number) => void;
+  /** Conclude un'udienza banditi già aperta dall'arrivo fisico al Castello. */
+  risolviUdienzaBanditi: (abitanteId: number, scelta: "risarcisci" | "ignora") => boolean;
   nativiNonIntegrati: number;
   pendingAssimilazione: number | null;
   accettaAssimilazione: () => void;
@@ -356,6 +359,30 @@ function EmigrazioneDialogWrapper() {
       messaggio={messaggioEmigrazione ?? ""}
       onClose={chiudiMessaggioEmigrazione}
       emoji="✈️"
+    />
+  );
+}
+
+function RichiestaRapinaBoscoDialogWrapper() {
+  const { abitanti, moneteGiocatore, risolviUdienzaBanditi } = useGameContext();
+  const richiestePronte = abitanti
+    .filter(a => a.salute > 0 && a.richiestaRapinaBosco?.stato === "pronta")
+    .sort((a, b) => (a.richiestaRapinaBosco!.id).localeCompare(b.richiestaRapinaBosco!.id));
+  const vittima = richiestePronte[0];
+  const richiesta = vittima?.richiestaRapinaBosco;
+  const consigliere = abitanti.find(a =>
+    a.lavoro === "Consigliere" && a.id !== ID_GIOCATORE && a.salute > 0
+  );
+  if (!vittima || !richiesta) return null;
+  return (
+    <RichiestaRapinaBoscoModal
+      key={richiesta.id}
+      richiesta={richiesta}
+      nomeVittima={vittima.nome}
+      nomeConsigliere={consigliere?.nome ?? null}
+      moneteTesoro={moneteGiocatore}
+      onRisarcisci={() => risolviUdienzaBanditi(vittima.id, "risarcisci")}
+      onIgnora={() => risolviUdienzaBanditi(vittima.id, "ignora")}
     />
   );
 }
@@ -606,6 +633,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         <CreazioneGiocatoreWrapper />
         <IntroConsigliereDialogWrapper />
         <RichiestaLuogoCultoDialogWrapper />
+        <RichiestaRapinaBoscoDialogWrapper />
         <EmigrazioneDialogWrapper />
         <GameOverModal
           visible={gameOverPerMorteRe}
