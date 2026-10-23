@@ -2116,7 +2116,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         const castello = edifici.find(e => e.id === meta?.udienzaCastelloEdificioId &&
           e.nome === "Castello" && e.stato === "Operativo");
         const arrivato = !!castello && cellaArrivo != null &&
-          pathCorrente?.[pathCorrente.length - 1] === cellaArrivo &&
+          pathCorrente != null && pathCorrente[pathCorrente.length - 1] === cellaArrivo &&
           trovaAnchorEdificioGlobaleSuMappa(castello.id, edificiInMappa) != null;
         if (arrivato) {
           aggiornaAbitanteById(abitanteId, a => {
