@@ -128,6 +128,10 @@ export type Abitante = {
   inventario?: { itemId: string; quantità: number }[];
   /** Giorno di gioco in cui il Raccoglitore ha raggiunto fisicamente il Bosco. Compatibile con i vecchi salvataggi. */
   ultimoIngressoBoscoGiorno?: number;
+  /** Tempo reale di lavoro nel Bosco nel giorno indicato, accumulato dopo l'arrivo sulla mappa.
+   *  Il campo resta nel salvataggio dell'abitante: nessun bottino per semplice assunzione/transito.
+   */
+  ultimoLavoroBosco?: { giorno: number; minuti: number };
   /** Ultimo bottino trovato nel Bosco (Raccoglitore). */
   ultimoRaccoltoBosco?: {
     giorno: number;
