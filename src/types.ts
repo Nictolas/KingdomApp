@@ -132,6 +132,10 @@ export type Abitante = {
    *  Il campo resta nel salvataggio dell'abitante: nessun bottino per semplice assunzione/transito.
    */
   ultimoLavoroBosco?: { giorno: number; minuti: number };
+  /** Evento banditi già controllato per il giorno; impedisce doppie sottrazioni. */
+  ultimoControlloBanditiBoscoGiorno?: number;
+  /** Richiesta persistente: udienza soltanto dopo il vero ingresso al Castello. */
+  richiestaRapinaBosco?: import("./game/banditiBosco").RichiestaRisarcimentoBanditi;
   /** Ultimo bottino trovato nel Bosco (Raccoglitore). */
   ultimoRaccoltoBosco?: {
     giorno: number;
