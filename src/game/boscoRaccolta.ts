@@ -342,19 +342,44 @@ export function applicaRaccoltaBoscoGiornaliera(
     for (let g = 0; g < giorni; g++) {
       // La raccolta si contabilizza alla mezzanotte SUCCESSIVA alla presenza reale.
       const giorno = giornoCorrente - giorni + g;
+      if (giorno !== giornoCorrente - 1) continue; // solo ultimo giorno attestato nel save
       if (next.ultimoIngressoBoscoGiorno !== giorno) continue;
       if (next.ultimoRaccoltoBosco?.giorno === giorno) continue;
       // Entrare nel Bosco non equivale a lavorare: servono minuti realmente
       // trascorsi sul posto e salvati durante i tick di movimento.
       const tempo = next.ultimoLavoroBosco;
       if (tempo?.giorno !== giorno || tempo.minuti < 30) continue;
+      if (a.lavoro === "Silvicoltore") { silvicoltoriOggi++; continue; }
+      if (a.lavoro === "Guardaboschi") continue;
+      if (a.lavoro === "Cacciatore") {
+        if (cacciatoriOggi >= stato.quotaMassimaCacciatori) continue;
+        cacciatoriOggi++;
+      }
+      const proposti = prodottiProfessioneForestale(a.lavoro, a.id, giorno, tempo.minuti);
+      if (!proposti.length) continue;
+      const fonte = fonteBosco(proposti[0]!.itemId);
       const competenza = Number.isFinite(next.competenza) ? next.competenza : 0;
       const bonusTratti = /osservator|pazient|attent/i.test(next.personalità ?? "") ? 10 : 0;
-      const probabilità = probabilitaSuccessoForestale(100, competenza + bonusTratti, tempo.minuti);
-      // Esito deterministico fra ricaricamenti, senza nuove estrazioni a ogni render.
-      const lancio = (((a.id * 9301 + giorno * 49297) >>> 0) % 500000) / 500000;
+      const intensita = a.lavoro !== "Cacciatore" ? 1
+        : stato.intensitaCaccia === "leggera" ? 0.7
+          : stato.intensitaCaccia === "spietata" ? 1.3 : 1;
+      const probabilità = Math.min(0.98,
+        probabilitaSuccessoForestale(disponibili[fonte], competenza + bonusTratti, tempo.minuti) * intensita
+      );
+      // Esito deterministico per abitante/giorno: non varia alla ricarica.
+      const lancio = (((a.id * 9301 + giorno * 49297) >>> 0) % 600000) / 600000;
       if (lancio >= probabilità) continue;
-      const voci = prodottiProfessioneForestale(a.lavoro, a.id, giorno, tempo.minuti);
+      const voci: VoceRaccoltoBosco[] = [];
+      for (const p of proposti) {
+        const tipo = fonteBosco(p.itemId);
+        const richiesti = a.lavoro === "Cacciatore" && stato.intensitaCaccia === "leggera"
+          ? 1 : p.quantità;
+        const quantita = Math.min(Math.floor(disponibili[tipo]), richiesti);
+        if (quantita <= 0) continue;
+        disponibili[tipo] -= quantita;
+        prelevati[tipo] += quantita;
+        voci.push({ ...p, quantità: quantita });
+      }
       if (!voci.length) continue;
       for (const v of voci) {
         next = aggiungiOggettoInventarioAbitante(next, v.itemId, v.quantità);
@@ -372,5 +397,14 @@ export function applicaRaccoltaBoscoGiornaliera(
     }
     return next;
   });
-  return { abitanti: abitantiNext, messaggi, bottini };
+  const giorno = giornoCorrente - 1;
+  const trimestre = Math.floor(((giorno % 360) + 360) % 360 / 90);
+  const stagione = (["primavera", "estate", "autunno", "inverno"] as const)[trimestre]!;
+  stato = {
+    ...stato,
+    riserve: rigeneraBoscoDopoPrelievi(stato.riserve, prelevati, silvicoltoriOggi, stagione),
+    ultimoGiornoAggiornato: giorno
+  };
+  const edificiNext = edifici.map(e => e.id === bosco.id ? { ...e, ecosistemaBosco: stato } : e);
+  return { abitanti: abitantiNext, edifici: edificiNext, messaggi, bottini };
 }
