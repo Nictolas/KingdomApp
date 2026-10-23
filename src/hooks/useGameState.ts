@@ -264,6 +264,7 @@ export function useGameState() {
   const ultimoGiornoRaccoltaMinieraRef = useRef(getGiornoGiocoSnapshot());
   const ultimoGiornoEconomiaPubblicaRef = useRef(getGiornoGiocoSnapshot());
   const ultimoGiornoPastiRef = useRef(0);
+  const religioniCustomRef = useRef<ReligioneCustom[]>([]);
   const [mese, setMese] = useState(1);
   const [anno, setAnno] = useState(0);
   const giornoGioco = useSyncExternalStore(
@@ -371,7 +372,8 @@ export function useGameState() {
         inventarioMensaRef.current,
         inventarioEmporioRef.current,
         giorno,
-        ultimo
+        ultimo,
+        religioniCustomRef.current
       );
       ultimoGiornoPastiRef.current = giorno;
 
@@ -680,6 +682,7 @@ export function useGameState() {
     "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto delle Ombre" | string | null
   >(null);
   const [religioniCustom, setReligioniCustom] = useState<ReligioneCustom[]>([]);
+  religioniCustomRef.current = religioniCustom;
 
   /** Reazioni ecologiche aggiornate al mutare di fede, popolazione e scorte:
    *  un solo modificatore per fedele, mai una penalità cumulativa per tick.
@@ -2000,7 +2003,11 @@ export function useGameState() {
       let carestia = false;
       const next = prev.map((a) => {
         if (a.id !== abitanteId) return a;
-        const { abitante, inventarioMensa, carestiaMensa } = serviPastoMensaTransaction(a, mensaInv, giorno);
+        const dogmi = religioniCustomRef.current.find(r => r.nome === a.religione)?.dogmi ?? [];
+        const { abitante, inventarioMensa, carestiaMensa } = serviPastoMensaTransaction(
+          a, mensaInv, giorno,
+          itemId => !dogmi.some(d => d.tipo === "alimento_vietato" && d.itemId === itemId)
+        );
         if (carestiaMensa) carestia = true;
         setInventarioMensaByEdificioId((prevM) => ({
           ...prevM,
