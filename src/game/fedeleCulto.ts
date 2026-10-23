@@ -6,6 +6,7 @@
 
 import type { Abitante } from "../types";
 import type { DottrinaNaturalista } from "./ecosistemaBosco";
+import { normalizzaDogmiReligiosi, type DogmaReligioso } from "./dogmiReligiosi";
 import type { ReligioneConCulto } from "./luogoCulto";
 import { RELIGIONI_CON_CULTO } from "./luogoCulto";
 
@@ -28,6 +29,12 @@ export type ReligioneCustom = {
   aspettoSacerdote?: import("./personaggioAspetto").AspettoPersonaggio;
   /** Le tre convinzioni ecologiche sono facoltative e non dedotte dal nome. */
   dottrinaNaturalista?: DottrinaNaturalista;
+  /** Regole modulari: cibo proibito, vestiario fedeli/sacerdoti, sovrano divino. */
+  dogmi?: DogmaReligioso[];
+  /** ID del Re che ha fondato il culto. Persistente anche dopo la successione. */
+  fondatoreReId?: number;
+  /** Revisione delle regole: il culto può evolvere nel corso della partita. */
+  versioneDogmi?: number;
 };
 
 /** Non possono essere Religione del Tempio (Chiesa). */
@@ -191,6 +198,8 @@ export function provaCreaReligioneCustom(
     descrizione?: string;
     aspettoSacerdote?: import("./personaggioAspetto").AspettoPersonaggio;
     dottrinaNaturalista?: DottrinaNaturalista;
+    dogmi?: readonly DogmaReligioso[];
+    fondatoreReId?: number;
   },
   esistenti: readonly ReligioneCustom[],
   nextId: () => string
@@ -215,6 +224,10 @@ export function provaCreaReligioneCustom(
       emoji,
       descrizione,
       ...(input.aspettoSacerdote ? { aspettoSacerdote: input.aspettoSacerdote } : {}),
+      ...(Number.isSafeInteger(input.fondatoreReId) && input.fondatoreReId! >= 0
+        ? { fondatoreReId: input.fondatoreReId } : {}),
+      versioneDogmi: 1,
+      dogmi: normalizzaDogmiReligiosi(input.dogmi ?? []),
       ...(input.dottrinaNaturalista ? { dottrinaNaturalista: {
         forestaSacra: input.dottrinaNaturalista.forestaSacra === true,
         tutelaFauna: input.dottrinaNaturalista.tutelaFauna === true,
@@ -247,6 +260,13 @@ export function normalizzaReligioniCustom(raw: unknown): ReligioneCustom[] {
       o.aspettoSacerdote && typeof o.aspettoSacerdote === "object"
         ? (o.aspettoSacerdote as ReligioneCustom["aspettoSacerdote"])
         : undefined;
+    const dogmi = normalizzaDogmiReligiosi(o.dogmi);
+    const fondatoreReId = typeof o.fondatoreReId === "number" &&
+      Number.isSafeInteger(o.fondatoreReId) && o.fondatoreReId >= 0
+        ? o.fondatoreReId : undefined;
+    const versioneDogmi = typeof o.versioneDogmi === "number" &&
+      Number.isSafeInteger(o.versioneDogmi) && o.versioneDogmi >= 1
+        ? o.versioneDogmi : 1;
     const rawDottrina = o.dottrinaNaturalista;
     const d = rawDottrina && typeof rawDottrina === "object"
       ? rawDottrina as Record<string, unknown> : null;
@@ -261,6 +281,9 @@ export function normalizzaReligioniCustom(raw: unknown): ReligioneCustom[] {
       emoji,
       descrizione,
       ...(dottrinaNaturalista ? { dottrinaNaturalista } : {}),
+      ...(dogmi.length ? { dogmi } : {}),
+      ...(fondatoreReId !== undefined ? { fondatoreReId } : {}),
+      versioneDogmi,
       ...(aspettoSacerdote ? { aspettoSacerdote } : {})
     });
   }
@@ -268,3 +291,28 @@ export function normalizzaReligioniCustom(raw: unknown): ReligioneCustom[] {
 }
 
 export { RELIGIONI_CON_CULTO };
+
+/** Evoluzione dei dogmi di un culto personalizzato esistente: non ricrea la fede
+ * e conserva fondatore, nome, seguaci e possibilità di utilizzo nei salvataggi.
+ */
+export function modificaDogmiReligioneCustom(
+  religioni: readonly ReligioneCustom[],
+  id: string,
+  dogmi: readonly DogmaReligioso[],
+  dottrinaNaturalista?: DottrinaNaturalista
+): ReligioneCustom[] {
+  const idx = religioni.findIndex(r => r.id === id);
+  if (idx < 0) return [...religioni];
+  const corrente = religioni[idx]!;
+  const nuova: ReligioneCustom = {
+    ...corrente,
+    dogmi: normalizzaDogmiReligiosi(dogmi),
+    ...(dottrinaNaturalista ? { dottrinaNaturalista: {
+      forestaSacra: dottrinaNaturalista.forestaSacra === true,
+      tutelaFauna: dottrinaNaturalista.tutelaFauna === true,
+      tutelaVegetazione: dottrinaNaturalista.tutelaVegetazione === true
+    } } : {}),
+    versioneDogmi: (corrente.versioneDogmi ?? 1) + 1
+  };
+  return religioni.map((r, i) => i === idx ? nuova : r);
+}
