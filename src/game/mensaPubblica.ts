@@ -33,7 +33,8 @@ export function haCiboCompatibileInInventario(
 /** True se la mensa ha almeno un cibo compatibile con la dieta dell'abitante. */
 export function haCiboCompatibileInInventarioMensa(
   inventarioMensa: VoceInventario[] | undefined,
-  personalità: string
+  personalità: string,
+  permesso: (itemId: string) => boolean = () => true
 ): boolean {
   return normalizzaInventarioMensa(inventarioMensa).some(
     (v) => v.quantità > 0 && abitantePuòConsumareOggettoCibo(personalità, v.itemId) &&
