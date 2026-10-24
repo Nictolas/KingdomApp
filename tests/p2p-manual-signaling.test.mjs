@@ -200,3 +200,23 @@ test("la disconnessione inattesa pulisce peer e ping; pong vecchi non valgono", 
   assert.equal(f.peers[0].isClosed, true);
   guest.close();
 });
+
+test("ICE mobile: una perdita transitoria non termina il pairing, un fallimento lo segnala", async () => {
+  const f = fakeFactory();
+  const host = new LanP2PSession({ createPeer: f.createPeer, newId: (() => {
+    const ids = [idHost, idSession]; return () => ids.shift();
+  })() });
+  await host.host();
+  const peer = f.peers[0];
+  peer.iceConnectionState = "disconnected";
+  peer.oniceconnectionstatechange?.();
+  assert.equal(host.getSnapshot().state, "waiting");
+  assert.equal(peer.isClosed, false);
+
+  peer.iceConnectionState = "failed";
+  peer.oniceconnectionstatechange?.();
+  assert.equal(host.getSnapshot().state, "error");
+  assert.match(host.getSnapshot().error, /Wi-Fi/);
+  assert.equal(host.getSnapshot().otherPeerId, null);
+  assert.equal(peer.isClosed, true);
+});
