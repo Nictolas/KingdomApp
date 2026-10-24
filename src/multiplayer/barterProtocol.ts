@@ -129,7 +129,7 @@ export function encodeBarterWire(msg: BarterMessage): string {
   // Round-trip validation prevents accidental unvalidated local transmissions.
   const raw = JSON.stringify(msg);
   parseBarterWire(raw);
-  return raw;
+  return JSON.stringify(parseBarterWire(raw));
 }
 function assertInventory(stock: BarterInventory, capacity: number): number {
   nonnegativeAmount(capacity);
