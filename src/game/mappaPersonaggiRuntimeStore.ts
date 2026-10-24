@@ -71,6 +71,22 @@ function emptyState(): MappaPersonaggiRuntimeState {
 }
 
 let runtime: MappaPersonaggiRuntimeState = emptyState();
+let revision = 0;
+const subscribers = new Set<() => void>();
+function notifyRuntimeUpdated(): void {
+  revision++;
+  for (const fn of subscribers) fn();
+}
+
+/** Non causa render della mappa: serve ad aggiornare il flag autosave. */
+export function subscribeMappaPersonaggiRuntime(listener: () => void): () => void {
+  subscribers.add(listener);
+  return () => { subscribers.delete(listener); };
+}
+
+export function getMappaPersonaggiRuntimeRevision(): number {
+  return revision;
+}
 
 export function getMappaPersonaggiRuntime(): MappaPersonaggiRuntimeState {
   return runtime;
@@ -78,12 +94,14 @@ export function getMappaPersonaggiRuntime(): MappaPersonaggiRuntimeState {
 
 export function setMappaPersonaggiRuntime(next: MappaPersonaggiRuntimeState): void {
   runtime = next;
+  notifyRuntimeUpdated();
 }
 
 export function patchMappaPersonaggiRuntime(
   partial: Partial<MappaPersonaggiRuntimeState>
 ): void {
   runtime = { ...runtime, ...partial };
+  notifyRuntimeUpdated();
 }
 
 export function setUltimaCellaAbitanteRuntime(abitanteId: number, cell: number): void {
@@ -94,6 +112,7 @@ export function setUltimaCellaAbitanteRuntime(abitanteId: number, cell: number):
       [abitanteId]: cell
     }
   };
+  notifyRuntimeUpdated();
 }
 
 /** Taglia il path così riparte dalla cella corrente (commute a metà dopo remount). */
@@ -144,4 +163,5 @@ export function resetMappaPersonaggiRuntime(seed?: {
       lavoroArrivoEdificioByAbitanteId: arrivo
     };
   }
+  notifyRuntimeUpdated();
 }
