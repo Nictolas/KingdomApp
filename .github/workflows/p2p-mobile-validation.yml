@@ -18,7 +18,7 @@ permissions:
 jobs:
   android-prebuild:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    timeout-minutes: 50
     env:
       CI: "1"
       EXPO_NO_TELEMETRY: "1"
@@ -62,6 +62,23 @@ jobs:
             echo "Unnecessary camera, microphone or overlay permissions were merged"
             exit 1
           fi
+
+      - name: Build standalone Android test APK
+        run: cd android && ./gradlew :app:assembleRelease --no-daemon --console=plain
+      - name: Verify test APK is signed and standalone
+        run: |
+          set -euo pipefail
+          apk="$(find android/app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -1)"
+          test -n "$apk"
+          apksigner verify "$apk"
+          echo "Standalone APK ready: $apk"
+      - name: Upload Android test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mykingdom-p2p-android-test-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 7
 
   ios-prebuild:
     runs-on: macos-latest
