@@ -13,6 +13,7 @@ const PAGES_WITHOUT_LOCAL_FOOTER = new Set([
   "/nudismo",
   "/obiettivi",
   "/richezza",
+  "/soddisfazione",
   "/serra",
   "/timore"
 ]);
