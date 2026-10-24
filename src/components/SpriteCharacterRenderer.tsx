@@ -43,6 +43,7 @@ export function SpriteCharacterRenderer({
   animate = true,
   offsetY = 0,
   onAssetError,
+  onAssetLoad,
   debug = false
 }: {
   appearance: CharacterAppearance;
@@ -58,6 +59,8 @@ export function SpriteCharacterRenderer({
   offsetY?: number;
   /** The calling portrait can show a race fallback if a network asset fails. */
   onAssetError?: () => void;
+  /** Every actual LPC image reports its successful decode. */
+  onAssetLoad?: (sourceId: string) => void;
   debug?: boolean;
 }) {
   const layers = useMemo(
@@ -111,6 +114,7 @@ export function SpriteCharacterRenderer({
               key={`${layer.id}-${layer.layer}`}
               source={source}
               onError={onAssetError}
+              onLoad={() => onAssetLoad?.(layer.sourceId)}
               resizeMode="stretch"
               style={{
                 position: "absolute",
