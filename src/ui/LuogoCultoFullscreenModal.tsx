@@ -1,3 +1,4 @@
+import { BuildingResidentAvatar } from "./BuildingResidentAvatar";
 import { BuildingModalBottomExit } from "./BuildingModalBottomExit";
 import React, { useMemo } from "react";
 import {
@@ -13,7 +14,6 @@ import { StatusBar } from "expo-status-bar";
 import type { Abitante, Edificio } from "../types";
 import type { ReligioneConCulto } from "../game/luogoCulto";
 import { emojiLuogoCulto } from "../game/luogoCulto";
-import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import {
   badgePresenzaLuogoCulto,
   statoPresenzaFedeleLuogoCulto
@@ -217,7 +217,7 @@ export function LuogoCultoFullscreenModal({
                     : styles.listaRigaFuori
                 ]}
               >
-                <Text style={styles.listaAvatar}>{getEmojiAbitante(capoReligioso)}</Text>
+                <BuildingResidentAvatar abitante={capoReligioso} />
                 <View style={styles.listaNomeCol}>
                   <Text style={styles.listaNome} numberOfLines={1}>
                     {capoReligioso.nome}
@@ -275,7 +275,7 @@ export function LuogoCultoFullscreenModal({
                       : styles.listaRigaFuori
                   ]}
                 >
-                  <Text style={styles.listaAvatar}>{getEmojiAbitante(abitante)}</Text>
+                  <BuildingResidentAvatar abitante={abitante} />
                   <View style={styles.listaNomeCol}>
                     <Text style={styles.listaNome} numberOfLines={1}>
                       {abitante.nome}

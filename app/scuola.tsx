@@ -1,8 +1,8 @@
+import { BuildingResidentAvatar } from "../src/ui/BuildingResidentAvatar";
 import React, { useMemo, useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useGameContext } from "../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
@@ -82,7 +82,7 @@ export default function ScuolaScreen() {
           >
             {professore ? (
               <View style={styles.dropdownContent}>
-                <Text style={styles.dropdownEmoji}>{getEmojiAbitante(professore)}</Text>
+                <BuildingResidentAvatar abitante={professore} />
                 <View style={styles.dropdownTextContainer}>
                   <Text style={styles.dropdownNome}>{professore.nome}</Text>
                   <Text style={styles.dropdownCompetenza}>Competenza: {professore.competenza}%</Text>
@@ -131,7 +131,7 @@ export default function ScuolaScreen() {
                           setDropdownProfessoreVisible(false);
                         }}
                       >
-                        <Text style={styles.dropdownItemEmoji}>{getEmojiAbitante(a)}</Text>
+                        <BuildingResidentAvatar abitante={a} />
                         <View style={styles.dropdownItemTextContainer}>
                           <Text style={styles.dropdownItemNome}>{a.nome}</Text>
                           <Text style={styles.dropdownItemCompetenza}>Competenza: {a.competenza}%</Text>
@@ -154,7 +154,7 @@ export default function ScuolaScreen() {
             <View style={styles.cardsContainer}>
               {bambini.map((bambino: Abitante) => (
                 <View key={bambino.id} style={styles.bambinoCard}>
-                  <Text style={styles.cardEmoji}>{getEmojiAbitante(bambino)}</Text>
+                  <BuildingResidentAvatar abitante={bambino} />
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{bambino.nome}</Text>
                     <Text style={styles.cardInfo}>Età: {bambino.eta} anni</Text>

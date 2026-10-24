@@ -1,7 +1,7 @@
+import { BuildingResidentAvatar } from "../src/ui/BuildingResidentAvatar";
 import React from "react";
 import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useGameContext } from "../src/context/GameContext";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
 export default function CarcereScreen() {
@@ -44,7 +44,7 @@ export default function CarcereScreen() {
           ) : (
             detenuti.map((a) => (
               <View key={a.id} style={styles.row}>
-                <Text style={styles.rowEmoji}>{getEmojiAbitante(a)}</Text>
+                <BuildingResidentAvatar abitante={a} />
                 <View style={styles.rowBody}>
                   <Text style={styles.rowNome}>{a.nome}</Text>
                   <Text style={styles.rowInfo}>
