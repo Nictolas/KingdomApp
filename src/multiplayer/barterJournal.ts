@@ -25,6 +25,18 @@ export const BARTER_JOURNAL_KEYS = {
   temp: "mykingdom.barter.journal.temp.v1"
 } as const;
 
+/**
+ * Slot isolati per saveId, senza hash e quindi senza collisioni fra partite.
+ * L'archivio di un'altra partita non viene sovrascritto e non ne sblocca i trade.
+ */
+export function journalStorageKey(
+  slot: keyof typeof BARTER_JOURNAL_KEYS,
+  saveId: string
+): string {
+  if (!validSaveId(saveId)) throw new Error("Save ID del journal non valido.");
+  return BARTER_JOURNAL_KEYS[slot] + ":" + encodeURIComponent(saveId);
+}
+
 export const MAX_JOURNAL_TRADES = 2048;
 type BarterJournalPhase = "proposed" | "accepted" | "reserved" | "cancelled";
 export type BarterJournalRecord = {
@@ -114,7 +126,8 @@ export class BarterJournalRepository {
   }
 
   private async readSlots(): Promise<{ journal: BarterJournal; damaged: boolean }> {
-    const keys = Object.values(BARTER_JOURNAL_KEYS);
+    const keys = (Object.keys(BARTER_JOURNAL_KEYS) as Array<keyof typeof BARTER_JOURNAL_KEYS>)
+      .map(slot => journalStorageKey(slot, this.saveId));
     let present = false;
     let damaged = false;
     const valid: BarterJournal[] = [];
@@ -169,28 +182,28 @@ export class BarterJournalRepository {
 
   private async commit(next: BarterJournal, previous: BarterJournal): Promise<void> {
     const nextRaw = canonical(next);
-    await this.storage.setItem(BARTER_JOURNAL_KEYS.temp, nextRaw);
-    const verifyTemp = await this.storage.getItem(BARTER_JOURNAL_KEYS.temp);
+    await this.storage.setItem(journalStorageKey("temp", this.saveId), nextRaw);
+    const verifyTemp = await this.storage.getItem(journalStorageKey("temp", this.saveId));
     if (verifyTemp === null || canonical(validateJournal(JSON.parse(verifyTemp), this.saveId)) !== nextRaw) {
       throw new Error("Journal P2P temporaneo non verificato.");
     }
     // Backup only if a primary actually existed; an in-memory empty journal is
     // not an on-disk checkpoint. Never destroy a recoverable backup with garbage.
-    const primary = await this.storage.getItem(BARTER_JOURNAL_KEYS.primary);
+    const primary = await this.storage.getItem(journalStorageKey("primary", this.saveId));
     if (primary !== null) {
       validateJournal(JSON.parse(primary), this.saveId);
-      await this.storage.setItem(BARTER_JOURNAL_KEYS.backup, primary);
+      await this.storage.setItem(journalStorageKey("backup", this.saveId), primary);
     } else if (previous.revision > 0) {
       // May be recovering an interrupted write with only a temp slot.
       // In that case, do not manufacture a stale backup.
     }
-    await this.storage.setItem(BARTER_JOURNAL_KEYS.primary, nextRaw);
-    const verifyPrimary = await this.storage.getItem(BARTER_JOURNAL_KEYS.primary);
+    await this.storage.setItem(journalStorageKey("primary", this.saveId), nextRaw);
+    const verifyPrimary = await this.storage.getItem(journalStorageKey("primary", this.saveId));
     if (verifyPrimary === null ||
         canonical(validateJournal(JSON.parse(verifyPrimary), this.saveId)) !== nextRaw) {
       throw new Error("Journal P2P principale non verificato.");
     }
-    await this.storage.removeItem(BARTER_JOURNAL_KEYS.temp);
+    await this.storage.removeItem(journalStorageKey("temp", this.saveId));
   }
 
   propose(offerInput: unknown, role: LocalBarterReservation["role"]): Promise<BarterJournalRecord> {
