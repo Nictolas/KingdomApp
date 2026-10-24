@@ -15,6 +15,11 @@ on:
 permissions:
   contents: read
 
+# Non sprecare minuti di build nativa sui commit superati dalla branch.
+concurrency:
+  group: p2p-native-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   android-prebuild:
     runs-on: ubuntu-latest
