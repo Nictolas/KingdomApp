@@ -4,6 +4,7 @@ import { usePathname, useRouter } from "expo-router";
 import { Pressable, StyleSheet, Text } from "react-native";
 import { tornaAllaMappa } from "./tornaAllaMappa";
 import { isBuildingRoute } from "./isBuildingRoute";
+import { needsBottomBackFooter } from "./needsBottomBackFooter";
 
 /** Controlli fissi sul viewport: evita clipping sotto lo Stack/Canvas nella PWA iPhone. */
 export function ViewportBottomPortal({ children }: { children: React.ReactNode }) {
@@ -32,7 +33,12 @@ export function ViewportBottomPortal({ children }: { children: React.ReactNode }
 export function BuildingBottomExit() {
   const pathname = usePathname();
   const router = useRouter();
-  if (!isBuildingRoute(pathname) || typeof document === "undefined") return null;
+  const building = isBuildingRoute(pathname);
+  if ((!building && !needsBottomBackFooter(pathname)) || typeof document === "undefined") return null;
+  const goBack = () => {
+    if (router.canGoBack()) router.back();
+    else router.replace("/");
+  };
 
   return createPortal(
     <div
@@ -49,11 +55,11 @@ export function BuildingBottomExit() {
     >
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel="Torna alla mappa"
-        onPress={() => tornaAllaMappa(router)}
-        style={styles.button}
+        accessibilityLabel={building ? "Torna alla mappa" : "Torna alla pagina precedente"}
+        onPress={building ? () => tornaAllaMappa(router) : goBack}
+        style={[styles.button, !building && styles.genericButton]}
       >
-        <Text style={styles.label}>← Torna alla mappa</Text>
+        <Text style={styles.label}>{building ? "← Torna alla mappa" : "← Indietro"}</Text>
       </Pressable>
     </div>,
     document.body
@@ -70,5 +76,6 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#60a5fa"
   },
+  genericButton: { backgroundColor: "#0f172a", borderColor: "#64748b" },
   label: { color: "#ffffff", fontSize: 17, fontWeight: "800", textAlign: "center" }
 });
