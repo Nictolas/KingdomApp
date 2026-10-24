@@ -6,8 +6,11 @@ import {
   type SaveCipher
 } from "./encryptedSaveStorage.ts";
 import type { PersistentStorage } from "./storage.ts";
+import { deserializeSave } from "./saveSerializer.ts";
+import { ENCRYPTED_SAVE_PREFIX, ENCRYPTED_SAVE_SLOTS } from "./encryptedSaveStorage.ts";
 
 const KEYCHAIN_ENTRY = "mykingdom.local-save.aes256gcm.key.v1";
+const MIGRATED_ENTRY = "mykingdom.local-save.aes256gcm.migration.done.v1";
 const AAD_VERSION = "mykingdom-save-slot:v1:";
 
 /**
@@ -29,7 +32,9 @@ export async function createGameSaveStorage(): Promise<PersistentStorage> {
   ]);
 
   let keyHex = await SecureStore.getItemAsync(KEYCHAIN_ENTRY);
+  const migrated = (await SecureStore.getItemAsync(MIGRATED_ENTRY)) === "yes";
   if (!keyHex) {
+    if (migrated) throw new Error("Chiave di cifratura perduta: impossibile usare il salvataggio esistente.");
     if (await hasProtectedSave(raw)) {
       // Lost Keychain / Keystore entry: never create a replacement key or
       // silently reset a kingdom with data we can no longer decrypt.
@@ -75,6 +80,36 @@ export async function createGameSaveStorage(): Promise<PersistentStorage> {
   };
 
   const storage = new EncryptedSaveStorage(raw, cipher);
-  await storage.migrateLegacySaves();
+  // Commit the migration marker in SecureStore rather than alongside mutable
+  // save bytes: plain JSON must never be accepted as a post-migration save.
+  if (!migrated) {
+    await storage.migrateLegacySaves();
+    await SecureStore.setItemAsync(MIGRATED_ENTRY, "yes", {
+      keychainAccessible: SecureStore.WHEN_UNLOCKED_THIS_DEVICE_ONLY
+    });
+  }
+
+  const present = await Promise.all(ENCRYPTED_SAVE_SLOTS.map(slot => raw.getItem(slot)));
+  if (present.some(value => value !== null && !value.startsWith(ENCRYPTED_SAVE_PREFIX))) {
+    throw new Error("Rilevata alterazione del salvataggio: un archivio non è cifrato.");
+  }
+
+  // Never mistake three unreadable copies for a newly installed game.
+  if (present.some(value => value !== null)) {
+    let recoverable = false;
+    for (const slot of ENCRYPTED_SAVE_SLOTS) {
+      try {
+        const value = await storage.getItem(slot);
+        if (value !== null) {
+          deserializeSave(value);
+          recoverable = true;
+          break;
+        }
+      } catch { /* Try the next slot. */ }
+    }
+    if (!recoverable) {
+      throw new Error("Nessuna copia del salvataggio cifrato è leggibile. Non sovrascrivere i dati.");
+    }
+  }
   return storage;
 }
