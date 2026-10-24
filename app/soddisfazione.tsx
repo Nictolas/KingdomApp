@@ -88,11 +88,6 @@ export default function SoddisfazioneScreen() {
           </View>
         </ScrollView>
       </View>
-      <View style={styles.footer}>
-        <Text style={styles.back} onPress={() => router.back()}>
-          ← Home
-        </Text>
-      </View>
     </SafeAreaView>
   );
 }
