@@ -19,6 +19,8 @@ import {
 import { createNativeLanSession } from "../src/multiplayer/nativeTransport";
 import { useGameContext } from "../src/context/GameContext";
 import type { BarterOffer } from "../src/multiplayer/barterProtocol";
+import type { BarterJournalRepository } from "../src/multiplayer/barterJournal";
+import { createProtectedBarterJournal } from "../src/multiplayer/createProtectedBarterJournal";
 
 type Mode = "choose" | "host" | "guest";
 const EMPTY: ConnectionSnapshot = {
@@ -42,7 +44,10 @@ const stateLabels: Record<ConnectionSnapshot["state"], string> = {
 /** Collega soltanto i dispositivi. Non invia salvataggi o merci. */
 export default function MultiplayerScreen() {
   const router = useRouter();
-  const { risorse } = useGameContext();
+  const { risorse, activeSaveId } = useGameContext();
+  const activeSaveIdRef = useRef(activeSaveId);
+  activeSaveIdRef.current = activeSaveId;
+  const journalRef = useRef<{ saveId: string; pending: Promise<BarterJournalRepository> } | null>(null);
   const [giveId, setGiveId] = useState("");
   const [receiveId, setReceiveId] = useState("");
   const [giveAmount, setGiveAmount] = useState("");
@@ -63,15 +68,23 @@ export default function MultiplayerScreen() {
     if (!mobile) return;
     try {
       sessionRef.current = createNativeLanSession(setSnapshot, message => {
-        if (message.type === "propose") {
-          setReceivedTrade(message.offer);
-          setNote("È arrivata una proposta di baratto. Nessuna risorsa è stata trasferita.");
-        } else {
-          setSentTrade(null);
-          setNote(message.accepted
-            ? "Proposta accettata per la prova. Trasferimento risorse NON ancora attivo."
-            : "L'altro giocatore ha rifiutato la proposta.");
-        }
+        // Persist each received proposal/decision BEFORE displaying its result.
+        void (async () => {
+          const journal = await getJournal();
+          if (message.type === "propose") {
+            await journal.propose(message.offer, "responder");
+            setReceivedTrade(message.offer);
+            setNote("Proposta ricevuta e salvata localmente. Nessuna merce è stata trasferita.");
+          } else {
+            await journal.decide(message.tradeId, message.accepted);
+            setSentTrade(null);
+            setNote(message.accepted
+              ? "Risposta accettata e salvata: baratto da riconciliare, nessuna merce trasferita."
+              : "L'altro giocatore ha rifiutato la proposta.");
+          }
+        })().catch(cause => {
+          setError(cause instanceof Error ? cause.message : "Journal dei baratti non disponibile.");
+        });
       });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Modulo WebRTC non disponibile.");
@@ -112,12 +125,34 @@ export default function MultiplayerScreen() {
     setSentTrade(null);
   }
 
+  /** Bound to the active, already persisted game save. Never use raw web storage. */
+  async function getJournal(): Promise<BarterJournalRepository> {
+    const saveId = activeSaveIdRef.current;
+    if (!saveId) throw new Error("Salva prima la partita: occorre un salvataggio valido per proporre baratti.");
+    if (!journalRef.current || journalRef.current.saveId !== saveId) {
+      journalRef.current = { saveId, pending: createProtectedBarterJournal(saveId) };
+    }
+    const journal = await journalRef.current.pending;
+    const recovered = await journal.read();
+    if (recovered.readOnlyRecovery) {
+      throw new Error("Journal danneggiato: la negoziazione è bloccata finché non viene verificato il recupero.");
+    }
+    return journal;
+  }
+
   function resourceName(resourceId: string): string {
     return risorse.find(resource => String(resource.id) === resourceId)?.nome ?? resourceId;
   }
 
-  function submitBarter() {
+  async function submitBarter() {
+    if (working) return;
+    setWorking(true);
     try {
+      const journal = await getJournal();
+      const state = await journal.read();
+      if (state.pendingReconciliation.length) {
+        throw new Error("C'è un baratto precedente da riconciliare: non è sicuro crearne altri.");
+      }
       const give = risorse.find(resource => String(resource.id) === (giveId || String(risorse[0]?.id ?? "")));
       const want = risorse.find(resource => String(resource.id) === (receiveId || String(risorse[1]?.id ?? "")));
       const amountGive = Number(giveAmount);
@@ -127,30 +162,41 @@ export default function MultiplayerScreen() {
         throw new Error("Scegli le due risorse e inserisci quantità intere positive.");
       }
       if (amountGive > give.quantità) throw new Error("Non possiedi tutte le risorse proposte.");
-      const proposal = sessionRef.current?.proposeBarter(
+      const session = sessionRef.current;
+      if (!session) throw new Error("Collegamento P2P non disponibile.");
+      const proposal = await session.proposeBarterDurably(
         [{ resourceId: String(give.id), quantity: amountGive }],
-        [{ resourceId: String(want.id), quantity: amountWant }]
+        [{ resourceId: String(want.id), quantity: amountWant }],
+        async offer => { await journal.propose(offer, "proposer"); }
       );
-      if (!proposal) throw new Error("Collegamento P2P non disponibile.");
       setSentTrade(proposal);
-      setNote("Proposta inviata. L'eventuale accettazione non trasferisce ancora risorse.");
+      setNote("Proposta salvata e inviata. L'accettazione non trasferisce ancora risorse.");
       setError("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Proposta non valida.");
+    } finally {
+      setWorking(false);
     }
   }
 
-  function answerBarter(accepted: boolean) {
-    if (!receivedTrade) return;
+  async function answerBarter(accepted: boolean) {
+    if (!receivedTrade || working) return;
+    setWorking(true);
     try {
-      sessionRef.current?.respondToBarter(receivedTrade.tradeId, accepted);
+      const journal = await getJournal();
+      await journal.decide(receivedTrade.tradeId, accepted);
+      const session = sessionRef.current;
+      if (!session) throw new Error("La connessione P2P non è disponibile.");
+      session.respondToBarter(receivedTrade.tradeId, accepted);
       setReceivedTrade(null);
       setNote(accepted
-        ? "Hai accettato la proposta di prova. Nessuna risorsa è stata trasferita."
-        : "Hai rifiutato la proposta.");
+        ? "Accettazione registrata, in attesa di riconciliazione. Nessuna risorsa è stata trasferita."
+        : "Rifiuto registrato. Nessuna risorsa è stata trasferita.");
       setError("");
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Impossibile rispondere.");
+    } finally {
+      setWorking(false);
     }
   }
 
@@ -372,7 +418,7 @@ export default function MultiplayerScreen() {
                   style={styles.input} keyboardType="number-pad" value={receiveAmount}
                   onChangeText={setReceiveAmount} placeholder="Quantità richiesta"
                   placeholderTextColor="#94a3b8" />
-                <Pressable style={styles.primary} onPress={submitBarter}>
+                <Pressable style={styles.primary} disabled={working} onPress={() => void submitBarter()}>
                   <Text style={styles.buttonText}>Invia proposta di prova</Text>
                 </Pressable>
                 {sentTrade && <Text style={styles.body}>Proposta inviata, in attesa di risposta.</Text>}
@@ -385,10 +431,10 @@ export default function MultiplayerScreen() {
                     <Text style={styles.body}>
                       Chiedono: {receivedTrade.wants.map(line => `${line.quantity} ${resourceName(line.resourceId)}`).join(", ")}
                     </Text>
-                    <Pressable style={styles.primary} onPress={() => answerBarter(true)}>
+                    <Pressable style={styles.primary} disabled={working} onPress={() => void answerBarter(true)}>
                       <Text style={styles.buttonText}>Accetta la proposta di prova</Text>
                     </Pressable>
-                    <Pressable style={styles.secondary} onPress={() => answerBarter(false)}>
+                    <Pressable style={styles.secondary} disabled={working} onPress={() => void answerBarter(false)}>
                       <Text style={styles.buttonText}>Rifiuta proposta</Text>
                     </Pressable>
                   </View>
