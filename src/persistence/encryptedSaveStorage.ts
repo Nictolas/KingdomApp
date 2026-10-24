@@ -40,8 +40,9 @@ export class EncryptedSaveStorage implements PersistentStorage {
     if (raw.startsWith("mk:")) {
       throw new Error("Versione del formato cifrato non supportata.");
     }
-    // Legacy plain JSON: only accepted while migrating an existing save.
-    return raw;
+    // A plaintext value is never an acceptable loaded save after migration.
+    // Legacy values are handled only by migrateLegacySaves(), before gameplay.
+    throw new Error("Salvataggio non cifrato rilevato dopo la migrazione.");
   }
 
   async setItem(slot: string, plaintext: string): Promise<void> {
