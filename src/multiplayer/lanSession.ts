@@ -274,8 +274,13 @@ export class LanP2PSession {
       responderId: this.snapshot.otherPeerId, gives, wants
     });
     if (this.outgoingBarters.has(offer.tradeId)) throw new Error("ID baratto già utilizzato.");
-    this.channel.send(encodeBarterWire({ protocol: BARTER_PROTOCOL, type: "propose", offer }));
     this.outgoingBarters.set(offer.tradeId, offer);
+    try {
+      this.channel.send(encodeBarterWire({ protocol: BARTER_PROTOCOL, type: "propose", offer }));
+    } catch (cause) {
+      this.outgoingBarters.delete(offer.tradeId);
+      throw cause;
+    }
     return offer;
   }
 
