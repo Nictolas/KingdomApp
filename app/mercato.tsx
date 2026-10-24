@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import {
   Dimensions,
+  Platform,
   Pressable,
   SafeAreaView,
   ScrollView,
@@ -76,6 +77,17 @@ export default function MercatoScreen() {
         contentContainerStyle={styles.content}
         showsVerticalScrollIndicator={false}
       >
+        {Platform.OS !== "web" && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel="Apri il collegamento multiplayer P2P"
+            onPress={() => router.push("/multiplayer")}
+            style={{ padding: 13, marginBottom: 12, borderRadius: 10, backgroundColor: "#44317d", alignItems: "center" }}
+          >
+            <Text style={{ color: "#ffffff", fontWeight: "700", fontSize: 15 }}>Collega un altro giocatore (P2P)</Text>
+            <Text style={{ color: "#e9d5ff", fontSize: 12, marginTop: 4 }}>Android e iPhone · stessa rete Wi-Fi · niente database</Text>
+          </Pressable>
+        )}
         <View style={styles.saldoRow}>
           <View style={styles.saldoBadge}>
             <Text style={styles.saldoLabel}>Tesoro</Text>
