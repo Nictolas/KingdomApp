@@ -1,3 +1,4 @@
+import { BuildingResidentAvatar } from "../../src/ui/BuildingResidentAvatar";
 import { tornaAllaMappa } from "../../src/navigation/tornaAllaMappa";
 import React, { useMemo } from "react";
 import { Platform, Pressable, SafeAreaView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
@@ -6,7 +7,6 @@ import { useLocalSearchParams, useRouter } from "expo-router";
 import { useGameContext } from "../../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../../src/game/edificiLavoro";
 import { getStipendioMensileEdificio, STIPENDIO_BASE_MONETE_GIORNO } from "../../src/game/edificiPubblici";
-import { getEmojiAbitante } from "../../src/utils/getEmojiAbitante";
 import type { Abitante } from "../../src/types";
 import {
   getColturaSerraDef,
@@ -136,7 +136,7 @@ export default function SerraScreenById() {
         <View>
           {abitantiAssegnati.map((a: Abitante) => (
             <View key={a.id} style={styles.card}>
-              <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+              <BuildingResidentAvatar abitante={a} />
               <View style={styles.cardContent}>
                 <Text style={styles.cardTitle}>{a.nome}</Text>
                 <Text style={styles.cardLavoro}>{a.lavoro}</Text>
@@ -159,7 +159,7 @@ export default function SerraScreenById() {
         <View>
           {abitantiDisponibili.map((a: Abitante) => (
             <View key={a.id} style={styles.card}>
-              <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+              <BuildingResidentAvatar abitante={a} />
               <View style={styles.cardContent}>
                 <Text style={styles.cardTitle}>{a.nome}</Text>
                 <Text style={styles.cardExtra}>Produttività: {a.produttività}%</Text>

@@ -1,11 +1,10 @@
+import { BuildingResidentAvatar } from "../src/ui/BuildingResidentAvatar";
 import React, { useMemo, useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { elencoPostazioniLavoroOrdinato } from "../src/game/edificiLavoro";
 import { getServiDellaGlebaAssegnabili } from "../src/game/edificiLavoro";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
-
 function titoloEdificio(nome: string, edificioId: number, duplicatiPerNome: Map<string, number>): string {
   const count = duplicatiPerNome.get(nome) ?? 1;
   if (count <= 1) return nome;
@@ -110,7 +109,7 @@ export default function PostazioniLavoroScreen() {
               ) : (
                 serviAssegnabili.map((s) => (
                   <Pressable key={s.id} style={styles.modalItem} onPress={() => assegnaServo(s.id)}>
-                    <Text style={styles.modalItemEmoji}>{getEmojiAbitante(s)}</Text>
+                    <BuildingResidentAvatar abitante={s} />
                     <View style={styles.modalItemText}>
                       <Text style={styles.modalItemNome}>{s.nome}</Text>
                       <Text style={styles.modalItemMeta}>Comp. {s.competenza}% · {s.lavoro}</Text>
