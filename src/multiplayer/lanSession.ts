@@ -7,6 +7,15 @@ import {
   parseWire,
   type RtcDescription
 } from "./signalingProtocol.ts";
+import {
+  BARTER_PROTOCOL,
+  encodeBarterWire,
+  makeBarterOffer,
+  parseBarterWire,
+  type BarterLine,
+  type BarterMessage,
+  type BarterOffer
+} from "./barterProtocol.ts";
 
 /**
  * Adapter a RTCPeerConnection: implementabile con react-native-webrtc senza
@@ -52,6 +61,8 @@ export type SessionAdapter = {
   createPeer: () => P2PPeerConnection;
   newId: () => string; // 128 bit casuali generati da RNG crittografico, non Math.random()
   onChange?: (value: ConnectionSnapshot) => void;
+  /** Receive a verified proposal/response; never transfers resources. */
+  onBarterMessage?: (message: BarterMessage) => void;
   iceTimeoutMs?: number;
 };
 
@@ -60,6 +71,8 @@ export class LanP2PSession {
   private channel: P2PDataChannel | null = null;
   private peerId: string;
   private pendingPing: number | null = null;
+  private outgoingBarters = new Map<string, BarterOffer>();
+  private incomingBarters = new Map<string, BarterOffer>();
   private snapshot: ConnectionSnapshot = {
     state: "idle", role: null, sessionId: null, otherPeerId: null, lastPong: null, error: null
   };
@@ -111,6 +124,32 @@ export class LanP2PSession {
     channel.onmessage = event => {
       if (typeof event.data !== "string" || !this.snapshot.sessionId) return;
       try {
+        // Barter negotiation is a distinct protocol from the hello/ping wire.
+        // The protocol does NOT permit transfers before a durable commit layer.
+        const envelope: unknown = JSON.parse(event.data);
+        if (envelope && typeof envelope === "object" && "protocol" in envelope &&
+            envelope.protocol === BARTER_PROTOCOL) {
+          if (this.snapshot.state !== "connected" || !this.snapshot.otherPeerId) {
+            throw new Error("Baratto ricevuto prima del collegamento.");
+          }
+          const barter = parseBarterWire(event.data);
+          if (barter.type === "propose") {
+            if (barter.offer.proposerId !== this.snapshot.otherPeerId ||
+                barter.offer.responderId !== this.peerId ||
+                this.incomingBarters.size >= 32 ||
+                this.incomingBarters.has(barter.offer.tradeId)) {
+              throw new Error("Proposta P2P non corrispondente al peer.");
+            }
+            this.incomingBarters.set(barter.offer.tradeId, barter.offer);
+          } else {
+            if (!this.outgoingBarters.has(barter.tradeId)) {
+              throw new Error("Risposta a un baratto non richiesto.");
+            }
+            this.outgoingBarters.delete(barter.tradeId);
+          }
+          this.adapter.onBarterMessage?.(barter);
+          return;
+        }
         const message = parseWire(event.data, this.snapshot.sessionId);
         if (message.type === "hello") {
           if (message.peerId === this.peerId) throw new Error("Connessione al proprio dispositivo.");
@@ -223,6 +262,33 @@ export class LanP2PSession {
     }
   }
 
+  /** Invia solo una proposta, senza modificare o trasferire le scorte. */
+  proposeBarter(gives: BarterLine[], wants: BarterLine[]): BarterOffer {
+    if (this.snapshot.state !== "connected" || !this.snapshot.otherPeerId ||
+        this.channel?.readyState !== "open") {
+      throw new Error("Collega prima l'altro giocatore.");
+    }
+    if (this.outgoingBarters.size >= 32) throw new Error("Troppe proposte di baratto in attesa.");
+    const offer = makeBarterOffer({
+      tradeId: this.adapter.newId(), proposerId: this.peerId,
+      responderId: this.snapshot.otherPeerId, gives, wants
+    });
+    if (this.outgoingBarters.has(offer.tradeId)) throw new Error("ID baratto già utilizzato.");
+    this.channel.send(encodeBarterWire({ protocol: BARTER_PROTOCOL, type: "propose", offer }));
+    this.outgoingBarters.set(offer.tradeId, offer);
+    return offer;
+  }
+
+  /** L'accettazione è soltanto negoziazione, NON autorizza trasferimenti. */
+  respondToBarter(tradeId: string, accepted: boolean): void {
+    if (this.snapshot.state !== "connected" || this.channel?.readyState !== "open" ||
+        !this.incomingBarters.has(tradeId)) {
+      throw new Error("Nessuna proposta valida da accettare o rifiutare.");
+    }
+    this.channel.send(encodeBarterWire({ protocol: BARTER_PROTOCOL, type: "respond", tradeId, accepted }));
+    this.incomingBarters.delete(tradeId);
+  }
+
   private fail(cause: unknown): void {
     const message = cause instanceof Error ? cause.message : "Errore di collegamento.";
     this.close();
@@ -231,6 +297,8 @@ export class LanP2PSession {
 
   close(): void {
     this.pendingPing = null;
+    this.outgoingBarters.clear();
+    this.incomingBarters.clear();
     if (this.channel) {
       this.channel.onopen = null;
       this.channel.onclose = null;
