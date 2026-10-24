@@ -20,7 +20,7 @@ import type { GamePhase } from "../game/gamePhase";
 import type { GameMode } from "../game/gameMode";
 import type { ModalitaRe, FaseDisordine } from "../game/reModalita";
 import { getMappaSessione, subscribeMappaSessione } from "../game/mappaSessione";
-import { createAsyncStoragePersistentStorage } from "../persistence/asyncStorageAdapter";
+import { createGameSaveStorage } from "../persistence/createGameSaveStorage";
 import { gameSaveV1ToGameState, gameStateToGameSaveV1 } from "../persistence/gameStateMapping";
 import { SaveRepository, type LoadSaveResult } from "../persistence/saveRepository";
 import { SAVE_FORMAT, SAVE_SCHEMA_VERSION, type SaveEnvelopeV1 } from "../persistence/saveTypes";
@@ -440,7 +440,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     void (async () => {
       try {
-        const storage = await createAsyncStoragePersistentStorage();
+        const storage = await createGameSaveStorage();
         const repository = new SaveRepository(storage);
         repositoryRef.current = repository;
         const result = await repository.loadBestAvailable();
