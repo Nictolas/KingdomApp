@@ -54,7 +54,6 @@ test("ogni pagina reale offre navigazione dal fondo o un footer specifico", () =
 
 test("la barra globale compare sulle rotte prive di footer e mai sulla mappa", () => {
   for (const page of [
-    "/soddisfazione",
     "/abitanti",
     "/bosco",
     "/bar/123",
@@ -76,6 +75,7 @@ test("la barra globale compare sulle rotte prive di footer e mai sulla mappa", (
     "/nudismo",
     "/obiettivi",
     "/richezza",
+    "/soddisfazione",
     "/serra",
     "/timore"
   ]) {
