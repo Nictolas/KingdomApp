@@ -1,5 +1,4 @@
 import * as Crypto from "expo-crypto";
-import { RTCPeerConnection } from "react-native-webrtc";
 import { LanP2PSession, type ConnectionSnapshot, type P2PPeerConnection } from "./lanSession";
 
 /**
@@ -8,6 +7,8 @@ import { LanP2PSession, type ConnectionSnapshot, type P2PPeerConnection } from "
  * Solo candidati host/LAN: nessun server STUN, TURN o signaling.
  */
 export function createNativeLanSession(onChange: (snapshot: ConnectionSnapshot) => void): LanP2PSession {
+  const { RTCPeerConnection } = require("react-native-webrtc") as typeof import("react-native-webrtc");
+  if (typeof RTCPeerConnection !== "function") throw new Error("WebRTC non presente nella build nativa: aggiorna l\u0027app.");
   return new LanP2PSession({
     createPeer: () =>
       new RTCPeerConnection({
