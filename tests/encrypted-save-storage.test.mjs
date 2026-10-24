@@ -9,6 +9,8 @@ import {
   hasProtectedSave
 } from "../src/persistence/encryptedSaveStorage.ts";
 import { MemoryPersistentStorage } from "./memory-persistent-storage.mjs";
+import { SaveRepository } from "../src/persistence/saveRepository.ts";
+import { createSaveEnvelope } from "./save-fixture.mjs";
 
 function nodeGcmCipher() {
   const key = randomBytes(32);
@@ -120,4 +122,37 @@ test("salvataggi: dopo la migrazione un JSON in chiaro non viene mai accettato",
   // Una nuova sostituzione in chiaro va rifiutata, non migrata in runtime.
   await raw.setItem(slot, '{"ferro":123}');
   await assert.rejects(() => secure.getItem(slot), /non cifrato/);
+});
+
+test("salvataggi: repository reale conserva primary e backup cifrati", async () => {
+  const raw = new MemoryPersistentStorage();
+  const secure = new EncryptedSaveStorage(raw, nodeGcmCipher());
+  const repo = new SaveRepository(secure);
+  const first = createSaveEnvelope();
+  first.metadata.updatedAt = "2026-10-24T10:00:00.000Z";
+  await repo.save(first);
+  const second = createSaveEnvelope();
+  second.metadata.updatedAt = "2026-10-24T11:00:00.000Z";
+  await repo.save(second);
+  assert.ok((await raw.getItem(ENCRYPTED_SAVE_SLOTS[0])).startsWith(ENCRYPTED_SAVE_PREFIX));
+  assert.ok((await raw.getItem(ENCRYPTED_SAVE_SLOTS[1])).startsWith(ENCRYPTED_SAVE_PREFIX));
+  assert.equal((await repo.loadPrimary()).metadata.updatedAt, second.metadata.updatedAt);
+  assert.equal((await repo.loadBackup()).metadata.updatedAt, first.metadata.updatedAt);
+  assert.equal(await raw.getItem(ENCRYPTED_SAVE_SLOTS[2]), null);
+});
+
+test("salvataggi: backup cifrato recupera primary manomesso", async () => {
+  const raw = new MemoryPersistentStorage();
+  const secure = new EncryptedSaveStorage(raw, nodeGcmCipher());
+  const repo = new SaveRepository(secure);
+  const first = createSaveEnvelope();
+  await repo.save(first);
+  const second = createSaveEnvelope();
+  second.metadata.updatedAt = "2026-10-24T11:00:00.000Z";
+  await repo.save(second);
+  const primary = await raw.getItem(ENCRYPTED_SAVE_SLOTS[0]);
+  await raw.setItem(ENCRYPTED_SAVE_SLOTS[0], primary.slice(0, -4) + "AAAA");
+  const restored = await repo.loadBestAvailable();
+  assert.equal(restored.source, "backup");
+  assert.equal(restored.save.metadata.updatedAt, first.metadata.updatedAt);
 });
