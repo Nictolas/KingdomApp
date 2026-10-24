@@ -190,10 +190,12 @@ export function applicaVenditeEccedenzeEmporioPerPeriodo(
 
 function scegliAlimentoDaEmporioPerDieta(
   inventario: VoceInventario[] | undefined,
-  personalità: string
+  personalità: string,
+  permesso: (itemId: string) => boolean = () => true
 ): string | null {
   return normalizzaInventarioEmporio(inventario)
-    .find((v) => v.quantità > 0 && abitantePuòConsumareOggettoCibo(personalità, v.itemId))?.itemId ?? null;
+    .find((v) => v.quantità > 0 && abitantePuòConsumareOggettoCibo(personalità, v.itemId) &&
+      permesso(v.itemId))?.itemId ?? null;
 }
 
 export function rimuoviAlimentoInventarioEmporio(
@@ -220,19 +222,21 @@ function aggiungiOggettoInventarioAbitante(abitante: Abitante, itemId: string): 
 export function abitantePuòComprarePastoAllEmporio(
   abitante: Abitante,
   edifici: Edificio[],
-  inventarioEmporioByEdificioId: Record<number, VoceInventario[]>
+  inventarioEmporioByEdificioId: Record<number, VoceInventario[]>,
+  permesso: (itemId: string) => boolean = () => true
 ): boolean {
   if (!abitanteHaInventarioPersonale(abitante) || isGiocatore(abitante)) return false;
-  if (haCiboCompatibileInInventario(abitante.inventario, abitante.personalità)) return false;
+  if (haCiboCompatibileInInventario(abitante.inventario, abitante.personalità, permesso)) return false;
   if (getMoneteInventarioAbitante(abitante.inventario) < PREZZO_ACQUISTO_ALIMENTO_EMPORIO) return false;
   const emporio = trovaEmporioOperativo(edifici);
-  return !!emporio && scegliAlimentoDaEmporioPerDieta(inventarioEmporioByEdificioId[emporio.id], abitante.personalità) != null;
+  return !!emporio && scegliAlimentoDaEmporioPerDieta(inventarioEmporioByEdificioId[emporio.id], abitante.personalità, permesso) != null;
 }
 
 export function eseguiAcquistoPastoDaEmporio(
   abitante: Abitante,
   edifici: Edificio[],
-  inventarioEmporioByEdificioId: Record<number, VoceInventario[]>
+  inventarioEmporioByEdificioId: Record<number, VoceInventario[]>,
+  permesso: (itemId: string) => boolean = () => true
 ): {
   ok: boolean;
   abitante: Abitante;
@@ -243,11 +247,11 @@ export function eseguiAcquistoPastoDaEmporio(
   scambio: EmporioScambio | null;
 } {
   const invMap = { ...inventarioEmporioByEdificioId };
-  if (!abitantePuòComprarePastoAllEmporio(abitante, edifici, invMap)) {
+  if (!abitantePuòComprarePastoAllEmporio(abitante, edifici, invMap, permesso)) {
     return { ok: false, abitante, edifici, inventarioEmporioByEdificioId: invMap, itemId: null, emporioId: null, scambio: null };
   }
   const emporio = trovaEmporioOperativo(edifici)!;
-  const itemId = scegliAlimentoDaEmporioPerDieta(invMap[emporio.id], abitante.personalità);
+  const itemId = scegliAlimentoDaEmporioPerDieta(invMap[emporio.id], abitante.personalità, permesso);
   if (!itemId) return { ok: false, abitante, edifici, inventarioEmporioByEdificioId: invMap, itemId: null, emporioId: emporio.id, scambio: null };
   const dopoSpesa = provaSpendiMoneteInventarioAbitante(abitante, PREZZO_ACQUISTO_ALIMENTO_EMPORIO);
   const invNext = rimuoviAlimentoInventarioEmporio(invMap[emporio.id], itemId, 1);

@@ -1,3 +1,4 @@
+import { normalizzaStatoSociale } from "../game/statoSociale";
 import { useState, useCallback, useEffect, useRef, useSyncExternalStore } from "react";
 import { Alert } from "react-native";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
@@ -112,6 +113,7 @@ import {
   assumiDisoccupatoNelBosco,
   etichettaRaccoltoBosco
 } from "../game/boscoRaccolta";
+import { eseguiUdienzaBanditi } from "../game/banditiBosco";
 import {
   applicaRaccoltaMinieraGiornaliera,
   assumiDisoccupatoNellaMiniera,
@@ -138,7 +140,12 @@ import {
   type ReligioneConCulto
 } from "../game/luogoCulto";
 import { creaRichiestaLuogoCulto, type RichiestaInAttesa } from "../game/richieste";
-import { provaCreaReligioneCustom, type ReligioneCustom } from "../game/fedeleCulto";
+import { provaCreaReligioneCustom, modificaDogmiReligioneCustom as evolviDogmiReligiosi, type ReligioneCustom } from "../game/fedeleCulto";
+import type { DogmaReligioso } from "../game/dogmiReligiosi";
+import { convertiFedeliInEresia } from "../game/eresieReligiose";
+import { aggiornaSoddisfazioneReligioniNaturaliste } from "../game/reazioneReligioniBosco";
+import { aggiornaSoddisfazioneDogmiAbiti } from "../game/reazioneDogmiAbiti";
+import { indossaAbitoDellaFede } from "../game/vestiarioReligioso";
 import { assicuraReligioneTempioChiese } from "../game/chiesa";
 import { isSimulationRunning, type GamePhase } from "../game/gamePhase";
 import type { GameMode } from "../game/gameMode";
@@ -226,7 +233,7 @@ export function useGameState() {
   const gamePhaseRef = useRef<GamePhase>(gamePhase);
   gamePhaseRef.current = gamePhase;
   const simulationEnabled = isSimulationRunning(gamePhase);
-  const [abitanti, setAbitanti] = useState<Abitante[]>(statoIniziale.abitanti);
+  const [abitanti, setAbitanti] = useState<Abitante[]>(() => statoIniziale.abitanti.map(normalizzaStatoSociale));
   const [razzaNativi, setRazzaNativi] = useState<Razza>(statoIniziale.razzaNativi);
   const [inventarioGiocatore, setInventarioGiocatore] = useState<VoceInventario[]>(() =>
     creaInventarioGiocatoreIniziale()
@@ -259,6 +266,7 @@ export function useGameState() {
   const ultimoGiornoRaccoltaMinieraRef = useRef(getGiornoGiocoSnapshot());
   const ultimoGiornoEconomiaPubblicaRef = useRef(getGiornoGiocoSnapshot());
   const ultimoGiornoPastiRef = useRef(0);
+  const religioniCustomRef = useRef<ReligioneCustom[]>([]);
   const [mese, setMese] = useState(1);
   const [anno, setAnno] = useState(0);
   const giornoGioco = useSyncExternalStore(
@@ -366,7 +374,8 @@ export function useGameState() {
         inventarioMensaRef.current,
         inventarioEmporioRef.current,
         giorno,
-        ultimo
+        ultimo,
+        religioniCustomRef.current
       );
       ultimoGiornoPastiRef.current = giorno;
 
@@ -500,6 +509,10 @@ export function useGameState() {
         giorno,
         giorni
       );
+      if (result.edifici !== edificiRef.current) {
+        edificiRef.current = result.edifici;
+        setEdifici(result.edifici);
+      }
       if (result.abitanti !== abitantiRef.current) {
         abitantiRef.current = result.abitanti;
         setAbitanti(result.abitanti);
@@ -671,6 +684,19 @@ export function useGameState() {
     "Ateo" | "Deista" | "Agnostico" | "Culto del Sole" | "Culto delle Ombre" | string | null
   >(null);
   const [religioniCustom, setReligioniCustom] = useState<ReligioneCustom[]>([]);
+  religioniCustomRef.current = religioniCustom;
+
+  /** Reazioni ecologiche aggiornate al mutare di fede, popolazione e scorte:
+   *  un solo modificatore per fedele, mai una penalità cumulativa per tick.
+   */
+  useEffect(() => {
+    if (!simulationEnabled) return;
+    setAbitanti(prev => aggiornaSoddisfazioneDogmiAbiti(
+      aggiornaSoddisfazioneReligioniNaturaliste(prev, edifici, religioniCustom),
+      religioniCustom
+    ));
+  }, [simulationEnabled, abitanti, edifici, religioniCustom]);
+
   
   // Capo religioso e fedeli per ogni culto
   const [capoReligiosoSole, setCapoReligiosoSole] = useState<number | null>(capoReligiosoSoleIniziale);
@@ -843,7 +869,8 @@ export function useGameState() {
       edifici,
       giornoGioco,
       mese,
-      anno
+      anno,
+      calcolaFelicitàModificata
     ).fase;
 
     const buffId = edificioBuffVisitaCorrente(
@@ -913,7 +940,8 @@ export function useGameState() {
       tasseImprese.edifici,
       giornoGioco,
       result.nuovoMese,
-      result.nuovoAnno
+      result.nuovoAnno,
+      calcolaFelicitàModificata
     );
     const avvisoDisordine = messaggioFaseDisordineSoddisfazione(disordineDopo);
     const protesta = applicaEffettiProtestaMensile(
@@ -933,7 +961,9 @@ export function useGameState() {
       ribellione.edifici,
       giornoGioco,
       result.nuovoMese,
-      result.nuovoAnno
+      result.nuovoAnno,
+      undefined,
+      calcolaFelicitàModificata
     );
     const sabotaggio =
       disordineDopo.fase === "nessuna"
@@ -942,7 +972,9 @@ export function useGameState() {
             scomparsa.edifici,
             giornoGioco,
             result.nuovoMese,
-            result.nuovoAnno
+            result.nuovoAnno,
+            undefined,
+            calcolaFelicitàModificata
           )
         : {
             edifici: scomparsa.edifici,
@@ -957,7 +989,8 @@ export function useGameState() {
       result.nuovoMese,
       result.nuovoAnno,
       undefined,
-      modalitaRe
+      modalitaRe,
+      calcolaFelicitàModificata
     );
     const tickRe = tickModalitaReMensile(
       {
@@ -1012,6 +1045,9 @@ export function useGameState() {
             anno: result.nuovoAnno,
             moneteGiocatore: moneteAggiornate,
             completati: completatiSet,
+            religioniCustom,
+            religioneDiStato,
+            politicaReligiosa,
             haPonteSulFiume: haPonte
           });
 
@@ -1060,7 +1096,7 @@ export function useGameState() {
     if (avvisiDiario.length > 0) {
       setDiarioRighe((prev) => [...prev, ...avvisiDiario]);
     }
-  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, giornoGioco, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode, obiettiviCompletati, tassaPatrimonioPercentuale, ivaPercentuale, modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso]);
+  }, [abitanti, edifici, risorse, ordiniMercato, eventiInCorso, punteggioSanzioni, mese, anno, giornoGioco, generaNuoviAbitantiProposti, divietoEspatrioAttivo, calcolaFelicitàModificata, politicaNascite, nextId, etaPensionabile, assegnoPensionati, soddisfazioneFazioni, prezzoResidenze, redditoCittadinanza, modalitaSanita, tipologieFamigliaAccettate, moneteGiocatore, gameMode, obiettiviCompletati, religioniCustom, religioneDiStato, politicaReligiosa, tassaPatrimonioPercentuale, ivaPercentuale, modalitaRe, edificioVisitaReId, popolaritaRe, mesiConsecutiviNelCastello, faseDisordine, avvisoReAssenteEmesso]);
 
   /**
    * Nessun pulsante «Skip Mese»: il cambio mese parte automaticamente ogni 30 giorni
@@ -1521,15 +1557,51 @@ export function useGameState() {
       emoji?: string;
       descrizione?: string;
       aspettoSacerdote?: import("../game/personaggioAspetto").AspettoPersonaggio;
+      dottrinaNaturalista?: import("../game/ecosistemaBosco").DottrinaNaturalista;
+      dogmi?: readonly DogmaReligioso[];
+      origineReligione?: string;
     }) => {
-      const result = provaCreaReligioneCustom(input, religioniCustom, () => `rel-${Date.now()}`);
+      const result = provaCreaReligioneCustom(
+        { ...input, fondatoreReId: ID_GIOCATORE },
+        religioniCustom,
+        () => `rel-${Date.now()}`
+      );
       if (result.ok) {
         setReligioniCustom((prev) => [...prev, result.religione]);
+        // Conversione UNA SOLA VOLTA alla fondazione. Le religioni create da
+        // zero non ottengono fedeli dal nulla. Nessun capo religioso esistente
+        // viene prelevato automaticamente dal culto originario.
+        const scisma = convertiFedeliInEresia(
+          abitantiRef.current,
+          result.religione.origineReligione ?? null,
+          result.religione.nome,
+          result.religione.id
+        );
+        if (scisma.convertitiIds.length > 0) {
+          abitantiRef.current = scisma.abitanti;
+          setAbitanti(scisma.abitanti);
+          setDiarioRighe(prev => [...prev,
+            scisma.convertitiIds.length + " fedeli hanno aderito alla nuova religione " +
+            result.religione.nome + "."
+          ]);
+        }
+        return { ...result, convertiti: scisma.convertitiIds.length };
       }
       return result;
     },
     [religioniCustom]
   );
+
+  const modificaDogmiReligioneCustom = useCallback((
+    id: string, dogmi: readonly DogmaReligioso[],
+    dottrinaNaturalista?: import("../game/ecosistemaBosco").DottrinaNaturalista
+  ): boolean => {
+    if (!religioniCustom.some(r => r.id === id)) return false;
+    setReligioniCustom(prev =>
+      evolviDogmiReligiosi(prev, id, dogmi, dottrinaNaturalista)
+    );
+    return true;
+  }, [religioniCustom]);
 
   useEffect(() => {
     if (!simulationEnabled) return;
@@ -1771,6 +1843,46 @@ export function useGameState() {
     setAbitanti((prev) => prev.map((a) => (a.id === abitanteId ? fn(a) : a)));
   }, []);
 
+  /** Decisione sull'udienza SOLO quando la vittima ha raggiunto il Castello.
+   *  Il pagamento modifica insieme Tesoro, inventario e richiesta persistita.
+   */
+  const risolviUdienzaBanditi = useCallback((
+    abitanteId: number, scelta: "risarcisci" | "ignora"
+  ): boolean => {
+    const vittima = abitantiRef.current.find(a => a.id === abitanteId);
+    const richiesta = vittima?.richiestaRapinaBosco;
+    if (!vittima || !richiesta || richiesta.stato !== "pronta" || vittima.salute <= 0) return false;
+    const result = eseguiUdienzaBanditi({
+      richiesta, vittima, tesoro: moneteGiocatoreRef.current, scelta
+    });
+    if (!result.riuscito || result.mostraParere) return false;
+    const updated: Abitante = {
+      ...result.vittima,
+      richiestaRapinaBosco: result.richiesta,
+      modificatoriSoddisfazione: [
+        ...(result.vittima.modificatoriSoddisfazione ?? []),
+        {
+          id: "risposta-" + richiesta.id,
+          delta: scelta === "risarcisci" ? 2 : -2,
+          motivo: scelta === "risarcisci"
+            ? "Il Re ha risarcito la rapina nel Bosco"
+            : "Il Re ha ignorato la richiesta di risarcimento",
+          durata: "permanente" as const
+        }
+      ]
+    };
+    moneteGiocatoreRef.current = result.tesoro;
+    setMoneteGiocatore(result.tesoro);
+    const next = abitantiRef.current.map(a => a.id === abitanteId ? updated : a);
+    abitantiRef.current = next;
+    setAbitanti(next);
+    setDiarioRighe(prev => [...prev, scelta === "risarcisci"
+      ? "Risarcimento di " + richiesta.dannoMonete + " monete per la vittima della rapina."
+      : "Il Re ha ignorato la richiesta di una vittima dei banditi."]);
+    return true;
+  }, []);
+
+
   /** Accredita monete al tesoro (sink bar/negozio → stipendi). */
   const aggiornaEdificioById = useCallback(
     (edificioId: number, update: (e: Edificio) => Edificio) => {
@@ -1900,7 +2012,11 @@ export function useGameState() {
       let carestia = false;
       const next = prev.map((a) => {
         if (a.id !== abitanteId) return a;
-        const { abitante, inventarioMensa, carestiaMensa } = serviPastoMensaTransaction(a, mensaInv, giorno);
+        const dogmi = religioniCustomRef.current.find(r => r.nome === a.religione)?.dogmi ?? [];
+        const { abitante, inventarioMensa, carestiaMensa } = serviPastoMensaTransaction(
+          a, mensaInv, giorno,
+          itemId => !dogmi.some(d => d.tipo === "alimento_vietato" && d.itemId === itemId)
+        );
         if (carestiaMensa) carestia = true;
         setInventarioMensaByEdificioId((prevM) => ({
           ...prevM,
@@ -2380,6 +2496,19 @@ export function useGameState() {
     setPunteggioSanzioni(nuovoPunteggio);
   }, [calcolaPunteggioSanzioni, simulationEnabled]);
 
+  /** Ordine esplicito dalla scheda: cambia aspetto salvato e sprite LPC, non la sola etichetta. */
+  const indossaAbitoReligioso = useCallback((abitanteId: number): { ok: boolean; motivo?: string } => {
+    const abitante = abitantiRef.current.find(a => a.id === abitanteId);
+    if (!abitante) return { ok: false, motivo: "Abitante non trovato." };
+    const religioni = religioniCustomRef.current;
+    const dogmi = religioni.find(r => r.nome === abitante.religione)?.dogmi ?? [];
+    const esito = indossaAbitoDellaFede(abitante, dogmi);
+    if (!esito.ok) return { ok: false, motivo: esito.motivo };
+    const aggiornato = aggiornaSoddisfazioneDogmiAbiti([esito.abitante], religioni)[0]!;
+    setAbitanti(prev => prev.map(a => a.id === abitanteId ? aggiornato : a));
+    return { ok: true };
+  }, []);
+
   return {
     gameMode,
     modalitaGioco: gameMode,
@@ -2391,6 +2520,7 @@ export function useGameState() {
     restorePersistableState,
     createPersistableState,
     abitanti,
+    indossaAbitoReligioso,
     inventarioGiocatore,
     moneteGiocatore,
     inventarioMensaByEdificioId,
@@ -2423,6 +2553,7 @@ export function useGameState() {
     religioneDiStato,
     religioniCustom,
     creaReligioneCustom,
+    modificaDogmiReligioneCustom,
     etaMinimaLavoro,
     etaPensionabile,
     assegnoPensionati,
@@ -2514,6 +2645,7 @@ export function useGameState() {
     mesiConsecutiviNelCastello,
     setModalitaRe,
     nominaConsigliere,
+    risolviUdienzaBanditi,
     nativiNonIntegrati,
     pendingAssimilazione,
     accettaAssimilazione,

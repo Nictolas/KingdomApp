@@ -223,9 +223,7 @@ export function generaRegnoIniziale(
       crediti,
       reddito,
       spese,
-      lealtà: 30 + Math.floor(Math.random() * 66),
-      paura: Math.floor(Math.random() * 41),
-      felicità: 40 + Math.floor(Math.random() * 51),
+      timore: Math.floor(Math.random() * 41),
       religione: RELIGIONI[Math.floor(Math.random() * RELIGIONI.length)],
       razza,
       sesso,
@@ -277,8 +275,8 @@ export function generaRegnoIniziale(
       bot.orientamento = "Bi";
       bot.salute = 0;
       bot.peso = 0;
-      bot.paura = 0;
-      bot.lealtà = 0;
+      bot.timore = 0;
+      bot.timore = 0;
     }
   }
 
@@ -312,12 +310,25 @@ export function generaRegnoIniziale(
   }
 
   // Regola storica: 1 Consigliere iniziale, uomo umano di 60 anni.
-  const candidatiConsigliere = abitanti.filter(
-    (a) => a.id !== 1 && a.lavoro !== "Agricoltore"
+  // Il Consigliere iniziale deve essere umano e non può essere sovrascritto da altri ruoli.
+  // In generazioni con pochi cittadini liberi, libera un candidato anziché perdere il ruolo.
+  const possibiliConsiglieri = abitanti.filter(
+    (a) => a.id !== 1 && a.lavoro !== "Agricoltore" && a.razza === "Umano"
   );
+  const liberi = possibiliConsiglieri.filter((a) => !a.ruoloSchiavitu);
+  const candidatiConsigliere = liberi.length ? liberi : possibiliConsiglieri;
   if (candidatiConsigliere.length > 0) {
     const consigliere =
       candidatiConsigliere[Math.floor(Math.random() * candidatiConsigliere.length)]!;
+    if (consigliere.ruoloSchiavitu) {
+      consigliere.ruoloSchiavitu = undefined;
+      consigliere.schiavistaId = undefined;
+      consigliere.casta = "Cittadino";
+      consigliere.fazioni = normalizzaFazioni([
+        ...(consigliere.fazioni ?? []).filter((f) => f !== "Schiavi"),
+        "Cittadini"
+      ]);
+    }
     const nomiMaschili = NOMI_UMANI_CON_SESSO.filter((n) => n.sesso === "M");
     const nome = nomiMaschili[Math.floor(Math.random() * nomiMaschili.length)]!;
     const cognome = COGNOMI_UMANI[Math.floor(Math.random() * COGNOMI_UMANI.length)]!;
@@ -373,7 +384,7 @@ export function generaRegnoIniziale(
   if (!isAvventura) {
     // Regola: almeno 1 Prigioniero a inizio partita = Ex Sovrano (Umano, reato "Ex Sovrano"), assegnato al Campo di Lavoro; compare in Tribunale.
     const candidatiPrigioniero = abitanti.filter(
-      (a) => a.id !== 1 && a.lavoro !== "Agricoltore" && a.razza === "Umano"
+      (a) => a.id !== 1 && a.lavoro !== "Agricoltore" && a.lavoro !== "Consigliere" && a.razza === "Umano"
     );
     if (candidatiPrigioniero.length > 0) {
       const prig = candidatiPrigioniero[Math.floor(Math.random() * candidatiPrigioniero.length)];
@@ -439,7 +450,10 @@ export function generaRegnoIniziale(
 
   if (!isAvventura) {
     // Regola: almeno 1 Capo Religioso con religione Culto del Sole a inizio partita.
-    const candidatiCapoReligioso = abitanti.filter((a) => a.id !== 1 && a.razza !== "Golem");
+    const candidatiCapoReligioso = abitanti.filter(
+      (a) => a.id !== 1 && a.razza !== "Golem" &&
+        a.lavoro !== "Consigliere" && a.lavoro !== "Prigioniero" && a.lavoro !== "Agricoltore"
+    );
     if (candidatiCapoReligioso.length > 0) {
       const capo = candidatiCapoReligioso[Math.floor(Math.random() * candidatiCapoReligioso.length)]!;
       capo.religione = "Culto del Sole";
@@ -472,3 +486,7 @@ export function generaRegnoIniziale(
     razzaNativi
   };
 }
+
+// Alias di compatibilita per le integrazioni precedenti alla rinomina Colonia -> Regno.
+/** @deprecated Usare generaRegnoIniziale. */
+export const generaColoniaIniziale = generaRegnoIniziale;

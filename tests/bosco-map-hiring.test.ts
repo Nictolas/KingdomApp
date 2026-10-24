@@ -27,7 +27,7 @@ const bosco = {
   capacità: 20,
   occupazione: 0,
   abitantiAssegnati: []
-} as Edificio;
+} as unknown as Edificio;
 
 test("Bosco con posto libero è destinazione valida", () => {
   assert.equal(boscoHaPostoLibero([bosco])?.id, 51);
@@ -38,7 +38,9 @@ test("arrivo al Bosco assume il disoccupato come Raccoglitore", () => {
   assert.equal(result.ok, true);
   assert.equal(result.abitanti[0]?.lavoro, "Raccoglitore");
   assert.deepEqual(result.edifici[0]?.abitantiAssegnati, [21]);
-  assert.ok(result.bottino?.voci.length);
+  // Nessun bottino si materializza solo per avere ottenuto il posto di lavoro.
+  assert.equal(result.bottino, undefined);
+  assert.equal(result.abitanti[0]?.ultimoRaccoltoBosco, undefined);
 });
 
 test("mappa include Bosco nella cerca lavoro e GameState usa la logica speciale", () => {
@@ -47,7 +49,10 @@ test("mappa include Bosco nella cerca lavoro e GameState usa la logica speciale"
 
   assert.match(map, /boscoHaPostoLibero/);
   assert.match(map, /disoccupatoIdoneoPerBosco/);
-  assert.match(map, /\[\.\.\.postiOrdinari, bosco\]/);
+  assert.match(map, /const posti = \[\.\.\.postiOrdinari\]/);
+  assert.match(map, /if \(bosco && !posti\.some/);
+  assert.match(map, /ultimoIngressoBoscoGiorno: giorno/);
+  assert.match(map, /getGiornoGiocoSnapshot\(\)/);
   assert.match(hook, /edificio\?\.nome === "Bosco"/);
   assert.match(hook, /assumiDisoccupatoNelBosco/);
   assert.match(hook, /etichettaRaccoltoBosco/);

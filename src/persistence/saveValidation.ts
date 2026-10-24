@@ -1,6 +1,7 @@
 import type { Abitante, Edificio, Reato, Risorsa } from "../types";
 import { SAVE_FORMAT, SAVE_SCHEMA_VERSION, type GameSaveV1, type SaveEnvelopeV1 } from "./saveTypes.ts";
 import { generaAspettoDaSeed } from "../game/personaggioAspetto";
+import { normalizzaStatoSociale } from "../game/statoSociale";
 import { normalizeGameMode } from "../game/gameMode";
 
 export class SaveValidationError extends Error {
@@ -275,7 +276,7 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     );
   });
   next.population.abitanti = next.population.abitanti.map((a: Abitante) => ({
-    ...senzaSpecieLegacy(a),
+    ...normalizzaStatoSociale(senzaSpecieLegacy(a)),
     razza: normalizzaRazzaFantasy(a.razza),
     religione: normalizzaReligioneFantasy(a.religione) ?? "Ateo",
     ministero: a.ministero === "Finanze Coloniali" ? "Finanze del Regno" : a.ministero,
@@ -290,7 +291,7 @@ export function normalizeGameSave(payload: GameSaveV1): GameSaveV1 {
     inventario: a.inventario ? normalizeInventario(a.inventario) : undefined
   }));
   next.population.abitantiProposti = next.population.abitantiProposti.map((a: Abitante) => ({
-    ...senzaSpecieLegacy(a),
+    ...normalizzaStatoSociale(senzaSpecieLegacy(a)),
     razza: normalizzaRazzaFantasy(a.razza),
     religione: normalizzaReligioneFantasy(a.religione) ?? "Ateo",
     ministero: a.ministero === "Finanze Coloniali" ? "Finanze del Regno" : a.ministero,

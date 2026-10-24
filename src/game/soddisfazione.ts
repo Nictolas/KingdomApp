@@ -230,45 +230,60 @@ export function idsFamiliariDiretti(vittima: Abitante, viviIds: Set<number>): nu
 }
 
 /**
- * Applica -1 permanente a tutti i familiari diretti di ogni vittima, poi rimuove le vittime.
- * Usato da omicidi / condanne / uccisione schiavi.
+ * Lutti individuali, permanenti e registrati una volta sola per vittima:
+ * morte ordinaria: -1 familiare; morte causata dal Re: -3 familiare / -1 amico.
+ * Un amico che è anche familiare riceve soltanto il -3.
  */
 export function applicaLuttoFamiliareERimuoviMorti(
   abitanti: Abitante[],
-  idsMorti: ReadonlySet<number>
+  idsMorti: ReadonlySet<number>,
+  opzioni: { responsabilitaRe?: boolean } = {}
 ): Abitante[] {
   if (idsMorti.size === 0) return abitanti;
-  const viviIds = new Set(abitanti.filter((a) => !idsMorti.has(a.id)).map((a) => a.id));
-  const luttoPerId = new Map<number, number>();
+  const viviIds = new Set(abitanti.filter(a => !idsMorti.has(a.id)).map(a => a.id));
+  const penalita = new Map<number, { vittimaId: number; punti: number; motivo: string }[]>();
 
-  for (const morto of abitanti.filter((a) => idsMorti.has(a.id))) {
-    for (const fid of idsFamiliariDiretti(morto, viviIds)) {
-      // Chi ha il morto tra i genitori (fratelli) / come genitore nei figli già in figliIds
-      luttoPerId.set(fid, (luttoPerId.get(fid) ?? 0) + 1);
+  for (const morto of abitanti.filter(a => idsMorti.has(a.id))) {
+    const familiari = new Set(idsFamiliariDiretti(morto, viviIds));
+    // Fratelli: condividono un genitore, anche se la relazione non è registrata in entrambi i sensi.
+    for (const altro of abitanti) {
+      if (!viviIds.has(altro.id) || altro.id === morto.id) continue;
+      if ((altro.genitoriIds ?? []).some(id => (morto.genitoriIds ?? []).includes(id))) familiari.add(altro.id);
+      if ((altro.figliIds ?? []).includes(morto.id) || (morto.figliIds ?? []).includes(altro.id)) familiari.add(altro.id);
+      if ((altro.genitoriIds ?? []).includes(morto.id) || (morto.genitoriIds ?? []).includes(altro.id)) familiari.add(altro.id);
+      if (altro.coniugeId === morto.id || morto.coniugeId === altro.id) familiari.add(altro.id);
     }
-    // Fratelli: altri figli degli stessi genitori
-    for (const genId of morto.genitoriIds ?? []) {
-      const gen = abitanti.find((a) => a.id === genId);
-      for (const fratelloId of gen?.figliIds ?? []) {
-        if (fratelloId !== morto.id && viviIds.has(fratelloId)) {
-          luttoPerId.set(fratelloId, (luttoPerId.get(fratelloId) ?? 0) + 1);
-        }
+    const amici = new Set<number>([
+      ...(morto.amici ?? []).map(x => x.id),
+      ...abitanti.filter(a => (a.amici ?? []).some(x => x.id === morto.id)).map(a => a.id)
+    ]);
+    for (const id of familiari) {
+      const items = penalita.get(id) ?? [];
+      items.push({
+        vittimaId: morto.id, punti: opzioni.responsabilitaRe ? -3 : -1,
+        motivo: opzioni.responsabilitaRe ? "Familiare ucciso per ordine del Re" : "Morte di un familiare"
+      });
+      penalita.set(id, items);
+    }
+    if (opzioni.responsabilitaRe) {
+      for (const id of amici) {
+        if (!viviIds.has(id) || familiari.has(id)) continue;
+        const items = penalita.get(id) ?? [];
+        items.push({ vittimaId: morto.id, punti: -1, motivo: "Amico ucciso per ordine del Re" });
+        penalita.set(id, items);
       }
     }
   }
-
-  return abitanti
-    .filter((a) => !idsMorti.has(a.id))
-    .map((a) => {
-      const n = luttoPerId.get(a.id) ?? 0;
-      if (n <= 0) return a;
-      return aggiungiModificatorePermanente(
-        a,
-        "lutto_familiare",
-        -n,
-        "Morte di un familiare"
-      );
-    });
+  return abitanti.filter(a => !idsMorti.has(a.id)).map(a => {
+    let next = a;
+    for (const penalizzazione of penalita.get(a.id) ?? []) {
+      const id = "lutto_" + penalizzazione.vittimaId;
+      // Non punire due volte per lo stesso decesso.
+      if ((next.modificatoriSoddisfazione ?? []).some(m => m.id === id)) continue;
+      next = aggiungiModificatorePermanente(next, id, penalizzazione.punti, penalizzazione.motivo);
+    }
+    return next;
+  });
 }
 
 /**

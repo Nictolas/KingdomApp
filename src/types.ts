@@ -89,10 +89,15 @@ export type Abitante = {
   crediti?: number;
   reddito: number; // Monete/mese (display; allineato allo stipendio base)
   spese: number; // Legacy display; saldo monete usa solo costi reali (affitto, bar, negozio)
-  lealtà: number; // 0-100
-  paura: number; // 0-100
-  felicità: number; // 1-100
-  /** Modificatori della soddisfazione personale, distinti dalla felicità. */
+  /** Timore del Re e delle Guardie (0-100): frena il dissenso manifesto, non la scontentezza. */
+  timore?: number;
+  /** @deprecated SOLO salvataggi anteriori alla migrazione, non usare nelle meccaniche. */
+  lealtà?: number;
+  /** @deprecated SOLO salvataggi anteriori alla migrazione, non usare nelle meccaniche. */
+  paura?: number;
+  /** @deprecated SOLO salvataggi anteriori alla migrazione, non usare nelle meccaniche. */
+  felicità?: number;
+  /** Unica statistica di consenso e benessere; modificatori permanenti o a scadenza. */
   modificatoriSoddisfazione?: {
     id: string;
     delta: number;
@@ -126,6 +131,16 @@ export type Abitante = {
   gravidanzaIniziataAnno?: number;
   /** Oggetti portati dall'abitante (monete, cibo, …). */
   inventario?: { itemId: string; quantità: number }[];
+  /** Giorno di gioco in cui il Raccoglitore ha raggiunto fisicamente il Bosco. Compatibile con i vecchi salvataggi. */
+  ultimoIngressoBoscoGiorno?: number;
+  /** Tempo reale di lavoro nel Bosco nel giorno indicato, accumulato dopo l'arrivo sulla mappa.
+   *  Il campo resta nel salvataggio dell'abitante: nessun bottino per semplice assunzione/transito.
+   */
+  ultimoLavoroBosco?: { giorno: number; minuti: number };
+  /** Evento banditi già controllato per il giorno; impedisce doppie sottrazioni. */
+  ultimoControlloBanditiBoscoGiorno?: number;
+  /** Richiesta persistente: udienza soltanto dopo il vero ingresso al Castello. */
+  richiestaRapinaBosco?: import("./game/banditiBosco").RichiestaRisarcimentoBanditi;
   /** Ultimo bottino trovato nel Bosco (Raccoglitore). */
   ultimoRaccoltoBosco?: {
     giorno: number;
@@ -230,6 +245,8 @@ export type Edificio = {
   cassaMonete?: number;
   /** Fatturato del mese corrente. */
   fatturatoMeseMonete?: number;
+  /** Solo Bosco: riserve finite e leggi forestali, persistite con gli edifici. */
+  ecosistemaBosco?: import("./game/ecosistemaBosco").StatoEcosistemaBosco;
   /** Solo Serra: id oggetto Cibo vegetale prodotto dagli Agricoltori. */
   colturaItemId?: string;
   /** Solo Chiesa: religione del tempio (non Ateo/Deista/Agnostico). */

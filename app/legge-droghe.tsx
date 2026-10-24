@@ -44,7 +44,7 @@ export default function LeggeDrogheScreen() {
       <View style={{ flex: 1 }}>
       <ScrollView contentContainerStyle={styles.content}>
         <Text style={styles.descrizione}>
-          Regola la legalità delle sostanze stupefacenti nel regno. Le tue scelte influenzano la felicità di alcune
+          Regola la legalità delle sostanze stupefacenti nel regno. Le tue scelte influenzano la Soddisfazione di alcune
           fazioni.
         </Text>
 
@@ -76,7 +76,7 @@ export default function LeggeDrogheScreen() {
           <View style={styles.effettoItem}>
             <Text style={styles.effettoEmoji}>🕴️</Text>
             <Text style={styles.effettoText}>
-              <Text style={styles.effettoBold}>Mafia:</Text> +10% felicità se tutte le droghe sono vietate
+              <Text style={styles.effettoBold}>Mafia:</Text> +1 punto equivalente di Soddisfazione se tutte le droghe sono vietate
             </Text>
           </View>
         </View>

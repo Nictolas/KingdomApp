@@ -45,7 +45,9 @@ export function calcolaFelicitàModificataPuro(
   abitante: Abitante,
   { politicaReligiosa, religioneDiStato, leggeDroghe, nomeResidenza }: CalcolaFelicitàModificataInput
 ): number {
-  let felicitàBase = abitante.felicità;
+  // Compatibilità temporanea: questa funzione non legge più la vecchia felicità.
+  // Traduce in 0..100 la Soddisfazione UNICA per i vecchi consumer (eventi/UI).
+  let felicitàBase = 50 + (abitante.modificatoriSoddisfazione ?? []).reduce((sum,m) => sum + m.delta, 0) * 10;
 
   if (politicaReligiosa === "ateismo-stato") {
     if (abitante.religione === "Ateo") {

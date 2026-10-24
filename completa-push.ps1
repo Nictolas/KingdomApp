@@ -54,29 +54,19 @@ if (-not $remote) {
     Write-Host ""
 }
 
-# Push su GitHub
+# Push su GitHub usando Git Credential Manager o l'autenticazione Git configurata.
+# NON salvare mai Personal Access Token nel remote URL: potrebbe apparire
+# in git config, nei log di comando e nelle diagnostiche.
 Write-Host "Push su GitHub..." -ForegroundColor Yellow
-Write-Host ""
-Write-Host "Per il push serve un Personal Access Token GitHub" -ForegroundColor Cyan
-Write-Host "Crea un token qui: https://github.com/settings/tokens/new" -ForegroundColor Gray
-Write-Host "Permessi necessari: 'repo' (tutti i permessi repo)" -ForegroundColor Gray
-Write-Host ""
-$token = Read-Host "Incolla il Personal Access Token" -AsSecureString
-$tokenPlain = [Runtime.InteropServices.Marshal]::PtrToStringAuto(
-    [Runtime.InteropServices.Marshal]::SecureStringToBSTR($token)
-)
-
-if ([string]::IsNullOrWhiteSpace($tokenPlain)) {
-    Write-Host "ERRORE Token non valido!" -ForegroundColor Red
+Write-Host "Git utilizzera le credenziali gia configurate e, se necessario, chiedera l'accesso." -ForegroundColor Cyan
+git remote set-url origin https://github.com/Nictolas/KingdomApp.git
+if ($LASTEXITCODE -ne 0) {
+    Write-Host "ERRORE nel configurare la remote GitHub" -ForegroundColor Red
     exit 1
 }
 
-# Configura remote con token
-$remoteUrl = "https://Nictolas:$tokenPlain@github.com/Nictolas/KingdomApp.git"
-git remote set-url origin $remoteUrl
-
 # Push
-$env:GIT_TERMINAL_PROMPT = "0"
+$env:GIT_TERMINAL_PROMPT = "1"
 git push -u origin main
 
 if ($LASTEXITCODE -eq 0) {
@@ -95,10 +85,9 @@ if ($LASTEXITCODE -eq 0) {
     Write-Host "ERRORE durante il push!" -ForegroundColor Red
     Write-Host ""
     Write-Host "Possibili cause:" -ForegroundColor Yellow
-    Write-Host "- Token non valido o scaduto" -ForegroundColor White
-    Write-Host "- Token senza permessi 'repo'" -ForegroundColor White
+    Write-Host "- Credenziali Git non configurate o scadute" -ForegroundColor White
+    Write-Host "- Account GitHub senza permessi di scrittura" -ForegroundColor White
     Write-Host "- Problemi di autenticazione" -ForegroundColor White
     Write-Host ""
-    Write-Host "Crea un nuovo token qui: https://github.com/settings/tokens/new" -ForegroundColor Cyan
-    Write-Host "Permessi necessari: 'repo' (tutti i permessi repo)" -ForegroundColor Gray
+    Write-Host "Configura Git Credential Manager per l'autenticazione HTTPS." -ForegroundColor Cyan
 }

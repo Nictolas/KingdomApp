@@ -179,13 +179,10 @@ export function abitanteDaGenitoreDeceduto(g: GenitoreDecedutoRe): Abitante {
     salute: 0,
     reddito: 0,
     spese: 0,
-    lealtà: 0,
-    paura: 0,
-    felicità: 0,
+    timore: 0,
     religione: "Ateo",
     sesso: g.sesso,
     razza: "Umano",
-    specie: "umano",
     aspetto: g.aspetto
   };
 }

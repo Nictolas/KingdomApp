@@ -55,7 +55,7 @@ export default function DivietoEspatrioScreen() {
           <Text style={styles.descTitle}>Descrizione</Text>
           <Text style={styles.descText}>
             Il divieto di espatrio impedisce agli abitanti di lasciare il regno. Senza questa legge, gli abitanti
-            con felicità molto bassa (≤10) e almeno 100 monete hanno il 50% di probabilità ogni mese di emigrare.
+            con Soddisfazione non positiva possono emigrare quando il divieto di espatrio non è attivo.
           </Text>
         </View>
 

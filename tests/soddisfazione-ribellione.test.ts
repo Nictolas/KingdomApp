@@ -69,7 +69,7 @@ test("la Ribellione applica saccheggi, danni e possibili vittime", () => {
   assert.equal(result.abitanti.some((a) => a.id === 1), true);
 
   const superstite = result.abitanti.find((a) => a.id === 3)!;
-  const lutto = superstite.modificatoriSoddisfazione?.find((m) => m.id === "lutto_familiare");
+  const lutto = superstite.modificatoriSoddisfazione?.find((m) => m.id === "lutto_2");
   assert.equal(lutto?.delta, -1);
   assert.deepEqual(result.edifici[0]?.abitantiAssegnati, [3]);
   assert.equal(result.messaggi.length >= 3, true);

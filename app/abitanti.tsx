@@ -1,3 +1,4 @@
+import { timoreAbitante } from "../src/game/statoSociale";
 import React, { useState, useMemo } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
@@ -59,16 +60,15 @@ function getResidenzaAbitante(abitanteId: number, edifici: Edificio[]): string {
   return getAbitazioneAbitante(abitanteId, edifici);
 }
 
-type SortField = "nome" | "eta" | "lavoro" | "razza" | "casta" | "sesso" | "orientamento" | "residenza" | "specializzazione" | "produttività" | "stanchezza" | "peso" | "salute" | "monete" | "reddito" | "spese" | "lealtà" | "amici" | "rivali" | "familiari" | "paura" | "felicità" | "fazioni" | null;
+type SortField = "nome" | "eta" | "lavoro" | "razza" | "casta" | "sesso" | "orientamento" | "residenza" | "specializzazione" | "produttività" | "stanchezza" | "peso" | "salute" | "monete" | "reddito" | "spese" | "amici" | "rivali" | "familiari" | "timore" | "soddisfazione" | "fazioni" | null;
 type SortDirection = "asc" | "desc";
 
-type MacroKey = "anagrafica" | "prestazioni" | "benessere" | "economia" | "lealta" | "sociale" | "religioneFazioni";
+type MacroKey = "anagrafica" | "prestazioni" | "benessere" | "economia" | "sociale" | "religioneFazioni";
 const MACRO_OPEN_DEFAULT: Record<MacroKey, boolean> = {
   anagrafica: true,
   prestazioni: true,
   benessere: true,
   economia: true,
-  lealta: true,
   sociale: true,
   religioneFazioni: true
 };
@@ -160,9 +160,12 @@ export default function AbitantiScreen() {
       let aValue: number | string;
       let bValue: number | string;
 
-      if (sortField === "felicità") {
+      if (sortField === "soddisfazione") {
         aValue = a.razza === "Golem" ? -1 : calcolaFelicitàModificata(a);
         bValue = b.razza === "Golem" ? -1 : calcolaFelicitàModificata(b);
+      } else if (sortField === "timore") {
+        aValue = timoreAbitante(a);
+        bValue = timoreAbitante(b);
       } else if (sortField === "fazioni") {
         aValue = getFazioniEmojiDisplay(a.fazioni, a.religione);
         bValue = getFazioniEmojiDisplay(b.fazioni, b.religione);
@@ -299,15 +302,6 @@ export default function AbitantiScreen() {
               </View>
             </Pressable>
             <Pressable
-              style={[styles.superHeaderCell, macroOpen.lealta ? styles.superLealta : styles.superMacroCollapsed]}
-              onPress={() => toggleMacro("lealta")}
-            >
-              <View style={styles.superHeaderInner}>
-                <Text style={styles.superHeaderText} numberOfLines={1}>Lealtà</Text>
-                <Text style={styles.superHeaderArrow}>{macroOpen.lealta ? "▼" : "▶"}</Text>
-              </View>
-            </Pressable>
-            <Pressable
               style={[styles.superHeaderCell, macroOpen.sociale ? styles.superSociale : styles.superMacroCollapsed]}
               onPress={() => toggleMacro("sociale")}
             >
@@ -394,13 +388,13 @@ export default function AbitantiScreen() {
                   <Text style={styles.headerText}>🏥 Salute</Text>
                   {sortField === "salute" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
                 </Pressable>
-                <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "felicità" && styles.headerCellActive]} onPress={() => handleSort("felicità")}>
-                  <Text style={styles.headerText}>😊 Felicità</Text>
-                  {sortField === "felicità" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "soddisfazione" && styles.headerCellActive]} onPress={() => handleSort("soddisfazione")}>
+                  <Text style={styles.headerText}>😊 Soddisfazione</Text>
+                  {sortField === "soddisfazione" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
                 </Pressable>
-                <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "paura" && styles.headerCellActive]} onPress={() => handleSort("paura")}>
-                  <Text style={styles.headerText}>😨 Paura</Text>
-                  {sortField === "paura" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
+                <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "timore" && styles.headerCellActive]} onPress={() => handleSort("timore")}>
+                  <Text style={styles.headerText}>😨 Timore</Text>
+                  {sortField === "timore" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
                 </Pressable>
               </>
             )}
@@ -419,12 +413,6 @@ export default function AbitantiScreen() {
                   {sortField === "spese" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
                 </Pressable>
               </>
-            )}
-            {macroOpen.lealta && (
-              <Pressable style={[styles.headerCell, styles.cellSmall, sortField === "lealtà" && styles.headerCellActive]} onPress={() => handleSort("lealtà")}>
-                <Text style={styles.headerText}>❤️ Lealtà</Text>
-                {sortField === "lealtà" && <Text style={styles.sortIndicator}>{sortDirection === "asc" ? "↑" : "↓"}</Text>}
-              </Pressable>
             )}
             {macroOpen.sociale && (
               <>
@@ -452,7 +440,7 @@ export default function AbitantiScreen() {
 
           {/* Righe della tabella */}
           {abitantiOrdinati.map((a: Abitante) => {
-            const felicitàModificata = calcolaFelicitàModificata(a);
+            const soddisfazioneEffettiva = Math.round((calcolaFelicitàModificata(a) - 50) / 10);
             const emojiDisplay = getEmojiDisplay(a, etaMinimaLavoro);
             const lavoroDisplay = getLavoroDisplay(a, etaMinimaLavoro);
             const statoSalute = getStatoSalute(a);
@@ -529,9 +517,9 @@ export default function AbitantiScreen() {
                     <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.razza === "Golem" ? "—" : String(a.peso ?? 50)}</Text></View>
                     <View style={[styles.cell, styles.cellSmall]}><Text style={[styles.cellTextSmall, a.razza === "Golem" ? undefined : saluteStyle]}>{a.razza === "Golem" ? "—" : statoSalute}</Text></View>
                     <View style={[styles.cell, styles.cellSmall]}>
-                      <Text style={[styles.cellText, a.razza === "Golem" ? undefined : felicitàModificata >= 70 ? styles.cellTextPositive : felicitàModificata >= 40 ? styles.cellTextNeutral : styles.cellTextNegative]}>{a.razza === "Golem" ? "—" : `${felicitàModificata}%`}</Text>
+                      <Text style={[styles.cellText, a.razza === "Golem" ? undefined : soddisfazioneEffettiva >= 2 ? styles.cellTextPositive : soddisfazioneEffettiva >= -1 ? styles.cellTextNeutral : styles.cellTextNegative]}>{a.razza === "Golem" ? "—" : `${soddisfazioneEffettiva}`}</Text>
                     </View>
-                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.razza === "Golem" ? "—" : `${a.paura}%`}</Text></View>
+                    <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.razza === "Golem" ? "—" : `${timoreAbitante(a)}%`}</Text></View>
                   </>
                 )}
                 {macroOpen.economia && (
@@ -554,9 +542,6 @@ export default function AbitantiScreen() {
                     </View>
                     <View style={[styles.cell, styles.cellMedium]}><Text style={[styles.cellText, a.razza === "Golem" ? undefined : styles.cellTextNegative]}>{a.razza === "Golem" ? "—" : a.spese}</Text></View>
                   </>
-                )}
-                {macroOpen.lealta && (
-                  <View style={[styles.cell, styles.cellSmall]}><Text style={styles.cellText}>{a.razza === "Golem" ? "—" : `${a.lealtà}%`}</Text></View>
                 )}
                 {macroOpen.sociale && (
                   <>

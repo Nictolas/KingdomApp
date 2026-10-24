@@ -1,5 +1,6 @@
+import { timoreAbitante } from "../game/statoSociale";
 import React, { useEffect, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type DimensionValue } from "react-native";
+import { Alert, Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type DimensionValue } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import type { Abitante, Edificio } from "../types";
@@ -28,7 +29,8 @@ import {
   LAVORO_GIOCATORE
 } from "../game/schiavituCommercio";
 import { getTitoloStudioAbitante } from "../game/titoloStudio";
-import { CATEGORIA_CIBO, getVociInventarioPerCategoria } from "../game/inventario";
+import { CATEGORIA_CIBO, getVociInventarioPerCategoria, OGGETTI_INVENTARIO } from "../game/inventario";
+import { abitoPrescrittoDaDogma } from "../game/dogmiReligiosi";
 import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import {
   abitanteUsaBisogniUmani,
@@ -193,6 +195,8 @@ export function AbitanteInfoModal({
   const { width } = useWindowDimensions();
   const {
     abitanti,
+    religioniCustom,
+    indossaAbitoReligioso,
     aggiungiAlCampoDiLavoroTuttiQuelliChe,
     trasferisciProprietaSchiavo,
     uccidiSchiavo
@@ -255,6 +259,19 @@ export function AbitanteInfoModal({
 
   const titoloStudio = getTitoloStudioAbitante(abitante, etaMinimaLavoro);
   const casta = getCastaAbitante(abitante);
+  const dogmiFede = religioniCustom.find(r => r.nome === abitante.religione)?.dogmi ?? [];
+  const ruoloReligioso = ["Sacerdote", "Capo Religioso", "Druido"].includes(abitante.lavoro);
+  const abitoSacerdotale = ruoloReligioso
+    ? abitoPrescrittoDaDogma(dogmiFede, "sacerdoti")
+    : null;
+  const abitoRichiesto = abitoSacerdotale ??
+    abitoPrescrittoDaDogma(dogmiFede, "fedeli");
+  const abitoConforme = !abitoRichiesto || abitante.aspetto?.vestiti === abitoRichiesto;
+  const cibiProibiti = dogmiFede
+    .filter((d): d is Extract<typeof d, { tipo: "alimento_vietato" }> =>
+      d.tipo === "alimento_vietato")
+    .map(d => OGGETTI_INVENTARIO[d.itemId]?.nome ?? d.itemId);
+
 
   const maggiorenne = abitante.eta >= etaMinimaLavoro;
   const lavoroDaMinore = LAVORI_DA_MINORE.includes(abitante.lavoro);
@@ -265,8 +282,7 @@ export function AbitanteInfoModal({
       ? "Disoccupato"
       : abitante.lavoro;
 
-  const felicitàModificata = calcolaFelicitàModificata ? calcolaFelicitàModificata(abitante) : abitante.felicità;
-  const felicitàCambiata = abitante.razza !== "Golem" && felicitàModificata !== abitante.felicità;
+  const soddisfazioneEffettiva = calcolaFelicitàModificata ? Math.round((calcolaFelicitàModificata(abitante) - 50) / 10) : (abitante.modificatoriSoddisfazione ?? []).reduce((s,m) => s + m.delta, 0);
   const bisogni = getBisogniAbitante(abitante);
   const produttivitàEff = getProduttivitaEffettiva(abitante);
 
@@ -440,6 +456,36 @@ export function AbitanteInfoModal({
                   muted={!abitante.religione?.trim()}
                   onPress={abitante.religione?.trim() ? () => apriPagina("/religione") : undefined}
                 />
+                {abitoRichiesto && (
+                  <>
+                    <Row
+                      emoji="👘"
+                      label={abitoSacerdotale ? "Abito sacerdotale" : "Abito della fede"}
+                      value={abitoRichiesto + (abitoConforme ? " — conforme" : " — non conforme")}
+                      muted={!abitoConforme}
+                    />
+                    {!abitoConforme && (
+                      <Pressable
+                        accessibilityRole="button"
+                        accessibilityLabel="Indossa l'abito prescritto dalla fede"
+                        style={({ pressed }) => [styles.famigliaBtn, pressed && styles.famigliaBtnPressed]}
+                        onPress={() => {
+                          const esito = indossaAbitoReligioso(abitante.id);
+                          if (!esito.ok) Alert.alert("Abito non disponibile", esito.motivo ?? "Impossibile cambiare abito.");
+                        }}
+                      >
+                        <Text style={styles.famigliaBtnText}>Indossa l'abito prescritto</Text>
+                      </Pressable>
+                    )}
+                  </>
+                )}
+                {cibiProibiti.length > 0 && (
+                  <Row
+                    emoji="🥣"
+                    label="Alimenti vietati dalla fede"
+                    value={cibiProibiti.join(", ")}
+                  />
+                )}
                 <Row
                   emoji="🎓"
                   label="Titolo di Studio"
@@ -489,18 +535,9 @@ export function AbitanteInfoModal({
                 )}
               </Block>
 
-              <Block width={cardWidth} title="❤️ Sentimenti">
-                <Row emoji="❤️" label="Lealtà" value={abitante.razza === "Golem" ? "—" : `${abitante.lealtà}%`} />
-                <Row emoji="😨" label="Paura" value={abitante.razza === "Golem" ? "—" : `${abitante.paura}%`} />
-                <Row
-                  emoji="😊"
-                  label="Felicità"
-                  value={
-                    abitante.razza === "Golem"
-                      ? "—"
-                      : `${felicitàModificata}%${felicitàCambiata ? ` (base ${abitante.felicità})` : ""}`
-                  }
-                />
+              <Block width={cardWidth} title="Soddisfazione e Timore">
+                <Row emoji="💚" label="Soddisfazione" value={abitante.razza === "Golem" ? "—" : String(soddisfazioneEffettiva) + " punti"} />
+                <Row emoji="🛡️" label="Timore del Re" value={abitante.razza === "Golem" ? "—" : String(timoreAbitante(abitante)) + "%"} />
               </Block>
 
               {!isCastaCoercibile(casta) && (

@@ -27,3 +27,8 @@ export function scegliNomeCognomeUmano(): { nomeCompleto: string; sesso: "M" | "
   const cognome = COGNOMI_UMANI[Math.floor(Math.random() * COGNOMI_UMANI.length)];
   return { nomeCompleto: `${entry.nome} ${cognome}`, sesso: entry.sesso };
 }
+
+/** Normalizza nome/cognome inseriti nella creazione del Re. */
+export function capitalizzaNomePersona(value: string): string {
+  return value.trim().toLocaleLowerCase("it-IT").replace(/(^|[\s'-])\p{L}/gu, (part) => part.toLocaleUpperCase("it-IT"));
+}

@@ -13,10 +13,10 @@ test("la pagina Soddisfazione segue giorno, mese e anno correnti", () => {
   );
   assert.match(
     source,
-    /\[abitanti, edifici, giornoGioco, mese, anno\]/
+    /\[abitanti, edifici, giornoGioco, mese, anno, calcolaFelicitàModificata\]/
   );
   assert.match(
     source,
-    /calcolaPunteggioSoddisfazione\(a, edifici, giornoGioco, mese, anno\)/
+    /calcolaFelicitàModificata\(a\)/
   );
 });

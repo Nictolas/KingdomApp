@@ -12,6 +12,9 @@
  */
 
 import type { Abitante, Edificio, Risorsa } from "../types";
+import type { ReligioneCustom } from "../game/fedeleCulto";
+import { pretendeSovranoDivino } from "../game/dogmiReligiosi";
+import { ID_GIOCATORE } from "../game/schiavituCommercio";
 
 export type TipoObiettivo = "Scoperta" | "Costruzione" | "Evento" | "Sociale";
 
@@ -40,6 +43,9 @@ export type StatoValutazioneObiettivi = {
   completati: ReadonlySet<string>;
   /** True se sulla mappa esiste almeno un Ponte operativo (attraversabile). */
   haPonteSulFiume?: boolean;
+  religioniCustom?: readonly ReligioneCustom[];
+  religioneDiStato?: string | null;
+  politicaReligiosa?: "ateismo-stato" | "religione-stato" | "liberta-culto";
 };
 
 export type ObiettivoNodo = {
@@ -387,6 +393,25 @@ export const OBIETTIVI_CATALOGO: ObiettivoNodo[] = [
     condizione: (s) => {
       const osp = s.edifici.find((e) => e.nome === "Ospedale" && e.stato === "Operativo");
       return osp != null && (osp.abitantiAssegnati?.length ?? 0) >= 3;
+    }
+  },
+  {
+    id: "teocrazia",
+    titolo: "Teocrazia",
+    descrizione: "Fonda una religione che proclama il Re rappresentante divino sulla Terra e rendila religione di Stato.",
+    emoji: "👑",
+    tipo: "Sociale",
+    livello: 4,
+    requisitiId: [],
+    ricompensa: "Obiettivo raggiunto: il potere regio si fonda anche su una dottrina religiosa.",
+    condizione: (s) => {
+      const regnante = s.abitanti.some(a => a.id === ID_GIOCATORE && a.salute > 0);
+      if (!regnante || !s.religioneDiStato || s.politicaReligiosa !== "religione-stato") return false;
+      return (s.religioniCustom ?? []).some(r =>
+        r.nome === s.religioneDiStato &&
+        r.fondatoreReId === ID_GIOCATORE &&
+        pretendeSovranoDivino(r.dogmi ?? [])
+      );
     }
   },
   {

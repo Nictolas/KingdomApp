@@ -3,6 +3,10 @@ export const SEZIONI_COSTRUZIONE: { titolo: string; nomi: string[] }[] = [
   {
     titolo: "Ordine",
     nomi: ["Ufficio Edile", "Tribunale", "Campo di Lavoro", "Campo di Sterminio", "Centrale", "Caserma"]
+  },
+  {
+    titolo: "Foresta",
+    nomi: ["Capanna del Cacciatore", "Campo dei Taglialegna", "Capanno del Guardaboschi", "Erboristeria", "Apiario", "Vivaio forestale", "Cerchio dei Druidi"]
   }
 ];
 

@@ -227,7 +227,7 @@ const RIGHE_FAZIONE: RigaFazione[] = [
     situazione: "Evento Rivoluzionari delusi",
     delta: "—",
     scala: "trigger < 70",
-    condizioni: "Se Rivoluzionari < 70 può attivarsi; mensile −3 felicità ai membri (non punti sodd.).",
+    condizioni: "Se Rivoluzionari < 70 può attivarsi; mensile −1 punto Soddisfazione ai membri.",
     stato: "Attivo"
   },
   {
@@ -325,7 +325,7 @@ export default function RegoleSoddisfazioneScreen() {
           <Text style={styles.intro}>
             Visione d’insieme dei punti soddisfazione. Totale personale = modificatori validi + bonus
             situazionali. Golem esclusi. «Attivo» = già nel codice; «Proposto» = da implementare.
-            Distinto da felicità (0–100), popolarità del Re e soddisfazione fazioni (tabella sotto).
+            Felicità e Lealtà sono confluite nella Soddisfazione personale. Il Timore del Re è distinto e riduce la propensione alle rivolte.
           </Text>
 
           <Text style={styles.sectionTitle}>Punti soddisfazione personale</Text>

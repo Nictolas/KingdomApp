@@ -297,14 +297,16 @@ export function normalizzaAbitanteInventario(abitante: Abitante): Abitante {
 /** Consuma 1 unità del primo oggetto Cibo disponibile e compatibile con la dieta; null se nessuno. */
 export function consumaUnOggettoCiboConItem(
   inventario: VoceInventario[],
-  personalità?: string
+  personalità?: string,
+  permesso: (itemId: string) => boolean = () => true
 ): { inventario: VoceInventario[]; itemId: string } | null {
   const inv = normalizzaInventarioAbitante(inventario);
   const idx = inv.findIndex(
     (v) =>
       isOggettoCibo(v.itemId) &&
       v.quantità > 0 &&
-      abitantePuòConsumareOggettoCibo(personalità ?? "", v.itemId)
+      abitantePuòConsumareOggettoCibo(personalità ?? "", v.itemId) &&
+      permesso(v.itemId)
   );
   if (idx < 0) return null;
   const itemId = inv[idx]!.itemId;

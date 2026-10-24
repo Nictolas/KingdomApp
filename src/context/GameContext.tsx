@@ -11,6 +11,7 @@ import { TutorialSpotlightProvider, useTutorialSpotlight } from "../tutorial/Tut
 import { TutorialSpotlightOverlay } from "../tutorial/TutorialSpotlightOverlay";
 import { SPOTLIGHT_TARGET_IDS } from "../tutorial/spotlightTypes";
 import { RichiestaLuogoCultoModal } from "../ui/RichiestaLuogoCultoModal";
+import { RichiestaRapinaBoscoModal } from "../ui/RichiestaRapinaBoscoModal";
 import type { ReligioneConCulto } from "../game/luogoCulto";
 import type { RichiestaInAttesa } from "../game/richieste";
 import type { PenaReatiConfig, ReatoPunibile } from "../game/reati";
@@ -51,6 +52,8 @@ type GameContextType = {
   saveStatus: "idle" | "saving" | "saved" | "error";
   salvaPartita: () => Promise<void>;
   abitanti: Abitante[];
+  /** Cambio effettivo dell'abito prescritto, con asset LPC e salvataggio. */
+  indossaAbitoReligioso: (abitanteId: number) => { ok: boolean; motivo?: string };
   /** Inventario cibo del giocatore (colonia). */
   inventarioGiocatore: { itemId: string; quantità: number }[];
   /** Tesoro del giocatore (monete per stipendi edifici pubblici). */
@@ -87,9 +90,17 @@ type GameContextType = {
     emoji?: string;
     descrizione?: string;
     aspettoSacerdote?: import("../game/personaggioAspetto").AspettoPersonaggio;
+    dottrinaNaturalista?: import("../game/ecosistemaBosco").DottrinaNaturalista;
+    dogmi?: readonly import("../game/dogmiReligiosi").DogmaReligioso[];
+    origineReligione?: string;
   }) =>
-    | { ok: true; religione: import("../game/fedeleCulto").ReligioneCustom }
+    | { ok: true; religione: import("../game/fedeleCulto").ReligioneCustom; convertiti: number }
     | { ok: false; errore: string };
+  modificaDogmiReligioneCustom: (
+    id: string,
+    dogmi: readonly import("../game/dogmiReligiosi").DogmaReligioso[],
+    dottrinaNaturalista?: import("../game/ecosistemaBosco").DottrinaNaturalista
+  ) => boolean;
   etaMinimaLavoro: number;
   etaPensionabile: number;
   assegnoPensionati: number;
@@ -241,6 +252,8 @@ type GameContextType = {
   mesiConsecutiviNelCastello: number;
   setModalitaRe: (modalita: ModalitaRe, edificioId?: number | null) => void;
   nominaConsigliere: (abitanteId: number) => void;
+  /** Conclude un'udienza banditi già aperta dall'arrivo fisico al Castello. */
+  risolviUdienzaBanditi: (abitanteId: number, scelta: "risarcisci" | "ignora") => boolean;
   nativiNonIntegrati: number;
   pendingAssimilazione: number | null;
   accettaAssimilazione: () => void;
@@ -356,6 +369,30 @@ function EmigrazioneDialogWrapper() {
       messaggio={messaggioEmigrazione ?? ""}
       onClose={chiudiMessaggioEmigrazione}
       emoji="✈️"
+    />
+  );
+}
+
+function RichiestaRapinaBoscoDialogWrapper() {
+  const { abitanti, moneteGiocatore, risolviUdienzaBanditi } = useGameContext();
+  const richiestePronte = abitanti
+    .filter(a => a.salute > 0 && a.richiestaRapinaBosco?.stato === "pronta")
+    .sort((a, b) => (a.richiestaRapinaBosco!.id).localeCompare(b.richiestaRapinaBosco!.id));
+  const vittima = richiestePronte[0];
+  const richiesta = vittima?.richiestaRapinaBosco;
+  const consigliere = abitanti.find(a =>
+    a.lavoro === "Consigliere" && a.id !== ID_GIOCATORE && a.salute > 0
+  );
+  if (!vittima || !richiesta) return null;
+  return (
+    <RichiestaRapinaBoscoModal
+      key={richiesta.id}
+      richiesta={richiesta}
+      nomeVittima={vittima.nome}
+      consigliere={consigliere ?? null}
+      moneteTesoro={moneteGiocatore}
+      onRisarcisci={() => risolviUdienzaBanditi(vittima.id, "risarcisci")}
+      onIgnora={() => risolviUdienzaBanditi(vittima.id, "ignora")}
     />
   );
 }
@@ -606,6 +643,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         <CreazioneGiocatoreWrapper />
         <IntroConsigliereDialogWrapper />
         <RichiestaLuogoCultoDialogWrapper />
+        <RichiestaRapinaBoscoDialogWrapper />
         <EmigrazioneDialogWrapper />
         <GameOverModal
           visible={gameOverPerMorteRe}

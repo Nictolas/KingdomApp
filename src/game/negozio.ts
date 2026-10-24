@@ -7,7 +7,7 @@ import {
   SOGLIA_BISOGNO_AZIONE
 } from "./bisogni";
 import {
-  consumaUnOggettoCibo,
+  consumaUnOggettoCiboConItem,
   getMoneteInventarioAbitante,
   normalizzaInventarioAbitante,
   provaSpendiMoneteInventarioAbitante,
@@ -31,25 +31,38 @@ export function negozioOperativoInColonia(edifici: Edificio[]): boolean {
 /**
  * Fame urgente, monete, Negozio operativo, senza cibo compatibile in inventario.
  */
-export function abitanteVuoleNegozio(abitante: Abitante, edifici: Edificio[]): boolean {
+export function abitanteVuoleNegozio(
+  abitante: Abitante,
+  edifici: Edificio[],
+  permesso: (itemId: string) => boolean = () => true
+): boolean {
   if (!abitanteHaFameUrgente(abitante)) return false;
+  // Il Negozio vende solo l'articolo base. Non proporlo a fedeli
+  // ai quali quell'articolo è vietato.
+  if (!permesso(ITEM_CIBO_NEGOZIO)) return false;
   if (!abitanteHaInventarioPersonale(abitante)) return false;
   if (!negozioOperativoInColonia(edifici)) return false;
-  if (haCiboCompatibileInInventario(abitante.inventario, abitante.personalità)) return false;
+  if (haCiboCompatibileInInventario(abitante.inventario, abitante.personalità, permesso)) return false;
   return getMoneteInventarioAbitante(abitante.inventario) >= PREZZO_CIBO_NEGOZIO;
 }
 
 /** Compra 1 cibo e lo consuma subito (Fame ↑). */
-export function compraEMangiaAlNegozio(abitante: Abitante): Abitante | null {
-  if (!abitanteHaInventarioPersonale(abitante)) return null;
+export function compraEMangiaAlNegozio(
+  abitante: Abitante,
+  permesso: (itemId: string) => boolean = () => true
+): Abitante | null {
+  if (!permesso(ITEM_CIBO_NEGOZIO) || !abitanteHaInventarioPersonale(abitante)) return null;
   const dopoSpesa = provaSpendiMoneteInventarioAbitante(abitante, PREZZO_CIBO_NEGOZIO);
   if (!dopoSpesa) return null;
   return applicaRecuperoFamePasto(dopoSpesa);
 }
 
 /** Compra 1 cibo e lo mette in inventario. */
-export function compraCiboAlNegozio(abitante: Abitante): Abitante | null {
-  if (!abitanteHaInventarioPersonale(abitante)) return null;
+export function compraCiboAlNegozio(
+  abitante: Abitante,
+  permesso: (itemId: string) => boolean = () => true
+): Abitante | null {
+  if (!permesso(ITEM_CIBO_NEGOZIO) || !abitanteHaInventarioPersonale(abitante)) return null;
   const dopoSpesa = provaSpendiMoneteInventarioAbitante(abitante, PREZZO_CIBO_NEGOZIO);
   if (!dopoSpesa) return null;
   const inv = normalizzaInventarioAbitante(dopoSpesa.inventario);
@@ -62,11 +75,14 @@ export function compraCiboAlNegozio(abitante: Abitante): Abitante | null {
 }
 
 /** Snack da inventario se Fame sotto soglia. */
-export function tentaSnackDaInventario(abitante: Abitante): Abitante | null {
+export function tentaSnackDaInventario(
+  abitante: Abitante,
+  permesso: (itemId: string) => boolean = () => true
+): Abitante | null {
   if (!abitanteHaInventarioPersonale(abitante)) return null;
   if (getBisogniAbitante(abitante).fame >= SOGLIA_BISOGNO_AZIONE) return null;
-  if (!haCiboCompatibileInInventario(abitante.inventario, abitante.personalità)) return null;
-  const dopo = consumaUnOggettoCibo(abitante.inventario!, abitante.personalità);
+  if (!haCiboCompatibileInInventario(abitante.inventario, abitante.personalità, permesso)) return null;
+  const dopo = consumaUnOggettoCiboConItem(abitante.inventario!, abitante.personalità, permesso)?.inventario ?? null;
   if (!dopo) return null;
   return applicaRecuperoFamePasto({ ...abitante, inventario: dopo });
 }

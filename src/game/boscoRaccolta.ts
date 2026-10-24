@@ -2,7 +2,8 @@ import type { Abitante, Edificio } from "../types";
 import { isGiocatore } from "./schiavituCommercio";
 import { getCastaAbitante } from "./casta";
 import { aggiungiOggettoInventarioAbitante } from "./inventario";
-import { getGiornoGiocoSnapshot } from "./orologioGiocoSession";
+import { probabilitaSuccessoForestale, normalizzaStatoEcosistemaBosco, rigeneraBoscoDopoPrelievi, type RiserveBosco } from "./ecosistemaBosco";
+import { SEDE_PER_PROFESSIONE, type ProfessioneForestale } from "./turniForestali";
 
 export type BoscoBottinoDef = {
   itemId: string;
@@ -42,6 +43,29 @@ export const BOTTINO_BOSCO: readonly BoscoBottinoDef[] = [
 export const NOME_BOSCO = "Bosco";
 export const LAVORO_RACCOGLITORE = "Raccoglitore";
 export const CAPACITA_BOSCO = 20;
+/** Solo i mestieri produttivi hanno un bottino; Guardaboschi e Silvicoltori
+ *  svolgono attività di protezione/ripristino, non generano oggetti a caso.
+ *  Le rese sono ancora provvisorie finché non saranno collegate alle riserve.
+ */
+export const PRODOTTI_PROFESSIONI_FORESTALI: Readonly<Partial<Record<ProfessioneForestale, readonly string[]>>> = {
+  Cacciatore: ["piccoli-animali", "selvaggina"],
+  Taglialegna: ["legno", "rami"],
+  Erborista: ["erbe", "erbe-medicinali"],
+  Apicoltore: ["miele"]
+};
+
+function prodottiProfessioneForestale(
+  lavoro: string, abitanteId: number, giorno: number, minuti: number
+): VoceRaccoltoBosco[] {
+  if (lavoro === LAVORO_RACCOGLITORE) return raccoltoBoscoDelGiorno(abitanteId, giorno);
+  const oggetti = PRODOTTI_PROFESSIONI_FORESTALI[lavoro as ProfessioneForestale];
+  if (!oggetti?.length) return [];
+  const id = oggetti[Math.abs(abitanteId * 37 + giorno * 17) % oggetti.length];
+  const prodotto = BOTTINO_BOSCO.find(x => x.itemId === id);
+  if (!prodotto) return [];
+  return [{ ...prodotto, quantità: minuti >= 240 ? 2 : 1 }];
+}
+
 
 export type VoceRaccoltoBosco = {
   itemId: string;
@@ -122,21 +146,16 @@ export function etichettaRaccoltoBosco(voci: VoceRaccoltoBosco[]): string {
   return voci.map((v) => `${v.emoji} ${v.nome}${v.quantità > 1 ? ` ×${v.quantità}` : ""}`).join(", ");
 }
 
+/**
+ * Assumere una persona non equivale a svolgere una giornata di raccolta.
+ * Il bottino viene attribuito soltanto da applicaRaccoltaBoscoGiornaliera.
+ */
 function applicaBottinoInizialeRaccoglitore(
   abitante: Abitante
 ): { abitante: Abitante; vociNuove: VoceRaccoltoBosco[] | null } {
-  const giorno = getGiornoGiocoSnapshot();
-  if (abitante.ultimoRaccoltoBosco?.giorno === giorno) {
-    return { abitante: { ...abitante, lavoro: LAVORO_RACCOGLITORE }, vociNuove: null };
-  }
-  const voci = raccoltoBoscoDelGiorno(abitante.id, giorno);
-  let next: Abitante = { ...abitante, lavoro: LAVORO_RACCOGLITORE };
-  for (const v of voci) {
-    next = aggiungiOggettoInventarioAbitante(next, v.itemId, v.quantità);
-  }
   return {
-    abitante: { ...next, ultimoRaccoltoBosco: { giorno, voci } },
-    vociNuove: voci
+    abitante: { ...abitante, lavoro: LAVORO_RACCOGLITORE },
+    vociNuove: null
   };
 }
 
@@ -273,26 +292,102 @@ export function forzaAssunzioneRaccoglitoreNelBosco(
   };
 }
 
+const FONTI_ANIMALI_BOSCO = new Set(["piccoli-animali", "selvaggina", "piume", "ossa", "corna", "pelli-e-pellicce", "uova-selvatiche", "nidi"]);
+const FONTI_ALBERI_BOSCO = new Set(["legno", "rami", "resina"]);
+function fonteBosco(itemId: string): keyof RiserveBosco {
+  if (FONTI_ANIMALI_BOSCO.has(itemId)) return "fauna";
+  if (FONTI_ALBERI_BOSCO.has(itemId)) return "alberi";
+  return "vegetazione";
+}
+
 export function applicaRaccoltaBoscoGiornaliera(
   abitanti: Abitante[],
   edifici: Edificio[],
   giornoCorrente: number,
   giorni: number
-): { abitanti: Abitante[]; messaggi: string[]; bottini: BottinoBoscoRegistrato[] } {
+): { abitanti: Abitante[]; edifici: Edificio[]; messaggi: string[]; bottini: BottinoBoscoRegistrato[] } {
   const bosco = trovaBoscoOperativo(edifici);
-  if (!bosco || giorni <= 0) return { abitanti, messaggi: [], bottini: [] };
+  if (!bosco || giorni <= 0) return { abitanti, edifici, messaggi: [], bottini: [] };
+  let stato = normalizzaStatoEcosistemaBosco(bosco.ecosistemaBosco, giornoCorrente - giorni - 1);
+  if (stato.ultimoGiornoAggiornato >= giornoCorrente - 1) {
+    return { abitanti, edifici, messaggi: [], bottini: [] };
+  }
+  // Recupera la rigenerazione dei giorni senza attività prima dell'ultimo.
+  for (let gg = stato.ultimoGiornoAggiornato + 1; gg < giornoCorrente - 1; gg++) {
+    const trimestre = Math.floor(((gg % 360) + 360) % 360 / 90);
+    const stagione = (["primavera", "estate", "autunno", "inverno"] as const)[trimestre]!;
+    stato = { ...stato, riserve: rigeneraBoscoDopoPrelievi(
+      stato.riserve, { alberi: 0, fauna: 0, vegetazione: 0 }, 0, stagione
+    ), ultimoGiornoAggiornato: gg };
+  }
+  const disponibili: RiserveBosco = { ...stato.riserve };
+  const prelevati: RiserveBosco = { alberi: 0, fauna: 0, vegetazione: 0 };
+  let cacciatoriOggi = 0;
+  let silvicoltoriOggi = 0;
+  let druidiOggi = 0;
   const raccoglitori = new Set(bosco.abitantiAssegnati ?? []);
-  if (raccoglitori.size === 0) return { abitanti, messaggi: [], bottini: [] };
 
   const messaggi: string[] = [];
   const bottini: BottinoBoscoRegistrato[] = [];
   const abitantiNext = abitanti.map((a) => {
-    if (!raccoglitori.has(a.id) || a.lavoro !== LAVORO_RACCOGLITORE) return a;
+    const sedeRichiesta = SEDE_PER_PROFESSIONE[a.lavoro as ProfessioneForestale];
+    const èRaccoglitore = a.lavoro === LAVORO_RACCOGLITORE && raccoglitori.has(a.id);
+    const èSpecialista = !!sedeRichiesta &&
+      edifici.some(e =>
+        e.nome === sedeRichiesta &&
+        e.stato === "Operativo" &&
+        (e.abitantiAssegnati ?? []).includes(a.id)
+      );
+    if (!èRaccoglitore && !èSpecialista) return a;
     let next = a;
     for (let g = 0; g < giorni; g++) {
-      const giorno = giornoCorrente - giorni + g + 1;
+      // La raccolta si contabilizza alla mezzanotte SUCCESSIVA alla presenza reale.
+      const giorno = giornoCorrente - giorni + g;
+      if (giorno !== giornoCorrente - 1) continue; // solo ultimo giorno attestato nel save
+      if (next.ultimoIngressoBoscoGiorno !== giorno) continue;
       if (next.ultimoRaccoltoBosco?.giorno === giorno) continue;
-      const voci = raccoltoBoscoDelGiorno(a.id, giorno);
+      // Entrare nel Bosco non equivale a lavorare: servono minuti realmente
+      // trascorsi sul posto e salvati durante i tick di movimento.
+      const tempo = next.ultimoLavoroBosco;
+      if (tempo?.giorno !== giorno || tempo.minuti < 30) continue;
+      if (a.lavoro === "Silvicoltore") { silvicoltoriOggi++; continue; }
+      if (a.lavoro === "Druido") {
+        // Il rituale non produce oggetti e richiede una fede che abbia
+        // consacrato realmente il Bosco: nessuna religione implicita.
+        if (stato.luogoSacro?.religione === a.religione) druidiOggi++;
+        continue;
+      }
+      if (a.lavoro === "Guardaboschi") continue;
+      if (a.lavoro === "Cacciatore") {
+        if (cacciatoriOggi >= stato.quotaMassimaCacciatori) continue;
+        cacciatoriOggi++;
+      }
+      const proposti = prodottiProfessioneForestale(a.lavoro, a.id, giorno, tempo.minuti);
+      if (!proposti.length) continue;
+      const fonte = fonteBosco(proposti[0]!.itemId);
+      const competenza = Number.isFinite(next.competenza) ? next.competenza : 0;
+      const bonusTratti = /osservator|pazient|attent/i.test(next.personalità ?? "") ? 10 : 0;
+      const intensita = a.lavoro !== "Cacciatore" ? 1
+        : stato.intensitaCaccia === "leggera" ? 0.7
+          : stato.intensitaCaccia === "spietata" ? 1.3 : 1;
+      const probabilità = Math.min(0.98,
+        probabilitaSuccessoForestale(disponibili[fonte], competenza + bonusTratti, tempo.minuti) * intensita
+      );
+      // Esito deterministico per abitante/giorno: non varia alla ricarica.
+      const lancio = (((a.id * 9301 + giorno * 49297) >>> 0) % 600000) / 600000;
+      if (lancio >= probabilità) continue;
+      const voci: VoceRaccoltoBosco[] = [];
+      for (const p of proposti) {
+        const tipo = fonteBosco(p.itemId);
+        const richiesti = a.lavoro === "Cacciatore" && stato.intensitaCaccia === "leggera"
+          ? 1 : p.quantità;
+        const quantita = Math.min(Math.floor(disponibili[tipo]), richiesti);
+        if (quantita <= 0) continue;
+        disponibili[tipo] -= quantita;
+        prelevati[tipo] += quantita;
+        voci.push({ ...p, quantità: quantita });
+      }
+      if (!voci.length) continue;
       for (const v of voci) {
         next = aggiungiOggettoInventarioAbitante(next, v.itemId, v.quantità);
       }
@@ -304,10 +399,19 @@ export function applicaRaccoltaBoscoGiornaliera(
         voci
       });
       if (g === giorni - 1) {
-        messaggi.push(`${a.nome} ha trovato ${etichettaRaccoltoBosco(voci)} nel Bosco.`);
+        messaggi.push(`${a.nome} ha ${èRaccoglitore ? "trovato" : "prodotto"} ${etichettaRaccoltoBosco(voci)} nel Bosco.`);
       }
     }
     return next;
   });
-  return { abitanti: abitantiNext, messaggi, bottini };
+  const giorno = giornoCorrente - 1;
+  const trimestre = Math.floor(((giorno % 360) + 360) % 360 / 90);
+  const stagione = (["primavera", "estate", "autunno", "inverno"] as const)[trimestre]!;
+  stato = {
+    ...stato,
+    riserve: rigeneraBoscoDopoPrelievi(stato.riserve, prelevati, silvicoltoriOggi, stagione, druidiOggi),
+    ultimoGiornoAggiornato: giorno
+  };
+  const edificiNext = edifici.map(e => e.id === bosco.id ? { ...e, ecosistemaBosco: stato } : e);
+  return { abitanti: abitantiNext, edifici: edificiNext, messaggi, bottini };
 }

@@ -95,8 +95,8 @@ export default function SicurezzaScreen() {
             <View style={styles.effettoContent}>
               <Text style={styles.effettoTitolo}>Stabilità</Text>
               <Text style={styles.effettoDescrizione}>
-                Un regno con leggi chiare e forze di sicurezza efficienti riduce la paura e il crimine, aumentando
-                la lealtà dei cittadini.
+                Un regno con leggi chiare e forze di sicurezza efficienti può ridurre il crimine e il timore, aumentando
+                la soddisfazione dei cittadini.
               </Text>
             </View>
           </View>

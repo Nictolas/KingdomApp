@@ -1,4 +1,6 @@
 import type { Abitante, Edificio } from "../types";
+import type { ReligioneCustom } from "./fedeleCulto";
+import { vietatoCiboDaDogma } from "./dogmiReligiosi";
 import { abitanteHaInventarioPersonale, getCastaAbitante } from "./casta";
 import { abitanteDeveConsumareCiboGiornaliero } from "./consumoCiboInventario";
 import { applicaRecuperoFamePasto } from "./bisogni";
@@ -17,24 +19,28 @@ export const NOME_MENSA_PUBBLICA = "Mensa Pubblica";
 /** True se l'inventario ha almeno un oggetto Cibo compatibile con la dieta. */
 export function haCiboCompatibileInInventario(
   inventario: VoceInventario[] | undefined,
-  personalità: string
+  personalità: string,
+  permesso: (itemId: string) => boolean = () => true
 ): boolean {
   if (!inventario?.length) return false;
   return inventario.some(
     (v) =>
       isOggettoCibo(v.itemId) &&
       v.quantità > 0 &&
-      abitantePuòConsumareOggettoCibo(personalità, v.itemId)
+      abitantePuòConsumareOggettoCibo(personalità, v.itemId) &&
+      permesso(v.itemId)
   );
 }
 
 /** True se la mensa ha almeno un cibo compatibile con la dieta dell'abitante. */
 export function haCiboCompatibileInInventarioMensa(
   inventarioMensa: VoceInventario[] | undefined,
-  personalità: string
+  personalità: string,
+  permesso: (itemId: string) => boolean = () => true
 ): boolean {
   return normalizzaInventarioMensa(inventarioMensa).some(
-    (v) => v.quantità > 0 && abitantePuòConsumareOggettoCibo(personalità, v.itemId)
+    (v) => v.quantità > 0 && abitantePuòConsumareOggettoCibo(personalità, v.itemId) &&
+      permesso(v.itemId)
   );
 }
 
@@ -47,14 +53,22 @@ export function mensaOperativaInColonia(edifici: Edificio[]): boolean {
  * Servo / senza cibo personale compatibile (e mensa operativa).
  * La Fame urgente alza la priorità nello scheduler, ma la mensa resta per chi non può mangiare da solo.
  */
-export function abitanteHaBisognoMensa(abitante: Abitante, edifici: Edificio[]): boolean {
+export function abitanteHaBisognoMensa(
+  abitante: Abitante,
+  edifici: Edificio[],
+  religioniCustom: readonly ReligioneCustom[] = []
+): boolean {
   if (!abitanteDeveConsumareCiboGiornaliero(abitante)) return false;
   if (!mensaOperativaInColonia(edifici)) return false;
   const casta = getCastaAbitante(abitante);
   if (casta === "Schiavo") return false;
   if (casta === "Servo della gleba") return true;
   if (!abitanteHaInventarioPersonale(abitante)) return true;
-  return !haCiboCompatibileInInventario(abitante.inventario, abitante.personalità);
+  const dogmi = religioniCustom.find(r => r.nome === abitante.religione)?.dogmi ?? [];
+  return !haCiboCompatibileInInventario(
+    abitante.inventario, abitante.personalità,
+    itemId => !vietatoCiboDaDogma(dogmi, itemId)
+  );
 }
 
 export function trasferisciCiboGiocatoreAMensaPuro(
@@ -78,11 +92,13 @@ export function trasferisciCiboGiocatoreAMensaPuro(
 /** Preleva 1 pasto compatibile dalle scorte mensa; null se nessuno disponibile. */
 export function consumaPastoDaInventarioMensa(
   inventarioMensa: VoceInventario[],
-  personalità: string
+  personalità: string,
+  permesso: (itemId: string) => boolean = () => true
 ): { inventarioMensa: VoceInventario[]; itemId: string } | null {
   const inv = normalizzaInventarioMensa(inventarioMensa);
   const idx = inv.findIndex(
-    (v) => v.quantità > 0 && abitantePuòConsumareOggettoCibo(personalità, v.itemId)
+    (v) => v.quantità > 0 && abitantePuòConsumareOggettoCibo(personalità, v.itemId) &&
+      permesso(v.itemId)
   );
   if (idx < 0) return null;
   const itemId = inv[idx]!.itemId;
@@ -103,16 +119,23 @@ export type PastoMensaResult = {
 export function serviPastoMensaTransaction(
   abitante: Abitante,
   inventarioMensa: VoceInventario[],
-  giornoGioco: number
+  giornoGioco: number,
+  permesso: (itemId: string) => boolean = () => true
 ): PastoMensaResult {
   const mensaNorm = normalizzaInventarioMensa(inventarioMensa);
   if (!abitanteDeveConsumareCiboGiornaliero(abitante)) {
     return { abitante, inventarioMensa: mensaNorm, servito: false, carestiaMensa: false };
   }
 
-  const pasto = consumaPastoDaInventarioMensa(mensaNorm, abitante.personalità);
+  const pasto = consumaPastoDaInventarioMensa(mensaNorm, abitante.personalità, permesso);
   if (!pasto) {
-    return { abitante, inventarioMensa: mensaNorm, servito: false, carestiaMensa: true };
+    // Cibo presente ma proibito dalla fede/dieta del richiedente ≠
+    // carestia di tutta la colonia. La fame del singolo rimane invariata.
+    const scorteEsaurite = mensaNorm.every(voce => voce.quantità <= 0);
+    return {
+      abitante, inventarioMensa: mensaNorm,
+      servito: false, carestiaMensa: scorteEsaurite
+    };
   }
 
   return {

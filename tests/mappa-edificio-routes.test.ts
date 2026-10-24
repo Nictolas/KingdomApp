@@ -4,7 +4,7 @@ import test from "node:test";
 import { EDIFICIO_TO_ROUTE } from "../src/game/mappaEdificioRoutes.ts";
 
 test("la tabella route della mappa mantiene esattamente i mapping correnti", () => {
-  assert.deepEqual(EDIFICIO_TO_ROUTE, {
+  const mappingStorici = {
     Castello: "/castello",
     Zecca: "/zecca",
     Emporio: "/emporio",
@@ -34,7 +34,11 @@ test("la tabella route della mappa mantiene esattamente i mapping correnti", () 
     "Mensa Pubblica": "/mensa",
     Caserma: "/caserma",
     Carcere: "/carcere"
-  });
+  };
+  for (const [nome, valore] of Object.entries(mappingStorici)) {
+    assert.deepEqual(EDIFICIO_TO_ROUTE[nome], valore, nome);
+  }
+  assert.equal(EDIFICIO_TO_ROUTE["Capanna del Cacciatore"], "/sede-forestale");
 });
 
 test("la mappa usa solo i nomi fantasy correnti per i routing rimossi dalla vecchia lore", () => {

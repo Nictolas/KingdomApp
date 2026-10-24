@@ -41,8 +41,8 @@ test("la pena di morte applica il lutto familiare", () => {
 
   assert.equal(result.nuoviAbitanti.some((a) => a.id === 2), false);
   const superstite = result.nuoviAbitanti.find((a) => a.id === 3)!;
-  const lutto = superstite.modificatoriSoddisfazione?.find((m) => m.id === "lutto_familiare");
-  assert.equal(lutto?.delta, -1);
+  const lutto = superstite.modificatoriSoddisfazione?.find((m) => m.id === "lutto_2");
+  assert.equal(lutto?.delta, -3);
   assert.equal(lutto?.durata, "permanente");
 });
 
@@ -64,7 +64,7 @@ test("l'uccisione di uno schiavo applica lo stesso lutto familiare", () => {
   assert.equal(result.ok, true);
   assert.equal(result.abitanti.some((a) => a.id === 2), false);
   const superstite = result.abitanti.find((a) => a.id === 3)!;
-  const lutto = superstite.modificatoriSoddisfazione?.find((m) => m.id === "lutto_familiare");
-  assert.equal(lutto?.delta, -1);
+  const lutto = superstite.modificatoriSoddisfazione?.find((m) => m.id === "lutto_2");
+  assert.equal(lutto?.delta, -3);
   assert.equal(lutto?.durata, "permanente");
 });

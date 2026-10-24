@@ -30,6 +30,13 @@ export type MappaCostruzioneFootprint = { w: number; h: number };
 export const FOOTPRINT_COSTRUZIONE: Record<string, MappaCostruzioneFootprint> = {
   Strada: { w: STRADA_FOOTPRINT_W, h: STRADA_FOOTPRINT_H },
   Serra: { w: SERRA_FOOTPRINT_W, h: SERRA_FOOTPRINT_H },
+  "Capanna del Cacciatore": { w: 1, h: 1 },
+  "Campo dei Taglialegna": { w: 1, h: 1 },
+  "Capanno del Guardaboschi": { w: 1, h: 1 },
+  "Erboristeria": { w: 1, h: 1 },
+  "Apiario": { w: 1, h: 1 },
+  "Vivaio forestale": { w: 1, h: 1 },
+  "Cerchio dei Druidi": { w: 1, h: 1 },
   Capanna: { w: CAPANNA_FOOTPRINT_W, h: CAPANNA_FOOTPRINT_H },
   Dormitorio: { w: DORMITORIO_FOOTPRINT_W, h: DORMITORIO_FOOTPRINT_H },
   Bar: { w: BAR_FOOTPRINT_W, h: BAR_FOOTPRINT_H },

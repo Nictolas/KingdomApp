@@ -1,3 +1,4 @@
+import { aggiungiModificatorePermanente } from "./soddisfazione";
 import type { Abitante, Edificio } from "../types";
 import {
   calcolaAnniCarcereDaReati,
@@ -22,11 +23,11 @@ export function graziaCriminalePuro(abitanti: Abitante[], abitanteId: number): A
   const idsMalus = new Set<number>((c.rivali ?? []).map((x) => x.id));
 
   return abitanti.map((a) => {
-    let lealtà = a.lealtà;
-    if (idsBonus.has(a.id)) lealtà = Math.min(100, Math.round(a.lealtà * 1.1));
-    if (idsMalus.has(a.id)) lealtà = Math.max(0, Math.round(a.lealtà * 0.9));
+    let next = a;
+    if (idsBonus.has(a.id)) next = aggiungiModificatorePermanente(next, "grazia_" + abitanteId, 1, "Grazia del Re a sé o a un amico");
+    else if (idsMalus.has(a.id)) next = aggiungiModificatorePermanente(next, "grazia_" + abitanteId, -1, "Grazia del Re a un rivale");
     const reati = a.id === abitanteId ? [] : a.reati;
-    return { ...a, lealtà, reati: reati ?? a.reati };
+    return { ...next, reati: reati ?? a.reati };
   });
 }
 
@@ -34,19 +35,24 @@ export function graziaCriminalePuro(abitanti: Abitante[], abitanteId: number): A
 export function condannaAMortePuro(
   abitanti: Abitante[],
   edifici: Edificio[],
-  abitanteId: number
+  abitanteId: number,
+  responsabilitaRe = true
 ): { nuoviAbitanti: Abitante[]; nuoviEdifici: Edificio[] } {
   const nuoviAbitanti = applicaLuttoFamiliareERimuoviMorti(
     abitanti,
-    new Set([abitanteId])
+    new Set([abitanteId]),
+    { responsabilitaRe }
   );
+  const abitantiDopoTimore = responsabilitaRe
+    ? nuoviAbitanti.map(a => a.razza === "Golem" ? a : { ...a, timore: Math.min(100, (a.timore ?? a.paura ?? 0) + 10) })
+    : nuoviAbitanti;
   const nuoviEdifici = edifici.map((e) => {
     const nuovi = (e.abitantiAssegnati ?? []).filter((id) => id !== abitanteId);
     return nuovi.length !== (e.abitantiAssegnati?.length ?? 0)
       ? { ...e, abitantiAssegnati: nuovi, occupazione: nuovi.length }
       : e;
   });
-  return { nuoviAbitanti, nuoviEdifici };
+  return { nuoviAbitanti: abitantiDopoTimore, nuoviEdifici };
 }
 
 /** Valuta la sentenza del giudice senza modificare lo stato. */

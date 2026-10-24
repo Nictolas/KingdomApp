@@ -66,7 +66,7 @@ export default function PenaDiMorteScreen() {
           </View>
           <View style={styles.effettoRow}>
             <Text style={styles.effettoEmoji}>📉</Text>
-            <Text style={styles.effettoText}>Riduce la paura nella popolazione</Text>
+            <Text style={styles.effettoText}>Aumenta il Timore quando viene eseguita una condanna</Text>
           </View>
           <View style={styles.effettoRow}>
             <Text style={styles.effettoEmoji}>⚠️</Text>

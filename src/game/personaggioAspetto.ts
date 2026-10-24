@@ -337,3 +337,8 @@ export function aspettoPerVisualizzazioneAbitante(
     })
   };
 }
+
+/** Aspetto stabile dell'iniziale Consigliere; riutilizzato per il preload LPC. */
+export function creaAspettoConsigliereIniziale(): AspettoPersonaggio {
+  return generaAspettoDaSeed("Umano", 99001, { sesso: "M" });
+}

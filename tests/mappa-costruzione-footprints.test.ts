@@ -4,7 +4,7 @@ import test from "node:test";
 import { FOOTPRINT_COSTRUZIONE } from "../src/game/mappaCostruzioneFootprints.ts";
 
 test("FOOTPRINT_COSTRUZIONE conserva tutti i 18 mapping e le dimensioni correnti", () => {
-  assert.deepEqual(FOOTPRINT_COSTRUZIONE, {
+  const mappingStorici = {
     Strada: { w: 2, h: 2 },
     Serra: { w: 2, h: 1 },
     Capanna: { w: 2, h: 1 },
@@ -23,6 +23,10 @@ test("FOOTPRINT_COSTRUZIONE conserva tutti i 18 mapping e le dimensioni correnti
     Carcere: { w: 2, h: 2 },
     "Campo di Lavoro": { w: 2, h: 2 },
     "Campo di Sterminio": { w: 2, h: 2 }
-  });
-  assert.equal(Object.keys(FOOTPRINT_COSTRUZIONE).length, 18);
+  };
+  for (const [nome, valore] of Object.entries(mappingStorici)) {
+    assert.deepEqual(FOOTPRINT_COSTRUZIONE[nome], valore, nome);
+  }
+  assert.ok(Object.keys(FOOTPRINT_COSTRUZIONE).length > 18);
+  assert.deepEqual(FOOTPRINT_COSTRUZIONE["Capanna del Cacciatore"], { w: 1, h: 1 });
 });

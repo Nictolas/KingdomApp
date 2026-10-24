@@ -130,6 +130,8 @@ import {
 } from "../src/game/barEconomia";
 import { abitanteHaBisognoMensa } from "../src/game/mensaPubblica";
 import { abitanteVuoleNegozio, compraEMangiaAlNegozio, tentaSnackDaInventario } from "../src/game/negozio";
+import { vietatoCiboDaDogma } from "../src/game/dogmiReligiosi";
+import type { ReligioneCustom } from "../src/game/fedeleCulto";
 import { MapTerrainCell } from "../src/components/MapTerrainCell";
 import { MapWaterCellsLayer } from "../src/components/MapWaterCellsLayer";
 import { PhaserMapSurface, type PhaserMapSurfaceHandle } from "../src/components/PhaserMapSurface";
@@ -177,7 +179,23 @@ import {
   trovaAnchorEdificioGlobaleSuMappa,
   trovaCellaPortaEdificio
 } from "../src/game/commutePathsMappa";
+import { ID_GIOCATORE } from "../src/game/schiavituCommercio";
+import { orarioPerLavoro } from "../src/game/orariLavoroCatalogo";
+import { applicaBanditiBoscoGiornalieri, registraIngressoCastello } from "../src/game/banditiBosco";
+import { pianificaTappaTurnoForestale } from "../src/game/pianificaTappaForestale";
+import { preservaViaggiUdienzaDuranteCambioGiorno } from "../src/game/preservaViaggioUdienza";
 import { scegliAzioneCommuteBloccataLavoro } from "../src/game/commuteBloccataLavoro";
+import {
+  SEDE_PER_PROFESSIONE,
+  SEDI_FORESTALI,
+  iniziaTurnoForestale,
+  segnalaArrivoTurnoForestale,
+  aggiornaTurnoForestale,
+  destinazioneTurnoForestale,
+  sospendiTurnoForestale,
+  type ProfessioneForestale,
+  type TurnoForestale
+} from "../src/game/turniForestali";
 import { SEZIONE_AMBIENTE, SEZIONI_COSTRUZIONE, type TerrenoCostruzioneKind } from "../src/game/costruzioneSezioni";
 import {
   costoMaterialeEdilePerFootprint,
@@ -576,7 +594,7 @@ async function buildInitialMappa(
 const CIELO_ALPHA_NOTTE_MAX = 0.52;
 const CIELO_ALPHA_CALORE_TRAMONTO_MAX = 0.26;
 
-type CommutePurpose = "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "cerca_lavoro";
+type CommutePurpose = "work" | "bar" | "home" | "mensa" | "culto" | "negozio" | "rapina" | "udienza_banditi" | "cerca_lavoro";
 
 type CommuteInfo = {
   path: number[];
@@ -588,6 +606,7 @@ type CommuteInfo = {
   negozioEdificioId?: number;
   lavoroCercaEdificioId?: number;
   rapinaTarget?: RapinaTarget;
+  udienzaCastelloEdificioId?: number;
 };
 
 type FootprintVariant =
@@ -883,11 +902,20 @@ export function MappaScreen() {
   return <MappaScreenInner initialMappaState={boot.state} />;
 }
 
+function permessoCiboFedele(
+  abitante: Pick<Abitante, "religione">,
+  religioni: readonly ReligioneCustom[]
+): (itemId: string) => boolean {
+  const dogmi = religioni.find(r => r.nome === abitante.religione)?.dogmi ?? [];
+  return itemId => !vietatoCiboDaDogma(dogmi, itemId);
+}
+
 function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRuntimeState }) {
   const router = useRouter();
   const {
     risorse,
     abitanti,
+    religioniCustom,
     inventarioGiocatore,
     moneteGiocatore,
     edifici,
@@ -945,14 +973,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const deltaOrdini = calcolaDeltaOrdiniMercato();
   const deltaTesoroMercato = calcolaDeltaTesoroMercato();
 
-  const abitantiConFelicità = abitanti.filter((a) => a.razza !== "Golem");
+  const abitantiConFelicità = abitanti.filter((a) => a.id !== 1 && a.razza !== "Golem");
   const nConFelicità = abitantiConFelicità.length;
-  const felicitàMedia = nConFelicità ? Math.round(abitantiConFelicità.reduce((s, a) => s + calcolaFelicitàModificata(a), 0) / nConFelicità) : 0;
-  const nConLealtàPaura = abitantiConFelicità.length;
-  const lealtàMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.lealtà, 0) / nConLealtàPaura) : 0;
-  const pauraMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.paura, 0) / nConLealtàPaura) : 0;
-  const nDisoccupati = abitantiConFelicità.filter((a) => a.lavoro === "Disoccupato").length;
-  const disoccupazionePercent = nConFelicità ? Math.round((nDisoccupati / nConFelicità) * 100) : 0;
+  const soddisfazioneMediaRegno = nConFelicità
+    ? (() => {
+        const punti = Math.round(abitantiConFelicità.reduce((sum, abitante) => sum + (calcolaFelicitàModificata(abitante) - 50) / 10, 0) / nConFelicità * 10) / 10;
+        return (punti > 0 ? "+" : "") + punti;
+      })()
+    : "0";
 
   /** Una voce per nome (es. una sola "Serra") con id template del catalogo. */
   const edificiCatalogoModal = useMemo(() => {
@@ -1335,11 +1363,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const uscitaCostruzione = useCallback(() => {
     setCostruzioneSelezione(null);
     setPreviewCellHover(null);
+    setMostraGrigliaMappa(false);
   }, []);
 
   const uscitaDemolizione = useCallback(() => {
     setModalitaDemolisci(false);
     setConfermaDemolizionePending(null);
+    setMostraGrigliaMappa(false);
   }, []);
 
   const onDemolisciPress = useCallback(() => {
@@ -1600,6 +1630,17 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   }, []);
 
   const runtimePersonaggiInizialeRef = useRef(getMappaPersonaggiRuntime());
+  const banditiControlliRef = useRef<Set<string>>(new Set());
+  const ultimoGiornoBanditiRef = useRef<number>(-1);
+  const turniForestaliRef = useRef<Record<number, TurnoForestale>>(
+    runtimePersonaggiInizialeRef.current.turniForestaliByAbitanteId ?? {}
+  );
+  const salvaTurnoForestaleMappa = useCallback((turno: TurnoForestale) => {
+    turniForestaliRef.current = { ...turniForestaliRef.current, [turno.abitanteId]: turno };
+    patchMappaPersonaggiRuntime({
+      turniForestaliByAbitanteId: turniForestaliRef.current
+    });
+  }, []);
   const [dormonoACasaIds, setDormonoACasaIds] = useState<Set<number>>(
     () => new Set(runtimePersonaggiInizialeRef.current.dormonoACasaIds)
   );
@@ -1769,6 +1810,43 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     setBarArrivatiMappaSnapshot(m);
   }, [barArrivatiByEdificio]);
 
+  /** Inizio turno specializzato secondo l'ORA DEL MESTIERE, non alle 08:00 per tutti. */
+  useEffect(() => {
+    if (statoCielo.buio > 0.5) return;
+    const giorno = getGiornoGiocoSnapshot();
+    const percorsi: Record<number, CommuteInfo> = {};
+    for (const ab of abitanti) {
+      if (ab.razza === "Golem" || ab.id === ID_GIOCATORE) continue;
+      if (ab.richiestaRapinaBosco?.stato === "verso_castello") continue;
+      const sedeNome = SEDE_PER_PROFESSIONE[ab.lavoro as ProfessioneForestale];
+      if (sedeNome === undefined) continue; // anche Raccoglitore, senza capanna
+      const destinazioneNome = sedeNome ?? "Bosco";
+      const fascia = orarioPerLavoro(ab.lavoro);
+      if (!fascia || !minutiInFascia(orologioMinuti, fascia)) continue;
+      const t = turniForestaliRef.current[ab.id];
+      if (t?.giorno === giorno) continue; // un solo turno giornaliero
+      if (commuteByAbitanteId[ab.id] || lavoroArrivatiIds.has(ab.id)) continue;
+      if (Object.values(barArrivatiByEdificio).some((ids) => ids.includes(ab.id))) continue;
+      const sede = primoEdificioLavoroOrarioPerAbitante(ab.id, edifici);
+      if (!sede || sede.nome !== destinazioneNome || sede.stato !== "Operativo") continue;
+      const from = ultimaCellaAbitanteRef.current.get(ab.id) ??
+        cellaCasaPerAbitanteId.get(ab.id) ?? null;
+      if (from == null) continue;
+      const path = pianificaCommuteVersoEdificioGlobaleDaCella(
+        from, sede.id, edificiInMappa, cols, rows, isWalkableCell
+      );
+      if (!path || path.length < 2) continue;
+      percorsi[ab.id] = { path, token: Date.now(), purpose: "work" };
+    }
+    if (Object.keys(percorsi).length > 0) {
+      setCommuteByAbitanteId((prev) => ({ ...percorsi, ...prev }));
+    }
+  }, [
+    orologioMinuti, statoCielo.buio, abitanti, edifici, edificiInMappa,
+    cols, rows, isWalkableCell, commuteByAbitanteId, lavoroArrivatiIds,
+    barArrivatiByEdificio, cellaCasaPerAbitanteId
+  ]);
+
   /** 8:00 → Bar / casa → lavoro; 17:00 → lavoro → Bar. */
   useEffect(() => {
     const prev = orologioPrevTickRef.current;
@@ -1838,6 +1916,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
       for (const a of abitanti) {
         if (a.razza === "Golem") continue;
+        const turnoForestale = turniForestaliRef.current[a.id];
+        if (turnoForestale?.giorno === getGiornoGiocoSnapshot() &&
+            turnoForestale.fase !== "finito" && turnoForestale.fase !== "sospeso") continue;
         if (commuteByAbitanteId[a.id]) continue;
         const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
         if (!lav) continue;
@@ -1932,7 +2013,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           continue;
         }
 
-        const snack = tentaSnackDaInventario(ab);
+        const snack = tentaSnackDaInventario(ab, permessoCiboFedele(ab, religioniCustom));
         if (snack) {
           aggiornaAbitanteById(id, () => snack);
           continue;
@@ -1945,8 +2026,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           oraAbsMinuti: minutiAbsGioco()
         });
         const azione = scegliAzioneTempoLibero(ab, {
-          puòUsareMensa: abitanteHaBisognoMensa(ab, edifici),
-          puòUsareNegozio: abitanteVuoleNegozio(ab, edifici),
+          puòUsareMensa: abitanteHaBisognoMensa(ab, edifici, religioniCustom),
+          puòUsareNegozio: abitanteVuoleNegozio(ab, edifici, permessoCiboFedele(ab, religioniCustom)),
           puòRapinare,
           haCasa: homeCell != null
         });
@@ -2042,6 +2123,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     orologioMinuti,
     statoCielo.buio,
     abitanti,
+    religioniCustom,
     edifici,
     edificiInMappa,
     cols,
@@ -2085,7 +2167,39 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         const { [abitanteId]: _removed, ...rest } = prev;
         return rest;
       });
-      if (purpose === "home") {
+      if (purpose === "udienza_banditi") {
+        const meta = commuteByAbitanteId[abitanteId];
+        const castello = edifici.find(e => e.id === meta?.udienzaCastelloEdificioId &&
+          e.nome === "Castello" && e.stato === "Operativo");
+        const anchorCastello = castello
+          ? trovaAnchorEdificioGlobaleSuMappa(castello.id, edificiInMappa)
+          : null;
+        const portaCastello = anchorCastello != null
+          ? trovaCellaPortaEdificio(anchorCastello, edificiInMappa, cols, rows, isWalkableCell)
+          : null;
+        // La fine di un percorso qualsiasi NON costituisce un ingresso al Castello.
+        // Verifichiamo la porta reale della struttura richiesta.
+        const arrivato = !!castello && portaCastello != null &&
+          cellaArrivo === portaCastello &&
+          pathCorrente != null &&
+          pathCorrente[pathCorrente.length - 1] === portaCastello;
+        if (arrivato) {
+          aggiornaAbitanteById(abitanteId, a => {
+            const richiesta = a.richiestaRapinaBosco;
+            if (!richiesta) return a;
+            const registrata = registraIngressoCastello(richiesta, abitanteId, "Castello", true);
+            return registrata === richiesta ? a : { ...a, richiestaRapinaBosco: registrata };
+          });
+          setLavoroArrivatiIds(prev => { const next = new Set(prev); next.delete(abitanteId); return next; });
+        }
+      } else if (purpose === "home") {
+        const turnoCasa = turniForestaliRef.current[abitanteId];
+        if (turnoCasa?.giorno === getGiornoGiocoSnapshot() &&
+            turnoCasa.fase === "ritorno_casa") {
+          salvaTurnoForestaleMappa(
+            segnalaArrivoTurnoForestale(turnoCasa, "casa", orologioMinuti)
+          );
+        }
         setDormonoACasaIds((s) => new Set(s).add(abitanteId));
         aggiornaAbitanteById(abitanteId, (a) =>
           applicaRecuperoEnergiaSonno(a, {
@@ -2093,11 +2207,71 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           })
         );
       } else if (purpose === "work") {
+        const sede = primoEdificioLavoroOrarioPerAbitante(abitanteId, edifici);
+        const ab = abitanti.find((a) => a.id === abitanteId);
+        const giorno = getGiornoGiocoSnapshot();
+        const corrente = turniForestaliRef.current[abitanteId];
+        const turno = corrente?.giorno === giorno ? corrente : null;
+        let arrivatoAlBosco = sede?.nome === "Bosco";
+
+        if (turno?.fase === "verso_bosco") {
+          // Unico passaggio verso il Bosco: callback di ARRIVO effettivo sulla mappa.
+          salvaTurnoForestaleMappa(
+            segnalaArrivoTurnoForestale(turno, "bosco", orologioMinuti)
+          );
+          arrivatoAlBosco = true;
+        } else if (turno?.fase === "ritorno_sede" || turno?.fase === "verso_sede") {
+          salvaTurnoForestaleMappa(
+            segnalaArrivoTurnoForestale(turno, "sede", orologioMinuti)
+          );
+        } else if (!turno && ab && sede && sede.stato === "Operativo") {
+          const nomeSede = SEDE_PER_PROFESSIONE[ab.lavoro as ProfessioneForestale];
+          if (nomeSede && nomeSede === sede.nome) {
+            const iniziale = iniziaTurnoForestale({
+              abitanteId, giorno, lavoro: ab.lavoro as ProfessioneForestale,
+              sedeId: sede.id, minuto: orologioMinuti
+            });
+            salvaTurnoForestaleMappa(
+              segnalaArrivoTurnoForestale(iniziale, "sede", orologioMinuti)
+            );
+          } else if (nomeSede === null && sede.nome === "Bosco") {
+            // Il Raccoglitore non ha capanna: registra l'ingresso fisico e
+            // accumula soltanto le ore trascorse realmente nel Bosco.
+            const iniziale = iniziaTurnoForestale({
+              abitanteId, giorno, lavoro: "Raccoglitore",
+              sedeId: null, minuto: orologioMinuti
+            });
+            salvaTurnoForestaleMappa(
+              segnalaArrivoTurnoForestale(iniziale, "bosco", orologioMinuti)
+            );
+          }
+        }
+
+        if (arrivatoAlBosco) {
+          aggiornaAbitanteById(abitanteId, (persona) => ({
+            ...persona, ultimoIngressoBoscoGiorno: giorno
+          }));
+        }
         setLavoroArrivatiIds((s) => new Set(s).add(abitanteId));
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
         setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
       } else if (purpose === "cerca_lavoro" && lavoroCercaEdificioId != null) {
-        assumiCittadinoDisoccupatoAEdificio(abitanteId, lavoroCercaEdificioId);
+        const assunto = assumiCittadinoDisoccupatoAEdificio(abitanteId, lavoroCercaEdificioId);
+        if (assunto && edifici.some((e) => e.id === lavoroCercaEdificioId && e.nome === "Bosco")) {
+          const giorno = getGiornoGiocoSnapshot();
+          aggiornaAbitanteById(abitanteId, (ab) => ({
+            ...ab, ultimoIngressoBoscoGiorno: giorno
+          }));
+          // L'assunzione avviene solo DOPO l'arrivo: da ora il turno
+          // del Raccoglitore può contabilizzare i minuti di presenza.
+          const iniziale = iniziaTurnoForestale({
+            abitanteId, giorno, lavoro: "Raccoglitore",
+            sedeId: null, minuto: orologioMinuti
+          });
+          salvaTurnoForestaleMappa(
+            segnalaArrivoTurnoForestale(iniziale, "bosco", orologioMinuti)
+          );
+        }
         setLavoroArrivatiIds((s) => new Set(s).add(abitanteId));
         setBarArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiBar(p, abitanteId));
         setCultoArrivatiByEdificio((p) => rimuoviAbitanteDaTuttiCulti(p, abitanteId));
@@ -2153,7 +2327,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         let spesaNegozio = 0;
         aggiornaAbitanteById(abitanteId, (a) => {
           const prima = getMoneteInventarioAbitante(a.inventario);
-          const dopo = compraEMangiaAlNegozio(a);
+          const dopo = compraEMangiaAlNegozio(a, permessoCiboFedele(a, religioniCustom));
           if (!dopo) return a;
           spesaNegozio = Math.max(0, prima - getMoneteInventarioAbitante(dopo.inventario));
           return dopo;
@@ -2201,6 +2375,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     },
     [
       serviPastoMensaAbitante,
+      religioniCustom,
       aggiornaAbitanteById,
       accreditaMoneteGiocatore,
       assumiCittadinoDisoccupatoAEdificio,
@@ -2216,9 +2391,177 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       isRoadCell,
       setInventarioMensaEdificio,
       appendDiarioRiga,
-      commuteByAbitanteId
+      commuteByAbitanteId, edificiInMappa,
+      cols, rows, isWalkableCell,
+      salvaTurnoForestaleMappa
     ]
   );
+
+  /**
+   * Il tempo della preparazione e del deposito avanza SOLO nel rispettivo edificio.
+   * Ogni tragitto ha una nuova path animata dalla cella realmente raggiunta.
+   * I turni sopravvivono al remount della mappa (runtimePersonaggiStore).
+   */
+  useEffect(() => {
+    if (statoCielo.buio > 0.5) return;
+    const giorno = getGiornoGiocoSnapshot();
+    const nuoviPercorsi: Record<number, CommuteInfo> = {};
+    const daRendereVisibili: number[] = [];
+
+    for (const turno of Object.values(turniForestaliRef.current)) {
+      if (turno.giorno !== giorno || turno.fase === "finito" || turno.fase === "sospeso") continue;
+      // Non rigenerare un percorso che Phaser sta ancora percorrendo.
+      if (commuteByAbitanteId[turno.abitanteId]) continue;
+      const fascia = orarioPerLavoro(turno.lavoro);
+      if (!fascia) continue;
+
+      const progredito = aggiornaTurnoForestale(turno, orologioMinuti, fascia.fine);
+      if (progredito === turno) continue;
+      salvaTurnoForestaleMappa(progredito);
+      if (progredito.minutiNelBosco > turno.minutiNelBosco) {
+        // Persisti il tempo verificato anche nei salvataggi dell'abitante:
+        // chi resta in viaggio non avanza qui e non può ottenere bottino.
+        aggiornaAbitanteById(turno.abitanteId, (ab) => {
+          const attuale = ab.ultimoLavoroBosco;
+          if (attuale?.giorno === giorno && attuale.minuti >= progredito.minutiNelBosco) return ab;
+          return {
+            ...ab,
+            ultimoLavoroBosco: { giorno, minuti: progredito.minutiNelBosco }
+          };
+        });
+      }
+
+      // Nuovo percorso solo quando lo stato ha davvero cambiato tappa.
+      if (progredito.fase === turno.fase) continue;
+      const meta = destinazioneTurnoForestale(progredito);
+      if (!meta) continue;
+
+      const from =
+        ultimaCellaAbitanteRef.current.get(turno.abitanteId) ??
+        cellaCasaPerAbitanteId.get(turno.abitanteId) ?? null;
+      if (from == null) continue;
+
+      let path: number[] | null = null;
+      if (meta !== "casa") {
+        // Unica funzione di routing per la sede assegnata e per il Bosco reale.
+        // Non conferma l'arrivo: il turno avanza soltanto nel callback di movimento.
+        path = pianificaTappaTurnoForestale({
+          turno: progredito, cellaCorrente: from, casaEdificioId: null,
+          edifici, edificiInMappa, cols, rows, isWalkable: isWalkableCell
+        })?.path ?? null;
+      } else {
+        const home = cellaCasaPerAbitanteId.get(turno.abitanteId) ?? null;
+        if (home != null) {
+          path = pianificaCommuteSeraACasa(
+            home, from, cols, rows, isWalkableCell, edificiInMappa
+          );
+        }
+      }
+
+      if (path && path.length >= 2) {
+        nuoviPercorsi[turno.abitanteId] = {
+          path, token: Date.now(), purpose: meta === "casa" ? "home" : "work"
+        };
+        daRendereVisibili.push(turno.abitanteId);
+      } else {
+        // Percorso irraggiungibile: NON teletrasportare né attribuire produzione.
+        salvaTurnoForestaleMappa(sospendiTurnoForestale(progredito));
+      }
+    }
+
+    if (daRendereVisibili.length > 0) {
+      setLavoroArrivatiIds((prev) => {
+        const next = new Set(prev);
+        for (const id of daRendereVisibili) next.delete(id);
+        return next;
+      });
+      setCommuteByAbitanteId((prev) => ({ ...prev, ...nuoviPercorsi }));
+    }
+  }, [
+    orologioMinuti, statoCielo.buio, commuteByAbitanteId,
+    edifici, edificiInMappa, cellaCasaPerAbitanteId,
+    cols, rows, isWalkableCell, salvaTurnoForestaleMappa,
+    aggiornaAbitanteById
+  ]);
+
+
+  /**
+   * Assalti nel Bosco: evento invisibile, eseguito solo dopo una vera
+   * presenza produttiva sulla mappa. La vittima lascia il turno e raggiunge
+   * FISICAMENTE il Castello; nessuna udienza viene mostrata qui.
+   */
+  useEffect(() => {
+    const giorno = getGiornoGiocoSnapshot();
+    if (ultimoGiornoBanditiRef.current !== giorno) {
+      ultimoGiornoBanditiRef.current = giorno;
+      banditiControlliRef.current.clear();
+    }
+    const eleggibili = abitanti.filter(a =>
+      a.ultimoLavoroBosco?.giorno === giorno &&
+      a.ultimoLavoroBosco.minuti >= 30 &&
+      a.ultimoControlloBanditiBoscoGiorno !== giorno &&
+      a.salute > 0 &&
+      !banditiControlliRef.current.has(giorno + ":" + a.id)
+    );
+    if (!eleggibili.length) return;
+    for (const a of eleggibili) {
+      banditiControlliRef.current.add(giorno + ":" + a.id);
+    }
+    const esito = applicaBanditiBoscoGiornalieri({ abitanti, edifici, giorno });
+    for (let i = 0; i < abitanti.length; i++) {
+      const updated = esito.abitanti[i]!;
+      if (updated === abitanti[i]) continue;
+      aggiornaAbitanteById(updated.id, () => updated);
+    }
+    for (const ev of esito.eventi) {
+      const turno = turniForestaliRef.current[ev.abitanteId];
+      if (turno?.giorno === giorno) {
+        salvaTurnoForestaleMappa(sospendiTurnoForestale(turno));
+      }
+      // La vittima deve essere VISIBILE mentre esce dal Bosco e attraversa
+      // la mappa. Non vengono mai creati banditi come entità.
+      setLavoroArrivatiIds(prev => {
+        const next = new Set(prev);
+        next.delete(ev.abitanteId);
+        return next;
+      });
+      appendDiarioRiga(ev.esito === "morte"
+        ? "Un lavoratore è morto in un assalto nel Bosco."
+        : "Un lavoratore è stato derubato nel Bosco e vuole rivolgersi al Re.");
+    }
+  }, [abitanti, edifici, orologioMinuti, aggiornaAbitanteById,
+    salvaTurnoForestaleMappa, appendDiarioRiga]);
+
+  /** Una richiesta pendente ha priorità su turno/tempo libero: percorso reale. */
+  useEffect(() => {
+    const castello = edifici.find(e => e.nome === "Castello" && e.stato === "Operativo");
+    if (!castello) return;
+    const percorsi: Record<number, CommuteInfo> = {};
+    for (const a of abitanti) {
+      if (a.richiestaRapinaBosco?.stato !== "verso_castello" || a.salute <= 0) continue;
+      if (commuteByAbitanteId[a.id]?.purpose === "udienza_banditi") continue;
+      const from = ultimaCellaAbitanteRef.current.get(a.id) ??
+        cellaCasaPerAbitanteId.get(a.id) ?? null;
+      if (from == null) continue;
+      const path = pianificaCommuteVersoEdificioGlobaleDaCella(
+        from, castello.id, edificiInMappa, cols, rows, isWalkableCell
+      );
+      if (!path || path.length < 2) continue; // mai teletrasporto
+      percorsi[a.id] = {
+        path, token: Date.now(), purpose: "udienza_banditi",
+        udienzaCastelloEdificioId: castello.id
+      };
+    }
+    if (Object.keys(percorsi).length > 0) {
+      setLavoroArrivatiIds(prev => {
+        const next = new Set(prev);
+        for (const key of Object.keys(percorsi)) next.delete(Number(key));
+        return next;
+      });
+      setCommuteByAbitanteId(prev => ({ ...prev, ...percorsi }));
+    }
+  }, [abitanti, edifici, commuteByAbitanteId, cellaCasaPerAbitanteId,
+    edificiInMappa, cols, rows, isWalkableCell, orologioMinuti]);
 
   /**
    * Commute bloccata da occupancy: ripianifica evitando celle occupate da altri.
@@ -2247,9 +2590,25 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       let anchorDest: number | null = null;
       if (info.purpose === "home") {
         anchorDest = cellaCasaPerAbitanteId.get(abitanteId) ?? null;
+      } else if (info.purpose === "udienza_banditi" && meta?.udienzaCastelloEdificioId != null) {
+        anchorDest = trovaAnchorEdificioGlobaleSuMappa(
+          meta.udienzaCastelloEdificioId, edificiInMappa
+        );
       } else if (info.purpose === "work") {
-        const lav = primoEdificioLavoroOrarioPerAbitante(abitanteId, edifici);
-        anchorDest = lav ? trovaAnchorEdificioGlobaleSuMappa(lav.id, edificiInMappa) : null;
+        const turno = turniForestaliRef.current[abitanteId];
+        if (turno?.giorno === getGiornoGiocoSnapshot() && turno.fase === "verso_bosco") {
+          const bosco = edifici.find((e) => e.nome === "Bosco" && e.stato === "Operativo");
+          anchorDest = bosco
+            ? trovaAnchorEdificioGlobaleSuMappa(bosco.id, edificiInMappa)
+            : null;
+        } else if (turno?.giorno === getGiornoGiocoSnapshot() &&
+                   (turno.fase === "ritorno_sede" || turno.fase === "verso_sede")) {
+          anchorDest = turno.sedeId != null
+            ? trovaAnchorEdificioGlobaleSuMappa(turno.sedeId, edificiInMappa) : null;
+        } else {
+          const lav = primoEdificioLavoroOrarioPerAbitante(abitanteId, edifici);
+          anchorDest = lav ? trovaAnchorEdificioGlobaleSuMappa(lav.id, edificiInMappa) : null;
+        }
       } else if (info.purpose === "cerca_lavoro" && meta?.lavoroCercaEdificioId != null) {
         anchorDest = trovaAnchorEdificioGlobaleSuMappa(meta.lavoroCercaEdificioId, edificiInMappa);
       } else if (info.purpose === "bar" && meta?.barEdificioId != null) {
@@ -2304,7 +2663,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             cultoEdificioId: meta?.cultoEdificioId,
             negozioEdificioId: meta?.negozioEdificioId,
             lavoroCercaEdificioId: meta?.lavoroCercaEdificioId,
-            rapinaTarget: meta?.rapinaTarget
+            rapinaTarget: meta?.rapinaTarget,
+            udienzaCastelloEdificioId: meta?.udienzaCastelloEdificioId
           }
         }));
       };
@@ -2392,6 +2752,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
     for (const a of abitanti) {
       if (a.razza === "Golem") continue;
+      const turnoForestale = turniForestaliRef.current[a.id];
+      if (turnoForestale?.giorno === getGiornoGiocoSnapshot() &&
+          turnoForestale.fase !== "finito" && turnoForestale.fase !== "sospeso") continue;
       if (commuteByAbitanteId[a.id]) continue;
       if (abitanteInOrarioLavoroEdificio(a.id, orologioMinuti, edifici) && lavoroArrivatiIds.has(a.id)) {
         continue;
@@ -2414,7 +2777,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         continue;
       }
 
-      const snack = tentaSnackDaInventario(a);
+      const snack = tentaSnackDaInventario(a, permessoCiboFedele(a, religioniCustom));
       if (snack) {
         aggiornaAbitanteById(a.id, () => snack);
         continue;
@@ -2427,8 +2790,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         oraAbsMinuti: minutiAbsGioco()
       });
       const azione = scegliAzioneTempoLibero(a, {
-        puòUsareMensa: abitanteHaBisognoMensa(a, edifici),
-        puòUsareNegozio: abitanteVuoleNegozio(a, edifici),
+        puòUsareMensa: abitanteHaBisognoMensa(a, edifici, religioniCustom),
+        puòUsareNegozio: abitanteVuoleNegozio(a, edifici, permessoCiboFedele(a, religioniCustom)),
         puòRapinare,
         haCasa: homeCell != null
       });
@@ -2578,6 +2941,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     });
   }, [
     abitanti,
+    religioniCustom,
     edifici,
     edificiInMappa,
     statoCielo.buio,
@@ -2644,6 +3008,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (notte) {
         const s = new Set<number>();
         for (const a of abitanti) {
+          if (a.richiestaRapinaBosco?.stato === "verso_castello") continue;
           if (cellaCasaPerAbitanteId.get(a.id) != null) s.add(a.id);
         }
         setDormonoACasaIds(s);
@@ -2660,6 +3025,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       const next: Record<number, CommuteInfo> = {};
       for (const a of abitanti) {
         if (a.razza === "Golem") continue;
+        if (a.richiestaRapinaBosco?.stato === "verso_castello") continue;
         const home = cellaCasaPerAbitanteId.get(a.id) ?? null;
         const ult = ultimaCellaAbitanteRef.current.get(a.id) ?? null;
         const fromBase = ult ?? home;
@@ -2717,11 +3083,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             purpose === "cerca_lavoro" ? mattina.lavoroCercaEdificioId : undefined
         };
       }
-      setCommuteByAbitanteId(next);
+      setCommuteByAbitanteId(prev =>
+        preservaViaggiUdienzaDuranteCambioGiorno(prev, next, abitanti)
+      );
       setLavoroArrivatiIds((prev) => {
         const s = new Set(prev);
         for (const a of abitanti) {
           if (a.razza === "Golem") continue;
+          if (a.richiestaRapinaBosco?.stato === "verso_castello") continue;
           if (next[a.id]?.purpose === "rapina") continue;
           // Fame critica eleggibile a rapina: non teletrasportare al lavoro.
           if (
@@ -2734,7 +3103,12 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           ) {
             continue;
           }
+          const turnoForestale = turniForestaliRef.current[a.id];
+          if (turnoForestale?.giorno === getGiornoGiocoSnapshot() &&
+              turnoForestale.fase !== "finito" && turnoForestale.fase !== "sospeso") continue;
           const lav = primoEdificioLavoroOrarioPerAbitante(a.id, edifici);
+          // Le professioni forestali non devono sparire dentro una sede se non ci sono ARRIVATE.
+          if (lav && (lav.nome === "Bosco" || SEDI_FORESTALI.includes(lav.nome))) continue;
           if (lav && !next[a.id]) {
             const fascia = fasciaPerEdificio(lav);
             if (fascia && minutiInFascia(orologioMinuti, fascia)) s.add(a.id);
@@ -2754,6 +3128,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       const next: Record<number, { path: number[]; token: number; purpose: "home" }> = {};
       const dormiSenzaPercorso: number[] = [];
       for (const a of abitanti) {
+        if (a.richiestaRapinaBosco?.stato === "verso_castello") continue;
         const home = cellaCasaPerAbitanteId.get(a.id);
         if (home == null) continue;
         const from = ultimaCellaAbitanteRef.current.get(a.id) ?? home;
@@ -2764,7 +3139,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           dormiSenzaPercorso.push(a.id);
         }
       }
-      setCommuteByAbitanteId(next);
+      setCommuteByAbitanteId(prev =>
+        preservaViaggiUdienzaDuranteCambioGiorno(prev, next, abitanti)
+      );
       if (dormiSenzaPercorso.length > 0) {
         setDormonoACasaIds((prev) => {
           const s = new Set(prev);
@@ -2864,6 +3241,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     (nome: string, edificioId?: number) => {
       const route = EDIFICIO_TO_ROUTE[nome];
       if (!route) return;
+      if (route === "/sede-forestale" && edificioId != null) {
+        router.push(`/sede-forestale/${edificioId}`);
+        return;
+      }
       if (nome === "Serra" && edificioId != null) {
         router.push(`/serra/${edificioId}`);
         return;
@@ -3766,95 +4147,56 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Banner in alto: MyKingdom, Mese/Anno, Diario, Felicità, Lealtà, Paura, Menu */}
+      {/* Header mobile su righe distinte: niente scorrimento orizzontale né statistiche obsolete. */}
       <View style={styles.topBanner}>
         <View style={styles.topBannerInner}>
-          <View style={styles.bannerTitleBlock}>
-            <Text style={styles.bannerTitleEmoji}>🏰</Text>
-            <View>
+          <View style={styles.topPrimaryRow}>
+            <View style={styles.bannerTitleBlock}>
+              <Text style={styles.bannerTitleEmoji}>🏰</Text>
               <Text style={styles.bannerTitle}>MyKingdom</Text>
-              <Text style={styles.bannerSubtitle}>Gestisci il tuo Regno</Text>
+            </View>
+            <View style={styles.topPrimaryActions}>
+              <Pressable style={styles.diarioBtn} onPress={() => router.push("/diario")}>
+                <Text style={styles.diarioBtnLabel}>📖 Diario</Text>
+              </Pressable>
+              <Pressable style={styles.menuBtn} onPress={() => router.push("/menu")}>
+                <Text style={styles.menuBtnText}>☰ Menu</Text>
+              </Pressable>
             </View>
           </View>
-          <View style={styles.badge}>
-            <View style={styles.badgeDateColumn}>
-              <View style={styles.badgeDateRow}>
-                <Text style={styles.badgeText}>📅 Mese {mese}</Text>
-                <Text style={styles.badgeText}>· Anno {anno}</Text>
+          <View style={styles.topSecondaryRow}>
+            <View style={styles.badge}>
+              <View style={styles.badgeDateColumn}>
+                <Text style={styles.badgeText}>Mese {mese} · Anno {anno}</Text>
+                <Text style={styles.badgeClock}>🕒 {formatOrologioGioco(orologioMinuti)}</Text>
               </View>
-              <View style={styles.badgeClockRow}>
-                <Text style={styles.badgeClock}>
-                  🕐 {formatOrologioGioco(orologioMinuti)}
-                  {orologioInPausa ? " · in pausa" : ""}
-                </Text>
-                <View style={styles.orologioControlliTempo}>
+              <View style={styles.orologioControlliTempo}>
+                <Pressable
+                  style={[styles.orologioPausaBtn, orologioInPausa && styles.orologioPausaBtnAttivo]}
+                  onPress={toggleOrologioPausa}
+                  accessibilityLabel={orologioInPausa ? "Riprendi il tempo" : "Metti in pausa il tempo"}
+                >
+                  <Text style={styles.orologioPausaBtnText}>{orologioInPausa ? "▶" : "⏸"}</Text>
+                </Pressable>
+                {OROLOGIO_GIOCO_VELOCITA.map(velocita => (
                   <Pressable
-                    style={[styles.orologioPausaBtn, orologioInPausa && styles.orologioPausaBtnAttivo]}
-                    onPress={toggleOrologioPausa}
-                    accessibilityLabel={orologioInPausa ? "Riprendi il tempo" : "Metti in pausa il tempo"}
+                    key={velocita}
+                    style={[styles.orologioVelocitaBtn, !orologioInPausa && orologioVelocita === velocita && styles.orologioVelocitaBtnAttivo]}
+                    onPress={() => setOrologioVelocita(velocita)}
+                    accessibilityLabel={"Velocità tempo " + velocita + " per"}
                   >
-                    <Text style={styles.orologioPausaBtnText}>{orologioInPausa ? "▶️" : "⏸️"}</Text>
+                    <Text style={[styles.orologioVelocitaBtnText, !orologioInPausa && orologioVelocita === velocita && styles.orologioVelocitaBtnTextAttivo]}>{velocita}×</Text>
                   </Pressable>
-                  {OROLOGIO_GIOCO_VELOCITA.map((velocita) => (
-                    <Pressable
-                      key={velocita}
-                      style={[
-                        styles.orologioVelocitaBtn,
-                        !orologioInPausa &&
-                          orologioVelocita === velocita &&
-                          styles.orologioVelocitaBtnAttivo
-                      ]}
-                      onPress={() => setOrologioVelocita(velocita)}
-                      accessibilityLabel={`Velocità tempo ${velocita} per`}
-                    >
-                      <Text
-                        style={[
-                          styles.orologioVelocitaBtnText,
-                          !orologioInPausa &&
-                            orologioVelocita === velocita &&
-                            styles.orologioVelocitaBtnTextAttivo
-                        ]}
-                      >
-                        {velocita}×
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+                ))}
               </View>
             </View>
+            <Pressable style={styles.headerStatBtn} onPress={() => router.push("/soddisfazione")}>
+              <Text style={styles.headerStatText}>💚 Soddisfazione {soddisfazioneMediaRegno}</Text>
+            </Pressable>
+            <Pressable style={styles.headerStatBtn} onPress={() => router.push("/abitanti")}>
+              <Text style={styles.headerStatText}>👥 {abitanti.length} abitanti</Text>
+            </Pressable>
           </View>
-          <Pressable style={styles.diarioBtn} onPress={() => router.push("/diario")}>
-            <Text style={styles.diarioBtnEmoji}>📖</Text>
-            <Text style={styles.diarioBtnLabel}>Diario</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/felicita")}>
-            <Text style={styles.indEmoji}>😊</Text>
-            <Text style={styles.indLabel}>Felicità</Text>
-            <Text style={styles.indValue}>{felicitàMedia}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/lealta")}>
-            <Text style={styles.indEmoji}>❤️</Text>
-            <Text style={styles.indLabel}>Lealtà</Text>
-            <Text style={styles.indValue}>{lealtàMedia}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/paura")}>
-            <Text style={styles.indEmoji}>😨</Text>
-            <Text style={styles.indLabel}>Paura</Text>
-            <Text style={styles.indValue}>{pauraMedia}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard}>
-            <Text style={styles.indEmoji}>📋</Text>
-            <Text style={styles.indLabel}>Disoccupazione</Text>
-            <Text style={styles.indValue}>{disoccupazionePercent}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/abitanti")}>
-            <Text style={styles.indEmoji}>👥</Text>
-            <Text style={styles.indLabel}>Abitanti</Text>
-            <Text style={styles.indValue}>{abitanti.length}</Text>
-          </Pressable>
-          <Pressable style={styles.menuBtn} onPress={() => router.push("/menu")}>
-            <Text style={styles.menuBtnText}>Menu</Text>
-          </Pressable>
         </View>
       </View>
 
@@ -4333,78 +4675,24 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                       </Text>
                     )}
                   </Pressable>
-                  {r.nome === "Rifiuti" && (
-                    <>
-                      <Pressable
-                        style={[styles.grigliaMapToggle, mostraGrigliaMappa && styles.grigliaMapToggleOn]}
-                        onPress={() => setMostraGrigliaMappa((v) => !v)}
-                        accessibilityRole="button"
-                        accessibilityLabel={mostraGrigliaMappa ? "Nascondi griglia sulla mappa" : "Mostra griglia sulla mappa"}
-                      >
-                        <Text style={styles.grigliaMapToggleEmoji}>#</Text>
-                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                          Griglia
-                        </Text>
-                      </Pressable>
-                      <View ref={costruisciSpotlightRef} collapsable={false}>
-                        <Pressable
-                          style={[styles.grigliaMapToggle, costruzioneSelezione != null && styles.grigliaMapToggleOn]}
-                          onPress={onCostruisciPress}
-                          accessibilityRole="button"
-                          accessibilityLabel="Apri costruzione edifici"
-                        >
-                          <Text style={styles.grigliaMapToggleEmoji}>🔨</Text>
-                          <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                            Costruisci
-                          </Text>
-                        </Pressable>
-                      </View>
-                      <Pressable
-                        style={[styles.grigliaMapToggle, modalitaDemolisci && styles.grigliaMapToggleDemolisciOn]}
-                        onPress={onDemolisciPress}
-                        accessibilityRole="button"
-                        accessibilityLabel={modalitaDemolisci ? "Esci dalla modalità demolizione" : "Demolisci edifici sulla mappa"}
-                      >
-                        <Text style={styles.grigliaMapToggleEmoji}>🧨</Text>
-                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                          Demolisci
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        style={[
-                          styles.grigliaMapToggle,
-                          richiesteInAttesa.length > 0 && styles.grigliaMapToggleRichiesteOn
-                        ]}
-                        onPress={() => setMostraModalRichieste(true)}
-                        accessibilityRole="button"
-                        accessibilityLabel="Apri richieste in sospeso"
-                      >
-                        <Text style={styles.grigliaMapToggleEmoji}>📋</Text>
-                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                          Richieste{richiesteInAttesa.length > 0 ? ` (${richiesteInAttesa.length})` : ""}
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        style={[
-                          styles.grigliaMapToggle,
-                          eventiAttiviCount > 0 && styles.grigliaMapToggleEventiOn
-                        ]}
-                        onPress={() => setMostraModalEventi(true)}
-                        accessibilityRole="button"
-                        accessibilityLabel="Apri elenco eventi disponibili"
-                      >
-                        <Text style={styles.grigliaMapToggleEmoji}>📌</Text>
-                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                          Eventi{eventiAttiviCount > 0 ? ` (${eventiAttiviCount})` : ""}
-                        </Text>
-                      </Pressable>
-                    </>
-                  )}
                 </React.Fragment>
               );
             })}
           </ScrollView>
           )}
+          <View style={styles.bottomActionsRow}>
+            <View ref={costruisciSpotlightRef} collapsable={false} style={styles.bottomActionWrap}>
+              <Pressable style={[styles.bottomActionBtn, (costruzioneSelezione != null || modalitaDemolisci) && styles.grigliaMapToggleOn]} onPress={onCostruisciPress} accessibilityRole="button" accessibilityLabel="Apri Costruisci, incluso Demolisci">
+                <Text style={styles.bottomActionText}>🔨 Costruisci</Text>
+              </Pressable>
+            </View>
+            <Pressable style={[styles.bottomActionBtn, styles.bottomActionWrap, richiesteInAttesa.length > 0 && styles.grigliaMapToggleRichiesteOn]} onPress={() => setMostraModalRichieste(true)} accessibilityRole="button">
+              <Text style={styles.bottomActionText}>📨 Richieste{richiesteInAttesa.length ? " (" + richiesteInAttesa.length + ")" : ""}</Text>
+            </Pressable>
+            <Pressable style={[styles.bottomActionBtn, styles.bottomActionWrap, eventiAttiviCount > 0 && styles.grigliaMapToggleEventiOn]} onPress={() => setMostraModalEventi(true)} accessibilityRole="button">
+              <Text style={styles.bottomActionText}>📅 Eventi{eventiAttiviCount ? " (" + eventiAttiviCount + ")" : ""}</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
 
@@ -4454,7 +4742,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       >
         <SafeAreaView style={styles.modalCostruisciRoot}>
           <View style={styles.modalCostruisciBody}>
-            <Text style={styles.modalTitle}>Cosa vuoi costruire?</Text>
+            <Text style={styles.modalTitle}>Costruisci o demolisci</Text>
             <Text style={styles.modalSubtitle}>
               Scegli un tipo, poi sposta il puntatore sulla mappa: l’anteprima colorata mostra dove andrà l’edificio. Tocca per
               confermare.
@@ -4466,6 +4754,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               showsVerticalScrollIndicator={false}
             >
               <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
+                <Pressable style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]} onPress={onDemolisciPress}>
+                  <Text style={styles.modalOptionCostruisciEmoji}>🧨</Text>
+                  <Text style={styles.modalOptionCostruisciNome}>Demolisci</Text>
+                </Pressable>
+
                 <Pressable
                   style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
                   onPress={() => {
@@ -4871,12 +5164,19 @@ const styles = StyleSheet.create({
   },
   topBannerInner: {
     width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: "column",
     gap: 8,
     paddingHorizontal: 12
   },
+  topPrimaryRow: {
+    flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8
+  },
+  topPrimaryActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  topSecondaryRow: {
+    flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6
+  },
+  headerStatBtn: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8, backgroundColor: "#17243c", minHeight: 32 },
+  headerStatText: { fontSize: 11, fontWeight: "700", color: "#e2e8f0" },
   bannerTitleBlock: {
     flexDirection: "row",
     alignItems: "center",
@@ -5031,20 +5331,24 @@ const styles = StyleSheet.create({
   },
   bottomBarInner: {
     width: "100%",
-    height: 78,
-    minHeight: 78,
-    maxHeight: 78,
+    height: Platform.OS === "web" ? 150 : 128,
+    minHeight: Platform.OS === "web" ? 150 : 128,
     overflow: "hidden",
-    justifyContent: "center",
+    justifyContent: "space-between",
     backgroundColor: "rgba(5,8,22,0.92)",
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
     borderWidth: 1,
     borderBottomWidth: 0,
     borderColor: "rgba(148,163,184,0.25)",
-    paddingVertical: 6,
+    paddingTop: 6,
+    paddingBottom: Platform.OS === "web" ? 26 : 10,
     paddingHorizontal: 12
   },
+  bottomActionsRow: { height: 40, flexDirection: "row", alignItems: "center", gap: 8 },
+  bottomActionWrap: { flex: 1, minWidth: 0 },
+  bottomActionBtn: { height: 40, alignItems: "center", justifyContent: "center", backgroundColor: "#1e293b", borderRadius: 10, borderWidth: 1, borderColor: "#475569" },
+  bottomActionText: { fontSize: 11, fontWeight: "700", color: "#f8fafc" },
   bottomBarScroll: {
     flexGrow: 0,
     height: 66
