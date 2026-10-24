@@ -966,6 +966,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     coprifuocoInizioMinuti,
     coprifuocoFineMinuti,
     obiettiviCompletati,
+    modalitaRe,
     apriDialogPiazzaPonte
   } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
