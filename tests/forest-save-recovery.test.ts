@@ -87,3 +87,11 @@ test("integrazione GameContext: autosave include checkpoint e lo sospende sul re
   assert.match(code, /getMappaPersonaggiRuntimeRevision\(\) !== savedRuntimeRevision/);
   assert.match(code, /const storage = await createGameSaveStorage\(\)/);
 });
+
+test("salvataggio Bosco: il validatore scarta turni corrotti prima del ripristino", () => {
+  const source = createSaveEnvelope() as unknown as SaveEnvelopeV1;
+  source.payload.map.turniForestaliByAbitanteId = {
+    17: { ...activeTurn(), minutiNelBosco: -1 }
+  };
+  assert.throws(() => validateSaveEnvelope(source), /Checkpoint.*danneggiato/);
+});
