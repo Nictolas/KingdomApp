@@ -2,9 +2,8 @@ import React from "react";
 import { Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
-import { generaAspettoDaSeed } from "../src/game/personaggioAspetto";
 import { SCHEDE_RAZZE } from "../src/game/razzeNavigazione";
-import { CircularSpriteFrame } from "../src/ui/CircularSpriteFrame";
+import { RacePortrait } from "../src/ui/RacePortrait";
 
 export default function RazzeScreen() {
   const router = useRouter();
@@ -24,9 +23,6 @@ export default function RazzeScreen() {
         <View style={styles.grid}>
           {SCHEDE_RAZZE.map((item) => {
             const count = abitanti.filter((abitante) => (abitante.razza ?? "Umano") === item.razza).length;
-            const aspetto = item.previewSeed != null
-              ? generaAspettoDaSeed(item.razza === "Golem" ? "Umano" : item.razza, item.previewSeed)
-              : null;
             return (
               <Pressable
                 key={item.slug}
@@ -36,13 +32,7 @@ export default function RazzeScreen() {
                 onPress={() => router.push(`/razze/${item.slug}`)}
                 style={({ pressed }) => [styles.card, { width: cardWidth }, pressed && styles.pressed]}
               >
-                {aspetto?.characterAppearance ? (
-                  <View style={styles.avatarWrap}>
-                    <CircularSpriteFrame appearance={aspetto.characterAppearance} size={52} animate={false} />
-                  </View>
-                ) : (
-                  <Text style={styles.emoji}>{item.emoji}</Text>
-                )}
+                <RacePortrait razza={item.razza} emoji={item.emoji} />
                 <Text style={styles.race}>{item.razza}</Text>
                 <Text style={styles.count}>{count} {count === 1 ? "abitante" : "abitanti"}</Text>
                 <Text style={styles.open}>Vedi abitanti ›</Text>
