@@ -48,10 +48,25 @@ test("La lobby non abilita il commercio prima dell'accordo P2P", () => {
 test("La negoziazione del baratto è visibile ma NON modifica scorte", () => {
   const ui = read("app/multiplayer.tsx");
   const transport = read("src/multiplayer/nativeTransport.native.ts");
-  assert.match(ui, /sessionRef\.current\?\.proposeBarter/);
-  assert.match(ui, /sessionRef\.current\?\.respondToBarter/);
+  assert.match(ui, /session\.proposeBarterDurably/);
+  assert.match(ui, /session\.respondToBarter/);
   assert.match(ui, /Le merci NON vengono ancora trasferite/);
   assert.match(ui, /useGameContext/);
   assert.match(transport, /onBarterMessage/);
   assert.doesNotMatch(ui, /setRisorse|setInventario|commitTrade|transferStock/);
+});
+
+test("Persistenza delle proposte prima dell'invio, solo su partita salvata", () => {
+  const ui = read("app/multiplayer.tsx");
+  const nativeJournal = read("src/multiplayer/createProtectedBarterJournal.native.ts");
+  const webJournal = read("src/multiplayer/createProtectedBarterJournal.web.ts");
+  const context = read("src/context/GameContext.tsx");
+  const session = read("src/multiplayer/lanSession.ts");
+  assert.match(context, /activeSaveId: metadataRef\.current\?\.saveId/);
+  assert.match(ui, /journal\.propose\(offer, "proposer"\)/);
+  assert.match(ui, /await journal\.decide\(receivedTrade\.tradeId, accepted\)/);
+  assert.match(ui, /proposeBarterDurably/);
+  assert.match(session, /await persist\(offer\);[\s\S]*this\.transmitOffer\(offer\);/);
+  assert.match(nativeJournal, /createGameSaveStorage/);
+  assert.match(webJournal, /throw new Error/);
 });

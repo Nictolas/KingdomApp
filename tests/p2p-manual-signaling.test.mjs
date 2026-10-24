@@ -279,3 +279,42 @@ test("P2P: rifiuta baratti senza peer e proposte con identità falsificata", asy
   assert.equal(factory.peers[0].isClosed, true);
   guest.close();
 });
+
+test("P2P: una proposta non parte in rete se il journal fallisce", async () => {
+  const f = fakeFactory();
+  const received = [];
+  const host = new LanP2PSession({
+    createPeer: f.createPeer,
+    newId: (() => {
+      const ids = [idHost, idSession, "77777777777777777777777777777777", "88888888888888888888888888888888"];
+      return () => ids.shift();
+    })()
+  });
+  const guest = new LanP2PSession({
+    createPeer: f.createPeer, newId: () => idGuest,
+    onBarterMessage: msg => received.push(msg)
+  });
+  const invitation = await host.host();
+  const reply = await guest.join(invitation);
+  await host.acceptAnswer(reply);
+  const gives = [{ resourceId: "wood", quantity: 100_000 }];
+  const wants = [{ resourceId: "iron", quantity: 10_000 }];
+
+  await assert.rejects(
+    () => host.proposeBarterDurably(gives, wants, async () => {
+      throw new Error("Errore journal su disco");
+    }), /Errore journal/
+  );
+  assert.equal(received.length, 0);
+
+  let saved = false;
+  await host.proposeBarterDurably(gives, wants, async offer => {
+    assert.equal(received.length, 0);
+    assert.equal(offer.tradeId, "88888888888888888888888888888888");
+    saved = true;
+  });
+  assert.equal(saved, true);
+  assert.equal(received.length, 1);
+  host.close();
+  guest.close();
+});

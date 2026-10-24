@@ -262,8 +262,8 @@ export class LanP2PSession {
     }
   }
 
-  /** Invia solo una proposta, senza modificare o trasferire le scorte. */
-  proposeBarter(gives: BarterLine[], wants: BarterLine[]): BarterOffer {
+  /** Crea una proposta per il peer collegato. Non invia nulla. */
+  private makeOutgoingBarter(gives: BarterLine[], wants: BarterLine[]): BarterOffer {
     if (this.snapshot.state !== "connected" || !this.snapshot.otherPeerId ||
         this.channel?.readyState !== "open") {
       throw new Error("Collega prima l'altro giocatore.");
@@ -274,6 +274,16 @@ export class LanP2PSession {
       responderId: this.snapshot.otherPeerId, gives, wants
     });
     if (this.outgoingBarters.has(offer.tradeId)) throw new Error("ID baratto già utilizzato.");
+    return offer;
+  }
+
+  private transmitOffer(offer: BarterOffer): void {
+    if (this.snapshot.state !== "connected" ||
+        this.snapshot.otherPeerId !== offer.responderId ||
+        this.peerId !== offer.proposerId ||
+        this.channel?.readyState !== "open") {
+      throw new Error("La connessione P2P è cambiata prima di inviare il baratto.");
+    }
     this.outgoingBarters.set(offer.tradeId, offer);
     try {
       this.channel.send(encodeBarterWire({ protocol: BARTER_PROTOCOL, type: "propose", offer }));
@@ -281,6 +291,27 @@ export class LanP2PSession {
       this.outgoingBarters.delete(offer.tradeId);
       throw cause;
     }
+  }
+
+  /** Solo anteprima legacy senza persistenza. Non trasferisce scorte. */
+  proposeBarter(gives: BarterLine[], wants: BarterLine[]): BarterOffer {
+    const offer = this.makeOutgoingBarter(gives, wants);
+    this.transmitOffer(offer);
+    return offer;
+  }
+
+  /**
+   * Prima persiste la proposta nel journal, POI la invia al peer.
+   * Se la scrittura fallisce, non trasmette nulla. Nessun trasferimento merci.
+   */
+  async proposeBarterDurably(
+    gives: BarterLine[],
+    wants: BarterLine[],
+    persist: (offer: BarterOffer) => Promise<void>
+  ): Promise<BarterOffer> {
+    const offer = this.makeOutgoingBarter(gives, wants);
+    await persist(offer);
+    this.transmitOffer(offer);
     return offer;
   }
 
