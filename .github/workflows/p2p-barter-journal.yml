@@ -13,7 +13,7 @@ permissions:
   contents: read
 
 concurrency:
-  group: p2p-journal-\${{ github.workflow }}-\${{ github.ref }}
+  group: p2p-journal-${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: true
 
 jobs:
