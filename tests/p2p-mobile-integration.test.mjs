@@ -70,3 +70,14 @@ test("Persistenza delle proposte prima dell'invio, solo su partita salvata", () 
   assert.match(nativeJournal, /createGameSaveStorage/);
   assert.match(webJournal, /throw new Error/);
 });
+
+test("Integrazione Bosco: il salvataggio reale del GameContext è cifrato sui telefoni", () => {
+  const context = read("src/context/GameContext.tsx");
+  const storage = read("src/persistence/createGameSaveStorage.ts");
+  const journal = read("src/multiplayer/createProtectedBarterJournal.native.ts");
+  assert.match(context, /import \{ createGameSaveStorage \} from "\.\.\/persistence\/createGameSaveStorage"/);
+  assert.match(context, /const storage = await createGameSaveStorage\(\)/);
+  assert.doesNotMatch(context, /createAsyncStoragePersistentStorage/);
+  assert.match(storage, /new EncryptedSaveStorage\(raw, cipher\)/);
+  assert.match(journal, /createGameSaveStorage\(\)/);
+});
