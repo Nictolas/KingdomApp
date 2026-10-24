@@ -6,6 +6,14 @@ import type { PersistentStorage } from "./storage.ts";
  * A different AAD is used per slot, so a ciphertext copied between slots fails.
  * This is protection against casual edits, NOT anti-rollback / server authority.
  */
+/** A single corrupt/unsupported slot (as opposed to storage I/O failure). */
+export class EncryptedSaveDataError extends Error {
+  constructor(message: string) {
+    super(message);
+    this.name = "EncryptedSaveDataError";
+  }
+}
+
 export const ENCRYPTED_SAVE_PREFIX = "mk:aes256gcm:v1:";
 
 export const ENCRYPTED_SAVE_SLOTS = [
@@ -35,14 +43,18 @@ export class EncryptedSaveStorage implements PersistentStorage {
     const raw = await this.raw.getItem(slot);
     if (raw === null) return null;
     if (raw.startsWith(ENCRYPTED_SAVE_PREFIX)) {
-      return this.cipher.decrypt(slot, raw.slice(ENCRYPTED_SAVE_PREFIX.length));
+      try {
+        return await this.cipher.decrypt(slot, raw.slice(ENCRYPTED_SAVE_PREFIX.length));
+      } catch {
+        throw new EncryptedSaveDataError("Salvataggio cifrato illeggibile o manomesso.");
+      }
     }
     if (raw.startsWith("mk:")) {
-      throw new Error("Versione del formato cifrato non supportata.");
+      throw new EncryptedSaveDataError("Versione del formato cifrato non supportata.");
     }
     // A plaintext value is never an acceptable loaded save after migration.
     // Legacy values are handled only by migrateLegacySaves(), before gameplay.
-    throw new Error("Salvataggio non cifrato rilevato dopo la migrazione.");
+    throw new EncryptedSaveDataError("Salvataggio non cifrato rilevato dopo la migrazione.");
   }
 
   async setItem(slot: string, plaintext: string): Promise<void> {
