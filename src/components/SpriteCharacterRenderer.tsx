@@ -42,6 +42,7 @@ export function SpriteCharacterRenderer({
   visibleSemanticIds,
   animate = true,
   offsetY = 0,
+  onAssetError,
   debug = false
 }: {
   appearance: CharacterAppearance;
@@ -55,6 +56,8 @@ export function SpriteCharacterRenderer({
   animate?: boolean;
   /** Shifts the sheet vertically inside the clip; keep within one direction row. */
   offsetY?: number;
+  /** The calling portrait can show a race fallback if a network asset fails. */
+  onAssetError?: () => void;
   debug?: boolean;
 }) {
   const layers = useMemo(
@@ -107,6 +110,7 @@ export function SpriteCharacterRenderer({
             <Image
               key={`${layer.id}-${layer.layer}`}
               source={source}
+              onError={onAssetError}
               resizeMode="stretch"
               style={{
                 position: "absolute",
