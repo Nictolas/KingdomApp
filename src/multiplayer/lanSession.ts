@@ -24,6 +24,8 @@ export interface P2PDataChannel {
 
 export interface P2PPeerConnection {
   iceGatheringState: string;
+  iceConnectionState?: string;
+  oniceconnectionstatechange?: (() => void) | null;
   localDescription: { type: string; sdp?: string } | null;
   onicegatheringstatechange: (() => void) | null;
   ondatachannel: ((event: { channel: P2PDataChannel }) => void) | null;
@@ -78,7 +80,15 @@ export class LanP2PSession {
   private openPeer(): P2PPeerConnection {
     if (this.peer) throw new Error("Chiudi la connessione P2P precedente prima di crearne un'altra.");
     this.peer = this.adapter.createPeer();
+    const activePeer = this.peer;
     this.peer.ondatachannel = event => this.attachChannel(event.channel);
+    // Distinguish an actual ICE failure from a peer still exchanging codes.
+    // "disconnected" may be temporary during a mobile network transition.
+    this.peer.oniceconnectionstatechange = () => {
+      if (this.peer === activePeer && activePeer.iceConnectionState === "failed") {
+        this.fail(new Error("La connessione diretta WebRTC non è riuscita. Verifica che entrambi i telefoni siano sulla stessa Wi-Fi e che la rete non isoli i dispositivi."));
+      }
+    };
     return this.peer;
   }
 
@@ -231,6 +241,7 @@ export class LanP2PSession {
     if (this.peer) {
       this.peer.ondatachannel = null;
       this.peer.onicegatheringstatechange = null;
+      this.peer.oniceconnectionstatechange = null;
       try { this.peer.close(); } catch { /* Already closed. */ }
       this.peer = null;
     }
