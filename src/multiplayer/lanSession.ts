@@ -143,6 +143,7 @@ export class LanP2PSession {
   }
 
   async host(): Promise<string> {
+    if (this.peer) throw new Error("Chiudi la connessione P2P precedente prima di crearne un'altra.");
     const sessionId = this.adapter.newId();
     this.emit({ state: "signaling", role: "host", sessionId, otherPeerId: null, error: null });
     try {
@@ -160,6 +161,7 @@ export class LanP2PSession {
   }
 
   async join(offerCode: string): Promise<string> {
+    if (this.peer) throw new Error("Chiudi la connessione P2P precedente prima di crearne un'altra.");
     const offer = parseManualSignal(offerCode, "offer");
     this.emit({ state: "signaling", role: "guest", sessionId: offer.sessionId, otherPeerId: null, error: null });
     try {
