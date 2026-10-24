@@ -165,3 +165,28 @@ test("journal: capienza e quantità non sicure vengono rifiutate senza scrivere"
   assert.equal((await j.read()).journal.revision, 1);
   assert.equal((await j.read()).journal.records[tradeId].phase, "proposed");
 });
+
+test("journal: accettazione salvata e riconciliazione richiesta dopo riavvio", async () => {
+  const store = new MemoryPersistentStorage();
+  await repo(store).propose(offer(), "proposer");
+  await repo(store).decide(tradeId, true);
+  const restarted = repo(store);
+  const state = await restarted.read();
+  assert.equal(state.journal.records[tradeId].phase, "accepted");
+  assert.deepEqual(state.pendingReconciliation, [tradeId]);
+  await restarted.decide(tradeId, true);
+  assert.equal((await restarted.read()).journal.revision, 2);
+  await assert.rejects(() => restarted.decide(tradeId, false), /riconciliazione/);
+  await assert.rejects(() => restarted.cancel(tradeId), /riconciliazione/);
+});
+
+test("journal: rifiuto salvato e nessuna riattivazione dopo riavvio", async () => {
+  const store = new MemoryPersistentStorage();
+  await repo(store).propose(offer(), "responder");
+  await repo(store).decide(tradeId, false);
+  const state = await repo(store).read();
+  assert.equal(state.journal.records[tradeId].phase, "cancelled");
+  assert.deepEqual(state.pendingReconciliation, []);
+  await repo(store).decide(tradeId, false);
+  await assert.rejects(() => repo(store).decide(tradeId, true), /non disponibile/);
+});
