@@ -9,7 +9,7 @@ import { trovaCellaAnchorCasaSuMappa } from "../src/game/residenzaMappa";
 
 const re = { ...abitantiData[0]!, id: 1, lavoro: "Re" };
 const consigliere = { ...abitantiData[1]!, id: 2, lavoro: "Consigliere" };
-const cittadino = { ...abitantiData[2]!, id: 3, lavoro: "Agricoltore" };
+const cittadino = { ...abitantiData[2]!, id: 3, lavoro: "Agricoltore", casta: "Cittadino" as const };
 const baseAbitanti = [re, consigliere, cittadino];
 const vecchiEdifici = [
   { ...edificiData.find((e) => e.id === 1)!, abitantiAssegnati: [1], occupazione: 1 },
@@ -29,7 +29,7 @@ test("il Consigliere e il Re abitano solo nel Castello anche nei vecchi salvatag
 
 test("cambiando Consigliere, il nuovo entra nel Castello e non resta nella casa", () => {
   const nuovo = { ...cittadino, lavoro: "Consigliere" };
-  const vecchio = { ...consigliere, lavoro: "Disoccupato" };
+  const vecchio = { ...consigliere, lavoro: "Disoccupato", casta: "Cittadino" as const };
   const riparati = normalizzaResidenzeCastello([re, vecchio, nuovo], vecchiEdifici);
   assert.deepEqual(riparati[0]?.abitantiAssegnati, [1, 3]);
   assert.ok(!(riparati[1]?.abitantiAssegnati ?? []).includes(3));
