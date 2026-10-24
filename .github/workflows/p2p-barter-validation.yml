@@ -1,0 +1,39 @@
+name: My Kingdom - P2P barter protocol
+
+on:
+  pull_request:
+    paths:
+      - 'src/multiplayer/barterProtocol.ts'
+      - 'src/multiplayer/lanSession.ts'
+      - 'tests/p2p-barter-protocol.test.mjs'
+      - 'tests/p2p-manual-signaling.test.mjs'
+      - '.github/workflows/p2p-barter-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p2p-barter-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  barter-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: P2P barter protocol, handshake and transport regression tests
+        run: npx tsx --test tests/p2p-barter-protocol.test.mjs tests/p2p-manual-signaling.test.mjs tests/p2p-mobile-integration.test.mjs
+      - name: Check barter module TypeScript (other legacy errors are pre-existing)
+        run: |
+          npx tsc --noEmit --pretty false > /tmp/p2p-barter-types.txt 2>&1 || true
+          if grep -E '^src/multiplayer/' /tmp/p2p-barter-types.txt; then
+            echo "TypeScript errors in multiplayer modules"
+            exit 1
+          fi

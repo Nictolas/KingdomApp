@@ -1,0 +1,117 @@
+name: My Kingdom - mobile P2P bridge
+
+on:
+  pull_request:
+    paths:
+      - 'app/multiplayer.tsx'
+      - 'app/mercato.tsx'
+      - 'src/multiplayer/**'
+      - 'app.json'
+      - 'package*.json'
+      - 'tests/p2p-*.test.mjs'
+      - '.github/workflows/p2p-mobile-validation.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Non sprecare minuti di build nativa sui commit superati dalla branch.
+concurrency:
+  group: p2p-native-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  android-prebuild:
+    runs-on: ubuntu-latest
+    timeout-minutes: 50
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - name: Install pinned dependencies
+        run: npm ci --no-audit --no-fund
+      - name: Protocol and UI regression tests
+        run: npx tsx --test tests/p2p-manual-signaling.test.mjs tests/encrypted-save-storage.test.mjs tests/p2p-mobile-integration.test.mjs
+      - name: Check new multiplayer modules for TypeScript errors
+        run: |
+          npx tsc --noEmit --pretty false > /tmp/mykingdom-types.txt 2>&1 || true
+          if grep -E '^(app/multiplayer.tsx|src/multiplayer/)' /tmp/mykingdom-types.txt; then
+            echo "Errors detected in the P2P changes"
+            exit 1
+          fi
+          echo "No TypeScript errors under the P2P modules (other legacy errors may remain)."
+      - name: Generate Android native files (Expo SDK 57)
+        run: npx expo prebuild --platform android --no-install --non-interactive
+      - name: Check Android permissions (camera/microphone disabled)
+        run: |
+          # Expo writes tools:node="remove" markers to BLOCK permissions:
+          # these are not declarations granting access.
+          active=$(grep -E 'android.permission.(CAMERA|RECORD_AUDIO|SYSTEM_ALERT_WINDOW)' android/app/src/main/AndroidManifest.xml | grep -v 'tools:node="remove"' || true)
+          if test -n "$active"; then
+            echo "Unwanted active Android permission: $active"
+            exit 1
+          fi
+      # Debug includes Android development tooling that may legitimately
+      # request SYSTEM_ALERT_WINDOW; only the distributable APK is authoritative.
+      - name: Build standalone Android test APK
+        run: cd android && ./gradlew :app:assembleRelease --no-daemon --console=plain
+      - name: Verify Release APK permissions and signature
+        run: |
+          set -euo pipefail
+          apk="$(find android/app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -1)"
+          test -n "$apk"
+          sdk_build_tools="${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools"
+          signer="$(find "$sdk_build_tools" -name apksigner -type f | sort -V | tail -1)"
+          aapt="$(find "$sdk_build_tools" -name aapt -type f | sort -V | tail -1)"
+          test -n "$signer"
+          test -n "$aapt"
+          "$signer" verify "$apk"
+          "$aapt" dump permissions "$apk" > /tmp/p2p-release-apk-permissions.txt
+          cat /tmp/p2p-release-apk-permissions.txt
+          if grep -E 'android.permission.(CAMERA|RECORD_AUDIO|SYSTEM_ALERT_WINDOW)' /tmp/p2p-release-apk-permissions.txt; then
+            echo "Unnecessary permissions present in the distributable Release APK"
+            exit 1
+          fi
+          echo "Standalone Android test APK signed and permissions verified: $apk"
+      - name: Upload Android test APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: mykingdom-p2p-android-test-apk
+          path: android/app/build/outputs/apk/release/*.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  ios-prebuild:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    env:
+      CI: "1"
+      EXPO_NO_TELEMETRY: "1"
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Generate iOS native files (Expo SDK 57)
+        run: npx expo prebuild --platform ios --no-install --non-interactive
+      - name: Verify local network declaration
+        run: grep -R "NSLocalNetworkUsageDescription" ios/ || exit 1
+      - name: Install native iOS dependencies
+        run: cd ios && pod install
+      - name: Compile iOS Simulator app without signing
+        run: |
+          xcodebuild -workspace ios/MyKingdom.xcworkspace \
+            -scheme MyKingdom \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath /tmp/mykingdom-p2p-build \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet build

@@ -20,7 +20,15 @@ import type { GamePhase } from "../game/gamePhase";
 import type { GameMode } from "../game/gameMode";
 import type { ModalitaRe, FaseDisordine } from "../game/reModalita";
 import { getMappaSessione, subscribeMappaSessione } from "../game/mappaSessione";
-import { createAsyncStoragePersistentStorage } from "../persistence/asyncStorageAdapter";
+import { checkpointTurniForestali, ripristinaTurniForestali } from "../game/forestTurnSave";
+import {
+  getMappaPersonaggiRuntime,
+  getMappaPersonaggiRuntimeRevision,
+  patchMappaPersonaggiRuntime,
+  resetMappaPersonaggiRuntime,
+  subscribeMappaPersonaggiRuntime
+} from "../game/mappaPersonaggiRuntimeStore";
+import { createGameSaveStorage } from "../persistence/createGameSaveStorage";
 import { gameSaveV1ToGameState, gameStateToGameSaveV1 } from "../persistence/gameStateMapping";
 import { SaveRepository, type LoadSaveResult } from "../persistence/saveRepository";
 import { SAVE_FORMAT, SAVE_SCHEMA_VERSION, type SaveEnvelopeV1 } from "../persistence/saveTypes";
@@ -51,6 +59,8 @@ type GameContextType = {
   simulationEnabled: boolean;
   saveStatus: "idle" | "saving" | "saved" | "error";
   salvaPartita: () => Promise<void>;
+  /** Identificativo del salvataggio attivo, dopo persistenza riuscita. */
+  activeSaveId: string | null;
   abitanti: Abitante[];
   /** Cambio effettivo dell'abito prescritto, con asset LPC e salvataggio. */
   indossaAbitoReligioso: (abitanteId: number) => { ok: boolean; motivo?: string };
@@ -438,7 +448,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     let cancelled = false;
     void (async () => {
       try {
-        const storage = await createAsyncStoragePersistentStorage();
+        const storage = await createGameSaveStorage();
         const repository = new SaveRepository(storage);
         repositoryRef.current = repository;
         const result = await repository.loadBestAvailable();
@@ -479,6 +489,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const loaded = pendingLoadRef.current;
     if (!loaded || loaded.source === "none") return;
     metadataRef.current = loaded.save.metadata;
+    // I vecchi percorsi/celle sono effimeri. Ripristiniamo soltanto i minuti
+    // verificati dei turni forestali e sospendiamo le tappe senza posizione.
+    resetMappaPersonaggiRuntime();
+    patchMappaPersonaggiRuntime({
+      turniForestaliByAbitanteId: ripristinaTurniForestali(
+        loaded.save.payload.map.turniForestaliByAbitanteId
+      )
+    });
     gameState.restorePersistableState(gameSaveV1ToGameState(loaded.save.payload));
     dirtyTrackingInitializedRef.current = false;
     lastPersistableStateTokenRef.current = null;
@@ -503,6 +521,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       }
       pendingLoadRef.current = null;
       metadataRef.current = null;
+      resetMappaPersonaggiRuntime();
       dirtyTrackingInitializedRef.current = false;
       lastPersistableStateTokenRef.current = null;
       lastMapTokenRef.current = null;
@@ -526,6 +545,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (!repository || !currentMap || !state.simulationEnabled) return;
     const savedStateToken = state.createPersistableState;
     const savedMapToken = currentMap;
+    const savedRuntimeRevision = getMappaPersonaggiRuntimeRevision();
+    const forestSnapshot = checkpointTurniForestali(
+      getMappaPersonaggiRuntime().turniForestaliByAbitanteId
+    );
     setSaveStatus("saving");
     try {
       const now = new Date().toISOString();
@@ -539,14 +562,20 @@ export function GameProvider({ children }: { children: ReactNode }) {
         format: SAVE_FORMAT,
         schemaVersion: SAVE_SCHEMA_VERSION,
         metadata: { ...metadata, updatedAt: now },
-        payload: gameStateToGameSaveV1(state.createPersistableState(currentMap))
+        payload: gameStateToGameSaveV1(
+          state.createPersistableState({
+            ...currentMap,
+            turniForestaliByAbitanteId: forestSnapshot
+          })
+        )
       };
       await repository.save(envelope);
       metadataRef.current = envelope.metadata;
       // Se qualcosa è cambiato mentre la scrittura era in corso, deve restare dirty.
       dirtyRef.current =
         latestStateRef.current.createPersistableState !== savedStateToken ||
-        getMappaSessione() !== savedMapToken;
+        getMappaSessione() !== savedMapToken ||
+        getMappaPersonaggiRuntimeRevision() !== savedRuntimeRevision;
       setSaveStatus("saved");
     } catch {
       dirtyRef.current = true;
@@ -577,6 +606,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [startup, gameState.simulationEnabled, gameState.createPersistableState, mappa]);
 
   useEffect(() => {
+    // Aggiornamenti ai turni/percorsi non cambiano l'identità dello stato React:
+    // rendono comunque necessaria la prossima scrittura della partita.
+    if (startup !== "active") return;
+    return subscribeMappaPersonaggiRuntime(() => { dirtyRef.current = true; });
+  }, [startup]);
+
+  useEffect(() => {
     const id = setInterval(() => {
       if (shouldAutosave({ dirty: dirtyRef.current, phase: latestStateRef.current.gamePhase, startupActive: startup === "active" })) void salvaPartita();
     }, 60_000);
@@ -598,7 +634,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [salvaPartita]);
 
 
-  const contextValue = { ...gameState, saveStatus, salvaPartita };
+  const contextValue = { ...gameState, saveStatus, salvaPartita, activeSaveId: metadataRef.current?.saveId ?? null };
   const re = gameState.abitanti.find((abitante) => abitante.id === ID_GIOCATORE);
   const gameOverPerMorteRe =
     startup === "active" &&
