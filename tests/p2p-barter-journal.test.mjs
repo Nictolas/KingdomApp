@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { MemoryPersistentStorage } from "./memory-persistent-storage.mjs";
 import {
-  BarterJournalRepository, BARTER_JOURNAL_KEYS, MAX_JOURNAL_TRADES
+  BarterJournalRepository, journalStorageKey, MAX_JOURNAL_TRADES
 } from "../src/multiplayer/barterJournal.ts";
 import { makeBarterOffer } from "../src/multiplayer/barterProtocol.ts";
 
@@ -29,7 +29,7 @@ test("journal: proposta persistita e recuperata su nuovo repository dopo riavvio
   assert.equal(loaded.journal.records[tradeId].phase, "proposed");
   assert.deepEqual(loaded.pendingReconciliation, []);
   assert.equal(loaded.readOnlyRecovery, false);
-  assert.equal(await store.getItem(BARTER_JOURNAL_KEYS.temp), null);
+  assert.equal(await store.getItem(journalStorageKey("temp",saveId)), null);
 });
 
 test("journal: prenotazione persistente, nessun trasferimento e pending al riavvio", async () => {
@@ -67,14 +67,23 @@ test("journal: blocca la doppia prenotazione delle risorse", async () => {
 test("journal: il salvataggio non può essere confuso con un'altra partita", async () => {
   const store = new MemoryPersistentStorage();
   await repo(store).propose(offer(), "proposer");
-  await assert.rejects(() => repo(store, "altra-partita").read(), /illeggibili/);
-  await assert.rejects(() => repo(store, "altra-partita").propose(offer(id(3)), "proposer"), /illeggibili/);
+  const other = repo(store, "altra-partita");
+  const separate = await other.read();
+  assert.equal(separate.journal.revision, 0);
+  assert.equal(Object.keys(separate.journal.records).length, 0);
+  await other.propose(offer(id(3)), "proposer");
+  assert.equal((await repo(store).read()).journal.revision, 1);
+  assert.equal((await other.read()).journal.revision, 1);
+  assert.notEqual(
+    journalStorageKey("primary", saveId),
+    journalStorageKey("primary", "altra-partita")
+  );
 });
 
 test("journal: scrittura temp interrompe prima del commit e conserva il primary", async () => {
   const store = new MemoryPersistentStorage();
   await repo(store).propose(offer(), "proposer");
-  store.failSetFor.add(BARTER_JOURNAL_KEYS.temp);
+  store.failSetFor.add(journalStorageKey("temp",saveId));
   await assert.rejects(() => repo(store).reserve(tradeId, { wood: 100, iron: 0 }, 100));
   store.failSetFor.clear();
   const recovered = await repo(store).read();
@@ -86,7 +95,7 @@ test("journal: se crash dopo temp persistito prima del primary, recupera version
   const store = new MemoryPersistentStorage();
   await repo(store).propose(offer(), "proposer");
   const a = repo(store);
-  store.failSetFor.add(BARTER_JOURNAL_KEYS.primary);
+  store.failSetFor.add(journalStorageKey("primary",saveId));
   await assert.rejects(() => a.reserve(tradeId, { wood: 100, iron: 0 }, 100));
   store.failSetFor.clear();
   const b = repo(store);
@@ -101,7 +110,7 @@ test("journal: se crash dopo temp persistito prima del primary, recupera version
 test("journal: errore su backup non perde una proposta valida, journal temp prevale", async () => {
   const store = new MemoryPersistentStorage();
   await repo(store).propose(offer(), "proposer");
-  store.failSetFor.add(BARTER_JOURNAL_KEYS.backup);
+  store.failSetFor.add(journalStorageKey("backup",saveId));
   await assert.rejects(() => repo(store).reserve(tradeId, { wood: 100 }, 100));
   store.failSetFor.clear();
   const recovered = await repo(store).read();
@@ -112,7 +121,7 @@ test("journal: corruzione di una copia mantiene recupero solo lettura", async ()
   const store = new MemoryPersistentStorage();
   await repo(store).propose(offer(), "proposer");
   await repo(store).reserve(tradeId, { wood: 100 }, 100);
-  await store.setItem(BARTER_JOURNAL_KEYS.primary, "corrotto");
+  await store.setItem(journalStorageKey("primary",saveId), "corrotto");
   const recovered = await repo(store).read();
   assert.equal(recovered.readOnlyRecovery, true);
   assert.equal(recovered.journal.revision, 1);
@@ -121,14 +130,14 @@ test("journal: corruzione di una copia mantiene recupero solo lettura", async ()
 
 test("journal: tutte le copie corrotte non diventano una nuova partita vuota", async () => {
   const store = new MemoryPersistentStorage();
-  await store.setItem(BARTER_JOURNAL_KEYS.primary, "corrotto");
+  await store.setItem(journalStorageKey("primary",saveId), "corrotto");
   await assert.rejects(() => repo(store).read(), /illeggibili/);
   await assert.rejects(() => repo(store).propose(offer(), "proposer"), /illeggibili/);
 });
 
 test("journal: storage cifrato non leggibile blocca tutto", async () => {
   const store = new MemoryPersistentStorage();
-  store.failGetFor.add(BARTER_JOURNAL_KEYS.primary);
+  store.failGetFor.add(journalStorageKey("primary",saveId));
   await assert.rejects(() => repo(store).read(), /Impossibile leggere/);
 });
 
