@@ -34,20 +34,30 @@ export function CircularSpriteFrame({
   liftPx?: number;
   faceOnly?: boolean;
 }) {
-  const [assetFailed, setAssetFailed] = React.useState(false);
+  const [failedSource, setFailedSource] = React.useState<string | null>(null);
   const [loadedIds, setLoadedIds] = React.useState<ReadonlySet<string>>(() => new Set());
   const layers = React.useMemo(() => resolveCharacterLayers(appearance, animation).filter(layer =>
     (!visibleLayers || visibleLayers.includes(layer.layer)) &&
     (!visibleSemanticIds?.[layer.layer] || visibleSemanticIds[layer.layer] === layer.semanticId)
   ), [appearance, animation, visibleLayers, visibleSemanticIds]);
   const layerIds = React.useMemo(() => [...new Set(layers.map(layer => layer.sourceId))], [layers]);
-  const missingSource = layers.some(layer => !LPC_ASSET_SOURCES[layer.sourceId]);
+  const layerSignature = layerIds.join("|");
+  // Core body/head must be present. An optional hat, tool, beard etc. must never
+  // prevent the rest of a resident from being drawn.
+  const essentialIds = React.useMemo(() => [...new Set(
+    layers.filter(layer => layer.layer === "body" || layer.layer === "raceFeatures")
+      .map(layer => layer.sourceId)
+  )], [layers]);
+  const canShow = canRenderCharacter(appearance, animation) &&
+    essentialIds.length >= 2 && essentialIds.every(id => Boolean(LPC_ASSET_SOURCES[id]));
+  // Do NOT clear loadedIds when appearance changes identity. The game rebuilds
+  // equivalent appearance objects on every tick; clearing it lost the cached
+  // Image onLoad events and left already-decoded sprites permanently invisible.
   React.useEffect(() => {
-    setAssetFailed(false);
-    setLoadedIds(new Set());
-  }, [appearance, animation, direction]);
-  const canShow = canRenderCharacter(appearance, animation) && !missingSource;
-  const allLoaded = layerIds.length > 0 && layerIds.every(id => loadedIds.has(id));
+    setFailedSource(null);
+  }, [layerSignature]);
+  const essentialLoaded = essentialIds.every(id => loadedIds.has(id));
+  const essentialFailed = failedSource !== null && essentialIds.includes(failedSource);
   const diameter = lpcSpriteCircleDiameter(size);
   const outer = diameter + FRAME_BORDER * 2;
   // Zoom sul volto: la testa LPC sta nella parte alta del frame 64×64.
@@ -60,39 +70,38 @@ export function CircularSpriteFrame({
   return (
     <View style={[styles.outer, { width: outer, height: outer, borderRadius: outer / 2 }]}>
       <View style={[styles.inner, { width: diameter, height: diameter, borderRadius: diameter / 2 }]}>
-        {(!canShow || assetFailed || !allLoaded) && (
-          <View style={styles.fallback}>
+        {(!canShow || essentialFailed || !essentialLoaded) && (
+          <View style={styles.fallback} pointerEvents="none">
             <Text style={{ fontSize: Math.max(14, Math.round(size * 0.45)) }}>
               {RACE_FALLBACK[appearance.race] ?? "👤"}
             </Text>
           </View>
         )}
-        {canShow && !assetFailed && (
-        <View
-          style={[
-            styles.spriteSlot,
-            { left, width: renderSize, height: renderSize },
-            faceOnly ? { top } : { bottom },
-            !allLoaded && styles.loading
-          ]}
-        >
-          <SpriteCharacterRenderer
-            appearance={appearance}
-            animation={animation}
-            direction={direction}
-            size={renderSize}
-            animate={animate}
-            onAssetError={() => setAssetFailed(true)}
-            onAssetLoad={(sourceId) => setLoadedIds(current => {
-              if (current.has(sourceId)) return current;
-              const next = new Set(current);
-              next.add(sourceId);
-              return next;
-            })}
-            visibleLayers={visibleLayers}
-            visibleSemanticIds={visibleSemanticIds}
-          />
-        </View>
+        {canShow && !essentialFailed && (
+          <View
+            style={[
+              styles.spriteSlot,
+              { left, width: renderSize, height: renderSize },
+              faceOnly ? { top } : { bottom }
+            ]}
+          >
+            <SpriteCharacterRenderer
+              appearance={appearance}
+              animation={animation}
+              direction={direction}
+              size={renderSize}
+              animate={animate}
+              onAssetError={(sourceId) => setFailedSource(sourceId)}
+              onAssetLoad={(sourceId) => setLoadedIds(current => {
+                if (current.has(sourceId)) return current;
+                const next = new Set(current);
+                next.add(sourceId);
+                return next;
+              })}
+              visibleLayers={visibleLayers}
+              visibleSemanticIds={visibleSemanticIds}
+            />
+          </View>
         )}
       </View>
     </View>
@@ -111,8 +120,10 @@ const styles = StyleSheet.create({
     overflow: "hidden",
     position: "relative"
   },
-  fallback: { flex: 1, alignItems: "center", justifyContent: "center" },
-  loading: { opacity: 0 },
+  fallback: {
+    position: "absolute", top: 0, bottom: 0, left: 0, right: 0,
+    alignItems: "center", justifyContent: "center"
+  },
   spriteSlot: {
     position: "absolute",
     bottom: 0,

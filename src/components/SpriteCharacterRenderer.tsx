@@ -58,7 +58,7 @@ export function SpriteCharacterRenderer({
   /** Shifts the sheet vertically inside the clip; keep within one direction row. */
   offsetY?: number;
   /** The calling portrait can show a race fallback if a network asset fails. */
-  onAssetError?: () => void;
+  onAssetError?: (sourceId: string) => void;
   /** Every actual LPC image reports its successful decode. */
   onAssetLoad?: (sourceId: string) => void;
   debug?: boolean;
@@ -113,7 +113,7 @@ export function SpriteCharacterRenderer({
             <Image
               key={`${layer.id}-${layer.layer}`}
               source={source}
-              onError={onAssetError}
+              onError={() => onAssetError?.(layer.sourceId)}
               onLoad={() => onAssetLoad?.(layer.sourceId)}
               resizeMode="stretch"
               style={{
