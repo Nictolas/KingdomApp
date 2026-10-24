@@ -20,6 +20,14 @@ import type { GamePhase } from "../game/gamePhase";
 import type { GameMode } from "../game/gameMode";
 import type { ModalitaRe, FaseDisordine } from "../game/reModalita";
 import { getMappaSessione, subscribeMappaSessione } from "../game/mappaSessione";
+import { checkpointTurniForestali, ripristinaTurniForestali } from "../game/forestTurnSave";
+import {
+  getMappaPersonaggiRuntime,
+  getMappaPersonaggiRuntimeRevision,
+  patchMappaPersonaggiRuntime,
+  resetMappaPersonaggiRuntime,
+  subscribeMappaPersonaggiRuntime
+} from "../game/mappaPersonaggiRuntimeStore";
 import { createGameSaveStorage } from "../persistence/createGameSaveStorage";
 import { gameSaveV1ToGameState, gameStateToGameSaveV1 } from "../persistence/gameStateMapping";
 import { SaveRepository, type LoadSaveResult } from "../persistence/saveRepository";
@@ -481,6 +489,14 @@ export function GameProvider({ children }: { children: ReactNode }) {
     const loaded = pendingLoadRef.current;
     if (!loaded || loaded.source === "none") return;
     metadataRef.current = loaded.save.metadata;
+    // I vecchi percorsi/celle sono effimeri. Ripristiniamo soltanto i minuti
+    // verificati dei turni forestali e sospendiamo le tappe senza posizione.
+    resetMappaPersonaggiRuntime();
+    patchMappaPersonaggiRuntime({
+      turniForestaliByAbitanteId: ripristinaTurniForestali(
+        loaded.save.payload.map.turniForestaliByAbitanteId
+      )
+    });
     gameState.restorePersistableState(gameSaveV1ToGameState(loaded.save.payload));
     dirtyTrackingInitializedRef.current = false;
     lastPersistableStateTokenRef.current = null;
@@ -505,6 +521,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
       }
       pendingLoadRef.current = null;
       metadataRef.current = null;
+      resetMappaPersonaggiRuntime();
       dirtyTrackingInitializedRef.current = false;
       lastPersistableStateTokenRef.current = null;
       lastMapTokenRef.current = null;
@@ -528,6 +545,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
     if (!repository || !currentMap || !state.simulationEnabled) return;
     const savedStateToken = state.createPersistableState;
     const savedMapToken = currentMap;
+    const savedRuntimeRevision = getMappaPersonaggiRuntimeRevision();
+    const forestSnapshot = checkpointTurniForestali(
+      getMappaPersonaggiRuntime().turniForestaliByAbitanteId
+    );
     setSaveStatus("saving");
     try {
       const now = new Date().toISOString();
@@ -541,14 +562,20 @@ export function GameProvider({ children }: { children: ReactNode }) {
         format: SAVE_FORMAT,
         schemaVersion: SAVE_SCHEMA_VERSION,
         metadata: { ...metadata, updatedAt: now },
-        payload: gameStateToGameSaveV1(state.createPersistableState(currentMap))
+        payload: gameStateToGameSaveV1(
+          state.createPersistableState({
+            ...currentMap,
+            turniForestaliByAbitanteId: forestSnapshot
+          })
+        )
       };
       await repository.save(envelope);
       metadataRef.current = envelope.metadata;
       // Se qualcosa è cambiato mentre la scrittura era in corso, deve restare dirty.
       dirtyRef.current =
         latestStateRef.current.createPersistableState !== savedStateToken ||
-        getMappaSessione() !== savedMapToken;
+        getMappaSessione() !== savedMapToken ||
+        getMappaPersonaggiRuntimeRevision() !== savedRuntimeRevision;
       setSaveStatus("saved");
     } catch {
       dirtyRef.current = true;
@@ -577,6 +604,13 @@ export function GameProvider({ children }: { children: ReactNode }) {
       dirtyRef.current = true;
     }
   }, [startup, gameState.simulationEnabled, gameState.createPersistableState, mappa]);
+
+  useEffect(() => {
+    // Aggiornamenti ai turni/percorsi non cambiano l'identità dello stato React:
+    // rendono comunque necessaria la prossima scrittura della partita.
+    if (startup !== "active") return;
+    return subscribeMappaPersonaggiRuntime(() => { dirtyRef.current = true; });
+  }, [startup]);
 
   useEffect(() => {
     const id = setInterval(() => {
