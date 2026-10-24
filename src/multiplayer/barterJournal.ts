@@ -10,6 +10,7 @@
  * Al riavvio le prenotazioni devono rimanere bloccate per riconciliazione.
  */
 import type { PersistentStorage } from "../persistence/storage.ts";
+import { EncryptedSaveDataError } from "../persistence/encryptedSaveStorage.ts";
 import {
   reserveLocalBarter,
   validateBarterOffer,
@@ -135,8 +136,16 @@ export class BarterJournalRepository {
       let raw: string | null;
       try {
         raw = await this.storage.getItem(key);
-      } catch {
-        // Lost key or inaccessible encrypted store: do not pretend this is an empty journal.
+      } catch (cause) {
+        if (cause instanceof EncryptedSaveDataError) {
+          // One tampered encrypted copy is recoverable from another valid
+          // revision, but never allow subsequent mutations in this state.
+          present = true;
+          damaged = true;
+          continue;
+        }
+        // Inaccessible storage / missing crypto key is NOT a corrupt slot:
+        // all operations must stop instead of treating this as an empty journal.
         throw new Error("Impossibile leggere il journal P2P protetto. Nessuna operazione consentita.");
       }
       if (raw === null) continue;
