@@ -44,8 +44,11 @@ jobs:
         run: npx expo prebuild --platform android --no-install --non-interactive
       - name: Check Android permissions (camera/microphone disabled)
         run: |
-          if grep -R -E 'android.permission.(CAMERA|RECORD_AUDIO|SYSTEM_ALERT_WINDOW)' android/app/src/main/AndroidManifest.xml; then
-            echo "Unnecessary camera, microphone or overlay permissions present"
+          # Expo writes tools:node="remove" markers to BLOCK permissions:
+          # these are not declarations granting access.
+          active=$(grep -E 'android.permission.(CAMERA|RECORD_AUDIO|SYSTEM_ALERT_WINDOW)' android/app/src/main/AndroidManifest.xml | grep -v 'tools:node="remove"' || true)
+          if test -n "$active"; then
+            echo "Unwanted active Android permission: $active"
             exit 1
           fi
       - name: Build Android debug APK
