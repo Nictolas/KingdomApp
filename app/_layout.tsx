@@ -15,21 +15,21 @@ export default function RootLayout() {
       document.body.style.webkitUserSelect = "none";
       const { documentElement: html, body } = document;
       html.style.width = "100%";
-      html.style.height = "100%";
+      html.style.height = "100dvh";
       html.style.margin = "0";
       html.style.padding = "0";
       html.style.backgroundColor = "#050816";
       body.style.width = "100%";
-      body.style.height = "100%";
+      body.style.height = "100dvh";
       body.style.margin = "0";
       body.style.padding = "0";
-      body.style.minHeight = "100vh";
+      body.style.minHeight = "100dvh";
       body.style.backgroundColor = "#050816";
       const root = document.getElementById("root");
       if (root) {
         (root as HTMLElement).style.width = "100%";
-        (root as HTMLElement).style.height = "100%";
-        (root as HTMLElement).style.minHeight = "100vh";
+        (root as HTMLElement).style.height = "100dvh";
+        (root as HTMLElement).style.minHeight = "100dvh";
       }
       const meta = document.querySelector('meta[name="viewport"]');
       if (meta) {
