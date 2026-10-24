@@ -1,7 +1,11 @@
-import type { Edificio } from "../types";
+import type { Abitante, Edificio } from "../types";
+import { èResidenteFissoCastello, NOME_CASTELLO } from "./castelloGuardie";
 
 /** Edificio di residenza dell'abitante, se assegnato. */
-export function getEdificioAbitazione(abitanteId: number, edifici: Edificio[]): Edificio | undefined {
+export function getEdificioAbitazione(abitanteId: number, edifici: Edificio[], abitante?: Abitante): Edificio | undefined {
+  if (abitante && èResidenteFissoCastello(abitante)) {
+    return edifici.find((e) => e.nome === NOME_CASTELLO);
+  }
   return edifici.find(
     (e) => e.tipo === "Residenza" && (e.abitantiAssegnati ?? []).includes(abitanteId)
   );

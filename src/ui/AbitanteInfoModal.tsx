@@ -226,7 +226,7 @@ export function AbitanteInfoModal({
     setMostraAlbero(false);
   };
 
-  const edificioAbitazione = getEdificioAbitazione(abitante.id, edifici);
+  const edificioAbitazione = getEdificioAbitazione(abitante.id, edifici, abitante);
   const edificiOccupazione = getEdificiOccupazione(abitante.id, edifici);
 
   const apriEdificio = (edificio: Edificio) => {

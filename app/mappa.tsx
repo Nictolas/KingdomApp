@@ -63,6 +63,8 @@ import {
   trovaCellaAnchorCasaSuMappa,
   èResidenzaMappa
 } from "../src/game/residenzaMappa";
+import { rimuoviResidentiCastelloDaCaseMappa } from "../src/game/residenzaCastello";
+import { èResidenteFissoCastello } from "../src/game/castelloGuardie";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 import { ResidentPortrait } from "../src/ui/ResidentPortrait";
 import { CapannaFullscreenModal } from "../src/ui/CapannaFullscreenModal";
@@ -1072,6 +1074,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const terrenoInMappa = mappaState.terrenoInMappa;
   const decorazioniInMappa = mappaState.decorazioniInMappa;
   const residenzeMappa = mappaState.residenzeMappa;
+  // I salvataggi vecchi possono contenere il Consigliere in una Capanna della mappa.
+  useEffect(() => {
+    setMappaStatePersistente((s) => {
+      const next = rimuoviResidentiCastelloDaCaseMappa(abitanti, s.residenzeMappa);
+      return next === s.residenzeMappa ? s : { ...s, residenzeMappa: next };
+    });
+  }, [abitanti, setMappaStatePersistente]);
   /** Una tantum: distribuisce i residenti della Capanna globale sulle capanne procedurali. */
   const residenzeCapanneInizialiRef = useRef(false);
 
@@ -1637,7 +1646,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const cellaCasaPerAbitanteId = useMemo(() => {
     const m = new Map<number, number | null>();
     for (const a of abitanti) {
-      m.set(a.id, trovaCellaAnchorCasaSuMappa(a.id, edifici, edificiInMappa, residenzeMappa));
+      m.set(a.id, trovaCellaAnchorCasaSuMappa(a.id, edifici, edificiInMappa, residenzeMappa, a));
     }
     return m;
   }, [abitanti, edifici, edificiInMappa, residenzeMappa]);
@@ -2153,7 +2162,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         setDormonoACasaIds((s) => new Set(s).add(abitanteId));
         aggiornaAbitanteById(abitanteId, (a) =>
           applicaRecuperoEnergiaSonno(a, {
-            nomeResidenza: getEdificioAbitazione(a.id, edifici)?.nome ?? null
+            nomeResidenza: getEdificioAbitazione(a.id, edifici, a)?.nome ?? null
           })
         );
       } else if (purpose === "work") {
@@ -2999,6 +3008,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     const anchor = selectedResidenzaAnchor;
     const out: Abitante[] = [];
     for (const a of abitanti) {
+      if (èResidenteFissoCastello(a)) continue;
       if (altreCaseMappaTengonoId(a.id, anchor)) continue;
       if ((residenzeMappa[anchor] ?? []).includes(a.id)) continue;
       const dove = residenzaGlobaleDi(a.id, edifici);
@@ -3049,7 +3059,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       const nome = edificioResidenzaAperta.nome;
       const anchor = selectedResidenzaAnchor;
       const globId = idGlobalePerResidenzaInCella(edificioResidenzaAperta, nome);
-      if (!abitanti.some((x) => x.id === abitanteId)) return;
+      const abitante = abitanti.find((x) => x.id === abitanteId);
+      if (!abitante || èResidenteFissoCastello(abitante)) return;
 
       if (nome === "Capanna" || nome === "Dormitorio") {
         if (globId == null) return;
