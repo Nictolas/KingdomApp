@@ -220,3 +220,62 @@ test("ICE mobile: una perdita transitoria non termina il pairing, un fallimento 
   assert.equal(host.getSnapshot().otherPeerId, null);
   assert.equal(peer.isClosed, true);
 });
+
+test("P2P: proposta e risposta baratto sul datachannel, senza trasferimenti", async () => {
+  const factory = fakeFactory();
+  const receivedHost = [];
+  const receivedGuest = [];
+  const host = new LanP2PSession({
+    createPeer: factory.createPeer,
+    newId: (() => { const ids = [idHost, idSession, "33333333333333333333333333333333"]; return () => ids.shift(); })(),
+    onBarterMessage: msg => receivedHost.push(msg)
+  });
+  const guest = new LanP2PSession({
+    createPeer: factory.createPeer,
+    newId: () => idGuest,
+    onBarterMessage: msg => receivedGuest.push(msg)
+  });
+  const invitation = await host.host();
+  const answer = await guest.join(invitation);
+  await host.acceptAnswer(answer);
+  const proposed = host.proposeBarter([{ resourceId: "wood", quantity: 100_000 }], [{ resourceId: "iron", quantity: 10_000 }]);
+  assert.equal(receivedGuest.length, 1);
+  assert.equal(receivedGuest[0].offer.tradeId, proposed.tradeId);
+  assert.equal(receivedGuest[0].offer.proposerId, idHost);
+  assert.equal(receivedGuest[0].offer.responderId, idGuest);
+  guest.respondToBarter(proposed.tradeId, true);
+  assert.equal(receivedHost.length, 1);
+  assert.deepEqual(receivedHost[0], {
+    protocol: "mk-barter-v1", type: "respond", tradeId: proposed.tradeId, accepted: true
+  });
+  assert.throws(() => guest.respondToBarter(proposed.tradeId, true), /Nessuna proposta valida/);
+  host.close();
+  guest.close();
+});
+
+test("P2P: rifiuta baratti senza peer e proposte con identità falsificata", async () => {
+  const factory = fakeFactory();
+  const host = new LanP2PSession({
+    createPeer: factory.createPeer,
+    newId: (() => { const ids = [idHost, idSession]; return () => ids.shift(); })()
+  });
+  assert.throws(() => host.proposeBarter([{ resourceId: "wood", quantity: 1 }], [{ resourceId: "iron", quantity: 1 }]), /Collega prima/);
+  const guest = new LanP2PSession({ createPeer: factory.createPeer, newId: () => idGuest });
+  const invitation = await host.host();
+  const answer = await guest.join(invitation);
+  await host.acceptAnswer(answer);
+  factory.peers[1].ownChannel.send(JSON.stringify({
+    protocol: "mk-barter-v1", type: "propose",
+    offer: {
+      protocol: "mk-barter-v1",
+      tradeId: "44444444444444444444444444444444",
+      proposerId: "99999999999999999999999999999999",
+      responderId: idHost,
+      gives: [{ resourceId: "wood", quantity: 1 }],
+      wants: [{ resourceId: "iron", quantity: 1 }]
+    }
+  }));
+  assert.equal(host.getSnapshot().state, "error");
+  assert.equal(factory.peers[0].isClosed, true);
+  guest.close();
+});
