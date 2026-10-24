@@ -1,0 +1,38 @@
+name: My Kingdom - P2P durable journal
+
+on:
+  pull_request:
+    paths:
+      - 'src/multiplayer/barterJournal.ts'
+      - 'src/multiplayer/createProtectedBarterJournal.native.ts'
+      - 'tests/p2p-barter-journal.test.mjs'
+      - '.github/workflows/p2p-barter-journal.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: p2p-journal-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  journal-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: Journal crash recovery, replay, reservation and existing negotiation tests
+        run: npx tsx --test tests/p2p-barter-journal.test.mjs tests/p2p-barter-protocol.test.mjs tests/p2p-manual-signaling.test.mjs tests/p2p-mobile-integration.test.mjs
+      - name: Report TypeScript errors in multiplayer modules
+        run: |
+          npx tsc --noEmit --pretty false > /tmp/mykingdom-p2p-types.txt 2>&1 || true
+          if grep -E '^src/multiplayer/' /tmp/mykingdom-p2p-types.txt; then
+            echo "Multiplayer TypeScript errors detected."
+            exit 1
+          fi
