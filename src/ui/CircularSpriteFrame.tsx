@@ -57,7 +57,8 @@ export function CircularSpriteFrame({
     setFailedSource(null);
   }, [layerSignature]);
   const essentialLoaded = essentialIds.every(id => loadedIds.has(id));
-  const essentialFailed = failedSource !== null && essentialIds.includes(failedSource);
+  const essentialFailed = failedSource !== null &&
+    essentialIds.includes(failedSource) && !loadedIds.has(failedSource);
   const diameter = lpcSpriteCircleDiameter(size);
   const outer = diameter + FRAME_BORDER * 2;
   // Zoom sul volto: la testa LPC sta nella parte alta del frame 64×64.
@@ -77,7 +78,7 @@ export function CircularSpriteFrame({
             </Text>
           </View>
         )}
-        {canShow && !essentialFailed && (
+        {canShow && (
           <View
             style={[
               styles.spriteSlot,
