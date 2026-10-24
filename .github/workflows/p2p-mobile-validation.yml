@@ -53,10 +53,19 @@ jobs:
           fi
       - name: Build Android debug APK
         run: cd android && ./gradlew :app:assembleDebug --no-daemon --console=plain
+      - name: Verify merged APK manifest permissions
+        run: |
+          set -euo pipefail
+          manifest="$(find android/app/build/intermediates/merged_manifests -type f -name AndroidManifest.xml | grep '/debug/' | head -1)"
+          test -n "$manifest"
+          if grep -E 'android.permission.(CAMERA|RECORD_AUDIO|SYSTEM_ALERT_WINDOW)' "$manifest"; then
+            echo "Unnecessary camera, microphone or overlay permissions were merged"
+            exit 1
+          fi
 
   ios-prebuild:
     runs-on: macos-latest
-    timeout-minutes: 20
+    timeout-minutes: 45
     env:
       CI: "1"
       EXPO_NO_TELEMETRY: "1"
@@ -71,3 +80,15 @@ jobs:
         run: npx expo prebuild --platform ios --no-install --non-interactive
       - name: Verify local network declaration
         run: grep -R "NSLocalNetworkUsageDescription" ios/ || exit 1
+      - name: Install native iOS dependencies
+        run: cd ios && pod install
+      - name: Compile iOS Simulator app without signing
+        run: |
+          xcodebuild -workspace ios/MyKingdom.xcworkspace \
+            -scheme MyKingdom \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath /tmp/mykingdom-p2p-build \
+            CODE_SIGNING_ALLOWED=NO \
+            -quiet build
