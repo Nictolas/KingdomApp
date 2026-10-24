@@ -1,4 +1,5 @@
 import type { LanP2PSession, ConnectionSnapshot } from "./lanSession";
+import type { BarterMessage } from "./barterProtocol";
 
 /**
  * Dichiarazione per TypeScript. Metro sceglie nativeTransport.native.ts
@@ -6,5 +7,6 @@ import type { LanP2PSession, ConnectionSnapshot } from "./lanSession";
  * Non inserisce WebRTC nativo nella build web.
  */
 export declare function createNativeLanSession(
-  onChange: (snapshot: ConnectionSnapshot) => void
+  onChange: (snapshot: ConnectionSnapshot) => void,
+  onBarterMessage?: (message: BarterMessage) => void
 ): LanP2PSession;
