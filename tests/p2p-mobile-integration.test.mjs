@@ -44,3 +44,14 @@ test("La lobby non abilita il commercio prima dell'accordo P2P", () => {
   assert.match(view, /Lo scambio di merci non è ancora attivo/);
   assert.doesNotMatch(view, /addResources|transferStock|commitTrade|setInventario|setRisorse/);
 });
+
+test("La negoziazione del baratto è visibile ma NON modifica scorte", () => {
+  const ui = read("app/multiplayer.tsx");
+  const transport = read("src/multiplayer/nativeTransport.native.ts");
+  assert.match(ui, /sessionRef\.current\?\.proposeBarter/);
+  assert.match(ui, /sessionRef\.current\?\.respondToBarter/);
+  assert.match(ui, /Le merci NON vengono ancora trasferite/);
+  assert.match(ui, /useGameContext/);
+  assert.match(transport, /onBarterMessage/);
+  assert.doesNotMatch(ui, /setRisorse|setInventario|commitTrade|transferStock/);
+});
