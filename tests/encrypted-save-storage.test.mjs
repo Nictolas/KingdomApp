@@ -108,3 +108,16 @@ test("salvataggi: nessuna retrocompatibilità in chiaro per formati futuri scono
   await assert.rejects(() => secure.getItem(key), /non supportata/);
   await assert.rejects(() => secure.migrateLegacySaves(), /non supportato/);
 });
+
+test("salvataggi: dopo la migrazione un JSON in chiaro non viene mai accettato", async () => {
+  const raw = new MemoryPersistentStorage();
+  const secure = new EncryptedSaveStorage(raw, nodeGcmCipher());
+  const slot = ENCRYPTED_SAVE_SLOTS[0];
+  await raw.setItem(slot, '{"ferro":99999999}');
+  await assert.rejects(() => secure.getItem(slot), /non cifrato/);
+  await secure.migrateLegacySaves();
+  assert.equal(await secure.getItem(slot), '{"ferro":99999999}');
+  // Una nuova sostituzione in chiaro va rifiutata, non migrata in runtime.
+  await raw.setItem(slot, '{"ferro":123}');
+  await assert.rejects(() => secure.getItem(slot), /non cifrato/);
+});
