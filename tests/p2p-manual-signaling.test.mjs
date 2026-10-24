@@ -162,3 +162,41 @@ test("connessione LAN simulata: non permette doppia sessione e rifiuta answer sb
   host.close();
   assert.throws(() => host.ping(0), /non è ancora operativo/);
 });
+
+test("la disconnessione inattesa pulisce peer e ping; pong vecchi non valgono", async () => {
+  const f = fakeFactory();
+  const host = new LanP2PSession({ createPeer: f.createPeer, newId: (() => {
+    const ids = [idHost, idSession]; return () => ids.shift();
+  })() });
+  const guest = new LanP2PSession({ createPeer: f.createPeer, newId: () => idGuest });
+  const offer = await host.host();
+  const answer = await guest.join(offer);
+  await host.acceptAnswer(answer);
+  assert.equal(host.getSnapshot().state, "connected");
+
+  // A pong arriving without a locally issued ping must not mark a test successful.
+  f.peers[1].ownChannel.send(encodeWire(makeHeartbeat(idSession, 41, true)));
+  assert.equal(host.getSnapshot().lastPong, null);
+
+  host.ping(42);
+  assert.equal(host.getSnapshot().lastPong, 42);
+
+  // Simulate packets lost on the guest: no automatic pong for the next ping.
+  f.peers[1].ownChannel.onmessage = null;
+  host.ping(43);
+  assert.equal(host.getSnapshot().lastPong, null);
+  f.peers[1].ownChannel.send(encodeWire(makeHeartbeat(idSession, 42, true)));
+  assert.equal(host.getSnapshot().lastPong, null);
+  f.peers[1].ownChannel.send(encodeWire(makeHeartbeat(idSession, 43, true)));
+  assert.equal(host.getSnapshot().lastPong, 43);
+
+  // Unexpected network/channel close rather than pressing Disconnect.
+  f.peers[0].ownChannel.close();
+  const state = host.getSnapshot();
+  assert.equal(state.state, "disconnected");
+  assert.equal(state.otherPeerId, null);
+  assert.equal(state.sessionId, null);
+  assert.equal(state.lastPong, null);
+  assert.equal(f.peers[0].isClosed, true);
+  guest.close();
+});
