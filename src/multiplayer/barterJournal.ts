@@ -26,7 +26,7 @@ export const BARTER_JOURNAL_KEYS = {
 } as const;
 
 export const MAX_JOURNAL_TRADES = 2048;
-type BarterJournalPhase = "proposed" | "reserved" | "cancelled";
+type BarterJournalPhase = "proposed" | "accepted" | "reserved" | "cancelled";
 export type BarterJournalRecord = {
   offer: BarterOffer;
   role: LocalBarterReservation["role"];
@@ -71,7 +71,7 @@ function validateJournal(value: unknown, saveId: string): BarterJournal {
   for (const key of keys) {
     const r = value.records[key];
     if (!ID_PATTERN.test(key) || !isRecord(r) ||
-        (r.phase !== "proposed" && r.phase !== "reserved" && r.phase !== "cancelled") ||
+        (r.phase !== "proposed" && r.phase !== "accepted" && r.phase !== "reserved" && r.phase !== "cancelled") ||
         (r.role !== "proposer" && r.role !== "responder")) {
       throw new Error("Record del journal P2P non valido.");
     }
@@ -146,7 +146,7 @@ export class BarterJournalRepository {
   async read(): Promise<JournalReadResult> {
     const { journal, damaged } = await this.readSlots();
     const pendingReconciliation = Object.entries(journal.records)
-      .filter(([, r]) => r.phase === "reserved")
+      .filter(([, r]) => r.phase === "reserved" || r.phase === "accepted")
       .map(([id]) => id);
     return { journal, pendingReconciliation, readOnlyRecovery: damaged };
   }
@@ -242,12 +242,41 @@ export class BarterJournalRepository {
     });
   }
 
+  /** Records a proposal response durably before sending it to the peer.
+   * Does not move any inventory. Conflicting duplicate responses fail closed. */
+  decide(id: string, accepted: boolean): Promise<BarterJournalRecord> {
+    if (!ID_PATTERN.test(id) || typeof accepted !== "boolean") {
+      return Promise.reject(new Error("Risposta al baratto non valida."));
+    }
+    return this.mutate(journal => {
+      const record = journal.records[id];
+      if (!record || record.phase === "cancelled") {
+        if (record?.phase === "cancelled" && !accepted) return { next: journal, value: record };
+        throw new Error("Baratto non disponibile per questa risposta.");
+      }
+      if (record.phase === "reserved" || record.phase === "accepted") {
+        if (accepted) return { next: journal, value: record };
+        throw new Error("Una proposta già accettata richiede riconciliazione prima di annullarla.");
+      }
+      const decision: BarterJournalRecord = {
+        ...record, phase: accepted ? "accepted" : "cancelled", updatedAt: this.timestamp()
+      };
+      return {
+        next: { ...journal, records: { ...journal.records, [id]: decision } },
+        value: decision
+      };
+    });
+  }
+
   /** Local cancellation is possible only before entering a commit phase. */
   cancel(id: string): Promise<void> {
     if (!ID_PATTERN.test(id)) return Promise.reject(new Error("ID baratto non valido."));
     return this.mutate(journal => {
       const record = journal.records[id];
       if (!record || record.phase === "cancelled") return { next: journal, value: undefined };
+      if (record.phase === "accepted") {
+        throw new Error("Proposta accettata: attendi la riconciliazione con l'altro giocatore.");
+      }
       const cancelled: BarterJournalRecord = { ...record, phase: "cancelled", updatedAt: this.timestamp() };
       return { next: { ...journal, records: { ...journal.records, [id]: cancelled } }, value: undefined };
     });
