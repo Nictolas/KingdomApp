@@ -192,6 +192,10 @@ import {
 } from "../src/game/mappaBarArrivatiStore";
 import { computeStatoCielo } from "../src/game/cicloCielo";
 import {
+  abitanteNelCastelloDiNotte,
+  tuttiGliAbitantiSonoACasaDiNotte
+} from "../src/game/accelerazioneNotturna";
+import {
   formatOrologioGioco,
   getGiornoGiocoSnapshot,
   OROLOGIO_GIOCO_VELOCITA
@@ -934,7 +938,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     coprifuocoInizioMinuti,
     coprifuocoFineMinuti,
     obiettiviCompletati,
-    apriDialogPiazzaPonte
+    apriDialogPiazzaPonte,
+    modalitaRe
   } = useGameContext();
   const variazioni = calcolaProduzioneConsumo();
   const deltaOrdini = calcolaDeltaOrdiniMercato();
@@ -1632,6 +1637,42 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     cultoArrivatiByEdificio,
     dormonoACasaIds
   ]);
+
+  /** Solo dopo l'ultimo rientro (Re e Consigliere al Castello) la notte passa a 4×. */
+  const tuttiACasaDiNotte = useMemo(
+    () =>
+      tuttiGliAbitantiSonoACasaDiNotte({
+        notte: èNottePersonaggiInCasa,
+        abitanti,
+        edifici,
+        modalitaRe,
+        dormonoACasaIds,
+        cellaCasaPerAbitanteId,
+        commuteByAbitanteId
+      }),
+    [
+      èNottePersonaggiInCasa,
+      abitanti,
+      edifici,
+      modalitaRe,
+      dormonoACasaIds,
+      cellaCasaPerAbitanteId,
+      commuteByAbitanteId
+    ]
+  );
+  const velocitaNotteAttivataDaGiocoRef = useRef(false);
+  useEffect(() => {
+    // Non riprendere automaticamente una partita messa in pausa dal giocatore.
+    if (orologioInPausa) return;
+    if (tuttiACasaDiNotte && !velocitaNotteAttivataDaGiocoRef.current) {
+      velocitaNotteAttivataDaGiocoRef.current = true;
+      if (orologioVelocita !== 4) setOrologioVelocita(4);
+    } else if (!tuttiACasaDiNotte && velocitaNotteAttivataDaGiocoRef.current) {
+      velocitaNotteAttivataDaGiocoRef.current = false;
+      // Non sovrascrivere una velocità scelta manualmente nel frattempo.
+      if (orologioVelocita === 4) setOrologioVelocita(1);
+    }
+  }, [tuttiACasaDiNotte, orologioInPausa, orologioVelocita, setOrologioVelocita]);
 
   const minutiAbsGioco = useCallback(
     () => getGiornoGiocoSnapshot() * 1440 + orologioMinuti,
@@ -3460,8 +3501,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       const nascostoCasa =
         !inCommute &&
         èNottePersonaggiInCasa &&
-        homeCell !== null &&
-        dormonoACasaIds.has(abitante.id);
+        ((
+          homeCell !== null &&
+          dormonoACasaIds.has(abitante.id)
+        ) || abitanteNelCastelloDiNotte(abitante, edifici, modalitaRe));
 
       return !nascostoLavoro && !nascostoBar && !nascostoCulto && !nascostoCasa;
     },
@@ -3475,7 +3518,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       cultoArrivatiByEdificio,
       cellaCasaPerAbitanteId,
       èNottePersonaggiInCasa,
-      dormonoACasaIds
+      dormonoACasaIds,
+      modalitaRe
     ]
   );
 
@@ -4058,6 +4102,12 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                     if (nascostoCulto) return null;
 
                     const homeCell = cellaCasaPerAbitanteId.get(abitante.id) ?? null;
+                    const nelCastelloDiNotte =
+                      !inCommute &&
+                      èNottePersonaggiInCasa &&
+                      abitanteNelCastelloDiNotte(abitante, edifici, modalitaRe);
+                    if (nelCastelloDiNotte) return null;
+
                     const fixedCellNotte =
                       !inCommute &&
                       èNottePersonaggiInCasa &&
