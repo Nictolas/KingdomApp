@@ -106,7 +106,7 @@ test("salvataggi: nessuna retrocompatibilità in chiaro per formati futuri scono
   const key = ENCRYPTED_SAVE_SLOTS[0];
   await raw.setItem(key, "mk:aes256gcm:v99:abc");
   await assert.rejects(() => secure.getItem(key), /non supportata/);
-  await assert.rejects(() => secure.migrateLegacySaves(), /non supportato/);
+  await assert.rejects(() => secure.migrateLegacySaves(), /non supportat[oa]/);
 });
 
 test("salvataggi: dopo la migrazione un JSON in chiaro non viene mai accettato", async () => {
