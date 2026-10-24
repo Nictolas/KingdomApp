@@ -17,6 +17,8 @@ import {
   type ConnectionSnapshot
 } from "../src/multiplayer/lanSession";
 import { createNativeLanSession } from "../src/multiplayer/nativeTransport";
+import { useGameContext } from "../src/context/GameContext";
+import type { BarterOffer } from "../src/multiplayer/barterProtocol";
 
 type Mode = "choose" | "host" | "guest";
 const EMPTY: ConnectionSnapshot = {
@@ -40,6 +42,13 @@ const stateLabels: Record<ConnectionSnapshot["state"], string> = {
 /** Collega soltanto i dispositivi. Non invia salvataggi o merci. */
 export default function MultiplayerScreen() {
   const router = useRouter();
+  const { risorse } = useGameContext();
+  const [giveId, setGiveId] = useState("");
+  const [receiveId, setReceiveId] = useState("");
+  const [giveAmount, setGiveAmount] = useState("");
+  const [receiveAmount, setReceiveAmount] = useState("");
+  const [receivedTrade, setReceivedTrade] = useState<BarterOffer | null>(null);
+  const [sentTrade, setSentTrade] = useState<BarterOffer | null>(null);
   const sessionRef = useRef<LanP2PSession | null>(null);
   const [mode, setMode] = useState<Mode>("choose");
   const [snapshot, setSnapshot] = useState<ConnectionSnapshot>(EMPTY);
@@ -53,7 +62,17 @@ export default function MultiplayerScreen() {
   useEffect(() => {
     if (!mobile) return;
     try {
-      sessionRef.current = createNativeLanSession(setSnapshot);
+      sessionRef.current = createNativeLanSession(setSnapshot, message => {
+        if (message.type === "propose") {
+          setReceivedTrade(message.offer);
+          setNote("È arrivata una proposta di baratto. Nessuna risorsa è stata trasferita.");
+        } else {
+          setSentTrade(null);
+          setNote(message.accepted
+            ? "Proposta accettata per la prova. Trasferimento risorse NON ancora attivo."
+            : "L'altro giocatore ha rifiutato la proposta.");
+        }
+      });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : "Modulo WebRTC non disponibile.");
     }
@@ -89,6 +108,50 @@ export default function MultiplayerScreen() {
     setIncoming("");
     setError("");
     setNote("");
+    setReceivedTrade(null);
+    setSentTrade(null);
+  }
+
+  function resourceName(resourceId: string): string {
+    return risorse.find(resource => String(resource.id) === resourceId)?.nome ?? resourceId;
+  }
+
+  function submitBarter() {
+    try {
+      const give = risorse.find(resource => String(resource.id) === (giveId || String(risorse[0]?.id ?? "")));
+      const want = risorse.find(resource => String(resource.id) === (receiveId || String(risorse[1]?.id ?? "")));
+      const amountGive = Number(giveAmount);
+      const amountWant = Number(receiveAmount);
+      if (!give || !want || !Number.isSafeInteger(amountGive) || amountGive <= 0 ||
+          !Number.isSafeInteger(amountWant) || amountWant <= 0) {
+        throw new Error("Scegli le due risorse e inserisci quantità intere positive.");
+      }
+      if (amountGive > give.quantità) throw new Error("Non possiedi tutte le risorse proposte.");
+      const proposal = sessionRef.current?.proposeBarter(
+        [{ resourceId: String(give.id), quantity: amountGive }],
+        [{ resourceId: String(want.id), quantity: amountWant }]
+      );
+      if (!proposal) throw new Error("Collegamento P2P non disponibile.");
+      setSentTrade(proposal);
+      setNote("Proposta inviata. L'eventuale accettazione non trasferisce ancora risorse.");
+      setError("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Proposta non valida.");
+    }
+  }
+
+  function answerBarter(accepted: boolean) {
+    if (!receivedTrade) return;
+    try {
+      sessionRef.current?.respondToBarter(receivedTrade.tradeId, accepted);
+      setReceivedTrade(null);
+      setNote(accepted
+        ? "Hai accettato la proposta di prova. Nessuna risorsa è stata trasferita."
+        : "Hai rifiutato la proposta.");
+      setError("");
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Impossibile rispondere.");
+    }
   }
 
   async function shareCode() {
@@ -274,6 +337,64 @@ export default function MultiplayerScreen() {
                 </Pressable>
               </View>
             )}
+            {snapshot.state === "connected" && (
+              <View style={styles.card}>
+                <Text style={styles.subheading}>Proposte di baratto — anteprima</Text>
+                <Text style={styles.warning}>
+                  Puoi inviare, accettare e rifiutare proposte. Le merci NON vengono ancora trasferite:
+                  manca la registrazione persistente e la riconciliazione dopo una disconnessione.
+                </Text>
+                <Text style={styles.body}>Cosa offri?</Text>
+                <View style={styles.resources}>
+                  {risorse.filter(resource => resource.quantità > 0).map(resource => (
+                    <Pressable key={resource.id}
+                      style={[styles.resource, (giveId || String(risorse[0]?.id ?? "")) === String(resource.id) && styles.chosen]}
+                      onPress={() => setGiveId(String(resource.id))}>
+                      <Text style={styles.buttonText}>{resource.nome} ({resource.quantità})</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <TextInput accessibilityLabel="Quantità da offrire"
+                  style={styles.input} keyboardType="number-pad" value={giveAmount}
+                  onChangeText={setGiveAmount} placeholder="Quantità che offri"
+                  placeholderTextColor="#94a3b8" />
+                <Text style={styles.body}>Cosa chiedi?</Text>
+                <View style={styles.resources}>
+                  {risorse.map(resource => (
+                    <Pressable key={resource.id}
+                      style={[styles.resource, (receiveId || String(risorse[1]?.id ?? "")) === String(resource.id) && styles.chosen]}
+                      onPress={() => setReceiveId(String(resource.id))}>
+                      <Text style={styles.buttonText}>{resource.nome}</Text>
+                    </Pressable>
+                  ))}
+                </View>
+                <TextInput accessibilityLabel="Quantità richiesta"
+                  style={styles.input} keyboardType="number-pad" value={receiveAmount}
+                  onChangeText={setReceiveAmount} placeholder="Quantità richiesta"
+                  placeholderTextColor="#94a3b8" />
+                <Pressable style={styles.primary} onPress={submitBarter}>
+                  <Text style={styles.buttonText}>Invia proposta di prova</Text>
+                </Pressable>
+                {sentTrade && <Text style={styles.body}>Proposta inviata, in attesa di risposta.</Text>}
+                {receivedTrade && (
+                  <View style={styles.card}>
+                    <Text style={styles.subheading}>Proposta ricevuta</Text>
+                    <Text style={styles.body}>
+                      Offrono: {receivedTrade.gives.map(line => `${line.quantity} ${resourceName(line.resourceId)}`).join(", ")}
+                    </Text>
+                    <Text style={styles.body}>
+                      Chiedono: {receivedTrade.wants.map(line => `${line.quantity} ${resourceName(line.resourceId)}`).join(", ")}
+                    </Text>
+                    <Pressable style={styles.primary} onPress={() => answerBarter(true)}>
+                      <Text style={styles.buttonText}>Accetta la proposta di prova</Text>
+                    </Pressable>
+                    <Pressable style={styles.secondary} onPress={() => answerBarter(false)}>
+                      <Text style={styles.buttonText}>Rifiuta proposta</Text>
+                    </Pressable>
+                  </View>
+                )}
+              </View>
+            )}
             {mode !== "choose" && (
               <Pressable style={styles.secondary} onPress={restart}>
                 <Text style={styles.buttonText}>Interrompi e ricomincia</Text>
@@ -303,5 +424,8 @@ const styles = StyleSheet.create({
   codeInput: { height: 110, textAlignVertical: "top" },
   primary: { borderRadius: 9, paddingVertical: 13, paddingHorizontal: 14, alignItems: "center", backgroundColor: "#5b21b6" },
   secondary: { borderRadius: 9, paddingVertical: 13, paddingHorizontal: 14, alignItems: "center", backgroundColor: "#334155" },
-  buttonText: { color: "#ffffff", fontSize: 14, fontWeight: "700" }
+  buttonText: { color: "#ffffff", fontSize: 14, fontWeight: "700" },
+  resources: { flexDirection: "row", flexWrap: "wrap", gap: 6 },
+  resource: { padding: 8, borderRadius: 8, backgroundColor: "#334155" },
+  chosen: { backgroundColor: "#5b21b6" }
 });
