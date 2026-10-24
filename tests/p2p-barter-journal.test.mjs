@@ -1,4 +1,6 @@
 import assert from "node:assert/strict";
+import { createCipheriv, createDecipheriv, randomBytes } from "node:crypto";
+import { EncryptedSaveStorage, ENCRYPTED_SAVE_PREFIX, EncryptedSaveDataError } from "../src/persistence/encryptedSaveStorage.ts";
 import test from "node:test";
 import { MemoryPersistentStorage } from "./memory-persistent-storage.mjs";
 import {
@@ -198,4 +200,73 @@ test("journal: rifiuto salvato e nessuna riattivazione dopo riavvio", async () =
   assert.deepEqual(state.pendingReconciliation, []);
   await repo(store).decide(tradeId, false);
   await assert.rejects(() => repo(store).decide(tradeId, true), /non disponibile/);
+});
+
+/** Real AES-256-GCM, same per-slot AAD contract as native Expo crypto. */
+function testAesGcmCipher() {
+  const key = randomBytes(32);
+  return {
+    async encrypt(slot, plaintext) {
+      const iv = randomBytes(12);
+      const cipher = createCipheriv("aes-256-gcm", key, iv);
+      cipher.setAAD(Buffer.from("mykingdom-save-slot:v1:" + slot));
+      const body = Buffer.concat([cipher.update(plaintext, "utf8"), cipher.final()]);
+      return Buffer.concat([iv, body, cipher.getAuthTag()]).toString("base64");
+    },
+    async decrypt(slot, raw) {
+      const data = Buffer.from(raw, "base64");
+      const decipher = createDecipheriv("aes-256-gcm", key, data.subarray(0, 12));
+      decipher.setAAD(Buffer.from("mykingdom-save-slot:v1:" + slot));
+      decipher.setAuthTag(data.subarray(-16));
+      return Buffer.concat([decipher.update(data.subarray(12, -16)), decipher.final()]).toString("utf8");
+    }
+  };
+}
+
+test("journal cifrato: primary AES-GCM manomesso, backup integro recuperato in sola lettura", async () => {
+  const raw = new MemoryPersistentStorage();
+  const protectedStorage = new EncryptedSaveStorage(raw, testAesGcmCipher());
+  const j = repo(protectedStorage);
+  await j.propose(offer(), "proposer");
+  await j.reserve(tradeId, { wood: 100, iron: 0 }, 100);
+  const primary = journalStorageKey("primary", saveId);
+  const backup = journalStorageKey("backup", saveId);
+  assert.match(await raw.getItem(primary), /^mk:aes256gcm:v1:/);
+  assert.match(await raw.getItem(backup), /^mk:aes256gcm:v1:/);
+
+  const data = Buffer.from((await raw.getItem(primary)).slice(ENCRYPTED_SAVE_PREFIX.length), "base64");
+  data[18] ^= 0x40;
+  await raw.setItem(primary, ENCRYPTED_SAVE_PREFIX + data.toString("base64"));
+  await assert.rejects(() => protectedStorage.getItem(primary), EncryptedSaveDataError);
+  const recovered = await repo(protectedStorage).read();
+  assert.equal(recovered.readOnlyRecovery, true);
+  assert.equal(recovered.journal.revision, 1);
+  assert.equal(recovered.journal.records[tradeId].phase, "proposed");
+  await assert.rejects(() => repo(protectedStorage).cancel(tradeId), /sola lettura/);
+  assert.equal(await raw.getItem(primary), ENCRYPTED_SAVE_PREFIX + data.toString("base64"));
+});
+
+test("journal cifrato: tutte le copie AES-GCM manomesse bloccano definitivamente nuove scritture", async () => {
+  const raw = new MemoryPersistentStorage();
+  const protectedStorage = new EncryptedSaveStorage(raw, testAesGcmCipher());
+  await repo(protectedStorage).propose(offer(), "proposer");
+  await repo(protectedStorage).reserve(tradeId, { wood: 100 }, 100);
+  for (const slot of ["primary", "backup"]) {
+    const key = journalStorageKey(slot, saveId);
+    await raw.setItem(key, ENCRYPTED_SAVE_PREFIX + "corrupted-ciphertext");
+  }
+  await assert.rejects(() => repo(protectedStorage).read(), /illeggibili/);
+  await assert.rejects(() => repo(protectedStorage).propose(offer(id(99)), "proposer"), /illeggibili/);
+});
+
+test("journal cifrato: slot non cifrato non diventa una proposta valida tramite backup", async () => {
+  const raw = new MemoryPersistentStorage();
+  const protectedStorage = new EncryptedSaveStorage(raw, testAesGcmCipher());
+  await repo(protectedStorage).propose(offer(), "proposer");
+  await repo(protectedStorage).reserve(tradeId, { wood: 100 }, 100);
+  const primary = journalStorageKey("primary", saveId);
+  await raw.setItem(primary, JSON.stringify({ fake: "plaintext" }));
+  const recovered = await repo(protectedStorage).read();
+  assert.equal(recovered.readOnlyRecovery, true);
+  await assert.rejects(() => repo(protectedStorage).reserve(tradeId, { wood: 100 }, 100), /sola lettura/);
 });

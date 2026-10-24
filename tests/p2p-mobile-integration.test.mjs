@@ -81,3 +81,12 @@ test("Integrazione Bosco: il salvataggio reale del GameContext è cifrato sui te
   assert.match(storage, /new EncryptedSaveStorage\(raw, cipher\)/);
   assert.match(journal, /createGameSaveStorage\(\)/);
 });
+
+test("Journal cifrato: l'interfaccia mostra i baratti sospesi senza applicare trasferimenti", () => {
+  const ui = read("app/multiplayer.tsx");
+  assert.match(ui, /status\.pendingReconciliation\.map/);
+  assert.match(ui, /status\.readOnlyRecovery/);
+  assert.match(ui, /Nessuna prenotazione viene sbloccata automaticamente/);
+  assert.match(ui, /Aggiorna stato baratti/);
+  assert.doesNotMatch(ui, /releaseLocalBarter\(|applyRemoteBarterMessageToStock\(/);
+});

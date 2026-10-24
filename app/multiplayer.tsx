@@ -62,6 +62,11 @@ export default function MultiplayerScreen() {
   const [working, setWorking] = useState(false);
   const [error, setError] = useState("");
   const [note, setNote] = useState("");
+  const [pendingBarters, setPendingBarters] = useState<Array<{
+    tradeId: string; phase: string; role: string;
+  }>>([]);
+  const [journalReadOnly, setJournalReadOnly] = useState(false);
+  const [journalStatus, setJournalStatus] = useState<string | null>(null);
   const mobile = Platform.OS === "android" || Platform.OS === "ios";
 
   useEffect(() => {
@@ -74,10 +79,12 @@ export default function MultiplayerScreen() {
           if (message.type === "propose") {
             await journal.propose(message.offer, "responder");
             setReceivedTrade(message.offer);
+            void refreshBarterJournalStatus();
             setNote("Proposta ricevuta e salvata localmente. Nessuna merce è stata trasferita.");
           } else {
             await journal.decide(message.tradeId, message.accepted);
             setSentTrade(null);
+            void refreshBarterJournalStatus();
             setNote(message.accepted
               ? "Risposta accettata e salvata: baratto da riconciliare, nessuna merce trasferita."
               : "L'altro giocatore ha rifiutato la proposta.");
@@ -94,6 +101,40 @@ export default function MultiplayerScreen() {
       sessionRef.current = null;
     };
   }, [mobile]);
+
+  /** Display durable pending trades without ever releasing stock automatically. */
+  async function refreshBarterJournalStatus(saveId: string | null = activeSaveIdRef.current): Promise<void> {
+    if (!saveId) {
+      setPendingBarters([]);
+      setJournalReadOnly(false);
+      setJournalStatus("Salva la partita prima di iniziare i baratti.");
+      return;
+    }
+    try {
+      if (!journalRef.current || journalRef.current.saveId !== saveId) {
+        journalRef.current = { saveId, pending: createProtectedBarterJournal(saveId) };
+      }
+      const journal = await journalRef.current.pending;
+      const status = await journal.read();
+      if (activeSaveIdRef.current !== saveId) return;
+      setPendingBarters(status.pendingReconciliation.map(tradeId => {
+        const record = status.journal.records[tradeId]!;
+        return { tradeId, phase: record.phase, role: record.role };
+      }));
+      setJournalReadOnly(status.readOnlyRecovery);
+      setJournalStatus(null);
+    } catch (cause) {
+      if (activeSaveIdRef.current !== saveId) return;
+      setJournalReadOnly(true);
+      setPendingBarters([]);
+      setJournalStatus(cause instanceof Error ? cause.message : "Journal protetto illeggibile.");
+    }
+  }
+
+  useEffect(() => {
+    if (!mobile) return;
+    void refreshBarterJournalStatus(activeSaveId);
+  }, [mobile, activeSaveId]);
 
   async function perform(fn: (session: LanP2PSession) => Promise<void>) {
     if (working) return;
@@ -170,6 +211,7 @@ export default function MultiplayerScreen() {
         async offer => { await journal.propose(offer, "proposer"); }
       );
       setSentTrade(proposal);
+      void refreshBarterJournalStatus();
       setNote("Proposta salvata e inviata. L'accettazione non trasferisce ancora risorse.");
       setError("");
     } catch (cause) {
@@ -189,6 +231,7 @@ export default function MultiplayerScreen() {
       if (!session) throw new Error("La connessione P2P non è disponibile.");
       session.respondToBarter(receivedTrade.tradeId, accepted);
       setReceivedTrade(null);
+      void refreshBarterJournalStatus();
       setNote(accepted
         ? "Accettazione registrata, in attesa di riconciliazione. Nessuna risorsa è stata trasferita."
         : "Rifiuto registrato. Nessuna risorsa è stata trasferita.");
@@ -245,6 +288,37 @@ export default function MultiplayerScreen() {
               {error && <Text style={styles.danger}>{error}</Text>}
               {note && <Text style={styles.success}>{note}</Text>}
               {working && <ActivityIndicator color="#c4b5fd" />}
+            </View>
+
+            <View style={styles.card}>
+              <Text style={styles.subheading}>Stato dei baratti salvati</Text>
+              {journalStatus && <Text style={styles.warning}>{journalStatus}</Text>}
+              {journalReadOnly && (
+                <Text style={styles.danger}>
+                  Archivio P2P da verificare: tutte le nuove operazioni sono bloccate.
+                  Nessuna prenotazione viene sbloccata automaticamente.
+                </Text>
+              )}
+              {pendingBarters.length > 0 ? (
+                <>
+                  <Text style={styles.warning}>
+                    {pendingBarters.length} baratto/i da riconciliare dopo una conferma o un riavvio.
+                    Gli scambi non sono stati completati: non eliminare i dati della partita.
+                  </Text>
+                  {pendingBarters.slice(0, 8).map(item => (
+                    <Text key={item.tradeId} style={styles.body}>
+                      {item.tradeId.slice(0, 8)} · {item.phase === "accepted" ? "accettato" : "prenotato"} ·
+                      {item.role === "proposer" ? "proposta inviata" : "proposta ricevuta"}
+                    </Text>
+                  ))}
+                </>
+              ) : !journalStatus && !journalReadOnly ? (
+                <Text style={styles.body}>Nessun baratto in attesa di riconciliazione.</Text>
+              ) : null}
+              <Pressable style={styles.secondary} disabled={working}
+                onPress={() => void refreshBarterJournalStatus()}>
+                <Text style={styles.buttonText}>Aggiorna stato baratti</Text>
+              </Pressable>
             </View>
 
             {mode === "choose" && (
