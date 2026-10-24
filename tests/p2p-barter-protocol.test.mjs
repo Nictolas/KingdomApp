@@ -69,7 +69,7 @@ test("magazzino: capienza al termine del baratto e risorse carenti", () => {
   const bigReceive = offer([{ resourceId: "wood", quantity: 10 }], [{ resourceId: "iron", quantity: 90 }]);
   assert.throws(() => reserveLocalBarter(ledger({ wood: 50, iron: 30 }, 110), bigReceive, "proposer"), /Capienza/);
   assert.throws(() => reserveLocalBarter(ledger({ wood: 5, iron: 100 }, 200), bigReceive, "proposer"), /insufficienti/);
-  const guestLedger = ledger({ wood: 3, iron: 18_000 }, 120_000);
+  const guestLedger = ledger({ wood: 3, iron: 18_000 }, 90_000);
   assert.throws(() => reserveLocalBarter(guestLedger, offer(), "responder"), /Capienza/);
 });
 
