@@ -24,6 +24,8 @@ export interface P2PDataChannel {
 
 export interface P2PPeerConnection {
   iceGatheringState: string;
+  iceConnectionState?: string;
+  oniceconnectionstatechange?: (() => void) | null;
   localDescription: { type: string; sdp?: string } | null;
   onicegatheringstatechange: (() => void) | null;
   ondatachannel: ((event: { channel: P2PDataChannel }) => void) | null;
@@ -57,6 +59,7 @@ export class LanP2PSession {
   private peer: P2PPeerConnection | null = null;
   private channel: P2PDataChannel | null = null;
   private peerId: string;
+  private pendingPing: number | null = null;
   private snapshot: ConnectionSnapshot = {
     state: "idle", role: null, sessionId: null, otherPeerId: null, lastPong: null, error: null
   };
@@ -77,7 +80,15 @@ export class LanP2PSession {
   private openPeer(): P2PPeerConnection {
     if (this.peer) throw new Error("Chiudi la connessione P2P precedente prima di crearne un'altra.");
     this.peer = this.adapter.createPeer();
+    const activePeer = this.peer;
     this.peer.ondatachannel = event => this.attachChannel(event.channel);
+    // Distinguish an actual ICE failure from a peer still exchanging codes.
+    // "disconnected" may be temporary during a mobile network transition.
+    this.peer.oniceconnectionstatechange = () => {
+      if (this.peer === activePeer && activePeer.iceConnectionState === "failed") {
+        this.fail(new Error("La connessione diretta WebRTC non è riuscita. Verifica che entrambi i telefoni siano sulla stessa Wi-Fi e che la rete non isoli i dispositivi."));
+      }
+    };
     return this.peer;
   }
 
@@ -93,7 +104,9 @@ export class LanP2PSession {
       }
     };
     channel.onclose = () => {
-      if (this.snapshot.state !== "disconnected") this.emit({ state: "disconnected" });
+      // The remote peer or Wi-Fi may disappear without a deliberate "Disconnect".
+      // Discard stale peer identity and the last successful ping.
+      if (this.channel === channel) this.close();
     };
     channel.onmessage = event => {
       if (typeof event.data !== "string" || !this.snapshot.sessionId) return;
@@ -105,7 +118,11 @@ export class LanP2PSession {
         } else if (message.type === "ping") {
           channel.send(encodeWire(makeHeartbeat(this.snapshot.sessionId, message.sequence, true)));
         } else if (message.type === "pong") {
-          this.emit({ lastPong: message.sequence });
+          // An unsolicited or outdated pong is not evidence of a live link.
+          if (message.sequence === this.pendingPing && this.snapshot.state === "connected") {
+            this.pendingPing = null;
+            this.emit({ lastPong: message.sequence });
+          }
         }
       } catch {
         this.close();
@@ -195,7 +212,15 @@ export class LanP2PSession {
     if (this.snapshot.state !== "connected" || this.channel?.readyState !== "open" || !this.snapshot.sessionId) {
       throw new Error("Il collegamento P2P non è ancora operativo.");
     }
-    this.channel.send(encodeWire(makeHeartbeat(this.snapshot.sessionId, sequence)));
+    this.pendingPing = sequence;
+    this.emit({ lastPong: null });
+    try {
+      this.channel.send(encodeWire(makeHeartbeat(this.snapshot.sessionId, sequence)));
+    } catch (cause) {
+      this.pendingPing = null;
+      this.close();
+      throw cause;
+    }
   }
 
   private fail(cause: unknown): void {
@@ -205,6 +230,7 @@ export class LanP2PSession {
   }
 
   close(): void {
+    this.pendingPing = null;
     if (this.channel) {
       this.channel.onopen = null;
       this.channel.onclose = null;
@@ -215,9 +241,10 @@ export class LanP2PSession {
     if (this.peer) {
       this.peer.ondatachannel = null;
       this.peer.onicegatheringstatechange = null;
+      this.peer.oniceconnectionstatechange = null;
       try { this.peer.close(); } catch { /* Already closed. */ }
       this.peer = null;
     }
-    this.emit({ state: "disconnected", otherPeerId: null });
+    this.emit({ state: "disconnected", role: null, sessionId: null, otherPeerId: null, lastPong: null });
   }
 }
