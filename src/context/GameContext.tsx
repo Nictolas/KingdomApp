@@ -50,6 +50,8 @@ type GameContextType = {
   simulationEnabled: boolean;
   saveStatus: "idle" | "saving" | "saved" | "error";
   salvaPartita: () => Promise<void>;
+  /** Identificativo del salvataggio ATTIVO, null finché la prima scrittura non riesce. */
+  activeSaveId: string | null;
   abitanti: Abitante[];
   /** Inventario cibo del giocatore (colonia). */
   inventarioGiocatore: { itemId: string; quantità: number }[];
@@ -561,7 +563,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [salvaPartita]);
 
 
-  const contextValue = { ...gameState, saveStatus, salvaPartita };
+  const contextValue = { ...gameState, saveStatus, salvaPartita, activeSaveId: metadataRef.current?.saveId ?? null };
   const re = gameState.abitanti.find((abitante) => abitante.id === ID_GIOCATORE);
   const gameOverPerMorteRe =
     startup === "active" &&
