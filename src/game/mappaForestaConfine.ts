@@ -8,6 +8,48 @@ export function cellaNellaForestaNord(index: number, cols: number, rows: number)
   return Number.isInteger(index) && index >= 0 && index < cols * rows &&
     Math.floor(index / cols) < righeForestaNord(cols, rows);
 }
+/** Due file intere di prato fra gli alberi e qualsiasi costa o fiume. */
+export const RIGHE_ERBA_SOTTO_FORESTA = 2;
+
+/** Cintura erbosa a sud della foresta, su tutta la larghezza della mappa. */
+export function cellaNellaFasciaErbaSottoForesta(index: number, cols: number, rows: number): boolean {
+  const righeBosco = righeForestaNord(cols, rows);
+  if (!righeBosco || !Number.isInteger(index) || index < 0 || index >= cols * rows) return false;
+  const riga = Math.floor(index / cols);
+  return riga >= righeBosco && riga < Math.min(rows, righeBosco + RIGHE_ERBA_SOTTO_FORESTA);
+}
+
+/** Riporta a prato anche le celle modificate dalle rifiniture del terreno. Solo nuovi mondi. */
+export function proteggiFasciaErbaSottoForesta(
+  terreno: Record<number, "erba" | "river" | "sabbia">,
+  cols: number,
+  rows: number
+): void {
+  const righeBosco = righeForestaNord(cols, rows);
+  if (!righeBosco) return;
+  for (let riga = righeBosco; riga < Math.min(rows, righeBosco + RIGHE_ERBA_SOTTO_FORESTA); riga++) {
+    for (let colonna = 0; colonna < cols; colonna++) {
+      // L'assenza della chiave significa già «erba».
+      delete terreno[riga * cols + colonna];
+    }
+  }
+}
+
+/** Solo nel generatore iniziale: l'autostrada non può coprire il prato protetto.
+ * Le costruzioni successive del giocatore non sono modificate.
+ */
+export function rimuoviStradeInizialiDallaFasciaErba(
+  edifici: Record<number, { nome: string }>,
+  cols: number,
+  rows: number
+): void {
+  for (let index = 0; index < cols * rows; index++) {
+    if (cellaNellaFasciaErbaSottoForesta(index, cols, rows) && edifici[index]?.nome === "Strada") {
+      delete edifici[index];
+    }
+  }
+}
+
 /** Blocca anche i footprint che intersecano soltanto in parte il bosco. */
 export function footprintIntersecaForestaNord(
   anchor: number, w: number, h: number, cols: number, rows: number

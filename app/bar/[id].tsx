@@ -1,3 +1,4 @@
+import { BuildingResidentAvatar } from "../../src/ui/BuildingResidentAvatar";
 import { tornaAllaMappa } from "../../src/navigation/tornaAllaMappa";
 import React, { useMemo, useState, useSyncExternalStore } from "react";
 import { Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View, useWindowDimensions } from "react-native";
@@ -17,7 +18,6 @@ import { getCastaAbitante } from "../../src/game/casta";
 import { getStipendioMensileEdificio, STIPENDIO_BASE_MONETE_GIORNO } from "../../src/game/edificiPubblici";
 import { COSTO_BAR_MONETE } from "../../src/game/barEconomia";
 import { getCassaImpresa, getFatturatoMeseImpresa } from "../../src/game/impresaCassa";
-import { getEmojiAbitante } from "../../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../../src/types";
 
@@ -64,9 +64,7 @@ export default function BarScreenById() {
     return (
       <SafeAreaView style={styles.safe}>
         <Text style={styles.title}>Bar non trovato</Text>
-        <Text style={styles.back} onPress={() => router.back()}>
-          ← Indietro
-        </Text>
+        
       </SafeAreaView>
     );
   }
@@ -119,7 +117,7 @@ export default function BarScreenById() {
               <View style={styles.cardsContainer}>
                 {addetti.map((a) => (
                   <View key={a.id} style={styles.personCard}>
-                    <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+                    <BuildingResidentAvatar abitante={a} />
                     <View style={styles.cardContent}>
                       <Text style={styles.cardTitle}>{a.nome}</Text>
                       <Text style={styles.cardInfo}>
@@ -172,7 +170,7 @@ export default function BarScreenById() {
               <View style={styles.cardsContainer}>
                 {clienti.map((a) => (
                   <View key={a.id} style={styles.visitatoreRow}>
-                    <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+                    <BuildingResidentAvatar abitante={a} />
                     <View style={styles.cardContent}>
                       <Text style={styles.visitatoreNome} numberOfLines={1}>
                         {a.nome}
@@ -215,7 +213,7 @@ export default function BarScreenById() {
                         setDropdownVisible(false);
                       }}
                     >
-                      <Text style={styles.dropdownItemEmoji}>{getEmojiAbitante(a)}</Text>
+                      <BuildingResidentAvatar abitante={a} />
                       <View style={styles.dropdownItemTextContainer}>
                         <Text style={styles.dropdownItemNome}>{a.nome}</Text>
                         <Text style={styles.dropdownItemCompetenza}>Competenza: {a.competenza}%</Text>

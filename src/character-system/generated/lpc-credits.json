@@ -5001,5 +5001,90 @@
         ]
       }
     ]
+  },
+  "b173cea57472": {
+    "definition": "legs/shorts/legs_shorts_short.json",
+    "sourceCommit": "9bf06be193b053db256b2536824af426de046aa2",
+    "credits": [
+      {
+        "file": "legs/shorts/short_shorts/male",
+        "notes": "Original bases by Redshrike, thrust/shoot bases by Wulax, original overalls and shorts by ElizaWy, base animations adapted from v3 overalls by bluecarrot16, shorts by JaidynReiman",
+        "authors": [
+          "JaidynReiman",
+          "ElizaWy",
+          "Bluecarrot16",
+          "Johannes Sj\u00f6lund (wulax)",
+          "Stephen Challener (Redshrike)"
+        ],
+        "licenses": [
+          "OGA-BY 3.0",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing",
+          "https://opengameart.org/content/lpc-expanded-pants"
+        ]
+      },
+      {
+        "file": "legs/shorts/short_shorts",
+        "notes": "Original bases by Redshrike, thrust/shoot bases by Wulax, original shorts by ElizaWy, climb/jump/run/sit/emotes/revised combat by JaidynReiman",
+        "authors": [
+          "ElizaWy",
+          "JaidynReiman",
+          "Johannes Sj\u00f6lund (wulax)",
+          "Stephen Challener (Redshrike)"
+        ],
+        "licenses": [
+          "OGA-BY 3.0"
+        ],
+        "urls": [
+          "https://github.com/ElizaWy/LPC/tree/main/Characters/Clothing",
+          "https://opengameart.org/content/lpc-expanded-sit-run-jump-more",
+          "https://opengameart.org/content/lpc-expanded-pants"
+        ]
+      }
+    ]
+  },
+  "1a4b8c450660": {
+    "definition": "head/furry_ears/top/head_ears_cat.json",
+    "sourceCommit": "9bf06be193b053db256b2536824af426de046aa2",
+    "credits": [
+      {
+        "file": "head/ears/cat",
+        "notes": "",
+        "authors": [
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0+",
+          "CC-BY 3.0+",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-furry-ears-tails-for-rpg-sprites"
+        ]
+      }
+    ]
+  },
+  "c1a0a7a975e5": {
+    "definition": "head/furry_ears/top/head_ears_cat_skin.json",
+    "sourceCommit": "9bf06be193b053db256b2536824af426de046aa2",
+    "credits": [
+      {
+        "file": "head/ears/cat",
+        "notes": "",
+        "authors": [
+          "JaidynReiman"
+        ],
+        "licenses": [
+          "OGA-BY 3.0+",
+          "CC-BY 3.0+",
+          "GPL 3.0"
+        ],
+        "urls": [
+          "https://opengameart.org/content/lpc-furry-ears-tails-for-rpg-sprites"
+        ]
+      }
+    ]
   }
 }

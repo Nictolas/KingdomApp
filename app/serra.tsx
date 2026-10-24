@@ -8,7 +8,6 @@ import {
   Text,
   View
 } from "react-native";
-import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import {
   getColturaSerraDef,
@@ -159,7 +158,6 @@ function SerraCard({
 }
 
 export default function SerraScreen() {
-  const router = useRouter();
   const {
     abitanti,
     edifici,
@@ -182,7 +180,7 @@ export default function SerraScreen() {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.header}>
-        <Text style={styles.back} onPress={() => router.back()}>← Indietro</Text>
+        <View style={{ width: 70 }} />
         <Text style={styles.title}>🌱 Serre</Text>
         <View style={{ width: 70 }} />
       </View>

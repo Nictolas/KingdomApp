@@ -37,7 +37,7 @@ import { tasseSbloccate } from "../game/tasseSblocco";
 import { applicaEsitoChiacchieraSuLista } from "../game/relazioneChiacchiera";
 import { getEdificioAbitazione } from "../game/abitanteEdifici";
 import { generaImmigratiProposti } from "../game/immigrazione";
-import { getLavoroPerEdificio, autoAssegnaCittadiniDisoccupati, normalizzaLavoroEAgricoltura, edificioAccettaServiDellaGleba, isEdificioPubblicoConPostazioniLavoro, assumiCittadinoDisoccupatoInEdificio } from "../game/edificiLavoro";
+import { getLavoroPerEdificio, autoAssegnaCittadiniDisoccupati, normalizzaLavoroEAgricoltura, capienzaPostiLavoro, edificioAccettaServiDellaGleba, isEdificioPubblicoConPostazioniLavoro, assumiCittadinoDisoccupatoInEdificio } from "../game/edificiLavoro";
 import {
   avanzaCostruzioniEdifici,
   consumaMaterialeEdile,
@@ -69,6 +69,8 @@ import {
 } from "../game/economiaPrezzi";
 import { getCastaAbitante } from "../game/casta";
 import { nominaConsigliere as nominaConsiglierePuro } from "../game/consigliere";
+import { idsResidentiFissiCastello } from "../game/castelloGuardie";
+import { normalizzaResidenzeCastello } from "../game/residenzaCastello";
 import {
   STATO_RE_DEFAULT,
   edificioBuffVisitaCorrente,
@@ -172,16 +174,19 @@ const capoReligiosoSoleIniziale =
 
 function creaEdificiIniziali(abitantiIniziali: Abitante[], mode: GameMode = "creativa"): Edificio[] {
   const tuttiId = abitantiIniziali.map((a) => a.id);
-  const baraccaIds = abitantiIniziali.filter((a) => a.fazioni?.includes("Senzatetto")).map((a) => a.id);
+  const residentiCastello = idsResidentiFissiCastello(abitantiIniziali);
+  const castelloIds = new Set(residentiCastello);
+  const baraccaIds = abitantiIniziali.filter((a) => a.fazioni?.includes("Senzatetto") && !castelloIds.has(a.id)).map((a) => a.id);
   const dormitorioIds: number[] = [];
   const agricoltore = abitantiIniziali.find((a) => a.lavoro === "Agricoltore");
   const serraIds = agricoltore ? [agricoltore.id] : [];
   const prigionieriIds = abitantiIniziali.filter((a) => a.lavoro === "Prigioniero").map((a) => a.id);
-  const capannaIds = tuttiId.filter((id) => !baraccaIds.includes(id));
+  const capannaIds = tuttiId.filter((id) => !baraccaIds.includes(id) && !castelloIds.has(id));
   return filtraEdificiInizialiPerModalita(edificiData, mode)
     .map((e) => {
       let next: Edificio = e;
-      if (e.id === 4) next = { ...e, abitantiAssegnati: baraccaIds, occupazione: baraccaIds.length };
+      if (e.id === 1) next = { ...e, abitantiAssegnati: residentiCastello, occupazione: residentiCastello.length };
+      else if (e.id === 4) next = { ...e, abitantiAssegnati: baraccaIds, occupazione: baraccaIds.length };
       else if (e.id === 14) next = { ...e, abitantiAssegnati: dormitorioIds, occupazione: dormitorioIds.length };
       else if (e.id === 2) next = { ...e, abitantiAssegnati: serraIds, occupazione: serraIds.length };
       else if (e.id === 21) next = { ...e, abitantiAssegnati: [], occupazione: 0 };
@@ -351,6 +356,12 @@ export function useGameState() {
   useEffect(() => {
     if (!simulationEnabled) return;
     setEdifici((prev) => syncResidenzeBaraccaSenzatetto(prev, abitanti));
+  }, [abitanti, simulationEnabled]);
+
+  // Ripara i vecchi salvataggi e preserva l'abitazione nel Castello quando cambia il Consigliere.
+  useEffect(() => {
+    if (!simulationEnabled) return;
+    setEdifici((prev) => normalizzaResidenzeCastello(abitanti, prev));
   }, [abitanti, simulationEnabled]);
 
   /** Inventario iniziale + pasti giornalieri (inventario, padrone, mensa). */
@@ -830,7 +841,7 @@ export function useGameState() {
         politicaReligiosa,
         religioneDiStato,
         leggeDroghe,
-        nomeResidenza: getEdificioAbitazione(abitante.id, edifici)?.nome ?? null
+        nomeResidenza: getEdificioAbitazione(abitante.id, edifici, abitante)?.nome ?? null
       }),
     [politicaReligiosa, religioneDiStato, leggeDroghe, edifici]
   );
@@ -1391,7 +1402,7 @@ export function useGameState() {
       );
     }
     setRisorse(estraiCreditiLegacyDaRisorse(state.risorse).risorse);
-    setEdifici(state.edifici);
+    setEdifici(normalizzaResidenzeCastello(state.abitanti, state.edifici));
     setMese(state.mese);
     setAnno(state.anno);
     offsetMesiOrologioRef.current = offsetMesiPerCalendarioSalvato(
@@ -1554,11 +1565,12 @@ export function useGameState() {
     if (!abitante || abitante.lavoro === "Pensionato") return;
     const edificioCorrente = edifici.find((e) => e.id === edificioId);
     if (!edificioCorrente) return;
+    if (edificioCorrente.tipo === "Residenza" && idsResidentiFissiCastello(abitanti).includes(abitanteId)) return;
     const lavoroEdificio = getLavoroPerEdificio(edificioCorrente);
     if (lavoroEdificio && getCastaAbitante(abitante) !== "Servo della gleba") return;
     if (
       edificioCorrente.abitantiAssegnati.includes(abitanteId) ||
-      edificioCorrente.abitantiAssegnati.length >= edificioCorrente.capacità ||
+      edificioCorrente.abitantiAssegnati.length >= capienzaPostiLavoro(edificioCorrente) ||
       edificioCorrente.stato !== "Operativo"
     )
       return;
@@ -1736,7 +1748,7 @@ export function useGameState() {
     const result = nominaConsiglierePuro(abitantiRef.current, edifici, abitanteId);
     if (!result.ok) return;
     setAbitanti(result.abitanti);
-    setEdifici(result.edifici);
+    setEdifici(normalizzaResidenzeCastello(result.abitanti, result.edifici));
   }, [edifici]);
 
   const nominaMinistro = useCallback((abitanteId: number, ministero: string) => {

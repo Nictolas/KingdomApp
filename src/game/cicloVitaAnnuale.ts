@@ -8,7 +8,8 @@ const LONGEVITA: Record<Exclude<Razza, "Golem">, { rischioDa: number; limite: nu
   Elfo: { rischioDa: 120, limite: 200 },
   Nano: { rischioDa: 95, limite: 145 },
   Orco: { rischioDa: 55, limite: 100 },
-  Goblin: { rischioDa: 55, limite: 95 }
+  Goblin: { rischioDa: 55, limite: 95 },
+  Felix: { rischioDa: 72, limite: 110 }
 };
 
 export type SovranoDefunto = { nome: string; eta: number; anno: number; causa: "vecchiaia" };

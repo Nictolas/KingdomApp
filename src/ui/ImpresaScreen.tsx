@@ -8,7 +8,6 @@ import {
   Text,
   View
 } from "react-native";
-import { useRouter } from "expo-router";
 import { useGameContext } from "../context/GameContext";
 import { getImpresaDef } from "../data/impreseCatalogo";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../game/edificiLavoro";
@@ -24,7 +23,6 @@ type Props = {
 };
 
 export function ImpresaScreen({ edificioId, nomeAtteso }: Props) {
-  const router = useRouter();
   const {
     abitanti,
     edifici,
@@ -63,7 +61,7 @@ export function ImpresaScreen({ edificioId, nomeAtteso }: Props) {
     return (
       <SafeAreaView style={styles.safe}>
         <Text style={styles.title}>Impresa non trovata</Text>
-        <Text style={styles.back} onPress={() => router.back()}>← Indietro</Text>
+        
       </SafeAreaView>
     );
   }
@@ -74,7 +72,7 @@ export function ImpresaScreen({ edificioId, nomeAtteso }: Props) {
   return (
     <SafeAreaView style={[styles.safe, maxHeight != null ? { maxHeight, overflow: "hidden" } : undefined]}>
       <View style={styles.header}>
-        <Text style={styles.back} onPress={() => router.back()}>← Indietro</Text>
+        
         <Text style={styles.title}>{edificio.emoji ?? "🏢"} {edificio.nome}</Text>
         <View style={{ width: 70 }} />
       </View>

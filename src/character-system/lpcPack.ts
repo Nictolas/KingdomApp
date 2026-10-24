@@ -117,5 +117,5 @@ export function lpcSheetForAnimation(animation: CharacterAnimationId): SpriteShe
 }
 
 export function lpcRaceId(race: string): CharacterRaceId | undefined {
-  return ({ Umano: "human", Elfo: "elf", Nano: "dwarf", Orco: "orc", Goblin: "halfling" } as const)[race as "Umano"];
+  return ({ Umano: "human", Elfo: "elf", Nano: "dwarf", Orco: "orc", Goblin: "goblin", Felix: "felix" } as const)[race as "Umano"];
 }

@@ -1,3 +1,4 @@
+import { èResidenteFissoCastello } from "./castelloGuardie";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso } from "../types";
 import { EVENTI_CATALOGO } from "./eventi/index";
 import { getConsumoCibo, getConsumoAcqua, getProduzioneCiboPerAbitante } from "./ciboConsumo";
@@ -90,7 +91,7 @@ export type AvanzaMeseOutput = {
 
 /** Sincronizza le residenze: Baracca = tutti e solo i Senzatetto; le altre residenze non ospitano Senzatetto. */
 export function syncResidenzeBaraccaSenzatetto(edifici: Edificio[], abitanti: Abitante[]): Edificio[] {
-  const senzatettoIds = new Set(abitanti.filter((a) => a.fazioni?.includes("Senzatetto")).map((a) => a.id));
+  const senzatettoIds = new Set(abitanti.filter((a) => a.fazioni?.includes("Senzatetto") && !èResidenteFissoCastello(a)).map((a) => a.id));
   const baraccaIdsOrdinati = edifici
     .filter((x) => x.nome === "Baracca")
     .map((x) => x.id)
@@ -102,7 +103,8 @@ export function syncResidenzeBaraccaSenzatetto(edifici: Edificio[], abitanti: Ab
       const ids = e.id === baraccaPrimariaId ? [...senzatettoIds] : [];
       return { ...e, abitantiAssegnati: ids, occupazione: ids.length };
     }
-    const nuovi = (e.abitantiAssegnati ?? []).filter((id) => !senzatettoIds.has(id));
+    const fissi = new Set(abitanti.filter(èResidenteFissoCastello).map((a) => a.id));
+    const nuovi = (e.abitantiAssegnati ?? []).filter((id) => !senzatettoIds.has(id) && !fissi.has(id));
     return { ...e, abitantiAssegnati: nuovi, occupazione: nuovi.length };
   });
 }

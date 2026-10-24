@@ -1,6 +1,5 @@
 import React, { useState } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { RESIDENZE_CATALOGO } from "../src/data/residenzeData";
@@ -8,7 +7,6 @@ import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 import type { Abitante } from "../src/types";
 
 export default function ResidenzeScreen() {
-  const router = useRouter();
   const { edifici, abitanti, prezzoResidenze, setPrezzoResidenza, calcolaFelicitàModificata, etaMinimaLavoro } = useGameContext();
   const [selectedAbitante, setSelectedAbitante] = useState<Abitante | null>(null);
   const { width } = Dimensions.get("window");
@@ -129,9 +127,7 @@ export default function ResidenzeScreen() {
         calcolaFelicitàModificata={calcolaFelicitàModificata}
         etaMinimaLavoro={etaMinimaLavoro}
       />
-      <View style={styles.footer}>
-        <Text style={styles.back} onPress={() => router.back()}>← Edifici</Text>
-      </View>
+      
     </SafeAreaView>
   );
 }

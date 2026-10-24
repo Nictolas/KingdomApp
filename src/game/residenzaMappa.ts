@@ -1,5 +1,6 @@
 import { edificiData } from "../data/edificiData";
-import type { Edificio } from "../types";
+import type { Abitante, Edificio } from "../types";
+import { èResidenteFissoCastello, NOME_CASTELLO } from "./castelloGuardie";
 import type { EdificioInCellaMappa } from "./mappaTypes";
 import { getIndiciFootprint } from "./mappaGeometry";
 
@@ -122,8 +123,17 @@ export function trovaCellaAnchorCasaSuMappa(
   abitanteId: number,
   edificiList: Edificio[],
   edificiInMappa: Record<number, EdificioInCellaMappa>,
-  residenzeMappa: Record<number, number[]>
+  residenzeMappa: Record<number, number[]>,
+  abitante?: Abitante
 ): number | null {
+  if (abitante && èResidenteFissoCastello(abitante)) {
+    for (const k of Object.keys(edificiInMappa)) {
+      const idx = Number(k);
+      const edificio = edificiInMappa[idx];
+      if (edificio?.nome === NOME_CASTELLO && getAnchorCellPerEdificio(idx, edificiInMappa) === idx) return idx;
+    }
+    return null;
+  }
   for (const [anchorStr, ids] of Object.entries(residenzeMappa)) {
     if (ids.includes(abitanteId)) return Number(anchorStr);
   }

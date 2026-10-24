@@ -1,14 +1,12 @@
+import { BuildingResidentAvatar } from "../src/ui/BuildingResidentAvatar";
 import React, { useMemo, useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
 export default function CentraleScreen() {
-  const router = useRouter();
   const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
   const [dropdownVisible, setDropdownVisible] = useState(false);
 
@@ -74,7 +72,7 @@ export default function CentraleScreen() {
             <View style={styles.cardsContainer}>
               {addetti.map((a) => (
                 <View key={a.id} style={styles.personCard}>
-                  <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+                  <BuildingResidentAvatar abitante={a} />
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{a.nome}</Text>
                     <Text style={styles.cardInfo}>Competenza: {a.competenza}%</Text>
@@ -111,7 +109,7 @@ export default function CentraleScreen() {
                         setDropdownVisible(false);
                       }}
                     >
-                      <Text style={styles.dropdownItemEmoji}>{getEmojiAbitante(a)}</Text>
+                      <BuildingResidentAvatar abitante={a} />
                       <View style={styles.dropdownItemTextContainer}>
                         <Text style={styles.dropdownItemNome}>{a.nome}</Text>
                         <Text style={styles.dropdownItemCompetenza}>Competenza: {a.competenza}%</Text>
@@ -127,9 +125,7 @@ export default function CentraleScreen() {
         </Modal>
       </ScrollView>
       </View>
-      <View style={styles.footer}>
-        <Text style={styles.back} onPress={() => router.back()}>← Edifici</Text>
-      </View>
+      
     </SafeAreaView>
   );
 }

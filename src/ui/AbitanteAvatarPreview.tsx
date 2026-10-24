@@ -2,6 +2,8 @@ import React from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { aspettoPerVisualizzazioneAbitante } from "../game/personaggioAspetto";
 import { lpcSpriteCircleDiameter } from "../character-system/lpcPack";
+import { canRenderCharacter } from "../character-system/registry";
+import { getEmojiRazza } from "../data/regniData";
 import type { Abitante } from "../types";
 import { CircularSpriteFrame } from "./CircularSpriteFrame";
 
@@ -24,10 +26,19 @@ export function AbitanteAvatarPreview({
   faceOnly?: boolean;
 }) {
   const frame = lpcSpriteCircleDiameter(size) + 8;
-  const aspetto = aspettoPerVisualizzazioneAbitante(abitante);
+  // Game ticks rebuild the gallery frequently; keep the same appearance reference
+  // while the character's actual appearance and public clothing rules are unchanged.
+  const aspetto = React.useMemo(
+    () => aspettoPerVisualizzazioneAbitante(abitante),
+    [
+      abitante.id, abitante.eta, abitante.razza, abitante.aspetto,
+      abitante.lavoro, abitante.incinta, abitante.sesso,
+      abitante.casta, abitante.ceto, abitante.ruoloSchiavitu, abitante.schiavistaId
+    ]
+  );
   const grayStyle = grayscale ? ({ filter: "grayscale(1)" } as const) : undefined;
 
-  if (aspetto?.characterAppearance && abitante.razza !== "Golem") {
+  if (aspetto?.characterAppearance && abitante.razza !== "Golem" && canRenderCharacter(aspetto.characterAppearance, "idle")) {
     return (
       <View style={[styles.wrap, { width: frame, height: frame }, grayStyle]}>
         <CircularSpriteFrame
@@ -43,7 +54,7 @@ export function AbitanteAvatarPreview({
 
   return (
     <View style={[styles.fallback, { width: frame, height: frame, borderRadius: frame / 2 }, grayStyle]}>
-      <Text style={styles.fallbackText}>👤</Text>
+      <Text style={styles.fallbackText}>{getEmojiRazza(abitante.razza ?? "Umano")}</Text>
     </View>
   );
 }

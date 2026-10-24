@@ -214,9 +214,7 @@ export default function MercatoScreen() {
         </View>
       </ScrollView>
     </View>
-    <View style={styles.footer}>
-      <Text style={styles.back} onPress={() => router.back()}>← Home</Text>
-    </View>
+    
     </SafeAreaView>
   );
 }

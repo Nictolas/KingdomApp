@@ -1,9 +1,9 @@
+import { BuildingResidentAvatar } from "../src/ui/BuildingResidentAvatar";
 import React, { useMemo, useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
@@ -94,7 +94,7 @@ export default function TribunaleScreen() {
             <Pressable style={styles.dropdownButton} onPress={() => setDropdownGiudiceVisible(true)}>
               {giudice ? (
                 <View style={styles.dropdownContent}>
-                  <Text style={styles.dropdownEmoji}>{getEmojiAbitante(giudice)}</Text>
+                  <BuildingResidentAvatar abitante={giudice} />
                   <View style={styles.dropdownTextContainer}>
                     <Text style={styles.dropdownNome}>{giudice.nome}</Text>
                     <Text style={styles.dropdownCompetenza}>Competenza: {giudice.competenza}%</Text>
@@ -144,7 +144,7 @@ export default function TribunaleScreen() {
                             setDropdownGiudiceVisible(false);
                           }}
                         >
-                          <Text style={styles.dropdownItemEmoji}>{getEmojiAbitante(a)}</Text>
+                          <BuildingResidentAvatar abitante={a} />
                           <View style={styles.dropdownItemTextContainer}>
                             <Text style={styles.dropdownItemNome}>{a.nome}</Text>
                             <Text style={styles.dropdownItemCompetenza}>Competenza: {a.competenza}%</Text>
@@ -171,7 +171,7 @@ export default function TribunaleScreen() {
                   const msg = messaggiImputati[c.id];
                   return (
                     <View key={c.id} style={styles.imputatoCard}>
-                      <Text style={styles.cardEmoji}>{getEmojiAbitante(c)}</Text>
+                      <BuildingResidentAvatar abitante={c} />
                       <View style={styles.cardContent}>
                         <Text style={styles.cardTitle}>{c.nome}</Text>
                         <Text style={styles.cardInfo}>Età: {c.eta} anni</Text>
@@ -212,11 +212,7 @@ export default function TribunaleScreen() {
           </View>
         </ScrollView>
       </View>
-      <View style={styles.footer}>
-        <Text style={styles.back} onPress={() => router.back()}>
-          ← Edifici
-        </Text>
-      </View>
+      
     </SafeAreaView>
   );
 }

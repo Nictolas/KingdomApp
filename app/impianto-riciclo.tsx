@@ -1,13 +1,11 @@
+import { BuildingResidentAvatar } from "../src/ui/BuildingResidentAvatar";
 import React, { useMemo } from "react";
 import { Dimensions, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
 export default function ImpiantoRicicloScreen() {
-  const router = useRouter();
   const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
 
   const { width } = Dimensions.get("window");
@@ -67,7 +65,7 @@ export default function ImpiantoRicicloScreen() {
         <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
           {abitantiAssegnati.map((a: Abitante) => (
             <View key={a.id} style={styles.card}>
-              <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+              <BuildingResidentAvatar abitante={a} />
               <View style={styles.cardContent}>
                 <Text style={styles.cardTitle}>{a.nome}</Text>
                 <Text style={styles.cardLavoro}>{a.lavoro}</Text>
@@ -93,7 +91,7 @@ export default function ImpiantoRicicloScreen() {
         <ScrollView style={styles.listScroll} showsVerticalScrollIndicator={false}>
           {abitantiDisponibili.map((a: Abitante) => (
             <View key={a.id} style={styles.card}>
-              <Text style={styles.cardEmoji}>{getEmojiAbitante(a)}</Text>
+              <BuildingResidentAvatar abitante={a} />
               <View style={styles.cardContent}>
                 <Text style={styles.cardTitle}>{a.nome}</Text>
                 <Text style={styles.cardExtra}>Produttività: {a.produttività}%</Text>
@@ -135,9 +133,7 @@ export default function ImpiantoRicicloScreen() {
         {colContent}
       </ScrollView>
     </View>
-    <View style={styles.footer}>
-      <Text style={styles.back} onPress={() => router.back()}>← Edifici</Text>
-    </View>
+    
     </SafeAreaView>
   );
 }

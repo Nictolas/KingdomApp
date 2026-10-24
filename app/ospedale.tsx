@@ -1,15 +1,13 @@
+import { BuildingResidentAvatar } from "../src/ui/BuildingResidentAvatar";
 import React, { useMemo, useState } from "react";
 import { Dimensions, Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getStatoSalute } from "../src/game/ciboConsumo";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../src/game/edificiLavoro";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../src/types";
 
 export default function OspedaleScreen() {
-  const router = useRouter();
   const { abitanti, edifici, assegnaAbitanteAEdificio, rimuoviAbitanteDaEdificio, setStipendioEdificio } = useGameContext();
   const [dropdownDottoreVisible, setDropdownDottoreVisible] = useState(false);
 
@@ -84,7 +82,7 @@ export default function OspedaleScreen() {
           >
             {dottore ? (
               <View style={styles.dropdownContent}>
-                <Text style={styles.dropdownEmoji}>{getEmojiAbitante(dottore)}</Text>
+                <BuildingResidentAvatar abitante={dottore} />
                 <View style={styles.dropdownTextContainer}>
                   <Text style={styles.dropdownNome}>{dottore.nome}</Text>
                   <Text style={styles.dropdownCompetenza}>Competenza: {dottore.competenza}%</Text>
@@ -133,7 +131,7 @@ export default function OspedaleScreen() {
                           setDropdownDottoreVisible(false);
                         }}
                       >
-                        <Text style={styles.dropdownItemEmoji}>{getEmojiAbitante(a)}</Text>
+                        <BuildingResidentAvatar abitante={a} />
                         <View style={styles.dropdownItemTextContainer}>
                           <Text style={styles.dropdownItemNome}>{a.nome}</Text>
                           <Text style={styles.dropdownItemCompetenza}>Competenza: {a.competenza}%</Text>
@@ -155,7 +153,7 @@ export default function OspedaleScreen() {
             <View style={styles.cardsContainer}>
               {malati.map((malato: Abitante) => (
                 <View key={malato.id} style={styles.malatoCard}>
-                  <Text style={styles.cardEmoji}>{getEmojiAbitante(malato)}</Text>
+                  <BuildingResidentAvatar abitante={malato} />
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{malato.nome}</Text>
                     <Text style={styles.cardInfo}>Età: {malato.eta} anni</Text>
@@ -176,7 +174,7 @@ export default function OspedaleScreen() {
             <View style={styles.cardsContainer}>
               {incinte.map((persona: Abitante) => (
                 <View key={persona.id} style={styles.incintaCard}>
-                  <Text style={styles.cardEmoji}>{getEmojiAbitante(persona)}</Text>
+                  <BuildingResidentAvatar abitante={persona} />
                   <View style={styles.cardContent}>
                     <Text style={styles.cardTitle}>{persona.nome}</Text>
                     <Text style={styles.cardInfo}>Età: {persona.eta} anni</Text>
@@ -192,9 +190,7 @@ export default function OspedaleScreen() {
         </View>
       </ScrollView>
     </View>
-    <View style={styles.footer}>
-      <Text style={styles.back} onPress={() => router.back()}>← Edifici</Text>
-    </View>
+    
     </SafeAreaView>
   );
 }

@@ -1,3 +1,5 @@
+import { BuildingResidentAvatar } from "./BuildingResidentAvatar";
+import { BuildingModalBottomExit } from "./BuildingModalBottomExit";
 import React, { useMemo } from "react";
 import {
   Modal,
@@ -12,7 +14,6 @@ import { StatusBar } from "expo-status-bar";
 import type { Abitante, Edificio } from "../types";
 import type { ReligioneConCulto } from "../game/luogoCulto";
 import { emojiLuogoCulto } from "../game/luogoCulto";
-import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import {
   badgePresenzaLuogoCulto,
   statoPresenzaFedeleLuogoCulto
@@ -189,16 +190,7 @@ export function LuogoCultoFullscreenModal({
       <StatusBar style="light" />
       <SafeAreaView style={[styles.root, { backgroundColor: theme.root }]}>
         <View style={[styles.header, { borderBottomColor: theme.border, backgroundColor: theme.headerBg }]}>
-          <View style={styles.headerTop}>
-            <Pressable
-              onPress={onClose}
-              style={({ pressed }) => [styles.closeBtn, pressed && styles.closeBtnPressed]}
-              accessibilityRole="button"
-              accessibilityLabel="Chiudi"
-            >
-              <Text style={styles.closeBtnText}>✕</Text>
-            </Pressable>
-          </View>
+          
           <Text style={styles.heroEmoji}>{heroEmoji}</Text>
           <Text style={styles.title}>{nomeEdificio}</Text>
           <Text style={[styles.subtitle, { color: theme.accent }]}>
@@ -225,7 +217,7 @@ export function LuogoCultoFullscreenModal({
                     : styles.listaRigaFuori
                 ]}
               >
-                <Text style={styles.listaAvatar}>{getEmojiAbitante(capoReligioso)}</Text>
+                <BuildingResidentAvatar abitante={capoReligioso} />
                 <View style={styles.listaNomeCol}>
                   <Text style={styles.listaNome} numberOfLines={1}>
                     {capoReligioso.nome}
@@ -283,7 +275,7 @@ export function LuogoCultoFullscreenModal({
                       : styles.listaRigaFuori
                   ]}
                 >
-                  <Text style={styles.listaAvatar}>{getEmojiAbitante(abitante)}</Text>
+                  <BuildingResidentAvatar abitante={abitante} />
                   <View style={styles.listaNomeCol}>
                     <Text style={styles.listaNome} numberOfLines={1}>
                       {abitante.nome}
@@ -338,6 +330,7 @@ export function LuogoCultoFullscreenModal({
             </Pressable>
           ) : null}
         </ScrollView>
+        <BuildingModalBottomExit onClose={onClose} />
       </SafeAreaView>
     </Modal>
   );

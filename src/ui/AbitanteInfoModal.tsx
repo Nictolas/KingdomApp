@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from "react";
-import { Dimensions, Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View, useWindowDimensions, type DimensionValue } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
 import { useRouter } from "expo-router";
 import type { Abitante, Edificio } from "../types";
 import { useGameContext } from "../context/GameContext";
@@ -38,7 +39,6 @@ import { CampoDiLavoroModal } from "./CampoDiLavoroModal";
 import { EdificioInfoModal } from "./EdificioInfoModal";
 import { FamigliaAlberoModal } from "./FamigliaAlberoModal";
 import { FamigliaDettaglioModal } from "./FamigliaDettaglioModal";
-import { DESKTOP_MODAL_BREAKPOINT, modalBackdropFullscreen, modalContentFullscreen } from "./modalFullscreenStyles";
 import { AbitanteLpcAvatar } from "./AbitanteLpcAvatar";
 
 const LAVORI_DA_MINORE = ["Studente", "Apprendista", "Tirocinante"];
@@ -87,7 +87,6 @@ function Row({
             onPress && !disoccupato && styles.rowValueLink,
             onPress && disoccupato && styles.rowValueDisoccupatoLink
           ]}
-          numberOfLines={2}
         >
           {value}
         </Text>
@@ -110,9 +109,9 @@ function Row({
   );
 }
 
-function Block({ title, children }: { title: string; children: React.ReactNode }) {
+function Block({ title, children, width }: { title: string; children: React.ReactNode; width: DimensionValue }) {
   return (
-    <View style={styles.block}>
+    <View style={[styles.block, { width }]}>
       <Text style={styles.blockTitle}>{title}</Text>
       <View style={styles.blockContent}>{children}</View>
     </View>
@@ -124,13 +123,13 @@ function BisognoBar({ label, emoji, value }: { label: string; emoji: string; val
   const color = v >= 60 ? "#4ade80" : v >= 35 ? "#fbbf24" : "#f87171";
   return (
     <View style={styles.bisognoRow}>
-      <Text style={styles.bisognoLabel}>
-        {emoji} {label}
-      </Text>
+      <View style={styles.bisognoMeta}>
+        <Text style={styles.bisognoLabel}>{emoji} {label}</Text>
+        <Text style={styles.bisognoValue}>{v}%</Text>
+      </View>
       <View style={styles.bisognoTrack}>
         <View style={[styles.bisognoFill, { width: `${v}%`, backgroundColor: color }]} />
       </View>
-      <Text style={styles.bisognoValue}>{v}</Text>
     </View>
   );
 }
@@ -169,7 +168,7 @@ function InventarioCategoria({
           <InventarioSlot
             key={v.def.id}
             emoji={v.def.emoji}
-            nome={v.def.categoria === CATEGORIA_CIBO ? v.def.nome : undefined}
+            nome={v.def.nome}
             quantità={v.quantità}
           />
         ))}
@@ -191,6 +190,7 @@ export function AbitanteInfoModal({
   onIndividua
 }: AbitanteInfoModalProps) {
   const router = useRouter();
+  const { width } = useWindowDimensions();
   const {
     abitanti,
     aggiungiAlCampoDiLavoroTuttiQuelliChe,
@@ -226,7 +226,7 @@ export function AbitanteInfoModal({
     setMostraAlbero(false);
   };
 
-  const edificioAbitazione = getEdificioAbitazione(abitante.id, edifici);
+  const edificioAbitazione = getEdificioAbitazione(abitante.id, edifici, abitante);
   const edificiOccupazione = getEdificiOccupazione(abitante.id, edifici);
 
   const apriEdificio = (edificio: Edificio) => {
@@ -302,17 +302,27 @@ export function AbitanteInfoModal({
       ? schiaviPerProfiloCittadinoNobile.map((s) => s.nome).join(", ")
       : "—";
 
-  const { width } = Dimensions.get("window");
-  const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
+  const cardWidth: DimensionValue = width >= 1260 ? "31.5%" : width >= 720 ? "48%" : "100%";
 
   return (
     <>
-      <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose}>
-        <Pressable style={[styles.backdrop, isDesktop && modalBackdropFullscreen]} onPress={onClose}>
-          <Pressable style={[styles.card, isDesktop && modalContentFullscreen]} onPress={() => undefined}>
-            <ScrollView showsVerticalScrollIndicator={false} contentContainerStyle={styles.scroll}>
-            {/* Header con accento */}
-            <View style={styles.headerAccent} />
+      <Modal
+        visible={visible}
+        transparent={false}
+        presentationStyle="fullScreen"
+        animationType="slide"
+        statusBarTranslucent
+        onRequestClose={onClose}
+      >
+        <SafeAreaView style={styles.screen} edges={["top", "bottom"]}>
+          <View style={styles.topBar}>
+            <Text style={styles.topBarTitle}>Scheda personaggio</Text>
+          </View>
+          <ScrollView
+            style={styles.contentScroll}
+            showsVerticalScrollIndicator={false}
+            contentContainerStyle={styles.scroll}
+          >
             <View style={styles.header}>
               <View style={[styles.avatarWrap, abitante.razza !== "Golem" && styles.avatarWrapLpc]}>
                 {abitante.razza !== "Golem" ? (
@@ -322,32 +332,29 @@ export function AbitanteInfoModal({
                 )}
               </View>
               <View style={styles.headerText}>
-                <View style={styles.titleRow}>
-                  <Text style={styles.title} numberOfLines={1}>
-                    {abitante.nome}
-                  </Text>
-                  {onIndividua ? (
-                    <Pressable
-                      style={({ pressed }) => [styles.individuaBtn, pressed && styles.individuaBtnPressed]}
-                      onPress={() => onIndividua(abitante.id)}
-                    >
-                      <Text style={styles.individuaBtnText}>📍 Individua</Text>
-                    </Pressable>
-                  ) : null}
-                  {azioneCorrente && focusId === abitanteIniziale?.id ? (
-                    <Text style={styles.azioneCorrente} numberOfLines={2}>
-                      {azioneCorrente}
-                    </Text>
-                  ) : null}
-                </View>
+                <Text style={styles.title}>{abitante.nome}</Text>
                 <View style={styles.lavoroBadge}>
                   <Text style={styles.lavoroBadgeText}>💼 {lavoroDisplay}</Text>
                 </View>
+                <Text style={styles.identita}>{abitante.eta} anni · {abitante.razza ?? "Umano"} · {casta}</Text>
+                {azioneCorrente && focusId === abitanteIniziale?.id ? (
+                  <Text style={styles.azioneCorrente}>{azioneCorrente}</Text>
+                ) : null}
               </View>
             </View>
+            {onIndividua ? (
+              <Pressable
+                style={({ pressed }) => [styles.individuaBtn, pressed && styles.individuaBtnPressed]}
+                onPress={() => onIndividua(abitante.id)}
+                accessibilityRole="button"
+                accessibilityLabel="Individua il personaggio sulla mappa"
+              >
+                <Text style={styles.individuaBtnText}>📍 Individua sulla mappa</Text>
+              </Pressable>
+            ) : null}
 
             <View style={styles.sixCol}>
-              <Block title="Bisogni">
+              <Block width={cardWidth} title="Bisogni">
                 {abitanteUsaBisogniUmani(abitante) ? (
                   <>
                     <BisognoBar label="Fame" emoji="🍽️" value={bisogni.fame} />
@@ -361,8 +368,8 @@ export function AbitanteInfoModal({
                 )}
               </Block>
 
-              <Block title="📋 Anagrafica">
-                <Row emoji="🎂" value={`${abitante.eta} anni`} />
+              <Block width={cardWidth} title="📋 Anagrafica">
+                <Row emoji="🎂" label="Età" value={`${abitante.eta} anni`} />
                 <Row
                   emoji="🧝"
                   label="Razza"
@@ -418,7 +425,7 @@ export function AbitanteInfoModal({
                     />
                   ))
                 )}
-                <Row emoji="⚔️" value={abitante.fazioni?.join(", ") ?? "—"} />
+                <Row emoji="⚔️" label="Fazioni" value={abitante.fazioni?.join(", ") ?? "—"} />
                 <Row
                   emoji="🧠"
                   label="Personalità"
@@ -442,7 +449,7 @@ export function AbitanteInfoModal({
                 />
               </Block>
 
-              <Block title="📊 Prestazioni & Salute">
+              <Block width={cardWidth} title="📊 Prestazioni & Salute">
                 <Row
                   emoji={getEmojiSpecializzazione(getSpecializzazioneAbitante(abitante))}
                   label="Specializzazione"
@@ -450,28 +457,28 @@ export function AbitanteInfoModal({
                 />
                 <Row emoji="⚡" label="Produttività" value={`${produttivitàEff}%${produttivitàEff !== abitante.produttività ? ` (base ${abitante.produttività})` : ""}`} />
                 <Row emoji="😴" label="Stanchezza" value={`${abitante.stanchezza}%`} />
-                <Row emoji="⚖️" value={abitante.razza === "Golem" ? "—" : `${abitante.peso ?? 50}`} />
-                <Row emoji="🏥" value={abitante.razza === "Golem" ? "—" : getStatoSalute(abitante)} />
+                <Row emoji="⚖️" label="Peso" value={abitante.razza === "Golem" ? "—" : `${abitante.peso ?? 50}`} />
+                <Row emoji="🏥" label="Salute" value={abitante.razza === "Golem" ? "—" : getStatoSalute(abitante)} />
               </Block>
 
-              <Block title="👥 Relazioni">
+              <Block width={cardWidth} title="👥 Relazioni">
                 {abitante.razza === "Golem" ? (
                   <Row emoji="—" value="—" muted />
                 ) : (
                   <>
-                    <Row emoji="😊" value={abitante.amici?.length ? abitante.amici.map((r) => getAbitanteNome(r.id)).join(", ") : "nessuno"} muted={!abitante.amici?.length} />
-                    <Row emoji="😠" value={abitante.rivali?.length ? abitante.rivali.map((r) => getAbitanteNome(r.id)).join(", ") : "nessuno"} muted={!abitante.rivali?.length} />
+                    <Row emoji="😊" label="Amici" value={abitante.amici?.length ? abitante.amici.map((r) => getAbitanteNome(r.id)).join(", ") : "nessuno"} muted={!abitante.amici?.length} />
+                    <Row emoji="😠" label="Rivali" value={abitante.rivali?.length ? abitante.rivali.map((r) => getAbitanteNome(r.id)).join(", ") : "nessuno"} muted={!abitante.rivali?.length} />
                   </>
                 )}
               </Block>
 
-              <Block title="👨‍👩‍👧 Famiglia">
+              <Block width={cardWidth} title="👨‍👩‍👧 Famiglia">
                 {abitante.razza === "Golem" ? (
                   <Row emoji="—" value="—" muted />
                 ) : (
                   <>
-                    <Row emoji="💍" value={abitante.coniugeId != null ? getAbitanteNome(abitante.coniugeId) : "—"} muted={abitante.coniugeId == null} />
-                    <Row emoji="👶" value={(abitante.figliIds?.length ?? 0) > 0 ? (abitante.figliIds ?? []).map(getAbitanteNome).join(", ") : "—"} muted={!(abitante.figliIds?.length ?? 0)} />
+                    <Row emoji="💍" label="Coniuge" value={abitante.coniugeId != null ? getAbitanteNome(abitante.coniugeId) : "—"} muted={abitante.coniugeId == null} />
+                    <Row emoji="👶" label="Figli" value={(abitante.figliIds?.length ?? 0) > 0 ? (abitante.figliIds ?? []).map(getAbitanteNome).join(", ") : "—"} muted={!(abitante.figliIds?.length ?? 0)} />
                     <Pressable
                       style={({ pressed }) => [styles.famigliaBtn, pressed && styles.famigliaBtnPressed]}
                       onPress={() => setMostraFamiglia(true)}
@@ -482,11 +489,12 @@ export function AbitanteInfoModal({
                 )}
               </Block>
 
-              <Block title="❤️ Sentimenti">
-                <Row emoji="❤️" value={abitante.razza === "Golem" ? "—" : `${abitante.lealtà}%`} />
-                <Row emoji="😨" value={abitante.razza === "Golem" ? "—" : `${abitante.paura}%`} />
+              <Block width={cardWidth} title="❤️ Sentimenti">
+                <Row emoji="❤️" label="Lealtà" value={abitante.razza === "Golem" ? "—" : `${abitante.lealtà}%`} />
+                <Row emoji="😨" label="Paura" value={abitante.razza === "Golem" ? "—" : `${abitante.paura}%`} />
                 <Row
                   emoji="😊"
+                  label="Felicità"
                   value={
                     abitante.razza === "Golem"
                       ? "—"
@@ -496,7 +504,7 @@ export function AbitanteInfoModal({
               </Block>
 
               {!isCastaCoercibile(casta) && (
-                <Block title="Inventario">
+                <Block width={cardWidth} title="Inventario">
                   <InventarioCategoria titolo="Valuta" voci={vociValuta} />
                   <InventarioCategoria titolo="Cibo" voci={vociCibo} />
                   {schiaviInInventario.length > 0 && (
@@ -555,12 +563,13 @@ export function AbitanteInfoModal({
               </View>
             )}
 
-            <Pressable style={styles.closeBtn} onPress={onClose}>
+          </ScrollView>
+          <View style={styles.footer}>
+            <Pressable style={({ pressed }) => [styles.closeBtn, pressed && styles.closeBtnPressed]} onPress={onClose} accessibilityRole="button">
               <Text style={styles.closeBtnText}>Chiudi</Text>
             </Pressable>
-          </ScrollView>
-        </Pressable>
-      </Pressable>
+          </View>
+        </SafeAreaView>
       </Modal>
 
       <FamigliaDettaglioModal
@@ -603,316 +612,134 @@ export function AbitanteInfoModal({
 }
 
 const styles = StyleSheet.create({
-  backdrop: {
-    flex: 1,
-    backgroundColor: "rgba(0,0,0,0.82)",
-    justifyContent: "center",
-    alignItems: "center"
+  screen: { flex: 1, backgroundColor: "#0b1629" },
+  topBar: {
+    paddingHorizontal: 20,
+    paddingVertical: 15,
+    backgroundColor: "#0f203a",
+    borderBottomWidth: 1,
+    borderBottomColor: "rgba(250,204,21,0.25)"
   },
-  card: {
-    backgroundColor: "#0f172a",
-    borderRadius: 16,
-    padding: 0,
-    minWidth: 320,
-    maxWidth: 1520,
-    width: "96%",
-    maxHeight: "88%",
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.2)",
-    overflow: "hidden"
-  },
-  scroll: { paddingBottom: 20, paddingHorizontal: 16 },
-  headerAccent: {
-    height: 4,
-    backgroundColor: "#3b82f6",
-    width: "100%"
-  },
+  topBarTitle: { fontSize: 20, fontWeight: "800", color: "#f8fafc", textAlign: "center" },
+  contentScroll: { flex: 1 },
+  scroll: { paddingHorizontal: 16, paddingTop: 18, paddingBottom: 28, width: "100%", maxWidth: 1600, alignSelf: "center" },
   header: {
     flexDirection: "row",
     alignItems: "center",
-    paddingTop: 16,
-    paddingBottom: 16,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(148,163,184,0.15)"
+    padding: 16,
+    borderRadius: 16,
+    backgroundColor: "#12243e",
+    borderWidth: 1,
+    borderColor: "rgba(96,165,250,0.3)"
   },
   avatarWrap: {
-    width: 56,
-    height: 56,
-    borderRadius: 28,
-    backgroundColor: "rgba(30,41,59,0.9)",
-    borderWidth: 2,
-    borderColor: "rgba(59,130,246,0.35)",
-    alignItems: "center",
-    justifyContent: "center",
-    marginRight: 14
+    width: 88, height: 88, borderRadius: 44,
+    backgroundColor: "#223651",
+    borderWidth: 2, borderColor: "#b8944d",
+    alignItems: "center", justifyContent: "center", marginRight: 14
   },
-  avatarEmoji: { fontSize: 30 },
-  avatarWrapLpc: { width: 88, height: 88, borderRadius: 44, overflow: "visible" },
+  avatarWrapLpc: { overflow: "visible" },
+  avatarEmoji: { fontSize: 38 },
   headerText: { flex: 1, minWidth: 0 },
-  titleRow: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    gap: 8
-  },
-  title: {
-    fontSize: 18,
-    fontWeight: "800",
-    color: "#f8fafc",
-    letterSpacing: 0.2,
-    flexShrink: 1,
-    maxWidth: "48%"
-  },
-  individuaBtn: {
-    paddingVertical: 4,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    backgroundColor: "rgba(250,204,21,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(250,204,21,0.35)"
-  },
-  individuaBtnPressed: { backgroundColor: "rgba(250,204,21,0.22)" },
-  individuaBtnText: { color: "#fde047", fontSize: 10, fontWeight: "700" },
-  azioneCorrente: {
-    flex: 1,
-    minWidth: 0,
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#86efac",
-    textAlign: "right",
-    lineHeight: 16,
-    paddingTop: 3
-  },
+  title: { fontSize: 23, lineHeight: 28, fontWeight: "800", color: "#f8fafc", flexShrink: 1 },
+  identita: { fontSize: 13, lineHeight: 20, marginTop: 8, color: "#94a3b8", flexWrap: "wrap" },
+  azioneCorrente: { fontSize: 14, lineHeight: 20, fontWeight: "700", color: "#86efac", marginTop: 8 },
   lavoroBadge: {
-    alignSelf: "flex-start",
-    marginTop: 6,
-    backgroundColor: "rgba(59,130,246,0.2)",
-    paddingVertical: 4,
-    paddingHorizontal: 10,
-    borderRadius: 12
+    alignSelf: "flex-start", marginTop: 8,
+    backgroundColor: "#1e3a60", paddingVertical: 5, paddingHorizontal: 11, borderRadius: 20
   },
-  lavoroBadgeText: {
-    fontSize: 12,
-    fontWeight: "600",
-    color: "#93c5fd"
+  lavoroBadgeText: { fontSize: 14, fontWeight: "700", color: "#bfdbfe" },
+  individuaBtn: {
+    alignSelf: "flex-start", marginTop: 12, paddingVertical: 12, paddingHorizontal: 16,
+    borderRadius: 11, backgroundColor: "#3b311e",
+    borderWidth: 1, borderColor: "#d6aa45", minHeight: 46, justifyContent: "center"
   },
+  individuaBtnPressed: { backgroundColor: "#594621" },
+  individuaBtnText: { fontSize: 14, fontWeight: "800", color: "#fde68a" },
   sixCol: {
-    flexDirection: "row",
-    alignItems: "stretch",
-    gap: 10,
-    marginTop: 14
-  },
-  bisognoRow: {
-    flexDirection: "row",
-    alignItems: "center",
-    gap: 4,
-    marginBottom: 6
-  },
-  bisognoLabel: {
-    flexShrink: 1,
-    minWidth: 0,
-    maxWidth: 88,
-    fontSize: 10,
-    color: "#e2e8f0",
-    fontWeight: "600"
-  },
-  bisognoTrack: {
-    flex: 1,
-    height: 8,
-    borderRadius: 4,
-    backgroundColor: "rgba(51,65,85,0.8)",
-    overflow: "hidden",
-    minWidth: 24
-  },
-  bisognoFill: {
-    height: "100%",
-    borderRadius: 4
-  },
-  bisognoValue: {
-    width: 24,
-    textAlign: "right",
-    fontSize: 10,
-    color: "#94a3b8",
-    fontWeight: "600"
+    flexDirection: "row", flexWrap: "wrap",
+    alignItems: "flex-start", justifyContent: "space-between",
+    columnGap: 10, rowGap: 12, marginTop: 16
   },
   block: {
-    flex: 1,
-    minWidth: 0,
-    backgroundColor: "rgba(15,23,42,0.5)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.12)",
-    overflow: "hidden"
+    flexGrow: 0, flexShrink: 0,
+    backgroundColor: "#12243e", borderRadius: 14,
+    borderWidth: 1, borderColor: "rgba(96,165,250,0.22)", overflow: "hidden"
   },
   blockTitle: {
-    fontSize: 11,
-    fontWeight: "700",
-    color: "rgba(248,250,252,0.9)",
-    paddingVertical: 8,
-    paddingHorizontal: 10,
-    backgroundColor: "rgba(30,41,59,0.5)",
-    borderBottomWidth: 1,
-    borderBottomColor: "rgba(148,163,184,0.1)"
+    fontSize: 17, fontWeight: "800", color: "#f8fafc",
+    paddingVertical: 13, paddingHorizontal: 15,
+    backgroundColor: "#1b304c",
+    borderBottomWidth: 1, borderBottomColor: "rgba(148,163,184,0.16)"
   },
-  blockContent: {
-    padding: 8
-  },
+  blockContent: { paddingHorizontal: 15, paddingVertical: 6 },
+  bisognoRow: { paddingVertical: 10, gap: 7 },
+  bisognoMeta: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8 },
+  bisognoLabel: { flexShrink: 1, fontSize: 15, lineHeight: 21, color: "#e2e8f0", fontWeight: "600" },
+  bisognoValue: { fontSize: 14, color: "#cbd5e1", fontWeight: "700", textAlign: "right" },
+  bisognoTrack: { width: "100%", height: 11, borderRadius: 6, backgroundColor: "#334155", overflow: "hidden" },
+  bisognoFill: { height: "100%", borderRadius: 6 },
   rowWrap: {
-    flexDirection: "row",
-    alignItems: "flex-start",
-    marginBottom: 6,
-    gap: 6
+    flexDirection: "row", alignItems: "flex-start", gap: 10,
+    paddingVertical: 10, borderBottomWidth: 1, borderBottomColor: "rgba(148,163,184,0.13)"
   },
-  rowPressable: {
-    borderRadius: 6,
-    marginHorizontal: -2,
-    paddingHorizontal: 2
-  },
-  rowPressed: {
-    backgroundColor: "rgba(59,130,246,0.15)"
-  },
-  rowEmoji: { fontSize: 13, lineHeight: 18 },
-  rowTextCol: {
-    flex: 1,
-    minWidth: 0
-  },
+  rowPressable: { borderRadius: 7, paddingHorizontal: 5, marginHorizontal: -5 },
+  rowPressed: { backgroundColor: "rgba(59,130,246,0.15)" },
+  rowEmoji: { width: 29, fontSize: 21, lineHeight: 29, textAlign: "center" },
+  rowTextCol: { flex: 1, minWidth: 0 },
   rowLabel: {
-    fontSize: 8,
-    fontWeight: "700",
-    color: "rgba(148,163,184,0.85)",
-    textTransform: "uppercase",
-    letterSpacing: 0.3,
-    marginBottom: 1
+    fontSize: 12, fontWeight: "700", color: "#94a3b8",
+    marginBottom: 3
   },
-  rowValue: {
-    fontSize: 11,
-    color: "#e2e8f0",
-    lineHeight: 16
-  },
-  rowValueLink: {
-    color: "#93c5fd",
-    fontWeight: "600",
-    textDecorationLine: "underline"
-  },
-  rowValueDisoccupato: {
-    color: "#ef4444",
-    fontWeight: "700"
-  },
-  rowValueDisoccupatoLink: {
-    color: "#ef4444",
-    fontWeight: "700",
-    textDecorationLine: "underline"
-  },
-  rowMuted: {
-    color: "rgba(226,232,240,0.5)",
-    fontStyle: "italic"
-  },
+  rowValue: { fontSize: 15, lineHeight: 22, color: "#e2e8f0", flexWrap: "wrap" },
+  rowValueLink: { color: "#93c5fd", fontWeight: "600", textDecorationLine: "underline" },
+  rowValueDisoccupato: { color: "#f87171", fontWeight: "700" },
+  rowValueDisoccupatoLink: { color: "#f87171", fontWeight: "700", textDecorationLine: "underline" },
+  rowMuted: { color: "#94a3b8", fontStyle: "italic" },
   famigliaBtn: {
-    marginTop: 6,
-    paddingVertical: 7,
-    paddingHorizontal: 8,
-    borderRadius: 8,
-    backgroundColor: "rgba(56,189,248,0.12)",
-    borderWidth: 1,
-    borderColor: "rgba(56,189,248,0.35)",
-    alignItems: "center"
+    marginTop: 10, marginBottom: 8, minHeight: 44,
+    paddingVertical: 10, paddingHorizontal: 10, borderRadius: 9,
+    backgroundColor: "rgba(56,189,248,0.13)", borderWidth: 1,
+    borderColor: "rgba(56,189,248,0.4)", alignItems: "center", justifyContent: "center"
   },
-  famigliaBtnPressed: { backgroundColor: "rgba(56,189,248,0.22)" },
-  famigliaBtnText: { fontSize: 10, fontWeight: "700", color: "#7dd3fc", textAlign: "center" },
-  inventarioCategoria: {
-    marginBottom: 10
-  },
+  famigliaBtnPressed: { backgroundColor: "rgba(56,189,248,0.24)" },
+  famigliaBtnText: { fontSize: 14, lineHeight: 20, fontWeight: "700", color: "#7dd3fc", textAlign: "center" },
+  inventarioCategoria: { marginBottom: 12, marginTop: 6 },
   inventarioCategoriaTitolo: {
-    fontSize: 10,
-    fontWeight: "700",
-    color: "rgba(148,163,184,0.9)",
-    marginBottom: 6,
-    textTransform: "uppercase",
-    letterSpacing: 0.4
+    fontSize: 12, fontWeight: "800", color: "#94a3b8",
+    marginBottom: 9, textTransform: "uppercase", letterSpacing: 0.4
   },
-  inventarioGrid: {
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 12
-  },
+  inventarioGrid: { flexDirection: "row", flexWrap: "wrap", gap: 10 },
   inventarioSlot: {
-    minWidth: 56,
-    alignItems: "center",
-    paddingVertical: 6,
-    paddingHorizontal: 10,
-    backgroundColor: "rgba(30,41,59,0.45)",
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.15)"
+    minWidth: 92, flexBasis: "28%", flexGrow: 1, maxWidth: 180,
+    alignItems: "center", paddingVertical: 13, paddingHorizontal: 8,
+    backgroundColor: "#20324c", borderRadius: 12,
+    borderWidth: 1, borderColor: "rgba(148,163,184,0.2)"
   },
-  inventarioEmoji: {
-    fontSize: 26,
-    lineHeight: 32
+  inventarioEmoji: { fontSize: 30, lineHeight: 38 },
+  inventarioNome: { fontSize: 13, lineHeight: 19, color: "#cbd5e1", marginTop: 5, textAlign: "center" },
+  inventarioQty: { marginTop: 5, fontSize: 18, fontWeight: "800", color: "#f8fafc" },
+  azioniSchiavo: {
+    marginTop: 18, padding: 15, backgroundColor: "#1e293b",
+    borderRadius: 12, borderWidth: 1, borderColor: "rgba(248,113,113,0.3)", gap: 10
   },
-  inventarioNome: {
-    fontSize: 9,
-    fontWeight: "600",
-    color: "rgba(226,232,240,0.75)",
-    marginTop: 2
+  azioniSchiavoTitolo: { color: "#e2e8f0", fontSize: 15, fontWeight: "800" },
+  azioneBtn: {
+    minHeight: 44, paddingVertical: 10, paddingHorizontal: 12,
+    backgroundColor: "rgba(59,130,246,0.25)", borderRadius: 8,
+    borderWidth: 1, borderColor: "rgba(59,130,246,0.4)", justifyContent: "center"
   },
-  inventarioQty: {
-    marginTop: 4,
-    fontSize: 13,
-    fontWeight: "700",
-    color: "#e2e8f0"
+  azioneBtnPericolo: { backgroundColor: "rgba(239,68,68,0.15)", borderColor: "rgba(239,68,68,0.4)" },
+  azioneBtnText: { color: "#93c5fd", fontSize: 14, fontWeight: "700", textAlign: "center" },
+  azioneBtnTextPericolo: { color: "#fca5a5", fontSize: 14, fontWeight: "700", textAlign: "center" },
+  footer: {
+    paddingHorizontal: 16, paddingVertical: 10, backgroundColor: "#0f203a",
+    borderTopWidth: 1, borderTopColor: "rgba(148,163,184,0.22)"
   },
   closeBtn: {
-    marginTop: 18,
-    paddingVertical: 12,
-    paddingHorizontal: 24,
-    backgroundColor: "rgba(59,130,246,0.9)",
-    borderRadius: 12,
-    alignSelf: "center",
-    borderWidth: 1,
-    borderColor: "rgba(59,130,246,0.4)"
+    minHeight: 52, backgroundColor: "#3276df", borderRadius: 12,
+    justifyContent: "center", alignItems: "center"
   },
-  closeBtnText: {
-    color: "#fff",
-    fontSize: 14,
-    fontWeight: "700"
-  },
-  azioniSchiavo: {
-    marginTop: 14,
-    padding: 10,
-    backgroundColor: "rgba(30,41,59,0.5)",
-    borderRadius: 12,
-    borderWidth: 1,
-    borderColor: "rgba(148,163,184,0.15)",
-    gap: 8
-  },
-  azioniSchiavoTitolo: {
-    color: "rgba(226,232,240,0.9)",
-    fontSize: 11,
-    fontWeight: "700",
-    marginBottom: 4
-  },
-  azioneBtn: {
-    paddingVertical: 8,
-    paddingHorizontal: 12,
-    backgroundColor: "rgba(59,130,246,0.25)",
-    borderRadius: 8,
-    borderWidth: 1,
-    borderColor: "rgba(59,130,246,0.4)"
-  },
-  azioneBtnPericolo: {
-    backgroundColor: "rgba(239,68,68,0.15)",
-    borderColor: "rgba(239,68,68,0.4)"
-  },
-  azioneBtnText: {
-    color: "#93c5fd",
-    fontSize: 11,
-    fontWeight: "600",
-    textAlign: "center"
-  },
-  azioneBtnTextPericolo: {
-    color: "#fca5a5",
-    fontSize: 11,
-    fontWeight: "600",
-    textAlign: "center"
-  }
+  closeBtnPressed: { backgroundColor: "#2563b9" },
+  closeBtnText: { color: "#fff", fontSize: 17, fontWeight: "800" }
 });

@@ -1,3 +1,5 @@
+import { ViewportBottomPortal } from "../src/navigation/BuildingBottomExit";
+import { calcolaPunteggioSoddisfazione } from "../src/game/soddisfazione";
 import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   Alert,
@@ -13,7 +15,9 @@ import {
   type ViewStyle
 } from "react-native";
 import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
-import { Redirect, useFocusEffect, useRouter } from "expo-router";
+import { Redirect, useFocusEffect, usePathname, useRouter } from "expo-router";
+import { consumeBuildingExitForMapRecovery } from "../src/navigation/mapReturnRecovery";
+import type { PhaserCameraView } from "../src/phaser/scenes/KingdomMapScene";
 import { edificiData } from "../src/data/edificiData";
 import { useGameContext } from "../src/context/GameContext";
 import { useTutorialSpotlightOptional } from "../src/tutorial/TutorialSpotlightContext";
@@ -59,6 +63,8 @@ import {
   trovaCellaAnchorCasaSuMappa,
   èResidenzaMappa
 } from "../src/game/residenzaMappa";
+import { rimuoviResidentiCastelloDaCaseMappa } from "../src/game/residenzaCastello";
+import { èResidenteFissoCastello } from "../src/game/castelloGuardie";
 import { AbitanteInfoModal } from "../src/ui/AbitanteInfoModal";
 import { ResidentPortrait } from "../src/ui/ResidentPortrait";
 import { CapannaFullscreenModal } from "../src/ui/CapannaFullscreenModal";
@@ -159,6 +165,7 @@ import {
 } from "../src/game/orariLavoroMappa";
 import {
   calcolaPercorsoVersoAnchorEdificio,
+  celleIngressoBoscoWalkable,
   cercaPercorsoLavoroDisoccupato,
   pianificaCommuteMattina,
   pianificaCommuteSeraACasa,
@@ -286,7 +293,8 @@ import {
 } from "../src/game/mappaEdificiStatici";
 import { getStradeIniziali } from "../src/game/mappaStradeIniziali";
 import { ripristinaBoscoNord } from "../src/game/mappaBoscoNord";
-import { cellaNellaForestaNord } from "../src/game/mappaForestaConfine";
+import { assicuraAccessoPedonaleBosco } from "../src/game/mappaBoscoAccesso";
+import { cellaNellaFasciaErbaSottoForesta, cellaNellaForestaNord, proteggiFasciaErbaSottoForesta, rimuoviStradeInizialiDallaFasciaErba } from "../src/game/mappaForestaConfine";
 import { fasciaTerraEdificiIniziali, preservaTerraIntornoEdificiIniziali } from "../src/game/mappaDistanzaAcquaEdificiIniziali";
 import {
   calcolaAnchorCostruzione2x2,
@@ -434,7 +442,7 @@ function piazzaCapanneEgiacimentiProcedurali(
   const poolGi: number[] = [];
   const tot = cols * rows;
   for (let i = 0; i < tot; i++) {
-    if (cellaNellaForestaNord(i, cols, rows) || isAcqua(i, cols, rows) || riverSet.has(i) || haVicinoFiume(i, riverSet, cols, rows) || occupato.has(i)) continue;
+    if (cellaNellaForestaNord(i, cols, rows) || cellaNellaFasciaErbaSottoForesta(i, cols, rows) || isAcqua(i, cols, rows) || riverSet.has(i) || haVicinoFiume(i, riverSet, cols, rows) || occupato.has(i)) continue;
     poolGi.push(i);
   }
   poolGi.sort(() => Math.random() - 0.5);
@@ -464,7 +472,7 @@ function getInitialEdificiInMappa(
   const vietatoEdifici = vietatoFootprintECuscinoDaEdificiIniziali(edificiIniziali, cols, rows);
   const erbaLibera: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {
-    if (!cellaNellaForestaNord(i, cols, rows) && !isAcqua(i, cols, rows) && !riverSet.has(i) && !vietatoEdifici.has(i)) erbaLibera.push(i);
+    if (!cellaNellaForestaNord(i, cols, rows) && !cellaNellaFasciaErbaSottoForesta(i, cols, rows) && !isAcqua(i, cols, rows) && !riverSet.has(i) && !vietatoEdifici.has(i)) erbaLibera.push(i);
   }
   const shuffled = [...erbaLibera].sort(() => Math.random() - 0.5);
   const nCapanne = 5 + Math.floor(Math.random() * 5);
@@ -512,7 +520,7 @@ async function buildInitialMappa(
   const totaleCelle = cols * rows;
   const borderIndices = new Set<number>();
   for (let i = 0; i < totaleCelle; i++) {
-    if (isAcqua(i, cols, rows) || cellaNellaForestaNord(i, cols, rows)) borderIndices.add(i);
+    if (isAcqua(i, cols, rows) || cellaNellaForestaNord(i, cols, rows) || cellaNellaFasciaErbaSottoForesta(i, cols, rows)) borderIndices.add(i);
   }
   // Prima nasce il territorio: l'acqua non si deve adattare agli edifici.
   await report(12, "Generazione fiumi e coste…");
@@ -526,6 +534,7 @@ async function buildInitialMappa(
   });
   const terrenoInMappa: Record<number, TerrenoType> = buildTerrenoFromRivers(riverIndices, sandIndices);
   applyTerrenoGrassAndSandContinuity(terrenoInMappa, cols, rows);
+  proteggiFasciaErbaSottoForesta(terrenoInMappa, cols, rows);
   // Include eventuali celle diventate fiume durante la continuità dei terreni.
   const riverSet = riverSetDaTerreno(terrenoInMappa);
 
@@ -545,11 +554,14 @@ async function buildInitialMappa(
   await report(75, "Rifinitura terreno e confini…");
   applicaRegoleConfineTerreno(edificiInMappa, terrenoInMappa, cols, rows);
   preservaTerraIntornoEdificiIniziali(terrenoInMappa, fasciaSicurezzaEdifici, cols, rows);
+  // L'autotiling puo' aver aggiunto sabbia/acqua/strade: il prato nord resta libero.
+  proteggiFasciaErbaSottoForesta(terrenoInMappa, cols, rows);
+  rimuoviStradeInizialiDallaFasciaErba(edificiInMappa, cols, rows);
 
   await report(86, "Distribuzione decorazioni…");
   const celleLibere: number[] = [];
   for (let i = 0; i < totaleCelle; i++) {
-    if (cellaNellaForestaNord(i, cols, rows) || isTerrenoAcqua(i, terrenoInMappa, cols, rows) || edificiInMappa[i]) continue;
+    if (cellaNellaForestaNord(i, cols, rows) || cellaNellaFasciaErbaSottoForesta(i, cols, rows) || isTerrenoAcqua(i, terrenoInMappa, cols, rows) || edificiInMappa[i]) continue;
     celleLibere.push(i);
   }
   const shuffled = [...celleLibere].sort(() => Math.random() - 0.5);
@@ -560,8 +572,12 @@ async function buildInitialMappa(
     decorazioniInMappa[idx] = DECORAZIONI_EMOJI[Math.floor(Math.random() * DECORAZIONI_EMOJI.length)]!;
   }
 
+  const world = assicuraAccessoPedonaleBosco(
+    { edificiInMappa, terrenoInMappa, decorazioniInMappa, residenzeMappa: {} },
+    cols, rows
+  );
   await report(100, "Mondo pronto!");
-  return { edificiInMappa, terrenoInMappa, decorazioniInMappa, residenzeMappa: {} };
+  return world;
 }
 
 /**
@@ -836,7 +852,8 @@ function normalizeMappaSessione(state: MappaRuntimeState): MappaRuntimeState {
   // Migrazione conservativa: ripristina il Bosco se e soltanto se manca.
   // Non modifica un Bosco preesistente e non sovrascrive case o strade.
   const coerente = state.residenzeMappa ? state : { ...state, residenzeMappa: {} };
-  return ripristinaBoscoNord(coerente, FIXED_MAP_COLS, FIXED_MAP_ROWS);
+  const conBosco = ripristinaBoscoNord(coerente, FIXED_MAP_COLS, FIXED_MAP_ROWS);
+  return assicuraAccessoPedonaleBosco(conBosco, FIXED_MAP_COLS, FIXED_MAP_ROWS);
 }
 
 export function MappaScreen() {
@@ -888,6 +905,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const {
     risorse,
     abitanti,
+    creazioneGiocatoreAperta,
     inventarioGiocatore,
     moneteGiocatore,
     edifici,
@@ -944,14 +962,17 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const deltaOrdini = calcolaDeltaOrdiniMercato();
   const deltaTesoroMercato = calcolaDeltaTesoroMercato();
 
-  const abitantiConFelicità = abitanti.filter((a) => a.razza !== "Golem");
-  const nConFelicità = abitantiConFelicità.length;
-  const felicitàMedia = nConFelicità ? Math.round(abitantiConFelicità.reduce((s, a) => s + calcolaFelicitàModificata(a), 0) / nConFelicità) : 0;
-  const nConLealtàPaura = abitantiConFelicità.length;
-  const lealtàMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.lealtà, 0) / nConLealtàPaura) : 0;
-  const pauraMedia = nConLealtàPaura ? Math.round(abitantiConFelicità.reduce((s, a) => s + a.paura, 0) / nConLealtàPaura) : 0;
-  const nDisoccupati = abitantiConFelicità.filter((a) => a.lavoro === "Disoccupato").length;
-  const disoccupazionePercent = nConFelicità ? Math.round((nDisoccupati / nConFelicità) * 100) : 0;
+  // La barra mostra la stessa Soddisfazione reale della pagina dedicata, non la vecchia Felicità.
+  const abitantiConSoddisfazione = abitanti.filter(a => a.id !== 1 && a.razza !== "Golem");
+  const soddisfazioneMediaRegno = abitantiConSoddisfazione.length > 0
+    ? (() => {
+        const total = abitantiConSoddisfazione.reduce(
+          (sum, a) => sum + calcolaPunteggioSoddisfazione(a, edifici, getGiornoGiocoSnapshot(), mese, anno), 0
+        );
+        const media = Math.round(total / abitantiConSoddisfazione.length * 10) / 10;
+        return (media > 0 ? "+" : "") + media;
+      })()
+    : "0";
 
   /** Una voce per nome (es. una sola "Serra") con id template del catalogo. */
   const edificiCatalogoModal = useMemo(() => {
@@ -1053,6 +1074,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const terrenoInMappa = mappaState.terrenoInMappa;
   const decorazioniInMappa = mappaState.decorazioniInMappa;
   const residenzeMappa = mappaState.residenzeMappa;
+  // I salvataggi vecchi possono contenere il Consigliere in una Capanna della mappa.
+  useEffect(() => {
+    setMappaStatePersistente((s) => {
+      const next = rimuoviResidentiCastelloDaCaseMappa(abitanti, s.residenzeMappa);
+      return next === s.residenzeMappa ? s : { ...s, residenzeMappa: next };
+    });
+  }, [abitanti, setMappaStatePersistente]);
   /** Una tantum: distribuisce i residenti della Capanna globale sulle capanne procedurali. */
   const residenzeCapanneInizialiRef = useRef(false);
 
@@ -1211,6 +1239,18 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const mapDraggedRef = useRef(false);
   const panStartPosRef = useRef<{ x: number; y: number } | null>(null);
   const phaserMapRef = useRef<PhaserMapSurfaceHandle | null>(null);
+  const [phaserSurfaceRevision, setPhaserSurfaceRevision] = useState(0);
+  const cameraBeforeBuildingReturnRef = useRef<PhaserCameraView | null>(null);
+  const pathname = usePathname();
+
+  const recoverCanvasAfterBuildingExit = useCallback(() => {
+    if (Platform.OS !== "web" || !consumeBuildingExitForMapRecovery()) return;
+    // La vecchia scena può mostrare frame ma non ricevere più eventi touch:
+    // una nuova istanza WebGL ripristina i listener e il canvas senza
+    // reinizializzare il GameProvider o la sessione salvata.
+    cameraBeforeBuildingReturnRef.current = phaserMapRef.current?.captureCamera() ?? null;
+    setPhaserSurfaceRevision((old) => old + 1);
+  }, []);
 
   const restoreMapInput = useCallback(() => {
     if (Platform.OS !== "web") return;
@@ -1225,6 +1265,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   useFocusEffect(
     useCallback(() => {
       if (Platform.OS !== "web") return;
+      recoverCanvasAfterBuildingExit();
       let cancelled = false;
       const refresh = () => {
         if (!cancelled) restoreMapInput();
@@ -1238,8 +1279,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         clearTimeout(shortDelay);
         clearTimeout(settledDelay);
       };
-    }, [restoreMapInput])
+    }, [restoreMapInput, recoverCanvasAfterBuildingExit])
   );
+
+  // Fallback quando Safari ripristina la route via history senza notificare
+  // subito a React Navigation il focus della vecchia schermata.
+  useEffect(() => {
+    if (pathname === "/") recoverCanvasAfterBuildingExit();
+  }, [pathname, recoverCanvasAfterBuildingExit]);
 
   // Le modali fullscreen (Capanna, Dormitorio e altre schede mappa)
   // non cambiano route: useFocusEffect da solo non sarebbe richiamato.
@@ -1250,6 +1297,16 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     selectedEdificioInfoId !== null ||
     cantiereSelezionatoId !== null ||
     schedaWandererAbitante !== null;
+  // Questo footer e' un portal nel body: non deve comparire sopra modali
+  // fullscreen o quando l'utente lascia la mappa (lo Stack tiene viva la pagina).
+  const footerMappaVisibile =
+    (pathname === "/" || pathname === "/mappa") &&
+    !creazioneGiocatoreAperta &&
+    !mapModalOpen &&
+    !mostraModalCostruisci &&
+    !mostraModalRichieste &&
+    !mostraModalEventi &&
+    obiettivoSbloccato === null;
   const mapModalWasOpenRef = useRef(false);
   useEffect(() => {
     if (mapModalOpen) {
@@ -1369,11 +1426,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const uscitaCostruzione = useCallback(() => {
     setCostruzioneSelezione(null);
     setPreviewCellHover(null);
+    setMostraGrigliaMappa(false);
   }, []);
 
   const uscitaDemolizione = useCallback(() => {
     setModalitaDemolisci(false);
     setConfermaDemolizionePending(null);
+    setMostraGrigliaMappa(false);
   }, []);
 
   const onDemolisciPress = useCallback(() => {
@@ -1565,6 +1624,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const isWalkableCell = useCallback(
     (i: number) => {
+      // Il Bosco a nord è uno sfondo non percorribile: nessuno può
+      // comparirvi o usarlo nei percorsi, nemmeno chi ci lavora.
+      if (cellaNellaForestaNord(i, cols, rows)) return false;
       if (isAcqua(i, cols, rows)) return false;
       if ((terrenoInMappa[i] ?? "erba") === "river") return false;
       if (decorazioniInMappa[i]) return false;
@@ -1584,7 +1646,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const cellaCasaPerAbitanteId = useMemo(() => {
     const m = new Map<number, number | null>();
     for (const a of abitanti) {
-      m.set(a.id, trovaCellaAnchorCasaSuMappa(a.id, edifici, edificiInMappa, residenzeMappa));
+      m.set(a.id, trovaCellaAnchorCasaSuMappa(a.id, edifici, edificiInMappa, residenzeMappa, a));
     }
     return m;
   }, [abitanti, edifici, edificiInMappa, residenzeMappa]);
@@ -1655,6 +1717,19 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         runtimePersonaggiInizialeRef.current.ultimaCellaByAbitanteId
       ) as Record<number, CommuteInfo>
   );
+
+  // Ripara i percorsi di vecchie partite generati quando la foresta
+  // era considerata erba libera. Non altera i salvataggi degli abitanti.
+  useEffect(() => {
+    setCommuteByAbitanteId((prev) => {
+      const valid = Object.entries(prev).filter(([, info]) =>
+        !info.path.some((cell) => cellaNellaForestaNord(cell, cols, rows))
+      );
+      return valid.length === Object.keys(prev).length
+        ? prev
+        : (Object.fromEntries(valid) as Record<number, CommuteInfo>);
+    });
+  }, [cols, rows]);
 
   useEffect(() => {
     patchMappaPersonaggiRuntime({
@@ -2087,7 +2162,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         setDormonoACasaIds((s) => new Set(s).add(abitanteId));
         aggiornaAbitanteById(abitanteId, (a) =>
           applicaRecuperoEnergiaSonno(a, {
-            nomeResidenza: getEdificioAbitazione(a.id, edifici)?.nome ?? null
+            nomeResidenza: getEdificioAbitazione(a.id, edifici, a)?.nome ?? null
           })
         );
       } else if (purpose === "work") {
@@ -2240,6 +2315,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         if (anchor == null) return;
         const porta = trovaCellaPortaEdificio(anchor, edificiInMappa, cols, rows, isWalkableCell);
         if (porta != null) goalLiberi.add(porta);
+        for (const accesso of celleIngressoBoscoWalkable(anchor, edificiInMappa, cols, rows, isWalkableCell)) {
+          goalLiberi.add(accesso);
+        }
       };
 
       let anchorDest: number | null = null;
@@ -2326,7 +2404,10 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           cols,
           pathEvitandoAltri,
           pathAttraversoAltri,
-          giaAllIngresso: porta === from,
+          giaAllIngresso: porta === from ||
+            (anchorDest != null && celleIngressoBoscoWalkable(
+              anchorDest, edificiInMappa, cols, rows, isWalkableCell
+            ).includes(from)),
           oscillazioniConsecutive
         });
 
@@ -2927,6 +3008,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
     const anchor = selectedResidenzaAnchor;
     const out: Abitante[] = [];
     for (const a of abitanti) {
+      if (èResidenteFissoCastello(a)) continue;
       if (altreCaseMappaTengonoId(a.id, anchor)) continue;
       if ((residenzeMappa[anchor] ?? []).includes(a.id)) continue;
       const dove = residenzaGlobaleDi(a.id, edifici);
@@ -2977,7 +3059,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       const nome = edificioResidenzaAperta.nome;
       const anchor = selectedResidenzaAnchor;
       const globId = idGlobalePerResidenzaInCella(edificioResidenzaAperta, nome);
-      if (!abitanti.some((x) => x.id === abitanteId)) return;
+      const abitante = abitanti.find((x) => x.id === abitanteId);
+      if (!abitante || èResidenteFissoCastello(abitante)) return;
 
       if (nome === "Capanna" || nome === "Dormitorio") {
         if (globId == null) return;
@@ -3343,6 +3426,15 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
         lastTapCell.current = null;
         return;
       }
+      /** Bosco: un tocco su qualunque albero della fascia settentrionale,
+       * oppure sulla sede 5x5 di raccolta. Il doppio tap della stessa cella
+       * e' inaffidabile sui touchscreen (ed e' facile toccare alberi laterali).
+       */
+      if (edificio?.nome === "Bosco" || cellaNellaForestaNord(cellIndex, cols, rows)) {
+        openRouteForEdificio("Bosco");
+        lastTapCell.current = null;
+        return;
+      }
       /** Serra: apre subito la pagina produzione / assegnazioni. */
       if (edificio?.nome === "Serra") {
         openRouteForEdificio(edificio.nome, edificio.id);
@@ -3528,7 +3620,13 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
           idleRoamAllowed
         };
       });
-    return assignUniqueCharacterCells(candidates, cols, rows, isWalkableCell);
+    return assignUniqueCharacterCells(
+      candidates,
+      cols,
+      rows,
+      isWalkableCell,
+      (cell) => cellaNellaForestaNord(cell, cols, rows)
+    ).filter((character) => !cellaNellaForestaNord(character.cell, cols, rows));
   }, [
     abitantiPerOverlayMappa,
     abitanteVisibileSuMappaPhaser,
@@ -3551,12 +3649,19 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       if (!visibleIds.has(id)) releaseCellAbitante(id);
     }
     for (const character of phaserCharacters) {
-      if (!abitanteSuCellaRef.current.has(character.id)) {
+      // Migra solamente gli spawn legacy nella foresta: evita di sovrascrivere
+      // la cella di chi sta già camminando verso lavoro/casa.
+      const oldCell = ultimaCellaAbitanteRef.current.get(character.id);
+      if (oldCell == null || cellaNellaForestaNord(oldCell, cols, rows)) {
+        ultimaCellaAbitanteRef.current.set(character.id, character.cell);
+      }
+      const claimedCell = abitanteSuCellaRef.current.get(character.id);
+      if (claimedCell == null || cellaNellaForestaNord(claimedCell, cols, rows)) {
         tryClaimCellAbitante(character.id, character.cell);
       }
       setUltimaCellaAbitanteRuntime(character.id, character.cell);
     }
-  }, [phaserCharacters, releaseCellAbitante, tryClaimCellAbitante]);
+  }, [phaserCharacters, cols, rows, releaseCellAbitante, tryClaimCellAbitante]);
 
   const phaserRevisionRef = useRef(0);
   const phaserBaseSnapshot = useMemo(
@@ -3659,6 +3764,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   const tryPhaserCharacterStep = useCallback(
     (abitanteId: number, _fromCell: number, toCell: number) => {
+      // La foresta è vietata anche se il Bosco risulta un edificio con
+      // footprint: non applicare qui l'eccezione generica degli interni.
+      if (cellaNellaForestaNord(toCell, cols, rows)) return false;
       if (findBuildingForInteriorCell(toCell, phaserBaseSnapshot.buildings, cols)) {
         releaseCellAbitante(abitanteId);
         ultimaCellaAbitanteRef.current.set(abitanteId, toCell);
@@ -3670,7 +3778,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       setUltimaCellaAbitanteRuntime(abitanteId, toCell);
       return true;
     },
-    [phaserBaseSnapshot.buildings, cols, releaseCellAbitante, tryClaimCellAbitante]
+    [phaserBaseSnapshot.buildings, cols, rows, releaseCellAbitante, tryClaimCellAbitante]
   );
 
   const tryPhaserIdleStep = useCallback(
@@ -3802,95 +3910,56 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
   return (
     <SafeAreaView style={styles.safe}>
-      {/* Banner in alto: MyKingdom, Mese/Anno, Diario, Felicità, Lealtà, Paura, Menu */}
+      {/* Header mobile su righe distinte: niente scorrimento orizzontale né statistiche obsolete. */}
       <View style={styles.topBanner}>
         <View style={styles.topBannerInner}>
-          <View style={styles.bannerTitleBlock}>
-            <Text style={styles.bannerTitleEmoji}>🏰</Text>
-            <View>
+          <View style={styles.topPrimaryRow}>
+            <View style={styles.bannerTitleBlock}>
+              <Text style={styles.bannerTitleEmoji}>🏰</Text>
               <Text style={styles.bannerTitle}>MyKingdom</Text>
-              <Text style={styles.bannerSubtitle}>Gestisci il tuo Regno</Text>
+            </View>
+            <View style={styles.topPrimaryActions}>
+              <Pressable style={styles.diarioBtn} onPress={() => router.push("/diario")}>
+                <Text style={styles.diarioBtnLabel}>📖 Diario</Text>
+              </Pressable>
+              <Pressable style={styles.menuBtn} onPress={() => router.push("/menu")}>
+                <Text style={styles.menuBtnText}>☰ Menu</Text>
+              </Pressable>
             </View>
           </View>
-          <View style={styles.badge}>
-            <View style={styles.badgeDateColumn}>
-              <View style={styles.badgeDateRow}>
-                <Text style={styles.badgeText}>📅 Mese {mese}</Text>
-                <Text style={styles.badgeText}>· Anno {anno}</Text>
+          <View style={styles.topSecondaryRow}>
+            <View style={styles.badge}>
+              <View style={styles.badgeDateColumn}>
+                <Text style={styles.badgeText}>Mese {mese} · Anno {anno}</Text>
+                <Text style={styles.badgeClock}>🕒 {formatOrologioGioco(orologioMinuti)}</Text>
               </View>
-              <View style={styles.badgeClockRow}>
-                <Text style={styles.badgeClock}>
-                  🕐 {formatOrologioGioco(orologioMinuti)}
-                  {orologioInPausa ? " · in pausa" : ""}
-                </Text>
-                <View style={styles.orologioControlliTempo}>
+              <View style={styles.orologioControlliTempo}>
+                <Pressable
+                  style={[styles.orologioPausaBtn, orologioInPausa && styles.orologioPausaBtnAttivo]}
+                  onPress={toggleOrologioPausa}
+                  accessibilityLabel={orologioInPausa ? "Riprendi il tempo" : "Metti in pausa il tempo"}
+                >
+                  <Text style={styles.orologioPausaBtnText}>{orologioInPausa ? "▶" : "⏸"}</Text>
+                </Pressable>
+                {OROLOGIO_GIOCO_VELOCITA.map(velocita => (
                   <Pressable
-                    style={[styles.orologioPausaBtn, orologioInPausa && styles.orologioPausaBtnAttivo]}
-                    onPress={toggleOrologioPausa}
-                    accessibilityLabel={orologioInPausa ? "Riprendi il tempo" : "Metti in pausa il tempo"}
+                    key={velocita}
+                    style={[styles.orologioVelocitaBtn, !orologioInPausa && orologioVelocita === velocita && styles.orologioVelocitaBtnAttivo]}
+                    onPress={() => setOrologioVelocita(velocita)}
+                    accessibilityLabel={"Velocità tempo " + velocita + " per"}
                   >
-                    <Text style={styles.orologioPausaBtnText}>{orologioInPausa ? "▶️" : "⏸️"}</Text>
+                    <Text style={[styles.orologioVelocitaBtnText, !orologioInPausa && orologioVelocita === velocita && styles.orologioVelocitaBtnTextAttivo]}>{velocita}×</Text>
                   </Pressable>
-                  {OROLOGIO_GIOCO_VELOCITA.map((velocita) => (
-                    <Pressable
-                      key={velocita}
-                      style={[
-                        styles.orologioVelocitaBtn,
-                        !orologioInPausa &&
-                          orologioVelocita === velocita &&
-                          styles.orologioVelocitaBtnAttivo
-                      ]}
-                      onPress={() => setOrologioVelocita(velocita)}
-                      accessibilityLabel={`Velocità tempo ${velocita} per`}
-                    >
-                      <Text
-                        style={[
-                          styles.orologioVelocitaBtnText,
-                          !orologioInPausa &&
-                            orologioVelocita === velocita &&
-                            styles.orologioVelocitaBtnTextAttivo
-                        ]}
-                      >
-                        {velocita}×
-                      </Text>
-                    </Pressable>
-                  ))}
-                </View>
+                ))}
               </View>
             </View>
+            <Pressable style={styles.headerStatBtn} onPress={() => router.push("/soddisfazione")}>
+              <Text style={styles.headerStatText}>💚 Soddisfazione {soddisfazioneMediaRegno}</Text>
+            </Pressable>
+            <Pressable style={styles.headerStatBtn} onPress={() => router.push("/abitanti")}>
+              <Text style={styles.headerStatText}>👥 {abitanti.length} abitanti</Text>
+            </Pressable>
           </View>
-          <Pressable style={styles.diarioBtn} onPress={() => router.push("/diario")}>
-            <Text style={styles.diarioBtnEmoji}>📖</Text>
-            <Text style={styles.diarioBtnLabel}>Diario</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/felicita")}>
-            <Text style={styles.indEmoji}>😊</Text>
-            <Text style={styles.indLabel}>Felicità</Text>
-            <Text style={styles.indValue}>{felicitàMedia}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/lealta")}>
-            <Text style={styles.indEmoji}>❤️</Text>
-            <Text style={styles.indLabel}>Lealtà</Text>
-            <Text style={styles.indValue}>{lealtàMedia}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/paura")}>
-            <Text style={styles.indEmoji}>😨</Text>
-            <Text style={styles.indLabel}>Paura</Text>
-            <Text style={styles.indValue}>{pauraMedia}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard}>
-            <Text style={styles.indEmoji}>📋</Text>
-            <Text style={styles.indLabel}>Disoccupazione</Text>
-            <Text style={styles.indValue}>{disoccupazionePercent}%</Text>
-          </Pressable>
-          <Pressable style={styles.indCard} onPress={() => router.push("/abitanti")}>
-            <Text style={styles.indEmoji}>👥</Text>
-            <Text style={styles.indLabel}>Abitanti</Text>
-            <Text style={styles.indValue}>{abitanti.length}</Text>
-          </Pressable>
-          <Pressable style={styles.menuBtn} onPress={() => router.push("/menu")}>
-            <Text style={styles.menuBtnText}>Menu</Text>
-          </Pressable>
         </View>
       </View>
 
@@ -3927,11 +3996,17 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       ) : null}
 
       {/* Contenitore mappa: viewport sfondo nero, griglia gestita da react-zoom-pan-pinch */}
-      <View style={styles.mapContainer}>
+      <View style={[
+        styles.mapContainer,
+        Platform.OS === "web" && footerMappaVisibile &&
+          (sintesiMappaAbitante ? styles.mapResidentFooterSpace : styles.mapFooterSpace)
+      ]}>
         {Platform.OS === "web" ? (
           <View style={styles.phaserMainSurface}>
             <PhaserMapSurface
+              key={phaserSurfaceRevision}
               ref={phaserMapRef}
+              initialCamera={cameraBeforeBuildingReturnRef.current}
               snapshot={phaserSnapshot}
               onCellPress={onCellPress}
               onCellHover={setPreviewCellHover}
@@ -4155,11 +4230,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                         isWalkable={isWalkableCell}
                         isRoadCell={isRoadCell}
                         instanceId={abitante.id}
-                        fixedCell={fixedCellNotte}
+                        fixedCell={fixedCellNotte != null && cellaNellaForestaNord(fixedCellNotte, cols, rows) ? null : fixedCellNotte}
                         preferredSpawnCell={
                           ultimaCellaAbitanteRef.current.get(abitante.id) ?? homeCell ?? null
                         }
-                        commutePath={infoCommute?.path ?? null}
+                        commutePath={infoCommute?.path?.some((cell) => cellaNellaForestaNord(cell, cols, rows)) ? null : (infoCommute?.path ?? null)}
                         commuteToken={infoCommute?.token ?? 0}
                         commutePurpose={infoCommute?.purpose ?? null}
                         onCommuteComplete={(purpose) => {
@@ -4254,7 +4329,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       </View>
 
       {/* Menu fisso in basso: risorse/pulsanti, oppure sintesi abitante selezionato */}
-      <View style={styles.bottomBar} pointerEvents="box-none">
+      {footerMappaVisibile && (
+      <ViewportBottomPortal>
+      <View style={[styles.bottomBar, Platform.OS === "web" && styles.bottomBarPortalled]} pointerEvents="box-none">
         <View style={[styles.bottomBarInner, sintesiMappaAbitante && styles.bottomBarInnerResident]}>
           {sintesiMappaAbitante ? (
             <View style={styles.sintesiAbitantePanel}>
@@ -4368,80 +4445,28 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                       </Text>
                     )}
                   </Pressable>
-                  {r.nome === "Rifiuti" && (
-                    <>
-                      <Pressable
-                        style={[styles.grigliaMapToggle, mostraGrigliaMappa && styles.grigliaMapToggleOn]}
-                        onPress={() => setMostraGrigliaMappa((v) => !v)}
-                        accessibilityRole="button"
-                        accessibilityLabel={mostraGrigliaMappa ? "Nascondi griglia sulla mappa" : "Mostra griglia sulla mappa"}
-                      >
-                        <Text style={styles.grigliaMapToggleEmoji}>#</Text>
-                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                          Griglia
-                        </Text>
-                      </Pressable>
-                      <View ref={costruisciSpotlightRef} collapsable={false}>
-                        <Pressable
-                          style={[styles.grigliaMapToggle, costruzioneSelezione != null && styles.grigliaMapToggleOn]}
-                          onPress={onCostruisciPress}
-                          accessibilityRole="button"
-                          accessibilityLabel="Apri costruzione edifici"
-                        >
-                          <Text style={styles.grigliaMapToggleEmoji}>🔨</Text>
-                          <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                            Costruisci
-                          </Text>
-                        </Pressable>
-                      </View>
-                      <Pressable
-                        style={[styles.grigliaMapToggle, modalitaDemolisci && styles.grigliaMapToggleDemolisciOn]}
-                        onPress={onDemolisciPress}
-                        accessibilityRole="button"
-                        accessibilityLabel={modalitaDemolisci ? "Esci dalla modalità demolizione" : "Demolisci edifici sulla mappa"}
-                      >
-                        <Text style={styles.grigliaMapToggleEmoji}>🧨</Text>
-                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                          Demolisci
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        style={[
-                          styles.grigliaMapToggle,
-                          richiesteInAttesa.length > 0 && styles.grigliaMapToggleRichiesteOn
-                        ]}
-                        onPress={() => setMostraModalRichieste(true)}
-                        accessibilityRole="button"
-                        accessibilityLabel="Apri richieste in sospeso"
-                      >
-                        <Text style={styles.grigliaMapToggleEmoji}>📋</Text>
-                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                          Richieste{richiesteInAttesa.length > 0 ? ` (${richiesteInAttesa.length})` : ""}
-                        </Text>
-                      </Pressable>
-                      <Pressable
-                        style={[
-                          styles.grigliaMapToggle,
-                          eventiAttiviCount > 0 && styles.grigliaMapToggleEventiOn
-                        ]}
-                        onPress={() => setMostraModalEventi(true)}
-                        accessibilityRole="button"
-                        accessibilityLabel="Apri elenco eventi disponibili"
-                      >
-                        <Text style={styles.grigliaMapToggleEmoji}>📌</Text>
-                        <Text style={styles.grigliaMapToggleLabel} numberOfLines={1}>
-                          Eventi{eventiAttiviCount > 0 ? ` (${eventiAttiviCount})` : ""}
-                        </Text>
-                      </Pressable>
-                    </>
-                  )}
                 </React.Fragment>
               );
             })}
           </ScrollView>
           )}
+          <View style={styles.bottomActionsRow}>
+            <View ref={costruisciSpotlightRef} collapsable={false} style={styles.bottomActionWrap}>
+              <Pressable style={[styles.bottomActionBtn, (costruzioneSelezione != null || modalitaDemolisci) && styles.grigliaMapToggleOn]} onPress={onCostruisciPress} accessibilityRole="button" accessibilityLabel="Apri Costruisci, incluso Demolisci">
+                <Text style={styles.bottomActionText}>🔨 Costruisci</Text>
+              </Pressable>
+            </View>
+            <Pressable style={[styles.bottomActionBtn, styles.bottomActionWrap, richiesteInAttesa.length > 0 && styles.grigliaMapToggleRichiesteOn]} onPress={() => setMostraModalRichieste(true)} accessibilityRole="button">
+              <Text style={styles.bottomActionText}>📨 Richieste{richiesteInAttesa.length ? " (" + richiesteInAttesa.length + ")" : ""}</Text>
+            </Pressable>
+            <Pressable style={[styles.bottomActionBtn, styles.bottomActionWrap, eventiAttiviCount > 0 && styles.grigliaMapToggleEventiOn]} onPress={() => setMostraModalEventi(true)} accessibilityRole="button">
+              <Text style={styles.bottomActionText}>📅 Eventi{eventiAttiviCount ? " (" + eventiAttiviCount + ")" : ""}</Text>
+            </Pressable>
+          </View>
         </View>
       </View>
+      </ViewportBottomPortal>
+      )}
 
       <RichiesteModal
         visible={mostraModalRichieste}
@@ -4489,7 +4514,7 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
       >
         <SafeAreaView style={styles.modalCostruisciRoot}>
           <View style={styles.modalCostruisciBody}>
-            <Text style={styles.modalTitle}>Cosa vuoi costruire?</Text>
+            <Text style={styles.modalTitle}>Costruisci o demolisci</Text>
             <Text style={styles.modalSubtitle}>
               Scegli un tipo, poi sposta il puntatore sulla mappa: l’anteprima colorata mostra dove andrà l’edificio. Tocca per
               confermare.
@@ -4501,6 +4526,11 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
               showsVerticalScrollIndicator={false}
             >
               <View style={[styles.modalOptionGrid, { gap: costruisciLayout.gap }]}>
+                <Pressable style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]} onPress={onDemolisciPress}>
+                  <Text style={styles.modalOptionCostruisciEmoji}>🧨</Text>
+                  <Text style={styles.modalOptionCostruisciNome}>Demolisci</Text>
+                </Pressable>
+
                 <Pressable
                   style={[styles.modalOptionCostruisci, { width: costruisciLayout.tileWidth }]}
                   onPress={() => {
@@ -4924,12 +4954,19 @@ const styles = StyleSheet.create({
   },
   topBannerInner: {
     width: "100%",
-    flexDirection: "row",
-    alignItems: "center",
-    justifyContent: "space-between",
+    flexDirection: "column",
     gap: 8,
     paddingHorizontal: 12
   },
+  topPrimaryRow: {
+    flexDirection: "row", flexWrap: "wrap", alignItems: "center", justifyContent: "space-between", gap: 8
+  },
+  topPrimaryActions: { flexDirection: "row", alignItems: "center", gap: 8 },
+  topSecondaryRow: {
+    flexDirection: "row", flexWrap: "wrap", alignItems: "center", gap: 6
+  },
+  headerStatBtn: { paddingHorizontal: 8, paddingVertical: 6, borderRadius: 8, backgroundColor: "#17243c", minHeight: 32 },
+  headerStatText: { fontSize: 11, fontWeight: "700", color: "#e2e8f0" },
   bannerTitleBlock: {
     flexDirection: "row",
     alignItems: "center",
@@ -5044,6 +5081,10 @@ const styles = StyleSheet.create({
   },
   diarioBtnEmoji: { fontSize: 14 },
   diarioBtnLabel: { fontSize: 12, fontWeight: "600", color: "#e2e8f0" },
+  // Il canvas termina PRIMA del footer fisso, non scorre sotto i pulsanti.
+  // Include il margine di sicurezza per la home bar della PWA su iPhone.
+  mapFooterSpace: { marginBottom: 222 },
+  mapResidentFooterSpace: { marginBottom: 276 },
   mapContainer: {
     flex: 1,
     minHeight: 120,
@@ -5082,32 +5123,57 @@ const styles = StyleSheet.create({
     paddingVertical: 0,
     paddingHorizontal: 0
   },
+  /** Sul web il container e' dentro un portal fixed al viewport (non alla mappa). */
+  bottomBarPortalled: { position: "relative" },
   bottomBarInner: {
     width: "100%",
-    height: 78,
-    minHeight: 78,
-    maxHeight: 78,
+    height: Platform.OS === "web" ? 174 : 164,
+    minHeight: Platform.OS === "web" ? 174 : 164,
     overflow: "hidden",
-    justifyContent: "center",
+    justifyContent: "space-between",
     backgroundColor: "rgba(5,8,22,0.92)",
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
     borderWidth: 1,
     borderBottomWidth: 0,
     borderColor: "rgba(148,163,184,0.25)",
-    paddingVertical: 6,
+    paddingTop: 8,
+    paddingBottom: 10,
     paddingHorizontal: 12
   },
   bottomBarInnerResident: {
-    height: 160,
-    minHeight: 160,
-    maxHeight: 160,
-    paddingVertical: 10,
+    height: 230,
+    minHeight: 230,
+    paddingTop: 10,
+    paddingBottom: Platform.OS === "web" ? 26 : 10,
     paddingHorizontal: 12
   },
+  bottomActionsRow: {
+    height: 46,
+    minHeight: 46,
+    flexShrink: 0,
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 6,
+    marginTop: 4
+  },
+  bottomActionWrap: { flex: 1, minWidth: 0 },
+  bottomActionBtn: {
+    height: 46,
+    backgroundColor: "#1e293b",
+    borderWidth: 1,
+    borderColor: "#475569",
+    borderRadius: 10,
+    alignItems: "center",
+    justifyContent: "center"
+  },
+  bottomActionText: { color: "#f8fafc", fontSize: 11, fontWeight: "700" },
   bottomBarScroll: {
     flexGrow: 0,
-    height: 66
+    flexShrink: 0,
+    height: 88,
+    maxHeight: 88,
+    minHeight: 88
   },
   sintesiAbitantePanel: {
     width: "100%",
@@ -5179,15 +5245,15 @@ const styles = StyleSheet.create({
     gap: 8,
     alignItems: "center",
     paddingHorizontal: 0,
-    height: 66
+    height: 88
   },
   risorseCard: {
-    minWidth: 72,
-    height: 62,
+    minWidth: 88,
+    height: 84,
     justifyContent: "center",
     backgroundColor: "rgba(15,23,42,0.8)",
     borderRadius: 10,
-    paddingVertical: 6,
+    paddingVertical: 8,
     paddingHorizontal: 10,
     borderWidth: 1,
     borderColor: "rgba(148,163,184,0.15)"
@@ -5196,9 +5262,9 @@ const styles = StyleSheet.create({
     borderColor: "rgba(59,130,246,0.3)"
   },
   risorseEmoji: { fontSize: 18, marginBottom: 2 },
-  risorseName: { fontSize: 9, color: "rgba(248,250,252,0.85)", marginBottom: 1 },
+  risorseName: { fontSize: 11, color: "rgba(248,250,252,0.85)", marginBottom: 1 },
   risorseValueRow: { flexDirection: "row", alignItems: "baseline" },
-  risorseValue: { fontSize: 13, fontWeight: "800", color: "#f8fafc" },
+  risorseValue: { fontSize: 14, fontWeight: "800", color: "#f8fafc" },
   risorseUnit: { fontSize: 9, color: "rgba(148,163,184,0.8)", marginLeft: 1 },
   risorseDelta: { fontSize: 9, fontWeight: "700", marginTop: 1 },
   risorseDeltaPos: { color: "#4ade80" },

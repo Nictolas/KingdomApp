@@ -42,6 +42,8 @@ export function SpriteCharacterRenderer({
   visibleSemanticIds,
   animate = true,
   offsetY = 0,
+  onAssetError,
+  onAssetLoad,
   debug = false
 }: {
   appearance: CharacterAppearance;
@@ -55,6 +57,10 @@ export function SpriteCharacterRenderer({
   animate?: boolean;
   /** Shifts the sheet vertically inside the clip; keep within one direction row. */
   offsetY?: number;
+  /** The calling portrait can show a race fallback if a network asset fails. */
+  onAssetError?: (sourceId: string) => void;
+  /** Every actual LPC image reports its successful decode. */
+  onAssetLoad?: (sourceId: string) => void;
   debug?: boolean;
 }) {
   const layers = useMemo(
@@ -71,7 +77,12 @@ export function SpriteCharacterRenderer({
       }),
     [appearance, animation, visibleLayers, visibleSemanticIds]
   );
-  const definition = layers[0]?.sheet.animations[animation];
+  // An accessory may be first by z-index but use a different animation sheet
+  // (for example, watering_can uses walk frames in an idle portrait).
+  // The resident's body is the animation/frame reference, never the prop.
+  const baseLayer = layers.find(layer => layer.layer === "body") ??
+    layers.find(layer => layer.layer === "raceFeatures") ?? layers[0];
+  const definition = baseLayer?.sheet.animations[animation];
   const [frame, setFrame] = useState(0);
 
   useEffect(() => {
@@ -82,7 +93,7 @@ export function SpriteCharacterRenderer({
   }, [animate, animation, direction, definition]);
 
   if (!definition || layers.length === 0) return null;
-  const frameWidth = layers[0]!.sheet.frameWidth;
+  const frameWidth = baseLayer!.sheet.frameWidth;
   const scale = size / frameWidth;
   const animatedColumn = definition.columns?.[frame] ?? frame;
   const row = definition.directionRows[direction];
@@ -107,6 +118,8 @@ export function SpriteCharacterRenderer({
             <Image
               key={`${layer.id}-${layer.layer}`}
               source={source}
+              onError={() => onAssetError?.(layer.sourceId)}
+              onLoad={() => onAssetLoad?.(layer.sourceId)}
               resizeMode="stretch"
               style={{
                 position: "absolute",
