@@ -12,19 +12,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  verify-night-acceleration:
-    name: Night acceleration tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 10
-    steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 22
-          cache: npm
-      - run: npm ci --prefer-offline --no-audit --no-fund
-      - run: npx tsx --test tests/accelerazione-notturna.test.ts
-
   verify:
     name: Verify
     runs-on: ubuntu-latest
