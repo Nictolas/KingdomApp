@@ -315,4 +315,40 @@ export class LanP2PSession {
     return offer;
   }
 
+  /** L'accettazione è soltanto negoziazione, NON autorizza trasferimenti. */
+  respondToBarter(tradeId: string, accepted: boolean): void {
+    if (this.snapshot.state !== "connected" || this.channel?.readyState !== "open" ||
+        !this.incomingBarters.has(tradeId)) {
+      throw new Error("Nessuna proposta valida da accettare o rifiutare.");
+    }
+    this.channel.send(encodeBarterWire({ protocol: BARTER_PROTOCOL, type: "respond", tradeId, accepted }));
+    this.incomingBarters.delete(tradeId);
+  }
 
+  private fail(cause: unknown): void {
+    const message = cause instanceof Error ? cause.message : "Errore di collegamento.";
+    this.close();
+    this.emit({ state: "error", error: message });
+  }
+
+  close(): void {
+    this.pendingPing = null;
+    this.outgoingBarters.clear();
+    this.incomingBarters.clear();
+    if (this.channel) {
+      this.channel.onopen = null;
+      this.channel.onclose = null;
+      this.channel.onmessage = null;
+      try { this.channel.close(); } catch { /* Already closed. */ }
+      this.channel = null;
+    }
+    if (this.peer) {
+      this.peer.ondatachannel = null;
+      this.peer.onicegatheringstatechange = null;
+      this.peer.oniceconnectionstatechange = null;
+      try { this.peer.close(); } catch { /* Already closed. */ }
+      this.peer = null;
+    }
+    this.emit({ state: "disconnected", role: null, sessionId: null, otherPeerId: null, lastPong: null });
+  }
+}
