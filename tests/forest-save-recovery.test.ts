@@ -2,7 +2,8 @@ import test from "node:test";
 import assert from "node:assert/strict";
 import { readFileSync } from "node:fs";
 import { checkpointTurniForestali, ripristinaTurniForestali } from "../src/game/forestTurnSave";
-import { iniziaTurnoForestale, segnalaArrivoTurnoForestale, aggiornaTurnoForestale } from "../src/game/turniForestali";
+import { iniziaTurnoForestale, segnalaArrivoTurnoForestale, aggiornaTurnoForestale, type TurnoForestale } from "../src/game/turniForestali";
+import type { SaveEnvelopeV1 } from "../src/persistence/saveTypes";
 import { gameStateToGameSaveV1, gameSaveV1ToGameState } from "../src/persistence/gameStateMapping";
 import { createSaveEnvelope } from "./save-fixture.mjs";
 import { validateSaveEnvelope } from "../src/persistence/saveValidation";
@@ -38,17 +39,17 @@ test("salvataggio Bosco: conserva i minuti reali e sospende il turno dopo riavvi
 
 test("salvataggio Bosco: fasi chiuse e salvataggi legacy conservano semantica", () => {
   assert.deepEqual(ripristinaTurniForestali(undefined), {});
-  const turno = { ...activeTurn(), fase: "finito" };
+  const turno: TurnoForestale = { ...activeTurn(), fase: "finito" };
   const loaded = ripristinaTurniForestali({ 17: turno });
   assert.equal(loaded[17].fase, "finito");
-  const source = createSaveEnvelope();
+  const source = createSaveEnvelope() as unknown as SaveEnvelopeV1;
   assert.equal(source.payload.map.turniForestaliByAbitanteId, undefined);
   const old = gameSaveV1ToGameState(source.payload);
   assert.equal(old.mappa.turniForestaliByAbitanteId, undefined);
 });
 
 test("salvataggio Bosco: JSON checkpoint supera il validatore della partita", () => {
-  const source = createSaveEnvelope();
+  const source = createSaveEnvelope() as unknown as SaveEnvelopeV1;
   source.payload.map.turniForestaliByAbitanteId = checkpointTurniForestali({ 17: activeTurn() });
   validateSaveEnvelope(source);
   const mapped = gameSaveV1ToGameState(source.payload);
@@ -63,7 +64,7 @@ test("salvataggio Bosco: record corrotti o teleport non verificati sono rifiutat
     { ...original, fase: "nuova_fase" },
     { ...original, minutiNelBosco: -5 },
     { ...original, giorno: Infinity }
-  ]) assert.throws(() => checkpointTurniForestali({ 17: bad }), /non valid|incoerent/);
+  ]) assert.throws(() => checkpointTurniForestali({ 17: bad as TurnoForestale }), /non valid|incoerent/);
 });
 
 test("salvataggio Bosco: revision token notifica i cambiamenti senza render aggiuntivi", () => {
