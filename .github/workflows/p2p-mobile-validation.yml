@@ -56,29 +56,28 @@ jobs:
             echo "Unwanted active Android permission: $active"
             exit 1
           fi
-      - name: Build Android debug APK
-        run: cd android && ./gradlew :app:assembleDebug --no-daemon --console=plain
-      - name: Verify merged APK manifest permissions
-        run: |
-          set -euo pipefail
-          manifest="$(find android/app/build/intermediates/merged_manifests -type f -name AndroidManifest.xml | grep '/debug/' | head -1)"
-          test -n "$manifest"
-          if grep -E 'android.permission.(CAMERA|RECORD_AUDIO|SYSTEM_ALERT_WINDOW)' "$manifest"; then
-            echo "Unnecessary camera, microphone or overlay permissions were merged"
-            exit 1
-          fi
-
+      # Debug includes Android development tooling that may legitimately
+      # request SYSTEM_ALERT_WINDOW; only the distributable APK is authoritative.
       - name: Build standalone Android test APK
         run: cd android && ./gradlew :app:assembleRelease --no-daemon --console=plain
-      - name: Verify test APK is signed and standalone
+      - name: Verify Release APK permissions and signature
         run: |
           set -euo pipefail
           apk="$(find android/app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -1)"
           test -n "$apk"
-          signer="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          sdk_build_tools="${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools"
+          signer="$(find "$sdk_build_tools" -name apksigner -type f | sort -V | tail -1)"
+          aapt="$(find "$sdk_build_tools" -name aapt -type f | sort -V | tail -1)"
           test -n "$signer"
+          test -n "$aapt"
           "$signer" verify "$apk"
-          echo "Standalone APK ready: $apk"
+          "$aapt" dump permissions "$apk" > /tmp/p2p-release-apk-permissions.txt
+          cat /tmp/p2p-release-apk-permissions.txt
+          if grep -E 'android.permission.(CAMERA|RECORD_AUDIO|SYSTEM_ALERT_WINDOW)' /tmp/p2p-release-apk-permissions.txt; then
+            echo "Unnecessary permissions present in the distributable Release APK"
+            exit 1
+          fi
+          echo "Standalone Android test APK signed and permissions verified: $apk"
       - name: Upload Android test APK
         uses: actions/upload-artifact@v4
         with:
