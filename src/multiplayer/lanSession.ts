@@ -108,8 +108,8 @@ export class LanP2PSession {
           this.emit({ lastPong: message.sequence });
         }
       } catch {
-        this.emit({ state: "error", error: "Il peer ha inviato un messaggio di collegamento non valido." });
         this.close();
+        this.emit({ state: "error", error: "Il peer ha inviato un messaggio di collegamento non valido." });
       }
     };
   }
