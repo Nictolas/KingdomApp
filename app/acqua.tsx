@@ -1,9 +1,9 @@
+import { BuildingResidentAvatar } from "../src/ui/BuildingResidentAvatar";
 import React from "react";
 import { Dimensions, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
 import { useRouter } from "expo-router";
 import { useGameContext } from "../src/context/GameContext";
 import { getConsumoAcqua } from "../src/game/ciboConsumo";
-import { getEmojiAbitante } from "../src/utils/getEmojiAbitante";
 import type { Abitante } from "../src/types";
 
 export default function AcquaScreen() {
@@ -99,7 +99,7 @@ export default function AcquaScreen() {
                 <View style={styles.colonnaLista}>
                   {consumatori.map(({ abitante, consumo }) => (
                     <View key={abitante.id} style={styles.rigaAbitante}>
-                      <Text style={styles.rigaEmoji}>{getEmojiAbitante(abitante)}</Text>
+                      <BuildingResidentAvatar abitante={abitante} />
                       <View style={styles.rigaTesto}>
                         <Text style={styles.rigaNome} numberOfLines={1}>{abitante.nome}</Text>
                         <Text style={styles.rigaConsumo}>{consumo} {unità}/mese</Text>

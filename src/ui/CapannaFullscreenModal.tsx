@@ -1,3 +1,4 @@
+import { BuildingResidentAvatar } from "./BuildingResidentAvatar";
 import React, { useMemo } from "react";
 import {
   Modal,
@@ -8,7 +9,6 @@ import {
 import { StatusBar } from "expo-status-bar";
 import { BuildingScreenShell } from "./BuildingScreenShell";
 import type { Abitante, Edificio } from "../types";
-import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import { badgePresenzaCapanna, statoPresenzaOccupanteCapanna } from "../game/presenzaCapanna";
 
 type CommuteEntry = {
@@ -119,7 +119,7 @@ export function CapannaFullscreenModal({
                   key={abitante.id}
                   style={[styles.listaRiga, badge.èDentro ? styles.listaRigaDentro : styles.listaRigaFuori]}
                 >
-                  <Text style={styles.listaAvatar}>{getEmojiAbitante(abitante)}</Text>
+                  <BuildingResidentAvatar abitante={abitante} />
                   <Text style={styles.listaNome} numberOfLines={1}>
                     {abitante.nome}
                   </Text>

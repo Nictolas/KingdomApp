@@ -1,3 +1,4 @@
+import { BuildingResidentAvatar } from "../../src/ui/BuildingResidentAvatar";
 import { tornaAllaMappa } from "../../src/navigation/tornaAllaMappa";
 import React, { useMemo, useState } from "react";
 import { Modal, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
@@ -15,7 +16,6 @@ import {
 import { formatOrologioGioco } from "../../src/game/orologioGiocoSession";
 import { useOrologioGioco } from "../../src/hooks/useOrologioGioco";
 import { getServiDellaGlebaPerAssegnazioneEdificio } from "../../src/game/edificiLavoro";
-import { getEmojiAbitante } from "../../src/utils/getEmojiAbitante";
 import { modalBackdropFullscreen, modalContentFullscreen } from "../../src/ui/modalFullscreenStyles";
 import type { Abitante } from "../../src/types";
 
@@ -149,7 +149,7 @@ export default function MensaScreenById() {
           {affamati.length > 0 ? (
             affamati.map((a) => (
               <View key={a.id} style={styles.row}>
-                <Text style={styles.emoji}>{getEmojiAbitante(a)}</Text>
+                <BuildingResidentAvatar abitante={a} />
                 <Text style={styles.nome} numberOfLines={1}>
                   {a.nome}
                 </Text>
@@ -165,7 +165,7 @@ export default function MensaScreenById() {
           {addetti.length > 0 ? (
             addetti.map((a) => (
               <View key={a.id} style={styles.row}>
-                <Text style={styles.emoji}>{getEmojiAbitante(a)}</Text>
+                <BuildingResidentAvatar abitante={a} />
                 <Text style={styles.nome} numberOfLines={1}>
                   {a.nome}
                 </Text>
@@ -209,9 +209,10 @@ export default function MensaScreenById() {
                     setDropdownVisible(false);
                   }}
                 >
-                  <Text>
-                    {getEmojiAbitante(a)} {a.nome}
-                  </Text>
+                  <View style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+                      <BuildingResidentAvatar abitante={a} />
+                      <Text>{a.nome}</Text>
+                    </View>
                 </Pressable>
               ))}
             </ScrollView>

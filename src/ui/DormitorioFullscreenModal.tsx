@@ -1,7 +1,7 @@
+import { BuildingResidentAvatar } from "./BuildingResidentAvatar";
 import React from "react";
 import { Modal, Pressable, StyleSheet, Text, View } from "react-native";
 import type { Abitante } from "../types";
-import { getEmojiAbitante } from "../utils/getEmojiAbitante";
 import { BuildingScreenShell } from "./BuildingScreenShell";
 
 type DormitorioFullscreenModalProps = {
@@ -75,7 +75,7 @@ export function DormitorioFullscreenModal({
               <Text style={styles.slotNumber}>{index + 1}</Text>
               {occupante ? (
                 <>
-                  <Text style={styles.avatar}>{getEmojiAbitante(occupante)}</Text>
+                  <BuildingResidentAvatar abitante={occupante} />
                   <Text style={styles.name} numberOfLines={1}>{occupante.nome}</Text>
                   <Pressable onPress={() => onRemove(occupante.id)} style={styles.removeButton} accessibilityRole="button">
                     <Text style={styles.removeText}>Esci</Text>
@@ -96,7 +96,7 @@ export function DormitorioFullscreenModal({
         ) : (
           candidati.map((abitante) => (
             <View key={abitante.id} style={styles.slot}>
-              <Text style={styles.avatar}>{getEmojiAbitante(abitante)}</Text>
+              <BuildingResidentAvatar abitante={abitante} />
               <Text style={styles.name} numberOfLines={1}>{abitante.nome}</Text>
               <Pressable
                 onPress={() => onAdd(abitante.id)}
