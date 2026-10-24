@@ -26,7 +26,16 @@ export function AbitanteAvatarPreview({
   faceOnly?: boolean;
 }) {
   const frame = lpcSpriteCircleDiameter(size) + 8;
-  const aspetto = aspettoPerVisualizzazioneAbitante(abitante);
+  // Game ticks rebuild the gallery frequently; keep the same appearance reference
+  // while the character's actual appearance and public clothing rules are unchanged.
+  const aspetto = React.useMemo(
+    () => aspettoPerVisualizzazioneAbitante(abitante),
+    [
+      abitante.id, abitante.eta, abitante.razza, abitante.aspetto,
+      abitante.lavoro, abitante.incinta, abitante.sesso,
+      abitante.casta, abitante.ceto, abitante.ruoloSchiavitu, abitante.schiavistaId
+    ]
+  );
   const grayStyle = grayscale ? ({ filter: "grayscale(1)" } as const) : undefined;
 
   if (aspetto?.characterAppearance && abitante.razza !== "Golem" && canRenderCharacter(aspetto.characterAppearance, "idle")) {
