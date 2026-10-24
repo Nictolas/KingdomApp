@@ -70,7 +70,9 @@ jobs:
           set -euo pipefail
           apk="$(find android/app/build/outputs/apk/release -maxdepth 1 -name '*.apk' | head -1)"
           test -n "$apk"
-          apksigner verify "$apk"
+          signer="$(find "${ANDROID_HOME:-/usr/local/lib/android/sdk}/build-tools" -name apksigner -type f | sort -V | tail -1)"
+          test -n "$signer"
+          "$signer" verify "$apk"
           echo "Standalone APK ready: $apk"
       - name: Upload Android test APK
         uses: actions/upload-artifact@v4
