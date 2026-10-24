@@ -3,6 +3,7 @@ import { SAVE_FORMAT, SAVE_SCHEMA_VERSION, type GameSaveV1, type SaveEnvelopeV1 
 import { generaAspettoDaSeed } from "../game/personaggioAspetto";
 import { normalizzaStatoSociale } from "../game/statoSociale";
 import { normalizeGameMode } from "../game/gameMode";
+import { checkpointTurniForestali } from "../game/forestTurnSave";
 
 export class SaveValidationError extends Error {
   constructor(message: string) {
@@ -171,6 +172,14 @@ function validateCoreValues(payload: Record<string, unknown>): void {
   const map = requireRecord(payload.map, "payload.map");
   for (const key of ["edificiInMappa", "terrenoInMappa", "decorazioniInMappa", "residenzeMappa"] as const) {
     requireRecord(map[key], `payload.map.${key}`);
+  }
+  if (map.turniForestaliByAbitanteId !== undefined) {
+    const forest = requireRecord(map.turniForestaliByAbitanteId, "payload.map.turniForestaliByAbitanteId");
+    try {
+      checkpointTurniForestali(forest as Record<number, import("../game/turniForestali").TurnoForestale>);
+    } catch {
+      throw new SaveValidationError("Checkpoint dei turni forestali danneggiato o non valido.");
+    }
   }
 }
 
