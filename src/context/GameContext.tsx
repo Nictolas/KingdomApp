@@ -51,6 +51,8 @@ type GameContextType = {
   simulationEnabled: boolean;
   saveStatus: "idle" | "saving" | "saved" | "error";
   salvaPartita: () => Promise<void>;
+  /** Identificativo del salvataggio attivo, dopo persistenza riuscita. */
+  activeSaveId: string | null;
   abitanti: Abitante[];
   /** Cambio effettivo dell'abito prescritto, con asset LPC e salvataggio. */
   indossaAbitoReligioso: (abitanteId: number) => { ok: boolean; motivo?: string };
@@ -598,7 +600,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [salvaPartita]);
 
 
-  const contextValue = { ...gameState, saveStatus, salvaPartita };
+  const contextValue = { ...gameState, saveStatus, salvaPartita, activeSaveId: metadataRef.current?.saveId ?? null };
   const re = gameState.abitanti.find((abitante) => abitante.id === ID_GIOCATORE);
   const gameOverPerMorteRe =
     startup === "active" &&
