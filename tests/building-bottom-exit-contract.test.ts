@@ -30,7 +30,7 @@ test("il navigatore contiene un solo pulsante globale sotto lo Stack, fuori dall
   const nativeFooter = src("src/navigation/BuildingBottomExit.tsx");
   assert.match(layout, /<Stack[\s\S]*<BuildingBottomExit\s*\/>/);
   assert.match(footer, /isBuildingRoute\(pathname\)/);
-  assert.match(footer, /accessibilityLabel="Torna alla mappa"/);
+  assert.match(footer, /accessibilityLabel=\{building \? "Torna alla mappa" : "Torna alla pagina precedente"\}/);
   assert.match(footer, /minHeight: 56/);
   assert.match(footer, /createPortal\(/);
   assert.match(footer, /position: "fixed"/);
