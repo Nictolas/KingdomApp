@@ -7,7 +7,7 @@ import type { MappaRuntimeState } from "../src/game/mappaTypes";
 import { buildPhaserMapSnapshot } from "../src/phaser/adapters/buildPhaserMapSnapshot";
 import { useGameContext } from "../src/context/GameContext";
 import type { PhaserMapInteraction } from "../src/phaser/adapters/mapSceneBridge";
-import { createPhaser200ResidentsBenchmarkFixture } from "../src/phaser/adapters/phaserResidentsBenchmarkFixture";
+import { createPhaserResidentsBenchmarkFixture, parsePhaserBenchmarkResidentCount } from "../src/phaser/adapters/phaserResidentsBenchmarkFixture";
 
 const COLS = 50;
 const ROWS = 50;
@@ -34,15 +34,14 @@ export default function MappaPhaserPreviewScreen() {
   const [demoMap, setDemoMap] = useState<MappaRuntimeState>(EMPTY_PREVIEW_MAP);
   const [dragging, setDragging] = useState(false);
   const { abitanti } = useGameContext();
-  const perf200 =
-    Platform.OS === "web" &&
-    typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("perf") === "1" &&
-    new URLSearchParams(window.location.search).get("residents") === "200";
+  const benchmarkCount =
+    Platform.OS === "web" && typeof window !== "undefined"
+      ? parsePhaserBenchmarkResidentCount(window.location.search)
+      : null;
   const session = useSyncExternalStore(subscribeMappaSessione, getMappaSessione, getMappaSessione);
   const revisionRef = useRef(0);
 
-  const activeMap = perf200 ? EMPTY_PREVIEW_MAP : session ?? demoMap;
+  const activeMap = benchmarkCount != null ? EMPTY_PREVIEW_MAP : session ?? demoMap;
   const interaction = useMemo<PhaserMapInteraction>(() => {
     if (hoverCell == null || mode === "select") {
       return { mode, hoverCell, affectedCells: hoverCell == null ? [] : [hoverCell], valid: hoverCell != null };
@@ -71,7 +70,7 @@ export default function MappaPhaserPreviewScreen() {
 
   const handleCellPress = useCallback((cell: number) => {
     setSelectedCell(cell);
-    if (perf200 || session || mode === "select" || !interaction.valid) return;
+    if (benchmarkCount != null || session || mode === "select" || !interaction.valid) return;
     if (mode === "demolish") {
       setDemoMap((current) => {
         const target = current.edificiInMappa[cell];
@@ -95,12 +94,12 @@ export default function MappaPhaserPreviewScreen() {
       }
       return { ...current, edificiInMappa };
     });
-  }, [interaction, mode, perf200, session]);
+  }, [interaction, mode, benchmarkCount, session]);
 
   const characters = useMemo(() => {
-    // Fixture isolata: istanzia e anima 200 sprite Phaser reali;
-    // non crea 200 abitanti nella partita o nel salvataggio.
-    if (perf200) return createPhaser200ResidentsBenchmarkFixture();
+    // Fixture isolata: istanzia e anima sprite Phaser reali;
+    // non crea abitanti nella partita o nel salvataggio.
+    if (benchmarkCount != null) return createPhaserResidentsBenchmarkFixture(benchmarkCount);
     const source = abitanti.length > 0 ? abitanti.slice(0, 24) : [{ id: 1, nome: "Esploratore", razza: "Umano" as const }];
     return source.map((abitante, order) => {
       const start = (6 + Math.floor(order / 6) * 2) * COLS + 3 + (order % 6) * 3;
@@ -113,7 +112,7 @@ export default function MappaPhaserPreviewScreen() {
         markerEmoji: abitante.razza === "Golem" ? "🗿" : undefined
       };
     });
-  }, [abitanti, perf200]);
+  }, [abitanti, benchmarkCount]);
   const baseSnapshot = useMemo(() => buildPhaserMapSnapshot(
       activeMap,
       COLS,
@@ -131,8 +130,8 @@ export default function MappaPhaserPreviewScreen() {
       <View style={styles.header}>
         <Text style={styles.title}>Anteprima renderer Phaser/WebGL</Text>
         <Text style={styles.status}>
-          {perf200
-            ? "Benchmark: 200 sprite Phaser in movimento (non IA completa)"
+          {benchmarkCount != null
+            ? `Benchmark: ${benchmarkCount} sprite Phaser in movimento (non IA completa)`
             : dragging
             ? "Camera in movimento"
             : selectedCell == null
@@ -148,7 +147,7 @@ export default function MappaPhaserPreviewScreen() {
             <Text style={styles.toolText}>{item === "select" ? "👆 Seleziona" : item === "build" ? "🏗️ Costruisci 2×2" : "🧨 Demolisci"}</Text>
           </Pressable>
         ))}
-        {perf200
+        {benchmarkCount != null
           ? <Text style={styles.readOnly}>Benchmark isolato · nessun salvataggio modificato</Text>
           : session
           ? <Text style={styles.readOnly}>Mappa reale: anteprima sola lettura</Text>
