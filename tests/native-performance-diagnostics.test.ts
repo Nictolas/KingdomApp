@@ -3,6 +3,7 @@ import test from "node:test";
 
 import { NativeFrameWindow } from "../src/performance/nativeFrameMetrics.ts";
 import { NativeMeasurementSession, formatNativeMeasurement } from "../src/performance/nativeMeasurementSession.ts";
+import { markNativeResidentFrameCallback, takeNativeResidentFrameCallbacks } from "../src/performance/nativeResidentWorkCounters.ts";
 import { NATIVE_TEST_POPULATIONS, createNativeSyntheticMarkers } from "../src/performance/nativePopulationFixture.ts";
 
 test("deterministic synthetic populations have unique coordinates, no game state", () => {
@@ -74,4 +75,12 @@ test("sharing report contains only aggregate local performance data", () => {
   assert.match(text, /Elementi: 50/);
   assert.match(text, /FPS JS medio: 62\.5/);
   assert.match(text, /non equivale a FPS/);
+});
+
+test("resident work counters report aggregate callbacks and reset between intervals", () => {
+  takeNativeResidentFrameCallbacks();
+  markNativeResidentFrameCallback();
+  markNativeResidentFrameCallback();
+  assert.equal(takeNativeResidentFrameCallbacks(), 2);
+  assert.equal(takeNativeResidentFrameCallbacks(), 0);
 });
