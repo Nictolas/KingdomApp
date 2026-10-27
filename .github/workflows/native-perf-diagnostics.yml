@@ -1,0 +1,25 @@
+name: Native Performance Diagnostics Tests
+
+on:
+  pull_request:
+    paths:
+      - "src/performance/**"
+      - "tests/native-performance-diagnostics.test.ts"
+      - "app/native-perf.tsx"
+      - "app/mappa.tsx"
+      - ".github/workflows/native-perf-diagnostics.yml"
+  workflow_dispatch:
+
+jobs:
+  native-diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Pure fixture and frame metric tests
+        run: npx tsx --test tests/native-performance-diagnostics.test.ts
