@@ -1,0 +1,38 @@
+name: Native Performance Diagnostics Tests
+
+on:
+  pull_request:
+    paths:
+      - "src/performance/**"
+      - "src/game/nativeMapTransform.ts"
+      - "src/components/MapViewportTransform*"
+      - "tests/native-map-transform.test.ts"
+      - "tests/native-performance-diagnostics.test.ts"
+      - "app/native-perf.tsx"
+      - "app/mappa.tsx"
+      - ".github/workflows/native-perf-diagnostics.yml"
+  workflow_dispatch:
+
+jobs:
+  native-diagnostics:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Pure fixture and frame metric tests
+        run: npx tsx --test tests/native-performance-diagnostics.test.ts tests/native-map-transform.test.ts
+      - name: Android JS bundle smoke test (not on-device)
+        env:
+          CI: "1"
+          EXPO_NO_TELEMETRY: "1"
+        run: npx expo export --platform android --output-dir /tmp/mykingdom-native-android
+      - name: iOS JS bundle smoke test (not on-device)
+        env:
+          CI: "1"
+          EXPO_NO_TELEMETRY: "1"
+        run: npx expo export --platform ios --output-dir /tmp/mykingdom-native-ios
