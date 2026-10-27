@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { getOrologioGiocoInPausaSnapshot } from "../game/orologioGiocoSession";
-import { markNativeResidentFrameCallback } from "../performance/nativeResidentWorkCounters";
+import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation } from "../performance/nativeResidentWorkCounters";
 import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
 import {
   frameGroupStart,
@@ -139,6 +139,7 @@ export function MapWandererCharacter({
   tryClaimCell,
   releaseMyCell
 }: MapWandererCharacterProps) {
+  if (__DEV__) markNativeResidentRenderInvocation();
   const [logicalCell, setLogicalCell] = useState<number | null>(null);
   const cellRef = useRef<number | null>(null);
   const [pixelPos, setPixelPos] = useState({ x: 0, y: 0 });
