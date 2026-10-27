@@ -83,7 +83,7 @@ async function openScenario() {
   page.on("console", (message) => {
     if (message.type() === "error") diagnostics.push(`console.error: ${message.text()}`);
   });
-  await page.goto(`${baseUrl}/mappa-phaser-preview?perf=1&residents=200`, { waitUntil: "domcontentloaded", timeout: 120_000 });
+  await page.goto(`${baseUrl}/?perf=1&residents=200`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   try {
     await page.waitForSelector(phaserCanvasSelector, { timeout: 90_000, state: "visible" });
     await phaserCanvas(page);
