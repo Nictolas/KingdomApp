@@ -36,3 +36,9 @@ Nessun cap rigido di 200 abitanti; nessuna modifica a simulazione, velocita' 1x/
 - Native calcola pan e zoom in coordinate mondo; la logica pura in `src/game/nativeMapTransform.ts` verifica centro iniziale, focal point durante pinch e limiti zoom con test dedicati.
 - PanResponder e un punto di compatibilita' per la prima baseline, **non** una garanzia di 60 FPS. Confrontare UI thread e JS FPS sul telefono; per il rendering nativo definitivo potra' servire un'implementazione su gesture handler/Reanimated.
 - **No deploy/merge** prima di una prova con dispositivi fisici e regressioni di interazione.
+
+## Misurazione manuale (10 secondi)
+
+Il monitor JS FPS in una build di sviluppo ora offre **Misura 10 secondi**. Dopo la fine della raccolta mostra campioni, FPS medi JS e p95. Solo con azione esplicita **Condividi risultati** chiama la condivisione di sistema; non registra file, non invia dati a server e non include contenuti delle partite. Se l'app perde il focus o entra in background la sessione non viene completata e il risultato parziale viene scartato.
+
+Per ogni confronto 25/50/100/200, misurare separatamente marker fermi e in movimento; fare almeno tre ripetizioni in ordine alternato, annotando il dispositivo e la temperatura. **JS FPS non misura GPU/UI-thread.**
