@@ -133,6 +133,7 @@ import { abitanteVuoleNegozio, compraEMangiaAlNegozio, tentaSnackDaInventario } 
 import { MapTerrainCell } from "../src/components/MapTerrainCell";
 import { MapWaterCellsLayer } from "../src/components/MapWaterCellsLayer";
 import { PhaserMapSurface, type PhaserMapSurfaceHandle } from "../src/components/PhaserMapSurface";
+import { NativePerformanceHud } from "../src/performance/NativePerformanceHud";
 import { buildPhaserMapSnapshot } from "../src/phaser/adapters/buildPhaserMapSnapshot";
 import { findBuildingForInteriorCell } from "../src/game/buildingGeometry";
 import { assignUniqueCharacterCells } from "../src/game/characterCellOccupancy";
@@ -4193,6 +4194,14 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
             </TransformWrapper>
           </View>
         </View>
+        )}
+        {__DEV__ && Platform.OS !== "web" && (
+          <NativePerformanceHud
+            label="Mappa vera"
+            residents={abitanti.length}
+            terrainCells={visibleTerrainIndices.length + visibleWaterIndices.length}
+            onOpenTest={() => router.push("/native-perf")}
+          />
         )}
         {/* Overlay giorno/notte solo sulla mappa (non sui menu top/bottom). */}
         {(statoCielo.buio > 0.004 || statoCielo.caloreTramonto > 0.004) && (
