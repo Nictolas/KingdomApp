@@ -1,0 +1,33 @@
+name: 200 Residents Culling Regression
+
+on:
+  pull_request:
+    paths:
+      - "src/phaser/adapters/phaserViewportCulling.ts"
+      - "src/phaser/scenes/KingdomMapScene.ts"
+      - "tests/phaser-200-residents-culling.test.ts"
+      - "tests/phaser-viewport-culling.test.ts"
+      - "tests/phaser-200-residents-render-fixture.test.ts"
+      - "src/phaser/adapters/phaserResidentsBenchmarkFixture.ts"
+      - ".github/workflows/200-residents-culling.yml"
+  workflow_dispatch:
+
+jobs:
+  synthetic-visibility:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: 1
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Use Node.js 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Verify synthetic camera culling of 200 residents
+        run: npx tsx --test tests/phaser-200-residents-culling.test.ts tests/phaser-viewport-culling.test.ts tests/phaser-200-residents-render-fixture.test.ts

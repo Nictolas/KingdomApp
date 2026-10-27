@@ -1,6 +1,13 @@
 import { chromium } from "playwright";
 
 const baseUrl = process.env.KINGDOM_BENCHMARK_URL ?? "http://127.0.0.1:4173";
+const residents = Number(process.env.KINGDOM_BENCHMARK_RESIDENTS ?? "200");
+if (![0, 50, 100, 200].includes(residents)) throw new Error("Unsupported benchmark sprite count");
+const requestedScenarios = (process.env.KINGDOM_BENCHMARK_SCENARIOS ?? "idle,pan,zoom")
+  .split(",").map((name) => name.trim()).filter(Boolean);
+if (!requestedScenarios.length || requestedScenarios.some((name) => !["idle", "pan", "zoom"].includes(name))) {
+  throw new Error("Invalid benchmark scenario list");
+}
 const warmupMs = Number(process.env.KINGDOM_BENCHMARK_WARMUP_MS ?? 2500);
 const sampleMs = Number(process.env.KINGDOM_BENCHMARK_SAMPLE_MS ?? 5000);
 const minSamples = Number(process.env.KINGDOM_BENCHMARK_MIN_SAMPLES ?? 30);
@@ -28,7 +35,14 @@ async function currentWork(page) {
 }
 
 async function resultWithWork(page, scenario, metrics) {
-  return { scenario, ...metrics, work: await currentWork(page) };
+  const work = await currentWork(page);
+  // Una misura e valida solo quando la fixture richiesta e stata renderizzata.
+  if (work?.snapshotCharacters !== residents || work?.characterViewsTotal !== residents) {
+    throw new Error(
+      `${residents}-rendered-sprites fixture missing for ${scenario}: snapshot=${work?.snapshotCharacters ?? "n/a"}, views=${work?.characterViewsTotal ?? "n/a"}`
+    );
+  }
+  return { scenario, residents, ...metrics, work };
 }
 
 async function phaserCanvas(page) {
@@ -75,10 +89,10 @@ async function openScenario() {
   page.on("console", (message) => {
     if (message.type() === "error") diagnostics.push(`console.error: ${message.text()}`);
   });
-  await page.goto(`${baseUrl}/?perf=1`, { waitUntil: "networkidle", timeout: 120_000 });
-  await page.waitForSelector(phaserCanvasSelector, { timeout: 120_000, state: "visible" });
-  await phaserCanvas(page);
+  await page.goto(`${baseUrl}/?perf=1&residents=${residents}`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   try {
+    await page.waitForSelector(phaserCanvasSelector, { timeout: 90_000, state: "visible" });
+    await phaserCanvas(page);
     await page.waitForFunction(
       () => {
         const metrics = globalThis.__KINGDOM_PERF_SNAPSHOT__?.() ?? globalThis.__KINGDOM_PERF__;
@@ -193,16 +207,22 @@ async function zoomScenario() {
 }
 
 try {
-  const results = [await idleScenario(), await panScenario(), await zoomScenario()];
+  const handlers = { idle: idleScenario, pan: panScenario, zoom: zoomScenario };
+  const results = [];
+  for (const scenario of requestedScenarios) results.push(await handlers[scenario]());
   console.log("BK017_PERF_RESULTS=" + JSON.stringify(results));
-  console.table(results.map(({ scenario, meanFps, meanFrameMs, p95FrameMs, framesOver33Ms, framesOver50Ms, sampleCount }) => ({
+  console.table(results.map(({ scenario, residents, meanFps, meanFrameMs, p95FrameMs, framesOver33Ms, framesOver50Ms, sampleCount, work }) => ({
     scenario,
+    residents,
     meanFps,
     meanFrameMs,
     p95FrameMs,
     framesOver33Ms,
     framesOver50Ms,
-    sampleCount
+    sampleCount,
+    residentsInSnapshot: work?.snapshotCharacters ?? null,
+    characterViews: work?.characterViewsTotal ?? null,
+    visibleCharacterViews: work?.characterViewsVisible ?? null
   })));
 } finally {
   await browser.close();

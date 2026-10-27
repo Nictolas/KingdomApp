@@ -1,6 +1,6 @@
 import React, { createContext, useCallback, useContext, useEffect, useRef, useState, useSyncExternalStore, ReactNode } from "react";
 import { usePathname } from "expo-router";
-import { Alert, AppState } from "react-native";
+import { Alert, AppState, Platform } from "react-native";
 import { useGameState } from "../hooks/useGameState";
 import type { Abitante, Risorsa, Edificio, OrdineMercato, EventoInCorso, Razza } from "../types";
 import type { EventoDef } from "../game/eventi";
@@ -31,6 +31,7 @@ import { ID_GIOCATORE } from "../game/schiavituCommercio";
 import { setOrologioGiocoBloccatoDallaFase } from "../game/orologioGiocoSession";
 import type { RegistrazioneScambio } from "../game/registrazioniScambi";
 import { warmStartupCharacterAssets } from "../game/warmStartupCharacters";
+import { parsePhaserBenchmarkResidentCount } from "../phaser/adapters/phaserResidentsBenchmarkFixture";
 
 type ScaglioneConfig = {
   min: number;
@@ -383,6 +384,14 @@ function RichiestaLuogoCultoDialogWrapper() {
 
 export function GameProvider({ children }: { children: ReactNode }) {
   const gameState = useGameState();
+  const pathname = usePathname();
+  // La rotta tecnica puo mostrare il renderer senza iniziare una nuova partita,
+  // senza eliminare salvataggi e senza attivare la simulazione persistente.
+  const benchmarkPreview =
+    Platform.OS === "web" &&
+    (pathname === "/" || pathname === "/mappa-phaser-preview") &&
+    typeof window !== "undefined" &&
+    parsePhaserBenchmarkResidentCount(window.location.search) != null;
   const mappa = useSyncExternalStore(subscribeMappaSessione, getMappaSessione, getMappaSessione);
   const repositoryRef = useRef<SaveRepository | null>(null);
   const pendingLoadRef = useRef<LoadSaveResult | null>(null);
@@ -574,6 +583,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setOrologioGiocoBloccatoDallaFase(true);
     }
   }, [gameOverPerMorteRe]);
+
+  if (benchmarkPreview) {
+    return <GameContext.Provider value={contextValue}>{children}</GameContext.Provider>;
+  }
 
   if (startup === "mode-choice") {
     return (

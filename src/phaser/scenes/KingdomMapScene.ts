@@ -93,6 +93,8 @@ export class KingdomMapScene extends Phaser.Scene {
   private locateCell: number | null = null;
   private gridLayer: Phaser.GameObjects.Graphics | null = null;
   private readonly characterViews = new Map<number, CharacterView>();
+  // Coalesce changes from moving residents: sort only once per frame.
+  private worldDepthSortDirty = false;
   private readonly pendingLpcSourceIds = new Set<string>();
   private readonly idleRoamTimers = new Map<number, Phaser.Time.TimerEvent>();
   private static readonly IDLE_ROAM_PAUSE_MS = 1600;
@@ -120,6 +122,12 @@ export class KingdomMapScene extends Phaser.Scene {
     staticTileDeltaCells: 0,
     characterVisibilityRefreshes: 0,
     characterViewsChecked: 0,
+    depthChanges: 0,
+    depthSorts: 0,
+    // Gauges: snapshot population is not the same as instantiated or visible sprites.
+    snapshotCharacters: 0,
+    characterViewsTotal: 0,
+    characterViewsVisible: 0,
     waterViewportRefreshes: 0,
     waterSpritesChecked: 0
   };
@@ -831,7 +839,7 @@ export class KingdomMapScene extends Phaser.Scene {
         moveNext(0);
       }
     }
-    this.worldLayer.sort("depth");
+    this.sortWorldLayerByDepth();
     this.characterVisibilityDirty = true;
     this.renderSelectionMarker(snapshot);
   }
@@ -1154,8 +1162,18 @@ export class KingdomMapScene extends Phaser.Scene {
   }
 
   private updateCharacterDepth(root: Phaser.GameObjects.Container): void {
-    root.setDepth(worldDepthForY(root.y));
-    this.worldLayer?.sort("depth");
+    const nextDepth = worldDepthForY(root.y);
+    if (root.depth === nextDepth) return;
+    root.setDepth(nextDepth);
+    this.worldDepthSortDirty = true;
+    if (this.perfEnabled) this.perfWork.depthChanges += 1;
+  }
+
+  private sortWorldLayerByDepth(): void {
+    if (!this.worldLayer) return;
+    this.worldLayer.sort("depth");
+    this.worldDepthSortDirty = false;
+    if (this.perfEnabled) this.perfWork.depthSorts += 1;
   }
 
   private renderBuildings(snapshot: PhaserMapSnapshot): void {
@@ -1292,7 +1310,7 @@ export class KingdomMapScene extends Phaser.Scene {
       overlay.add([roof, emoji, label]);
     }
 
-    this.worldLayer.sort("depth");
+    this.sortWorldLayerByDepth();
   }
 
   /** Ponte basso in legno: assi, traverse e parapetti senza coprire il fiume. */
@@ -1495,6 +1513,9 @@ export class KingdomMapScene extends Phaser.Scene {
   }
 
   update(time: number, delta: number): void {
+    // Hundreds of tween updates can happen per frame; sort their final depths
+    // once instead of once per resident and skip horizontal-only motion.
+    if (this.worldDepthSortDirty) this.sortWorldLayerByDepth();
     if (this.locateArrow) {
       this.syncLocateArrowPosition(this.bridge.getSnapshot().cellSize);
     }
@@ -1632,12 +1653,21 @@ export class KingdomMapScene extends Phaser.Scene {
   }
 
   private refreshCharacterVisibility(): void {
-    if (this.characterViews.size === 0) return;
+    if (this.characterViews.size === 0) {
+      if (this.perfEnabled) {
+        this.perfWork.snapshotCharacters = this.bridge.getSnapshot().characters.length;
+        this.perfWork.characterViewsTotal = 0;
+        this.perfWork.characterViewsVisible = 0;
+      }
+      return;
+    }
+    const snapshot = this.bridge.getSnapshot();
     if (this.perfEnabled) {
       this.perfWork.characterVisibilityRefreshes += 1;
       this.perfWork.characterViewsChecked += this.characterViews.size;
+      this.perfWork.snapshotCharacters = snapshot.characters.length;
+      this.perfWork.characterViewsTotal = this.characterViews.size;
     }
-    const snapshot = this.bridge.getSnapshot();
     const camera = this.cameras.main;
     const padding = snapshot.cellSize * 1.5;
     const worldView = {
@@ -1647,6 +1677,7 @@ export class KingdomMapScene extends Phaser.Scene {
       height: camera.worldView.height
     };
 
+    let visibleCharacterViews = 0;
     for (const characterView of this.characterViews.values()) {
       const visible = isPointNearPhaserWorldView(
         characterView.root.x,
@@ -1654,8 +1685,10 @@ export class KingdomMapScene extends Phaser.Scene {
         worldView,
         padding
       );
+      if (this.perfEnabled && visible) visibleCharacterViews++;
       if (characterView.root.visible !== visible) characterView.root.setVisible(visible);
     }
+    if (this.perfEnabled) this.perfWork.characterViewsVisible = visibleCharacterViews;
   }
 
   private applyCameraPan(dx: number, dy: number): void {
