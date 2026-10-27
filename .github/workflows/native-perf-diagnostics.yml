@@ -6,6 +6,7 @@ on:
       - "src/performance/**"
       - "src/game/nativeMapTransform.ts"
       - "src/components/MapViewportTransform*"
+      - "src/components/MapWandererCharacter.tsx"
       - "tests/native-map-transform.test.ts"
       - "tests/native-performance-diagnostics.test.ts"
       - "app/native-perf.tsx"
