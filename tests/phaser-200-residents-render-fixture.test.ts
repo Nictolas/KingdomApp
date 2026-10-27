@@ -5,6 +5,8 @@ import {
   PHASER_BENCHMARK_MAP_COLS,
   PHASER_BENCHMARK_MAP_ROWS,
   PHASER_BENCHMARK_RESIDENT_COUNT,
+  createPhaserResidentsBenchmarkFixture,
+  parsePhaserBenchmarkResidentCount,
   createPhaser200ResidentsBenchmarkFixture
 } from "../src/phaser/adapters/phaserResidentsBenchmarkFixture.ts";
 
@@ -38,4 +40,26 @@ test("stress fixture is deterministic and does not reuse mutable paths", () => {
   assert.deepEqual(a, b);
   assert.notEqual(a[0]!.path, b[0]!.path);
   assert.ok(a.every((item) => item.pathToken === 1));
+});
+
+test("diagnostic query accepts only explicit safe populations", () => {
+  for (const count of [0, 50, 100, 200]) {
+    assert.equal(parsePhaserBenchmarkResidentCount(`?perf=1&residents=${count}`), count);
+  }
+  assert.equal(parsePhaserBenchmarkResidentCount("?residents=200"), null);
+  assert.equal(parsePhaserBenchmarkResidentCount("?perf=1&residents=201"), null);
+  assert.equal(parsePhaserBenchmarkResidentCount("?perf=0&residents=200"), null);
+});
+
+test("population sweep produces unique evenly sampled characters without changing 200 baseline", () => {
+  const reference = createPhaser200ResidentsBenchmarkFixture();
+  for (const count of [0, 50, 100, 200]) {
+    const subset = createPhaserResidentsBenchmarkFixture(count);
+    assert.equal(subset.length, count);
+    assert.equal(new Set(subset.map((x) => x.cell)).size, count);
+    assert.equal(new Set(subset.map((x) => x.id)).size, count);
+    assert.ok(subset.every((x) => reference.some((r) => r.id === x.id && r.cell === x.cell)));
+  }
+  assert.deepEqual(createPhaserResidentsBenchmarkFixture(200), reference);
+  assert.throws(() => createPhaserResidentsBenchmarkFixture(201));
 });
