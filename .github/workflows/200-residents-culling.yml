@@ -7,6 +7,8 @@ on:
       - "src/phaser/scenes/KingdomMapScene.ts"
       - "tests/phaser-200-residents-culling.test.ts"
       - "tests/phaser-viewport-culling.test.ts"
+      - "tests/phaser-200-residents-render-fixture.test.ts"
+      - "src/phaser/adapters/phaserResidentsBenchmarkFixture.ts"
       - ".github/workflows/200-residents-culling.yml"
   workflow_dispatch:
 
@@ -28,4 +30,4 @@ jobs:
       - name: Install dependencies
         run: npm ci --prefer-offline --no-audit --no-fund
       - name: Verify synthetic camera culling of 200 residents
-        run: npx tsx --test tests/phaser-200-residents-culling.test.ts tests/phaser-viewport-culling.test.ts
+        run: npx tsx --test tests/phaser-200-residents-culling.test.ts tests/phaser-viewport-culling.test.ts tests/phaser-200-residents-render-fixture.test.ts
