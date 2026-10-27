@@ -45,7 +45,14 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          node scripts/phaser-perf-benchmark.mjs | tee phaser-perf-results.txt
+          : > phaser-perf-results.txt
+          # Single CI runner, same scene/map and browser settings: isolate
+          # fixed map rendering cost from the incremental sprite/tween cost.
+          for count in 0 50 100; do
+            KINGDOM_BENCHMARK_RESIDENTS="$count" KINGDOM_BENCHMARK_SCENARIOS=idle \
+              node scripts/phaser-perf-benchmark.mjs | tee -a phaser-perf-results.txt
+          done
+          KINGDOM_BENCHMARK_RESIDENTS=200 node scripts/phaser-perf-benchmark.mjs | tee -a phaser-perf-results.txt
       - name: Upload benchmark result
         if: always()
         uses: actions/upload-artifact@v4
