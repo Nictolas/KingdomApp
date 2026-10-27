@@ -4,6 +4,7 @@ import {
   centerNativeMap,
   clampNativeMapScale,
   nativeMapAnimatedTranslation,
+  nativePinchFocal,
   pinchNativeMap
 } from "../src/game/nativeMapTransform.ts";
 
@@ -38,4 +39,22 @@ test("translate compensates for React Native center-origin transforms", () => {
   assert.deepEqual(a, { x: -800, y: -600 });
   const b = nativeMapAnimatedTranslation({ positionX: -1800, positionY: -1460, scale: 2 }, { width: 2000, height: 2000 });
   assert.deepEqual(b, { x: -800, y: -460 });
+});
+
+test("pinch uses a frozen viewport origin even after an async layout measurement changes", () => {
+  const atStart = { x: 40, y: 80 };
+  const firstTouches = [{ pageX: 140, pageY: 280 }, { pageX: 340, pageY: 280 }];
+  const secondTouches = [{ pageX: 120, pageY: 280 }, { pageX: 360, pageY: 280 }];
+  assert.deepEqual(nativePinchFocal(firstTouches, atStart), { x: 200, y: 200 });
+  assert.deepEqual(nativePinchFocal(secondTouches, atStart), { x: 200, y: 200 });
+  // The async native measure callback might report different values in the meantime.
+  // Holding on to the original viewport offset prevents a false 10-point pan.
+  assert.deepEqual(nativePinchFocal(secondTouches, { x: 50, y: 90 }), { x: 190, y: 190 });
+  const start = { positionX: -800, positionY: -600, scale: 1 };
+  const focalStart = nativePinchFocal(firstTouches, atStart)!;
+  const focalNext = nativePinchFocal(secondTouches, atStart)!;
+  const next = pinchNativeMap(start, focalStart, focalNext, 1.2, 0.5, 3);
+  assert.deepEqual(next, { positionX: -1000, positionY: -760, scale: 1.2 });
+  assert.equal(nativePinchFocal([], atStart), null);
+  assert.equal(nativePinchFocal([{ pageX: 1, pageY: 2 }], atStart), null);
 });
