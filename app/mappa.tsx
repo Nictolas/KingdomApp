@@ -12,7 +12,7 @@ import {
   View,
   type ViewStyle
 } from "react-native";
-import { TransformWrapper, TransformComponent } from "react-zoom-pan-pinch";
+import { TransformWrapper, TransformComponent } from "../src/components/MapViewportTransform";
 import { Redirect, useFocusEffect, useRouter } from "expo-router";
 import { edificiData } from "../src/data/edificiData";
 import { useGameContext } from "../src/context/GameContext";
