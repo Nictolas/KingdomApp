@@ -120,6 +120,10 @@ export class KingdomMapScene extends Phaser.Scene {
     staticTileDeltaCells: 0,
     characterVisibilityRefreshes: 0,
     characterViewsChecked: 0,
+    // Gauges: snapshot population is not the same as instantiated or visible sprites.
+    snapshotCharacters: 0,
+    characterViewsTotal: 0,
+    characterViewsVisible: 0,
     waterViewportRefreshes: 0,
     waterSpritesChecked: 0
   };
@@ -1632,12 +1636,21 @@ export class KingdomMapScene extends Phaser.Scene {
   }
 
   private refreshCharacterVisibility(): void {
-    if (this.characterViews.size === 0) return;
+    if (this.characterViews.size === 0) {
+      if (this.perfEnabled) {
+        this.perfWork.snapshotCharacters = this.bridge.getSnapshot().characters.length;
+        this.perfWork.characterViewsTotal = 0;
+        this.perfWork.characterViewsVisible = 0;
+      }
+      return;
+    }
+    const snapshot = this.bridge.getSnapshot();
     if (this.perfEnabled) {
       this.perfWork.characterVisibilityRefreshes += 1;
       this.perfWork.characterViewsChecked += this.characterViews.size;
+      this.perfWork.snapshotCharacters = snapshot.characters.length;
+      this.perfWork.characterViewsTotal = this.characterViews.size;
     }
-    const snapshot = this.bridge.getSnapshot();
     const camera = this.cameras.main;
     const padding = snapshot.cellSize * 1.5;
     const worldView = {
@@ -1647,6 +1660,7 @@ export class KingdomMapScene extends Phaser.Scene {
       height: camera.worldView.height
     };
 
+    let visibleCharacterViews = 0;
     for (const characterView of this.characterViews.values()) {
       const visible = isPointNearPhaserWorldView(
         characterView.root.x,
@@ -1654,8 +1668,10 @@ export class KingdomMapScene extends Phaser.Scene {
         worldView,
         padding
       );
+      if (this.perfEnabled && visible) visibleCharacterViews++;
       if (characterView.root.visible !== visible) characterView.root.setVisible(visible);
     }
+    if (this.perfEnabled) this.perfWork.characterViewsVisible = visibleCharacterViews;
   }
 
   private applyCameraPan(dx: number, dy: number): void {
