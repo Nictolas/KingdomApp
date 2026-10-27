@@ -16,7 +16,7 @@ MyKingdom mira ad Android/iPhone; la versione web serve anche per test, ma non s
 - `scripts/phaser-perf-benchmark.mjs` mostra questi conteggi assieme a FPS, frame p95 e frame lenti per gli scenari già esistenti (idle/pan/zoom). Il JSON `BK017_PERF_RESULTS` continua a contenere anche i contatori `work`.
 
 ## Seconda fase: stress test del renderer con 200 sprite
-- La URL tecnica `/mappa-phaser-preview?perf=1&residents=200` apre direttamente la mappa in **sola lettura**, senza avviare una partita, cancellare salvataggi o creare abitanti nel GameContext.
+- La URL tecnica `/?perf=1&residents=200` (la home web carica la stessa anteprima tecnica, senza dipendere dal fallback delle rotte statiche) apre direttamente la mappa in **sola lettura**, senza avviare una partita, cancellare salvataggi o creare abitanti nel GameContext.
 - `src/phaser/adapters/phaserResidentsBenchmarkFixture.ts` genera **200 personaggi Phaser**, ognuno con uno sprite Golem e una sequenza ripetuta di movimenti. Il renderer crea i veri GameObject e le animazioni/tween della scena web, anziché limitarsi a controllare coordinate.
 - `scripts/phaser-perf-benchmark.mjs` misura idle, pan e zoom su questa URL e **fallisce esplicitamente** se i contatori non confermano 200 personaggi nello snapshot **e** 200 sprite istanziati; in caso di errore di avvio allega diagnostica console e corpo pagina.
 - La prova misura un carico di **rendering e animazione**, **non** 200 abitanti reali con bisogni, IA, routine di lavoro, pathfinding, salvataggio o asset LPC multilayer. Tutte le rappresentazioni usano lo stesso spritesheet Golem. Non può dimostrare le prestazioni della simulazione completa e non sostituisce Android/iPhone.
