@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { NativeFrameWindow } from "../src/performance/nativeFrameMetrics.ts";
 import { NativeMeasurementSession, formatNativeMeasurement } from "../src/performance/nativeMeasurementSession.ts";
-import { markNativeResidentFrameCallback, takeNativeResidentFrameCallbacks } from "../src/performance/nativeResidentWorkCounters.ts";
+import { markNativeResidentFrameCallback, takeNativeResidentFrameCallbacks, markNativeResidentRenderInvocation, takeNativeResidentRenderInvocations } from "../src/performance/nativeResidentWorkCounters.ts";
 import { NATIVE_TEST_POPULATIONS, createNativeSyntheticMarkers } from "../src/performance/nativePopulationFixture.ts";
 
 test("deterministic synthetic populations have unique coordinates, no game state", () => {
@@ -83,4 +83,15 @@ test("resident work counters report aggregate callbacks and reset between interv
   markNativeResidentFrameCallback();
   assert.equal(takeNativeResidentFrameCallbacks(), 2);
   assert.equal(takeNativeResidentFrameCallbacks(), 0);
+});
+
+test("resident render counters are aggregate and independently reset", () => {
+  takeNativeResidentFrameCallbacks();
+  takeNativeResidentRenderInvocations();
+  markNativeResidentFrameCallback();
+  markNativeResidentRenderInvocation();
+  markNativeResidentRenderInvocation();
+  assert.equal(takeNativeResidentRenderInvocations(), 2);
+  assert.equal(takeNativeResidentRenderInvocations(), 0);
+  assert.equal(takeNativeResidentFrameCallbacks(), 1);
 });
