@@ -28,7 +28,15 @@ async function currentWork(page) {
 }
 
 async function resultWithWork(page, scenario, metrics) {
-  return { scenario, ...metrics, work: await currentWork(page) };
+  const work = await currentWork(page);
+  // Il benchmark non deve mai pubblicare FPS riferiti per errore a una mappa
+  // vuota o a 24 personaggi anziche ai 200 sprite richiesti.
+  if (work?.snapshotCharacters !== 200 || work?.characterViewsTotal !== 200) {
+    throw new Error(
+      `200-rendered-sprites fixture missing for ${scenario}: snapshot=${work?.snapshotCharacters ?? "n/a"}, views=${work?.characterViewsTotal ?? "n/a"}`
+    );
+  }
+  return { scenario, ...metrics, work };
 }
 
 async function phaserCanvas(page) {
@@ -75,10 +83,10 @@ async function openScenario() {
   page.on("console", (message) => {
     if (message.type() === "error") diagnostics.push(`console.error: ${message.text()}`);
   });
-  await page.goto(`${baseUrl}/?perf=1`, { waitUntil: "networkidle", timeout: 120_000 });
-  await page.waitForSelector(phaserCanvasSelector, { timeout: 120_000, state: "visible" });
-  await phaserCanvas(page);
+  await page.goto(`${baseUrl}/mappa-phaser-preview?perf=1&residents=200`, { waitUntil: "domcontentloaded", timeout: 120_000 });
   try {
+    await page.waitForSelector(phaserCanvasSelector, { timeout: 90_000, state: "visible" });
+    await phaserCanvas(page);
     await page.waitForFunction(
       () => {
         const metrics = globalThis.__KINGDOM_PERF_SNAPSHOT__?.() ?? globalThis.__KINGDOM_PERF__;
