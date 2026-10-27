@@ -22,10 +22,10 @@ test("moving fixture waypoints stay in bounds and each path has continuous moves
     assert.ok(character.path && character.path.length >= 120);
     assert.equal(character.path[0], character.cell);
     for (let index = 0; index < character.path.length; index += 1) {
-      const cell = character.path[index]!;
+      const cell: number = character.path[index]!;
       assert.ok(cell >= 0 && cell < PHASER_BENCHMARK_MAP_COLS * PHASER_BENCHMARK_MAP_ROWS);
       if (index === 0) continue;
-      const previous = character.path[index - 1]!;
+      const previous: number = character.path[index - 1]!;
       assert.equal(Math.abs(cell - previous), 1);
       assert.equal(Math.floor(cell / PHASER_BENCHMARK_MAP_COLS), Math.floor(previous / PHASER_BENCHMARK_MAP_COLS));
     }
