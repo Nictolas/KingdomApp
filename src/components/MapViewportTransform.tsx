@@ -14,6 +14,7 @@ import {
   centerNativeMap,
   clampNativeMapScale,
   nativeMapAnimatedTranslation,
+  nativePinchFocal,
   pinchNativeMap,
   type NativeMapPoint,
   type NativeMapTransform,
@@ -58,19 +59,11 @@ function distance(a: { pageX: number; pageY: number }, b: { pageX: number; pageY
   return Math.hypot(a.pageX - b.pageX, a.pageY - b.pageY);
 }
 
-type TouchPoint = { pageX: number; pageY: number };
-function touchCenter(touches: readonly TouchPoint[], origin: NativeMapPoint): NativeMapPoint {
-  const first = touches[0]!;
-  const second = touches[1] ?? first;
-  return {
-    x: (first.pageX + second.pageX) / 2 - origin.x,
-    y: (first.pageY + second.pageY) / 2 - origin.y
-  };
-}
-
 type GestureBaseline = {
   mode: "pan" | "pinch";
   start: NativeMapTransform;
+  /** Frozen during the gesture; async measureInWindow may update the cache. */
+  origin: NativeMapPoint;
   gestureDx: number;
   gestureDy: number;
   focal: NativeMapPoint;
@@ -132,12 +125,14 @@ export function TransformComponent({ children, wrapperStyle, contentStyle }: Nat
     updateWindowOrigin();
     const touches = evt.nativeEvent.touches;
     const pinch = touches.length >= 2;
+    const origin = { ...windowOrigin.current };
     gestureBase.current = {
       mode: pinch ? "pinch" : "pan",
       start: { ...initial.current },
+      origin,
       gestureDx: gesture.dx,
       gestureDy: gesture.dy,
-      focal: pinch ? touchCenter(touches, windowOrigin.current) : { x: 0, y: 0 },
+      focal: (pinch ? nativePinchFocal(touches, origin) : null) ?? { x: 0, y: 0 },
       distance: pinch ? Math.max(1, distance(touches[0]!, touches[1]!)) : 1
     };
     propsRef.current.onPanningStart?.({ state: initial.current });
@@ -153,9 +148,10 @@ export function TransformComponent({ children, wrapperStyle, contentStyle }: Nat
       baseline = {
         mode: pinch ? "pinch" : "pan",
         start: { ...initial.current },
+        origin: baseline.origin,
         gestureDx: gesture.dx,
         gestureDy: gesture.dy,
-        focal: pinch ? touchCenter(touches, windowOrigin.current) : { x: 0, y: 0 },
+        focal: (pinch ? nativePinchFocal(touches, baseline.origin) : null) ?? { x: 0, y: 0 },
         distance: pinch ? Math.max(1, distance(touches[0]!, touches[1]!)) : 1
       };
       gestureBase.current = baseline;
@@ -163,7 +159,8 @@ export function TransformComponent({ children, wrapperStyle, contentStyle }: Nat
 
     let next: NativeMapTransform;
     if (pinch) {
-      const focal = touchCenter(touches, windowOrigin.current);
+      const focal = nativePinchFocal(touches, baseline.origin);
+      if (!focal) return;
       const desiredScale = baseline.start.scale * distance(touches[0]!, touches[1]!) / baseline.distance;
       next = pinchNativeMap(baseline.start, baseline.focal, focal, desiredScale,
         propsRef.current.minScale ?? 0.5, propsRef.current.maxScale ?? 3);
