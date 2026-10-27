@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { AppState, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { NativeFrameWindow, type NativeFrameSnapshot } from "./nativeFrameMetrics";
-import { takeNativeResidentFrameCallbacks } from "./nativeResidentWorkCounters";
+import { takeNativeResidentFrameCallbacks, takeNativeResidentRenderInvocations } from "./nativeResidentWorkCounters";
 import { NativeMeasurementSession, formatNativeMeasurement } from "./nativeMeasurementSession";
 
 const INITIAL_METRICS: NativeFrameSnapshot = {
@@ -27,6 +27,7 @@ export function NativePerformanceHud({
   const [expanded, setExpanded] = useState(false);
   const [stats, setStats] = useState<NativeFrameSnapshot>(INITIAL_METRICS);
   const [residentCallbacks, setResidentCallbacks] = useState(0);
+  const [residentRenders, setResidentRenders] = useState(0);
   const frameWindow = useRef(new NativeFrameWindow(120));
   const [measuring, setMeasuring] = useState(false);
   const [latestReport, setLatestReport] = useState<string | null>(null);
@@ -47,7 +48,9 @@ export function NativePerformanceHud({
   useFocusEffect(useCallback(() => {
     setStats(INITIAL_METRICS);
     setResidentCallbacks(0);
+    setResidentRenders(0);
     takeNativeResidentFrameCallbacks();
+    takeNativeResidentRenderInvocations();
     frameWindow.current.reset();
     capture.current = null;
     setMeasuring(false);
@@ -80,6 +83,7 @@ export function NativePerformanceHud({
         if (timestamp - lastPublished >= 1000) {
           setStats(frameWindow.current.snapshot());
           setResidentCallbacks(takeNativeResidentFrameCallbacks());
+          setResidentRenders(takeNativeResidentRenderInvocations());
           lastPublished = timestamp;
         }
       } else {
@@ -108,7 +112,8 @@ export function NativePerformanceHud({
           <Text style={styles.text}>p95 frame JS: {stats.samples ? stats.p95FrameMs.toFixed(1) : "—"} ms</Text>
           <Text style={styles.text}>Frame oltre 33/50 ms: {stats.framesOver33Ms}/{stats.framesOver50Ms}</Text>
           <Text style={styles.text}>Callback animazione abitanti/s: {residentCallbacks}</Text>
-          <Text style={styles.note}>Le callback/s contano il lavoro dei personaggi reali, non gli FPS. Solo ritmo JS, non GPU; nessun dato salvato.</Text>
+          <Text style={styles.text}>Render React abitanti/s: {residentRenders}</Text>
+          <Text style={styles.note}>Le callback/s e le invocazioni React/s stimano il carico degli abitanti reali, non gli FPS. Solo ritmo JS, non GPU; nessun dato salvato.</Text>
           <Pressable
             style={[styles.testButton, measuring && styles.disabledButton]}
             disabled={measuring}
