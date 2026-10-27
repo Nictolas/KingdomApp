@@ -195,14 +195,17 @@ async function zoomScenario() {
 try {
   const results = [await idleScenario(), await panScenario(), await zoomScenario()];
   console.log("BK017_PERF_RESULTS=" + JSON.stringify(results));
-  console.table(results.map(({ scenario, meanFps, meanFrameMs, p95FrameMs, framesOver33Ms, framesOver50Ms, sampleCount }) => ({
+  console.table(results.map(({ scenario, meanFps, meanFrameMs, p95FrameMs, framesOver33Ms, framesOver50Ms, sampleCount, work }) => ({
     scenario,
     meanFps,
     meanFrameMs,
     p95FrameMs,
     framesOver33Ms,
     framesOver50Ms,
-    sampleCount
+    sampleCount,
+    residentsInSnapshot: work?.snapshotCharacters ?? null,
+    characterViews: work?.characterViewsTotal ?? null,
+    visibleCharacterViews: work?.characterViewsVisible ?? null
   })));
 } finally {
   await browser.close();
