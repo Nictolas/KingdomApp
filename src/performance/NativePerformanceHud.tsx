@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useCallback, useRef, useState } from "react";
+import { useFocusEffect } from "expo-router";
 import { AppState, Pressable, StyleSheet, Text, View } from "react-native";
 import { NativeFrameWindow, type NativeFrameSnapshot } from "./nativeFrameMetrics";
 
@@ -25,7 +26,9 @@ export function NativePerformanceHud({
   const [stats, setStats] = useState<NativeFrameSnapshot>(INITIAL_METRICS);
   const frameWindow = useRef(new NativeFrameWindow(120));
 
-  useEffect(() => {
+  useFocusEffect(useCallback(() => {
+    setStats(INITIAL_METRICS);
+    frameWindow.current.reset();
     let raf = 0;
     let previous: number | null = null;
     let lastPublished = 0;
@@ -51,7 +54,7 @@ export function NativePerformanceHud({
       cancelAnimationFrame(raf);
       onStateChange.remove();
     };
-  }, []);
+  }, []));
 
   return (
     <View style={styles.container}>
