@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { getOrologioGiocoInPausaSnapshot } from "../game/orologioGiocoSession";
+import { markNativeResidentFrameCallback } from "../performance/nativeResidentWorkCounters";
 import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
 import {
   frameGroupStart,
@@ -259,6 +260,7 @@ export function MapWandererCharacter({
     const dest = next;
 
     const step = (now: number) => {
+      if (__DEV__) markNativeResidentFrameCallback();
       if (getOrologioGiocoInPausaSnapshot()) {
         rafRef.current = requestAnimationFrame(step);
         return;
@@ -329,6 +331,7 @@ export function MapWandererCharacter({
       const start = performance.now();
       const durationMs = segmentMoveDurationMs(from, to, isRoadCell);
       const step = (now: number) => {
+        if (__DEV__) markNativeResidentFrameCallback();
         if (getOrologioGiocoInPausaSnapshot()) {
           rafRef.current = requestAnimationFrame(step);
           return;
