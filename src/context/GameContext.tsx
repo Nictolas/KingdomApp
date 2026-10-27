@@ -388,7 +388,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   // senza eliminare salvataggi e senza attivare la simulazione persistente.
   const benchmarkPreview =
     Platform.OS === "web" &&
-    pathname === "/mappa-phaser-preview" &&
+    (pathname === "/" || pathname === "/mappa-phaser-preview") &&
     typeof window !== "undefined" &&
     new URLSearchParams(window.location.search).get("perf") === "1" &&
     new URLSearchParams(window.location.search).get("residents") === "200";
