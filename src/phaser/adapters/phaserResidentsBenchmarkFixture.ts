@@ -1,6 +1,16 @@
 import type { PhaserMapCharacter } from "./mapSceneBridge";
 
 export const PHASER_BENCHMARK_RESIDENT_COUNT = 200;
+export const PHASER_BENCHMARK_SWEEP_COUNTS = [0, 50, 100, 200] as const;
+
+/** Solo modalita diagnostiche esplicite. Nessun parametro altera una partita. */
+export function parsePhaserBenchmarkResidentCount(query: string): number | null {
+  const params = new URLSearchParams(query);
+  if (params.get("perf") !== "1") return null;
+  const raw = params.get("residents");
+  return PHASER_BENCHMARK_SWEEP_COUNTS.find((count) => String(count) === raw) ?? null;
+}
+
 export const PHASER_BENCHMARK_MAP_COLS = 50;
 export const PHASER_BENCHMARK_MAP_ROWS = 50;
 
@@ -9,8 +19,14 @@ export const PHASER_BENCHMARK_MAP_ROWS = 50;
  * NON genera abitanti del GameContext e NON testa IA, bisogni o lavoro.
  * Gli ID non vengono salvati nello stato della partita.
  */
-export function createPhaser200ResidentsBenchmarkFixture(): PhaserMapCharacter[] {
-  return Array.from({ length: PHASER_BENCHMARK_RESIDENT_COUNT }, (_, index) => {
+export function createPhaserResidentsBenchmarkFixture(count: number): PhaserMapCharacter[] {
+  if (!PHASER_BENCHMARK_SWEEP_COUNTS.some((n) => n === count)) {
+    throw new Error("Unsupported benchmark sprite count");
+  }
+  return Array.from({ length: count }, (_, slot) => {
+    // Campionamento uniforme delle posizioni, per non ammassare tutti
+    // gli sprite nelle prime righe quando si provano 50 o 100 abitanti.
+    const index = Math.floor((slot * PHASER_BENCHMARK_RESIDENT_COUNT) / count);
     const col = 4 + (index % 20) * 2;
     const row = 4 + Math.floor(index / 20) * 4;
     const start = row * PHASER_BENCHMARK_MAP_COLS + col;
@@ -29,4 +45,9 @@ export function createPhaser200ResidentsBenchmarkFixture(): PhaserMapCharacter[]
       appearance: "golem"
     };
   });
+}
+
+/** Mantiene immutata la fixture di riferimento e i relativi test. */
+export function createPhaser200ResidentsBenchmarkFixture(): PhaserMapCharacter[] {
+  return createPhaserResidentsBenchmarkFixture(PHASER_BENCHMARK_RESIDENT_COUNT);
 }
