@@ -3,6 +3,24 @@ export type NativeMapTransform = { positionX: number; positionY: number; scale: 
 export type NativeViewportSize = { width: number; height: number };
 export type NativeMapPoint = { x: number; y: number };
 
+/** Convert a two-finger midpoint from screen to viewport coordinates.
+ * The origin must be frozen at gesture start: measureInWindow is async and
+ * can update its cached value between two touch callbacks.
+ */
+export function nativePinchFocal(
+  touches: readonly { pageX: number; pageY: number }[],
+  frozenViewportOrigin: NativeMapPoint
+): NativeMapPoint | null {
+  if (touches.length < 2) return null;
+  const first = touches[0]!;
+  const second = touches[1]!;
+  return {
+    x: (first.pageX + second.pageX) / 2 - frozenViewportOrigin.x,
+    y: (first.pageY + second.pageY) / 2 - frozenViewportOrigin.y
+  };
+}
+
+
 export function clampNativeMapScale(scale: number, min: number, max: number): number {
   if (!Number.isFinite(scale)) return min;
   return Math.max(min, Math.min(max, scale));
