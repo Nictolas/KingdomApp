@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { getOrologioGiocoInPausaSnapshot } from "../game/orologioGiocoSession";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation } from "../performance/nativeResidentWorkCounters";
 import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
@@ -10,6 +10,14 @@ import {
   walkIndexInGroup,
   type WanderDirection
 } from "../game/mapWandererMotion";
+
+/**
+ * Keep the native hit target animated together with the sprite. Unlike React
+ * state-based coordinates, Animated.ValueXY.setValue updates positions without
+ * reconciling the entire character component on every animation frame.
+ * We deliberately retain the existing JS RAF clock and gameplay callbacks.
+ */
+const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const DOPPIO_TAP_MS = 400;
 
@@ -142,7 +150,8 @@ export function MapWandererCharacter({
   if (__DEV__) markNativeResidentRenderInvocation();
   const [logicalCell, setLogicalCell] = useState<number | null>(null);
   const cellRef = useRef<number | null>(null);
-  const [pixelPos, setPixelPos] = useState({ x: 0, y: 0 });
+  // Stable position observable: movement no longer causes React rerenders 60×/s.
+  const [pixelPos] = useState(() => new Animated.ValueXY({ x: 0, y: 0 }));
   const [direction, setDirection] = useState<WanderDirection>("s");
   const [walkFrame, setWalkFrame] = useState(0);
   const [isMoving, setIsMoving] = useState(false);
@@ -267,7 +276,7 @@ export function MapWandererCharacter({
         return;
       }
       const t = Math.min(1, (now - start) / durationMs);
-      setPixelPos({
+      pixelPos.setValue({
         x: fromX + (toX - fromX) * t,
         y: fromY + (toY - fromY) * t
       });
@@ -275,7 +284,7 @@ export function MapWandererCharacter({
         setWalkFrame(walkFrameFromElapsedMs(now - start));
         rafRef.current = requestAnimationFrame(step);
       } else {
-        setPixelPos({ x: toX, y: toY });
+        pixelPos.setValue({ x: toX, y: toY });
         setWalkFrame(0);
         setIsMoving(false);
         setLogicalCell(dest);
@@ -338,7 +347,7 @@ export function MapWandererCharacter({
           return;
         }
         const t = Math.min(1, (now - start) / durationMs);
-        setPixelPos({
+        pixelPos.setValue({
           x: fromX + (toX - fromX) * t,
           y: fromY + (toY - fromY) * t
         });
@@ -346,7 +355,7 @@ export function MapWandererCharacter({
           setWalkFrame(walkFrameFromElapsedMs(now - start));
           rafRef.current = requestAnimationFrame(step);
         } else {
-          setPixelPos({ x: toX, y: toY });
+          pixelPos.setValue({ x: toX, y: toY });
           setWalkFrame(0);
           if (isLastSegment) {
             setIsMoving(false);
@@ -379,7 +388,7 @@ export function MapWandererCharacter({
     const cy = Math.floor(start / cols) * cellSizePx;
     setLogicalCell(start);
     cellRef.current = start;
-    setPixelPos({ x: cx, y: cy });
+    pixelPos.setValue({ x: cx, y: cy });
     setIsMoving(false);
     setWalkFrame(0);
     // Partenza spesso condivisa (casa): non claim esclusivo; claim al primo passo verso `to`.
@@ -433,7 +442,7 @@ export function MapWandererCharacter({
     const cy = Math.floor(fixedCell / cols) * cellSizePx;
     setLogicalCell(fixedCell);
     cellRef.current = fixedCell;
-    setPixelPos({ x: cx, y: cy });
+    pixelPos.setValue({ x: cx, y: cy });
     setIsMoving(false);
     setWalkFrame(0);
     setDirection("s");
@@ -462,7 +471,7 @@ export function MapWandererCharacter({
     inited.current = true;
     setLogicalCell(prevHome);
     cellRef.current = prevHome;
-    setPixelPos({ x: cx, y: cy });
+    pixelPos.setValue({ x: cx, y: cy });
     setIsMoving(false);
     setWalkFrame(0);
     onCellSettledRef.current?.(prevHome);
@@ -522,7 +531,7 @@ export function MapWandererCharacter({
     const cy = Math.floor(idx / cols) * cellSizePx;
     setLogicalCell(idx);
     cellRef.current = idx;
-    setPixelPos({ x: cx, y: cy });
+    pixelPos.setValue({ x: cx, y: cy });
     onCellSettledRef.current?.(idx);
     if (!disableIdleRoam) {
       idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
@@ -574,8 +583,7 @@ export function MapWandererCharacter({
   const shellStyle = [
     styles.anchor,
     {
-      left: pixelPos.x,
-      top: pixelPos.y,
+      ...pixelPos.getLayout(),
       width: cellSizePx,
       height: cellSizePx,
       overflow: "visible" as const,
@@ -628,7 +636,7 @@ export function MapWandererCharacter({
 
   if (intercettaTocco) {
     return (
-      <Pressable
+      <AnimatedPressable
         style={shellStyle}
         onPress={handlePress}
         accessibilityRole="button"
@@ -639,14 +647,14 @@ export function MapWandererCharacter({
         }
       >
         {sprite}
-      </Pressable>
+      </AnimatedPressable>
     );
   }
 
   return (
-    <View style={shellStyle} pointerEvents="none">
+    <Animated.View style={shellStyle} pointerEvents="none">
       {sprite}
-    </View>
+    </Animated.View>
   );
 }
 
