@@ -13,3 +13,16 @@ export function takeNativeResidentFrameCallbacks(): number {
   callbacks = 0;
   return count;
 }
+
+/** Counts render function invocations, not React commits or FPS. */
+let renders = 0;
+
+export function markNativeResidentRenderInvocation(): void {
+  renders += 1;
+}
+
+export function takeNativeResidentRenderInvocations(): number {
+  const count = renders;
+  renders = 0;
+  return count;
+}
