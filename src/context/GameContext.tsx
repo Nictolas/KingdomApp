@@ -31,6 +31,7 @@ import { ID_GIOCATORE } from "../game/schiavituCommercio";
 import { setOrologioGiocoBloccatoDallaFase } from "../game/orologioGiocoSession";
 import type { RegistrazioneScambio } from "../game/registrazioniScambi";
 import { warmStartupCharacterAssets } from "../game/warmStartupCharacters";
+import { parsePhaserBenchmarkResidentCount } from "../phaser/adapters/phaserResidentsBenchmarkFixture";
 
 type ScaglioneConfig = {
   min: number;
@@ -390,8 +391,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
     Platform.OS === "web" &&
     (pathname === "/" || pathname === "/mappa-phaser-preview") &&
     typeof window !== "undefined" &&
-    new URLSearchParams(window.location.search).get("perf") === "1" &&
-    new URLSearchParams(window.location.search).get("residents") === "200";
+    parsePhaserBenchmarkResidentCount(window.location.search) != null;
   const mappa = useSyncExternalStore(subscribeMappaSessione, getMappaSessione, getMappaSessione);
   const repositoryRef = useRef<SaveRepository | null>(null);
   const pendingLoadRef = useRef<LoadSaveResult | null>(null);
