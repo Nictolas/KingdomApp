@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { AppState, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { NativeFrameWindow, type NativeFrameSnapshot } from "./nativeFrameMetrics";
-import { takeNativeResidentFrameCallbacks, takeNativeResidentRenderInvocations, takeNativeResidentBusCycles } from "./nativeResidentWorkCounters";
+import { takeNativeResidentFrameCallbacks, takeNativeResidentRenderInvocations, takeNativeResidentWrapperInvocations, takeNativeResidentBusCycles } from "./nativeResidentWorkCounters";
 import { NativeMeasurementSession, formatNativeMeasurement } from "./nativeMeasurementSession";
 import { getNativeResidentTimerSnapshot, type NativeResidentTimerSnapshot } from "./nativeResidentTimerQueue";
 import { diffNativeResidentTimerCounters } from "./nativeResidentTimerDiagnostics";
@@ -30,6 +30,7 @@ export function NativePerformanceHud({
   const [stats, setStats] = useState<NativeFrameSnapshot>(INITIAL_METRICS);
   const [residentCallbacks, setResidentCallbacks] = useState(0);
   const [residentRenders, setResidentRenders] = useState(0);
+  const [residentWrapperRenders, setResidentWrapperRenders] = useState(0);
   const [residentBusCycles, setResidentBusCycles] = useState(0);
   const [timerMetrics, setTimerMetrics] = useState({
     pending: 0, platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, scheduled: false
@@ -58,12 +59,14 @@ export function NativePerformanceHud({
     setStats(INITIAL_METRICS);
     setResidentCallbacks(0);
     setResidentRenders(0);
+    setResidentWrapperRenders(0);
     setResidentBusCycles(0);
     setTimerMetrics({ pending: 0, platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, scheduled: false });
     lastTimerSample.current = { timestamp: performance.now(), counters: getNativeResidentTimerSnapshot() };
     takeNativeResidentBusCycles();
     takeNativeResidentFrameCallbacks();
     takeNativeResidentRenderInvocations();
+    takeNativeResidentWrapperInvocations();
     frameWindow.current.reset();
     capture.current = null;
     setMeasuring(false);
@@ -101,6 +104,7 @@ export function NativePerformanceHud({
           setStats(frameWindow.current.snapshot());
           setResidentCallbacks(takeNativeResidentFrameCallbacks());
           setResidentRenders(takeNativeResidentRenderInvocations());
+          setResidentWrapperRenders(takeNativeResidentWrapperInvocations());
           setResidentBusCycles(takeNativeResidentBusCycles());
           const next = getNativeResidentTimerSnapshot();
           const prev = lastTimerSample.current;
@@ -141,13 +145,14 @@ export function NativePerformanceHud({
           <Text style={styles.text}>p95 frame JS: {stats.samples ? stats.p95FrameMs.toFixed(1) : "—"} ms</Text>
           <Text style={styles.text}>Frame oltre 33/50 ms: {stats.framesOver33Ms}/{stats.framesOver50Ms}</Text>
           <Text style={styles.text}>Callback animazione abitanti/s: {residentCallbacks}</Text>
-          <Text style={styles.text}>Render React abitanti/s: {residentRenders}</Text>
+          <Text style={styles.text}>Wrapper abitanti/s: {residentWrapperRenders}</Text>
+          <Text style={styles.text}>Render sprite React/s: {residentRenders}</Text>
           <Text style={styles.text}>Frame bus nativo/s: {residentBusCycles}</Text>
           <Text style={styles.text}>Timer residenti in attesa: {timerMetrics.pending}</Text>
           <Text style={styles.text}>Timeout nativi attivi: {timerMetrics.scheduled ? 1 : 0}</Text>
           <Text style={styles.text}>Wakeup timer nativo/s: {timerMetrics.platformWakeupsPerSecond.toFixed(1)}</Text>
           <Text style={styles.text}>Callback timer residenti/s: {timerMetrics.logicalCallbacksPerSecond.toFixed(1)}</Text>
-          <Text style={styles.note}>Timer e callback/s misurano soltanto attività JS e timer gestiti dalla mappa, non FPS UI/GPU. Solo ritmo JS, non GPU; nessun dato salvato.</Text>
+          <Text style={styles.note}>Wrapper e render sprite sono invocazioni di funzione React, non commit. Timer e callback/s misurano attività JS, non FPS UI/GPU. Nessun dato salvato.</Text>
           <Pressable
             style={[styles.testButton, measuring && styles.disabledButton]}
             disabled={measuring}
