@@ -97,3 +97,26 @@ export class NativeRealFixtureOccupancy {
     return true;
   }
 }
+
+/**
+ * Touch feedback is a separate external store. A tap must never cause the
+ * parent 200-sprite workload to render again: only the tiny status overlay
+ * subscribes. Methods are stable for useSyncExternalStore.
+ */
+export class NativeRealFixtureSelection {
+  private selected: number | null = null;
+  private readonly listeners = new Set<() => void>();
+
+  readonly getSnapshot = (): number | null => this.selected;
+
+  readonly subscribe = (listener: () => void): (() => void) => {
+    this.listeners.add(listener);
+    return () => { this.listeners.delete(listener); };
+  };
+
+  readonly select = (residentId: number): void => {
+    if (this.selected === residentId) return;
+    this.selected = residentId;
+    for (const listener of this.listeners) listener();
+  };
+}
