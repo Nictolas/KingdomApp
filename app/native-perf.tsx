@@ -67,7 +67,9 @@ function NativePerformanceScene() {
   const tileHeight = realRenderer ? tileWidth : size.height / 10;
 
   useEffect(() => {
-    if (!isMoving) {
+    // Native-driver marker animation must not run behind the real-sprite test:
+    // otherwise it adds an unrelated animation workload to those measurements.
+    if (!isMoving || realRenderer) {
       phase.stopAnimation();
       phase.setValue(0);
       return;
@@ -80,7 +82,7 @@ function NativePerformanceScene() {
     );
     animation.start();
     return () => animation.stop();
-  }, [phase, isMoving]);
+  }, [phase, isMoving, realRenderer]);
 
   return (
     <SafeAreaView style={styles.root}>
