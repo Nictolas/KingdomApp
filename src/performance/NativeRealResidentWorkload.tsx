@@ -1,4 +1,4 @@
-import React, { memo, useMemo, useState, useSyncExternalStore } from "react";
+import React, { memo, useCallback, useMemo, useSyncExternalStore } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { MapWandererCharacter } from "../components/MapWandererCharacter";
 import {
@@ -9,6 +9,8 @@ import {
 import {
   createNativeRealFixtureResidents,
   NativeRealFixtureOccupancy,
+  NativeRealFixtureSelection,
+  type NativeRealFixtureResident,
   NATIVE_REAL_FIXTURE_COLS,
   NATIVE_REAL_FIXTURE_ROWS
 } from "./nativeRealResidentFixture";
@@ -29,17 +31,93 @@ function subscribeTimeScale(listener: () => void): () => void {
 }
 
 /**
- * The same MapWandererCharacter used by the real native map, but with a local
- * 20x20 grid, local simulated owners and no GameContext or persistence.
- *
- * This is deliberately NOT a full kingdom simulation: no jobs, pathfinding,
- * buildings, game-state writes or citizen lifecycle. Its value is exercising
- * the actual sprite-sheet rendering, press targets, idle/collision timers and
- * shared movement scheduler with up to 200 native character bodies.
- *
- * The game clock is read, never changed. When game setup has locked time,
- * residents remain still; the UI explicitly tells testers not to interpret
- * this as a successful moving-sprite test.
+ * Each resident receives stable occupancy and touch callbacks. A touch must
+ * not render the other 199 resident wrappers or invalidate their memoized
+ * native bodies. Population changes still remount the isolated fixture.
+ */
+const NativeRealFixtureSprite = memo(function NativeRealFixtureSprite({
+  resident,
+  occupancy,
+  selection,
+  moving,
+  cellSizePx
+}: {
+  resident: NativeRealFixtureResident;
+  occupancy: NativeRealFixtureOccupancy;
+  selection: NativeRealFixtureSelection;
+  moving: boolean;
+  cellSizePx: number;
+}) {
+  const id = resident.instanceId;
+  const onSelect = useCallback(() => selection.select(id), [selection, id]);
+  const isCellFreeForMe = useCallback((cell: number) => occupancy.isFreeFor(id, cell), [occupancy, id]);
+  const tryClaimCell = useCallback((cell: number) => occupancy.tryClaim(id, cell), [occupancy, id]);
+  const releaseMyCell = useCallback(() => occupancy.release(id), [occupancy, id]);
+  const onCellSettled = useCallback((cell: number) => occupancy.settledAt(id, cell), [occupancy, id]);
+
+  return (
+    <MapWandererCharacter
+      instanceId={id}
+      cols={NATIVE_REAL_FIXTURE_COLS}
+      rows={NATIVE_REAL_FIXTURE_ROWS}
+      cellSizePx={cellSizePx}
+      isWalkable={isWalkableInFixture}
+      isRoadCell={isRoadInFixture}
+      preferredSpawnCell={resident.spawnCell}
+      disableIdleRoam={!moving}
+      onPress={onSelect}
+      onDoublePress={onSelect}
+      pressAccessibilityLabel={"Seleziona residente di prova " + id}
+      isCellFreeForMe={isCellFreeForMe}
+      tryClaimCell={tryClaimCell}
+      releaseMyCell={releaseMyCell}
+      onCellSettled={onCellSettled}
+    />
+  );
+});
+
+/** Only this overlay rerenders when a resident is tapped or the clock changes. */
+const NativeFixtureStatus = memo(function NativeFixtureStatus({
+  population,
+  moving,
+  selection
+}: {
+  population: NativeTestPopulation;
+  moving: boolean;
+  selection: NativeRealFixtureSelection;
+}) {
+  const selected = useSyncExternalStore(
+    selection.subscribe,
+    selection.getSnapshot,
+    selection.getSnapshot
+  );
+  const timeScale = useSyncExternalStore(
+    subscribeTimeScale,
+    getOrologioSimTimeScaleSnapshot,
+    getOrologioSimTimeScaleSnapshot
+  );
+  return (
+    <View style={styles.status} pointerEvents="none">
+      <Text style={styles.statusText}>
+        Sprite reali · {population} abitanti · {moving ? "girovaghi" : "fermi"} · tempo {timeScale}×
+      </Text>
+      {moving && timeScale === 0 && (
+        <Text style={styles.warning}>
+          Simulazione in pausa: riprendi il gioco sulla mappa per misurare il movimento.
+        </Text>
+      )}
+      {selected !== null && (
+        <Text style={styles.statusText}>Tocco su residente di prova {selected}</Text>
+      )}
+    </View>
+  );
+});
+
+/**
+ * Actual native resident renderer on an isolated 20×20 fixture. This is NOT
+ * a full kingdom simulation: no AI, buildings, jobs, GameContext or saves.
+ * Clock is observed, never modified. Touch status and clock subscriptions
+ * stay outside the 200-sprite subtree to avoid measurement contamination.
  */
 export const NativeRealResidentWorkload = memo(function NativeRealResidentWorkload({
   population,
@@ -54,12 +132,7 @@ export const NativeRealResidentWorkload = memo(function NativeRealResidentWorklo
 }) {
   const residents = useMemo(() => createNativeRealFixtureResidents(population), [population]);
   const occupancy = useMemo(() => new NativeRealFixtureOccupancy(), [population]);
-  const [selected, setSelected] = useState<number | null>(null);
-  const timeScale = useSyncExternalStore(
-    subscribeTimeScale,
-    getOrologioSimTimeScaleSnapshot,
-    getOrologioSimTimeScaleSnapshot
-  );
+  const selection = useMemo(() => new NativeRealFixtureSelection(), [population]);
   const cellSizePx = Math.min(width / NATIVE_REAL_FIXTURE_COLS, height / NATIVE_REAL_FIXTURE_ROWS);
 
   if (!Number.isFinite(cellSizePx) || cellSizePx <= 0) return null;
@@ -67,38 +140,16 @@ export const NativeRealResidentWorkload = memo(function NativeRealResidentWorklo
   return (
     <View style={StyleSheet.absoluteFill} pointerEvents="box-none">
       {residents.map(resident => (
-        <MapWandererCharacter
+        <NativeRealFixtureSprite
           key={resident.instanceId}
-          instanceId={resident.instanceId}
-          cols={NATIVE_REAL_FIXTURE_COLS}
-          rows={NATIVE_REAL_FIXTURE_ROWS}
+          resident={resident}
+          occupancy={occupancy}
+          selection={selection}
+          moving={moving}
           cellSizePx={cellSizePx}
-          isWalkable={isWalkableInFixture}
-          isRoadCell={isRoadInFixture}
-          preferredSpawnCell={resident.spawnCell}
-          disableIdleRoam={!moving}
-          onPress={() => setSelected(resident.instanceId)}
-          onDoublePress={() => setSelected(resident.instanceId)}
-          pressAccessibilityLabel={"Seleziona residente di prova " + resident.instanceId}
-          isCellFreeForMe={cell => occupancy.isFreeFor(resident.instanceId, cell)}
-          tryClaimCell={cell => occupancy.tryClaim(resident.instanceId, cell)}
-          releaseMyCell={() => occupancy.release(resident.instanceId)}
-          onCellSettled={cell => occupancy.settledAt(resident.instanceId, cell)}
         />
       ))}
-      <View style={styles.status} pointerEvents="none">
-        <Text style={styles.statusText}>
-          Sprite reali · {population} abitanti · {moving ? "girovaghi" : "fermi"} · tempo {timeScale}×
-        </Text>
-        {moving && timeScale === 0 && (
-          <Text style={styles.warning}>
-            Simulazione in pausa: riprendi il gioco sulla mappa per misurare il movimento.
-          </Text>
-        )}
-        {selected !== null && (
-          <Text style={styles.statusText}>Tocco su residente di prova {selected}</Text>
-        )}
-      </View>
+      <NativeFixtureStatus population={population} moving={moving} selection={selection} />
     </View>
   );
 });
