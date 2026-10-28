@@ -27,6 +27,8 @@ on:
       - "tests/native-resident-timer-time-budget-benchmark.ts"
       - "tests/native-resident-callback-relay.test.ts"
       - "tests/native-resident-relay-caching.test.ts"
+      - "src/performance/nativeResidentTapRecognizer.ts"
+      - "tests/native-resident-tap-recognizer.test.ts"
       - "tests/native-resident-relay-cache-benchmark.ts"
       - "tests/native-resident-sprite-frame-driver.test.ts"
       - "tests/native-resident-sprite-scheduler-integration.test.ts"
@@ -76,6 +78,8 @@ jobs:
         run: npx tsx --test tests/native-resident-buffer-reuse.test.ts
       - name: Allocation-free 200-resident movement and route churn (Node only, not FPS)
         run: npx tsx --test tests/native-resident-allocation-free-motion.test.ts
+      - name: Native touch gesture and lifecycle regression (200 simulated residents, not physical touch)
+        run: npx tsx --test tests/native-resident-tap-recognizer.test.ts
       - name: Cached live resident event callbacks and presence masks (Node, not on-device)
         run: npx tsx --test tests/native-resident-relay-caching.test.ts
       - name: 200-resident event relay allocation benchmark (Node only, not device FPS)
