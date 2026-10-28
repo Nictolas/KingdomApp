@@ -111,6 +111,7 @@ test("native lifecycle is driven by one clock gate, not 200 React pause subscrip
   assert.match(native, /activityConfigRef\.current = \{ fixedCell, commutePath, disableIdleRoam \}/);
   assert.match(native, /const \{ fixedCell, commutePath, disableIdleRoam \} = activityConfigRef\.current/);
   assert.match(native, /subscribeNativeResidentFrameBusActivity\(onResidentActivityChanged\)/);
-  assert.match(native, /\}, \[pendingCommuteRetry\]\)/);
+  assert.match(native, /\}, \[pendingCommuteRetry, tapRecognizer\]\)/);
+  assert.match(native, /tapRecognizer\.reset\(\);\s+if \(!active\) return;/);
   assert.ok(!shared.includes("activityConfigRef"), "web resident remains unchanged");
 });
