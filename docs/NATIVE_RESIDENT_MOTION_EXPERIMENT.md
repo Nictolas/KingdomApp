@@ -41,3 +41,9 @@ Il ramo sperimentale ora:
 - Conserva l'attesa `CLAIM_RETRY_MS` negli scenari senza pausa e la logica esistente del numero massimo di tentativi.
 
 I test puri verificano recupero, consumo singolo, invalidazione del vecchio tragitto e sostituzione del tentativo. **Non costituiscono ancora una prova end-to-end delle collisioni su dispositivo fisico**. La convalida manuale deve riprodurre due residenti sulla stessa strada, pausa durante la coda, ripresa, avanzamento e collisioni residue.
+
+## Isolamento web e native (28 ottobre)
+
+L'audit successivo ha rilevato che la prima implementazione dell'esperimento aveva cambiato `MapWandererCharacter.tsx`, componente condiviso anche dal web. La modifica e' stata **spostata integralmente** in `MapWandererCharacter.native.tsx` per Android e iOS; il componente standard `MapWandererCharacter.tsx` e' tornato **identico al contenuto della baseline #295**.
+
+L'import in `app/mappa.tsx` rimane senza estensione, consentendo al resolver di Metro di scegliere il file specifico della piattaforma. Un test di regressione verifica separazione, parita' dei props e import. La CI esegue i bundle Android, iOS e **web**; solo il loro esito fornisce evidenze di compilazione, non prestazioni o comportamento su smartphone. Questa PR resta Draft e non deve modificare la versione web.
