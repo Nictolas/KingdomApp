@@ -1,4 +1,5 @@
 import { markNativeResidentBusCycle } from "./nativeResidentWorkCounters";
+import { beginNativeResidentDispatch, endNativeResidentDispatch } from "./nativeResidentDispatchProfiler";
 
 /** The second argument is true on the first frame after suspension.
  * Residents use it to rebase their movement clock without a teleport.
@@ -43,6 +44,8 @@ export class NativeResidentFrameBus {
   private flushing = false;
   private active = true;
   private firstFrameAfterResume = false;
+  /** Any pause/resume transition invalidates the current dispatch batch. */
+  private activityEpoch = 0;
   private dispatchCount = 0;
 
   constructor(
@@ -98,6 +101,7 @@ export class NativeResidentFrameBus {
   setActive(active: boolean): void {
     if (this.active === active) return;
     this.active = active;
+    const transitionEpoch = ++this.activityEpoch;
     if (!active) {
       if (this.platformFrame !== null) {
         this.cancelPlatformFrame(this.platformFrame);
@@ -113,6 +117,9 @@ export class NativeResidentFrameBus {
     // to foreground must restart deferred work without a React rerender.
     let firstError: unknown = null;
     for (const listener of [...this.activityListeners]) {
+      // A listener can pause and resume synchronously. Never deliver an
+      // obsolete transition after a newer state has been published.
+      if (this.activityEpoch !== transitionEpoch) break;
       // A previous listener may synchronously unmount a sibling. Do not
       // dispatch into a resident that has already unsubscribed.
       if (!this.activityListeners.has(listener)) continue;
@@ -149,11 +156,13 @@ export class NativeResidentFrameBus {
     // A canceled OS RAF may still execute. Never flush the next live frame
     // using a stale callback from a previous generation.
     if (!this.active || this.platformFrame === null || generation !== this.platformGeneration) return;
+    const timing = beginNativeResidentDispatch("frame");
     this.platformFrame = null;
     this.flushing = true;
     this.dispatchCount++;
     if (typeof __DEV__ !== "undefined" && __DEV__) markNativeResidentBusCycle();
     const rebase = this.firstFrameAfterResume;
+    const dispatchEpoch = this.activityEpoch;
     this.firstFrameAfterResume = false;
     this.due = this.pending;
     this.pending = new Map();
@@ -165,7 +174,7 @@ export class NativeResidentFrameBus {
       for (const [id, callback] of this.due) {
         // A callback can synchronously pause the world in mid-batch. Hold the
         // remaining residents, rather than updating them while paused.
-        if (!this.active) break;
+        if (!this.active || this.activityEpoch !== dispatchEpoch) break;
         if (!this.due.has(id)) continue;
         this.due.delete(id);
         try {
@@ -175,12 +184,12 @@ export class NativeResidentFrameBus {
           if (firstError === null) firstError = error;
         }
       }
-      if (this.active) {
+      if (this.active && this.activityEpoch === dispatchEpoch) {
         // Map iteration skips removed subscribers. New subscriptions receive
         // higher IDs and cannot execute during the same frame. If a callback
         // pauses the game, remaining subscribers are held until resume.
         for (const [id, callback] of this.continuous) {
-          if (!this.active) break;
+          if (!this.active || this.activityEpoch !== dispatchEpoch) break;
           if (id > maxContinuousIdAtFrameStart) break;
           try {
             callback(timestamp, rebase);
@@ -197,7 +206,11 @@ export class NativeResidentFrameBus {
       }
       this.due = null;
       this.flushing = false;
-      this.ensureScheduled();
+      try {
+        this.ensureScheduled();
+      } finally {
+        endNativeResidentDispatch("frame", timing);
+      }
     }
     if (firstError !== null) throw firstError;
   }
