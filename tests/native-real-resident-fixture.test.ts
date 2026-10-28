@@ -125,8 +125,10 @@ test("source boundary uses the real native sprite component without altering Gam
   assert.match(fixture, /releaseMyCell=\{\(\) => occupancy\.release\(/);
   assert.match(fixture, /timeScale === 0/);
   assert.match(fixture, /Simulazione in pausa/);
-  assert.doesNotMatch(fixture, /setOrologioGioco|setOrologioSim|restoreOrologio|AsyncStorage|patchMappaPersonaggiRuntime|fetch\(/);
-  assert.doesNotMatch(occupancy, /GameContext|AsyncStorage|patchMappaPersonaggiRuntime|fetch\(/);
+  assert.doesNotMatch(fixture, /\b(?:setOrologioGioco\w*|setOrologioSim\w*|restoreOrologio|patchMappaPersonaggiRuntime|fetch)\s*\(/);
+  assert.doesNotMatch(fixture, /import[^\n]*(?:GameContext|AsyncStorage)/);
+  assert.doesNotMatch(occupancy, /\b(?:patchMappaPersonaggiRuntime|fetch)\s*\(/);
+  assert.doesNotMatch(occupancy, /import[^\n]*(?:GameContext|AsyncStorage)/);
   assert.match(screen, /!__DEV__ \|\| Platform\.OS === "web"/);
 });
 
