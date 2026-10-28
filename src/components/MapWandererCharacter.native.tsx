@@ -376,9 +376,20 @@ function NativeResidentBody({
         const canRepath = purpose != null && onCommuteBlockedRef.current != null;
         const decision = claimRetry.fail(canRepath);
         if (decision === "request-repath") {
-          // Escalation is single-shot until a new route or successful claim.
-          // Never leave an idle timeout that could restart the old route.
-          pendingCommuteRetry.clear();
+          // The parent can legitimately find no alternate path (e.g. a
+          // blocked bar/market entrance). Do not strand this resident forever:
+          // give the parent a chance to replace/complete the route, then
+          // resume the original 900 ms collision retry if it did neither.
+          // A route change clears both this timer and the held callback.
+          pendingCommuteRetry.hold(() => {
+            if (claimRetry.resumeWithoutRepath()) {
+              runOneSegment(from, to, onDone, isLastSegment);
+            }
+          });
+          idleTimerRef.current = scheduleNativeResidentTimer(() => {
+            idleTimerRef.current = null;
+            pendingCommuteRetry.take()?.();
+          }, CLAIM_RETRY_MS);
           if (purpose != null) onCommuteBlockedRef.current?.({ fromCell: from, blockedCell: to, purpose });
           return;
         }
