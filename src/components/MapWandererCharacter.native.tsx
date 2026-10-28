@@ -183,12 +183,19 @@ function NativeResidentBody({
   const idleTimerRef = useRef<number | null>(null);
   /** Collision retry can be suspended across pauses without repeated timers. */
   const [pendingCommuteRetry] = useState(() => new PendingCommuteRetry());
+  // A single mutable point per mounted native resident is read synchronously
+  // by Animated.ValueXY.setValue; no new point on each animation frame.
+  const [movementPoint] = useState(() => ({ x: 0, y: 0 }));
   const [motion] = useState(() => new NativeResidentSegmentRunner({
     requestFrame: requestResidentAnimationFrame,
     subscribeFrame: subscribeResidentAnimationFrames,
     cancelFrame: cancelResidentAnimationFrame,
     readTimeScale: getOrologioSimTimeScaleSnapshot,
-    writePosition: (point) => pixelPos.setValue(point),
+    writePositionXY: (x, y) => {
+      movementPoint.x = x;
+      movementPoint.y = y;
+      pixelPos.setValue(movementPoint);
+    },
     advanceSprite: (elapsedMs) => spriteFrames.advanceElapsed(elapsedMs),
     setWalking: (moving) => {
       isMovingRef.current = moving;
