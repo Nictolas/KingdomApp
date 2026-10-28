@@ -33,6 +33,9 @@ on:
       - "tests/native-resident-frame-bus.test.ts"
       - "tests/native-resident-frame-bus-benchmark.ts"
       - "tests/native-resident-platform-boundary.test.ts"
+      - "tests/native-typecheck-regression.test.mjs"
+      - "tests/fixtures/native-typecheck-baseline.json"
+      - "scripts/check-native-typecheck-regressions.mjs"
       - "tests/native-map-transform.test.ts"
       - "src/game/pauseAwareMotionClock.ts"
       - "tests/pause-aware-motion-clock.test.ts"
@@ -55,6 +58,10 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
+      - name: Baseline TypeScript regression gate (legacy errors still fail general CI)
+        run: |
+          node --test tests/native-typecheck-regression.test.mjs
+          node scripts/check-native-typecheck-regressions.mjs
       - name: Pure fixture and frame metric tests
         run: npx tsx --test tests/native-performance-diagnostics.test.ts tests/native-map-transform.test.ts tests/pause-aware-motion-clock.test.ts tests/pending-commute-retry.test.ts tests/native-resident-platform-boundary.test.ts tests/native-resident-frame-bus.test.ts tests/native-resident-activity-gate.test.ts tests/native-resident-lifecycle-integration.test.ts tests/native-resident-timer-queue.test.ts tests/native-resident-timer-diagnostics.test.ts tests/native-resident-timer-model-comparison.test.ts tests/native-resident-timer-cooperative-batching.test.ts tests/native-resident-timer-time-budget.test.ts tests/native-resident-callback-relay.test.ts tests/native-resident-sprite-frame-driver.test.ts tests/native-resident-sprite-scheduler-integration.test.ts tests/native-resident-segment-runner.test.ts tests/native-resident-dispatch-profiler.test.ts tests/native-resident-responsiveness.test.ts tests/native-resident-reentrant-lifecycle.test.ts
       - name: Synthetic persistent RAF registration benchmark (Node only, not FPS)
