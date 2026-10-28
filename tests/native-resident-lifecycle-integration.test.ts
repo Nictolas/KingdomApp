@@ -4,6 +4,7 @@ import { NativeResidentFrameBus } from "../src/performance/nativeResidentFrameBu
 import { NativeResidentActivityGate } from "../src/performance/nativeResidentActivityGate.ts";
 import { NativeResidentSegmentProgress } from "../src/performance/nativeResidentSegmentProgress.ts";
 import { PendingCommuteRetry } from "../src/game/pendingCommuteRetry.ts";
+import { NativeResidentTimerQueue, NATIVE_RESIDENT_TIMER_CALLBACK_BUDGET } from "../src/performance/nativeResidentTimerQueue.ts";
 
 function fakeRaf() {
   let nextId = 1;
@@ -148,4 +149,106 @@ test("activity listener errors do not starve sibling listeners or frame scheduli
   assert.equal(runner.scheduled.size, 1);
   runner.tick(16);
   assert.deepEqual(events, [false, true, true]);
+});
+
+test("200 native idle residents: pause/background preserves remaining delays and unmount cleanup", () => {
+  let wall = 0;
+  let nextPlatformId = 1;
+  const os = new Map<number, { at: number; callback: () => void }>();
+  const timers = new NativeResidentTimerQueue(
+    () => wall,
+    (callback, delay) => {
+      const id = nextPlatformId++;
+      os.set(id, { at: wall + delay, callback });
+      return id;
+    },
+    id => { os.delete(id); },
+    NATIVE_RESIDENT_TIMER_CALLBACK_BUDGET
+  );
+  const runner = fakeRaf();
+  const gate = new NativeResidentActivityGate(true, false, active => {
+    timers.setActive(active);
+    runner.bus.setActive(active);
+  });
+  const pending = Array<number | null>(200).fill(null);
+  const alive = Array(200).fill(true);
+  const fired = Array(200).fill(0);
+  const routes = Array.from({ length: 200 }, (_, i) => i);
+  const seenRoute = Array(200).fill(-1);
+  const schedule = (i: number) => {
+    if (pending[i] != null) return;
+    pending[i] = timers.schedule(() => {
+      pending[i] = null;
+      assert.equal(alive[i], true, "unmounted resident fired a timer");
+      fired[i]++;
+      seenRoute[i] = routes[i]!;
+    }, 1000);
+  };
+  const unsubscribe = Array.from({ length: 200 }, (_, i) =>
+    runner.bus.subscribeActivity(active => {
+      if (active && alive[i]) schedule(i);
+    })
+  );
+  for (let i = 0; i < 200; i++) schedule(i);
+  assert.equal(os.size, 1);
+  assert.equal(runner.bus.snapshot().activityListeners, 200);
+
+  wall = 400;
+  gate.setGamePaused(true);
+  assert.equal(os.size, 0);
+  assert.equal(timers.snapshot().pending, 200);
+
+  // A parent may update routes without changing the stable activity handler.
+  for (let i = 0; i < 1000; i++) routes[i % 200] = 1000 + i;
+  assert.equal(runner.bus.snapshot().activityListeners, 200);
+
+  // Unmount 50 while paused: neither listener nor timer may survive.
+  for (let i = 0; i < 200; i += 4) {
+    alive[i] = false;
+    unsubscribe[i]!();
+    timers.cancel(pending[i]!);
+    pending[i] = null;
+  }
+  assert.equal(timers.snapshot().pending, 150);
+  assert.equal(runner.bus.snapshot().activityListeners, 150);
+
+  wall = 80_000;
+  gate.setForeground(false);
+  gate.setGamePaused(false);
+  assert.equal(os.size, 0, "unpause in background must not schedule platform timers");
+  gate.setForeground(true);
+  assert.equal(os.size, 1);
+  assert.equal(timers.snapshot().pending, 150, "no duplicate timer on resume");
+  assert.equal([...os.values()][0]!.at, wall + 600, "paused time must not catch up");
+
+  function advance(target: number): void {
+    while (os.size) {
+      const [id, next] = [...os.entries()]
+        .sort((a, b) => a[1].at - b[1].at || a[0] - b[0])[0]!;
+      if (next.at > target) break;
+      os.delete(id);
+      wall = next.at;
+      next.callback();
+    }
+    wall = target;
+  }
+  advance(80_599);
+  assert.equal(fired.reduce((a, b) => a + b, 0), 0);
+  advance(80_600);
+  assert.equal(fired.reduce((a, b) => a + b, 0), 150);
+  assert.equal(new Set(seenRoute.filter((_, i) => alive[i])).size, 150);
+  assert.ok(seenRoute.every((v, i) => alive[i] ? v === routes[i] : v === -1));
+  assert.ok(fired.every((count, i) => count === (alive[i] ? 1 : 0)));
+  assert.ok(timers.snapshot().budgetYields >= 4, "cooperative 32-callback budget must yield");
+  assert.equal(timers.snapshot().pending, 0);
+  assert.equal(os.size, 0);
+
+  for (let i = 0; i < 200; i++) {
+    if (alive[i]) unsubscribe[i]!();
+  }
+  assert.equal(runner.bus.snapshot().activityListeners, 0);
+  gate.setGamePaused(true);
+  gate.setGamePaused(false);
+  assert.equal(os.size, 0);
+  assert.equal(fired.reduce((a, b) => a + b, 0), 150);
 });
