@@ -285,6 +285,7 @@ export function MapWandererCharacter({
     const toX = (next % cols) * cellSizePx;
     const toY = Math.floor(next / cols) * cellSizePx;
 
+    isMovingRef.current = true;
     setIsMoving(true);
     const segment = new NativeResidentSegmentProgress(performance.now(), segmentMoveDurationMs(prev, next, isRoadCell));
     const dest = next;
@@ -307,7 +308,8 @@ export function MapWandererCharacter({
       } else {
         pixelPos.setValue({ x: toX, y: toY });
         updateWalkFrame(0);
-        setIsMoving(false);
+        isMovingRef.current = false;
+    setIsMoving(false);
         setLogicalCell(dest);
         cellRef.current = dest;
         onCellSettledRef.current?.(dest);
@@ -367,7 +369,8 @@ export function MapWandererCharacter({
       const fromY = Math.floor(from / cols) * cellSizePx;
       const toX = (to % cols) * cellSizePx;
       const toY = Math.floor(to / cols) * cellSizePx;
-      setIsMoving(true);
+      isMovingRef.current = true;
+    setIsMoving(true);
       const segment = new NativeResidentSegmentProgress(performance.now(), segmentMoveDurationMs(from, to, isRoadCell));
       const step = (now: number, resumedAfterSuspension = false) => {
         if (__DEV__) markNativeResidentFrameCallback();
@@ -388,7 +391,8 @@ export function MapWandererCharacter({
           pixelPos.setValue({ x: toX, y: toY });
           updateWalkFrame(0);
           if (isLastSegment) {
-            setIsMoving(false);
+            isMovingRef.current = false;
+    setIsMoving(false);
           }
           setLogicalCell(to);
           cellRef.current = to;
@@ -420,6 +424,7 @@ export function MapWandererCharacter({
     setLogicalCell(start);
     cellRef.current = start;
     pixelPos.setValue({ x: cx, y: cy });
+    isMovingRef.current = false;
     setIsMoving(false);
     updateWalkFrame(0);
     // Partenza spesso condivisa (casa): non claim esclusivo; claim al primo passo verso `to`.
@@ -476,6 +481,7 @@ export function MapWandererCharacter({
     setLogicalCell(fixedCell);
     cellRef.current = fixedCell;
     pixelPos.setValue({ x: cx, y: cy });
+    isMovingRef.current = false;
     setIsMoving(false);
     updateWalkFrame(0);
     setDirection("s");
@@ -505,6 +511,7 @@ export function MapWandererCharacter({
     setLogicalCell(prevHome);
     cellRef.current = prevHome;
     pixelPos.setValue({ x: cx, y: cy });
+    isMovingRef.current = false;
     setIsMoving(false);
     updateWalkFrame(0);
     onCellSettledRef.current?.(prevHome);
