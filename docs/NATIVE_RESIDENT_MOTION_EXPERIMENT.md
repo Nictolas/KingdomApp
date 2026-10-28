@@ -47,3 +47,11 @@ I test puri verificano recupero, consumo singolo, invalidazione del vecchio trag
 L'audit successivo ha rilevato che la prima implementazione dell'esperimento aveva cambiato `MapWandererCharacter.tsx`, componente condiviso anche dal web. La modifica e' stata **spostata integralmente** in `MapWandererCharacter.native.tsx` per Android e iOS; il componente standard `MapWandererCharacter.tsx` e' tornato **identico al contenuto della baseline #295**.
 
 L'import in `app/mappa.tsx` rimane senza estensione, consentendo al resolver di Metro di scegliere il file specifico della piattaforma. Un test di regressione verifica separazione, parita' dei props e import. La CI esegue i bundle Android, iOS e **web**; solo il loro esito fornisce evidenze di compilazione, non prestazioni o comportamento su smartphone. Questa PR resta Draft e non deve modificare la versione web.
+
+## Velocita' 1x/2x/4x e ripresa dell'app
+
+L'audit dei passi native ha evidenziato che la durata reale rimaneva fissa a 1000 ms (750 ms su strada) anche quando il mondo simulato scorreva a 2x o 4x. Il renderer native-only ora legge `getOrologioSimTimeScaleSnapshot()` a ogni RAF e integra il progresso dell'animazione al rate corrente. Una transizione 1x → 4x o 4x → 2x **non azzera ne' completa istantaneamente** il passo; la durata di riferimento rimane la stessa in millisecondi simulati. In pausa (rate 0), il progresso rimane fermo.
+
+Per evitare scatti dopo aver messo l'app in background, `PauseAwareMotionClock` scarta un intervallo RAF sospeso pari o superiore a 2000 ms invece di tradurlo in uno spostamento istantaneo del personaggio. **Non modifica il timer del mondo ne' i salvataggi.** Test automatici coprono progressione 1x/2x/4x, cambi di velocita' nel mezzo del passo, pausa, timestamp invalidi e lunghi gap di background.
+
+Questa correzione non modifica la versione web e non prova un aumento degli FPS. Per il confronto A/B di `Animated.ValueXY`, misurare i due rami esclusivamente a **1x**; i test funzionali 2x/4x restano obbligatori separatamente. Il timer d'attesa tra passeggiate casuali rimane invariato: una eventuale accelerazione degli idle timer va valutata come altra modifica di gameplay, non mascherata da ottimizzazione grafica.
