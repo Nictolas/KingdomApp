@@ -28,3 +28,16 @@ Il benchmark Phaser web #294 e' distinto e **non** utilizzabile per validare que
 La precedente logica di movimento usava `(performance.now() - start)` per entrambi i tipi di passo, anche quando la pausa di gioco sospendeva il movimento: un residente poteva quindi completare improvvisamente il passo alla ripresa. Ora `PauseAwareMotionClock` esclude dalla durata del segmento le finestre di pausa e conserva lo stesso frame della camminata. Test automatici verificano pausa lunga, ripresa, timestamp non validi e segmenti indipendenti.
 
 Questa correzione e' **funzionale**, non un guadagno FPS e non deve essere interpretata come benchmark. Per confrontare esclusivamente l'ottimizzazione `Animated.ValueXY`, non usare le pause durante la finestra di misurazione, perche' il ramo sperimentale contiene anche questa correzione. Verificare comunque manualmente che pausa/ripresa non teletrasportino e che la durata dei passi resti coerente.
+
+## Correzione dell'attesa per collisione durante pausa
+
+La revisione di `MapWandererCharacter` ha identificato un caso concreto: quando un tragitto viene bloccato da una cella occupata, `runOneSegment` prepara un nuovo tentativo tramite `idleTimerRef`. La pausa globale annulla quel timer con `clearIdle()`, ma al resume il precedente effetto ignorava tutti i tragitti attivi: il personaggio poteva **rimanere bloccato indefinitamente**.
+
+Il ramo sperimentale ora:
+- Trattiene la continuazione del segmento in `PendingCommuteRetry` quando la cella e' occupata o l'orologio e' in pausa.
+- Non richiede celle e non avvia passi mentre il tempo di gioco e' fermo.
+- Quando la pausa comincia, annulla il timer senza scartare la continuazione; alla ripresa tenta il segmento **una sola volta** senza ricominciare da casa.
+- Scarta la continuazione se il tragitto cambia o il componente viene smontato, evitando che un vecchio tentativo interferisca con un percorso nuovo.
+- Conserva l'attesa `CLAIM_RETRY_MS` negli scenari senza pausa e la logica esistente del numero massimo di tentativi.
+
+I test puri verificano recupero, consumo singolo, invalidazione del vecchio tragitto e sostituzione del tentativo. **Non costituiscono ancora una prova end-to-end delle collisioni su dispositivo fisico**. La convalida manuale deve riprodurre due residenti sulla stessa strada, pausa durante la coda, ripresa, avanzamento e collisioni residue.
