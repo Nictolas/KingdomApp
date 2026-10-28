@@ -17,6 +17,12 @@ Il modello di occupazione riprende quello della mappa effettiva: due `Map` in me
 
 Il renderer nativo usa lo stesso orologio di gioco della mappa. La prova **legge** `getOrologioSimTimeScaleSnapshot()` e si iscrive alle notifiche di velocità/pausa, ma **non altera mai il tempo del regno**. Se l'utente apre la schermata prima che il gioco sia stato avviato o mentre è in pausa, gli sprite possono essere fermi: compare un avviso esplicito. Per provare il movimento occorre prima iniziare/riprendere il gioco sulla mappa e poi entrare nella diagnostica. **Uno sprite fermo a velocità 0× non è una prova valida delle prestazioni di 200 residenti in movimento.**
 
+### Baseline valida per un confronto fra versioni
+
+Per misurare **gli stessi 200 sprite reali** sulla versione prima della #297 non basta usare la #295, che non contiene ancora `MapWandererCharacter.native.tsx`. È stata creata la **[PR #298](https://github.com/Nictolas/KingdomApp/pull/298)**, derivata dal motore #296, con la **stessa identica scena di sviluppo, fixture di occupazione e test** della #297: i quattro file sono stati verificati con lo **stesso SHA Git** in entrambi i rami. In questo modo il motore può essere confrontato in modalità A/B, senza confondere sprite diversi.
+
+Usare dunque **#298 (baseline pre-297) contro #297 (candidata)** per la modalità `Sprite abitanti reali`; utilizzare #295 soltanto per un confronto dei vecchi `Marker semplici`. Le build devono mantenere lo stesso ambiente e stesso telefono. La #298 usa la diagnostica più vecchia e genera meno contatori: confrontare esclusivamente metriche disponibili in entrambi, verificando l'overhead della misura e aggiungendo un profiler esterno per FPS UI/GPU, GC e memoria.
+
 ### Come misurare
 
 Aprire sulla mappa lo HUD di sviluppo, premere **«Prova 25–200 elementi»**. Nella schermata selezionare **«Sprite abitanti reali»**, prima 25, poi 50/100/200. Con il gioco a 1× e modalità **Muovi** verificare che gli sprite camminino realmente senza sovrapporsi in una singola cella, che il tocco e il doppio tocco funzionino, che **Fermi** fermi il girovagare e che tornare alla mappa non lasci callback attive della fixture. Aprire **«Dettagli»**, premere **«Misura 10 secondi»** e condividere il risultato; ripetere per almeno tre catture. Ripetere anche a 2× e 4×, con pause e background.
