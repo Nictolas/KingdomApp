@@ -60,10 +60,16 @@ function measure(population: number, frames: number, persistent: boolean) {
   // them; one-shot registrations naturally stop at the last requested frame.
   assert.equal(platformRequests, frames + (persistent ? 1 : 0));
   assert.equal(bus.snapshot().dispatchCount, frames);
+  assert.equal(bus.snapshot().oneShotBufferSwaps, persistent ? 0 : frames);
   assert.equal(registrations, persistent ? population : population * frames);
   return {
     population, frames, mode: persistent ? "persistent" : "one_shot",
     callbacks, registrations, platformRequests,
+    /** Pre-refactor flush allocated one Map per RAF, even for persistent sprites. */
+    preRefactorTransientMapAllocations: frames,
+    /** The recycled implementation starts with two Maps and creates no per-RAF Maps. */
+    currentTransientMapAllocations: 0,
+    oneShotBufferSwaps: bus.snapshot().oneShotBufferSwaps,
     setupMs: +setupMs.toFixed(3),
     dispatchMs: +dispatchMs.toFixed(3),
     totalMs: +(setupMs + dispatchMs).toFixed(3)
@@ -76,6 +82,8 @@ for (const [population, frames] of [[200, 240], [1000, 120]]) {
   console.log(JSON.stringify({
     kind: "node_synthetic_raf_registration_not_device_fps",
     before, after,
-    registrationsAvoided: before.registrations - after.registrations
+    registrationsAvoided: before.registrations - after.registrations,
+    /** Analytical allocation count, not a measured memory/GC or device FPS result. */
+    modeledMapAllocationsAvoidedPerMode: frames
   }));
 }
