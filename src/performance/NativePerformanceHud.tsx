@@ -2,7 +2,7 @@ import React, { useCallback, useRef, useState } from "react";
 import { useFocusEffect } from "expo-router";
 import { AppState, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { NativeFrameWindow, type NativeFrameSnapshot } from "./nativeFrameMetrics";
-import { takeNativeResidentFrameCallbacks, takeNativeResidentRenderInvocations, takeNativeResidentWrapperInvocations, takeNativeResidentBusCycles } from "./nativeResidentWorkCounters";
+import { takeNativeResidentFrameCallbacks, takeNativeResidentRenderInvocations, takeNativeResidentWrapperInvocations, takeNativeResidentBusCycles, getNativeResidentRenderTotals, diffNativeResidentRenderTotals, type NativeResidentRenderTotals } from "./nativeResidentWorkCounters";
 import { NativeMeasurementSession, formatNativeMeasurement } from "./nativeMeasurementSession";
 import { getNativeResidentTimerSnapshot, type NativeResidentTimerSnapshot } from "./nativeResidentTimerQueue";
 import { diffNativeResidentTimerCounters } from "./nativeResidentTimerDiagnostics";
@@ -42,6 +42,7 @@ export function NativePerformanceHud({
   const capture = useRef<{
     session: NativeMeasurementSession;
     timerStart: NativeResidentTimerSnapshot;
+    renderStart: NativeResidentRenderTotals;
     environment: { platform: string; label: string; residents: number; terrainCells?: number };
   } | null>(null);
 
@@ -50,6 +51,7 @@ export function NativePerformanceHud({
     capture.current = {
       session: new NativeMeasurementSession(performance.now()),
       timerStart: getNativeResidentTimerSnapshot(),
+      renderStart: getNativeResidentRenderTotals(),
       environment: { platform: Platform.OS, label, residents, terrainCells }
     };
     setMeasuring(true);
@@ -95,7 +97,10 @@ export function NativePerformanceHud({
               const delta = diffNativeResidentTimerCounters(
                 active.timerStart, getNativeResidentTimerSnapshot(), complete.durationMs
               );
-              setLatestReport(formatNativeMeasurement(complete, active.environment, delta));
+              const renders = diffNativeResidentRenderTotals(
+                active.renderStart, getNativeResidentRenderTotals(), complete.durationMs
+              );
+              setLatestReport(formatNativeMeasurement(complete, active.environment, delta, renders));
             }
           }
         }
