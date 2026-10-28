@@ -13,3 +13,29 @@ The native-only route arbitration now explicitly prioritizes a valid commute pat
 These are **pure transition and source-level tests**, not a mounted React integration test, a physical touch test, or Android/iPhone FPS. Mid-segment cancellation by an external route replacement remains a distinct occupancy/position consistency scenario requiring targeted follow-up and device checks; the idle rearm deliberately does not fire while the sprite reports movement. No GameContext, save data, world clock, gameplay design, web renderer, main branch, merge or release is changed.
 
 The A/B fixture files in #297 and #298 remain byte-identical; this correction is **only on the candidate #297**, so a route-transition correctness comparison must account for it separately from pure movement FPS.
+
+## Follow-up: interrupted movement must clear the walking flag
+
+The previous native commute cleanup used `motion.cancel()`. That correctly
+invalidated the old RAF and arrival callback but intentionally did **not**
+call `setWalking(false)`, because `cancel()` is also used between chained
+segments. If a route was removed during an unfinished segment, the
+`isMovingRef` flag could remain true, causing the new idle-rearm guard to
+skip the resident indefinitely, even though no RAF remained subscribed.
+
+`NativeResidentSegmentRunner.stop()` now explicitly separates an **ended
+route** from a seamless **segment replacement**: it cancels first (generation
+invalidates stale RAF callbacks), then clears the walking state. The native
+commute effect cleanup calls `stop()`; chained movement still uses
+`cancel()` so there is no forced sprite-stop between consecutive steps.
+The night/home effects already reset the moving state separately.
+
+The regression suite checks a deterministic 200-runner workload with 100
+interruptions, including 50 while backgrounded/paused, 50 route replacements,
+1×/4× progress, late OS RAF delivery, and absence of obsolete arrivals.
+A separate test covers synchronous listener-triggered replacement during
+`stop()`. The source-boundary test now matches the actual fixed-cell guard
+and requires the native commute cleanup to use `stop()`. The web renderer
+is untouched. These are **Node fake-RAF tests**, not device FPS or touch
+measurements; physical A/B checks and the unresolved mid-segment
+position/occupancy reconciliation still remain necessary.

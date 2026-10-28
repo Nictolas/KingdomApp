@@ -424,3 +424,112 @@ test("persistent runner: 200 chained commutes use only one subscription per segm
   assert.equal(f.os.size, 0);
   assert.ok(runners.every(r => r.snapshot().completed === segmentsPerResident));
 });
+
+test("200 interrupted native commutes clear walking state and preserve pause/RAF invariants", () => {
+  const f = fakeFrameBus();
+  const gate = new NativeResidentActivityGate(true, false, active => f.bus.setActive(active));
+  const count = 200;
+  let speed = 1;
+  const walking = Array<boolean>(count).fill(false);
+  const arrivals = Array<number>(count).fill(0);
+  const writes = Array<number>(count).fill(0);
+  const runners = Array.from({ length: count }, (_, id) =>
+    new NativeResidentSegmentRunner({
+      requestFrame: cb => f.bus.request(cb),
+      subscribeFrame: cb => f.bus.subscribeFrame(cb),
+      cancelFrame: key => f.bus.cancel(key),
+      readTimeScale: () => speed,
+      writePositionXY: () => { writes[id]!++; },
+      advanceSprite: () => {},
+      setWalking: active => { walking[id] = active; }
+    })
+  );
+  const start = (id: number, at: number) => runners[id]!.start({
+    from: { x: id, y: 0 }, to: { x: id + 100, y: 0 },
+    startTimestamp: at, durationMs: 1000,
+    onArrival: () => { arrivals[id]!++; }
+  });
+  for (let id = 0; id < count; id++) start(id, 0);
+  assert.equal(f.bus.snapshot().continuousSubscribers, count);
+  assert.equal(f.os.size, 1);
+  f.tick(100);
+  const writesBefore = writes.reduce((sum, n) => sum + n, 0);
+  assert.equal(writesBefore, count);
+  // 50 routes disappear in foreground; these must be eligible for idle.
+  for (let id = 0; id < 50; id++) runners[id]!.stop();
+  assert.ok(walking.slice(0, 50).every(value => !value));
+  assert.equal(f.bus.snapshot().continuousSubscribers, 150);
+  const staleOsFrame = f.os.values().next().value as (at: number) => void;
+  gate.setGamePaused(true);
+  gate.setForeground(false);
+  assert.equal(f.os.size, 0);
+  // 50 more route removals while paused must not schedule a RAF.
+  for (let id = 50; id < 100; id++) runners[id]!.stop();
+  assert.equal(f.bus.snapshot().continuousSubscribers, 100);
+  assert.equal(f.os.size, 0);
+  assert.ok(walking.slice(0, 100).every(value => !value));
+  staleOsFrame(10_000);
+  assert.equal(writes.reduce((sum, n) => sum + n, 0), writesBefore);
+  gate.setGamePaused(false);
+  assert.equal(f.os.size, 0, "foreground=false must continue to suppress RAF");
+  gate.setForeground(true);
+  f.tick(10_000); // resumed frame only rebases the active motion clocks
+  assert.equal(writes.reduce((sum, n) => sum + n, 0), writesBefore);
+  // The other 100 residents continue; half replace their path while active.
+  for (let id = 100; id < 150; id++) start(id, 10_000);
+  speed = 4;
+  f.tick(10_200);
+  assert.equal(f.bus.snapshot().continuousSubscribers, 100);
+  f.tick(10_250);
+  assert.equal(f.bus.snapshot().continuousSubscribers, 0);
+  assert.equal(f.os.size, 0);
+  assert.ok(walking.every(value => !value), "no phantom walking after interruption/arrival");
+  assert.ok(arrivals.every((n, id) => n === (id >= 100 ? 1 : 0)),
+    "interrupted routes cannot fire old arrivals");
+  const beforeStale = [...writes];
+  staleOsFrame(20_000);
+  assert.deepEqual(writes, beforeStale);
+  runners.forEach(runner => runner.stop());
+  assert.equal(f.bus.snapshot().continuousSubscribers, 0);
+  assert.equal(f.os.size, 0);
+});
+
+test("stop is reentrant-safe and does not suppress a replacement started by walking listeners", () => {
+  const f = fakeFrameBus();
+  let runner!: NativeResidentSegmentRunner;
+  const walking: boolean[] = [];
+  const arrivals: string[] = [];
+  let replaced = false;
+  runner = new NativeResidentSegmentRunner({
+    requestFrame: cb => f.bus.request(cb),
+    subscribeFrame: cb => f.bus.subscribeFrame(cb),
+    cancelFrame: id => f.bus.cancel(id),
+    readTimeScale: () => 1,
+    writePositionXY: () => {},
+    advanceSprite: () => {},
+    setWalking: active => {
+      walking.push(active);
+      if (!active && !replaced) {
+        replaced = true;
+        runner.start({
+          from: { x: 50, y: 0 }, to: { x: 60, y: 0 },
+          startTimestamp: 0, durationMs: 100,
+          onArrival: () => arrivals.push("replacement")
+        });
+      }
+    }
+  });
+  runner.start({
+    from: { x: 0, y: 0 }, to: { x: 10, y: 0 },
+    startTimestamp: 0, durationMs: 100,
+    onArrival: () => arrivals.push("obsolete")
+  });
+  runner.stop();
+  assert.deepEqual(walking, [true, false, true]);
+  assert.equal(runner.snapshot().active, true);
+  assert.equal(f.bus.snapshot().continuousSubscribers, 1);
+  f.tick(100);
+  assert.deepEqual(arrivals, ["replacement"]);
+  assert.equal(f.bus.snapshot().continuousSubscribers, 0);
+  assert.equal(f.os.size, 0);
+});

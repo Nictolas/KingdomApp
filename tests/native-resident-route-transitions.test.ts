@@ -71,9 +71,12 @@ test("200 residents, 200 cycles: commute/night/free priority and no stale home w
 test("native renderer uses route priority in both fixed and wake effects; web untouched", () => {
   const source = readFileSync(new URL("../src/components/MapWandererCharacter.native.tsx", import.meta.url), "utf8");
   assert.match(source, /nativeResidentRouteMode\(commutePath, fixedCell\)/);
-  assert.match(source, /if \(routeMode !== "fixed"\) return;/);
+  assert.match(source, /if \(routeMode !== "fixed" \|\| fixedCell == null\) return;/);
   assert.match(source, /nativeResidentHomeTransition\(prevFixedCellRef\.current, routeMode, fixedCell\)/);
   assert.match(source, /nativeResidentShouldRearmIdle\(/);
+  const commuteCleanup = source.slice(source.indexOf("      alive = false;"));
+  assert.match(commuteCleanup, /pendingCommuteRetry\.clear\(\);\s*(?:\/\/[^\n]*\n\s*)*motion\.stop\(\);\s*clearIdle\(\)/);
+  assert.doesNotMatch(commuteCleanup.slice(0, 220), /motion\.cancel\(\)/);
   assert.match(source, /if \(idleTimerRef\.current != null \|\| isMovingRef\.current\) return;/);
   assert.match(source, /if \(!isNativeResidentFrameBusActive\(\) \|\| getOrologioGiocoInPausaSnapshot\(\)\) return;/);
   const web = readFileSync(new URL("../src/components/MapWandererCharacter.tsx", import.meta.url), "utf8");

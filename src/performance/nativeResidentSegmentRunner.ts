@@ -67,6 +67,18 @@ export class NativeResidentSegmentRunner {
     }
   }
 
+  /**
+   * End an interrupted route, unlike cancel() used for seamless segment
+   * replacement. Clear the shared RAF subscription and reset the walking
+   * state so the free-roam rearm effect does not see a phantom moving sprite.
+   * setWalking can synchronously notify listeners; cancel first to invalidate
+   * stale frames before notifying them.
+   */
+  stop(): void {
+    this.cancel();
+    this.deps.setWalking(false);
+  }
+
   start(request: NativeResidentSegmentRequest): void {
     // Validate before canceling a previously valid segment.
     if (![request.from.x, request.from.y, request.to.x, request.to.y,

@@ -440,7 +440,9 @@ function NativeResidentBody({
     return () => {
       alive = false;
       pendingCommuteRetry.clear();
-      motion.cancel();
+      // Route removed/replaced: cancel RAF AND clear walking state.
+      // cancel() alone leaves isMovingRef true and prevents idle rearming.
+      motion.stop();
       clearIdle();
     };
   }, [
