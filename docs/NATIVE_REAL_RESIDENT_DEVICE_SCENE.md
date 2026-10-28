@@ -38,3 +38,13 @@ La CI diagnostica lancia questi test **insieme** alle regressioni del movimento 
 ## Rischi e limiti
 
 Questa è una prova più realistica del precedente carico di marker, **non** un'intera partita MyKingdom con IA, alberi, edifici, lavoro, religioni o salvataggi. L'occupazione riguarda solo la griglia sintetica della schermata; la geometria di un regno reale può essere diversa. I numeri del pannello rimangono metriche **del thread JavaScript**, non FPS GPU/UI. Il percorso è interamente `__DEV__`, non viene abilitato per gli utenti finali. Nessun merge, deploy o rilascio senza verifica CI e misure su dispositivi reali.
+
+## 28 ottobre — isolamento dei tocchi dal carico dei 200 sprite (A/B identico)
+
+**Problema rilevato nell'harness:** il feedback di un tocco era uno `useState` nel componente padre di tutti gli sprite. Selezionare un residente poteva quindi rieseguire il render React di tutti e 200 i wrapper, alterando le misure di reattività touch e aumentando il rumore del test. Anche la sottoscrizione alla velocità di gioco risiedeva nel componente padre.
+
+**Correzione condivisa con la #298:** un `NativeRealFixtureSelection` in memoria notifica esclusivamente il piccolo overlay di stato tramite `useSyncExternalStore`. Anche la sottoscrizione all'orologio è stata spostata nell'overlay. I 200 residenti ora sono figli `memo` separati, con callback stabili (`useCallback`) per tap, occupazione, arrivo e rilascio; la selezione di un abitante non aggiorna più lo stato React del loro genitore. Cambio popolazione e passaggio Fermi/Muovi continuano a rimontare il carico, così da azzerare correttamente l'occupazione.
+
+**Regressioni aggiunte:** notifiche idempotenti, disiscrizione, isolamento tra fixture e **200.000 selezioni sintetiche** su 200 target. Il test statico impedisce di reintrodurre `setSelected` nel componente padre e controlla la separazione overlay/sprite. Sono test di logica e confine sorgente: non misurano re-render effettivi tramite profiler React né latenza fisica del touch.
+
+I tre file condivisi (fixture, workload, test) sono stati applicati con contenuto SHA-identico a #297 e #298. Non attribuire eventuali differenze A/B a questa modifica, che è presente in entrambe. Le misure reali restano da effettuare su Android e iPhone.
