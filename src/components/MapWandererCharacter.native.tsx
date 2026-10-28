@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { getOrologioGiocoInPausaSnapshot, getOrologioSimTimeScaleSnapshot } from "../game/orologioGiocoSession";
 import { NativeResidentSegmentRunner } from "../performance/nativeResidentSegmentRunner";
+import { beginNativeResidentDispatch, endNativeResidentDispatch } from "../performance/nativeResidentDispatchProfiler";
 import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation, markNativeResidentWrapperInvocation } from "../performance/nativeResidentWorkCounters";
 import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallbackRelay";
@@ -224,18 +225,25 @@ function NativeResidentBody({
   commutePurposeRef.current = commutePurpose;
 
   const handlePress = useCallback(() => {
-    if (!onPress && !onDoublePress) return;
-    const now = Date.now();
-    if (onDoublePress && lastTapTimeRef.current > 0 && now - lastTapTimeRef.current < DOPPIO_TAP_MS) {
-      lastTapTimeRef.current = 0;
-      onDoublePress();
-      return;
-    }
-    lastTapTimeRef.current = now;
-    if (onPress) {
-      onPress();
-    } else if (onDoublePress) {
-      // Solo doppio tocco configurato: primo tap arma, secondo apre.
+    // Opt-in diagnostic measures JS execution of the Pressable handler,
+    // NOT the delay between a physical touch and React Native delivery.
+    const timing = beginNativeResidentDispatch("touch");
+    try {
+      if (!onPress && !onDoublePress) return;
+      const now = Date.now();
+      if (onDoublePress && lastTapTimeRef.current > 0 && now - lastTapTimeRef.current < DOPPIO_TAP_MS) {
+        lastTapTimeRef.current = 0;
+        onDoublePress();
+        return;
+      }
+      lastTapTimeRef.current = now;
+      if (onPress) {
+        onPress();
+      } else if (onDoublePress) {
+        // Solo doppio tocco configurato: primo tap arma, secondo apre.
+      }
+    } finally {
+      endNativeResidentDispatch("touch", timing);
     }
   }, [onPress, onDoublePress]);
 
