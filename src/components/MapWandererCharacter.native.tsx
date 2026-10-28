@@ -736,7 +736,7 @@ function NativeResidentBody({
 /**
  * The parent map changes inline handlers at every world-clock render. Keep
  * the simulation/sprite subtree memoized while the outer wrapper refreshes
- * the live event targets synchronously. Non-event props, including walkable
+ * the live event targets after commit. Non-event props, including walkable
  * predicates, road predicates, path, night cell, accessibility and hit-test
  * passthrough, retain normal shallow comparison and trigger a real render.
  */
