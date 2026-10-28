@@ -57,3 +57,17 @@ test("invalid or backward speed samples never move the character backwards", () 
   assert.equal(clock.advanceScaled(130, 4), 40);
   assert.equal(clock.advanceScaled(Number.POSITIVE_INFINITY, 4), 40);
 });
+
+test("long RAF suspension does not teleport a walking resident on app resume", () => {
+  const clock = new PauseAwareMotionClock(0);
+  assert.equal(clock.advanceScaled(100, 1), 100);
+  assert.equal(clock.advanceScaled(30_000, 4), 100, "backgrounded interval is discarded");
+  assert.equal(clock.advanceScaled(30_016, 4), 164, "first visible frame resumes at active 4x");
+});
+
+test("a normal frame stall below background threshold still respects game speed", () => {
+  const clock = new PauseAwareMotionClock(0);
+  assert.equal(clock.advanceScaled(1999, 1), 1999);
+  assert.equal(clock.advanceScaled(3999, 2), 1999, "exactly 2s is a suspended interval");
+  assert.equal(clock.advanceScaled(4015, 2), 2031);
+});
