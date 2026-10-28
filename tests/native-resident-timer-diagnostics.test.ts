@@ -160,3 +160,92 @@ test("1000 mixed deadlines and cancellations preserve one OS timer at a time", (
   assert.equal(fixture.queue.snapshot().platformWakeups, 10);
   assert.equal(fixture.queue.snapshot().pending, 0);
 });
+
+test("10,000 mixed resident deadlines use a bounded heap and deliver exactly once", () => {
+  const fixture = clockFixture();
+  const count = 10_000;
+  const executed: number[] = [];
+  const ids = Array.from({ length: count }, (_, i) =>
+    fixture.queue.schedule(() => executed.push(i), (i % 100 + 1) * 10)
+  );
+  const canceled = new Set<number>();
+  // Cancel across heap positions, not just the earliest event.
+  for (let i = 0; i < count; i += 7) {
+    fixture.queue.cancel(ids[i]!);
+    canceled.add(i);
+  }
+  assert.equal(fixture.queue.snapshot().pending, count - canceled.size);
+  assert.equal(fixture.osTimers.size, 1);
+  fixture.queue.setActive(false);
+  assert.equal(fixture.osTimers.size, 0);
+  fixture.set(50_000);
+  fixture.queue.setActive(true);
+  assert.equal(fixture.queue.snapshot().nextDueInMs, 10);
+
+  // Heap must preserve the exact ordering of 10k independently registered
+  // logical events, even after cancellations and suspension.
+  for (let tick = 1; tick <= 100; tick++) fixture.tick(50_000 + tick * 10);
+  assert.equal(fixture.queue.snapshot().pending, 0);
+  assert.equal(fixture.osTimers.size, 0);
+  assert.equal(executed.length, count - canceled.size);
+  assert.equal(new Set(executed).size, count - canceled.size);
+  assert.equal(fixture.queue.snapshot().platformWakeups, 100);
+  assert.equal(fixture.queue.snapshot().logicalCallbacks, count - canceled.size);
+  let lastDeadline = 0;
+  let lastId = -1;
+  for (const index of executed) {
+    assert.ok(!canceled.has(index));
+    const due = (index % 100 + 1) * 10;
+    assert.ok(due >= lastDeadline, "wakeups must preserve deadline order");
+    if (due === lastDeadline) assert.ok(index > lastId, "ties preserve registration order");
+    lastDeadline = due;
+    lastId = index;
+  }
+});
+
+test("indexed heap remains consistent when callbacks cancel peers and schedule next wakeups", () => {
+  const fixture = clockFixture();
+  const calls: number[] = [];
+  const ids: number[] = [];
+  for (let i = 0; i < 250; i++) {
+    ids.push(fixture.queue.schedule(() => {
+      calls.push(i);
+      if (i === 0) {
+        fixture.queue.cancel(ids[1]!);
+        fixture.queue.cancel(ids[200]!);
+        fixture.queue.schedule(() => calls.push(999), 0);
+      }
+    }, 50));
+  }
+  fixture.tick(50);
+  assert.equal(calls.length, 248);
+  assert.equal(calls[0], 0);
+  assert.ok(!calls.includes(1));
+  assert.ok(!calls.includes(200));
+  assert.equal(fixture.queue.snapshot().pending, 1);
+  fixture.tick(50);
+  assert.equal(calls.length, 249);
+  assert.equal(calls[248], 999);
+  assert.equal(fixture.queue.snapshot().pending, 0);
+});
+
+test("the indexed heap replays only unfinished due tasks after a mid-flush pause", () => {
+  const fixture = clockFixture();
+  const calls: string[] = [];
+  for (let i = 0; i < 200; i++) {
+    fixture.queue.schedule(() => {
+      calls.push(String(i));
+      if (i === 13) fixture.queue.setActive(false);
+    }, 50);
+  }
+  fixture.tick(50);
+  assert.equal(calls.length, 14);
+  assert.equal(fixture.queue.snapshot().pending, 186);
+  assert.equal(fixture.osTimers.size, 0);
+  fixture.set(10_000);
+  fixture.queue.setActive(true);
+  fixture.tick(10_000);
+  assert.equal(calls.length, 200);
+  assert.equal(new Set(calls).size, 200);
+  assert.deepEqual(calls, Array.from({ length: 200 }, (_, i) => String(i)));
+});
