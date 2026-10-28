@@ -376,13 +376,17 @@ function NativeResidentBody({
         const canRepath = purpose != null && onCommuteBlockedRef.current != null;
         const decision = claimRetry.fail(canRepath);
         if (decision === "request-repath") {
+          // A previously canceled fallback may arrive after a newer route
+          // starts waiting for repath. Capture this request generation so an
+          // old closure cannot resume the new route or claim its cells.
+          const repathGeneration = claimRetry.repathGeneration();
           // The parent can legitimately find no alternate path (e.g. a
           // blocked bar/market entrance). Do not strand this resident forever:
           // give the parent a chance to replace/complete the route, then
           // resume the original 900 ms collision retry if it did neither.
           // A route change clears both this timer and the held callback.
           pendingCommuteRetry.hold(() => {
-            if (claimRetry.resumeWithoutRepath()) {
+            if (claimRetry.resumeWithoutRepath(repathGeneration)) {
               runOneSegment(from, to, onDone, isLastSegment);
             }
           });
