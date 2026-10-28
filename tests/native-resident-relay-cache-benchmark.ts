@@ -57,7 +57,8 @@ function run(useCachedRelay: boolean) {
         createdBindings++;
       }
       const previous = prior[resident];
-      if (useCachedRelay && previous?.onPress === bound.onPress && previous?.releaseMyCell === bound.releaseMyCell) {
+      if (useCachedRelay && previous !== null &&
+        previous.onPress === bound.onPress && previous.releaseMyCell === bound.releaseMyCell) {
         assert.strictEqual(bound, previous, "same optional presence must not allocate a new binding");
       }
       if (useCachedRelay && previous !== bound) createdBindings++;
