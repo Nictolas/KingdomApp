@@ -103,3 +103,35 @@ risolvere un conflitto di posizione richiederebbe una decisione del
 pathfinder del genitore, fuori da questa correzione. Nessuna modifica a
 GameContext, salvataggi, web, #298 o regole di collisione. Validare CI
 e poi la prova A/B su Android/iPhone prima di qualsiasi merge.
+
+
+## 28 ottobre — arrivo alla casa condivisa senza prenotazioni fantasma
+
+Audit del ramo native: nell'ultimo segmento `commutePurpose === "home"`
+il tentativo di claim della cella d'ingresso e' intenzionalmente non
+bloccante, perche' piu' residenti possono condividere la stessa casa.
+Se il claim falliva, il residente manteneva prenotata la precedente
+cella stradale anche **dopo** l'arrivo, fino a un eventuale effetto
+successivo di rientro in casa. Se il claim riusciva, conservava invece
+un'esclusiva sulla cella d'ingresso condivisa. Entrambi i casi potevano
+bloccare altri residenti.
+
+Ora il callback di arrivo dell'**ultimo** segmento verso casa libera
+sempre la prenotazione del residente **prima** di notificare
+`onCellSettled` e `onCommuteComplete`. Non cambia i claim dei segmenti
+intermedi, ne' quelli verso lavoro, bar, culto e altre destinazioni.
+La cella stradale rimane riservata durante il movimento e viene
+liberata soltanto all'arrivo; un home owner esistente non viene rimosso.
+La riparazione e' confinata a `MapWandererCharacter.native.tsx`
+e all'helper puro `nativeResidentReleaseSharedHomeArrival`.
+
+Test: claim fallito e riuscito, preservazione dei claim non-home,
+ordine delle callback, 200 runner reali del motore con 20 case condivise
+per 12 cicli (2.400 arrivi), pausa/background e velocita' 1x/2x/4x,
+verifica delle due mappe di occupancy e assenza di celle stradali
+fantasma. I runner e le celle sono **simulati in Node**: non sono
+prove di pathfinding, rendering React Native montato o FPS su hardware.
+La fixture A/B della #298 e il web rimangono invariati. Il nuovo
+test e' eseguito dal job gia' presente
+`native-resident-occupancy-handoff.test.ts`; i bundle JS e la CI
+restano verifiche distinte.

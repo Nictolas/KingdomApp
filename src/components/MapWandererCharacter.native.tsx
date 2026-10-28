@@ -4,7 +4,7 @@ import { getOrologioGiocoInPausaSnapshot, getOrologioSimTimeScaleSnapshot } from
 import { NativeResidentSegmentRunner } from "../performance/nativeResidentSegmentRunner";
 import { beginNativeResidentDispatch, endNativeResidentDispatch } from "../performance/nativeResidentDispatchProfiler";
 import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
-import { nativeResidentRouteMode, nativeResidentHomeTransition, nativeResidentShouldRearmIdle, nativeResidentReconcileInterruptedClaim, nativeResidentReleaseMismatchedRouteOrigin } from "../performance/nativeResidentRouteTransitions";
+import { nativeResidentRouteMode, nativeResidentHomeTransition, nativeResidentShouldRearmIdle, nativeResidentReconcileInterruptedClaim, nativeResidentReleaseMismatchedRouteOrigin, nativeResidentReleaseSharedHomeArrival } from "../performance/nativeResidentRouteTransitions";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation, markNativeResidentWrapperInvocation } from "../performance/nativeResidentWorkCounters";
 import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallbackRelay";
 import { NativeResidentTapRecognizer } from "../performance/nativeResidentTapRecognizer";
@@ -402,6 +402,12 @@ function NativeResidentBody({
         durationMs: segmentMoveDurationMs(from, to, isRoadCell),
         keepWalkingOnArrival: !isLastSegment,
         onArrival: () => {
+          // The final home doorway is shared. Even if its soft claim failed,
+          // release the previously reserved street cell before notifying
+          // the parent (which can synchronously replace the route).
+          nativeResidentReleaseSharedHomeArrival(
+            isLastSegment, purpose, releaseMyCellRef.current
+          );
           setLogicalCell(to);
           cellRef.current = to;
           onCellSettledRef.current?.(to);

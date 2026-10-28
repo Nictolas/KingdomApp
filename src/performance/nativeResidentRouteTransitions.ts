@@ -80,3 +80,21 @@ export function nativeResidentReleaseMismatchedRouteOrigin(
   release();
   return true;
 }
+
+/**
+ * A completed last step into a shared home must never keep an exclusive
+ * street or doorway reservation. The soft-home entry may have failed to
+ * claim the shared destination; in that case the old road cell is still
+ * reserved until this arrival callback. Release BEFORE notifying the parent
+ * that the resident settled, so synchronous route updates cannot observe a
+ * ghost road occupant. Non-home arrivals keep their ordinary claim.
+ */
+export function nativeResidentReleaseSharedHomeArrival(
+  isLastSegment: boolean,
+  purpose: string | null | undefined,
+  release: (() => void) | null | undefined
+): boolean {
+  if (!isLastSegment || purpose !== "home" || !release) return false;
+  release();
+  return true;
+}
