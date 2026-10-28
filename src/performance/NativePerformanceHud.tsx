@@ -1,4 +1,6 @@
 import React, { useCallback, useRef, useState } from "react";
+import { getOrologioSimTimeScaleSnapshot, subscribeOrologioGiocoInPausa, subscribeOrologioGiocoVelocita } from "../game/orologioGiocoSession";
+import { nativeCaptureContextChanged, type NativeCaptureContext } from "./nativeCaptureIntegrity";
 import { useFocusEffect } from "expo-router";
 import { AppState, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { NativeFrameWindow, type NativeFrameSnapshot } from "./nativeFrameMetrics";
@@ -47,6 +49,8 @@ export function NativePerformanceHud({
   const frameWindow = useRef(new NativeFrameWindow(120));
   const [measuring, setMeasuring] = useState(false);
   const [latestReport, setLatestReport] = useState<string | null>(null);
+  const [captureWarning, setCaptureWarning] = useState<string | null>(null);
+  const currentScene = useRef({ label, residents, terrainCells });
   const capture = useRef<{
     session: NativeMeasurementSession;
     dispatchToken: number;
@@ -54,8 +58,33 @@ export function NativePerformanceHud({
     timerStart: NativeResidentTimerSnapshot;
     frameBusStart: NativeResidentFrameBusSnapshot;
     renderStart: NativeResidentRenderTotals;
-    environment: { platform: string; label: string; residents: number; terrainCells?: number };
+    environment: NativeCaptureContext;
   } | null>(null);
+
+  /**
+   * A mixed population/speed capture cannot be compared with another run.
+   * Always close both optional probes before discarding its report.
+   */
+  const abortCapture = useCallback((reason?: string) => {
+    const active = capture.current;
+    if (!active) return;
+    cancelNativeResidentDispatchCapture(active.dispatchToken);
+    cancelNativeResidentEventLoopProbe(active.lagToken);
+    capture.current = null;
+    setMeasuring(false);
+    if (reason) setCaptureWarning(reason);
+  }, []);
+
+  React.useLayoutEffect(() => {
+    // Commit-time metadata: a concurrent/aborted render must never change
+    // the environment of an ongoing diagnostic measurement.
+    currentScene.current = { label, residents, terrainCells };
+    const active = capture.current;
+    if (active && nativeCaptureContextChanged(active.environment, {
+      platform: Platform.OS, label, residents, terrainCells,
+      timeScale: getOrologioSimTimeScaleSnapshot()
+    })) abortCapture("Misura interrotta: scena o numero di abitanti cambiati.");
+  }, [label, residents, terrainCells, abortCapture]);
 
   const startMeasurement = useCallback(() => {
     if (capture.current) {
@@ -63,6 +92,7 @@ export function NativePerformanceHud({
       cancelNativeResidentEventLoopProbe(capture.current.lagToken);
     }
     setLatestReport(null);
+    setCaptureWarning(null);
     capture.current = {
       session: new NativeMeasurementSession(performance.now()),
       dispatchToken: startNativeResidentDispatchCapture(),
@@ -70,7 +100,8 @@ export function NativePerformanceHud({
       timerStart: getNativeResidentTimerSnapshot(),
       frameBusStart: getNativeResidentFrameBusSnapshot(),
       renderStart: getNativeResidentRenderTotals(),
-      environment: { platform: Platform.OS, label, residents, terrainCells }
+      environment: { platform: Platform.OS, label, residents, terrainCells,
+        timeScale: getOrologioSimTimeScaleSnapshot() }
     };
     setMeasuring(true);
   }, [label, residents, terrainCells]);
@@ -99,18 +130,24 @@ export function NativePerformanceHud({
     let raf = 0;
     let previous: number | null = null;
     let lastPublished = 0;
+    // Clock changes during an opt-in capture invalidate the window even if
+    // the simulation is paused and resumed between two animation frames.
+    const onClockChange = () => {
+      const active = capture.current;
+      if (active && nativeCaptureContextChanged(active.environment, {
+        ...active.environment, timeScale: getOrologioSimTimeScaleSnapshot()
+      })) abortCapture("Misura interrotta: velocità o pausa di gioco cambiate.");
+    };
+    const unsubscribePause = subscribeOrologioGiocoInPausa(onClockChange);
+    const unsubscribeSpeed = subscribeOrologioGiocoVelocita(onClockChange);
     const onStateChange = AppState.addEventListener("change", () => {
       previous = null;
       frameWindow.current.reset();
       lastTimerSample.current = null;
       lastFrameBusSample.current = null;
-      // Pausing/rotating the app invalidates a timed measurement.
-      if (capture.current) {
-        cancelNativeResidentDispatchCapture(capture.current.dispatchToken);
-        cancelNativeResidentEventLoopProbe(capture.current.lagToken);
-      }
-      capture.current = null;
-      setMeasuring(false);
+      // A background/foreground interval must never appear in a valid
+      // 10-second sample. The screen can be remeasured after return.
+      abortCapture("Misura interrotta: applicazione in background.");
     });
     const onFrame = (timestamp: number) => {
       if (AppState.currentState === "active") {
@@ -119,6 +156,13 @@ export function NativePerformanceHud({
           frameWindow.current.record(delta);
           const active = capture.current;
           if (active) {
+            const context: NativeCaptureContext = {
+              platform: Platform.OS, ...currentScene.current,
+              timeScale: getOrologioSimTimeScaleSnapshot()
+            };
+            if (nativeCaptureContextChanged(active.environment, context)) {
+              abortCapture("Misura interrotta: scena o velocità cambiate.");
+            } else {
             const complete = active.session.record(timestamp, delta);
             if (complete) {
               capture.current = null;
@@ -135,6 +179,7 @@ export function NativePerformanceHud({
                 active.frameBusStart, getNativeResidentFrameBusSnapshot(), complete.durationMs
               );
               setLatestReport(formatNativeMeasurement(complete, active.environment, delta, renders, frameBus, dispatch ?? undefined, lag ?? undefined));
+            }
             }
           }
         }
@@ -189,9 +234,11 @@ export function NativePerformanceHud({
         cancelNativeResidentEventLoopProbe(capture.current.lagToken);
       }
       capture.current = null;
+      unsubscribePause();
+      unsubscribeSpeed();
       onStateChange.remove();
     };
-  }, []));
+  }, [abortCapture]));
 
   return (
     <View style={styles.container}>
@@ -232,6 +279,7 @@ export function NativePerformanceHud({
           >
             <Text style={styles.buttonText}>{measuring ? "Campionamento in corso (10 s)" : "Misura 10 secondi"}</Text>
           </Pressable>
+          {captureWarning && <Text style={styles.note}>{captureWarning}</Text>}
           {latestReport && (
             <>
               <Text style={styles.text}>{latestReport.split("\n").filter((line) => /FPS JS medio:|p95:|Campioni:|Batch RAF JS p95:|Batch timer JS p95:|Ritardo loop JS p95:|Gestore tocchi JS p95:/.test(line)).join(" · ")}</Text>
