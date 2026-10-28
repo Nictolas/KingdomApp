@@ -44,6 +44,8 @@ test("200 logical idle callbacks use one OS timer wakeup and report accurate tot
   assert.equal(executed, 200);
   assert.equal(delta.platformWakeups, 1);
   assert.equal(delta.logicalCallbacks, 200);
+  assert.equal(delta.readyBufferUses, 1);
+  assert.ok(Math.abs(delta.readyBufferUsesPerSecond - 1 / 2.2) < 1e-10);
   assert.equal(delta.platformSchedules, 1);
   assert.equal(delta.platformCancellations, 0);
   assert.ok(Math.abs(delta.platformWakeupsPerSecond - 1 / 2.2) < 1e-10);
@@ -105,7 +107,7 @@ test("counter snapshots reject negative rates after reset and invalid intervals"
   assert.deepEqual(delta, {
     platformSchedules: 0, platformCancellations: 0,
     platformWakeups: 0, logicalCallbacks: 0, budgetYields: 0, timeBudgetYields: 0,
-    platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, budgetYieldsPerSecond: 0, timeBudgetYieldsPerSecond: 0
+    platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, readyBufferUses: 0, readyBufferUsesPerSecond: 0, budgetYieldsPerSecond: 0, timeBudgetYieldsPerSecond: 0
   });
   assert.equal(diffNativeResidentTimerCounters(b, a, Number.NaN).logicalCallbacksPerSecond, 0);
 });
@@ -119,14 +121,16 @@ test("the 10-second shareable report includes aggregate timers without personal 
     }
   };
   const timerDelta = diffNativeResidentTimerCounters(
-    { platformSchedules: 0, platformCancellations: 0, platformWakeups: 0, logicalCallbacks: 0, budgetYields: 0, timeBudgetYields: 0 },
-    { platformSchedules: 25, platformCancellations: 3, platformWakeups: 20, logicalCallbacks: 200, budgetYields: 5, timeBudgetYields: 2 },
+    { platformSchedules: 0, platformCancellations: 0, platformWakeups: 0, logicalCallbacks: 0, budgetYields: 0, timeBudgetYields: 0, readyBufferUses: 0 },
+    { platformSchedules: 25, platformCancellations: 3, platformWakeups: 20, logicalCallbacks: 200, budgetYields: 5, timeBudgetYields: 2, readyBufferUses: 20 },
     10_000
   );
   const report = formatNativeMeasurement(result, {
     platform: "android", label: "Mappa residente", residents: 200, terrainCells: 800
   }, timerDelta);
   assert.match(report, /Wakeup timeout nativo: 20/);
+  assert.match(report, /Batch timer con buffer riciclato: 20/);
+  assert.match(report, /Batch timer con buffer riciclato\/s: 2\.0/);
   assert.match(report, /Yield backlog timer: 5/);
   assert.match(report, /Yield per budget temporale JS: 2/);
   assert.match(report, /Yield per budget temporale JS\/s: 0\.2/);
