@@ -78,3 +78,11 @@ I timer già scaduti al momento del wakeup vengono temporaneamente estratti dal 
 **Nuovi stress test sintetici (non benchmark FPS):** `native-resident-timer-diagnostics.test.ts` verifica 10.000 scadenze con deadline differenti e cancellazioni in ogni zona del heap, correttezza e unicità dei callback, ordine stabile per deadline e registrazione, un solo timeout del sistema per volta, annullamenti mentre un batch è in corso, e pausa nel mezzo di 200 callback mature.
 
 Queste verifiche riguardano **correttezza e complessità algoritmica**; un miglioramento misurato di CPU, batteria o FPS su dispositivo non è ancora documentato.
+
+### Confronto con modello di riferimento indipendente
+
+Per proteggere il refactor da errori difficili da vedere in un test predefinito, il nuovo `tests/native-resident-timer-model-comparison.test.ts` confronta **4.000 operazioni pseudo-casuali con seme fisso** contro un modello lento e deliberatamente semplice basato su `Map` e scansioni. Il modello e' un *oracolo di correttezza*, non la soluzione di produzione.
+
+Il test mescola inserimenti con delay differenti, cancellazioni, avanzamenti di clock, pause e riprese, verificando dopo ogni operazione l'attivita', la prima scadenza e il numero di callback ancora presenti. Ad ogni wakeup confronta la sequenza di callback con quella del riferimento e verifica che non vi siano duplicazioni. Un seme costante permette di riprodurre gli stessi scenari e gli eventuali fallimenti in CI.
+
+**Limiti:** l'oracolo verifica il comportamento logico e non il touch, le collisioni reali o le prestazioni su un dispositivo. La CI generale puo' ancora fallire per errori TypeScript non collegati; non confondere la riuscita di questa suite con una release pronta.
