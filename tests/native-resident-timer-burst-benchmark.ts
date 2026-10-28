@@ -52,8 +52,13 @@ function benchmark(population: number, callbackBudget: number) {
   assert.equal(queue.snapshot().logicalCallbacks, population);
   assert.equal(queue.snapshot().pending, 0);
   assert.equal(wakes, callbackBudget === Number.POSITIVE_INFINITY ? 1 : Math.ceil(population / callbackBudget));
+  assert.equal(queue.snapshot().readyBufferUses, wakes);
   return {
     population, callbackBudget, wakes,
+    /** Old queue allocated one ready Map per wake; the new queue recycles one. */
+    previousTransientMapAllocations: wakes,
+    currentTransientMapAllocations: 0,
+    readyBufferUses: queue.snapshot().readyBufferUses,
     budgetYields: queue.snapshot().budgetYields,
     maxCallbackCountPerWake,
     insertionMs: +insertionMs.toFixed(3),
