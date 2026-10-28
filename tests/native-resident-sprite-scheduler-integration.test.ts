@@ -4,7 +4,7 @@ import { NativeResidentActivityGate } from "../src/performance/nativeResidentAct
 import { NativeResidentFrameBus } from "../src/performance/nativeResidentFrameBus.ts";
 import { NativeResidentSegmentProgress } from "../src/performance/nativeResidentSegmentProgress.ts";
 import { NativeResidentSpriteFrameDriver } from "../src/performance/nativeResidentSpriteFrameDriver.ts";
-import { NativeResidentTimerQueue } from "../src/performance/nativeResidentTimerQueue.ts";
+import { NativeResidentTimerQueue, NATIVE_RESIDENT_TIMER_CALLBACK_BUDGET } from "../src/performance/nativeResidentTimerQueue.ts";
 
 /**
  * End-to-end deterministic model of the native resident scheduling stack.
@@ -36,7 +36,8 @@ test("200 native residents: shared RAF + sprite offsets + collision timers acros
       timeouts.set(id, { at: wall + delayMs, callback });
       return id;
     },
-    id => { timeouts.delete(id); }
+    id => { timeouts.delete(id); },
+    NATIVE_RESIDENT_TIMER_CALLBACK_BUDGET
   );
   const gate = new NativeResidentActivityGate(true, false, active => {
     timers.setActive(active);
@@ -137,6 +138,8 @@ test("200 native residents: shared RAF + sprite offsets + collision timers acros
   assert.equal(timeouts.size, 1);
   runTimersUntil(wall + 2000);
   assert.equal(retried.length, 150);
+  assert.ok(timers.snapshot().budgetYields > 0, "integration must exercise real native cooperative batches");
+  assert.ok(timers.snapshot().platformWakeups >= Math.ceil(150 / NATIVE_RESIDENT_TIMER_CALLBACK_BUDGET));
   assert.equal(new Set(retried).size, 150);
   assert.ok(retried.every(id => id % 4 !== 0));
   assert.equal(timers.snapshot().pending, 0);
