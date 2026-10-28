@@ -15,6 +15,8 @@ export class NativeResidentCollisionRetry {
   private failures = 0;
   private awaitingRepath = false;
   private fallbackRetry = false;
+  /** Changes whenever an awaited reroute is superseded by a new route. */
+  private generation = 0;
 
   constructor(private readonly maxFailures: number) {
     if (!Number.isSafeInteger(maxFailures) || maxFailures < 1) {
@@ -31,23 +33,32 @@ export class NativeResidentCollisionRetry {
     if (canRepath && this.failures >= this.maxFailures) {
       this.failures = 0;
       this.awaitingRepath = true;
+      this.generation++;
       return "request-repath";
     }
     return "retry";
   }
 
   /** The delayed fallback may resume only if no new route or successful
-   * claim has reset the controller. Stale callbacks are therefore harmless.
+   * claim has reset the controller. The captured generation also rejects a
+   * callback from an earlier route if a new route is already awaiting repath.
    * Once resumed, collision retries continue without a second repath request.
    */
-  resumeWithoutRepath(): boolean {
-    if (!this.awaitingRepath) return false;
+  /** Capture immediately after request-repath, before notifying the parent. */
+  repathGeneration(): number {
+    return this.generation;
+  }
+
+  /** A delayed callback from an older route must not resume a newer wait. */
+  resumeWithoutRepath(expectedGeneration: number): boolean {
+    if (!this.awaitingRepath || expectedGeneration !== this.generation) return false;
     this.awaitingRepath = false;
     this.fallbackRetry = true;
     return true;
   }
 
   reset(): void {
+    this.generation++;
     this.failures = 0;
     this.awaitingRepath = false;
     this.fallbackRetry = false;
