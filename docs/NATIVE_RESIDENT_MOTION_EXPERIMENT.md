@@ -93,3 +93,29 @@ Il primo frame bus raggruppava le richieste RAF, ma continuava a processare ogni
 Questi sono test **deterministici**, non una misura di CPU, FPS, memoria o batteria sul telefono. Resta necessaria la prova nativa manuale: con almeno 50 residenti in movimento verificare (1) pausa 0.2 s e 10 s, (2) ritorno in foreground dopo 30 s, (3) movimenti 1×/2×/4×, (4) collisioni e attese a un incrocio, (5) tap/doppio tap sugli abitanti animati, (6) zoom e panoramica; poi ripetere con 100 e circa 200. Utilizzare il pannello prestazioni e un profiler del thread UI per confrontare la PR #295.
 
 Questa correzione non e' stata rilasciata: PR Draft #296, stacked su #295.
+
+
+## 28 ottobre — ciclo di vita completo, background e integrazione 200 residenti
+
+La fase successiva dell'esperimento ha verificato un rischio rimasto nel primo frame bus: la sospensione del solo `requestAnimationFrame` non impedisce ai **timer di attesa** di tentare nuove celle o di perdere definitivamente un retry quando l'app passa in background. Inoltre, alla ripresa dopo una sospensione breve (<2 s), il clock del singolo residente poteva ancora integrare il tempo trascorso fuori schermo.
+
+Intervento isolato in **PR Draft #296**:
+- `NativeResidentActivityGate` combina pausa di gioco (incluso il blocco della fase) e stato foreground Android/iOS; il solo ritorno in foreground non scavalca una pausa manuale.
+- `NativeResidentFrameBus` conserva le callback dei residenti durante la sospensione ma **annulla il RAF di piattaforma**. In fase di ripresa, ogni segmento riceve un segnale di rebase del timestamp: anche una sospensione breve non deve avanzare il passo.
+- Il bus invalida i callback nativi obsoleti mediante una generazione, così un vecchio RAF arrivato dopo una cancellazione non può svuotare la coda del nuovo frame. Se la pausa avviene durante un lotto, le callback residue sono conservate.
+- Un solo listener AppState e un solo listener dell'orologio servono il bus condiviso; i residenti ascoltano soltanto i **cambi di attività** del bus per annullare i propri timer idle/retry e riavviarli alla ripresa. Nessun listener per-residente sullo stato AppState e nessun polling.
+- `pickNextMove` e `runOneSegment` rifiutano nuovi claim/movimenti quando il gioco è in pausa **oppure** l'app non è attiva. `PendingCommuteRetry` conserva il tentativo in memoria e lo consuma una sola volta; una continuazione viene scartata a cambio percorso o smontaggio.
+- `NativeResidentSegmentProgress` unifica la stessa regola di avanzamento per passeggiata e pendolarismo: velocità 1×/2×/4×, pausa, rebase, durata del segmento e arrivo. La posizione, la hitbox, le collisioni e le callback restano nel componente nativo. Il flag di movimento è aggiornato sincronicamente, evitando che un effetto React ritardato impedisca il riavvio di un idle.
+- Il renderer predefinito/web, il tempo del mondo, GameContext, salvataggi e regole di gameplay **non sono stati modificati**.
+
+### Test automatizzati e limiti
+
+La suite `native-resident-lifecycle-integration.test.ts` usa un RAF finto, un gate di attività reale e **200 istanze** del sampler del segmento. Verifica tre campioni di progresso (0,1 a 1×; 0,3 a 2×; 0,7 a 4×), pausa con **zero RAF di piattaforma**, background, ritorno in foreground mentre il gioco è ancora in pausa, ripresa senza teletrasporto, completamento di tutti i 200 segmenti **una sola volta** e nessuna callback residua. Un test aggiuntivo simula 200 retry di collisione, controllando consumo singolo e assenza di ripresa prematura. Sono coperti anche timestamp di ripresa ravvicinati, rate invalidi, eccezioni nei listener e separazione del codice web.
+
+La suite è inclusa nel workflow `Native Performance Diagnostics Tests` assieme ai bundle JavaScript Android, iOS e web. **L'esito va verificato nella run del commit corrente**: l'esistenza del test non è una prova che sia passato. Tutte le quantità citate sono aspettative/assert di simulazioni deterministiche, **non** misure di FPS, batteria, tempi di risposta, uso della memoria o fluidità su smartphone.
+
+### Convalida manuale ancora necessaria
+
+Confrontare sullo **stesso dispositivo** PR #295 e #296, con 25/50/100/200 abitanti e misure ripetute a 1×. Controllare anche tap e doppio tap su sprite in movimento, hitbox durante zoom/pan, percorsi concorrenti e collisioni, sospensione breve e lunga, pausa manuale in background, rientro con pausa ancora attiva, retry di collisione sospeso, rientro in casa e cambi 1×/2×/4×. I bundle JS non sostituiscono una build installata né un test su Android/iOS reale.
+
+Il blocco rimane **sperimentale, reversibile e non integrato in main**. Non è autorizzato dedurre un miglioramento FPS dai test sintetici.
