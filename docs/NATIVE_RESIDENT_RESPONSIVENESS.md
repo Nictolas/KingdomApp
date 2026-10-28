@@ -57,3 +57,16 @@ Il probe da 50 ms aggiunge un leggero carico JS **soltanto durante la cattura**.
 - Nessuna misurazione hardware Android/iOS è stata eseguita. Le verifiche bundle e i test Node non provano FPS, UI thread o latenza touch fisica.
 
 **Gate prima del merge:** confrontare diagnostica TypeScript su #295, #296 e #297, verificare l'assenza di regressioni native, poi completare la matrice manuale su dispositivi. La #297 resta Draft.
+
+## Gate additivo TypeScript per le PR native (28/10/2026)
+
+Il confronto **dei log reali**, non soltanto del numero totale, è stato completato sui job GitHub Actions `Verify` delle PR #295, #296 e #297:
+- #295: workflow `40605206040`, job `122542924762`, 53 diagnostiche;
+- #296: workflow `40614182253`, job `122572712173`, le stesse 53 diagnostiche;
+- #297: workflow `40671082814`, job `122757738230`, le stesse 53 diagnostiche.
+
+Le 53 tuple `file/riga/colonna/codice/messaggio` coincidono esattamente nei tre log (non soltanto per numero o categoria). Perciò **non risultano nuovi errori TypeScript** in #296 o #297 rispetto a #295, pur restando la CI generale rossa.
+
+Per impedire regressioni successive, il workflow `native-perf-diagnostics.yml` esegue ora `node --test tests/native-typecheck-regression.test.mjs` e `node scripts/check-native-typecheck-regressions.mjs`. La baseline congelata in `tests/fixtures/native-typecheck-baseline.json` proviene dal job della #295. Il confronto è un multinsieme: intercetta anche duplicati, variazioni di messaggio, colonna e riga; accetta la risoluzione di errori storici. Errori nuovi fanno fallire il gate; processi TypeScript interrotti o terminati senza diagnostiche interpretabili fanno fallire il gate.
+
+**Limiti:** è un gate additivo, non sostituisce il controllo `npm run typecheck` della CI generale, che continua a fallire fino alla correzione degli errori originali. Il gate non dimostra correttezza runtime, prestazioni native o sicurezza del merge. La CI deve eseguire con successo anche i test dello stesso gate dopo questo commit; fino ad allora l'esito è «implementato, non ancora validato dalla pipeline». La baseline va aggiornata soltanto dopo una verifica esplicita del motivo di ogni modifica, non automaticamente.
