@@ -7,6 +7,18 @@ type ResidentFrameCallback = (timestamp: number, resumedAfterSuspension: boolean
 type RequestFrame = (callback: (timestamp: number) => void) => number;
 type CancelFrame = (id: number) => void;
 
+/** Aggregate JS scheduler counts only; no resident IDs or positions. */
+export type NativeResidentFrameBusSnapshot = Readonly<{
+  queued: number;
+  scheduled: boolean;
+  active: boolean;
+  dispatchCount: number;
+  activityListeners: number;
+  continuousSubscribers: number;
+  subscriptionAdds: number;
+  oneShotRequests: number;
+}>;
+
 /**
  * A single frame dispatcher for all moving native residents.
  *
@@ -21,6 +33,7 @@ export class NativeResidentFrameBus {
   /** Persistent movement subscribers avoid 200 re-registrations every frame. */
   private continuous = new Map<number, ResidentFrameCallback>();
   private subscriptionAdds = 0;
+  private oneShotRequests = 0;
   private activityListeners = new Set<(active: boolean) => void>();
   private due: Map<number, ResidentFrameCallback> | null = null;
   private platformFrame: number | null = null;
@@ -40,6 +53,7 @@ export class NativeResidentFrameBus {
   request(callback: ResidentFrameCallback): number {
     const id = this.nextId++;
     this.pending.set(id, callback);
+    this.oneShotRequests++;
     this.ensureScheduled();
     return id;
   }
@@ -112,7 +126,7 @@ export class NativeResidentFrameBus {
     if (firstError !== null) throw firstError;
   }
 
-  snapshot(): { queued: number; scheduled: boolean; active: boolean; dispatchCount: number; activityListeners: number; continuousSubscribers: number; subscriptionAdds: number } {
+  snapshot(): NativeResidentFrameBusSnapshot {
     return {
       queued: this.pending.size + (this.due?.size ?? 0) + this.continuous.size,
       scheduled: this.platformFrame !== null,
@@ -120,7 +134,8 @@ export class NativeResidentFrameBus {
       dispatchCount: this.dispatchCount,
       activityListeners: this.activityListeners.size,
       continuousSubscribers: this.continuous.size,
-      subscriptionAdds: this.subscriptionAdds
+      subscriptionAdds: this.subscriptionAdds,
+      oneShotRequests: this.oneShotRequests
     };
   }
 
@@ -219,4 +234,9 @@ export function subscribeNativeResidentFrameBusActivity(
  */
 export function subscribeResidentAnimationFrames(callback: ResidentFrameCallback): number {
   return residentFrameBus.subscribeFrame(callback);
+}
+
+/** Local diagnostic snapshot; no storage, network or game state. */
+export function getNativeResidentFrameBusSnapshot(): NativeResidentFrameBusSnapshot {
+  return residentFrameBus.snapshot();
 }
