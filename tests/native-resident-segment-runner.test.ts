@@ -235,3 +235,81 @@ test("invalid segment cannot cancel a valid movement; thousands of restarts keep
   assert.equal(f.os.size, 0);
   assert.equal(f.bus.snapshot().queued, 0);
 });
+
+test("synchronous Animated.Value listener may replace a route without completing the obsolete one", () => {
+  const f = fakeFrameBus();
+  const arrivals: string[] = [];
+  const writes: number[] = [];
+  let runner!: NativeResidentSegmentRunner;
+  runner = new NativeResidentSegmentRunner({
+    requestFrame: cb => f.bus.request(cb),
+    cancelFrame: id => f.bus.cancel(id),
+    readTimeScale: () => 1,
+    writePosition: p => {
+      writes.push(p.x);
+      if (p.x === 50) {
+        runner.start({
+          from: { x: 500, y: 0 }, to: { x: 600, y: 0 },
+          durationMs: 100, startTimestamp: 50,
+          onArrival: () => arrivals.push("new")
+        });
+      }
+    },
+    advanceSprite: () => {},
+    setWalking: () => {}
+  });
+  runner.start({
+    from: { x: 0, y: 0 }, to: { x: 100, y: 0 },
+    durationMs: 100, startTimestamp: 0,
+    onArrival: () => arrivals.push("obsolete")
+  });
+  f.tick(50);
+  assert.deepEqual(writes, [50]);
+  assert.deepEqual(arrivals, []);
+  assert.equal(f.os.size, 1);
+  f.tick(150);
+  assert.deepEqual(writes, [50, 600]);
+  assert.deepEqual(arrivals, ["new"]);
+  assert.equal(f.os.size, 0);
+});
+
+test("synchronous onFrame or setWalking cancellation leaves no phantom RAF", () => {
+  const f = fakeFrameBus();
+  let runner!: NativeResidentSegmentRunner;
+  let frames = 0;
+  let positions = 0;
+  runner = new NativeResidentSegmentRunner({
+    requestFrame: cb => f.bus.request(cb),
+    cancelFrame: id => f.bus.cancel(id),
+    readTimeScale: () => 1,
+    writePosition: () => { positions++; },
+    advanceSprite: () => {},
+    setWalking: () => {},
+    onFrame: () => { frames++; runner.cancel(); }
+  });
+  runner.start({
+    from: { x: 0, y: 0 }, to: { x: 100, y: 0 },
+    durationMs: 100, startTimestamp: 0, onArrival: () => { throw new Error("obsolete arrival"); }
+  });
+  f.tick(50);
+  assert.equal(frames, 1);
+  assert.equal(positions, 0);
+  assert.equal(f.os.size, 0);
+  assert.equal(runner.snapshot().active, false);
+
+  let second!: NativeResidentSegmentRunner;
+  second = new NativeResidentSegmentRunner({
+    requestFrame: cb => f.bus.request(cb),
+    cancelFrame: id => f.bus.cancel(id),
+    readTimeScale: () => 1,
+    writePosition: () => { throw new Error("must not write"); },
+    advanceSprite: () => {},
+    setWalking: moving => { if (moving) second.cancel(); }
+  });
+  second.start({
+    from: { x: 0, y: 0 }, to: { x: 100, y: 0 },
+    durationMs: 100, startTimestamp: 0, onArrival: () => { throw new Error("must not arrive"); }
+  });
+  assert.equal(second.snapshot().active, false);
+  assert.equal(f.os.size, 0);
+});
