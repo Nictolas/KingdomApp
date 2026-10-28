@@ -14,7 +14,6 @@ import {
 } from "../performance/nativeResidentFrameBus";
 import { ensureNativeResidentFrameLifecycle } from "../performance/nativeResidentFrameLifecycle.native";
 import { scheduleNativeResidentTimer, cancelNativeResidentTimer } from "../performance/nativeResidentTimerQueue";
-import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
 import { segmentMoveDurationMs, type WanderDirection } from "../game/mapWandererMotion";
 
 /**
@@ -175,11 +174,9 @@ function NativeResidentBody({
   React.useLayoutEffect(() => {
     spriteFrames.setCellSize(cellSizePx);
   }, [spriteFrames, cellSizePx]);
-  const giocoInPausa = useGiocoInPausa();
 
   const inited = useRef(false);
   const isMovingRef = useRef(false);
-  const prevGiocoInPausaRef = useRef(giocoInPausa);
   const prevFixedCellRef = useRef<number | null | undefined>(undefined);
   const idleTimerRef = useRef<number | null>(null);
   /** Collision retry can be suspended across pauses without repeated timers. */
@@ -206,6 +203,14 @@ function NativeResidentBody({
   const tryClaimCellRef = useRef(tryClaimCell);
   const releaseMyCellRef = useRef(releaseMyCell);
   const commutePurposeRef = useRef(commutePurpose);
+  // A pause must not force all ~200 memoized sprite bodies through React.
+  // The module-wide native lifecycle already subscribes to the game clock;
+  // this committed-props ref keeps the one native activity listener current
+  // without unsubscribe/subscribe churn on each route or fixed-cell change.
+  const activityConfigRef = useRef({ fixedCell, commutePath, disableIdleRoam });
+  React.useLayoutEffect(() => {
+    activityConfigRef.current = { fixedCell, commutePath, disableIdleRoam };
+  }, [fixedCell, commutePath, disableIdleRoam]);
   /** Fallimenti consecutivi di claim sul segmento corrente. */
   const claimFailCountRef = useRef(0);
   onCommuteCompleteRef.current = onCommuteComplete;
@@ -562,6 +567,7 @@ function NativeResidentBody({
    */
   const onResidentActivityChanged = useCallback((active: boolean) => {
     if (!active) return;
+    const { fixedCell, commutePath, disableIdleRoam } = activityConfigRef.current;
     if (commutePath != null && commutePath.length >= 2) {
       // A collision retry already scheduled before pause resumes with its
       // remaining delay. Untimed retries held when starting paused run now.
@@ -575,19 +581,13 @@ function NativeResidentBody({
       idleTimerRef.current = null;
       pickNextMoveRef.current();
     }, IDLE_BEFORE_NEXT_MS);
-  }, [fixedCell, commutePath, disableIdleRoam, pendingCommuteRetry]);
+  }, [pendingCommuteRetry]);
 
+  // One stable listener per mounted resident. Pauses and foreground changes
+  // are delivered synchronously by the shared bus, not React render effects.
   useEffect(() => {
     return subscribeNativeResidentFrameBusActivity(onResidentActivityChanged);
   }, [onResidentActivityChanged]);
-
-  // The hook keeps the pre-existing React pause semantics; the synchronous
-  // bus listener also handles foreground transitions without a React render.
-  useEffect(() => {
-    if (prevGiocoInPausaRef.current === giocoInPausa) return;
-    prevGiocoInPausaRef.current = giocoInPausa;
-    onResidentActivityChanged(isNativeResidentFrameBusActive());
-  }, [giocoInPausa, onResidentActivityChanged]);
 
   useEffect(
     () => () => {
