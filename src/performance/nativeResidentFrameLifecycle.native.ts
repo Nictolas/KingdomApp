@@ -3,30 +3,36 @@ import {
   getOrologioGiocoInPausaSnapshot,
   subscribeOrologioGiocoInPausa
 } from "../game/orologioGiocoSession";
+import { NativeResidentActivityGate } from "./nativeResidentActivityGate";
 import { setNativeResidentFrameBusActive } from "./nativeResidentFrameBus";
 
 let initialized = false;
-let foreground = true;
+let gate: NativeResidentActivityGate | null = null;
 
-function updateFrameBusActivity(): void {
-  setNativeResidentFrameBusActive(foreground && !getOrologioGiocoInPausaSnapshot());
+function isForeground(state: AppStateStatus | null): boolean {
+  return state !== "background" && state !== "inactive";
 }
 
 function onAppStateChanged(next: AppStateStatus): void {
-  foreground = next !== "background" && next !== "inactive";
-  updateFrameBusActivity();
+  gate?.setForeground(isForeground(next));
 }
 
 /**
- * One subscription per JS runtime, not one per resident. Called once by the
- * native renderer module during initialization; never imported from web.
- * The bus holds each resident's scheduled callback until game/app resume.
+ * A single lifecycle subscription is shared by all resident sprites.
+ *
+ * No per-NPC AppState listeners, timers or React state updates. Game pause and
+ * background are combined: foregrounding never resumes a manually paused game.
  */
 export function ensureNativeResidentFrameLifecycle(): void {
   if (initialized) return;
   initialized = true;
-  foreground = AppState.currentState !== "background" && AppState.currentState !== "inactive";
-  subscribeOrologioGiocoInPausa(updateFrameBusActivity);
+  gate = new NativeResidentActivityGate(
+    isForeground(AppState.currentState),
+    getOrologioGiocoInPausaSnapshot(),
+    setNativeResidentFrameBusActive
+  );
+  subscribeOrologioGiocoInPausa(() => {
+    gate?.setGamePaused(getOrologioGiocoInPausaSnapshot());
+  });
   AppState.addEventListener("change", onAppStateChanged);
-  updateFrameBusActivity();
 }
