@@ -9,6 +9,9 @@ on:
       - "src/components/MapWandererCharacter.tsx"
       - "src/components/MapWandererCharacter.native.tsx"
       - "src/performance/nativeResidentFrameBus.ts"
+      - "src/performance/nativeResidentFrameLifecycle.native.ts"
+      - "src/performance/nativeResidentActivityGate.ts"
+      - "tests/native-resident-activity-gate.test.ts"
       - "tests/native-resident-frame-bus.test.ts"
       - "tests/native-resident-platform-boundary.test.ts"
       - "tests/native-map-transform.test.ts"
@@ -34,7 +37,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Pure fixture and frame metric tests
-        run: npx tsx --test tests/native-performance-diagnostics.test.ts tests/native-map-transform.test.ts tests/pause-aware-motion-clock.test.ts tests/pending-commute-retry.test.ts tests/native-resident-platform-boundary.test.ts tests/native-resident-frame-bus.test.ts
+        run: npx tsx --test tests/native-performance-diagnostics.test.ts tests/native-map-transform.test.ts tests/pause-aware-motion-clock.test.ts tests/pending-commute-retry.test.ts tests/native-resident-platform-boundary.test.ts tests/native-resident-frame-bus.test.ts tests/native-resident-activity-gate.test.ts
       - name: Android JS bundle smoke test (not on-device)
         env:
           CI: "1"
