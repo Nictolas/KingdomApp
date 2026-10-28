@@ -125,3 +125,106 @@ test("RAF bus remains idle with no moving residents", () => {
   assert.equal(runner.frames.size, 0);
   assert.equal(runner.bus.snapshot().queued, 0);
 });
+
+test("200 moving residents suspend with zero platform RAF while game is paused", () => {
+  const runner = fakeScheduler();
+  let calls = 0;
+  const resumedSignals: boolean[] = [];
+  for (let i = 0; i < 200; i++) {
+    const step = (_now: number, resumed: boolean): void => {
+      calls++;
+      resumedSignals.push(resumed);
+      if (calls <= 200) runner.bus.request(step);
+    };
+    runner.bus.request(step);
+  }
+  runner.bus.setActive(false);
+  assert.equal(runner.frames.size, 0);
+  assert.equal(runner.cancelled, 1);
+  assert.equal(runner.bus.snapshot().queued, 200);
+  assert.equal(runner.bus.snapshot().active, false);
+  runner.bus.request(() => { calls++; });
+  assert.equal(runner.frames.size, 0, "new residents must not create OS RAF during pause");
+
+  runner.bus.setActive(true);
+  assert.equal(runner.frames.size, 1);
+  runner.tick(60_000);
+  assert.equal(calls, 201);
+  assert.ok(resumedSignals.every(Boolean), "every resident must rebase its clock on resume");
+  assert.equal(runner.bus.snapshot().queued, 200);
+  runner.tick(60_016);
+  assert.ok(resumedSignals.slice(200).every((flag) => !flag), "only the first frame rebases");
+});
+
+test("pause in the middle of a frame postpones the remaining residents", () => {
+  const runner = fakeScheduler();
+  const calls: string[] = [];
+  runner.bus.request(() => {
+    calls.push("first");
+    runner.bus.setActive(false);
+  });
+  runner.bus.request((_ts, rebase) => calls.push(rebase ? "second-resumed" : "second-active"));
+  runner.tick(16);
+  assert.deepEqual(calls, ["first"]);
+  assert.equal(runner.bus.snapshot().queued, 1);
+  assert.equal(runner.frames.size, 0);
+  runner.bus.setActive(true);
+  runner.tick(100);
+  assert.deepEqual(calls, ["first", "second-resumed"]);
+});
+
+test("an obsolete platform RAF cannot accidentally execute a newly scheduled batch", () => {
+  const runner = fakeScheduler();
+  const calls: string[] = [];
+  runner.bus.request(() => calls.push("old"));
+  const oldCallback = [...runner.frames.values()][0]!;
+  runner.bus.setActive(false);
+  runner.bus.setActive(true);
+  assert.equal(runner.frames.size, 1);
+  oldCallback(999);
+  assert.deepEqual(calls, []);
+  assert.equal(runner.frames.size, 1);
+  runner.tick(1000);
+  assert.deepEqual(calls, ["old"]);
+});
+
+test("unmounting all residents during a pause leaves no work upon resume", () => {
+  const runner = fakeScheduler();
+  const ids = Array.from({ length: 200 }, () => runner.bus.request(() => {
+    throw new Error("unmounted resident ran");
+  }));
+  runner.bus.setActive(false);
+  ids.forEach((id) => runner.bus.cancel(id));
+  assert.equal(runner.bus.snapshot().queued, 0);
+  runner.bus.setActive(true);
+  assert.equal(runner.frames.size, 0);
+});
+
+test("repeated pause/resume notifications are idempotent", () => {
+  const runner = fakeScheduler();
+  runner.bus.request(() => {});
+  runner.bus.setActive(false);
+  runner.bus.setActive(false);
+  assert.equal(runner.cancelled, 1);
+  runner.bus.setActive(true);
+  runner.bus.setActive(true);
+  assert.equal(runner.requested, 2);
+  runner.tick(17);
+  assert.equal(runner.frames.size, 0);
+});
+
+test("pause keeps a callback scheduled by the current resident until resume", () => {
+  const runner = fakeScheduler();
+  const flags: boolean[] = [];
+  runner.bus.request((_now, resume) => {
+    flags.push(resume);
+    runner.bus.request((_next, resumed) => flags.push(resumed));
+    runner.bus.setActive(false);
+  });
+  runner.tick(16);
+  assert.equal(runner.frames.size, 0);
+  assert.equal(runner.bus.snapshot().queued, 1);
+  runner.bus.setActive(true);
+  runner.tick(32);
+  assert.deepEqual(flags, [false, true]);
+});
