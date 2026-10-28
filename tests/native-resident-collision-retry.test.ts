@@ -181,3 +181,101 @@ test("native renderer stops walking before retry/repath and never changes the we
   assert.doesNotMatch(native, /claimFailCountRef/);
   assert.doesNotMatch(web, /NativeResidentCollisionRetry|claimRetry/);
 });
+
+
+test("repath fallback is delayed, one-shot and never repeats expensive pathfinding", () => {
+  const retry = new NativeResidentCollisionRetry(3);
+  assert.equal(retry.fail(true), "retry");
+  assert.equal(retry.fail(true), "retry");
+  assert.equal(retry.fail(true), "request-repath");
+  for (let i = 0; i < 1000; i++) assert.equal(retry.fail(true), "awaiting-repath");
+  assert.equal(retry.resumeWithoutRepath(), true);
+  assert.equal(retry.resumeWithoutRepath(), false, "duplicate timer delivery cannot restart the route");
+  for (let i = 0; i < 1000; i++) assert.equal(retry.fail(true), "retry");
+  retry.reset(); // successful claim or replacement route
+  assert.equal(retry.resumeWithoutRepath(), false, "obsolete fallback cannot revive a new route");
+  assert.equal(retry.fail(true), "retry");
+  assert.equal(retry.fail(true), "retry");
+  assert.equal(retry.fail(true), "request-repath");
+});
+
+test("200 residents, 20 route cycles, 120,000 fallback collisions: one repath request per cycle", () => {
+  const retries = Array.from({ length: 200 }, () => new NativeResidentCollisionRetry(3));
+  let requests = 0, fallbackAttempts = 0;
+  for (let cycle = 0; cycle < 20; cycle++) {
+    for (const retry of retries) {
+      assert.equal(retry.fail(true), "retry");
+      assert.equal(retry.fail(true), "retry");
+      assert.equal(retry.fail(true), "request-repath");
+      requests++;
+      assert.equal(retry.resumeWithoutRepath(), true);
+      for (let i = 0; i < 30; i++) {
+        assert.equal(retry.fail(true), "retry");
+        fallbackAttempts++;
+      }
+      retry.reset();
+    }
+  }
+  assert.equal(requests, 4_000);
+  assert.equal(fallbackAttempts, 120_000);
+});
+
+test("200 delayed repath fallbacks freeze during pause and discard replaced routes", () => {
+  let wall = 0, nextId = 0, resumed = 0;
+  const timers = new Map<number, { at: number; callback: () => void }>();
+  const queue = new NativeResidentTimerQueue(
+    () => wall,
+    (callback, delay) => {
+      const id = ++nextId;
+      timers.set(id, { at: wall + delay, callback });
+      return id;
+    },
+    id => { timers.delete(id); },
+    32
+  );
+  const retries = Array.from({ length: 200 }, () => new NativeResidentCollisionRetry(3));
+  for (let id = 0; id < 200; id++) {
+    const retry = retries[id]!;
+    assert.equal(retry.fail(true), "retry");
+    assert.equal(retry.fail(true), "retry");
+    assert.equal(retry.fail(true), "request-repath");
+    queue.schedule(() => { if (retry.resumeWithoutRepath()) resumed++; }, 900);
+  }
+  wall = 300;
+  queue.setActive(false);
+  assert.equal(timers.size, 0);
+  // 100 residents receive a replacement route or complete while paused.
+  for (let id = 0; id < 100; id++) retries[id]!.reset();
+  wall = 100_000;
+  queue.setActive(true);
+  assert.equal(resumed, 0);
+  assert.equal([...timers.values()][0]!.at, 100_600);
+  wall = 100_600;
+  let wakeups = 0;
+  while (timers.size) {
+    const [id, task] = timers.entries().next().value!;
+    assert.ok(task.at <= wall);
+    timers.delete(id);
+    task.callback();
+    if (++wakeups > 20) throw new Error("Unbounded fallback burst");
+  }
+  assert.equal(resumed, 100);
+  assert.equal(queue.snapshot().pending, 0);
+  assert.ok(retries.slice(0, 100).every(r => r.resumeWithoutRepath() === false));
+  assert.ok(retries.slice(100).every(r => r.fail(true) === "retry"));
+});
+
+test("native-only fallback is scheduled before parent repath callback; web stays untouched", () => {
+  const native = readFileSync(new URL("../src/components/MapWandererCharacter.native.tsx", import.meta.url), "utf8");
+  const web = readFileSync(new URL("../src/components/MapWandererCharacter.tsx", import.meta.url), "utf8");
+  const start = native.indexOf('if (decision === "request-repath")');
+  const end = native.indexOf('if (decision === "awaiting-repath")', start);
+  const branch = native.slice(start, end);
+  assert.ok(start >= 0 && end > start);
+  assert.match(branch, /pendingCommuteRetry\.hold\(/);
+  assert.match(branch, /claimRetry\.resumeWithoutRepath\(\)/);
+  assert.match(branch, /scheduleNativeResidentTimer\(/);
+  assert.match(branch, /CLAIM_RETRY_MS/);
+  assert.ok(branch.indexOf("scheduleNativeResidentTimer(") < branch.indexOf("onCommuteBlockedRef.current?.("));
+  assert.doesNotMatch(web, /resumeWithoutRepath|NativeResidentCollisionRetry/);
+});
