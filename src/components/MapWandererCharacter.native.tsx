@@ -11,6 +11,7 @@ import {
   subscribeNativeResidentFrameBusActivity
 } from "../performance/nativeResidentFrameBus";
 import { ensureNativeResidentFrameLifecycle } from "../performance/nativeResidentFrameLifecycle.native";
+import { scheduleNativeResidentTimer, cancelNativeResidentTimer } from "../performance/nativeResidentTimerQueue";
 import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
 import {
   frameGroupStart,
@@ -180,7 +181,7 @@ export function MapWandererCharacter({
   const isMovingRef = useRef(false);
   const prevGiocoInPausaRef = useRef(giocoInPausa);
   const prevFixedCellRef = useRef<number | null | undefined>(undefined);
-  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const idleTimerRef = useRef<number | null>(null);
   /** Collision retry can be suspended across pauses without repeated timers. */
   const [pendingCommuteRetry] = useState(() => new PendingCommuteRetry());
   const rafRef = useRef<number | null>(null);
@@ -226,7 +227,7 @@ export function MapWandererCharacter({
 
   const clearIdle = useCallback(() => {
     if (idleTimerRef.current != null) {
-      clearTimeout(idleTimerRef.current);
+      cancelNativeResidentTimer(idleTimerRef.current);
       idleTimerRef.current = null;
     }
   }, []);
@@ -244,7 +245,7 @@ export function MapWandererCharacter({
       (j) => isWalkable(j) && (isFree?.(j) ?? true)
     );
     if (cand.length === 0) {
-      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+      idleTimerRef.current = scheduleNativeResidentTimer(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
       return;
     }
 
@@ -265,7 +266,7 @@ export function MapWandererCharacter({
       }
     }
     if (next == null) {
-      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+      idleTimerRef.current = scheduleNativeResidentTimer(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
       return;
     }
 
@@ -309,7 +310,7 @@ export function MapWandererCharacter({
         setLogicalCell(dest);
         cellRef.current = dest;
         onCellSettledRef.current?.(dest);
-        idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+        idleTimerRef.current = scheduleNativeResidentTimer(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
       }
     };
     rafRef.current = requestResidentAnimationFrame(step);
@@ -343,7 +344,7 @@ export function MapWandererCharacter({
           return;
         }
         pendingCommuteRetry.hold(() => runOneSegment(from, to, onDone, isLastSegment));
-        idleTimerRef.current = setTimeout(() => {
+        idleTimerRef.current = scheduleNativeResidentTimer(() => {
           idleTimerRef.current = null;
           pendingCommuteRetry.take()?.();
         }, CLAIM_RETRY_MS);
@@ -431,7 +432,7 @@ export function MapWandererCharacter({
       if (!alive) return;
       if (seg >= path.length - 1) {
         if (commutePurpose != null) onCommuteCompleteRef.current?.(commutePurpose);
-        idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+        idleTimerRef.current = scheduleNativeResidentTimer(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
         return;
       }
       const from = path[seg]!;
@@ -512,7 +513,7 @@ export function MapWandererCharacter({
     updateWalkFrame(0);
     onCellSettledRef.current?.(prevHome);
     if (!disableIdleRoam) {
-      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+      idleTimerRef.current = scheduleNativeResidentTimer(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
     }
   }, [fixedCell, clearIdle, cols, cellSizePx, disableIdleRoam]);
 
@@ -570,7 +571,7 @@ export function MapWandererCharacter({
     pixelPos.setValue({ x: cx, y: cy });
     onCellSettledRef.current?.(idx);
     if (!disableIdleRoam) {
-      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+      idleTimerRef.current = scheduleNativeResidentTimer(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
     }
   }, [
     cols,
@@ -601,7 +602,7 @@ export function MapWandererCharacter({
     if (fixedCell != null || disableIdleRoam) return;
     if (cellRef.current == null || !inited.current || isMovingRef.current) return;
     clearIdle();
-    idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+    idleTimerRef.current = scheduleNativeResidentTimer(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
   }, [fixedCell, commutePath, disableIdleRoam, clearIdle, pendingCommuteRetry]);
 
   useEffect(() => {
