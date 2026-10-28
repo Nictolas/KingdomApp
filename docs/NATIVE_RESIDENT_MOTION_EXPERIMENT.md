@@ -55,3 +55,20 @@ L'audit dei passi native ha evidenziato che la durata reale rimaneva fissa a 100
 Per evitare scatti dopo aver messo l'app in background, `PauseAwareMotionClock` scarta un intervallo RAF sospeso pari o superiore a 2000 ms invece di tradurlo in uno spostamento istantaneo del personaggio. **Non modifica il timer del mondo ne' i salvataggi.** Test automatici coprono progressione 1x/2x/4x, cambi di velocita' nel mezzo del passo, pausa, timestamp invalidi e lunghi gap di background.
 
 Questa correzione non modifica la versione web e non prova un aumento degli FPS. Per il confronto A/B di `Animated.ValueXY`, misurare i due rami esclusivamente a **1x**; i test funzionali 2x/4x restano obbligatori separatamente. Il timer d'attesa tra passeggiate casuali rimane invariato: una eventuale accelerazione degli idle timer va valutata come altra modifica di gameplay, non mascherata da ottimizzazione grafica.
+
+## Intervento ampio: frame bus condiviso per 25–200 residenti (28 ottobre)
+
+Fino a questa modifica, ogni personaggio mobile con un passo in corso registrava un proprio `requestAnimationFrame`, potenzialmente 200 richieste RAF per ogni fotogramma. In questa PR, solo sul renderer **React Native**:
+
+1. `NativeResidentFrameBus` raggruppa le richieste in un solo RAF di piattaforma. Tutti i residenti ancora attivi vengono aggiornati nello stesso tick e ricevono lo stesso timestamp. Le callback per-residente rimangono indipendenti, per preservare percorsi, collisioni, pause e tempi.
+2. La cancellazione rimane individuale: l'uscita di un personaggio annulla soltanto il suo callback. Se non resta nessun residente in movimento, il bus cancella la richiesta RAF della piattaforma; quando un nuovo movimento comincia, la riattiva.
+3. Se una callback del lotto annulla quella di un altro residente, il secondo viene saltato. Le nuove richieste fatte dentro un tick partono dal **fotogramma successivo**, non da quello corrente. Un'eccezione di un singolo residente non impedisce che gli altri vengano aggiornati nello stesso tick.
+4. `MapWandererCharacter.native.tsx` usa il bus nei due percorsi (passeggiata e pendolarismo), inclusi tutti gli annullamenti al cambio tragitto, notte, casa e smontaggio. L'ottimizzazione riguarda solo Android/iPhone; **web non importa il bus**.
+5. La camminata cambia sprite circa ogni 180 ms, non ogni RAF: un gate confronta il fotogramma corrente e chiama `setWalkFrame` soltanto quando cambia effettivamente.
+6. L'HUD separa **callback abitanti/s**, **invocazioni React abitanti/s** e **frame bus nativo/s** per rendere visibile l'effetto delle ottimizzazioni, senza salvare o inviare dati.
+
+### Prove ripetibili
+
+`tests/native-resident-frame-bus.test.ts` usa un RAF finto controllabile; lo scenario di 200 residenti per 120 fotogrammi deve eseguire **24.000 callback residenti usando solo 120 richieste RAF di piattaforma sintetiche**, senza perdita o duplicazione di callback. Sono anche coperti: cancellazioni prima del tick, cancellazione tra callback dello stesso lotto, nuovo movimento nel tick successivo, errore isolato, nessun lavoro quando tutti i residenti sono fermi. Il test del confine native/web controlla che il web non sia interessato e che gli aggiornamenti di sprite siano condizionati ai cambi reali.
+
+Questi valori **sono proprietà deterministiche del dispatcher su un RAF finto**, non una misura di FPS, CPU, energia, memoria o maggiore fluidita' su un dispositivo. Per misurare benefici reali, comparare baseline PR #295 con questa PR su *identico* smartphone, stessa scena e stessa velocita' 1×: quantificare FPS JS, p95, callback/s, bus/s, invocazioni React/s, FPS UI/GPU, tap, pinch, collisioni, pause e batteria. Non fondere prima del confronto manuale.
