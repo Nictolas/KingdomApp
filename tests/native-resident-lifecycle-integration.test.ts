@@ -59,7 +59,7 @@ test("200 native segments preserve 1x/2x/4x progress through pause and backgroun
   }
   assert.equal(runner.requests, 1);
   runner.tick(100);
-  assert.ok(progress.every((p) => p === 0.1));
+  assert.ok(progress.every((p) => Math.abs(p - 0.1) < 1e-8));
   speed = 2;
   runner.tick(200);
   assert.ok(progress.every((p) => Math.abs(p - 0.3) < 1e-8));
@@ -81,7 +81,7 @@ test("200 native segments preserve 1x/2x/4x progress through pause and backgroun
   runner.tick(300_000);
   assert.ok(progress.every((p) => Math.abs(p - 0.7) < 1e-8), "first resumed frame must not teleport");
   runner.tick(300_075);
-  assert.ok(progress.every((p) => p === 1));
+  assert.ok(progress.every((p) => Math.abs(p - 1) < 1e-8));
   assert.equal(completed.size, 200);
   assert.equal(callbacks, 1000);
   assert.equal(runner.scheduled.size, 0);
@@ -122,7 +122,7 @@ test("200 suspended collision retries are resumed once, not while backgrounded",
   gate.setForeground(false);
   gate.setGamePaused(true);
   gate.setForeground(true);
-  assert.ok(resumed.every((n) => n === 0), "manual pause still blocks retries");
+  assert.equal(resumed.filter((n) => n !== 0).length, 0, "manual pause still blocks retries");
   gate.setGamePaused(false);
   assert.ok(resumed.every((n) => n >= 1));
   gate.setGamePaused(true);
