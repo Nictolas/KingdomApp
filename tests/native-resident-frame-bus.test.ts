@@ -327,6 +327,6 @@ test("240-frame population churn stress: 200 residents, repeated pauses, unmount
   assert.equal(runner.frames.size, 0);
   assert.equal(callbacks, expectedCallbacks);
   assert.equal(runner.bus.snapshot().dispatchCount, 240);
-  assert.equal(runner.requested, 241, "240 real frames plus the last scheduled frame");
+  assert.equal(runner.requested, 249, "one initial RAF, 240 subsequent frames, eight pause/resume replacements");
   assert.ok(perResident.every((count) => count > 0));
 });
