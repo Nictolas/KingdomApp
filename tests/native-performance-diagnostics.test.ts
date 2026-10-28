@@ -162,3 +162,33 @@ test("persistent RAF metrics report only aggregate registrations and avoid misle
   assert.equal(diffNativeResidentFrameBusSnapshots(after, before, 0).persistentRegistrations, 0);
   assert.equal(diffNativeResidentFrameBusSnapshots(after, before, Number.NaN).platformFrameDispatchesPerSecond, 0);
 });
+
+test("10-second report exposes measured JS batch costs without claiming GPU FPS or touch latency", () => {
+  let now = 0;
+  const { NativeResidentDispatchProfiler } = require("../src/performance/nativeResidentDispatchProfiler.ts") as
+    typeof import("../src/performance/nativeResidentDispatchProfiler.ts");
+  const profiler = new NativeResidentDispatchProfiler(() => now, 8);
+  const token = profiler.start();
+  for (const ms of [4, 8, 12, 17]) {
+    const ticket = profiler.begin("frame");
+    now += ms;
+    profiler.end("frame", ticket);
+  }
+  const timer = profiler.begin("timer");
+  now += 19;
+  profiler.end("timer", timer);
+  const result = new NativeMeasurementSession(0, 10_000);
+  result.record(16, 16);
+  const completed = result.record(10_000, 16)!;
+  const text = formatNativeMeasurement(
+    completed, { platform: "android", label: "200 residenti", residents: 200 },
+    undefined, undefined, undefined, profiler.finish(token)!
+  );
+  assert.match(text, /Batch RAF JS campionati: 4/);
+  assert.match(text, /Batch RAF JS p95: 17\.00 ms/);
+  assert.match(text, /Batch timer JS massimo: 19\.00 ms/);
+  assert.match(text, /Batch RAF JS >8\/>16 ms: 2\/1/);
+  assert.match(text, /NON FPS GPU\/UI, latenza touch o utilizzo CPU/);
+  assert.ok(!text.includes("residentId"));
+  assert.ok(!text.includes("cellIndex"));
+});
