@@ -67,7 +67,9 @@ export class NativeResidentSegmentRunner {
     const segment = new NativeResidentSegmentProgress(request.startTimestamp, request.durationMs);
     this.active = true;
     this.deps.setWalking(true);
+    if (token !== this.generation || !this.active) return;
     this.deps.advanceSprite(0);
+    if (token !== this.generation || !this.active) return;
 
     const step: FrameCallback = (now, resumedAfterSuspension) => {
       if (token !== this.generation || !this.active) {
@@ -78,6 +80,7 @@ export class NativeResidentSegmentRunner {
       // belongs to this segment unless onArrival starts another one.
       this.frameId = null;
       this.deps.onFrame?.();
+      if (token !== this.generation || !this.active) return;
       const frame = segment.sample(now, this.deps.readTimeScale(), resumedAfterSuspension);
       if (!frame.advance) {
         this.frameId = this.deps.requestFrame(step);
@@ -95,9 +98,12 @@ export class NativeResidentSegmentRunner {
         this.lastWritten = point;
         this.deps.writePosition(point);
         this.positionWrites++;
+        // Animated.Value listeners can synchronously replace a route.
+        if (token !== this.generation || !this.active) return;
       }
       if (!frame.complete) {
         this.deps.advanceSprite(frame.elapsedMs);
+        if (token !== this.generation || !this.active) return;
         this.frameId = this.deps.requestFrame(step);
         return;
       }
@@ -108,7 +114,7 @@ export class NativeResidentSegmentRunner {
       } else {
         this.deps.setWalking(false);
       }
-      request.onArrival();
+      if (token === this.generation) request.onArrival();
     };
     this.frameId = this.deps.requestFrame(step);
   }
