@@ -4,6 +4,7 @@ import { readFileSync } from "node:fs";
 import {
   createNativeRealFixtureResidents,
   NativeRealFixtureOccupancy,
+  NativeRealFixtureSelection,
   NATIVE_REAL_FIXTURE_CELLS,
   NATIVE_REAL_FIXTURE_COLS,
   NATIVE_REAL_FIXTURE_ROWS
@@ -121,8 +122,17 @@ test("source boundary uses the real native sprite component without altering Gam
   assert.match(fixture, /MapWandererCharacter/);
   assert.match(fixture, /NativeRealFixtureOccupancy/);
   assert.match(fixture, /disableIdleRoam=\{!moving\}/);
-  assert.match(fixture, /tryClaimCell=\{cell => occupancy\.tryClaim\(/);
-  assert.match(fixture, /releaseMyCell=\{\(\) => occupancy\.release\(/);
+  assert.match(fixture, /const tryClaimCell = useCallback/);
+  assert.match(fixture, /tryClaimCell=\{tryClaimCell\}/);
+  assert.match(fixture, /const onSelect = useCallback/);
+  assert.match(fixture, /onPress=\{onSelect\}/);
+  assert.match(fixture, /onDoublePress=\{onSelect\}/);
+  assert.match(fixture, /const NativeRealFixtureSprite = memo/);
+  assert.match(fixture, /const NativeFixtureStatus = memo/);
+  assert.match(fixture, /selection\.subscribe/);
+  assert.doesNotMatch(fixture, /setSelected\(/,
+    "touch feedback must not rerender all 200 native sprite wrappers");
+  assert.match(fixture, /releaseMyCell=\{releaseMyCell\}/);
   assert.match(fixture, /timeScale === 0/);
   assert.match(fixture, /Simulazione in pausa/);
   assert.doesNotMatch(fixture, /\b(?:setOrologioGioco\w*|setOrologioSim\w*|restoreOrologio|patchMappaPersonaggiRuntime|fetch)\s*\(/);
@@ -147,4 +157,37 @@ test("fixture occupancy callbacks match the real map's claim/release behavior", 
   occupancy.settledAt(ids[1], 11);
   assert.equal(occupancy.snapshot().settled, 1);
   assert.equal(occupancy.checkInvariants(), true);
+});
+
+test("touch selection notifies only the overlay, suppresses duplicate selection and unsubscribes", () => {
+  const selection = new NativeRealFixtureSelection();
+  const events: Array<number | null> = [];
+  const unsubscribe = selection.subscribe(() => events.push(selection.getSnapshot()));
+  assert.equal(selection.getSnapshot(), null);
+  selection.select(10000);
+  selection.select(10000);
+  selection.select(10001);
+  assert.deepEqual(events, [10000, 10001]);
+  unsubscribe();
+  selection.select(10002);
+  assert.deepEqual(events, [10000, 10001]);
+  assert.equal(selection.getSnapshot(), 10002);
+});
+
+test("200 native fixture tap targets, 200000 selections: stable subscriptions and isolated remount", () => {
+  const fixtures = createNativeRealFixtureResidents(200);
+  const selection = new NativeRealFixtureSelection();
+  const next = new NativeRealFixtureSelection();
+  let notified = 0;
+  const unsubscribe = selection.subscribe(() => { notified++; });
+  for (let i = 0; i < 200000; i++) {
+    selection.select(fixtures[i % 200]!.instanceId);
+    selection.select(fixtures[i % 200]!.instanceId);
+  }
+  assert.equal(notified, 200000);
+  assert.equal(selection.getSnapshot(), fixtures[199]!.instanceId);
+  assert.equal(next.getSnapshot(), null, "remounted fixture must not inherit old touch state");
+  unsubscribe();
+  selection.select(fixtures[0]!.instanceId);
+  assert.equal(notified, 200000, "unmounted overlay must not receive stale updates");
 });
