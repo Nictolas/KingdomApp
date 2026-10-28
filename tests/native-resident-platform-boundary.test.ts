@@ -5,6 +5,7 @@ import test from "node:test";
 const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf8");
 const shared = read("../src/components/MapWandererCharacter.tsx");
 const native = read("../src/components/MapWandererCharacter.native.tsx");
+const segment = read("../src/performance/nativeResidentSegmentProgress.ts");
 const map = read("../app/mappa.tsx");
 
 function propsSignature(source: string): string {
@@ -18,7 +19,8 @@ test("native-specific movement does not alter the web resident renderer", () => 
   assert.ok(!shared.includes("PendingCommuteRetry"), "the web/default resident renderer must not inherit the experiment");
   assert.match(shared, /setPixelPos\(/);
   assert.match(native, /Animated\.ValueXY/);
-  assert.match(native, /PauseAwareMotionClock/);
+  assert.match(native, /NativeResidentSegmentProgress/);
+  assert.match(segment, /PauseAwareMotionClock/);
   assert.match(native, /PendingCommuteRetry/);
 });
 
@@ -39,4 +41,13 @@ test("only native residents use the shared frame dispatcher and coalesced walkin
   assert.match(native, /updateWalkFrame\(walkFrameFromElapsedMs\(elapsedMs\)\)/);
   assert.equal((native.match(/setWalkFrame\(/g) ?? []).length, 1, "only gated updater should invoke React setter");
   assert.ok(!shared.includes("nativeResidentFrameBus"), "the web renderer must not import native dispatcher");
+});
+
+test("only native movement subscribes to pause/background and guards idle/claim timers", () => {
+  assert.match(native, /subscribeNativeResidentFrameBusActivity/);
+  assert.match(native, /isNativeResidentFrameBusActive\(\)/);
+  assert.match(native, /getOrologioGiocoInPausaSnapshot\(\)/);
+  assert.match(native, /pendingCommuteRetry\.take\(\)/);
+  assert.ok(!shared.includes("nativeResidentFrameLifecycle"));
+  assert.ok(!shared.includes("NativeResidentSegmentProgress"));
 });
