@@ -1,6 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { getOrologioGiocoInPausaSnapshot } from "../game/orologioGiocoSession";
+import { PauseAwareMotionClock } from "../game/pauseAwareMotionClock";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation } from "../performance/nativeResidentWorkCounters";
 import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
 import {
@@ -265,23 +266,25 @@ export function MapWandererCharacter({
     const toY = Math.floor(next / cols) * cellSizePx;
 
     setIsMoving(true);
-    const start = performance.now();
+    const clock = new PauseAwareMotionClock(performance.now());
     const durationMs = segmentMoveDurationMs(prev, next, isRoadCell);
     const dest = next;
 
     const step = (now: number) => {
       if (__DEV__) markNativeResidentFrameCallback();
-      if (getOrologioGiocoInPausaSnapshot()) {
+      const paused = getOrologioGiocoInPausaSnapshot();
+      const elapsedMs = clock.advance(now, paused);
+      if (paused) {
         rafRef.current = requestAnimationFrame(step);
         return;
       }
-      const t = Math.min(1, (now - start) / durationMs);
+      const t = Math.min(1, elapsedMs / durationMs);
       pixelPos.setValue({
         x: fromX + (toX - fromX) * t,
         y: fromY + (toY - fromY) * t
       });
       if (t < 1) {
-        setWalkFrame(walkFrameFromElapsedMs(now - start));
+        setWalkFrame(walkFrameFromElapsedMs(elapsedMs));
         rafRef.current = requestAnimationFrame(step);
       } else {
         pixelPos.setValue({ x: toX, y: toY });
@@ -338,21 +341,23 @@ export function MapWandererCharacter({
       const toX = (to % cols) * cellSizePx;
       const toY = Math.floor(to / cols) * cellSizePx;
       setIsMoving(true);
-      const start = performance.now();
+      const clock = new PauseAwareMotionClock(performance.now());
       const durationMs = segmentMoveDurationMs(from, to, isRoadCell);
       const step = (now: number) => {
         if (__DEV__) markNativeResidentFrameCallback();
-        if (getOrologioGiocoInPausaSnapshot()) {
+        const paused = getOrologioGiocoInPausaSnapshot();
+        const elapsedMs = clock.advance(now, paused);
+        if (paused) {
           rafRef.current = requestAnimationFrame(step);
           return;
         }
-        const t = Math.min(1, (now - start) / durationMs);
+        const t = Math.min(1, elapsedMs / durationMs);
         pixelPos.setValue({
           x: fromX + (toX - fromX) * t,
           y: fromY + (toY - fromY) * t
         });
         if (t < 1) {
-          setWalkFrame(walkFrameFromElapsedMs(now - start));
+          setWalkFrame(walkFrameFromElapsedMs(elapsedMs));
           rafRef.current = requestAnimationFrame(step);
         } else {
           pixelPos.setValue({ x: toX, y: toY });
