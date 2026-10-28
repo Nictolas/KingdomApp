@@ -1,3 +1,5 @@
+import { beginNativeResidentDispatch, endNativeResidentDispatch } from "./nativeResidentDispatchProfiler";
+
 /**
  * A single native timeout serves all resident idle and collision waits.
  *
@@ -43,6 +45,8 @@ export class NativeResidentTimerQueue {
   private ready: Map<number, ResidentTimer> | null = null;
   private nextId = 1;
   private active = true;
+  /** A pause/resume pair during a callback still invalidates this wakeup. */
+  private activityEpoch = 0;
   private activeElapsedMs = 0;
   private lastWallMs: number | null = null;
   private timer: number | null = null;
@@ -171,6 +175,7 @@ export class NativeResidentTimerQueue {
     if (this.active === active) return;
     this.sampleActiveClock(); // Record elapsed up to the transition.
     this.active = active;
+    this.activityEpoch++;
     if (!active) this.dropTimer();
     else this.arm();
   }
@@ -219,6 +224,7 @@ export class NativeResidentTimerQueue {
   private flush(generation: number): void {
     // Canceled callbacks can arrive late from the RN bridge.
     if (!this.active || this.timer === null || generation !== this.generation) return;
+    const timing = beginNativeResidentDispatch("timer");
     this.timer = null;
     this.timerDeadline = null;
     this.executing = true;
@@ -230,6 +236,7 @@ export class NativeResidentTimerQueue {
       // a sibling. A callback scheduling a zero-delay task cannot execute it
       // during this tick. Equal deadlines remain FIFO by registration ID.
       const cutoff = this.sampleActiveClock();
+      const dispatchEpoch = this.activityEpoch;
       this.ready = new Map();
       while (this.heap.length > 0 &&
         this.ready.size < this.maxCallbacksPerWake &&
@@ -239,7 +246,7 @@ export class NativeResidentTimerQueue {
       }
       const extracted = this.ready.size;
       for (const [id, task] of this.ready) {
-        if (!this.active) break;
+        if (!this.active || this.activityEpoch !== dispatchEpoch) break;
         if (!this.ready.has(id)) continue;
         this.ready.delete(id);
         this.logicalCallbacks++;
@@ -253,7 +260,8 @@ export class NativeResidentTimerQueue {
       // Cooperative yield: already-due work is retained for the next
       // platform task instead of monopolizing the JS thread for 200+ NPCs.
       // Check *after* callbacks: they may have canceled the entire backlog.
-      if (this.active && extracted === this.maxCallbacksPerWake &&
+      if (this.active && this.activityEpoch === dispatchEpoch &&
+        extracted === this.maxCallbacksPerWake &&
         this.heap.length > 0 && this.heap[0]!.dueActiveMs <= cutoff) {
         this.budgetYields++;
       }
@@ -265,7 +273,11 @@ export class NativeResidentTimerQueue {
       }
       this.ready = null;
       this.executing = false;
-      this.arm();
+      try {
+        this.arm();
+      } finally {
+        endNativeResidentDispatch("timer", timing);
+      }
     }
     if (firstError !== null) throw firstError;
   }
