@@ -99,13 +99,13 @@ test("callback errors do not starve other residents and counters remain accurate
 });
 
 test("counter snapshots reject negative rates after reset and invalid intervals", () => {
-  const a = { platformSchedules: 50, platformCancellations: 10, platformWakeups: 20, logicalCallbacks: 400 };
-  const b = { platformSchedules: 3, platformCancellations: 1, platformWakeups: 2, logicalCallbacks: 20 };
+  const a = { platformSchedules: 50, platformCancellations: 10, platformWakeups: 20, logicalCallbacks: 400, budgetYields: 50 };
+  const b = { platformSchedules: 3, platformCancellations: 1, platformWakeups: 2, logicalCallbacks: 20, budgetYields: 3 };
   const delta = diffNativeResidentTimerCounters(a, b, 0);
   assert.deepEqual(delta, {
     platformSchedules: 0, platformCancellations: 0,
-    platformWakeups: 0, logicalCallbacks: 0,
-    platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0
+    platformWakeups: 0, logicalCallbacks: 0, budgetYields: 0,
+    platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, budgetYieldsPerSecond: 0
   });
   assert.equal(diffNativeResidentTimerCounters(b, a, Number.NaN).logicalCallbacksPerSecond, 0);
 });
@@ -119,14 +119,16 @@ test("the 10-second shareable report includes aggregate timers without personal 
     }
   };
   const timerDelta = diffNativeResidentTimerCounters(
-    { platformSchedules: 0, platformCancellations: 0, platformWakeups: 0, logicalCallbacks: 0 },
-    { platformSchedules: 25, platformCancellations: 3, platformWakeups: 20, logicalCallbacks: 200 },
+    { platformSchedules: 0, platformCancellations: 0, platformWakeups: 0, logicalCallbacks: 0, budgetYields: 0 },
+    { platformSchedules: 25, platformCancellations: 3, platformWakeups: 20, logicalCallbacks: 200, budgetYields: 5 },
     10_000
   );
   const report = formatNativeMeasurement(result, {
     platform: "android", label: "Mappa residente", residents: 200, terrainCells: 800
   }, timerDelta);
   assert.match(report, /Wakeup timeout nativo: 20/);
+  assert.match(report, /Yield backlog timer: 5/);
+  assert.match(report, /Yield backlog timer\/s: 0\\.5/);
   assert.match(report, /Callback timer residenti: 200/);
   assert.match(report, /Wakeup timeout nativo\/s: 2\.0/);
   assert.match(report, /Callback timer residenti\/s: 20\.0/);
