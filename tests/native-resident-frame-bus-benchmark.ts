@@ -56,7 +56,9 @@ function measure(population: number, frames: number, persistent: boolean) {
   if (persistent) handles.forEach(id => bus.cancel(id));
   assert.equal(os.size, 0);
   assert.equal(bus.snapshot().queued, 0);
-  assert.equal(platformRequests, frames);
+  // Persistent subscribers request one next frame before the harness disposes
+  // them; one-shot registrations naturally stop at the last requested frame.
+  assert.equal(platformRequests, frames + (persistent ? 1 : 0));
   assert.equal(bus.snapshot().dispatchCount, frames);
   assert.equal(registrations, persistent ? population : population * frames);
   return {
