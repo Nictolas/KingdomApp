@@ -1,0 +1,150 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFileSync } from "node:fs";
+import {
+  createNativeRealFixtureResidents,
+  NativeRealFixtureOccupancy,
+  NATIVE_REAL_FIXTURE_CELLS,
+  NATIVE_REAL_FIXTURE_COLS,
+  NATIVE_REAL_FIXTURE_ROWS
+} from "../src/performance/nativeRealResidentFixture.ts";
+
+test("25/50/100/200 actual native sprite fixtures are unique and fit 20x20 cells", () => {
+  assert.equal(NATIVE_REAL_FIXTURE_COLS, 20);
+  assert.equal(NATIVE_REAL_FIXTURE_ROWS, 20);
+  assert.equal(NATIVE_REAL_FIXTURE_CELLS, 400);
+  for (const count of [25, 50, 100, 200] as const) {
+    const fixtures = createNativeRealFixtureResidents(count);
+    assert.equal(fixtures.length, count);
+    assert.equal(new Set(fixtures.map(x => x.instanceId)).size, count);
+    assert.equal(new Set(fixtures.map(x => x.spawnCell)).size, count);
+    assert.ok(fixtures.every(x => x.spawnCell >= 0 && x.spawnCell < NATIVE_REAL_FIXTURE_CELLS));
+    assert.ok(fixtures.every(x => x.instanceId >= 10000));
+    assert.deepEqual(fixtures, createNativeRealFixtureResidents(count));
+  }
+  assert.throws(() => createNativeRealFixtureResidents(201 as never), /Unsupported/);
+});
+
+test("200 distinct occupants can spawn without modifying gameplay state or overlapping cells", () => {
+  const occupancy = new NativeRealFixtureOccupancy();
+  const fixtures = createNativeRealFixtureResidents(200);
+  for (const resident of fixtures) {
+    assert.equal(occupancy.isFreeFor(resident.instanceId, resident.spawnCell), true);
+    assert.equal(occupancy.tryClaim(resident.instanceId, resident.spawnCell), true);
+  }
+  assert.equal(occupancy.snapshot().occupied, 200);
+  assert.equal(occupancy.snapshot().claims, 200);
+  assert.equal(occupancy.checkInvariants(), true);
+
+  const a = fixtures[0]!;
+  const b = fixtures[1]!;
+  assert.equal(occupancy.isFreeFor(b.instanceId, a.spawnCell), false);
+  assert.equal(occupancy.tryClaim(b.instanceId, a.spawnCell), false);
+  assert.equal(occupancy.isFreeFor(b.instanceId, b.spawnCell), true,
+    "failed claim cannot evict the original position");
+  assert.equal(occupancy.snapshot().occupied, 200);
+  assert.equal(occupancy.snapshot().denied, 1);
+  assert.equal(occupancy.checkInvariants(), true);
+
+  occupancy.release(a.instanceId);
+  assert.equal(occupancy.snapshot().occupied, 199);
+  assert.equal(occupancy.tryClaim(b.instanceId, a.spawnCell), true,
+    "move atomically into released cell");
+  assert.equal(occupancy.isFreeFor(a.instanceId, b.spawnCell), true,
+    "successful claim must release previous cell");
+  assert.equal(occupancy.snapshot().occupied, 199);
+  assert.equal(occupancy.checkInvariants(), true);
+});
+
+test("invalid and out-of-bounds cells are always rejected, without mutating the fixture", () => {
+  const occupancy = new NativeRealFixtureOccupancy();
+  assert.equal(occupancy.tryClaim(10001, 0), true);
+  for (const invalid of [-10, -1, 400, 100000, 0.5, Number.NaN, Infinity]) {
+    assert.equal(occupancy.tryClaim(10001, invalid), false);
+    assert.equal(occupancy.isFreeFor(10001, invalid), false);
+    assert.equal(occupancy.snapshot().occupied, 1);
+    assert.equal(occupancy.checkInvariants(), true);
+  }
+  assert.equal(occupancy.isFreeFor(10001, 0), true);
+});
+
+test("4000 seeded contention operations never create two owners for one cell", () => {
+  const occupancy = new NativeRealFixtureOccupancy();
+  const residents = createNativeRealFixtureResidents(200);
+  for (const r of residents) occupancy.tryClaim(r.instanceId, r.spawnCell);
+  let state = 20261028;
+  const random = () => {
+    state = (Math.imul(state, 1664525) + 1013904223) >>> 0;
+    return state / 4294967296;
+  };
+  for (let step = 0; step < 4000; step++) {
+    const resident = residents[Math.floor(random() * residents.length)]!;
+    const target = Math.floor(random() * NATIVE_REAL_FIXTURE_CELLS);
+    occupancy.tryClaim(resident.instanceId, target);
+    if (step % 33 === 0) {
+      assert.ok(occupancy.snapshot().occupied <= 200);
+      assert.equal(occupancy.checkInvariants(), true);
+    }
+  }
+  assert.ok(occupancy.snapshot().denied > 0, "stress must exercise collision denial");
+  assert.equal(occupancy.snapshot().occupied, 200);
+  assert.equal(occupancy.checkInvariants(), true);
+  for (const r of residents) occupancy.release(r.instanceId);
+  assert.equal(occupancy.snapshot().occupied, 0);
+  assert.equal(occupancy.checkInvariants(), true);
+});
+
+test("remount and teardown release all occupancy and preserve the independent next fixture", () => {
+  const residents = createNativeRealFixtureResidents(200);
+  const previous = new NativeRealFixtureOccupancy();
+  for (const r of residents) previous.tryClaim(r.instanceId, r.spawnCell);
+  const next = new NativeRealFixtureOccupancy();
+  for (const r of residents) next.tryClaim(r.instanceId, r.spawnCell);
+  for (const r of residents) previous.release(r.instanceId);
+  assert.equal(previous.snapshot().occupied, 0);
+  assert.equal(next.snapshot().occupied, 200, "old cleanup cannot erase new fixture ownership");
+  for (const r of residents) next.release(r.instanceId);
+  assert.equal(next.snapshot().occupied, 0);
+});
+
+test("source boundary uses the real native sprite component without altering GameContext or saves", () => {
+  const screen = readFileSync(new URL("../app/native-perf.tsx", import.meta.url), "utf8");
+  const fixture = readFileSync(new URL("../src/performance/NativeRealResidentWorkload.tsx", import.meta.url), "utf8");
+  const occupancy = readFileSync(new URL("../src/performance/nativeRealResidentFixture.ts", import.meta.url), "utf8");
+  assert.match(screen, /NativeRealResidentWorkload/);
+  assert.match(screen, /Sprite abitanti reali/);
+  assert.match(screen, /realRenderer \? \(/);
+  assert.match(screen, /key=\{population \+ "-" \+ \(isMoving \? "moving" : "still"\)\}/,
+    "restart the isolated fixture after changes to movement mode");
+  assert.match(screen, /if \(!isMoving \|\| realRenderer\)/,
+    "marker-only animation must stop when real resident renderer is selected");
+  assert.match(fixture, /MapWandererCharacter/);
+  assert.match(fixture, /NativeRealFixtureOccupancy/);
+  assert.match(fixture, /disableIdleRoam=\{!moving\}/);
+  assert.match(fixture, /tryClaimCell=\{cell => occupancy\.tryClaim\(/);
+  assert.match(fixture, /releaseMyCell=\{\(\) => occupancy\.release\(/);
+  assert.match(fixture, /timeScale === 0/);
+  assert.match(fixture, /Simulazione in pausa/);
+  assert.doesNotMatch(fixture, /\b(?:setOrologioGioco\w*|setOrologioSim\w*|restoreOrologio|patchMappaPersonaggiRuntime|fetch)\s*\(/);
+  assert.doesNotMatch(fixture, /import[^\n]*(?:GameContext|AsyncStorage)/);
+  assert.doesNotMatch(occupancy, /\b(?:patchMappaPersonaggiRuntime|fetch)\s*\(/);
+  assert.doesNotMatch(occupancy, /import[^\n]*(?:GameContext|AsyncStorage)/);
+  assert.match(screen, /!__DEV__ \|\| Platform\.OS === "web"/);
+});
+
+test("fixture occupancy callbacks match the real map's claim/release behavior", () => {
+  const occupancy = new NativeRealFixtureOccupancy();
+  const ids = [10001, 10002];
+  assert.equal(occupancy.tryClaim(ids[0], 10), true);
+  assert.equal(occupancy.tryClaim(ids[1], 11), true);
+  assert.equal(occupancy.tryClaim(ids[0], 11), false);
+  assert.equal(occupancy.tryClaim(ids[0], 12), true);
+  assert.equal(occupancy.isFreeFor(ids[1], 10), true);
+  occupancy.release(ids[0]);
+  occupancy.release(ids[0]);
+  assert.equal(occupancy.snapshot().occupied, 1);
+  assert.equal(occupancy.tryClaim(ids[0], 11), false);
+  occupancy.settledAt(ids[1], 11);
+  assert.equal(occupancy.snapshot().settled, 1);
+  assert.equal(occupancy.checkInvariants(), true);
+});
