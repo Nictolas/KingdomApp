@@ -6,6 +6,8 @@ import { takeNativeResidentFrameCallbacks, takeNativeResidentRenderInvocations, 
 import { NativeMeasurementSession, formatNativeMeasurement } from "./nativeMeasurementSession";
 import { getNativeResidentTimerSnapshot, type NativeResidentTimerSnapshot } from "./nativeResidentTimerQueue";
 import { diffNativeResidentTimerCounters } from "./nativeResidentTimerDiagnostics";
+import { getNativeResidentFrameBusSnapshot, type NativeResidentFrameBusSnapshot } from "./nativeResidentFrameBus";
+import { diffNativeResidentFrameBusSnapshots } from "./nativeResidentFrameBusDiagnostics";
 
 const INITIAL_METRICS: NativeFrameSnapshot = {
   samples: 0, jsFps: 0, meanFrameMs: 0, p95FrameMs: 0, framesOver33Ms: 0, framesOver50Ms: 0
@@ -36,12 +38,17 @@ export function NativePerformanceHud({
     pending: 0, platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, budgetYieldsPerSecond: 0, callbackBudget: 32, backlogDue: false, scheduled: false
   });
   const lastTimerSample = useRef<{ timestamp: number; counters: NativeResidentTimerSnapshot } | null>(null);
+  const lastFrameBusSample = useRef<{ timestamp: number; counters: NativeResidentFrameBusSnapshot } | null>(null);
+  const [frameBusMetrics, setFrameBusMetrics] = useState({
+    continuousSubscribers: 0, persistentAddsPerSecond: 0, oneShotAddsPerSecond: 0
+  });
   const frameWindow = useRef(new NativeFrameWindow(120));
   const [measuring, setMeasuring] = useState(false);
   const [latestReport, setLatestReport] = useState<string | null>(null);
   const capture = useRef<{
     session: NativeMeasurementSession;
     timerStart: NativeResidentTimerSnapshot;
+    frameBusStart: NativeResidentFrameBusSnapshot;
     renderStart: NativeResidentRenderTotals;
     environment: { platform: string; label: string; residents: number; terrainCells?: number };
   } | null>(null);
@@ -51,6 +58,7 @@ export function NativePerformanceHud({
     capture.current = {
       session: new NativeMeasurementSession(performance.now()),
       timerStart: getNativeResidentTimerSnapshot(),
+      frameBusStart: getNativeResidentFrameBusSnapshot(),
       renderStart: getNativeResidentRenderTotals(),
       environment: { platform: Platform.OS, label, residents, terrainCells }
     };
@@ -65,6 +73,8 @@ export function NativePerformanceHud({
     setResidentBusCycles(0);
     setTimerMetrics({ pending: 0, platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, budgetYieldsPerSecond: 0, callbackBudget: 32, backlogDue: false, scheduled: false });
     lastTimerSample.current = { timestamp: performance.now(), counters: getNativeResidentTimerSnapshot() };
+    lastFrameBusSample.current = { timestamp: performance.now(), counters: getNativeResidentFrameBusSnapshot() };
+    setFrameBusMetrics({ continuousSubscribers: 0, persistentAddsPerSecond: 0, oneShotAddsPerSecond: 0 });
     takeNativeResidentBusCycles();
     takeNativeResidentFrameCallbacks();
     takeNativeResidentRenderInvocations();
@@ -79,6 +89,7 @@ export function NativePerformanceHud({
       previous = null;
       frameWindow.current.reset();
       lastTimerSample.current = null;
+      lastFrameBusSample.current = null;
       // Pausing/rotating the app invalidates a timed measurement.
       capture.current = null;
       setMeasuring(false);
@@ -100,7 +111,10 @@ export function NativePerformanceHud({
               const renders = diffNativeResidentRenderTotals(
                 active.renderStart, getNativeResidentRenderTotals(), complete.durationMs
               );
-              setLatestReport(formatNativeMeasurement(complete, active.environment, delta, renders));
+              const frameBus = diffNativeResidentFrameBusSnapshots(
+                active.frameBusStart, getNativeResidentFrameBusSnapshot(), complete.durationMs
+              );
+              setLatestReport(formatNativeMeasurement(complete, active.environment, delta, renders, frameBus));
             }
           }
         }
@@ -125,6 +139,17 @@ export function NativePerformanceHud({
             logicalCallbacksPerSecond: rates?.logicalCallbacksPerSecond ?? 0
           });
           lastTimerSample.current = { timestamp, counters: next };
+          const nextBus = getNativeResidentFrameBusSnapshot();
+          const prevBus = lastFrameBusSample.current;
+          const busInterval = prevBus ? timestamp - prevBus.timestamp : 0;
+          const busRate = prevBus
+            ? diffNativeResidentFrameBusSnapshots(prevBus.counters, nextBus, busInterval) : null;
+          setFrameBusMetrics({
+            continuousSubscribers: nextBus.continuousSubscribers,
+            persistentAddsPerSecond: busRate?.persistentRegistrationsPerSecond ?? 0,
+            oneShotAddsPerSecond: busRate?.oneShotRegistrationsPerSecond ?? 0
+          });
+          lastFrameBusSample.current = { timestamp, counters: nextBus };
           lastPublished = timestamp;
         }
       } else {
@@ -156,6 +181,9 @@ export function NativePerformanceHud({
           <Text style={styles.text}>Wrapper abitanti/s: {residentWrapperRenders}</Text>
           <Text style={styles.text}>Render sprite React/s: {residentRenders}</Text>
           <Text style={styles.text}>Frame bus nativo/s: {residentBusCycles}</Text>
+          <Text style={styles.text}>Abitanti iscritti a RAF persistente: {frameBusMetrics.continuousSubscribers}</Text>
+          <Text style={styles.text}>Nuove iscrizioni RAF persistenti/s: {frameBusMetrics.persistentAddsPerSecond.toFixed(1)}</Text>
+          <Text style={styles.text}>Registrazioni RAF one-shot/s: {frameBusMetrics.oneShotAddsPerSecond.toFixed(1)}</Text>
           <Text style={styles.text}>Timer residenti in attesa: {timerMetrics.pending}</Text>
           <Text style={styles.text}>Timeout nativi attivi: {timerMetrics.scheduled ? 1 : 0}</Text>
           <Text style={styles.text}>Wakeup timer nativo/s: {timerMetrics.platformWakeupsPerSecond.toFixed(1)}</Text>
@@ -163,7 +191,7 @@ export function NativePerformanceHud({
           <Text style={styles.text}>Max callback per wakeup: {timerMetrics.callbackBudget}</Text>
           <Text style={styles.text}>Backlog già scaduto: {timerMetrics.backlogDue ? "sì" : "no"}</Text>
           <Text style={styles.text}>Yield backlog/s: {timerMetrics.budgetYieldsPerSecond.toFixed(1)}</Text>
-          <Text style={styles.note}>Wrapper e render sprite sono invocazioni di funzione React, non commit. Timer e callback/s misurano attività JS, non FPS UI/GPU. Nessun dato salvato.</Text>
+          <Text style={styles.note}>Wrapper e render sprite sono invocazioni di funzione React, non commit. RAF persistenti e one-shot misurano registrazioni JS, non FPS UI/GPU. Nessun dato salvato.</Text>
           <Pressable
             style={[styles.testButton, measuring && styles.disabledButton]}
             disabled={measuring}
