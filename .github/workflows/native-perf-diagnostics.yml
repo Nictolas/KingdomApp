@@ -9,6 +9,7 @@ on:
       - "src/components/MapWandererCharacter.tsx"
       - "src/components/MapWandererCharacter.native.tsx"
       - "src/performance/nativeResidentFrameBus.ts"
+      - "src/performance/nativeResidentFrameBusDiagnostics.ts"
       - "src/performance/nativeResidentTimerQueue.ts"
       - "tests/native-resident-timer-queue.test.ts"
       - "tests/native-resident-timer-diagnostics.test.ts"
