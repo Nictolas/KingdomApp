@@ -1,0 +1,382 @@
+{
+  "source": {
+    "pr": 295,
+    "head": "ef54df29e41a79eda3e9bef55ed7c2200128b07e",
+    "workflowRun": 40605206040,
+    "jobId": 122542924762,
+    "typescript": "~6.0.3"
+  },
+  "diagnostics": [
+    {
+      "file": "app/castello.tsx",
+      "line": 40,
+      "column": 10,
+      "code": "TS2305",
+      "message": "Module '\"../src/game/nomiUmani\"' has no exported member 'capitalizzaNomePersona'."
+    },
+    {
+      "file": "app/edifici.tsx",
+      "line": 26,
+      "column": 40,
+      "code": "TS2769",
+      "message": "No overload matches this call."
+    },
+    {
+      "file": "src/game/cuginoNobileAvventura.ts",
+      "line": 79,
+      "column": 5,
+      "code": "TS2353",
+      "message": "Object literal may only specify known properties, and 'specie' does not exist in type 'Abitante'."
+    },
+    {
+      "file": "src/game/cuginoNobileAvventura.ts",
+      "line": 128,
+      "column": 7,
+      "code": "TS2353",
+      "message": "Object literal may only specify known properties, and 'specie' does not exist in type 'Abitante'."
+    },
+    {
+      "file": "src/game/reGenitoriDeceduti.ts",
+      "line": 188,
+      "column": 5,
+      "code": "TS2353",
+      "message": "Object literal may only specify known properties, and 'specie' does not exist in type 'Abitante'."
+    },
+    {
+      "file": "src/game/warmStartupCharacters.ts",
+      "line": 13,
+      "column": 3,
+      "code": "TS2305",
+      "message": "Module '\"./personaggioAspetto\"' has no exported member 'creaAspettoConsigliereIniziale'."
+    },
+    {
+      "file": "src/tutorial/TutorialSpotlightOverlay.tsx",
+      "line": 121,
+      "column": 19,
+      "code": "TS2551",
+      "message": "Property 'absoluteFillObject' does not exist on type 'typeof StyleSheet'. Did you mean 'absoluteFill'?"
+    },
+    {
+      "file": "tests/adventure-noble-cousin.test.ts",
+      "line": 8,
+      "column": 10,
+      "code": "TS2305",
+      "message": "Module '\"../src/game/generazionePartita.ts\"' has no exported member 'generaColoniaIniziale'."
+    },
+    {
+      "file": "tests/adventure-noble-cousin.test.ts",
+      "line": 21,
+      "column": 8,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-noble-cousin.test.ts",
+      "line": 33,
+      "column": 40,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-noble-cousin.test.ts",
+      "line": 44,
+      "column": 45,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-jobs.test.ts",
+      "line": 4,
+      "column": 10,
+      "code": "TS2305",
+      "message": "Module '\"../src/game/generazionePartita.ts\"' has no exported member 'generaColoniaIniziale'."
+    },
+    {
+      "file": "tests/adventure-starting-jobs.test.ts",
+      "line": 10,
+      "column": 42,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-jobs.test.ts",
+      "line": 11,
+      "column": 36,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-jobs.test.ts",
+      "line": 12,
+      "column": 39,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-jobs.test.ts",
+      "line": 13,
+      "column": 40,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-jobs.test.ts",
+      "line": 21,
+      "column": 35,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-jobs.test.ts",
+      "line": 28,
+      "column": 18,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-jobs.test.ts",
+      "line": 31,
+      "column": 15,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-jobs.test.ts",
+      "line": 36,
+      "column": 26,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-seeds.test.ts",
+      "line": 4,
+      "column": 10,
+      "code": "TS2305",
+      "message": "Module '\"../src/game/generazionePartita.ts\"' has no exported member 'generaColoniaIniziale'."
+    },
+    {
+      "file": "tests/adventure-starting-seeds.test.ts",
+      "line": 10,
+      "column": 33,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-seeds.test.ts",
+      "line": 11,
+      "column": 33,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-seeds.test.ts",
+      "line": 12,
+      "column": 33,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-seeds.test.ts",
+      "line": 13,
+      "column": 33,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-seeds.test.ts",
+      "line": 14,
+      "column": 33,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-seeds.test.ts",
+      "line": 15,
+      "column": 33,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-seeds.test.ts",
+      "line": 17,
+      "column": 31,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-seeds.test.ts",
+      "line": 25,
+      "column": 28,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-seeds.test.ts",
+      "line": 26,
+      "column": 28,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-seeds.test.ts",
+      "line": 27,
+      "column": 28,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-seeds.test.ts",
+      "line": 28,
+      "column": 28,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/adventure-starting-seeds.test.ts",
+      "line": 29,
+      "column": 28,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/bar-economy-runtime.test.ts",
+      "line": 14,
+      "column": 13,
+      "code": "TS2352",
+      "message": "Conversion of type '{ id: number; nome: string; stato: \"Operativo\"; categoriaEconomica: \"Impresa\"; capacità: number; occupazione: number; abitantiAssegnati: never[]; stipendioPerLavoratore: number; cassaMonete: number; }' to type 'Edificio' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+    },
+    {
+      "file": "tests/bosco-map-hiring.test.ts",
+      "line": 23,
+      "column": 15,
+      "code": "TS2352",
+      "message": "Conversion of type '{ id: number; nome: string; stato: \"Operativo\"; capacità: number; occupazione: number; abitantiAssegnati: never[]; }' to type 'Edificio' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+    },
+    {
+      "file": "tests/character-appearance.test.ts",
+      "line": 4,
+      "column": 10,
+      "code": "TS2305",
+      "message": "Module '\"../src/game/generazionePartita.ts\"' has no exported member 'generaColoniaIniziale'."
+    },
+    {
+      "file": "tests/character-appearance.test.ts",
+      "line": 38,
+      "column": 30,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/character-appearance.test.ts",
+      "line": 38,
+      "column": 64,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/character-appearance.test.ts",
+      "line": 39,
+      "column": 30,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/character-appearance.test.ts",
+      "line": 39,
+      "column": 64,
+      "code": "TS7006",
+      "message": "Parameter 'a' implicitly has an 'any' type."
+    },
+    {
+      "file": "tests/emporio-business-core.test.ts",
+      "line": 11,
+      "column": 17,
+      "code": "TS2352",
+      "message": "Conversion of type '{ id: number; nome: string; categoriaEconomica: \"Impresa\"; stato: \"Operativo\"; capacità: number; occupazione: number; abitantiAssegnati: never[]; cassaMonete: number; }' to type 'Edificio' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+    },
+    {
+      "file": "tests/family-tree-restoration.test.ts",
+      "line": 15,
+      "column": 3,
+      "code": "TS2322",
+      "message": "Type '{ id: number; nome: string; emoji: string; eta: number; lavoro: string; competenza: number; produttività: number; stanchezza: number; specializzazione?: Specializzazione | undefined; ... 41 more ...; bisogni?: { fame: number; energia: number; divertimento: number; socialita: number; igiene: number; } | undefined; }' is not assignable to type 'Abitante'."
+    },
+    {
+      "file": "tests/game-mode-generation.test.ts",
+      "line": 4,
+      "column": 10,
+      "code": "TS2305",
+      "message": "Module '\"../src/game/generazionePartita.ts\"' has no exported member 'generaColoniaIniziale'."
+    },
+    {
+      "file": "tests/hourly-construction-restoration.test.ts",
+      "line": 11,
+      "column": 5,
+      "code": "TS2783",
+      "message": "'id' is specified more than once, so this usage will be overwritten."
+    },
+    {
+      "file": "tests/hourly-construction-restoration.test.ts",
+      "line": 12,
+      "column": 5,
+      "code": "TS2783",
+      "message": "'nome' is specified more than once, so this usage will be overwritten."
+    },
+    {
+      "file": "tests/map-layout-config.test.ts",
+      "line": 16,
+      "column": 3,
+      "code": "TS2724",
+      "message": "'\"../src/game/mappaLayoutConfig.ts\"' has no exported member named 'SPAZIOPORTO_FOOTPRINT_H'. Did you mean 'PORTO_FOOTPRINT_H'?"
+    },
+    {
+      "file": "tests/map-layout-config.test.ts",
+      "line": 17,
+      "column": 3,
+      "code": "TS2724",
+      "message": "'\"../src/game/mappaLayoutConfig.ts\"' has no exported member named 'SPAZIOPORTO_FOOTPRINT_W'. Did you mean 'PORTO_FOOTPRINT_W'?"
+    },
+    {
+      "file": "tests/monthly-business-tax.test.ts",
+      "line": 7,
+      "column": 17,
+      "code": "TS2352",
+      "message": "Conversion of type '{ id: number; nome: string; categoriaEconomica: \"Impresa\"; stato: \"Operativo\"; capacità: number; occupazione: number; abitantiAssegnati: never[]; cassaMonete: number; fatturatoMeseMonete: number; }' to type 'Edificio' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+    },
+    {
+      "file": "tests/re-modalita-recupero.test.ts",
+      "line": 26,
+      "column": 15,
+      "code": "TS2352",
+      "message": "Conversion of type '{ id: number; nome: string; tipo: string; stato: \"Operativo\"; efficienza: number; capacità: number; occupazione: number; abitantiAssegnati: never[]; }' to type 'Edificio' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+    },
+    {
+      "file": "tests/soddisfazione-protesta.test.ts",
+      "line": 11,
+      "column": 10,
+      "code": "TS2352",
+      "message": "Conversion of type '{ id: number; nome: string; tipo: string; stato: \"Operativo\"; efficienza: number; capacità: number; occupazione: number; abitantiAssegnati: never[]; }' to type 'Edificio' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+    },
+    {
+      "file": "tests/soddisfazione-sabotaggio-ostile.test.ts",
+      "line": 44,
+      "column": 10,
+      "code": "TS2352",
+      "message": "Conversion of type '{ id: number; nome: string; tipo: string; stato: \"Operativo\"; efficienza: number; capacità: number; occupazione: number; abitantiAssegnati: never[]; }' to type 'Edificio' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+    },
+    {
+      "file": "tests/unreachable-work-reassignment.test.ts",
+      "line": 29,
+      "column": 17,
+      "code": "TS2352",
+      "message": "Conversion of type '{ id: number; nome: string; stato: \"Operativo\"; categoriaEconomica: \"Impresa\"; capacità: number; occupazione: number; abitantiAssegnati: never[]; }' to type 'Edificio' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+    },
+    {
+      "file": "tests/unreachable-work-reassignment.test.ts",
+      "line": 41,
+      "column": 17,
+      "code": "TS2352",
+      "message": "Conversion of type '{ id: number; nome: string; stato: \"Operativo\"; capacità: number; occupazione: number; abitantiAssegnati: never[]; }' to type 'Edificio' may be a mistake because neither type sufficiently overlaps with the other. If this was intentional, convert the expression to 'unknown' first."
+    }
+  ]
+}
