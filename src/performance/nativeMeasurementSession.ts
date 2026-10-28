@@ -107,7 +107,7 @@ export function formatNativeMeasurement(
       `Transizioni pausa/background JS: ${dispatchStats.lifecycle.samples}`,
       `Transizioni pausa/background JS p95: ${dispatchStats.lifecycle.p95Ms.toFixed(2)} ms`,
       `Transizioni pausa/background JS massimo: ${dispatchStats.lifecycle.maxMs.toFixed(2)} ms`,
-      "Durate dei callback JavaScript; NON FPS GPU/UI, latenza fisica touch o utilizzo CPU."
+      "Durate dei callback JavaScript; NON FPS GPU/UI, latenza touch o utilizzo CPU."
     ]),
     ...(eventLoopStats == null ? [] : [
       `Ritardo loop JS campioni: ${eventLoopStats.samples}`,
