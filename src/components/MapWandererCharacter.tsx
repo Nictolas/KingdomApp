@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { getOrologioGiocoInPausaSnapshot } from "../game/orologioGiocoSession";
 import { PauseAwareMotionClock } from "../game/pauseAwareMotionClock";
+import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation } from "../performance/nativeResidentWorkCounters";
 import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
 import {
@@ -163,6 +164,8 @@ export function MapWandererCharacter({
   const prevGiocoInPausaRef = useRef(giocoInPausa);
   const prevFixedCellRef = useRef<number | null | undefined>(undefined);
   const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Collision retry can be suspended across pauses without repeated timers. */
+  const [pendingCommuteRetry] = useState(() => new PendingCommuteRetry());
   const rafRef = useRef<number | null>(null);
   const lastTapTimeRef = useRef(0);
   /** Evita di rieseguire effetti a ogni render (es. tick orologio sul genitore → callback nuove). */
@@ -303,6 +306,13 @@ export function MapWandererCharacter({
 
   const runOneSegment = useCallback(
     (from: number, to: number, onDone: () => void, isLastSegment: boolean) => {
+      // Do not claim a cell or start movement while the game is paused.
+      // The useGiocoInPausa effect resumes this precise segment on unpause.
+      if (getOrologioGiocoInPausaSnapshot()) {
+        pendingCommuteRetry.hold(() => runOneSegment(from, to, onDone, isLastSegment));
+        return;
+      }
+      pendingCommuteRetry.clear();
       const claim = tryClaimCellRef.current;
       const purpose = commutePurposeRef.current;
       /** Ultimo passo verso casa: più abitanti possono condividere l’ingresso. */
@@ -319,8 +329,10 @@ export function MapWandererCharacter({
           onCommuteBlockedRef.current({ fromCell: from, blockedCell: to, purpose });
           return;
         }
+        pendingCommuteRetry.hold(() => runOneSegment(from, to, onDone, isLastSegment));
         idleTimerRef.current = setTimeout(() => {
-          runOneSegment(from, to, onDone, isLastSegment);
+          idleTimerRef.current = null;
+          pendingCommuteRetry.take()?.();
         }, CLAIM_RETRY_MS);
         return;
       }
@@ -373,7 +385,7 @@ export function MapWandererCharacter({
       };
       rafRef.current = requestAnimationFrame(step);
     },
-    [cols, cellSizePx, isRoadCell]
+    [cols, cellSizePx, isRoadCell, pendingCommuteRetry]
   );
 
   /** Percorso casa → lavoro / lavoro → casa / … */
@@ -381,6 +393,7 @@ export function MapWandererCharacter({
     if (!commutePath || commutePath.length < 2) return;
     let alive = true;
     clearIdle();
+    pendingCommuteRetry.clear();
     if (rafRef.current != null) {
       cancelAnimationFrame(rafRef.current);
       rafRef.current = null;
@@ -416,6 +429,7 @@ export function MapWandererCharacter({
     stepChain();
     return () => {
       alive = false;
+      pendingCommuteRetry.clear();
       if (rafRef.current != null) {
         cancelAnimationFrame(rafRef.current);
         rafRef.current = null;
@@ -429,7 +443,8 @@ export function MapWandererCharacter({
     cols,
     cellSizePx,
     clearIdle,
-    runOneSegment
+    runOneSegment,
+    pendingCommuteRetry
   ]);
 
   /** Di notte sulla residenza: fermo, sotto il layer edifici. */
@@ -561,22 +576,28 @@ export function MapWandererCharacter({
       clearIdle();
       return;
     }
+    if (commutePath != null && commutePath.length >= 2) {
+      // An outstanding claim retry was canceled by clearIdle() at pause;
+      // resume it once, rather than restarting the entire commute path.
+      pendingCommuteRetry.take()?.();
+      return;
+    }
     if (fixedCell != null) return;
-    if (commutePath != null && commutePath.length >= 2) return;
     if (disableIdleRoam) return;
     if (cellRef.current == null || !inited.current) return;
     if (isMovingRef.current) return;
     clearIdle();
     idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
-  }, [giocoInPausa, fixedCell, commutePath, disableIdleRoam, clearIdle]);
+  }, [giocoInPausa, fixedCell, commutePath, disableIdleRoam, clearIdle, pendingCommuteRetry]);
 
   useEffect(
     () => () => {
       clearIdle();
+      pendingCommuteRetry.clear();
       if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
       releaseMyCellRef.current?.();
     },
-    [clearIdle]
+    [clearIdle, pendingCommuteRetry]
   );
 
   if (logicalCell === null) return null;
