@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { NativeResidentActivityGate } from "../src/performance/nativeResidentActivityGate.ts";
 import { NativeResidentFrameBus } from "../src/performance/nativeResidentFrameBus.ts";
-import { NativeResidentSegmentProgress } from "../src/performance/nativeResidentSegmentProgress.ts";
+import { NativeResidentSegmentRunner } from "../src/performance/nativeResidentSegmentRunner.ts";
 import { NativeResidentSpriteFrameDriver } from "../src/performance/nativeResidentSpriteFrameDriver.ts";
 import { NativeResidentTimerQueue, NATIVE_RESIDENT_TIMER_CALLBACK_BUDGET } from "../src/performance/nativeResidentTimerQueue.ts";
 
@@ -52,23 +52,30 @@ test("200 native residents: shared RAF + sprite offsets + collision timers acros
   const drivers = Array.from({ length: population }, (_, resident) =>
     new NativeResidentSpriteFrameDriver(40, () => { offsetWrites[resident]!++; })
   );
+  let positionWrites = 0;
+  const motions: NativeResidentSegmentRunner[] = [];
   for (let resident = 0; resident < population; resident++) {
     const driver = drivers[resident]!;
     driver.face(resident % 2 ? "w" : "n");
-    driver.setMoving(true);
-    const motion = new NativeResidentSegmentProgress(0, 1000 + (resident % 3) * 250);
-    const step = (timestamp: number, rebase: boolean): void => {
-      const frame = motion.sample(timestamp, speed, rebase);
-      if (frame.advance) driver.advanceElapsed(frame.elapsedMs);
-      if (frame.complete) {
+    const motion = new NativeResidentSegmentRunner({
+      requestFrame: callback => bus.request(callback),
+      cancelFrame: id => bus.cancel(id),
+      readTimeScale: () => speed,
+      writePosition: () => { positionWrites++; },
+      advanceSprite: elapsed => driver.advanceElapsed(elapsed),
+      setWalking: moving => driver.setMoving(moving)
+    });
+    motions.push(motion);
+    motion.start({
+      from: { x: 0, y: resident * 40 },
+      to: { x: 40, y: resident * 40 },
+      startTimestamp: 0,
+      durationMs: 1000 + (resident % 3) * 250,
+      onArrival: () => {
         arrivals++;
-        driver.setMoving(false);
         retries[resident] = timers.schedule(() => retried.push(resident), 900);
-      } else {
-        bus.request(step);
       }
-    };
-    bus.request(step);
+    });
   }
 
   function tick(deltaMs = 16): void {
@@ -114,6 +121,9 @@ test("200 native residents: shared RAF + sprite offsets + collision timers acros
   speed = 4;
   for (let i = 0; i < 10; i++) tick();
   assert.equal(arrivals, population, "all three segment durations must finish");
+  assert.ok(motions.every(motion => motion.snapshot().completed === 1));
+  assert.ok(motions.every(motion => !motion.snapshot().active));
+  assert.ok(positionWrites <= 200 * 51, "at most one native position write per resident per RAF");
   assert.equal(bus.snapshot().queued, 0);
   assert.equal(frames.size, 0);
   assert.equal(timers.snapshot().pending, population);
