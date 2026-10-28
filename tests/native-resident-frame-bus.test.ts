@@ -255,7 +255,9 @@ test("200-resident integration: app background and manual pause cannot restart R
   assert.equal(updates, 400);
   runner.tick(10_016);
   assert.equal(updates, 600);
-  assert.equal(runner.requested, 3, "one native frame for each frame containing 200 residents");
+  // 3 actually dispatched native frames plus one canceled when backgrounded.
+  assert.equal(runner.requested, 4);
+  assert.equal(runner.cancelled, 1);
   assert.equal(runner.bus.snapshot().queued, 0);
 });
 
