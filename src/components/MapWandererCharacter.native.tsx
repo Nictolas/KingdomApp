@@ -3,7 +3,8 @@ import { Animated, Image, Pressable, StyleSheet, Text, View } from "react-native
 import { getOrologioGiocoInPausaSnapshot, getOrologioSimTimeScaleSnapshot } from "../game/orologioGiocoSession";
 import { NativeResidentSegmentProgress } from "../performance/nativeResidentSegmentProgress";
 import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
-import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation } from "../performance/nativeResidentWorkCounters";
+import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation, markNativeResidentWrapperInvocation } from "../performance/nativeResidentWorkCounters";
+import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallbackRelay";
 import {
   requestResidentAnimationFrame,
   cancelResidentAnimationFrame,
@@ -134,7 +135,7 @@ type MapWandererCharacterProps = {
  * Personaggio da `character.png`: spostamento fluido tra celle, camminata solo durante il movimento,
  * idle sul primo frame a riposo; sprite più alto della cella, piedi sulla casella.
  */
-export function MapWandererCharacter({
+function NativeResidentBody({
   cols,
   rows,
   cellSizePx,
@@ -729,6 +730,24 @@ export function MapWandererCharacter({
       {sprite}
     </Animated.View>
   );
+}
+
+
+/**
+ * The parent map changes inline handlers at every world-clock render. Keep
+ * the simulation/sprite subtree memoized while the outer wrapper refreshes
+ * the live event targets synchronously. Non-event props, including walkable
+ * predicates, road predicates, path, night cell, accessibility and hit-test
+ * passthrough, retain normal shallow comparison and trigger a real render.
+ */
+const MemoNativeResidentBody = React.memo(NativeResidentBody);
+
+export function MapWandererCharacter(props: MapWandererCharacterProps) {
+  if (__DEV__) markNativeResidentWrapperInvocation();
+  const relay = useRef<NativeResidentCallbackRelay | null>(null);
+  if (relay.current === null) relay.current = new NativeResidentCallbackRelay(props);
+  relay.current.update(props);
+  return <MemoNativeResidentBody {...props} {...relay.current.bound()} />;
 }
 
 const styles = StyleSheet.create({
