@@ -1,4 +1,4 @@
-import { NativeResidentSegmentProgress } from "./nativeResidentSegmentProgress";
+import { NativeResidentSegmentProgress, type NativeResidentSegmentSampleBuffer } from "./nativeResidentSegmentProgress";
 
 export type NativeResidentPoint = Readonly<{ x: number; y: number }>;
 export type NativeResidentSegmentRequest = Readonly<{
@@ -12,17 +12,21 @@ export type NativeResidentSegmentRequest = Readonly<{
 }>;
 
 type FrameCallback = (timestamp: number, resumedAfterSuspension: boolean) => void;
+type ResidentPositionWriter =
+  | { writePosition: (point: NativeResidentPoint) => void; writePositionXY?: never }
+  | { writePosition?: never; writePositionXY: (x: number, y: number) => void };
+
 export type NativeResidentSegmentDependencies = Readonly<{
   requestFrame: (callback: FrameCallback) => number;
   /** Native frame bus: one subscription per segment instead of one per frame. */
   subscribeFrame?: (callback: FrameCallback) => number;
   cancelFrame: (id: number) => void;
   readTimeScale: () => number;
-  writePosition: (point: NativeResidentPoint) => void;
+  /** Coordinate callback is native-only and avoids a point allocation per frame. */
   advanceSprite: (elapsedMs: number) => void;
   setWalking: (moving: boolean) => void;
   onFrame?: () => void;
-}>;
+} & ResidentPositionWriter>;
 
 /**
  * Native-only segment executor shared by wandering and commute paths.
@@ -39,7 +43,12 @@ export type NativeResidentSegmentDependencies = Readonly<{
 export class NativeResidentSegmentRunner {
   private generation = 0;
   private frameId: number | null = null;
-  private lastWritten: NativeResidentPoint | null = null;
+  private lastWrittenX: number | null = null;
+  private lastWrittenY: number | null = null;
+  /** One sample buffer per resident runner, not a new object every RAF. */
+  private readonly frameSample: NativeResidentSegmentSampleBuffer = {
+    elapsedMs: 0, progress: 0, advance: false, complete: false
+  };
   private active = false;
   private completed = 0;
   private positionWrites = 0;
@@ -50,7 +59,8 @@ export class NativeResidentSegmentRunner {
   cancel(): void {
     this.generation++;
     this.active = false;
-    this.lastWritten = null;
+    this.lastWrittenX = null;
+    this.lastWrittenY = null;
     if (this.frameId !== null) {
       this.deps.cancelFrame(this.frameId);
       this.frameId = null;
@@ -83,22 +93,26 @@ export class NativeResidentSegmentRunner {
       if (!this.deps.subscribeFrame) this.frameId = null;
       this.deps.onFrame?.();
       if (token !== this.generation || !this.active) return;
-      const frame = segment.sample(now, this.deps.readTimeScale(), resumedAfterSuspension);
+      segment.sampleInto(now, this.deps.readTimeScale(), resumedAfterSuspension, this.frameSample);
+      if (token !== this.generation || !this.active) return;
+      const frame = this.frameSample;
       if (!frame.advance) {
         if (!this.deps.subscribeFrame) this.frameId = this.deps.requestFrame(step);
         return;
       }
       const t = frame.progress;
-      const point = {
-        x: request.from.x + (request.to.x - request.from.x) * t,
-        y: request.from.y + (request.to.y - request.from.y) * t
-      };
-      // Avoid duplicate bridge writes, including the duplicate final snap
-      // that both old movement loops performed at progress=1.
-      if (!this.lastWritten ||
-        point.x !== this.lastWritten.x || point.y !== this.lastWritten.y) {
-        this.lastWritten = point;
-        this.deps.writePosition(point);
+      const x = request.from.x + (request.to.x - request.from.x) * t;
+      const y = request.from.y + (request.to.y - request.from.y) * t;
+      // Avoid duplicate bridge writes. Native XY writer avoids allocating a
+      // new point object while retaining the original value API for tests.
+      if (this.lastWrittenX !== x || this.lastWrittenY !== y) {
+        this.lastWrittenX = x;
+        this.lastWrittenY = y;
+        if (this.deps.writePositionXY) {
+          this.deps.writePositionXY(x, y);
+        } else {
+          this.deps.writePosition!({ x, y });
+        }
         this.positionWrites++;
         // Animated.Value listeners can synchronously replace a route.
         if (token !== this.generation || !this.active) return;
