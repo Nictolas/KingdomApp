@@ -157,6 +157,13 @@ export function MapWandererCharacter({
   const [pixelPos] = useState(() => new Animated.ValueXY({ x: 0, y: 0 }));
   const [direction, setDirection] = useState<WanderDirection>("s");
   const [walkFrame, setWalkFrame] = useState(0);
+  const walkFrameRef = useRef(0);
+  // React only needs a new sprite frame every ~180ms, not at every RAF tick.
+  const updateWalkFrame = useCallback((next: number) => {
+    if (walkFrameRef.current === next) return;
+    walkFrameRef.current = next;
+    setWalkFrame(next);
+  }, []);
   const [isMoving, setIsMoving] = useState(false);
   const giocoInPausa = useGiocoInPausa();
 
@@ -288,11 +295,11 @@ export function MapWandererCharacter({
         y: fromY + (toY - fromY) * t
       });
       if (t < 1) {
-        setWalkFrame(walkFrameFromElapsedMs(elapsedMs));
+        updateWalkFrame(walkFrameFromElapsedMs(elapsedMs));
         rafRef.current = requestResidentAnimationFrame(step);
       } else {
         pixelPos.setValue({ x: toX, y: toY });
-        setWalkFrame(0);
+        updateWalkFrame(0);
         setIsMoving(false);
         setLogicalCell(dest);
         cellRef.current = dest;
@@ -370,11 +377,11 @@ export function MapWandererCharacter({
           y: fromY + (toY - fromY) * t
         });
         if (t < 1) {
-          setWalkFrame(walkFrameFromElapsedMs(elapsedMs));
+          updateWalkFrame(walkFrameFromElapsedMs(elapsedMs));
           rafRef.current = requestResidentAnimationFrame(step);
         } else {
           pixelPos.setValue({ x: toX, y: toY });
-          setWalkFrame(0);
+          updateWalkFrame(0);
           if (isLastSegment) {
             setIsMoving(false);
           }
@@ -409,7 +416,7 @@ export function MapWandererCharacter({
     cellRef.current = start;
     pixelPos.setValue({ x: cx, y: cy });
     setIsMoving(false);
-    setWalkFrame(0);
+    updateWalkFrame(0);
     // Partenza spesso condivisa (casa): non claim esclusivo; claim al primo passo verso `to`.
     onCellSettledRef.current?.(start);
 
@@ -465,7 +472,7 @@ export function MapWandererCharacter({
     cellRef.current = fixedCell;
     pixelPos.setValue({ x: cx, y: cy });
     setIsMoving(false);
-    setWalkFrame(0);
+    updateWalkFrame(0);
     setDirection("s");
     onCellSettledRef.current?.(fixedCell);
   }, [fixedCell, cols, cellSizePx, clearIdle]);
@@ -494,7 +501,7 @@ export function MapWandererCharacter({
     cellRef.current = prevHome;
     pixelPos.setValue({ x: cx, y: cy });
     setIsMoving(false);
-    setWalkFrame(0);
+    updateWalkFrame(0);
     onCellSettledRef.current?.(prevHome);
     if (!disableIdleRoam) {
       idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
