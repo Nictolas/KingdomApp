@@ -19,6 +19,7 @@ on:
       - "tests/native-resident-timer-cooperative-batching.test.ts"
       - "tests/native-resident-timer-time-budget.test.ts"
       - "tests/native-resident-timer-burst-benchmark.ts"
+      - "tests/native-resident-timer-time-budget-benchmark.ts"
       - "tests/native-resident-callback-relay.test.ts"
       - "tests/native-resident-sprite-frame-driver.test.ts"
       - "tests/native-resident-sprite-scheduler-integration.test.ts"
@@ -59,6 +60,8 @@ jobs:
         run: npx tsx tests/native-resident-frame-bus-benchmark.ts
       - name: Synthetic timer burst benchmark (Node only, not FPS)
         run: npx tsx tests/native-resident-timer-burst-benchmark.ts
+      - name: Synthetic timer time-slice workload model (fake clock, not touch/FPS)
+        run: npx tsx tests/native-resident-timer-time-budget-benchmark.ts
       - name: Android JS bundle smoke test (not on-device)
         env:
           CI: "1"
