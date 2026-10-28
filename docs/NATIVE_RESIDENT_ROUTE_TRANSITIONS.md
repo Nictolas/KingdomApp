@@ -135,3 +135,32 @@ La fixture A/B della #298 e il web rimangono invariati. Il nuovo
 test e' eseguito dal job gia' presente
 `native-resident-occupancy-handoff.test.ts`; i bundle JS e la CI
 restano verifiche distinte.
+
+
+## 28 ottobre — collisioni in coda e richiesta di nuovo percorso (solo Android/iOS)
+
+Un segmento intermedio arrivato può lasciare volontariamente lo sprite in stato
+«cammina», perché il segmento successivo dovrebbe iniziare subito. Se la cella
+successiva è occupata, però, il vecchio renderer lasciava lo sprite in cammino
+senza un segmento RAF attivo durante le attese da 900 ms, e anche dopo la
+richiesta di ricalcolo del percorso.
+
+Il controller nativo `NativeResidentCollisionRetry` mantiene la soglia
+preesistente di **3 claim falliti**, senza cambiare durata del retry, scelta
+della destinazione o logica del genitore. Ogni fallimento arresta lo stato
+visivo di camminata, ma **non libera la cella logica già raggiunta**: il
+tentativo di prenotare la prossima cella non è riuscito. Quando il genitore
+dispone di un callback di ricalcolo, la terza collisione lo notifica una
+sola volta; un callback tardivo non riattiva il percorso bloccato. Il
+controller si azzera all'avvio di un nuovo percorso o al claim riuscito.
+Senza callback di ricalcolo, il comportamento rimane quello storico:
+continuare a ritentare, non abbandonare silenziosamente il tragitto.
+
+La suite `native-resident-collision-retry.test.ts` copre soglia, assenza
+di handler, reset, 200 runner e 12.000 claim falliti sintetici in 20 cicli,
+burst cooperativi della timer queue e sospensione/foreground. Il test
+verifica anche che il renderer web non importi il nuovo controller.
+Questi sono **test Node con clock e RAF finti**, non misure FPS o latenza
+di collisione su telefono. Durante la prova A/B reale verificare
+visivamente uno sprite fermo in attesa di una cella occupata e la ripartenza
+dopo il nuovo percorso, anche dopo pausa e background.

@@ -4,6 +4,7 @@ import { getOrologioGiocoInPausaSnapshot, getOrologioSimTimeScaleSnapshot } from
 import { NativeResidentSegmentRunner } from "../performance/nativeResidentSegmentRunner";
 import { beginNativeResidentDispatch, endNativeResidentDispatch } from "../performance/nativeResidentDispatchProfiler";
 import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
+import { NativeResidentCollisionRetry } from "../performance/nativeResidentCollisionRetry";
 import { nativeResidentRouteMode, nativeResidentHomeTransition, nativeResidentShouldRearmIdle, nativeResidentReconcileInterruptedClaim, nativeResidentReleaseMismatchedRouteOrigin, nativeResidentReleaseSharedHomeArrival } from "../performance/nativeResidentRouteTransitions";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation, markNativeResidentWrapperInvocation } from "../performance/nativeResidentWorkCounters";
 import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallbackRelay";
@@ -225,7 +226,7 @@ function NativeResidentBody({
     activityConfigRef.current = { fixedCell, commutePath, disableIdleRoam };
   }, [fixedCell, commutePath, disableIdleRoam]);
   /** Fallimenti consecutivi di claim sul segmento corrente. */
-  const claimFailCountRef = useRef(0);
+  const [claimRetry] = useState(() => new NativeResidentCollisionRetry(MAX_CLAIM_FAILS_BEFORE_REPATH));
   onCommuteCompleteRef.current = onCommuteComplete;
   onCommuteBlockedRef.current = onCommuteBlocked;
   onCellSettledRef.current = onCellSettled;
@@ -366,16 +367,22 @@ function NativeResidentBody({
       const softHomeEntry = isLastSegment && purpose === "home";
 
       if (claim && !softHomeEntry && !claim(to)) {
-        claimFailCountRef.current += 1;
-        if (
-          claimFailCountRef.current >= MAX_CLAIM_FAILS_BEFORE_REPATH &&
-          purpose != null &&
-          onCommuteBlockedRef.current
-        ) {
-          claimFailCountRef.current = 0;
-          onCommuteBlockedRef.current({ fromCell: from, blockedCell: to, purpose });
+        // A completed intermediate step may deliberately keep the walking
+        // sprite active. A blocked next cell has no active segment: stop that
+        // animation before scheduling a retry or notifying the parent.
+        // The settled cell retains its existing claim; only the destination
+        // failed, so do not release/reclaim occupancy here.
+        motion.stop();
+        const canRepath = purpose != null && onCommuteBlockedRef.current != null;
+        const decision = claimRetry.fail(canRepath);
+        if (decision === "request-repath") {
+          // Escalation is single-shot until a new route or successful claim.
+          // Never leave an idle timeout that could restart the old route.
+          pendingCommuteRetry.clear();
+          if (purpose != null) onCommuteBlockedRef.current?.({ fromCell: from, blockedCell: to, purpose });
           return;
         }
+        if (decision === "awaiting-repath") return;
         pendingCommuteRetry.hold(() => runOneSegment(from, to, onDone, isLastSegment));
         idleTimerRef.current = scheduleNativeResidentTimer(() => {
           idleTimerRef.current = null;
@@ -389,7 +396,7 @@ function NativeResidentBody({
         claim(to);
       }
 
-      claimFailCountRef.current = 0;
+      claimRetry.reset();
       face(directionBetween(from, to, cols));
       const fromX = (from % cols) * cellSizePx;
       const fromY = Math.floor(from / cols) * cellSizePx;
@@ -415,7 +422,7 @@ function NativeResidentBody({
         }
       });
     },
-    [cols, cellSizePx, isRoadCell, pendingCommuteRetry, face, motion]
+    [cols, cellSizePx, isRoadCell, pendingCommuteRetry, face, motion, claimRetry]
   );
 
   /** Percorso casa → lavoro / lavoro → casa / … */
@@ -429,7 +436,7 @@ function NativeResidentBody({
     const previousCell = cellRef.current;
     stopAndReconcile();
     inited.current = true;
-    claimFailCountRef.current = 0;
+    claimRetry.reset();
     const path = commutePath;
     const start = path[0]!;
     // A parent-supplied reroute may begin at a different cell. Never retain
@@ -481,6 +488,7 @@ function NativeResidentBody({
     clearIdle,
     runOneSegment,
     pendingCommuteRetry,
+    claimRetry,
     spriteFrames,
     stopAndReconcile
   ]);

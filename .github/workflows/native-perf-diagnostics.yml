@@ -49,6 +49,7 @@ on:
       - "tests/native-resident-activity-gate.test.ts"
       - "tests/native-resident-lifecycle-integration.test.ts"
       - "tests/native-resident-route-transitions.test.ts"
+      - "tests/native-resident-collision-retry.test.ts"
       - "tests/native-resident-occupancy-handoff.test.ts"
       - "tests/native-resident-frame-bus.test.ts"
       - "tests/native-resident-frame-bus-benchmark.ts"
@@ -118,7 +119,7 @@ jobs:
           npx tsx --test tests/native-capture-integrity.test.ts
           node --test tests/native-js-report-comparison.test.mjs tests/native-ab-matrix.test.mjs
       - name: Native commute/night priority, occupancy handoff and 200-resident route churn (Node only)
-        run: npx tsx --test tests/native-resident-route-transitions.test.ts tests/native-resident-occupancy-handoff.test.ts
+        run: npx tsx --test tests/native-resident-route-transitions.test.ts tests/native-resident-occupancy-handoff.test.ts tests/native-resident-collision-retry.test.ts
       - name: 200 real native resident sprite fixture, occupancy and save-isolation regressions (Node only)
         run: npx tsx --test tests/native-real-resident-fixture.test.ts
       - name: Dev HUD opt-in RAF lifecycle and 200 collapse/background cycles (Node, not device FPS)
