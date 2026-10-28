@@ -5,6 +5,7 @@ import { PauseAwareMotionClock } from "../game/pauseAwareMotionClock";
 import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation } from "../performance/nativeResidentWorkCounters";
 import { requestResidentAnimationFrame, cancelResidentAnimationFrame } from "../performance/nativeResidentFrameBus";
+import { ensureNativeResidentFrameLifecycle } from "../performance/nativeResidentFrameLifecycle.native";
 import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
 import {
   frameGroupStart,
@@ -20,6 +21,9 @@ import {
  * reconciling the entire character component on every animation frame.
  * We deliberately retain the existing JS RAF clock and gameplay callbacks.
  */
+// Module-wide lifecycle registration (one subscription for all residents).
+ensureNativeResidentFrameLifecycle();
+
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
 const DOPPIO_TAP_MS = 400;
@@ -281,11 +285,11 @@ export function MapWandererCharacter({
     const durationMs = segmentMoveDurationMs(prev, next, isRoadCell);
     const dest = next;
 
-    const step = (now: number) => {
+    const step = (now: number, resumedAfterSuspension = false) => {
       if (__DEV__) markNativeResidentFrameCallback();
       const timeScale = getOrologioSimTimeScaleSnapshot();
-      const elapsedMs = clock.advanceScaled(now, timeScale);
-      if (timeScale === 0) {
+      const elapsedMs = clock.advanceScaled(now, resumedAfterSuspension ? 0 : timeScale);
+      if (timeScale === 0 || resumedAfterSuspension) {
         rafRef.current = requestResidentAnimationFrame(step);
         return;
       }
@@ -363,11 +367,11 @@ export function MapWandererCharacter({
       setIsMoving(true);
       const clock = new PauseAwareMotionClock(performance.now());
       const durationMs = segmentMoveDurationMs(from, to, isRoadCell);
-      const step = (now: number) => {
+      const step = (now: number, resumedAfterSuspension = false) => {
         if (__DEV__) markNativeResidentFrameCallback();
         const timeScale = getOrologioSimTimeScaleSnapshot();
-        const elapsedMs = clock.advanceScaled(now, timeScale);
-        if (timeScale === 0) {
+        const elapsedMs = clock.advanceScaled(now, resumedAfterSuspension ? 0 : timeScale);
+        if (timeScale === 0 || resumedAfterSuspension) {
           rafRef.current = requestResidentAnimationFrame(step);
           return;
         }
