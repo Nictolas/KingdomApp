@@ -1,0 +1,34 @@
+# MyKingdom — prova con 200 componenti sprite REALI su Android/iOS
+
+## Perché la prova precedente non bastava
+
+La schermata di sviluppo `/native-perf` conteneva soltanto rettangoli animati mediante un unico `Animated.Value` e `useNativeDriver`. Era utile per isolare il costo di 25/50/100/200 view React Native, ma **non esercitava il vero motore dei 200 personaggi**: `MapWandererCharacter.native.tsx`, lo sprite sheet `character.png`, gli `AnimatedPressable`, il dispatcher RAF condiviso, i timer dei residenti, le collisioni o la cancellazione alla sparizione della schermata. Eventuali risultati di quel test da solo non possono confermare la scalabilità della mappa.
+
+## Nuova modalità selezionabile, senza modificare il regno
+
+Nella schermata riservata allo sviluppo (**`__DEV__`**, solo Android/iOS) ci sono due modalità distinte:
+
+1. **Marker semplici:** carico sintetico precedente, 200 celle e un unico `Animated.Value` con animazione nativa; confronto per il solo layout di view semplici.
+2. **Sprite abitanti reali:** fino a **200 istanze del componente `MapWandererCharacter` usato dalla mappa**, sulla griglia di prova **20×20 = 400 celle**. Ogni residente monta lo stesso sprite sheet del componente nativo, usa le sue reali callback `Pressable`, lo stesso `NativeResidentFrameBus`, il `NativeResidentTimerQueue` e i normali timer di girovagare, con occupazione della cella locale che rifiuta i passaggi su una cella di un altro residente. I test provano sia **Fermi** sia **Muovi**.
+
+Il modello di occupazione riprende quello della mappa effettiva: due `Map` in memoria (`cella → proprietario` e `abitante → cella`); `tryClaimCell` trasferisce atomicamente il possesso da una cella all'altra, `isCellFreeForMe` distingue il proprietario dagli altri, `releaseMyCell` libera alla rimozione. Non legge né scrive il database dei personaggi, `GameContext`, la mappa salvata o lo storage del regno. Quando si passa da 25 a 200 abitanti, o da **Fermi** a **Muovi**, la fixture viene rimontata con un'occupazione distinta; nessuna vecchia cleanup può cancellare il possesso delle nuove istanze.
+
+### Nota sulla velocità e sulle pause
+
+Il renderer nativo usa lo stesso orologio di gioco della mappa. La prova **legge** `getOrologioSimTimeScaleSnapshot()` e si iscrive alle notifiche di velocità/pausa, ma **non altera mai il tempo del regno**. Se l'utente apre la schermata prima che il gioco sia stato avviato o mentre è in pausa, gli sprite possono essere fermi: compare un avviso esplicito. Per provare il movimento occorre prima iniziare/riprendere il gioco sulla mappa e poi entrare nella diagnostica. **Uno sprite fermo a velocità 0× non è una prova valida delle prestazioni di 200 residenti in movimento.**
+
+### Come misurare
+
+Aprire sulla mappa lo HUD di sviluppo, premere **«Prova 25–200 elementi»**. Nella schermata selezionare **«Sprite abitanti reali»**, prima 25, poi 50/100/200. Con il gioco a 1× e modalità **Muovi** verificare che gli sprite camminino realmente senza sovrapporsi in una singola cella, che il tocco e il doppio tocco funzionino, che **Fermi** fermi il girovagare e che tornare alla mappa non lasci callback attive della fixture. Aprire **«Dettagli»**, premere **«Misura 10 secondi»** e condividere il risultato; ripetere per almeno tre catture. Ripetere anche a 2× e 4×, con pause e background.
+
+Prima di confrontare due build, usare sempre **la stessa modalità** (marker/real sprite), stesso numero di abitanti, stessa velocità, stesso telefono e stesso stato del pannello. La stringa **Scena** del report distingue la modalità vera (`Sprite abitanti reali in movimento`) dai marker precedenti (`Marker animati`), e l'analizzatore `scripts/compare-native-js-reports.mjs` rifiuta automaticamente le scene diverse.
+
+## Test di correttezza automatizzati
+
+`tests/native-real-resident-fixture.test.ts` copre: 25/50/100/200 spawn univoci su 400 celle, prenotazioni senza sovrapposizione, rifiuto atomico di una cella occupata, liberazione e riutilizzo del possesso, rifiuto di indici invalidi, **4.000 tentativi deterministici** di movimento con 200 residenti e invariante bidirezionale sempre conservata, rilascio completo e remount indipendente, oltre alla verifica statica che la schermata nativa carichi davvero il componente `MapWandererCharacter` e non tocchi salvataggi o funzioni di scrittura dell'orologio.
+
+La CI diagnostica lancia questi test **insieme** alle regressioni del movimento nativo, agli stress test 200 residenti e ai bundle JS Android/iOS/web. Non simula collisioni visive pixel-per-pixel, input fisico touchscreen o rendering UI/GPU: questi vanno verificati sull'hardware.
+
+## Rischi e limiti
+
+Questa è una prova più realistica del precedente carico di marker, **non** un'intera partita MyKingdom con IA, alberi, edifici, lavoro, religioni o salvataggi. L'occupazione riguarda solo la griglia sintetica della schermata; la geometria di un regno reale può essere diversa. I numeri del pannello rimangono metriche **del thread JavaScript**, non FPS GPU/UI. Il percorso è interamente `__DEV__`, non viene abilitato per gli utenti finali. Nessun merge, deploy o rilascio senza verifica CI e misure su dispositivi reali.
