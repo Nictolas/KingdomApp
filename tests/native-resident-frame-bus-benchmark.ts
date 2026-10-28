@@ -25,13 +25,7 @@ function measure(population: number, frames: number, persistent: boolean) {
   const handles: number[] = [];
   const started = performance.now();
   for (let resident = 0; resident < population; resident++) {
-    const step = () => {
-      callbacks++;
-      if (!persistent && callbacks <= population * (frames - 1)) {
-        // Each resident owns its own count: the global callback count must
-        // not control whether an individual resident receives all frames.
-      }
-    };
+    const step = () => { callbacks++; };
     if (persistent) {
       registrations++;
       handles.push(bus.subscribeFrame(step));
