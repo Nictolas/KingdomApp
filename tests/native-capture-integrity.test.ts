@@ -85,3 +85,32 @@ test("a normal post-deadline sample is not counted in a valid 10-second capture"
   assert.equal(done.metrics.samples, 2);
   assert.equal(done.durationMs, 10_000);
 });
+
+
+test("10-second capture ignores first frame interval that started before user pressed Measure", () => {
+  const session = new NativeMeasurementSession(5000, 10_000);
+  assert.equal(session.record(5001, 120), null, "the first 120ms mostly preceded capture");
+  assert.equal(session.isInvalidated(), false);
+  assert.equal(session.record(5017, 16), null);
+  assert.equal(session.record(5033, 16), null);
+  const result = session.record(15000, 16)!;
+  assert.equal(result.metrics.samples, 2);
+  assert.equal(result.metrics.meanFrameMs, 16);
+});
+
+test("pre-start OS suspension is not mislabeled as an in-capture long JS stall", () => {
+  const session = new NativeMeasurementSession(5000, 10_000);
+  assert.equal(session.record(5001, 2500), null);
+  assert.equal(session.isInvalidated(), false);
+  assert.equal(session.record(5017, 16), null);
+  assert.equal(session.record(7000, 1983), null);
+  assert.equal(session.record(15000, 16)?.metrics.samples, 2);
+});
+
+test("a >=2s long frame fully inside a capture still invalidates that run", () => {
+  const session = new NativeMeasurementSession(5000, 10_000);
+  session.record(5016, 16);
+  session.record(7016, 2000);
+  assert.equal(session.isInvalidated(), true);
+  assert.equal(session.record(15000, 16), null);
+});
