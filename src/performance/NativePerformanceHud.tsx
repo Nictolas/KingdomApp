@@ -37,12 +37,12 @@ export function NativePerformanceHud({
   const [residentWrapperRenders, setResidentWrapperRenders] = useState(0);
   const [residentBusCycles, setResidentBusCycles] = useState(0);
   const [timerMetrics, setTimerMetrics] = useState({
-    pending: 0, platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, budgetYieldsPerSecond: 0, timeBudgetYieldsPerSecond: 0, callbackBudget: 32, timeBudgetMs: 6, backlogDue: false, scheduled: false
+    pending: 0, platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, readyBufferUsesPerSecond: 0, budgetYieldsPerSecond: 0, timeBudgetYieldsPerSecond: 0, callbackBudget: 32, timeBudgetMs: 6, backlogDue: false, scheduled: false
   });
   const lastTimerSample = useRef<{ timestamp: number; counters: NativeResidentTimerSnapshot } | null>(null);
   const lastFrameBusSample = useRef<{ timestamp: number; counters: NativeResidentFrameBusSnapshot } | null>(null);
   const [frameBusMetrics, setFrameBusMetrics] = useState({
-    continuousSubscribers: 0, persistentAddsPerSecond: 0, oneShotAddsPerSecond: 0
+    continuousSubscribers: 0, persistentAddsPerSecond: 0, oneShotAddsPerSecond: 0, oneShotBufferSwapsPerSecond: 0
   });
   const frameWindow = useRef(new NativeFrameWindow(120));
   const [measuring, setMeasuring] = useState(false);
@@ -81,10 +81,10 @@ export function NativePerformanceHud({
     setResidentRenders(0);
     setResidentWrapperRenders(0);
     setResidentBusCycles(0);
-    setTimerMetrics({ pending: 0, platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, budgetYieldsPerSecond: 0, timeBudgetYieldsPerSecond: 0, callbackBudget: 32, timeBudgetMs: 6, backlogDue: false, scheduled: false });
+    setTimerMetrics({ pending: 0, platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, readyBufferUsesPerSecond: 0, budgetYieldsPerSecond: 0, timeBudgetYieldsPerSecond: 0, callbackBudget: 32, timeBudgetMs: 6, backlogDue: false, scheduled: false });
     lastTimerSample.current = { timestamp: performance.now(), counters: getNativeResidentTimerSnapshot() };
     lastFrameBusSample.current = { timestamp: performance.now(), counters: getNativeResidentFrameBusSnapshot() };
-    setFrameBusMetrics({ continuousSubscribers: 0, persistentAddsPerSecond: 0, oneShotAddsPerSecond: 0 });
+    setFrameBusMetrics({ continuousSubscribers: 0, persistentAddsPerSecond: 0, oneShotAddsPerSecond: 0, oneShotBufferSwapsPerSecond: 0 });
     takeNativeResidentBusCycles();
     takeNativeResidentFrameCallbacks();
     takeNativeResidentRenderInvocations();
@@ -158,7 +158,8 @@ export function NativePerformanceHud({
             backlogDue: next.backlogDue,
             budgetYieldsPerSecond: rates?.budgetYieldsPerSecond ?? 0,
             platformWakeupsPerSecond: rates?.platformWakeupsPerSecond ?? 0,
-            logicalCallbacksPerSecond: rates?.logicalCallbacksPerSecond ?? 0
+            logicalCallbacksPerSecond: rates?.logicalCallbacksPerSecond ?? 0,
+            readyBufferUsesPerSecond: rates?.readyBufferUsesPerSecond ?? 0
           });
           lastTimerSample.current = { timestamp, counters: next };
           const nextBus = getNativeResidentFrameBusSnapshot();
@@ -169,7 +170,8 @@ export function NativePerformanceHud({
           setFrameBusMetrics({
             continuousSubscribers: nextBus.continuousSubscribers,
             persistentAddsPerSecond: busRate?.persistentRegistrationsPerSecond ?? 0,
-            oneShotAddsPerSecond: busRate?.oneShotRegistrationsPerSecond ?? 0
+            oneShotAddsPerSecond: busRate?.oneShotRegistrationsPerSecond ?? 0,
+            oneShotBufferSwapsPerSecond: busRate?.oneShotBufferSwapsPerSecond ?? 0
           });
           lastFrameBusSample.current = { timestamp, counters: nextBus };
           lastPublished = timestamp;
@@ -210,10 +212,12 @@ export function NativePerformanceHud({
           <Text style={styles.text}>Abitanti iscritti a RAF persistente: {frameBusMetrics.continuousSubscribers}</Text>
           <Text style={styles.text}>Nuove iscrizioni RAF persistenti/s: {frameBusMetrics.persistentAddsPerSecond.toFixed(1)}</Text>
           <Text style={styles.text}>Registrazioni RAF one-shot/s: {frameBusMetrics.oneShotAddsPerSecond.toFixed(1)}</Text>
+          <Text style={styles.text}>Buffer RAF one-shot riciclati/s: {frameBusMetrics.oneShotBufferSwapsPerSecond.toFixed(1)}</Text>
           <Text style={styles.text}>Timer residenti in attesa: {timerMetrics.pending}</Text>
           <Text style={styles.text}>Timeout nativi attivi: {timerMetrics.scheduled ? 1 : 0}</Text>
           <Text style={styles.text}>Wakeup timer nativo/s: {timerMetrics.platformWakeupsPerSecond.toFixed(1)}</Text>
           <Text style={styles.text}>Callback timer residenti/s: {timerMetrics.logicalCallbacksPerSecond.toFixed(1)}</Text>
+          <Text style={styles.text}>Buffer timeout riciclati/s: {timerMetrics.readyBufferUsesPerSecond.toFixed(1)}</Text>
           <Text style={styles.text}>Max callback per wakeup: {timerMetrics.callbackBudget}</Text>
           <Text style={styles.text}>Budget JS timer: {timerMetrics.timeBudgetMs.toFixed(1)} ms (soft)</Text>
           <Text style={styles.text}>Yield per budget temporale/s: {timerMetrics.timeBudgetYieldsPerSecond.toFixed(1)}</Text>
