@@ -43,3 +43,24 @@ Questa è una PR Draft dipendente dalla #296, che a sua volta dipende dalla #295
 Verificare pause di 1 e 30 secondi, background/foreground, passeggiate, coda per cellule occupate, ripianificazione dei percorsi, turni casa-lavoro, doppio tap, zoom, notte, 1×/2×/4× e scene da 25, 50, 100 e 200 residenti. Misurare FPS JS/UI, p95, invocazioni React, memoria e CPU con strumenti adatti. Al ritorno dalla pausa non devono avvenire né teletrasporti né raffiche di tentativi di claim.
 
 La coda dei timer conserva il **tempo reale di attesa rimanente** in pausa; l'accelerazione 2×/4× si applica già ai movimenti tramite `NativeResidentSegmentProgress`, non automaticamente alla durata dei timeout idle/retry. Modificarla sarebbe una distinta scelta di gameplay.
+
+## Diagnostica confrontabile e orologio monotono (28 ottobre)
+
+La prima implementazione della coda usava `Date.now()`, che segue l'orologio di sistema. Una correzione dell'ora del dispositivo (o sincronizzazione automatica) non deve abbreviare o ripetere i tempi residui dei residenti. La coda ora legge **`performance.now()`**, monotono, e difende anche i clock di test da campioni non finiti o regressivi. L'attività è sempre controllata dal gate foreground/pausa: nessuna attesa simulata deve procedere durante una sospensione.
+
+Sono disponibili contatori aggregati soltanto in memoria:
+- **Timer residenti in attesa:** quante callback logiche sono programmate; non identifica alcun abitante.
+- **Timeout nativi attivi:** 0 o 1 (unico risveglio della coda).
+- **Wakeup timeout nativo:** numero di callback del timer di piattaforma effettivamente accolte.
+- **Callback timer residenti:** numero di callback logiche processate, a prescindere dall'esito.
+- **Timeout nativi programmati/annullati:** numero cumulativo di operazioni di scheduling/cancellazione, utile per individuare churn e riarmi inutili.
+
+L'HUD di sviluppo presenta valori assoluti e tassi al secondo. Il rapporto condivisibile, generato **solo su richiesta esplicita dell'utente** con una misura di 10 secondi, include le differenze aggregate dei contatori oltre a FPS e p95 JS. Non sono salvati o trasmessi automaticamente dati personali, posizioni, ID abitante, percorsi o altri dati di gioco. I contatori **non costituiscono FPS UI/GPU, misure CPU o prove di risparmio batteria**.
+
+Il test `native-resident-timer-diagnostics.test.ts` aggiunge:
+- 200 callback residenti con 1 wakeup timeout finto: il rapporto 200:1 è un'invariante **sintetica** del dispatcher quando i 200 timer hanno la stessa scadenza.
+- Orologio con salto all'indietro, callback OS obsoleti e gestione degli errori senza affamare gli altri residenti.
+- Calcolo dei tassi aggregati, reset contatori, durata non valida e rapporto italiano di 10 secondi.
+- 1.000 timeout logici con scadenze miste, cancellazioni, pausa/background, ripresa e ordine di esecuzione, verificando che resti al massimo 1 timeout del sistema programmato in ogni momento.
+
+Queste sono **prove di correttezza** della coda e della diagnostica; non sostituiscono il confronto con #295/#296 sullo stesso iPhone/Android reale. Per misurare il risparmio energetico, registrare inoltre il consumo tramite profiler di sistema in un'esecuzione sufficientemente lunga.
