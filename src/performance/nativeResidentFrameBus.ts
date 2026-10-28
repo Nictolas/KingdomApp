@@ -195,7 +195,7 @@ export class NativeResidentFrameBus {
         // A callback can synchronously pause the world in mid-batch. Hold the
         // remaining residents, rather than updating them while paused.
         if (!this.active || this.activityEpoch !== dispatchEpoch) break;
-        if (!this.due.has(id)) continue;
+        if (!this.due?.has(id)) continue;
         this.due.delete(id);
         try {
           callback(timestamp, rebase);
