@@ -1,4 +1,5 @@
 import { NativeFrameWindow, type NativeFrameSnapshot } from "./nativeFrameMetrics";
+import type { NativeResidentTimerRate } from "./nativeResidentTimerDiagnostics";
 
 export type NativeMeasurementResult = {
   durationMs: number;
@@ -36,7 +37,8 @@ export class NativeMeasurementSession {
 /** Only user-initiated sharing; report contains diagnostic counts, no game data. */
 export function formatNativeMeasurement(
   result: NativeMeasurementResult,
-  environment: { platform: string; label: string; residents: number; terrainCells?: number }
+  environment: { platform: string; label: string; residents: number; terrainCells?: number },
+  timerStats?: NativeResidentTimerRate
 ): string {
   const { metrics } = result;
   return [
@@ -52,6 +54,14 @@ export function formatNativeMeasurement(
     `p95: ${metrics.p95FrameMs.toFixed(1)} ms`,
     `Frame oltre 33 ms: ${metrics.framesOver33Ms}`,
     `Frame oltre 50 ms: ${metrics.framesOver50Ms}`,
+    ...(timerStats == null ? [] : [
+      `Wakeup timeout nativo: ${timerStats.platformWakeups}`,
+      `Callback timer residenti: ${timerStats.logicalCallbacks}`,
+      `Timeout nativi programmati: ${timerStats.platformSchedules}`,
+      `Timeout nativi annullati: ${timerStats.platformCancellations}`,
+      `Wakeup timeout nativo/s: ${timerStats.platformWakeupsPerSecond.toFixed(1)}`,
+      `Callback timer residenti/s: ${timerStats.logicalCallbacksPerSecond.toFixed(1)}`
+    ]),
     "Nota: non equivale a FPS del rendering o misura IA completa."
   ].join("\n");
 }
