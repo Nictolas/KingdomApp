@@ -17,6 +17,10 @@ export type NativeMeasurementResult = {
 export class NativeMeasurementSession {
   private readonly frames = new NativeFrameWindow(4096);
   private finished = false;
+  private invalidated = false;
+
+  /** True if a >=2s JS RAF gap made the 10-second window unreliable. */
+  isInvalidated(): boolean { return this.invalidated; }
   constructor(
     private readonly startedAt: number,
     private readonly durationMs = 10_000
@@ -27,7 +31,16 @@ export class NativeMeasurementSession {
   }
 
   record(timestamp: number, frameDeltaMs: number): NativeMeasurementResult | null {
-    if (this.finished || !Number.isFinite(timestamp) || timestamp < this.startedAt) return null;
+    if (this.finished || this.invalidated || !Number.isFinite(timestamp) ||
+      timestamp < this.startedAt) return null;
+    // NativeFrameWindow deliberately omits >=2s RAF intervals because they
+    // can signal a suspended app. For an explicit 10-second A/B capture,
+    // silently dropping them would bias the reported p95/mean downward.
+    // Invalidate instead of treating an incomplete window as comparable.
+    if (Number.isFinite(frameDeltaMs) && frameDeltaMs >= 2000) {
+      this.invalidated = true;
+      return null;
+    }
     // Never include the first post-deadline interval in the measured window.
     if (timestamp >= this.startedAt + this.durationMs) {
       this.finished = true;
