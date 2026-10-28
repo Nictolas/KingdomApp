@@ -38,14 +38,31 @@ export type NativeResidentLiveCallbacks = {
  * not accidentally turn a non-interactive resident into a Pressable.
  */
 export class NativeResidentCallbackRelay {
-  private latest: NativeResidentLiveCallbacks;
+  /**
+   * Store only the eight live callbacks. Retaining a whole MapWandererCharacter
+   * props object here would retain paths, map predicates and other unrelated
+   * render data across parent updates.
+   *
+   * The object is updated in place after React commit, with no new object per
+   * parent clock tick. Bound functions always look up its current fields.
+   */
+  private readonly latest: NativeResidentLiveCallbacks = {};
+  /** Sparse cache keyed by the eight optional-handler presence flags (0..255). */
+  private readonly bindingByPresence: Array<NativeResidentLiveCallbacks | undefined> = [];
 
   constructor(initial: NativeResidentLiveCallbacks) {
-    this.latest = initial;
+    this.update(initial);
   }
 
   update(next: NativeResidentLiveCallbacks): void {
-    this.latest = next;
+    this.latest.onPress = next.onPress;
+    this.latest.onDoublePress = next.onDoublePress;
+    this.latest.onCommuteComplete = next.onCommuteComplete;
+    this.latest.onCommuteBlocked = next.onCommuteBlocked;
+    this.latest.onCellSettled = next.onCellSettled;
+    this.latest.isCellFreeForMe = next.isCellFreeForMe;
+    this.latest.tryClaimCell = next.tryClaimCell;
+    this.latest.releaseMyCell = next.releaseMyCell;
   }
 
   readonly onPress = (): void => { this.latest.onPress?.(); };
@@ -65,18 +82,39 @@ export class NativeResidentCallbackRelay {
     this.latest.tryClaimCell?.(cellIndex) ?? true;
   readonly releaseMyCell = (): void => { this.latest.releaseMyCell?.(); };
 
-  /** Presence comes from the render being committed, not a stale target. */
+  /**
+   * Presence comes from the prospective render, never from an uncommitted
+   * handler body. When the presence mask is unchanged, return the exact same
+   * bound object; 200 residents receiving repeated parent clock updates
+   * create no transient relay-props objects.
+   *
+   * The cache holds at most one object per optional-presence combination and
+   * intentionally never contains actual parent callbacks. It is read-only to
+   * callers: the native wrapper spreads the object into a React element.
+   */
   bound(presence: NativeResidentLiveCallbacks = this.latest): NativeResidentLiveCallbacks {
-    const current = presence;
-    return {
-      onPress: current.onPress ? this.onPress : undefined,
-      onDoublePress: current.onDoublePress ? this.onDoublePress : undefined,
-      onCommuteComplete: current.onCommuteComplete ? this.onCommuteComplete : undefined,
-      onCommuteBlocked: current.onCommuteBlocked ? this.onCommuteBlocked : undefined,
-      onCellSettled: current.onCellSettled ? this.onCellSettled : undefined,
-      isCellFreeForMe: current.isCellFreeForMe ? this.isCellFreeForMe : undefined,
-      tryClaimCell: current.tryClaimCell ? this.tryClaimCell : undefined,
-      releaseMyCell: current.releaseMyCell ? this.releaseMyCell : undefined
+    const mask =
+      (presence.onPress ? 1 : 0) |
+      (presence.onDoublePress ? 2 : 0) |
+      (presence.onCommuteComplete ? 4 : 0) |
+      (presence.onCommuteBlocked ? 8 : 0) |
+      (presence.onCellSettled ? 16 : 0) |
+      (presence.isCellFreeForMe ? 32 : 0) |
+      (presence.tryClaimCell ? 64 : 0) |
+      (presence.releaseMyCell ? 128 : 0);
+    let bound = this.bindingByPresence[mask];
+    if (bound !== undefined) return bound;
+    bound = {
+      onPress: mask & 1 ? this.onPress : undefined,
+      onDoublePress: mask & 2 ? this.onDoublePress : undefined,
+      onCommuteComplete: mask & 4 ? this.onCommuteComplete : undefined,
+      onCommuteBlocked: mask & 8 ? this.onCommuteBlocked : undefined,
+      onCellSettled: mask & 16 ? this.onCellSettled : undefined,
+      isCellFreeForMe: mask & 32 ? this.isCellFreeForMe : undefined,
+      tryClaimCell: mask & 64 ? this.tryClaimCell : undefined,
+      releaseMyCell: mask & 128 ? this.releaseMyCell : undefined
     };
+    this.bindingByPresence[mask] = bound;
+    return bound;
   }
 }
