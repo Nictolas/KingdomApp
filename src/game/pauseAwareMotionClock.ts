@@ -5,6 +5,9 @@
  * Uses the RAF/performance.now() timestamp domain; never reads/writes a save.
  * A rate change affects the next sampled RAF interval without teleporting.
  */
+/** Treat long RAF suspensions as background, not simulated walking time. */
+export const MOTION_BACKGROUND_GAP_MS = 2000;
+
 export class PauseAwareMotionClock {
   private lastTimestamp: number;
   private elapsedMs = 0;
@@ -24,7 +27,9 @@ export class PauseAwareMotionClock {
     if (!Number.isFinite(timestamp)) return this.elapsedMs;
     const delta = Math.max(0, timestamp - this.lastTimestamp);
     if (timestamp > this.lastTimestamp) this.lastTimestamp = timestamp;
-    if (Number.isFinite(timeScale) && timeScale > 0) {
+    // RAF can stop in a backgrounded app. Moving an entire tile on resume
+    // would violate the pause-offline behavior; discard that suspended interval.
+    if (delta < MOTION_BACKGROUND_GAP_MS && Number.isFinite(timeScale) && timeScale > 0) {
       this.elapsedMs += delta * timeScale;
     }
     return this.elapsedMs;
