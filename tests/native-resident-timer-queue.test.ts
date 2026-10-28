@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { NativeResidentTimerQueue } from "../src/performance/nativeResidentTimerQueue.ts";
 import { NativeResidentActivityGate } from "../src/performance/nativeResidentActivityGate.ts";
+import { PendingCommuteRetry } from "../src/game/pendingCommuteRetry.ts";
 
 function fakeTimers() {
   let now = 0;
@@ -199,4 +200,70 @@ test("invalid timer durations are rejected", () => {
   assert.throws(() => runner.queue.schedule(() => {}, Number.NaN));
   assert.throws(() => runner.queue.schedule(() => {}, -1));
   assert.throws(() => runner.queue.schedule(() => {}, Number.POSITIVE_INFINITY));
+});
+
+test("200 idle countdowns preserve remaining waits across repeated foreground changes", () => {
+  const runner = fakeTimers();
+  const gate = new NativeResidentActivityGate(true, false, active => runner.queue.setActive(active));
+  let awakened = 0;
+  const ids = Array.from({ length: 200 }, () =>
+    runner.queue.schedule(() => { awakened++; }, 2200)
+  );
+  runner.at(1000);
+  gate.setForeground(false);
+  runner.at(10_000);
+  gate.setForeground(true);
+  gate.setGamePaused(true);
+  runner.at(20_000);
+  gate.setForeground(false);
+  gate.setForeground(true);
+  assert.equal(runner.scheduled.size, 0, "still manually paused");
+  gate.setGamePaused(false);
+  assert.equal(runner.queue.snapshot().nextDueInMs, 1200);
+  runner.tick(21_200);
+  assert.equal(awakened, 200, "each idle countdown fires once, not at every resume");
+  ids.forEach(id => runner.queue.cancel(id)); // harmless after dispatch
+  assert.equal(runner.queue.snapshot().pending, 0);
+});
+
+test("collision claim retries keep the outstanding delay and run once on resume", () => {
+  const runner = fakeTimers();
+  const gate = new NativeResidentActivityGate(true, false, active => runner.queue.setActive(active));
+  const attempts: number[] = [];
+  const retries = Array.from({ length: 200 }, () => new PendingCommuteRetry());
+  const scheduled = retries.map((retry, index) => {
+    retry.hold(() => { attempts.push(index); });
+    return runner.queue.schedule(() => retry.take()?.(), 900);
+  });
+  runner.at(300);
+  gate.setGamePaused(true);
+  runner.at(40_000);
+  gate.setGamePaused(false);
+  assert.equal(runner.queue.snapshot().nextDueInMs, 600);
+  assert.equal(attempts.length, 0);
+  runner.tick(40_600);
+  assert.equal(attempts.length, 200);
+  assert.equal(new Set(attempts).size, 200);
+  retries.forEach(retry => retry.take()?.());
+  scheduled.forEach(id => runner.queue.cancel(id));
+  assert.equal(attempts.length, 200, "retries were consumed once");
+});
+
+test("replacing a commute path while paused cancels the old timer and retry", () => {
+  const runner = fakeTimers();
+  const gate = new NativeResidentActivityGate(true, false, active => runner.queue.setActive(active));
+  const retry = new PendingCommuteRetry();
+  const reached: string[] = [];
+  retry.hold(() => reached.push("old path"));
+  const oldId = runner.queue.schedule(() => retry.take()?.(), 900);
+  runner.at(400);
+  gate.setGamePaused(true);
+  runner.queue.cancel(oldId);
+  retry.clear();
+  retry.hold(() => reached.push("new path"));
+  runner.queue.schedule(() => retry.take()?.(), 900);
+  runner.at(10_000);
+  gate.setGamePaused(false);
+  runner.tick(10_900);
+  assert.deepEqual(reached, ["new path"]);
 });
