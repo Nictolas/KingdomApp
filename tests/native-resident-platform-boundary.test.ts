@@ -72,8 +72,8 @@ test("activity changes preserve existing scheduled timers instead of restarting 
 test("native memoization keeps parent handlers live without hiding motion or touch changes", () => {
   const relay = read("../src/performance/nativeResidentCallbackRelay.ts");
   assert.match(native, /const MemoNativeResidentBody = React\.memo\(NativeResidentBody\)/);
-  assert.match(native, /relay\.current\.update\(props\)/);
-  assert.match(native, /<MemoNativeResidentBody \{\.\.\.props\} \{\.\.\.relay\.current\.bound\(\)\} \/>/);
+  assert.match(native, /React\.useLayoutEffect\(\(\) => \{ relay\.current\?\.update\(props\); \}\)/);
+  assert.match(native, /<MemoNativeResidentBody \{\.\.\.props\} \{\.\.\.relay\.current\.bound\(props\)\} \/>/);
   assert.match(native, /if \(__DEV__\) markNativeResidentWrapperInvocation\(\)/);
   assert.match(native, /if \(__DEV__\) markNativeResidentRenderInvocation\(\)/);
   assert.ok(!shared.includes("NativeResidentCallbackRelay"));
