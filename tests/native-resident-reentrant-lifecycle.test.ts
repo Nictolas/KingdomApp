@@ -201,7 +201,7 @@ test("240-frame reentrant stress: 200 residents, 20 nested pauses, 40 unmounts a
   const seen = Array<number>(200).fill(0);
   const handles = Array<number>(200).fill(0);
   let currentFrame = 0;
-  let lastTransition = 0;
+  let lastTransition = -1;
   let expected = 0;
   const subscribe = (i: number) => {
     handles[i] = f.bus.subscribeFrame((_timestamp, rebase) => {
