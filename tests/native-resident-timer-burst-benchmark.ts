@@ -51,7 +51,7 @@ function benchmark(population: number, callbackBudget: number) {
   assert.deepEqual(completed, Array.from({ length: population }, (_, i) => i));
   assert.equal(queue.snapshot().logicalCallbacks, population);
   assert.equal(queue.snapshot().pending, 0);
-  assert.equal(wakes, Math.ceil(population / callbackBudget));
+  assert.equal(wakes, callbackBudget === Number.POSITIVE_INFINITY ? 1 : Math.ceil(population / callbackBudget));
   return {
     population, callbackBudget, wakes,
     budgetYields: queue.snapshot().budgetYields,
