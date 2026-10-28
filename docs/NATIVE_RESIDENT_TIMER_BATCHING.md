@@ -64,3 +64,17 @@ Il test `native-resident-timer-diagnostics.test.ts` aggiunge:
 - 1.000 timeout logici con scadenze miste, cancellazioni, pausa/background, ripresa e ordine di esecuzione, verificando che resti al massimo 1 timeout del sistema programmato in ogni momento.
 
 Queste sono **prove di correttezza** della coda e della diagnostica; non sostituiscono il confronto con #295/#296 sullo stesso iPhone/Android reale. Per misurare il risparmio energetico, registrare inoltre il consumo tramite profiler di sistema in un'esecuzione sufficientemente lunga.
+
+## Coda a priorità indicizzata: eliminazione delle scansioni per ogni timer
+
+Il primo prototipo di `NativeResidentTimerQueue` utilizzava una `Map` di callback e cercava il deadline minimo con `tasks.values()` ogni volta che un residente programmava o annullava un'attesa: con molti residenti, il costo complessivo poteva crescere quadraticamente in uno scenario di registrazioni/cancellazioni massive.
+
+La nuova versione usa un **min-heap ordinato per `(dueActiveMs, id)`** e una mappa `id → posizione nell'heap`: inserimenti e cancellazioni sono **O(log n)**, l'accesso alla prima scadenza è **O(1)**; non è più necessaria la ricerca lineare a ogni operazione. La cancellazione di un timer non deve riesaminare o spostare tutte le scadenze.
+
+Il tempo simulato della coda è un **orologio virtuale attivo** derivato da `performance.now()`. Quando il gioco è in pausa o l'app è in background, non accumula tempo: ogni attività conserva naturalmente la propria deadline virtuale, senza iterare sulle 200+ attività né spostare le scadenze all'uscita dalla pausa. Le notifiche della sospensione e della ripresa sono **O(1)** rispetto al numero di timer, escludendo il normale riarmo dell'unico timer OS. I cambi manuali all'orologio di sistema non alterano le scadenze.
+
+I timer già scaduti al momento del wakeup vengono temporaneamente estratti dal heap in un batch separato. Questo evita di richiamare immediatamente callback create da un altro callback dello stesso tick e permette di cancellare singole callback del batch. Se una callback avvia la pausa, le attività non ancora elaborate tornano nel heap mantenendo ordine e scadenze.
+
+**Nuovi stress test sintetici (non benchmark FPS):** `native-resident-timer-diagnostics.test.ts` verifica 10.000 scadenze con deadline differenti e cancellazioni in ogni zona del heap, correttezza e unicità dei callback, ordine stabile per deadline e registrazione, un solo timeout del sistema per volta, annullamenti mentre un batch è in corso, e pausa nel mezzo di 200 callback mature.
+
+Queste verifiche riguardano **correttezza e complessità algoritmica**; un miglioramento misurato di CPU, batteria o FPS su dispositivo non è ancora documentato.
