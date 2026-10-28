@@ -38,7 +38,8 @@ export class NativeResidentSpriteFrameDriver {
   private update(): void {
     const index = frameGroupStart(this.direction) +
       walkIndexInGroup(this.direction, this.walkFrame, this.moving);
-    const next = -index * this.cellSizePx;
+    // Keep a canonical zero: Animated.Value must not alternate +0 and -0.
+    const next = index === 0 ? 0 : -index * this.cellSizePx;
     if (next === this.offsetPx) return;
     this.offsetPx = next;
     this.publishes++;
