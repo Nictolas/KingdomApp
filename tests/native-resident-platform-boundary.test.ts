@@ -6,6 +6,7 @@ const read = (path: string) => readFileSync(new URL(path, import.meta.url), "utf
 const shared = read("../src/components/MapWandererCharacter.tsx");
 const native = read("../src/components/MapWandererCharacter.native.tsx");
 const segment = read("../src/performance/nativeResidentSegmentProgress.ts");
+const runner = read("../src/performance/nativeResidentSegmentRunner.ts");
 const map = read("../app/mappa.tsx");
 
 function propsSignature(source: string): string {
@@ -19,7 +20,8 @@ test("native-specific movement does not alter the web resident renderer", () => 
   assert.ok(!shared.includes("PendingCommuteRetry"), "the web/default resident renderer must not inherit the experiment");
   assert.match(shared, /setPixelPos\(/);
   assert.match(native, /Animated\.ValueXY/);
-  assert.match(native, /NativeResidentSegmentProgress/);
+  assert.match(native, /NativeResidentSegmentRunner/);
+  assert.match(runner, /NativeResidentSegmentProgress/);
   assert.match(segment, /PauseAwareMotionClock/);
   assert.match(native, /PendingCommuteRetry/);
 });
@@ -35,10 +37,13 @@ test("map imports resident component without an extension, for Metro platform re
 
 test("only native residents use the shared frame dispatcher and imperative sprite frames", () => {
   assert.match(native, /from ["']\.\.\/performance\/nativeResidentFrameBus["']/);
-  assert.match(native, /requestResidentAnimationFrame\(step\)/);
-  assert.match(native, /cancelResidentAnimationFrame\(rafRef\.current\)/);
+  assert.match(native, /requestFrame: requestResidentAnimationFrame/);
+  assert.match(native, /cancelFrame: cancelResidentAnimationFrame/);
+  assert.equal((native.match(/motion\.start\(/g) ?? []).length, 2, "both native movement paths share runner");
+  assert.ok((native.match(/motion\.cancel\(\)/g) ?? []).length >= 5);
+  assert.ok(!native.includes("rafRef"), "no duplicated per-component RAF loop");
   assert.ok(!native.includes("rafRef.current = requestAnimationFrame(step)"));
-  assert.match(native, /spriteFrames\.advanceElapsed\(elapsedMs\)/);
+  assert.match(native, /advanceSprite: \(elapsedMs\) => spriteFrames\.advanceElapsed\(elapsedMs\)/);
   assert.match(native, /<Animated\.Image/);
   assert.match(native, /left: spriteSheetOffset/);
   assert.equal((native.match(/setWalkFrame\(/g) ?? []).length, 0, "walking frame never commits React state");
@@ -53,6 +58,7 @@ test("only native movement subscribes to pause/background and guards idle/claim 
   assert.match(native, /pendingCommuteRetry\.take\(\)/);
   assert.ok(!shared.includes("nativeResidentFrameLifecycle"));
   assert.ok(!shared.includes("NativeResidentSegmentProgress"));
+  assert.ok(!shared.includes("NativeResidentSegmentRunner"));
 });
 
 test("native idle/retry timers use shared queue, not independent platform timeouts", () => {
