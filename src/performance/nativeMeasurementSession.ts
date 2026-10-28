@@ -41,7 +41,7 @@ export class NativeMeasurementSession {
 /** Only user-initiated sharing; report contains diagnostic counts, no game data. */
 export function formatNativeMeasurement(
   result: NativeMeasurementResult,
-  environment: { platform: string; label: string; residents: number; terrainCells?: number },
+  environment: { platform: string; label: string; residents: number; terrainCells?: number; timeScale?: number },
   timerStats?: NativeResidentTimerRate,
   renderStats?: NativeResidentRenderRate,
   frameBusStats?: NativeResidentFrameBusRate,
@@ -54,6 +54,7 @@ export function formatNativeMeasurement(
     `Piattaforma: ${environment.platform}`,
     `Scena: ${environment.label}`,
     `Elementi: ${environment.residents}`,
+    ...(environment.timeScale === undefined ? [] : [`Velocità simulazione: ${environment.timeScale}x`]),
     ...(environment.terrainCells == null ? [] : [`Celle terreno: ${environment.terrainCells}`]),
     `Durata: ${result.durationMs / 1000} s`,
     `Campioni: ${metrics.samples}`,
