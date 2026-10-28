@@ -59,6 +59,7 @@ test("200 native residents: shared RAF + sprite offsets + collision timers acros
     driver.face(resident % 2 ? "w" : "n");
     const motion = new NativeResidentSegmentRunner({
       requestFrame: callback => bus.request(callback),
+      subscribeFrame: callback => bus.subscribeFrame(callback),
       cancelFrame: id => bus.cancel(id),
       readTimeScale: () => speed,
       writePosition: () => { positionWrites++; },
@@ -125,6 +126,8 @@ test("200 native residents: shared RAF + sprite offsets + collision timers acros
   assert.ok(motions.every(motion => !motion.snapshot().active));
   assert.ok(positionWrites <= 200 * 51, "at most one native position write per resident per RAF");
   assert.equal(bus.snapshot().queued, 0);
+  assert.equal(bus.snapshot().continuousSubscribers, 0, "no stale moving resident subscription");
+  assert.equal(bus.snapshot().subscriptionAdds, population, "one subscription per segment, not per frame");
   assert.equal(frames.size, 0);
   assert.equal(timers.snapshot().pending, population);
   assert.equal(timeouts.size, 1);
