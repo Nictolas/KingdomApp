@@ -72,3 +72,24 @@ Fino a questa modifica, ogni personaggio mobile con un passo in corso registrava
 `tests/native-resident-frame-bus.test.ts` usa un RAF finto controllabile; lo scenario di 200 residenti per 120 fotogrammi deve eseguire **24.000 callback residenti usando solo 120 richieste RAF di piattaforma sintetiche**, senza perdita o duplicazione di callback. Sono anche coperti: cancellazioni prima del tick, cancellazione tra callback dello stesso lotto, nuovo movimento nel tick successivo, errore isolato, nessun lavoro quando tutti i residenti sono fermi. Il test del confine native/web controlla che il web non sia interessato e che gli aggiornamenti di sprite siano condizionati ai cambi reali.
 
 Questi valori **sono proprietà deterministiche del dispatcher su un RAF finto**, non una misura di FPS, CPU, energia, memoria o maggiore fluidita' su un dispositivo. Per misurare benefici reali, comparare baseline PR #295 con questa PR su *identico* smartphone, stessa scena e stessa velocita' 1×: quantificare FPS JS, p95, callback/s, bus/s, invocazioni React/s, FPS UI/GPU, tap, pinch, collisioni, pause e batteria. Non fondere prima del confronto manuale.
+
+## Sospensione condivisa di tutti i residenti: pausa e background (28 ottobre)
+
+Il primo frame bus raggruppava le richieste RAF, ma continuava a processare ogni abitante anche durante una pausa; con 200 residenti in movimento questo produceva comunque 200 callback JS per fotogramma inutili.
+
+### Correzione strutturale
+
+- `NativeResidentActivityGate` combina due condizioni indipendenti: orologio di gioco **non in pausa** e stato app **in primo piano**. Se manca anche una delle due, il frame bus diventa inattivo. Tornare in primo piano **non** rimuove una pausa manuale.
+- `nativeResidentFrameLifecycle.native.ts` sottoscrive una volta sola (per l'intero runtime JS, non per ogni residente) gli eventi di pausa e `AppState` su Android/iOS.
+- `NativeResidentFrameBus.setActive(false)` annulla il RAF condiviso e **conserva in memoria tutti i callback dei residenti pendenti**. Nuovi callback richiesti mentre l'app e' sospesa vengono messi in coda senza richiedere fotogrammi. Se 200 residenti stanno camminando e l'orologio viene messo in pausa, ci sono **zero RAF di piattaforma pianificati dal bus** finche' il gioco rimane fermo (verifica sintetica, non un profiler del sistema intero).
+- `setActive(true)` riparte con **un solo RAF**: in quel primo tick i residenti ricevono il flag `resumedAfterSuspension` e aggiornano la base del tempo con scala 0; non avanzano la posizione. Dal tick successivo riprendono alla velocita' corrente 1×, 2× o 4×. Questo evita salti anche per pause brevissime inferiori alla soglia dei gap RAF.
+- Una pausa che interviene dentro una callback interrompe il lotto e conserva quelli non ancora elaborati. Un callback nativo vecchio, consegnato nonostante l'annullamento, e' ignorato grazie a un identificatore di generazione; non puo' eseguire per errore il lotto del frame nuovo.
+- I callback vengono rimossi singolarmente a cambio tragitto, immobilizzazione o unmount; l'ultimo residente fermo libera il RAF. Nessun timer di polling e nessuna modifica a `GameContext`, orologio globale, AI, salvataggi o renderer web.
+
+### Test automatici e limiti
+
+`native-resident-frame-bus.test.ts` verifica 200 residenti in pausa, nessun RAF durante la sospensione, resume con clock rebase, cancellazioni e unmount durante la pausa, callback vecchi che arrivano in ritardo, interruzione del lotto in mezzo al tick e idempotenza delle transizioni. `native-resident-activity-gate.test.ts` verifica gli incroci fra pausa manuale e foreground/background, inclusi 200 aggiornamenti ridondanti.
+
+Questi sono test **deterministici**, non una misura di CPU, FPS, memoria o batteria sul telefono. Resta necessaria la prova nativa manuale: con almeno 50 residenti in movimento verificare (1) pausa 0.2 s e 10 s, (2) ritorno in foreground dopo 30 s, (3) movimenti 1×/2×/4×, (4) collisioni e attese a un incrocio, (5) tap/doppio tap sugli abitanti animati, (6) zoom e panoramica; poi ripetere con 100 e circa 200. Utilizzare il pannello prestazioni e un profiler del thread UI per confrontare la PR #295.
+
+Questa correzione non e' stata rilasciata: PR Draft #296, stacked su #295.
