@@ -73,6 +73,8 @@ export function formatNativeMeasurement(
       `Timeout nativi annullati: ${timerStats.platformCancellations}`,
       `Yield backlog timer: ${timerStats.budgetYields}`,
       `Yield backlog timer/s: ${timerStats.budgetYieldsPerSecond.toFixed(1)}`,
+      `Yield per budget temporale JS: ${timerStats.timeBudgetYields}`,
+      `Yield per budget temporale JS/s: ${timerStats.timeBudgetYieldsPerSecond.toFixed(1)}`,
       `Wakeup timeout nativo/s: ${timerStats.platformWakeupsPerSecond.toFixed(1)}`,
       `Callback timer residenti/s: ${timerStats.logicalCallbacksPerSecond.toFixed(1)}`
     ]),
