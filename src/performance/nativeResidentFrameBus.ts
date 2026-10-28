@@ -1,16 +1,20 @@
 import { markNativeResidentBusCycle } from "./nativeResidentWorkCounters";
 
-type ResidentFrameCallback = (timestamp: number) => void;
-type RequestFrame = (callback: ResidentFrameCallback) => number;
+/** The second argument is true on the first frame after suspension.
+ * Residents use it to rebase their movement clock without a teleport.
+ */
+type ResidentFrameCallback = (timestamp: number, resumedAfterSuspension: boolean) => void;
+type RequestFrame = (callback: (timestamp: number) => void) => number;
 type CancelFrame = (id: number) => void;
 
 /**
- * Shared one-shot RAF dispatcher for resident sprite updates on Android/iOS.
+ * A single frame dispatcher for all moving native residents.
  *
- * With 200 walking residents, React Native still computes 200 independent
- * positions, but registers ONE platform requestAnimationFrame per screen frame
- * instead of 200. An ID is only valid inside this dispatcher, never in the
- * platform RAF namespace. No timer, React state, simulation data or persistence.
+ * A paused/background game has zero pending platform RAF callbacks. The
+ * residents' one-shot callbacks are retained in memory and are delivered on
+ * the first frame after activation, with the rebase signal set to true.
+ *
+ * All operations are in-memory. No persistence, polling or gameplay writes.
  */
 export class NativeResidentFrameBus {
   private pending = new Map<number, ResidentFrameCallback>();
@@ -18,6 +22,8 @@ export class NativeResidentFrameBus {
   private platformFrame: number | null = null;
   private nextId = 1;
   private flushing = false;
+  private active = true;
+  private firstFrameAfterResume = false;
   private dispatchCount = 0;
 
   constructor(
@@ -34,7 +40,6 @@ export class NativeResidentFrameBus {
 
   cancel(id: number): void {
     this.pending.delete(id);
-    // A sibling may cancel another callback while the current batch executes.
     this.due?.delete(id);
     if (!this.flushing && this.pending.size === 0 && this.platformFrame !== null) {
       this.cancelPlatformFrame(this.platformFrame);
@@ -42,25 +47,46 @@ export class NativeResidentFrameBus {
     }
   }
 
-  /** Snapshot only: useful for deterministic diagnostic tests. */
-  snapshot(): { queued: number; scheduled: boolean; dispatchCount: number } {
+  /** Idempotent lifecycle gate for game pauses and app backgrounding. */
+  setActive(active: boolean): void {
+    if (this.active === active) return;
+    this.active = active;
+    if (!active) {
+      if (this.platformFrame !== null) {
+        this.cancelPlatformFrame(this.platformFrame);
+        this.platformFrame = null;
+      }
+      // Even if a stale OS RAF fires after cancellation, its callbacks must
+      // remain queued until the game becomes active again.
+    } else {
+      this.firstFrameAfterResume = true;
+      this.ensureScheduled();
+    }
+  }
+
+  snapshot(): { queued: number; scheduled: boolean; active: boolean; dispatchCount: number } {
     return {
       queued: this.pending.size + (this.due?.size ?? 0),
       scheduled: this.platformFrame !== null,
+      active: this.active,
       dispatchCount: this.dispatchCount
     };
   }
 
   private ensureScheduled(): void {
-    if (this.flushing || this.platformFrame !== null || this.pending.size === 0) return;
+    if (!this.active || this.flushing || this.platformFrame !== null || this.pending.size === 0) return;
     this.platformFrame = this.requestPlatformFrame((timestamp) => this.flush(timestamp));
   }
 
   private flush(timestamp: number): void {
+    // A platform callback can race a cancellation on the native bridge.
+    if (!this.active || this.platformFrame === null) return;
     this.platformFrame = null;
     this.flushing = true;
     this.dispatchCount++;
     if (typeof __DEV__ !== "undefined" && __DEV__) markNativeResidentBusCycle();
+    const rebase = this.firstFrameAfterResume;
+    this.firstFrameAfterResume = false;
     this.due = this.pending;
     this.pending = new Map();
     let firstError: unknown = null;
@@ -69,9 +95,9 @@ export class NativeResidentFrameBus {
         if (!this.due.has(id)) continue;
         this.due.delete(id);
         try {
-          callback(timestamp);
+          callback(timestamp, rebase);
         } catch (error) {
-          // One bad resident must not starve the rest of the population.
+          // Preserve healthy residents even if one animation fails.
           if (firstError === null) firstError = error;
         }
       }
@@ -92,4 +118,8 @@ export function requestResidentAnimationFrame(callback: ResidentFrameCallback): 
 
 export function cancelResidentAnimationFrame(id: number): void {
   residentFrameBus.cancel(id);
+}
+
+export function setNativeResidentFrameBusActive(active: boolean): void {
+  residentFrameBus.setActive(active);
 }
