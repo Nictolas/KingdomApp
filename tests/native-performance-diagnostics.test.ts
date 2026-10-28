@@ -53,7 +53,7 @@ test("10-second capture accepts only frames before deadline, then terminates", (
   const result = capture.record(1100, 52);
   assert.ok(result);
   assert.equal(result.durationMs, 100);
-  assert.equal(result.metrics.samples, 4);
+  assert.equal(result.metrics.samples, 3, "initial frame straddling capture start must be excluded");
   assert.equal(result.metrics.meanFrameMs, 16);
   assert.equal(capture.record(1116, 16), null, "completed captures do not restart");
 });
@@ -64,7 +64,8 @@ test("capture rejects invalid parameters and ignores clock glitches", () => {
   const capture = new NativeMeasurementSession(100, 100);
   assert.equal(capture.record(90, 16), null);
   assert.equal(capture.record(Infinity, 16), null);
-  assert.equal(capture.record(105, 16), null);
+  assert.equal(capture.record(105, 16), null); // partial pre-capture RAF
+  assert.equal(capture.record(116, 11), null);
   assert.equal(capture.record(200, 95)?.metrics.samples, 1);
 });
 
