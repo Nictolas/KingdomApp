@@ -2,6 +2,7 @@ import { NativeFrameWindow, type NativeFrameSnapshot } from "./nativeFrameMetric
 import type { NativeResidentTimerRate } from "./nativeResidentTimerDiagnostics";
 import type { NativeResidentRenderRate } from "./nativeResidentWorkCounters";
 import type { NativeResidentFrameBusRate } from "./nativeResidentFrameBusDiagnostics";
+import type { NativeResidentDispatchReport } from "./nativeResidentDispatchProfiler";
 
 export type NativeMeasurementResult = {
   durationMs: number;
@@ -42,7 +43,8 @@ export function formatNativeMeasurement(
   environment: { platform: string; label: string; residents: number; terrainCells?: number },
   timerStats?: NativeResidentTimerRate,
   renderStats?: NativeResidentRenderRate,
-  frameBusStats?: NativeResidentFrameBusRate
+  frameBusStats?: NativeResidentFrameBusRate,
+  dispatchStats?: NativeResidentDispatchReport
 ): string {
   const { metrics } = result;
   return [
@@ -81,6 +83,20 @@ export function formatNativeMeasurement(
       `Sottoscrizioni RAF persistenti/s: ${frameBusStats.persistentRegistrationsPerSecond.toFixed(1)}`,
       `Registrazioni RAF one-shot/s: ${frameBusStats.oneShotRegistrationsPerSecond.toFixed(1)}`,
       `Sottoscrizioni RAF persistenti attive: ${frameBusStats.continuousSubscribersAtEnd}`
+    ]),
+    ...(dispatchStats == null ? [] : [
+      `Batch RAF JS campionati: ${dispatchStats.frame.samples}`,
+      `Batch RAF JS medio: ${dispatchStats.frame.meanMs.toFixed(2)} ms`,
+      `Batch RAF JS p95: ${dispatchStats.frame.p95Ms.toFixed(2)} ms`,
+      `Batch RAF JS massimo: ${dispatchStats.frame.maxMs.toFixed(2)} ms`,
+      `Batch RAF JS >8/>16 ms: ${dispatchStats.frame.over8Ms}/${dispatchStats.frame.over16Ms}`,
+      `Batch timer JS campionati: ${dispatchStats.timer.samples}`,
+      `Batch timer JS medio: ${dispatchStats.timer.meanMs.toFixed(2)} ms`,
+      `Batch timer JS p95: ${dispatchStats.timer.p95Ms.toFixed(2)} ms`,
+      `Batch timer JS massimo: ${dispatchStats.timer.maxMs.toFixed(2)} ms`,
+      `Batch timer JS >8/>16 ms: ${dispatchStats.timer.over8Ms}/${dispatchStats.timer.over16Ms}`,
+      `Campioni RAF/timer sovrascritti (buffer): ${dispatchStats.frame.dropped}/${dispatchStats.timer.dropped}`,
+      "Durate dei callback JavaScript; NON FPS GPU/UI, latenza touch o utilizzo CPU."
     ]),
     "Nota: non equivale a FPS del rendering o misura IA completa."
   ].join("\n");
