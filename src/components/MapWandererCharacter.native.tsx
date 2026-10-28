@@ -6,6 +6,7 @@ import { beginNativeResidentDispatch, endNativeResidentDispatch } from "../perfo
 import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation, markNativeResidentWrapperInvocation } from "../performance/nativeResidentWorkCounters";
 import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallbackRelay";
+import { NativeResidentTapRecognizer } from "../performance/nativeResidentTapRecognizer";
 import { NativeResidentSpriteFrameDriver } from "../performance/nativeResidentSpriteFrameDriver";
 import {
   requestResidentAnimationFrame,
@@ -29,7 +30,6 @@ ensureNativeResidentFrameLifecycle();
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-const DOPPIO_TAP_MS = 400;
 
 const CHARACTER_SHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/character.png");
 
@@ -203,7 +203,7 @@ function NativeResidentBody({
     },
     onFrame: () => { if (__DEV__) markNativeResidentFrameCallback(); }
   }));
-  const lastTapTimeRef = useRef(0);
+  const [tapRecognizer] = useState(() => new NativeResidentTapRecognizer());
   /** Evita di rieseguire effetti a ogni render (es. tick orologio sul genitore → callback nuove). */
   const onCommuteCompleteRef = useRef(onCommuteComplete);
   const onCommuteBlockedRef = useRef(onCommuteBlocked);
@@ -237,13 +237,11 @@ function NativeResidentBody({
     const timing = beginNativeResidentDispatch("touch");
     try {
       if (!onPress && !onDoublePress) return;
-      const now = Date.now();
-      if (onDoublePress && lastTapTimeRef.current > 0 && now - lastTapTimeRef.current < DOPPIO_TAP_MS) {
-        lastTapTimeRef.current = 0;
+      if (onDoublePress && tapRecognizer.press(performance.now()) === "double") {
         onDoublePress();
         return;
       }
-      lastTapTimeRef.current = now;
+      if (!onDoublePress) tapRecognizer.reset();
       if (onPress) {
         onPress();
       } else if (onDoublePress) {
@@ -252,7 +250,7 @@ function NativeResidentBody({
     } finally {
       endNativeResidentDispatch("touch", timing);
     }
-  }, [onPress, onDoublePress]);
+  }, [onPress, onDoublePress, tapRecognizer]);
 
   useEffect(() => {
     cellRef.current = logicalCell;
@@ -583,7 +581,12 @@ function NativeResidentBody({
    * rearm if no timeout was pending when the game became active.
    */
   const onResidentActivityChanged = useCallback((active: boolean) => {
-    if (!active) return;
+    if (!active) {
+      // A tap before background/manual pause must never pair with a tap
+      // after returning, even if the transition lasted less than 400 ms.
+      tapRecognizer.reset();
+      return;
+    }
     const { fixedCell, commutePath, disableIdleRoam } = activityConfigRef.current;
     if (commutePath != null && commutePath.length >= 2) {
       // A collision retry already scheduled before pause resumes with its
@@ -598,7 +601,7 @@ function NativeResidentBody({
       idleTimerRef.current = null;
       pickNextMoveRef.current();
     }, IDLE_BEFORE_NEXT_MS);
-  }, [pendingCommuteRetry]);
+  }, [pendingCommuteRetry, tapRecognizer]);
 
   // One stable listener per mounted resident. Pauses and foreground changes
   // are delivered synchronously by the shared bus, not React render effects.
@@ -611,16 +614,23 @@ function NativeResidentBody({
       clearIdle();
       pendingCommuteRetry.clear();
       motion.cancel();
+      tapRecognizer.reset();
       releaseMyCellRef.current?.();
     },
-    [clearIdle, pendingCommuteRetry, motion]
+    [clearIdle, pendingCommuteRetry, motion, tapRecognizer]
   );
 
-  if (logicalCell === null) return null;
-
-  const passTouchesToGrid =
+  const passTouchesToGrid = logicalCell !== null &&
     passTouchesToMapOnCell != null && passTouchesToMapOnCell(logicalCell) === true;
-  const intercettaTocco = (!!onPress || !!onDoublePress) && !passTouchesToGrid;
+  const intercettaTocco = logicalCell !== null && (!!onPress || !!onDoublePress) && !passTouchesToGrid;
+  // Clear an unfinished pair whenever the committed resident hit target is
+  // removed or its double-tap handler becomes available/unavailable. This
+  // also covers home/footprint pass-through changes without extra timers.
+  React.useLayoutEffect(() => {
+    tapRecognizer.setEligibleForDoubleTap(intercettaTocco && !!onDoublePress);
+  }, [tapRecognizer, intercettaTocco, onDoublePress]);
+
+  if (logicalCell === null) return null;
 
   const shellStyle = [
     styles.anchor,
