@@ -4,7 +4,12 @@ import { getOrologioGiocoInPausaSnapshot, getOrologioSimTimeScaleSnapshot } from
 import { NativeResidentSegmentProgress } from "../performance/nativeResidentSegmentProgress";
 import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation } from "../performance/nativeResidentWorkCounters";
-import { requestResidentAnimationFrame, cancelResidentAnimationFrame } from "../performance/nativeResidentFrameBus";
+import {
+  requestResidentAnimationFrame,
+  cancelResidentAnimationFrame,
+  isNativeResidentFrameBusActive,
+  subscribeNativeResidentFrameBusActivity
+} from "../performance/nativeResidentFrameBus";
 import { ensureNativeResidentFrameLifecycle } from "../performance/nativeResidentFrameLifecycle.native";
 import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
 import {
@@ -231,7 +236,7 @@ export function MapWandererCharacter({
   }, []);
 
   const pickNextMove = useCallback(() => {
-    if (getOrologioGiocoInPausaSnapshot()) return;
+    if (!isNativeResidentFrameBusActive() || getOrologioGiocoInPausaSnapshot()) return;
     if (disableIdleRoam) return;
     if (fixedCell != null) return;
     if (commutePath != null && commutePath.length >= 2) return;
@@ -318,7 +323,7 @@ export function MapWandererCharacter({
     (from: number, to: number, onDone: () => void, isLastSegment: boolean) => {
       // Do not claim a cell or start movement while the game is paused.
       // The useGiocoInPausa effect resumes this precise segment on unpause.
-      if (getOrologioGiocoInPausaSnapshot()) {
+      if (!isNativeResidentFrameBusActive() || getOrologioGiocoInPausaSnapshot()) {
         pendingCommuteRetry.hold(() => runOneSegment(from, to, onDone, isLastSegment));
         return;
       }
@@ -576,27 +581,37 @@ export function MapWandererCharacter({
     cellSizePx
   ]);
 
-  /** Pausa globale: ferma timer idle; al ripristino riprende girovago se fermo. */
-  useEffect(() => {
-    if (prevGiocoInPausaRef.current === giocoInPausa) return;
-    prevGiocoInPausaRef.current = giocoInPausa;
-    if (giocoInPausa) {
+  /**
+   * Pause and app-background transitions also stop native idle/retry timers.
+   * The RAF bus already retains walking callbacks; a stopped idle timer or
+   * collision retry must instead be explicitly resumed exactly once.
+   */
+  const onResidentActivityChanged = useCallback((active: boolean) => {
+    if (!active) {
       clearIdle();
       return;
     }
     if (commutePath != null && commutePath.length >= 2) {
-      // An outstanding claim retry was canceled by clearIdle() at pause;
-      // resume it once, rather than restarting the entire commute path.
       pendingCommuteRetry.take()?.();
       return;
     }
-    if (fixedCell != null) return;
-    if (disableIdleRoam) return;
-    if (cellRef.current == null || !inited.current) return;
-    if (isMovingRef.current) return;
+    if (fixedCell != null || disableIdleRoam) return;
+    if (cellRef.current == null || !inited.current || isMovingRef.current) return;
     clearIdle();
     idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
-  }, [giocoInPausa, fixedCell, commutePath, disableIdleRoam, clearIdle, pendingCommuteRetry]);
+  }, [fixedCell, commutePath, disableIdleRoam, clearIdle, pendingCommuteRetry]);
+
+  useEffect(() => {
+    return subscribeNativeResidentFrameBusActivity(onResidentActivityChanged);
+  }, [onResidentActivityChanged]);
+
+  // The hook keeps the pre-existing React pause semantics; the synchronous
+  // bus listener also handles foreground transitions without a React render.
+  useEffect(() => {
+    if (prevGiocoInPausaRef.current === giocoInPausa) return;
+    prevGiocoInPausaRef.current = giocoInPausa;
+    onResidentActivityChanged(isNativeResidentFrameBusActive());
+  }, [giocoInPausa, onResidentActivityChanged]);
 
   useEffect(
     () => () => {
