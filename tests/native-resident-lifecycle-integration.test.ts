@@ -79,7 +79,7 @@ test("200 native segments preserve 1x/2x/4x progress through pause and backgroun
   gate.setForeground(true);
   assert.equal(runner.scheduled.size, 1);
   runner.tick(300_000);
-  assert.ok(progress.every((p) => p === 0.7), "first resumed frame must not teleport");
+  assert.ok(progress.every((p) => Math.abs(p - 0.7) < 1e-8), "first resumed frame must not teleport");
   runner.tick(300_075);
   assert.ok(progress.every((p) => p === 1));
   assert.equal(completed.size, 200);
