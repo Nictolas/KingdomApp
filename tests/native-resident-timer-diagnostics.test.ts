@@ -129,7 +129,7 @@ test("the 10-second shareable report includes aggregate timers without personal 
   assert.match(report, /Wakeup timeout nativo: 20/);
   assert.match(report, /Yield backlog timer: 5/);
   assert.match(report, /Yield per budget temporale JS: 2/);
-  assert.match(report, /Yield per budget temporale JS\/s: 0\\.2/);
+  assert.match(report, /Yield per budget temporale JS\/s: 0\.2/);
   assert.match(report, /Yield backlog timer\/s: 0\.5/);
   assert.match(report, /Callback timer residenti: 200/);
   assert.match(report, /Wakeup timeout nativo\/s: 2\.0/);
