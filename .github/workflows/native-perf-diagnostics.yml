@@ -79,6 +79,24 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
+      - name: A/B real-sprite fixture parity against paired lab branch (exact Git blobs)
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags --depth=1 origin refs/heads/perf/native-real-sprite-ab-baseline-20261028
+          for path in \
+            app/native-perf.tsx \
+            src/performance/NativeRealResidentWorkload.tsx \
+            src/performance/nativeRealResidentFixture.ts \
+            tests/native-real-resident-fixture.test.ts; do
+            local_sha="$(git hash-object "$path")"
+            paired_sha="$(git rev-parse "FETCH_HEAD:$path")"
+            if [[ "$local_sha" != "$paired_sha" ]]; then
+              echo "::error file=$path::A/B fixture drift: this branch $local_sha vs paired branch $paired_sha"
+              exit 1
+            fi
+            echo "A/B parity OK: $path $local_sha"
+          done
       - uses: actions/setup-node@v4
         with:
           node-version: 22
