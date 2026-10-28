@@ -18,6 +18,8 @@ export type NativeResidentFrameBusSnapshot = Readonly<{
   continuousSubscribers: number;
   subscriptionAdds: number;
   oneShotRequests: number;
+  /** Count of one-shot dispatches using the two recycled Map buffers. */
+  oneShotBufferSwaps: number;
 }>;
 
 /**
@@ -31,6 +33,9 @@ export type NativeResidentFrameBusSnapshot = Readonly<{
  */
 export class NativeResidentFrameBus {
   private pending = new Map<number, ResidentFrameCallback>();
+  /** Recycle the previous one-shot Map instead of allocating on every RAF. */
+  private sparePending = new Map<number, ResidentFrameCallback>();
+  private oneShotBufferSwaps = 0;
   /** Persistent movement subscribers avoid 200 re-registrations every frame. */
   private continuous = new Map<number, ResidentFrameCallback>();
   private subscriptionAdds = 0;
@@ -147,7 +152,8 @@ export class NativeResidentFrameBus {
       activityListeners: this.activityListeners.size,
       continuousSubscribers: this.continuous.size,
       subscriptionAdds: this.subscriptionAdds,
-      oneShotRequests: this.oneShotRequests
+      oneShotRequests: this.oneShotRequests,
+      oneShotBufferSwaps: this.oneShotBufferSwaps
     };
   }
 
@@ -169,14 +175,23 @@ export class NativeResidentFrameBus {
     const rebase = this.firstFrameAfterResume;
     const dispatchEpoch = this.activityEpoch;
     this.firstFrameAfterResume = false;
-    this.due = this.pending;
-    this.pending = new Map();
+    // Continuous-only animation frames never need an additional Map. When
+    // one-shot callbacks are present, two buffers alternate so requests made
+    // during a frame cannot run until the next frame. Neither case allocates
+    // a Map at frame frequency (including the 200-one-shot fallback path).
+    if (this.pending.size > 0) {
+      this.due = this.pending;
+      this.pending = this.sparePending;
+      this.oneShotBufferSwaps++;
+    } else {
+      this.due = null;
+    }
     // An ID boundary, not a copied Map/array: no O(residents) allocation
     // just to dispatch the same 200 subscribers on every animation frame.
     const maxContinuousIdAtFrameStart = this.nextId - 1;
     let firstError: unknown = null;
     try {
-      for (const [id, callback] of this.due) {
+      for (const [id, callback] of this.due ?? []) {
         // A callback can synchronously pause the world in mid-batch. Hold the
         // remaining residents, rather than updating them while paused.
         if (!this.active || this.activityEpoch !== dispatchEpoch) break;
@@ -204,10 +219,21 @@ export class NativeResidentFrameBus {
         }
       }
     } finally {
-      if (this.due !== null && this.due.size > 0) {
-        // Only happens if processing was interrupted by a pause. Preserve
-        // order; callbacks registered during this frame remain after these.
-        this.pending = new Map([...this.due, ...this.pending]);
+      if (this.due !== null) {
+        if (this.due.size > 0) {
+          // A pause/reentrant lifecycle left unprocessed one-shots: prepend
+          // them to the requests made during this frame, preserving FIFO.
+          // Reuse both Maps rather than creating a third buffer.
+          const newlyRequested = this.pending;
+          for (const [id, callback] of newlyRequested) this.due.set(id, callback);
+          newlyRequested.clear();
+          this.pending = this.due;
+          this.sparePending = newlyRequested;
+        } else {
+          // No pending leftovers: the consumed Map becomes the next spare.
+          this.due.clear();
+          this.sparePending = this.due;
+        }
       }
       this.due = null;
       this.flushing = false;
