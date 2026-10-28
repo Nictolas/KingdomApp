@@ -1,5 +1,6 @@
 import { NativeFrameWindow, type NativeFrameSnapshot } from "./nativeFrameMetrics";
 import type { NativeResidentTimerRate } from "./nativeResidentTimerDiagnostics";
+import type { NativeResidentRenderRate } from "./nativeResidentWorkCounters";
 
 export type NativeMeasurementResult = {
   durationMs: number;
@@ -38,7 +39,8 @@ export class NativeMeasurementSession {
 export function formatNativeMeasurement(
   result: NativeMeasurementResult,
   environment: { platform: string; label: string; residents: number; terrainCells?: number },
-  timerStats?: NativeResidentTimerRate
+  timerStats?: NativeResidentTimerRate,
+  renderStats?: NativeResidentRenderRate
 ): string {
   const { metrics } = result;
   return [
@@ -54,6 +56,12 @@ export function formatNativeMeasurement(
     `p95: ${metrics.p95FrameMs.toFixed(1)} ms`,
     `Frame oltre 33 ms: ${metrics.framesOver33Ms}`,
     `Frame oltre 50 ms: ${metrics.framesOver50Ms}`,
+    ...(renderStats == null ? [] : [
+      `Wrapper abitanti: ${renderStats.wrappers}`,
+      `Render sprite React: ${renderStats.bodies}`,
+      `Wrapper abitanti/s: ${renderStats.wrappersPerSecond.toFixed(1)}`,
+      `Render sprite React/s: ${renderStats.bodiesPerSecond.toFixed(1)}`
+    ]),
     ...(timerStats == null ? [] : [
       `Wakeup timeout nativo: ${timerStats.platformWakeups}`,
       `Callback timer residenti: ${timerStats.logicalCallbacks}`,
