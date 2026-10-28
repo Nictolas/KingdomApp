@@ -25,6 +25,10 @@ Il report della #297 registra **«Velocità simulazione: 0x/1x/2x/4x»**. Il val
 4. Se un report viene interrotto per una transizione, **scartarlo**. Non selezionare nel confronto rapporti con popolazione, piattaforma, scena, terreno, durata o velocità differenti. Ripetere il confronto per ogni scenario: non mescolare 25/50/100/200 abitanti nello stesso file.
 5. Controllare visivamente sul dispositivo movimento, collisioni, tocco e doppio tocco, passaggio dei tocchi alla griglia, pausa/foreground/background, cambio percorso e regressioni degli sprite. Il tool di confronto **non** sostituisce queste prove.
 
+## Matrice completa 25–200 abitanti, 1×/2×/4×
+
+Per verificare **tutte le 12 combinazioni** senza selezionare soltanto lo scenario migliore, usare anche il validatore offline descritto in [`NATIVE_REAL_SPRITE_AB_MATRIX.md`](NATIVE_REAL_SPRITE_AB_MATRIX.md). Richiede 72 catture da 10 secondi, conferma manuale del medesimo dispositivo e controllo esplicito della velocità se la baseline #298 non la registra. La matrice può essere eseguita parzialmente solo con `--allow-partial`, e non autorizza automaticamente alcun merge.
+
 ## Confronto automatico offline
 
 Dal repository `Nictolas/KingdomApp`, con Node 22 o superiore, eseguire:
