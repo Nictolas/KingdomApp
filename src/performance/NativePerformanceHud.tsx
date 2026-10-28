@@ -4,6 +4,8 @@ import { AppState, Platform, Pressable, Share, StyleSheet, Text, View } from "re
 import { NativeFrameWindow, type NativeFrameSnapshot } from "./nativeFrameMetrics";
 import { takeNativeResidentFrameCallbacks, takeNativeResidentRenderInvocations, takeNativeResidentBusCycles } from "./nativeResidentWorkCounters";
 import { NativeMeasurementSession, formatNativeMeasurement } from "./nativeMeasurementSession";
+import { getNativeResidentTimerSnapshot, type NativeResidentTimerSnapshot } from "./nativeResidentTimerQueue";
+import { diffNativeResidentTimerCounters } from "./nativeResidentTimerDiagnostics";
 
 const INITIAL_METRICS: NativeFrameSnapshot = {
   samples: 0, jsFps: 0, meanFrameMs: 0, p95FrameMs: 0, framesOver33Ms: 0, framesOver50Ms: 0
@@ -29,11 +31,16 @@ export function NativePerformanceHud({
   const [residentCallbacks, setResidentCallbacks] = useState(0);
   const [residentRenders, setResidentRenders] = useState(0);
   const [residentBusCycles, setResidentBusCycles] = useState(0);
+  const [timerMetrics, setTimerMetrics] = useState({
+    pending: 0, platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, scheduled: false
+  });
+  const lastTimerSample = useRef<{ timestamp: number; counters: NativeResidentTimerSnapshot } | null>(null);
   const frameWindow = useRef(new NativeFrameWindow(120));
   const [measuring, setMeasuring] = useState(false);
   const [latestReport, setLatestReport] = useState<string | null>(null);
   const capture = useRef<{
     session: NativeMeasurementSession;
+    timerStart: NativeResidentTimerSnapshot;
     environment: { platform: string; label: string; residents: number; terrainCells?: number };
   } | null>(null);
 
@@ -41,6 +48,7 @@ export function NativePerformanceHud({
     setLatestReport(null);
     capture.current = {
       session: new NativeMeasurementSession(performance.now()),
+      timerStart: getNativeResidentTimerSnapshot(),
       environment: { platform: Platform.OS, label, residents, terrainCells }
     };
     setMeasuring(true);
@@ -51,6 +59,8 @@ export function NativePerformanceHud({
     setResidentCallbacks(0);
     setResidentRenders(0);
     setResidentBusCycles(0);
+    setTimerMetrics({ pending: 0, platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, scheduled: false });
+    lastTimerSample.current = { timestamp: performance.now(), counters: getNativeResidentTimerSnapshot() };
     takeNativeResidentBusCycles();
     takeNativeResidentFrameCallbacks();
     takeNativeResidentRenderInvocations();
@@ -63,6 +73,7 @@ export function NativePerformanceHud({
     const onStateChange = AppState.addEventListener("change", () => {
       previous = null;
       frameWindow.current.reset();
+      lastTimerSample.current = null;
       // Pausing/rotating the app invalidates a timed measurement.
       capture.current = null;
       setMeasuring(false);
@@ -78,7 +89,10 @@ export function NativePerformanceHud({
             if (complete) {
               capture.current = null;
               setMeasuring(false);
-              setLatestReport(formatNativeMeasurement(complete, active.environment));
+              const delta = diffNativeResidentTimerCounters(
+                active.timerStart, getNativeResidentTimerSnapshot(), complete.durationMs
+              );
+              setLatestReport(formatNativeMeasurement(complete, active.environment, delta));
             }
           }
         }
@@ -88,6 +102,17 @@ export function NativePerformanceHud({
           setResidentCallbacks(takeNativeResidentFrameCallbacks());
           setResidentRenders(takeNativeResidentRenderInvocations());
           setResidentBusCycles(takeNativeResidentBusCycles());
+          const next = getNativeResidentTimerSnapshot();
+          const prev = lastTimerSample.current;
+          const interval = prev ? timestamp - prev.timestamp : 0;
+          const rates = prev ? diffNativeResidentTimerCounters(prev.counters, next, interval) : null;
+          setTimerMetrics({
+            pending: next.pending,
+            scheduled: next.scheduled,
+            platformWakeupsPerSecond: rates?.platformWakeupsPerSecond ?? 0,
+            logicalCallbacksPerSecond: rates?.logicalCallbacksPerSecond ?? 0
+          });
+          lastTimerSample.current = { timestamp, counters: next };
           lastPublished = timestamp;
         }
       } else {
@@ -118,7 +143,11 @@ export function NativePerformanceHud({
           <Text style={styles.text}>Callback animazione abitanti/s: {residentCallbacks}</Text>
           <Text style={styles.text}>Render React abitanti/s: {residentRenders}</Text>
           <Text style={styles.text}>Frame bus nativo/s: {residentBusCycles}</Text>
-          <Text style={styles.note}>Callback/s, invocazioni React/s e bus/s descrivono carico distinto: non sono FPS UI/GPU. Solo ritmo JS, non GPU; nessun dato salvato.</Text>
+          <Text style={styles.text}>Timer residenti in attesa: {timerMetrics.pending}</Text>
+          <Text style={styles.text}>Timeout nativi attivi: {timerMetrics.scheduled ? 1 : 0}</Text>
+          <Text style={styles.text}>Wakeup timer nativo/s: {timerMetrics.platformWakeupsPerSecond.toFixed(1)}</Text>
+          <Text style={styles.text}>Callback timer residenti/s: {timerMetrics.logicalCallbacksPerSecond.toFixed(1)}</Text>
+          <Text style={styles.note}>Timer e callback/s misurano soltanto attività JS e timer gestiti dalla mappa, non FPS UI/GPU. Solo ritmo JS, non GPU; nessun dato salvato.</Text>
           <Pressable
             style={[styles.testButton, measuring && styles.disabledButton]}
             disabled={measuring}
