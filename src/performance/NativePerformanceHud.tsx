@@ -8,6 +8,7 @@ import { getNativeResidentTimerSnapshot, type NativeResidentTimerSnapshot } from
 import { diffNativeResidentTimerCounters } from "./nativeResidentTimerDiagnostics";
 import { getNativeResidentFrameBusSnapshot, type NativeResidentFrameBusSnapshot } from "./nativeResidentFrameBus";
 import { diffNativeResidentFrameBusSnapshots } from "./nativeResidentFrameBusDiagnostics";
+import { startNativeResidentDispatchCapture, cancelNativeResidentDispatchCapture, finishNativeResidentDispatchCapture } from "./nativeResidentDispatchProfiler";
 
 const INITIAL_METRICS: NativeFrameSnapshot = {
   samples: 0, jsFps: 0, meanFrameMs: 0, p95FrameMs: 0, framesOver33Ms: 0, framesOver50Ms: 0
@@ -47,6 +48,7 @@ export function NativePerformanceHud({
   const [latestReport, setLatestReport] = useState<string | null>(null);
   const capture = useRef<{
     session: NativeMeasurementSession;
+    dispatchToken: number;
     timerStart: NativeResidentTimerSnapshot;
     frameBusStart: NativeResidentFrameBusSnapshot;
     renderStart: NativeResidentRenderTotals;
@@ -54,9 +56,11 @@ export function NativePerformanceHud({
   } | null>(null);
 
   const startMeasurement = useCallback(() => {
+    if (capture.current) cancelNativeResidentDispatchCapture(capture.current.dispatchToken);
     setLatestReport(null);
     capture.current = {
       session: new NativeMeasurementSession(performance.now()),
+      dispatchToken: startNativeResidentDispatchCapture(),
       timerStart: getNativeResidentTimerSnapshot(),
       frameBusStart: getNativeResidentFrameBusSnapshot(),
       renderStart: getNativeResidentRenderTotals(),
@@ -80,6 +84,7 @@ export function NativePerformanceHud({
     takeNativeResidentRenderInvocations();
     takeNativeResidentWrapperInvocations();
     frameWindow.current.reset();
+    if (capture.current) cancelNativeResidentDispatchCapture(capture.current.dispatchToken);
     capture.current = null;
     setMeasuring(false);
     let raf = 0;
@@ -91,6 +96,7 @@ export function NativePerformanceHud({
       lastTimerSample.current = null;
       lastFrameBusSample.current = null;
       // Pausing/rotating the app invalidates a timed measurement.
+      if (capture.current) cancelNativeResidentDispatchCapture(capture.current.dispatchToken);
       capture.current = null;
       setMeasuring(false);
     });
@@ -105,6 +111,7 @@ export function NativePerformanceHud({
             if (complete) {
               capture.current = null;
               setMeasuring(false);
+              const dispatch = finishNativeResidentDispatchCapture(active.dispatchToken);
               const delta = diffNativeResidentTimerCounters(
                 active.timerStart, getNativeResidentTimerSnapshot(), complete.durationMs
               );
@@ -114,7 +121,7 @@ export function NativePerformanceHud({
               const frameBus = diffNativeResidentFrameBusSnapshots(
                 active.frameBusStart, getNativeResidentFrameBusSnapshot(), complete.durationMs
               );
-              setLatestReport(formatNativeMeasurement(complete, active.environment, delta, renders, frameBus));
+              setLatestReport(formatNativeMeasurement(complete, active.environment, delta, renders, frameBus, dispatch ?? undefined));
             }
           }
         }
@@ -160,6 +167,7 @@ export function NativePerformanceHud({
     raf = requestAnimationFrame(onFrame);
     return () => {
       cancelAnimationFrame(raf);
+      if (capture.current) cancelNativeResidentDispatchCapture(capture.current.dispatchToken);
       capture.current = null;
       onStateChange.remove();
     };
@@ -191,7 +199,7 @@ export function NativePerformanceHud({
           <Text style={styles.text}>Max callback per wakeup: {timerMetrics.callbackBudget}</Text>
           <Text style={styles.text}>Backlog già scaduto: {timerMetrics.backlogDue ? "sì" : "no"}</Text>
           <Text style={styles.text}>Yield backlog/s: {timerMetrics.budgetYieldsPerSecond.toFixed(1)}</Text>
-          <Text style={styles.note}>Wrapper e render sprite sono invocazioni di funzione React, non commit. RAF persistenti e one-shot misurano registrazioni JS, non FPS UI/GPU. Nessun dato salvato.</Text>
+          <Text style={styles.note}>Wrapper e render sprite sono invocazioni di funzione React, non commit. RAF persistenti e one-shot misurano registrazioni JS. La misura di 10 s include ora il costo dei batch RAF/timer JS, non FPS UI/GPU né latenza touch. Nessun dato salvato.</Text>
           <Pressable
             style={[styles.testButton, measuring && styles.disabledButton]}
             disabled={measuring}
@@ -202,7 +210,7 @@ export function NativePerformanceHud({
           </Pressable>
           {latestReport && (
             <>
-              <Text style={styles.text}>{latestReport.split("\n").filter((line) => /FPS JS medio:|p95:|Campioni:/.test(line)).join(" · ")}</Text>
+              <Text style={styles.text}>{latestReport.split("\n").filter((line) => /FPS JS medio:|p95:|Campioni:|Batch RAF JS p95:|Batch timer JS p95:/.test(line)).join(" · ")}</Text>
               <Pressable
                 style={styles.testButton}
                 accessibilityRole="button"
