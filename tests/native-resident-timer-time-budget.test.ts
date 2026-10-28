@@ -220,18 +220,18 @@ test("200 residents: timer time-slicing and persistent RAF share pause and speed
   }, 500);
   f.setWall(100);
   f.frame();
-  assert.ok(positions.every(x => x === 10));
+  assert.deepEqual(positions, Array(200).fill(10));
   gate.setGamePaused(true);
   assert.equal(f.frames.size, 0);
   assert.equal(f.alarms.size, 0);
   f.setWall(50_000);
   gate.setGamePaused(false);
   f.frame(); // rebase, no teleport
-  assert.ok(positions.every(x => x === 10));
+  assert.deepEqual(positions, Array(200).fill(10));
   speed = 2;
   f.setWall(50_200);
   f.frame();
-  assert.ok(positions.every(x => x === 50));
+  assert.deepEqual(positions, Array(200).fill(50));
   f.setWall(50_300);
   f.drain();
   assert.ok(retries.every(n => n === 1));
@@ -239,7 +239,7 @@ test("200 residents: timer time-slicing and persistent RAF share pause and speed
   speed = 4;
   f.frame();
   assert.ok(arrivals.every(n => n === 1));
-  assert.ok(positions.every(x => x === 100));
+  assert.deepEqual(positions, Array(200).fill(100));
   runners.forEach(runner => runner.cancel());
   assert.equal(f.frames.size, 0);
   assert.equal(f.alarms.size, 0);
