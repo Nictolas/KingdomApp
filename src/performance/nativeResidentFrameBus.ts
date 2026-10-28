@@ -18,6 +18,7 @@ type CancelFrame = (id: number) => void;
  */
 export class NativeResidentFrameBus {
   private pending = new Map<number, ResidentFrameCallback>();
+  private activityListeners = new Set<(active: boolean) => void>();
   private due: Map<number, ResidentFrameCallback> | null = null;
   private platformFrame: number | null = null;
   private nextId = 1;
@@ -50,6 +51,16 @@ export class NativeResidentFrameBus {
     }
   }
 
+  isActive(): boolean {
+    return this.active;
+  }
+
+  /** Listeners only run on lifecycle transitions, never on animation frames. */
+  subscribeActivity(listener: (active: boolean) => void): () => void {
+    this.activityListeners.add(listener);
+    return () => this.activityListeners.delete(listener);
+  }
+
   /** Idempotent lifecycle gate for game pauses and app backgrounding. */
   setActive(active: boolean): void {
     if (this.active === active) return;
@@ -64,8 +75,19 @@ export class NativeResidentFrameBus {
       // remain queued until the game becomes active again.
     } else {
       this.firstFrameAfterResume = true;
-      this.ensureScheduled();
     }
+    // Notify idle/retry timers as well as walking residents. An app returning
+    // to foreground must restart deferred work without a React rerender.
+    let firstError: unknown = null;
+    for (const listener of [...this.activityListeners]) {
+      try {
+        listener(active);
+      } catch (error) {
+        if (firstError === null) firstError = error;
+      }
+    }
+    if (active) this.ensureScheduled();
+    if (firstError !== null) throw firstError;
   }
 
   snapshot(): { queued: number; scheduled: boolean; active: boolean; dispatchCount: number } {
@@ -136,4 +158,15 @@ export function cancelResidentAnimationFrame(id: number): void {
 
 export function setNativeResidentFrameBusActive(active: boolean): void {
   residentFrameBus.setActive(active);
+}
+
+/** Foreground + gameplay-pause state, shared with native idle/commute timers. */
+export function isNativeResidentFrameBusActive(): boolean {
+  return residentFrameBus.isActive();
+}
+
+export function subscribeNativeResidentFrameBusActivity(
+  listener: (active: boolean) => void
+): () => void {
+  return residentFrameBus.subscribeActivity(listener);
 }
