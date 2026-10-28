@@ -40,3 +40,15 @@ La percentuale precedente, **78%**, continua a rappresentare una stima della sol
 Il pulsante «Misura 10 secondi» può essere premuto mentre è già in corso un intervallo di animazione RAF. Una misura corretta deve iniziare **dal momento in cui si preme il pulsante**, non dall'ultimo RAF programmato prima del tap. `NativeMeasurementSession` ora scarta il primo delta RAF se `timestamp - delta` precede l'avvio della cattura; tutti gli intervalli interamente contenuti nella finestra restano rilevati. I campioni il cui timestamp è oltre la scadenza non vengono inclusi.
 
 Una lunga sospensione JavaScript (almeno 2.000 ms) **avvenuta prima** della cattura non la rende falsamente invalida; una sospensione di pari durata **durante** la cattura ne provoca invece l'annullamento esplicito, con nuovo avviso nel pannello. I test `tests/native-capture-integrity.test.ts` e `tests/native-performance-diagnostics.test.ts` verificano questi casi. Questo migliora la comparabilità delle statistiche JS senza pretendere di misurare i frame della GPU.
+
+
+## CI: riscontri rapidi separati dalla compilazione dei bundle
+
+Prima di questa modifica, il workflow `native-perf-diagnostics.yml` eseguiva tutti i test Node e poi, **nello stesso job e in serie**, i bundle JavaScript Android, iOS e web. La CI rimaneva a lungo «in corso» anche dopo il successo dei test, ritardando il feedback e sprecando tempo sui commit superati.
+
+Ora il workflow ha due categorie indipendenti:
+
+- **`native-tests`**: gate TypeScript additivo, suite di regressione, stress test con 200 abitanti, benchmark e validità delle misure; rende visibile tempestivamente il risultato del codice.
+- **`native-bundles`** con matrice `android`, `ios`, `web`: tre job **paralleli** su runner separati, ciascuno con `npm ci` e `expo export` per la propria piattaforma.
+
+Le esecuzioni precedenti della stessa PR vengono annullate con `concurrency.cancel-in-progress`: vale solo per il workflow diagnostico, **non** disabilita la CI generale. Tutti e quattro i job rimangono obbligatori per dichiarare verde l'intero workflow. La modifica **non** crea APK/IPA, **non** distribuisce build, **non** fonde PR e **non** sostituisce le prove su dispositivi fisici.
