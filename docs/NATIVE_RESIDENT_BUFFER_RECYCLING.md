@@ -41,3 +41,10 @@ Il valore «dopo» **esclude i buffer iniziali riutilizzati** (due per dispatche
 Il riuso trattiene la capacità interna dei `Map` dopo un carico elevato; può ridurre il churn senza ridurre la memoria di picco. Un confronto su hardware deve confrontare baseline #295 e #297 su **stesso dispositivo**, con 25/50/100/200 abitanti e ripetizioni a 1×, 2× e 4×. Misurare JS frame p95, congelamenti, gestione tocchi, collisioni e almeno una traccia del garbage collector/heap; distinguere le metriche JavaScript dagli FPS GPU/UI thread.
 
 Il workflow `native-perf-diagnostics.yml` verifica test puri, soak, gate TypeScript additivo e bundle JS Android/iOS/web. Non equivale a una build nativa installata. La CI generale rimane indipendente e può fallire sui **53 errori TypeScript della baseline #295**; il gate additivo deve impedire errori nuovi. **Nessun merge o deploy senza esiti della CI e prove manuali.**
+
+
+## Diagnostica sul dispositivo (solo sviluppo)
+
+Il pannello nativo espone i tassi **buffer RAF one-shot riciclati/s** e **buffer timeout riciclati/s**; il report opt-in «Misura 10 secondi» include sia i conteggi sia i tassi. Sono differenze tra snapshot aggregati monotoni, azzerate se l'intervallo non è valido o i contatori regrediscono. Misurano **quante volte si è riutilizzato un buffer**, non il numero di pause del garbage collector evitate.
+
+Per attribuire un beneficio alle allocazioni risparmiate, confrontare sullo stesso dispositivo le sessioni #295 e #297 (25/50/100/200 residenti, velocità 1×/2×/4×); correlare i tassi con la traccia heap/GC e con il p95 del frame JS. Un tasso alto, da solo, non dimostra una riduzione del tempo JS o un miglioramento degli FPS.
