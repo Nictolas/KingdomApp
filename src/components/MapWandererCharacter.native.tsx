@@ -5,6 +5,7 @@ import { NativeResidentSegmentProgress } from "../performance/nativeResidentSegm
 import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation, markNativeResidentWrapperInvocation } from "../performance/nativeResidentWorkCounters";
 import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallbackRelay";
+import { NativeResidentSpriteFrameDriver } from "../performance/nativeResidentSpriteFrameDriver";
 import {
   requestResidentAnimationFrame,
   cancelResidentAnimationFrame,
@@ -14,13 +15,7 @@ import {
 import { ensureNativeResidentFrameLifecycle } from "../performance/nativeResidentFrameLifecycle.native";
 import { scheduleNativeResidentTimer, cancelNativeResidentTimer } from "../performance/nativeResidentTimerQueue";
 import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
-import {
-  frameGroupStart,
-  segmentMoveDurationMs,
-  walkFrameFromElapsedMs,
-  walkIndexInGroup,
-  type WanderDirection
-} from "../game/mapWandererMotion";
+import { segmentMoveDurationMs, type WanderDirection } from "../game/mapWandererMotion";
 
 /**
  * Keep the native hit target animated together with the sprite. Unlike React
@@ -166,16 +161,20 @@ function NativeResidentBody({
   const cellRef = useRef<number | null>(null);
   // Stable position observable: movement no longer causes React rerenders 60×/s.
   const [pixelPos] = useState(() => new Animated.ValueXY({ x: 0, y: 0 }));
+  // Sprite-sheet frames are written to Animated.Image without React renders.
+  // The independent native hit target still follows pixelPos as before.
+  const [spriteSheetOffset] = useState(() => new Animated.Value(0));
+  const [spriteFrames] = useState(() =>
+    new NativeResidentSpriteFrameDriver(cellSizePx, (left) => spriteSheetOffset.setValue(left))
+  );
   const [direction, setDirection] = useState<WanderDirection>("s");
-  const [walkFrame, setWalkFrame] = useState(0);
-  const walkFrameRef = useRef(0);
-  // React only needs a new sprite frame every ~180ms, not at every RAF tick.
-  const updateWalkFrame = useCallback((next: number) => {
-    if (walkFrameRef.current === next) return;
-    walkFrameRef.current = next;
-    setWalkFrame(next);
-  }, []);
-  const [isMoving, setIsMoving] = useState(false);
+  const face = useCallback((next: WanderDirection) => {
+    spriteFrames.face(next);
+    setDirection(next); // Only direction changes need a render (west mirror).
+  }, [spriteFrames]);
+  React.useLayoutEffect(() => {
+    spriteFrames.setCellSize(cellSizePx);
+  }, [spriteFrames, cellSizePx]);
   const giocoInPausa = useGiocoInPausa();
 
   const inited = useRef(false);
@@ -277,7 +276,7 @@ function NativeResidentBody({
       return;
     }
 
-    setDirection(directionBetween(prev, next, cols));
+    face(directionBetween(prev, next, cols));
 
     if (rafRef.current != null) {
       cancelResidentAnimationFrame(rafRef.current);
@@ -290,7 +289,8 @@ function NativeResidentBody({
     const toY = Math.floor(next / cols) * cellSizePx;
 
     isMovingRef.current = true;
-    setIsMoving(true);
+    spriteFrames.setMoving(true);
+    spriteFrames.advanceElapsed(0);
     const segment = new NativeResidentSegmentProgress(performance.now(), segmentMoveDurationMs(prev, next, isRoadCell));
     const dest = next;
 
@@ -307,13 +307,12 @@ function NativeResidentBody({
         y: fromY + (toY - fromY) * t
       });
       if (t < 1) {
-        updateWalkFrame(walkFrameFromElapsedMs(elapsedMs));
+        spriteFrames.advanceElapsed(elapsedMs);
         rafRef.current = requestResidentAnimationFrame(step);
       } else {
         pixelPos.setValue({ x: toX, y: toY });
-        updateWalkFrame(0);
         isMovingRef.current = false;
-        setIsMoving(false);
+        spriteFrames.setMoving(false);
         setLogicalCell(dest);
         cellRef.current = dest;
         onCellSettledRef.current?.(dest);
@@ -324,7 +323,7 @@ function NativeResidentBody({
       }
     };
     rafRef.current = requestResidentAnimationFrame(step);
-  }, [cols, rows, cellSizePx, isWalkable, isRoadCell, fixedCell, commutePath, disableIdleRoam]);
+  }, [cols, rows, cellSizePx, isWalkable, isRoadCell, fixedCell, commutePath, disableIdleRoam, face, spriteFrames]);
 
   pickNextMoveRef.current = pickNextMove;
 
@@ -367,7 +366,7 @@ function NativeResidentBody({
       }
 
       claimFailCountRef.current = 0;
-      setDirection(directionBetween(from, to, cols));
+      face(directionBetween(from, to, cols));
       if (rafRef.current != null) {
         cancelResidentAnimationFrame(rafRef.current);
         rafRef.current = null;
@@ -377,7 +376,8 @@ function NativeResidentBody({
       const toX = (to % cols) * cellSizePx;
       const toY = Math.floor(to / cols) * cellSizePx;
       isMovingRef.current = true;
-      setIsMoving(true);
+      spriteFrames.setMoving(true);
+      spriteFrames.advanceElapsed(0);
       const segment = new NativeResidentSegmentProgress(performance.now(), segmentMoveDurationMs(from, to, isRoadCell));
       const step = (now: number, resumedAfterSuspension = false) => {
         if (__DEV__) markNativeResidentFrameCallback();
@@ -392,14 +392,17 @@ function NativeResidentBody({
           y: fromY + (toY - fromY) * t
         });
         if (t < 1) {
-          updateWalkFrame(walkFrameFromElapsedMs(elapsedMs));
+          spriteFrames.advanceElapsed(elapsedMs);
           rafRef.current = requestResidentAnimationFrame(step);
         } else {
           pixelPos.setValue({ x: toX, y: toY });
-          updateWalkFrame(0);
           if (isLastSegment) {
             isMovingRef.current = false;
-            setIsMoving(false);
+            spriteFrames.setMoving(false);
+          } else {
+            // Preserve continuous walking between commute segments while
+            // restarting the three-frame cycle at its first frame.
+            spriteFrames.advanceElapsed(0);
           }
           setLogicalCell(to);
           cellRef.current = to;
@@ -409,7 +412,7 @@ function NativeResidentBody({
       };
       rafRef.current = requestResidentAnimationFrame(step);
     },
-    [cols, cellSizePx, isRoadCell, pendingCommuteRetry]
+    [cols, cellSizePx, isRoadCell, pendingCommuteRetry, face, spriteFrames]
   );
 
   /** Percorso casa → lavoro / lavoro → casa / … */
@@ -432,8 +435,7 @@ function NativeResidentBody({
     cellRef.current = start;
     pixelPos.setValue({ x: cx, y: cy });
     isMovingRef.current = false;
-    setIsMoving(false);
-    updateWalkFrame(0);
+    spriteFrames.setMoving(false);
     // Partenza spesso condivisa (casa): non claim esclusivo; claim al primo passo verso `to`.
     onCellSettledRef.current?.(start);
 
@@ -472,7 +474,8 @@ function NativeResidentBody({
     cellSizePx,
     clearIdle,
     runOneSegment,
-    pendingCommuteRetry
+    pendingCommuteRetry,
+    spriteFrames
   ]);
 
   /** Di notte sulla residenza: fermo, sotto il layer edifici. */
@@ -492,11 +495,10 @@ function NativeResidentBody({
     cellRef.current = fixedCell;
     pixelPos.setValue({ x: cx, y: cy });
     isMovingRef.current = false;
-    setIsMoving(false);
-    updateWalkFrame(0);
-    setDirection("s");
+    spriteFrames.setMoving(false);
+    face("s");
     onCellSettledRef.current?.(fixedCell);
-  }, [fixedCell, cols, cellSizePx, clearIdle]);
+  }, [fixedCell, cols, cellSizePx, clearIdle, face, spriteFrames]);
 
   /** Fine notte in casa → resta sulla stessa cella (casa), niente teletrasporto a caso sulla mappa. */
   useEffect(() => {
@@ -522,8 +524,7 @@ function NativeResidentBody({
     cellRef.current = prevHome;
     pixelPos.setValue({ x: cx, y: cy });
     isMovingRef.current = false;
-    setIsMoving(false);
-    updateWalkFrame(0);
+    spriteFrames.setMoving(false);
     onCellSettledRef.current?.(prevHome);
     if (!disableIdleRoam) {
       idleTimerRef.current = scheduleNativeResidentTimer(() => {
@@ -531,7 +532,7 @@ function NativeResidentBody({
         pickNextMoveRef.current();
       }, IDLE_BEFORE_NEXT_MS);
     }
-  }, [fixedCell, clearIdle, cols, cellSizePx, disableIdleRoam]);
+  }, [fixedCell, clearIdle, cols, cellSizePx, disableIdleRoam, spriteFrames]);
 
   useEffect(() => {
     if (commutePath != null && commutePath.length >= 2) return;
@@ -601,7 +602,8 @@ function NativeResidentBody({
     preferredSpawnCell,
     commutePath,
     disableIdleRoam,
-    cellSizePx
+    cellSizePx,
+    spriteFrames
   ]);
 
   /**
@@ -667,15 +669,11 @@ function NativeResidentBody({
 
   const usaEmojiMarker = markerEmoji != null && markerEmoji !== "";
 
-  const group = frameGroupStart(direction);
-  const frameInGroup = walkIndexInGroup(direction, walkFrame, isMoving);
-  const frameIndex = Math.min(group + frameInGroup, FRAMES - 1);
   const flipW = direction === "w";
   const frameW = cellSizePx;
   const frameH = cellSizePx * 1.22;
   const sheetW = FRAMES * frameW;
   const sheetH = frameH;
-  const offsetX = -frameIndex * frameW;
 
   const sprite = usaEmojiMarker ? (
     <View style={[styles.spriteColumn, { height: cellSizePx, width: cellSizePx }]}>
@@ -693,14 +691,14 @@ function NativeResidentBody({
           }
         ]}
       >
-        <Image
+        <Animated.Image
           source={CHARACTER_SHEET}
           resizeMode="stretch"
           style={{
             position: "absolute",
             width: sheetW,
             height: sheetH,
-            left: offsetX,
+            left: spriteSheetOffset,
             top: 0
           }}
         />
