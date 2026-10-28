@@ -141,7 +141,7 @@ test("200 persistent native residents update 48,000 frames with one scratch samp
   assert.equal(arrivals, 0);
   assert.equal(f.bus.snapshot().subscriptionAdds, 200);
   assert.equal(f.bus.snapshot().oneShotBufferSwaps, 0);
-  assert.equal(f.platformRequests, 241);
+  assert.equal(f.platformRequests, 242, "240 frames, one initial RAF and one replacement after background");
   runners.forEach(r => r.cancel());
   assert.equal(f.callbacks.size, 0);
   assert.equal(f.bus.snapshot().continuousSubscribers, 0);
