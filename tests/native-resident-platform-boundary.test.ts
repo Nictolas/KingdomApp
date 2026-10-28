@@ -45,8 +45,11 @@ test("only native residents use the shared frame dispatcher and imperative sprit
   assert.equal((native.match(/motion\.start\(/g) ?? []).length, 2, "both native movement paths share runner");
   // A route replacement/home transition must STOP walking, not only cancel
   // the RAF. cancel() remains valid for final unmount cleanup.
-  assert.ok((native.match(/motion\.(?:cancel|stop)\(\)/g) ?? []).length >= 5);
-  assert.ok((native.match(/motion\.stop\(\)/g) ?? []).length >= 4);
+  // Terminal paths now share one stop-and-reconcile helper, so counting
+  // repeated motion.stop() call sites would reject a correct refactor.
+  assert.match(native, /const stopAndReconcile = useCallback/);
+  assert.ok((native.match(/stopAndReconcile\(\)/g) ?? []).length >= 3);
+  assert.ok((native.match(/motion\.stop\(\)/g) ?? []).length >= 3);
   assert.match(native, /motion\.cancel\(\)/);
   assert.ok(!native.includes("rafRef"), "no duplicated per-component RAF loop");
   assert.ok(!native.includes("rafRef.current = requestAnimationFrame(step)"));

@@ -74,8 +74,10 @@ test("native renderer uses route priority in both fixed and wake effects; web un
   assert.match(source, /if \(routeMode !== "fixed" \|\| fixedCell == null\) return;/);
   assert.match(source, /nativeResidentHomeTransition\(prevFixedCellRef\.current, routeMode, fixedCell\)/);
   assert.match(source, /nativeResidentShouldRearmIdle\(/);
-  const commuteReset = source.slice(source.indexOf("    const path = commutePath;") - 230, source.indexOf("    const path = commutePath;"));
-  assert.match(commuteReset, /motion\.stop\(\)/);
+  const commuteReset = source.slice(source.indexOf("    const previousCell = cellRef.current;"), source.indexOf("    const path = commutePath;"));
+  assert.match(commuteReset, /stopAndReconcile\(\)/);
+  assert.match(source, /const stopAndReconcile = useCallback\(\(\) => \{/);
+  assert.match(source, /nativeResidentReconcileInterruptedClaim\(\s*cellRef\.current/);
   const home = source.slice(source.indexOf("/** Di notte"), source.indexOf("/** Fine notte"));
   assert.match(home, /motion\.stop\(\)/);
   assert.doesNotMatch(home, /motion\.cancel\(\)/);
@@ -83,7 +85,7 @@ test("native renderer uses route priority in both fixed and wake effects; web un
   assert.match(wake, /motion\.stop\(\)/);
   assert.doesNotMatch(wake, /motion\.cancel\(\)/);
   const commuteCleanup = source.slice(source.indexOf("      alive = false;"));
-  assert.match(commuteCleanup, /pendingCommuteRetry\.clear\(\);\s*(?:\/\/[^\n]*\n\s*)*motion\.stop\(\);\s*clearIdle\(\)/);
+  assert.match(commuteCleanup, /pendingCommuteRetry\.clear\(\);\s*(?:\/\/[^\n]*\n\s*)*stopAndReconcile\(\);\s*clearIdle\(\)/);
   assert.doesNotMatch(commuteCleanup.slice(0, 220), /motion\.cancel\(\)/);
   assert.match(source, /if \(idleTimerRef\.current != null \|\| isMovingRef\.current\) return;/);
   assert.match(source, /if \(!isNativeResidentFrameBusActive\(\) \|\| getOrologioGiocoInPausaSnapshot\(\)\) return;/);
