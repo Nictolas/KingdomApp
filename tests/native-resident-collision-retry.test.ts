@@ -189,11 +189,11 @@ test("repath fallback is delayed, one-shot and never repeats expensive pathfindi
   assert.equal(retry.fail(true), "retry");
   assert.equal(retry.fail(true), "request-repath");
   for (let i = 0; i < 1000; i++) assert.equal(retry.fail(true), "awaiting-repath");
-  assert.equal(retry.resumeWithoutRepath(), true);
-  assert.equal(retry.resumeWithoutRepath(), false, "duplicate timer delivery cannot restart the route");
+  assert.equal(retry.resumeWithoutRepath(retry.repathGeneration()), true);
+  assert.equal(retry.resumeWithoutRepath(retry.repathGeneration()), false, "duplicate timer delivery cannot restart the route");
   for (let i = 0; i < 1000; i++) assert.equal(retry.fail(true), "retry");
   retry.reset(); // successful claim or replacement route
-  assert.equal(retry.resumeWithoutRepath(), false, "obsolete fallback cannot revive a new route");
+  assert.equal(retry.resumeWithoutRepath(retry.repathGeneration()), false, "obsolete fallback cannot revive a new route");
   assert.equal(retry.fail(true), "retry");
   assert.equal(retry.fail(true), "retry");
   assert.equal(retry.fail(true), "request-repath");
@@ -208,7 +208,7 @@ test("200 residents, 20 route cycles, 120,000 fallback collisions: one repath re
       assert.equal(retry.fail(true), "retry");
       assert.equal(retry.fail(true), "request-repath");
       requests++;
-      assert.equal(retry.resumeWithoutRepath(), true);
+      assert.equal(retry.resumeWithoutRepath(retry.repathGeneration()), true);
       for (let i = 0; i < 30; i++) {
         assert.equal(retry.fail(true), "retry");
         fallbackAttempts++;
@@ -239,7 +239,8 @@ test("200 delayed repath fallbacks freeze during pause and discard replaced rout
     assert.equal(retry.fail(true), "retry");
     assert.equal(retry.fail(true), "retry");
     assert.equal(retry.fail(true), "request-repath");
-    queue.schedule(() => { if (retry.resumeWithoutRepath()) resumed++; }, 900);
+    const generation = retry.repathGeneration();
+    queue.schedule(() => { if (retry.resumeWithoutRepath(generation)) resumed++; }, 900);
   }
   wall = 300;
   queue.setActive(false);
@@ -261,7 +262,7 @@ test("200 delayed repath fallbacks freeze during pause and discard replaced rout
   }
   assert.equal(resumed, 100);
   assert.equal(queue.snapshot().pending, 0);
-  assert.ok(retries.slice(0, 100).every(r => r.resumeWithoutRepath() === false));
+  assert.ok(retries.slice(0, 100).every(r => r.resumeWithoutRepath(r.repathGeneration()) === false));
   assert.ok(retries.slice(100).every(r => r.fail(true) === "retry"));
 });
 
@@ -273,9 +274,95 @@ test("native-only fallback is scheduled before parent repath callback; web stays
   const branch = native.slice(start, end);
   assert.ok(start >= 0 && end > start);
   assert.match(branch, /pendingCommuteRetry\.hold\(/);
-  assert.match(branch, /claimRetry\.resumeWithoutRepath\(\)/);
+  assert.match(branch, /claimRetry\.resumeWithoutRepath\(repathGeneration\)/);
   assert.match(branch, /scheduleNativeResidentTimer\(/);
   assert.match(branch, /CLAIM_RETRY_MS/);
   assert.ok(branch.indexOf("scheduleNativeResidentTimer(") < branch.indexOf("onCommuteBlockedRef.current?.("));
   assert.doesNotMatch(web, /resumeWithoutRepath|NativeResidentCollisionRetry/);
+});
+
+
+test("200 residents reject obsolete fallback closures across 40 replaced routes each", () => {
+  const retries = Array.from({ length: 200 }, () => new NativeResidentCollisionRetry(3));
+  let staleRejected = 0;
+  let validResumed = 0;
+  for (let cycle = 0; cycle < 40; cycle++) {
+    for (const retry of retries) {
+      retry.reset();
+      assert.equal(retry.fail(true), "retry");
+      assert.equal(retry.fail(true), "retry");
+      assert.equal(retry.fail(true), "request-repath");
+      const staleGeneration = retry.repathGeneration();
+      // A replacement route arrives while the old timer callback is already
+      // enqueued by the OS and cannot be reliably withdrawn.
+      retry.reset();
+      assert.equal(retry.fail(true), "retry");
+      assert.equal(retry.fail(true), "retry");
+      assert.equal(retry.fail(true), "request-repath");
+      const currentGeneration = retry.repathGeneration();
+      assert.notEqual(staleGeneration, currentGeneration);
+      assert.equal(retry.resumeWithoutRepath(staleGeneration), false);
+      staleRejected++;
+      assert.equal(retry.snapshot().awaitingRepath, true);
+      assert.equal(retry.resumeWithoutRepath(currentGeneration), true);
+      validResumed++;
+      assert.equal(retry.resumeWithoutRepath(currentGeneration), false);
+      assert.equal(retry.fail(true), "retry", "the valid fallback continues retrying");
+    }
+  }
+  assert.equal(staleRejected, 8_000);
+  assert.equal(validResumed, 8_000);
+});
+
+test("200 stale and 200 live repath fallbacks survive background without cross-route revival", () => {
+  let wall = 0, nextId = 0;
+  const timers = new Map<number, { at: number; callback: () => void }>();
+  const queue = new NativeResidentTimerQueue(
+    () => wall,
+    (callback, delay) => {
+      const id = ++nextId;
+      timers.set(id, { at: wall + delay, callback });
+      return id;
+    },
+    id => { timers.delete(id); },
+    32
+  );
+  const retries = Array.from({ length: 200 }, () => new NativeResidentCollisionRetry(3));
+  let staleResumed = 0, liveResumed = 0;
+  for (const retry of retries) {
+    for (let n = 0; n < 2; n++) retry.fail(true);
+    assert.equal(retry.fail(true), "request-repath");
+    const obsoleteGeneration = retry.repathGeneration();
+    // Intentionally leave the obsolete callback scheduled to model a late
+    // native delivery after a route has been replaced.
+    queue.schedule(() => {
+      if (retry.resumeWithoutRepath(obsoleteGeneration)) staleResumed++;
+    }, 900);
+    retry.reset();
+    for (let n = 0; n < 2; n++) retry.fail(true);
+    assert.equal(retry.fail(true), "request-repath");
+    const liveGeneration = retry.repathGeneration();
+    queue.schedule(() => {
+      if (retry.resumeWithoutRepath(liveGeneration)) liveResumed++;
+    }, 900);
+  }
+  wall = 300;
+  queue.setActive(false);
+  assert.equal(timers.size, 0);
+  wall = 100_000;
+  queue.setActive(true);
+  assert.equal([...timers.values()][0]!.at, 100_600);
+  wall = 100_600;
+  let wakeups = 0;
+  while (timers.size > 0) {
+    const [id, timer] = timers.entries().next().value!;
+    assert.ok(timer.at <= wall);
+    timers.delete(id);
+    timer.callback();
+    if (++wakeups > 20) throw new Error("Repath backlog did not drain");
+  }
+  assert.equal(staleResumed, 0);
+  assert.equal(liveResumed, 200);
+  assert.equal(queue.snapshot().pending, 0);
+  assert.ok(retries.every(retry => retry.snapshot().awaitingRepath === false));
 });
