@@ -164,3 +164,35 @@ Questi sono **test Node con clock e RAF finti**, non misure FPS o latenza
 di collisione su telefono. Durante la prova A/B reale verificare
 visivamente uno sprite fermo in attesa di una cella occupata e la ripartenza
 dopo il nuovo percorso, anche dopo pausa e background.
+
+
+## 28 ottobre — nessun percorso alternativo: fallback nativo senza blocco permanente
+
+La revisione diretta del chiamante `handleCommuteBloccata` in `app/mappa.tsx`
+ha confermato un caso reale: per destinazioni diverse da lavoro e casa
+(bar, mensa, negozio, culto e simili), se il pathfinder non trova un
+percorso valido, il callback ritorna **senza aggiornare la commute**.
+La precedente logica nativa della #297 passava in stato
+`awaiting-repath` permanente, cancellando il retry e lasciando il
+residente fermo anche se la cella si liberava successivamente.
+
+Ora, dopo la terza collisione, la richiesta di ricalcolo viene inviata
+**una sola volta**. Prima di chiamare il genitore, il renderer programma
+un fallback dopo gli stessi 900 ms gia' previsti per i retry. Se il
+genitore completa o sostituisce il tragitto, il cleanup annulla il
+fallback e `reset()` invalida eventuali callback obsolete. Se invece
+non cambia nulla, `resumeWithoutRepath()` riprende i normali tentativi
+ogni 900 ms, **senza ripetere il pathfinding** fino a un nuovo tragitto
+o a un claim riuscito. Pausa/background congelano il tempo residuo
+tramite la coda condivisa esistente. Non cambia la soglia di tre
+collisioni, l'algoritmo di navigazione, l'occupancy o la versione web.
+
+Verifiche automatiche aggiunte: transizione one-shot e callback stale,
+200 residenti x 20 cicli x 30 collisioni in fallback (120.000 tentativi
+sintetici e 4.000 sole richieste di pathfinding), 200 timer con
+pausa/background e 100 sostituzioni di percorso, controllo del
+confine native/web. Sono test Node con clock simulato, non misurazioni
+FPS, React Native montato o prove fisiche. Su Android/iPhone verificare
+anche un ingresso affollato senza percorso alternativo, pausa e
+successivo sblocco della cella. Nessun intervento su `app/mappa.tsx`,
+GameContext, salvataggi, web, #298, merge o release.
