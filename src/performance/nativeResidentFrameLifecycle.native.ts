@@ -5,6 +5,7 @@ import {
 } from "../game/orologioGiocoSession";
 import { NativeResidentActivityGate } from "./nativeResidentActivityGate";
 import { setNativeResidentFrameBusActive } from "./nativeResidentFrameBus";
+import { setNativeResidentTimerQueueActive } from "./nativeResidentTimerQueue";
 
 let initialized = false;
 let gate: NativeResidentActivityGate | null = null;
@@ -29,7 +30,12 @@ export function ensureNativeResidentFrameLifecycle(): void {
   gate = new NativeResidentActivityGate(
     isForeground(AppState.currentState),
     getOrologioGiocoInPausaSnapshot(),
-    setNativeResidentFrameBusActive
+    (active) => {
+      // Suspend timers before resident frame listeners can run, preventing
+      // collision claims or wandering while game/app is inactive.
+      setNativeResidentTimerQueueActive(active);
+      setNativeResidentFrameBusActive(active);
+    }
   );
   subscribeOrologioGiocoInPausa(() => {
     gate?.setGamePaused(getOrologioGiocoInPausaSnapshot());
