@@ -33,7 +33,7 @@ export function NativePerformanceHud({
   const [residentWrapperRenders, setResidentWrapperRenders] = useState(0);
   const [residentBusCycles, setResidentBusCycles] = useState(0);
   const [timerMetrics, setTimerMetrics] = useState({
-    pending: 0, platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, scheduled: false
+    pending: 0, platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, budgetYieldsPerSecond: 0, callbackBudget: 32, backlogDue: false, scheduled: false
   });
   const lastTimerSample = useRef<{ timestamp: number; counters: NativeResidentTimerSnapshot } | null>(null);
   const frameWindow = useRef(new NativeFrameWindow(120));
@@ -63,7 +63,7 @@ export function NativePerformanceHud({
     setResidentRenders(0);
     setResidentWrapperRenders(0);
     setResidentBusCycles(0);
-    setTimerMetrics({ pending: 0, platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, scheduled: false });
+    setTimerMetrics({ pending: 0, platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, budgetYieldsPerSecond: 0, callbackBudget: 32, backlogDue: false, scheduled: false });
     lastTimerSample.current = { timestamp: performance.now(), counters: getNativeResidentTimerSnapshot() };
     takeNativeResidentBusCycles();
     takeNativeResidentFrameCallbacks();
@@ -118,6 +118,9 @@ export function NativePerformanceHud({
           setTimerMetrics({
             pending: next.pending,
             scheduled: next.scheduled,
+            callbackBudget: next.callbackBudget,
+            backlogDue: next.backlogDue,
+            budgetYieldsPerSecond: rates?.budgetYieldsPerSecond ?? 0,
             platformWakeupsPerSecond: rates?.platformWakeupsPerSecond ?? 0,
             logicalCallbacksPerSecond: rates?.logicalCallbacksPerSecond ?? 0
           });
@@ -157,6 +160,9 @@ export function NativePerformanceHud({
           <Text style={styles.text}>Timeout nativi attivi: {timerMetrics.scheduled ? 1 : 0}</Text>
           <Text style={styles.text}>Wakeup timer nativo/s: {timerMetrics.platformWakeupsPerSecond.toFixed(1)}</Text>
           <Text style={styles.text}>Callback timer residenti/s: {timerMetrics.logicalCallbacksPerSecond.toFixed(1)}</Text>
+          <Text style={styles.text}>Max callback per wakeup: {timerMetrics.callbackBudget}</Text>
+          <Text style={styles.text}>Backlog già scaduto: {timerMetrics.backlogDue ? "sì" : "no"}</Text>
+          <Text style={styles.text}>Yield backlog/s: {timerMetrics.budgetYieldsPerSecond.toFixed(1)}</Text>
           <Text style={styles.note}>Wrapper e render sprite sono invocazioni di funzione React, non commit. Timer e callback/s misurano attività JS, non FPS UI/GPU. Nessun dato salvato.</Text>
           <Pressable
             style={[styles.testButton, measuring && styles.disabledButton]}
