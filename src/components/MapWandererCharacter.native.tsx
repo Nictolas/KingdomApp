@@ -4,6 +4,7 @@ import { getOrologioGiocoInPausaSnapshot, getOrologioSimTimeScaleSnapshot } from
 import { NativeResidentSegmentRunner } from "../performance/nativeResidentSegmentRunner";
 import { beginNativeResidentDispatch, endNativeResidentDispatch } from "../performance/nativeResidentDispatchProfiler";
 import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
+import { nativeResidentRouteMode, nativeResidentHomeTransition, nativeResidentShouldRearmIdle } from "../performance/nativeResidentRouteTransitions";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation, markNativeResidentWrapperInvocation } from "../performance/nativeResidentWorkCounters";
 import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallbackRelay";
 import { NativeResidentTapRecognizer } from "../performance/nativeResidentTapRecognizer";
@@ -180,6 +181,8 @@ function NativeResidentBody({
   const inited = useRef(false);
   const isMovingRef = useRef(false);
   const prevFixedCellRef = useRef<number | null | undefined>(undefined);
+  const routeMode = nativeResidentRouteMode(commutePath, fixedCell);
+  const previousIdleContextRef = useRef({ routeMode, disableIdleRoam });
   const idleTimerRef = useRef<number | null>(null);
   /** Collision retry can be suspended across pauses without repeated timers. */
   const [pendingCommuteRetry] = useState(() => new PendingCommuteRetry());
@@ -397,7 +400,7 @@ function NativeResidentBody({
 
   /** Percorso casa → lavoro / lavoro → casa / … */
   useEffect(() => {
-    if (!commutePath || commutePath.length < 2) return;
+    if (routeMode !== "commute" || !commutePath || commutePath.length < 2) return;
     let alive = true;
     clearIdle();
     pendingCommuteRetry.clear();
@@ -442,6 +445,7 @@ function NativeResidentBody({
     };
   }, [
     commutePath,
+    routeMode,
     commuteToken,
     commutePurpose,
     cols,
@@ -455,7 +459,9 @@ function NativeResidentBody({
 
   /** Di notte sulla residenza: fermo, sotto il layer edifici. */
   useEffect(() => {
-    if (fixedCell == null) return;
+    // Commute outranks the home anchor, including a simultaneous morning
+    // transition. Otherwise this effect cancels the newly started segment.
+    if (routeMode !== "fixed" || fixedCell == null) return;
     clearIdle();
     motion.cancel();
     inited.current = true;
@@ -470,16 +476,15 @@ function NativeResidentBody({
     spriteFrames.setMoving(false);
     face("s");
     onCellSettledRef.current?.(fixedCell);
-  }, [fixedCell, cols, cellSizePx, clearIdle, face, spriteFrames, motion]);
+  }, [fixedCell, routeMode, cols, cellSizePx, clearIdle, face, spriteFrames, motion]);
 
   /** Fine notte in casa → resta sulla stessa cella (casa), niente teletrasporto a caso sulla mappa. */
   useEffect(() => {
-    if (fixedCell != null) {
-      prevFixedCellRef.current = fixedCell;
-      return;
-    }
-    const prevHome = prevFixedCellRef.current;
-    prevFixedCellRef.current = fixedCell;
+    // A commute invalidates a remembered night exit. Clearing its path later
+    // must never snap an already-arrived resident back to the old home cell.
+    const transition = nativeResidentHomeTransition(prevFixedCellRef.current, routeMode, fixedCell);
+    prevFixedCellRef.current = transition.nextHome;
+    const prevHome = transition.wakeCell;
     if (prevHome == null) return;
 
     clearIdle();
@@ -501,7 +506,26 @@ function NativeResidentBody({
         pickNextMoveRef.current();
       }, IDLE_BEFORE_NEXT_MS);
     }
-  }, [fixedCell, clearIdle, cols, cellSizePx, disableIdleRoam, spriteFrames, motion]);
+  }, [fixedCell, routeMode, clearIdle, cols, cellSizePx, disableIdleRoam, spriteFrames, motion]);
+
+  /** Removing a completed commute cancels its old idle timeout in cleanup.
+   * Restore one idle countdown without waiting for an unrelated clock render.
+   * Never claim or animate during pause/background, or while still moving.
+   */
+  useEffect(() => {
+    const previous = previousIdleContextRef.current;
+    previousIdleContextRef.current = { routeMode, disableIdleRoam };
+    if (!nativeResidentShouldRearmIdle(
+      previous.routeMode, routeMode, previous.disableIdleRoam, disableIdleRoam
+    )) return;
+    if (!isNativeResidentFrameBusActive() || getOrologioGiocoInPausaSnapshot()) return;
+    if (cellRef.current == null || !inited.current) return;
+    if (idleTimerRef.current != null || isMovingRef.current) return;
+    idleTimerRef.current = scheduleNativeResidentTimer(() => {
+      idleTimerRef.current = null;
+      pickNextMoveRef.current();
+    }, IDLE_BEFORE_NEXT_MS);
+  }, [routeMode, disableIdleRoam]);
 
   useEffect(() => {
     if (commutePath != null && commutePath.length >= 2) return;
