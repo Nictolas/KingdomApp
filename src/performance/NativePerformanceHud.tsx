@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import { getOrologioSimTimeScaleSnapshot, subscribeOrologioGiocoInPausa, subscribeOrologioGiocoVelocita } from "../game/orologioGiocoSession";
 import { nativeCaptureContextChanged, type NativeCaptureContext } from "./nativeCaptureIntegrity";
+import { NativeHudFrameLoop } from "./nativeHudFrameLoop";
 import { useFocusEffect } from "expo-router";
 import { AppState, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { NativeFrameWindow, type NativeFrameSnapshot } from "./nativeFrameMetrics";
@@ -19,7 +20,8 @@ const INITIAL_METRICS: NativeFrameSnapshot = {
 
 /**
  * Device-local diagnostic only. Measures JS RAF pacing, NOT GPU/UI-thread FPS.
- * Runs only while mounted and stops on unmount; never saves/transmits data.
+ * Runs only when developer opens details on a focused screen, stops on
+ * collapse/background/blur/unmount; never saves/transmits data.
  */
 export function NativePerformanceHud({
   residents,
@@ -107,6 +109,13 @@ export function NativePerformanceHud({
   }, [label, residents, terrainCells]);
 
   useFocusEffect(useCallback(() => {
+    // Closed by default: absolutely no diagnostic RAF, AppState listener,
+    // clock subscription or once-per-second React state publication while
+    // the developer is simply playing the game.
+    if (!expanded) {
+      if (capture.current) abortCapture();
+      return;
+    }
     setStats(INITIAL_METRICS);
     setResidentCallbacks(0);
     setResidentRenders(0);
@@ -127,7 +136,7 @@ export function NativePerformanceHud({
     }
     capture.current = null;
     setMeasuring(false);
-    let raf = 0;
+    let frameLoop: NativeHudFrameLoop | null = null;
     let previous: number | null = null;
     let lastPublished = 0;
     // Clock changes during an opt-in capture invalidate the window even if
@@ -140,7 +149,8 @@ export function NativePerformanceHud({
     };
     const unsubscribePause = subscribeOrologioGiocoInPausa(onClockChange);
     const unsubscribeSpeed = subscribeOrologioGiocoVelocita(onClockChange);
-    const onStateChange = AppState.addEventListener("change", () => {
+    const onStateChange = AppState.addEventListener("change", nextState => {
+      frameLoop?.setForeground(nextState === "active");
       previous = null;
       frameWindow.current.reset();
       lastTimerSample.current = null;
@@ -226,11 +236,11 @@ export function NativePerformanceHud({
       } else {
         previous = null;
       }
-      raf = requestAnimationFrame(onFrame);
     };
-    raf = requestAnimationFrame(onFrame);
+    frameLoop = new NativeHudFrameLoop(requestAnimationFrame, cancelAnimationFrame, onFrame);
+    frameLoop.start(AppState.currentState === "active");
     return () => {
-      cancelAnimationFrame(raf);
+      frameLoop?.stop();
       if (capture.current) {
         cancelNativeResidentDispatchCapture(capture.current.dispatchToken);
         cancelNativeResidentEventLoopProbe(capture.current.lagToken);
@@ -240,12 +250,12 @@ export function NativePerformanceHud({
       unsubscribeSpeed();
       onStateChange.remove();
     };
-  }, [abortCapture]));
+  }, [abortCapture, expanded]));
 
   return (
     <View style={styles.container}>
       <Pressable accessibilityRole="button" accessibilityLabel="Mostra o nascondi diagnostica prestazioni native" onPress={() => setExpanded((was) => !was)} style={styles.toggle}>
-        <Text style={styles.title}>JS {stats.samples ? stats.jsFps.toFixed(0) : "—"} FPS · {expanded ? "Chiudi" : "Dettagli"}</Text>
+        <Text style={styles.title}>{expanded ? `JS ${stats.samples ? stats.jsFps.toFixed(0) : "—"} FPS · Chiudi` : "Diagnostica JS · Dettagli"}</Text>
       </Pressable>
       {expanded && (
         <View style={styles.panel}>
