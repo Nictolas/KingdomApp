@@ -271,3 +271,62 @@ test("cancellation of last pending resident while paused cancels future resume w
   assert.equal(runner.frames.size, 0);
   assert.equal(calls, 0);
 });
+
+
+test("240-frame population churn stress: 200 residents, repeated pauses, unmounts and respawns", () => {
+  const runner = fakeScheduler();
+  const alive = Array<boolean>(200).fill(true);
+  const handles = Array<number>(200).fill(0);
+  const perResident = Array<number>(200).fill(0);
+  let callbacks = 0;
+  const makeStep = (i: number) => {
+    const step = (): void => {
+      assert.equal(runner.bus.snapshot().active, true, "no callback during suspension");
+      assert.equal(alive[i], true, "unmounted resident must not receive a frame");
+      callbacks++;
+      perResident[i]++;
+      handles[i] = runner.bus.request(step);
+    };
+    return step;
+  };
+  const steps = Array.from({ length: 200 }, (_, i) => makeStep(i));
+  steps.forEach((step, i) => { handles[i] = runner.bus.request(step); });
+  let expectedCallbacks = 0;
+  for (let frame = 1; frame <= 240; frame++) {
+    if (frame % 30 === 0) {
+      const stale = [...runner.frames.values()][0]!;
+      runner.bus.setActive(false);
+      assert.equal(runner.frames.size, 0);
+      assert.equal(runner.bus.snapshot().scheduled, false);
+      runner.bus.setActive(true);
+      stale(frame * 16); // obsolete canceled native callback arriving late
+      assert.equal(callbacks, expectedCallbacks, "stale RAF must never dispatch");
+      assert.equal(runner.frames.size, 1);
+    }
+    if (frame === 101) {
+      for (let i = 0; i < 40; i++) {
+        alive[i] = false;
+        runner.bus.cancel(handles[i]);
+      }
+    }
+    if (frame === 151) {
+      for (let i = 0; i < 40; i++) {
+        alive[i] = true;
+        handles[i] = runner.bus.request(steps[i]!);
+      }
+    }
+    const activeCount = alive.filter(Boolean).length;
+    runner.tick(frame * 16);
+    expectedCallbacks += activeCount;
+    assert.equal(callbacks, expectedCallbacks);
+    assert.equal(runner.bus.snapshot().queued, activeCount);
+    assert.equal(runner.frames.size, 1);
+  }
+  handles.forEach((id) => runner.bus.cancel(id));
+  assert.equal(runner.bus.snapshot().queued, 0);
+  assert.equal(runner.frames.size, 0);
+  assert.equal(callbacks, expectedCallbacks);
+  assert.equal(runner.bus.snapshot().dispatchCount, 240);
+  assert.equal(runner.requested, 241, "240 real frames plus the last scheduled frame");
+  assert.ok(perResident.every((count) => count > 0));
+});
