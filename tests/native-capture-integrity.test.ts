@@ -61,16 +61,27 @@ test("HUD only captures in foreground, rejects changing scene and game speed and
   assert.match(hud, /cancelNativeResidentDispatchCapture\(active\.dispatchToken\)/);
   assert.match(hud, /cancelNativeResidentEventLoopProbe\(active\.lagToken\)/);
   assert.match(hud, /setCaptureWarning\(reason\)/);
+  assert.match(hud, /active\.session\.isInvalidated\(\)/);
   assert.match(session, /Velocità simulazione:/);
   assert.ok(!hud.includes("AsyncStorage"), "no diagnostic persistence");
   assert.ok(!hud.includes("fetch("), "no diagnostic upload");
 });
 
-test("frame session never includes a trailing 2-second post-deadline frame in a 10-second capture", () => {
+test("a >=2-second JS stall invalidates capture instead of disappearing from its p95", () => {
   const session = new NativeMeasurementSession(0, 10_000);
   assert.equal(session.record(16, 16), null);
   assert.equal(session.record(8_000, 1_999), null);
-  const done = session.record(10_000, 2_000)!;
-  assert.equal(done.metrics.samples, 2, "the deadline interval must not be included");
+  assert.equal(session.record(10_000, 2_000), null);
+  assert.equal(session.isInvalidated(), true);
+  assert.equal(session.record(10_016, 16), null, "an incomplete capture must never finish later");
+});
+
+test("a normal post-deadline sample is not counted in a valid 10-second capture", () => {
+  const session = new NativeMeasurementSession(0, 10_000);
+  session.record(16, 16);
+  session.record(8_000, 1_999);
+  const done = session.record(10_000, 16)!;
+  assert.equal(session.isInvalidated(), false);
+  assert.equal(done.metrics.samples, 2);
   assert.equal(done.durationMs, 10_000);
 });
