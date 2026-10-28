@@ -6,6 +6,7 @@ import { NativeMeasurementSession, formatNativeMeasurement } from "../src/perfor
 import { markNativeResidentFrameCallback, takeNativeResidentFrameCallbacks, markNativeResidentRenderInvocation, takeNativeResidentRenderInvocations, markNativeResidentWrapperInvocation, takeNativeResidentWrapperInvocations, getNativeResidentRenderTotals, diffNativeResidentRenderTotals } from "../src/performance/nativeResidentWorkCounters.ts";
 import { NATIVE_TEST_POPULATIONS, createNativeSyntheticMarkers } from "../src/performance/nativePopulationFixture.ts";
 import { diffNativeResidentFrameBusSnapshots } from "../src/performance/nativeResidentFrameBusDiagnostics.ts";
+import { NativeResidentDispatchProfiler } from "../src/performance/nativeResidentDispatchProfiler.ts";
 
 test("deterministic synthetic populations have unique coordinates, no game state", () => {
   for (const count of NATIVE_TEST_POPULATIONS) {
@@ -165,8 +166,6 @@ test("persistent RAF metrics report only aggregate registrations and avoid misle
 
 test("10-second report exposes measured JS batch costs without claiming GPU FPS or touch latency", () => {
   let now = 0;
-  const { NativeResidentDispatchProfiler } = require("../src/performance/nativeResidentDispatchProfiler.ts") as
-    typeof import("../src/performance/nativeResidentDispatchProfiler.ts");
   const profiler = new NativeResidentDispatchProfiler(() => now, 8);
   const token = profiler.start();
   for (const ms of [4, 8, 12, 17]) {
