@@ -1,10 +1,19 @@
 /**
- * One native timeout drives every resident's idle and blocked-commute retry.
- * Deadline order is stable; callbacks still own the same gameplay decisions.
+ * A single native timeout serves all resident idle and collision waits.
  *
- * Crucially, the queue does not advance timers while the world is paused or
- * the app is backgrounded. No background polling or persistence is involved.
+ * Implementation: indexed min-heap of logical deadlines in ACTIVE time.
+ * Scheduling and cancellation are O(log n), peeking is O(1); game pause
+ * and app background suspend the virtual clock in O(1), without rewriting
+ * the deadlines of 200+ resident tasks.
+ *
+ * No storage, polling, game-state writes or personal information.
  */
+type ResidentTimer = {
+  id: number;
+  callback: () => void;
+  dueActiveMs: number;
+};
+
 /** Cumulative metrics never include resident identifiers or game data. */
 export type NativeResidentTimerCounters = Readonly<{
   platformSchedules: number;
@@ -21,14 +30,18 @@ export type NativeResidentTimerSnapshot = NativeResidentTimerCounters & Readonly
 }>;
 
 export class NativeResidentTimerQueue {
-  private tasks = new Map<number, { callback: () => void; remainingMs: number; deadline: number }>();
+  private heap: ResidentTimer[] = [];
+  private positions = new Map<number, number>();
+  /** Ready tasks are separate so callbacks can cancel siblings mid-flush. */
+  private ready: Map<number, ResidentTimer> | null = null;
   private nextId = 1;
   private active = true;
+  private activeElapsedMs = 0;
+  private lastWallMs: number | null = null;
   private timer: number | null = null;
   private timerDeadline: number | null = null;
   private generation = 0;
   private executing = false;
-  private lastNow = Number.NEGATIVE_INFINITY;
   private platformSchedules = 0;
   private platformCancellations = 0;
   private platformWakeups = 0;
@@ -42,70 +55,125 @@ export class NativeResidentTimerQueue {
       (id) => clearTimeout(id)
   ) {}
 
-  /** Never let a backwards wall-clock adjustment shorten or repeat a wait. */
-  private readNow(): number {
-    const sampled = this.now();
-    if (!Number.isFinite(sampled)) return Number.isFinite(this.lastNow) ? this.lastNow : 0;
-    this.lastNow = Math.max(this.lastNow, sampled);
-    return this.lastNow;
+  /**
+   * Advance only while active. A wall-clock regression never moves backwards.
+   * Even when paused, record the last wall timestamp so resume does not catch
+   * up any elapsed time in the background.
+   */
+  private sampleActiveClock(): number {
+    const raw = this.now();
+    if (!Number.isFinite(raw)) return this.activeElapsedMs;
+    if (this.lastWallMs === null) {
+      this.lastWallMs = raw;
+      return this.activeElapsedMs;
+    }
+    if (raw > this.lastWallMs) {
+      if (this.active) this.activeElapsedMs += raw - this.lastWallMs;
+      this.lastWallMs = raw;
+    }
+    return this.activeElapsedMs;
+  }
+
+  private compare(a: ResidentTimer, b: ResidentTimer): number {
+    return a.dueActiveMs - b.dueActiveMs || a.id - b.id;
+  }
+
+  private swap(a: number, b: number): void {
+    const x = this.heap[a]!;
+    const y = this.heap[b]!;
+    this.heap[a] = y;
+    this.heap[b] = x;
+    this.positions.set(y.id, a);
+    this.positions.set(x.id, b);
+  }
+
+  private siftUp(index: number): void {
+    while (index > 0) {
+      const parent = (index - 1) >>> 1;
+      if (this.compare(this.heap[parent]!, this.heap[index]!) <= 0) break;
+      this.swap(parent, index);
+      index = parent;
+    }
+  }
+
+  private siftDown(index: number): void {
+    while (true) {
+      const left = index * 2 + 1;
+      if (left >= this.heap.length) break;
+      const right = left + 1;
+      const smaller = right < this.heap.length &&
+        this.compare(this.heap[right]!, this.heap[left]!) < 0 ? right : left;
+      if (this.compare(this.heap[index]!, this.heap[smaller]!) <= 0) break;
+      this.swap(index, smaller);
+      index = smaller;
+    }
+  }
+
+  private push(task: ResidentTimer): void {
+    const index = this.heap.length;
+    this.heap.push(task);
+    this.positions.set(task.id, index);
+    this.siftUp(index);
+  }
+
+  private removeAt(index: number): ResidentTimer {
+    const removed = this.heap[index]!;
+    const last = this.heap.pop()!;
+    this.positions.delete(removed.id);
+    if (index < this.heap.length) {
+      this.heap[index] = last;
+      this.positions.set(last.id, index);
+      if (index > 0 &&
+        this.compare(this.heap[index]!, this.heap[(index - 1) >>> 1]!) < 0) {
+        this.siftUp(index);
+      } else {
+        this.siftDown(index);
+      }
+    }
+    return removed;
   }
 
   schedule(callback: () => void, delayMs: number): number {
     if (!Number.isFinite(delayMs) || delayMs < 0) throw new Error("Invalid resident timer delay");
+    const elapsed = this.sampleActiveClock();
     const id = this.nextId++;
-    const current = this.readNow();
-    this.tasks.set(id, {
-      callback,
-      remainingMs: delayMs,
-      deadline: this.active ? current + delayMs : Number.POSITIVE_INFINITY
-    });
+    this.push({ id, callback, dueActiveMs: elapsed + delayMs });
     this.arm();
     return id;
   }
 
   cancel(id: number): void {
-    if (!this.tasks.delete(id)) return;
-    this.arm();
+    const index = this.positions.get(id);
+    if (index != null) {
+      this.removeAt(index);
+      this.arm();
+    } else {
+      // During a flush, another callback may cancel a due sibling.
+      this.ready?.delete(id);
+    }
   }
 
   setActive(active: boolean): void {
     if (this.active === active) return;
-    const current = this.readNow();
-    if (!active) {
-      for (const task of this.tasks.values()) {
-        task.remainingMs = Math.max(0, task.deadline - current);
-        task.deadline = Number.POSITIVE_INFINITY;
-      }
-      this.active = false;
-      this.dropTimer();
-    } else {
-      this.active = true;
-      for (const task of this.tasks.values()) {
-        task.deadline = current + task.remainingMs;
-      }
-      this.arm();
-    }
+    this.sampleActiveClock(); // Record elapsed up to the transition.
+    this.active = active;
+    if (!active) this.dropTimer();
+    else this.arm();
   }
 
   snapshot(): NativeResidentTimerSnapshot {
-    const earliest = this.earliestDeadline();
+    const elapsed = this.sampleActiveClock();
+    const next = this.heap[0]?.dueActiveMs ?? null;
     return {
-      pending: this.tasks.size,
+      pending: this.heap.length + (this.ready?.size ?? 0),
       scheduled: this.timer !== null,
       active: this.active,
-      nextDueInMs: this.active && earliest !== null ? Math.max(0, earliest - this.readNow()) : null,
+      nextDueInMs: this.active && next !== null ? Math.max(0, next - elapsed) : null,
       platformSchedules: this.platformSchedules,
       platformCancellations: this.platformCancellations,
       platformWakeups: this.platformWakeups,
       logicalCallbacks: this.logicalCallbacks
     };
-  }
-
-  private earliestDeadline(): number | null {
-    if (!this.active || this.tasks.size === 0) return null;
-    let earliest = Number.POSITIVE_INFINITY;
-    for (const task of this.tasks.values()) earliest = Math.min(earliest, task.deadline);
-    return Number.isFinite(earliest) ? earliest : null;
   }
 
   private dropTimer(): void {
@@ -120,17 +188,19 @@ export class NativeResidentTimerQueue {
 
   private arm(): void {
     if (!this.active || this.executing) return;
-    const deadline = this.earliestDeadline();
+    const elapsed = this.sampleActiveClock();
+    const deadline = this.heap[0]?.dueActiveMs ?? null;
     if (deadline === this.timerDeadline && this.timer !== null) return;
     this.dropTimer();
     if (deadline === null) return;
     const generation = this.generation;
     this.timerDeadline = deadline;
-    this.timer = this.schedulePlatform(() => this.flush(generation), Math.max(0, deadline - this.readNow()));
+    this.timer = this.schedulePlatform(() => this.flush(generation), Math.max(0, deadline - elapsed));
     this.platformSchedules++;
   }
 
   private flush(generation: number): void {
+    // Canceled callbacks can arrive late from the RN bridge.
     if (!this.active || this.timer === null || generation !== this.generation) return;
     this.timer = null;
     this.timerDeadline = null;
@@ -138,25 +208,33 @@ export class NativeResidentTimerQueue {
     this.platformWakeups++;
     let firstError: unknown = null;
     try {
-      // Only timers due at the beginning of this tick run here. Tasks created
-      // by a callback run on a future OS timeout, even for zero delay.
-      const now = this.readNow();
-      const due = [...this.tasks.entries()]
-        .filter(([, task]) => task.deadline <= now)
-        .sort((a, b) => a[1].deadline - b[1].deadline || a[0] - b[0]);
-      for (const [id] of due) {
+      // Extract only tasks due when the OS tick started (O(k log n)).
+      // A callback scheduling a zero-delay task cannot run it in this tick.
+      const cutoff = this.sampleActiveClock();
+      this.ready = new Map();
+      while (this.heap.length > 0 && this.heap[0]!.dueActiveMs <= cutoff) {
+        const task = this.removeAt(0);
+        this.ready.set(task.id, task);
+      }
+      for (const [id, task] of this.ready) {
         if (!this.active) break;
-        const task = this.tasks.get(id);
-        if (!task) continue; // A previous task may cancel a sibling.
-        this.tasks.delete(id);
+        if (!this.ready.has(id)) continue;
+        this.ready.delete(id);
         this.logicalCallbacks++;
         try {
           task.callback();
         } catch (error) {
+          // One broken resident does not prevent others from waking.
           if (firstError === null) firstError = error;
         }
       }
     } finally {
+      if (this.ready != null) {
+        // A mid-batch pause leaves untouched tasks due in active time.
+        // Reinsertion preserves deadline and registration order.
+        for (const task of this.ready.values()) this.push(task);
+      }
+      this.ready = null;
       this.executing = false;
       this.arm();
     }
