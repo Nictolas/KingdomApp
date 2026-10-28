@@ -26,3 +26,16 @@ export function takeNativeResidentRenderInvocations(): number {
   renders = 0;
   return count;
 }
+
+/** One actual requestAnimationFrame dispatch shared by all active native residents. */
+let busCycles = 0;
+
+export function markNativeResidentBusCycle(): void {
+  busCycles += 1;
+}
+
+export function takeNativeResidentBusCycles(): number {
+  const count = busCycles;
+  busCycles = 0;
+  return count;
+}
