@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
 import { NativeResidentFrameBus } from "../src/performance/nativeResidentFrameBus.ts";
+import { NativeResidentActivityGate } from "../src/performance/nativeResidentActivityGate.ts";
 
 function fakeScheduler() {
   let nextPlatformId = 1;
@@ -227,4 +228,44 @@ test("pause keeps a callback scheduled by the current resident until resume", ()
   runner.bus.setActive(true);
   runner.tick(32);
   assert.deepEqual(flags, [false, true]);
+});
+
+test("200-resident integration: app background and manual pause cannot restart RAF prematurely", () => {
+  const runner = fakeScheduler();
+  const gate = new NativeResidentActivityGate(true, false, (active) => runner.bus.setActive(active));
+  let updates = 0;
+  for (let i = 0; i < 200; i++) {
+    let ticks = 0;
+    const step = (_timestamp: number, _resume: boolean): void => {
+      updates++;
+      if (++ticks < 3) runner.bus.request(step);
+    };
+    runner.bus.request(step);
+  }
+  runner.tick(16);
+  assert.equal(updates, 200);
+  gate.setForeground(false);
+  assert.equal(runner.frames.size, 0, "background must release platform RAF");
+  gate.setGamePaused(true);
+  gate.setForeground(true);
+  assert.equal(runner.frames.size, 0, "manual pause prevents resume on foreground");
+  assert.equal(updates, 200, "no character progressed during suspended period");
+  gate.setGamePaused(false);
+  runner.tick(10_000);
+  assert.equal(updates, 400);
+  runner.tick(10_016);
+  assert.equal(updates, 600);
+  assert.equal(runner.requested, 3, "one native frame for each frame containing 200 residents");
+  assert.equal(runner.bus.snapshot().queued, 0);
+});
+
+test("cancellation of last pending resident while paused cancels future resume work", () => {
+  const runner = fakeScheduler();
+  let calls = 0;
+  const id = runner.bus.request(() => calls++);
+  runner.bus.setActive(false);
+  runner.bus.cancel(id);
+  runner.bus.setActive(true);
+  assert.equal(runner.frames.size, 0);
+  assert.equal(calls, 0);
 });
