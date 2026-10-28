@@ -5,6 +5,7 @@ import { NativeResidentSegmentRunner } from "../performance/nativeResidentSegmen
 import { beginNativeResidentDispatch, endNativeResidentDispatch } from "../performance/nativeResidentDispatchProfiler";
 import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
 import { NativeResidentCollisionRetry } from "../performance/nativeResidentCollisionRetry";
+import { NativeResidentRouteEpoch } from "../performance/nativeResidentRouteEpoch";
 import { nativeResidentRouteMode, nativeResidentHomeTransition, nativeResidentShouldRearmIdle, nativeResidentReconcileInterruptedClaim, nativeResidentReleaseMismatchedRouteOrigin, nativeResidentReleaseSharedHomeArrival } from "../performance/nativeResidentRouteTransitions";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation, markNativeResidentWrapperInvocation } from "../performance/nativeResidentWorkCounters";
 import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallbackRelay";
@@ -227,6 +228,7 @@ function NativeResidentBody({
   }, [fixedCell, commutePath, disableIdleRoam]);
   /** Fallimenti consecutivi di claim sul segmento corrente. */
   const [claimRetry] = useState(() => new NativeResidentCollisionRetry(MAX_CLAIM_FAILS_BEFORE_REPATH));
+  const [routeEpoch] = useState(() => new NativeResidentRouteEpoch());
   onCommuteCompleteRef.current = onCommuteComplete;
   onCommuteBlockedRef.current = onCommuteBlocked;
   onCellSettledRef.current = onCellSettled;
@@ -353,11 +355,12 @@ function NativeResidentBody({
   pickNextMoveRef.current = pickNextMove;
 
   const runOneSegment = useCallback(
-    (from: number, to: number, onDone: () => void, isLastSegment: boolean) => {
+    (from: number, to: number, onDone: () => void, isLastSegment: boolean, routeToken: number) => {
+      if (!routeEpoch.isCurrent(routeToken)) return;
       // Do not claim a cell or start movement while the game is paused.
       // The useGiocoInPausa effect resumes this precise segment on unpause.
       if (!isNativeResidentFrameBusActive() || getOrologioGiocoInPausaSnapshot()) {
-        pendingCommuteRetry.hold(() => runOneSegment(from, to, onDone, isLastSegment));
+        pendingCommuteRetry.hold(() => runOneSegment(from, to, onDone, isLastSegment, routeToken));
         return;
       }
       pendingCommuteRetry.clear();
@@ -386,11 +389,12 @@ function NativeResidentBody({
           // resume the original 900 ms collision retry if it did neither.
           // A route change clears both this timer and the held callback.
           pendingCommuteRetry.hold(() => {
-            if (claimRetry.resumeWithoutRepath(repathGeneration)) {
-              runOneSegment(from, to, onDone, isLastSegment);
+            if (routeEpoch.isCurrent(routeToken) && claimRetry.resumeWithoutRepath(repathGeneration)) {
+              runOneSegment(from, to, onDone, isLastSegment, routeToken);
             }
           });
           idleTimerRef.current = scheduleNativeResidentTimer(() => {
+            if (!routeEpoch.isCurrent(routeToken)) return;
             idleTimerRef.current = null;
             pendingCommuteRetry.take()?.();
           }, CLAIM_RETRY_MS);
@@ -398,8 +402,9 @@ function NativeResidentBody({
           return;
         }
         if (decision === "awaiting-repath") return;
-        pendingCommuteRetry.hold(() => runOneSegment(from, to, onDone, isLastSegment));
+        pendingCommuteRetry.hold(() => runOneSegment(from, to, onDone, isLastSegment, routeToken));
         idleTimerRef.current = scheduleNativeResidentTimer(() => {
+          if (!routeEpoch.isCurrent(routeToken)) return;
           idleTimerRef.current = null;
           pendingCommuteRetry.take()?.();
         }, CLAIM_RETRY_MS);
@@ -424,6 +429,7 @@ function NativeResidentBody({
         durationMs: segmentMoveDurationMs(from, to, isRoadCell),
         keepWalkingOnArrival: !isLastSegment,
         onArrival: () => {
+          if (!routeEpoch.isCurrent(routeToken)) return;
           // The final home doorway is shared. Even if its soft claim failed,
           // release the previously reserved street cell before notifying
           // the parent (which can synchronously replace the route).
@@ -437,12 +443,13 @@ function NativeResidentBody({
         }
       });
     },
-    [cols, cellSizePx, isRoadCell, pendingCommuteRetry, face, motion, claimRetry]
+    [cols, cellSizePx, isRoadCell, pendingCommuteRetry, face, motion, claimRetry, routeEpoch]
   );
 
   /** Percorso casa → lavoro / lavoro → casa / … */
   useEffect(() => {
     if (routeMode !== "commute" || !commutePath || commutePath.length < 2) return;
+    const routeToken = routeEpoch.begin();
     let alive = true;
     clearIdle();
     pendingCommuteRetry.clear();
@@ -469,7 +476,7 @@ function NativeResidentBody({
 
     let seg = 0;
     const stepChain = () => {
-      if (!alive) return;
+      if (!alive || !routeEpoch.isCurrent(routeToken)) return;
       if (seg >= path.length - 1) {
         if (commutePurpose != null) onCommuteCompleteRef.current?.(commutePurpose);
         idleTimerRef.current = scheduleNativeResidentTimer(() => {
@@ -482,11 +489,12 @@ function NativeResidentBody({
       const to = path[seg + 1]!;
       const isLastSegment = seg + 1 >= path.length - 1;
       seg++;
-      runOneSegment(from, to, stepChain, isLastSegment);
+      runOneSegment(from, to, stepChain, isLastSegment, routeToken);
     };
     stepChain();
     return () => {
       alive = false;
+      routeEpoch.invalidate();
       pendingCommuteRetry.clear();
       // A canceled mid-segment destination must not remain reserved.
       // Reclaim the last settled cell or release if another owner took it.
@@ -504,6 +512,7 @@ function NativeResidentBody({
     runOneSegment,
     pendingCommuteRetry,
     claimRetry,
+    routeEpoch,
     spriteFrames,
     stopAndReconcile
   ]);
