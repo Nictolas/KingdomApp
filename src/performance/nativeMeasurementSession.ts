@@ -1,6 +1,7 @@
 import { NativeFrameWindow, type NativeFrameSnapshot } from "./nativeFrameMetrics";
 import type { NativeResidentTimerRate } from "./nativeResidentTimerDiagnostics";
 import type { NativeResidentRenderRate } from "./nativeResidentWorkCounters";
+import type { NativeResidentFrameBusRate } from "./nativeResidentFrameBusDiagnostics";
 
 export type NativeMeasurementResult = {
   durationMs: number;
@@ -40,7 +41,8 @@ export function formatNativeMeasurement(
   result: NativeMeasurementResult,
   environment: { platform: string; label: string; residents: number; terrainCells?: number },
   timerStats?: NativeResidentTimerRate,
-  renderStats?: NativeResidentRenderRate
+  renderStats?: NativeResidentRenderRate,
+  frameBusStats?: NativeResidentFrameBusRate
 ): string {
   const { metrics } = result;
   return [
@@ -71,6 +73,14 @@ export function formatNativeMeasurement(
       `Yield backlog timer/s: ${timerStats.budgetYieldsPerSecond.toFixed(1)}`,
       `Wakeup timeout nativo/s: ${timerStats.platformWakeupsPerSecond.toFixed(1)}`,
       `Callback timer residenti/s: ${timerStats.logicalCallbacksPerSecond.toFixed(1)}`
+    ]),
+    ...(frameBusStats == null ? [] : [
+      `Sottoscrizioni RAF persistenti nuove: ${frameBusStats.persistentRegistrations}`,
+      `Registrazioni RAF one-shot nuove: ${frameBusStats.oneShotRegistrations}`,
+      `Frame dispatch bus: ${frameBusStats.platformFrameDispatches}`,
+      `Sottoscrizioni RAF persistenti/s: ${frameBusStats.persistentRegistrationsPerSecond.toFixed(1)}`,
+      `Registrazioni RAF one-shot/s: ${frameBusStats.oneShotRegistrationsPerSecond.toFixed(1)}`,
+      `Sottoscrizioni RAF persistenti attive: ${frameBusStats.continuousSubscribersAtEnd}`
     ]),
     "Nota: non equivale a FPS del rendering o misura IA completa."
   ].join("\n");
