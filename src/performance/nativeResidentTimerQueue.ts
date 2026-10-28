@@ -5,6 +5,21 @@
  * Crucially, the queue does not advance timers while the world is paused or
  * the app is backgrounded. No background polling or persistence is involved.
  */
+/** Cumulative metrics never include resident identifiers or game data. */
+export type NativeResidentTimerCounters = Readonly<{
+  platformSchedules: number;
+  platformCancellations: number;
+  platformWakeups: number;
+  logicalCallbacks: number;
+}>;
+
+export type NativeResidentTimerSnapshot = NativeResidentTimerCounters & Readonly<{
+  pending: number;
+  scheduled: boolean;
+  active: boolean;
+  nextDueInMs: number | null;
+}>;
+
 export class NativeResidentTimerQueue {
   private tasks = new Map<number, { callback: () => void; remainingMs: number; deadline: number }>();
   private nextId = 1;
@@ -13,19 +28,32 @@ export class NativeResidentTimerQueue {
   private timerDeadline: number | null = null;
   private generation = 0;
   private executing = false;
+  private lastNow = Number.NEGATIVE_INFINITY;
+  private platformSchedules = 0;
+  private platformCancellations = 0;
+  private platformWakeups = 0;
+  private logicalCallbacks = 0;
 
   constructor(
-    private readonly now: () => number = () => Date.now(),
+    private readonly now: () => number = () => performance.now(),
     private readonly schedulePlatform: (fn: () => void, ms: number) => number =
       (fn, ms) => setTimeout(fn, ms) as unknown as number,
     private readonly cancelPlatform: (id: number) => void =
       (id) => clearTimeout(id)
   ) {}
 
+  /** Never let a backwards wall-clock adjustment shorten or repeat a wait. */
+  private readNow(): number {
+    const sampled = this.now();
+    if (!Number.isFinite(sampled)) return Number.isFinite(this.lastNow) ? this.lastNow : 0;
+    this.lastNow = Math.max(this.lastNow, sampled);
+    return this.lastNow;
+  }
+
   schedule(callback: () => void, delayMs: number): number {
     if (!Number.isFinite(delayMs) || delayMs < 0) throw new Error("Invalid resident timer delay");
     const id = this.nextId++;
-    const current = this.now();
+    const current = this.readNow();
     this.tasks.set(id, {
       callback,
       remainingMs: delayMs,
@@ -42,7 +70,7 @@ export class NativeResidentTimerQueue {
 
   setActive(active: boolean): void {
     if (this.active === active) return;
-    const current = this.now();
+    const current = this.readNow();
     if (!active) {
       for (const task of this.tasks.values()) {
         task.remainingMs = Math.max(0, task.deadline - current);
@@ -59,13 +87,17 @@ export class NativeResidentTimerQueue {
     }
   }
 
-  snapshot(): { pending: number; scheduled: boolean; active: boolean; nextDueInMs: number | null } {
+  snapshot(): NativeResidentTimerSnapshot {
     const earliest = this.earliestDeadline();
     return {
       pending: this.tasks.size,
       scheduled: this.timer !== null,
       active: this.active,
-      nextDueInMs: this.active && earliest !== null ? Math.max(0, earliest - this.now()) : null
+      nextDueInMs: this.active && earliest !== null ? Math.max(0, earliest - this.readNow()) : null,
+      platformSchedules: this.platformSchedules,
+      platformCancellations: this.platformCancellations,
+      platformWakeups: this.platformWakeups,
+      logicalCallbacks: this.logicalCallbacks
     };
   }
 
@@ -77,7 +109,10 @@ export class NativeResidentTimerQueue {
   }
 
   private dropTimer(): void {
-    if (this.timer !== null) this.cancelPlatform(this.timer);
+    if (this.timer !== null) {
+      this.cancelPlatform(this.timer);
+      this.platformCancellations++;
+    }
     this.timer = null;
     this.timerDeadline = null;
     this.generation++;
@@ -91,7 +126,8 @@ export class NativeResidentTimerQueue {
     if (deadline === null) return;
     const generation = this.generation;
     this.timerDeadline = deadline;
-    this.timer = this.schedulePlatform(() => this.flush(generation), Math.max(0, deadline - this.now()));
+    this.timer = this.schedulePlatform(() => this.flush(generation), Math.max(0, deadline - this.readNow()));
+    this.platformSchedules++;
   }
 
   private flush(generation: number): void {
@@ -99,18 +135,21 @@ export class NativeResidentTimerQueue {
     this.timer = null;
     this.timerDeadline = null;
     this.executing = true;
+    this.platformWakeups++;
     let firstError: unknown = null;
     try {
       // Only timers due at the beginning of this tick run here. Tasks created
       // by a callback run on a future OS timeout, even for zero delay.
+      const now = this.readNow();
       const due = [...this.tasks.entries()]
-        .filter(([, task]) => task.deadline <= this.now())
+        .filter(([, task]) => task.deadline <= now)
         .sort((a, b) => a[1].deadline - b[1].deadline || a[0] - b[0]);
       for (const [id] of due) {
         if (!this.active) break;
         const task = this.tasks.get(id);
         if (!task) continue; // A previous task may cancel a sibling.
         this.tasks.delete(id);
+        this.logicalCallbacks++;
         try {
           task.callback();
         } catch (error) {
@@ -137,4 +176,9 @@ export function cancelNativeResidentTimer(id: number): void {
 
 export function setNativeResidentTimerQueueActive(active: boolean): void {
   residentTimerQueue.setActive(active);
+}
+
+/** Read-only aggregate diagnostic; no IDs, positions, storage or network. */
+export function getNativeResidentTimerSnapshot(): NativeResidentTimerSnapshot {
+  return residentTimerQueue.snapshot();
 }
