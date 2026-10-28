@@ -47,3 +47,13 @@ La CI esegue i test con Node/tsx e le tre compilazioni JavaScript Android, iOS e
 ## Rischi residui
 
 Il probe da 50 ms aggiunge un leggero carico JS **soltanto durante la cattura**. Il tempo del callback `Pressable` non indica quanto ha atteso un evento nella coda nativa. La pausa può interrompere la misura, quindi non usarne il report per confrontare una sessione incompleta. La CI generale può continuare a fallire per errori TypeScript storici non collegati.
+
+## Verifica CI del commit 36798393 (28/10/2026)
+
+- Workflow **Native Performance Diagnostics Tests** `40671082808`: completato con esito `success`.
+- Workflow generale **CI** `40671082814`, job `Verify` `122757738230`: completato con esito `failure`, `tsc` exit code 2.
+- Il log TypeScript segnala, fra gli altri, importazioni inesistenti (`generaColoniaIniziale`, `SPAZIOPORTO_FOOTPRINT_H/W`), fixture `Edificio` incomplete, campi `Abitante` non conformi e parametri implicitamente `any` nei test di altri sistemi.
+- Non attribuire automaticamente tutti gli errori a codice legacy senza un confronto dei log con il commit della baseline. Non nascondere o escludere test dalla CI generale per ottenere un verde artificiale.
+- Nessuna misurazione hardware Android/iOS è stata eseguita. Le verifiche bundle e i test Node non provano FPS, UI thread o latenza touch fisica.
+
+**Gate prima del merge:** confrontare diagnostica TypeScript su #295, #296 e #297, verificare l'assenza di regressioni native, poi completare la matrice manuale su dispositivi. La #297 resta Draft.
