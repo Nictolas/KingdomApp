@@ -18,6 +18,9 @@ type CancelFrame = (id: number) => void;
  */
 export class NativeResidentFrameBus {
   private pending = new Map<number, ResidentFrameCallback>();
+  /** Persistent movement subscribers avoid 200 re-registrations every frame. */
+  private continuous = new Map<number, ResidentFrameCallback>();
+  private subscriptionAdds = 0;
   private activityListeners = new Set<(active: boolean) => void>();
   private due: Map<number, ResidentFrameCallback> | null = null;
   private platformFrame: number | null = null;
@@ -41,10 +44,24 @@ export class NativeResidentFrameBus {
     return id;
   }
 
+  /**
+   * Keep one callback registered across frames. New subscriptions created
+   * during a flush start on the next frame, never in the current batch.
+   * The same cancel(id) API removes one-shot and persistent registrations.
+   */
+  subscribeFrame(callback: ResidentFrameCallback): number {
+    const id = this.nextId++;
+    this.continuous.set(id, callback);
+    this.subscriptionAdds++;
+    this.ensureScheduled();
+    return id;
+  }
+
   cancel(id: number): void {
     this.pending.delete(id);
     this.due?.delete(id);
-    if (!this.flushing && this.pending.size === 0 && this.platformFrame !== null) {
+    this.continuous.delete(id);
+    if (!this.flushing && this.pending.size === 0 && this.continuous.size === 0 && this.platformFrame !== null) {
       this.cancelPlatformFrame(this.platformFrame);
       this.platformFrame = null;
       this.platformGeneration++;
@@ -95,18 +112,20 @@ export class NativeResidentFrameBus {
     if (firstError !== null) throw firstError;
   }
 
-  snapshot(): { queued: number; scheduled: boolean; active: boolean; dispatchCount: number; activityListeners: number } {
+  snapshot(): { queued: number; scheduled: boolean; active: boolean; dispatchCount: number; activityListeners: number; continuousSubscribers: number; subscriptionAdds: number } {
     return {
-      queued: this.pending.size + (this.due?.size ?? 0),
+      queued: this.pending.size + (this.due?.size ?? 0) + this.continuous.size,
       scheduled: this.platformFrame !== null,
       active: this.active,
       dispatchCount: this.dispatchCount,
-      activityListeners: this.activityListeners.size
+      activityListeners: this.activityListeners.size,
+      continuousSubscribers: this.continuous.size,
+      subscriptionAdds: this.subscriptionAdds
     };
   }
 
   private ensureScheduled(): void {
-    if (!this.active || this.flushing || this.platformFrame !== null || this.pending.size === 0) return;
+    if (!this.active || this.flushing || this.platformFrame !== null || (this.pending.size === 0 && this.continuous.size === 0)) return;
     const generation = ++this.platformGeneration;
     this.platformFrame = this.requestPlatformFrame((timestamp) => this.flush(timestamp, generation));
   }
@@ -123,6 +142,9 @@ export class NativeResidentFrameBus {
     this.firstFrameAfterResume = false;
     this.due = this.pending;
     this.pending = new Map();
+    // An ID boundary, not a copied Map/array: no O(residents) allocation
+    // just to dispatch the same 200 subscribers on every animation frame.
+    const maxContinuousIdAtFrameStart = this.nextId - 1;
     let firstError: unknown = null;
     try {
       for (const [id, callback] of this.due) {
@@ -136,6 +158,20 @@ export class NativeResidentFrameBus {
         } catch (error) {
           // Preserve healthy residents even if one animation fails.
           if (firstError === null) firstError = error;
+        }
+      }
+      if (this.active) {
+        // Map iteration skips removed subscribers. New subscriptions receive
+        // higher IDs and cannot execute during the same frame. If a callback
+        // pauses the game, remaining subscribers are held until resume.
+        for (const [id, callback] of this.continuous) {
+          if (!this.active) break;
+          if (id > maxContinuousIdAtFrameStart) break;
+          try {
+            callback(timestamp, rebase);
+          } catch (error) {
+            if (firstError === null) firstError = error;
+          }
         }
       }
     } finally {
@@ -175,4 +211,12 @@ export function subscribeNativeResidentFrameBusActivity(
   listener: (active: boolean) => void
 ): () => void {
   return residentFrameBus.subscribeActivity(listener);
+}
+
+/**
+ * Native movement can subscribe once per segment instead of re-registering
+ * every RAF. The default one-shot request API remains available and unchanged.
+ */
+export function subscribeResidentAnimationFrames(callback: ResidentFrameCallback): number {
+  return residentFrameBus.subscribeFrame(callback);
 }
