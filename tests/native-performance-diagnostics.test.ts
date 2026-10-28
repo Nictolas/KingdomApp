@@ -5,6 +5,7 @@ import { NativeFrameWindow } from "../src/performance/nativeFrameMetrics.ts";
 import { NativeMeasurementSession, formatNativeMeasurement } from "../src/performance/nativeMeasurementSession.ts";
 import { markNativeResidentFrameCallback, takeNativeResidentFrameCallbacks, markNativeResidentRenderInvocation, takeNativeResidentRenderInvocations, markNativeResidentWrapperInvocation, takeNativeResidentWrapperInvocations, getNativeResidentRenderTotals, diffNativeResidentRenderTotals } from "../src/performance/nativeResidentWorkCounters.ts";
 import { NATIVE_TEST_POPULATIONS, createNativeSyntheticMarkers } from "../src/performance/nativePopulationFixture.ts";
+import { diffNativeResidentFrameBusSnapshots } from "../src/performance/nativeResidentFrameBusDiagnostics.ts";
 
 test("deterministic synthetic populations have unique coordinates, no game state", () => {
   for (const count of NATIVE_TEST_POPULATIONS) {
@@ -123,4 +124,41 @@ test("10-second report labels native render invocation rates without claiming GP
   assert.match(report, /Wrapper abitanti\/s: 200\.0/);
   assert.match(report, /Render sprite React\/s: 4\.0/);
   assert.match(report, /non equivale a FPS/);
+});
+
+test("persistent RAF metrics report only aggregate registrations and avoid misleading FPS claims", () => {
+  const before = {
+    queued: 200, scheduled: true, active: true, dispatchCount: 120,
+    activityListeners: 200, continuousSubscribers: 200,
+    subscriptionAdds: 200, oneShotRequests: 5
+  };
+  const after = {
+    ...before, dispatchCount: 720, continuousSubscribers: 150,
+    queued: 150, subscriptionAdds: 240, oneShotRequests: 8
+  };
+  const delta = diffNativeResidentFrameBusSnapshots(before, after, 10_000);
+  assert.deepEqual(delta, {
+    persistentRegistrations: 40,
+    oneShotRegistrations: 3,
+    platformFrameDispatches: 600,
+    persistentRegistrationsPerSecond: 4,
+    oneShotRegistrationsPerSecond: 0.3,
+    platformFrameDispatchesPerSecond: 60,
+    continuousSubscribersAtEnd: 150,
+    queuedAtEnd: 150
+  });
+  const session = new NativeMeasurementSession(0, 10_000);
+  session.record(16, 16);
+  const result = session.record(10_000, 16)!;
+  const report = formatNativeMeasurement(result,
+    { platform: "android", label: "200 abitanti", residents: 200 },
+    undefined, undefined, delta);
+  assert.match(report, /Sottoscrizioni RAF persistenti nuove: 40/);
+  assert.match(report, /Registrazioni RAF one-shot nuove: 3/);
+  assert.match(report, /Sottoscrizioni RAF persistenti attive: 150/);
+  assert.match(report, /non equivale a FPS/);
+  assert.ok(!report.includes("residentId"));
+  assert.ok(!report.includes("cellIndex"));
+  assert.equal(diffNativeResidentFrameBusSnapshots(after, before, 0).persistentRegistrations, 0);
+  assert.equal(diffNativeResidentFrameBusSnapshots(after, before, Number.NaN).platformFrameDispatchesPerSecond, 0);
 });
