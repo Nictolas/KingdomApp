@@ -70,3 +70,14 @@ Le 53 tuple `file/riga/colonna/codice/messaggio` coincidono esattamente nei tre 
 Per impedire regressioni successive, il workflow `native-perf-diagnostics.yml` esegue ora `node --test tests/native-typecheck-regression.test.mjs` e `node scripts/check-native-typecheck-regressions.mjs`. La baseline congelata in `tests/fixtures/native-typecheck-baseline.json` proviene dal job della #295. Il confronto è un multinsieme: intercetta anche duplicati, variazioni di messaggio, colonna e riga; accetta la risoluzione di errori storici. Errori nuovi fanno fallire il gate; processi TypeScript interrotti o terminati senza diagnostiche interpretabili fanno fallire il gate.
 
 **Limiti:** è un gate additivo, non sostituisce il controllo `npm run typecheck` della CI generale, che continua a fallire fino alla correzione degli errori originali. Il gate non dimostra correttezza runtime, prestazioni native o sicurezza del merge. La CI deve eseguire con successo anche i test dello stesso gate dopo questo commit; fino ad allora l'esito è «implementato, non ancora validato dalla pipeline». La baseline va aggiornata soltanto dopo una verifica esplicita del motivo di ogni modifica, non automaticamente.
+
+
+## Stress test deterministico del ciclo di vita con 200 abitanti
+
+La suite `tests/native-resident-stateful-soak.test.ts` esercita **tre sequenze pseudo-casuali riproducibili** (seed 7, 1024 e 20261028), ciascuna di 1.600 passi, sul codice reale di `NativeResidentFrameBus`, `NativeResidentTimerQueue`, `NativeResidentActivityGate` e `NativeResidentSegmentProgress` con schedulatore di piattaforma simulato.
+
+Vengono mescolati: 200 abitanti con sottoscrizioni RAF persistenti, timer collisione/idle con scadenze 900/2200 ms, pause manuali, background/foreground, cambi velocità 1×/2×/4×, smontaggio e reinserimento di abitanti, consegna ritardata di callback di piattaforma annullati e avanzamento sintetico dell'orologio.
+
+Le invarianti vengono controllate **a ogni passo**: massimo un RAF e un timeout di piattaforma contemporanei, nessuna esecuzione mentre il gioco è sospeso, niente callback per residenti rimossi, nessuna perdita delle sottoscrizioni o dei timer logici, progressione dei segmenti mai regressiva e nessun salto in avanti al primo frame dopo la ripresa. Al termine, la rimozione di tutti i 200 abitanti deve lasciare zero callback e timer pendenti, anche dopo ulteriori transizioni di stato.
+
+Il test è collegato a `native-perf-diagnostics.yml`; la CI ne costituisce la convalida effettiva. **È un modello con clock/OS fittizi e non misura FPS, latenza touch o consumo energetico su Android/iOS.** Il gate TypeScript additivo resta distinto dalla CI generale e non ne maschera il fallimento.
