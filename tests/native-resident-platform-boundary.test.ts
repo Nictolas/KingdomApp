@@ -33,13 +33,16 @@ test("map imports resident component without an extension, for Metro platform re
   assert.ok(!map.includes("MapWandererCharacter.native.tsx"));
 });
 
-test("only native residents use the shared frame dispatcher and coalesced walking frame", () => {
+test("only native residents use the shared frame dispatcher and imperative sprite frames", () => {
   assert.match(native, /from ["']\.\.\/performance\/nativeResidentFrameBus["']/);
   assert.match(native, /requestResidentAnimationFrame\(step\)/);
   assert.match(native, /cancelResidentAnimationFrame\(rafRef\.current\)/);
   assert.ok(!native.includes("rafRef.current = requestAnimationFrame(step)"));
-  assert.match(native, /updateWalkFrame\(walkFrameFromElapsedMs\(elapsedMs\)\)/);
-  assert.equal((native.match(/setWalkFrame\(/g) ?? []).length, 1, "only gated updater should invoke React setter");
+  assert.match(native, /spriteFrames\.advanceElapsed\(elapsedMs\)/);
+  assert.match(native, /<Animated\.Image/);
+  assert.match(native, /left: spriteSheetOffset/);
+  assert.equal((native.match(/setWalkFrame\(/g) ?? []).length, 0, "walking frame never commits React state");
+  assert.ok(!shared.includes("NativeResidentSpriteFrameDriver"), "web renderer must not import native sprite driver");
   assert.ok(!shared.includes("nativeResidentFrameBus"), "the web renderer must not import native dispatcher");
 });
 
