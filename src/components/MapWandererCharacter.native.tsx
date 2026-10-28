@@ -746,8 +746,10 @@ export function MapWandererCharacter(props: MapWandererCharacterProps) {
   if (__DEV__) markNativeResidentWrapperInvocation();
   const relay = useRef<NativeResidentCallbackRelay | null>(null);
   if (relay.current === null) relay.current = new NativeResidentCallbackRelay(props);
-  relay.current.update(props);
-  return <MemoNativeResidentBody {...props} {...relay.current.bound()} />;
+  // Commit-phase update avoids exposing callbacks from an aborted React render.
+  React.useLayoutEffect(() => { relay.current?.update(props); });
+  // Optional handler presence must reflect this render, not the previous one.
+  return <MemoNativeResidentBody {...props} {...relay.current.bound(props)} />;
 }
 
 const styles = StyleSheet.create({
