@@ -14,6 +14,8 @@ export type NativeResidentSegmentRequest = Readonly<{
 type FrameCallback = (timestamp: number, resumedAfterSuspension: boolean) => void;
 export type NativeResidentSegmentDependencies = Readonly<{
   requestFrame: (callback: FrameCallback) => number;
+  /** Native frame bus: one subscription per segment instead of one per frame. */
+  subscribeFrame?: (callback: FrameCallback) => number;
   cancelFrame: (id: number) => void;
   readTimeScale: () => number;
   writePosition: (point: NativeResidentPoint) => void;
@@ -76,14 +78,14 @@ export class NativeResidentSegmentRunner {
         this.ignoredStaleFrames++;
         return;
       }
-      // The pending ID has already been dispatched. The next registration
-      // belongs to this segment unless onArrival starts another one.
-      this.frameId = null;
+      // One-shot RAF registrations are consumed on dispatch. A persistent
+      // subscription remains owned until cancel/arrival/route replacement.
+      if (!this.deps.subscribeFrame) this.frameId = null;
       this.deps.onFrame?.();
       if (token !== this.generation || !this.active) return;
       const frame = segment.sample(now, this.deps.readTimeScale(), resumedAfterSuspension);
       if (!frame.advance) {
-        this.frameId = this.deps.requestFrame(step);
+        if (!this.deps.subscribeFrame) this.frameId = this.deps.requestFrame(step);
         return;
       }
       const t = frame.progress;
@@ -104,11 +106,17 @@ export class NativeResidentSegmentRunner {
       if (!frame.complete) {
         this.deps.advanceSprite(frame.elapsedMs);
         if (token !== this.generation || !this.active) return;
-        this.frameId = this.deps.requestFrame(step);
+        if (!this.deps.subscribeFrame) this.frameId = this.deps.requestFrame(step);
         return;
       }
       this.active = false;
       this.completed++;
+      // Remove the persistent subscriber *before* onArrival can synchronously
+      // start a new segment; never leave an obsolete walker on the frame bus.
+      if (this.frameId !== null) {
+        this.deps.cancelFrame(this.frameId);
+        this.frameId = null;
+      }
       if (request.keepWalkingOnArrival) {
         this.deps.advanceSprite(0);
       } else {
@@ -116,7 +124,9 @@ export class NativeResidentSegmentRunner {
       }
       if (token === this.generation) request.onArrival();
     };
-    this.frameId = this.deps.requestFrame(step);
+    this.frameId = this.deps.subscribeFrame
+      ? this.deps.subscribeFrame(step)
+      : this.deps.requestFrame(step);
   }
 
   /** Aggregate in-memory diagnostics; never contains positions or resident IDs. */
