@@ -119,3 +119,8 @@ La suite è inclusa nel workflow `Native Performance Diagnostics Tests` assieme 
 Confrontare sullo **stesso dispositivo** PR #295 e #296, con 25/50/100/200 abitanti e misure ripetute a 1×. Controllare anche tap e doppio tap su sprite in movimento, hitbox durante zoom/pan, percorsi concorrenti e collisioni, sospensione breve e lunga, pausa manuale in background, rientro con pausa ancora attiva, retry di collisione sospeso, rientro in casa e cambi 1×/2×/4×. I bundle JS non sostituiscono una build installata né un test su Android/iOS reale.
 
 Il blocco rimane **sperimentale, reversibile e non integrato in main**. Non è autorizzato dedurre un miglioramento FPS dai test sintetici.
+
+
+### Stress del dispatcher con popolazione variabile
+
+Un test deterministico aggiuntivo simula **240 frame** con fino a **200 residenti**, otto pause/riprese, callback RAF native cancellate che arrivano in ritardo, 40 smontaggi e 40 nuovi ingressi. Per ogni frame verifica il numero esatto di callback per i residenti ancora attivi, l'assenza di aggiornamenti di residenti smontati, una sola richiesta RAF di piattaforma e la coda completamente vuota dopo la cancellazione finale. Il test non misura FPS reali: l'assert numerico riguarda soltanto il comportamento del dispatcher finto. Verificare il risultato nella CI del commit che lo include.
