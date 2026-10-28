@@ -16,8 +16,9 @@ function oracle(
   elapsedMs: number,
   cellSizePx: number
 ): number {
-  return -(frameGroupStart(direction) +
-    walkIndexInGroup(direction, walkFrameFromElapsedMs(elapsedMs), moving)) * cellSizePx;
+  const frameIndex = frameGroupStart(direction) +
+    walkIndexInGroup(direction, walkFrameFromElapsedMs(elapsedMs), moving);
+  return frameIndex === 0 ? 0 : -frameIndex * cellSizePx;
 }
 
 test("all native sprite directions retain exact legacy sprite-sheet indices", () => {
