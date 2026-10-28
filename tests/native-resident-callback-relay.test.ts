@@ -140,3 +140,26 @@ test("non-event motion and touch-passthrough predicates are intentionally exclud
   assert.ok(!keys.includes("fixedCell"));
   assert.ok(!keys.includes("markerEmoji"));
 });
+
+test("concurrent render can compute handler presence without publishing aborted closures", () => {
+  const calls: string[] = [];
+  const relay = new NativeResidentCallbackRelay({ onPress: () => calls.push("committed") });
+  const committed = relay.bound();
+  const speculative = { onPress: () => calls.push("aborted"), onDoublePress: () => calls.push("aborted-double") };
+  const prospective = relay.bound(speculative);
+  assert.equal(prospective.onPress, committed.onPress);
+  assert.equal(typeof prospective.onDoublePress, "function");
+  prospective.onPress?.(); // Until commit, only the previous callback may run.
+  prospective.onDoublePress?.(); // No prior double handler.
+  assert.deepEqual(calls, ["committed"]);
+  // Aborted render: relay target was never changed.
+  committed.onPress?.();
+  assert.deepEqual(calls, ["committed", "committed"]);
+  const next = { onDoublePress: () => calls.push("new-double") };
+  const nextProps = relay.bound(next);
+  assert.equal(nextProps.onPress, undefined, "new render removes Pressable single handler");
+  assert.equal(typeof nextProps.onDoublePress, "function");
+  relay.update(next); // Layout effect after a successful commit.
+  nextProps.onDoublePress?.();
+  assert.deepEqual(calls, ["committed", "committed", "new-double"]);
+});
