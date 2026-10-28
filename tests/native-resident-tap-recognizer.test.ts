@@ -111,8 +111,9 @@ test("200 residents: taps never pair across residents, including boundary timest
 test("200 residents, 40 lifecycle transitions: canceled touches never resurrect on resume", () => {
   const residents = Array.from({ length: 200 }, () => ready());
   const frameBus = new NativeResidentFrameBus(() => 1, () => {});
-  const unsubscribe = residents.map(r => frameBus.subscribeActivity(active => {
-    if (!active) r.reset();
+  const unsubscribe = residents.map(r => frameBus.subscribeActivity(() => {
+    // Native component resets on both background/pause and foreground/resume.
+    r.reset();
   }));
   let singles = 0;
   let doubles = 0;
@@ -121,6 +122,11 @@ test("200 residents, 40 lifecycle transitions: canceled touches never resurrect 
       if (r.press(cycle * 1000) === "single") singles++;
     }
     frameBus.setActive(false);
+    // A user can still interact with the map overlay during manual pause;
+    // that tap may not become the first half of a post-resume double tap.
+    for (const r of residents) {
+      if (r.press(cycle * 1000 + 3) === "single") singles++;
+    }
     frameBus.setActive(true);
     for (const r of residents) {
       if (r.press(cycle * 1000 + 10) === "single") singles++;
@@ -129,7 +135,7 @@ test("200 residents, 40 lifecycle transitions: canceled touches never resurrect 
       if (r.press(cycle * 1000 + 11) === "double") doubles++;
     }
   }
-  assert.equal(singles, 200 * 40 * 2);
+  assert.equal(singles, 200 * 40 * 3);
   assert.equal(doubles, 200 * 40);
   assert.equal(frameBus.snapshot().activityListeners, 200);
   unsubscribe.forEach(stop => stop());
@@ -191,7 +197,7 @@ test("native-only boundary: web hit-test semantics stay untouched", async () => 
   const web = readFileSync(new URL("../src/components/MapWandererCharacter.tsx", import.meta.url), "utf8");
   assert.match(native, /NativeResidentTapRecognizer/);
   assert.match(native, /tapRecognizer\.press\(performance\.now\(\)\)/);
-  assert.match(native, /tapRecognizer\.reset\(\)/);
+  assert.match(native, /tapRecognizer\.reset\(\);\s+if \(!active\) return;/);
   assert.match(native, /setEligibleForDoubleTap\(intercettaTocco && !!onDoublePress\)/);
   assert.doesNotMatch(native, /Date\.now\(\)/);
   assert.doesNotMatch(web, /NativeResidentTapRecognizer/);
