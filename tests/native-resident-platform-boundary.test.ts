@@ -51,3 +51,20 @@ test("only native movement subscribes to pause/background and guards idle/claim 
   assert.ok(!shared.includes("nativeResidentFrameLifecycle"));
   assert.ok(!shared.includes("NativeResidentSegmentProgress"));
 });
+
+test("native idle/retry timers use shared queue, not independent platform timeouts", () => {
+  assert.match(native, /from ["']\.\.\/performance\/nativeResidentTimerQueue["']/);
+  assert.match(native, /scheduleNativeResidentTimer\(/);
+  assert.match(native, /cancelNativeResidentTimer\(idleTimerRef\.current\)/);
+  assert.equal((native.match(/setTimeout\(/g) ?? []).length, 0);
+  assert.equal((native.match(/clearTimeout\(/g) ?? []).length, 0);
+  assert.ok(!shared.includes("nativeResidentTimerQueue"), "web renderer retains original timer behavior");
+});
+
+test("activity changes preserve existing scheduled timers instead of restarting them", () => {
+  const handler = native.slice(native.indexOf("const onResidentActivityChanged = useCallback("));
+  assert.match(handler, /if \(!active\) return;/);
+  assert.match(handler, /if \(idleTimerRef\.current != null\) return;/);
+  assert.ok(!handler.split("  useEffect(() => {")[0]!.includes("clearIdle()"));
+  assert.match(native, /idleTimerRef\.current = null;\s+pickNextMoveRef\.current\(\)/);
+});
