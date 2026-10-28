@@ -54,11 +54,15 @@ function environment(
       wall = Math.max(wall, alarm.due);
       const before = wall;
       const callbacks = queue.snapshot().logicalCallbacks;
-      alarm.callback();
-      maxWorkMs = Math.max(maxWorkMs, wall - before);
-      maxCallbacks = Math.max(maxCallbacks, queue.snapshot().logicalCallbacks - callbacks);
-      turns++;
-      assert.ok(alarms.size <= 1);
+      try {
+        alarm.callback();
+      } finally {
+        // A failing callback still consumed a JS turn and simulated work.
+        maxWorkMs = Math.max(maxWorkMs, wall - before);
+        maxCallbacks = Math.max(maxCallbacks, queue.snapshot().logicalCallbacks - callbacks);
+        turns++;
+        assert.ok(alarms.size <= 1);
+      }
     },
     frame() {
       assert.equal(frames.size, 1);
