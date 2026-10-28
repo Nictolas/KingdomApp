@@ -21,6 +21,8 @@ export class NativeResidentFrameBus {
   private due: Map<number, ResidentFrameCallback> | null = null;
   private platformFrame: number | null = null;
   private nextId = 1;
+  /** Distinguishes an obsolete native callback after cancel/reschedule. */
+  private platformGeneration = 0;
   private flushing = false;
   private active = true;
   private firstFrameAfterResume = false;
@@ -44,6 +46,7 @@ export class NativeResidentFrameBus {
     if (!this.flushing && this.pending.size === 0 && this.platformFrame !== null) {
       this.cancelPlatformFrame(this.platformFrame);
       this.platformFrame = null;
+      this.platformGeneration++;
     }
   }
 
@@ -75,12 +78,14 @@ export class NativeResidentFrameBus {
 
   private ensureScheduled(): void {
     if (!this.active || this.flushing || this.platformFrame !== null || this.pending.size === 0) return;
-    this.platformFrame = this.requestPlatformFrame((timestamp) => this.flush(timestamp));
+    const generation = ++this.platformGeneration;
+    this.platformFrame = this.requestPlatformFrame((timestamp) => this.flush(timestamp, generation));
   }
 
-  private flush(timestamp: number): void {
-    // A platform callback can race a cancellation on the native bridge.
-    if (!this.active || this.platformFrame === null) return;
+  private flush(timestamp: number, generation: number): void {
+    // A canceled OS RAF may still execute. Never flush the next live frame
+    // using a stale callback from a previous generation.
+    if (!this.active || this.platformFrame === null || generation !== this.platformGeneration) return;
     this.platformFrame = null;
     this.flushing = true;
     this.dispatchCount++;
@@ -92,6 +97,9 @@ export class NativeResidentFrameBus {
     let firstError: unknown = null;
     try {
       for (const [id, callback] of this.due) {
+        // A callback can synchronously pause the world in mid-batch. Hold the
+        // remaining residents, rather than updating them while paused.
+        if (!this.active) break;
         if (!this.due.has(id)) continue;
         this.due.delete(id);
         try {
@@ -102,6 +110,11 @@ export class NativeResidentFrameBus {
         }
       }
     } finally {
+      if (this.due.size > 0) {
+        // Only happens if processing was interrupted by a pause. Preserve
+        // order; callbacks registered during this frame remain after these.
+        this.pending = new Map([...this.due, ...this.pending]);
+      }
       this.due = null;
       this.flushing = false;
       this.ensureScheduled();
