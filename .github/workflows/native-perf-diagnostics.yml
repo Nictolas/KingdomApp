@@ -31,6 +31,8 @@ on:
       - "tests/native-resident-tap-recognizer.test.ts"
       - "src/performance/nativeCaptureIntegrity.ts"
       - "tests/native-capture-integrity.test.ts"
+      - "src/performance/nativeHudFrameLoop.ts"
+      - "tests/native-hud-frame-loop.test.ts"
       - "scripts/compare-native-js-reports.mjs"
       - "tests/native-js-report-comparison.test.mjs"
       - "tests/native-resident-relay-cache-benchmark.ts"
@@ -80,6 +82,8 @@ jobs:
         run: |
           npx tsx --test tests/native-capture-integrity.test.ts
           node --test tests/native-js-report-comparison.test.mjs
+      - name: Dev HUD opt-in RAF lifecycle and 200 collapse/background cycles (Node, not device FPS)
+        run: npx tsx --test tests/native-hud-frame-loop.test.ts
       - name: Seeded 200-resident lifecycle/timer/RAF soak (Node fake OS, not FPS)
         run: npx tsx --test tests/native-resident-stateful-soak.test.ts
       - name: Allocation-free frame/timer buffer regression (Node only, not FPS)
