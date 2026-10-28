@@ -1,7 +1,7 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Image, Pressable, StyleSheet, Text, View } from "react-native";
 import { getOrologioGiocoInPausaSnapshot, getOrologioSimTimeScaleSnapshot } from "../game/orologioGiocoSession";
-import { PauseAwareMotionClock } from "../game/pauseAwareMotionClock";
+import { NativeResidentSegmentProgress } from "../performance/nativeResidentSegmentProgress";
 import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation } from "../performance/nativeResidentWorkCounters";
 import { requestResidentAnimationFrame, cancelResidentAnimationFrame } from "../performance/nativeResidentFrameBus";
@@ -281,19 +281,17 @@ export function MapWandererCharacter({
     const toY = Math.floor(next / cols) * cellSizePx;
 
     setIsMoving(true);
-    const clock = new PauseAwareMotionClock(performance.now());
-    const durationMs = segmentMoveDurationMs(prev, next, isRoadCell);
+    const segment = new NativeResidentSegmentProgress(performance.now(), segmentMoveDurationMs(prev, next, isRoadCell));
     const dest = next;
 
     const step = (now: number, resumedAfterSuspension = false) => {
       if (__DEV__) markNativeResidentFrameCallback();
-      const timeScale = getOrologioSimTimeScaleSnapshot();
-      const elapsedMs = clock.advanceScaled(now, resumedAfterSuspension ? 0 : timeScale);
-      if (timeScale === 0 || resumedAfterSuspension) {
+      const frame = segment.sample(now, getOrologioSimTimeScaleSnapshot(), resumedAfterSuspension);
+      if (!frame.advance) {
         rafRef.current = requestResidentAnimationFrame(step);
         return;
       }
-      const t = Math.min(1, elapsedMs / durationMs);
+      const { progress: t, elapsedMs } = frame;
       pixelPos.setValue({
         x: fromX + (toX - fromX) * t,
         y: fromY + (toY - fromY) * t
@@ -365,17 +363,15 @@ export function MapWandererCharacter({
       const toX = (to % cols) * cellSizePx;
       const toY = Math.floor(to / cols) * cellSizePx;
       setIsMoving(true);
-      const clock = new PauseAwareMotionClock(performance.now());
-      const durationMs = segmentMoveDurationMs(from, to, isRoadCell);
+      const segment = new NativeResidentSegmentProgress(performance.now(), segmentMoveDurationMs(from, to, isRoadCell));
       const step = (now: number, resumedAfterSuspension = false) => {
         if (__DEV__) markNativeResidentFrameCallback();
-        const timeScale = getOrologioSimTimeScaleSnapshot();
-        const elapsedMs = clock.advanceScaled(now, resumedAfterSuspension ? 0 : timeScale);
-        if (timeScale === 0 || resumedAfterSuspension) {
+        const frame = segment.sample(now, getOrologioSimTimeScaleSnapshot(), resumedAfterSuspension);
+        if (!frame.advance) {
           rafRef.current = requestResidentAnimationFrame(step);
           return;
         }
-        const t = Math.min(1, elapsedMs / durationMs);
+        const { progress: t, elapsedMs } = frame;
         pixelPos.setValue({
           x: fromX + (toX - fromX) * t,
           y: fromY + (toY - fromY) * t
