@@ -309,7 +309,7 @@ export function MapWandererCharacter({
         pixelPos.setValue({ x: toX, y: toY });
         updateWalkFrame(0);
         isMovingRef.current = false;
-    setIsMoving(false);
+        setIsMoving(false);
         setLogicalCell(dest);
         cellRef.current = dest;
         onCellSettledRef.current?.(dest);
@@ -370,7 +370,7 @@ export function MapWandererCharacter({
       const toX = (to % cols) * cellSizePx;
       const toY = Math.floor(to / cols) * cellSizePx;
       isMovingRef.current = true;
-    setIsMoving(true);
+      setIsMoving(true);
       const segment = new NativeResidentSegmentProgress(performance.now(), segmentMoveDurationMs(from, to, isRoadCell));
       const step = (now: number, resumedAfterSuspension = false) => {
         if (__DEV__) markNativeResidentFrameCallback();
@@ -392,7 +392,7 @@ export function MapWandererCharacter({
           updateWalkFrame(0);
           if (isLastSegment) {
             isMovingRef.current = false;
-    setIsMoving(false);
+            setIsMoving(false);
           }
           setLogicalCell(to);
           cellRef.current = to;
