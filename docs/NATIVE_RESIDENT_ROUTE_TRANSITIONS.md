@@ -65,3 +65,41 @@ di `motion.stop()`; verifica invece entrambi i metodi e i percorsi
 terminali. Non sono stati modificati il web Phaser, GameContext,
 salvataggi o la fixture A/B condivisa con la #298. CI e bundle da
 verificare sul commit effettivo prima di qualsiasi merge.
+
+## 28 ottobre — riparazione occupancy durante interruzioni a metà cella
+
+Problema confermato nel codice nativo: il renderer prenota `to` prima di
+avviare il segmento, ma aggiorna `cellRef` soltanto all'arrivo. Se il
+percorso cambia a metà animazione, annullare il RAF da solo può lasciare
+prenotata la vecchia destinazione, mentre lo sprite viene riportato alla
+cella logica di origine. Un altro abitante vede così una cella fantasma
+occupata; la discrepanza può durare fino al successivo claim riuscito.
+
+Il nuovo `stopAndReconcile` termina il runner e, **solo quando il movimento
+era ancora attivo**, tenta di riportare la prenotazione alla cella logica
+con il callback atomico già esistente del genitore. Se un altro abitante
+possiede ora quella cella, il renderer libera la propria vecchia
+prenotazione, senza sottrarre la cella all'altro. Quando il nuovo percorso
+inizia su una cella diversa da quella logica precedente, libera anche la
+vecchia prenotazione; non forza una prenotazione esclusiva della nuova
+partenza perché case e ingressi possono essere condivisi. Il risveglio
+applica la stessa regola di rilascio in caso di claim fallito. Disabilitare
+il girovagare libero ora arresta un passo già in corso e riconcilia
+l'occupazione. I segmenti consecutivi continuano a non fermare lo sprite.
+
+La suite `native-resident-occupancy-handoff.test.ts` usa **200 runner
+reali** e la stessa classe di occupazione locale della scena A/B, con
+**20 cicli** di interruzioni (4.000 handoff), frame bus condiviso, pause,
+velocità 1×/2×/4×, callback RAF obsolete, fallimento di claim per
+occupazione concorrente, origine cambiata e assenza di prenotazioni
+fantasma. Un test di confine verifica che soltanto il renderer nativo
+adotti la riparazione. Sono prove Node con RAF simulato, non una partita
+completa, una misura FPS o una verifica fisica di hitbox.
+
+Limite residuo: se un altro residente occupa già la cella logica al
+momento dell'interruzione, la prenotazione precedente viene liberata ma
+il renderer può temporaneamente condividere visivamente la cella;
+risolvere un conflitto di posizione richiederebbe una decisione del
+pathfinder del genitore, fuori da questa correzione. Nessuna modifica a
+GameContext, salvataggi, web, #298 o regole di collisione. Validare CI
+e poi la prova A/B su Android/iPhone prima di qualsiasi merge.

@@ -4,7 +4,7 @@ import { getOrologioGiocoInPausaSnapshot, getOrologioSimTimeScaleSnapshot } from
 import { NativeResidentSegmentRunner } from "../performance/nativeResidentSegmentRunner";
 import { beginNativeResidentDispatch, endNativeResidentDispatch } from "../performance/nativeResidentDispatchProfiler";
 import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
-import { nativeResidentRouteMode, nativeResidentHomeTransition, nativeResidentShouldRearmIdle } from "../performance/nativeResidentRouteTransitions";
+import { nativeResidentRouteMode, nativeResidentHomeTransition, nativeResidentShouldRearmIdle, nativeResidentReconcileInterruptedClaim, nativeResidentReleaseMismatchedRouteOrigin } from "../performance/nativeResidentRouteTransitions";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation, markNativeResidentWrapperInvocation } from "../performance/nativeResidentWorkCounters";
 import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallbackRelay";
 import { NativeResidentTapRecognizer } from "../performance/nativeResidentTapRecognizer";
@@ -266,6 +266,20 @@ function NativeResidentBody({
     }
   }, []);
 
+  // A reserved destination belongs to a moving segment, not to the logical
+  // cell until arrival. On terminal interruption, atomically reclaim the
+  // settled cell; if another resident took it, release our stale destination.
+  // Seamless segment-to-segment transitions continue to use motion.cancel().
+  const stopAndReconcile = useCallback(() => {
+    const interrupted = isMovingRef.current;
+    motion.stop();
+    if (interrupted) {
+      nativeResidentReconcileInterruptedClaim(
+        cellRef.current, tryClaimCellRef.current, releaseMyCellRef.current
+      );
+    }
+  }, [motion]);
+
   const pickNextMove = useCallback(() => {
     if (!isNativeResidentFrameBusActive() || getOrologioGiocoInPausaSnapshot()) return;
     if (disableIdleRoam) return;
@@ -404,13 +418,19 @@ function NativeResidentBody({
     let alive = true;
     clearIdle();
     pendingCommuteRetry.clear();
-    // A route reset is terminal for the old segment: clear walking as well
-    // as the RAF subscription before resetting the new route's origin.
-    motion.stop();
+    // A route reset is terminal. Roll back any unfinished destination claim
+    // before snapping to the new path's origin.
+    const previousCell = cellRef.current;
+    stopAndReconcile();
     inited.current = true;
     claimFailCountRef.current = 0;
     const path = commutePath;
     const start = path[0]!;
+    // A parent-supplied reroute may begin at a different cell. Never retain
+    // the previous reservation or force an exclusive claim at a shared home.
+    nativeResidentReleaseMismatchedRouteOrigin(
+      previousCell, start, releaseMyCellRef.current
+    );
     const cx = (start % cols) * cellSizePx;
     const cy = Math.floor(start / cols) * cellSizePx;
     setLogicalCell(start);
@@ -440,9 +460,9 @@ function NativeResidentBody({
     return () => {
       alive = false;
       pendingCommuteRetry.clear();
-      // Route removed/replaced: cancel RAF AND clear walking state.
-      // cancel() alone leaves isMovingRef true and prevents idle rearming.
-      motion.stop();
+      // A canceled mid-segment destination must not remain reserved.
+      // Reclaim the last settled cell or release if another owner took it.
+      stopAndReconcile();
       clearIdle();
     };
   }, [
@@ -456,7 +476,7 @@ function NativeResidentBody({
     runOneSegment,
     pendingCommuteRetry,
     spriteFrames,
-    motion
+    stopAndReconcile
   ]);
 
   /** Di notte sulla residenza: fermo, sotto il layer edifici. */
@@ -492,8 +512,11 @@ function NativeResidentBody({
 
     clearIdle();
     motion.stop();
-    const claim = tryClaimCellRef.current;
-    claim?.(prevHome);
+    // A shared home may already belong to another resident; on failed claim
+    // release any old destination rather than leaving a ghost reservation.
+    nativeResidentReconcileInterruptedClaim(
+      prevHome, tryClaimCellRef.current, releaseMyCellRef.current
+    );
     const cx = (prevHome % cols) * cellSizePx;
     const cy = Math.floor(prevHome / cols) * cellSizePx;
     inited.current = true;
@@ -510,6 +533,15 @@ function NativeResidentBody({
       }, IDLE_BEFORE_NEXT_MS);
     }
   }, [fixedCell, routeMode, clearIdle, cols, cellSizePx, disableIdleRoam, spriteFrames, motion]);
+
+  /** Disabling free roaming while an idle step is already underway must
+   * stop that step and reconcile its reserved destination immediately.
+   */
+  useEffect(() => {
+    if (routeMode !== "free" || !disableIdleRoam) return;
+    clearIdle();
+    stopAndReconcile();
+  }, [routeMode, disableIdleRoam, clearIdle, stopAndReconcile]);
 
   /** Removing a completed commute cancels its old idle timeout in cleanup.
    * Restore one idle countdown without waiting for an unrelated clock render.

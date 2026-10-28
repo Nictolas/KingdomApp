@@ -41,3 +41,42 @@ export function nativeResidentShouldRearmIdle(
   return nextMode === "free" && !disabled &&
     (previousMode === "commute" || previouslyDisabled);
 }
+
+/**
+ * Native-only occupancy repair for a segment interrupted after its destination
+ * was reserved but before the arrival callback updated the logical cell.
+ * The real map's tryClaimCell atomically moves the resident's reservation.
+ * If the origin was claimed by another resident in the meantime, never
+ * evict that owner: release our stale destination instead.
+ *
+ * No new path, collision policy, game state, or persistence is introduced.
+ */
+export type NativeResidentClaimHandoff = "reclaimed" | "released" | "unmanaged";
+
+export function nativeResidentReconcileInterruptedClaim(
+  settledCell: number | null | undefined,
+  claim: ((cell: number) => boolean) | null | undefined,
+  release: (() => void) | null | undefined
+): NativeResidentClaimHandoff {
+  if (settledCell != null && claim?.(settledCell)) return "reclaimed";
+  if (release) {
+    release();
+    return "released";
+  }
+  return "unmanaged";
+}
+
+/**
+ * When the parent supplies a replacement path starting somewhere else, the
+ * old reservation must not survive a snap to the new start. Do not force an
+ * exclusive claim at the new origin: houses and entrances can be shared.
+ */
+export function nativeResidentReleaseMismatchedRouteOrigin(
+  previousCell: number | null | undefined,
+  nextStart: number,
+  release: (() => void) | null | undefined
+): boolean {
+  if (previousCell == null || previousCell === nextStart || !release) return false;
+  release();
+  return true;
+}
