@@ -330,3 +330,82 @@ test("240-frame population churn stress: 200 residents, repeated pauses, unmount
   assert.equal(runner.requested, 249, "one initial RAF, 240 subsequent frames, eight pause/resume replacements");
   assert.ok(perResident.every((count) => count > 0));
 });
+
+test("200 stable lifecycle subscriptions survive 1,000 route updates without listener churn", () => {
+  const runner = fakeScheduler();
+  const residents = 200;
+  const currentRoute = Array.from({ length: residents }, (_, i) => i);
+  const received = Array.from({ length: residents }, () => [] as number[]);
+  // Like a committed-props ref: one stable listener reads the latest route.
+  const unsubscribe = currentRoute.map((_, i) =>
+    runner.bus.subscribeActivity((active) => {
+      if (active) received[i]!.push(currentRoute[i]!);
+    })
+  );
+  assert.equal(runner.bus.snapshot().activityListeners, residents);
+  for (let i = 0; i < 1000; i++) {
+    currentRoute[i % residents] = i + 1000;
+    assert.equal(runner.bus.snapshot().activityListeners, residents);
+  }
+  for (let cycle = 0; cycle < 20; cycle++) {
+    runner.bus.setActive(false);
+    runner.bus.setActive(true);
+  }
+  assert.ok(received.every((values, i) =>
+    values.length === 20 && values.every((v) => v === currentRoute[i])
+  ), "every resident must observe its latest committed route");
+  unsubscribe.forEach(fn => fn());
+  assert.equal(runner.bus.snapshot().activityListeners, 0);
+  runner.bus.setActive(false);
+  runner.bus.setActive(true);
+  assert.ok(received.every(values => values.length === 20), "unmounted residents never resume");
+});
+
+test("lifecycle dispatch skips a sibling removed synchronously by another listener", () => {
+  const runner = fakeScheduler();
+  const calls: string[] = [];
+  let unsubscribeSecond = () => {};
+  runner.bus.subscribeActivity(() => {
+    calls.push("first");
+    unsubscribeSecond();
+  });
+  unsubscribeSecond = runner.bus.subscribeActivity(() => calls.push("unmounted"));
+  runner.bus.subscribeActivity(() => calls.push("third"));
+  runner.bus.setActive(false);
+  assert.deepEqual(calls, ["first", "third"]);
+  assert.equal(runner.bus.snapshot().activityListeners, 2);
+  runner.bus.setActive(true);
+  assert.deepEqual(calls, ["first", "third", "first", "third"]);
+});
+
+test("200 resident listener churn with unmounts during transition never invokes disposed callbacks", () => {
+  const runner = fakeScheduler();
+  const active = Array(200).fill(true);
+  const received = Array(200).fill(0);
+  const disposers: Array<() => void> = [];
+  for (let i = 0; i < 200; i++) {
+    disposers[i] = runner.bus.subscribeActivity((next) => {
+      assert.equal(active[i], true, "disposed resident must never receive lifecycle event");
+      if (next) received[i]++;
+      // A parent may remove other residents while processing a transition.
+      if (i === 0 && !next) {
+        for (let j = 100; j < 150; j++) {
+          active[j] = false;
+          disposers[j]!();
+        }
+      }
+    });
+  }
+  runner.bus.setActive(false);
+  assert.equal(runner.bus.snapshot().activityListeners, 150);
+  runner.bus.setActive(true);
+  assert.equal(received.reduce((a, b) => a + b, 0), 150);
+  for (let i = 0; i < 200; i++) {
+    if (active[i]) {
+      active[i] = false;
+      disposers[i]!();
+    }
+  }
+  assert.equal(runner.bus.snapshot().activityListeners, 0);
+  assert.equal(runner.frames.size, 0);
+});
