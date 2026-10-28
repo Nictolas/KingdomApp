@@ -58,6 +58,7 @@ export class NativeResidentFrameBus {
       if (this.platformFrame !== null) {
         this.cancelPlatformFrame(this.platformFrame);
         this.platformFrame = null;
+        this.platformGeneration++;
       }
       // Even if a stale OS RAF fires after cancellation, its callbacks must
       // remain queued until the game becomes active again.
@@ -110,7 +111,7 @@ export class NativeResidentFrameBus {
         }
       }
     } finally {
-      if (this.due.size > 0) {
+      if (this.due !== null && this.due.size > 0) {
         // Only happens if processing was interrupted by a pause. Preserve
         // order; callbacks registered during this frame remain after these.
         this.pending = new Map([...this.due, ...this.pending]);
