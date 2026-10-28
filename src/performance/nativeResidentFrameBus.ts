@@ -100,6 +100,8 @@ export class NativeResidentFrameBus {
   /** Idempotent lifecycle gate for game pauses and app backgrounding. */
   setActive(active: boolean): void {
     if (this.active === active) return;
+    const timing = beginNativeResidentDispatch("lifecycle");
+    try {
     this.active = active;
     const transitionEpoch = ++this.activityEpoch;
     if (!active) {
@@ -131,6 +133,9 @@ export class NativeResidentFrameBus {
     }
     if (active) this.ensureScheduled();
     if (firstError !== null) throw firstError;
+    } finally {
+      endNativeResidentDispatch("lifecycle", timing);
+    }
   }
 
   snapshot(): NativeResidentFrameBusSnapshot {
