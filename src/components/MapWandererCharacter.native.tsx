@@ -581,12 +581,11 @@ function NativeResidentBody({
    * rearm if no timeout was pending when the game became active.
    */
   const onResidentActivityChanged = useCallback((active: boolean) => {
-    if (!active) {
-      // A tap before background/manual pause must never pair with a tap
-      // after returning, even if the transition lasted less than 400 ms.
-      tapRecognizer.reset();
-      return;
-    }
+    // A tap while the game is paused must not pair with a tap after resume,
+    // just as a tap before background must not pair with one after foreground.
+    // Transitions are rare; this adds no per-frame or per-tap subscription.
+    tapRecognizer.reset();
+    if (!active) return;
     const { fixedCell, commutePath, disableIdleRoam } = activityConfigRef.current;
     if (commutePath != null && commutePath.length >= 2) {
       // A collision retry already scheduled before pause resumes with its
