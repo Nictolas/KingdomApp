@@ -224,10 +224,6 @@ export function MapWandererCharacter({
     cellRef.current = logicalCell;
   }, [logicalCell]);
 
-  useEffect(() => {
-    isMovingRef.current = isMoving;
-  }, [isMoving]);
-
   const clearIdle = useCallback(() => {
     if (idleTimerRef.current != null) {
       clearTimeout(idleTimerRef.current);
