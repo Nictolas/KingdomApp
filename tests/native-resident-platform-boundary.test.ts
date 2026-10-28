@@ -30,3 +30,13 @@ test("map imports resident component without an extension, for Metro platform re
   assert.match(map, /from ["']\.\.\/src\/components\/MapWandererCharacter["']/);
   assert.ok(!map.includes("MapWandererCharacter.native.tsx"));
 });
+
+test("only native residents use the shared frame dispatcher and coalesced walking frame", () => {
+  assert.match(native, /from ["']\.\.\/performance\/nativeResidentFrameBus["']/);
+  assert.match(native, /requestResidentAnimationFrame\(step\)/);
+  assert.match(native, /cancelResidentAnimationFrame\(rafRef\.current\)/);
+  assert.ok(!native.includes("rafRef.current = requestAnimationFrame(step)"));
+  assert.match(native, /updateWalkFrame\(walkFrameFromElapsedMs\(elapsedMs\)\)/);
+  assert.equal((native.match(/setWalkFrame\(/g) ?? []).length, 1, "only gated updater should invoke React setter");
+  assert.ok(!shared.includes("nativeResidentFrameBus"), "the web renderer must not import native dispatcher");
+});
