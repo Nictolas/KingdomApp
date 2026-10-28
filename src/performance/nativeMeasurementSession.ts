@@ -3,6 +3,7 @@ import type { NativeResidentTimerRate } from "./nativeResidentTimerDiagnostics";
 import type { NativeResidentRenderRate } from "./nativeResidentWorkCounters";
 import type { NativeResidentFrameBusRate } from "./nativeResidentFrameBusDiagnostics";
 import type { NativeResidentDispatchReport } from "./nativeResidentDispatchProfiler";
+import type { NativeResidentEventLoopLag } from "./nativeResidentEventLoopProbe";
 
 export type NativeMeasurementResult = {
   durationMs: number;
@@ -44,7 +45,8 @@ export function formatNativeMeasurement(
   timerStats?: NativeResidentTimerRate,
   renderStats?: NativeResidentRenderRate,
   frameBusStats?: NativeResidentFrameBusRate,
-  dispatchStats?: NativeResidentDispatchReport
+  dispatchStats?: NativeResidentDispatchReport,
+  eventLoopStats?: NativeResidentEventLoopLag
 ): string {
   const { metrics } = result;
   return [
@@ -98,7 +100,23 @@ export function formatNativeMeasurement(
       `Batch timer JS massimo: ${dispatchStats.timer.maxMs.toFixed(2)} ms`,
       `Batch timer JS >8/>16 ms: ${dispatchStats.timer.over8Ms}/${dispatchStats.timer.over16Ms}`,
       `Campioni RAF/timer sovrascritti (buffer): ${dispatchStats.frame.dropped}/${dispatchStats.timer.dropped}`,
-      "Durate dei callback JavaScript; NON FPS GPU/UI, latenza touch o utilizzo CPU."
+      `Gestore tocchi JS campioni: ${dispatchStats.touch.samples}`,
+      `Gestore tocchi JS medio: ${dispatchStats.touch.meanMs.toFixed(2)} ms`,
+      `Gestore tocchi JS p95: ${dispatchStats.touch.p95Ms.toFixed(2)} ms`,
+      `Gestore tocchi JS massimo: ${dispatchStats.touch.maxMs.toFixed(2)} ms`,
+      `Transizioni pausa/background JS: ${dispatchStats.lifecycle.samples}`,
+      `Transizioni pausa/background JS p95: ${dispatchStats.lifecycle.p95Ms.toFixed(2)} ms`,
+      `Transizioni pausa/background JS massimo: ${dispatchStats.lifecycle.maxMs.toFixed(2)} ms`,
+      "Durate dei callback JavaScript; NON FPS GPU/UI, latenza fisica touch o utilizzo CPU."
+    ]),
+    ...(eventLoopStats == null ? [] : [
+      `Ritardo loop JS campioni: ${eventLoopStats.samples}`,
+      `Ritardo loop JS medio: ${eventLoopStats.meanMs.toFixed(2)} ms`,
+      `Ritardo loop JS p95: ${eventLoopStats.p95Ms.toFixed(2)} ms`,
+      `Ritardo loop JS massimo: ${eventLoopStats.maxMs.toFixed(2)} ms`,
+      `Ritardo loop JS >16/>50 ms: ${eventLoopStats.over16Ms}/${eventLoopStats.over50Ms}`,
+      `Campioni loop JS sovrascritti (buffer): ${eventLoopStats.dropped}`,
+      "Ritardo setTimeout del thread JS: NON latenza touch o frame UI/GPU."
     ]),
     "Nota: non equivale a FPS del rendering o misura IA completa."
   ].join("\n");
