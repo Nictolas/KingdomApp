@@ -1,0 +1,99 @@
+/**
+ * Completely ephemeral development fixture for the ACTUAL native resident
+ * renderer. Uses 20×20 cells instead of modifying GameContext citizens.
+ *
+ * The fixture owns its own occupancy maps; no save data, IDs, paths, or
+ * statistics from a player's kingdom are read or written.
+ */
+export const NATIVE_REAL_FIXTURE_COLS = 20;
+export const NATIVE_REAL_FIXTURE_ROWS = 20;
+export const NATIVE_REAL_FIXTURE_CELLS = NATIVE_REAL_FIXTURE_COLS * NATIVE_REAL_FIXTURE_ROWS;
+
+export type NativeRealFixtureResident = Readonly<{
+  instanceId: number;
+  spawnCell: number;
+}>;
+
+export function createNativeRealFixtureResidents(count: 25 | 50 | 100 | 200): NativeRealFixtureResident[] {
+  if (![25, 50, 100, 200].includes(count)) throw new Error("Unsupported native fixture population");
+  return Array.from({ length: count }, (_, index) => ({
+    // Never collide with normal in-game IDs; these IDs exist only in memory.
+    instanceId: 10000 + index,
+    spawnCell: Math.floor(index * NATIVE_REAL_FIXTURE_CELLS / count)
+  }));
+}
+
+/**
+ * Same occupancy semantics as the real map's two Maps, with an explicit bound
+ * on the fixture's cells and stable per-instance methods.
+ *
+ * A successful claim atomically frees the resident's previous cell. Failure
+ * never changes either Map. Releasing an unowned cell cannot evict a different
+ * resident; a duplicate release is a no-op.
+ */
+export class NativeRealFixtureOccupancy {
+  private readonly occupantByCell = new Map<number, number>();
+  private readonly cellByResident = new Map<number, number>();
+  private denied = 0;
+  private claims = 0;
+  private releases = 0;
+  private settled = 0;
+
+  isFreeFor(residentId: number, cell: number): boolean {
+    if (!Number.isInteger(cell) || cell < 0 || cell >= NATIVE_REAL_FIXTURE_CELLS) return false;
+    const occupant = this.occupantByCell.get(cell);
+    return occupant === undefined || occupant === residentId;
+  }
+
+  tryClaim(residentId: number, cell: number): boolean {
+    if (!this.isFreeFor(residentId, cell)) {
+      this.denied++;
+      return false;
+    }
+    const previous = this.cellByResident.get(residentId);
+    if (previous !== undefined && previous !== cell &&
+      this.occupantByCell.get(previous) === residentId) {
+      this.occupantByCell.delete(previous);
+    }
+    this.occupantByCell.set(cell, residentId);
+    this.cellByResident.set(residentId, cell);
+    this.claims++;
+    return true;
+  }
+
+  release(residentId: number): void {
+    const previous = this.cellByResident.get(residentId);
+    if (previous === undefined) return;
+    if (this.occupantByCell.get(previous) === residentId) {
+      this.occupantByCell.delete(previous);
+    }
+    this.cellByResident.delete(residentId);
+    this.releases++;
+  }
+
+  settledAt(_residentId: number, _cell: number): void {
+    this.settled++;
+  }
+
+  snapshot(): Readonly<{ occupied: number; claims: number; denied: number; releases: number; settled: number }> {
+    return {
+      occupied: this.occupantByCell.size,
+      claims: this.claims,
+      denied: this.denied,
+      releases: this.releases,
+      settled: this.settled
+    };
+  }
+
+  /** Internal regression tests only: never called by the production map. */
+  checkInvariants(): boolean {
+    if (this.occupantByCell.size !== this.cellByResident.size) return false;
+    for (const [cell, owner] of this.occupantByCell) {
+      if (this.cellByResident.get(owner) !== cell) return false;
+    }
+    for (const [owner, cell] of this.cellByResident) {
+      if (this.occupantByCell.get(cell) !== owner) return false;
+    }
+    return true;
+  }
+}
