@@ -106,3 +106,26 @@ Il pannello prestazioni nativo distingue ora **invocazioni del wrapper leggero/s
 Questi test dimostrano la semantica del relay e l'invariante di identita' delle callback, **non** dimostrano quanti render React vengano effettivamente saltati su un dispositivo: e' necessaria una build nativa e un confronto con #295 e #296, a parita' di popolazione (25/50/100/200), minuti di gioco, 1×/2×/4×, gesture e collisioni. In particolare verificare che una modifica della mappa aggiorni la camminabilita' e che un doppio tap dopo un cambio di minuto selezioni il residente corretto.
 
 L'ottimizzazione e' mantenuta nel ramo Draft #297, stacked su #296→#295, senza modificare `GameContext`, il renderer web, i salvataggi o la produzione.
+
+## 28 ottobre — drenaggio cooperativo dei picchi di 200+ timeout
+
+**Problema rimasto dopo il min-heap:** il sistema precedente era efficiente nell'inserire e cancellare timer, ma se **200 residenti scadevano nello stesso istante** eseguiva **200 callback sincrone in un solo turno JS**. Ogni callback può controllare l'occupazione di una cella, pianificare un nuovo passo e prenotare un RAF. Questo picco concentrato poteva bloccare per un turno la risposta ai tocchi e il rendering JS. Il min-heap da solo non limita il lavoro di una singola sveglia.
+
+**Implementazione sperimentale solo nativa:** la coda singleton di produzione usa ora `NATIVE_RESIDENT_TIMER_CALLBACK_BUDGET = 32`. Ogni wakeup OS estrae al massimo 32 callback mature dal min-heap, in ordine stabile di `(deadline attiva, ID)`, e le esegue. Se ci sono altre scadenze già mature, le lascia nel heap e programma **un altro timeout di piattaforma a delay 0**, cedendo il controllo all'event loop tra i lotti. Il massimo di timer OS contemporanei resta uno. La classe pura conserva il default non limitato per confronti con la versione precedente e test di riferimento.
+
+- **200 callback contemporanee:** distribuite in **7 turni JS** (6 × 32 + 8), invece di un turno di 200. Questo è un conteggio algoritmico, non un dato di FPS.
+- **10.000 callback contemporanee:** distribuite in **313 turni** (312 × 32 + 16), invece di un turno di 10.000.
+- Inserimenti e cancellazioni rimangono O(log n); nessuna scansione della popolazione viene introdotta. Il lavoro totale del heap non sparisce: viene distribuito su più turni.
+- Una callback può cancellare sia un'altra callback già estratta nel lotto, sia un timer ancora nel heap. I timer creati durante un lotto non possono eseguirsi nello stesso lotto; quelli con deadline identica rispettano l'ordine di registrazione.
+- Una pausa o un background durante il lotto interrompono le callback rimanenti e preservano le loro scadenze attive. I callback OS obsoleti restano ignorati tramite generazione. Il primo turno dopo ripresa può avere ancora lavoro maturo ma non recupera il tempo trascorso durante la sospensione.
+- Il numero di callback già scadute ancora in attesa è leggibile senza scansioni dalla prima deadline del heap. `budgetYields` conta le sveglie che hanno ceduto il controllo con altro lavoro già maturo; il pannello nativo e il report di 10 secondi espongono budget, backlog e yield/s.
+
+**Trade-off dichiarato:** i residenti con deadline simultanea non iniziano più tutti nello stesso turno JavaScript; i successivi attendono i turni immediatamente seguenti. Questo può introdurre una piccola latenza effettiva nella partenza di una passeggiata o in un retry di collisione, pur lasciando immutati clock simulato, ordine, regole di movimento e durata di ogni segmento. Non è garantito che il timeout a 0 venga eseguito prima del successivo frame: la misura su dispositivi reali è necessaria per valutare il compromesso.
+
+### Verifiche e confronto riproducibile
+
+La nuova suite `tests/native-resident-timer-cooperative-batching.test.ts` verifica 200 scadenze, cancellazioni di task nello stesso lotto e ancora nel heap, pausa a metà lotto, wakeup OS cancellati ma consegnati in ritardo, FIFO rispetto a timer zero-delay creati durante un lotto, 10.000 scadenze e budget non validi. Le suite esistenti restano valide usando la classe senza limite, e la regressione dei contatori verifica `budgetYields`.
+
+`tests/native-resident-timer-burst-benchmark.ts` confronta in Node, a parità di callback, **unbounded vs 32** per 200 e 10.000 scadenze. Produce righe JSON con turni OS, callback massime per turno, tempo CPU per wakeup, tempo totale di inserimento e di drenaggio. La CI **non applica soglie assolute sui millisecondi**: CPU e scheduler del runner condiviso non sono stabili e non equivalgono al motore Hermes o alla UI di Android/iOS. I risultati sono diagnostici, non prove di miglioramento FPS, consumo batteria o latenza touch.
+
+**Criterio di merge futuro:** confrontare la #295 (baseline), la #296 (RAF) e la #297 (RAF + heap + batching + sprite) su Android e iPhone reali, con 25/50/100/200 abitanti, 1×/2×/4×, pause/background, collisioni e tap/doppio tap. Misurare p95 del frame JS e la reattività ai tocchi; verificare che i 32 callback/turno non producano ritardi visibili nei retry o nella partenza dei residenti. Se peggiora, il budget è reversibile cambiando una sola costante o tornando al default senza limite.
