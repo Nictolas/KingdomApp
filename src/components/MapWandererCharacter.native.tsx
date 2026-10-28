@@ -245,7 +245,10 @@ export function MapWandererCharacter({
       (j) => isWalkable(j) && (isFree?.(j) ?? true)
     );
     if (cand.length === 0) {
-      idleTimerRef.current = scheduleNativeResidentTimer(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+      idleTimerRef.current = scheduleNativeResidentTimer(() => {
+        idleTimerRef.current = null;
+        pickNextMoveRef.current();
+      }, IDLE_BEFORE_NEXT_MS);
       return;
     }
 
@@ -266,7 +269,10 @@ export function MapWandererCharacter({
       }
     }
     if (next == null) {
-      idleTimerRef.current = scheduleNativeResidentTimer(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+      idleTimerRef.current = scheduleNativeResidentTimer(() => {
+        idleTimerRef.current = null;
+        pickNextMoveRef.current();
+      }, IDLE_BEFORE_NEXT_MS);
       return;
     }
 
@@ -310,7 +316,10 @@ export function MapWandererCharacter({
         setLogicalCell(dest);
         cellRef.current = dest;
         onCellSettledRef.current?.(dest);
-        idleTimerRef.current = scheduleNativeResidentTimer(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+        idleTimerRef.current = scheduleNativeResidentTimer(() => {
+        idleTimerRef.current = null;
+        pickNextMoveRef.current();
+      }, IDLE_BEFORE_NEXT_MS);
       }
     };
     rafRef.current = requestResidentAnimationFrame(step);
@@ -432,7 +441,10 @@ export function MapWandererCharacter({
       if (!alive) return;
       if (seg >= path.length - 1) {
         if (commutePurpose != null) onCommuteCompleteRef.current?.(commutePurpose);
-        idleTimerRef.current = scheduleNativeResidentTimer(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+        idleTimerRef.current = scheduleNativeResidentTimer(() => {
+        idleTimerRef.current = null;
+        pickNextMoveRef.current();
+      }, IDLE_BEFORE_NEXT_MS);
         return;
       }
       const from = path[seg]!;
@@ -513,7 +525,10 @@ export function MapWandererCharacter({
     updateWalkFrame(0);
     onCellSettledRef.current?.(prevHome);
     if (!disableIdleRoam) {
-      idleTimerRef.current = scheduleNativeResidentTimer(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+      idleTimerRef.current = scheduleNativeResidentTimer(() => {
+        idleTimerRef.current = null;
+        pickNextMoveRef.current();
+      }, IDLE_BEFORE_NEXT_MS);
     }
   }, [fixedCell, clearIdle, cols, cellSizePx, disableIdleRoam]);
 
@@ -571,7 +586,10 @@ export function MapWandererCharacter({
     pixelPos.setValue({ x: cx, y: cy });
     onCellSettledRef.current?.(idx);
     if (!disableIdleRoam) {
-      idleTimerRef.current = scheduleNativeResidentTimer(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+      idleTimerRef.current = scheduleNativeResidentTimer(() => {
+        idleTimerRef.current = null;
+        pickNextMoveRef.current();
+      }, IDLE_BEFORE_NEXT_MS);
     }
   }, [
     cols,
@@ -586,24 +604,26 @@ export function MapWandererCharacter({
   ]);
 
   /**
-   * Pause and app-background transitions also stop native idle/retry timers.
-   * The RAF bus already retains walking callbacks; a stopped idle timer or
-   * collision retry must instead be explicitly resumed exactly once.
+   * The shared timer queue freezes deadlines on pause/background. Keep each
+   * resident's pending timer rather than deleting and restarting it; only
+   * rearm if no timeout was pending when the game became active.
    */
   const onResidentActivityChanged = useCallback((active: boolean) => {
-    if (!active) {
-      clearIdle();
-      return;
-    }
+    if (!active) return;
     if (commutePath != null && commutePath.length >= 2) {
-      pendingCommuteRetry.take()?.();
+      // A collision retry already scheduled before pause resumes with its
+      // remaining delay. Untimed retries held when starting paused run now.
+      if (idleTimerRef.current == null) pendingCommuteRetry.take()?.();
       return;
     }
     if (fixedCell != null || disableIdleRoam) return;
     if (cellRef.current == null || !inited.current || isMovingRef.current) return;
-    clearIdle();
-    idleTimerRef.current = scheduleNativeResidentTimer(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
-  }, [fixedCell, commutePath, disableIdleRoam, clearIdle, pendingCommuteRetry]);
+    if (idleTimerRef.current != null) return;
+    idleTimerRef.current = scheduleNativeResidentTimer(() => {
+      idleTimerRef.current = null;
+      pickNextMoveRef.current();
+    }, IDLE_BEFORE_NEXT_MS);
+  }, [fixedCell, commutePath, disableIdleRoam, pendingCommuteRetry]);
 
   useEffect(() => {
     return subscribeNativeResidentFrameBusActivity(onResidentActivityChanged);
