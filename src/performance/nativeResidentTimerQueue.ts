@@ -12,6 +12,10 @@ import { beginNativeResidentDispatch, endNativeResidentDispatch } from "./native
  */
 /** Cooperative JS-task budget; not a change to simulated game time. */
 export const NATIVE_RESIDENT_TIMER_CALLBACK_BUDGET = 32;
+/** Soft JS-thread budget per native timer wakeup, measured with a monotonic clock.
+ * A single slow callback can exceed this limit; no callback is preempted.
+ */
+export const NATIVE_RESIDENT_TIMER_TIME_BUDGET_MS = 6;
 
 type ResidentTimer = {
   id: number;
@@ -27,6 +31,8 @@ export type NativeResidentTimerCounters = Readonly<{
   logicalCallbacks: number;
   /** Number of wakeups that yielded with already-due callbacks still queued. */
   budgetYields: number;
+  /** Subset of yields caused by elapsed JS time, rather than the count limit. */
+  timeBudgetYields: number;
 }>;
 
 export type NativeResidentTimerSnapshot = NativeResidentTimerCounters & Readonly<{
@@ -35,6 +41,7 @@ export type NativeResidentTimerSnapshot = NativeResidentTimerCounters & Readonly
   active: boolean;
   nextDueInMs: number | null;
   callbackBudget: number;
+  timeBudgetMs: number;
   backlogDue: boolean;
 }>;
 
@@ -58,6 +65,7 @@ export class NativeResidentTimerQueue {
   private platformWakeups = 0;
   private logicalCallbacks = 0;
   private budgetYields = 0;
+  private timeBudgetYields = 0;
 
   constructor(
     private readonly now: () => number = () => performance.now(),
@@ -65,11 +73,16 @@ export class NativeResidentTimerQueue {
       (fn, ms) => setTimeout(fn, ms) as unknown as number,
     private readonly cancelPlatform: (id: number) => void =
       (id) => clearTimeout(id),
-    private readonly maxCallbacksPerWake: number = Number.POSITIVE_INFINITY
+    private readonly maxCallbacksPerWake: number = Number.POSITIVE_INFINITY,
+    private readonly maxWakeDurationMs: number = Number.POSITIVE_INFINITY
   ) {
     if (maxCallbacksPerWake !== Number.POSITIVE_INFINITY &&
       (!Number.isSafeInteger(maxCallbacksPerWake) || maxCallbacksPerWake < 1)) {
       throw new Error("Invalid native resident timer callback budget");
+    }
+    if (maxWakeDurationMs !== Number.POSITIVE_INFINITY &&
+      (!Number.isFinite(maxWakeDurationMs) || maxWakeDurationMs <= 0)) {
+      throw new Error("Invalid native resident timer time budget");
     }
   }
 
@@ -193,7 +206,9 @@ export class NativeResidentTimerQueue {
       platformWakeups: this.platformWakeups,
       logicalCallbacks: this.logicalCallbacks,
       budgetYields: this.budgetYields,
+      timeBudgetYields: this.timeBudgetYields,
       callbackBudget: this.maxCallbacksPerWake,
+      timeBudgetMs: this.maxWakeDurationMs,
       backlogDue: this.active && next !== null && next <= elapsed
     };
   }
@@ -236,6 +251,12 @@ export class NativeResidentTimerQueue {
       // a sibling. A callback scheduling a zero-delay task cannot execute it
       // during this tick. Equal deadlines remain FIFO by registration ID.
       const cutoff = this.sampleActiveClock();
+      // Time is sampled once at the start and after completed callbacks,
+      // never inside a resident callback. The same monotonic clock drives
+      // the pause-aware deadline model and the cooperative JS budget.
+      const wakeStartedAt = this.maxWakeDurationMs === Number.POSITIVE_INFINITY
+        ? Number.NaN : this.now();
+      let exceededTimeBudget = false;
       const dispatchEpoch = this.activityEpoch;
       this.ready = new Map();
       while (this.heap.length > 0 &&
@@ -256,14 +277,25 @@ export class NativeResidentTimerQueue {
           // One broken resident does not prevent others from waking.
           if (firstError === null) firstError = error;
         }
+        // The clock may regress or be unavailable: retain the deterministic
+        // 32-callback ceiling rather than yielding unpredictably.
+        if (this.ready.size > 0 && Number.isFinite(wakeStartedAt)) {
+          const now = this.now();
+          if (Number.isFinite(now) && now - wakeStartedAt >= this.maxWakeDurationMs) {
+            exceededTimeBudget = true;
+            break;
+          }
+        }
       }
       // Cooperative yield: already-due work is retained for the next
       // platform task instead of monopolizing the JS thread for 200+ NPCs.
       // Check *after* callbacks: they may have canceled the entire backlog.
       if (this.active && this.activityEpoch === dispatchEpoch &&
-        extracted === this.maxCallbacksPerWake &&
-        this.heap.length > 0 && this.heap[0]!.dueActiveMs <= cutoff) {
+        (this.ready.size > 0 ||
+          (extracted === this.maxCallbacksPerWake &&
+            this.heap.length > 0 && this.heap[0]!.dueActiveMs <= cutoff))) {
         this.budgetYields++;
+        if (exceededTimeBudget) this.timeBudgetYields++;
       }
     } finally {
       if (this.ready != null) {
@@ -286,7 +318,9 @@ export class NativeResidentTimerQueue {
 // Only the native singleton is budgeted. The default class remains unbounded
 // for existing reference-model tests and explicit comparison benchmarks.
 const residentTimerQueue = new NativeResidentTimerQueue(
-  undefined, undefined, undefined, NATIVE_RESIDENT_TIMER_CALLBACK_BUDGET
+  undefined, undefined, undefined,
+  NATIVE_RESIDENT_TIMER_CALLBACK_BUDGET,
+  NATIVE_RESIDENT_TIMER_TIME_BUDGET_MS
 );
 
 export function scheduleNativeResidentTimer(fn: () => void, delayMs: number): number {
