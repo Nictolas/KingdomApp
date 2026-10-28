@@ -196,3 +196,14 @@ FPS, React Native montato o prove fisiche. Su Android/iPhone verificare
 anche un ingresso affollato senza percorso alternativo, pausa e
 successivo sblocco della cella. Nessun intervento su `app/mappa.tsx`,
 GameContext, salvataggi, web, #298, merge o release.
+
+
+## Protezione dalle callback obsolete di ripianificazione (28 ottobre)
+
+Un fallback programmato a 900 ms puo' sopravvivere come closure gia' consegnata al runtime quando il genitore sostituisce il percorso. Il solo booleano `awaitingRepath` non e' sufficiente: dopo il reset un **nuovo** percorso puo' essere nuovamente in attesa, e la closure del **vecchio** percorso potrebbe risvegliarlo per errore.
+
+Il controller `NativeResidentCollisionRetry` ora incrementa una generazione quando richiede una ripianificazione e quando viene resettato. Il renderer nativo cattura `repathGeneration()` prima di invocare `onCommuteBlocked` e consegna il token a `resumeWithoutRepath(token)`. Solo la generazione corrente puo' riprendere i tentativi sulla vecchia cella. La coda condivisa continua a gestire il delay nominale di 900 ms e la sospensione in background; il token e' un'ulteriore difesa contro callback obsolete gia' estratte o conservate in una closure.
+
+**Regressioni aggiunte:** 200 controller per 40 sostituzioni di percorso (8.000 vecchie callback respinte e 8.000 fallback validi); 200 fallback obsoleti e 200 validi con pausa di background e drenaggio cooperativo a 32 callback per wakeup. Sono prove deterministiche su Node, non FPS, touch o prove Android/iOS reali.
+
+Nessuna modifica a GameContext, salvataggi, web, regole di collisione, intervalli di retry o velocita' 1x/2x/4x. Il ramo #297 resta Draft, stacked su #296; #298 resta il confronto A/B degli sprite reali.
