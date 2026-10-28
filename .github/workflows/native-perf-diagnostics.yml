@@ -19,6 +19,7 @@ on:
       - "tests/native-resident-reentrant-lifecycle.test.ts"
       - "tests/native-resident-stateful-soak.test.ts"
       - "tests/native-resident-buffer-reuse.test.ts"
+      - "tests/native-resident-allocation-free-motion.test.ts"
       - "tests/native-resident-timer-cooperative-batching.test.ts"
       - "tests/native-resident-timer-time-budget.test.ts"
       - "tests/native-resident-timer-burst-benchmark.ts"
@@ -70,6 +71,8 @@ jobs:
         run: npx tsx --test tests/native-resident-stateful-soak.test.ts
       - name: Allocation-free frame/timer buffer regression (Node only, not FPS)
         run: npx tsx --test tests/native-resident-buffer-reuse.test.ts
+      - name: Allocation-free 200-resident movement and route churn (Node only, not FPS)
+        run: npx tsx --test tests/native-resident-allocation-free-motion.test.ts
       - name: Synthetic persistent RAF registration benchmark (Node only, not FPS)
         run: npx tsx tests/native-resident-frame-bus-benchmark.ts
       - name: Synthetic timer burst benchmark (Node only, not FPS)
