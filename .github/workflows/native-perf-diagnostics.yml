@@ -18,6 +18,7 @@ on:
       - "tests/native-resident-responsiveness.test.ts"
       - "tests/native-resident-reentrant-lifecycle.test.ts"
       - "tests/native-resident-stateful-soak.test.ts"
+      - "tests/native-resident-full-stack-integration.test.ts"
       - "tests/native-resident-buffer-reuse.test.ts"
       - "tests/native-resident-allocation-free-motion.test.ts"
       - "tests/native-resident-motion-buffer-benchmark.ts"
@@ -85,7 +86,7 @@ jobs:
       - name: Dev HUD opt-in RAF lifecycle and 200 collapse/background cycles (Node, not device FPS)
         run: npx tsx --test tests/native-hud-frame-loop.test.ts
       - name: Seeded 200-resident lifecycle/timer/RAF soak (Node fake OS, not FPS)
-        run: npx tsx --test tests/native-resident-stateful-soak.test.ts
+        run: npx tsx --test tests/native-resident-stateful-soak.test.ts tests/native-resident-full-stack-integration.test.ts
       - name: Allocation-free frame/timer buffer regression (Node only, not FPS)
         run: npx tsx --test tests/native-resident-buffer-reuse.test.ts
       - name: Allocation-free 200-resident movement and route churn (Node only, not FPS)
