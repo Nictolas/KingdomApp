@@ -33,3 +33,10 @@ Il test è aggiunto al workflow `.github/workflows/native-perf-diagnostics.yml`.
 Su una build di sviluppo, aprire la mappa con 200 residenti e lasciare l'overlay **chiuso** per il caso di gioco normale. Poi aprire il pannello per leggere i contatori e misurare 10 s, sapendo che il monitoraggio introduce un carico minimo mentre è aperto. Confrontare baseline #295 e candidata #297 **con lo stesso stato dell'overlay** e sul medesimo smartphone; distinguere i casi a pannello chiuso da quelli a pannello aperto, senza confonderli.
 
 La percentuale precedente, **78%**, continua a rappresentare una stima della sola fase di ottimizzazione nativa, non di tutto MyKingdom. Il prossimo passaggio per incrementarla in modo difendibile è ottenere CI completa e misure hardware A/B ripetute. Nessun merge/deploy/rilascio.
+
+
+## Precisione del campionamento e intervalli a cavallo dell'avvio
+
+Il pulsante «Misura 10 secondi» può essere premuto mentre è già in corso un intervallo di animazione RAF. Una misura corretta deve iniziare **dal momento in cui si preme il pulsante**, non dall'ultimo RAF programmato prima del tap. `NativeMeasurementSession` ora scarta il primo delta RAF se `timestamp - delta` precede l'avvio della cattura; tutti gli intervalli interamente contenuti nella finestra restano rilevati. I campioni il cui timestamp è oltre la scadenza non vengono inclusi.
+
+Una lunga sospensione JavaScript (almeno 2.000 ms) **avvenuta prima** della cattura non la rende falsamente invalida; una sospensione di pari durata **durante** la cattura ne provoca invece l'annullamento esplicito, con nuovo avviso nel pannello. I test `tests/native-capture-integrity.test.ts` e `tests/native-performance-diagnostics.test.ts` verificano questi casi. Questo migliora la comparabilità delle statistiche JS senza pretendere di misurare i frame della GPU.
