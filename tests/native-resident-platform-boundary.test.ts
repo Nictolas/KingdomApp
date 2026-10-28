@@ -91,3 +91,22 @@ test("native memoization keeps parent handlers live without hiding motion or tou
     assert.ok(!relay.includes(predicate + ":"), predicate + " must remain a normal render prop");
   }
 });
+
+test("native lifecycle is driven by one clock gate, not 200 React pause subscriptions", () => {
+  const lifecycle = read("../src/performance/nativeResidentFrameLifecycle.native.ts");
+  const hook = read("../src/hooks/useGiocoInPausa.ts");
+  assert.match(hook, /useSyncExternalStore/);
+  assert.match(lifecycle, /subscribeOrologioGiocoInPausa/);
+  assert.match(lifecycle, /setNativeResidentTimerQueueActive\(active\)/);
+  assert.match(lifecycle, /setNativeResidentFrameBusActive\(active\)/);
+  assert.ok(!native.includes("useGiocoInPausa("),
+    "200 native sprite bodies must not subscribe to React pause state");
+  assert.ok(!native.includes("prevGiocoInPausaRef"),
+    "no redundant per-resident React pause effect");
+  assert.match(native, /activityConfigRef = useRef/);
+  assert.match(native, /activityConfigRef\.current = \{ fixedCell, commutePath, disableIdleRoam \}/);
+  assert.match(native, /const \{ fixedCell, commutePath, disableIdleRoam \} = activityConfigRef\.current/);
+  assert.match(native, /subscribeNativeResidentFrameBusActivity\(onResidentActivityChanged\)/);
+  assert.match(native, /\}, \[pendingCommuteRetry\]\)/);
+  assert.ok(!shared.includes("activityConfigRef"), "web resident remains unchanged");
+});
