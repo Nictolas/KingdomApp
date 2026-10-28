@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { Animated, Image, Pressable, StyleSheet, Text, View } from "react-native";
-import { getOrologioGiocoInPausaSnapshot } from "../game/orologioGiocoSession";
+import { getOrologioGiocoInPausaSnapshot, getOrologioSimTimeScaleSnapshot } from "../game/orologioGiocoSession";
 import { PauseAwareMotionClock } from "../game/pauseAwareMotionClock";
 import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation } from "../performance/nativeResidentWorkCounters";
@@ -275,9 +275,9 @@ export function MapWandererCharacter({
 
     const step = (now: number) => {
       if (__DEV__) markNativeResidentFrameCallback();
-      const paused = getOrologioGiocoInPausaSnapshot();
-      const elapsedMs = clock.advance(now, paused);
-      if (paused) {
+      const timeScale = getOrologioSimTimeScaleSnapshot();
+      const elapsedMs = clock.advanceScaled(now, timeScale);
+      if (timeScale === 0) {
         rafRef.current = requestAnimationFrame(step);
         return;
       }
@@ -357,9 +357,9 @@ export function MapWandererCharacter({
       const durationMs = segmentMoveDurationMs(from, to, isRoadCell);
       const step = (now: number) => {
         if (__DEV__) markNativeResidentFrameCallback();
-        const paused = getOrologioGiocoInPausaSnapshot();
-        const elapsedMs = clock.advance(now, paused);
-        if (paused) {
+        const timeScale = getOrologioSimTimeScaleSnapshot();
+        const elapsedMs = clock.advanceScaled(now, timeScale);
+        if (timeScale === 0) {
           rafRef.current = requestAnimationFrame(step);
           return;
         }
