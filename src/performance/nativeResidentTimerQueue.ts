@@ -8,6 +8,9 @@
  *
  * No storage, polling, game-state writes or personal information.
  */
+/** Cooperative JS-task budget; not a change to simulated game time. */
+export const NATIVE_RESIDENT_TIMER_CALLBACK_BUDGET = 32;
+
 type ResidentTimer = {
   id: number;
   callback: () => void;
@@ -20,6 +23,8 @@ export type NativeResidentTimerCounters = Readonly<{
   platformCancellations: number;
   platformWakeups: number;
   logicalCallbacks: number;
+  /** Number of wakeups that yielded with already-due callbacks still queued. */
+  budgetYields: number;
 }>;
 
 export type NativeResidentTimerSnapshot = NativeResidentTimerCounters & Readonly<{
@@ -27,6 +32,8 @@ export type NativeResidentTimerSnapshot = NativeResidentTimerCounters & Readonly
   scheduled: boolean;
   active: boolean;
   nextDueInMs: number | null;
+  callbackBudget: number;
+  backlogDue: boolean;
 }>;
 
 export class NativeResidentTimerQueue {
@@ -46,14 +53,21 @@ export class NativeResidentTimerQueue {
   private platformCancellations = 0;
   private platformWakeups = 0;
   private logicalCallbacks = 0;
+  private budgetYields = 0;
 
   constructor(
     private readonly now: () => number = () => performance.now(),
     private readonly schedulePlatform: (fn: () => void, ms: number) => number =
       (fn, ms) => setTimeout(fn, ms) as unknown as number,
     private readonly cancelPlatform: (id: number) => void =
-      (id) => clearTimeout(id)
-  ) {}
+      (id) => clearTimeout(id),
+    private readonly maxCallbacksPerWake: number = Number.POSITIVE_INFINITY
+  ) {
+    if (maxCallbacksPerWake !== Number.POSITIVE_INFINITY &&
+      (!Number.isSafeInteger(maxCallbacksPerWake) || maxCallbacksPerWake < 1)) {
+      throw new Error("Invalid native resident timer callback budget");
+    }
+  }
 
   /**
    * Advance only while active. A wall-clock regression never moves backwards.
@@ -172,7 +186,10 @@ export class NativeResidentTimerQueue {
       platformSchedules: this.platformSchedules,
       platformCancellations: this.platformCancellations,
       platformWakeups: this.platformWakeups,
-      logicalCallbacks: this.logicalCallbacks
+      logicalCallbacks: this.logicalCallbacks,
+      budgetYields: this.budgetYields,
+      callbackBudget: this.maxCallbacksPerWake,
+      backlogDue: this.active && next !== null && next <= elapsed
     };
   }
 
@@ -208,14 +225,19 @@ export class NativeResidentTimerQueue {
     this.platformWakeups++;
     let firstError: unknown = null;
     try {
-      // Extract only tasks due when the OS tick started (O(k log n)).
-      // A callback scheduling a zero-delay task cannot run it in this tick.
+      // Extract a bounded prefix of tasks due when this OS tick started.
+      // The heap retains the remainder, so each callback can still cancel
+      // a sibling. A callback scheduling a zero-delay task cannot execute it
+      // during this tick. Equal deadlines remain FIFO by registration ID.
       const cutoff = this.sampleActiveClock();
       this.ready = new Map();
-      while (this.heap.length > 0 && this.heap[0]!.dueActiveMs <= cutoff) {
+      while (this.heap.length > 0 &&
+        this.ready.size < this.maxCallbacksPerWake &&
+        this.heap[0]!.dueActiveMs <= cutoff) {
         const task = this.removeAt(0);
         this.ready.set(task.id, task);
       }
+      const extracted = this.ready.size;
       for (const [id, task] of this.ready) {
         if (!this.active) break;
         if (!this.ready.has(id)) continue;
@@ -227,6 +249,13 @@ export class NativeResidentTimerQueue {
           // One broken resident does not prevent others from waking.
           if (firstError === null) firstError = error;
         }
+      }
+      // Cooperative yield: already-due work is retained for the next
+      // platform task instead of monopolizing the JS thread for 200+ NPCs.
+      // Check *after* callbacks: they may have canceled the entire backlog.
+      if (this.active && extracted === this.maxCallbacksPerWake &&
+        this.heap.length > 0 && this.heap[0]!.dueActiveMs <= cutoff) {
+        this.budgetYields++;
       }
     } finally {
       if (this.ready != null) {
@@ -242,7 +271,11 @@ export class NativeResidentTimerQueue {
   }
 }
 
-const residentTimerQueue = new NativeResidentTimerQueue();
+// Only the native singleton is budgeted. The default class remains unbounded
+// for existing reference-model tests and explicit comparison benchmarks.
+const residentTimerQueue = new NativeResidentTimerQueue(
+  undefined, undefined, undefined, NATIVE_RESIDENT_TIMER_CALLBACK_BUDGET
+);
 
 export function scheduleNativeResidentTimer(fn: () => void, delayMs: number): number {
   return residentTimerQueue.schedule(fn, delayMs);
