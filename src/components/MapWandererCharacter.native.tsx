@@ -4,6 +4,7 @@ import { getOrologioGiocoInPausaSnapshot, getOrologioSimTimeScaleSnapshot } from
 import { PauseAwareMotionClock } from "../game/pauseAwareMotionClock";
 import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation } from "../performance/nativeResidentWorkCounters";
+import { requestResidentAnimationFrame, cancelResidentAnimationFrame } from "../performance/nativeResidentFrameBus";
 import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
 import {
   frameGroupStart,
@@ -259,7 +260,7 @@ export function MapWandererCharacter({
     setDirection(directionBetween(prev, next, cols));
 
     if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
+      cancelResidentAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
 
@@ -278,7 +279,7 @@ export function MapWandererCharacter({
       const timeScale = getOrologioSimTimeScaleSnapshot();
       const elapsedMs = clock.advanceScaled(now, timeScale);
       if (timeScale === 0) {
-        rafRef.current = requestAnimationFrame(step);
+        rafRef.current = requestResidentAnimationFrame(step);
         return;
       }
       const t = Math.min(1, elapsedMs / durationMs);
@@ -288,7 +289,7 @@ export function MapWandererCharacter({
       });
       if (t < 1) {
         setWalkFrame(walkFrameFromElapsedMs(elapsedMs));
-        rafRef.current = requestAnimationFrame(step);
+        rafRef.current = requestResidentAnimationFrame(step);
       } else {
         pixelPos.setValue({ x: toX, y: toY });
         setWalkFrame(0);
@@ -299,7 +300,7 @@ export function MapWandererCharacter({
         idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
       }
     };
-    rafRef.current = requestAnimationFrame(step);
+    rafRef.current = requestResidentAnimationFrame(step);
   }, [cols, rows, cellSizePx, isWalkable, isRoadCell, fixedCell, commutePath, disableIdleRoam]);
 
   pickNextMoveRef.current = pickNextMove;
@@ -345,7 +346,7 @@ export function MapWandererCharacter({
       claimFailCountRef.current = 0;
       setDirection(directionBetween(from, to, cols));
       if (rafRef.current != null) {
-        cancelAnimationFrame(rafRef.current);
+        cancelResidentAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
       const fromX = (from % cols) * cellSizePx;
@@ -360,7 +361,7 @@ export function MapWandererCharacter({
         const timeScale = getOrologioSimTimeScaleSnapshot();
         const elapsedMs = clock.advanceScaled(now, timeScale);
         if (timeScale === 0) {
-          rafRef.current = requestAnimationFrame(step);
+          rafRef.current = requestResidentAnimationFrame(step);
           return;
         }
         const t = Math.min(1, elapsedMs / durationMs);
@@ -370,7 +371,7 @@ export function MapWandererCharacter({
         });
         if (t < 1) {
           setWalkFrame(walkFrameFromElapsedMs(elapsedMs));
-          rafRef.current = requestAnimationFrame(step);
+          rafRef.current = requestResidentAnimationFrame(step);
         } else {
           pixelPos.setValue({ x: toX, y: toY });
           setWalkFrame(0);
@@ -383,7 +384,7 @@ export function MapWandererCharacter({
           onDone();
         }
       };
-      rafRef.current = requestAnimationFrame(step);
+      rafRef.current = requestResidentAnimationFrame(step);
     },
     [cols, cellSizePx, isRoadCell, pendingCommuteRetry]
   );
@@ -395,7 +396,7 @@ export function MapWandererCharacter({
     clearIdle();
     pendingCommuteRetry.clear();
     if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
+      cancelResidentAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
     inited.current = true;
@@ -431,7 +432,7 @@ export function MapWandererCharacter({
       alive = false;
       pendingCommuteRetry.clear();
       if (rafRef.current != null) {
-        cancelAnimationFrame(rafRef.current);
+        cancelResidentAnimationFrame(rafRef.current);
         rafRef.current = null;
       }
       clearIdle();
@@ -452,7 +453,7 @@ export function MapWandererCharacter({
     if (fixedCell == null) return;
     clearIdle();
     if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
+      cancelResidentAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
     inited.current = true;
@@ -481,7 +482,7 @@ export function MapWandererCharacter({
 
     clearIdle();
     if (rafRef.current != null) {
-      cancelAnimationFrame(rafRef.current);
+      cancelResidentAnimationFrame(rafRef.current);
       rafRef.current = null;
     }
     const claim = tryClaimCellRef.current;
@@ -594,7 +595,7 @@ export function MapWandererCharacter({
     () => () => {
       clearIdle();
       pendingCommuteRetry.clear();
-      if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
+      if (rafRef.current != null) cancelResidentAnimationFrame(rafRef.current);
       releaseMyCellRef.current?.();
     },
     [clearIdle, pendingCommuteRetry]
