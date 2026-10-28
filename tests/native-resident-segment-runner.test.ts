@@ -159,6 +159,7 @@ test("200 residents, 60 frames, background, manual pause, 1x/2x/4x and 50 remova
   const runners = Array.from({ length: population }, (_, id) =>
     new NativeResidentSegmentRunner({
       requestFrame: cb => f.bus.request(cb),
+      subscribeFrame: cb => f.bus.subscribeFrame(cb),
       cancelFrame: key => f.bus.cancel(key),
       readTimeScale: () => speed,
       writePosition: p => { positions[id] = p; writes++; },
@@ -207,6 +208,8 @@ test("200 residents, 60 frames, background, manual pause, 1x/2x/4x and 50 remova
     ? runner.snapshot().completed === 0 : runner.snapshot().completed === 1));
   assert.equal(new Set(runners.filter((_, id) => id % 4 !== 0).map((r) => r.snapshot().completed)).size, 1);
   assert.ok(f.requests <= 62, "one native RAF per active frame regardless of population");
+  assert.equal(f.bus.snapshot().subscriptionAdds, 200, "no 200 re-registrations per RAF");
+  assert.equal(f.bus.snapshot().continuousSubscribers, 0, "all arrivals/unmounts dispose subscriptions");
 });
 
 test("invalid segment cannot cancel a valid movement; thousands of restarts keep one RAF", () => {
@@ -312,4 +315,112 @@ test("synchronous onFrame or setWalking cancellation leaves no phantom RAF", () 
   });
   assert.equal(second.snapshot().active, false);
   assert.equal(f.os.size, 0);
+});
+
+test("persistent runner: 5000 route replacements do not leak frame subscriptions", () => {
+  const f = fakeFrameBus();
+  const arrivals: number[] = [];
+  const runner = new NativeResidentSegmentRunner({
+    requestFrame: cb => f.bus.request(cb),
+    subscribeFrame: cb => f.bus.subscribeFrame(cb),
+    cancelFrame: id => f.bus.cancel(id),
+    readTimeScale: () => 1,
+    writePosition: () => {},
+    advanceSprite: () => {},
+    setWalking: () => {}
+  });
+  for (let i = 0; i < 5000; i++) {
+    runner.start({
+      from: { x: i, y: 0 }, to: { x: i + 10, y: 0 },
+      startTimestamp: 0, durationMs: 100,
+      onArrival: () => arrivals.push(i)
+    });
+    assert.equal(f.bus.snapshot().continuousSubscribers, 1);
+    assert.equal(f.bus.snapshot().queued, 1);
+    assert.equal(f.os.size, 1);
+  }
+  f.tick(100);
+  assert.deepEqual(arrivals, [4999]);
+  assert.equal(f.bus.snapshot().continuousSubscribers, 0);
+  assert.equal(f.os.size, 0);
+  assert.equal(runner.snapshot().completed, 1);
+  assert.equal(f.bus.snapshot().subscriptionAdds, 5000);
+});
+
+test("persistent runner: synchronous route replacement never completes obsolete segment", () => {
+  const f = fakeFrameBus();
+  const arrivals: string[] = [];
+  const positions: number[] = [];
+  let runner!: NativeResidentSegmentRunner;
+  runner = new NativeResidentSegmentRunner({
+    requestFrame: cb => f.bus.request(cb),
+    subscribeFrame: cb => f.bus.subscribeFrame(cb),
+    cancelFrame: id => f.bus.cancel(id),
+    readTimeScale: () => 1,
+    writePosition: point => {
+      positions.push(point.x);
+      if (point.x === 50) {
+        runner.start({
+          from: { x: 500, y: 0 }, to: { x: 600, y: 0 },
+          startTimestamp: 50, durationMs: 100,
+          onArrival: () => arrivals.push("new")
+        });
+      }
+    },
+    advanceSprite: () => {},
+    setWalking: () => {}
+  });
+  runner.start({
+    from: { x: 0, y: 0 }, to: { x: 100, y: 0 },
+    startTimestamp: 0, durationMs: 100,
+    onArrival: () => arrivals.push("obsolete")
+  });
+  f.tick(50);
+  assert.deepEqual(positions, [50]);
+  assert.equal(f.bus.snapshot().continuousSubscribers, 1);
+  f.tick(150);
+  assert.deepEqual(positions, [50, 600]);
+  assert.deepEqual(arrivals, ["new"]);
+  assert.equal(f.bus.snapshot().continuousSubscribers, 0);
+  assert.equal(f.os.size, 0);
+});
+
+test("persistent runner: 200 chained commutes use only one subscription per segment", () => {
+  const f = fakeFrameBus();
+  const total = 200;
+  const segmentsPerResident = 4;
+  const completions = Array<number>(total).fill(0);
+  const runners = Array.from({ length: total }, () =>
+    new NativeResidentSegmentRunner({
+      requestFrame: cb => f.bus.request(cb),
+      subscribeFrame: cb => f.bus.subscribeFrame(cb),
+      cancelFrame: id => f.bus.cancel(id),
+      readTimeScale: () => 1,
+      writePosition: () => {},
+      advanceSprite: () => {},
+      setWalking: () => {}
+    })
+  );
+  const start = (id: number, index: number) => {
+    runners[id]!.start({
+      from: { x: index * 10, y: id },
+      to: { x: (index + 1) * 10, y: id },
+      startTimestamp: index * 100,
+      durationMs: 100,
+      keepWalkingOnArrival: index + 1 < segmentsPerResident,
+      onArrival: () => {
+        completions[id]!++;
+        if (index + 1 < segmentsPerResident) start(id, index + 1);
+      }
+    });
+  };
+  for (let i = 0; i < total; i++) start(i, 0);
+  for (let index = 1; index <= segmentsPerResident; index++) {
+    f.tick(index * 100);
+    assert.ok(completions.every(value => value === index));
+    assert.equal(f.bus.snapshot().continuousSubscribers, index === segmentsPerResident ? 0 : total);
+  }
+  assert.equal(f.bus.snapshot().subscriptionAdds, total * segmentsPerResident);
+  assert.equal(f.os.size, 0);
+  assert.ok(runners.every(r => r.snapshot().completed === segmentsPerResident));
 });
