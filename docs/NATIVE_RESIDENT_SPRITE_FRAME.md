@@ -82,3 +82,22 @@ migrazioni, modifiche a dati persistenti o deploy. Un fallimento CI
 generale per errori TypeScript già presenti non costituisce una
 validazione dei file nuovi: la suite mirata e i bundle devono essere
 verificati separatamente.
+
+### Integrazione dei sottosistemi nativi
+
+La suite aggiuntiva `tests/native-resident-sprite-scheduler-integration.test.ts`
+esegue **200 residenti simulati contemporaneamente** usando le classi
+di produzione `NativeResidentFrameBus`, `NativeResidentSegmentProgress`,
+`NativeResidentSpriteFrameDriver`, `NativeResidentTimerQueue` e
+`NativeResidentActivityGate` con clock e piattaforma fittizi.
+
+La prova verifica nello stesso scenario: un solo RAF di piattaforma,
+passaggi 1×→2×→4×, sospensione per 30 secondi senza avanzamento al
+primo frame di ripresa, arrivo esattamente una volta, creazione di 200
+attese di collisione da 900 ms su un solo timer OS, cancellazione di 50
+attese, pausa manuale durante un secondo background di 50 secondi e
+completamento delle sole 150 attese residue. Controlla anche che callback
+RAF obsolete non riattivino gli abitanti dopo l'uscita dall'app.
+
+Le prove restano sintetiche: non misurano CPU, GPU, FPS, frame drops,
+consumo energetico o risposta touch su dispositivi fisici.
