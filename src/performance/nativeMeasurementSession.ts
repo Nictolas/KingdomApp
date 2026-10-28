@@ -67,6 +67,8 @@ export function formatNativeMeasurement(
       `Callback timer residenti: ${timerStats.logicalCallbacks}`,
       `Timeout nativi programmati: ${timerStats.platformSchedules}`,
       `Timeout nativi annullati: ${timerStats.platformCancellations}`,
+      `Yield backlog timer: ${timerStats.budgetYields}`,
+      `Yield backlog timer/s: ${timerStats.budgetYieldsPerSecond.toFixed(1)}`,
       `Wakeup timeout nativo/s: ${timerStats.platformWakeupsPerSecond.toFixed(1)}`,
       `Callback timer residenti/s: ${timerStats.logicalCallbacksPerSecond.toFixed(1)}`
     ]),
