@@ -58,7 +58,9 @@ export class NativeResidentFrameBus {
   /** Listeners only run on lifecycle transitions, never on animation frames. */
   subscribeActivity(listener: (active: boolean) => void): () => void {
     this.activityListeners.add(listener);
-    return () => this.activityListeners.delete(listener);
+    // Idempotent cleanup: unmount during a lifecycle dispatch must not
+    // receive a later callback from the dispatch's listener snapshot.
+    return () => { this.activityListeners.delete(listener); };
   }
 
   /** Idempotent lifecycle gate for game pauses and app backgrounding. */
@@ -80,6 +82,9 @@ export class NativeResidentFrameBus {
     // to foreground must restart deferred work without a React rerender.
     let firstError: unknown = null;
     for (const listener of [...this.activityListeners]) {
+      // A previous listener may synchronously unmount a sibling. Do not
+      // dispatch into a resident that has already unsubscribed.
+      if (!this.activityListeners.has(listener)) continue;
       try {
         listener(active);
       } catch (error) {
@@ -90,12 +95,13 @@ export class NativeResidentFrameBus {
     if (firstError !== null) throw firstError;
   }
 
-  snapshot(): { queued: number; scheduled: boolean; active: boolean; dispatchCount: number } {
+  snapshot(): { queued: number; scheduled: boolean; active: boolean; dispatchCount: number; activityListeners: number } {
     return {
       queued: this.pending.size + (this.due?.size ?? 0),
       scheduled: this.platformFrame !== null,
       active: this.active,
-      dispatchCount: this.dispatchCount
+      dispatchCount: this.dispatchCount,
+      activityListeners: this.activityListeners.size
     };
   }
 
