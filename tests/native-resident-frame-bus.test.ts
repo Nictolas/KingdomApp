@@ -409,3 +409,144 @@ test("200 resident listener churn with unmounts during transition never invokes 
   assert.equal(runner.bus.snapshot().activityListeners, 0);
   assert.equal(runner.frames.size, 0);
 });
+
+test("200 persistent residents across 240 frames register only once each", () => {
+  const f = fakeScheduler();
+  const residents = 200;
+  const frames = 240;
+  const calls = Array<number>(residents).fill(0);
+  const handles = Array.from({ length: residents }, (_, i) =>
+    f.bus.subscribeFrame(() => { calls[i]!++; })
+  );
+  assert.equal(f.bus.snapshot().subscriptionAdds, residents);
+  assert.equal(f.bus.snapshot().continuousSubscribers, residents);
+  assert.equal(f.requested, 1);
+  for (let frame = 1; frame <= frames; frame++) {
+    f.tick(frame * 16);
+    assert.equal(f.frames.size, 1);
+    assert.equal(f.bus.snapshot().queued, residents);
+    assert.equal(f.bus.snapshot().subscriptionAdds, residents,
+      "no per-frame resident re-registration");
+  }
+  assert.ok(calls.every(count => count === frames));
+  assert.equal(f.requested, frames + 1, "one platform RAF for all residents");
+  handles.forEach(id => f.bus.cancel(id));
+  assert.equal(f.bus.snapshot().queued, 0);
+  assert.equal(f.bus.snapshot().continuousSubscribers, 0);
+  assert.equal(f.frames.size, 0);
+});
+
+test("persistent subscriptions preserve cancellation, insertion and pause semantics mid-frame", () => {
+  const f = fakeScheduler();
+  const calls: string[] = [];
+  let sibling = 0;
+  let newSubscriber = 0;
+  const first = f.bus.subscribeFrame((_now, resumed) => {
+    calls.push(resumed ? "first-resumed" : "first");
+    f.bus.cancel(sibling);
+    if (newSubscriber === 0) {
+      newSubscriber = f.bus.subscribeFrame((_time, rebase) =>
+        calls.push(rebase ? "new-resumed" : "new"));
+      f.bus.setActive(false);
+    }
+  });
+  sibling = f.bus.subscribeFrame(() => calls.push("canceled"));
+  const stale = f.frames.values().next().value!;
+  f.tick(16);
+  assert.deepEqual(calls, ["first"]);
+  assert.equal(f.frames.size, 0);
+  assert.equal(f.bus.snapshot().queued, 2);
+  f.bus.setActive(true);
+  stale(99_999); // canceled OS callback must not dispatch
+  assert.deepEqual(calls, ["first"]);
+  f.tick(100_000);
+  assert.deepEqual(calls, ["first", "first-resumed", "new-resumed"]);
+  f.bus.cancel(first);
+  f.bus.cancel(newSubscriber);
+  assert.equal(f.frames.size, 0);
+});
+
+test("new persistent subscribers start next frame, and can cancel a due one-shot", () => {
+  const f = fakeScheduler();
+  const calls: string[] = [];
+  let late = 0;
+  const oneShot = f.bus.request(() => calls.push("one-shot"));
+  const first = f.bus.subscribeFrame(() => {
+    calls.push("persistent");
+    f.bus.cancel(oneShot);
+    if (late === 0) late = f.bus.subscribeFrame(() => calls.push("late"));
+  });
+  f.tick(16);
+  // One-shots registered before persistent subscribers run first.
+  assert.deepEqual(calls, ["one-shot", "persistent"]);
+  assert.equal(f.bus.snapshot().queued, 2);
+  f.tick(32);
+  assert.deepEqual(calls, ["one-shot", "persistent", "persistent", "late"]);
+  f.bus.cancel(first);
+  f.bus.cancel(late);
+  assert.equal(f.frames.size, 0);
+});
+
+test("persistent frame failures isolate siblings without leaking subscriptions", () => {
+  const f = fakeScheduler();
+  let healthy = 0;
+  const broken = f.bus.subscribeFrame(() => { throw new Error("bad persistent resident"); });
+  const good = f.bus.subscribeFrame(() => { healthy++; });
+  assert.throws(() => f.tick(16), /bad persistent resident/);
+  assert.equal(healthy, 1);
+  assert.equal(f.bus.snapshot().continuousSubscribers, 2);
+  f.bus.cancel(broken);
+  f.tick(32);
+  assert.equal(healthy, 2);
+  f.bus.cancel(good);
+  assert.equal(f.frames.size, 0);
+});
+
+test("persistent population churn: 200 residents, 40 unmounts, 40 respawns and 20 pauses", () => {
+  const f = fakeScheduler();
+  const alive = Array<boolean>(200).fill(true);
+  const calls = Array<number>(200).fill(0);
+  const handles = Array<number>(200).fill(0);
+  const subscribe = (id: number) => {
+    handles[id] = f.bus.subscribeFrame((_time, rebase) => {
+      assert.equal(alive[id], true, "unmounted resident must not be dispatched");
+      calls[id]!++;
+      if (rebase) assert.equal(f.bus.snapshot().active, true);
+    });
+  };
+  for (let id = 0; id < 200; id++) subscribe(id);
+  let expected = 0;
+  for (let frame = 1; frame <= 240; frame++) {
+    if (frame % 12 === 0) {
+      const stale = f.frames.values().next().value!;
+      f.bus.setActive(false);
+      assert.equal(f.frames.size, 0);
+      f.bus.setActive(true);
+      stale(frame * 16);
+    }
+    if (frame === 101) {
+      for (let id = 0; id < 40; id++) {
+        alive[id] = false;
+        f.bus.cancel(handles[id]!);
+      }
+    }
+    if (frame === 151) {
+      for (let id = 0; id < 40; id++) {
+        alive[id] = true;
+        subscribe(id);
+      }
+    }
+    const active = alive.filter(Boolean).length;
+    f.tick(frame * 16);
+    expected += active;
+    assert.equal(calls.reduce((sum, n) => sum + n, 0), expected);
+    assert.equal(f.bus.snapshot().queued, active);
+    assert.equal(f.frames.size, 1);
+  }
+  assert.equal(f.bus.snapshot().subscriptionAdds, 240,
+    "registrations must reflect only mounts/respawns, not 240 frames");
+  handles.forEach(id => f.bus.cancel(id));
+  assert.equal(f.frames.size, 0);
+  assert.equal(f.bus.snapshot().queued, 0);
+  assert.equal(expected, 46_000);
+});
