@@ -34,3 +34,7 @@ I tre bundle JS Android/iOS/web della pipeline sono smoke test, **non APK/IPA in
 - **#295 → #297, soli marker sintetici:** disponibile (stessa schermata originale), ma poco rappresentativo del vero motore.
 - **#296+fixture → #297, sprite nativi veri:** confronto pertinente per le ottimizzazioni aggiuntive della #297, con fixture identica e renderer diverso.
 - **#296+fixture / #297, gameplay intero:** non completamente riprodotto da fixture; da verificare sulla vera mappa.
+
+## 28 ottobre — isolamento equivalente dei tocchi (baseline A/B)
+
+La baseline #298 incorpora esattamente gli stessi tre file della #297 per `NativeRealFixtureSelection`, `NativeRealFixtureSprite` e `NativeFixtureStatus`. Prima il tocco aggiornava lo stato del componente padre, rischiando un render di tutti i 200 wrapper; ora solo l'overlay osserva la selezione e la velocità dell'orologio. Callback touch e occupancy sono stabili. Sono inclusi test per 200.000 selezioni sintetiche, idempotenza, disiscrizione e isolamento dei remount. **Non è un miglioramento misurato del motore #297**: il cambiamento è intenzionalmente identico nelle due build A/B. I test non sostituiscono misure touch/FPS su dispositivi fisici.
