@@ -8,6 +8,7 @@ import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallba
 import { NativeResidentSpriteFrameDriver } from "../performance/nativeResidentSpriteFrameDriver";
 import {
   requestResidentAnimationFrame,
+  subscribeResidentAnimationFrames,
   cancelResidentAnimationFrame,
   isNativeResidentFrameBusActive,
   subscribeNativeResidentFrameBusActivity
@@ -183,6 +184,7 @@ function NativeResidentBody({
   const [pendingCommuteRetry] = useState(() => new PendingCommuteRetry());
   const [motion] = useState(() => new NativeResidentSegmentRunner({
     requestFrame: requestResidentAnimationFrame,
+    subscribeFrame: subscribeResidentAnimationFrames,
     cancelFrame: cancelResidentAnimationFrame,
     readTimeScale: getOrologioSimTimeScaleSnapshot,
     writePosition: (point) => pixelPos.setValue(point),
