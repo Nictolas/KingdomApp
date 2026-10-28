@@ -26,6 +26,8 @@ on:
       - "tests/native-resident-timer-burst-benchmark.ts"
       - "tests/native-resident-timer-time-budget-benchmark.ts"
       - "tests/native-resident-callback-relay.test.ts"
+      - "tests/native-resident-relay-caching.test.ts"
+      - "tests/native-resident-relay-cache-benchmark.ts"
       - "tests/native-resident-sprite-frame-driver.test.ts"
       - "tests/native-resident-sprite-scheduler-integration.test.ts"
       - "src/performance/nativeResidentSegmentRunner.ts"
@@ -74,6 +76,10 @@ jobs:
         run: npx tsx --test tests/native-resident-buffer-reuse.test.ts
       - name: Allocation-free 200-resident movement and route churn (Node only, not FPS)
         run: npx tsx --test tests/native-resident-allocation-free-motion.test.ts
+      - name: Cached live resident event callbacks and presence masks (Node, not on-device)
+        run: npx tsx --test tests/native-resident-relay-caching.test.ts
+      - name: 200-resident event relay allocation benchmark (Node only, not device FPS)
+        run: npx tsx tests/native-resident-relay-cache-benchmark.ts
       - name: Synthetic resident movement allocation model (Node only, not device FPS)
         run: npx tsx tests/native-resident-motion-buffer-benchmark.ts
       - name: Synthetic persistent RAF registration benchmark (Node only, not FPS)
