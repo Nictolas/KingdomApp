@@ -194,3 +194,55 @@ test("actual frame/timer scheduler instrumentation is opt-in and counts one batc
   cancelNativeResidentDispatchCapture(second);
   assert.equal(finishNativeResidentDispatchCapture(second), null);
 });
+
+test("240-frame reentrant stress: 200 residents, 20 nested pauses, 40 unmounts and respawns", () => {
+  const f = environment();
+  const alive = Array<boolean>(200).fill(true);
+  const seen = Array<number>(200).fill(0);
+  const handles = Array<number>(200).fill(0);
+  let currentFrame = 0;
+  let lastTransition = 0;
+  let expected = 0;
+  const subscribe = (i: number) => {
+    handles[i] = f.bus.subscribeFrame((_timestamp, rebase) => {
+      assert.equal(alive[i], true, "unmounted resident callback must not execute");
+      if (lastTransition === currentFrame - 1) {
+        assert.equal(rebase, true, "every subscriber must rebase on the frame after a nested pause");
+      }
+      seen[i]!++;
+      if (i === 0 && currentFrame % 12 === 0) {
+        lastTransition = currentFrame;
+        f.bus.setActive(false);
+        f.bus.setActive(true);
+      }
+    });
+  };
+  for (let i = 0; i < 200; i++) subscribe(i);
+  for (let frame = 1; frame <= 240; frame++) {
+    currentFrame = frame;
+    if (frame === 101) {
+      for (let i = 160; i < 200; i++) {
+        alive[i] = false;
+        f.bus.cancel(handles[i]!);
+      }
+    }
+    if (frame === 151) {
+      for (let i = 160; i < 200; i++) {
+        alive[i] = true;
+        subscribe(i);
+      }
+    }
+    const active = alive.filter(Boolean).length;
+    expected += frame % 12 === 0 ? 1 : active;
+    f.setWall(frame * 16);
+    f.frame();
+    assert.equal(seen.reduce((sum, count) => sum + count, 0), expected);
+    assert.equal(f.bus.snapshot().continuousSubscribers, active);
+    assert.equal(f.frames.size, 1, "at most one platform RAF while moving");
+  }
+  assert.equal(lastTransition, 240);
+  assert.ok(seen.every(n => n > 0));
+  handles.forEach(id => f.bus.cancel(id));
+  assert.equal(f.frames.size, 0);
+  assert.equal(f.bus.snapshot().continuousSubscribers, 0);
+});
