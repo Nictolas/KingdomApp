@@ -104,7 +104,7 @@ test("invalid or incomplete metadata never produces a misleading comparison", ()
   assert.throws(() => parseNativeJsReports(report().replace("Elementi: 200", "Elementi: -4")), /Invalid metric/);
   assert.throws(() => parseNativeJsReports(report().replace("Campioni: 600", "Campioni: 1")), /Invalid JS frame counts/);
   assert.throws(() => parseNativeJsReports(report().replace("p95: 21.0 ms", "p95: not available")), /nonnumeric/);
-  assert.throws(() => parseNativeJsReports(report().replace("Velocità simulazione: ", "Velocità simulazione: 3")), /Invalid metadata/);
+  assert.throws(() => parseNativeJsReports(report({speed:1}).replace("Velocità simulazione: 1x", "Velocità simulazione: 3x")), /Invalid metadata/);
   assert.throws(() => parseNativeJsReports("x".repeat(5_000_001)), /5 MB/);
 });
 
