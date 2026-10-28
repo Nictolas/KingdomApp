@@ -68,3 +68,17 @@ test("activity changes preserve existing scheduled timers instead of restarting 
   assert.ok(!handler.split("  useEffect(() => {")[0]!.includes("clearIdle()"));
   assert.match(native, /idleTimerRef\.current = null;\s+pickNextMoveRef\.current\(\)/);
 });
+
+test("native memoization keeps parent handlers live without hiding motion or touch changes", () => {
+  const relay = read("../src/performance/nativeResidentCallbackRelay.ts");
+  assert.match(native, /const MemoNativeResidentBody = React\.memo\(NativeResidentBody\)/);
+  assert.match(native, /relay\.current\.update\(props\)/);
+  assert.match(native, /<MemoNativeResidentBody \{\.\.\.props\} \{\.\.\.relay\.current\.bound\(\)\} \/>/);
+  assert.match(native, /if \(__DEV__\) markNativeResidentWrapperInvocation\(\)/);
+  assert.match(native, /if \(__DEV__\) markNativeResidentRenderInvocation\(\)/);
+  assert.ok(!shared.includes("NativeResidentCallbackRelay"));
+  assert.ok(!shared.includes("React.memo"));
+  for (const predicate of ["isWalkable", "isRoadCell", "passTouchesToMapOnCell"]) {
+    assert.ok(!relay.includes(predicate + ":"), predicate + " must remain a normal render prop");
+  }
+});
