@@ -62,8 +62,16 @@ on:
       - ".github/workflows/native-perf-diagnostics.yml"
   workflow_dispatch:
 
+# New commits supersede stale test/bundle runs for the same PR.
+concurrency:
+  group: native-performance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
-  native-diagnostics:
+  native-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
@@ -105,18 +113,26 @@ jobs:
         run: npx tsx tests/native-resident-timer-burst-benchmark.ts
       - name: Synthetic timer time-slice workload model (fake clock, not touch/FPS)
         run: npx tsx tests/native-resident-timer-time-budget-benchmark.ts
-      - name: Android JS bundle smoke test (not on-device)
+  # Three independent workers: no longer block an iOS bundle behind Android
+  # export, or a web smoke test behind both mobile exports. All are JS bundles
+  # only; this workflow does NOT produce installable Android/iOS binaries.
+  native-bundles:
+    name: JS bundle ${{ matrix.platform }} (not device build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [android, ios, web]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Expo JS bundle smoke test
         env:
           CI: "1"
           EXPO_NO_TELEMETRY: "1"
-        run: npx expo export --platform android --output-dir /tmp/mykingdom-native-android
-      - name: iOS JS bundle smoke test (not on-device)
-        env:
-          CI: "1"
-          EXPO_NO_TELEMETRY: "1"
-        run: npx expo export --platform ios --output-dir /tmp/mykingdom-native-ios
-      - name: Web JS bundle smoke test (unchanged baseline renderer)
-        env:
-          CI: "1"
-          EXPO_NO_TELEMETRY: "1"
-        run: npx expo export --platform web --output-dir /tmp/mykingdom-resident-web
+        run: npx expo export --platform ${{ matrix.platform }} --output-dir /tmp/mykingdom-native-${{ matrix.platform }}
