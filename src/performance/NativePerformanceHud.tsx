@@ -164,7 +164,9 @@ export function NativePerformanceHud({
               abortCapture("Misura interrotta: scena o velocità cambiate.");
             } else {
             const complete = active.session.record(timestamp, delta);
-            if (complete) {
+            if (active.session.isInvalidated()) {
+              abortCapture("Misura interrotta: blocco JS o intervallo RAF di almeno 2 secondi.");
+            } else if (complete) {
               capture.current = null;
               setMeasuring(false);
               const dispatch = finishNativeResidentDispatchCapture(active.dispatchToken);
