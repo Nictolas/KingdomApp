@@ -71,6 +71,8 @@ export function formatNativeMeasurement(
     ...(timerStats == null ? [] : [
       `Wakeup timeout nativo: ${timerStats.platformWakeups}`,
       `Callback timer residenti: ${timerStats.logicalCallbacks}`,
+      `Batch timer con buffer riciclato: ${timerStats.readyBufferUses}`,
+      `Batch timer con buffer riciclato/s: ${timerStats.readyBufferUsesPerSecond.toFixed(1)}`,
       `Timeout nativi programmati: ${timerStats.platformSchedules}`,
       `Timeout nativi annullati: ${timerStats.platformCancellations}`,
       `Yield backlog timer: ${timerStats.budgetYields}`,
@@ -84,6 +86,8 @@ export function formatNativeMeasurement(
       `Sottoscrizioni RAF persistenti nuove: ${frameBusStats.persistentRegistrations}`,
       `Registrazioni RAF one-shot nuove: ${frameBusStats.oneShotRegistrations}`,
       `Frame dispatch bus: ${frameBusStats.platformFrameDispatches}`,
+      `Buffer RAF one-shot riciclati: ${frameBusStats.oneShotBufferSwaps}`,
+      `Buffer RAF one-shot riciclati/s: ${frameBusStats.oneShotBufferSwapsPerSecond.toFixed(1)}`,
       `Sottoscrizioni RAF persistenti/s: ${frameBusStats.persistentRegistrationsPerSecond.toFixed(1)}`,
       `Registrazioni RAF one-shot/s: ${frameBusStats.oneShotRegistrationsPerSecond.toFixed(1)}`,
       `Sottoscrizioni RAF persistenti attive: ${frameBusStats.continuousSubscribersAtEnd}`
