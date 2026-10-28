@@ -39,3 +39,29 @@ and requires the native commute cleanup to use `stop()`. The web renderer
 is untouched. These are **Node fake-RAF tests**, not device FPS or touch
 measurements; physical A/B checks and the unresolved mid-segment
 position/occupancy reconciliation still remain necessary.
+
+## 28 ottobre — arresto terminale unificato e stress di 200 residenti
+
+Il reset di un tragitto, il rientro in casa e il risveglio ora usano
+`NativeResidentSegmentRunner.stop()`, che invalida la sottoscrizione RAF
+**e** disattiva lo stato di camminata. Le assegnazioni manuali duplicate a
+`isMovingRef` e `spriteFrames.setMoving(false)` sono state rimosse da questi
+tre percorsi; il reset resta confinato al renderer `.native.tsx`.
+La cancellazione in unmount continua a usare `cancel()` e il cleanup del
+commute conserva `stop()`.
+
+La suite verifica il confine native/web e un nuovo stress test con 200
+istanze vere di `NativeResidentSegmentRunner`, 180 frame simulati, oltre
+1.200 avvii di segmenti, 40 stop/ripartenze per ciclo, velocita'
+1x/2x/4x, dodici pause/background e callback RAF obsolete consegnate
+artificialmente. Invarianti: un solo RAF di piattaforma, nessuna
+animazione dopo stop, nessun arrivo fantasma, nessuna sottoscrizione
+residua dopo teardown. I test sono Node con clock/RAF simulati: non
+misurano FPS o latenza su Android/iOS fisici.
+
+Il test di confine non conta piu' cinque chiamate letterali a
+`motion.cancel()`, aspettativa divenuta obsoleta dopo l'introduzione
+di `motion.stop()`; verifica invece entrambi i metodi e i percorsi
+terminali. Non sono stati modificati il web Phaser, GameContext,
+salvataggi o la fixture A/B condivisa con la #298. CI e bundle da
+verificare sul commit effettivo prima di qualsiasi merge.

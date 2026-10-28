@@ -533,3 +533,91 @@ test("stop is reentrant-safe and does not suppress a replacement started by walk
   assert.equal(f.bus.snapshot().continuousSubscribers, 0);
   assert.equal(f.os.size, 0);
 });
+
+test("200 real native runners: 180 frames, 1200+ route restarts, terminal stops, background and stale OS RAF", () => {
+  const f = fakeFrameBus();
+  const population = 200;
+  let speed = 1;
+  const walking = Array<boolean>(population).fill(false);
+  const active = Array<boolean>(population).fill(true);
+  const writes = Array<number>(population).fill(0);
+  const positions = Array.from({ length: population }, (_, i) => i * 10);
+  const arrivals = Array<number>(population).fill(0);
+  const runners = Array.from({ length: population }, (_, i) =>
+    new NativeResidentSegmentRunner({
+      requestFrame: cb => f.bus.request(cb),
+      subscribeFrame: cb => f.bus.subscribeFrame(cb),
+      cancelFrame: id => f.bus.cancel(id),
+      readTimeScale: () => speed,
+      writePositionXY: (x, y) => {
+        assert.ok(Number.isFinite(x) && y === 0);
+        positions[i] = x;
+        writes[i]!++;
+      },
+      advanceSprite: () => {},
+      setWalking: moving => { walking[i] = moving; }
+    })
+  );
+  let starts = 0;
+  const start = (i: number, at: number) => {
+    const from = positions[i]!;
+    runners[i]!.start({
+      from: { x: from, y: 0 },
+      to: { x: from + 1000, y: 0 },
+      startTimestamp: at,
+      durationMs: 100_000,
+      onArrival: () => { arrivals[i]!++; }
+    });
+    active[i] = true;
+    starts++;
+  };
+  for (let i = 0; i < population; i++) start(i, 0);
+  assert.equal(f.os.size, 1);
+
+  let staleDeliveries = 0;
+  for (let frame = 1; frame <= 180; frame++) {
+    const at = frame * 16;
+    speed = [1, 2, 4][frame % 3]!;
+    // Forty residents end their route; one frame later they are restarted
+    // from their last actual pixel, not a stale cell or an obsolete segment.
+    if (frame % 6 === 0) {
+      for (let i = 0; i < population; i += 5) {
+        runners[i]!.stop();
+        active[i] = false;
+        assert.equal(walking[i], false);
+        assert.equal(runners[i]!.snapshot().scheduled, false);
+      }
+    } else if (frame % 6 === 1 && frame > 1) {
+      for (let i = 0; i < population; i += 5) start(i, at - 16);
+    }
+    if (frame % 15 === 0) {
+      const stale = f.os.values().next().value as (now: number) => void;
+      const before = [...writes];
+      f.bus.setActive(false);
+      assert.equal(f.os.size, 0);
+      f.bus.setActive(true);
+      stale(at);
+      staleDeliveries++;
+      assert.deepEqual(writes, before, "late canceled platform RAF must not move any resident");
+    }
+    const before = [...writes];
+    f.tick(at);
+    for (let i = 0; i < population; i++) {
+      if (!active[i]) {
+        assert.equal(walking[i], false);
+        assert.equal(writes[i], before[i], "a stopped resident received a frame");
+      }
+      assert.equal(runners[i]!.snapshot().active, active[i]);
+    }
+    assert.equal(f.bus.snapshot().continuousSubscribers, active.filter(Boolean).length);
+    assert.equal(f.os.size, 1, "one platform RAF regardless of the number of moving residents");
+  }
+  assert.equal(staleDeliveries, 12);
+  assert.ok(starts >= 1200);
+  assert.ok(writes.reduce((sum, n) => sum + n, 0) > 10000);
+  assert.ok(arrivals.every(n => n === 0), "replaced routes must not report phantom arrivals");
+  runners.forEach(r => r.stop());
+  assert.ok(walking.every(value => value === false));
+  assert.equal(f.bus.snapshot().continuousSubscribers, 0);
+  assert.equal(f.os.size, 0);
+});

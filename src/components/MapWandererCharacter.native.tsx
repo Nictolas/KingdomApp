@@ -404,7 +404,9 @@ function NativeResidentBody({
     let alive = true;
     clearIdle();
     pendingCommuteRetry.clear();
-    motion.cancel();
+    // A route reset is terminal for the old segment: clear walking as well
+    // as the RAF subscription before resetting the new route's origin.
+    motion.stop();
     inited.current = true;
     claimFailCountRef.current = 0;
     const path = commutePath;
@@ -414,8 +416,6 @@ function NativeResidentBody({
     setLogicalCell(start);
     cellRef.current = start;
     pixelPos.setValue({ x: cx, y: cy });
-    isMovingRef.current = false;
-    spriteFrames.setMoving(false);
     // Partenza spesso condivisa (casa): non claim esclusivo; claim al primo passo verso `to`.
     onCellSettledRef.current?.(start);
 
@@ -465,7 +465,8 @@ function NativeResidentBody({
     // transition. Otherwise this effect cancels the newly started segment.
     if (routeMode !== "fixed" || fixedCell == null) return;
     clearIdle();
-    motion.cancel();
+    // Fixed/home transitions terminate movement, not merely its RAF.
+    motion.stop();
     inited.current = true;
     // In casa più abitanti possono condividere la stessa cella: libera la casella strada.
     releaseMyCellRef.current?.();
@@ -490,7 +491,7 @@ function NativeResidentBody({
     if (prevHome == null) return;
 
     clearIdle();
-    motion.cancel();
+    motion.stop();
     const claim = tryClaimCellRef.current;
     claim?.(prevHome);
     const cx = (prevHome % cols) * cellSizePx;

@@ -43,7 +43,11 @@ test("only native residents use the shared frame dispatcher and imperative sprit
   assert.match(runner, /subscribeFrame\?:/);
   assert.match(read("../src/performance/nativeResidentFrameBus.ts"), /subscribeFrame\(callback: ResidentFrameCallback\)/);
   assert.equal((native.match(/motion\.start\(/g) ?? []).length, 2, "both native movement paths share runner");
-  assert.ok((native.match(/motion\.cancel\(\)/g) ?? []).length >= 5);
+  // A route replacement/home transition must STOP walking, not only cancel
+  // the RAF. cancel() remains valid for final unmount cleanup.
+  assert.ok((native.match(/motion\.(?:cancel|stop)\(\)/g) ?? []).length >= 5);
+  assert.ok((native.match(/motion\.stop\(\)/g) ?? []).length >= 4);
+  assert.match(native, /motion\.cancel\(\)/);
   assert.ok(!native.includes("rafRef"), "no duplicated per-component RAF loop");
   assert.ok(!native.includes("rafRef.current = requestAnimationFrame(step)"));
   assert.match(native, /advanceSprite: \(elapsedMs\) => spriteFrames\.advanceElapsed\(elapsedMs\)/);

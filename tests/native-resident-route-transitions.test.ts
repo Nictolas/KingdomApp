@@ -74,6 +74,14 @@ test("native renderer uses route priority in both fixed and wake effects; web un
   assert.match(source, /if \(routeMode !== "fixed" \|\| fixedCell == null\) return;/);
   assert.match(source, /nativeResidentHomeTransition\(prevFixedCellRef\.current, routeMode, fixedCell\)/);
   assert.match(source, /nativeResidentShouldRearmIdle\(/);
+  const commuteReset = source.slice(source.indexOf("    const path = commutePath;") - 230, source.indexOf("    const path = commutePath;"));
+  assert.match(commuteReset, /motion\.stop\(\)/);
+  const home = source.slice(source.indexOf("/** Di notte"), source.indexOf("/** Fine notte"));
+  assert.match(home, /motion\.stop\(\)/);
+  assert.doesNotMatch(home, /motion\.cancel\(\)/);
+  const wake = source.slice(source.indexOf("/** Fine notte"), source.indexOf("/** Removing a completed commute"));
+  assert.match(wake, /motion\.stop\(\)/);
+  assert.doesNotMatch(wake, /motion\.cancel\(\)/);
   const commuteCleanup = source.slice(source.indexOf("      alive = false;"));
   assert.match(commuteCleanup, /pendingCommuteRetry\.clear\(\);\s*(?:\/\/[^\n]*\n\s*)*motion\.stop\(\);\s*clearIdle\(\)/);
   assert.doesNotMatch(commuteCleanup.slice(0, 220), /motion\.cancel\(\)/);
