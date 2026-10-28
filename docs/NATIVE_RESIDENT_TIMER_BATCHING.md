@@ -86,3 +86,23 @@ Per proteggere il refactor da errori difficili da vedere in un test predefinito,
 Il test mescola inserimenti con delay differenti, cancellazioni, avanzamenti di clock, pause e riprese, verificando dopo ogni operazione l'attivita', la prima scadenza e il numero di callback ancora presenti. Ad ogni wakeup confronta la sequenza di callback con quella del riferimento e verifica che non vi siano duplicazioni. Un seme costante permette di riprodurre gli stessi scenari e gli eventuali fallimenti in CI.
 
 **Limiti:** l'oracolo verifica il comportamento logico e non il touch, le collisioni reali o le prestazioni su un dispositivo. La CI generale puo' ancora fallire per errori TypeScript non collegati; non confondere la riuscita di questa suite con una release pronta.
+
+## Isolamento del rendering nativo: wrapper leggero e corpo memoizzato (28 ottobre, iterazione successiva)
+
+### Problema e intervento
+
+La mappa React Native passa a ciascuno dei circa 200 residenti molte callback inline (tap, doppio tap, arrivo in cella, collisione, prenotazione e rilascio). Anche quando il mondo avanza di un minuto **senza cambiare un singolo percorso o sprite**, il parent ricrea le callback e quindi invalida il confronto superficiale di `React.memo`. Con 200 personaggi questo puo' costringere React a rivalutare 200 alberi con sprite, hitbox e animazioni, anche se non e' cambiato nulla di visibile.
+
+Ora `MapWandererCharacter.native.tsx` ha un **wrapper leggero** che riceve le nuove props a ogni render della mappa, aggiorna sincronicamente un `NativeResidentCallbackRelay` per-residente e passa funzioni **a identita' stabile** al corpo `React.memo(NativeResidentBody)`. Il corpo non deve renderizzare di nuovo solo per il cambio d'identita' delle callback inline, ma **il tap o l'arrivo devono usare sempre la callback piu' recente**. Il relay non possiede timer, RAF, dati salvati, ID o riferimenti globali.
+
+Il relay riguarda **solo eventi imperativi**: `onPress`, `onDoublePress`, `onCommuteComplete`, `onCommuteBlocked`, `onCellSettled`, `isCellFreeForMe`, `tryClaimCell`, `releaseMyCell`. La presenza opzionale di ciascun handler resta invariata: un abitante senza `onPress` non acquisisce per errore una hitbox interattiva; senza `tryClaimCell` non cambia il protocollo di occupazione. Le funzioni che **determinano il rendering o le dipendenze degli effetti** (`isWalkable`, `isRoadCell`, `passTouchesToMapOnCell`) restano props normali: se cambiano, React deve rivalutare il componente. Anche percorso, token, cella fissa, marker, etichette e dimensioni restano props normali. La versione web non importa il relay, non e' memoizzata e non viene modificata.
+
+### Diagnostica locale, test e limiti
+
+Il pannello prestazioni nativo distingue ora **invocazioni del wrapper leggero/s** da **invocazioni del corpo React dello sprite/s**. La misura condivisibile di 10 secondi include anche i totali e i tassi per entrambi, ottenuti da contatori cumulativi indipendenti dai reset dell'HUD a 1 secondo. Sono contatori di *funzioni React invocate*, **non commit effettivi, FPS UI/GPU o tempi CPU**. Nessun salvataggio o trasmissione automatica.
+
+`native-resident-callback-relay.test.ts` verifica callback aggiornate dopo 500 render, tutti gli 8 tipi di evento e i loro argomenti, attivazione/disattivazione di handler opzionali, eccezioni, callback obsolete e uno stress deterministico con **200 relay e 300 aggiornamenti ciascuno (60.000 aggiornamenti)**, controllando identita' stabile e chiamate all'ultima versione. `native-resident-platform-boundary.test.ts` controlla il confine nativo/web e le props non relayed. `native-performance-diagnostics.test.ts` verifica che il rapporto di 10 secondi mostri i contatori corretti senza interferenze dei reset dell'HUD.
+
+Questi test dimostrano la semantica del relay e l'invariante di identita' delle callback, **non** dimostrano quanti render React vengano effettivamente saltati su un dispositivo: e' necessaria una build nativa e un confronto con #295 e #296, a parita' di popolazione (25/50/100/200), minuti di gioco, 1×/2×/4×, gesture e collisioni. In particolare verificare che una modifica della mappa aggiorni la camminabilita' e che un doppio tap dopo un cambio di minuto selezioni il residente corretto.
+
+L'ottimizzazione e' mantenuta nel ramo Draft #297, stacked su #296→#295, senza modificare `GameContext`, il renderer web, i salvataggi o la produzione.
