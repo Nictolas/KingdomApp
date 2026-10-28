@@ -10,6 +10,8 @@ on:
       - "tests/native-map-transform.test.ts"
       - "src/game/pauseAwareMotionClock.ts"
       - "tests/pause-aware-motion-clock.test.ts"
+      - "src/game/pendingCommuteRetry.ts"
+      - "tests/pending-commute-retry.test.ts"
       - "tests/native-performance-diagnostics.test.ts"
       - "app/native-perf.tsx"
       - "app/mappa.tsx"
@@ -28,7 +30,7 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Pure fixture and frame metric tests
-        run: npx tsx --test tests/native-performance-diagnostics.test.ts tests/native-map-transform.test.ts tests/pause-aware-motion-clock.test.ts
+        run: npx tsx --test tests/native-performance-diagnostics.test.ts tests/native-map-transform.test.ts tests/pause-aware-motion-clock.test.ts tests/pending-commute-retry.test.ts
       - name: Android JS bundle smoke test (not on-device)
         env:
           CI: "1"
