@@ -38,7 +38,10 @@ test("map imports resident component without an extension, for Metro platform re
 test("only native residents use the shared frame dispatcher and imperative sprite frames", () => {
   assert.match(native, /from ["']\.\.\/performance\/nativeResidentFrameBus["']/);
   assert.match(native, /requestFrame: requestResidentAnimationFrame/);
+  assert.match(native, /subscribeFrame: subscribeResidentAnimationFrames/);
   assert.match(native, /cancelFrame: cancelResidentAnimationFrame/);
+  assert.match(runner, /subscribeFrame\?:/);
+  assert.match(read("../src/performance/nativeResidentFrameBus.ts"), /subscribeFrame\(callback: ResidentFrameCallback\)/);
   assert.equal((native.match(/motion\.start\(/g) ?? []).length, 2, "both native movement paths share runner");
   assert.ok((native.match(/motion\.cancel\(\)/g) ?? []).length >= 5);
   assert.ok(!native.includes("rafRef"), "no duplicated per-component RAF loop");
@@ -49,6 +52,7 @@ test("only native residents use the shared frame dispatcher and imperative sprit
   assert.equal((native.match(/setWalkFrame\(/g) ?? []).length, 0, "walking frame never commits React state");
   assert.ok(!shared.includes("NativeResidentSpriteFrameDriver"), "web renderer must not import native sprite driver");
   assert.ok(!shared.includes("nativeResidentFrameBus"), "the web renderer must not import native dispatcher");
+  assert.ok(!shared.includes("subscribeResidentAnimationFrames"), "web must not use persistent native RAF");
 });
 
 test("only native movement subscribes to pause/background and guards idle/claim timers", () => {
