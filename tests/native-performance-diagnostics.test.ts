@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { NativeFrameWindow } from "../src/performance/nativeFrameMetrics.ts";
 import { NativeMeasurementSession, formatNativeMeasurement } from "../src/performance/nativeMeasurementSession.ts";
-import { markNativeResidentFrameCallback, takeNativeResidentFrameCallbacks, markNativeResidentRenderInvocation, takeNativeResidentRenderInvocations } from "../src/performance/nativeResidentWorkCounters.ts";
+import { markNativeResidentFrameCallback, takeNativeResidentFrameCallbacks, markNativeResidentRenderInvocation, takeNativeResidentRenderInvocations, markNativeResidentWrapperInvocation, takeNativeResidentWrapperInvocations, getNativeResidentRenderTotals, diffNativeResidentRenderTotals } from "../src/performance/nativeResidentWorkCounters.ts";
 import { NATIVE_TEST_POPULATIONS, createNativeSyntheticMarkers } from "../src/performance/nativePopulationFixture.ts";
 
 test("deterministic synthetic populations have unique coordinates, no game state", () => {
@@ -94,4 +94,33 @@ test("resident render counters are aggregate and independently reset", () => {
   assert.equal(takeNativeResidentRenderInvocations(), 2);
   assert.equal(takeNativeResidentRenderInvocations(), 0);
   assert.equal(takeNativeResidentFrameCallbacks(), 1);
+});
+
+test("memo effectiveness counters are independent of HUD one-second resets", () => {
+  takeNativeResidentWrapperInvocations();
+  takeNativeResidentRenderInvocations();
+  const start = getNativeResidentRenderTotals();
+  for (let i = 0; i < 200; i++) markNativeResidentWrapperInvocation();
+  for (let i = 0; i < 12; i++) markNativeResidentRenderInvocation();
+  assert.equal(takeNativeResidentWrapperInvocations(), 200);
+  assert.equal(takeNativeResidentRenderInvocations(), 12);
+  assert.equal(takeNativeResidentWrapperInvocations(), 0);
+  assert.equal(takeNativeResidentRenderInvocations(), 0);
+  const delta = diffNativeResidentRenderTotals(start, getNativeResidentRenderTotals(), 10_000);
+  assert.deepEqual(delta, { wrappers: 200, bodies: 12, wrappersPerSecond: 20, bodiesPerSecond: 1.2 });
+  assert.throws(() => diffNativeResidentRenderTotals(start, start, 0));
+  assert.throws(() => diffNativeResidentRenderTotals(start, start, Infinity));
+});
+
+test("10-second report labels native render invocation rates without claiming GPU measurements", () => {
+  const capture = new NativeMeasurementSession(0, 10_000);
+  capture.record(16, 16);
+  const result = capture.record(10_000, 16)!;
+  const report = formatNativeMeasurement(result, { platform: "android", label: "Mappa reale", residents: 200 },
+    undefined, { wrappers: 2000, bodies: 40, wrappersPerSecond: 200, bodiesPerSecond: 4 });
+  assert.match(report, /Wrapper abitanti: 2000/);
+  assert.match(report, /Render sprite React: 40/);
+  assert.match(report, /Wrapper abitanti\/s: 200\.0/);
+  assert.match(report, /Render sprite React\/s: 4\.0/);
+  assert.match(report, /non equivale a FPS/);
 });
