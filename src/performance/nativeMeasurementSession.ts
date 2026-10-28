@@ -37,6 +37,12 @@ export class NativeMeasurementSession {
     // can signal a suspended app. For an explicit 10-second A/B capture,
     // silently dropping them would bias the reported p95/mean downward.
     // Invalidate instead of treating an incomplete window as comparable.
+    // The first RAF after a user presses "Measure" may include time spent
+    // BEFORE the capture began. Ignore that partial interval; including it
+    // could bias p95 and average when the HUD button triggers React work.
+    // Full intervals after the start are measured as usual.
+    if (Number.isFinite(frameDeltaMs) &&
+      timestamp - frameDeltaMs < this.startedAt) return null;
     if (Number.isFinite(frameDeltaMs) && frameDeltaMs >= 2000) {
       this.invalidated = true;
       return null;
