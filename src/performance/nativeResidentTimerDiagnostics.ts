@@ -5,8 +5,10 @@ export type NativeResidentTimerRate = Readonly<{
   logicalCallbacks: number;
   platformSchedules: number;
   platformCancellations: number;
+  budgetYields: number;
   platformWakeupsPerSecond: number;
   logicalCallbacksPerSecond: number;
+  budgetYieldsPerSecond: number;
 }>;
 
 /**
@@ -28,6 +30,8 @@ export function diffNativeResidentTimerCounters(
     logicalCallbacks,
     platformSchedules: delta("platformSchedules"),
     platformCancellations: delta("platformCancellations"),
+    budgetYields: delta("budgetYields"),
+    budgetYieldsPerSecond: seconds > 0 ? delta("budgetYields") / seconds : 0,
     platformWakeupsPerSecond: seconds > 0 ? platformWakeups / seconds : 0,
     logicalCallbacksPerSecond: seconds > 0 ? logicalCallbacks / seconds : 0
   };
