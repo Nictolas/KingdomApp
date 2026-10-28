@@ -39,3 +39,19 @@ export function takeNativeResidentBusCycles(): number {
   busCycles = 0;
   return count;
 }
+
+/**
+ * Lightweight outer wrapper invocations (parent churn) versus expensive
+ * memoized resident body invocations. Counts function calls, not commits.
+ */
+let wrapperRenders = 0;
+
+export function markNativeResidentWrapperInvocation(): void {
+  wrapperRenders += 1;
+}
+
+export function takeNativeResidentWrapperInvocations(): number {
+  const count = wrapperRenders;
+  wrapperRenders = 0;
+  return count;
+}
