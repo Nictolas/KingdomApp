@@ -43,6 +43,8 @@ export type NativeResidentTimerSnapshot = NativeResidentTimerCounters & Readonly
   callbackBudget: number;
   timeBudgetMs: number;
   backlogDue: boolean;
+  /** Wakeups that reused the same bounded ready Map. */
+  readyBufferUses: number;
 }>;
 
 export class NativeResidentTimerQueue {
@@ -50,6 +52,9 @@ export class NativeResidentTimerQueue {
   private positions = new Map<number, number>();
   /** Ready tasks are separate so callbacks can cancel siblings mid-flush. */
   private ready: Map<number, ResidentTimer> | null = null;
+  /** Shared ready prefix buffer: one allocation per queue, not per OS wakeup. */
+  private readonly readyBuffer = new Map<number, ResidentTimer>();
+  private readyBufferUses = 0;
   private nextId = 1;
   private active = true;
   /** A pause/resume pair during a callback still invalidates this wakeup. */
@@ -209,7 +214,8 @@ export class NativeResidentTimerQueue {
       timeBudgetYields: this.timeBudgetYields,
       callbackBudget: this.maxCallbacksPerWake,
       timeBudgetMs: this.maxWakeDurationMs,
-      backlogDue: this.active && next !== null && next <= elapsed
+      backlogDue: this.active && next !== null && next <= elapsed,
+      readyBufferUses: this.readyBufferUses
     };
   }
 
@@ -258,7 +264,12 @@ export class NativeResidentTimerQueue {
         ? Number.NaN : this.now();
       let exceededTimeBudget = false;
       const dispatchEpoch = this.activityEpoch;
-      this.ready = new Map();
+      // Reuse the bounded ready buffer across repeated collision/idle bursts.
+      // No nested flush can start while executing; stale platform callbacks
+      // are discarded by generation before touching this buffer.
+      this.readyBuffer.clear();
+      this.ready = this.readyBuffer;
+      this.readyBufferUses++;
       while (this.heap.length > 0 &&
         this.ready.size < this.maxCallbacksPerWake &&
         this.heap[0]!.dueActiveMs <= cutoff) {
@@ -302,6 +313,9 @@ export class NativeResidentTimerQueue {
         // A mid-batch pause leaves untouched tasks due in active time.
         // Reinsertion preserves deadline and registration order.
         for (const task of this.ready.values()) this.push(task);
+        // Drop every retained callback reference after dispatch; the buffer
+        // remains allocated at its bounded capacity for the next wakeup.
+        this.ready.clear();
       }
       this.ready = null;
       this.executing = false;
