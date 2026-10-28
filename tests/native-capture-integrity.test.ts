@@ -1,0 +1,76 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { readFileSync } from "node:fs";
+import { nativeCaptureContextChanged, type NativeCaptureContext } from "../src/performance/nativeCaptureIntegrity.ts";
+import { NativeMeasurementSession, formatNativeMeasurement } from "../src/performance/nativeMeasurementSession.ts";
+
+const initial: NativeCaptureContext = {
+  platform: "android", label: "Marker animati", residents: 200,
+  terrainCells: 200, timeScale: 1
+};
+
+test("pure capture context stays valid across ticks with no scenario changes", () => {
+  for (let frame = 0; frame < 10_000; frame++) {
+    assert.equal(nativeCaptureContextChanged(initial, { ...initial }), false);
+  }
+  assert.equal(nativeCaptureContextChanged(initial, initial), false);
+});
+
+test("native benchmark invalidates every dimension that would poison baseline A/B results", () => {
+  for (const change of [
+    { platform: "ios" }, { label: "Marker fermi" }, { residents: 100 },
+    { terrainCells: 199 }, { timeScale: 2 }, { timeScale: 4 },
+    { timeScale: 0 }, { timeScale: Number.NaN },
+    { residents: Number.NaN }, { residents: -1 }, { residents: 1.5 },
+    { terrainCells: -1 }, { terrainCells: 1.5 }
+  ]) {
+    assert.equal(nativeCaptureContextChanged(initial, { ...initial, ...change }), true,
+      "accepted a mixed or invalid scenario: " + JSON.stringify(change));
+  }
+});
+
+test("absent terrain stays comparable only if it remains absent", () => {
+  const noTerrain = { ...initial, terrainCells: undefined };
+  assert.equal(nativeCaptureContextChanged(noTerrain, { ...noTerrain }), false);
+  assert.equal(nativeCaptureContextChanged(noTerrain, initial), true);
+});
+
+test("the native 10-second share report records speed without exposing game state or IDs", () => {
+  const session = new NativeMeasurementSession(0, 10_000);
+  session.record(16, 16);
+  const complete = session.record(10_000, 16)!;
+  const text = formatNativeMeasurement(complete, initial);
+  assert.match(text, /Velocità simulazione: 1x/);
+  assert.match(text, /Scena: Marker animati/);
+  assert.match(text, /Elementi: 200/);
+  assert.ok(!text.includes("residentId"));
+  assert.ok(!text.includes("cellIndex"));
+  const legacy = formatNativeMeasurement(complete,
+    { platform: "android", label: "Baseline", residents: 200 });
+  assert.ok(!legacy.includes("Velocità simulazione"), "legacy report API remains valid");
+});
+
+test("HUD only captures in foreground, rejects changing scene and game speed and closes both probes", () => {
+  const hud = readFileSync(new URL("../src/performance/NativePerformanceHud.tsx", import.meta.url), "utf8");
+  const session = readFileSync(new URL("../src/performance/nativeMeasurementSession.ts", import.meta.url), "utf8");
+  assert.match(hud, /nativeCaptureContextChanged\(/);
+  assert.match(hud, /getOrologioSimTimeScaleSnapshot\(\)/);
+  assert.match(hud, /subscribeOrologioGiocoInPausa\(onClockChange\)/);
+  assert.match(hud, /subscribeOrologioGiocoVelocita\(onClockChange\)/);
+  assert.match(hud, /React\.useLayoutEffect\(/);
+  assert.match(hud, /cancelNativeResidentDispatchCapture\(active\.dispatchToken\)/);
+  assert.match(hud, /cancelNativeResidentEventLoopProbe\(active\.lagToken\)/);
+  assert.match(hud, /setCaptureWarning\(reason\)/);
+  assert.match(session, /Velocità simulazione:/);
+  assert.ok(!hud.includes("AsyncStorage"), "no diagnostic persistence");
+  assert.ok(!hud.includes("fetch("), "no diagnostic upload");
+});
+
+test("frame session never includes a trailing 2-second post-deadline frame in a 10-second capture", () => {
+  const session = new NativeMeasurementSession(0, 10_000);
+  assert.equal(session.record(16, 16), null);
+  assert.equal(session.record(8_000, 1_999), null);
+  const done = session.record(10_000, 2_000)!;
+  assert.equal(done.metrics.samples, 2, "the deadline interval must not be included");
+  assert.equal(done.durationMs, 10_000);
+});
