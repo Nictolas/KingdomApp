@@ -65,8 +65,9 @@ export class NativeResidentCallbackRelay {
     this.latest.tryClaimCell?.(cellIndex) ?? true;
   readonly releaseMyCell = (): void => { this.latest.releaseMyCell?.(); };
 
-  bound(): NativeResidentLiveCallbacks {
-    const current = this.latest;
+  /** Presence comes from the render being committed, not a stale target. */
+  bound(presence: NativeResidentLiveCallbacks = this.latest): NativeResidentLiveCallbacks {
+    const current = presence;
     return {
       onPress: current.onPress ? this.onPress : undefined,
       onDoublePress: current.onDoublePress ? this.onDoublePress : undefined,
