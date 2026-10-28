@@ -8,7 +8,7 @@
  * Values are JS callback-batch durations, NOT GPU/UI-thread FPS, touch input
  * latency, device CPU utilization, or proof of a performance improvement.
  */
-export type NativeResidentDispatchKind = "frame" | "timer";
+export type NativeResidentDispatchKind = "frame" | "timer" | "touch" | "lifecycle";
 export type NativeResidentDispatchTicket = Readonly<{ token: number; startedAt: number }>;
 export type NativeResidentDispatchDuration = Readonly<{
   samples: number;
@@ -24,6 +24,10 @@ export type NativeResidentDispatchDuration = Readonly<{
 export type NativeResidentDispatchReport = Readonly<{
   frame: NativeResidentDispatchDuration;
   timer: NativeResidentDispatchDuration;
+  /** JS handler execution cost, not touch-to-screen latency. */
+  touch: NativeResidentDispatchDuration;
+  /** JS cost of pause/background lifecycle notifications. */
+  lifecycle: NativeResidentDispatchDuration;
 }>;
 
 class BoundedDurations {
@@ -85,6 +89,8 @@ export class NativeResidentDispatchProfiler {
   private active = false;
   private readonly frames: BoundedDurations;
   private readonly timers: BoundedDurations;
+  private readonly touches: BoundedDurations;
+  private readonly lifecycles: BoundedDurations;
 
   constructor(
     private readonly now: () => number = () => performance.now(),
@@ -95,6 +101,8 @@ export class NativeResidentDispatchProfiler {
     }
     this.frames = new BoundedDurations(capacity);
     this.timers = new BoundedDurations(capacity);
+    this.touches = new BoundedDurations(capacity);
+    this.lifecycles = new BoundedDurations(capacity);
   }
 
   start(): number {
@@ -102,6 +110,8 @@ export class NativeResidentDispatchProfiler {
     this.active = true;
     this.frames.reset();
     this.timers.reset();
+    this.touches.reset();
+    this.lifecycles.reset();
     return this.token;
   }
 
@@ -116,7 +126,16 @@ export class NativeResidentDispatchProfiler {
     if (!this.active || ticket === null || ticket.token !== this.token) return;
     const endedAt = this.now();
     if (!Number.isFinite(endedAt) || endedAt < ticket.startedAt) return;
-    (kind === "frame" ? this.frames : this.timers).record(endedAt - ticket.startedAt);
+    this.bucket(kind).record(endedAt - ticket.startedAt);
+  }
+
+  private bucket(kind: NativeResidentDispatchKind): BoundedDurations {
+    switch (kind) {
+      case "frame": return this.frames;
+      case "timer": return this.timers;
+      case "touch": return this.touches;
+      case "lifecycle": return this.lifecycles;
+    }
   }
 
   cancel(token: number): void {
@@ -126,7 +145,10 @@ export class NativeResidentDispatchProfiler {
   finish(token: number): NativeResidentDispatchReport | null {
     if (!this.active || token !== this.token) return null;
     this.active = false;
-    return { frame: this.frames.summary(), timer: this.timers.summary() };
+    return {
+      frame: this.frames.summary(), timer: this.timers.summary(),
+      touch: this.touches.summary(), lifecycle: this.lifecycles.summary()
+    };
   }
 }
 
