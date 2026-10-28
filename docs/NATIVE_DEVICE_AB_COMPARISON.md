@@ -2,7 +2,7 @@
 
 ## Scopo
 
-Questo protocollo confronta **la baseline nativa #295** e **la candidata #297** della stessa scena e sullo stesso smartphone, senza confrontare benchmark Node con misure su dispositivo. La #297 rimane una PR Draft sovrapposta a #296 e #295, senza merge o deploy.
+Per la scena con **sprite nativi reali**, questo protocollo confronta la **baseline di laboratorio #298** (stesso renderer della #296, **con la medesima fixture di #297**) e **la candidata #297** sullo stesso smartphone. I quattro file del laboratorio sono stati verificati byte-per-byte identici nei due rami. **#295** si può usare come baseline soltanto per la vecchia scena di **marker semplici**: non contiene il componente nativo dedicato che rende valida una prova con 200 veri sprite. Nessun benchmark Node sostituisce misure su dispositivo. Tutte queste PR restano Draft senza merge o deploy.
 
 Sono già disponibili nell'interfaccia di sviluppo dell'app il pannello **«Misura 10 secondi»** e la funzione **«Condividi risultati»**. Il nuovo analizzatore offline legge direttamente quel testo. **Non** è necessario collegare un servizio, raccogliere identificativi, caricare dati su internet o installare un SDK esterno.
 
@@ -15,12 +15,12 @@ La #297 interrompe esplicitamente la cattura (e chiude il profiler e il probe JS
 - l'app viene sospesa o cambia stato foreground/background;
 - l'utente esce dalla schermata nativa.
 
-Il report della #297 registra **«Velocità simulazione: 0x/1x/2x/4x»**. Il valore 0x segnala simulazione in pausa/bloccata e può comparire nella schermata di marker sintetici. La baseline #295 non include quel campo: il comparatore lo segnala esplicitamente e richiede di verificare **manualmente** che la velocità dei due gruppi sia realmente uguale. Le misure con velocità diverse non sono aggregabili. I campi del report contengono solo dati diagnostici aggregati, non percorsi, cittadini o coordinate.
+Il report della #297 registra **«Velocità simulazione: 0x/1x/2x/4x»**. Il valore 0x segnala simulazione in pausa/bloccata e può comparire nella schermata di marker sintetici. Le baseline #295 e #298 non includono quel campo: il comparatore lo segnala esplicitamente e richiede di verificare **manualmente** che la velocità dei due gruppi sia realmente uguale. Le misure con velocità diverse non sono aggregabili. I campi del report contengono solo dati diagnostici aggregati, non percorsi, cittadini o coordinate.
 
 ## Protocollo sullo stesso dispositivo
 
-1. Usare **due build di sviluppo distinte** (baseline #295, candidata #297), stessa versione di React Native e configurazione, scenario e telefono fisico; niente installazione sulla build di produzione. Attendere un momento dopo l'apertura della mappa prima della cattura.
-2. Iniziare con **200 abitanti, 1×, percorso in movimento**, poi **200 abitanti a 4×** e **50 abitanti a 1×**. Aggiungere dopo la fase di verifica anche 25/100/200 residenti a 1×/2×/4× e un caso inattivo. Non confondere la scena **«Marker animati»** (fixture React Native) con la **mappa reale** (IA, collisioni, sprite e percorsi).
+1. Usare **due build di sviluppo distinte**: **#298 contro #297** per la modalità `Sprite abitanti reali`, oppure **#295 contro #297** soltanto per `Marker semplici`. Non incrociare le due scene. Stessa versione di React Native e configurazione, scena e telefono fisico; non usare la build di produzione. Attendere dopo l'apertura della mappa.
+2. Iniziare con **200 sprite reali sintetici**, velocità 1× e `Muovi`, poi 200 a 4× e 50 a 1×. Aggiungere successivamente 25/50/100/200 residenti a 1×/2×/4× e un caso `Fermi`. Verificare che la simulazione non sia a **0×** (pausa). Non confondere **«Marker animati»**, **«Sprite abitanti reali»** (stessi componenti nativi della mappa, ma senza IA) e la **«Mappa vera»** (partita completa).
 3. Per ogni combinazione fare **almeno tre** misure indipendenti da 10 secondi su ciascuna build, in condizioni comparabili. Copiare tutti i report della baseline in un unico file `prima.txt`, quelli della candidata in `dopo.txt`. Ogni report inizia con la riga `MyKingdom - diagnostica prestazioni JS (non GPU/UI FPS)`; si possono separare con una riga vuota.
 4. Se un report viene interrotto per una transizione, **scartarlo**. Non selezionare nel confronto rapporti con popolazione, piattaforma, scena, terreno, durata o velocità differenti. Ripetere il confronto per ogni scenario: non mescolare 25/50/100/200 abitanti nello stesso file.
 5. Controllare visivamente sul dispositivo movimento, collisioni, tocco e doppio tocco, passaggio dei tocchi alla griglia, pausa/foreground/background, cambio percorso e regressioni degli sprite. Il tool di confronto **non** sostituisce queste prove.
@@ -46,7 +46,7 @@ Rifiuta report non validi o mescolati, e stampa avvisi su velocità non certific
 ## Limiti dichiarati
 
 - **FPS JS / RAF ≠ FPS dell'interfaccia grafica o della GPU.** Il profilo di un evento `Pressable` misura solo il lavoro JS **dopo** la consegna dell'evento, non la latenza fisica del dito sullo schermo.
-- La baseline #295 non contiene tutti i contatori della #297; il confronto seleziona soltanto le misure comuni.
+- Le baseline #295 e #298 non contengono tutti i contatori della #297; il confronto seleziona soltanto le misure comuni. Anche l'overhead del pannello diagnostico è differente nelle due versioni: per FPS UI/GPU, consumo e GC servirà un profiler nativo esterno.
 - Il comparatore non conosce l'identità dello smartphone, il livello di batteria, la temperatura, le impostazioni GPU/UI o la versione effettivamente installata. Sono controlli esterni da registrare manualmente per non trarre conclusioni errate.
 - Evitare test con risparmio energetico attivo, app in background o dispositivo caldo. Affiancare, quando disponibile, una cattura UI/GPU e una traccia heap/GC con il profiler nativo.
 - Il test automatico CLI e il gate TypeScript sono indipendenti dalla CI generale: **non** ne mascherano i fallimenti. Nessun merge di #297 in `main` fino a prove su dispositivi fisici e revisione dei risultati.
