@@ -39,17 +39,16 @@ export class NativeResidentCollisionRetry {
     return "retry";
   }
 
-  /** The delayed fallback may resume only if no new route or successful
-   * claim has reset the controller. The captured generation also rejects a
-   * callback from an earlier route if a new route is already awaiting repath.
-   * Once resumed, collision retries continue without a second repath request.
-   */
   /** Capture immediately after request-repath, before notifying the parent. */
   repathGeneration(): number {
     return this.generation;
   }
 
-  /** A delayed callback from an older route must not resume a newer wait. */
+  /**
+   * A delayed fallback may resume only when its captured generation matches
+   * the current pending request. An older route cannot revive a newer one;
+   * once resumed, retries continue without a second expensive repath.
+   */
   resumeWithoutRepath(expectedGeneration: number): boolean {
     if (!this.awaitingRepath || expectedGeneration !== this.generation) return false;
     this.awaitingRepath = false;
