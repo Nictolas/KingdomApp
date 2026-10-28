@@ -58,6 +58,9 @@ on:
       - "tests/pending-commute-retry.test.ts"
       - "tests/native-performance-diagnostics.test.ts"
       - "app/native-perf.tsx"
+      - "src/performance/nativeRealResidentFixture.ts"
+      - "src/performance/NativeRealResidentWorkload.tsx"
+      - "tests/native-real-resident-fixture.test.ts"
       - "app/mappa.tsx"
       - ".github/workflows/native-perf-diagnostics.yml"
   workflow_dispatch:
@@ -91,6 +94,8 @@ jobs:
         run: |
           npx tsx --test tests/native-capture-integrity.test.ts
           node --test tests/native-js-report-comparison.test.mjs
+      - name: 200 real native resident sprite fixture, occupancy and save-isolation regressions (Node only)
+        run: npx tsx --test tests/native-real-resident-fixture.test.ts
       - name: Dev HUD opt-in RAF lifecycle and 200 collapse/background cycles (Node, not device FPS)
         run: npx tsx --test tests/native-hud-frame-loop.test.ts
       - name: Seeded 200-resident lifecycle/timer/RAF soak (Node fake OS, not FPS)
