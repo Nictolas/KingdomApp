@@ -16,9 +16,11 @@ export function takeNativeResidentFrameCallbacks(): number {
 
 /** Counts render function invocations, not React commits or FPS. */
 let renders = 0;
+let totalBodyInvocations = 0;
 
 export function markNativeResidentRenderInvocation(): void {
   renders += 1;
+  totalBodyInvocations += 1;
 }
 
 export function takeNativeResidentRenderInvocations(): number {
@@ -45,13 +47,48 @@ export function takeNativeResidentBusCycles(): number {
  * memoized resident body invocations. Counts function calls, not commits.
  */
 let wrapperRenders = 0;
+let totalWrapperInvocations = 0;
 
 export function markNativeResidentWrapperInvocation(): void {
   wrapperRenders += 1;
+  totalWrapperInvocations += 1;
 }
 
 export function takeNativeResidentWrapperInvocations(): number {
   const count = wrapperRenders;
   wrapperRenders = 0;
   return count;
+}
+
+/** Cumulative, in-memory counters for user-initiated 10 s comparisons. */
+export type NativeResidentRenderTotals = Readonly<{
+  wrappers: number;
+  bodies: number;
+}>;
+
+export function getNativeResidentRenderTotals(): NativeResidentRenderTotals {
+  return { wrappers: totalWrapperInvocations, bodies: totalBodyInvocations };
+}
+
+export type NativeResidentRenderRate = NativeResidentRenderTotals & Readonly<{
+  wrappersPerSecond: number;
+  bodiesPerSecond: number;
+}>;
+
+export function diffNativeResidentRenderTotals(
+  before: NativeResidentRenderTotals,
+  after: NativeResidentRenderTotals,
+  durationMs: number
+): NativeResidentRenderRate {
+  if (!Number.isFinite(durationMs) || durationMs <= 0) {
+    throw new Error("Invalid resident render measurement duration");
+  }
+  const wrappers = Math.max(0, after.wrappers - before.wrappers);
+  const bodies = Math.max(0, after.bodies - before.bodies);
+  return {
+    wrappers,
+    bodies,
+    wrappersPerSecond: wrappers * 1000 / durationMs,
+    bodiesPerSecond: bodies * 1000 / durationMs
+  };
 }
