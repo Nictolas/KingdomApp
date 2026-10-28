@@ -1,0 +1,149 @@
+import assert from "node:assert/strict";
+import test from "node:test";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join, resolve } from "node:path";
+import { spawnSync } from "node:child_process";
+import { analyzeNativeAbMatrix } from "../scripts/compare-native-ab-matrix.mjs";
+
+const SCENE = "Sprite abitanti reali in movimento";
+const populations = [25, 50, 100, 200];
+const speeds = [1, 2, 4];
+
+function report({ residents = 200, speed = 1, p95 = 20, samples = 600,
+  platform = "android", scene = SCENE, terrain = 400, duration = 10 } = {}) {
+  return [
+    "MyKingdom - diagnostica prestazioni JS (non GPU/UI FPS)",
+    "Piattaforma: " + platform,
+    "Scena: " + scene,
+    "Elementi: " + residents,
+    "Celle terreno: " + terrain,
+    ...(speed === null ? [] : ["Velocità simulazione: " + speed + "x"]),
+    "Durata: " + duration + " s",
+    "Campioni: " + samples,
+    "Frame medio: 16 ms",
+    "p95: " + p95 + " ms",
+    "Frame oltre 50 ms: 3",
+    "Batch RAF JS p95: 3 ms",
+    "Nota: questi NON sono FPS UI/GPU"
+  ].join("\n");
+}
+const triple = options => Array.from({ length: 3 }, (_, i) => report({ ...options, p95: (options?.p95 ?? 20) + i })).join("\n---\n");
+
+function matrix({ full = true, baselineSpeed = 1, candidateSpeed = 1 } = {}) {
+  const scenarios = [];
+  const files = new Map();
+  for (const residents of populations) for (const speed of speeds) {
+    if (!full && (residents !== 200 || speed !== 1)) continue;
+    const key = residents + "-" + speed;
+    const baseline = "before-" + key + ".txt";
+    const candidate = "after-" + key + ".txt";
+    files.set(baseline, triple({ residents, speed: baselineSpeed === "actual" ? speed : baselineSpeed }));
+    files.set(candidate, triple({ residents, speed: candidateSpeed === "actual" ? speed : candidateSpeed, p95: 19 }));
+    scenarios.push({
+      residents, speed, baseline, candidate,
+      baselineSpeedConfirmed: true,
+      candidateSpeedConfirmed: true
+    });
+  }
+  return {
+    manifest: {
+      schemaVersion: 1, platform: "android", scene: SCENE,
+      samePhysicalDeviceConfirmed: true, scenarios
+    },
+    files,
+    load: name => {
+      if (!files.has(name)) throw new Error("Missing fixture " + name);
+      return files.get(name);
+    }
+  };
+}
+
+test("full 25/50/100/200 × 1x/2x/4x matrix: 72 local captures, no GPU claims", () => {
+  const { manifest, load } = matrix({ baselineSpeed: "actual", candidateSpeed: "actual" });
+  const result = analyzeNativeAbMatrix(manifest, load);
+  assert.deepEqual(result.coverage, { completed: 12, required: 12, missing: [] });
+  assert.equal(result.scenarios.length, 12);
+  assert.ok(result.scenarios.every(x => x.runs.baseline === 3 && x.runs.candidate === 3));
+  assert.ok(result.scope.includes("no native UI/GPU FPS"));
+  assert.equal(result.conclusion, "no_automatic_performance_or_release_approval");
+  assert.equal(result.deviceMatch, "human_attestation_only_not_technically_verified");
+});
+
+test("partial matrix must be explicitly opted into and remains preliminary", () => {
+  const { manifest, load } = matrix({ full: false });
+  assert.throws(() => analyzeNativeAbMatrix(manifest, load), /incomplete 12-scenario matrix/);
+  const result = analyzeNativeAbMatrix(manifest, load, { allowPartial: true });
+  assert.equal(result.coverage.completed, 1);
+  assert.equal(result.coverage.missing.length, 11);
+  assert.equal(result.status, "preliminary_incomplete");
+});
+
+test("historical #298 speed is missing: explicit manual verification required", () => {
+  const { manifest, files, load } = matrix({ full: false });
+  const entry = manifest.scenarios[0];
+  files.set(entry.baseline, triple({ residents: 200, speed: null }));
+  delete entry.baselineSpeedConfirmed;
+  assert.throws(() => analyzeNativeAbMatrix(manifest, load, { allowPartial: true }), /baseline speed absent/);
+  entry.baselineSpeedConfirmed = true;
+  const result = analyzeNativeAbMatrix(manifest, load, { allowPartial: true });
+  assert.equal(result.scenarios[0].speedConfirmedManually, true);
+  files.set(entry.candidate, triple({ residents: 200, speed: null }));
+  delete entry.candidateSpeedConfirmed;
+  assert.throws(() => analyzeNativeAbMatrix(manifest, load, { allowPartial: true }), /candidate speed absent/);
+});
+
+test("wrong population, speed, platform, scene, terrain or capture duration fail closed", () => {
+  const { manifest, files, load } = matrix({ full: false });
+  const entry = manifest.scenarios[0];
+  for (const changed of [
+    { residents: 100 }, { speed: 2 }, { platform: "ios" },
+    { scene: "Marker animati" }, { terrain: 200 }, { duration: 9 }
+  ]) {
+    files.set(entry.candidate, triple({ residents: 200, speed: 1, ...changed }));
+    assert.throws(() => analyzeNativeAbMatrix(manifest, load, { allowPartial: true }),
+      /Incomparable|metadata differs/);
+  }
+});
+
+test("same device attestation, duplicate scenarios and reused report files are rejected", () => {
+  const { manifest, load } = matrix({ full: false });
+  manifest.samePhysicalDeviceConfirmed = false;
+  assert.throws(() => analyzeNativeAbMatrix(manifest, load, { allowPartial: true }), /samePhysicalDeviceConfirmed/);
+  manifest.samePhysicalDeviceConfirmed = true;
+  manifest.scenarios.push({ ...manifest.scenarios[0] });
+  assert.throws(() => analyzeNativeAbMatrix(manifest, load, { allowPartial: true }), /duplicate scenario/);
+  manifest.scenarios[1] = {
+    ...manifest.scenarios[0], residents: 100, baseline: manifest.scenarios[0].baseline
+  };
+  assert.throws(() => analyzeNativeAbMatrix(manifest, load, { allowPartial: true }), /reused across scenarios/);
+});
+
+test("at least three independent captures per side and 100 JS samples per capture", () => {
+  const { manifest, files, load } = matrix({ full: false });
+  const entry = manifest.scenarios[0];
+  files.set(entry.baseline, report({ residents: 200 }));
+  assert.throws(() => analyzeNativeAbMatrix(manifest, load, { allowPartial: true }), /at least three/);
+  files.set(entry.baseline, triple({ residents: 200, samples: 90 }));
+  assert.throws(() => analyzeNativeAbMatrix(manifest, load, { allowPartial: true }), /fewer than 100/);
+});
+
+test("CLI reads local manifest and reports, refuses incomplete matrix without explicit flag", () => {
+  const { manifest, files } = matrix({ full: false });
+  const dir = mkdtempSync(join(tmpdir(), "mk-native-ab-matrix-"));
+  try {
+    writeFileSync(join(dir, "matrix.json"), JSON.stringify(manifest));
+    for (const [name, content] of files) writeFileSync(join(dir, name), content);
+    const script = resolve("scripts/compare-native-ab-matrix.mjs");
+    const args = ["--manifest", join(dir, "matrix.json"), "--json"];
+    const incomplete = spawnSync(process.execPath, [script, ...args], { encoding: "utf8" });
+    assert.equal(incomplete.status, 1);
+    assert.match(incomplete.stderr, /incomplete 12-scenario matrix/);
+    const valid = spawnSync(process.execPath, [script, ...args, "--allow-partial"], { encoding: "utf8" });
+    assert.equal(valid.status, 0, valid.stderr);
+    assert.equal(JSON.parse(valid.stdout).coverage.completed, 1);
+    assert.ok(!valid.stdout.includes("FPS GPU improvement"));
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
