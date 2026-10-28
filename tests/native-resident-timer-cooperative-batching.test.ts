@@ -168,3 +168,21 @@ test("unbounded reference queue is unchanged; invalid budgets are rejected", () 
     assert.throws(() => fixture(invalid), /callback budget/);
   }
 });
+
+test("one broken resident callback does not lose the remaining 199 scheduled wakeups", () => {
+  const f = fixture();
+  const healthy: number[] = [];
+  for (let i = 0; i < 200; i++) {
+    f.queue.schedule(() => {
+      if (i === 0) throw new Error("synthetic resident failure");
+      healthy.push(i);
+    }, 50);
+  }
+  assert.throws(() => f.tick(), /synthetic resident failure/);
+  assert.equal(healthy.length, 31);
+  assert.equal(f.queue.snapshot().pending, 168);
+  f.drain();
+  assert.deepEqual(healthy, Array.from({ length: 199 }, (_, i) => i + 1));
+  assert.equal(f.queue.snapshot().logicalCallbacks, 200);
+  assert.equal(f.queue.snapshot().pending, 0);
+});
