@@ -2,6 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import {
+  getNativeRealFixtureCaptureBlockReason,
   createNativeRealFixtureResidents,
   createNativeRealFixtureCommutePath,
   NativeRealFixtureOccupancy,
@@ -161,8 +162,7 @@ test("source boundary uses the real native sprite component without altering Gam
   assert.match(screen, /NativeRealResidentWorkload/);
   assert.match(screen, /Sprite abitanti reali/);
   assert.match(screen, /realRenderer \? \(/);
-  assert.match(screen, /key=\{population \+ "-" \+ \(isMoving \? "moving" : "still"\) \+ "-" \+ \(repeatable \? "repeatable" : "random"\)\}/,
-    "restart the isolated fixture after changes to movement mode");
+  assert.match(screen, /key=\{fixtureKey\}/, "remount after movement mode changes");
   assert.match(screen, /if \(!isMoving \|\| realRenderer\)/,
     "marker-only animation must stop when real resident renderer is selected");
   assert.match(fixture, /MapWandererCharacter/);
@@ -287,4 +287,51 @@ test("readiness indicator uses a separate store, not 200 resident React state up
   assert.match(workload, /Occupazione pronta:/);
   assert.match(workload, /Occupazione sprite non pronta:/);
   assert.doesNotMatch(workload, /import[^\n]*(?:GameContext|AsyncStorage)|\bfetch\s*\(/);
+});
+
+test("A/B capture gate rejects incomplete, unstable, paused and invalid real sprite scenes", () => {
+  const base = { realRenderer: true, width: 320, height: 320, ready: true, settled: true, moving: true, timeScale: 1 };
+  for (const scale of [1, 2, 4]) assert.equal(getNativeRealFixtureCaptureBlockReason({ ...base, timeScale: scale }), null);
+  for (const [changes, reason] of [
+    [{ ready: false }, /prenotino/], [{ settled: false }, /stabilizzazione/],
+    [{ timeScale: 0 }, /Riprendi/], [{ timeScale: Number.NaN }, /Riprendi/],
+    [{ width: 0 }, /geometria/], [{ height: -1 }, /geometria/],
+    [{ width: Infinity }, /geometria/]
+  ] as const) assert.match(getNativeRealFixtureCaptureBlockReason({ ...base, ...changes })!, reason);
+  assert.equal(getNativeRealFixtureCaptureBlockReason({ ...base, moving: false, timeScale: 0 }), null);
+  assert.equal(getNativeRealFixtureCaptureBlockReason({ ...base, realRenderer: false, ready: false, settled: false, timeScale: 0 }), null);
+});
+test("A/B readiness notifications remain bounded across 200 x 240 transfers", () => {
+  for (const count of [25, 50, 100, 200] as const) {
+    const occupancy = new NativeRealFixtureOccupancy(count);
+    const residents = createNativeRealFixtureResidents(count);
+    let transitions = 0;
+    const off = occupancy.subscribeReady(() => transitions++);
+    for (const r of residents) assert.equal(occupancy.tryClaim(r.instanceId, r.spawnCell), true);
+    assert.equal(occupancy.getReadySnapshot(), true);
+    assert.equal(transitions, 1);
+    for (let round = 0; round < 240; round++)
+      for (const r of residents)
+        assert.equal(occupancy.tryClaim(r.instanceId, createNativeRealFixtureCommutePath(r, round % 2 === 1)[1]!), true);
+    assert.equal(transitions, 1, "no per-movement HUD gate updates");
+    occupancy.release(residents[0]!.instanceId);
+    assert.equal(occupancy.getReadySnapshot(), false);
+    assert.equal(transitions, 2);
+    assert.equal(occupancy.tryClaim(residents[0]!.instanceId, residents[0]!.spawnCell), true);
+    assert.equal(transitions, 3, "recovery starts a new stabilization epoch");
+    off();
+  }
+});
+test("A/B capture guard is wired to both HUD and fixture, without game-state writes", () => {
+  const screen = readFileSync(new URL("../app/native-perf.tsx", import.meta.url), "utf8");
+  const workload = readFileSync(new URL("../src/performance/NativeRealResidentWorkload.tsx", import.meta.url), "utf8");
+  const hud = readFileSync(new URL("../src/performance/NativePerformanceHud.tsx", import.meta.url), "utf8");
+  assert.ok(screen.includes("onReadinessChange={onReadinessChange}"));
+  assert.ok(screen.includes("captureBlockedReason={captureBlockReason}"));
+  assert.ok(screen.includes("captureContextKey={captureContextKey}"));
+  assert.ok(screen.includes("setTimeout(() => setSettled"));
+  assert.ok(workload.includes("occupancy.subscribeReady(notify)"));
+  assert.ok(hud.includes("captureBlockedReason"));
+  assert.ok(hud.includes("captureContextKey"));
+  assert.ok(!screen.includes("setOrologioGiocoVelocita("));
 });

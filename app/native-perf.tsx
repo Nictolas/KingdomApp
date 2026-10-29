@@ -1,10 +1,11 @@
-import React, { memo, useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Redirect, useRouter } from "expo-router";
 import { Animated, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
 
 import { NativePerformanceHud } from "../src/performance/NativePerformanceHud";
 import { NativeRealResidentWorkload } from "../src/performance/NativeRealResidentWorkload";
-import { NATIVE_REAL_FIXTURE_COLS, NATIVE_REAL_FIXTURE_ROWS } from "../src/performance/nativeRealResidentFixture";
+import { NATIVE_REAL_FIXTURE_COLS, NATIVE_REAL_FIXTURE_ROWS, getNativeRealFixtureCaptureBlockReason } from "../src/performance/nativeRealResidentFixture";
+import { getOrologioSimTimeScaleSnapshot, subscribeOrologioGiocoInPausa, subscribeOrologioGiocoVelocita } from "../src/game/orologioGiocoSession";
 import {
   NATIVE_TEST_POPULATIONS,
   createNativeSyntheticMarkers,
@@ -50,6 +51,12 @@ const ResidentDot = memo(function ResidentDot({
   );
 });
 
+function subscribeFixtureClock(listener: () => void): () => void {
+  const offPause = subscribeOrologioGiocoInPausa(listener);
+  const offSpeed = subscribeOrologioGiocoVelocita(listener);
+  return () => { offPause(); offSpeed(); };
+}
+
 const gridCells = Array.from({ length: 200 }, (_, index) => index);
 const realFixtureCells = Array.from({ length: NATIVE_REAL_FIXTURE_COLS * NATIVE_REAL_FIXTURE_ROWS }, (_, index) => index);
 
@@ -63,6 +70,27 @@ function NativePerformanceScene() {
   const phase = useRef(new Animated.Value(0)).current;
   const residents = useMemo(() => createNativeSyntheticMarkers(population), [population]);
   const realRenderer = workload === "residents";
+  const fixtureKey = population + "-" + (isMoving ? "moving" : "still") + "-" + (repeatable ? "repeatable" : "random");
+  const [readiness, setReadiness] = useState({ key: "", epoch: 0, ready: false });
+  const [settled, setSettled] = useState({ key: "", epoch: -1 });
+  const timeScale = useSyncExternalStore(subscribeFixtureClock, getOrologioSimTimeScaleSnapshot, getOrologioSimTimeScaleSnapshot);
+  const onReadinessChange = useCallback((ready: boolean) => {
+    setReadiness(previous => previous.key === fixtureKey && previous.ready === ready
+      ? previous : { key: fixtureKey, epoch: previous.epoch + 1, ready });
+  }, [fixtureKey]);
+  useEffect(() => {
+    if (!realRenderer || readiness.key !== fixtureKey || !readiness.ready) return;
+    const epoch = readiness.epoch;
+    const timeout = setTimeout(() => setSettled({ key: fixtureKey, epoch }), 2000);
+    return () => clearTimeout(timeout);
+  }, [realRenderer, fixtureKey, readiness]);
+  const captureBlockReason = getNativeRealFixtureCaptureBlockReason({
+    realRenderer, width: size.width, height: size.height,
+    ready: readiness.key === fixtureKey && readiness.ready,
+    settled: settled.key === fixtureKey && settled.epoch === readiness.epoch,
+    moving: isMoving, timeScale
+  });
+  const captureContextKey = workload + ":" + fixtureKey + ":" + timeScale + ":" + size.width + "x" + size.height + ":" + readiness.epoch;
   const cells = realRenderer ? realFixtureCells : gridCells;
   const tileWidth = realRenderer ? Math.min(size.width / NATIVE_REAL_FIXTURE_COLS, size.height / NATIVE_REAL_FIXTURE_ROWS) : size.width / 20;
   const tileHeight = realRenderer ? tileWidth : size.height / 10;
@@ -137,17 +165,18 @@ function NativePerformanceScene() {
         ))}
         {realRenderer ? (
           <NativeRealResidentWorkload
-            key={population + "-" + (isMoving ? "moving" : "still") + "-" + (repeatable ? "repeatable" : "random")}
+            key={fixtureKey}
             population={population}
             moving={isMoving}
             deterministicCommute={repeatable}
             width={size.width}
             height={size.height}
+            onReadinessChange={onReadinessChange}
           />
         ) : residents.map((marker) => (
           <ResidentDot key={marker.id} marker={marker} progress={phase} animated={isMoving} width={size.width} height={size.height} />
         ))}
-        <NativePerformanceHud residents={residents.length} terrainCells={cells.length} label={realRenderer
+        <NativePerformanceHud residents={residents.length} terrainCells={cells.length} captureBlockedReason={captureBlockReason} captureContextKey={captureContextKey} label={realRenderer
           ? (isMoving ? (repeatable ? "Sprite abitanti reali in tragitto ripetibile" : "Sprite abitanti reali in movimento") : "Sprite abitanti reali fermi")
           : (isMoving ? "Marker animati" : "Marker fermi")} />
       </View>

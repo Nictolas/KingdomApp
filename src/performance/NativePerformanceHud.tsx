@@ -17,12 +17,16 @@ export function NativePerformanceHud({
   residents,
   terrainCells,
   label,
-  onOpenTest
+  onOpenTest,
+  captureBlockedReason = null,
+  captureContextKey = ""
 }: {
   residents: number;
   terrainCells?: number;
   label: string;
   onOpenTest?: () => void;
+  captureBlockedReason?: string | null;
+  captureContextKey?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [stats, setStats] = useState<NativeFrameSnapshot>(INITIAL_METRICS);
@@ -32,19 +36,37 @@ export function NativePerformanceHud({
   const frameWindow = useRef(new NativeFrameWindow(120));
   const [measuring, setMeasuring] = useState(false);
   const [latestReport, setLatestReport] = useState<string | null>(null);
+  const [captureWarning, setCaptureWarning] = useState<string | null>(null);
   const capture = useRef<{
     session: NativeMeasurementSession;
     environment: { platform: string; label: string; residents: number; terrainCells?: number };
+    contextKey: string;
   } | null>(null);
 
+  const previousCaptureContextKey = useRef(captureContextKey);
+  React.useLayoutEffect(() => {
+    if (previousCaptureContextKey.current !== captureContextKey) {
+      previousCaptureContextKey.current = captureContextKey;
+      setLatestReport(null);
+    }
+    if (capture.current && (captureBlockedReason || capture.current.contextKey !== captureContextKey)) {
+      capture.current = null;
+      setMeasuring(false);
+      setCaptureWarning("Misura interrotta: " + (captureBlockedReason ?? "contesto A/B cambiato."));
+    }
+  }, [captureBlockedReason, captureContextKey]);
+
   const startMeasurement = useCallback(() => {
+    if (captureBlockedReason) { setCaptureWarning(captureBlockedReason); return; }
+    setCaptureWarning(null);
     setLatestReport(null);
     capture.current = {
       session: new NativeMeasurementSession(performance.now()),
-      environment: { platform: Platform.OS, label, residents, terrainCells }
+      environment: { platform: Platform.OS, label, residents, terrainCells },
+      contextKey: captureContextKey
     };
     setMeasuring(true);
-  }, [label, residents, terrainCells]);
+  }, [label, residents, terrainCells, captureBlockedReason, captureContextKey]);
 
   useFocusEffect(useCallback(() => {
     setStats(INITIAL_METRICS);
@@ -120,13 +142,15 @@ export function NativePerformanceHud({
           <Text style={styles.text}>Frame bus nativo/s: {residentBusCycles}</Text>
           <Text style={styles.note}>Callback/s, invocazioni React/s e bus/s descrivono carico distinto: non sono FPS UI/GPU. Solo ritmo JS, non GPU; nessun dato salvato.</Text>
           <Pressable
-            style={[styles.testButton, measuring && styles.disabledButton]}
-            disabled={measuring}
+            style={[styles.testButton, (measuring || captureBlockedReason) && styles.disabledButton]}
+            disabled={measuring || !!captureBlockedReason}
             accessibilityRole="button"
             onPress={startMeasurement}
           >
             <Text style={styles.buttonText}>{measuring ? "Campionamento in corso (10 s)" : "Misura 10 secondi"}</Text>
           </Pressable>
+          {captureBlockedReason && <Text style={styles.note}>{captureBlockedReason}</Text>}
+          {captureWarning && <Text style={styles.note}>{captureWarning}</Text>}
           {latestReport && (
             <>
               <Text style={styles.text}>{latestReport.split("\n").filter((line) => /FPS JS medio:|p95:|Campioni:/.test(line)).join(" · ")}</Text>
