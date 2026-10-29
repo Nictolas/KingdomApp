@@ -3,6 +3,7 @@ import test from "node:test";
 import { readFileSync } from "node:fs";
 import {
   createNativeRealFixtureResidents,
+  createNativeRealFixtureCommutePath,
   NativeRealFixtureOccupancy,
   NativeRealFixtureSelection,
   NATIVE_REAL_FIXTURE_CELLS,
@@ -24,6 +25,51 @@ test("25/50/100/200 actual native sprite fixtures are unique and fit 20x20 cells
     assert.deepEqual(fixtures, createNativeRealFixtureResidents(count));
   }
   assert.throws(() => createNativeRealFixtureResidents(201 as never), /Unsupported/);
+});
+
+test("deterministic two-cell commute lanes are disjoint, adjacent and reversible for all four populations", () => {
+  for (const count of [25, 50, 100, 200] as const) {
+    const residents = createNativeRealFixtureResidents(count);
+    const endpoints = new Set<number>();
+    for (const resident of residents) {
+      const outward = createNativeRealFixtureCommutePath(resident);
+      const inward = createNativeRealFixtureCommutePath(resident, true);
+      assert.deepEqual(outward, [resident.spawnCell, resident.spawnCell + 1]);
+      assert.deepEqual(inward, [outward[1], outward[0]]);
+      assert.equal(Math.floor(outward[0]! / NATIVE_REAL_FIXTURE_COLS),
+        Math.floor(outward[1]! / NATIVE_REAL_FIXTURE_COLS), "no row-wrap teleport");
+      for (const cell of outward) {
+        assert.ok(!endpoints.has(cell), "each resident must own an independent lane");
+        endpoints.add(cell);
+      }
+    }
+    assert.equal(endpoints.size, count * 2);
+  }
+  for (const invalid of [-1, 19, 399, 400, 2.5, Number.NaN]) {
+    assert.throws(() => createNativeRealFixtureCommutePath({ instanceId: 1, spawnCell: invalid }),
+      /Invalid native fixture commute lane/);
+  }
+});
+
+test("200 deterministic commute sprites survive 240 alternating legs without occupancy collisions", () => {
+  const residents = createNativeRealFixtureResidents(200);
+  const occupancy = new NativeRealFixtureOccupancy();
+  for (const resident of residents) {
+    assert.equal(occupancy.tryClaim(resident.instanceId, resident.spawnCell), true);
+  }
+  for (let leg = 0; leg < 240; leg++) {
+    for (const resident of residents) {
+      const path = createNativeRealFixtureCommutePath(resident, leg % 2 === 1);
+      assert.equal(occupancy.tryClaim(resident.instanceId, path[1]!), true);
+    }
+    assert.equal(occupancy.snapshot().occupied, 200);
+    assert.equal(occupancy.checkInvariants(), true);
+  }
+  assert.equal(occupancy.snapshot().denied, 0);
+  assert.equal(occupancy.snapshot().claims, 200 + 200 * 240);
+  for (const resident of residents) occupancy.release(resident.instanceId);
+  assert.equal(occupancy.snapshot().occupied, 0);
+  assert.equal(occupancy.checkInvariants(), true);
 });
 
 test("200 distinct occupants can spawn without modifying gameplay state or overlapping cells", () => {
@@ -115,13 +161,18 @@ test("source boundary uses the real native sprite component without altering Gam
   assert.match(screen, /NativeRealResidentWorkload/);
   assert.match(screen, /Sprite abitanti reali/);
   assert.match(screen, /realRenderer \? \(/);
-  assert.match(screen, /key=\{population \+ "-" \+ \(isMoving \? "moving" : "still"\)\}/,
+  assert.match(screen, /key=\{population \+ "-" \+ \(isMoving \? "moving" : "still"\) \+ "-" \+ \(repeatable \? "repeatable" : "random"\)\}/,
     "restart the isolated fixture after changes to movement mode");
   assert.match(screen, /if \(!isMoving \|\| realRenderer\)/,
     "marker-only animation must stop when real resident renderer is selected");
   assert.match(fixture, /MapWandererCharacter/);
   assert.match(fixture, /NativeRealFixtureOccupancy/);
-  assert.match(fixture, /disableIdleRoam=\{!moving\}/);
+  assert.match(fixture, /disableIdleRoam=\{!moving \|\| deterministicCommute\}/);
+  assert.match(fixture, /commutePath=\{commutePath\}/);
+  assert.match(fixture, /onCommuteComplete=\{commutePath \? onCommuteComplete : undefined\}/);
+  assert.match(screen, /Tragitto ripetibile/);
+  assert.match(screen, /deterministicCommute=\{repeatable\}/);
+  assert.match(screen, /Sprite abitanti reali in tragitto ripetibile/);
   assert.match(fixture, /const tryClaimCell = useCallback/);
   assert.match(fixture, /tryClaimCell=\{tryClaimCell\}/);
   assert.match(fixture, /const onSelect = useCallback/);

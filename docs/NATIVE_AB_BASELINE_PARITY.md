@@ -38,3 +38,9 @@ I tre bundle JS Android/iOS/web della pipeline sono smoke test, **non APK/IPA in
 ## 28 ottobre — isolamento equivalente dei tocchi (baseline A/B)
 
 La baseline #298 incorpora esattamente gli stessi tre file della #297 per `NativeRealFixtureSelection`, `NativeRealFixtureSprite` e `NativeFixtureStatus`. Prima il tocco aggiornava lo stato del componente padre, rischiando un render di tutti i 200 wrapper; ora solo l'overlay osserva la selezione e la velocità dell'orologio. Callback touch e occupancy sono stabili. Sono inclusi test per 200.000 selezioni sintetiche, idempotenza, disiscrizione e isolamento dei remount. **Non è un miglioramento misurato del motore #297**: il cambiamento è intenzionalmente identico nelle due build A/B. I test non sostituiscono misure touch/FPS su dispositivi fisici.
+
+## 29 ottobre — seconda scena A/B: tragitto ripetibile (nessuna prova hardware)
+
+La scena `Sprite abitanti reali in tragitto ripetibile` usa **gli stessi quattro file** sui due rami e lo stesso componente nativo di ciascun motore. Ogni abitante percorre ripetutamente una corsia orizzontale di due celle adiacenti, poi torna indietro; le corsie non si sovrappongono, anche con 200 residenti. La modalità precedente `Sprite abitanti reali in movimento` resta il **girovagare casuale** con contese di occupazione. La nuova modalità isola il costo del movimento/RAF e dei cambi di direzione da differenze casuali nel percorso, ma **non misura collisioni o IA completa**.
+
+Per confrontare #298 e #297 scegliere la stessa modalità, popolazione, velocità, dispositivo e durata. Non mescolare i report delle due scene. Per la nuova modalità servono ancora tre catture per scenario (25/50/100/200 × 1×/2×/4×) e profiler Android/iOS per FPS UI/GPU, touch, memoria e consumo. Le prove Node sulle corsie e la CI non sono misure su telefono; nessun merge o rilascio.

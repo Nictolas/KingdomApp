@@ -58,6 +58,7 @@ function NativePerformanceScene() {
   const [population, setPopulation] = useState<NativeTestPopulation>(25);
   const [isMoving, setIsMoving] = useState(true);
   const [workload, setWorkload] = useState<"markers" | "residents">("markers");
+  const [repeatable, setRepeatable] = useState(false);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const phase = useRef(new Animated.Value(0)).current;
   const residents = useMemo(() => createNativeSyntheticMarkers(population), [population]);
@@ -113,6 +114,16 @@ function NativePerformanceScene() {
           <Text style={styles.whiteText}>Sprite abitanti reali</Text>
         </Pressable>
       </View>
+      {realRenderer && (
+        <View style={styles.controls}>
+          <Pressable accessibilityRole="button" accessibilityState={{ selected: !repeatable }} style={[styles.option, !repeatable && styles.selected]} onPress={() => setRepeatable(false)}>
+            <Text style={styles.whiteText}>Girovago casuale</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityState={{ selected: repeatable }} style={[styles.option, repeatable && styles.selected]} onPress={() => setRepeatable(true)}>
+            <Text style={styles.whiteText}>Tragitto ripetibile</Text>
+          </Pressable>
+        </View>
+      )}
       <View
         style={styles.world}
         onLayout={(event) => {
@@ -126,9 +137,10 @@ function NativePerformanceScene() {
         ))}
         {realRenderer ? (
           <NativeRealResidentWorkload
-            key={population + "-" + (isMoving ? "moving" : "still")}
+            key={population + "-" + (isMoving ? "moving" : "still") + "-" + (repeatable ? "repeatable" : "random")}
             population={population}
             moving={isMoving}
+            deterministicCommute={repeatable}
             width={size.width}
             height={size.height}
           />
@@ -136,12 +148,12 @@ function NativePerformanceScene() {
           <ResidentDot key={marker.id} marker={marker} progress={phase} animated={isMoving} width={size.width} height={size.height} />
         ))}
         <NativePerformanceHud residents={residents.length} terrainCells={cells.length} label={realRenderer
-          ? (isMoving ? "Sprite abitanti reali in movimento" : "Sprite abitanti reali fermi")
+          ? (isMoving ? (repeatable ? "Sprite abitanti reali in tragitto ripetibile" : "Sprite abitanti reali in movimento") : "Sprite abitanti reali fermi")
           : (isMoving ? "Marker animati" : "Marker fermi")} />
       </View>
       <View style={styles.footer}>
         <Text style={styles.footerText}>{realRenderer
-          ? "Carico isolato: " + population + " sprite del vero renderer, su 400 celle con prenotazione locale e timer di girovagare."
+          ? "Carico isolato: " + population + " sprite reali su 400 celle. " + (repeatable ? "Tragitti orizzontali ripetibili a due celle; niente collisioni intenzionali." : "Girovagare casuale con prenotazione locale e timer.")
           : "Carico sintetico: " + residents.length + " marker semplici su 200 celle (Animated con driver nativo)."}
         </Text>
         <Text style={styles.footerText}>{realRenderer

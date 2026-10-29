@@ -24,6 +24,23 @@ export function createNativeRealFixtureResidents(count: 25 | 50 | 100 | 200): Na
 }
 
 /**
+ * Optional A/B commute workload: every resident owns a distinct horizontal
+ * two-cell lane (spawn and spawn+1). Alternating legs exercise the actual
+ * native commute runner without Math.random or contention-dependent routes.
+ * This is NOT a substitute for the random-walk/collision workload.
+ */
+export function createNativeRealFixtureCommutePath(
+  resident: NativeRealFixtureResident, returning = false
+): number[] {
+  const spawn = resident.spawnCell;
+  if (!Number.isInteger(spawn) || spawn < 0 || spawn + 1 >= NATIVE_REAL_FIXTURE_CELLS ||
+      spawn % NATIVE_REAL_FIXTURE_COLS === NATIVE_REAL_FIXTURE_COLS - 1) {
+    throw new Error("Invalid native fixture commute lane");
+  }
+  return returning ? [spawn + 1, spawn] : [spawn, spawn + 1];
+}
+
+/**
  * Same occupancy semantics as the real map's two Maps, with an explicit bound
  * on the fixture's cells and stable per-instance methods.
  *
