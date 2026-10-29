@@ -59,3 +59,23 @@ I file rimangono locali; il comando legge soltanto i report e stampa risultati. 
 ## Test automatici
 
 `node --test tests/native-ab-matrix.test.mjs` esercita la matrice completa con **72 report sintetici**, scenari parziali, metadati discordanti, velocità baseline non registrata, duplicati, numero insufficiente di campioni e CLI reale su file temporanei. È integrato nella pipeline `native-perf-diagnostics.yml`. Questi test dimostrano la correttezza dei controlli del **tool**, non un miglioramento delle prestazioni su Android/iOS.
+
+## Integrità delle catture e dei file (29 ottobre)
+
+La schermata diagnostica della #297 usa la modalità di continuità stretta:
+oltre a pause/background e gap RAF di almeno 2 secondi, invalida timestamp
+non crescenti, delta non validi e intervalli non osservati di almeno 2 secondi,
+anche se il chiamante dichiara un delta artificiosamente breve. La modalità
+compatibile delle vecchie API di test resta invariata.
+
+Il parser dei report rifiuta valori con suffissi non previsti, campi duplicati,
+conteggi non interi o incoerenti (frame >50 ms maggiori di quelli >33 ms), e
+FPS JS dichiarati incompatibili con il frame medio entro una tolleranza per
+gli arrotondamenti del display. Il confronto matriciale accetta soltanto nomi
+di file relativi canonici; la CLI risolve i link simbolici e impedisce letture
+fuori dalla cartella del manifest.
+
+Queste protezioni riducono il rischio di **falsi confronti A/B**, ma non
+certificano l'indipendenza delle tre catture, il commit delle build o
+l'identità del telefono. Validazione visiva, profiler nativo e misurazioni
+fisiche restano obbligatori. Nessun FPS fisico è stato misurato da questi test.
