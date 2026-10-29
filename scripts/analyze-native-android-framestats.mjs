@@ -109,7 +109,7 @@ export function parseAndroidFrameStats(raw, { refreshHz = 60, blockIndex = null 
     framesOverBudget: sorted.filter(value => value > threshold).length,
     framesOverDoubleBudget: sorted.filter(value => value > 2 * threshold).length,
     overBudgetPercent: round(100 * sorted.filter(value => value > threshold).length / sorted.length),
-    warning: sorted.length < 60 || observedSpanMs < 500
+    warning: sorted.length < 60 || observedSpanMs < 8_000
       ? "Short/rolling gfxinfo buffer: not a validated 10-second capture"
       : null
   };
