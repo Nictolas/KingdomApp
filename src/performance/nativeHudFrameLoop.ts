@@ -17,7 +17,8 @@ export class NativeHudFrameLoop {
   constructor(
     private readonly request: (callback: (at: number) => void) => number,
     private readonly cancel: (id: number) => void,
-    private readonly onFrame: (at: number) => void
+    private readonly onFrame: (at: number) => void,
+    private readonly onFault?: (error: unknown) => void
   ) {}
 
   start(foreground = true): void {
@@ -54,25 +55,48 @@ export class NativeHudFrameLoop {
     };
   }
 
+  /**
+   * Diagnostics are optional: a faulty RAF bridge or HUD callback must never
+   * crash resident movement. Retire this generation and require an explicit
+   * close/reopen before trying the HUD again (no background retry loop).
+   */
+  private fail(error: unknown): void {
+    this.active = false;
+    this.foreground = false;
+    ++this.generation;
+    this.requestId = null;
+    try { this.onFault?.(error); }
+    catch { /* A broken diagnostic fault handler must not escape into gameplay. */ }
+  }
+
   private cancelOutstanding(): void {
     const id = this.requestId;
     this.requestId = null;
-    if (id !== null) this.cancel(id);
+    if (id === null) return;
+    try { this.cancel(id); }
+    catch (error) {
+      // The OS may still deliver this callback; the generation guard drops it.
+      // Teardown/background must remain safe even when native cancel throws.
+      if (this.active && this.foreground) this.fail(error);
+    }
   }
 
   private arm(): void {
     if (!this.active || !this.foreground || this.requestId !== null) return;
     const version = this.generation;
     this.requested++;
-    this.requestId = this.request(timestamp => {
-      if (!this.active || !this.foreground || version !== this.generation) return;
-      this.requestId = null;
-      try {
+    try {
+      this.requestId = this.request(timestamp => {
+        if (!this.active || !this.foreground || version !== this.generation) return;
+        this.requestId = null;
         this.delivered++;
-        this.onFrame(timestamp);
-      } finally {
+        try { this.onFrame(timestamp); }
+        catch (error) { this.fail(error); return; }
         if (version === this.generation) this.arm();
-      }
-    });
+      });
+    } catch (error) {
+      // A failed native RAF request cannot leave an active-but-unscheduled HUD.
+      this.fail(error);
+    }
   }
 }
