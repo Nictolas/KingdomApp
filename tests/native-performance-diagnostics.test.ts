@@ -149,7 +149,9 @@ test("persistent RAF metrics report only aggregate registrations and avoid misle
   const before = {
     queued: 200, scheduled: true, active: true, dispatchCount: 120,
     activityListeners: 200, continuousSubscribers: 200,
-    subscriptionAdds: 200, oneShotRequests: 5, oneShotBufferSwaps: 0
+    subscriptionAdds: 200, oneShotRequests: 5, oneShotBufferSwaps: 0,
+    platformRequestFailures: 0, platformCancelFailures: 0,
+    postDispatchRearmFailures: 0
   };
   const after = {
     ...before, dispatchCount: 720, continuousSubscribers: 150,
