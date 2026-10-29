@@ -105,3 +105,10 @@ I test sintetici coprono quattro popolazioni, duplicati, residenti non montati,
 ogni trasferimento. Non sono prove su dispositivi fisici, né dimostrano FPS
 UI/GPU, tempi di risposta touch o consumi. In particolare il gate non verifica
 la correttezza visiva dei singoli frame: serve ancora il controllo manuale.
+
+
+## Isolamento dei guasti del pannello diagnostico RAF (29 ottobre)
+
+Il pannello `NativePerformanceHud` e il suo `NativeHudFrameLoop` sono opzionali: un errore nel bridge `requestAnimationFrame` o nel callback diagnostico non deve bloccare il gioco. La sessione di monitoraggio viene chiusa, il campionamento disattivato e un messaggio richiede di chiudere/riaprire i dettagli. Non si riavvia automaticamente in un ciclo di tentativi. Un errore in `cancelAnimationFrame` non può impedire la chiusura: eventuali callback tardivi sono scartati dal token di generazione.
+
+La CI verifica l'invariante con guasti sintetici di richiesta/callback, errori falsy, 200 cicli di background/ripresa e 200 sessioni indipendenti con fault intermittenti. Il controllo di cablaggio del campionamento usa il gate di visibilità condiviso Android (AppState + blur/focus) e iOS (AppState), non una vecchia espressione `nextState === "active"` che ignorava il pannello notifiche Android. Non è una misura su telefono e non sostituisce i test di rendering, touch e GPU fisici.
