@@ -188,10 +188,10 @@ test("200 route replacements during callbacks discard old arrivals and positions
     });
   }
   f.tick(50);
-  assert.ok(positions.every(x => x === 50));
+  assert.deepEqual([...positions], Array<number>(200).fill(50));
   assert.equal(f.bus.snapshot().continuousSubscribers, 200);
   f.tick(150);
-  assert.ok(positions.every(x => x === 600));
+  assert.deepEqual([...positions], Array<number>(200).fill(600));
   assert.ok(arrivals.every(n => n === 1));
   assert.equal(f.bus.snapshot().queued, 0);
   assert.ok(runners.every(r => r.snapshot().segmentStarts === 2 && r.snapshot().frameCallbackAllocations === 0));
