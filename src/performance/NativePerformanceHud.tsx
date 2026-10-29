@@ -96,7 +96,7 @@ export function NativePerformanceHud({
     setLatestReport(null);
     setCaptureWarning(null);
     capture.current = {
-      session: new NativeMeasurementSession(performance.now()),
+      session: new NativeMeasurementSession(performance.now(), 10_000, true),
       dispatchToken: startNativeResidentDispatchCapture(),
       lagToken: startNativeResidentEventLoopProbe(),
       timerStart: getNativeResidentTimerSnapshot(),
