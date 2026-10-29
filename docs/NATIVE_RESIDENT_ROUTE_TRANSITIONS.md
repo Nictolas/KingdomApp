@@ -266,3 +266,12 @@ frame rate, touch, consumo CPU/memoria o comportamento Android/iPhone.
 Confrontare solo le fixture real-sprite #298 (baseline) e #297 (candidata)
 sullo stesso dispositivo, 25/50/100/200 NPC e 1×/2×/4×. Nessun merge o
 rilascio autorizzato da queste prove da sole.
+
+
+**Nota sul cleanup React:** la notifica iniziale di assestamento
+(`onCellSettled(start)`) può anch'essa essere rientrante. L'effetto
+`commute` non deve uscire anticipatamente dopo quella chiamata:
+`stepChain` controlla già la generazione e non avvia il vecchio percorso,
+ma React deve comunque ricevere la funzione di cleanup per invalidare
+future callback e rilasciare le risorse. Un controllo statico nel test
+impedisce di reintrodurre quel ritorno anticipato.
