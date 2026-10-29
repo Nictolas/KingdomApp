@@ -44,18 +44,25 @@ export class NativeMeasurementSession {
     // BEFORE the capture began. Ignore that partial interval; including it
     // could bias p95 and average when the HUD button triggers React work.
     // Full intervals after the start are measured as usual.
+    if (this.requireContinuousFrames) {
+      const sinceStart = timestamp - this.startedAt;
+      const sinceLast = this.lastAcceptedTimestamp === null
+        ? null : timestamp - this.lastAcceptedTimestamp;
+      // The HUD reads RAF timestamps and deltas from the SAME callback.
+      // Refuse missing/under-reported intervals rather than allowing a
+      // 10-second capture with only the last second actually sampled.
+      if (!Number.isFinite(frameDeltaMs) || frameDeltaMs <= 0 ||
+          frameDeltaMs >= 2000 || sinceStart >= 2000 &&
+            this.lastAcceptedTimestamp === null ||
+          sinceLast !== null &&
+            (sinceLast <= 0 || sinceLast >= 2000 ||
+              Math.abs(sinceLast - frameDeltaMs) > 1)) {
+        this.invalidated = true;
+        return null;
+      }
+    }
     if (Number.isFinite(frameDeltaMs) &&
       timestamp - frameDeltaMs < this.startedAt) return null;
-    if (this.requireContinuousFrames &&
-      (!Number.isFinite(frameDeltaMs) || frameDeltaMs <= 0 ||
-        (this.lastAcceptedTimestamp !== null &&
-          (timestamp <= this.lastAcceptedTimestamp ||
-            timestamp - this.lastAcceptedTimestamp >= 2000)))) {
-      // Reject a missing RAF interval even if the caller reports a small
-      // delta for the last frame after a long suspension.
-      this.invalidated = true;
-      return null;
-    }
     if (Number.isFinite(frameDeltaMs) && frameDeltaMs >= 2000) {
       this.invalidated = true;
       return null;
@@ -63,6 +70,12 @@ export class NativeMeasurementSession {
     this.lastAcceptedTimestamp = timestamp;
     // Never include the first post-deadline interval in the measured window.
     if (timestamp >= this.startedAt + this.durationMs) {
+      // No valid intervals means no credible p95/FPS, even if a delayed
+      // callback happens to arrive exactly on the deadline.
+      if (this.requireContinuousFrames && this.frames.snapshot().samples === 0) {
+        this.invalidated = true;
+        return null;
+      }
       this.finished = true;
       return { durationMs: this.durationMs, metrics: this.frames.snapshot() };
     }
