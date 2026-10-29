@@ -79,3 +79,27 @@ Queste protezioni riducono il rischio di **falsi confronti A/B**, ma non
 certificano l'indipendenza delle tre catture, il commit delle build o
 l'identità del telefono. Validazione visiva, profiler nativo e misurazioni
 fisiche restano obbligatori. Nessun FPS fisico è stato misurato da questi test.
+
+
+## Gate di movimento reale nella scena ripetibile (29 ottobre)
+
+Nella scena **Tragitto ripetibile**, il laboratorio A/B non si limita più a
+contare le 25/50/100/200 prenotazioni iniziali. Prima di consentire la misura
+richiede anche che **ciascuno sprite reale abbia completato almeno una tratta**
+attraverso il callback nativo `onCommuteComplete`, seguito dai consueti due
+secondi di stabilizzazione. Una scena congelata, pur con 200 celle occupate,
+non può quindi produrre una cattura etichettata come carico in movimento.
+
+Il conteggio è locale alla fixture e registra soltanto la presenza di una prima
+tratta per ciascun ID di test; non viene condiviso, salvato o trasmesso.
+Notifica React solo al completamento dell'intera popolazione, non a ogni
+passo. La rimozione di una prenotazione revoca la prova di movimento di quel
+residente: dopo il recupero serve una nuova tratta. La modalità casuale e i
+marker sintetici mantengono il precedente gate di occupazione. Entrambe le
+PR #297 e #298 devono contenere **identici** sorgenti e test della fixture.
+
+I test sintetici coprono quattro popolazioni, duplicati, residenti non montati,
+240 tratte per residente, rilascio/riacquisizione e assenza di notifiche per
+ogni trasferimento. Non sono prove su dispositivi fisici, né dimostrano FPS
+UI/GPU, tempi di risposta touch o consumi. In particolare il gate non verifica
+la correttezza visiva dei singoli frame: serve ancora il controllo manuale.
