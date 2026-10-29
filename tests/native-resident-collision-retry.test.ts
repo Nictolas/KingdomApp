@@ -275,10 +275,27 @@ test("native-only fallback is scheduled before parent repath callback; web stays
   assert.ok(start >= 0 && end > start);
   assert.match(branch, /pendingCommuteRetry\.hold\(/);
   assert.match(branch, /claimRetry\.resumeWithoutRepath\(repathGeneration\)/);
-  assert.match(branch, /scheduleNativeResidentTimer\(/);
-  assert.match(branch, /CLAIM_RETRY_MS/);
-  assert.ok(branch.indexOf("scheduleNativeResidentTimer(") < branch.indexOf("onCommuteBlockedRef.current?.("));
-  assert.doesNotMatch(web, /resumeWithoutRepath|NativeResidentCollisionRetry/);
+  // The renderer now uses a route-owned timer rather than calling the
+  // shared scheduler directly. Assert the real ownership boundary, not an
+  // implementation detail that disappeared during the timer refactor.
+  assert.match(native, /new NativeResidentOwnedTimer\(scheduleNativeResidentTimer, cancelNativeResidentTimer\)/);
+  const fallbackTimer = branch.match(/wakeTimer\.schedule\(\(\) => \{([\s\S]*?)\}, CLAIM_RETRY_MS\)/);
+  assert.ok(fallbackTimer, "repath fallback must be scheduled through the route-owned timer");
+  assert.match(fallbackTimer[1]!, /if \(!routeEpoch\.isCurrent\(routeToken\)\) return;/);
+  assert.match(fallbackTimer[1]!, /pendingCommuteRetry\.take\(\)\?\.\(\)/);
+  assert.ok(fallbackTimer[1]!.indexOf("routeEpoch.isCurrent(routeToken)") <
+    fallbackTimer[1]!.indexOf("pendingCommuteRetry.take()"),
+    "obsolete route must not consume the current route's pending retry");
+  assert.ok(branch.indexOf("pendingCommuteRetry.hold(") < branch.indexOf("wakeTimer.schedule("));
+  assert.ok(branch.indexOf("wakeTimer.schedule(") < branch.indexOf("onCommuteBlockedRef.current?.("),
+    "arm fallback before invoking a potentially synchronous parent reroute");
+  const retryBranch = native.slice(end, native.indexOf("// Soft entry casa", end));
+  const retryTimer = retryBranch.match(/wakeTimer\.schedule\(\(\) => \{([\s\S]*?)\}, CLAIM_RETRY_MS\)/);
+  assert.ok(retryTimer, "ordinary collision retry must use the same owned timer");
+  assert.match(retryTimer[1]!, /if \(!routeEpoch\.isCurrent\(routeToken\)\) return;/);
+  assert.match(retryTimer[1]!, /pendingCommuteRetry\.take\(\)\?\.\(\)/);
+  assert.ok(retryBranch.indexOf("pendingCommuteRetry.hold(") < retryBranch.indexOf("wakeTimer.schedule("));
+  assert.doesNotMatch(web, /resumeWithoutRepath|NativeResidentCollisionRetry|NativeResidentOwnedTimer/);
 });
 
 
