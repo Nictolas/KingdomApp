@@ -275,3 +275,102 @@ test("Android focus wiring is native-only and the web map remains independently 
   assert.ok(web.includes("react-zoom-pan-pinch"));
   assert.ok(!web.includes("NativeResidentAppVisibility"));
 });
+
+test("null initial native state resolves without an AppState change event via bounded boot probe", () => {
+  let current: string | null = null;
+  let next = 0;
+  const os = new Map<number, () => void>();
+  const stale: Array<() => void> = [];
+  const states: boolean[] = [];
+  const visibility = new NativeResidentAppVisibility(null, false);
+  const stop = observeNativeResidentAppVisibility(visibility, {
+    onChange: () => () => {},
+    bootProbe: {
+      read: () => current,
+      schedule: cb => { os.set(++next, cb); stale.push(cb); return next; },
+      cancel: id => { os.delete(id); }
+    }
+  }, value => states.push(value));
+  const tick = () => {
+    assert.equal(os.size, 1);
+    const [id, cb] = os.entries().next().value!;
+    os.delete(id);
+    cb();
+  };
+  assert.equal(os.size, 1);
+  tick(); // still null; a second bounded attempt
+  assert.deepEqual(states, []);
+  current = "active"; // bridge resolves without emitting change
+  tick();
+  assert.deepEqual(states, [true]);
+  assert.equal(os.size, 0);
+  stale.forEach(cb => cb());
+  assert.deepEqual(states, [true], "old timers cannot duplicate a resume");
+  stop();
+});
+
+test("boot probe never polls indefinitely, and known states need zero extra timeouts", () => {
+  for (const state of ["active", "inactive", "background"]) {
+    let schedules = 0;
+    const stop = observeNativeResidentAppVisibility(
+      new NativeResidentAppVisibility(state, false), {
+        onChange: () => () => {},
+        bootProbe: {
+          read: () => state,
+          schedule: () => { schedules++; return 1; },
+          cancel: () => {}
+        }
+      }, () => {}
+    );
+    assert.equal(schedules, 0);
+    stop();
+  }
+  let schedules = 0;
+  const os = new Map<number, () => void>();
+  let onChange: (state: string) => void = () => {};
+  const values: boolean[] = [];
+  const visibility = new NativeResidentAppVisibility("unknown", false);
+  const stop = observeNativeResidentAppVisibility(visibility, {
+    onChange: cb => { onChange = cb; return () => {}; },
+    bootProbe: {
+      read: () => "unknown",
+      schedule: cb => { const id = ++schedules; os.set(id, cb); return id; },
+      cancel: id => { os.delete(id); }
+    }
+  }, value => values.push(value));
+  for (let i = 0; i < 4; i++) {
+    assert.equal(os.size, 1);
+    const [id, cb] = os.entries().next().value!;
+    os.delete(id);
+    cb();
+  }
+  assert.equal(schedules, 4);
+  assert.equal(os.size, 0);
+  assert.deepEqual(values, []);
+  assert.equal(visibility.foreground, false);
+  onChange("active");
+  assert.deepEqual(values, [true], "later authoritative events still work");
+  stop();
+});
+
+test("boot probe cancellation errors do not skip app observers' teardown", () => {
+  const visibility = new NativeResidentAppVisibility(null, false);
+  const removals: string[] = [];
+  const callbacks: Array<() => void> = [];
+  const stop = observeNativeResidentAppVisibility(visibility, {
+    onChange: () => () => { removals.push("change"); },
+    bootProbe: {
+      read: () => null,
+      schedule: cb => { callbacks.push(cb); return 42; },
+      cancel: () => { removals.push("probe"); throw false; }
+    }
+  }, () => assert.fail("disposed observer delivered a callback"));
+  let caught = false;
+  try { stop(); }
+  catch (e) { caught = true; assert.equal(e, false); }
+  assert.equal(caught, true);
+  assert.deepEqual(removals, ["probe", "change"]);
+  callbacks[0]!(); // stale OS callback delivered after failed cancel
+  assert.equal(visibility.foreground, false);
+  stop(); // idempotent
+});

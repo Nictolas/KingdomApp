@@ -25,3 +25,11 @@ Il focus Android non ha un getter iniziale universale: prima del primo `blur` de
 Verificare in un APK Android di sviluppo che tirare giù la tendina notifiche fermi il movimento dei 200 sprite senza teletrasporti, anche durante una collisione e una pausa manuale. Dopo `focus`, il movimento deve riprendere solo se la pausa manuale lo consente. Su iPhone verificare `active` → `inactive` → `active`, background/foreground, chiamate di sistema e livelli 25/50/100/200 a 1×/2×/4×. Il laboratorio vero confronta **#298 vs #297**, non #295. Bundle Expo JS non sono APK/IPA: nessuna misurazione hardware è stata eseguita.
 
 CI dedicata + export Android/iOS/web e differenziale TypeScript necessari sul commit finale, indipendentemente dai 53 errori legacy della CI generale. Nessun merge, deploy o release.
+
+## Asynchronous AppState bootstrap without a change event
+
+In React Native's legacy architecture, `currentState` may be `null` at launch and become `active` asynchronously without an accompanying state-change event. Fail-closed startup must not strand 200 walkers indefinitely in that case.
+
+The single native lifecycle observer now performs a second synchronous snapshot read **after** event registration, then up to four **one-shot** rechecks at 50, 150, 450 and 1000 ms only while the state remains null/unknown. It stops immediately once the bridge resolves. When the four checks are exhausted, the scheduler remains paused until a later authoritative `change` event; there is no infinite polling, timer per resident or modification of the game clock. Generation tokens discard late canceled probes, and the standard cleanup still removes the AppState listeners even if canceling a probe throws.
+
+Synthetic tests verify silent bridge resolution, four-check ceiling, zero extra timeouts for known states and error-safe teardown. This is not proof of a physical device's launch timing.

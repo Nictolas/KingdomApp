@@ -48,6 +48,13 @@ const lifecycle = new NativeResidentLifecycleBootstrap({
       onFocus: callback => {
         const sub = AppState.addEventListener("focus", callback);
         return () => sub.remove();
+      },
+      // Only if the initial AppState bridge snapshot is null/unknown.
+      // Bounded one-shot rechecks: never one timer per walker.
+      bootProbe: {
+        read: () => AppState.currentState,
+        schedule: (fn, delay) => setTimeout(fn, delay) as unknown as number,
+        cancel: id => clearTimeout(id)
       }
     },
     listener

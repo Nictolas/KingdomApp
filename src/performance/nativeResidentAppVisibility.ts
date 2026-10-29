@@ -6,7 +6,8 @@
  * authoritative. Android can emit blur/focus without an AppState change
  * (e.g. the notification shade), which must also suspend native resident work.
  *
- * No timers, polling, personal data, storage, game clock or web dependencies.
+ * No per-resident timers, endless polling, personal data, storage, game clock or web dependencies.
+ * A bounded boot-only snapshot check handles asynchronous native initialization.
  */
 export class NativeResidentAppVisibility {
   private state: string | null;
@@ -20,6 +21,10 @@ export class NativeResidentAppVisibility {
     return this.state === "active" && (!this.android || this.androidFocused);
   }
 
+  get unresolved(): boolean {
+    return this.state === null || this.state === "unknown";
+  }
+
   setAppState(state: string | null | undefined): boolean {
     this.state = state ?? null;
     return this.foreground;
@@ -31,10 +36,17 @@ export class NativeResidentAppVisibility {
   }
 }
 
+export type NativeResidentBootProbe = Readonly<{
+  read: () => string | null | undefined;
+  schedule: (callback: () => void, delayMs: number) => number;
+  cancel: (id: number) => void;
+}>;
+
 export type NativeResidentVisibilitySubscriptions = Readonly<{
   onChange: (listener: (state: string) => void) => () => void;
   onBlur?: (listener: () => void) => () => void;
   onFocus?: (listener: () => void) => () => void;
+  bootProbe?: NativeResidentBootProbe;
 }>;
 
 /**
@@ -59,11 +71,40 @@ export function observeNativeResidentAppVisibility(
   const emit = (foreground: boolean): void => {
     if (!disposed) listener(foreground);
   };
+  // RN may change currentState from null to active without a change event.
+  // Four bounded one-shot checks only on unresolved initial states, not a
+  // per-resident timer and not recurring background polling.
+  const probe = subscriptions.bootProbe;
+  const delays = [50, 150, 450, 1000] as const;
+  let probeHandle: number | null = null;
+  let probeEpoch = 0;
+  let attempts = 0;
+  const cancelProbe = (): void => {
+    probeEpoch++;
+    const old = probeHandle;
+    probeHandle = null;
+    if (old !== null) probe?.cancel(old);
+  };
+  const scheduleProbe = (): void => {
+    if (!probe || disposed || !visibility.unresolved || attempts >= delays.length) return;
+    const epoch = ++probeEpoch;
+    const id = probe.schedule(() => {
+      if (disposed || epoch !== probeEpoch) return;
+      probeHandle = null;
+      const current = visibility.setAppState(probe.read());
+      if (visibility.unresolved) scheduleProbe();
+      else emit(current);
+    }, delays[attempts++]!);
+    if (disposed || epoch !== probeEpoch) probe.cancel(id);
+    else probeHandle = id;
+  };
   const dispose = (): void => {
     if (disposed) return;
     disposed = true;
     let failed = false;
     let firstError: unknown = undefined;
+    try { cancelProbe(); }
+    catch (error) { failed = true; firstError = error; }
     for (let i = remove.length - 1; i >= 0; i--) {
       try { remove[i]!(); }
       catch (error) {
@@ -77,6 +118,7 @@ export function observeNativeResidentAppVisibility(
     remove.push(subscriptions.onChange(state => {
       if (disposed) return;
       emit(visibility.setAppState(state));
+      if (!visibility.unresolved) cancelProbe();
     }));
     if (visibility.android) {
       remove.push(subscriptions.onBlur!(() => {
@@ -87,6 +129,12 @@ export function observeNativeResidentAppVisibility(
         if (disposed) return;
         emit(visibility.setAndroidFocused(true));
       }));
+    }
+    // A second read covers a bridge resolution during registration itself.
+    if (probe && visibility.unresolved) {
+      const fresh = visibility.setAppState(probe.read());
+      if (visibility.unresolved) scheduleProbe();
+      else emit(fresh);
     }
   } catch (error) {
     // A listener registered earlier must not survive a later failing
