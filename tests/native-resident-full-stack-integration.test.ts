@@ -5,6 +5,7 @@ import { NativeResidentTimerQueue } from "../src/performance/nativeResidentTimer
 import { NativeResidentSegmentRunner } from "../src/performance/nativeResidentSegmentRunner.ts";
 import { NativeResidentActivityGate } from "../src/performance/nativeResidentActivityGate.ts";
 import { NativeResidentTapRecognizer } from "../src/performance/nativeResidentTapRecognizer.ts";
+import { NativeResidentRouteEpoch } from "../src/performance/nativeResidentRouteEpoch.ts";
 
 /** A fake platform with exactly one OS RAF and timeout, including stale delivery. */
 function fixture() {
@@ -209,4 +210,84 @@ test("200 actual segment runners sustain 240 shared frames with 600 route replac
   assert.equal(f.frames.size, 0);
   f.drainStale();
   assert.equal(f.frames.size, 0);
+});
+
+test("200 real native runners: reentrant route replacement, 1x/2x/4x, pause and timer teardown over 18 cycles", () => {
+  const f = fixture();
+  let speed = 1, wall = 0;
+  const epoch = Array.from({ length: 200 }, () => new NativeResidentRouteEpoch());
+  const pending = Array<number | null>(200).fill(null);
+  let arrivals = 0, continued = 0, invalidated = 0, ghostRetries = 0;
+  const runners = Array.from({ length: 200 }, () => new NativeResidentSegmentRunner({
+    requestFrame: callback => f.bus.request(callback),
+    subscribeFrame: callback => f.bus.subscribeFrame(callback),
+    cancelFrame: id => f.bus.cancel(id),
+    readTimeScale: () => speed,
+    writePositionXY: (x, y) => { assert.ok(Number.isFinite(x) && y === 0); },
+    advanceSprite: () => {}, setWalking: () => {}
+  }));
+  const start = (i: number, cycle: number) => {
+    const token = epoch[i]!.begin();
+    if (pending[i] !== null) f.queue.cancel(pending[i]!);
+    pending[i] = f.queue.schedule(() => { ghostRetries++; }, 900);
+    runners[i]!.start({
+      from: { x: i, y: 0 }, to: { x: i + 1, y: 0 },
+      durationMs: 100, startTimestamp: wall,
+      onArrival: () => {
+        if (!epoch[i]!.isCurrent(token)) return;
+        f.queue.cancel(pending[i]!);
+        pending[i] = null;
+        // Model MapWandererCharacter's reentrant onCellSettled boundary.
+        const stillOwned = epoch[i]!.runIfCurrent(token, () => {
+          arrivals++;
+          if ((i + cycle) % 5 === 0) {
+            invalidated++;
+            epoch[i]!.begin();
+          }
+        });
+        if (stillOwned) continued++;
+      }
+    });
+  };
+  for (let cycle = 0; cycle < 18; cycle++) {
+    speed = [1, 2, 4][cycle % 3]!;
+    for (let i = 0; i < 200; i++) start(i, cycle);
+    if (cycle % 2 === 0) {
+      // Forty in-flight paths are synchronously replaced before the RAF.
+      for (let i = 0; i < 200; i += 5) start(i, cycle);
+    }
+    assert.equal(f.bus.snapshot().continuousSubscribers, 200);
+    assert.equal(f.queue.snapshot().pending, 200);
+    assert.ok(f.frames.size <= 1 && f.timers.size <= 1);
+    if (cycle % 4 === 0) {
+      f.gate.setGamePaused(true);
+      f.gate.setForeground(false);
+      assert.equal(f.frames.size, 0);
+      assert.equal(f.timers.size, 0);
+      wall += 10_000;
+      f.setWall(wall);
+      f.gate.setGamePaused(false);
+      assert.equal(f.frames.size, 0);
+      f.gate.setForeground(true);
+      wall += 100;
+      f.frame(wall); // resumed frame only rebases, no teleport
+      assert.equal(f.bus.snapshot().continuousSubscribers, 200);
+    }
+    wall += 100;
+    f.frame(wall);
+    assert.equal(f.bus.snapshot().continuousSubscribers, 0);
+    assert.equal(f.queue.snapshot().pending, 0);
+    assert.equal(f.timers.size, 0);
+    assert.ok(pending.every(value => value === null));
+    f.drainStale();
+    assert.equal(f.frames.size, 0);
+    assert.equal(f.timers.size, 0);
+  }
+  assert.equal(arrivals, 3_600);
+  assert.equal(invalidated, 720);
+  assert.equal(continued, 2_880);
+  assert.equal(ghostRetries, 0);
+  runners.forEach(runner => runner.stop());
+  assert.equal(f.bus.snapshot().continuousSubscribers, 0);
+  assert.equal(f.queue.snapshot().pending, 0);
 });
