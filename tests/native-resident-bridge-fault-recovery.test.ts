@@ -221,8 +221,8 @@ test("a throwing timer cancellation still pauses both schedulers for 200 residen
   assert.equal(f.frames.size, 0);
   f.advance(100_000);
   f.deliverStale();
-  assert.ok(timerCounts.every(count => count === 0));
-  assert.ok(frameCounts.every(count => count === 0));
+  assert.equal(timerCounts.reduce((sum, count) => sum + count, 0), 0);
+  assert.equal(frameCounts.reduce((sum, count) => sum + count, 0), 0);
   f.gate.setForeground(true);
   f.frame();
   assert.ok(frameCounts.every(count => count === 1));
@@ -252,7 +252,7 @@ test("a throwing RAF cancellation still pauses timer retries, and late OS frame 
   assert.equal(f.queue.snapshot().scheduled, false);
   f.advance(30_000);
   f.deliverStale();
-  assert.ok(positions.every(v => v === 0));
+  assert.equal(positions.reduce((sum, value) => sum + value, 0), 0);
   f.gate.setGamePaused(false);
   f.advance(16);
   f.frame();
