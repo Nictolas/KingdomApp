@@ -236,7 +236,11 @@ test("native-only HUD owns sampling; native renderer and RAF avoid unnecessary h
   const bus = readFileSync(new URL("../src/performance/nativeResidentFrameBus.ts", import.meta.url), "utf8");
   const web = readFileSync(new URL("../src/components/MapWandererCharacter.tsx", import.meta.url), "utf8");
   assert.match(hud, /new NativeResidentSamplingLifecycle/);
-  assert.match(hud, /samplingLifecycle\.setForeground\(nextState === "active"\)/);
+  assert.match(hud, /observeNativeResidentAppVisibility\(visibility/);
+  assert.match(hud, /samplingLifecycle\.setForeground\(foreground\)/);
+  assert.match(hud, /AppState\.addEventListener\("blur"/);
+  assert.match(hud, /AppState\.addEventListener\("focus"/);
+  assert.match(hud, /hudForeground\.current = foreground/);
   assert.match(hud, /samplingLifecycle\.dispose\(\)/);
   assert.match(native, /onFrame: __DEV__ \? markNativeResidentFrameCallback : undefined/);
   assert.doesNotMatch(bus, /this\.due \?\? \[\]/);
