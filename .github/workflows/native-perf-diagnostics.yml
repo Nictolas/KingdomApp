@@ -40,6 +40,7 @@ on:
       - "tests/native-ab-matrix.test.mjs"
       - "tests/native-resident-relay-cache-benchmark.ts"
       - "tests/native-resident-sprite-frame-driver.test.ts"
+      - "tests/native-resident-facing-benchmark.ts"
       - "tests/native-resident-sprite-scheduler-integration.test.ts"
       - "src/performance/nativeResidentRouteTransitions.ts"
       - "src/performance/nativeResidentSegmentRunner.ts"
@@ -167,10 +168,12 @@ jobs:
         id: suite_11
         continue-on-error: true
         run: npx tsx tests/native-resident-relay-cache-benchmark.ts
-      - name: Synthetic resident movement allocation model (Node only, not device FPS)
+      - name: Synthetic resident movement/facing allocation models (Node only, not device FPS)
         id: suite_12
         continue-on-error: true
-        run: npx tsx tests/native-resident-motion-buffer-benchmark.ts
+        run: |
+          npx tsx tests/native-resident-motion-buffer-benchmark.ts
+          npx tsx tests/native-resident-facing-benchmark.ts
       - name: Synthetic persistent RAF registration benchmark (Node only, not FPS)
         id: suite_13
         continue-on-error: true

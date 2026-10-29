@@ -160,13 +160,18 @@ function NativeResidentBody({
   // Sprite-sheet frames are written to Animated.Image without React renders.
   // The independent native hit target still follows pixelPos as before.
   const [spriteSheetOffset] = useState(() => new Animated.Value(0));
+  const [spriteMirrorScaleX] = useState(() => new Animated.Value(1));
   const [spriteFrames] = useState(() =>
-    new NativeResidentSpriteFrameDriver(cellSizePx, (left) => spriteSheetOffset.setValue(left))
+    new NativeResidentSpriteFrameDriver(
+      cellSizePx,
+      (left) => spriteSheetOffset.setValue(left),
+      (scaleX) => spriteMirrorScaleX.setValue(scaleX)
+    )
   );
-  const [direction, setDirection] = useState<WanderDirection>("s");
   const face = useCallback((next: WanderDirection) => {
+    // Facing changes do not reconcile 200 React sprite bodies; the image
+    // frame and horizontal mirror are updated by their Animated.Values.
     spriteFrames.face(next);
-    setDirection(next); // Only direction changes need a render (west mirror).
   }, [spriteFrames]);
   React.useLayoutEffect(() => {
     spriteFrames.setCellSize(cellSizePx);
@@ -683,7 +688,6 @@ function NativeResidentBody({
 
   const usaEmojiMarker = markerEmoji != null && markerEmoji !== "";
 
-  const flipW = direction === "w";
   const frameW = cellSizePx;
   const frameH = cellSizePx * 1.22;
   const sheetW = FRAMES * frameW;
@@ -695,13 +699,13 @@ function NativeResidentBody({
     </View>
   ) : (
     <View style={[styles.spriteColumn, { height: cellSizePx, width: cellSizePx }]}>
-      <View
+      <Animated.View
         style={[
           styles.clip,
           {
             width: frameW,
             height: frameH,
-            transform: flipW ? [{ scaleX: -1 }] : undefined
+            transform: [{ scaleX: spriteMirrorScaleX }]
           }
         ]}
       >
@@ -716,7 +720,7 @@ function NativeResidentBody({
             top: 0
           }}
         />
-      </View>
+      </Animated.View>
     </View>
   );
 

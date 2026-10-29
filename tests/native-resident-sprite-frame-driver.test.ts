@@ -37,7 +37,7 @@ test("all native sprite directions retain exact legacy sprite-sheet indices", ()
     assert.equal(writes.at(-1) ?? 0, driver.snapshot().offsetPx);
     if (direction === "w") {
       assert.equal(driver.snapshot().offsetPx, -9 * 48,
-        "west uses east frames mirrored by the existing React transform");
+        "west uses east frames mirrored by the Animated transform");
     }
   }
 });
@@ -156,4 +156,78 @@ test("native-only Animated.Image wiring keeps web renderer and hit target separa
   assert.match(native, /\.\.\.pixelPos\.getLayout\(\)/);
   assert.doesNotMatch(native, /setWalkFrame\(|setIsMoving\(/);
   assert.doesNotMatch(shared, /NativeResidentSpriteFrameDriver|spriteSheetOffset/);
+});
+
+test("west/east facing uses Animated mirror without a React state update", () => {
+  const frames: number[] = [];
+  const mirrors: number[] = [];
+  const driver = new NativeResidentSpriteFrameDriver(
+    40, left => frames.push(left), scale => mirrors.push(scale)
+  );
+  assert.equal(driver.snapshot().mirrorScaleX, 1);
+  driver.face("w");
+  assert.equal(driver.snapshot().mirrorScaleX, -1);
+  assert.deepEqual(mirrors, [-1]);
+  driver.face("w");
+  driver.setMoving(true);
+  driver.advanceElapsed(180);
+  driver.advanceElapsed(360);
+  assert.deepEqual(mirrors, [-1], "walking frames cannot republish mirror");
+  driver.face("n");
+  driver.face("e");
+  driver.face("s");
+  assert.deepEqual(mirrors, [-1, 1], "non-west directions share +1");
+  driver.face("w");
+  assert.deepEqual(mirrors, [-1, 1, -1]);
+  assert.equal(driver.snapshot().mirrorPublishes, 3);
+  assert.ok(frames.length > 0, "sprite-sheet offsets still advance");
+  driver.setMoving(false);
+  driver.setCellSize(64);
+  assert.equal(driver.snapshot().mirrorScaleX, -1);
+  assert.deepEqual(mirrors, [-1, 1, -1], "pause and resize do not toggle facing");
+  const fresh = new NativeResidentSpriteFrameDriver(64, () => {}, () => {});
+  assert.equal(fresh.snapshot().mirrorScaleX, 1, "new mount starts unmirrored");
+});
+
+test("200 residents x 1200 turns at 1x/2x/4x preserve facing and avoid redundant mirror publications", () => {
+  const directions = ["s", "e", "n", "w"] as const;
+  for (const speed of [1, 2, 4]) {
+    const mirrors = Array<number>(200).fill(1);
+    const writes = Array<number>(200).fill(0);
+    const drivers = Array.from({ length: 200 }, (_, id) =>
+      new NativeResidentSpriteFrameDriver(40, () => {}, scale => {
+        mirrors[id] = scale;
+        writes[id]!++;
+      })
+    );
+    let changes = 0;
+    for (let turn = 0; turn < 1200; turn++) {
+      for (let id = 0; id < 200; id++) {
+        const direction = directions[(turn * speed + id) % directions.length]!;
+        const before = drivers[id]!.snapshot().mirrorScaleX;
+        drivers[id]!.face(direction);
+        const expected = direction === "w" ? -1 : 1;
+        assert.equal(mirrors[id], expected);
+        assert.equal(drivers[id]!.snapshot().mirrorScaleX, expected);
+        changes += expected === before ? 0 : 1;
+        drivers[id]!.advanceElapsed(turn * 16 * speed);
+      }
+    }
+    assert.equal(writes.reduce((sum, value) => sum + value, 0), changes,
+      "only a west/non-west boundary publishes an Animated mirror update");
+    drivers.forEach((driver, id) => {
+      assert.equal(driver.snapshot().mirrorPublishes, writes[id]);
+      driver.setMoving(false);
+    });
+  }
+});
+
+test("native-facing transform is Animated and never invokes setDirection or changes the web renderer", () => {
+  const native = readFileSync("src/components/MapWandererCharacter.native.tsx", "utf8");
+  const shared = readFileSync("src/components/MapWandererCharacter.tsx", "utf8");
+  assert.match(native, /spriteMirrorScaleX\.setValue\(scaleX\)/);
+  assert.match(native, /<Animated\.View[\s\S]*?scaleX: spriteMirrorScaleX/);
+  assert.doesNotMatch(native, /setDirection\(/);
+  assert.doesNotMatch(native, /const \[direction, setDirection\]/);
+  assert.doesNotMatch(shared, /spriteMirrorScaleX|NativeResidentSpriteFrameDriver/);
 });

@@ -101,3 +101,22 @@ RAF obsolete non riattivino gli abitanti dopo l'uscita dall'app.
 
 Le prove restano sintetiche: non misurano CPU, GPU, FPS, frame drops,
 consumo energetico o risposta touch su dispositivi fisici.
+
+## Ottimizzazione orientamento (29 ottobre 2026, #297 Draft)
+
+Il cambio di direzione (specialmente est ↔ ovest) prima chiamava
+`setDirection`, provocando un commit React del corpo dell'abitante a ogni
+svolta. Ora `NativeResidentSpriteFrameDriver` emette la scala orizzontale
+`+1/-1` solo quando cambia la condizione **ovest/non ovest**, attraverso
+un `Animated.Value` collegato a `Animated.View`. Il frame del foglio sprite
+continua a usare il suo `Animated.Value` separato. Il target touch,
+l'occupazione delle celle, le regole di movimento e i salvataggi non cambiano.
+La versione web non viene modificata.
+
+Test deterministici: 200 controller × 1.200 cambi di direzione ×
+1×/2×/4×, più pause, ridimensionamento e remount. Il benchmark Node
+`tests/native-resident-facing-benchmark.ts` conta le pubblicazioni
+di mirror e i commit React **teorici** evitati rispetto al vecchio
+`setDirection`; non misura FPS, GPU, bridge o dispositivi fisici.
+Confermare visivamente l'orientamento ovest/est, il tocco e il doppio tocco
+su Android/iOS reali, usando #298 come A/B di laboratorio.

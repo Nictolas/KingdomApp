@@ -23,8 +23,14 @@ export class NativeResidentSpriteFrameDriver {
   private cellSizePx: number;
   private offsetPx = 0;
   private publishes = 0;
+  private mirrorScaleX = 1;
+  private mirrorPublishes = 0;
 
-  constructor(cellSizePx: number, private readonly publish: (leftPx: number) => void) {
+  constructor(
+    cellSizePx: number,
+    private readonly publish: (leftPx: number) => void,
+    private readonly publishMirrorScaleX?: (scaleX: number) => void
+  ) {
     this.cellSizePx = NativeResidentSpriteFrameDriver.validCellSize(cellSizePx);
   }
 
@@ -49,6 +55,15 @@ export class NativeResidentSpriteFrameDriver {
   face(direction: WanderDirection): void {
     if (direction === this.direction) return;
     this.direction = direction;
+    // West reuses the east sprite frames. Publish the mirror through a
+    // stable Animated.Value instead of triggering a React render per turn.
+    // North/south/east all use +1. Never publish redundant mirror writes.
+    const nextMirror = direction === "w" ? -1 : 1;
+    if (nextMirror !== this.mirrorScaleX) {
+      this.mirrorScaleX = nextMirror;
+      this.mirrorPublishes++;
+      this.publishMirrorScaleX?.(nextMirror);
+    }
     this.update();
   }
 
@@ -82,13 +97,17 @@ export class NativeResidentSpriteFrameDriver {
     walkFrame: number;
     offsetPx: number;
     publishes: number;
+    mirrorScaleX: number;
+    mirrorPublishes: number;
   }> {
     return {
       direction: this.direction,
       moving: this.moving,
       walkFrame: this.walkFrame,
       offsetPx: this.offsetPx,
-      publishes: this.publishes
+      publishes: this.publishes,
+      mirrorScaleX: this.mirrorScaleX,
+      mirrorPublishes: this.mirrorPublishes
     };
   }
 }
