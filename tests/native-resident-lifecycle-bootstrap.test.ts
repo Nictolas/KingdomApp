@@ -295,3 +295,116 @@ test("1,000 lifecycle retries, 200 app-state transitions and false callback valu
   assert.equal(f.foregroundListeners.size, 0);
   assert.equal(f.pauseListeners.size, 0);
 });
+
+
+test("teardown freezes 200 RAF subscribers and 200 timers across 100 dispose/reinstall cycles", () => {
+  let wall = 0;
+  let nextId = 0;
+  const frames = new Map<number, (timestamp: number) => void>();
+  const alarms = new Map<number, () => void>();
+  const bus = new NativeResidentFrameBus(
+    cb => { const id = ++nextId; frames.set(id, cb); return id; },
+    id => { frames.delete(id); }
+  );
+  const queue = new NativeResidentTimerQueue(
+    () => wall,
+    (cb, _delay) => { const id = ++nextId; alarms.set(id, cb); return id; },
+    id => { alarms.delete(id); },
+    32
+  );
+  const f = publishers(active => applyNativeResidentSchedulerActivity(
+    active, value => queue.setActive(value), value => bus.setActive(value)
+  ));
+  const owner = new NativeResidentLifecycleBootstrap(f.bindings);
+  owner.ensure();
+  let frameCalls = 0;
+  let timerCalls = 0;
+  const frameIds = Array.from({ length: 200 }, () =>
+    bus.subscribeFrame(() => { frameCalls++; })
+  );
+  const timerIds = Array.from({ length: 200 }, () =>
+    queue.schedule(() => { timerCalls++; }, 900)
+  );
+  for (let cycle = 0; cycle < 100; cycle++) {
+    assert.equal(frames.size, 1);
+    assert.equal(alarms.size, 1);
+    const lateFrame = frames.values().next().value!;
+    const lateAlarm = alarms.values().next().value!;
+    owner.dispose();
+    assert.equal(bus.snapshot().active, false);
+    assert.equal(queue.snapshot().active, false);
+    assert.equal(frames.size, 0);
+    assert.equal(alarms.size, 0);
+    assert.equal(f.foregroundListeners.size, 0);
+    assert.equal(f.pauseListeners.size, 0);
+    lateFrame(wall + 10_000);
+    lateAlarm();
+    assert.equal(frameCalls, 0);
+    assert.equal(timerCalls, 0);
+    owner.ensure();
+    assert.equal(frames.size, 1);
+    assert.equal(alarms.size, 1);
+    assert.equal(bus.snapshot().continuousSubscribers, 200);
+    assert.equal(queue.snapshot().pending, 200);
+  }
+  assert.deepEqual(f.registrations, [101, 101],
+    "one shared listener of each kind per deliberate reinstall, never per resident");
+  frameIds.forEach(id => bus.cancel(id));
+  timerIds.forEach(id => queue.cancel(id));
+  owner.dispose();
+  assert.equal(frames.size, 0);
+  assert.equal(alarms.size, 0);
+  assert.equal(bus.snapshot().queued, 0);
+  assert.equal(queue.snapshot().pending, 0);
+});
+
+test("reentrant disposal during foreground registration invalidates the incomplete bootstrap", () => {
+  const states: boolean[] = [];
+  const f = publishers(active => { states.push(active); });
+  let disposeDuringRegistration = true;
+  let owner!: NativeResidentLifecycleBootstrap;
+  const bindings: NativeResidentLifecycleBindings = {
+    ...f.bindings,
+    subscribeForeground: listener => {
+      const remove = f.bindings.subscribeForeground(listener);
+      if (disposeDuringRegistration) {
+        disposeDuringRegistration = false;
+        owner.dispose();
+      }
+      return remove;
+    }
+  };
+  owner = new NativeResidentLifecycleBootstrap(bindings);
+  assert.match(String(thrown(() => owner.ensure()).value), /installation invalidated/);
+  assert.equal(owner.initialized, false);
+  assert.equal(f.foregroundListeners.size, 0);
+  assert.equal(f.pauseListeners.size, 0);
+  assert.equal(states.at(-1), false, "an invalidated bootstrap must fail closed");
+  owner.ensure();
+  assert.equal(owner.initialized, true);
+  assert.equal(f.foregroundListeners.size, 1);
+  assert.equal(f.pauseListeners.size, 1);
+  owner.dispose();
+  assert.equal(states.at(-1), false);
+});
+
+test("teardown still pauses schedulers if a native unsubscribe throws a falsy value", () => {
+  const states: boolean[] = [];
+  const f = publishers(active => { states.push(active); });
+  const owner = new NativeResidentLifecycleBootstrap({
+    ...f.bindings,
+    subscribeForeground: listener => {
+      const remove = f.bindings.subscribeForeground(listener);
+      return () => { remove(); throw false; };
+    }
+  });
+  owner.ensure();
+  const failure = thrown(() => owner.dispose());
+  assert.equal(failure.caught, true);
+  assert.equal(failure.value, false);
+  assert.equal(states.at(-1), false);
+  assert.equal(f.foregroundListeners.size, 0);
+  assert.equal(f.pauseListeners.size, 0);
+  owner.dispose(); // repeated cleanup must not rethrow or rearm work
+  assert.equal(states.at(-1), false);
+});
