@@ -30,3 +30,16 @@ A further lifecycle gap was found: an expanded HUD could retain its sampling lea
 The deterministic regressions now cover 200 residents over 240 frames, a closed/open/closed frame bus, 200 background/foreground transitions with 200 callbacks each, overlapping observers, idempotent cleanup, cumulative totals across background and fresh sampling after resume. These are Node/fake-RAF assertions, not physical FPS, energy or GPU measurements. The native diagnostic and pure helper changed; **no web renderer, GameContext, saves, game speed, resident movement, production or A/B baseline #298** was modified.
 
 Do not label this validation complete before the latest GitHub workflow for the final commit finishes. The distinct Android/iOS/web Expo export jobs demonstrate only JavaScript bundle compatibility, not installable app behavior. On physical devices, still verify a 10-second capture at 25/50/100/200 native sprites (1×/2×/4×), start/collapse/background/resume, and compare #298 versus #297 on the same hardware; do not infer physical FPS from test counts.
+
+
+## Follow-up: suite_07 CI root cause and full sampling/RAF invariants
+
+The first post-fix workflow (run 40857326192) passed 15 of its 16 independently aggregated native test groups, plus the Android/iOS/web JS bundle exports. Its only failing group, \`suite_07\`, was due to two **over-escaped regular expressions in a source-inspection assertion**, which failed to match the already-present HUD lifecycle calls. This was not a movement fault, nor a reason to disable the fail-closed CI aggregator.
+
+The corrective test commit replaces both patterns with correctly escaped JS regular-expression literals. Two additional deterministic tests now validate:
+- Exactly-once lease acquisition/release for repeated \`active\`, \`inactive\`, \`background\` and disposal notifications, including token \`0\` and a newly acquired lease on resume.
+- A real \`NativeResidentFrameBus\` with 200 persistent subscriptions over 720 simulated RAF ticks: 48,000 counted native resident callbacks while the HUD is foregrounded, zero **diagnostic** callbacks counted across the middle 240-frame background period, then 48,000 after reactivation, while all 144,000 synthetic resident callbacks still execute. All subscriptions are removed at the end.
+
+The "real frame bus" here refers to the actual TypeScript scheduler run against a fake platform RAF; it is **not a physical device test**. The last failing CI run also still had the general TypeScript baseline errors; the additive regression gate reported none newly introduced. The four A/B scene/fixture files on #297 and #298 were compared directly by Git blob SHA again and are identical.
+
+Rollback remains limited to #297. The #298 baseline, #296, #295, main, gameplay rules, web code and saves remain unmodified. Full native CI and the independent JS bundle exports must be rechecked for the final commit; device FPS/UI-thread/GPU and touch tests remain outstanding.
