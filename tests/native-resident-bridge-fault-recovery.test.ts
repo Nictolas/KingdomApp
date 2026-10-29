@@ -290,6 +290,69 @@ test("200 due callbacks: preserve original thrown null if scheduling the next co
   assert.equal(f.alarms.size, 0);
 });
 
+test("200 timers: resume continues RAF even if the timeout bridge refuses its first schedule", () => {
+  const f = environment();
+  const timerHits = Array<number>(200).fill(0);
+  const frameHits = Array<number>(200).fill(0);
+  const frames = Array.from({ length: 200 }, (_, i) =>
+    f.bus.subscribeFrame(() => { frameHits[i]!++; })
+  );
+  for (let i = 0; i < 200; i++) f.queue.schedule(() => { timerHits[i]!++; }, 900);
+  f.advance(100);
+  f.gate.setForeground(false);
+  f.advance(20_000);
+  f.failTimerSchedule(new Error("resume timer scheduling failed"));
+  const failed = capture(() => f.gate.setForeground(true));
+  assert.equal(failed.caught, true);
+  assert.match(String(failed.value), /resume timer/);
+  assert.equal(f.bus.snapshot().active, true);
+  assert.equal(f.frames.size, 1, "RAF must resume even when timer queue throws");
+  assert.equal(f.queue.snapshot().pending, 200);
+  assert.equal(f.queue.snapshot().scheduled, false);
+  f.frame();
+  assert.equal(frameHits.reduce((total, n) => total + n, 0), 200);
+  let newlyScheduled = 0;
+  f.queue.schedule(() => { newlyScheduled++; }, 0);
+  f.wake();
+  assert.equal(newlyScheduled, 1);
+  f.advance(800);
+  f.drain();
+  assert.ok(timerHits.every(n => n === 1));
+  frames.forEach(id => f.bus.cancel(id));
+  assert.equal(f.queue.snapshot().pending, 0);
+  assert.equal(f.frames.size, 0);
+});
+
+test("200 walkers: failed RAF resubscription on foreground leaves timers live and can recover", () => {
+  const f = environment();
+  const hits = Array<number>(200).fill(0);
+  const frames = Array.from({ length: 200 }, (_, i) =>
+    f.bus.subscribeFrame(() => { hits[i]!++; })
+  );
+  const waits = Array.from({ length: 200 }, () => f.queue.schedule(() => {}, 900));
+  f.gate.setGamePaused(true);
+  f.advance(30_000);
+  f.failFrameRequest(false);
+  const failure = capture(() => f.gate.setGamePaused(false));
+  assert.equal(failure.caught, true);
+  assert.equal(failure.value, false);
+  assert.equal(f.bus.snapshot().active, true);
+  assert.equal(f.bus.snapshot().continuousSubscribers, 200);
+  assert.equal(f.bus.snapshot().scheduled, false);
+  assert.equal(f.queue.snapshot().scheduled, true);
+  const extra = f.bus.subscribeFrame(() => {});
+  f.deliverStale();
+  assert.equal(hits.reduce((total, n) => total + n, 0), 0);
+  f.frame();
+  assert.ok(hits.every(n => n === 1));
+  frames.forEach(id => f.bus.cancel(id));
+  f.bus.cancel(extra);
+  waits.forEach(id => f.queue.cancel(id));
+  assert.equal(f.queue.snapshot().pending, 0);
+  assert.equal(f.bus.snapshot().queued, 0);
+  assert.equal(f.frames.size, 0);
+});
+
 test("coordinated gate delivers both transitions and preserves the first falsy exception", () => {
   const order: string[] = [];
   const failure = capture(() => applyNativeResidentSchedulerActivity(
