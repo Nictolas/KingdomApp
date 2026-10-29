@@ -52,6 +52,34 @@ export class NativeResidentFrameBus {
   /** Any pause/resume transition invalidates the current dispatch batch. */
   private activityEpoch = 0;
   private dispatchCount = 0;
+  /**
+   * The hot 200-resident persistent path uses Map.forEach with a stable
+   * visitor. A for..of Map iterator materializes [id, callback] entries on
+   * every RAF; this path creates neither an iterator nor a new visitor closure
+   * per frame. No change to the one-shot Map-buffer semantics.
+   */
+  private continuousTimestamp = 0;
+  private continuousRebase = false;
+  private continuousEpoch = 0;
+  private continuousMaxId = 0;
+  private continuousFirstError: unknown = undefined;
+  private continuousHasError = false;
+  private readonly visitContinuous = (callback: ResidentFrameCallback, id: number): void => {
+    // Map.forEach may visit subscribers added while iterating. They are
+    // deliberately ineligible until the next platform frame.
+    if (!this.active || this.activityEpoch !== this.continuousEpoch ||
+        id > this.continuousMaxId) return;
+    try {
+      callback(this.continuousTimestamp, this.continuousRebase);
+    } catch (error) {
+      // A broken resident must not starve its 199 healthy siblings. Preserve
+      // even falsy thrown values (null, undefined, 0, false).
+      if (!this.continuousHasError) {
+        this.continuousFirstError = error;
+        this.continuousHasError = true;
+      }
+    }
+  };
 
   constructor(
     private readonly requestPlatformFrame: RequestFrame = (fn) => requestAnimationFrame(fn),
@@ -192,7 +220,12 @@ export class NativeResidentFrameBus {
     }
     // An ID boundary, not a copied Map/array: no O(residents) allocation
     // just to dispatch the same 200 subscribers on every animation frame.
-    const maxContinuousIdAtFrameStart = this.nextId - 1;
+    this.continuousTimestamp = timestamp;
+    this.continuousRebase = rebase;
+    this.continuousEpoch = dispatchEpoch;
+    this.continuousMaxId = this.nextId - 1;
+    this.continuousHasError = false;
+    this.continuousFirstError = undefined;
     let firstError: unknown = undefined;
     let hasError = false;
     try {
@@ -215,20 +248,13 @@ export class NativeResidentFrameBus {
         }
       }
       if (this.active && this.activityEpoch === dispatchEpoch) {
-        // Map iteration skips removed subscribers. New subscriptions receive
-        // higher IDs and cannot execute during the same frame. If a callback
-        // pauses the game, remaining subscribers are held until resume.
-        for (const [id, callback] of this.continuous) {
-          if (!this.active || this.activityEpoch !== dispatchEpoch) break;
-          if (id > maxContinuousIdAtFrameStart) break;
-          try {
-            callback(timestamp, rebase);
-          } catch (error) {
-            if (!hasError) {
-              firstError = error;
-              hasError = true;
-            }
-          }
+        // Stable callback: no Map entries iterator / [id, callback] tuples
+        // in the hot path. Deletions, additions and lifecycle transitions
+        // retain the same eligibility boundary as the previous loop.
+        this.continuous.forEach(this.visitContinuous);
+        if (this.continuousHasError && !hasError) {
+          firstError = this.continuousFirstError;
+          hasError = true;
         }
       }
     } finally {
@@ -250,6 +276,9 @@ export class NativeResidentFrameBus {
       }
       this.due = null;
       this.flushing = false;
+      // Never retain an exception (and its captured objects) between frames.
+      this.continuousFirstError = undefined;
+      this.continuousHasError = false;
       try {
         this.ensureScheduled();
       } finally {
