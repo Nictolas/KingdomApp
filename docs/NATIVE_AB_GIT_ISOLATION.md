@@ -16,6 +16,8 @@ Il controllo `scripts/audit-native-ab-git-isolation.mjs` verifica **oggetti e st
 
 La CI #297 esegue otto test Git locali (inclusi drift della fixture, contaminazione del renderer, cambi alla base e assenza della timer queue), quindi l'audit sulle tre branch remote. Gli SHA sono risolti una sola volta all'inizio del controllo, per evitare risultati misti se le branch avanzano.
 
+Il workflow passa inoltre `--expected-candidate` con lo SHA dell'evento PR: se il ramo #297 avanza durante il checkout/fetch, l'audit rifiuta di validare una revisione diversa da quella che ha avviato la pipeline. Nel caso `workflow_dispatch` usa lo SHA del ref selezionato.
+
 ## Esecuzione
 
 Nel checkout locale completo, dopo aver recuperato le tre branch:
