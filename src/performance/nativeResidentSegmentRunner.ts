@@ -52,6 +52,8 @@ export class NativeResidentSegmentRunner {
   private lastWrittenX: number | null = null;
   private lastWrittenY: number | null = null;
   /** One sample buffer per resident runner, not a new object every RAF. */
+  /** Reuse one native-only motion clock across tile segments; no per-tile clock allocation. */
+  private readonly segmentProgress = new NativeResidentSegmentProgress(0, 1);
   private readonly frameSample: NativeResidentSegmentSampleBuffer = {
     elapsedMs: 0, progress: 0, advance: false, complete: false
   };
@@ -135,7 +137,7 @@ export class NativeResidentSegmentRunner {
       this.cancel();
     }
     const token = this.generation;
-    const segment = new NativeResidentSegmentProgress(request.startTimestamp, request.durationMs);
+    this.segmentProgress.reset(request.startTimestamp, request.durationMs);
     this.active = true;
     try {
     this.deps.setWalking(true);
@@ -154,7 +156,7 @@ export class NativeResidentSegmentRunner {
       if (!this.deps.subscribeFrame) this.frameId = null;
       this.deps.onFrame?.();
       if (token !== this.generation || !this.active) return;
-      segment.sampleInto(now, this.deps.readTimeScale(), resumedAfterSuspension, this.frameSample);
+      this.segmentProgress.sampleInto(now, this.deps.readTimeScale(), resumedAfterSuspension, this.frameSample);
       if (token !== this.generation || !this.active) return;
       const frame = this.frameSample;
       if (!frame.advance) {

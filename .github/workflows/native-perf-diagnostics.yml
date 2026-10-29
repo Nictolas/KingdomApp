@@ -21,6 +21,8 @@ on:
       - "tests/native-resident-full-stack-integration.test.ts"
       - "tests/native-resident-buffer-reuse.test.ts"
       - "tests/native-resident-allocation-free-motion.test.ts"
+      - "tests/native-resident-reusable-progress.test.ts"
+      - "tests/native-resident-progress-reuse-benchmark.ts"
       - "tests/native-resident-motion-buffer-benchmark.ts"
       - "tests/native-resident-timer-cooperative-batching.test.ts"
       - "tests/native-resident-timer-time-budget.test.ts"
@@ -180,7 +182,7 @@ jobs:
       - name: Allocation-free 200-resident movement and route churn (Node only, not FPS)
         id: suite_08
         continue-on-error: true
-        run: npx tsx --test tests/native-resident-allocation-free-motion.test.ts
+        run: npx tsx --test tests/native-resident-allocation-free-motion.test.ts tests/native-resident-reusable-progress.test.ts
       - name: Native touch gesture and lifecycle regression (200 simulated residents, not physical touch)
         id: suite_09
         continue-on-error: true
@@ -198,6 +200,7 @@ jobs:
         continue-on-error: true
         run: |
           npx tsx tests/native-resident-motion-buffer-benchmark.ts
+          npx tsx tests/native-resident-progress-reuse-benchmark.ts
           npx tsx tests/native-resident-facing-benchmark.ts
           npx tsx tests/native-resident-touch-render-gate-benchmark.ts
       - name: Synthetic persistent RAF registration benchmark (Node only, not FPS)
