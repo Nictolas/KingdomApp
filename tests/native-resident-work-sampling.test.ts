@@ -161,14 +161,83 @@ test("overlapping HUDs and 200 background/foreground cycles preserve lease owner
   assert.equal(takeNativeResidentFrameCallbacks(), 0);
 });
 
+
+test("lifecycle lease transitions are exactly-once even under duplicate AppState notifications", () => {
+  let next = 0;
+  const active = new Set<number>();
+  const begun: number[] = [];
+  const ended: number[] = [];
+  const owner = new NativeResidentSamplingLifecycle(
+    () => { const token = next++; active.add(token); begun.push(token); return token; },
+    token => { assert.ok(active.delete(token), "cannot end an unowned lease twice"); ended.push(token); }
+  );
+  owner.setForeground(false);
+  owner.setForeground(true);
+  owner.setForeground(true);
+  assert.deepEqual(begun, [0], "token zero is a valid lease and foreground is idempotent");
+  owner.setForeground(false);
+  owner.setForeground(false);
+  assert.deepEqual(ended, [0], "inactive/background must release only once");
+  owner.setForeground(true);
+  assert.deepEqual(begun, [0, 1], "resume must own a new lease, not reuse a stale token");
+  owner.dispose();
+  owner.dispose();
+  owner.setForeground(true);
+  assert.deepEqual(ended, [0, 1]);
+  assert.equal(active.size, 0);
+});
+
+test("200 real frame-bus subscriptions stay intact across background/resume without diagnostic work", () => {
+  clearIntervals();
+  const scheduled = new Map<number, (timestamp: number) => void>();
+  let id = 1;
+  const bus = new NativeResidentFrameBus(
+    callback => { const token = id++; scheduled.set(token, callback); return token; },
+    token => { scheduled.delete(token); }
+  );
+  let actualResidentFrames = 0;
+  const subscriptions = Array.from({ length: 200 }, () =>
+    bus.subscribeFrame(() => {
+      actualResidentFrames++;
+      markNativeResidentFrameCallback();
+    })
+  );
+  const owner = new NativeResidentSamplingLifecycle(
+    beginNativeResidentWorkSampling, endNativeResidentWorkSampling
+  );
+  const runFrames = (start: number) => {
+    for (let frame = 0; frame < 240; frame++) {
+      assert.equal(scheduled.size, 1, "one platform RAF for all 200 residents");
+      const [token, callback] = scheduled.entries().next().value!;
+      scheduled.delete(token);
+      callback((start + frame) * 16);
+    }
+  };
+  owner.setForeground(true);
+  runFrames(0);
+  assert.equal(takeNativeResidentFrameCallbacks(), 48_000);
+  owner.setForeground(false); // background: the game bus still moves, HUD work stops
+  runFrames(240);
+  assert.equal(takeNativeResidentFrameCallbacks(), 0);
+  assert.equal(bus.snapshot().continuousSubscribers, 200);
+  owner.setForeground(true); // foreground: capture begins with a fresh interval
+  runFrames(480);
+  assert.equal(takeNativeResidentFrameCallbacks(), 48_000);
+  assert.equal(actualResidentFrames, 144_000, "diagnostic sampling must not modify movement scheduling");
+  owner.dispose();
+  subscriptions.forEach(subscription => bus.cancel(subscription));
+  assert.equal(bus.snapshot().continuousSubscribers, 0);
+  assert.equal(scheduled.size, 0);
+});
+
 test("native-only HUD owns sampling; native renderer and RAF avoid unnecessary hot-path allocations", () => {
   const hud = readFileSync(new URL("../src/performance/NativePerformanceHud.tsx", import.meta.url), "utf8");
   const native = readFileSync(new URL("../src/components/MapWandererCharacter.native.tsx", import.meta.url), "utf8");
   const bus = readFileSync(new URL("../src/performance/nativeResidentFrameBus.ts", import.meta.url), "utf8");
   const web = readFileSync(new URL("../src/components/MapWandererCharacter.tsx", import.meta.url), "utf8");
   assert.match(hud, /new NativeResidentSamplingLifecycle/);
-  assert.match(hud, /samplingLifecycle\\.setForeground\\(nextState === "active"\\)/);
-  assert.match(hud, /samplingLifecycle\\.dispose\\(\\)/);
+  assert.match(hud, /samplingLifecycle\.setForeground\(nextState === "active"\)/);
+  assert.match(hud, /samplingLifecycle\.dispose\(\)/);
   assert.match(native, /onFrame: __DEV__ \? markNativeResidentFrameCallback : undefined/);
   assert.doesNotMatch(bus, /this\.due \?\? \[\]/);
   assert.doesNotMatch(web, /beginNativeResidentWorkSampling|endNativeResidentWorkSampling/);
