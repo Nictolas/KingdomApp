@@ -3,44 +3,38 @@ import {
   getOrologioGiocoInPausaSnapshot,
   subscribeOrologioGiocoInPausa
 } from "../game/orologioGiocoSession";
-import { NativeResidentActivityGate } from "./nativeResidentActivityGate";
 import { setNativeResidentFrameBusActive } from "./nativeResidentFrameBus";
 import { setNativeResidentTimerQueueActive } from "./nativeResidentTimerQueue";
 import { applyNativeResidentSchedulerActivity } from "./nativeResidentSchedulerActivity";
-
-let initialized = false;
-let gate: NativeResidentActivityGate | null = null;
+import { NativeResidentLifecycleBootstrap } from "./nativeResidentLifecycleBootstrap";
 
 function isForeground(state: AppStateStatus | null): boolean {
   return state !== "background" && state !== "inactive";
 }
 
-function onAppStateChanged(next: AppStateStatus): void {
-  gate?.setForeground(isForeground(next));
-}
-
 /**
- * A single lifecycle subscription is shared by all resident sprites.
+ * One lifecycle registration for ALL native resident sprites.
+ * Initialization is retryable: a transient native bridge/subscription fault
+ * cannot permanently mark the resident schedulers as initialized while the
+ * AppState or game-clock listener is missing.
  *
- * No per-NPC AppState listeners, timers or React state updates. Game pause and
- * background are combined: foregrounding never resumes a manually paused game.
+ * No extra per-resident AppState listeners, timers, RAFs or React updates.
  */
+const lifecycle = new NativeResidentLifecycleBootstrap({
+  readForeground: () => isForeground(AppState.currentState),
+  readGamePaused: getOrologioGiocoInPausaSnapshot,
+  applyActive: active => applyNativeResidentSchedulerActivity(
+    active, setNativeResidentTimerQueueActive, setNativeResidentFrameBusActive
+  ),
+  subscribeGamePaused: listener => subscribeOrologioGiocoInPausa(listener),
+  subscribeForeground: listener => {
+    const subscription = AppState.addEventListener("change", next =>
+      listener(isForeground(next))
+    );
+    return () => subscription.remove();
+  }
+});
+
 export function ensureNativeResidentFrameLifecycle(): void {
-  if (initialized) return;
-  initialized = true;
-  gate = new NativeResidentActivityGate(
-    isForeground(AppState.currentState),
-    getOrologioGiocoInPausaSnapshot(),
-    (active) => {
-      // Both schedulers must receive the transition even if one native
-      // bridge throws. Preserve timer-first ordering on pause/resume.
-      applyNativeResidentSchedulerActivity(
-        active, setNativeResidentTimerQueueActive, setNativeResidentFrameBusActive
-      );
-    }
-  );
-  subscribeOrologioGiocoInPausa(() => {
-    gate?.setGamePaused(getOrologioGiocoInPausaSnapshot());
-  });
-  AppState.addEventListener("change", onAppStateChanged);
+  lifecycle.ensure();
 }
