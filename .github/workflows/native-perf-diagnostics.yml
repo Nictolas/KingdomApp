@@ -29,6 +29,9 @@ on:
       - "tests/native-resident-callback-relay.test.ts"
       - "tests/native-resident-relay-caching.test.ts"
       - "src/performance/nativeResidentTapRecognizer.ts"
+      - "src/performance/nativeResidentTouchRenderGate.ts"
+      - "tests/native-resident-touch-render-gate.test.ts"
+      - "tests/native-resident-touch-render-gate-benchmark.ts"
       - "tests/native-resident-tap-recognizer.test.ts"
       - "src/performance/nativeCaptureIntegrity.ts"
       - "tests/native-capture-integrity.test.ts"
@@ -171,7 +174,7 @@ jobs:
       - name: Native touch gesture and lifecycle regression (200 simulated residents, not physical touch)
         id: suite_09
         continue-on-error: true
-        run: npx tsx --test tests/native-resident-tap-recognizer.test.ts
+        run: npx tsx --test tests/native-resident-tap-recognizer.test.ts tests/native-resident-touch-render-gate.test.ts
       - name: Cached live resident event callbacks and presence masks (Node, not on-device)
         id: suite_10
         continue-on-error: true
@@ -186,6 +189,7 @@ jobs:
         run: |
           npx tsx tests/native-resident-motion-buffer-benchmark.ts
           npx tsx tests/native-resident-facing-benchmark.ts
+          npx tsx tests/native-resident-touch-render-gate-benchmark.ts
       - name: Synthetic persistent RAF registration benchmark (Node only, not FPS)
         id: suite_13
         continue-on-error: true

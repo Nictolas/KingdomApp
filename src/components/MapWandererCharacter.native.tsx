@@ -14,6 +14,7 @@ import { NativeResidentTapRecognizer } from "../performance/nativeResidentTapRec
 import { NativeResidentNeighborSampler } from "../performance/nativeResidentNeighborSampler";
 import { nativeResidentSpawnSampler } from "../performance/nativeResidentSpawnSampler";
 import { NativeResidentSpriteFrameDriver } from "../performance/nativeResidentSpriteFrameDriver";
+import { nativeResidentNeedsTouchRender } from "../performance/nativeResidentTouchRenderGate";
 import {
   requestResidentAnimationFrame,
   subscribeResidentAnimationFrames,
@@ -261,9 +262,17 @@ function NativeResidentBody({
     }
   }, [onPress, onDoublePress, tapRecognizer]);
 
-  useEffect(() => {
-    cellRef.current = logicalCell;
-  }, [logicalCell]);
+  // cellRef is the authoritative current cell. React state is published only
+  // when the hit target changes eligibility, not at every segment arrival.
+  const passTouchesRef = useRef(passTouchesToMapOnCell);
+  passTouchesRef.current = passTouchesToMapOnCell;
+  const publishCell = useCallback((nextCell: number) => {
+    const previousCell = cellRef.current;
+    cellRef.current = nextCell;
+    if (nativeResidentNeedsTouchRender(previousCell, nextCell, passTouchesRef.current)) {
+      setLogicalCell(nextCell);
+    }
+  }, []);
 
   const clearIdle = useCallback(() => wakeTimer.cancel(), [wakeTimer]);
 
@@ -316,15 +325,14 @@ function NativeResidentBody({
       startTimestamp: performance.now(),
       durationMs: segmentMoveDurationMs(prev, next, isRoadCell),
       onArrival: () => {
-        setLogicalCell(dest);
-        cellRef.current = dest;
+        publishCell(dest);
         onCellSettledRef.current?.(dest);
         wakeTimer.schedule(() => {
           pickNextMoveRef.current();
         }, IDLE_BEFORE_NEXT_MS);
       }
     });
-  }, [cols, rows, cellSizePx, isWalkable, isRoadCell, fixedCell, commutePath, disableIdleRoam, face, motion, wakeTimer, neighborSampler]);
+  }, [cols, rows, cellSizePx, isWalkable, isRoadCell, fixedCell, commutePath, disableIdleRoam, face, motion, wakeTimer, neighborSampler, publishCell]);
 
   pickNextMoveRef.current = pickNextMove;
 
@@ -408,8 +416,7 @@ function NativeResidentBody({
           nativeResidentReleaseSharedHomeArrival(
             isLastSegment, purpose, releaseMyCellRef.current
           );
-          setLogicalCell(to);
-          cellRef.current = to;
+          publishCell(to);
           // The parent may synchronously replace this commute while handling
           // the arrival. Never continue a route that lost ownership there.
           if (!routeEpoch.runIfCurrent(routeToken, () => onCellSettledRef.current?.(to))) return;
@@ -417,7 +424,7 @@ function NativeResidentBody({
         }
       });
     },
-    [cols, cellSizePx, isRoadCell, pendingCommuteRetry, face, motion, claimRetry, routeEpoch, wakeTimer]
+    [cols, cellSizePx, isRoadCell, pendingCommuteRetry, face, motion, claimRetry, routeEpoch, wakeTimer, publishCell]
   );
 
   /** Percorso casa → lavoro / lavoro → casa / … */
@@ -442,8 +449,7 @@ function NativeResidentBody({
     );
     const cx = (start % cols) * cellSizePx;
     const cy = Math.floor(start / cols) * cellSizePx;
-    setLogicalCell(start);
-    cellRef.current = start;
+    publishCell(start);
     pixelPos.setValue({ x: cx, y: cy });
     // Partenza spesso condivisa (casa): non claim esclusivo; claim al primo passo verso `to`.
     // The notification may invalidate the route, but this effect must still
@@ -495,7 +501,8 @@ function NativeResidentBody({
     claimRetry,
     routeEpoch,
     spriteFrames,
-    stopAndReconcile
+    stopAndReconcile,
+    publishCell
   ]);
 
   /** Di notte sulla residenza: fermo, sotto il layer edifici. */
@@ -511,14 +518,13 @@ function NativeResidentBody({
     releaseMyCellRef.current?.();
     const cx = (fixedCell % cols) * cellSizePx;
     const cy = Math.floor(fixedCell / cols) * cellSizePx;
-    setLogicalCell(fixedCell);
-    cellRef.current = fixedCell;
+    publishCell(fixedCell);
     pixelPos.setValue({ x: cx, y: cy });
     isMovingRef.current = false;
     spriteFrames.setMoving(false);
     face("s");
     onCellSettledRef.current?.(fixedCell);
-  }, [fixedCell, routeMode, cols, cellSizePx, clearIdle, face, spriteFrames, motion]);
+  }, [fixedCell, routeMode, cols, cellSizePx, clearIdle, face, spriteFrames, motion, publishCell]);
 
   /** Fine notte in casa → resta sulla stessa cella (casa), niente teletrasporto a caso sulla mappa. */
   useEffect(() => {
@@ -539,8 +545,7 @@ function NativeResidentBody({
     const cx = (prevHome % cols) * cellSizePx;
     const cy = Math.floor(prevHome / cols) * cellSizePx;
     inited.current = true;
-    setLogicalCell(prevHome);
-    cellRef.current = prevHome;
+    publishCell(prevHome);
     pixelPos.setValue({ x: cx, y: cy });
     isMovingRef.current = false;
     spriteFrames.setMoving(false);
@@ -550,7 +555,7 @@ function NativeResidentBody({
         pickNextMoveRef.current();
       }, IDLE_BEFORE_NEXT_MS);
     }
-  }, [fixedCell, routeMode, clearIdle, cols, cellSizePx, disableIdleRoam, spriteFrames, motion]);
+  }, [fixedCell, routeMode, clearIdle, cols, cellSizePx, disableIdleRoam, spriteFrames, motion, publishCell]);
 
   /** Disabling free roaming while an idle step is already underway must
    * stop that step and reconcile its reserved destination immediately.
@@ -598,8 +603,7 @@ function NativeResidentBody({
     inited.current = true;
     const cx = (idx % cols) * cellSizePx;
     const cy = Math.floor(idx / cols) * cellSizePx;
-    setLogicalCell(idx);
-    cellRef.current = idx;
+    publishCell(idx);
     pixelPos.setValue({ x: cx, y: cy });
     onCellSettledRef.current?.(idx);
     if (!disableIdleRoam) {
@@ -617,7 +621,8 @@ function NativeResidentBody({
     commutePath,
     disableIdleRoam,
     cellSizePx,
-    spriteFrames
+    spriteFrames,
+    publishCell
   ]);
 
   /**
@@ -663,8 +668,11 @@ function NativeResidentBody({
     [clearIdle, pendingCommuteRetry, motion, tapRecognizer]
   );
 
+  // The rendered cell can lag behind actual movement when the touch policy
+  // stays unchanged. A parent-prop render must evaluate the LIVE cell.
   const passTouchesToGrid = logicalCell !== null &&
-    passTouchesToMapOnCell != null && passTouchesToMapOnCell(logicalCell) === true;
+    passTouchesToMapOnCell != null &&
+    passTouchesToMapOnCell(cellRef.current ?? logicalCell) === true;
   const intercettaTocco = logicalCell !== null && (!!onPress || !!onDoublePress) && !passTouchesToGrid;
   // Clear an unfinished pair whenever the committed resident hit target is
   // removed or its double-tap handler becomes available/unavailable. This
