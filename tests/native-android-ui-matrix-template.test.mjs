@@ -37,7 +37,7 @@ test("invalid pair count and marker-only scene cannot enter the real-sprite mani
   for (const pairs of [0, 2, 11, 3.1, NaN, Infinity, "3"]) {
     assert.throws(() => makeAndroidUiMatrixTemplate({ pairs }), /3–10/);
   }
-  assert.throws(() => makeAndroidUiMatrixTemplate({ scene: "Marker fermi" }), /real native-sprite/);
+  assert.throws(() => makeAndroidUiMatrixTemplate({ scene: "Marker fermi" }), /real native-sprite/i);
 });
 
 test("CLI emits JSON, and never fabricates refresh rate or same-device attestation", () => {
