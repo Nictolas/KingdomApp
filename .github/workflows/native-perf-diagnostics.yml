@@ -8,28 +8,74 @@ on:
       - "src/components/MapViewportTransform*"
       - "src/components/MapWandererCharacter.tsx"
       - "src/components/MapWandererCharacter.native.tsx"
-      - "src/performance/nativeResidentFrameBus.ts"
-      - "src/performance/nativeResidentFrameLifecycle.native.ts"
-      - "src/performance/nativeResidentActivityGate.ts"
-      - "tests/native-resident-activity-gate.test.ts"
-      - "tests/native-resident-lifecycle-integration.test.ts"
-      - "tests/native-resident-frame-bus.test.ts"
-      - "tests/native-resident-platform-boundary.test.ts"
-      - "tests/native-map-transform.test.ts"
-      - "src/game/pauseAwareMotionClock.ts"
-      - "tests/pause-aware-motion-clock.test.ts"
-      - "src/game/pendingCommuteRetry.ts"
-      - "tests/pending-commute-retry.test.ts"
+      - "tests/native-real-resident-fixture.test.ts"
       - "tests/native-performance-diagnostics.test.ts"
+      - "tests/native-map-transform.test.ts"
+      - "tests/native-resident-platform-boundary.test.ts"
       - "app/native-perf.tsx"
-      - "app/mappa.tsx"
       - ".github/workflows/native-perf-diagnostics.yml"
   workflow_dispatch:
 
+concurrency:
+  group: native-performance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
-  native-diagnostics:
+  native-tests:
+    name: Native baseline fixture and existing tests
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: A/B real-sprite fixture parity against paired lab branch (exact Git blobs)
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A/B branches are pushed sequentially; allow bounded convergence.
+          # Persistent divergence still fails the native baseline gate.
+          for attempt in 1 2 3 4 5 6; do
+            git fetch --no-tags --depth=1 origin refs/heads/perf/native-resident-timer-batching-20261028
+            mismatch=0
+            for path in \
+              app/native-perf.tsx \
+              src/performance/NativeRealResidentWorkload.tsx \
+              src/performance/nativeRealResidentFixture.ts \
+              tests/native-real-resident-fixture.test.ts; do
+              local_sha="$(git hash-object "$path")"
+              paired_sha="$(git rev-parse "FETCH_HEAD:$path")"
+              if [[ "$local_sha" != "$paired_sha" ]]; then
+                echo "::warning file=$path::A/B fixture drift attempt $attempt/6: $local_sha vs $paired_sha"
+                mismatch=1
+              fi
+            done
+            if [[ "$mismatch" -eq 0 ]]; then
+              echo "A/B parity OK on attempt $attempt (all four Git blobs identical)"
+              exit 0
+            fi
+            if [[ "$attempt" -lt 6 ]]; then sleep 10; fi
+          done
+          echo "::error::A/B fixture parity did not converge after six attempts"
+          exit 1
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Same real-sprite fixture and 200-cell occupancy model as PR 297
+        run: npx tsx --test tests/native-real-resident-fixture.test.ts
+      - name: Existing baseline native diagnostics and renderer regressions
+        run: npx tsx --test tests/native-performance-diagnostics.test.ts tests/native-map-transform.test.ts tests/pause-aware-motion-clock.test.ts tests/pending-commute-retry.test.ts tests/native-resident-platform-boundary.test.ts tests/native-resident-frame-bus.test.ts tests/native-resident-activity-gate.test.ts tests/native-resident-lifecycle-integration.test.ts
+  native-bundles:
+    name: JS bundle ${{ matrix.platform }} (not device build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [android, ios, web]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -37,20 +83,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Pure fixture and frame metric tests
-        run: npx tsx --test tests/native-performance-diagnostics.test.ts tests/native-map-transform.test.ts tests/pause-aware-motion-clock.test.ts tests/pending-commute-retry.test.ts tests/native-resident-platform-boundary.test.ts tests/native-resident-frame-bus.test.ts tests/native-resident-activity-gate.test.ts tests/native-resident-lifecycle-integration.test.ts
-      - name: Android JS bundle smoke test (not on-device)
+      - name: Expo JS bundle smoke test
         env:
           CI: "1"
           EXPO_NO_TELEMETRY: "1"
-        run: npx expo export --platform android --output-dir /tmp/mykingdom-native-android
-      - name: iOS JS bundle smoke test (not on-device)
-        env:
-          CI: "1"
-          EXPO_NO_TELEMETRY: "1"
-        run: npx expo export --platform ios --output-dir /tmp/mykingdom-native-ios
-      - name: Web JS bundle smoke test (unchanged baseline renderer)
-        env:
-          CI: "1"
-          EXPO_NO_TELEMETRY: "1"
-        run: npx expo export --platform web --output-dir /tmp/mykingdom-resident-web
+        run: npx expo export --platform ${{ matrix.platform }} --output-dir /tmp/mykingdom-baseline-${{ matrix.platform }}
