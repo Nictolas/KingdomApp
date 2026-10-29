@@ -1,6 +1,7 @@
 import React, { useCallback, useRef, useState } from "react";
 import { getOrologioSimTimeScaleSnapshot, subscribeOrologioGiocoInPausa, subscribeOrologioGiocoVelocita } from "../game/orologioGiocoSession";
 import { nativeCaptureContextChanged, type NativeCaptureContext } from "./nativeCaptureIntegrity";
+import { nativeCaptureHasRequiredProbes } from "./nativeCaptureEvidence";
 import { NativeHudFrameLoop } from "./nativeHudFrameLoop";
 import { useFocusEffect } from "expo-router";
 import { AppState, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
@@ -211,7 +212,13 @@ export function NativePerformanceHud({
               const frameBus = diffNativeResidentFrameBusSnapshots(
                 active.frameBusStart, getNativeResidentFrameBusSnapshot(), complete.durationMs
               );
-              setLatestReport(formatNativeMeasurement(complete, active.environment, delta, renders, frameBus, dispatch ?? undefined, lag ?? undefined));
+              // Fail closed rather than exporting a 10-second A/B report
+              // with no JS event-loop lag samples (e.g. a disabled probe).
+              if (!nativeCaptureHasRequiredProbes(dispatch, lag)) {
+                setCaptureWarning("Misura non valida: diagnostica JS incompleta. Ripetere la cattura.");
+              } else {
+                setLatestReport(formatNativeMeasurement(complete, active.environment, delta, renders, frameBus, dispatch, lag));
+              }
             }
             }
           }
