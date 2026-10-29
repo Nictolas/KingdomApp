@@ -51,6 +51,7 @@ on:
       - "tests/native-resident-route-transitions.test.ts"
       - "tests/native-resident-collision-retry.test.ts"
       - "tests/native-resident-route-epoch.test.ts"
+      - "tests/native-perf-workflow-isolation.test.mjs"
       - "tests/native-resident-occupancy-handoff.test.ts"
       - "tests/native-resident-frame-bus.test.ts"
       - "tests/native-resident-frame-bus-benchmark.ts"
@@ -111,7 +112,7 @@ jobs:
       - run: npm ci
       - name: Baseline TypeScript regression gate (legacy errors still fail general CI)
         run: |
-          node --test tests/native-typecheck-regression.test.mjs
+          node --test tests/native-typecheck-regression.test.mjs tests/native-perf-workflow-isolation.test.mjs
           node scripts/check-native-typecheck-regressions.mjs
       - name: Pure fixture and frame metric tests
         id: suite_01
