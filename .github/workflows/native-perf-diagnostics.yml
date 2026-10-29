@@ -59,6 +59,8 @@ on:
       - "tests/native-resident-frame-bus.test.ts"
       - "tests/native-resident-frame-bus-benchmark.ts"
       - "tests/native-resident-platform-boundary.test.ts"
+      - "tests/native-resident-neighbor-sampler.test.ts"
+      - "tests/native-resident-neighbor-sampler-benchmark.ts"
       - "tests/native-typecheck-regression.test.mjs"
       - "tests/fixtures/native-typecheck-baseline.json"
       - "scripts/check-native-typecheck-regressions.mjs"
@@ -130,7 +132,7 @@ jobs:
       - name: Native commute/night priority, occupancy handoff and 200-resident route churn (Node only)
         id: suite_03
         continue-on-error: true
-        run: npx tsx --test tests/native-resident-route-transitions.test.ts tests/native-resident-occupancy-handoff.test.ts tests/native-resident-collision-retry.test.ts tests/native-resident-route-epoch.test.ts tests/native-resident-owned-timer.test.ts
+        run: npx tsx --test tests/native-resident-route-transitions.test.ts tests/native-resident-occupancy-handoff.test.ts tests/native-resident-collision-retry.test.ts tests/native-resident-route-epoch.test.ts tests/native-resident-owned-timer.test.ts tests/native-resident-neighbor-sampler.test.ts
       - name: 200 real native resident sprite fixture, occupancy and save-isolation regressions (Node only)
         id: suite_04
         continue-on-error: true
@@ -179,6 +181,10 @@ jobs:
         id: suite_15
         continue-on-error: true
         run: npx tsx tests/native-resident-timer-time-budget-benchmark.ts
+      - name: Synthetic 200-resident neighbor allocation comparison (Node only, not FPS)
+        id: suite_16
+        continue-on-error: true
+        run: npx tsx tests/native-resident-neighbor-sampler-benchmark.ts
       # A test failure must not hide independent soak, lifecycle or A/B
       # regressions. Each suite reports its true outcome; this final gate
       # preserves a red job if ANY group failed or was skipped.
@@ -203,7 +209,8 @@ jobs:
             "suite_12:${{ steps.suite_12.outcome }}" \
             "suite_13:${{ steps.suite_13.outcome }}" \
             "suite_14:${{ steps.suite_14.outcome }}" \
-            "suite_15:${{ steps.suite_15.outcome }}"; do
+            "suite_15:${{ steps.suite_15.outcome }}" \
+            "suite_16:${{ steps.suite_16.outcome }}"; do
             label="${entry%%:*}"
             outcome="${entry#*:}"
             echo "${label}: ${outcome}"

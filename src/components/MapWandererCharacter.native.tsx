@@ -11,6 +11,7 @@ import { nativeResidentRouteMode, nativeResidentHomeTransition, nativeResidentSh
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation, markNativeResidentWrapperInvocation } from "../performance/nativeResidentWorkCounters";
 import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallbackRelay";
 import { NativeResidentTapRecognizer } from "../performance/nativeResidentTapRecognizer";
+import { NativeResidentNeighborSampler } from "../performance/nativeResidentNeighborSampler";
 import { NativeResidentSpriteFrameDriver } from "../performance/nativeResidentSpriteFrameDriver";
 import {
   requestResidentAnimationFrame,
@@ -47,17 +48,6 @@ const IDLE_BEFORE_NEXT_MS = 2200;
 const CLAIM_RETRY_MS = 900;
 /** Dopo N fallimenti di claim, chiede al genitore un nuovo percorso. */
 const MAX_CLAIM_FAILS_BEFORE_REPATH = 3;
-
-function orthogonalNeighbors(index: number, cols: number, rows: number): number[] {
-  const c = index % cols;
-  const r = Math.floor(index / cols);
-  const out: number[] = [];
-  if (c > 0) out.push(index - 1);
-  if (c < cols - 1) out.push(index + 1);
-  if (r > 0) out.push(index - cols);
-  if (r < rows - 1) out.push(index + cols);
-  return out;
-}
 
 function directionBetween(from: number, to: number, cols: number): WanderDirection {
   if (to === from + 1) return "e";
@@ -214,6 +204,8 @@ function NativeResidentBody({
     onFrame: () => { if (__DEV__) markNativeResidentFrameCallback(); }
   }));
   const [tapRecognizer] = useState(() => new NativeResidentTapRecognizer());
+  // One four-cell scratch buffer per resident; no neighbor/filter arrays on idle retries.
+  const [neighborSampler] = useState(() => new NativeResidentNeighborSampler());
   /** Evita di rieseguire effetti a ogni render (es. tick orologio sul genitore → callback nuove). */
   const onCommuteCompleteRef = useRef(onCommuteComplete);
   const onCommuteBlockedRef = useRef(onCommuteBlocked);
@@ -291,33 +283,12 @@ function NativeResidentBody({
     const prev = cellRef.current;
     if (prev === null) return;
 
-    const isFree = isCellFreeForMeRef.current;
-    const cand = orthogonalNeighbors(prev, cols, rows).filter(
-      (j) => isWalkable(j) && (isFree?.(j) ?? true)
+    // Same left/right/up/down filter, Fisher-Yates shuffle and atomic claim
+    // order as the previous implementation, but no transient neighbor arrays.
+    const next = neighborSampler.pick(
+      prev, cols, rows, isWalkable,
+      isCellFreeForMeRef.current, tryClaimCellRef.current
     );
-    if (cand.length === 0) {
-      wakeTimer.schedule(() => {
-        pickNextMoveRef.current();
-      }, IDLE_BEFORE_NEXT_MS);
-      return;
-    }
-
-    // Prova le celle candidate in ordine casuale finché una non viene prenotata.
-    for (let i = cand.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      const tmp = cand[i]!;
-      cand[i] = cand[j]!;
-      cand[j] = tmp;
-    }
-
-    let next: number | null = null;
-    const claim = tryClaimCellRef.current;
-    for (const c of cand) {
-      if (!claim || claim(c)) {
-        next = c;
-        break;
-      }
-    }
     if (next == null) {
       wakeTimer.schedule(() => {
         pickNextMoveRef.current();
@@ -347,7 +318,7 @@ function NativeResidentBody({
         }, IDLE_BEFORE_NEXT_MS);
       }
     });
-  }, [cols, rows, cellSizePx, isWalkable, isRoadCell, fixedCell, commutePath, disableIdleRoam, face, motion, wakeTimer]);
+  }, [cols, rows, cellSizePx, isWalkable, isRoadCell, fixedCell, commutePath, disableIdleRoam, face, motion, wakeTimer, neighborSampler]);
 
   pickNextMoveRef.current = pickNextMove;
 
