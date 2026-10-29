@@ -253,11 +253,16 @@ test("native home arrival releases reservation before parent settle and completi
   const web = readFileSync(new URL("../src/components/MapWandererCharacter.tsx", import.meta.url), "utf8");
   const start = native.indexOf("nativeResidentReleaseSharedHomeArrival(");
   assert.ok(start > 0);
-  const arrival = native.slice(start, start + 350);
+  // Epoch-aware arrivals include a guard between settle and continuation.
+  // Inspect the complete arrival instead of assuming a fixed 350-byte span.
+  const finish = native.indexOf("onDone();", start);
+  assert.ok(finish > start, "home arrival completion exists");
+  const arrival = native.slice(start, finish + "onDone();".length);
   assert.match(arrival, /isLastSegment, purpose, releaseMyCellRef\.current/);
-  assert.ok(arrival.indexOf("nativeResidentReleaseSharedHomeArrival(") <
-    arrival.indexOf("onCellSettledRef.current?.(to)"));
-  assert.ok(arrival.indexOf("onCellSettledRef.current?.(to)") <
-    arrival.indexOf("onDone()"));
+  const releaseAt = arrival.indexOf("nativeResidentReleaseSharedHomeArrival(");
+  const settleAt = arrival.indexOf("routeEpoch.runIfCurrent(routeToken, () => onCellSettledRef.current?.(to))");
+  const completeAt = arrival.indexOf("onDone();");
+  assert.ok(releaseAt >= 0 && settleAt > releaseAt && completeAt > settleAt,
+    "release shared-home claim before the guarded settle and completion");
   assert.doesNotMatch(web, /nativeResidentReleaseSharedHomeArrival/);
 });
