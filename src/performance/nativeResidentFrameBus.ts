@@ -90,7 +90,15 @@ export class NativeResidentFrameBus {
     const id = this.nextId++;
     this.pending.set(id, callback);
     this.oneShotRequests++;
-    this.ensureScheduled();
+    try {
+      this.ensureScheduled();
+    } catch (error) {
+      // Native requestAnimationFrame may throw before returning an ID.
+      // Never strand an unowned one-shot that could run on a later frame.
+      this.pending.delete(id);
+      this.oneShotRequests--;
+      throw error;
+    }
     return id;
   }
 
@@ -103,7 +111,15 @@ export class NativeResidentFrameBus {
     const id = this.nextId++;
     this.continuous.set(id, callback);
     this.subscriptionAdds++;
-    this.ensureScheduled();
+    try {
+      this.ensureScheduled();
+    } catch (error) {
+      // If platform RAF registration failed, the resident never received
+      // its subscription handle. Roll back before another sprite schedules.
+      this.continuous.delete(id);
+      this.subscriptionAdds--;
+      throw error;
+    }
     return id;
   }
 
@@ -112,9 +128,10 @@ export class NativeResidentFrameBus {
     this.due?.delete(id);
     this.continuous.delete(id);
     if (!this.flushing && this.pending.size === 0 && this.continuous.size === 0 && this.platformFrame !== null) {
-      this.cancelPlatformFrame(this.platformFrame);
+      const frame = this.platformFrame;
       this.platformFrame = null;
-      this.platformGeneration++;
+      this.platformGeneration++; // invalidate stale OS callbacks BEFORE cancel
+      this.cancelPlatformFrame(frame);
     }
   }
 
@@ -137,21 +154,26 @@ export class NativeResidentFrameBus {
     try {
     this.active = active;
     const transitionEpoch = ++this.activityEpoch;
+    // Notify lifecycle listeners even if the native bridge fails to cancel
+    // a frame. The gate has already published its new state; letting one
+    // thrown cancellation skip 200 listeners would desynchronise residents.
+    let firstError: unknown = undefined;
+    let hasError = false;
     if (!active) {
       if (this.platformFrame !== null) {
-        this.cancelPlatformFrame(this.platformFrame);
+        const frame = this.platformFrame;
         this.platformFrame = null;
-        this.platformGeneration++;
+        this.platformGeneration++; // stale OS RAF cannot revive a paused world
+        try {
+          this.cancelPlatformFrame(frame);
+        } catch (error) {
+          firstError = error;
+          hasError = true;
+        }
       }
-      // Even if a stale OS RAF fires after cancellation, its callbacks must
-      // remain queued until the game becomes active again.
     } else {
       this.firstFrameAfterResume = true;
     }
-    // Notify idle/retry timers as well as walking residents. An app returning
-    // to foreground must restart deferred work without a React rerender.
-    let firstError: unknown = undefined;
-    let hasError = false;
     for (const listener of [...this.activityListeners]) {
       // A listener can pause and resume synchronously. Never deliver an
       // obsolete transition after a newer state has been published.
@@ -168,7 +190,16 @@ export class NativeResidentFrameBus {
         }
       }
     }
-    if (active) this.ensureScheduled();
+    if (active) {
+      try {
+        this.ensureScheduled();
+      } catch (error) {
+        if (!hasError) {
+          firstError = error;
+          hasError = true;
+        }
+      }
+    }
     if (hasError) throw firstError;
     } finally {
       endNativeResidentDispatch("lifecycle", timing);
@@ -192,7 +223,15 @@ export class NativeResidentFrameBus {
   private ensureScheduled(): void {
     if (!this.active || this.flushing || this.platformFrame !== null || (this.pending.size === 0 && this.continuous.size === 0)) return;
     const generation = ++this.platformGeneration;
-    this.platformFrame = this.requestPlatformFrame((timestamp) => this.flush(timestamp, generation));
+    try {
+      this.platformFrame = this.requestPlatformFrame((timestamp) => this.flush(timestamp, generation));
+    } catch (error) {
+      // A bridge can schedule then throw before returning its handle.
+      // Invalidate that inaccessible callback and permit a future retry.
+      this.platformFrame = null;
+      this.platformGeneration++;
+      throw error;
+    }
   }
 
   private flush(timestamp: number, generation: number): void {
