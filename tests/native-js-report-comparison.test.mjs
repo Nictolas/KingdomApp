@@ -185,7 +185,7 @@ test("reject malformed units, numeric prefixes, duplicated fields and inconsiste
 
 test("probe sample counts distinguish missing, zero and malformed diagnostic evidence", () => {
   const base = report({ speed: 1, rafBatch: 3, lag: 4 });
-  const complete = base + "\\nBatch RAF JS campionati: 0\\nRitardo loop JS campioni: 20";
+  const complete = base + "\nBatch RAF JS campionati: 0\nRitardo loop JS campioni: 20";
   const parsed = parseNativeJsReports(complete)[0];
   assert.deepEqual(parsed.diagnosticSamples, { frameBatch: 0, eventLoopLag: 20 });
   assert.deepEqual(parseNativeJsReports(base)[0].diagnosticSamples,
