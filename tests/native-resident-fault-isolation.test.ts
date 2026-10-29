@@ -238,9 +238,9 @@ test("200 mixed one-shot/persistent 4x walkers recover from terminal sprite and 
       }
     })
   );
-  const start = (id: number, at: number) => runners[id]!.start({
+  const start = (id: number, at: number, intermediate = id % 2 === 0) => runners[id]!.start({
     from: { x: 0, y: id }, to: { x: 100, y: id },
-    durationMs: 100, startTimestamp: at, keepWalkingOnArrival: id % 2 === 0,
+    durationMs: 100, startTimestamp: at, keepWalkingOnArrival: intermediate,
     onArrival: () => { arrivals[id]!++; }
   });
   runners.forEach((_, id) => start(id, 0));
@@ -253,7 +253,8 @@ test("200 mixed one-shot/persistent 4x walkers recover from terminal sprite and 
   assert.equal(f.bus.snapshot().queued, 0);
   assert.equal(f.os.size, 0);
   // All residents may safely start again after isolating the bad segment.
-  runners.forEach((_, id) => start(id, 25));
+  // This second route is terminal, so it must clear the visual walking flag.
+  runners.forEach((_, id) => start(id, 25, false));
   f.frame(50);
   assert.ok(arrivals.every(n => n === 1));
   assert.ok(walking.every(active => !active));
