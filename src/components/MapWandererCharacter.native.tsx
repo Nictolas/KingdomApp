@@ -12,6 +12,7 @@ import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation, ma
 import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallbackRelay";
 import { NativeResidentTapRecognizer } from "../performance/nativeResidentTapRecognizer";
 import { NativeResidentNeighborSampler } from "../performance/nativeResidentNeighborSampler";
+import { nativeResidentSpawnSampler } from "../performance/nativeResidentSpawnSampler";
 import { NativeResidentSpriteFrameDriver } from "../performance/nativeResidentSpriteFrameDriver";
 import {
   requestResidentAnimationFrame,
@@ -577,46 +578,16 @@ function NativeResidentBody({
     if (commutePath != null && commutePath.length >= 2) return;
     if (fixedCell != null) return;
     if (inited.current) return;
-    const tot = cols * rows;
-    const isFree = isCellFreeForMeRef.current;
-    const claim = tryClaimCellRef.current;
-
-    const provaCella = (c: number): boolean => {
-      if (c < 0 || c >= tot) return false;
-      if (!isWalkable(c)) return false;
-      if (!(isFree?.(c) ?? true)) return false;
-      return !claim || claim(c);
-    };
-
-    let idx: number | null = null;
-    if (preferredSpawnCell != null && provaCella(preferredSpawnCell)) {
-      idx = preferredSpawnCell;
-    } else if (preferredSpawnCell != null && isWalkable(preferredSpawnCell)) {
-      // Preferita occupata: claim forzato se walkable (casa condivisa / uscita lavoro).
-      claim?.(preferredSpawnCell);
-      idx = preferredSpawnCell;
-    }
-
-    if (idx == null) {
-      const ok: number[] = [];
-      for (let i = 0; i < tot; i++) {
-        if (isWalkable(i) && (isFree?.(i) ?? true)) ok.push(i);
-      }
-      if (ok.length === 0) {
-        for (let i = 0; i < tot; i++) {
-          if (isWalkable(i)) ok.push(i);
-        }
-      }
-      if (ok.length === 0) return;
-      const preferred = (instanceId * 9973) % ok.length;
-      for (let offset = 0; offset < ok.length; offset++) {
-        const candidate = ok[(preferred + offset) % ok.length]!;
-        if (!claim || claim(candidate)) {
-          idx = candidate;
-          break;
-        }
-      }
-    }
+    // One shared native scratch buffer across all cold-mounted residents.
+    // Keep preferred shared-home and occupancy behavior byte-for-byte equivalent.
+    const idx = nativeResidentSpawnSampler.pick({
+      totalCells: cols * rows,
+      instanceId,
+      preferredSpawnCell,
+      isWalkable,
+      isCellFreeForMe: isCellFreeForMeRef.current,
+      tryClaimCell: tryClaimCellRef.current
+    });
     if (idx == null) return;
 
     inited.current = true;
