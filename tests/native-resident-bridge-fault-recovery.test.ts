@@ -263,6 +263,33 @@ test("a throwing RAF cancellation still pauses timer retries, and late OS frame 
   assert.equal(f.alarms.size, 0);
 });
 
+test("200 due callbacks: preserve original thrown null if scheduling the next cooperative batch also fails", () => {
+  const f = environment();
+  const completed: number[] = [];
+  for (let i = 0; i < 200; i++) f.queue.schedule(() => {
+    if (i === 0) {
+      f.failTimerSchedule(new Error("bridge rearm failed"));
+      throw null;
+    }
+    completed.push(i);
+  }, 900);
+  f.advance(900);
+  const failure = capture(() => f.wake());
+  assert.equal(failure.caught, true);
+  assert.equal(failure.value, null, "the original resident failure takes precedence");
+  assert.deepEqual(completed, Array.from({ length: 31 }, (_, i) => i + 1));
+  assert.equal(f.queue.snapshot().pending, 168);
+  assert.equal(f.queue.snapshot().scheduled, false);
+  // A native callback produced before the bridge error has no valid handle.
+  f.deliverStale();
+  assert.equal(completed.length, 31);
+  f.queue.schedule(() => { completed.push(200); }, 0);
+  f.drain();
+  assert.deepEqual(completed, [...Array.from({ length: 199 }, (_, i) => i + 1), 200]);
+  assert.equal(f.queue.snapshot().pending, 0);
+  assert.equal(f.alarms.size, 0);
+});
+
 test("coordinated gate delivers both transitions and preserves the first falsy exception", () => {
   const order: string[] = [];
   const failure = capture(() => applyNativeResidentSchedulerActivity(
