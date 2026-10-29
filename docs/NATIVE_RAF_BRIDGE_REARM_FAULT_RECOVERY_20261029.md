@@ -16,7 +16,7 @@ Lo snapshot locale `getNativeResidentFrameBusSnapshot()` espone tre contatori cu
 - `platformCancelFailures`: cancellazioni native RAF fallite durante unmount o pausa/background.
 - `postDispatchRearmFailures`: sottoinsieme dei guasti di registrazione avvenuti **dopo** il dispatch di un frame, durante il riarmo.
 
-I contatori non contengono ID di residenti, coordinate, percorsi o dati personali; non sono FPS, latenze o misure del thread UI/GPU. Non vengono trasmessi o salvati. Una registrazione fallita lascia la coda logica e le sottoscrizioni intatte: una successiva registrazione o chiamata `setActive(true)` può riprovare. Le callback del sistema operativo consegnate in ritardo sono scartate tramite il generation token. **Non è stato aggiunto un loop di retry automatico**, che potrebbe consumare CPU durante un guasto permanente del bridge.
+I contatori non contengono ID di residenti, coordinate, percorsi o dati personali; non sono FPS, latenze o misure del thread UI/GPU. Il pannello __DEV__ li include come **delta della finestra di 10 secondi** nel report JS esportabile soltanto tramite condivisione volontaria dell'operatore; non vengono trasmessi o salvati automaticamente. La baseline #298 non ha bisogno di questi campi aggiuntivi: il parser A/B ignora i campi non richiesti, senza considerarli equivalenti a zero. Una registrazione fallita lascia la coda logica e le sottoscrizioni intatte: una successiva registrazione o chiamata `setActive(true)` può riprovare. Le callback del sistema operativo consegnate in ritardo sono scartate tramite il generation token. **Non è stato aggiunto un loop di retry automatico**, che potrebbe consumare CPU durante un guasto permanente del bridge.
 
 ## Test deterministici
 
