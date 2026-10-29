@@ -80,6 +80,31 @@ export function analyzeNativeAbMatrix(manifest, loadText, { allowPartial = false
     if (baseline.some(run => run.samples < 100) || candidate.some(run => run.samples < 100)) {
       fail(key + ": fewer than 100 JS frame samples in a capture");
     }
+    // A report can claim 10 seconds while containing only ~2 seconds of
+    // 16ms frames. Count alone (>=100) cannot detect such missing intervals.
+    // The exported mean is rounded to 0.1ms, so use a generous 80–115%
+    // envelope rather than falsely promising exact wall-clock coverage.
+    for (const [side, captures] of [["baseline", baseline], ["candidate", candidate]]) {
+      for (const run of captures) {
+        const coverage = run.samples * run.metrics.frameMeanMs / run.durationMs;
+        if (!Number.isFinite(coverage) || coverage < 0.80 || coverage > 1.15) {
+          fail(key + ": " + side + " JS RAF samples do not cover the declared capture window (80–115%)");
+        }
+      }
+    }
+    // #298 may lack the later probes, but #297's strict HUD must never be
+    // compared as a complete candidate when its heartbeat or dispatch data
+    // is absent. Stationary sprites legitimately produce zero RAF batches.
+    const moving = manifest.scene !== "Sprite abitanti reali fermi";
+    if (candidate.some(run =>
+      run.metrics.frameBatchP95Ms === null ||
+      run.metrics.eventLoopLagP95Ms === null ||
+      run.diagnosticSamples.frameBatch === null ||
+      run.diagnosticSamples.eventLoopLag === null ||
+      run.diagnosticSamples.eventLoopLag < 1 ||
+      (moving && run.diagnosticSamples.frameBatch < 1))) {
+      fail(key + ": candidate #297 missing required JS dispatch/event-loop probe evidence");
+    }
     scenarios.push({
       residents: entry.residents, speed: entry.speed, runs,
       speedConfirmedManually: unrecordedBaseline || unrecordedCandidate,
