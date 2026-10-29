@@ -181,3 +181,18 @@ test("reject malformed units, numeric prefixes, duplicated fields and inconsiste
   }
   assert.equal(parseNativeJsReports(valid)[0].timeScale, 2);
 });
+
+
+test("probe sample counts distinguish missing, zero and malformed diagnostic evidence", () => {
+  const base = report({ speed: 1, rafBatch: 3, lag: 4 });
+  const complete = base + "\\nBatch RAF JS campionati: 0\\nRitardo loop JS campioni: 20";
+  const parsed = parseNativeJsReports(complete)[0];
+  assert.deepEqual(parsed.diagnosticSamples, { frameBatch: 0, eventLoopLag: 20 });
+  assert.deepEqual(parseNativeJsReports(base)[0].diagnosticSamples,
+    { frameBatch: null, eventLoopLag: null });
+  for (const malformed of ["1.5", "999999999999999999999", "-1"]) {
+    assert.throws(() => parseNativeJsReports(complete.replace("Ritardo loop JS campioni: 20",
+      "Ritardo loop JS campioni: " + malformed)),
+    /Invalid diagnostic probe sample counts|Invalid metric/);
+  }
+});
