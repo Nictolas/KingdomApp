@@ -62,6 +62,7 @@ on:
       - "src/performance/nativeResidentSegmentRunner.ts"
       - "tests/native-resident-segment-runner.test.ts"
       - "tests/native-resident-4x-subscription-reuse.test.ts"
+      - "tests/native-resident-allocation-stable-segments.test.ts"
       - "tests/native-resident-fault-isolation.test.ts"
       - "tests/native-resident-bridge-fault-recovery.test.ts"
       - "tests/native-resident-scheduler-bridge-recovery.test.ts"
@@ -82,6 +83,7 @@ on:
       - "tests/native-resident-frame-bus.test.ts"
       - "tests/native-resident-continuous-dispatch.test.ts"
       - "tests/native-resident-continuous-dispatch-benchmark.ts"
+      - "tests/native-resident-segment-dispatch-benchmark.ts"
       - "tests/native-resident-bridge-fault-benchmark.ts"
       - "tests/native-resident-lifecycle-bootstrap-benchmark.ts"
       - "tests/native-resident-frame-bus-benchmark.ts"
@@ -165,7 +167,7 @@ jobs:
       - name: Pure fixture and frame metric tests
         id: suite_01
         continue-on-error: true
-        run: npx tsx --test tests/native-performance-diagnostics.test.ts tests/native-measurement-window-integrity.test.ts tests/native-capture-evidence.test.ts tests/native-map-transform.test.ts tests/pause-aware-motion-clock.test.ts tests/pending-commute-retry.test.ts tests/native-resident-platform-boundary.test.ts tests/native-resident-frame-bus.test.ts tests/native-resident-continuous-dispatch.test.ts tests/native-resident-activity-gate.test.ts tests/native-resident-lifecycle-integration.test.ts tests/native-resident-lifecycle-bootstrap.test.ts tests/native-real-sprite-ab-comparison.test.ts tests/native-real-sprite-ab-replicates.test.ts tests/native-resident-timer-queue.test.ts tests/native-resident-timer-diagnostics.test.ts tests/native-resident-timer-model-comparison.test.ts tests/native-resident-timer-cooperative-batching.test.ts tests/native-resident-timer-time-budget.test.ts tests/native-resident-timer-falsy-errors.test.ts tests/native-resident-callback-relay.test.ts tests/native-resident-sprite-frame-driver.test.ts tests/native-resident-sprite-scheduler-integration.test.ts tests/native-resident-segment-runner.test.ts tests/native-resident-4x-subscription-reuse.test.ts tests/native-resident-fault-isolation.test.ts tests/native-resident-bridge-fault-recovery.test.ts tests/native-resident-scheduler-bridge-recovery.test.ts tests/native-resident-raf-falsy-errors.test.ts tests/native-resident-dispatch-profiler.test.ts tests/native-resident-responsiveness.test.ts tests/native-resident-reentrant-lifecycle.test.ts
+        run: npx tsx --test tests/native-performance-diagnostics.test.ts tests/native-measurement-window-integrity.test.ts tests/native-capture-evidence.test.ts tests/native-map-transform.test.ts tests/pause-aware-motion-clock.test.ts tests/pending-commute-retry.test.ts tests/native-resident-platform-boundary.test.ts tests/native-resident-frame-bus.test.ts tests/native-resident-continuous-dispatch.test.ts tests/native-resident-activity-gate.test.ts tests/native-resident-lifecycle-integration.test.ts tests/native-resident-lifecycle-bootstrap.test.ts tests/native-real-sprite-ab-comparison.test.ts tests/native-real-sprite-ab-replicates.test.ts tests/native-resident-timer-queue.test.ts tests/native-resident-timer-diagnostics.test.ts tests/native-resident-timer-model-comparison.test.ts tests/native-resident-timer-cooperative-batching.test.ts tests/native-resident-timer-time-budget.test.ts tests/native-resident-timer-falsy-errors.test.ts tests/native-resident-callback-relay.test.ts tests/native-resident-sprite-frame-driver.test.ts tests/native-resident-sprite-scheduler-integration.test.ts tests/native-resident-segment-runner.test.ts tests/native-resident-4x-subscription-reuse.test.ts tests/native-resident-allocation-stable-segments.test.ts tests/native-resident-fault-isolation.test.ts tests/native-resident-bridge-fault-recovery.test.ts tests/native-resident-scheduler-bridge-recovery.test.ts tests/native-resident-raf-falsy-errors.test.ts tests/native-resident-dispatch-profiler.test.ts tests/native-resident-responsiveness.test.ts tests/native-resident-reentrant-lifecycle.test.ts
       - name: Device capture validity (scene, population, speed, pause) and offline three-run A/B reports
         id: suite_02
         continue-on-error: true
@@ -225,6 +227,7 @@ jobs:
         run: |
           npx tsx tests/native-resident-frame-bus-benchmark.ts
           npx tsx tests/native-resident-continuous-dispatch-benchmark.ts
+          npx tsx tests/native-resident-segment-dispatch-benchmark.ts
           npx tsx tests/native-resident-bridge-fault-benchmark.ts
           npx tsx tests/native-resident-lifecycle-bootstrap-benchmark.ts
       - name: Synthetic timer burst benchmark (Node only, not FPS)
