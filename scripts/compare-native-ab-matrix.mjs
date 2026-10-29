@@ -4,8 +4,8 @@
  * No network calls, game state, device identifiers or FPS/GPU assertions.
  * Baseline = #298, candidate = #297. #295 is markers-only.
  */
-import { readFileSync } from "node:fs";
-import { dirname, resolve } from "node:path";
+import { readFileSync, realpathSync } from "node:fs";
+import { dirname, resolve, relative, isAbsolute, sep } from "node:path";
 import { pathToFileURL } from "node:url";
 import { compareNativeJsReports, parseNativeJsReports } from "./compare-native-js-reports.mjs";
 
@@ -14,7 +14,12 @@ const SPEEDS = [1, 2, 4];
 const SCENES = new Set(["Sprite abitanti reali in movimento", "Sprite abitanti reali fermi"]);
 const expectedKeys = POPULATIONS.flatMap(residents => SPEEDS.map(speed => residents + "/" + speed));
 const fail = message => { throw new Error("Native A/B matrix: " + message); };
-const isPath = value => typeof value === "string" && value.trim().length > 0 && value.length <= 4096;
+// Canonical relative paths only: reject aliases, traversal and absolute paths.
+const isPath = value => typeof value === "string" && value.length > 0 &&
+  value.length <= 4096 && value.trim() === value &&
+  !/[\\\r\n\0]/.test(value) && !value.startsWith("/") &&
+  !/^[A-Za-z]:/.test(value) &&
+  value.split("/").every(part => part !== "" && part !== "." && part !== "..");
 
 export function analyzeNativeAbMatrix(manifest, loadText, { allowPartial = false } = {}) {
   if (!manifest || typeof manifest !== "object" || Array.isArray(manifest) ||
@@ -115,7 +120,16 @@ function main(args) {
   const raw = readFileSync(path, "utf8");
   if (raw.length > 100000) fail("manifest too large");
   const manifest = JSON.parse(raw);
-  const result = analyzeNativeAbMatrix(manifest, file => readFileSync(resolve(dirname(path), file), "utf8"), { allowPartial });
+  const root = realpathSync(dirname(path));
+  const load = file => {
+    const target = realpathSync(resolve(root, file));
+    const within = relative(root, target);
+    // realpath resolves symlinks; reject any escape from the manifest folder.
+    if (!within || within === ".." || within.startsWith(".." + sep) ||
+      isAbsolute(within)) fail("report path escapes manifest directory");
+    return readFileSync(target, "utf8");
+  };
+  const result = analyzeNativeAbMatrix(manifest, load, { allowPartial });
   if (json) return console.log(JSON.stringify(result, null, 2));
   console.log("MyKingdom · matrice A/B JS nativa (NON FPS UI/GPU)");
   console.log(result.platform + " · " + result.scene + " · " +
