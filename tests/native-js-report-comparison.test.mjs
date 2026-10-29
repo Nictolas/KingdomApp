@@ -162,3 +162,22 @@ test("capture parser is robust to missing optional terrain and no optional probe
   assert.equal(parsed.timeScale, null);
   assert.equal(parsed.metrics.touchCallbackP95Ms, null);
 });
+
+test("reject malformed units, numeric prefixes, duplicated fields and inconsistent counts", () => {
+  const valid = report({speed:2});
+  for (const corrupted of [
+    valid.replace("Velocità simulazione: 2x", "Velocità simulazione: 2x4"),
+    valid.replace("Campioni: 600", "Campioni: 600garbage"),
+    valid.replace("p95: 21.0 ms", "p95: 21.0 seconds"),
+    valid.replace("Durata: 10 s", "Durata: 10 ms"),
+    valid.replace("Frame oltre 50 ms: 3", "Frame oltre 50 ms: 3.5"),
+    valid.replace("Frame oltre 50 ms: 3", "Frame oltre 50 ms: 7"),
+    valid.replace("FPS JS medio: 62.5", "FPS JS medio: 200"),
+    valid + "\np95: 999 ms",
+    valid + "\nPiattaforma: ios"
+  ]) {
+    assert.throws(() => parseNativeJsReports(corrupted),
+      /nonnumeric|Invalid metric|Invalid JS frame counts|Duplicate report field/);
+  }
+  assert.equal(parseNativeJsReports(valid)[0].timeScale, 2);
+});
