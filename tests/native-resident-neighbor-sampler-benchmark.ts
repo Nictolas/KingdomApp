@@ -11,6 +11,8 @@ const sampler = Array.from({ length: population }, () => new NativeResidentNeigh
 const walk = (cell: number) => cell % 13 !== 0;
 const free = (cell: number) => cell % 7 !== 0;
 const claim = (cell: number) => cell % 11 !== 0;
+// Stable RNG function: do not accidentally benchmark 500,000 new closures.
+const random = () => 0.4;
 function reference(from: number): number | null {
   const col = from % 20, row = Math.floor(from / 20);
   const out: number[] = [];
@@ -35,20 +37,39 @@ function run(mode: "old" | "buffer", cycles: number): { ms: number; checksum: nu
     for (let i = 0; i < population; i++) {
       const from = (i * 41 + tick) % 400;
       const cell = mode === "old" ? reference(from) :
-        sampler[i]!.pick(from, 20, 20, walk, free, claim, () => 0.4);
+        sampler[i]!.pick(from, 20, 20, walk, free, claim, random);
       checksum += cell ?? -1;
     }
   }
   return { ms: performance.now() - start, checksum };
 }
 run("old", 100); run("buffer", 100);
-const old = run("old", iterations);
-const optimized = run("buffer", iterations);
-if (old.checksum !== optimized.checksum) throw new Error("Native neighbor benchmark changed selection semantics");
+// Alternate execution order to reduce warm-cache/JIT bias. Report median of
+// five rounds, not a single noisy wall-clock sample; never gate on speed.
+const oldTimes: number[] = [], bufferedTimes: number[] = [];
+let checksum: number | null = null;
+for (let round = 0; round < 5; round++) {
+  const order: Array<"old" | "buffer"> = round % 2 ? ["buffer", "old"] : ["old", "buffer"];
+  const results = order.map(mode => ({ mode, ...run(mode, iterations) }));
+  const old = results.find(x => x.mode === "old")!;
+  const optimized = results.find(x => x.mode === "buffer")!;
+  if (old.checksum !== optimized.checksum ||
+    (checksum !== null && checksum !== old.checksum)) {
+    throw new Error("Native neighbor benchmark changed selection semantics");
+  }
+  checksum = old.checksum;
+  oldTimes.push(old.ms);
+  bufferedTimes.push(optimized.ms);
+}
+const median = (values: number[]) => [...values].sort((a, b) => a - b)[2]!;
 console.log(JSON.stringify({
   scope: "Node synthetic neighbor selection, not native device FPS",
-  residents: population, attempts: population * iterations,
-  oldMs: Number(old.ms.toFixed(2)), bufferedMs: Number(optimized.ms.toFixed(2)),
-  checksum: old.checksum,
+  residents: population, attemptsPerRound: population * iterations, rounds: 5,
+  oldMedianMs: Number(median(oldTimes).toFixed(2)),
+  bufferedMedianMs: Number(median(bufferedTimes).toFixed(2)),
+  oldRangeMs: [Math.min(...oldTimes), Math.max(...oldTimes)].map(x => Number(x.toFixed(2))),
+  bufferedRangeMs: [Math.min(...bufferedTimes), Math.max(...bufferedTimes)].map(x => Number(x.toFixed(2))),
+  sourceModelTransientNeighborArraysPerAttempt: { old: 2, buffered: 0 },
+  checksum,
   result: "non-gating microbenchmark; no Android/iOS claim"
 }));
