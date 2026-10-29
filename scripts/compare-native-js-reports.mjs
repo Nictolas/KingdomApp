@@ -19,23 +19,40 @@ import { pathToFileURL } from "node:url";
 const HEADER = "MyKingdom - diagnostica prestazioni JS (non GPU/UI FPS)";
 const MAX_REPORT_BYTES = 5_000_000;
 
-const numberField = (text, label, required = false) => {
-  const line = text.split("\n").find(line => line.startsWith(label + ":"));
-  if (!line) {
+// Strict units and unique fields: never accept numeric prefixes such as
+// "20e9", "1x4" or "600garbage" as a legitimate captured metric.
+const NUMBER_UNITS = new Map([
+  ["Durata", "s"], ["Velocità simulazione", "x"],
+  ["Frame medio", "ms"], ["p95", "ms"],
+  ["Batch RAF JS p95", "ms"], ["Batch timer JS p95", "ms"],
+  ["Ritardo loop JS p95", "ms"], ["Gestore tocchi JS p95", "ms"]
+]);
+
+const uniqueField = (text, label, required) => {
+  const matches = text.split("\n").filter(line => line.startsWith(label + ":"));
+  if (matches.length > 1) throw new Error("Duplicate report field: " + label);
+  if (!matches.length) {
     if (required) throw new Error("Report missing required field: " + label);
     return null;
   }
-  const value = line.slice(label.length + 1).trim().match(/^-?\d+(?:\.\d+)?/);
-  if (!value) throw new Error("Report contains nonnumeric field: " + label);
-  const number = Number(value[0]);
+  return matches[0].slice(label.length + 1).trim();
+};
+
+const numberField = (text, label, required = false) => {
+  const value = uniqueField(text, label, required);
+  if (value === null) return null;
+  const match = value.match(/^(-?\d+(?:\.\d+)?)(?:\s*(ms|s|x))?$/);
+  if (!match) throw new Error("Report contains nonnumeric field: " + label);
+  if ((match[2] ?? "") !== (NUMBER_UNITS.get(label) ?? "")) {
+    throw new Error("Invalid metric unit: " + label);
+  }
+  const number = Number(match[1]);
   if (!Number.isFinite(number) || number < 0) throw new Error("Invalid metric: " + label);
   return number;
 };
 
 const textField = (text, label) => {
-  const line = text.split("\n").find(line => line.startsWith(label + ":"));
-  if (!line) throw new Error("Report missing required field: " + label);
-  const value = line.slice(label.length + 1).trim();
+  const value = uniqueField(text, label, true);
   if (!value) throw new Error("Empty field: " + label);
   return value;
 };
@@ -68,7 +85,17 @@ export function parseNativeJsReports(input) {
     const frameMeanMs = numberField(text, "Frame medio", true);
     const frameP95Ms = numberField(text, "p95", true);
     const framesOver50 = numberField(text, "Frame oltre 50 ms", true);
-    if (samples < framesOver50 || frameMeanMs === null || frameP95Ms === null) {
+    const framesOver33 = numberField(text, "Frame oltre 33 ms");
+    const reportedJsFps = numberField(text, "FPS JS medio");
+    if (samples < framesOver50 || frameMeanMs === null || frameP95Ms === null ||
+      !Number.isSafeInteger(framesOver50) ||
+      (framesOver33 !== null && (!Number.isSafeInteger(framesOver33) ||
+        framesOver33 > samples || framesOver33 < framesOver50)) ||
+      (samples > 0 && (frameMeanMs <= 0 || frameP95Ms <= 0)) ||
+      (reportedJsFps !== null && samples > 0 &&
+        (reportedJsFps <= 0 ||
+          Math.abs(reportedJsFps - 1000 / frameMeanMs) >
+            Math.max(1.5, 0.06 * (1000 / frameMeanMs))))) {
       throw new Error("Invalid JS frame counts in report " + (index + 1));
     }
     const metrics = {
