@@ -40,11 +40,13 @@ save format, production services and release branches are unchanged.
    the current batch and the first resumed frame carries the same
    clock-rebase signal used by one-shot movement.
 3. The segment runner accepts an optional `subscribeFrame` dependency.
-   Existing one-shot tests/callers remain supported. Native movement
-   subscribes once at segment start and unsubscribes at completion,
-   cancellation, route replacement or unmount. It unsubscribes **before
-   calling onArrival**, because onArrival may start a new segment
-   synchronously. Generation guards still reject stale callbacks.
+   Existing one-shot tests/callers remain supported. The native runner
+   retains its registered dispatcher during a synchronous
+   `onArrival → start` chain, so consecutive tiles are first sampled
+   on the following RAF without remove/re-add of their subscription.
+   If no next segment starts, cleanup in `finally` unsubscribes,
+   including on thrown callbacks. External replacements still cancel
+   and subscribe afresh; generation guards reject stale work.
 4. The dev-only HUD shows active persistent subscribers and the rate
    of persistent/one-shot registrations. A user-triggered 10-second
    report includes the same aggregate counts. No IDs, positions,
