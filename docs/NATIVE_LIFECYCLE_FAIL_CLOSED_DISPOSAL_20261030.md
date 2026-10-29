@@ -64,3 +64,48 @@ Da verificare su Android e iPhone fisici: 25/50/100/200 sprite, velocità
 1×/2×/4×, pausa e resume, notification shade Android, collisioni, tocchi,
 frame UI/GPU, temperatura e continuità della simulazione. Nessuna misura
 hardware è stata effettuata da questo intervento.
+
+
+## Estensione della validazione — 30/10/2026
+
+### Correzione della pipeline precedente
+
+Sulla revisione `05947c19`, la suite `suite_01` era rossa per
+`a canceled native AppState notification cannot control a newer bootstrap`.
+Non si trattava di un difetto osservato del scheduler: il test si attendeva
+`[true, true]` dopo `ensure() → dispose() → ensure()`, mentre la
+semantica fail-closed introdotta richiede correttamente
+`[true, false, true]`. Il test ora verifica esplicitamente che la
+notifica tardiva della vecchia generazione **non** aggiunga alcuna
+pubblicazione e che un vero nuovo `foreground=false` sia ricevuto.
+
+### Matrice integrata aggiunta alla suite di bootstrap
+
+Un singolo scenario parametrico esegue **12 combinazioni**, senza
+modificare game design, GameContext, save o web:
+
+- Popolazioni di 25, 50, 100 e 200 sottoscrizioni RAF **persistenti**.
+- Velocità 1×, 2× e 4× con `NativeResidentSegmentProgress.sampleInto()`.
+- Otto attese logiche per abitante (fino a **1.600 timeout**) nella coda
+  cooperativa da 32 callback per risveglio OS.
+- Sequenza `foreground → background + pausa → foreground ancora in pausa
+  → resume`, con **89,9 secondi** di sospensione simulata.
+- Consegna forzata di frame e timer OS già cancellati: devono restare inerti.
+- Primo frame dopo resume usato per il *rebase*, senza avanzamento forzato.
+- Drenaggio completo di ogni attesa una sola volta; un solo RAF e un
+  solo timer OS per intera popolazione; teardown finale senza riferimenti.
+- Un altro stress test attraversa **100 generazioni** di bootstrap,
+  reiniettando tutte le notifiche delle generazioni precedenti e
+  verificando esattamente due listener condivisi mentre attivo.
+
+I risultati CI devono essere valutati sul commit **corrente** e non
+sulle pipeline precedenti. Le 12 combinazioni sono **test sintetici
+deterministici Node**, non 12 test Android/iPhone, non benchmark FPS, e
+non una prova di collisioni o touch fisici.
+
+### Criterio di avanzamento
+
+La stima resta **80% della sola fase native 200 abitanti** finché non
+si concludono CI dell'ultimo commit e prove su dispositivi fisici.
+I bundle Expo JS (Android/iOS/web) non sono APK/IPA. Verificare
+separatamente gli errori TypeScript generali preesistenti.
