@@ -202,3 +202,60 @@ test("200 4x terminal arrival exceptions do not starve healthy residents or leav
   f.staleFrame(300_000);
   assert.ok(arrivals.every(n => n === 1));
 });
+
+
+test("200 mixed one-shot/persistent 4x walkers recover from terminal sprite and walking listener failures", () => {
+  const f = environment();
+  const population = 200;
+  const walking = Array<boolean>(population).fill(false);
+  const arrivals = Array<number>(population).fill(0);
+  const zeroCalls = Array<number>(population).fill(0);
+  const spriteFailed = Array<boolean>(population).fill(false);
+  const walkingFailed = Array<boolean>(population).fill(false);
+  const runners = Array.from({ length: population }, (_, id) =>
+    new NativeResidentSegmentRunner({
+      requestFrame: cb => f.bus.request(cb),
+      ...(id % 2 === 0 ? { subscribeFrame: (cb: (at: number, resumed: boolean) => void) =>
+        f.bus.subscribeFrame(cb) } : {}),
+      cancelFrame: key => f.bus.cancel(key),
+      readTimeScale: () => 4,
+      writePositionXY: () => {},
+      advanceSprite: elapsed => {
+        if (elapsed !== 0) return;
+        zeroCalls[id]!++;
+        // Even IDs fail ONLY on the terminal reset, never during start.
+        if (id % 2 === 0 && zeroCalls[id] === 2 && !spriteFailed[id]) {
+          spriteFailed[id] = true;
+          throw new Error("injected terminal sprite reset failure");
+        }
+      },
+      setWalking: moving => {
+        if (!moving && id % 2 === 1 && !walkingFailed[id]) {
+          walkingFailed[id] = true;
+          throw new Error("injected terminal walking reset failure");
+        }
+        walking[id] = moving;
+      }
+    })
+  );
+  const start = (id: number, at: number) => runners[id]!.start({
+    from: { x: 0, y: id }, to: { x: 100, y: id },
+    durationMs: 100, startTimestamp: at, keepWalkingOnArrival: id % 2 === 0,
+    onArrival: () => { arrivals[id]!++; }
+  });
+  runners.forEach((_, id) => start(id, 0));
+  assert.throws(() => f.frame(25), /injected terminal/);
+  assert.ok(spriteFailed.every((failed, id) => failed === (id % 2 === 0)));
+  assert.ok(walkingFailed.every((failed, id) => failed === (id % 2 === 1)));
+  assert.ok(walking.every(active => !active), "failed terminal callbacks cannot leave walking=true");
+  assert.ok(arrivals.every(n => n === 0), "failed terminal callbacks do not commit arrivals");
+  assert.equal(f.bus.snapshot().queued, 0);
+  assert.equal(f.os.size, 0);
+  // All residents may safely start again after isolating the bad segment.
+  runners.forEach((_, id) => start(id, 25));
+  f.frame(50);
+  assert.ok(arrivals.every(n => n === 1));
+  assert.ok(walking.every(active => !active));
+  assert.equal(f.bus.snapshot().queued, 0);
+  assert.equal(f.os.size, 0);
+});
