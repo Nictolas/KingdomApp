@@ -94,7 +94,11 @@ Il runner ora distingue il caso di errore dal percorso ordinario:
   la cancellazione di piattaforma, così una callback/bridge che
   genera eccezione non lascia un ID falsamente ancora posseduto.
 - L'errore originario non è nascosto da un'eventuale seconda
-  eccezione nel callback che prova a fermare l'animazione.
+  eccezione nel callback che prova a fermare l'animazione. La procedura
+  prova a fermare il costume anche se il runner ha già posto
+  `active=false` per un arrivo: una eccezione al reset terminale
+  del fotogramma o del flag `setWalking(false)` non deve lasciare
+  la sprite visivamente in cammino.
 - Se il callback difettoso **ha già avviato una nuova route** prima
   di generare l'errore, il controllo di generazione impedisce
   di cancellare la nuova animazione.
@@ -122,3 +126,13 @@ la frequenza reale delle eccezioni, FPS, uso CPU, GC, batteria
 o comportamento del bridge React Native su Android/iOS.
 La pipeline nativa deve essere verde e la scena #298/#297
 va misurata su telefoni fisici prima di qualsiasi merge.
+
+
+**Seconda regressione:** una prova con 200 residenti mescola
+100 runner persistenti e 100 con la vecchia API RAF one-shot.
+Metà fallisce nel reset terminale della sprite-sheet, metà nel primo
+tentativo di disattivazione dello stato `walking`; entrambe devono
+liberare tutte le iscrizioni e tornare allo stato visivo fermo.
+Gli stessi 200 runner ripartono poi con un segmento pulito e
+raggiungono una sola volta la destinazione. È uno stress test Node
+a 4×, non una misura delle prestazioni del telefono.
