@@ -58,7 +58,7 @@ test("preferred free, shared home and invalid preferred cell preserve exact pred
         };
         return { cell: pick(args), calls };
       };
-      assert.deepEqual(trace(x => sampler.pick(x)), trace(referencePick));
+      assert.deepEqual(trace((x: Parameters<NativeResidentSpawnSampler["pick"]>[0]) => sampler.pick(x)), trace(referencePick));
     }
   }
   assert.equal(sampler.snapshot().depth, 0);
@@ -173,4 +173,26 @@ test("only native resident uses shared spawn sampler, web renderer stays unchang
   assert.match(native, /nativeResidentSpawnSampler\.pick\(/);
   assert.ok(!web.includes("nativeResidentSpawnSampler"));
   assert.ok(!web.includes("nativeResidentSpawnSampler.ts"));
+});
+
+test("growing a map expands one shared typed buffer, smaller maps reuse it", () => {
+  const sampler = new NativeResidentSpawnSampler();
+  for (const size of [400, 10000, 25, 10000, 400]) {
+    assert.notEqual(sampler.pick({ totalCells: size, instanceId: 0, isWalkable: () => true }), null);
+  }
+  assert.equal(sampler.snapshot().bufferCapacity, 10000);
+  assert.equal(sampler.snapshot().sharedBufferAllocations, 2);
+  assert.equal(sampler.snapshot().nestedAllocations, 0);
+});
+test("fixture residents with preferred free spawn do not need the fallback buffer", () => {
+  const sampler = new NativeResidentSpawnSampler();
+  for (let i = 0; i < 200; i++) {
+    const cell = Math.floor(i * 400 / 200);
+    assert.equal(sampler.pick({
+      totalCells: 400, instanceId: 10000 + i, preferredSpawnCell: cell,
+      isWalkable: () => true, isCellFreeForMe: () => true,
+      tryClaimCell: () => true
+    }), cell);
+  }
+  assert.equal(sampler.snapshot().sharedBufferAllocations, 0);
 });

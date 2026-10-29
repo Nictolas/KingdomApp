@@ -42,3 +42,13 @@ hardware and compare cold and warm scene entry, JS stalls/GC, touch,
 1×/2×/4×, pause/background, pan/zoom and collisions on #298 versus #297.
 Neither Node tests nor Expo JS bundles are physical-device validation.
 No merge, deployment or release without explicit approval.
+
+## Methodological caveat for the A/B fixture
+The existing 20×20 real-sprite A/B fixture supplies a valid, unoccupied
+`preferredSpawnCell` to every resident. That means it **does not exercise
+the fallback candidate buffer** in normal runs. The #298/#297 fixture remains
+the correct comparison for overall native sprite movement and touch, but
+it must **not** be cited as evidence of a cold-spawn improvement from this
+particular change. The synthetic Node benchmark specifically exercises the
+no-preferred-spawn case; a physical cold-spawn comparison for that case would
+require an additional identical, controlled scenario in both branches.
