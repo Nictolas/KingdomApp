@@ -74,8 +74,9 @@ test("only native movement subscribes to pause/background and guards idle/claim 
 
 test("native idle/retry timers use shared queue, not independent platform timeouts", () => {
   assert.match(native, /from ["']\.\.\/performance\/nativeResidentTimerQueue["']/);
-  assert.match(native, /scheduleNativeResidentTimer\(/);
-  assert.match(native, /cancelNativeResidentTimer\(idleTimerRef\.current\)/);
+  assert.match(native, /new NativeResidentOwnedTimer\(scheduleNativeResidentTimer, cancelNativeResidentTimer\)/);
+  assert.match(native, /const clearIdle = useCallback\(\(\) => wakeTimer\.cancel\(\)/);
+  assert.match(read("../src/performance/nativeResidentOwnedTimer.ts"), /class NativeResidentOwnedTimer/);
   assert.equal((native.match(/setTimeout\(/g) ?? []).length, 0);
   assert.equal((native.match(/clearTimeout\(/g) ?? []).length, 0);
   assert.ok(!shared.includes("nativeResidentTimerQueue"), "web renderer retains original timer behavior");
@@ -84,9 +85,9 @@ test("native idle/retry timers use shared queue, not independent platform timeou
 test("activity changes preserve existing scheduled timers instead of restarting them", () => {
   const handler = native.slice(native.indexOf("const onResidentActivityChanged = useCallback("));
   assert.match(handler, /if \(!active\) return;/);
-  assert.match(handler, /if \(idleTimerRef\.current != null\) return;/);
+  assert.match(handler, /if \(wakeTimer\.pending\) return;/);
   assert.ok(!handler.split("  useEffect(() => {")[0]!.includes("clearIdle()"));
-  assert.match(native, /idleTimerRef\.current = null;\s+pickNextMoveRef\.current\(\)/);
+  assert.match(native, /wakeTimer\.schedule\(\(\) => \{\s*pickNextMoveRef\.current\(\)/);
 });
 
 test("native memoization keeps parent handlers live without hiding motion or touch changes", () => {
@@ -118,7 +119,7 @@ test("native lifecycle is driven by one clock gate, not 200 React pause subscrip
   assert.match(native, /activityConfigRef\.current = \{ fixedCell, commutePath, disableIdleRoam \}/);
   assert.match(native, /const \{ fixedCell, commutePath, disableIdleRoam \} = activityConfigRef\.current/);
   assert.match(native, /subscribeNativeResidentFrameBusActivity\(onResidentActivityChanged\)/);
-  assert.match(native, /\}, \[pendingCommuteRetry, tapRecognizer\]\)/);
+  assert.match(native, /\}, \[pendingCommuteRetry, tapRecognizer, wakeTimer\]\)/);
   assert.match(native, /tapRecognizer\.reset\(\);\s+if \(!active\) return;/);
   assert.ok(!shared.includes("activityConfigRef"), "web resident remains unchanged");
 });
