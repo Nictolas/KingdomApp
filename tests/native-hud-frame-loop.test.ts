@@ -187,6 +187,8 @@ test("HUD source only activates polling when details are expanded and terminates
   const source = readFileSync(new URL("../src/performance/NativePerformanceHud.tsx", import.meta.url), "utf8");
   assert.match(source, /if \(!expanded\) \{\s+if \(capture\.current\) abortCapture\(\);\s+return;/);
   assert.match(source, /frameLoop\.start\(visibility\.foreground\)/);
+  assert.match(source, /new NativeHudFrameLoop\(requestAnimationFrame, cancelAnimationFrame, onFrame, \(\) =>/);
+  assert.match(source, /samplingLifecycle\.setForeground\(false\)/);
   assert.match(source, /frameLoop\?\.setForeground\(foreground\)/);
   assert.match(source, /observeNativeResidentAppVisibility\(visibility/);
   assert.match(source, /AppState\.addEventListener\("blur"/);
@@ -303,4 +305,133 @@ test("200 Android blur/focus cycles never leak HUD RAFs, sampling leases or obse
   assert.equal(h.released, 201);
   assert.deepEqual(h.listeners, [0, 0, 0]);
   assert.equal(h.f.outstanding.size, 0);
+});
+
+/** Bridge-fault injection is synthetic Node testing, never a phone FPS measurement. */
+test("HUD request failure fails closed and does not retry on duplicate foreground events", () => {
+  let attempts = 0;
+  const faults: unknown[] = [];
+  const loop = new NativeHudFrameLoop(
+    () => { attempts++; throw 0; },
+    () => assert.fail("no RAF ID was issued"),
+    () => assert.fail("no frame should be delivered"),
+    error => faults.push(error)
+  );
+  loop.start();
+  assert.deepEqual(faults, [0], "even a falsy native bridge error is reported");
+  assert.deepEqual(loop.snapshot(), {
+    active: false, foreground: false, scheduled: false, delivered: 0, requested: 1
+  });
+  loop.setForeground(true);
+  loop.start(false);
+  loop.setForeground(true); // explicit new session is allowed to try once
+  assert.equal(attempts, 2);
+  assert.deepEqual(faults, [0, 0]);
+  loop.stop();
+});
+
+test("HUD frame callback failure retires its RAF generation without affecting other work", () => {
+  const callbacks = new Map<number, (at: number) => void>();
+  let next = 0;
+  let gameplayFrames = 0;
+  const faults: unknown[] = [];
+  const loop = new NativeHudFrameLoop(
+    cb => { callbacks.set(++next, cb); return next; },
+    id => { callbacks.delete(id); },
+    () => { gameplayFrames++; throw new Error("diagnostic state update failed"); },
+    error => faults.push(error)
+  );
+  loop.start();
+  const callback = callbacks.values().next().value!;
+  callbacks.clear();
+  callback(16);
+  assert.equal(gameplayFrames, 1);
+  assert.equal(faults.length, 1);
+  assert.equal(loop.snapshot().active, false);
+  assert.equal(loop.snapshot().scheduled, false);
+  callback(32); // queued stale OS delivery must be ignored
+  assert.equal(gameplayFrames, 1);
+  assert.equal(callbacks.size, 0);
+});
+
+test("200 background/resume cycles survive cancel failures and stale RAF deliveries", () => {
+  let id = 0;
+  let cancelAttempts = 0;
+  let deliveries = 0;
+  const pending = new Map<number, (at: number) => void>();
+  const stale: Array<(at: number) => void> = [];
+  const loop = new NativeHudFrameLoop(
+    cb => { pending.set(++id, cb); return id; },
+    token => {
+      const callback = pending.get(token);
+      if (callback) stale.push(callback);
+      pending.delete(token);
+      if (++cancelAttempts % 3 === 0) throw false;
+    },
+    () => { deliveries++; }
+  );
+  loop.start();
+  for (let cycle = 0; cycle < 200; cycle++) {
+    assert.equal(pending.size, 1);
+    loop.setForeground(false);
+    assert.equal(pending.size, 0);
+    for (const callback of stale.splice(0)) callback(cycle * 1000);
+    assert.equal(deliveries, 0, "canceled native RAF never mutates diagnostic state");
+    loop.setForeground(true);
+    assert.equal(pending.size, 1, "resume arms exactly one RAF");
+  }
+  loop.stop();
+  assert.equal(pending.size, 0);
+  assert.equal(loop.snapshot().active, false);
+  assert.equal(cancelAttempts, 201);
+});
+
+test("200 independent HUD sessions recover from intermittent request and frame faults", () => {
+  let successes = 0;
+  let failures = 0;
+  for (let cycle = 0; cycle < 200; cycle++) {
+    const pending = new Map<number, (at: number) => void>();
+    let id = 0;
+    const faults: unknown[] = [];
+    const requestFault = cycle % 5 === 0;
+    const frameFault = cycle % 7 === 0;
+    const loop = new NativeHudFrameLoop(
+      cb => {
+        if (requestFault) throw new Error("native RAF unavailable");
+        pending.set(++id, cb);
+        return id;
+      },
+      token => { pending.delete(token); },
+      () => { if (frameFault) throw false; successes++; },
+      error => { faults.push(error); failures++; }
+    );
+    loop.start();
+    if (!requestFault) {
+      const callback = pending.values().next().value!;
+      pending.clear();
+      callback(cycle * 16);
+    }
+    assert.equal(faults.length, requestFault || frameFault ? 1 : 0);
+    if (faults.length) {
+      assert.equal(loop.snapshot().active, false);
+      assert.equal(pending.size, 0);
+    } else {
+      assert.equal(pending.size, 1);
+    }
+    loop.stop();
+    assert.equal(pending.size, 0);
+  }
+  assert.ok(successes > 100);
+  assert.ok(failures > 40);
+});
+
+test("HUD error reporting itself cannot throw into the gameplay RAF callback", () => {
+  const loop = new NativeHudFrameLoop(
+    () => { throw new Error("RAF"); },
+    () => {},
+    () => {},
+    () => { throw new Error("broken diagnostic error UI"); }
+  );
+  assert.doesNotThrow(() => loop.start());
+  assert.equal(loop.snapshot().active, false);
 });
