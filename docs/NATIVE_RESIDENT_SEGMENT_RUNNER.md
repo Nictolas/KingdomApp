@@ -69,3 +69,56 @@ interpolate, ordine/conteggio degli arrivi e pixel della sprite-sheet,
 compresa una sospensione prolungata. Il confronto è sintetico e
 dimostra il numero di iscrizioni e la parità logica, **non** FPS o
 performance fisiche misurate su Android/iPhone.
+
+
+## 29 ottobre — isolamento delle eccezioni durante 200 animazioni a 4×
+
+Audit del runner: il frame bus nativo già intercettava l'eccezione di un
+subscriber e proseguiva il dispatch agli altri 199, ma il segmento di
+quel subscriber poteva **restare attivo e rischedulato**. Un writer
+`Animated.ValueXY`, una notifica di frame, il driver del costume o una
+callback di inizializzazione difettosa avrebbero quindi potuto ripetere
+lo stesso errore su tutti i RAF successivi. A 4× il problema non
+deve propagarsi a un carico persistente sul thread JavaScript.
+
+Il runner ora distingue il caso di errore dal percorso ordinario:
+
+- Durante `start()`, un'eccezione nel callback di cammino,
+  nell'azzeramento del fotogramma o nella registrazione RAF provoca
+  un rollback del segmento, senza cancellare una route più recente.
+- Un'eccezione durante un tick RAF invalida immediatamente il token
+  corrente e libera la sottoscrizione persistente o one-shot prima
+  di rilanciare l'errore al bus. Il bus continua a servire gli altri
+  residenti; il vecchio segmento non consuma più frame.
+- `cancel()` elimina il proprio riferimento prima di invocare
+  la cancellazione di piattaforma, così una callback/bridge che
+  genera eccezione non lascia un ID falsamente ancora posseduto.
+- L'errore originario non è nascosto da un'eventuale seconda
+  eccezione nel callback che prova a fermare l'animazione.
+- Se il callback difettoso **ha già avviato una nuova route** prima
+  di generare l'errore, il controllo di generazione impedisce
+  di cancellare la nuova animazione.
+
+La modifica è limitata a `NativeResidentSegmentRunner`; nessuna
+decisione di percorso, velocità, cella, salvataggio o GameContext è
+stata modificata. Il percorso senza errori non aggiunge timer o
+sottoscrizioni. Il nuovo `try/catch` dentro il frame callback
+protegge le eccezioni; il suo eventuale overhead va ancora
+verificato con il confronto su dispositivi fisici.
+
+La nuova suite `tests/native-resident-fault-isolation.test.ts`
+esegue quattro classi di scenari sintetici: 200 runner con
+15 avvii falliti controllati; 200 runner a 4× con 20 errori
+durante la scrittura delle coordinate, pausa/background e
+ripresa degli altri 180; sostituzione rientrante del percorso
+prima di un errore del callback originale; e 200 arrivi
+sincroni con dieci callback terminali che lanciano eccezioni.
+Invarianti: nessuna sottoscrizione orfana, nessun arrivo
+fantasma, nessun residente sano bloccato da un altro e
+nessuna nuova route cancellata dal vecchio token.
+
+Questi test usano timer/RAF **finti in Node**: non dimostrano
+la frequenza reale delle eccezioni, FPS, uso CPU, GC, batteria
+o comportamento del bridge React Native su Android/iOS.
+La pipeline nativa deve essere verde e la scena #298/#297
+va misurata su telefoni fisici prima di qualsiasi merge.
