@@ -24,7 +24,10 @@ function report({ residents = 200, speed = 1, p95 = 20, samples = 600,
     "Frame medio: 16 ms",
     "p95: " + p95 + " ms",
     "Frame oltre 50 ms: 3",
+    "Batch RAF JS campionati: 100",
     "Batch RAF JS p95: 3 ms",
+    "Ritardo loop JS campioni: 20",
+    "Ritardo loop JS p95: 4 ms",
     "Nota: questi NON sono FPS UI/GPU"
   ].join("\n");
 }
@@ -194,4 +197,50 @@ test("CLI refuses symlink escape outside manifest directory", () => {
   } finally {
     rmSync(root, {recursive:true, force:true});
   }
+});
+
+
+test("matrix rejects 10-second reports with only 2 seconds of observed RAF or inflated coverage", () => {
+  const { manifest, files, load } = matrix({ full: false });
+  const entry = manifest.scenarios[0];
+  for (const samples of [120, 1200]) {
+    files.set(entry.candidate, triple({ residents: 200, samples }));
+    assert.throws(() => analyzeNativeAbMatrix(manifest, load, { allowPartial: true }),
+      /RAF samples do not cover the declared capture window/);
+  }
+  files.set(entry.candidate, triple({ residents: 200, samples: 600 }));
+  assert.equal(analyzeNativeAbMatrix(manifest, load, { allowPartial: true }).coverage.completed, 1);
+});
+
+test("candidate #297 requires real dispatch and heartbeat evidence in every capture", () => {
+  const { manifest, files, load } = matrix({ full: false });
+  const entry = manifest.scenarios[0];
+  const good = files.get(entry.candidate);
+  for (const removed of [
+    /^Batch RAF JS campionati:.*\\n/gm,
+    /^Batch RAF JS p95:.*\\n/gm,
+    /^Ritardo loop JS campioni:.*\\n/gm,
+    /^Ritardo loop JS p95:.*\\n/gm
+  ]) {
+    files.set(entry.candidate, good.replace(removed, ""));
+    assert.throws(() => analyzeNativeAbMatrix(manifest, load, { allowPartial: true }),
+      /candidate #297 missing required JS dispatch\/event-loop probe evidence/);
+  }
+  files.set(entry.candidate, good.replaceAll("Ritardo loop JS campioni: 20", "Ritardo loop JS campioni: 0"));
+  assert.throws(() => analyzeNativeAbMatrix(manifest, load, { allowPartial: true }),
+    /candidate #297 missing required/);
+  files.set(entry.candidate, good.replaceAll("Batch RAF JS campionati: 100", "Batch RAF JS campionati: 0"));
+  assert.throws(() => analyzeNativeAbMatrix(manifest, load, { allowPartial: true }),
+    /candidate #297 missing required/);
+});
+
+test("stationary 200-sprite scene allows zero RAF dispatches but still requires heartbeat", () => {
+  const { manifest, files, load } = matrix({ full: false });
+  const stationary = "Sprite abitanti reali fermi";
+  manifest.scene = stationary;
+  for (const [name, value] of files) {
+    files.set(name, value.replaceAll(SCENE, stationary)
+      .replaceAll("Batch RAF JS campionati: 100", "Batch RAF JS campionati: 0"));
+  }
+  assert.equal(analyzeNativeAbMatrix(manifest, load, { allowPartial: true }).coverage.completed, 1);
 });
