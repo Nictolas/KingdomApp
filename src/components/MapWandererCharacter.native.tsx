@@ -307,9 +307,10 @@ function NativeResidentBody({
 
     // Same left/right/up/down filter, Fisher-Yates shuffle and atomic claim
     // order as the previous implementation, but no transient neighbor arrays.
+    const claim = tryClaimCellRef.current;
     const next = neighborSampler.pick(
       prev, cols, rows, isWalkable,
-      isCellFreeForMeRef.current, tryClaimCellRef.current
+      isCellFreeForMeRef.current, claim
     );
     if (next == null) {
       wakeTimer.schedule(() => {
@@ -344,8 +345,8 @@ function NativeResidentBody({
       });
     } catch (error) {
       nativeResidentRethrowAfterClaimedStartFault(
-        error, prev, tryClaimCellRef.current, releaseMyCellRef.current,
-        cellRef.current === prev
+        error, prev, claim, releaseMyCellRef.current,
+        claim != null && cellRef.current === prev
       );
     }
   }, [cols, rows, cellSizePx, isWalkable, isRoadCell, fixedCell, commutePath, disableIdleRoam, face, motion, wakeTimer, neighborSampler, publishCell]);
@@ -366,6 +367,9 @@ function NativeResidentBody({
       const purpose = commutePurposeRef.current;
       /** Ultimo passo verso casa: più abitanti possono condividere l’ingresso. */
       const softHomeEntry = isLastSegment && purpose === "home";
+      // Claim is strict for commutes but optional at shared home entrances.
+      // Never release a settled street cell if the home claim was denied.
+      let destinationClaimed = claim != null && !softHomeEntry;
 
       if (claim && !softHomeEntry && !claim(to)) {
         // A completed intermediate step may deliberately keep the walking
@@ -409,7 +413,7 @@ function NativeResidentBody({
 
       // Soft entry casa: prova claim, ma prosegui anche se fallisce.
       if (claim && softHomeEntry) {
-        claim(to);
+        destinationClaimed = claim(to);
       }
 
       claimRetry.reset();
@@ -445,7 +449,7 @@ function NativeResidentBody({
       } catch (error) {
         nativeResidentRethrowAfterClaimedStartFault(
           error, from, tryClaimCellRef.current, releaseMyCellRef.current,
-          routeEpoch.isCurrent(routeToken) && cellRef.current === from
+          destinationClaimed && routeEpoch.isCurrent(routeToken) && cellRef.current === from
         );
       }
     },

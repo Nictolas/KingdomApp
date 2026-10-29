@@ -170,12 +170,28 @@ test("200 native runners, 30 route cycles, 1,200 injected startup faults: no gho
 test("both native segment start paths roll back claims; default web renderer remains unchanged", () => {
   const native = readFileSync(new URL("../src/components/MapWandererCharacter.native.tsx", import.meta.url), "utf8");
   const web = readFileSync(new URL("../src/components/MapWandererCharacter.tsx", import.meta.url), "utf8");
-  assert.equal((native.match(/nativeResidentRethrowAfterClaimedStartFault\\(/g) ?? []).length, 2);
+  assert.equal(native.split("nativeResidentRethrowAfterClaimedStartFault(").length - 1, 2);
   const free = native.slice(native.indexOf("const pickNextMove = useCallback("),
     native.indexOf("pickNextMoveRef.current = pickNextMove;"));
   const commute = native.slice(native.indexOf("const runOneSegment = useCallback("),
     native.indexOf("/** Percorso casa"));
-  assert.ok(free.includes("cellRef.current === prev"));
-  assert.ok(commute.includes("routeEpoch.isCurrent(routeToken) && cellRef.current === from"));
+  assert.ok(free.includes("claim != null && cellRef.current === prev"));
+  assert.ok(commute.includes("destinationClaimed && routeEpoch.isCurrent(routeToken) && cellRef.current === from"));
   assert.ok(!web.includes("nativeResidentRethrowAfterClaimedStartFault"));
+});
+
+test("shared-home entry denied before a sprite start failure preserves both original claims", () => {
+  const occupancy = new NativeRealFixtureOccupancy();
+  assert.equal(occupancy.tryClaim(1, 20), true);
+  assert.equal(occupancy.tryClaim(2, 21), true);
+  const denied = occupancy.tryClaim(1, 21);
+  assert.equal(denied, false);
+  const error = new Error("native sprite start failed after denied shared-home claim");
+  assert.throws(() => nativeResidentRethrowAfterClaimedStartFault(
+    error, 20, cell => occupancy.tryClaim(1, cell), () => occupancy.release(1), denied
+  ), actual => actual === error);
+  assert.equal(occupancy.snapshot().occupied, 2);
+  assert.equal(occupancy.isFreeFor(3, 20), false);
+  assert.equal(occupancy.isFreeFor(3, 21), false);
+  assert.equal(occupancy.checkInvariants(), true);
 });
