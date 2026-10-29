@@ -54,3 +54,22 @@ I tre file condivisi (fixture, workload, test) sono stati applicati con contenut
 La scena `Sprite abitanti reali in tragitto ripetibile` usa **gli stessi quattro file** sui due rami e lo stesso componente nativo di ciascun motore. Ogni abitante percorre ripetutamente una corsia orizzontale di due celle adiacenti, poi torna indietro; le corsie non si sovrappongono, anche con 200 residenti. La modalità precedente `Sprite abitanti reali in movimento` resta il **girovagare casuale** con contese di occupazione. La nuova modalità isola il costo del movimento/RAF e dei cambi di direzione da differenze casuali nel percorso, ma **non misura collisioni o IA completa**.
 
 Per confrontare #298 e #297 scegliere la stessa modalità, popolazione, velocità, dispositivo e durata. Non mescolare i report delle due scene. Per la nuova modalità servono ancora tre catture per scenario (25/50/100/200 × 1×/2×/4×) e profiler Android/iOS per FPS UI/GPU, touch, memoria e consumo. Le prove Node sulle corsie e la CI non sono misure su telefono; nessun merge o rilascio.
+
+
+## 29 ottobre — indicatore di occupazione pronta per il confronto A/B
+
+Le scene con sprite reali di entrambe le PR (#297 e #298) mostrano ora
+«Occupazione pronta» solo dopo che tutti i 25/50/100/200 residenti hanno
+prenotato una cella della fixture. Se la simulazione è in pausa o un residente
+non ha ancora effettuato la prenotazione, appare «Occupazione sprite non pronta».
+Attendere lo stato pronto e qualche secondo di stabilizzazione prima di
+avviare «Misura 10 secondi». L'indicatore **non blocca** tecnicamente il
+pulsante di misura: l'operatore deve controllarlo. Non certifica il rendering
+visibile, gli FPS UI/GPU, le collisioni pixel o l'IA completa.
+
+Lo stato è un booleano in uno store locale della fixture. Il piccolo overlay
+è l'unico sottoscrittore; i 200 sprite non vengono aggiornati a ogni
+prenotazione. Il test simula **200 abitanti × 240 spostamenti (48.000 claim)**
+e verifica nessuna notifica durante il movimento, invalidazione dopo release,
+riattivazione dopo claim e assenza di notifiche dopo disiscrizione. Stessa
+implementazione sui due rami, senza modifiche a orologio, salvataggi o gioco.

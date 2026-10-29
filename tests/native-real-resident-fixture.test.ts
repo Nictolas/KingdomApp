@@ -242,3 +242,49 @@ test("200 native fixture tap targets, 200000 selections: stable subscriptions an
   selection.select(fixtures[0]!.instanceId);
   assert.equal(notified, 200000, "unmounted overlay must not receive stale updates");
 });
+
+test("A/B readiness signals only completion/invalidation, not 48,000 movement transfers", () => {
+  const residents = createNativeRealFixtureResidents(200);
+  const occupancy = new NativeRealFixtureOccupancy(200);
+  const changes: boolean[] = [];
+  const unsubscribe = occupancy.subscribeReady(() => changes.push(occupancy.getReadySnapshot()));
+  assert.equal(occupancy.getReadySnapshot(), false);
+  for (let i = 0; i < residents.length; i++) {
+    const resident = residents[i]!;
+    assert.equal(occupancy.tryClaim(resident.instanceId, resident.spawnCell), true);
+    assert.equal(occupancy.getReadySnapshot(), i === 199);
+  }
+  assert.deepEqual(changes, [true], "199 intermediate claims must not rerender status");
+  for (let leg = 0; leg < 240; leg++) {
+    for (const resident of residents) {
+      const path = createNativeRealFixtureCommutePath(resident, leg % 2 === 1);
+      assert.equal(occupancy.tryClaim(resident.instanceId, path[1]!), true);
+    }
+    assert.equal(occupancy.getReadySnapshot(), true);
+  }
+  assert.deepEqual(changes, [true], "48,000 movements must not notify readiness listeners");
+  occupancy.release(residents[0]!.instanceId);
+  assert.equal(occupancy.getReadySnapshot(), false);
+  assert.deepEqual(changes, [true, false]);
+  assert.equal(occupancy.tryClaim(residents[0]!.instanceId, residents[0]!.spawnCell), true);
+  assert.deepEqual(changes, [true, false, true]);
+  unsubscribe();
+  occupancy.release(residents[0]!.instanceId);
+  assert.deepEqual(changes, [true, false, true], "unmounted overlay cannot receive notifications");
+  const remounted = new NativeRealFixtureOccupancy(200);
+  assert.equal(remounted.getReadySnapshot(), false, "new scene cannot inherit previous readiness");
+  assert.equal(remounted.checkInvariants(), true);
+  for (const invalid of [-1, 401, 1.5, Number.NaN]) {
+    assert.throws(() => new NativeRealFixtureOccupancy(invalid), /expected population/);
+  }
+});
+
+test("readiness indicator uses a separate store, not 200 resident React state updates", () => {
+  const workload = readFileSync(new URL("../src/performance/NativeRealResidentWorkload.tsx", import.meta.url), "utf8");
+  assert.match(workload, /new NativeRealFixtureOccupancy\(population\)/);
+  assert.match(workload, /occupancy\.subscribeReady/);
+  assert.match(workload, /occupancy\.getReadySnapshot/);
+  assert.match(workload, /Occupazione pronta:/);
+  assert.match(workload, /Occupazione sprite non pronta:/);
+  assert.doesNotMatch(workload, /AsyncStorage|GameContext|fetch\(/);
+});

@@ -95,13 +95,20 @@ const NativeFixtureStatus = memo(function NativeFixtureStatus({
   population,
   moving,
   deterministicCommute,
-  selection
+  selection,
+  occupancy
 }: {
   population: NativeTestPopulation;
   moving: boolean;
   deterministicCommute: boolean;
   selection: NativeRealFixtureSelection;
+  occupancy: NativeRealFixtureOccupancy;
 }) {
+  const ready = useSyncExternalStore(
+    occupancy.subscribeReady,
+    occupancy.getReadySnapshot,
+    occupancy.getReadySnapshot
+  );
   const selected = useSyncExternalStore(
     selection.subscribe,
     selection.getSnapshot,
@@ -117,6 +124,16 @@ const NativeFixtureStatus = memo(function NativeFixtureStatus({
       <Text style={styles.statusText}>
         Sprite reali · {population} abitanti · {moving ? (deterministicCommute ? "tragitto ripetibile" : "girovaghi") : "fermi"} · tempo {timeScale}×
       </Text>
+      {!ready && (
+        <Text style={styles.warning}>
+          Occupazione sprite non pronta: attendere prima della misura ({population} abitanti).
+        </Text>
+      )}
+      {ready && (
+        <Text style={styles.statusText}>
+          Occupazione pronta: {population} abitanti. Attendere stabilizzazione prima della misura.
+        </Text>
+      )}
       {moving && timeScale === 0 && (
         <Text style={styles.warning}>
           Simulazione in pausa: riprendi il gioco sulla mappa per misurare il movimento.
@@ -149,7 +166,7 @@ export const NativeRealResidentWorkload = memo(function NativeRealResidentWorklo
   height: number;
 }) {
   const residents = useMemo(() => createNativeRealFixtureResidents(population), [population]);
-  const occupancy = useMemo(() => new NativeRealFixtureOccupancy(), [population]);
+  const occupancy = useMemo(() => new NativeRealFixtureOccupancy(population), [population]);
   const selection = useMemo(() => new NativeRealFixtureSelection(), [population]);
   const cellSizePx = Math.min(width / NATIVE_REAL_FIXTURE_COLS, height / NATIVE_REAL_FIXTURE_ROWS);
 
@@ -168,7 +185,7 @@ export const NativeRealResidentWorkload = memo(function NativeRealResidentWorklo
           cellSizePx={cellSizePx}
         />
       ))}
-      <NativeFixtureStatus population={population} moving={moving} deterministicCommute={deterministicCommute} selection={selection} />
+      <NativeFixtureStatus population={population} moving={moving} deterministicCommute={deterministicCommute} selection={selection} occupancy={occupancy} />
     </View>
   );
 });
