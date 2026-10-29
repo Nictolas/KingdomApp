@@ -170,7 +170,13 @@ test("native renderer owns all idle/claim timeouts and web remains untouched", (
   const native = readFileSync(new URL("../src/components/MapWandererCharacter.native.tsx", import.meta.url), "utf8");
   const web = readFileSync(new URL("../src/components/MapWandererCharacter.tsx", import.meta.url), "utf8");
   assert.match(native, /new NativeResidentOwnedTimer\(scheduleNativeResidentTimer, cancelNativeResidentTimer\)/);
-  assert.equal((native.match(/wakeTimer\.schedule\(/g) ?? []).length, 9);
+  // Both zero-candidate and denied-claim free-roam paths now converge on
+  // the same owned 2200ms timer; the previous duplicate scheduling site is gone.
+  assert.equal((native.match(/wakeTimer\\.schedule\\(/g) ?? []).length, 8);
+  const idle = native.slice(native.indexOf("const pickNextMove = useCallback("),
+    native.indexOf("pickNextMoveRef.current = pickNextMove;"));
+  assert.match(idle, /neighborSampler\\.pick\\(/);
+  assert.match(idle, /if \\(next == null\\) \\{[\\s\\S]*?wakeTimer\\.schedule\\(/);
   assert.match(native, /const clearIdle = useCallback\(\(\) => wakeTimer\.cancel\(\), \[wakeTimer\]\)/);
   assert.doesNotMatch(native, /idleTimerRef/);
   assert.doesNotMatch(web, /NativeResidentOwnedTimer|wakeTimer/);
