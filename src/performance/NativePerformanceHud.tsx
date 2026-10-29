@@ -5,6 +5,7 @@ import { NativeHudFrameLoop } from "./nativeHudFrameLoop";
 import { useFocusEffect } from "expo-router";
 import { AppState, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { NativeFrameWindow, type NativeFrameSnapshot } from "./nativeFrameMetrics";
+import { NativeResidentSamplingLifecycle } from "./nativeResidentSamplingLifecycle";
 import { beginNativeResidentWorkSampling, endNativeResidentWorkSampling, takeNativeResidentFrameCallbacks, takeNativeResidentRenderInvocations, takeNativeResidentWrapperInvocations, takeNativeResidentBusCycles, getNativeResidentRenderTotals, diffNativeResidentRenderTotals, type NativeResidentRenderTotals } from "./nativeResidentWorkCounters";
 import { NativeMeasurementSession, formatNativeMeasurement } from "./nativeMeasurementSession";
 import { getNativeResidentTimerSnapshot, type NativeResidentTimerSnapshot } from "./nativeResidentTimerQueue";
@@ -133,7 +134,8 @@ export function NativePerformanceHud({
       if (capture.current) abortCapture();
       return;
     }
-    const workSamplingLease = beginNativeResidentWorkSampling();
+    const samplingLifecycle = new NativeResidentSamplingLifecycle(beginNativeResidentWorkSampling, endNativeResidentWorkSampling);
+    samplingLifecycle.setForeground(AppState.currentState === "active");
     setStats(INITIAL_METRICS);
     setResidentCallbacks(0);
     setResidentRenders(0);
@@ -168,6 +170,7 @@ export function NativePerformanceHud({
     const unsubscribePause = subscribeOrologioGiocoInPausa(onClockChange);
     const unsubscribeSpeed = subscribeOrologioGiocoVelocita(onClockChange);
     const onStateChange = AppState.addEventListener("change", nextState => {
+      samplingLifecycle.setForeground(nextState === "active");
       frameLoop?.setForeground(nextState === "active");
       previous = null;
       frameWindow.current.reset();
@@ -259,7 +262,7 @@ export function NativePerformanceHud({
     frameLoop.start(AppState.currentState === "active");
     return () => {
       frameLoop?.stop();
-      endNativeResidentWorkSampling(workSamplingLease);
+      samplingLifecycle.dispose();
       if (capture.current) {
         cancelNativeResidentDispatchCapture(capture.current.dispatchToken);
         cancelNativeResidentEventLoopProbe(capture.current.lagToken);
