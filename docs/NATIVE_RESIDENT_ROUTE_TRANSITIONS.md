@@ -275,3 +275,38 @@ rilascio autorizzato da queste prove da sole.
 ma React deve comunque ricevere la funzione di cleanup per invalidare
 future callback e rilasciare le risorse. Un controllo statico nel test
 impedisce di reintrodurre quel ritorno anticipato.
+
+
+## 29 ottobre — esito CI e isolamento dei gruppi di regressione
+
+La pipeline nativa sul commit `8488c24f` ha completato con successo
+il gate TypeScript nativo e i primi due gruppi di test, ma il terzo gruppo
+ha segnalato **un test di confine obsoleto** nel controllo dell'arrivo a
+casa condivisa: assumeva una finestra fissa di 350 caratteri tra rilascio
+della cella, notifica di assestamento e chiamata di completamento.
+La nuova protezione `routeEpoch.runIfCurrent` ha aumentato la distanza
+testuale senza invertire quell'ordine. I 31 altri test del gruppo erano
+verdi. La verifica è stata corretta per cercare il blocco completo,
+richiedere esplicitamente la guardia di generazione e preservare
+`release → onCellSettled → onDone`. Non è stata rimossa la verifica
+della sequenza di rilascio.
+
+La CI generale fallisce già nel typecheck su errori di altri moduli
+(`app/castello.tsx`, `app/edifici.tsx`, vecchi test di generazione
+ecc.); il controllo TypeScript della pipeline nativa è passato sul
+commit precedente. Questo **non** equivale a dichiarare verde il
+repository né a correggere i vecchi errori.
+
+Per non nascondere altre regressioni quando fallisce una singola suite
+di test Node, il job `native-tests` esegue ora **15 gruppi indipendenti**
+con `continue-on-error`, ma un gate finale `if: always()` controlla
+`steps.<id>.outcome` di tutti e fallisce il job se uno è fallito o
+non è stato eseguito. Il nuovo
+`tests/native-perf-workflow-isolation.test.mjs` verifica sia
+l'aggregazione a esito negativo, sia il gate A/B e la natura
+**solo JavaScript** dei bundle Android/iOS/web.
+
+Questa modifica CI non altera il runtime o le regole di gioco. I risultati
+del nuovo commit vanno controllati separatamente; nessun FPS su dispositivo
+è stato misurato. Le fixture A/B dei quattro file devono restare identiche
+tra #297 e #298, e #298 non deve essere fusa nel progetto.
