@@ -145,7 +145,7 @@ test("reentrant replacement survives an old 4x callback that throws after starti
         replaced = true;
         runner.start({
           from: { x: 500, y: 0 }, to: { x: 600, y: 0 },
-          startTimestamp: 25, durationMs: 100,
+          startTimestamp: 25, durationMs: 200,
           onArrival: () => { arrivals.push("replacement"); }
         });
         throw new Error("old route threw after replacing itself");
