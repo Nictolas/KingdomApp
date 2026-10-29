@@ -438,7 +438,9 @@ function NativeResidentBody({
           );
           setLogicalCell(to);
           cellRef.current = to;
-          onCellSettledRef.current?.(to);
+          // The parent may synchronously replace this commute while handling
+          // the arrival. Never continue a route that lost ownership there.
+          if (!routeEpoch.runIfCurrent(routeToken, () => onCellSettledRef.current?.(to))) return;
           onDone();
         }
       });
@@ -473,16 +475,22 @@ function NativeResidentBody({
     pixelPos.setValue({ x: cx, y: cy });
     // Partenza spesso condivisa (casa): non claim esclusivo; claim al primo passo verso `to`.
     onCellSettledRef.current?.(start);
+    if (!routeEpoch.isCurrent(routeToken)) return;
 
     let seg = 0;
+    let completionEmitted = false;
     const stepChain = () => {
       if (!alive || !routeEpoch.isCurrent(routeToken)) return;
       if (seg >= path.length - 1) {
-        if (commutePurpose != null) onCommuteCompleteRef.current?.(commutePurpose);
-        idleTimerRef.current = scheduleNativeResidentTimer(() => {
-        idleTimerRef.current = null;
-        pickNextMoveRef.current();
-      }, IDLE_BEFORE_NEXT_MS);
+        if (completionEmitted) return;
+        completionEmitted = true;
+        // Completion can synchronously replace or end this route. Notify
+        // exactly once; do not schedule an idle timer while commute still
+        // owns the resident. The commute -> free effect arms its own 2200 ms
+        // idle delay if and when free roaming actually becomes eligible.
+        if (commutePurpose != null) {
+          routeEpoch.runIfCurrent(routeToken, () => onCommuteCompleteRef.current?.(commutePurpose));
+        }
         return;
       }
       const from = path[seg]!;
