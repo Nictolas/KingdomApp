@@ -51,3 +51,24 @@ test("A/B parity tolerates sequential Draft pushes but fails closed on lasting d
   assert.match(workflow, /sleep 10/);
   assert.match(workflow, /A\/B fixture parity did not converge/);
 });
+
+test("TypeScript additive gate does not prevent native suites and still fails the aggregate", () => {
+  const gate = workflow.indexOf("      - name: Baseline TypeScript regression gate");
+  const suite = workflow.indexOf("      - name: Pure fixture and frame metric tests");
+  const aggregate = workflow.indexOf("      - name: Aggregate independent native suite outcomes");
+  assert.ok(gate >= 0 && gate < suite && suite < aggregate);
+  const gateText = workflow.slice(gate, suite);
+  assert.match(gateText, /id: typecheck_regression/);
+  assert.match(gateText, /continue-on-error: true/);
+  assert.match(gateText, /node scripts\\/check-native-typecheck-regressions\\.mjs/);
+  const final = workflow.slice(aggregate);
+  assert.ok(final.includes("typecheck_regression:" + "${{ steps.typecheck_regression.outcome }}"));
+  assert.match(final, /if: always\\(\\)/);
+  assert.match(final, /if \\[\\[ "\\$\\{outcome\\}" != "success" \\]\\]/);
+  assert.match(final, /exit "\\$\\{failed\\}"/);
+});
+
+test("RAF recovery stress assertion is type-safe after an earlier all-ones check", () => {
+  const source = readFileSync(new URL("./native-resident-raf-rearm-fault.test.ts", import.meta.url), "utf8");
+  assert.match(source, /assert\\.deepEqual\\(counts, Array<number>\\(200\\)\\.fill\\(2\\)\\)/);
+});

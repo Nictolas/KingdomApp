@@ -162,6 +162,8 @@ jobs:
           cache: npm
       - run: npm ci
       - name: Baseline TypeScript regression gate (legacy errors still fail general CI)
+        id: typecheck_regression
+        continue-on-error: true
         run: |
           node --test tests/native-typecheck-regression.test.mjs tests/native-perf-workflow-isolation.test.mjs
           node scripts/check-native-typecheck-regressions.mjs
@@ -245,9 +247,10 @@ jobs:
         run: |
           npx tsx tests/native-resident-neighbor-sampler-benchmark.ts
           npx tsx tests/native-resident-spawn-sampler-benchmark.ts
-      # A test failure must not hide independent soak, lifecycle or A/B
-      # regressions. Each suite reports its true outcome; this final gate
-      # preserves a red job if ANY group failed or was skipped.
+      # The additive TypeScript regression gate and all 16 test suites run
+      # independently after npm ci, even if an earlier group fails.
+      # Every outcome is required: failures AND skipped groups remain red.
+      # The repository's strict general CI typecheck is never weakened.
       - name: Aggregate independent native suite outcomes (fail closed)
         if: always()
         shell: bash
@@ -255,6 +258,7 @@ jobs:
           set -euo pipefail
           failed=0
           for entry in \
+            "typecheck_regression:${{ steps.typecheck_regression.outcome }}" \
             "suite_01:${{ steps.suite_01.outcome }}" \
             "suite_02:${{ steps.suite_02.outcome }}" \
             "suite_03:${{ steps.suite_03.outcome }}" \

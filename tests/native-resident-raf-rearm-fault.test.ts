@@ -139,7 +139,9 @@ test("200 persistent walkers: bridge-only rearm fault propagates and later regis
   f.deliverObsolete(999);
   assert.ok(counts.every(n => n === 1));
   f.tick(1_016);
-  assert.ok(counts.every(n => n === 2));
+  // Compare the full mutable array: TypeScript must not narrow it to 1[]
+  // after the preceding assert.ok(counts.every(n => n === 1)).
+  assert.deepEqual(counts, Array<number>(200).fill(2));
   handles.forEach(handle => f.bus.cancel(handle));
   f.bus.cancel(extra);
   assert.equal(f.bus.snapshot().queued, 0);
