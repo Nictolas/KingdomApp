@@ -250,7 +250,7 @@ export class NativeResidentTimerQueue {
     this.timerDeadline = null;
     this.executing = true;
     this.platformWakeups++;
-    let firstError: unknown;
+    let firstError: unknown = undefined;
     let hasError = false;
     try {
       // Extract a bounded prefix of tasks due when this OS tick started.
