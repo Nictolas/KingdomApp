@@ -248,7 +248,8 @@ test("200 mixed one-shot/persistent 4x walkers recover from terminal sprite and 
   assert.ok(spriteFailed.every((failed, id) => failed === (id % 2 === 0)));
   assert.ok(walkingFailed.every((failed, id) => failed === (id % 2 === 1)));
   assert.ok(walking.every(active => !active), "failed terminal callbacks cannot leave walking=true");
-  assert.ok(arrivals.every(n => n === 0), "failed terminal callbacks do not commit arrivals");
+  assert.equal(arrivals.reduce((total, n) => total + n, 0), 0,
+    "failed terminal callbacks do not commit arrivals");
   assert.equal(f.bus.snapshot().queued, 0);
   assert.equal(f.os.size, 0);
   // All residents may safely start again after isolating the bad segment.
