@@ -50,8 +50,8 @@ test("only native residents use the shared frame dispatcher and imperative sprit
   assert.match(native, /const stopAndReconcile = useCallback/);
   // Cleanup is passed as a stable function to the fault-safe coordinator,
   // rather than called directly and skipped when another cleanup throws.
-  assert.ok((native.match(/nativeResidentRunCleanup\\(/g) ?? []).length >= 6);
-  assert.ok((native.match(/stopAndReconcile\\b/g) ?? []).length >= 4);
+  assert.ok(native.split("nativeResidentRunCleanup(").length - 1 >= 6);
+  assert.ok(native.split("stopAndReconcile").length - 1 >= 4);
   assert.ok((native.match(/motion\.stop\(\)/g) ?? []).length >= 3);
   assert.match(native, /motion\.cancel\(\)/);
   assert.ok(!native.includes("rafRef"), "no duplicated per-component RAF loop");
