@@ -174,7 +174,18 @@ export class NativeResidentTimerQueue {
     const elapsed = this.sampleActiveClock();
     const id = this.nextId++;
     this.push({ id, callback, dueActiveMs: elapsed + delayMs });
-    this.arm();
+    try {
+      this.arm();
+    } catch (error) {
+      // A platform scheduling exception means the caller never received
+      // this logical ID. Remove it instead of retaining a ghost retry.
+      const position = this.positions.get(id);
+      if (position !== undefined) this.removeAt(position);
+      // Existing residents may still have valid pending deadlines.
+      // Best-effort rearm cannot mask the original bridge exception.
+      try { this.arm(); } catch { /* A later operation can retry. */ }
+      throw error;
+    }
     return id;
   }
 
@@ -220,13 +231,16 @@ export class NativeResidentTimerQueue {
   }
 
   private dropTimer(): void {
-    if (this.timer !== null) {
-      this.cancelPlatform(this.timer);
-      this.platformCancellations++;
-    }
+    const previous = this.timer;
+    // Invalidate ownership before entering the bridge. A throwing clearTimeout
+    // must not keep the timer "scheduled" or accept a late callback.
     this.timer = null;
     this.timerDeadline = null;
     this.generation++;
+    if (previous !== null) {
+      this.platformCancellations++;
+      this.cancelPlatform(previous);
+    }
   }
 
   private arm(): void {
@@ -238,8 +252,17 @@ export class NativeResidentTimerQueue {
     if (deadline === null) return;
     const generation = this.generation;
     this.timerDeadline = deadline;
-    this.timer = this.schedulePlatform(() => this.flush(generation), Math.max(0, deadline - elapsed));
-    this.platformSchedules++;
+    try {
+      this.timer = this.schedulePlatform(() => this.flush(generation), Math.max(0, deadline - elapsed));
+      this.platformSchedules++;
+    } catch (error) {
+      // Even if the host queued a callback before throwing, it must never
+      // execute an unowned timeout. Leave the heap available for retry.
+      this.timer = null;
+      this.timerDeadline = null;
+      this.generation++;
+      throw error;
+    }
   }
 
   private flush(generation: number): void {
@@ -252,6 +275,8 @@ export class NativeResidentTimerQueue {
     this.platformWakeups++;
     let firstError: unknown = undefined;
     let hasError = false;
+    let rearmError: unknown = undefined;
+    let rearmFailed = false;
     try {
       // Extract a bounded prefix of tasks due when this OS tick started.
       // The heap retains the remainder, so each callback can still cancel
@@ -325,13 +350,17 @@ export class NativeResidentTimerQueue {
       this.executing = false;
       try {
         this.arm();
+      } catch (error) {
+        rearmError = error;
+        rearmFailed = true;
       } finally {
         endNativeResidentDispatch("timer", timing);
       }
     }
-    // JavaScript permits throwing null/undefined/false/0: do not silently
-    // swallow a resident failure because its value resembles a sentinel.
+    // Preserve an original resident exception even if a subsequent platform
+    // rearm also fails. Both errors may be falsy JavaScript throw values.
     if (hasError) throw firstError;
+    if (rearmFailed) throw rearmError;
   }
 }
 
