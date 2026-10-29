@@ -148,7 +148,7 @@ jobs:
             +refs/heads/perf/native-real-sprite-ab-baseline-20261028:refs/remotes/origin/perf/native-real-sprite-ab-baseline-20261028 \
             +refs/heads/perf/native-resident-timer-batching-20261028:refs/remotes/origin/perf/native-resident-timer-batching-20261028
           node --test tests/native-ab-git-isolation.test.mjs
-          node scripts/audit-native-ab-git-isolation.mjs
+          node scripts/audit-native-ab-git-isolation.mjs --expected-candidate "${{ github.event.pull_request.head.sha || github.sha }}"
       - uses: actions/setup-node@v4
         with:
           node-version: 22
