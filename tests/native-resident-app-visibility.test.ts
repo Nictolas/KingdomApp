@@ -221,12 +221,12 @@ test("one Android lifecycle owner, 200 subscribers and 100 blur/focus cycles cre
 test("registration failures roll back previous subscriptions and keep first falsy error", () => {
   const v = new NativeResidentAppVisibility("active", true);
   const calls: string[] = [];
-  let stale: ((status: string) => void) | null = null;
+  const stale: Array<(status: string) => void> = [];
   let observed = false;
   try {
     observeNativeResidentAppVisibility(v, {
       onChange: handler => {
-        stale = handler;
+        stale.push(handler);
         calls.push("change add");
         return () => { calls.push("change remove"); };
       },
@@ -237,7 +237,8 @@ test("registration failures roll back previous subscriptions and keep first fals
   assert.equal(observed, true);
   assert.deepEqual(calls, ["change add", "blur add", "change remove"]);
   // The platform may deliver a callback that was queued before removal.
-  stale?.("background");
+  assert.equal(stale.length, 1);
+  stale[0]!("background");
   assert.equal(v.foreground, true, "disposed callback must not change shared visibility");
 });
 
