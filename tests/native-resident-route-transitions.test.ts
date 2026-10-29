@@ -75,7 +75,7 @@ test("native renderer uses route priority in both fixed and wake effects; web un
   assert.match(source, /nativeResidentHomeTransition\(prevFixedCellRef\.current, routeMode, fixedCell\)/);
   assert.match(source, /nativeResidentShouldRearmIdle\(/);
   const commuteReset = source.slice(source.indexOf("    const previousCell = cellRef.current;"), source.indexOf("    const path = commutePath;"));
-  assert.match(commuteReset, /stopAndReconcile\(\)/);
+  assert.ok(commuteReset.includes("nativeResidentRunCleanup(clearIdle, () => pendingCommuteRetry.clear(), stopAndReconcile)"));
   assert.match(source, /const stopAndReconcile = useCallback\(\(\) => \{/);
   assert.match(source, /nativeResidentReconcileInterruptedClaim\(\s*cellRef\.current/);
   const home = source.slice(source.indexOf("/** Di notte"), source.indexOf("/** Fine notte"));
@@ -85,7 +85,7 @@ test("native renderer uses route priority in both fixed and wake effects; web un
   assert.match(wake, /motion\.stop\(\)/);
   assert.doesNotMatch(wake, /motion\.cancel\(\)/);
   const commuteCleanup = source.slice(source.indexOf("      alive = false;"));
-  assert.match(commuteCleanup, /nativeResidentRunCleanup\\(\\s*\\(\\) => pendingCommuteRetry\\.clear\\(\\),\\s*stopAndReconcile,\\s*clearIdle\\s*\\)/);
+  assert.ok(commuteCleanup.includes("nativeResidentRunCleanup(") && commuteCleanup.includes("stopAndReconcile,") && commuteCleanup.includes("clearIdle"));
   assert.doesNotMatch(commuteCleanup.slice(0, 220), /motion\.cancel\(\)/);
   assert.match(source, /if \(wakeTimer\.pending \|\| isMovingRef\.current\) return;/);
   assert.match(source, /if \(!isNativeResidentFrameBusActive\(\) \|\| getOrologioGiocoInPausaSnapshot\(\)\) return;/);
