@@ -25,17 +25,17 @@ test("stale, reentrant canceled timers cannot erase or fire a newer resident wak
   slot.schedule(() => events.push("live"), 900);
   callbacks[0]!();
   assert.equal(slot.pending, true, "a stale closure cannot clear replacement ownership");
-  assert.deepEqual(events, []);
+  assert.equal(events.length, 0);
   timers.get(2)!();
-  assert.deepEqual(events, ["live"]);
+  assert.equal(events.join(","), "live");
   assert.equal(slot.pending, false);
   callbacks[1]!(); // delivery after it has already been consumed
-  assert.deepEqual(events, ["live"]);
+  assert.equal(events.join(","), "live");
   slot.schedule(() => events.push("canceled"), 2200);
   slot.cancel();
   assert.equal(slot.pending, false);
   callbacks[2]!();
-  assert.deepEqual(events, ["live"]);
+  assert.equal(events.join(","), "live");
   assert.throws(() => slot.schedule(() => {}, Number.NaN));
   assert.throws(() => slot.schedule(() => {}, -1));
   assert.equal(slot.pending, false);
