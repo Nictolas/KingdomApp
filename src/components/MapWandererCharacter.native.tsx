@@ -6,6 +6,7 @@ import { beginNativeResidentDispatch, endNativeResidentDispatch } from "../perfo
 import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
 import { NativeResidentCollisionRetry } from "../performance/nativeResidentCollisionRetry";
 import { NativeResidentRouteEpoch } from "../performance/nativeResidentRouteEpoch";
+import { NativeResidentOwnedTimer } from "../performance/nativeResidentOwnedTimer";
 import { nativeResidentRouteMode, nativeResidentHomeTransition, nativeResidentShouldRearmIdle, nativeResidentReconcileInterruptedClaim, nativeResidentReleaseMismatchedRouteOrigin, nativeResidentReleaseSharedHomeArrival } from "../performance/nativeResidentRouteTransitions";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation, markNativeResidentWrapperInvocation } from "../performance/nativeResidentWorkCounters";
 import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallbackRelay";
@@ -185,7 +186,11 @@ function NativeResidentBody({
   const prevFixedCellRef = useRef<number | null | undefined>(undefined);
   const routeMode = nativeResidentRouteMode(commutePath, fixedCell);
   const previousIdleContextRef = useRef({ routeMode, disableIdleRoam });
-  const idleTimerRef = useRef<number | null>(null);
+  // Shared timer queue manages deadlines; this per-resident slot protects
+  // against canceled callbacks that arrive late after a route/mode change.
+  const [wakeTimer] = useState(() =>
+    new NativeResidentOwnedTimer(scheduleNativeResidentTimer, cancelNativeResidentTimer)
+  );
   /** Collision retry can be suspended across pauses without repeated timers. */
   const [pendingCommuteRetry] = useState(() => new PendingCommuteRetry());
   // A single mutable point per mounted native resident is read synchronously
@@ -262,12 +267,7 @@ function NativeResidentBody({
     cellRef.current = logicalCell;
   }, [logicalCell]);
 
-  const clearIdle = useCallback(() => {
-    if (idleTimerRef.current != null) {
-      cancelNativeResidentTimer(idleTimerRef.current);
-      idleTimerRef.current = null;
-    }
-  }, []);
+  const clearIdle = useCallback(() => wakeTimer.cancel(), [wakeTimer]);
 
   // A reserved destination belongs to a moving segment, not to the logical
   // cell until arrival. On terminal interruption, atomically reclaim the
@@ -296,8 +296,7 @@ function NativeResidentBody({
       (j) => isWalkable(j) && (isFree?.(j) ?? true)
     );
     if (cand.length === 0) {
-      idleTimerRef.current = scheduleNativeResidentTimer(() => {
-        idleTimerRef.current = null;
+      wakeTimer.schedule(() => {
         pickNextMoveRef.current();
       }, IDLE_BEFORE_NEXT_MS);
       return;
@@ -320,8 +319,7 @@ function NativeResidentBody({
       }
     }
     if (next == null) {
-      idleTimerRef.current = scheduleNativeResidentTimer(() => {
-        idleTimerRef.current = null;
+      wakeTimer.schedule(() => {
         pickNextMoveRef.current();
       }, IDLE_BEFORE_NEXT_MS);
       return;
@@ -344,13 +342,12 @@ function NativeResidentBody({
         setLogicalCell(dest);
         cellRef.current = dest;
         onCellSettledRef.current?.(dest);
-        idleTimerRef.current = scheduleNativeResidentTimer(() => {
-          idleTimerRef.current = null;
+        wakeTimer.schedule(() => {
           pickNextMoveRef.current();
         }, IDLE_BEFORE_NEXT_MS);
       }
     });
-  }, [cols, rows, cellSizePx, isWalkable, isRoadCell, fixedCell, commutePath, disableIdleRoam, face, motion]);
+  }, [cols, rows, cellSizePx, isWalkable, isRoadCell, fixedCell, commutePath, disableIdleRoam, face, motion, wakeTimer]);
 
   pickNextMoveRef.current = pickNextMove;
 
@@ -393,9 +390,8 @@ function NativeResidentBody({
               runOneSegment(from, to, onDone, isLastSegment, routeToken);
             }
           });
-          idleTimerRef.current = scheduleNativeResidentTimer(() => {
+          wakeTimer.schedule(() => {
             if (!routeEpoch.isCurrent(routeToken)) return;
-            idleTimerRef.current = null;
             pendingCommuteRetry.take()?.();
           }, CLAIM_RETRY_MS);
           if (purpose != null) onCommuteBlockedRef.current?.({ fromCell: from, blockedCell: to, purpose });
@@ -403,9 +399,8 @@ function NativeResidentBody({
         }
         if (decision === "awaiting-repath") return;
         pendingCommuteRetry.hold(() => runOneSegment(from, to, onDone, isLastSegment, routeToken));
-        idleTimerRef.current = scheduleNativeResidentTimer(() => {
+        wakeTimer.schedule(() => {
           if (!routeEpoch.isCurrent(routeToken)) return;
-          idleTimerRef.current = null;
           pendingCommuteRetry.take()?.();
         }, CLAIM_RETRY_MS);
         return;
@@ -445,7 +440,7 @@ function NativeResidentBody({
         }
       });
     },
-    [cols, cellSizePx, isRoadCell, pendingCommuteRetry, face, motion, claimRetry, routeEpoch]
+    [cols, cellSizePx, isRoadCell, pendingCommuteRetry, face, motion, claimRetry, routeEpoch, wakeTimer]
   );
 
   /** Percorso casa → lavoro / lavoro → casa / … */
@@ -574,8 +569,7 @@ function NativeResidentBody({
     spriteFrames.setMoving(false);
     onCellSettledRef.current?.(prevHome);
     if (!disableIdleRoam) {
-      idleTimerRef.current = scheduleNativeResidentTimer(() => {
-        idleTimerRef.current = null;
+      wakeTimer.schedule(() => {
         pickNextMoveRef.current();
       }, IDLE_BEFORE_NEXT_MS);
     }
@@ -602,9 +596,8 @@ function NativeResidentBody({
     )) return;
     if (!isNativeResidentFrameBusActive() || getOrologioGiocoInPausaSnapshot()) return;
     if (cellRef.current == null || !inited.current) return;
-    if (idleTimerRef.current != null || isMovingRef.current) return;
-    idleTimerRef.current = scheduleNativeResidentTimer(() => {
-      idleTimerRef.current = null;
+    if (wakeTimer.pending || isMovingRef.current) return;
+    wakeTimer.schedule(() => {
       pickNextMoveRef.current();
     }, IDLE_BEFORE_NEXT_MS);
   }, [routeMode, disableIdleRoam]);
@@ -663,8 +656,7 @@ function NativeResidentBody({
     pixelPos.setValue({ x: cx, y: cy });
     onCellSettledRef.current?.(idx);
     if (!disableIdleRoam) {
-      idleTimerRef.current = scheduleNativeResidentTimer(() => {
-        idleTimerRef.current = null;
+      wakeTimer.schedule(() => {
         pickNextMoveRef.current();
       }, IDLE_BEFORE_NEXT_MS);
     }
@@ -696,17 +688,16 @@ function NativeResidentBody({
     if (commutePath != null && commutePath.length >= 2) {
       // A collision retry already scheduled before pause resumes with its
       // remaining delay. Untimed retries held when starting paused run now.
-      if (idleTimerRef.current == null) pendingCommuteRetry.take()?.();
+      if (!wakeTimer.pending) pendingCommuteRetry.take()?.();
       return;
     }
     if (fixedCell != null || disableIdleRoam) return;
     if (cellRef.current == null || !inited.current || isMovingRef.current) return;
-    if (idleTimerRef.current != null) return;
-    idleTimerRef.current = scheduleNativeResidentTimer(() => {
-      idleTimerRef.current = null;
+    if (wakeTimer.pending) return;
+    wakeTimer.schedule(() => {
       pickNextMoveRef.current();
     }, IDLE_BEFORE_NEXT_MS);
-  }, [pendingCommuteRetry, tapRecognizer]);
+  }, [pendingCommuteRetry, tapRecognizer, wakeTimer]);
 
   // One stable listener per mounted resident. Pauses and foreground changes
   // are delivered synchronously by the shared bus, not React render effects.
