@@ -6,6 +6,7 @@ import {
 import { NativeResidentActivityGate } from "./nativeResidentActivityGate";
 import { setNativeResidentFrameBusActive } from "./nativeResidentFrameBus";
 import { setNativeResidentTimerQueueActive } from "./nativeResidentTimerQueue";
+import { applyNativeResidentSchedulerActivity } from "./nativeResidentSchedulerActivity";
 
 let initialized = false;
 let gate: NativeResidentActivityGate | null = null;
@@ -31,10 +32,11 @@ export function ensureNativeResidentFrameLifecycle(): void {
     isForeground(AppState.currentState),
     getOrologioGiocoInPausaSnapshot(),
     (active) => {
-      // Suspend timers before resident frame listeners can run, preventing
-      // collision claims or wandering while game/app is inactive.
-      setNativeResidentTimerQueueActive(active);
-      setNativeResidentFrameBusActive(active);
+      // Both schedulers must receive the transition even if one native
+      // bridge throws. Preserve timer-first ordering on pause/resume.
+      applyNativeResidentSchedulerActivity(
+        active, setNativeResidentTimerQueueActive, setNativeResidentFrameBusActive
+      );
     }
   );
   subscribeOrologioGiocoInPausa(() => {
