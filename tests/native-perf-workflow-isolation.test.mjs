@@ -24,18 +24,25 @@ test("all native test suites run independently and their failures are aggregated
   }
 });
 
-test("A/B fixture parity is enforced before running native suites", () => {
-  const gate = workflow.indexOf("A/B real-sprite fixture parity against paired lab branch");
+test("source Git A/B isolation is enforced before running any native suites", () => {
+  const gate = workflow.indexOf("Fail-closed A/B Git ancestry, engine isolation and four-blob fixture parity");
   const install = workflow.indexOf("      - run: npm ci");
   assert.ok(gate > 0 && gate < install);
+  assert.match(workflow, /fetch-depth: 0/);
+  assert.match(workflow, /node --test tests\/native-ab-git-isolation\.test\.mjs/);
+  assert.match(workflow, /node scripts\/audit-native-ab-git-isolation\.mjs/);
+  for (const branch of [
+    "perf/native-resident-imperative-motion-20261028",
+    "perf/native-real-sprite-ab-baseline-20261028",
+    "perf/native-resident-timer-batching-20261028"
+  ]) assert.ok(workflow.includes(branch), "missing A/B ref " + branch);
+  const script = readFileSync(new URL("../scripts/audit-native-ab-git-isolation.mjs", import.meta.url), "utf8");
   for (const path of [
     "app/native-perf.tsx",
     "src/performance/NativeRealResidentWorkload.tsx",
     "src/performance/nativeRealResidentFixture.ts",
     "tests/native-real-resident-fixture.test.ts"
-  ]) {
-    assert.ok(workflow.includes(path), "missing A/B fixture parity path " + path);
-  }
+  ]) assert.ok(script.includes(path), "missing Git-blob parity path " + path);
 });
 
 test("the three bundle jobs are smoke exports, not installable device builds", () => {
@@ -45,11 +52,15 @@ test("the three bundle jobs are smoke exports, not installable device builds", (
 });
 
 
-test("A/B parity tolerates sequential Draft pushes but fails closed on lasting drift", () => {
-  assert.match(workflow, /for attempt in 1 2 3 4 5 6; do/);
-  assert.match(workflow, /if \[\[ "\$mismatch" -eq 0 \]\]; then/);
-  assert.match(workflow, /sleep 10/);
-  assert.match(workflow, /A\/B fixture parity did not converge/);
+test("A/B isolation fails immediately on mismatched Git history instead of polling", () => {
+  assert.doesNotMatch(workflow, /for attempt in 1 2 3 4 5 6; do/);
+  assert.doesNotMatch(workflow, /sleep 10/);
+  const script = readFileSync(new URL("../scripts/audit-native-ab-git-isolation.mjs", import.meta.url), "utf8");
+  assert.match(script, /merge-base/);
+  assert.match(script, /BASELINE_ALLOWLIST/);
+  assert.match(script, /ENGINE_PATHS/);
+  assert.match(script, /fixture Git blob mismatch/);
+  assert.match(script, /candidate lacks a distinct optimized native timer queue/);
 });
 
 test("TypeScript additive gate does not prevent native suites and still fails the aggregate", () => {
