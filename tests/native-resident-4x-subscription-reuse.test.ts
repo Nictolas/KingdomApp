@@ -195,3 +195,95 @@ test("onArrival throwing cannot retain an idle subscription or starve 199 other 
   f.drainStale(now + 100);
   assert.equal(completed.length, previous);
 });
+
+
+test("reference one-shot and reused RAF produce identical 200-resident pixels on every 1x/2x/4x frame", () => {
+  // Compare the actual production runner in both scheduling modes, rather
+  // than merely asserting registration counts or end-of-route positions.
+  const optimized = makeFrames();
+  const reference = makeFrames();
+  const population = 200, segments = 8;
+  const candidatePos = Array<number>(population).fill(0);
+  const baselinePos = Array<number>(population).fill(0);
+  const candidateArrivals = Array<number>(population).fill(0);
+  const baselineArrivals = Array<number>(population).fill(0);
+  const candidateSprite = Array.from({ length: population },
+    () => new NativeResidentSpriteFrameDriver(40, () => {}));
+  const baselineSprite = Array.from({ length: population },
+    () => new NativeResidentSpriteFrameDriver(40, () => {}));
+  let now = 0, speed = 1;
+
+  const mount = (
+    environment: ReturnType<typeof makeFrames>,
+    positions: number[], arrivals: number[],
+    sprites: NativeResidentSpriteFrameDriver[],
+    persistent: boolean
+  ) => {
+    const runners = Array.from({ length: population }, (_, id) =>
+      new NativeResidentSegmentRunner({
+        requestFrame: cb => environment.bus.request(cb),
+        ...(persistent ? { subscribeFrame: (cb: (at: number, resume: boolean) => void) =>
+          environment.bus.subscribeFrame(cb) } : {}),
+        cancelFrame: key => environment.bus.cancel(key),
+        readTimeScale: () => speed,
+        writePositionXY: (x, y) => {
+          assert.equal(y, id);
+          positions[id] = x;
+        },
+        advanceSprite: elapsed => sprites[id]!.advanceElapsed(elapsed),
+        setWalking: moving => sprites[id]!.setMoving(moving)
+      })
+    );
+    const start = (id: number, index: number): void => runners[id]!.start({
+      from: { x: index * 40, y: id }, to: { x: (index + 1) * 40, y: id },
+      durationMs: 750, startTimestamp: now,
+      keepWalkingOnArrival: index + 1 < segments,
+      onArrival: () => {
+        arrivals[id]!++;
+        if (index + 1 < segments) start(id, index + 1);
+      }
+    });
+    runners.forEach((_, id) => start(id, 0));
+    return runners;
+  };
+
+  const candidate = mount(optimized, candidatePos, candidateArrivals, candidateSprite, true);
+  const baseline = mount(reference, baselinePos, baselineArrivals, baselineSprite, false);
+  let frames = 0;
+  while ((optimized.os.size > 0 || reference.os.size > 0) && frames < 240) {
+    frames++;
+    now += 16;
+    speed = frames <= 25 ? 1 : frames <= 50 ? 2 : 4;
+    if (frames === 65) {
+      optimized.gate.setGamePaused(true);
+      reference.gate.setGamePaused(true);
+      optimized.gate.setForeground(false);
+      reference.gate.setForeground(false);
+      assert.equal(optimized.os.size + reference.os.size, 0);
+      now += 40_000;
+      optimized.gate.setGamePaused(false);
+      reference.gate.setGamePaused(false);
+      optimized.gate.setForeground(true);
+      reference.gate.setForeground(true);
+    }
+    assert.equal(optimized.os.size, 1);
+    assert.equal(reference.os.size, 1);
+    optimized.tick(now);
+    reference.tick(now);
+    assert.deepEqual(candidatePos, baselinePos, "different native pixels on frame " + frames);
+    assert.deepEqual(candidateArrivals, baselineArrivals, "different arrivals on frame " + frames);
+    assert.deepEqual(candidateSprite.map(driver => driver.snapshot().offsetPx),
+      baselineSprite.map(driver => driver.snapshot().offsetPx),
+      "different sprite-sheet offsets on frame " + frames);
+  }
+  assert.ok(frames < 240);
+  assert.ok(candidateArrivals.every(n => n === segments));
+  assert.equal(optimized.bus.snapshot().subscriptionAdds, population);
+  assert.equal(reference.bus.snapshot().subscriptionAdds, 0);
+  assert.ok(reference.bus.snapshot().oneShotRequests >= population * frames,
+    "reference path must still request a fresh callback each frame");
+  candidate.forEach(runner => runner.stop());
+  baseline.forEach(runner => runner.stop());
+  assert.equal(optimized.bus.snapshot().queued, 0);
+  assert.equal(reference.bus.snapshot().queued, 0);
+});
