@@ -20,3 +20,13 @@ The test is included in the dedicated native CI workflow and is not an Android/i
 
 ## Risk and rollback
 This changes what **development diagnostics count while the HUD is closed**, not how residents move. The HUD still samples aggregate callbacks and render invocations while focused and expanded. If an unexpected diagnostic consumer needs counts with no open HUD, it must explicitly acquire a sampling lease. Rollback is the single commit on #297; #298 remains an untouched A/B baseline. No merge, deploy or release.
+
+## CI regression repaired and background lifecycle hardened (29 October)
+
+The original native CI on commit `6385442` reported **three failures in suite_01**, not an aggregator defect. The legacy `native-performance-diagnostics.test.ts` tests expected counters to update with no sampling lease; all three now acquire/release a lease in `try/finally`. The fail-closed aggregator is unchanged. The new dedicated work-sampling suite still explicitly asserts that **closed-HUD counters do not increment**.
+
+A further lifecycle gap was found: an expanded HUD could retain its sampling lease while the app was inactive or backgrounded. The native-only `NativeResidentSamplingLifecycle` now starts sampling only while the focused HUD is expanded **and** `AppState.currentState === "active"`; an inactive/background transition immediately relinquishes its lease, and resuming foreground reacquires exactly one. Collapse, blur and unmount dispose the owner. Duplicate lifecycle events and cleanup are idempotent. Overlapping HUD lifetimes use independent tokens; stale cleanup cannot disable the new observer.
+
+The deterministic regressions now cover 200 residents over 240 frames, a closed/open/closed frame bus, 200 background/foreground transitions with 200 callbacks each, overlapping observers, idempotent cleanup, cumulative totals across background and fresh sampling after resume. These are Node/fake-RAF assertions, not physical FPS, energy or GPU measurements. The native diagnostic and pure helper changed; **no web renderer, GameContext, saves, game speed, resident movement, production or A/B baseline #298** was modified.
+
+Do not label this validation complete before the latest GitHub workflow for the final commit finishes. The distinct Android/iOS/web Expo export jobs demonstrate only JavaScript bundle compatibility, not installable app behavior. On physical devices, still verify a 10-second capture at 25/50/100/200 native sprites (1×/2×/4×), start/collapse/background/resume, and compare #298 versus #297 on the same hardware; do not infer physical FPS from test counts.
