@@ -95,6 +95,11 @@ test("200 residents: reentrant pause/resume and canceled OS wakeups never duplic
       if (i === 1) f.queue.cancel(ids[150]!);
     }, 100));
   }
+  // Force an OS cancellation before the first wake; the canceled callback
+  // may still arrive later through a native bridge race.
+  f.queue.setActive(false);
+  assert.equal(f.canceled.length, 1);
+  f.queue.setActive(true);
   f.wake();
   assert.deepEqual(order, [0], "reentrant activity change stops the current flush");
   assert.equal(f.queue.snapshot().pending, 199);
