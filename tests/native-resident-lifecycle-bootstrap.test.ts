@@ -6,6 +6,7 @@ import {
 } from "../src/performance/nativeResidentLifecycleBootstrap.ts";
 import { NativeResidentFrameBus } from "../src/performance/nativeResidentFrameBus.ts";
 import { NativeResidentTimerQueue } from "../src/performance/nativeResidentTimerQueue.ts";
+import { NativeResidentSegmentProgress } from "../src/performance/nativeResidentSegmentProgress.ts";
 import { applyNativeResidentSchedulerActivity } from "../src/performance/nativeResidentSchedulerActivity.ts";
 
 function thrown(fn: () => unknown): { caught: boolean; value: unknown } {
@@ -168,10 +169,11 @@ test("a canceled native AppState notification cannot control a newer bootstrap",
   bootstrap.dispose();
   bootstrap.ensure();
   assert.equal(bootstrap.initialized, true);
-  oldEvents[0]!(false); // native callback that was already enqueued before remove()
-  assert.deepEqual(states, [true, true]);
+  assert.deepEqual(states, [true, false, true], "dispose must pause the old scheduler before reinstall");
+  oldEvents[0]!(false); // native callback already enqueued before remove()
+  assert.deepEqual(states, [true, false, true], "a retired callback must not pause the new generation");
   f.setForeground(false);
-  assert.deepEqual(states, [true, true, false]);
+  assert.deepEqual(states, [true, false, true, false]);
   bootstrap.dispose();
 });
 
@@ -407,4 +409,145 @@ test("teardown still pauses schedulers if a native unsubscribe throws a falsy va
   assert.equal(f.pauseListeners.size, 0);
   owner.dispose(); // repeated cleanup must not rethrow or rearm work
   assert.equal(states.at(-1), false);
+});
+
+
+/**
+ * End-to-end scheduler/clock matrix under a deterministic fake native OS.
+ * Counts are JS-only; neither frames nor timers represent measured device FPS.
+ * The 8 logical waits per resident deliberately model burst pressure without
+ * using GameContext, persistence, web rendering or real React Native bridges.
+ */
+test("native population matrix: 25/50/100/200 residents at 1x/2x/4x preserve motion, 8 waits each and background isolation", () => {
+  for (const population of [25, 50, 100, 200]) {
+    for (const speed of [1, 2, 4]) {
+      let wall = 0;
+      let nextId = 0;
+      const frames = new Map<number, (at: number) => void>();
+      const alarms = new Map<number, { due: number; callback: () => void }>();
+      const bus = new NativeResidentFrameBus(
+        cb => { const id = ++nextId; frames.set(id, cb); return id; },
+        id => { frames.delete(id); }
+      );
+      const queue = new NativeResidentTimerQueue(
+        () => wall,
+        (cb, delay) => {
+          const id = ++nextId;
+          alarms.set(id, { due: wall + delay, callback: cb });
+          return id;
+        },
+        id => { alarms.delete(id); },
+        32
+      );
+      const subscriptions = publishers(active => applyNativeResidentSchedulerActivity(
+        active, a => queue.setActive(a), a => bus.setActive(a)
+      ));
+      const owner = new NativeResidentLifecycleBootstrap(subscriptions.bindings);
+      owner.ensure();
+      const motion = Array.from({ length: population }, () => ({
+        clock: new NativeResidentSegmentProgress(0, 2000),
+        sample: { elapsedMs: 0, progress: 0, advance: false, complete: false },
+        updates: 0
+      }));
+      const handles = motion.map(state => bus.subscribeFrame((at, rebase) => {
+        state.clock.sampleInto(at, speed, rebase, state.sample);
+        if (state.sample.advance) state.updates++;
+      }));
+      const fired = Array<number>(population).fill(0);
+      const waits: number[] = [];
+      for (let i = 0; i < population; i++) {
+        for (let n = 0; n < 8; n++) {
+          waits.push(queue.schedule(() => { fired[i]!++; }, 1000));
+        }
+      }
+      const emitFrame = (): void => {
+        assert.equal(frames.size, 1, "one OS RAF shared by all resident sprites");
+        const [id, callback] = frames.entries().next().value!;
+        frames.delete(id);
+        callback(wall);
+      };
+      const startFrame = frames.values().next().value!;
+      const startTimer = alarms.values().next().value!.callback;
+      wall = 100;
+      emitFrame();
+      assert.ok(motion.every(m => Math.abs(m.sample.progress - speed * 0.05) < 1e-9));
+      subscriptions.setForeground(false);
+      subscriptions.setPaused(true);
+      assert.equal(frames.size, 0);
+      assert.equal(alarms.size, 0);
+      wall = 90_000;
+      startFrame(wall);
+      startTimer();
+      assert.ok(motion.every(m => m.updates === 1));
+      assert.ok(fired.every(n => n === 0));
+      subscriptions.setForeground(true);
+      assert.equal(frames.size, 0, "foreground must not override an explicit game pause");
+      subscriptions.setPaused(false);
+      assert.equal(frames.size, 1);
+      assert.equal(alarms.size, 1);
+      emitFrame(); // rebase: ignore the 89.9 s of suspended wall time
+      assert.ok(motion.every(m => m.updates === 1 && Math.abs(m.sample.progress - speed * 0.05) < 1e-9));
+      wall += 50;
+      emitFrame();
+      assert.ok(motion.every(m => m.updates === 2 && Math.abs(m.sample.progress - speed * 0.075) < 1e-9));
+      wall = 91_000;
+      let wakes = 0;
+      while (alarms.size) {
+        assert.ok(++wakes <= Math.ceil(population * 8 / 32) + 1, "timer backlog must drain");
+        const [id, alarm] = alarms.entries().next().value!;
+        assert.ok(alarm.due <= wall, "active-time deadline must elapse");
+        alarms.delete(id);
+        alarm.callback();
+      }
+      assert.ok(fired.every(n => n === 8), "each logical idle/collision wait runs once");
+      assert.equal(queue.snapshot().logicalCallbacks, population * 8);
+      assert.equal(queue.snapshot().pending, 0);
+      assert.equal(wakes, Math.ceil(population * 8 / 32));
+      assert.equal(bus.snapshot().continuousSubscribers, population);
+      owner.dispose();
+      assert.equal(frames.size, 0);
+      assert.equal(alarms.size, 0);
+      assert.equal(subscriptions.foregroundListeners.size, 0);
+      assert.equal(subscriptions.pauseListeners.size, 0);
+      handles.forEach(id => bus.cancel(id));
+      waits.forEach(id => queue.cancel(id));
+      assert.equal(bus.snapshot().continuousSubscribers, 0);
+      assert.equal(queue.snapshot().pending, 0);
+    }
+  }
+});
+
+test("100 native lifecycle generations reject all delayed AppState callbacks and retain exactly two listeners", () => {
+  const events: boolean[] = [];
+  const f = publishers(active => { events.push(active); });
+  const retired: Array<(active: boolean) => void> = [];
+  const owner = new NativeResidentLifecycleBootstrap({
+    ...f.bindings,
+    subscribeForeground: listener => {
+      retired.push(listener);
+      return f.bindings.subscribeForeground(listener);
+    }
+  });
+  owner.ensure();
+  for (let cycle = 0; cycle < 100; cycle++) {
+    const retiredAt = retired.length;
+    owner.dispose();
+    assert.equal(f.foregroundListeners.size, 0);
+    assert.equal(f.pauseListeners.size, 0);
+    owner.ensure();
+    const before = events.length;
+    for (let old = 0; old < retiredAt; old++) {
+      retired[old]!(false);
+      retired[old]!(true);
+    }
+    assert.equal(events.length, before, "retired OS callbacks must be inert");
+    assert.equal(f.foregroundListeners.size, 1);
+    assert.equal(f.pauseListeners.size, 1);
+    assert.equal(owner.initialized, true);
+  }
+  assert.equal(events.length, 201, "101 starts and 100 fail-closed disposals");
+  owner.dispose();
+  assert.equal(events.at(-1), false);
+  assert.equal(f.foregroundListeners.size, 0);
+  assert.equal(f.pauseListeners.size, 0);
 });
