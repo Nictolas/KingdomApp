@@ -2,6 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { readFileSync } from "node:fs";
 import { NativeHudFrameLoop } from "../src/performance/nativeHudFrameLoop.ts";
+import { NativeResidentSamplingLifecycle } from "../src/performance/nativeResidentSamplingLifecycle.ts";
+import { NativeResidentAppVisibility, observeNativeResidentAppVisibility } from "../src/performance/nativeResidentAppVisibility.ts";
 
 /** Fake OS delivers even canceled callbacks to stress generation protection. */
 function fakeHud() {
@@ -184,9 +186,121 @@ test("re-entrant stop/start on the same RAF does not duplicate the next frame", 
 test("HUD source only activates polling when details are expanded and terminates on background", () => {
   const source = readFileSync(new URL("../src/performance/NativePerformanceHud.tsx", import.meta.url), "utf8");
   assert.match(source, /if \(!expanded\) \{\s+if \(capture\.current\) abortCapture\(\);\s+return;/);
-  assert.match(source, /frameLoop\.start\(AppState\.currentState === "active"\)/);
-  assert.match(source, /frameLoop\?\.setForeground\(nextState === "active"\)/);
+  assert.match(source, /frameLoop\.start\(visibility\.foreground\)/);
+  assert.match(source, /frameLoop\?\.setForeground\(foreground\)/);
+  assert.match(source, /observeNativeResidentAppVisibility\(visibility/);
+  assert.match(source, /AppState\.addEventListener\("blur"/);
+  assert.match(source, /AppState\.addEventListener\("focus"/);
+  assert.match(source, /if \(visibility\.foreground\)/);
+  assert.match(source, /if \(!hudForeground\.current\)/);
+  assert.match(source, /stopVisibility\(\)/);
   assert.match(source, /frameLoop\?\.stop\(\)/);
   assert.match(source, /\}, \[abortCapture, expanded\]\)\)/);
   assert.doesNotMatch(source, /raf = requestAnimationFrame\(onFrame\)/);
+});
+
+/** Simulated RN lifecycle, not a device measurement or physical UI FPS test. */
+function focusedHudHarness(android: boolean, initial: string | null = "active") {
+  const f = fakeHud();
+  const visibility = new NativeResidentAppVisibility(initial, android);
+  const change = new Set<(state: string) => void>();
+  const blur = new Set<() => void>();
+  const focus = new Set<() => void>();
+  let leases = 0;
+  let released = 0;
+  let invalidations = 0;
+  let foreground = visibility.foreground;
+  const sampling = new NativeResidentSamplingLifecycle(
+    () => ++leases,
+    () => { released++; }
+  );
+  sampling.setForeground(foreground);
+  f.frameLoop.start(foreground);
+  const stop = observeNativeResidentAppVisibility(visibility, {
+    onChange: cb => { change.add(cb); return () => { change.delete(cb); }; },
+    onBlur: cb => { blur.add(cb); return () => { blur.delete(cb); }; },
+    onFocus: cb => { focus.add(cb); return () => { focus.delete(cb); }; }
+  }, next => {
+    if (next === foreground) return;
+    foreground = next;
+    sampling.setForeground(next);
+    f.frameLoop.setForeground(next);
+    if (!next) invalidations++;
+  });
+  return {
+    f, visibility,
+    get foreground() { return foreground; },
+    get leases() { return leases; },
+    get released() { return released; },
+    get invalidations() { return invalidations; },
+    get listeners() { return [change.size, blur.size, focus.size]; },
+    change: (state: string) => { for (const cb of [...change]) cb(state); },
+    blur: () => { for (const cb of [...blur]) cb(); },
+    focus: () => { for (const cb of [...focus]) cb(); },
+    dispose: () => { stop(); f.frameLoop.stop(); sampling.dispose(); }
+  };
+}
+
+test("Android shade blur stops opt-in HUD RAF, releases sampling and invalidates A/B window", () => {
+  const h = focusedHudHarness(true);
+  assert.deepEqual(h.listeners, [1, 1, 1]);
+  assert.equal(h.f.outstanding.size, 1);
+  h.f.tick(16);
+  const before = h.f.delivered;
+  h.blur(); // Android may keep AppState 'active' under notification shade.
+  assert.equal(h.foreground, false);
+  assert.equal(h.invalidations, 1);
+  assert.equal(h.released, 1);
+  assert.equal(h.f.outstanding.size, 0);
+  h.f.drainCanceled(); // stale OS RAF must never publish a mixed frame.
+  assert.equal(h.f.delivered, before);
+  h.change("active"); // duplicate active must not bypass the focus gate.
+  assert.equal(h.f.outstanding.size, 0);
+  assert.equal(h.invalidations, 1);
+  h.focus();
+  assert.equal(h.foreground, true);
+  assert.equal(h.leases, 2);
+  assert.equal(h.f.outstanding.size, 1);
+  h.f.tick(120_000);
+  assert.equal(h.f.delivered, before + 1); // no catch-up RAF burst
+  h.dispose();
+  assert.deepEqual(h.listeners, [0, 0, 0]);
+  assert.equal(h.f.outstanding.size, 0);
+  assert.equal(h.released, 2);
+});
+
+test("iOS HUD follows inactive/background/active but never installs Android blur observers", () => {
+  const h = focusedHudHarness(false);
+  assert.deepEqual(h.listeners, [1, 0, 0]);
+  h.change("inactive");
+  assert.equal(h.f.outstanding.size, 0);
+  h.change("background");
+  assert.equal(h.invalidations, 1, "duplicate nonforeground event must not invalidate twice");
+  h.change("active");
+  assert.equal(h.f.outstanding.size, 1);
+  assert.equal(h.leases, 2);
+  h.dispose();
+  assert.deepEqual(h.listeners, [0, 0, 0]);
+});
+
+test("200 Android blur/focus cycles never leak HUD RAFs, sampling leases or observers", () => {
+  const h = focusedHudHarness(true);
+  for (let i = 0; i < 200; i++) {
+    h.f.tick(16 * (i + 1));
+    h.blur();
+    assert.equal(h.f.outstanding.size, 0);
+    h.f.drainCanceled();
+    h.change("active");
+    assert.equal(h.f.outstanding.size, 0);
+    h.focus();
+    assert.equal(h.f.outstanding.size, 1);
+    assert.deepEqual(h.listeners, [1, 1, 1]);
+  }
+  assert.equal(h.invalidations, 200);
+  assert.equal(h.leases, 201);
+  assert.equal(h.released, 200);
+  h.dispose();
+  assert.equal(h.released, 201);
+  assert.deepEqual(h.listeners, [0, 0, 0]);
+  assert.equal(h.f.outstanding.size, 0);
 });

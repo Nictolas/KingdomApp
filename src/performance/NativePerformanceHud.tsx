@@ -7,6 +7,7 @@ import { useFocusEffect } from "expo-router";
 import { AppState, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { NativeFrameWindow, type NativeFrameSnapshot } from "./nativeFrameMetrics";
 import { NativeResidentSamplingLifecycle } from "./nativeResidentSamplingLifecycle";
+import { NativeResidentAppVisibility, observeNativeResidentAppVisibility } from "./nativeResidentAppVisibility";
 import { beginNativeResidentWorkSampling, endNativeResidentWorkSampling, takeNativeResidentFrameCallbacks, takeNativeResidentRenderInvocations, takeNativeResidentWrapperInvocations, takeNativeResidentBusCycles, getNativeResidentRenderTotals, diffNativeResidentRenderTotals, type NativeResidentRenderTotals } from "./nativeResidentWorkCounters";
 import { NativeMeasurementSession, formatNativeMeasurement } from "./nativeMeasurementSession";
 import { getNativeResidentTimerSnapshot, type NativeResidentTimerSnapshot } from "./nativeResidentTimerQueue";
@@ -59,6 +60,9 @@ export function NativePerformanceHud({
   const [latestReport, setLatestReport] = useState<string | null>(null);
   const [captureWarning, setCaptureWarning] = useState<string | null>(null);
   const currentScene = useRef({ label, residents, terrainCells });
+  // Android can lose focus while AppState still reports active. Never start
+  // a JS A/B capture while its native resident schedulers are suspended.
+  const hudForeground = useRef(false);
   const capture = useRef<{
     session: NativeMeasurementSession;
     dispatchToken: number;
@@ -106,6 +110,10 @@ export function NativePerformanceHud({
   }, [label, residents, terrainCells, abortCapture]);
 
   const startMeasurement = useCallback(() => {
+    if (!hudForeground.current) {
+      setCaptureWarning("Misura non disponibile: app non attiva o Android senza focus.");
+      return;
+    }
     if (captureBlockedReason) { setCaptureWarning(captureBlockedReason); return; }
     if (capture.current) {
       cancelNativeResidentDispatchCapture(capture.current.dispatchToken);
@@ -135,8 +143,13 @@ export function NativePerformanceHud({
       if (capture.current) abortCapture();
       return;
     }
+    const visibility = new NativeResidentAppVisibility(
+      AppState.currentState, Platform.OS === "android"
+    );
+    let wasForeground = visibility.foreground;
+    hudForeground.current = wasForeground;
     const samplingLifecycle = new NativeResidentSamplingLifecycle(beginNativeResidentWorkSampling, endNativeResidentWorkSampling);
-    samplingLifecycle.setForeground(AppState.currentState === "active");
+    samplingLifecycle.setForeground(wasForeground);
     setStats(INITIAL_METRICS);
     setResidentCallbacks(0);
     setResidentRenders(0);
@@ -170,19 +183,47 @@ export function NativePerformanceHud({
     };
     const unsubscribePause = subscribeOrologioGiocoInPausa(onClockChange);
     const unsubscribeSpeed = subscribeOrologioGiocoVelocita(onClockChange);
-    const onStateChange = AppState.addEventListener("change", nextState => {
-      samplingLifecycle.setForeground(nextState === "active");
-      frameLoop?.setForeground(nextState === "active");
+    // The resident renderer already stops on Android notification-shade blur.
+    // A HUD that only watches AppState "change" would keep measuring the
+    // frozen sprites as if they were moving: invalidate that mixed window.
+    const onVisibilityChange = (foreground: boolean) => {
+      hudForeground.current = foreground;
+      if (foreground === wasForeground) return; // duplicate OS event
+      wasForeground = foreground;
+      samplingLifecycle.setForeground(foreground);
+      frameLoop?.setForeground(foreground);
       previous = null;
       frameWindow.current.reset();
       lastTimerSample.current = null;
       lastFrameBusSample.current = null;
-      // A background/foreground interval must never appear in a valid
-      // 10-second sample. The screen can be remeasured after return.
-      abortCapture("Misura interrotta: applicazione in background.");
-    });
+      if (!foreground) {
+        abortCapture("Misura interrotta: app in background o Android senza focus.");
+      }
+    };
+    // One set of observers only while the HUD is expanded and screen-focused.
+    // The shared native visibility policy also handles null initial AppState
+    // with bounded boot rechecks; no resident-specific listeners or polling.
+    const stopVisibility = observeNativeResidentAppVisibility(visibility, {
+      onChange: listener => {
+        const subscription = AppState.addEventListener("change", listener);
+        return () => subscription.remove();
+      },
+      onBlur: listener => {
+        const subscription = AppState.addEventListener("blur", listener);
+        return () => subscription.remove();
+      },
+      onFocus: listener => {
+        const subscription = AppState.addEventListener("focus", listener);
+        return () => subscription.remove();
+      },
+      bootProbe: {
+        read: () => AppState.currentState,
+        schedule: (callback, delay) => setTimeout(callback, delay) as unknown as number,
+        cancel: id => clearTimeout(id)
+      }
+    }, onVisibilityChange);
     const onFrame = (timestamp: number) => {
-      if (AppState.currentState === "active") {
+      if (visibility.foreground) {
         if (previous != null) {
           const delta = timestamp - previous;
           frameWindow.current.record(delta);
@@ -266,7 +307,7 @@ export function NativePerformanceHud({
       }
     };
     frameLoop = new NativeHudFrameLoop(requestAnimationFrame, cancelAnimationFrame, onFrame);
-    frameLoop.start(AppState.currentState === "active");
+    frameLoop.start(visibility.foreground);
     return () => {
       frameLoop?.stop();
       samplingLifecycle.dispose();
@@ -277,7 +318,8 @@ export function NativePerformanceHud({
       capture.current = null;
       unsubscribePause();
       unsubscribeSpeed();
-      onStateChange.remove();
+      stopVisibility();
+      hudForeground.current = false;
     };
   }, [abortCapture, expanded]));
 
