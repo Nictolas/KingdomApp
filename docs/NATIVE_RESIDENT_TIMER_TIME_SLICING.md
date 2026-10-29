@@ -14,6 +14,7 @@ La classe `NativeResidentTimerQueue` conserva entrambi i limiti configurabili; i
 - **Limite soft, non hard**: una callback che impiega 12 ms non può essere interrotta dopo 6 ms; termina e poi il turno cede il controllo. Nessuna promessa di latenza massima dei tocchi.
 - Il limite numerico di 32 rimane attivo anche se l'orologio restituisce valori non validi o regressivi. La misura non richiede polling.
 - Una callback che fallisce non impedisce alle altre di essere eseguite nei turni successivi; il primo errore continua a essere propagato dopo la pulizia dello scheduler.
+- Anche eccezioni JavaScript con valori falsy (`null`, `undefined`, `false`, `0`, stringa vuota e `NaN`) vengono propagate: non sono più confuse con il valore sentinella di assenza di errori. Se più callback falliscono nello stesso turno, resta osservabile il primo valore lanciato; i timer non eseguiti vengono riprogrammati.
 - Una callback può cancellare una sorella già estratta o ancora nel heap. I timer nuovi creati dentro un turno non vengono eseguiti in quel turno.
 - Pausa, background, pausa/ripresa sincrona e unmount interrompono il lotto, preservando il lavoro residuo. La coda conserva il tempo **attivo** residuo, non recupera il tempo in background.
 - L'ordine è `(dueActiveMs, id)`, quindi FIFO per scadenze uguali; la distribuzione in turni successivi può ritardare alcuni retry di collisione, senza cambiarne l'ordine logico.
@@ -22,6 +23,8 @@ La classe `NativeResidentTimerQueue` conserva entrambi i limiti configurabili; i
 ## Test e modello sintetico
 
 `tests/native-resident-timer-time-budget.test.ts` copre: 200 callback da 2 ms simulate, 10.000 timer con cancellazioni distribuite, una callback da 12 ms che fallisce, cancellazioni tra callback già estratte e ancora nel heap, pausa durante il batch, background prolungato, budget non validi, confronto con il limite solo numerico e integrazione con 200 `NativeResidentSegmentRunner`, RAF persistenti, pausa e velocità 1×/2×/4×.
+
+`tests/native-resident-timer-falsy-errors.test.ts` aggiunge stress deterministico con 200 residenti per sei categorie di valori lanciati, due callback fallite nello stesso turno, pausa/ripresa rientrante, cancellazione di un timer non ancora eseguito e consegna tardiva di una callback OS cancellata. Questi test non sostituiscono la prova su Android/iPhone fisici.
 
 `tests/native-resident-timer-time-budget-benchmark.ts` usa un **clock finto** che avanza di 2 ms per callback, non un busy wait e non un timer di sistema reale. A parità di 200 callback:
 - limite solo numerico: 7 turni, massimo **32 callback / 64 ms simulati** per turno;
