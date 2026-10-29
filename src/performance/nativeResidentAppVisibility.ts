@@ -91,7 +91,16 @@ export function observeNativeResidentAppVisibility(
     const id = probe.schedule(() => {
       if (disposed || epoch !== probeEpoch) return;
       probeHandle = null;
-      const current = visibility.setAppState(probe.read());
+      let current: boolean;
+      try {
+        current = visibility.setAppState(probe.read());
+      } catch {
+        // A transient AppState bridge read fault must not strand a null
+        // startup state forever or crash a timer callback. Retry only within
+        // the same four-attempt boot budget; no background polling.
+        if (!disposed && epoch === probeEpoch) scheduleProbe();
+        return;
+      }
       if (visibility.unresolved) scheduleProbe();
       else {
         // The native bridge might replay a completed one-shot callback.
