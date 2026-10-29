@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo, useState, useSyncExternalStore } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useState, useSyncExternalStore } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { MapWandererCharacter } from "../components/MapWandererCharacter";
 import {
@@ -157,18 +157,28 @@ export const NativeRealResidentWorkload = memo(function NativeRealResidentWorklo
   moving,
   deterministicCommute = false,
   width,
-  height
+  height,
+  onReadinessChange
 }: {
   population: NativeTestPopulation;
   moving: boolean;
   deterministicCommute?: boolean;
   width: number;
   height: number;
+  onReadinessChange?: (ready: boolean) => void;
 }) {
   const residents = useMemo(() => createNativeRealFixtureResidents(population), [population]);
   const occupancy = useMemo(() => new NativeRealFixtureOccupancy(population), [population]);
   const selection = useMemo(() => new NativeRealFixtureSelection(), [population]);
   const cellSizePx = Math.min(width / NATIVE_REAL_FIXTURE_COLS, height / NATIVE_REAL_FIXTURE_ROWS);
+
+  useEffect(() => {
+    if (!onReadinessChange) return;
+    const notify = () => onReadinessChange(occupancy.getReadySnapshot());
+    const unsubscribe = occupancy.subscribeReady(notify);
+    notify(); // Claims may have completed before this effect subscribed.
+    return unsubscribe;
+  }, [occupancy, onReadinessChange]);
 
   if (!Number.isFinite(cellSizePx) || cellSizePx <= 0) return null;
 

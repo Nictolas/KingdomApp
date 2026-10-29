@@ -165,3 +165,18 @@ export class NativeRealFixtureSelection {
     for (const listener of this.listeners) listener();
   };
 }
+
+/** Identical A/B eligibility. Occupancy readiness does not certify GPU/UI readiness. */
+export function getNativeRealFixtureCaptureBlockReason(input: Readonly<{
+  realRenderer: boolean; width: number; height: number; ready: boolean;
+  settled: boolean; moving: boolean; timeScale: number;
+}>): string | null {
+  if (!Number.isFinite(input.width) || !Number.isFinite(input.height) ||
+      input.width <= 0 || input.height <= 0) return "Attendi la geometria della scena.";
+  if (!input.realRenderer) return null;
+  if (!input.ready) return "Attendi che tutti gli sprite prenotino una cella.";
+  if (!input.settled) return "Attendi 2 secondi di stabilizzazione della scena.";
+  if (input.moving && (!Number.isFinite(input.timeScale) || input.timeScale <= 0))
+    return "Riprendi il tempo di gioco prima di misurare sprite in movimento.";
+  return null;
+}

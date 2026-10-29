@@ -76,3 +76,6 @@ prenotazione. Il test simula **200 abitanti × 240 spostamenti (48.000 claim)**
 e verifica nessuna notifica durante il movimento, invalidazione dopo release,
 riattivazione dopo claim e assenza di notifiche dopo disiscrizione. Stessa
 implementazione sui due rami, senza modifiche a orologio, salvataggi o gioco.
+
+## 29 ottobre — gate automatico per misure A/B affidabili
+Entrambi i laboratori (#297 e #298) verificano ora layout positivo, prenotazione di tutte le celle e 2 secondi di stabilizzazione dopo ogni perdita/ripristino della readiness. Se gli sprite sono dichiarati in movimento, serve anche un tempo di gioco >0×. I marker e gli sprite esplicitamente fermi sono scenari distinti. «Misura 10 secondi» è disabilitato con una motivazione finché la scena non è pronta. Un cambio di readiness, scena, velocità, dimensioni o popolazione invalida una cattura in corso. Gli eventi di readiness sono rari e non avvengono a ogni movimento: i test simulano fino a 200 residenti × 240 trasferimenti. Gli HUD delle due build restano differenti; confrontare solo le metriche comuni. Nessuna misura hardware FPS, GPU/UI o touch è stata effettuata.
