@@ -335,3 +335,65 @@ test("A/B capture guard is wired to both HUD and fixture, without game-state wri
   assert.ok(hud.includes("captureContextKey"));
   assert.ok(!screen.includes("setOrologioGiocoVelocita("));
 });
+
+
+test("A/B repeatable motion gate requires a completed REAL commute for every resident, not just spawn", () => {
+  for (const count of [25, 50, 100, 200] as const) {
+    const occupancy = new NativeRealFixtureOccupancy(count);
+    const residents = createNativeRealFixtureResidents(count);
+    let notifications = 0;
+    const unsubscribe = occupancy.subscribeReady(() => notifications++);
+    occupancy.markCommuteCompleted(residents[0]!.instanceId);
+    assert.equal(occupancy.getCommuteReadySnapshot(), false);
+    for (const resident of residents) assert.equal(occupancy.tryClaim(resident.instanceId, resident.spawnCell), true);
+    assert.equal(occupancy.getReadySnapshot(), true);
+    assert.equal(occupancy.getCaptureReadySnapshot(false), true, "random roam retains occupancy-only gate");
+    assert.equal(occupancy.getCaptureReadySnapshot(true), false, "spawn is not motion proof");
+    assert.equal(notifications, 1);
+    for (const resident of residents.slice(0, -1)) {
+      occupancy.markCommuteCompleted(resident.instanceId);
+      occupancy.markCommuteCompleted(resident.instanceId);
+      assert.equal(occupancy.getCaptureReadySnapshot(true), false);
+    }
+    assert.equal(notifications, 1, "individual arrivals must not rerender the HUD");
+    occupancy.markCommuteCompleted(residents[count - 1]!.instanceId);
+    assert.equal(occupancy.getCaptureReadySnapshot(true), true);
+    assert.equal(notifications, 2, "one aggregate motion-ready transition");
+    for (let leg = 0; leg < 240; leg++) {
+      for (const resident of residents) {
+        assert.equal(occupancy.tryClaim(resident.instanceId,
+          createNativeRealFixtureCommutePath(resident, leg % 2 === 1)[1]!), true);
+        occupancy.markCommuteCompleted(resident.instanceId);
+      }
+    }
+    assert.equal(notifications, 2, "48,000 transfers must not trigger React readiness churn");
+    assert.equal(occupancy.checkInvariants(), true);
+    const first = residents[0]!;
+    occupancy.release(first.instanceId);
+    assert.equal(occupancy.getCaptureReadySnapshot(true), false);
+    assert.equal(notifications, 3);
+    assert.equal(occupancy.tryClaim(first.instanceId, first.spawnCell), true);
+    assert.equal(occupancy.getCaptureReadySnapshot(false), true);
+    assert.equal(occupancy.getCaptureReadySnapshot(true), false,
+      "a reclaim must not inherit stale commute evidence");
+    assert.equal(notifications, 4);
+    occupancy.markCommuteCompleted(first.instanceId);
+    assert.equal(occupancy.getCaptureReadySnapshot(true), true);
+    assert.equal(notifications, 5);
+    unsubscribe();
+    for (const resident of residents) occupancy.release(resident.instanceId);
+    assert.equal(occupancy.getReadySnapshot(), false);
+    assert.equal(occupancy.getCommuteReadySnapshot(), false);
+    assert.equal(notifications, 5);
+  }
+});
+
+test("A/B first-commute gate is connected to the actual native arrival, not a synthetic timer", () => {
+  const workload = readFileSync(new URL("../src/performance/NativeRealResidentWorkload.tsx", import.meta.url), "utf8");
+  const fixture = readFileSync(new URL("../src/performance/nativeRealResidentFixture.ts", import.meta.url), "utf8");
+  assert.match(workload, /occupancy\.markCommuteCompleted\(id\)/);
+  assert.match(workload, /occupancy\.getCaptureReadySnapshot\(deterministicCommute && moving\)/);
+  assert.match(workload, /onCommuteComplete=\{commutePath \? onCommuteComplete : undefined\}/);
+  assert.match(fixture, /completedCommutes\.delete\(residentId\)/);
+  assert.doesNotMatch(workload, /setOrologioGiocoVelocita\(|AsyncStorage|\bfetch\s*\(/);
+});

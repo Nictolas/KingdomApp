@@ -57,6 +57,9 @@ export class NativeRealFixtureOccupancy {
   private settled = 0;
   /** Readiness is initial fixture occupancy, not FPS or rendering proof. */
   private ready = false;
+  /** First real commute completion per resident; not a synthetic tick. */
+  private commuteReady = false;
+  private readonly completedCommutes = new Set<number>();
   private readonly readinessListeners = new Set<() => void>();
 
   constructor(private readonly expectedResidents = 0) {
@@ -67,6 +70,10 @@ export class NativeRealFixtureOccupancy {
   }
 
   readonly getReadySnapshot = (): boolean => this.ready;
+  readonly getCommuteReadySnapshot = (): boolean => this.commuteReady;
+  getCaptureReadySnapshot(requireCompletedCommute: boolean): boolean {
+    return this.ready && (!requireCompletedCommute || this.commuteReady);
+  }
   readonly subscribeReady = (listener: () => void): (() => void) => {
     this.readinessListeners.add(listener);
     return () => { this.readinessListeners.delete(listener); };
@@ -75,8 +82,12 @@ export class NativeRealFixtureOccupancy {
   private refreshReadiness(): void {
     if (this.expectedResidents === 0) return;
     const ready = this.occupantByCell.size === this.expectedResidents;
-    if (ready === this.ready) return;
+    const commuteReady = ready && this.completedCommutes.size === this.expectedResidents;
+    if (ready === this.ready && commuteReady === this.commuteReady) return;
     this.ready = ready;
+    this.commuteReady = commuteReady;
+    // At most two positive transitions for a fresh fixture: occupancy ready
+    // and all first commute legs completed. No per-leg HUD render storm.
     for (const listener of this.readinessListeners) listener();
   }
 
@@ -105,6 +116,13 @@ export class NativeRealFixtureOccupancy {
     return true;
   }
 
+  /** A completed real commute leg, not initial spawn/settledAt. */
+  markCommuteCompleted(residentId: number): void {
+    if (!this.cellByResident.has(residentId) || this.completedCommutes.has(residentId)) return;
+    this.completedCommutes.add(residentId);
+    this.refreshReadiness();
+  }
+
   release(residentId: number): void {
     const previous = this.cellByResident.get(residentId);
     if (previous === undefined) return;
@@ -112,6 +130,9 @@ export class NativeRealFixtureOccupancy {
       this.occupantByCell.delete(previous);
     }
     this.cellByResident.delete(residentId);
+    // Reclaim after an interrupted/unmounted resident must prove movement
+    // again, rather than reusing a stale completion from an old route.
+    this.completedCommutes.delete(residentId);
     this.releases++;
     this.refreshReadiness();
   }

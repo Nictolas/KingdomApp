@@ -58,7 +58,12 @@ const NativeRealFixtureSprite = memo(function NativeRealFixtureSprite({
   const commutePath = useMemo(() => deterministicCommute && moving
     ? createNativeRealFixtureCommutePath(resident, returning) : null,
     [deterministicCommute, moving, resident, returning]);
-  const onCommuteComplete = useCallback(() => setReturning(value => !value), []);
+  const onCommuteComplete = useCallback(() => {
+    // Only actual native segment arrivals count as movement proof; spawn and
+    // timer callbacks cannot make a frozen A/B scene look ready.
+    occupancy.markCommuteCompleted(id);
+    setReturning(value => !value);
+  }, [occupancy, id]);
   const onSelect = useCallback(() => selection.select(id), [selection, id]);
   const isCellFreeForMe = useCallback((cell: number) => occupancy.isFreeFor(id, cell), [occupancy, id]);
   const tryClaimCell = useCallback((cell: number) => occupancy.tryClaim(id, cell), [occupancy, id]);
@@ -109,6 +114,11 @@ const NativeFixtureStatus = memo(function NativeFixtureStatus({
     occupancy.getReadySnapshot,
     occupancy.getReadySnapshot
   );
+  const commuteReady = useSyncExternalStore(
+    occupancy.subscribeReady,
+    occupancy.getCommuteReadySnapshot,
+    occupancy.getCommuteReadySnapshot
+  );
   const selected = useSyncExternalStore(
     selection.subscribe,
     selection.getSnapshot,
@@ -132,6 +142,11 @@ const NativeFixtureStatus = memo(function NativeFixtureStatus({
       {ready && (
         <Text style={styles.statusText}>
           Occupazione pronta: {population} abitanti. Attendere stabilizzazione prima della misura.
+        </Text>
+      )}
+      {ready && moving && deterministicCommute && !commuteReady && (
+        <Text style={styles.warning}>
+          Attendi che tutti gli abitanti completino un primo tragitto reale.
         </Text>
       )}
       {moving && timeScale === 0 && (
@@ -174,11 +189,13 @@ export const NativeRealResidentWorkload = memo(function NativeRealResidentWorklo
 
   useEffect(() => {
     if (!onReadinessChange) return;
-    const notify = () => onReadinessChange(occupancy.getReadySnapshot());
+    const notify = () => onReadinessChange(
+      occupancy.getCaptureReadySnapshot(deterministicCommute && moving)
+    );
     const unsubscribe = occupancy.subscribeReady(notify);
     notify(); // Claims may have completed before this effect subscribed.
     return unsubscribe;
-  }, [occupancy, onReadinessChange]);
+  }, [occupancy, onReadinessChange, deterministicCommute, moving]);
 
   if (!Number.isFinite(cellSizePx) || cellSizePx <= 0) return null;
 
