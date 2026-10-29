@@ -18,12 +18,15 @@ export class NativeMeasurementSession {
   private readonly frames = new NativeFrameWindow(4096);
   private finished = false;
   private invalidated = false;
+  /** Strict capture mode rejects unobserved RAF gaps. */
+  private lastAcceptedTimestamp: number | null = null;
 
   /** True if a >=2s JS RAF gap made the 10-second window unreliable. */
   isInvalidated(): boolean { return this.invalidated; }
   constructor(
     private readonly startedAt: number,
-    private readonly durationMs = 10_000
+    private readonly durationMs = 10_000,
+    private readonly requireContinuousFrames = false
   ) {
     if (!Number.isFinite(startedAt) || !Number.isFinite(durationMs) || durationMs <= 0) {
       throw new Error("Invalid diagnostic measurement parameters");
@@ -43,10 +46,21 @@ export class NativeMeasurementSession {
     // Full intervals after the start are measured as usual.
     if (Number.isFinite(frameDeltaMs) &&
       timestamp - frameDeltaMs < this.startedAt) return null;
+    if (this.requireContinuousFrames &&
+      (!Number.isFinite(frameDeltaMs) || frameDeltaMs <= 0 ||
+        (this.lastAcceptedTimestamp !== null &&
+          (timestamp <= this.lastAcceptedTimestamp ||
+            timestamp - this.lastAcceptedTimestamp >= 2000)))) {
+      // Reject a missing RAF interval even if the caller reports a small
+      // delta for the last frame after a long suspension.
+      this.invalidated = true;
+      return null;
+    }
     if (Number.isFinite(frameDeltaMs) && frameDeltaMs >= 2000) {
       this.invalidated = true;
       return null;
     }
+    this.lastAcceptedTimestamp = timestamp;
     // Never include the first post-deadline interval in the measured window.
     if (timestamp >= this.startedAt + this.durationMs) {
       this.finished = true;
