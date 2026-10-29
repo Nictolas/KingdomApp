@@ -250,7 +250,8 @@ export class NativeResidentTimerQueue {
     this.timerDeadline = null;
     this.executing = true;
     this.platformWakeups++;
-    let firstError: unknown = null;
+    let firstError: unknown;
+    let hasError = false;
     try {
       // Extract a bounded prefix of tasks due when this OS tick started.
       // The heap retains the remainder, so each callback can still cancel
@@ -286,7 +287,10 @@ export class NativeResidentTimerQueue {
           task.callback();
         } catch (error) {
           // One broken resident does not prevent others from waking.
-          if (firstError === null) firstError = error;
+          if (!hasError) {
+            firstError = error;
+            hasError = true;
+          }
         }
         // The clock may regress or be unavailable: retain the deterministic
         // 32-callback ceiling rather than yielding unpredictably.
@@ -325,7 +329,9 @@ export class NativeResidentTimerQueue {
         endNativeResidentDispatch("timer", timing);
       }
     }
-    if (firstError !== null) throw firstError;
+    // JavaScript permits throwing null/undefined/false/0: do not silently
+    // swallow a resident failure because its value resembles a sentinel.
+    if (hasError) throw firstError;
   }
 }
 
