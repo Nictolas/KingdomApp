@@ -133,3 +133,42 @@ La nuova suite `tests/native-resident-timer-cooperative-batching.test.ts` verifi
 ### Integrazione con movimento e collisioni
 
 Il test di integrazione esistente `native-resident-sprite-scheduler-integration.test.ts` usa ora **lo stesso budget 32 della coda singleton**, non più il comportamento illimitato della classe di riferimento. Esegue 200 segmenti con RAF condiviso, 1×/2×/4×, pausa/background, 200 retry di collisione e 50 cancellazioni. Verifica il completamento esattamente una volta delle 150 attese residue, almeno un yield cooperativo e assenza di timer OS multipli. È un test del sottosistema combinato, ma resta un modello simulato: nessuna prova fisica di touch o FPS.
+
+
+## 29 ottobre — proprietà esclusiva di wake e collision retry per abitante
+
+Un singolo residente usava `idleTimerRef` sia per la pausa di 2.200 ms
+fra passeggiate sia per i ritentativi di collisione a 900 ms. Se una
+callback annullata veniva consegnata in ritardo, poteva azzerare il
+riferimento a un timer più recente, lasciando il timer nuovo non
+annullabile o producendo un wake obsoleto.
+
+Ora `NativeResidentOwnedTimer` incapsula la **singola posizione di
+timer pendente** di ciascun residente, appoggiandosi sempre alla
+`NativeResidentTimerQueue` globale già esistente. Ogni sostituzione,
+cancellazione e consumo avanza una generazione; la callback verifica la
+generazione prima di cancellare il proprio slot e chiamare il client.
+Un callback già scaduto può armarne uno successivo senza perdere il
+nuovo handle. Un cambio percorso che chiama `clearIdle()` invalida
+sincronicamente la generazione prima di annullare il timer di coda.
+
+Sono stati sostituiti **nove punti di programmazione** di timeout
+nel solo renderer `.native.tsx`, relativi al girovago, alla notte,
+alle transizioni verso `free`, al foreground e ai due retry di
+collisione. I delay restano invariati: 900 ms per claim fallito,
+2.200 ms per girovago. L'OS continua a vedere **un solo timeout
+aggregato** per i residenti, non 200 nuovi allarmi.
+
+La suite `native-resident-owned-timer.test.ts` comprende: callback
+obsolete ricevute dopo cancel/reschedule; timer riarmati durante il
+callback; consegna sincrona anomala; **200 slot reali** sulla
+`NativeResidentTimerQueue` durante **60 sostituzioni**, 12.000 retry
+previsti, pausa/background e consegna tardiva dei callback ormai
+consumati; test di confine per lasciare il renderer web immutato.
+Sono scenari **programmati**, da dichiarare verificati solo dopo CI.
+
+Questa correzione non cambia velocità 1×/2×/4×, game design, IA,
+GameContext, salvataggi o produzione. Le fixture dei quattro file A/B
+per il confronto con la PR #298 restano da mantenere identiche.
+Il benchmark Node non dimostra un miglioramento di FPS/UI/GPU su
+dispositivi fisici; serve ancora misurare Android e iPhone.
