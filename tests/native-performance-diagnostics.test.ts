@@ -155,7 +155,9 @@ test("persistent RAF metrics report only aggregate registrations and avoid misle
   };
   const after = {
     ...before, dispatchCount: 720, continuousSubscribers: 150,
-    queued: 150, subscriptionAdds: 240, oneShotRequests: 8, oneShotBufferSwaps: 8
+    queued: 150, subscriptionAdds: 240, oneShotRequests: 8, oneShotBufferSwaps: 8,
+    platformRequestFailures: 3, platformCancelFailures: 2,
+    postDispatchRearmFailures: 1
   };
   const delta = diffNativeResidentFrameBusSnapshots(before, after, 10_000);
   assert.deepEqual(delta, {
@@ -163,6 +165,9 @@ test("persistent RAF metrics report only aggregate registrations and avoid misle
     oneShotRegistrations: 3,
     platformFrameDispatches: 600,
     oneShotBufferSwaps: 8,
+    platformRequestFailures: 3,
+    platformCancelFailures: 2,
+    postDispatchRearmFailures: 1,
     oneShotBufferSwapsPerSecond: 0.8,
     persistentRegistrationsPerSecond: 4,
     oneShotRegistrationsPerSecond: 0.3,
@@ -179,6 +184,9 @@ test("persistent RAF metrics report only aggregate registrations and avoid misle
   assert.match(report, /Sottoscrizioni RAF persistenti nuove: 40/);
   assert.match(report, /Registrazioni RAF one-shot nuove: 3/);
   assert.match(report, /Buffer RAF one-shot riciclati: 8/);
+  assert.match(report, /Errori richiesta RAF nativa: 3/);
+  assert.match(report, /Errori cancellazione RAF nativa: 2/);
+  assert.match(report, /Errori riarmo RAF dopo dispatch: 1/);
   assert.match(report, /Buffer RAF one-shot riciclati\/s: 0\.8/);
   assert.match(report, /Sottoscrizioni RAF persistenti attive: 150/);
   assert.match(report, /non equivale a FPS/);
