@@ -43,12 +43,21 @@ export type NativeResidentSegmentDependencies = Readonly<{
 export class NativeResidentSegmentRunner {
   private generation = 0;
   private frameId: number | null = null;
-  /** Dispatcher stays stable across synchronous onArrival -> start chains. */
-  private currentPersistentStep: FrameCallback | null = null;
+  /** Persistent movement holds segment data instead of allocating a new
+   * RAF callback each tile. One function serves this runner's whole life. */
+  private currentPersistentRequest: NativeResidentSegmentRequest | null = null;
   private inArrivalCallback = false;
   private readonly dispatchPersistentFrame: FrameCallback = (timestamp, resumed) => {
-    this.currentPersistentStep?.(timestamp, resumed);
+    const request = this.currentPersistentRequest;
+    if (request !== null) this.runFrame(timestamp, resumed, this.generation, request);
   };
+  /** Segment coefficients are computed once, not on every animation frame. */
+  private fromX = 0;
+  private fromY = 0;
+  private deltaX = 0;
+  private deltaY = 0;
+  private segmentStarts = 0;
+  private frameCallbackAllocations = 0;
   private lastWrittenX: number | null = null;
   private lastWrittenY: number | null = null;
   /** One sample buffer per resident runner, not a new object every RAF. */
@@ -67,7 +76,7 @@ export class NativeResidentSegmentRunner {
   cancel(): void {
     this.generation++;
     this.active = false;
-    this.currentPersistentStep = null;
+    this.currentPersistentRequest = null;
     this.lastWrittenX = null;
     this.lastWrittenY = null;
     if (this.frameId !== null) {
@@ -115,8 +124,9 @@ export class NativeResidentSegmentRunner {
 
   start(request: NativeResidentSegmentRequest): void {
     // Validate before canceling a previously valid segment.
-    if (![request.from.x, request.from.y, request.to.x, request.to.y,
-      request.startTimestamp, request.durationMs].every(Number.isFinite) ||
+    if (!Number.isFinite(request.from.x) || !Number.isFinite(request.from.y) ||
+      !Number.isFinite(request.to.x) || !Number.isFinite(request.to.y) ||
+      !Number.isFinite(request.startTimestamp) || !Number.isFinite(request.durationMs) ||
       request.durationMs <= 0) {
       throw new Error("Invalid native resident segment");
     }
@@ -130,7 +140,7 @@ export class NativeResidentSegmentRunner {
     if (reuseSubscription) {
       this.generation++;
       this.active = false;
-      this.currentPersistentStep = null;
+      this.currentPersistentRequest = null;
       this.lastWrittenX = null;
       this.lastWrittenY = null;
     } else {
@@ -138,6 +148,11 @@ export class NativeResidentSegmentRunner {
     }
     const token = this.generation;
     this.segmentProgress.reset(request.startTimestamp, request.durationMs);
+    this.fromX = request.from.x;
+    this.fromY = request.from.y;
+    this.deltaX = request.to.x - request.from.x;
+    this.deltaY = request.to.y - request.from.y;
+    this.segmentStarts++;
     this.active = true;
     try {
     this.deps.setWalking(true);
@@ -145,29 +160,50 @@ export class NativeResidentSegmentRunner {
     this.deps.advanceSprite(0);
     if (token !== this.generation || !this.active) return;
 
-    const step: FrameCallback = (now, resumedAfterSuspension) => {
-      try {
+    if (this.deps.subscribeFrame) {
+      // Native persistent path: no per-tile RAF closure or re-registration.
+      this.currentPersistentRequest = request;
+      if (this.frameId === null) {
+        this.frameId = this.deps.subscribeFrame(this.dispatchPersistentFrame);
+      }
+    } else {
+      // One-shot callbacks must capture their token: canceled OS callbacks
+      // can arrive after a replacement route starts.
+      const step: FrameCallback = (at, rebase) =>
+        this.runFrame(at, rebase, token, request, step);
+      this.frameCallbackAllocations++;
+      this.frameId = this.deps.requestFrame(step);
+    }
+    } catch (error) {
+      this.abortFailedSegment(token);
+      throw error;
+    }
+  }
+
+  /** One segment executor for both schedulers. Persistent dispatches hold
+   * current segment data, while one-shot callbacks supply requestNext. */
+  private runFrame(
+    now: number, resumedAfterSuspension: boolean, token: number,
+    request: NativeResidentSegmentRequest, requestNext?: FrameCallback
+  ): void {
+    try {
       if (token !== this.generation || !this.active) {
         this.ignoredStaleFrames++;
         return;
       }
-      // One-shot RAF registrations are consumed on dispatch. A persistent
-      // subscription remains owned until cancel/arrival/route replacement.
-      if (!this.deps.subscribeFrame) this.frameId = null;
+      if (requestNext) this.frameId = null;
       this.deps.onFrame?.();
       if (token !== this.generation || !this.active) return;
       this.segmentProgress.sampleInto(now, this.deps.readTimeScale(), resumedAfterSuspension, this.frameSample);
       if (token !== this.generation || !this.active) return;
       const frame = this.frameSample;
       if (!frame.advance) {
-        if (!this.deps.subscribeFrame) this.frameId = this.deps.requestFrame(step);
+        if (requestNext) this.frameId = this.deps.requestFrame(requestNext);
         return;
       }
       const t = frame.progress;
-      const x = request.from.x + (request.to.x - request.from.x) * t;
-      const y = request.from.y + (request.to.y - request.from.y) * t;
-      // Avoid duplicate bridge writes. Native XY writer avoids allocating a
-      // new point object while retaining the original value API for tests.
+      const x = this.fromX + this.deltaX * t;
+      const y = this.fromY + this.deltaY * t;
       if (this.lastWrittenX !== x || this.lastWrittenY !== y) {
         this.lastWrittenX = x;
         this.lastWrittenY = y;
@@ -177,22 +213,19 @@ export class NativeResidentSegmentRunner {
           this.deps.writePosition!({ x, y });
         }
         this.positionWrites++;
-        // Animated.Value listeners can synchronously replace a route.
         if (token !== this.generation || !this.active) return;
       }
       if (!frame.complete) {
         this.deps.advanceSprite(frame.elapsedMs);
         if (token !== this.generation || !this.active) return;
-        if (!this.deps.subscribeFrame) this.frameId = this.deps.requestFrame(step);
+        if (requestNext) this.frameId = this.deps.requestFrame(requestNext);
         return;
       }
       this.active = false;
       this.completed++;
-      // One-shot callbacks are consumed. Keep a persistent subscriber
-      // until onArrival has had the opportunity to chain the next segment.
-      // An unsuccessful chain, exception or terminal arrival still releases
-      // the subscriber in finally, so no idle resident holds a live RAF.
-      if (!this.deps.subscribeFrame && this.frameId !== null) {
+      // A chained onArrival/start retains the SAME persistent subscriber,
+      // while the next segment waits for the NEXT platform frame.
+      if (requestNext && this.frameId !== null) {
         this.deps.cancelFrame(this.frameId);
         this.frameId = null;
       }
@@ -209,19 +242,6 @@ export class NativeResidentSegmentRunner {
         this.inArrivalCallback = false;
         if (token === this.generation && !this.active) this.cancel();
       }
-      } catch (error) {
-        this.abortFailedSegment(token);
-        throw error;
-      }
-    };
-    if (this.deps.subscribeFrame) {
-      this.currentPersistentStep = step;
-      if (this.frameId === null) {
-        this.frameId = this.deps.subscribeFrame(this.dispatchPersistentFrame);
-      }
-    } else {
-      this.frameId = this.deps.requestFrame(step);
-    }
     } catch (error) {
       this.abortFailedSegment(token);
       throw error;
@@ -235,13 +255,18 @@ export class NativeResidentSegmentRunner {
     completed: number;
     positionWrites: number;
     ignoredStaleFrames: number;
+    segmentStarts: number;
+    /** Legacy per-segment RAF callbacks; zero for persistent native mode. */
+    frameCallbackAllocations: number;
   }> {
     return {
       active: this.active,
       scheduled: this.frameId !== null,
       completed: this.completed,
       positionWrites: this.positionWrites,
-      ignoredStaleFrames: this.ignoredStaleFrames
+      ignoredStaleFrames: this.ignoredStaleFrames,
+      segmentStarts: this.segmentStarts,
+      frameCallbackAllocations: this.frameCallbackAllocations
     };
   }
 }
