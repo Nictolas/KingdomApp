@@ -36,6 +36,8 @@ Creare un file `matrix-android.json` nella stessa cartella dei file di report. E
 }
 ```
 
+**Versione del manifest:** l'esempio v1 resta leggibile, ma anche con tutti i 72 report restituisce ora lo stato **preliminare**, perché non attesta quali build siano state installate. Per lo stato «pronto alla revisione manuale» usare **schemaVersion 2** con SHA Git distinti di #298/#297, attestazioni delle build installate, parità della fixture e condizioni dello stesso dispositivo, come descritto in [NATIVE_AB_BUILD_PROVENANCE_20261029.md](NATIVE_AB_BUILD_PROVENANCE_20261029.md). Le attestazioni non costituiscono una verifica tecnica dei binari e non autorizzano un merge.
+
 **Attenzione:** `samePhysicalDeviceConfirmed` è una dichiarazione manuale, non un controllo tecnico. Impostarla a `true` solo dopo aver realmente usato lo stesso telefono. La #298 storica può omettere `Velocità simulazione`: `baselineSpeedConfirmed: true` va aggiunto **solo dopo aver verificato manualmente** che tutte le catture baseline erano a 1× nell'esempio. Se anche la candidata non registra la velocità, usare `candidateSpeedConfirmed: true` con la stessa cautela. Il tool non può verificarlo da solo.
 
 Per una matrice completa, aggiungere gli altri undici oggetti `scenarios` con tutte le combinazioni di `residents: 25, 50, 100, 200` e `speed: 1, 2, 4`, ciascuno con due file univoci. La scena e la piattaforma devono essere identiche per tutti.
