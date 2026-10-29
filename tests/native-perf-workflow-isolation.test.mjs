@@ -31,6 +31,7 @@ test("source Git A/B isolation is enforced before running any native suites", ()
   assert.match(workflow, /fetch-depth: 0/);
   assert.match(workflow, /node --test tests\/native-ab-git-isolation\.test\.mjs/);
   assert.match(workflow, /node scripts\/audit-native-ab-git-isolation\.mjs/);
+  assert.ok(workflow.includes('--expected-candidate "${{ github.event.pull_request.head.sha || github.sha }}"'));
   for (const branch of [
     "perf/native-resident-imperative-motion-20261028",
     "perf/native-real-sprite-ab-baseline-20261028",
