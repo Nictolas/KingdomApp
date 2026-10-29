@@ -474,8 +474,9 @@ function NativeResidentBody({
     cellRef.current = start;
     pixelPos.setValue({ x: cx, y: cy });
     // Partenza spesso condivisa (casa): non claim esclusivo; claim al primo passo verso `to`.
+    // The notification may invalidate the route, but this effect must still
+    // return its cleanup. stepChain checks the route epoch before any work.
     onCellSettledRef.current?.(start);
-    if (!routeEpoch.isCurrent(routeToken)) return;
 
     let seg = 0;
     let completionEmitted = false;
