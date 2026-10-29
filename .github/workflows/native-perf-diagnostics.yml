@@ -85,6 +85,7 @@ on:
       - "tests/native-resident-occupancy-handoff.test.ts"
       - "tests/native-resident-interruption-cleanup.test.ts"
       - "tests/native-resident-claimed-start-fault.test.ts"
+      - "tests/native-resident-arrival-fault.test.ts"
       - "tests/native-resident-frame-bus.test.ts"
       - "tests/native-resident-continuous-dispatch.test.ts"
       - "tests/native-resident-continuous-dispatch-benchmark.ts"
@@ -187,7 +188,7 @@ jobs:
       - name: Native commute/night priority, occupancy handoff and 200-resident route churn (Node only)
         id: suite_03
         continue-on-error: true
-        run: npx tsx --test tests/native-resident-route-transitions.test.ts tests/native-resident-occupancy-handoff.test.ts tests/native-resident-interruption-cleanup.test.ts tests/native-resident-claimed-start-fault.test.ts tests/native-resident-collision-retry.test.ts tests/native-resident-route-epoch.test.ts tests/native-resident-owned-timer.test.ts tests/native-resident-neighbor-sampler.test.ts tests/native-resident-spawn-sampler.test.ts
+        run: npx tsx --test tests/native-resident-route-transitions.test.ts tests/native-resident-occupancy-handoff.test.ts tests/native-resident-interruption-cleanup.test.ts tests/native-resident-claimed-start-fault.test.ts tests/native-resident-arrival-fault.test.ts tests/native-resident-collision-retry.test.ts tests/native-resident-route-epoch.test.ts tests/native-resident-owned-timer.test.ts tests/native-resident-neighbor-sampler.test.ts tests/native-resident-spawn-sampler.test.ts
       - name: 200 real native resident sprite fixture, occupancy and save-isolation regressions (Node only)
         id: suite_04
         continue-on-error: true

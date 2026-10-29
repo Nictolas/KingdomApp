@@ -7,7 +7,7 @@ import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
 import { NativeResidentCollisionRetry } from "../performance/nativeResidentCollisionRetry";
 import { NativeResidentRouteEpoch } from "../performance/nativeResidentRouteEpoch";
 import { NativeResidentOwnedTimer } from "../performance/nativeResidentOwnedTimer";
-import { nativeResidentRouteMode, nativeResidentHomeTransition, nativeResidentShouldRearmIdle, nativeResidentReconcileInterruptedClaim, nativeResidentReleaseMismatchedRouteOrigin, nativeResidentReleaseSharedHomeArrival, nativeResidentRunCleanup, nativeResidentRethrowAfterClaimedStartFault } from "../performance/nativeResidentRouteTransitions";
+import { nativeResidentRouteMode, nativeResidentHomeTransition, nativeResidentShouldRearmIdle, nativeResidentReconcileInterruptedClaim, nativeResidentReleaseMismatchedRouteOrigin, nativeResidentReleaseSharedHomeArrival, nativeResidentRunCleanup, nativeResidentRethrowAfterClaimedStartFault, nativeResidentRethrowAfterUnsettledArrivalFault } from "../performance/nativeResidentRouteTransitions";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation, markNativeResidentWrapperInvocation } from "../performance/nativeResidentWorkCounters";
 import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallbackRelay";
 import { NativeResidentTapRecognizer } from "../performance/nativeResidentTapRecognizer";
@@ -336,11 +336,22 @@ function NativeResidentBody({
         startTimestamp: performance.now(),
         durationMs: segmentMoveDurationMs(prev, next, isRoadCell),
         onArrival: () => {
-          publishCell(dest);
-          onCellSettledRef.current?.(dest);
-          wakeTimer.schedule(() => {
-            pickNextMoveRef.current();
-          }, IDLE_BEFORE_NEXT_MS);
+          try {
+            publishCell(dest);
+            onCellSettledRef.current?.(dest);
+            wakeTimer.schedule(() => {
+              pickNextMoveRef.current();
+            }, IDLE_BEFORE_NEXT_MS);
+          } catch (error) {
+            // The native runner has completed, but a failure before the
+            // logical settlement must return the reserved destination.
+            // Once publishCell succeeded, the destination is the true cell
+            // and must not be reverted by a later parent callback error.
+            nativeResidentRethrowAfterUnsettledArrivalFault(
+              error, prev, claim, releaseMyCellRef.current,
+              claim != null && cellRef.current === prev
+            );
+          }
         }
       });
     } catch (error) {
@@ -433,17 +444,24 @@ function NativeResidentBody({
           keepWalkingOnArrival: !isLastSegment,
           onArrival: () => {
             if (!routeEpoch.isCurrent(routeToken)) return;
-            // The final home doorway is shared. Even if its soft claim failed,
-            // release the previously reserved street cell before notifying
-            // the parent (which can synchronously replace the route).
-            nativeResidentReleaseSharedHomeArrival(
-              isLastSegment, purpose, releaseMyCellRef.current
-            );
-            publishCell(to);
-            // The parent may synchronously replace this commute while handling
-            // the arrival. Never continue a route that lost ownership there.
-            if (!routeEpoch.runIfCurrent(routeToken, () => onCellSettledRef.current?.(to))) return;
-            onDone();
+            try {
+              // Shared-home arrival may release a road claim before the
+              // logical cell is published. A bridge fault during this handoff
+              // must not leave an obsolete destination reserved.
+              nativeResidentReleaseSharedHomeArrival(
+                isLastSegment, purpose, releaseMyCellRef.current
+              );
+              publishCell(to);
+              // A reentrant parent callback may supersede this route.
+              if (!routeEpoch.runIfCurrent(routeToken, () => onCellSettledRef.current?.(to))) return;
+              onDone();
+            } catch (error) {
+              nativeResidentRethrowAfterUnsettledArrivalFault(
+                error, from, claim, releaseMyCellRef.current,
+                destinationClaimed && routeEpoch.isCurrent(routeToken) &&
+                  cellRef.current === from
+              );
+            }
           }
         });
       } catch (error) {

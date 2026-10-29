@@ -86,3 +86,12 @@ test("claimed-native-start rollback regressions are required in route suite", ()
     workflow.indexOf("      - name: 200 real native resident sprite fixture"));
   assert.ok(route.includes("tests/native-resident-claimed-start-fault.test.ts"));
 });
+
+test("native arrival failure occupancy recovery is required by the diagnostics workflow", () => {
+  assert.ok(workflow.includes('      - "tests/native-resident-arrival-fault.test.ts"'));
+  const routeSuite = workflow.slice(
+    workflow.indexOf("      - name: Native commute/night priority"),
+    workflow.indexOf("      - name: 200 real native resident sprite fixture")
+  );
+  assert.ok(routeSuite.includes("tests/native-resident-arrival-fault.test.ts"));
+});

@@ -145,3 +145,24 @@ export function nativeResidentRethrowAfterClaimedStartFault(
   }
   throw originalError;
 }
+
+/**
+ * Error-only reconciliation for a destination reserved during a segment
+ * whose native arrival callback fails BEFORE publishing its settled cell.
+ *
+ * A successfully published destination must NEVER be undone just because a
+ * later parent callback throws. The caller owns that distinction and (for
+ * commutes) also checks its current route epoch. Preserve the original
+ * exception, even if occupancy recovery itself fails.
+ */
+export function nativeResidentRethrowAfterUnsettledArrivalFault(
+  originalError: unknown,
+  previousCell: number | null | undefined,
+  claim: ((cell: number) => boolean) | null | undefined,
+  release: (() => void) | null | undefined,
+  unsettledAndOwned: boolean
+): never {
+  return nativeResidentRethrowAfterClaimedStartFault(
+    originalError, previousCell, claim, release, unsettledAndOwned
+  );
+}
