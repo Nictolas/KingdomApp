@@ -9,6 +9,10 @@ export type NativeResidentFrameBusRate = Readonly<{
   oneShotRegistrations: number;
   platformFrameDispatches: number;
   oneShotBufferSwaps: number;
+  /** Bridge faults observed within the capture window, not lost UI frames. */
+  platformRequestFailures: number;
+  platformCancelFailures: number;
+  postDispatchRearmFailures: number;
   oneShotBufferSwapsPerSecond: number;
   persistentRegistrationsPerSecond: number;
   oneShotRegistrationsPerSecond: number;
@@ -22,7 +26,7 @@ export function diffNativeResidentFrameBusSnapshots(
   after: NativeResidentFrameBusSnapshot,
   durationMs: number
 ): NativeResidentFrameBusRate {
-  const safeDelta = (field: "subscriptionAdds" | "oneShotRequests" | "dispatchCount" | "oneShotBufferSwaps") =>
+  const safeDelta = (field: "subscriptionAdds" | "oneShotRequests" | "dispatchCount" | "oneShotBufferSwaps" | "platformRequestFailures" | "platformCancelFailures" | "postDispatchRearmFailures") =>
     Math.max(0, after[field] - before[field]);
   const seconds = Number.isFinite(durationMs) && durationMs > 0 ? durationMs / 1000 : 0;
   const persistentRegistrations = safeDelta("subscriptionAdds");
@@ -34,6 +38,9 @@ export function diffNativeResidentFrameBusSnapshots(
     oneShotRegistrations,
     platformFrameDispatches,
     oneShotBufferSwaps,
+    platformRequestFailures: safeDelta("platformRequestFailures"),
+    platformCancelFailures: safeDelta("platformCancelFailures"),
+    postDispatchRearmFailures: safeDelta("postDispatchRearmFailures"),
     oneShotBufferSwapsPerSecond: seconds ? oneShotBufferSwaps / seconds : 0,
     persistentRegistrationsPerSecond: seconds ? persistentRegistrations / seconds : 0,
     oneShotRegistrationsPerSecond: seconds ? oneShotRegistrations / seconds : 0,
