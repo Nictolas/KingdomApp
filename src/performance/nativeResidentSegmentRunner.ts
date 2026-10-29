@@ -18,7 +18,7 @@ type ResidentPositionWriter =
 
 export type NativeResidentSegmentDependencies = Readonly<{
   requestFrame: (callback: FrameCallback) => number;
-  /** Native frame bus: one subscription per segment instead of one per frame. */
+  /** Native frame bus: reuse one subscription across synchronous commute segments. */
   subscribeFrame?: (callback: FrameCallback) => number;
   cancelFrame: (id: number) => void;
   readTimeScale: () => number;
@@ -43,6 +43,12 @@ export type NativeResidentSegmentDependencies = Readonly<{
 export class NativeResidentSegmentRunner {
   private generation = 0;
   private frameId: number | null = null;
+  /** Dispatcher stays stable across synchronous onArrival -> start chains. */
+  private currentPersistentStep: FrameCallback | null = null;
+  private inArrivalCallback = false;
+  private readonly dispatchPersistentFrame: FrameCallback = (timestamp, resumed) => {
+    this.currentPersistentStep?.(timestamp, resumed);
+  };
   private lastWrittenX: number | null = null;
   private lastWrittenY: number | null = null;
   /** One sample buffer per resident runner, not a new object every RAF. */
@@ -59,6 +65,7 @@ export class NativeResidentSegmentRunner {
   cancel(): void {
     this.generation++;
     this.active = false;
+    this.currentPersistentStep = null;
     this.lastWrittenX = null;
     this.lastWrittenY = null;
     if (this.frameId !== null) {
@@ -86,7 +93,22 @@ export class NativeResidentSegmentRunner {
       request.durationMs <= 0) {
       throw new Error("Invalid native resident segment");
     }
-    this.cancel();
+    // A chained segment begins synchronously inside its predecessor's
+    // onArrival, after that subscriber already ran this frame. Keep its
+    // native registration: the new segment is first sampled NEXT RAF.
+    // External reroutes, collision stops and one-shot callers retain the
+    // original cancellation behavior.
+    const reuseSubscription = !!this.deps.subscribeFrame &&
+      this.inArrivalCallback && this.frameId !== null;
+    if (reuseSubscription) {
+      this.generation++;
+      this.active = false;
+      this.currentPersistentStep = null;
+      this.lastWrittenX = null;
+      this.lastWrittenY = null;
+    } else {
+      this.cancel();
+    }
     const token = this.generation;
     const segment = new NativeResidentSegmentProgress(request.startTimestamp, request.durationMs);
     this.active = true;
@@ -137,9 +159,11 @@ export class NativeResidentSegmentRunner {
       }
       this.active = false;
       this.completed++;
-      // Remove the persistent subscriber *before* onArrival can synchronously
-      // start a new segment; never leave an obsolete walker on the frame bus.
-      if (this.frameId !== null) {
+      // One-shot callbacks are consumed. Keep a persistent subscriber
+      // until onArrival has had the opportunity to chain the next segment.
+      // An unsuccessful chain, exception or terminal arrival still releases
+      // the subscriber in finally, so no idle resident holds a live RAF.
+      if (!this.deps.subscribeFrame && this.frameId !== null) {
         this.deps.cancelFrame(this.frameId);
         this.frameId = null;
       }
@@ -148,11 +172,23 @@ export class NativeResidentSegmentRunner {
       } else {
         this.deps.setWalking(false);
       }
-      if (token === this.generation) request.onArrival();
+      if (token !== this.generation) return;
+      this.inArrivalCallback = true;
+      try {
+        request.onArrival();
+      } finally {
+        this.inArrivalCallback = false;
+        if (token === this.generation && !this.active) this.cancel();
+      }
     };
-    this.frameId = this.deps.subscribeFrame
-      ? this.deps.subscribeFrame(step)
-      : this.deps.requestFrame(step);
+    if (this.deps.subscribeFrame) {
+      this.currentPersistentStep = step;
+      if (this.frameId === null) {
+        this.frameId = this.deps.subscribeFrame(this.dispatchPersistentFrame);
+      }
+    } else {
+      this.frameId = this.deps.requestFrame(step);
+    }
   }
 
   /** Aggregate in-memory diagnostics; never contains positions or resident IDs. */
