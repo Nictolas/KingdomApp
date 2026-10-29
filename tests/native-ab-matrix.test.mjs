@@ -126,6 +126,29 @@ test("v2 refuses missing/wrong PRs, malformed/equal SHAs and missing device/fixt
   }
 });
 
+test("CLI v2 emits attested build SHAs, but never certifies installed binaries or FPS", () => {
+  const { manifest, files } = matrix({ full: false });
+  attestV2(manifest);
+  const dir = mkdtempSync(join(tmpdir(), "mk-native-ab-v2-"));
+  try {
+    writeFileSync(join(dir, "matrix.json"), JSON.stringify(manifest));
+    for (const [name, content] of files) writeFileSync(join(dir, name), content);
+    const result = spawnSync(process.execPath, [
+      resolve("scripts/compare-native-ab-matrix.mjs"),
+      "--manifest", join(dir, "matrix.json"), "--allow-partial", "--json"
+    ], { encoding: "utf8" });
+    assert.equal(result.status, 0, result.stderr);
+    const parsed = JSON.parse(result.stdout);
+    assert.equal(parsed.status, "preliminary_incomplete");
+    assert.equal(parsed.buildProvenance.baseline, BASELINE_SHA);
+    assert.equal(parsed.buildProvenance.candidate, CANDIDATE_SHA);
+    assert.match(parsed.buildProvenance.verification, /human_attestation_only/);
+    assert.equal(parsed.conclusion, "no_automatic_performance_or_release_approval");
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
 test("v2 partial matrix is still preliminary regardless of build attestations", () => {
   const { manifest, load } = matrix({ full: false });
   attestV2(manifest);
