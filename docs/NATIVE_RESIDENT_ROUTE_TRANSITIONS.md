@@ -207,3 +207,62 @@ Il controller `NativeResidentCollisionRetry` ora incrementa una generazione quan
 **Regressioni aggiunte:** 200 controller per 40 sostituzioni di percorso (8.000 vecchie callback respinte e 8.000 fallback validi); 200 fallback obsoleti e 200 validi con pausa di background e drenaggio cooperativo a 32 callback per wakeup. Sono prove deterministiche su Node, non FPS, touch o prove Android/iOS reali.
 
 Nessuna modifica a GameContext, salvataggi, web, regole di collisione, intervalli di retry o velocita' 1x/2x/4x. Il ramo #297 resta Draft, stacked su #296; #298 resta il confronto A/B degli sprite reali.
+
+
+## 29 ottobre — consegna terminale one-shot e niente timer inattivi a tragitto finito
+
+### Problema verificato nel renderer nativo
+
+La callback terminale `stepChain` inviava `onCommuteComplete` e subito
+programmava un timer idle da 2.200 ms anche quando `commutePath` continuava
+a possedere l'abitante. Al suo scadere `pickNextMove` rilevava il percorso
+attivo e non faceva nulla: un timer/callback inutile per ciascun abitante
+che conclude un tragitto. Se invece il genitore rimuoveva il percorso,
+l'effetto già esistente per `commute → free` cancellava quel timer e
+ne programmava uno nuovo. La seconda sorgente di wakeup non serve.
+
+Inoltre, la notifica `onCellSettled` di un arrivo poteva eseguire un
+callback rientrante del genitore che invalidava il percorso; il renderer
+avrebbe poi comunque chiamato `onDone` senza ricontrollare l'ownership
+fra i due callback.
+
+### Correzione confinata a #297
+
+- `NativeResidentRouteEpoch.runIfCurrent(token, callback)` controlla il
+  proprietario prima **e dopo** una notifica sincrona. Se il genitore
+  invalida la route durante il callback, il vecchio `onDone` non procede.
+- La consegna di `onCommuteComplete` è **one-shot** per effetto di percorso;
+  l'eventuale sostituzione sincrona non avvia una vecchia continuazione.
+- Nessun timer idle viene creato mentre il tragitto è ancora attivo dopo
+  la consegna terminale. Il passaggio effettivo da `commute` a `free`
+  usa l'effetto `nativeResidentShouldRearmIdle` esistente e mantiene lo
+  stesso ritardo nominale di **2.200 ms**, solo quando il movimento libero
+  è consentito. `fixed/home`, pause e background non causano nuovi movimenti.
+- Non vengono alterati i 900 ms delle collisioni, le occupazioni della
+  mappa, il pathfinder, l'orologio, le velocità, le regole o i salvataggi.
+- Nessuna modifica a `MapWandererCharacter.tsx` (web) o ai quattro file
+  identici della fixture A/B #297/#298.
+
+### Verifiche automatiche
+
+La suite `native-resident-route-epoch.test.ts` verifica 12.000 arrivi
+sintetici, di cui 8.000 con invalidazione rientrante, e 8.000 notifiche
+terminali con consegna ripetuta e invalidazione del percorso; controlla
+anche che il codice nativo non armi un idle timer nel ramo terminale.
+
+`native-resident-full-stack-integration.test.ts` esercita 200
+`NativeResidentSegmentRunner` reali, il `NativeResidentFrameBus`, la
+`NativeResidentTimerQueue` e il gate pausa/foreground per 18 cicli,
+con 3.600 arrivi, 720 sostituzioni sincrone durante la notifica,
+360 sostituzioni in movimento, velocità 1×/2×/4× e periodi in background.
+Verifica zero timer di retry residui e zero iscrizioni RAF dopo ogni
+ciclo. Numeri relativi agli **scenari programmati**, non risultati CI
+confermati fino all'esito della pipeline.
+
+**Limiti:** `runIfCurrent` intercetta invalidazioni sincrone della route;
+un aggiornamento React differito sarà governato dal normale cleanup
+dell'effetto. Test Node con RAF, timeout e orologio simulati non provano
+frame rate, touch, consumo CPU/memoria o comportamento Android/iPhone.
+Confrontare solo le fixture real-sprite #298 (baseline) e #297 (candidata)
+sullo stesso dispositivo, 25/50/100/200 NPC e 1×/2×/4×. Nessun merge o
+rilascio autorizzato da queste prove da sole.
