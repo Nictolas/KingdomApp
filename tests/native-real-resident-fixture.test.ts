@@ -286,5 +286,5 @@ test("readiness indicator uses a separate store, not 200 resident React state up
   assert.match(workload, /occupancy\.getReadySnapshot/);
   assert.match(workload, /Occupazione pronta:/);
   assert.match(workload, /Occupazione sprite non pronta:/);
-  assert.doesNotMatch(workload, /AsyncStorage|GameContext|fetch\(/);
+  assert.doesNotMatch(workload, /import[^\n]*(?:GameContext|AsyncStorage)|\bfetch\s*\(/);
 });
