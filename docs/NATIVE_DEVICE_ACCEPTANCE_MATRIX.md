@@ -27,7 +27,7 @@ La matrice contiene **12 scenari per piattaforma**: quattro popolazioni × tre v
 
 - `single_tap`: selezione al primo tocco senza aprire schede indesiderate.
 - `double_tap`: doppio tocco coerente con il comportamento della scheda.
-- `pan_pinch`: pan e zoom senza disallineamento tra sprite e area toccabile.
+- `pan_pinch`: prova **sulla mappa nativa reale**, non nella fixture `/native-perf` (che è una scena statica senza pan/zoom). Verificare pan, pinch e allineamento sprite/hitbox; se non è possibile popolare la mappa reale con ~200 abitanti, segnare `not_run` e descrivere il limite, non dichiarare una prova inesistente.
 - `collision_retry`: contesa di una cella, attesa e ripresa senza compenetrazione o blocco permanente.
 - `pause_resume`: pausa prolungata, nessun avanzamento in pausa e nessun teletrasporto al resume.
 - `background_foreground`: nessun movimento/timer in background e ripresa corretta senza aggirare la pausa manuale.
