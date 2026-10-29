@@ -1,6 +1,6 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, resolve } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -145,5 +145,40 @@ test("CLI reads local manifest and reports, refuses incomplete matrix without ex
     assert.ok(!valid.stdout.includes("FPS GPU improvement"));
   } finally {
     rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("matrix refuses absolute, aliased and traversal report names before loading", () => {
+  const { manifest, load } = matrix({full:false});
+  const entry = manifest.scenarios[0];
+  for (const name of [
+    "../outside.txt", "./before.txt", "a//before.txt", "a/../before.txt",
+    "/tmp/outside.txt", "C:\\\\outside.txt", "a\\\\before.txt", "bad\nfile.txt"
+  ]) {
+    entry.baseline = name;
+    assert.throws(() => analyzeNativeAbMatrix(manifest, load, {allowPartial:true}),
+      /two distinct local report files/);
+  }
+});
+
+test("CLI refuses symlink escape outside manifest directory", () => {
+  const { manifest, files } = matrix({full:false});
+  const root = mkdtempSync(join(tmpdir(), "mk-native-ab-escape-"));
+  const inside = join(root, "inside");
+  try {
+    mkdirSync(inside);
+    const entry = manifest.scenarios[0];
+    writeFileSync(join(root, "outside.txt"), files.get(entry.baseline));
+    symlinkSync(join(root, "outside.txt"), join(inside, entry.baseline));
+    writeFileSync(join(inside, entry.candidate), files.get(entry.candidate));
+    writeFileSync(join(inside, "matrix.json"), JSON.stringify(manifest));
+    const result = spawnSync(process.execPath, [
+      resolve("scripts/compare-native-ab-matrix.mjs"),
+      "--manifest", join(inside, "matrix.json"), "--allow-partial"
+    ], {encoding:"utf8"});
+    assert.equal(result.status, 1);
+    assert.match(result.stderr, /report path escapes manifest directory/);
+  } finally {
+    rmSync(root, {recursive:true, force:true});
   }
 });
