@@ -366,3 +366,75 @@ test("200 stale and 200 live repath fallbacks survive background without cross-r
   assert.equal(queue.snapshot().pending, 0);
   assert.ok(retries.every(retry => retry.snapshot().awaitingRepath === false));
 });
+
+test("seeded 200-resident collision state machine: stale callbacks never revive superseded routes", () => {
+  // Independent reference model: each resident has one live route generation.
+  // All actions are deterministic and repeatable in CI.
+  let seed = 0x297298;
+  const random = () => {
+    seed ^= seed << 13; seed ^= seed >>> 17; seed ^= seed << 5;
+    return seed >>> 0;
+  };
+  const residents = Array.from({ length: 200 }, () => ({
+    controller: new NativeResidentCollisionRetry(3),
+    generation: 0,
+    failures: 0,
+    awaiting: false,
+    fallback: false,
+    callbacks: [] as number[],
+  }));
+  let stale = 0, accepted = 0, requests = 0, retries = 0;
+  for (let step = 0; step < 100_000; step++) {
+    const resident = residents[random() % residents.length]!;
+    const action = random() % 8;
+    if (action === 0 || action === 1) {
+      // Route replacement or successful claim invalidates every old closure.
+      resident.controller.reset();
+      resident.generation++;
+      resident.failures = 0;
+      resident.awaiting = false;
+      resident.fallback = false;
+    } else if (action <= 4) {
+      const canRepath = action !== 2;
+      const actual = resident.controller.fail(canRepath);
+      let expected: "retry" | "request-repath" | "awaiting-repath";
+      if (resident.awaiting) expected = "awaiting-repath";
+      else if (resident.fallback) expected = "retry";
+      else {
+        resident.failures++;
+        if (canRepath && resident.failures >= 3) {
+          resident.failures = 0;
+          resident.awaiting = true;
+          resident.generation++;
+          resident.callbacks.push(resident.controller.repathGeneration());
+          expected = "request-repath";
+          requests++;
+        } else expected = "retry";
+      }
+      assert.equal(actual, expected, `step ${step}`);
+      if (expected === "retry") retries++;
+    } else {
+      // Deliver pending callbacks in a shuffled order, including obsolete ones.
+      const generation = resident.callbacks.length && action !== 7
+        ? resident.callbacks.splice(random() % resident.callbacks.length, 1)[0]!
+        : resident.controller.repathGeneration() - 1;
+      const expected = resident.awaiting &&
+        generation === resident.controller.repathGeneration();
+      assert.equal(resident.controller.resumeWithoutRepath(generation), expected,
+        `callback at step ${step}`);
+      if (expected) {
+        resident.awaiting = false;
+        resident.fallback = true;
+        accepted++;
+      } else stale++;
+    }
+    assert.deepEqual(resident.controller.snapshot(), {
+      failures: resident.failures,
+      awaitingRepath: resident.awaiting
+    }, `snapshot at step ${step}`);
+  }
+  assert.ok(requests > 1000);
+  assert.ok(retries > 1000);
+  assert.ok(stale > 1000);
+  assert.ok(accepted > 0);
+});
