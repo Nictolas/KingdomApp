@@ -45,6 +45,11 @@ export class NativeResidentLifecycleBootstrap {
         this.bindings.applyActive
       );
       this.gate = gate;
+      // dispose() may be called synchronously by the initial bridge update.
+      // Never install observers for an ownership generation already retired.
+      if (generation !== this.generation) {
+        throw new Error("Native resident lifecycle installation invalidated");
+      }
       unpause = this.bindings.subscribeGamePaused(() => {
         if (generation !== this.generation) return;
         this.gate?.setGamePaused(this.bindings.readGamePaused());
@@ -53,10 +58,16 @@ export class NativeResidentLifecycleBootstrap {
         if (generation !== this.generation) return;
         this.gate?.setForeground(foreground);
       });
+      if (generation !== this.generation) {
+        throw new Error("Native resident lifecycle installation invalidated");
+      }
       // Close the initial-snapshot/subscription race: synchronously reconcile
       // any foreground/pause changes which occurred during registration.
       gate.setForeground(this.bindings.readForeground());
       gate.setGamePaused(this.bindings.readGamePaused());
+      if (generation !== this.generation) {
+        throw new Error("Native resident lifecycle installation invalidated");
+      }
       this.unsubscribeGamePaused = unpause;
       this.unsubscribeForeground = unforeground;
       this.ready = true;
@@ -77,8 +88,15 @@ export class NativeResidentLifecycleBootstrap {
     }
   }
 
-  /** Used for deterministic tests and deliberate development teardown only. */
+  /**
+   * Fail-closed teardown: removing the observers must also suspend both
+   * schedulers. Otherwise a live 200-resident RAF/timer population can keep
+   * running after the only owner has stopped listening to background events.
+   * This remains a deliberate dev/test teardown, not a per-resident operation.
+   */
   dispose(): void {
+    const hadOwnership = this.ready || this.installing || this.gate !== null ||
+      this.unsubscribeForeground !== null || this.unsubscribeGamePaused !== null;
     this.generation++;
     this.ready = false;
     this.gate = null;
@@ -91,6 +109,14 @@ export class NativeResidentLifecycleBootstrap {
     try { stopForeground?.(); } catch (error) { firstError = error; failed = true; }
     try { stopPause?.(); } catch (error) {
       if (!failed) { firstError = error; failed = true; }
+    }
+    // Teardown must still suspend resident work even when removing a native
+    // subscription throws. Preserve the first failure (including falsy throws).
+    if (hadOwnership) {
+      try { this.bindings.applyActive(false); }
+      catch (error) {
+        if (!failed) { firstError = error; failed = true; }
+      }
     }
     if (failed) throw firstError;
   }
