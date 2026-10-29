@@ -189,6 +189,11 @@ test("200 resident commute completions are delivered at most once, even with ree
 test("source boundary: terminal commute neither re-arms idle nor continues after an invalidating arrival", () => {
   const native = readFileSync(new URL("../src/components/MapWandererCharacter.native.tsx", import.meta.url), "utf8");
   const web = readFileSync(new URL("../src/components/MapWandererCharacter.tsx", import.meta.url), "utf8");
+  const commuteStart = native.slice(native.indexOf('    const routeToken = routeEpoch.begin();'),
+    native.indexOf('    let seg = 0;'));
+  assert.match(commuteStart, /onCellSettledRef\.current\?\.\(start\)/);
+  assert.doesNotMatch(commuteStart.slice(commuteStart.lastIndexOf('onCellSettledRef.current?.(start);')),
+    /if \(!routeEpoch\.isCurrent\(routeToken\)\) return/);
   const route = native.slice(native.indexOf('    let seg = 0;'), native.indexOf('    stepChain();'));
   assert.ok(route.startsWith("    let seg = 0;"));
   assert.match(route, /let completionEmitted = false/);
