@@ -374,3 +374,87 @@ test("boot probe cancellation errors do not skip app observers' teardown", () =>
   assert.equal(visibility.foreground, false);
   stop(); // idempotent
 });
+
+
+test("transient asynchronous AppState read failure retries within the bounded boot budget", () => {
+  let reads = 0;
+  let scheduled = 0;
+  const os = new Map<number, () => void>();
+  const retained: Array<() => void> = [];
+  const values: boolean[] = [];
+  const visibility = new NativeResidentAppVisibility(null, true);
+  let change: (state: string) => void = () => {};
+  const stop = observeNativeResidentAppVisibility(visibility, {
+    onChange: cb => { change = cb; return () => {}; },
+    onBlur: () => () => {},
+    onFocus: () => () => {},
+    bootProbe: {
+      read: () => {
+        reads++;
+        if (reads === 2) throw false; // first asynchronous bridge read
+        return reads >= 3 ? "active" : null;
+      },
+      schedule: cb => {
+        const id = ++scheduled;
+        os.set(id, cb);
+        retained.push(cb);
+        return id;
+      },
+      cancel: id => { os.delete(id); }
+    }
+  }, active => values.push(active));
+  assert.equal(os.size, 1);
+  const tick = () => {
+    const [id, cb] = os.entries().next().value!;
+    os.delete(id);
+    cb();
+  };
+  tick(); // throws internally; must remain paused and schedule attempt 2
+  assert.equal(visibility.foreground, false);
+  assert.deepEqual(values, []);
+  assert.equal(os.size, 1);
+  tick(); // bridge now resolves without an AppState event
+  assert.equal(visibility.foreground, true);
+  assert.deepEqual(values, [true]);
+  assert.equal(scheduled, 2);
+  assert.equal(os.size, 0);
+  retained.forEach(cb => cb()); // late OS callbacks cannot double-resume
+  assert.deepEqual(values, [true]);
+  change("background");
+  assert.deepEqual(values, [true, false]);
+  stop();
+});
+
+test("permanent asynchronous AppState read faults exhaust four checks and fail closed", () => {
+  let reads = 0;
+  let scheduled = 0;
+  const os = new Map<number, () => void>();
+  let change: (state: string) => void = () => {};
+  const values: boolean[] = [];
+  const visibility = new NativeResidentAppVisibility(null, false);
+  const stop = observeNativeResidentAppVisibility(visibility, {
+    onChange: cb => { change = cb; return () => {}; },
+    bootProbe: {
+      read: () => {
+        reads++;
+        if (reads > 1) throw new Error("transient native bridge unavailable");
+        return null;
+      },
+      schedule: cb => { const id = ++scheduled; os.set(id, cb); return id; },
+      cancel: id => { os.delete(id); }
+    }
+  }, active => values.push(active));
+  for (let attempt = 0; attempt < 4; attempt++) {
+    assert.equal(os.size, 1);
+    const [id, cb] = os.entries().next().value!;
+    os.delete(id);
+    cb();
+  }
+  assert.equal(scheduled, 4);
+  assert.equal(os.size, 0, "no indefinite retries or background polling");
+  assert.equal(visibility.foreground, false);
+  assert.deepEqual(values, []);
+  change("active"); // a later authoritative event still recovers
+  assert.deepEqual(values, [true]);
+  stop();
+});
