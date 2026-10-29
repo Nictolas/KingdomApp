@@ -114,3 +114,38 @@ test("a >=2s long frame fully inside a capture still invalidates that run", () =
   assert.equal(session.isInvalidated(), true);
   assert.equal(session.record(15000, 16), null);
 });
+
+test("strict on-device capture rejects missing RAF intervals, backward samples and invalid deltas", () => {
+  const skipped = new NativeMeasurementSession(0, 10_000, true);
+  skipped.record(16, 16);
+  assert.equal(skipped.record(9000, 16), null);
+  assert.equal(skipped.isInvalidated(), true, "a 9s hole cannot become a valid report");
+  assert.equal(skipped.record(10_000, 16), null);
+
+  const backwards = new NativeMeasurementSession(0, 10_000, true);
+  backwards.record(16, 16);
+  backwards.record(16, 16);
+  assert.equal(backwards.isInvalidated(), true);
+
+  const invalid = new NativeMeasurementSession(0, 10_000, true);
+  invalid.record(16, 16);
+  invalid.record(32, Number.NaN);
+  assert.equal(invalid.isInvalidated(), true);
+
+  const partial = new NativeMeasurementSession(5000, 10_000, true);
+  partial.record(5001, 120); // first interval started before capture
+  assert.equal(partial.isInvalidated(), false);
+  partial.record(5017, 16);
+  assert.equal(partial.isInvalidated(), false);
+
+  const valid = new NativeMeasurementSession(0, 10_000, true);
+  for (let timestamp = 16; timestamp < 10_000; timestamp += 16) {
+    assert.equal(valid.record(timestamp, 16), null);
+  }
+  const result = valid.record(10_000, 16);
+  assert.equal(valid.isInvalidated(), false);
+  assert.ok(result && result.metrics.samples > 600);
+  assert.equal(result?.durationMs, 10_000);
+  const hud = readFileSync(new URL("../src/performance/NativePerformanceHud.tsx", import.meta.url), "utf8");
+  assert.match(hud, /new NativeMeasurementSession\(performance\.now\(\), 10_000, true\)/);
+});
