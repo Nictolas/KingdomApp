@@ -67,3 +67,30 @@ A negative paired p95 delta is **an observed difference in the supplied Android 
 The dedicated #297 workflow runs tests/native-android-framestats.test.mjs together with the existing JS A/B analyzer tests. These synthetic tests validate parsing, modern timestamp precision, 60/90/120/144 Hz thresholds, malformed/flagged rows, rolling-buffer warnings, 3-pair comparison, scenario attestations, path isolation and CLI output. They do **not** run adb, create APK/IPA artifacts, benchmark a phone, validate actual touch hit targets or alter the #298 baseline.
 
 Release gate remains: independent native CI, Expo Android/iOS/web JS export checks, physical Android/iPhone tests for 25/50/100/200 sprites, pause/background, collisions, touch selection, 1×/2×/4× and scene continuity, plus manual interpretation of actual device measurements. No merge, deploy or release without separate authorization.
+
+
+## Full Android evidence matrix (25/50/100/200 × 1×/2×/4×)
+
+The single-scenario command above is useful for one controlled diagnostic. The separate full-matrix tool now verifies **12 distinct real-native-sprite scenarios, with at least three #298/#297 paired runs each**: 72 raw gfxinfo files in total. It does not pool unlike populations or speed settings into one misleading global performance "improvement".
+
+Generate a complete manifest template locally (Node.js; output redirected to UTF-8):
+
+    node scripts/generate-native-android-ui-matrix-template.mjs > matrix.json
+
+Use --pairs 4 through --pairs 10 to request additional independent capture pairs. By design the generated JSON sets:
+- refreshHz to null: enter the real display refresh, checking that a dynamic-refresh device did not change it.
+- samePhysicalDeviceConfirmed to false: change only after personally verifying both builds were measured on the same physical hardware.
+- scene to the actual repeatable-commute real-sprite scene; do not substitute #295's marker benchmark.
+- all 12 population/speed combinations, with distinct names such as baseline-200-4x-1.txt and candidate-200-4x-1.txt.
+
+Capture each trial from **two genuinely installed native builds**, reset gfxinfo before each sample, allow both scenes to reach readiness and retain exactly the chosen camera and renderer conditions. Distinguish baseline (#298) from candidate (#297), and document build commits separately: names and human attestations do not cryptographically prove which binary produced a dump.
+
+When 72 or more local files are available:
+
+    node scripts/compare-native-android-ui-matrix.mjs --manifest matrix.json --json
+
+This command **rejects incomplete coverage** and reused file names across scenarios, while --allow-partial explicitly allows an incomplete preliminary review. It checks 3–10 paired captures per scenario, input consistency, frame timestamp quality, directory escapes and symlink aliases. The output includes per-scenario median paired p95 differences, over-budget frame-percentage-point differences, frame counts and quality warnings. It does not automatically approve a change; no numbers are fabricated for untested devices.
+
+**Continuity safeguard:** as well as detecting short rolling buffers, the analyzer now reports the largest interval between consecutive IntendedVsync timestamps and duplicated vsync timestamps. A ten-second min/max span does not establish ten seconds of continuous sampling if several seconds of frame data are absent. This triggers warnings for manual review; for accurate frame rendering and GPU attribution, use FrameTimeline/Perfetto/Macrobenchmark. For iPhone, obtain independent Xcode Instruments measurements: Android gfxinfo cannot measure iOS.
+
+The dedicated native CI includes parser tests, the 12-scenario/72-dump synthetic matrix audit and template generator tests. Every fixture uses fake Android timestamps. They prove parser behavior, **not physical device smoothness**. Android and iOS Expo JavaScript exports likewise are not installable or measured builds.
