@@ -34,20 +34,31 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          git fetch --no-tags --depth=1 origin refs/heads/perf/native-resident-timer-batching-20261028
-          for path in \
-            app/native-perf.tsx \
-            src/performance/NativeRealResidentWorkload.tsx \
-            src/performance/nativeRealResidentFixture.ts \
-            tests/native-real-resident-fixture.test.ts; do
-            local_sha="$(git hash-object "$path")"
-            paired_sha="$(git rev-parse "FETCH_HEAD:$path")"
-            if [[ "$local_sha" != "$paired_sha" ]]; then
-              echo "::error file=$path::A/B fixture drift: this branch $local_sha vs paired branch $paired_sha"
-              exit 1
+          # A/B branches are pushed sequentially; allow bounded convergence.
+          # Persistent divergence still fails the native baseline gate.
+          for attempt in 1 2 3 4 5 6; do
+            git fetch --no-tags --depth=1 origin refs/heads/perf/native-resident-timer-batching-20261028
+            mismatch=0
+            for path in \
+              app/native-perf.tsx \
+              src/performance/NativeRealResidentWorkload.tsx \
+              src/performance/nativeRealResidentFixture.ts \
+              tests/native-real-resident-fixture.test.ts; do
+              local_sha="$(git hash-object "$path")"
+              paired_sha="$(git rev-parse "FETCH_HEAD:$path")"
+              if [[ "$local_sha" != "$paired_sha" ]]; then
+                echo "::warning file=$path::A/B fixture drift attempt $attempt/6: $local_sha vs $paired_sha"
+                mismatch=1
+              fi
+            done
+            if [[ "$mismatch" -eq 0 ]]; then
+              echo "A/B parity OK on attempt $attempt (all four Git blobs identical)"
+              exit 0
             fi
-            echo "A/B parity OK: $path $local_sha"
+            if [[ "$attempt" -lt 6 ]]; then sleep 10; fi
           done
+          echo "::error::A/B fixture parity did not converge after six attempts"
+          exit 1
       - uses: actions/setup-node@v4
         with:
           node-version: 22
