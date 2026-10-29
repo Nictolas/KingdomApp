@@ -43,3 +43,11 @@ test("the three bundle jobs are smoke exports, not installable device builds", (
   assert.match(workflow, /npx expo export --platform/);
   assert.doesNotMatch(workflow, /eas build|gradlew assembleRelease|xcodebuild archive/);
 });
+
+
+test("A/B parity tolerates sequential Draft pushes but fails closed on lasting drift", () => {
+  assert.match(workflow, /for attempt in 1 2 3 4 5 6; do/);
+  assert.match(workflow, /if \[\[ "\$mismatch" -eq 0 \]\]; then/);
+  assert.match(workflow, /sleep 10/);
+  assert.match(workflow, /A\/B fixture parity did not converge/);
+});
