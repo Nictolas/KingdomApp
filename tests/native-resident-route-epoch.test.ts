@@ -124,3 +124,80 @@ test("native wiring guards both retry timers before clearing or taking new route
   assert.match(retry, /onArrival: \(\) => \{\s*if \(!routeEpoch\.isCurrent\(routeToken\)\) return;/);
   assert.doesNotMatch(web, /NativeResidentRouteEpoch|routeEpoch/);
 });
+
+test("200 residents, 60 cycles: a reentrant arrival cannot continue its obsolete commute", () => {
+  const residents = Array.from({ length: 200 }, () => new NativeResidentRouteEpoch());
+  let settled = 0, obsoleteContinuations = 0, validContinuations = 0;
+  for (let cycle = 0; cycle < 60; cycle++) {
+    for (let i = 0; i < residents.length; i++) {
+      const epoch = residents[i]!;
+      const token = epoch.begin();
+      const replaceDuringNotification = (cycle + i) % 3 !== 0;
+      const owned = epoch.runIfCurrent(token, () => {
+        settled++;
+        if (replaceDuringNotification) epoch.begin(); // parent replaces path synchronously
+      });
+      if (owned) {
+        assert.equal(replaceDuringNotification, false);
+        validContinuations++;
+        assert.equal(epoch.isCurrent(token), true);
+      } else {
+        // Native onArrival must not call its old onDone after notification.
+        if (epoch.isCurrent(token)) obsoleteContinuations++;
+        assert.equal(epoch.isCurrent(token), false);
+      }
+      assert.equal(epoch.runIfCurrent(token, () => {
+        // Late arrival delivery on the replaced route must do nothing.
+        if (replaceDuringNotification) obsoleteContinuations++;
+      }), !replaceDuringNotification);
+      epoch.invalidate();
+      assert.equal(epoch.runIfCurrent(token, () => { obsoleteContinuations++; }), false);
+    }
+  }
+  assert.equal(settled, 12_000);
+  assert.equal(validContinuations, 4_000);
+  assert.equal(obsoleteContinuations, 0);
+});
+
+test("200 resident commute completions are delivered at most once, even with reentrant parent changes", () => {
+  const epochs = Array.from({ length: 200 }, () => new NativeResidentRouteEpoch());
+  let completions = 0, duplicateCompletions = 0;
+  for (let cycle = 0; cycle < 40; cycle++) {
+    for (let id = 0; id < epochs.length; id++) {
+      const epoch = epochs[id]!;
+      const token = epoch.begin();
+      let completionEmitted = false;
+      const finish = () => {
+        if (completionEmitted || !epoch.isCurrent(token)) return;
+        completionEmitted = true;
+        epoch.runIfCurrent(token, () => {
+          completions++;
+          if (id % 2 === 0) epoch.begin(); // synchronous route replacement
+        });
+      };
+      finish();
+      finish(); // delivered twice by a faulty upstream event
+      epoch.invalidate();
+      finish(); // late native callback
+      if (!completionEmitted) duplicateCompletions++;
+    }
+  }
+  assert.equal(completions, 8_000);
+  assert.equal(duplicateCompletions, 0);
+});
+
+test("source boundary: terminal commute neither re-arms idle nor continues after an invalidating arrival", () => {
+  const native = readFileSync(new URL("../src/components/MapWandererCharacter.native.tsx", import.meta.url), "utf8");
+  const web = readFileSync(new URL("../src/components/MapWandererCharacter.tsx", import.meta.url), "utf8");
+  const route = native.slice(native.indexOf('    let seg = 0;'), native.indexOf('    stepChain();'));
+  assert.ok(route.startsWith("    let seg = 0;"));
+  assert.match(route, /let completionEmitted = false/);
+  assert.match(route, /if \(completionEmitted\) return/);
+  const completion = route.slice(route.indexOf('if (seg >= path.length - 1)'), route.indexOf('const from = path[seg]!'));
+  assert.match(completion, /routeEpoch\.runIfCurrent\(routeToken/);
+  assert.doesNotMatch(completion, /scheduleNativeResidentTimer|pickNextMoveRef/);
+  const arrival = native.slice(native.indexOf('onArrival: () => {\n          if (!routeEpoch.isCurrent(routeToken)) return;'));
+  assert.match(arrival.slice(0, 750), /routeEpoch\.runIfCurrent\(routeToken, \(\) => onCellSettledRef\.current\?\.\(to\)\)/);
+  assert.ok(arrival.indexOf('routeEpoch.runIfCurrent(routeToken') < arrival.indexOf('onDone();'));
+  assert.doesNotMatch(web, /NativeResidentRouteEpoch|runIfCurrent/);
+});
