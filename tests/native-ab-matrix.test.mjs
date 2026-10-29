@@ -62,6 +62,78 @@ function matrix({ full = true, baselineSpeed = 1, candidateSpeed = 1 } = {}) {
   };
 }
 
+const BASELINE_SHA = "6dfcb12337992418f812049bf4bc1e1c144f843c";
+const CANDIDATE_SHA = "14e0387ad149cd96f64e2cda0d60e140ed186703";
+
+/** Manual attestation only: fixture tests cannot establish device identity. */
+function attestV2(manifest) {
+  manifest.schemaVersion = 2;
+  manifest.fixtureParityConfirmed = true;
+  manifest.sameDeviceConditionsConfirmed = true;
+  manifest.builds = {
+    baseline: { pr: 298, commit: BASELINE_SHA, installedOnPhysicalDeviceConfirmed: true },
+    candidate: { pr: 297, commit: CANDIDATE_SHA, installedOnPhysicalDeviceConfirmed: true }
+  };
+  return manifest;
+}
+
+test("complete 72-capture v2 matrix reports distinct operator-attested build SHAs without claiming binary proof", () => {
+  const { manifest, load } = matrix({ baselineSpeed: "actual", candidateSpeed: "actual" });
+  attestV2(manifest);
+  const result = analyzeNativeAbMatrix(manifest, load);
+  assert.equal(result.coverage.completed, 12);
+  assert.equal(result.status, "js_diagnostics_ready_for_manual_device_review");
+  assert.deepEqual(result.buildProvenance, {
+    level: "operator_attested",
+    baseline: BASELINE_SHA,
+    candidate: CANDIDATE_SHA,
+    verification: "human_attestation_only_not_binary_or_device_verified"
+  });
+  assert.equal(result.deviceMatch, "human_attestation_only_not_technically_verified");
+  assert.equal(result.conclusion, "no_automatic_performance_or_release_approval");
+});
+
+test("legacy v1 complete matrix remains preliminary without build provenance", () => {
+  const { manifest, load } = matrix({ baselineSpeed: "actual", candidateSpeed: "actual" });
+  const result = analyzeNativeAbMatrix(manifest, load);
+  assert.equal(result.coverage.completed, 12);
+  assert.equal(result.status, "preliminary_legacy_manifest_no_build_provenance");
+  assert.equal(result.buildProvenance.level, "legacy_unverified");
+  assert.equal(result.buildProvenance.baseline, null);
+});
+
+test("v2 refuses missing/wrong PRs, malformed/equal SHAs and missing device/fixture attestations", () => {
+  const corruptions = [
+    manifest => { delete manifest.builds; },
+    manifest => { manifest.builds = []; },
+    manifest => { manifest.builds.baseline.pr = 295; },
+    manifest => { manifest.builds.candidate.pr = 298; },
+    manifest => { manifest.builds.baseline.commit = "short"; },
+    manifest => { manifest.builds.candidate.commit = "x".repeat(40); },
+    manifest => { manifest.builds.candidate.commit = BASELINE_SHA.toUpperCase(); },
+    manifest => { manifest.builds.baseline.installedOnPhysicalDeviceConfirmed = false; },
+    manifest => { manifest.builds.candidate.installedOnPhysicalDeviceConfirmed = null; },
+    manifest => { manifest.fixtureParityConfirmed = false; },
+    manifest => { manifest.sameDeviceConditionsConfirmed = false; }
+  ];
+  for (const corrupt of corruptions) {
+    const { manifest, load } = matrix({ full: false });
+    attestV2(manifest);
+    corrupt(manifest);
+    assert.throws(() => analyzeNativeAbMatrix(manifest, load, { allowPartial: true }),
+      /builds\.baseline|must attest|same Git commit|fixtureParityConfirmed/,
+      "invalid v2 provenance must fail closed");
+  }
+});
+
+test("v2 partial matrix is still preliminary regardless of build attestations", () => {
+  const { manifest, load } = matrix({ full: false });
+  attestV2(manifest);
+  const result = analyzeNativeAbMatrix(manifest, load, { allowPartial: true });
+  assert.equal(result.status, "preliminary_incomplete");
+  assert.equal(result.buildProvenance.level, "operator_attested");
+});
+
 test("full 25/50/100/200 × 1x/2x/4x matrix: 72 local captures, no GPU claims", () => {
   const { manifest, load } = matrix({ baselineSpeed: "actual", candidateSpeed: "actual" });
   const result = analyzeNativeAbMatrix(manifest, load);
