@@ -93,7 +93,12 @@ export function observeNativeResidentAppVisibility(
       probeHandle = null;
       const current = visibility.setAppState(probe.read());
       if (visibility.unresolved) scheduleProbe();
-      else emit(current);
+      else {
+        // The native bridge might replay a completed one-shot callback.
+        // Retire this probe epoch before publishing the resolved state.
+        probeEpoch++;
+        emit(current);
+      }
     }, delays[attempts++]!);
     if (disposed || epoch !== probeEpoch) probe.cancel(id);
     else probeHandle = id;
