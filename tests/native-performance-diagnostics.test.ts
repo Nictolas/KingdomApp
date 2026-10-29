@@ -3,7 +3,7 @@ import test from "node:test";
 
 import { NativeFrameWindow } from "../src/performance/nativeFrameMetrics.ts";
 import { NativeMeasurementSession, formatNativeMeasurement } from "../src/performance/nativeMeasurementSession.ts";
-import { markNativeResidentFrameCallback, takeNativeResidentFrameCallbacks, markNativeResidentRenderInvocation, takeNativeResidentRenderInvocations, markNativeResidentWrapperInvocation, takeNativeResidentWrapperInvocations, getNativeResidentRenderTotals, diffNativeResidentRenderTotals } from "../src/performance/nativeResidentWorkCounters.ts";
+import { beginNativeResidentWorkSampling, endNativeResidentWorkSampling, markNativeResidentFrameCallback, takeNativeResidentFrameCallbacks, markNativeResidentRenderInvocation, takeNativeResidentRenderInvocations, markNativeResidentWrapperInvocation, takeNativeResidentWrapperInvocations, getNativeResidentRenderTotals, diffNativeResidentRenderTotals } from "../src/performance/nativeResidentWorkCounters.ts";
 import { NATIVE_TEST_POPULATIONS, createNativeSyntheticMarkers } from "../src/performance/nativePopulationFixture.ts";
 import { diffNativeResidentFrameBusSnapshots } from "../src/performance/nativeResidentFrameBusDiagnostics.ts";
 import { NativeResidentDispatchProfiler } from "../src/performance/nativeResidentDispatchProfiler.ts";
@@ -81,38 +81,55 @@ test("sharing report contains only aggregate local performance data", () => {
 });
 
 test("resident work counters report aggregate callbacks and reset between intervals", () => {
-  takeNativeResidentFrameCallbacks();
-  markNativeResidentFrameCallback();
-  markNativeResidentFrameCallback();
-  assert.equal(takeNativeResidentFrameCallbacks(), 2);
-  assert.equal(takeNativeResidentFrameCallbacks(), 0);
+  // The counters are opt-in since #297. Reproduce an expanded, focused HUD
+  // rather than accidentally asserting that closed-HUD diagnostics stay active.
+  const lease = beginNativeResidentWorkSampling();
+  try {
+    takeNativeResidentFrameCallbacks();
+    markNativeResidentFrameCallback();
+    markNativeResidentFrameCallback();
+    assert.equal(takeNativeResidentFrameCallbacks(), 2);
+    assert.equal(takeNativeResidentFrameCallbacks(), 0);
+  } finally {
+    endNativeResidentWorkSampling(lease);
+  }
 });
 
 test("resident render counters are aggregate and independently reset", () => {
-  takeNativeResidentFrameCallbacks();
-  takeNativeResidentRenderInvocations();
-  markNativeResidentFrameCallback();
-  markNativeResidentRenderInvocation();
-  markNativeResidentRenderInvocation();
-  assert.equal(takeNativeResidentRenderInvocations(), 2);
-  assert.equal(takeNativeResidentRenderInvocations(), 0);
-  assert.equal(takeNativeResidentFrameCallbacks(), 1);
+  const lease = beginNativeResidentWorkSampling();
+  try {
+    takeNativeResidentFrameCallbacks();
+    takeNativeResidentRenderInvocations();
+    markNativeResidentFrameCallback();
+    markNativeResidentRenderInvocation();
+    markNativeResidentRenderInvocation();
+    assert.equal(takeNativeResidentRenderInvocations(), 2);
+    assert.equal(takeNativeResidentRenderInvocations(), 0);
+    assert.equal(takeNativeResidentFrameCallbacks(), 1);
+  } finally {
+    endNativeResidentWorkSampling(lease);
+  }
 });
 
 test("memo effectiveness counters are independent of HUD one-second resets", () => {
-  takeNativeResidentWrapperInvocations();
-  takeNativeResidentRenderInvocations();
-  const start = getNativeResidentRenderTotals();
-  for (let i = 0; i < 200; i++) markNativeResidentWrapperInvocation();
-  for (let i = 0; i < 12; i++) markNativeResidentRenderInvocation();
-  assert.equal(takeNativeResidentWrapperInvocations(), 200);
-  assert.equal(takeNativeResidentRenderInvocations(), 12);
-  assert.equal(takeNativeResidentWrapperInvocations(), 0);
-  assert.equal(takeNativeResidentRenderInvocations(), 0);
-  const delta = diffNativeResidentRenderTotals(start, getNativeResidentRenderTotals(), 10_000);
-  assert.deepEqual(delta, { wrappers: 200, bodies: 12, wrappersPerSecond: 20, bodiesPerSecond: 1.2 });
-  assert.throws(() => diffNativeResidentRenderTotals(start, start, 0));
-  assert.throws(() => diffNativeResidentRenderTotals(start, start, Infinity));
+  const lease = beginNativeResidentWorkSampling();
+  try {
+    takeNativeResidentWrapperInvocations();
+    takeNativeResidentRenderInvocations();
+    const start = getNativeResidentRenderTotals();
+    for (let i = 0; i < 200; i++) markNativeResidentWrapperInvocation();
+    for (let i = 0; i < 12; i++) markNativeResidentRenderInvocation();
+    assert.equal(takeNativeResidentWrapperInvocations(), 200);
+    assert.equal(takeNativeResidentRenderInvocations(), 12);
+    assert.equal(takeNativeResidentWrapperInvocations(), 0);
+    assert.equal(takeNativeResidentRenderInvocations(), 0);
+    const delta = diffNativeResidentRenderTotals(start, getNativeResidentRenderTotals(), 10_000);
+    assert.deepEqual(delta, { wrappers: 200, bodies: 12, wrappersPerSecond: 20, bodiesPerSecond: 1.2 });
+    assert.throws(() => diffNativeResidentRenderTotals(start, start, 0));
+    assert.throws(() => diffNativeResidentRenderTotals(start, start, Infinity));
+  } finally {
+    endNativeResidentWorkSampling(lease);
+  }
 });
 
 test("10-second report labels native render invocation rates without claiming GPU measurements", () => {
