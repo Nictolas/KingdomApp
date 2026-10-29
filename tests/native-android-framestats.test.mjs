@@ -91,6 +91,34 @@ test("Android 90/120/144 Hz thresholds do not assume every display is 60 Hz", ()
   assert.throws(() => parseAndroidFrameStats(dump(), { refreshHz: 75 }), /refreshHz/);
 });
 
+test("large clock gaps invalidate a claimed continuous frame window", () => {
+  const rows = dump({ frames: 720 }).split("\n");
+  for (let i = 362; i < rows.length - 1; i++) {
+    const fields = rows[i].split(",");
+    if (fields.length !== 3 || !/^\d+$/.test(fields[1])) continue;
+    fields[1] = String(BigInt(fields[1]) + 5_000_000_000n);
+    fields[2] = String(BigInt(fields[2]) + 5_000_000_000n);
+    rows[i] = fields.join(",");
+  }
+  const sample = parseAndroidFrameStats(rows.join("\n"));
+  assert.ok(sample.observedSpanMs > 8_000);
+  assert.ok(sample.largestVsyncGapMs > 4_000);
+  assert.match(sample.warning, /Large gap/);
+  assert.equal(sample.p95Ms, 14);
+});
+
+test("duplicated intended-vsync timestamps appear in pair audit warnings", () => {
+  const rows = dump({ frames: 720 }).split("\n");
+  rows[14] = rows[13];
+  const sample = parseAndroidFrameStats(rows.join("\n"));
+  assert.equal(sample.duplicatedVsyncFrames, 1);
+  assert.match(sample.warning, /Duplicate intended-vsync/);
+  const fixture = manifestFixture();
+  fixture.files.set(fixture.manifest.pairs[0].candidate, rows.join("\n"));
+  const audit = analyzeAndroidFrameStatsPairManifest(fixture.manifest, fixture.load);
+  assert.ok(audit.warnings.some(w => w.includes("Duplicate intended-vsync")));
+});
+
 test("header order changes, nonzero flags and malformed rows are accounted for, not accepted silently", () => {
   const result = parseAndroidFrameStats(dump({
     frames: 120, durationMs: 20, flags: { 0: 1, 17: 2, 55: 1 },
