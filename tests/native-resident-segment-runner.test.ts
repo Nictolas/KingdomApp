@@ -385,7 +385,7 @@ test("persistent runner: synchronous route replacement never completes obsolete 
   assert.equal(f.os.size, 0);
 });
 
-test("persistent runner: 200 chained commutes use only one subscription per segment", () => {
+test("persistent runner: 200 chained commutes reuse one subscription per resident", () => {
   const f = fakeFrameBus();
   const total = 200;
   const segmentsPerResident = 4;
@@ -420,7 +420,7 @@ test("persistent runner: 200 chained commutes use only one subscription per segm
     assert.ok(completions.every(value => value === index));
     assert.equal(f.bus.snapshot().continuousSubscribers, index === segmentsPerResident ? 0 : total);
   }
-  assert.equal(f.bus.snapshot().subscriptionAdds, total * segmentsPerResident);
+  assert.equal(f.bus.snapshot().subscriptionAdds, total, "200 walkers should subscribe once across four consecutive tiles");
   assert.equal(f.os.size, 0);
   assert.ok(runners.every(r => r.snapshot().completed === segmentsPerResident));
 });
