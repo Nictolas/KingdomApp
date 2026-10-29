@@ -79,3 +79,10 @@ test("terminal cleanup regressions run in native route suite", () => {
     workflow.indexOf("      - name: 200 real native resident sprite fixture"));
   assert.ok(route.includes("tests/native-resident-interruption-cleanup.test.ts"));
 });
+
+test("claimed-native-start rollback regressions are required in route suite", () => {
+  assert.ok(workflow.includes('      - "tests/native-resident-claimed-start-fault.test.ts"'));
+  const route = workflow.slice(workflow.indexOf("      - name: Native commute/night priority"),
+    workflow.indexOf("      - name: 200 real native resident sprite fixture"));
+  assert.ok(route.includes("tests/native-resident-claimed-start-fault.test.ts"));
+});

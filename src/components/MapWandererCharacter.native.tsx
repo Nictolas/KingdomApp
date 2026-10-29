@@ -7,7 +7,7 @@ import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
 import { NativeResidentCollisionRetry } from "../performance/nativeResidentCollisionRetry";
 import { NativeResidentRouteEpoch } from "../performance/nativeResidentRouteEpoch";
 import { NativeResidentOwnedTimer } from "../performance/nativeResidentOwnedTimer";
-import { nativeResidentRouteMode, nativeResidentHomeTransition, nativeResidentShouldRearmIdle, nativeResidentReconcileInterruptedClaim, nativeResidentReleaseMismatchedRouteOrigin, nativeResidentReleaseSharedHomeArrival, nativeResidentRunCleanup } from "../performance/nativeResidentRouteTransitions";
+import { nativeResidentRouteMode, nativeResidentHomeTransition, nativeResidentShouldRearmIdle, nativeResidentReconcileInterruptedClaim, nativeResidentReleaseMismatchedRouteOrigin, nativeResidentReleaseSharedHomeArrival, nativeResidentRunCleanup, nativeResidentRethrowAfterClaimedStartFault } from "../performance/nativeResidentRouteTransitions";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation, markNativeResidentWrapperInvocation } from "../performance/nativeResidentWorkCounters";
 import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallbackRelay";
 import { NativeResidentTapRecognizer } from "../performance/nativeResidentTapRecognizer";
@@ -318,27 +318,36 @@ function NativeResidentBody({
       return;
     }
 
-    face(directionBetween(prev, next, cols));
-
-    const fromX = (prev % cols) * cellSizePx;
-    const fromY = Math.floor(prev / cols) * cellSizePx;
-    const toX = (next % cols) * cellSizePx;
-    const toY = Math.floor(next / cols) * cellSizePx;
-    const dest = next;
-
-    motion.start({
-      from: { x: fromX, y: fromY },
-      to: { x: toX, y: toY },
-      startTimestamp: performance.now(),
-      durationMs: segmentMoveDurationMs(prev, next, isRoadCell),
-      onArrival: () => {
-        publishCell(dest);
-        onCellSettledRef.current?.(dest);
-        wakeTimer.schedule(() => {
-          pickNextMoveRef.current();
-        }, IDLE_BEFORE_NEXT_MS);
-      }
-    });
+    // The destination is already claimed by neighborSampler.pick(). A
+    // failed native motion/sprite start must not reserve it indefinitely.
+    try {
+      face(directionBetween(prev, next, cols));
+  
+      const fromX = (prev % cols) * cellSizePx;
+      const fromY = Math.floor(prev / cols) * cellSizePx;
+      const toX = (next % cols) * cellSizePx;
+      const toY = Math.floor(next / cols) * cellSizePx;
+      const dest = next;
+  
+      motion.start({
+        from: { x: fromX, y: fromY },
+        to: { x: toX, y: toY },
+        startTimestamp: performance.now(),
+        durationMs: segmentMoveDurationMs(prev, next, isRoadCell),
+        onArrival: () => {
+          publishCell(dest);
+          onCellSettledRef.current?.(dest);
+          wakeTimer.schedule(() => {
+            pickNextMoveRef.current();
+          }, IDLE_BEFORE_NEXT_MS);
+        }
+      });
+    } catch (error) {
+      nativeResidentRethrowAfterClaimedStartFault(
+        error, prev, tryClaimCellRef.current, releaseMyCellRef.current,
+        cellRef.current === prev
+      );
+    }
   }, [cols, rows, cellSizePx, isWalkable, isRoadCell, fixedCell, commutePath, disableIdleRoam, face, motion, wakeTimer, neighborSampler, publishCell]);
 
   pickNextMoveRef.current = pickNextMove;
@@ -404,32 +413,41 @@ function NativeResidentBody({
       }
 
       claimRetry.reset();
-      face(directionBetween(from, to, cols));
-      const fromX = (from % cols) * cellSizePx;
-      const fromY = Math.floor(from / cols) * cellSizePx;
-      const toX = (to % cols) * cellSizePx;
-      const toY = Math.floor(to / cols) * cellSizePx;
-      motion.start({
-        from: { x: fromX, y: fromY },
-        to: { x: toX, y: toY },
-        startTimestamp: performance.now(),
-        durationMs: segmentMoveDurationMs(from, to, isRoadCell),
-        keepWalkingOnArrival: !isLastSegment,
-        onArrival: () => {
-          if (!routeEpoch.isCurrent(routeToken)) return;
-          // The final home doorway is shared. Even if its soft claim failed,
-          // release the previously reserved street cell before notifying
-          // the parent (which can synchronously replace the route).
-          nativeResidentReleaseSharedHomeArrival(
-            isLastSegment, purpose, releaseMyCellRef.current
-          );
-          publishCell(to);
-          // The parent may synchronously replace this commute while handling
-          // the arrival. Never continue a route that lost ownership there.
-          if (!routeEpoch.runIfCurrent(routeToken, () => onCellSettledRef.current?.(to))) return;
-          onDone();
-        }
-      });
+      // Both strict commute claims and best-effort shared-home entry must
+      // recover their settled origin if the native sprite/RAF start fails.
+      try {
+        face(directionBetween(from, to, cols));
+        const fromX = (from % cols) * cellSizePx;
+        const fromY = Math.floor(from / cols) * cellSizePx;
+        const toX = (to % cols) * cellSizePx;
+        const toY = Math.floor(to / cols) * cellSizePx;
+        motion.start({
+          from: { x: fromX, y: fromY },
+          to: { x: toX, y: toY },
+          startTimestamp: performance.now(),
+          durationMs: segmentMoveDurationMs(from, to, isRoadCell),
+          keepWalkingOnArrival: !isLastSegment,
+          onArrival: () => {
+            if (!routeEpoch.isCurrent(routeToken)) return;
+            // The final home doorway is shared. Even if its soft claim failed,
+            // release the previously reserved street cell before notifying
+            // the parent (which can synchronously replace the route).
+            nativeResidentReleaseSharedHomeArrival(
+              isLastSegment, purpose, releaseMyCellRef.current
+            );
+            publishCell(to);
+            // The parent may synchronously replace this commute while handling
+            // the arrival. Never continue a route that lost ownership there.
+            if (!routeEpoch.runIfCurrent(routeToken, () => onCellSettledRef.current?.(to))) return;
+            onDone();
+          }
+        });
+      } catch (error) {
+        nativeResidentRethrowAfterClaimedStartFault(
+          error, from, tryClaimCellRef.current, releaseMyCellRef.current,
+          routeEpoch.isCurrent(routeToken) && cellRef.current === from
+        );
+      }
     },
     [cols, cellSizePx, isRoadCell, pendingCommuteRetry, face, motion, claimRetry, routeEpoch, wakeTimer, publishCell]
   );

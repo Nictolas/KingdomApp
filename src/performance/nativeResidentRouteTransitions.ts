@@ -116,3 +116,32 @@ export function nativeResidentRunCleanup(...steps: ReadonlyArray<() => void>): v
   }
   if (hasError) throw firstError;
 }
+
+/**
+ * Recovery ONLY if starting a native segment fails after the caller has
+ * reserved its destination. The settled origin is reclaimed if available;
+ * if another resident took it, release the obsolete destination instead.
+ *
+ * Never hide the ORIGINAL platform/sprite error, even if the rollback itself
+ * throws a second (possibly falsy) error. Reentrant route replacement must
+ * not be disturbed by an obsolete start; the caller owns that epoch check.
+ *
+ * This path executes on failures only; it adds no work to the RAF hot path,
+ * gameplay logic, persistence, or the web renderer.
+ */
+export function nativeResidentRethrowAfterClaimedStartFault(
+  originalError: unknown,
+  settledCell: number | null | undefined,
+  claim: ((cell: number) => boolean) | null | undefined,
+  release: (() => void) | null | undefined,
+  stillOwnsRoute: boolean
+): never {
+  if (stillOwnsRoute) {
+    try {
+      nativeResidentReconcileInterruptedClaim(settledCell, claim, release);
+    } catch {
+      // The platform start error remains the diagnostic root cause.
+    }
+  }
+  throw originalError;
+}
