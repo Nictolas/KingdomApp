@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url';
 import { resolve, dirname } from 'node:path';
 import {
   auditNativeDeviceAcceptance, nativeDeviceAcceptanceTemplate,
-  POPULATIONS, SPEEDS, REQUIRED_CHECKS
+  POPULATIONS, SPEEDS, REQUIRED_CHECKS, REAL_MAP_REQUIRED_CHECKS
 } from '../scripts/audit-native-device-acceptance.mjs';
 
 const baselineSha = 'a'.repeat(40);
@@ -20,6 +20,9 @@ function fixture() {
     device.samePhysicalDeviceConfirmed = true;
     for (const entry of [...device.scenarios, ...device.checks]) {
       entry.baseline = 'pass'; entry.candidate = 'pass'; entry.notes = observation;
+      const source = entry.id && REAL_MAP_REQUIRED_CHECKS.includes(entry.id)
+        ? 'real_map' : 'native_perf_real_sprites';
+      entry.baselineSource = source; entry.candidateSource = source;
     }
   }
   return manifest;
@@ -52,6 +55,7 @@ test('partial matrix is rejected by default and explicitly labeled incomplete wh
   const m = fixture();
   m.devices[0].scenarios.pop();
   m.devices[1].checks[0].candidate = 'not_run';
+  m.devices[1].checks[0].candidateSource = null;
   assert.throws(() => auditNativeDeviceAcceptance(m), /incomplete physical-device matrix/);
   const result = auditNativeDeviceAcceptance(m, { allowPartial: true });
   assert.equal(result.status, 'incomplete_device_evidence');
@@ -100,7 +104,8 @@ test('duplicate, unknown and malformed scenario/check evidence fails closed', ()
 test('200-resident behavioral stress checks cannot be skipped as if they passed', () => {
   const m = fixture();
   for (const check of m.devices[0].checks) {
-    check.baseline = 'not_run'; check.candidate = 'not_run'; check.notes = '';
+    check.baseline = 'not_run'; check.candidate = 'not_run';
+    check.baselineSource = null; check.candidateSource = null; check.notes = '';
   }
   const result = auditNativeDeviceAcceptance(m, { allowPartial: true });
   assert.equal(result.devices[0].coverage.scenarios, 12);
@@ -113,7 +118,60 @@ test('template CLI is valid JSON and contains no invented hardware results', () 
   const output = execFileSync(process.execPath, [script, '--template'], { encoding: 'utf8' });
   const m = JSON.parse(output);
   assert.equal(m.devices.length, 2);
+  assert.equal(m.schemaVersion, 2);
   assert.equal(m.baseline.commit, null);
   assert.equal(m.candidate.commit, null);
   assert.ok(m.devices.every(d => !d.samePhysicalDeviceConfirmed));
+});
+
+
+test('source provenance is mandatory for every observed side, not a generic pass label', () => {
+  for (const mutate of [
+    m => { delete m.devices[0].scenarios[0].baselineSource; },
+    m => { m.devices[0].scenarios[0].candidateSource = 'real_map'; },
+    m => { m.devices[1].checks[0].baselineSource = 'synthetic_marker'; },
+    m => { m.devices[1].checks[1].candidateSource = null; },
+    m => { m.schemaVersion = 1; }
+  ]) {
+    const m = fixture(); mutate(m);
+    assert.throws(() => auditNativeDeviceAcceptance(m));
+  }
+});
+
+test('static 200-sprite fixture cannot pass real-map-only behavior checks', () => {
+  for (const id of REAL_MAP_REQUIRED_CHECKS) {
+    const m = fixture();
+    const check = m.devices[0].checks.find(entry => entry.id === id);
+    check.candidateSource = 'native_perf_real_sprites';
+    assert.throws(() => auditNativeDeviceAcceptance(m), /Source must be real_map/);
+  }
+});
+
+test('unperformed checks cannot retain a stale source from a previous capture', () => {
+  const m = fixture();
+  const check = m.devices[0].checks[0];
+  check.baseline = 'not_run';
+  assert.throws(() => auditNativeDeviceAcceptance(m), /must be null when not_run/);
+  check.baselineSource = null;
+  const result = auditNativeDeviceAcceptance(m, { allowPartial: true });
+  assert.equal(result.status, 'incomplete_device_evidence');
+});
+
+test('real-map evidence is counted separately and remains an operator attestation', () => {
+  const result = auditNativeDeviceAcceptance(fixture());
+  assert.equal(result.status, 'human_attestations_complete_review_still_required');
+  assert.ok(result.devices.every(d =>
+    d.coverage.realMapChecks === REAL_MAP_REQUIRED_CHECKS.length &&
+    d.coverage.requiredRealMapChecks === REAL_MAP_REQUIRED_CHECKS.length));
+  assert.match(result.scope, /scene-source attestations/);
+});
+
+test('400 fixture cells and 200 sprites are not enough to claim native map pan/zoom', () => {
+  const m = fixture();
+  const check = m.devices[0].checks.find(entry => entry.id === 'pan_pinch');
+  check.baseline = 'not_run'; check.baselineSource = null;
+  check.candidate = 'not_run'; check.candidateSource = null;
+  const result = auditNativeDeviceAcceptance(m, { allowPartial: true });
+  assert.equal(result.devices[0].coverage.realMapChecks, REAL_MAP_REQUIRED_CHECKS.length - 1);
+  assert.equal(result.status, 'incomplete_device_evidence');
 });

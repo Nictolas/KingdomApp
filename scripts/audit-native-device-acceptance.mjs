@@ -18,6 +18,14 @@ export const REQUIRED_CHECKS = Object.freeze([
   'pause_resume', 'background_foreground', 'speed_switch_1_2_4',
   'route_replacement', 'no_ghost_occupancy', 'memory_stability_200'
 ]);
+/** A static /native-perf scene cannot exercise real-map pan/zoom, real-route
+ * replacement, or manually controlled game pause/speed transitions. These
+ * checks must be observed in the actual native map on BOTH builds. */
+export const REAL_MAP_REQUIRED_CHECKS = Object.freeze([
+  'pan_pinch', 'collision_retry', 'pause_resume', 'speed_switch_1_2_4',
+  'route_replacement', 'no_ghost_occupancy'
+]);
+export const EVIDENCE_SOURCES = Object.freeze(['native_perf_real_sprites', 'real_map']);
 const EXPECTED = POPULATIONS.flatMap(residents => SPEEDS.map(speed => `${residents}/${speed}`));
 const SHA = /^[0-9a-f]{40}$/i;
 const STATUSES = new Set(['pass', 'fail', 'not_run']);
@@ -26,7 +34,7 @@ const record = value => value !== null && typeof value === 'object' && !Array.is
 const text = value => typeof value === 'string' && value.length >= 12 && value.length <= 600 &&
   value.trim() === value && !/[\x00-\x08\x0e-\x1f]/.test(value);
 
-function validateObservation(entry, key) {
+function validateObservation(entry, key, allowedSources) {
   if (!record(entry) || !STATUSES.has(entry.baseline) || !STATUSES.has(entry.candidate)) {
     fail(`${key}: expected baseline/candidate pass, fail or not_run`);
   }
@@ -35,6 +43,18 @@ function validateObservation(entry, key) {
   }
   if (entry.notes !== undefined && entry.notes !== '' && !text(entry.notes)) {
     fail(`${key}: invalid operator notes`);
+  }
+  // Record what was actually opened on each build. A source must be absent
+  // for an unperformed observation; a static sprite fixture cannot be used
+  // as evidence for checks that require the live native map.
+  for (const side of ['baseline', 'candidate']) {
+    const field = side + 'Source';
+    const source = entry[field];
+    if (entry[side] === 'not_run') {
+      if (source !== null) fail(`${key}: ${field} must be null when not_run`);
+    } else if (!allowedSources.includes(source)) {
+      fail(`${key}: ${field} must be ${allowedSources.join(' or ')} for observed results`);
+    }
   }
   return {
     observed: Number(entry.baseline !== 'not_run') + Number(entry.candidate !== 'not_run'),
@@ -45,7 +65,7 @@ function validateObservation(entry, key) {
 
 /** Only explicit human observations are accepted; no synthetic results. */
 export function auditNativeDeviceAcceptance(manifest, { allowPartial = false } = {}) {
-  if (!record(manifest) || manifest.schemaVersion !== 1 ||
+  if (!record(manifest) || manifest.schemaVersion !== 2 ||
       !record(manifest.baseline) || manifest.baseline.pr !== 298 ||
       !SHA.test(manifest.baseline.commit ?? '') ||
       !record(manifest.candidate) || manifest.candidate.pr !== 297 ||
@@ -74,6 +94,7 @@ export function auditNativeDeviceAcceptance(manifest, { allowPartial = false } =
     let failures = 0;
     let completeScenarios = 0;
     let completeChecks = 0;
+    let completeRealMapChecks = 0;
     for (const entry of device.scenarios) {
       if (!record(entry) || !POPULATIONS.includes(entry.residents) || !SPEEDS.includes(entry.speed)) {
         fail(`${device.platform}: invalid population/speed`);
@@ -81,7 +102,7 @@ export function auditNativeDeviceAcceptance(manifest, { allowPartial = false } =
       const key = `${entry.residents}/${entry.speed}`;
       if (seenScenarios.has(key)) fail(`${device.platform}: duplicate scenario ${key}`);
       seenScenarios.add(key);
-      const state = validateObservation(entry, `${device.platform} ${key}`);
+      const state = validateObservation(entry, `${device.platform} ${key}`, ['native_perf_real_sprites']);
       observations += state.observed;
       failures += state.failures;
       if (state.complete) completeScenarios++;
@@ -91,7 +112,10 @@ export function auditNativeDeviceAcceptance(manifest, { allowPartial = false } =
         fail(`${device.platform}: invalid or duplicate behavioral check`);
       }
       seenChecks.add(entry.id);
-      const state = validateObservation(entry, `${device.platform} ${entry.id}`);
+      const requiresRealMap = REAL_MAP_REQUIRED_CHECKS.includes(entry.id);
+      const state = validateObservation(entry, `${device.platform} ${entry.id}`,
+        requiresRealMap ? ['real_map'] : EVIDENCE_SOURCES);
+      if (requiresRealMap && state.complete) completeRealMapChecks++;
       observations += state.observed;
       failures += state.failures;
       if (state.complete) completeChecks++;
@@ -105,6 +129,7 @@ export function auditNativeDeviceAcceptance(manifest, { allowPartial = false } =
       coverage: {
         scenarios: completeScenarios, requiredScenarios: EXPECTED.length,
         checks: completeChecks, requiredChecks: REQUIRED_CHECKS.length,
+        realMapChecks: completeRealMapChecks, requiredRealMapChecks: REAL_MAP_REQUIRED_CHECKS.length,
         missingScenarios, missingChecks, observations
       },
       failedObservations: failures,
@@ -124,7 +149,7 @@ export function auditNativeDeviceAcceptance(manifest, { allowPartial = false } =
     fail(`incomplete physical-device matrix (${missing}; missing platforms: ${missingPlatforms.join(', ') || 'none'})`);
   }
   return {
-    scope: 'Operator-entered correctness observations only; NOT verified FPS, GPU/UI, memory, touch latency or installed build identity',
+    scope: 'Operator-entered correctness observations and scene-source attestations only; NOT verified FPS, GPU/UI, memory, touch latency or installed build identity',
     comparison: '#298 real-sprite baseline vs #297 candidate',
     commits: { baseline: manifest.baseline.commit, candidate: manifest.candidate.commit },
     missingPlatforms, devices, failedObservations, status,
@@ -134,15 +159,15 @@ export function auditNativeDeviceAcceptance(manifest, { allowPartial = false } =
 
 export function nativeDeviceAcceptanceTemplate() {
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     baseline: { pr: 298, commit: null },
     candidate: { pr: 297, commit: null },
     devices: ['android', 'ios'].map(platform => ({
       platform, deviceClass: '', samePhysicalDeviceConfirmed: false,
       scenarios: POPULATIONS.flatMap(residents => SPEEDS.map(speed => ({
-        residents, speed, baseline: 'not_run', candidate: 'not_run', notes: ''
+        residents, speed, baseline: 'not_run', candidate: 'not_run', baselineSource: null, candidateSource: null, notes: ''
       }))),
-      checks: REQUIRED_CHECKS.map(id => ({ id, baseline: 'not_run', candidate: 'not_run', notes: '' }))
+      checks: REQUIRED_CHECKS.map(id => ({ id, baseline: 'not_run', candidate: 'not_run', baselineSource: null, candidateSource: null, notes: '' }))
     }))
   };
 }
