@@ -48,7 +48,10 @@ test("only native residents use the shared frame dispatcher and imperative sprit
   // Terminal paths now share one stop-and-reconcile helper, so counting
   // repeated motion.stop() call sites would reject a correct refactor.
   assert.match(native, /const stopAndReconcile = useCallback/);
-  assert.ok((native.match(/stopAndReconcile\(\)/g) ?? []).length >= 3);
+  // Cleanup is passed as a stable function to the fault-safe coordinator,
+  // rather than called directly and skipped when another cleanup throws.
+  assert.ok((native.match(/nativeResidentRunCleanup\\(/g) ?? []).length >= 6);
+  assert.ok((native.match(/stopAndReconcile\\b/g) ?? []).length >= 4);
   assert.ok((native.match(/motion\.stop\(\)/g) ?? []).length >= 3);
   assert.match(native, /motion\.cancel\(\)/);
   assert.ok(!native.includes("rafRef"), "no duplicated per-component RAF loop");
