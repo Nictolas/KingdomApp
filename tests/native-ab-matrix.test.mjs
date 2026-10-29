@@ -217,10 +217,10 @@ test("candidate #297 requires real dispatch and heartbeat evidence in every capt
   const entry = manifest.scenarios[0];
   const good = files.get(entry.candidate);
   for (const removed of [
-    /^Batch RAF JS campionati:.*\\n/gm,
-    /^Batch RAF JS p95:.*\\n/gm,
-    /^Ritardo loop JS campioni:.*\\n/gm,
-    /^Ritardo loop JS p95:.*\\n/gm
+    /^Batch RAF JS campionati:.*\n/gm,
+    /^Batch RAF JS p95:.*\n/gm,
+    /^Ritardo loop JS campioni:.*\n/gm,
+    /^Ritardo loop JS p95:.*\n/gm
   ]) {
     files.set(entry.candidate, good.replace(removed, ""));
     assert.throws(() => analyzeNativeAbMatrix(manifest, load, { allowPartial: true }),
