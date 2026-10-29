@@ -214,7 +214,7 @@ export function NativePerformanceHud({
               );
               // Fail closed rather than exporting a 10-second A/B report
               // with no JS event-loop lag samples (e.g. a disabled probe).
-              if (!nativeCaptureHasRequiredProbes(dispatch, lag)) {
+              if (!dispatch || !lag || !nativeCaptureHasRequiredProbes(dispatch, lag)) {
                 setCaptureWarning("Misura non valida: diagnostica JS incompleta. Ripetere la cattura.");
               } else {
                 setLatestReport(formatNativeMeasurement(complete, active.environment, delta, renders, frameBus, dispatch, lag));
