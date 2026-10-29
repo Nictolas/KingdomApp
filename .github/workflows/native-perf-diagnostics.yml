@@ -44,6 +44,9 @@ on:
       - "scripts/compare-native-js-reports.mjs"
       - "tests/native-js-report-comparison.test.mjs"
       - "scripts/compare-native-ab-matrix.mjs"
+      - "scripts/audit-native-device-acceptance.mjs"
+      - "tests/native-device-acceptance.test.mjs"
+      - "docs/NATIVE_DEVICE_ACCEPTANCE_MATRIX.md"
       - "scripts/analyze-native-android-framestats.mjs"
       - "scripts/compare-native-android-ui-matrix.mjs"
       - "scripts/generate-native-android-ui-matrix-template.mjs"
@@ -159,7 +162,7 @@ jobs:
         continue-on-error: true
         run: |
           npx tsx --test tests/native-capture-integrity.test.ts
-          node --test tests/native-js-report-comparison.test.mjs tests/native-ab-matrix.test.mjs
+          node --test tests/native-js-report-comparison.test.mjs tests/native-ab-matrix.test.mjs tests/native-device-acceptance.test.mjs
           node --test tests/native-android-framestats.test.mjs
           node --test tests/native-android-ui-matrix.test.mjs
           node --test tests/native-android-ui-matrix-template.test.mjs
