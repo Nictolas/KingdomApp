@@ -80,7 +80,7 @@ test("a verified ten-second-long raw UI frame window is distinguishable from rol
   assert.equal(long.warning, null);
   const rolling = parseAndroidFrameStats(dump({ frames: 120 }));
   assert.ok(rolling.observedSpanMs < 3_000);
-  assert.match(rolling.warning, /Short\\/rolling/);
+  assert.match(rolling.warning, /Short\/rolling/);
 });
 
 test("Android 90/120/144 Hz thresholds do not assume every display is 60 Hz", () => {
