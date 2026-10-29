@@ -189,6 +189,8 @@ test("HUD source only activates polling when details are expanded and terminates
   assert.match(source, /frameLoop\.start\(visibility\.foreground\)/);
   assert.match(source, /new NativeHudFrameLoop\(requestAnimationFrame, cancelAnimationFrame, onFrame, \(\) =>/);
   assert.match(source, /samplingLifecycle\.setForeground\(false\)/);
+  assert.match(source, /if \(frameLoopFaulted\) return/);
+  assert.match(source, /frameLoopFaulted = true/);
   assert.match(source, /frameLoop\?\.setForeground\(foreground\)/);
   assert.match(source, /observeNativeResidentAppVisibility\(visibility/);
   assert.match(source, /AppState\.addEventListener\("blur"/);
