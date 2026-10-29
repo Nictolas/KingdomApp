@@ -13,6 +13,51 @@ const POPULATIONS = [25, 50, 100, 200];
 const SPEEDS = [1, 2, 4];
 const SCENES = new Set(["Sprite abitanti reali in movimento", "Sprite abitanti reali fermi", "Sprite abitanti reali in tragitto ripetibile"]);
 const expectedKeys = POPULATIONS.flatMap(residents => SPEEDS.map(speed => residents + "/" + speed));
+const COMMIT_SHA = /^[0-9a-f]{40}$/i;
+
+/**
+ * v2 binds the offline reports to two declared, distinct Git commits and
+ * requires explicit operator attestations for the installed device builds.
+ * The manifest is NOT cryptographic proof of which binary actually ran.
+ * v1 remains readable, but never receives the v2 evidence-ready status.
+ */
+function auditBuildProvenance(manifest) {
+  if (manifest.schemaVersion === 1) {
+    return {
+      level: "legacy_unverified",
+      baseline: null,
+      candidate: null,
+      verification: "no_build_commit_attestation"
+    };
+  }
+  const builds = manifest.builds;
+  if (!builds || typeof builds !== "object" || Array.isArray(builds)) {
+    fail("schemaVersion 2 requires builds.baseline and builds.candidate");
+  }
+  for (const [side, expectedPr] of [["baseline", 298], ["candidate", 297]]) {
+    const build = builds[side];
+    if (!build || typeof build !== "object" || Array.isArray(build) ||
+        build.pr !== expectedPr ||
+        typeof build.commit !== "string" || !COMMIT_SHA.test(build.commit) ||
+        build.installedOnPhysicalDeviceConfirmed !== true) {
+      fail(side + " must attest PR #" + expectedPr +
+        ", its 40-character commit SHA and the installed physical build");
+    }
+  }
+  if (builds.baseline.commit.toLowerCase() === builds.candidate.commit.toLowerCase()) {
+    fail("baseline and candidate cannot claim the same Git commit");
+  }
+  if (manifest.fixtureParityConfirmed !== true ||
+      manifest.sameDeviceConditionsConfirmed !== true) {
+    fail("fixtureParityConfirmed and sameDeviceConditionsConfirmed must both be true");
+  }
+  return {
+    level: "operator_attested",
+    baseline: builds.baseline.commit.toLowerCase(),
+    candidate: builds.candidate.commit.toLowerCase(),
+    verification: "human_attestation_only_not_binary_or_device_verified"
+  };
+}
 const fail = message => { throw new Error("Native A/B matrix: " + message); };
 // Canonical relative paths only: reject aliases, traversal and absolute paths.
 const isPath = value => typeof value === "string" && value.length > 0 &&
@@ -23,12 +68,13 @@ const isPath = value => typeof value === "string" && value.length > 0 &&
 
 export function analyzeNativeAbMatrix(manifest, loadText, { allowPartial = false } = {}) {
   if (!manifest || typeof manifest !== "object" || Array.isArray(manifest) ||
-      manifest.schemaVersion !== 1) fail("schemaVersion must be 1");
+      ![1, 2].includes(manifest.schemaVersion)) fail("schemaVersion must be 1 or 2");
   if (!["android", "ios"].includes(manifest.platform)) fail("platform must be android or ios");
   if (!SCENES.has(manifest.scene)) fail("only real native sprite scenes can be compared");
   if (manifest.samePhysicalDeviceConfirmed !== true) {
     fail("samePhysicalDeviceConfirmed must be explicitly acknowledged");
   }
+  const buildProvenance = auditBuildProvenance(manifest);
   if (!Array.isArray(manifest.scenarios) || manifest.scenarios.length < 1 ||
       manifest.scenarios.length > expectedKeys.length) fail("expected 1 to 12 scenarios");
   if (typeof loadText !== "function") fail("a local report loader is required");
@@ -124,7 +170,11 @@ export function analyzeNativeAbMatrix(manifest, loadText, { allowPartial = false
     scene: manifest.scene,
     deviceMatch: "human_attestation_only_not_technically_verified",
     coverage: { completed: scenarios.length, required: expectedKeys.length, missing },
-    status: missing.length ? "preliminary_incomplete" : "js_diagnostics_ready_for_manual_device_review",
+    status: missing.length ? "preliminary_incomplete" :
+      buildProvenance.level === "legacy_unverified" ?
+        "preliminary_legacy_manifest_no_build_provenance" :
+        "js_diagnostics_ready_for_manual_device_review",
+    buildProvenance,
     scenarios,
     conclusion: "no_automatic_performance_or_release_approval"
   };
@@ -157,6 +207,8 @@ function main(args) {
   const result = analyzeNativeAbMatrix(manifest, load, { allowPartial });
   if (json) return console.log(JSON.stringify(result, null, 2));
   console.log("MyKingdom · matrice A/B JS nativa (NON FPS UI/GPU)");
+  console.log("Provenienza build: " + result.buildProvenance.level +
+    " (" + result.buildProvenance.verification + ")");
   console.log(result.platform + " · " + result.scene + " · " +
     result.coverage.completed + "/" + result.coverage.required + " scenari");
   for (const item of result.scenarios) {
