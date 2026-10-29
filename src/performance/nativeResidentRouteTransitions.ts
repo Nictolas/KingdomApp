@@ -98,3 +98,21 @@ export function nativeResidentReleaseSharedHomeArrival(
   release();
   return true;
 }
+
+/**
+ * Fail-safe terminal cleanup for native residents. Execute ALL actions even
+ * if a canceled native RAF, timeout, or callback throws. First fault wins,
+ * including falsy throw values. Used only on route/lifecycle transitions,
+ * never in the hot animation or timer dispatch path.
+ */
+export function nativeResidentRunCleanup(...steps: ReadonlyArray<() => void>): void {
+  let hasError = false;
+  let firstError: unknown = undefined;
+  for (const step of steps) {
+    try { step(); }
+    catch (error) {
+      if (!hasError) { hasError = true; firstError = error; }
+    }
+  }
+  if (hasError) throw firstError;
+}

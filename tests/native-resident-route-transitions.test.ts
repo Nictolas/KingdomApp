@@ -85,7 +85,7 @@ test("native renderer uses route priority in both fixed and wake effects; web un
   assert.match(wake, /motion\.stop\(\)/);
   assert.doesNotMatch(wake, /motion\.cancel\(\)/);
   const commuteCleanup = source.slice(source.indexOf("      alive = false;"));
-  assert.match(commuteCleanup, /pendingCommuteRetry\.clear\(\);\s*(?:\/\/[^\n]*\n\s*)*stopAndReconcile\(\);\s*clearIdle\(\)/);
+  assert.match(commuteCleanup, /nativeResidentRunCleanup\\(\\s*\\(\\) => pendingCommuteRetry\\.clear\\(\\),\\s*stopAndReconcile,\\s*clearIdle\\s*\\)/);
   assert.doesNotMatch(commuteCleanup.slice(0, 220), /motion\.cancel\(\)/);
   assert.match(source, /if \(wakeTimer\.pending \|\| isMovingRef\.current\) return;/);
   assert.match(source, /if \(!isNativeResidentFrameBusActive\(\) \|\| getOrologioGiocoInPausaSnapshot\(\)\) return;/);

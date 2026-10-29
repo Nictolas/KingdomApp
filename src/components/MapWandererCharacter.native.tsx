@@ -7,7 +7,7 @@ import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
 import { NativeResidentCollisionRetry } from "../performance/nativeResidentCollisionRetry";
 import { NativeResidentRouteEpoch } from "../performance/nativeResidentRouteEpoch";
 import { NativeResidentOwnedTimer } from "../performance/nativeResidentOwnedTimer";
-import { nativeResidentRouteMode, nativeResidentHomeTransition, nativeResidentShouldRearmIdle, nativeResidentReconcileInterruptedClaim, nativeResidentReleaseMismatchedRouteOrigin, nativeResidentReleaseSharedHomeArrival } from "../performance/nativeResidentRouteTransitions";
+import { nativeResidentRouteMode, nativeResidentHomeTransition, nativeResidentShouldRearmIdle, nativeResidentReconcileInterruptedClaim, nativeResidentReleaseMismatchedRouteOrigin, nativeResidentReleaseSharedHomeArrival, nativeResidentRunCleanup } from "../performance/nativeResidentRouteTransitions";
 import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation, markNativeResidentWrapperInvocation } from "../performance/nativeResidentWorkCounters";
 import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallbackRelay";
 import { NativeResidentTapRecognizer } from "../performance/nativeResidentTapRecognizer";
@@ -284,12 +284,17 @@ function NativeResidentBody({
   // Seamless segment-to-segment transitions continue to use motion.cancel().
   const stopAndReconcile = useCallback(() => {
     const interrupted = isMovingRef.current;
-    motion.stop();
-    if (interrupted) {
-      nativeResidentReconcileInterruptedClaim(
-        cellRef.current, tryClaimCellRef.current, releaseMyCellRef.current
-      );
-    }
+    // Keep the occupancy handoff even when the native cancel bridge throws.
+    nativeResidentRunCleanup(
+      () => motion.stop(),
+      () => {
+        if (interrupted) {
+          nativeResidentReconcileInterruptedClaim(
+            cellRef.current, tryClaimCellRef.current, releaseMyCellRef.current
+          );
+        }
+      }
+    );
   }, [motion]);
 
   const pickNextMove = useCallback(() => {
@@ -434,12 +439,10 @@ function NativeResidentBody({
     if (routeMode !== "commute" || !commutePath || commutePath.length < 2) return;
     const routeToken = routeEpoch.begin();
     let alive = true;
-    clearIdle();
-    pendingCommuteRetry.clear();
-    // A route reset is terminal. Roll back any unfinished destination claim
-    // before snapping to the new path's origin.
+    // A route reset is terminal. Each cleanup must run even if one native
+    // cancellation fails, otherwise an obsolete cell claim can survive.
     const previousCell = cellRef.current;
-    stopAndReconcile();
+    nativeResidentRunCleanup(clearIdle, () => pendingCommuteRetry.clear(), stopAndReconcile);
     inited.current = true;
     claimRetry.reset();
     const path = commutePath;
@@ -484,11 +487,13 @@ function NativeResidentBody({
     return () => {
       alive = false;
       routeEpoch.invalidate();
-      pendingCommuteRetry.clear();
       // A canceled mid-segment destination must not remain reserved.
-      // Reclaim the last settled cell or release if another owner took it.
-      stopAndReconcile();
-      clearIdle();
+      // Continue with timer cleanup even when the bridge rejects a cancel.
+      nativeResidentRunCleanup(
+        () => pendingCommuteRetry.clear(),
+        stopAndReconcile,
+        clearIdle
+      );
     };
   }, [
     commutePath,
@@ -512,12 +517,10 @@ function NativeResidentBody({
     // Commute outranks the home anchor, including a simultaneous morning
     // transition. Otherwise this effect cancels the newly started segment.
     if (routeMode !== "fixed" || fixedCell == null) return;
-    clearIdle();
-    // Fixed/home transitions terminate movement, not merely its RAF.
-    motion.stop();
+    // Fixed/home transitions release street occupancy even if native
+    // RAF/timer cancellation throws.
+    nativeResidentRunCleanup(clearIdle, () => motion.stop(), () => releaseMyCellRef.current?.());
     inited.current = true;
-    // In casa più abitanti possono condividere la stessa cella: libera la casella strada.
-    releaseMyCellRef.current?.();
     const cx = (fixedCell % cols) * cellSizePx;
     const cy = Math.floor(fixedCell / cols) * cellSizePx;
     publishCell(fixedCell);
@@ -537,12 +540,14 @@ function NativeResidentBody({
     const prevHome = transition.wakeCell;
     if (prevHome == null) return;
 
-    clearIdle();
-    motion.stop();
-    // A shared home may already belong to another resident; on failed claim
-    // release any old destination rather than leaving a ghost reservation.
-    nativeResidentReconcileInterruptedClaim(
-      prevHome, tryClaimCellRef.current, releaseMyCellRef.current
+    // A shared home may belong to another resident. Reconcile it even
+    // when an earlier cancellation fails.
+    nativeResidentRunCleanup(
+      clearIdle,
+      () => motion.stop(),
+      () => nativeResidentReconcileInterruptedClaim(
+        prevHome, tryClaimCellRef.current, releaseMyCellRef.current
+      )
     );
     const cx = (prevHome % cols) * cellSizePx;
     const cy = Math.floor(prevHome / cols) * cellSizePx;
@@ -564,8 +569,7 @@ function NativeResidentBody({
    */
   useEffect(() => {
     if (routeMode !== "free" || !disableIdleRoam) return;
-    clearIdle();
-    stopAndReconcile();
+    nativeResidentRunCleanup(clearIdle, stopAndReconcile);
   }, [routeMode, disableIdleRoam, clearIdle, stopAndReconcile]);
 
   /** Removing a completed commute cancels its old idle timeout in cleanup.
@@ -661,11 +665,14 @@ function NativeResidentBody({
 
   useEffect(
     () => () => {
-      clearIdle();
-      pendingCommuteRetry.clear();
-      motion.cancel();
-      tapRecognizer.reset();
-      releaseMyCellRef.current?.();
+      // All cleanup actions run, even if a native timer/RAF callback fails.
+      nativeResidentRunCleanup(
+        clearIdle,
+        () => pendingCommuteRetry.clear(),
+        () => motion.cancel(),
+        () => tapRecognizer.reset(),
+        () => releaseMyCellRef.current?.()
+      );
     },
     [clearIdle, pendingCommuteRetry, motion, tapRecognizer]
   );

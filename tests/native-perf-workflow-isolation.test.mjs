@@ -72,3 +72,10 @@ test("RAF recovery stress assertion is type-safe after an earlier all-ones check
   const source = readFileSync(new URL("./native-resident-raf-rearm-fault.test.ts", import.meta.url), "utf8");
   assert.ok(source.includes("assert.deepEqual(counts, Array<number>(200).fill(2));"));
 });
+
+test("terminal cleanup regressions run in native route suite", () => {
+  assert.ok(workflow.includes('      - "tests/native-resident-interruption-cleanup.test.ts"'));
+  const route = workflow.slice(workflow.indexOf("      - name: Native commute/night priority"),
+    workflow.indexOf("      - name: 200 real native resident sprite fixture"));
+  assert.ok(route.includes("tests/native-resident-interruption-cleanup.test.ts"));
+});

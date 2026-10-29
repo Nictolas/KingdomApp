@@ -118,8 +118,17 @@ export class NativeResidentSegmentRunner {
    * stale frames before notifying them.
    */
   stop(): void {
-    this.cancel();
-    this.deps.setWalking(false);
+    // The platform can throw after invalidating its RAF handle. Always reset
+    // the visible walking flag; a second failure cannot hide the first one.
+    let firstError: unknown = undefined;
+    let hasError = false;
+    try { this.cancel(); }
+    catch (error) { firstError = error; hasError = true; }
+    try { this.deps.setWalking(false); }
+    catch (error) {
+      if (!hasError) { firstError = error; hasError = true; }
+    }
+    if (hasError) throw firstError;
   }
 
   start(request: NativeResidentSegmentRequest): void {
