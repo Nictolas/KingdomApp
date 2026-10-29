@@ -201,7 +201,12 @@ export class NativeResidentTimerQueue {
   }
 
   setActive(active: boolean): void {
-    if (this.active === active) return;
+    if (this.active === active) {
+      // A previous setTimeout may have thrown after a state transition.
+      // Retrying the identical foreground state must rearm pending work.
+      if (active) this.arm();
+      return;
+    }
     this.sampleActiveClock(); // Record elapsed up to the transition.
     this.active = active;
     this.activityEpoch++;
