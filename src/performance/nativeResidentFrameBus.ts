@@ -20,6 +20,10 @@ export type NativeResidentFrameBusSnapshot = Readonly<{
   oneShotRequests: number;
   /** Count of one-shot dispatches using the two recycled Map buffers. */
   oneShotBufferSwaps: number;
+  /** Cumulative native RAF bridge faults (not physical frame-drop counts). */
+  platformRequestFailures: number;
+  platformCancelFailures: number;
+  postDispatchRearmFailures: number;
 }>;
 
 /**
@@ -52,6 +56,9 @@ export class NativeResidentFrameBus {
   /** Any pause/resume transition invalidates the current dispatch batch. */
   private activityEpoch = 0;
   private dispatchCount = 0;
+  private platformRequestFailures = 0;
+  private platformCancelFailures = 0;
+  private postDispatchRearmFailures = 0;
   /**
    * The hot 200-resident persistent path uses Map.forEach with a stable
    * visitor. A for..of Map iterator materializes [id, callback] entries on
@@ -131,7 +138,12 @@ export class NativeResidentFrameBus {
       const frame = this.platformFrame;
       this.platformFrame = null;
       this.platformGeneration++; // invalidate stale OS callbacks BEFORE cancel
-      this.cancelPlatformFrame(frame);
+      try {
+        this.cancelPlatformFrame(frame);
+      } catch (error) {
+        this.platformCancelFailures++;
+        throw error;
+      }
     }
   }
 
@@ -172,6 +184,7 @@ export class NativeResidentFrameBus {
         try {
           this.cancelPlatformFrame(frame);
         } catch (error) {
+          this.platformCancelFailures++;
           firstError = error;
           hasError = true;
         }
@@ -221,7 +234,10 @@ export class NativeResidentFrameBus {
       continuousSubscribers: this.continuous.size,
       subscriptionAdds: this.subscriptionAdds,
       oneShotRequests: this.oneShotRequests,
-      oneShotBufferSwaps: this.oneShotBufferSwaps
+      oneShotBufferSwaps: this.oneShotBufferSwaps,
+      platformRequestFailures: this.platformRequestFailures,
+      platformCancelFailures: this.platformCancelFailures,
+      postDispatchRearmFailures: this.postDispatchRearmFailures
     };
   }
 
@@ -235,6 +251,7 @@ export class NativeResidentFrameBus {
       // Invalidate that inaccessible callback and permit a future retry.
       this.platformFrame = null;
       this.platformGeneration++;
+      this.platformRequestFailures++;
       throw error;
     }
   }
@@ -272,6 +289,8 @@ export class NativeResidentFrameBus {
     this.continuousFirstError = undefined;
     let firstError: unknown = undefined;
     let hasError = false;
+    let rearmError: unknown = undefined;
+    let rearmFailed = false;
     try {
       // Continuous-only frames are the common 200-resident case. Avoid
       // allocating a fresh [] on every RAF when there are no one-shots.
@@ -325,11 +344,19 @@ export class NativeResidentFrameBus {
       this.continuousHasError = false;
       try {
         this.ensureScheduled();
+      } catch (error) {
+        // A native RAF registration fault must not overwrite an earlier
+        // resident exception. Keep pending callbacks/subscriptions intact so
+        // a later request or foreground transition can retry registration.
+        this.postDispatchRearmFailures++;
+        rearmError = error;
+        rearmFailed = true;
       } finally {
         endNativeResidentDispatch("frame", timing);
       }
     }
     if (hasError) throw firstError;
+    if (rearmFailed) throw rearmError;
   }
 }
 
