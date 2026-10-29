@@ -70,7 +70,17 @@ test("Android 60 Hz frame completion: BigInt precision, p95 and over-budget coun
   assert.equal(result.frameBudgetMs, 16.667);
   assert.ok(result.observedSpanMs > 1900);
   assert.match(result.metric, /NOT GPU FPS/);
-  assert.equal(result.warning, null);
+  assert.match(result.warning, /Short\/rolling/,
+    "120 recently retained frames cannot prove a full ten-second window");
+});
+
+test("a verified ten-second-long raw UI frame window is distinguishable from rolling 120 frames", () => {
+  const long = parseAndroidFrameStats(dump({ frames: 720, durationMs: 14 }));
+  assert.ok(long.observedSpanMs > 10_000);
+  assert.equal(long.warning, null);
+  const rolling = parseAndroidFrameStats(dump({ frames: 120 }));
+  assert.ok(rolling.observedSpanMs < 3_000);
+  assert.match(rolling.warning, /Short\\/rolling/);
 });
 
 test("Android 90/120/144 Hz thresholds do not assume every display is 60 Hz", () => {
