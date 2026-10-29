@@ -208,7 +208,9 @@ function NativeResidentBody({
       isMovingRef.current = moving;
       spriteFrames.setMoving(moving);
     },
-    onFrame: () => { if (__DEV__) markNativeResidentFrameCallback(); }
+    // No per-resident diagnostic closure or callback invocation in production.
+    // In development the counter itself is inert while the HUD is closed.
+    onFrame: __DEV__ ? markNativeResidentFrameCallback : undefined
   }));
   const [tapRecognizer] = useState(() => new NativeResidentTapRecognizer());
   // One four-cell scratch buffer per resident; no neighbor/filter arrays on idle retries.

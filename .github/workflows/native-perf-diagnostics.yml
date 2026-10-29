@@ -31,6 +31,7 @@ on:
       - "src/performance/nativeResidentTapRecognizer.ts"
       - "src/performance/nativeResidentTouchRenderGate.ts"
       - "tests/native-resident-touch-render-gate.test.ts"
+      - "tests/native-resident-work-sampling.test.ts"
       - "tests/native-resident-touch-render-gate-benchmark.ts"
       - "tests/native-resident-tap-recognizer.test.ts"
       - "src/performance/nativeCaptureIntegrity.ts"
@@ -166,7 +167,7 @@ jobs:
       - name: Allocation-free frame/timer buffer regression (Node only, not FPS)
         id: suite_07
         continue-on-error: true
-        run: npx tsx --test tests/native-resident-buffer-reuse.test.ts
+        run: npx tsx --test tests/native-resident-buffer-reuse.test.ts tests/native-resident-work-sampling.test.ts
       - name: Allocation-free 200-resident movement and route churn (Node only, not FPS)
         id: suite_08
         continue-on-error: true

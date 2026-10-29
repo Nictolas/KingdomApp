@@ -191,7 +191,9 @@ export class NativeResidentFrameBus {
     const maxContinuousIdAtFrameStart = this.nextId - 1;
     let firstError: unknown = null;
     try {
-      for (const [id, callback] of this.due ?? []) {
+      // Continuous-only frames are the common 200-resident case. Avoid
+      // allocating a fresh [] on every RAF when there are no one-shots.
+      if (this.due !== null) for (const [id, callback] of this.due) {
         // A callback can synchronously pause the world in mid-batch. Hold the
         // remaining residents, rather than updating them while paused.
         if (!this.active || this.activityEpoch !== dispatchEpoch) break;

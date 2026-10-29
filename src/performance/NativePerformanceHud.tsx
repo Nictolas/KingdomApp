@@ -5,7 +5,7 @@ import { NativeHudFrameLoop } from "./nativeHudFrameLoop";
 import { useFocusEffect } from "expo-router";
 import { AppState, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { NativeFrameWindow, type NativeFrameSnapshot } from "./nativeFrameMetrics";
-import { takeNativeResidentFrameCallbacks, takeNativeResidentRenderInvocations, takeNativeResidentWrapperInvocations, takeNativeResidentBusCycles, getNativeResidentRenderTotals, diffNativeResidentRenderTotals, type NativeResidentRenderTotals } from "./nativeResidentWorkCounters";
+import { beginNativeResidentWorkSampling, endNativeResidentWorkSampling, takeNativeResidentFrameCallbacks, takeNativeResidentRenderInvocations, takeNativeResidentWrapperInvocations, takeNativeResidentBusCycles, getNativeResidentRenderTotals, diffNativeResidentRenderTotals, type NativeResidentRenderTotals } from "./nativeResidentWorkCounters";
 import { NativeMeasurementSession, formatNativeMeasurement } from "./nativeMeasurementSession";
 import { getNativeResidentTimerSnapshot, type NativeResidentTimerSnapshot } from "./nativeResidentTimerQueue";
 import { diffNativeResidentTimerCounters } from "./nativeResidentTimerDiagnostics";
@@ -133,6 +133,7 @@ export function NativePerformanceHud({
       if (capture.current) abortCapture();
       return;
     }
+    const workSamplingLease = beginNativeResidentWorkSampling();
     setStats(INITIAL_METRICS);
     setResidentCallbacks(0);
     setResidentRenders(0);
@@ -258,6 +259,7 @@ export function NativePerformanceHud({
     frameLoop.start(AppState.currentState === "active");
     return () => {
       frameLoop?.stop();
+      endNativeResidentWorkSampling(workSamplingLease);
       if (capture.current) {
         cancelNativeResidentDispatchCapture(capture.current.dispatchToken);
         cancelNativeResidentEventLoopProbe(capture.current.lagToken);

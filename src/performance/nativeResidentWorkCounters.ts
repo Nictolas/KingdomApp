@@ -2,9 +2,37 @@
  * Development-only aggregate counters for the existing native map's resident
  * requestAnimationFrame callbacks. No IDs, position, save data, storage or network.
  */
+// Diagnostics are opt-in. When no focused, expanded native HUD owns a lease,
+// the ~200 resident RAF callbacks do not update aggregate counters at all.
+// A token prevents cleanup from an older HUD from disabling a newer one.
+const samplingLeases = new Set<number>();
+let nextSamplingLease = 1;
+let samplingActive = false;
+
+export function beginNativeResidentWorkSampling(): number {
+  const token = nextSamplingLease++;
+  samplingLeases.add(token);
+  samplingActive = true;
+  return token;
+}
+
+export function endNativeResidentWorkSampling(token: number): void {
+  if (!samplingLeases.delete(token)) return;
+  samplingActive = samplingLeases.size > 0;
+  if (!samplingActive) {
+    // Never carry per-second readings from an unfocused/closed HUD into
+    // a later capture. Cumulative totals are preserved for snapshot deltas.
+    callbacks = 0;
+    renders = 0;
+    wrapperRenders = 0;
+    busCycles = 0;
+  }
+}
+
 let callbacks = 0;
 
 export function markNativeResidentFrameCallback(): void {
+  if (!samplingActive) return;
   callbacks += 1;
 }
 
@@ -19,6 +47,7 @@ let renders = 0;
 let totalBodyInvocations = 0;
 
 export function markNativeResidentRenderInvocation(): void {
+  if (!samplingActive) return;
   renders += 1;
   totalBodyInvocations += 1;
 }
@@ -33,6 +62,7 @@ export function takeNativeResidentRenderInvocations(): number {
 let busCycles = 0;
 
 export function markNativeResidentBusCycle(): void {
+  if (!samplingActive) return;
   busCycles += 1;
 }
 
@@ -50,6 +80,7 @@ let wrapperRenders = 0;
 let totalWrapperInvocations = 0;
 
 export function markNativeResidentWrapperInvocation(): void {
+  if (!samplingActive) return;
   wrapperRenders += 1;
   totalWrapperInvocations += 1;
 }
