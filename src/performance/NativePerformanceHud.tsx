@@ -306,7 +306,14 @@ export function NativePerformanceHud({
         previous = null;
       }
     };
-    frameLoop = new NativeHudFrameLoop(requestAnimationFrame, cancelAnimationFrame, onFrame);
+    frameLoop = new NativeHudFrameLoop(requestAnimationFrame, cancelAnimationFrame, onFrame, () => {
+      // Fail closed: diagnostic RAF faults must never affect game RAF/timers.
+      // Keep the panel open to explain why no valid capture can be exported.
+      abortCapture();
+      samplingLifecycle.setForeground(false);
+      hudForeground.current = false;
+      setCaptureWarning("Diagnostica interrotta: errore nel monitoraggio RAF. Chiudere e riaprire i dettagli.");
+    });
     frameLoop.start(visibility.foreground);
     return () => {
       frameLoop?.stop();
@@ -364,7 +371,6 @@ export function NativePerformanceHud({
           </Pressable>
           {captureWarning && <Text style={styles.note}>{captureWarning}</Text>}
           {captureBlockedReason && <Text style={styles.note}>{captureBlockedReason}</Text>}
-          {captureWarning && <Text style={styles.note}>{captureWarning}</Text>}
           {latestReport && (
             <>
               <Text style={styles.text}>{latestReport.split("\n").filter((line) => /FPS JS medio:|p95:|Campioni:|Batch RAF JS p95:|Batch timer JS p95:|Ritardo loop JS p95:|Gestore tocchi JS p95:/.test(line)).join(" · ")}</Text>
