@@ -205,7 +205,12 @@ test("source boundary: terminal commute neither re-arms idle nor continues after
   const completion = route.slice(route.indexOf('if (seg >= path.length - 1)'), route.indexOf('const from = path[seg]!'));
   assert.match(completion, /routeEpoch\.runIfCurrent\(routeToken/);
   assert.doesNotMatch(completion, /scheduleNativeResidentTimer|pickNextMoveRef/);
-  const arrival = native.slice(native.indexOf('onArrival: () => {\n          if (!routeEpoch.isCurrent(routeToken)) return;'));
+  // The native start-fault guard adds a try/catch around motion.start(), so
+  // indentation can legitimately change without changing route semantics.
+  const arrivalStart = native.indexOf("onArrival: () => {", native.indexOf("const runOneSegment = useCallback("));
+  assert.ok(arrivalStart >= 0, "commute arrival callback must remain present");
+  const arrival = native.slice(arrivalStart);
+  assert.ok(arrival.includes("if (!routeEpoch.isCurrent(routeToken)) return;"));
   assert.match(arrival.slice(0, 750), /routeEpoch\.runIfCurrent\(routeToken, \(\) => onCellSettledRef\.current\?\.\(to\)\)/);
   assert.ok(arrival.indexOf('routeEpoch.runIfCurrent(routeToken') < arrival.indexOf('onDone();'));
   assert.doesNotMatch(web, /NativeResidentRouteEpoch|runIfCurrent/);
