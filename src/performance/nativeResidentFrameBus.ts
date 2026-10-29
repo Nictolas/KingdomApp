@@ -122,7 +122,8 @@ export class NativeResidentFrameBus {
     }
     // Notify idle/retry timers as well as walking residents. An app returning
     // to foreground must restart deferred work without a React rerender.
-    let firstError: unknown = null;
+    let firstError: unknown = undefined;
+    let hasError = false;
     for (const listener of [...this.activityListeners]) {
       // A listener can pause and resume synchronously. Never deliver an
       // obsolete transition after a newer state has been published.
@@ -133,11 +134,14 @@ export class NativeResidentFrameBus {
       try {
         listener(active);
       } catch (error) {
-        if (firstError === null) firstError = error;
+        if (!hasError) {
+          firstError = error;
+          hasError = true;
+        }
       }
     }
     if (active) this.ensureScheduled();
-    if (firstError !== null) throw firstError;
+    if (hasError) throw firstError;
     } finally {
       endNativeResidentDispatch("lifecycle", timing);
     }
@@ -189,7 +193,8 @@ export class NativeResidentFrameBus {
     // An ID boundary, not a copied Map/array: no O(residents) allocation
     // just to dispatch the same 200 subscribers on every animation frame.
     const maxContinuousIdAtFrameStart = this.nextId - 1;
-    let firstError: unknown = null;
+    let firstError: unknown = undefined;
+    let hasError = false;
     try {
       // Continuous-only frames are the common 200-resident case. Avoid
       // allocating a fresh [] on every RAF when there are no one-shots.
@@ -203,7 +208,10 @@ export class NativeResidentFrameBus {
           callback(timestamp, rebase);
         } catch (error) {
           // Preserve healthy residents even if one animation fails.
-          if (firstError === null) firstError = error;
+          if (!hasError) {
+            firstError = error;
+            hasError = true;
+          }
         }
       }
       if (this.active && this.activityEpoch === dispatchEpoch) {
@@ -216,7 +224,10 @@ export class NativeResidentFrameBus {
           try {
             callback(timestamp, rebase);
           } catch (error) {
-            if (firstError === null) firstError = error;
+            if (!hasError) {
+              firstError = error;
+              hasError = true;
+            }
           }
         }
       }
@@ -245,7 +256,7 @@ export class NativeResidentFrameBus {
         endNativeResidentDispatch("frame", timing);
       }
     }
-    if (firstError !== null) throw firstError;
+    if (hasError) throw firstError;
   }
 }
 
