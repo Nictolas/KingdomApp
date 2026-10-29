@@ -70,6 +70,19 @@ test("full 25/50/100/200 × 1x/2x/4x matrix: 72 local captures, no GPU claims", 
   assert.equal(result.deviceMatch, "human_attestation_only_not_technically_verified");
 });
 
+test("repeatable commute scene is accepted but cannot be mixed with random roaming reports", () => {
+  const { manifest, files, load } = matrix({ full: true, baselineSpeed: "actual", candidateSpeed: "actual" });
+  const repeatable = "Sprite abitanti reali in tragitto ripetibile";
+  manifest.scene = repeatable;
+  for (const [path, text] of files) files.set(path, text.replaceAll(SCENE, repeatable));
+  const result = analyzeNativeAbMatrix(manifest, load);
+  assert.equal(result.coverage.completed, 12);
+  assert.equal(result.scene, repeatable);
+  const candidate = manifest.scenarios[0].candidate;
+  files.set(candidate, files.get(candidate).replaceAll(repeatable, SCENE));
+  assert.throws(() => analyzeNativeAbMatrix(manifest, load), /Incomparable|metadata differs/);
+});
+
 test("partial matrix must be explicitly opted into and remains preliminary", () => {
   const { manifest, load } = matrix({ full: false });
   assert.throws(() => analyzeNativeAbMatrix(manifest, load), /incomplete 12-scenario matrix/);

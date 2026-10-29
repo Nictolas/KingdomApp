@@ -48,3 +48,9 @@ Questa è una prova più realistica del precedente carico di marker, **non** un'
 **Regressioni aggiunte:** notifiche idempotenti, disiscrizione, isolamento tra fixture e **200.000 selezioni sintetiche** su 200 target. Il test statico impedisce di reintrodurre `setSelected` nel componente padre e controlla la separazione overlay/sprite. Sono test di logica e confine sorgente: non misurano re-render effettivi tramite profiler React né latenza fisica del touch.
 
 I tre file condivisi (fixture, workload, test) sono stati applicati con contenuto SHA-identico a #297 e #298. Non attribuire eventuali differenze A/B a questa modifica, che è presente in entrambe. Le misure reali restano da effettuare su Android e iPhone.
+
+## 29 ottobre — seconda scena A/B: tragitto ripetibile (nessuna prova hardware)
+
+La scena `Sprite abitanti reali in tragitto ripetibile` usa **gli stessi quattro file** sui due rami e lo stesso componente nativo di ciascun motore. Ogni abitante percorre ripetutamente una corsia orizzontale di due celle adiacenti, poi torna indietro; le corsie non si sovrappongono, anche con 200 residenti. La modalità precedente `Sprite abitanti reali in movimento` resta il **girovagare casuale** con contese di occupazione. La nuova modalità isola il costo del movimento/RAF e dei cambi di direzione da differenze casuali nel percorso, ma **non misura collisioni o IA completa**.
+
+Per confrontare #298 e #297 scegliere la stessa modalità, popolazione, velocità, dispositivo e durata. Non mescolare i report delle due scene. Per la nuova modalità servono ancora tre catture per scenario (25/50/100/200 × 1×/2×/4×) e profiler Android/iOS per FPS UI/GPU, touch, memoria e consumo. Le prove Node sulle corsie e la CI non sono misure su telefono; nessun merge o rilascio.

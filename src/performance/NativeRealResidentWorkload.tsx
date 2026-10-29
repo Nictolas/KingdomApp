@@ -1,4 +1,4 @@
-import React, { memo, useCallback, useMemo, useSyncExternalStore } from "react";
+import React, { memo, useCallback, useMemo, useState, useSyncExternalStore } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { MapWandererCharacter } from "../components/MapWandererCharacter";
 import {
@@ -8,6 +8,7 @@ import {
 } from "../game/orologioGiocoSession";
 import {
   createNativeRealFixtureResidents,
+  createNativeRealFixtureCommutePath,
   NativeRealFixtureOccupancy,
   NativeRealFixtureSelection,
   type NativeRealFixtureResident,
@@ -40,15 +41,24 @@ const NativeRealFixtureSprite = memo(function NativeRealFixtureSprite({
   occupancy,
   selection,
   moving,
+  deterministicCommute,
   cellSizePx
 }: {
   resident: NativeRealFixtureResident;
   occupancy: NativeRealFixtureOccupancy;
   selection: NativeRealFixtureSelection;
   moving: boolean;
+  deterministicCommute: boolean;
   cellSizePx: number;
 }) {
   const id = resident.instanceId;
+  // State is local to this resident: a completed leg never rerenders the
+  // other 199 sprites. The fixture is remounted on mode/population changes.
+  const [returning, setReturning] = useState(false);
+  const commutePath = useMemo(() => deterministicCommute && moving
+    ? createNativeRealFixtureCommutePath(resident, returning) : null,
+    [deterministicCommute, moving, resident, returning]);
+  const onCommuteComplete = useCallback(() => setReturning(value => !value), []);
   const onSelect = useCallback(() => selection.select(id), [selection, id]);
   const isCellFreeForMe = useCallback((cell: number) => occupancy.isFreeFor(id, cell), [occupancy, id]);
   const tryClaimCell = useCallback((cell: number) => occupancy.tryClaim(id, cell), [occupancy, id]);
@@ -64,7 +74,11 @@ const NativeRealFixtureSprite = memo(function NativeRealFixtureSprite({
       isWalkable={isWalkableInFixture}
       isRoadCell={isRoadInFixture}
       preferredSpawnCell={resident.spawnCell}
-      disableIdleRoam={!moving}
+      disableIdleRoam={!moving || deterministicCommute}
+      commutePath={commutePath}
+      commuteToken={returning ? 1 : 0}
+      commutePurpose={commutePath ? "work" : null}
+      onCommuteComplete={commutePath ? onCommuteComplete : undefined}
       onPress={onSelect}
       onDoublePress={onSelect}
       pressAccessibilityLabel={"Seleziona residente di prova " + id}
@@ -80,10 +94,12 @@ const NativeRealFixtureSprite = memo(function NativeRealFixtureSprite({
 const NativeFixtureStatus = memo(function NativeFixtureStatus({
   population,
   moving,
+  deterministicCommute,
   selection
 }: {
   population: NativeTestPopulation;
   moving: boolean;
+  deterministicCommute: boolean;
   selection: NativeRealFixtureSelection;
 }) {
   const selected = useSyncExternalStore(
@@ -99,7 +115,7 @@ const NativeFixtureStatus = memo(function NativeFixtureStatus({
   return (
     <View style={styles.status} pointerEvents="none">
       <Text style={styles.statusText}>
-        Sprite reali · {population} abitanti · {moving ? "girovaghi" : "fermi"} · tempo {timeScale}×
+        Sprite reali · {population} abitanti · {moving ? (deterministicCommute ? "tragitto ripetibile" : "girovaghi") : "fermi"} · tempo {timeScale}×
       </Text>
       {moving && timeScale === 0 && (
         <Text style={styles.warning}>
@@ -122,11 +138,13 @@ const NativeFixtureStatus = memo(function NativeFixtureStatus({
 export const NativeRealResidentWorkload = memo(function NativeRealResidentWorkload({
   population,
   moving,
+  deterministicCommute = false,
   width,
   height
 }: {
   population: NativeTestPopulation;
   moving: boolean;
+  deterministicCommute?: boolean;
   width: number;
   height: number;
 }) {
@@ -146,10 +164,11 @@ export const NativeRealResidentWorkload = memo(function NativeRealResidentWorklo
           occupancy={occupancy}
           selection={selection}
           moving={moving}
+          deterministicCommute={deterministicCommute}
           cellSizePx={cellSizePx}
         />
       ))}
-      <NativeFixtureStatus population={population} moving={moving} selection={selection} />
+      <NativeFixtureStatus population={population} moving={moving} deterministicCommute={deterministicCommute} selection={selection} />
     </View>
   );
 });

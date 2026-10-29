@@ -11,7 +11,7 @@ import { compareNativeJsReports, parseNativeJsReports } from "./compare-native-j
 
 const POPULATIONS = [25, 50, 100, 200];
 const SPEEDS = [1, 2, 4];
-const SCENES = new Set(["Sprite abitanti reali in movimento", "Sprite abitanti reali fermi"]);
+const SCENES = new Set(["Sprite abitanti reali in movimento", "Sprite abitanti reali fermi", "Sprite abitanti reali in tragitto ripetibile"]);
 const expectedKeys = POPULATIONS.flatMap(residents => SPEEDS.map(speed => residents + "/" + speed));
 const fail = message => { throw new Error("Native A/B matrix: " + message); };
 // Canonical relative paths only: reject aliases, traversal and absolute paths.
