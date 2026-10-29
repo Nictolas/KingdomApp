@@ -3,7 +3,8 @@ import { NativeResidentSpriteFrameDriver } from "../src/performance/nativeReside
 
 /**
  * Deterministic Node workload, not React Native execution or physical FPS.
- * Old facing state committed a React update whenever the direction changed.
+ * Old facing called setDirection whenever direction changed; React could
+ * batch those state updates, so this is NOT a count of actual React commits.
  * New facing publishes only an Animated.Value when west/non-west flips.
  */
 const directions = ["s", "e", "n", "w"] as const;
@@ -21,7 +22,7 @@ for (const speed of [1, 2, 4]) {
   );
   for (let tick = 0; tick < 1200; tick++) {
     for (let resident = 0; resident < 200; resident++) {
-      const direction = directions[(resident + tick * speed) % 4]!;
+      const direction = directions[(resident + tick + speed) % 4]!;
       if (lastDirection[resident] !== direction) legacyDirectionChanges++;
       lastDirection[resident] = direction;
       const driver = drivers[resident]!;
@@ -37,8 +38,8 @@ for (const speed of [1, 2, 4]) {
   console.log(JSON.stringify({
     model: "synthetic_native_facing_no_device_fps",
     speed, residents: 200, turnsPerResident: 1200,
-    legacyDirectionReactStateUpdates: legacyDirectionChanges,
-    candidateDirectionReactStateUpdates: 0,
+    legacySetDirectionCalls: legacyDirectionChanges,
+    candidateSetDirectionCalls: 0,
     candidateAnimatedMirrorWrites: mirrorWrites,
     candidateAnimatedSpriteOffsetWrites: frameWrites
   }));

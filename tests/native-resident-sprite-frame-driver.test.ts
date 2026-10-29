@@ -203,7 +203,7 @@ test("200 residents x 1200 turns at 1x/2x/4x preserve facing and avoid redundant
     let changes = 0;
     for (let turn = 0; turn < 1200; turn++) {
       for (let id = 0; id < 200; id++) {
-        const direction = directions[(turn * speed + id) % directions.length]!;
+        const direction = directions[(turn + speed + id) % directions.length]!;
         const before = drivers[id]!.snapshot().mirrorScaleX;
         drivers[id]!.face(direction);
         const expected = direction === "w" ? -1 : 1;

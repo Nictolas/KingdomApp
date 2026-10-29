@@ -49,8 +49,14 @@ test("200 native residents: shared RAF + sprite offsets + collision timers acros
   const retries: number[] = [];
   const retried: number[] = [];
   const offsetWrites = new Array<number>(population).fill(0);
+  const mirrorWrites = new Array<number>(population).fill(0);
+  const mirrorValues = new Array<number>(population).fill(1);
   const drivers = Array.from({ length: population }, (_, resident) =>
-    new NativeResidentSpriteFrameDriver(40, () => { offsetWrites[resident]!++; })
+    new NativeResidentSpriteFrameDriver(
+      40,
+      () => { offsetWrites[resident]!++; },
+      scale => { mirrorWrites[resident]!++; mirrorValues[resident] = scale; }
+    )
   );
   let positionWrites = 0;
   const motions: NativeResidentSegmentRunner[] = [];
@@ -79,6 +85,10 @@ test("200 native residents: shared RAF + sprite offsets + collision timers acros
     });
   }
 
+  assert.equal(mirrorWrites.reduce((sum, n) => sum + n, 0), 100,
+    "only the 100 initially west-facing residents publish a mirror");
+  assert.ok(drivers.every((driver, id) => driver.snapshot().mirrorScaleX === (id % 2 ? -1 : 1)));
+
   function tick(deltaMs = 16): void {
     wall += deltaMs;
     assert.ok(frames.size <= 1, "the native frame bus must share one OS RAF");
@@ -104,6 +114,7 @@ test("200 native residents: shared RAF + sprite offsets + collision timers acros
   for (let i = 0; i < 20; i++) tick();
   assert.equal(arrivals, 0);
   const beforePause = drivers.map(d => d.snapshot().offsetPx);
+  const beforePauseMirror = drivers.map(d => d.snapshot().mirrorScaleX);
   const callbacksBeforePause = bus.snapshot().dispatchCount;
   const stale = frames.values().next().value as ((timestamp: number) => void);
   gate.setForeground(false);
@@ -113,15 +124,23 @@ test("200 native residents: shared RAF + sprite offsets + collision timers acros
   stale(wall); // canceled OS callback arriving late must not dispatch residents
   assert.equal(bus.snapshot().dispatchCount, callbacksBeforePause);
   assert.deepEqual(drivers.map(d => d.snapshot().offsetPx), beforePause);
+  assert.deepEqual(drivers.map(d => d.snapshot().mirrorScaleX), beforePauseMirror);
 
   gate.setForeground(true);
   tick(0); // first frame rebases, never catches up 30 seconds of movement
   assert.deepEqual(drivers.map(d => d.snapshot().offsetPx), beforePause);
   speed = 2;
   for (let i = 0; i < 20; i++) tick();
+  // Turn all 200 moving residents across the west/non-west boundary while
+  // keeping their segments, occupancy and shared RAF subscriptions intact.
+  drivers.forEach((driver, id) => driver.face(id % 2 ? "n" : "w"));
+  assert.equal(mirrorWrites.reduce((sum, n) => sum + n, 0), 300);
+  assert.ok(mirrorValues.every((scale, id) => scale === (id % 2 ? 1 : -1)));
   speed = 4;
   for (let i = 0; i < 10; i++) tick();
   assert.equal(arrivals, population, "all three segment durations must finish");
+  assert.equal(mirrorWrites.reduce((sum, n) => sum + n, 0), 300,
+    "speed changes and frame updates cannot republish the mirror");
   assert.ok(motions.every(motion => motion.snapshot().completed === 1));
   assert.ok(motions.every(motion => !motion.snapshot().active));
   assert.ok(positionWrites <= 200 * 51, "at most one native position write per resident per RAF");

@@ -105,8 +105,8 @@ consumo energetico o risposta touch su dispositivi fisici.
 ## Ottimizzazione orientamento (29 ottobre 2026, #297 Draft)
 
 Il cambio di direzione (specialmente est ↔ ovest) prima chiamava
-`setDirection`, provocando un commit React del corpo dell'abitante a ogni
-svolta. Ora `NativeResidentSpriteFrameDriver` emette la scala orizzontale
+`setDirection`, richiedendo un aggiornamento di stato React a ogni
+svolta (non necessariamente un commit separato, dato il batching). Ora `NativeResidentSpriteFrameDriver` emette la scala orizzontale
 `+1/-1` solo quando cambia la condizione **ovest/non ovest**, attraverso
 un `Animated.Value` collegato a `Animated.View`. Il frame del foglio sprite
 continua a usare il suo `Animated.Value` separato. Il target touch,
@@ -116,7 +116,9 @@ La versione web non viene modificata.
 Test deterministici: 200 controller × 1.200 cambi di direzione ×
 1×/2×/4×, più pause, ridimensionamento e remount. Il benchmark Node
 `tests/native-resident-facing-benchmark.ts` conta le pubblicazioni
-di mirror e i commit React **teorici** evitati rispetto al vecchio
+di mirror e le **chiamate di aggiornamento di stato** evitate rispetto al vecchio
 `setDirection`; non misura FPS, GPU, bridge o dispositivi fisici.
 Confermare visivamente l'orientamento ovest/est, il tocco e il doppio tocco
 su Android/iOS reali, usando #298 come A/B di laboratorio.
+
+Il test integrato del bus RAF + 200 sprite verifica inoltre 300 cambi effettivi di mirror fra avvio e svolta, senza scritture aggiuntive durante 1×/2×/4× o sospensione. Le tre velocità del benchmark esercitano tutte cambi di direzione, non solo l'avanzamento dei frame.
