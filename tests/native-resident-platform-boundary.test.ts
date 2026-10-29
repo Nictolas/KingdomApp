@@ -109,8 +109,15 @@ test("native lifecycle is driven by one clock gate, not 200 React pause subscrip
   const hook = read("../src/hooks/useGiocoInPausa.ts");
   assert.match(hook, /useSyncExternalStore/);
   assert.match(lifecycle, /subscribeOrologioGiocoInPausa/);
-  assert.match(lifecycle, /setNativeResidentTimerQueueActive\(active\)/);
-  assert.match(lifecycle, /setNativeResidentFrameBusActive\(active\)/);
+  const coordinator = read("../src/performance/nativeResidentSchedulerActivity.ts");
+  // The single clock gate reaches both schedulers via a shared fault-safe
+  // coordinator. Verify the link and ordering instead of obsolete inline code.
+  assert.match(lifecycle, /applyNativeResidentSchedulerActivity\(\s*active,\s*setNativeResidentTimerQueueActive,\s*setNativeResidentFrameBusActive/);
+  assert.match(coordinator, /setTimerActive\(active\)/);
+  assert.match(coordinator, /setFrameActive\(active\)/);
+  assert.ok(coordinator.indexOf("setTimerActive(active)") < coordinator.indexOf("setFrameActive(active)"),
+    "timer pause must precede frame-bus pause");
+  assert.match(coordinator, /if \(failed\) throw firstError;/);
   assert.ok(!native.includes("useGiocoInPausa("),
     "200 native sprite bodies must not subscribe to React pause state");
   assert.ok(!native.includes("prevGiocoInPausaRef"),
