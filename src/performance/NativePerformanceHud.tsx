@@ -171,6 +171,9 @@ export function NativePerformanceHud({
     capture.current = null;
     setMeasuring(false);
     let frameLoop: NativeHudFrameLoop | null = null;
+    // An OS foreground notification must not resurrect a faulted HUD capture.
+    // Only an explicit panel close/reopen creates a new diagnostic session.
+    let frameLoopFaulted = false;
     let previous: number | null = null;
     let lastPublished = 0;
     // Clock changes during an opt-in capture invalidate the window even if
@@ -187,6 +190,7 @@ export function NativePerformanceHud({
     // A HUD that only watches AppState "change" would keep measuring the
     // frozen sprites as if they were moving: invalidate that mixed window.
     const onVisibilityChange = (foreground: boolean) => {
+      if (frameLoopFaulted) return;
       hudForeground.current = foreground;
       if (foreground === wasForeground) return; // duplicate OS event
       wasForeground = foreground;
@@ -307,6 +311,7 @@ export function NativePerformanceHud({
       }
     };
     frameLoop = new NativeHudFrameLoop(requestAnimationFrame, cancelAnimationFrame, onFrame, () => {
+      frameLoopFaulted = true;
       // Fail closed: diagnostic RAF faults must never affect game RAF/timers.
       // Keep the panel open to explain why no valid capture can be exported.
       abortCapture();
