@@ -100,6 +100,9 @@ on:
       - "tests/native-resident-spawn-sampler-benchmark.ts"
       - "tests/native-resident-neighbor-sampler-benchmark.ts"
       - "tests/native-typecheck-regression.test.mjs"
+      - "scripts/audit-native-ab-git-isolation.mjs"
+      - "tests/native-ab-git-isolation.test.mjs"
+      - "docs/NATIVE_AB_GIT_ISOLATION.md"
       - "tests/fixtures/native-typecheck-baseline.json"
       - "scripts/check-native-typecheck-regressions.mjs"
       - "tests/native-map-transform.test.ts"
@@ -132,36 +135,20 @@ jobs:
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
-      - name: A/B real-sprite fixture parity against paired lab branch (exact Git blobs)
+        with:
+          # Git ancestry is essential: a shallow clone cannot prove the
+          # #296 merge-base or detect an accidental #298 rebase onto #297.
+          fetch-depth: 0
+      - name: Fail-closed A/B Git ancestry, engine isolation and four-blob fixture parity
         shell: bash
         run: |
           set -euo pipefail
-          # The two Draft PRs are pushed separately. A bounded retry avoids
-          # falsely failing a run that checked out between the two pushes.
-          # A persistent mismatch still fails closed after 50 seconds.
-          for attempt in 1 2 3 4 5 6; do
-            git fetch --no-tags --depth=1 origin refs/heads/perf/native-real-sprite-ab-baseline-20261028
-            mismatch=0
-            for path in \
-              app/native-perf.tsx \
-              src/performance/NativeRealResidentWorkload.tsx \
-              src/performance/nativeRealResidentFixture.ts \
-              tests/native-real-resident-fixture.test.ts; do
-              local_sha="$(git hash-object "$path")"
-              paired_sha="$(git rev-parse "FETCH_HEAD:$path")"
-              if [[ "$local_sha" != "$paired_sha" ]]; then
-                echo "::warning file=$path::A/B fixture drift attempt $attempt/6: $local_sha vs $paired_sha"
-                mismatch=1
-              fi
-            done
-            if [[ "$mismatch" -eq 0 ]]; then
-              echo "A/B parity OK on attempt $attempt (all four Git blobs identical)"
-              exit 0
-            fi
-            if [[ "$attempt" -lt 6 ]]; then sleep 10; fi
-          done
-          echo "::error::A/B fixture parity did not converge after six attempts"
-          exit 1
+          git fetch --no-tags origin \
+            +refs/heads/perf/native-resident-imperative-motion-20261028:refs/remotes/origin/perf/native-resident-imperative-motion-20261028 \
+            +refs/heads/perf/native-real-sprite-ab-baseline-20261028:refs/remotes/origin/perf/native-real-sprite-ab-baseline-20261028 \
+            +refs/heads/perf/native-resident-timer-batching-20261028:refs/remotes/origin/perf/native-resident-timer-batching-20261028
+          node --test tests/native-ab-git-isolation.test.mjs
+          node scripts/audit-native-ab-git-isolation.mjs
       - uses: actions/setup-node@v4
         with:
           node-version: 22
