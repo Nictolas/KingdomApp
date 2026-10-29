@@ -335,6 +335,16 @@ function NativeResidentBody({
         to: { x: toX, y: toY },
         startTimestamp: performance.now(),
         durationMs: segmentMoveDurationMs(prev, next, isRoadCell),
+        onFrameFault: () => {
+          // A native frame can fail AFTER a successful destination claim.
+          // The runner has canceled this segment and confirmed that no
+          // replacement route took its place before calling this hook.
+          if (claim != null && cellRef.current === prev) {
+            nativeResidentReconcileInterruptedClaim(
+              prev, claim, releaseMyCellRef.current
+            );
+          }
+        },
         onArrival: () => {
           try {
             publishCell(dest);
@@ -442,6 +452,17 @@ function NativeResidentBody({
           startTimestamp: performance.now(),
           durationMs: segmentMoveDurationMs(from, to, isRoadCell),
           keepWalkingOnArrival: !isLastSegment,
+          onFrameFault: () => {
+            // This fault happened after claiming to, not during start().
+            // A newer route, already-published arrival, or denied shared
+            // home entry must retain its existing occupancy.
+            if (destinationClaimed && routeEpoch.isCurrent(routeToken) &&
+                cellRef.current === from) {
+              nativeResidentReconcileInterruptedClaim(
+                from, claim, releaseMyCellRef.current
+              );
+            }
+          },
           onArrival: () => {
             if (!routeEpoch.isCurrent(routeToken)) return;
             try {

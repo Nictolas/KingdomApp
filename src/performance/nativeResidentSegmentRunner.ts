@@ -9,6 +9,11 @@ export type NativeResidentSegmentRequest = Readonly<{
   /** Commute segments keep walking continuously; final segments stop. */
   keepWalkingOnArrival?: boolean;
   onArrival: () => void;
+  /** Error-only hook when a dispatched RAF fails; never invoked for start().
+   * This allows the route owner to repair an uncommitted destination claim.
+   * It must not mask the underlying native or resident callback error.
+   */
+  onFrameFault?: (error: unknown) => void;
 }>;
 
 type FrameCallback = (timestamp: number, resumedAfterSuspension: boolean) => void;
@@ -252,7 +257,22 @@ export class NativeResidentSegmentRunner {
         if (token === this.generation && !this.active) this.cancel();
       }
     } catch (error) {
+      // Preserve ownership BEFORE cancel(), which increments the token.
+      // A position/sprite callback may have synchronously installed a
+      // replacement segment: its claim must not be touched by this failure.
+      const ownedAtFailure = token === this.generation;
       this.abortFailedSegment(token);
+      // abortFailedSegment() increments the generation exactly once. If a
+      // listener created another route during terminal cleanup, skip the
+      // obsolete recovery callback rather than releasing the new claim.
+      if (ownedAtFailure && this.generation === token + 1) {
+        try {
+          request.onFrameFault?.(error);
+        } catch {
+          // Original RAF/position/arrival failure always wins, including
+          // null/undefined/false thrown values.
+        }
+      }
       throw error;
     }
   }

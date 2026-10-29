@@ -95,3 +95,10 @@ test("native arrival failure occupancy recovery is required by the diagnostics w
   );
   assert.ok(routeSuite.includes("tests/native-resident-arrival-fault.test.ts"));
 });
+
+test("frame-time native occupancy fault recovery belongs to the required route suite", () => {
+  assert.ok(workflow.includes('      - "tests/native-resident-frame-fault-occupancy.test.ts"'));
+  const route = workflow.slice(workflow.indexOf("      - name: Native commute/night priority"),
+    workflow.indexOf("      - name: 200 real native resident sprite fixture"));
+  assert.ok(route.includes("tests/native-resident-frame-fault-occupancy.test.ts"));
+});
