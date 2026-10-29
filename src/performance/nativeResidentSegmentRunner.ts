@@ -83,19 +83,19 @@ export class NativeResidentSegmentRunner {
    */
   private abortFailedSegment(token: number): void {
     if (token !== this.generation) return;
-    const wasActive = this.active;
     try {
       this.cancel();
     } catch {
       // Keep the originating callback exception as the diagnostic error.
       // cancel() invalidates ownership before calling the platform.
     }
-    if (wasActive) {
-      try {
-        this.deps.setWalking(false);
-      } catch {
-        // A second listener failure cannot obscure the first one.
-      }
+    // A terminal segment sets active=false *before* setWalking(false) and
+    // advanceSprite(0). If either notification throws, its visual walking
+    // flag still needs a best-effort reset, even though the RAF is complete.
+    try {
+      this.deps.setWalking(false);
+    } catch {
+      // A second listener failure cannot obscure the first one.
     }
   }
 
