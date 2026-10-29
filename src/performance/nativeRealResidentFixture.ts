@@ -55,6 +55,30 @@ export class NativeRealFixtureOccupancy {
   private claims = 0;
   private releases = 0;
   private settled = 0;
+  /** Readiness is initial fixture occupancy, not FPS or rendering proof. */
+  private ready = false;
+  private readonly readinessListeners = new Set<() => void>();
+
+  constructor(private readonly expectedResidents = 0) {
+    if (!Number.isSafeInteger(expectedResidents) || expectedResidents < 0 ||
+        expectedResidents > NATIVE_REAL_FIXTURE_CELLS) {
+      throw new Error("Invalid native fixture expected population");
+    }
+  }
+
+  readonly getReadySnapshot = (): boolean => this.ready;
+  readonly subscribeReady = (listener: () => void): (() => void) => {
+    this.readinessListeners.add(listener);
+    return () => { this.readinessListeners.delete(listener); };
+  };
+
+  private refreshReadiness(): void {
+    if (this.expectedResidents === 0) return;
+    const ready = this.occupantByCell.size === this.expectedResidents;
+    if (ready === this.ready) return;
+    this.ready = ready;
+    for (const listener of this.readinessListeners) listener();
+  }
 
   isFreeFor(residentId: number, cell: number): boolean {
     if (!Number.isInteger(cell) || cell < 0 || cell >= NATIVE_REAL_FIXTURE_CELLS) return false;
@@ -67,6 +91,7 @@ export class NativeRealFixtureOccupancy {
       this.denied++;
       return false;
     }
+    const occupiedBefore = this.occupantByCell.size;
     const previous = this.cellByResident.get(residentId);
     if (previous !== undefined && previous !== cell &&
       this.occupantByCell.get(previous) === residentId) {
@@ -75,6 +100,8 @@ export class NativeRealFixtureOccupancy {
     this.occupantByCell.set(cell, residentId);
     this.cellByResident.set(residentId, cell);
     this.claims++;
+    // A walking transfer preserves occupancy; no notification per frame.
+    if (this.occupantByCell.size !== occupiedBefore) this.refreshReadiness();
     return true;
   }
 
@@ -86,6 +113,7 @@ export class NativeRealFixtureOccupancy {
     }
     this.cellByResident.delete(residentId);
     this.releases++;
+    this.refreshReadiness();
   }
 
   settledAt(_residentId: number, _cell: number): void {
