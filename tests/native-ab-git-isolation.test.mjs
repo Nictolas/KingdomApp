@@ -100,6 +100,20 @@ test('rejects moving #296 without moving both lab branches', t => {
   assert.throws(() => audit(f), /diverge at the current #296 head/);
 });
 
+test('pins the candidate branch to the exact CI triggering commit', t => {
+  const f = setup(t);
+  const sha = f.git('rev-parse', 'candidate');
+  assert.equal(auditNativeAbGitIsolation({
+    cwd: f.cwd, refs: f.refs, expectedCandidateSha: sha
+  }).commits.candidate, sha);
+  assert.throws(() => auditNativeAbGitIsolation({
+    cwd: f.cwd, refs: f.refs, expectedCandidateSha: '0'.repeat(40)
+  }), /candidate branch moved since the triggering CI commit/);
+  assert.throws(() => auditNativeAbGitIsolation({
+    cwd: f.cwd, refs: f.refs, expectedCandidateSha: 'not-a-sha'
+  }), /expected candidate SHA must be a full 40-character Git commit/);
+});
+
 test('rejects missing refs and unsafe user-provided ref names without mutating the repo', t => {
   const f = setup(t);
   assert.throws(() => auditNativeAbGitIsolation({ cwd: f.cwd, refs: { ...f.refs, baseline: 'missing' } }), /unresolvable commit ref/);
