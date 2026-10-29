@@ -62,5 +62,10 @@ l'iscrizione in `finally`.
 `tests/native-resident-4x-subscription-reuse.test.ts` copre 200
 runner reali, 12 passi a 4×, 80 secondi di background simulato,
 cambi 1×/2×/4×, assenza di RAF orfani e callback terminali fallite.
-Il confronto è sintetico e dimostra il numero di iscrizioni, **non**
-FPS o performance fisiche misurate su Android/iPhone.
+Una prova di **equivalenza per ogni frame** esegue due gruppi separati
+di 200 runner di produzione, uno con la vecchia API RAF one-shot e uno
+con il dispatcher persistente: confronta ad ogni frame coordinate
+interpolate, ordine/conteggio degli arrivi e pixel della sprite-sheet,
+compresa una sospensione prolungata. Il confronto è sintetico e
+dimostra il numero di iscrizioni e la parità logica, **non** FPS o
+performance fisiche misurate su Android/iPhone.
