@@ -60,8 +60,11 @@ Per confrontare #298 e #297 scegliere la stessa modalità, popolazione, velocit�
 
 Le scene con sprite reali di entrambe le PR (#297 e #298) mostrano ora
 «Occupazione pronta» solo dopo che tutti i 25/50/100/200 residenti hanno
-prenotato una cella della fixture. Se la simulazione è in pausa o un residente
-non ha ancora effettuato la prenotazione, appare «Occupazione sprite non pronta».
+prenotato una cella della fixture. Se un residente non ha ancora effettuato
+la prenotazione, appare «Occupazione sprite non pronta». La pausa può
+impedire le prenotazioni iniziali in modalità movimento, mentre in modalità
+«Fermi» la scena può essere pronta anche con il gioco in pausa: per questo
+il controllo separato della velocità 0× rimane obbligatorio.
 Attendere lo stato pronto e qualche secondo di stabilizzazione prima di
 avviare «Misura 10 secondi». L'indicatore **non blocca** tecnicamente il
 pulsante di misura: l'operatore deve controllarlo. Non certifica il rendering
