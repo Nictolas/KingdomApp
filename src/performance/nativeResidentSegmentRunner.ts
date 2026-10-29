@@ -69,8 +69,33 @@ export class NativeResidentSegmentRunner {
     this.lastWrittenX = null;
     this.lastWrittenY = null;
     if (this.frameId !== null) {
-      this.deps.cancelFrame(this.frameId);
-      this.frameId = null;
+      const frameId = this.frameId;
+      this.frameId = null; // invalidate ownership even if platform cancel throws
+      this.deps.cancelFrame(frameId);
+    }
+  }
+
+  /**
+   * A bad native bridge or user callback must not leave a walking resident
+   * subscribed forever and throwing on every 4x frame. The generation check
+   * protects a replacement route started reentrantly by that same callback.
+   * This is an error-only path; successful RAF samples do no extra work.
+   */
+  private abortFailedSegment(token: number): void {
+    if (token !== this.generation) return;
+    const wasActive = this.active;
+    try {
+      this.cancel();
+    } catch {
+      // Keep the originating callback exception as the diagnostic error.
+      // cancel() invalidates ownership before calling the platform.
+    }
+    if (wasActive) {
+      try {
+        this.deps.setWalking(false);
+      } catch {
+        // A second listener failure cannot obscure the first one.
+      }
     }
   }
 
@@ -112,12 +137,14 @@ export class NativeResidentSegmentRunner {
     const token = this.generation;
     const segment = new NativeResidentSegmentProgress(request.startTimestamp, request.durationMs);
     this.active = true;
+    try {
     this.deps.setWalking(true);
     if (token !== this.generation || !this.active) return;
     this.deps.advanceSprite(0);
     if (token !== this.generation || !this.active) return;
 
     const step: FrameCallback = (now, resumedAfterSuspension) => {
+      try {
       if (token !== this.generation || !this.active) {
         this.ignoredStaleFrames++;
         return;
@@ -180,6 +207,10 @@ export class NativeResidentSegmentRunner {
         this.inArrivalCallback = false;
         if (token === this.generation && !this.active) this.cancel();
       }
+      } catch (error) {
+        this.abortFailedSegment(token);
+        throw error;
+      }
     };
     if (this.deps.subscribeFrame) {
       this.currentPersistentStep = step;
@@ -188,6 +219,10 @@ export class NativeResidentSegmentRunner {
       }
     } else {
       this.frameId = this.deps.requestFrame(step);
+    }
+    } catch (error) {
+      this.abortFailedSegment(token);
+      throw error;
     }
   }
 
