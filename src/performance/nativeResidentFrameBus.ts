@@ -149,7 +149,12 @@ export class NativeResidentFrameBus {
 
   /** Idempotent lifecycle gate for game pauses and app backgrounding. */
   setActive(active: boolean): void {
-    if (this.active === active) return;
+    if (this.active === active) {
+      // Recover a missing platform RAF after a transient bridge failure.
+      // No duplicate scheduling when the existing frame is healthy.
+      if (active) this.ensureScheduled();
+      return;
+    }
     const timing = beginNativeResidentDispatch("lifecycle");
     try {
     this.active = active;
