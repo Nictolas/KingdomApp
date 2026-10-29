@@ -32,3 +32,11 @@ Restituiscono differenze di FPS **JS**, p95 frame **JS**, p95 lag event loop e n
 - **Nessun dato di performance fisica** finché le prove manuali non saranno eseguite e raccolte.
 
 Nessun merge, deploy, release o modifica a GameContext, salvataggi, regole di gioco o renderer web.
+
+## Confronto robusto di almeno tre catture
+
+Il modulo puro `src/performance/nativeRealSpriteABReplicates.ts` accetta **da 3 a 30 coppie** di report A/B già acquisiti manualmente. Ogni coppia deve essere #298 → #297 con stessa piattaforma, scena, popolazione, velocità e durata; anche tutte le ripetizioni devono appartenere alla stessa configurazione. Calcola la **mediana delle differenze per coppia**, il minimo/massimo delle differenze e il numero di coppie con FPS JS più alti o p95 frame JS più bassi. Una singola cattura eccezionale non può trascinare la mediana come una media aritmetica.
+
+L'aggregazione non conosce modello fisico, temperatura, frequenza CPU o identità del dispositivo: **queste condizioni vanno verificate e annotate manualmente**. Non produce significatività statistica, causalità, FPS UI/GPU o una dichiarazione automatica di miglioramento. Se le ripetizioni mostrano risultati contrastanti, aumentare il campione e analizzare con i profiler di sistema prima di concludere.
+
+Il test `tests/native-real-sprite-ab-replicates.test.ts` copre outlier, numerosità dispari/pari, regressioni, 24 configurazioni e rifiuto di dati non confrontabili. È incluso nella CI diagnostica nativa.
