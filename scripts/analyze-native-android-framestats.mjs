@@ -92,6 +92,29 @@ export function parseAndroidFrameStats(raw, { refreshHz = 60, blockIndex = null 
   const min = item.intended.reduce((a, b) => a < b ? a : b);
   const max = item.intended.reduce((a, b) => a > b ? a : b);
   const observedSpanMs = Number(max - min) / 1_000_000;
+  // Span alone is not evidence of continuous sampling: a 10s interval with
+  // one giant 8s hole is not a reliable ten-second View-frame distribution.
+  // Sort BigInt timestamps without converting the absolute nanoseconds to
+  // Number (they can exceed Number.MAX_SAFE_INTEGER).
+  const byVsync = item.intended.sort((a, b) => a < b ? -1 : a > b ? 1 : 0);
+  let largestVsyncGapNs = 0n;
+  let duplicatedVsyncFrames = 0;
+  for (let i = 1; i < byVsync.length; i++) {
+    const gap = byVsync[i] - byVsync[i - 1];
+    if (gap === 0n) duplicatedVsyncFrames++;
+    if (gap > largestVsyncGapNs) largestVsyncGapNs = gap;
+  }
+  const largestVsyncGapMs = Number(largestVsyncGapNs) / 1_000_000;
+  const warnings = [];
+  if (sorted.length < 60 || observedSpanMs < 8_000) {
+    warnings.push("Short/rolling gfxinfo buffer: not a validated 10-second capture");
+  }
+  if (largestVsyncGapMs > 250) {
+    warnings.push("Large gap between consecutive intended vsyncs: frame window continuity unverified");
+  }
+  if (duplicatedVsyncFrames > 0) {
+    warnings.push("Duplicate intended-vsync timestamps: verify raw dump integrity");
+  }
   return {
     metric: "Android View frame completion latency, NOT GPU FPS or app-level FPS",
     refreshHz,
@@ -102,6 +125,8 @@ export function parseAndroidFrameStats(raw, { refreshHz = 60, blockIndex = null 
     blocksFound: blocks.length,
     selectedBlock: blockIndex ?? 0,
     observedSpanMs: round(observedSpanMs),
+    largestVsyncGapMs: round(largestVsyncGapMs),
+    duplicatedVsyncFrames,
     medianMs: round(median(sorted)),
     p95Ms: round(percentile(sorted, 0.95)),
     p99Ms: round(percentile(sorted, 0.99)),
@@ -109,9 +134,7 @@ export function parseAndroidFrameStats(raw, { refreshHz = 60, blockIndex = null 
     framesOverBudget: sorted.filter(value => value > threshold).length,
     framesOverDoubleBudget: sorted.filter(value => value > 2 * threshold).length,
     overBudgetPercent: round(100 * sorted.filter(value => value > threshold).length / sorted.length),
-    warning: sorted.length < 60 || observedSpanMs < 8_000
-      ? "Short/rolling gfxinfo buffer: not a validated 10-second capture"
-      : null
+    warning: warnings.length ? warnings.join("; ") : null
   };
 }
 
@@ -150,6 +173,8 @@ export function analyzeAndroidFrameStatsPairManifest(manifest, load) {
   const warnings = [];
   if (results.some(pair => pair.baseline.warning || pair.candidate.warning)) warnings.push("Short/rolling gfxinfo buffers; use Macrobenchmark/Perfetto for longer device measurements");
   if (results.some(pair => pair.baseline.malformed || pair.candidate.malformed)) warnings.push("Malformed rows excluded; inspect collection method");
+  if (results.some(pair => pair.baseline.duplicatedVsyncFrames || pair.candidate.duplicatedVsyncFrames)) warnings.push("Duplicate intended-vsync timestamps: inspect raw trace");
+  if (results.some(pair => pair.baseline.largestVsyncGapMs > 250 || pair.candidate.largestVsyncGapMs > 250)) warnings.push("Large intended-vsync gaps: continuous capture not established");
   return {
     scope: "Actual Android gfxinfo View frame completion latencies only; not JS/GPU FPS, whole-game FPS or touch latency",
     evidence: "device_output_supplied_by_user_not_device_measurement_by_assistant",
