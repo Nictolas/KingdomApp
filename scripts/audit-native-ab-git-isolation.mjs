@@ -73,11 +73,19 @@ function blob(cwd, sha, path) {
  * Source-only integrity gate. No network, checkout, branch writes or mutation.
  * Every ref is resolved once to a commit SHA to avoid races during the audit.
  */
-export function auditNativeAbGitIsolation({ cwd = process.cwd(), refs = NATIVE_AB_REFS } = {}) {
+export function auditNativeAbGitIsolation({ cwd = process.cwd(), refs = NATIVE_AB_REFS, expectedCandidateSha = null } = {}) {
   if (!refs || typeof refs !== 'object') fail('refs required');
   const base = resolveCommit(cwd, refs.base);
   const baseline = resolveCommit(cwd, refs.baseline);
   const candidate = resolveCommit(cwd, refs.candidate);
+  if (expectedCandidateSha !== null) {
+    if (typeof expectedCandidateSha !== 'string' || !/^[0-9a-f]{40}$/i.test(expectedCandidateSha)) {
+      fail('expected candidate SHA must be a full 40-character Git commit');
+    }
+    if (candidate !== expectedCandidateSha.toLowerCase()) {
+      fail('candidate branch moved since the triggering CI commit');
+    }
+  }
   if (new Set([base, baseline, candidate]).size !== 3) fail('all three commits must differ');
   let mergeBase;
   try { mergeBase = git(cwd, 'merge-base', baseline, candidate); }
@@ -119,11 +127,16 @@ export function auditNativeAbGitIsolation({ cwd = process.cwd(), refs = NATIVE_A
 }
 
 function main(args) {
-  if (args.length > 1 || (args.length === 1 && args[0] !== '--json')) {
-    fail('usage: node scripts/audit-native-ab-git-isolation.mjs [--json]');
+  let json = false;
+  let expectedCandidateSha = null;
+  for (let i = 0; i < args.length; i++) {
+    if (args[i] === '--json' && !json) json = true;
+    else if (args[i] === '--expected-candidate' && expectedCandidateSha === null && i + 1 < args.length) {
+      expectedCandidateSha = args[++i];
+    } else fail('usage: node scripts/audit-native-ab-git-isolation.mjs [--json] [--expected-candidate SHA]');
   }
-  const result = auditNativeAbGitIsolation();
-  if (args[0] === '--json') console.log(JSON.stringify(result, null, 2));
+  const result = auditNativeAbGitIsolation({ expectedCandidateSha });
+  if (json) console.log(JSON.stringify(result, null, 2));
   else {
     console.log(`Native A/B Git isolation OK: ${result.fixtureBlobsIdentical} identical fixture blobs; ${result.protectedEnginePathsUnchangedInBaseline} baseline engine paths unchanged`);
     console.log(`Base ${result.commits.base}; baseline ${result.commits.baseline}; candidate ${result.commits.candidate}`);
