@@ -112,14 +112,18 @@ test("native wiring guards both retry timers before clearing or taking new route
   assert.match(native, /routeEpoch\.begin\(\)/);
   assert.match(native, /routeEpoch\.invalidate\(\)/);
   const retry = native.slice(native.indexOf("const runOneSegment"), native.indexOf("/** Percorso casa"));
-  const blocks = [...retry.matchAll(/scheduleNativeResidentTimer\(\(\) => \{([\s\S]*?)\}, CLAIM_RETRY_MS\)/g)];
+  const blocks = [...retry.matchAll(/wakeTimer\.schedule\(\(\) => \{([\s\S]*?)\}, CLAIM_RETRY_MS\)/g)];
   assert.equal(blocks.length, 2);
   for (const match of blocks) {
     const body = match[1]!;
-    const guard = body.indexOf("routeEpoch.isCurrent(routeToken)");
-    assert.ok(guard >= 0 && guard < body.indexOf("idleTimerRef.current = null"));
-    assert.ok(guard < body.indexOf("pendingCommuteRetry.take()"));
+    assert.match(body, /routeEpoch\.isCurrent\(routeToken\)/);
+    assert.ok(body.indexOf("routeEpoch.isCurrent(routeToken)") <
+      body.indexOf("pendingCommuteRetry.take()"));
   }
+  // Even an OS callback delivered after cancel cannot clear or execute a
+  // replacement wake: timer ownership is validated before invoking callbacks.
+  assert.match(native, /new NativeResidentOwnedTimer\(scheduleNativeResidentTimer, cancelNativeResidentTimer\)/);
+  assert.doesNotMatch(retry, /idleTimerRef\.current/);
   assert.match(retry, /if \(routeEpoch\.isCurrent\(routeToken\) && claimRetry\.resumeWithoutRepath/);
   assert.match(retry, /onArrival: \(\) => \{\s*if \(!routeEpoch\.isCurrent\(routeToken\)\) return;/);
   assert.doesNotMatch(web, /NativeResidentRouteEpoch|routeEpoch/);
