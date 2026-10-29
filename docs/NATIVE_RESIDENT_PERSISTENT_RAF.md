@@ -15,8 +15,10 @@ It reduces registration work to **one registration per resident per
 segment**. A 200-resident, 240-frame synthetic workload with a single
 uninterrupted segment each therefore needs **200** registrations instead
 of 48,000: **47,800 fewer** (99.58% reduction in *registrations*, not CPU
-time or FPS). A real route with many tile segments still registers once
-per segment; it is not permanently subscribed when idle.
+time or FPS). A real route with many tile segments may now reuse **one registration**
+through consecutive segments started synchronously by `onArrival`.
+The subscriber is still removed when the route ends, pauses via the
+shared bus, is interrupted, or no next segment is started.
 
 The native-only `MapWandererCharacter.native.tsx` opts into the new
 API through `NativeResidentSegmentRunner`. The default/web
@@ -77,7 +79,7 @@ bundle exports are *smoke tests*, not installed-app tests or GPU/UI FPS.
 | --- | ---: | ---: | ---: |
 | 200 residents × 240 frames, one segment | 48,000 | 200 | 47,800 |
 | 1,000 residents × 120 frames, one segment | 120,000 | 1,000 | 119,000 |
-| 200 residents × four segments | Depends on segment frame counts | 800 | Not inferred |
+| 200 residents × four synchronous segments | Depends on segment frame counts | 200 | 600 fewer persistent registrations than the former per-segment strategy |
 
 These are deterministic registration counts, **not measured FPS or
 battery savings**. Total callback dispatches remain identical;
@@ -87,9 +89,10 @@ updating all visible moving sprites.
 ## Manual device acceptance
 
 Use an Android device and an iPhone with the same representative
-save/test scene. On the actual map, record 10-second JS reports with
-25/50/100/200 moving residents at 1×, 2× and 4×; repeat each three
-times with the baseline #295 and the stacked #297 build. Compare
+save/test scene. For **real native sprite** comparisons, use the
+identical fixture in **#298 (baseline)** and **#297 (candidate)**,
+25/50/100/200 residents at 1×, 2× and 4× with three captures
+per branch/scenario. #295 remains a markers-only diagnostic baseline. Compare
 JS frame p95, frames >33/50 ms, frame-bus subscriptions and render
 counts. Separately inspect native UI responsiveness (tap and double
 tap selection), correct sprite direction and hit target alignment,
@@ -105,3 +108,30 @@ PR #297 remains Draft stacked on #296 (native RAF/motion) stacked on
 benchmark. Revert the changes to `subscribeFrame` and its native
 injection to return to one-shot scheduling; the legacy bus API remains
 available. No merge, deploy or destructive migration is part of this work.
+
+
+## 29 ottobre — eliminazione del churn RAF fra celle a 4×
+
+Nella revisione successiva il runner distingue i **tragitti concatenati
+sincronicamente** dalle sostituzioni asincrone/esterne. La sottoscrizione
+persistent rimane registrata durante l'`onArrival` e viene riutilizzata
+soltanto se l'`onArrival` avvia immediatamente il segmento seguente
+dello **stesso runner**. Il dispatcher è stabile e punta alla callback
+del segmento corrente; un token di generazione invalida quella vecchia.
+La callback rimane differita al prossimo frame perché lo stesso
+subscriber ha già partecipato al frame di arrivo.
+
+Se il tragitto termina, viene cancellato, c'è una collisione o il
+callback lancia un errore, il runner libera la sottoscrizione. Una
+sostituzione esterna non conserva l'ID precedente: mantiene quindi
+l'ordinamento del frame bus e il confine fra i percorsi. Non cambiano
+interpolazione, durata strada/non-strada, scelta delle celle, sprite,
+claim/occupancy, pause o velocità di gioco.
+
+`tests/native-resident-4x-subscription-reuse.test.ts` modella 200
+runner effettivi, 12 segmenti consecutivi a 4× per residente
+(**2.400 start**), un'unica registrazione per residente, una pausa
+app di 80 secondi, callback OS obsolete, cleanup finale, cambio
+graduale 1×/2×/4× e un callback di arrivo che genera un'eccezione.
+I risultati sono **contatori sintetici**: nessuna affermazione su FPS,
+CPU, latenza del touch o consumo batteria prima di test fisici.
