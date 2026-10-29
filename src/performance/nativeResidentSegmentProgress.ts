@@ -31,8 +31,11 @@ export class NativeResidentSegmentProgress {
   private lastProgress = 0;
 
   constructor(startTimestamp: number, durationMs: number) {
-    if (!Number.isFinite(startTimestamp) || !Number.isFinite(durationMs) || durationMs <= 0) {
-      throw new Error("Invalid native resident segment progress");
+    if (!Number.isFinite(durationMs) || durationMs <= 0) {
+      throw new Error("Invalid resident segment duration");
+    }
+    if (!Number.isFinite(startTimestamp)) {
+      throw new Error("Invalid motion start timestamp");
     }
     this.lastTimestamp = startTimestamp;
     this.durationMs = durationMs;
@@ -44,8 +47,11 @@ export class NativeResidentSegmentProgress {
    * previous valid clock. The runner separately invalidates stale RAF tokens.
    */
   reset(startTimestamp: number, durationMs: number): void {
-    if (!Number.isFinite(startTimestamp) || !Number.isFinite(durationMs) || durationMs <= 0) {
-      throw new Error("Invalid native resident segment progress");
+    if (!Number.isFinite(durationMs) || durationMs <= 0) {
+      throw new Error("Invalid resident segment duration");
+    }
+    if (!Number.isFinite(startTimestamp)) {
+      throw new Error("Invalid motion start timestamp");
     }
     this.lastTimestamp = startTimestamp;
     this.elapsedMs = 0;
