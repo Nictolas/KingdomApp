@@ -98,6 +98,17 @@ export function parseNativeJsReports(input) {
             Math.max(1.5, 0.06 * (1000 / frameMeanMs))))) {
       throw new Error("Invalid JS frame counts in report " + (index + 1));
     }
+    // Counts are optional for historical #298 reports, but the #297 A/B
+    // candidate must carry complete dispatch and event-loop evidence.
+    // A p95 value without its sample count is not sufficient proof.
+    const diagnosticSamples = {
+      frameBatch: numberField(text, "Batch RAF JS campionati"),
+      eventLoopLag: numberField(text, "Ritardo loop JS campioni")
+    };
+    if (Object.values(diagnosticSamples).some(value =>
+      value !== null && !Number.isSafeInteger(value))) {
+      throw new Error("Invalid diagnostic probe sample counts in report " + (index + 1));
+    }
     const metrics = {
       frameMeanMs,
       frameP95Ms,
@@ -109,7 +120,7 @@ export function parseNativeJsReports(input) {
     };
     return {
       platform: platform.toLowerCase(), scene, residents, terrainCells,
-      durationMs: durationSeconds * 1000, samples, timeScale, metrics
+      durationMs: durationSeconds * 1000, samples, timeScale, metrics, diagnosticSamples
     };
   });
 }
