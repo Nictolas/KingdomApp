@@ -56,19 +56,30 @@ try{
  assert.ok(rec.grid.x>=-1 && rec.grid.right<=width+1 && rec.grid.bottom<=height+1,"Map offscreen");
  assert.ok(rec.navigation.y>=rec.grid.bottom-1,"Navigation overlaps grid");
  assert.ok(await page.getByTestId("sector-game-resources").getByText("👤 110").isVisible());
- // The sprites must advance frames while playing and stop changing when paused.
+ // React Native Web often places 'left' in a generated CSS class, not img.style.
+ // Observe computed atlas crop coordinates while running, then ensure they remain fixed in pause.
  const firstSprite=page.getByTestId("sector-resident").first().locator("img").first();
- const before=await firstSprite.evaluate(img=>img.style.left);
- await page.getByTestId("sector-game-pause").click(); // resume animation
- await page.waitForFunction(start=>{
-   const img=document.querySelector('[data-testid="sector-resident"] img');
-   return img && img.style.left!==start;
- },before,{timeout:5000});
+ const spriteOffset=()=>firstSprite.evaluate(img=>getComputedStyle(img).left);
+ const before=await spriteOffset();
+ await page.getByTestId("sector-game-pause").click(); // resume
+ await page.getByRole("button",{name:"Metti in pausa il tempo"}).waitFor({state:"visible"});
+ try {
+   await page.waitForFunction(start=>{
+     const img=document.querySelector('[data-testid="sector-resident"] img');
+     return !!img && getComputedStyle(img).left!==start;
+   },before,{timeout:8000});
+ } catch(error) {
+   const diagnostic=await firstSprite.evaluate(img=>({
+     inlineLeft:img.style.left, computedLeft:getComputedStyle(img).left,
+     className:img.className, cssText:img.getAttribute("style")
+   }));
+   throw new Error("Sprite atlas frame did not change: "+JSON.stringify({before,diagnostic}),{cause:error});
+ }
  await page.getByTestId("sector-game-pause").click(); // pause again
- const stopped=await firstSprite.evaluate(img=>img.style.left);
- await page.waitForTimeout(400);
- assert.equal(await firstSprite.evaluate(img=>img.style.left),stopped,
-   "Resident sprites must stop animating when paused");
+ await page.getByRole("button",{name:"Riprendi il tempo"}).waitFor({state:"visible"});
+ const stopped=await spriteOffset();
+ await page.waitForTimeout(650);
+ assert.equal(await spriteOffset(),stopped,"Resident sprite crop must freeze when paused");
  await page.getByTestId("sector-game-next-day").click();
  await page.getByText("PROTOTIPO GIOCABILE · Giorno 2").waitFor();
  await page.getByRole("button",{name:"Visita Sud"}).click();
