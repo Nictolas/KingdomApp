@@ -65,6 +65,9 @@ try{
    await page.getByRole("button",{name:"Scorri mappa verso sinistra"}).click();
    await page.getByTestId("territory-open-map").click();
    await page.getByTestId("territory-map-grid").waitFor();
+   // React Native Web fades the transparent Modal in. Inspect its completed
+   // visual state, never the semi-transparent entry animation.
+   await page.waitForTimeout(450);
    assert.equal(await page.getByTestId("territory-map-grid").getByRole("button").count(),25);
    // A geographical map must reveal the biome for an owned/frontier tile,
    // while undiscovered distant cells remain fogged.
