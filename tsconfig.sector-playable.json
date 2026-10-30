@@ -10,7 +10,8 @@
     "src/ui/StartGameScreen.tsx",
     "tests/sector-playable.test.ts",
     "tests/sector-playable-persistence.test.ts",
-    "tests/sector-playable-terrain.test.ts"
+    "tests/sector-playable-terrain.test.ts",
+    "tests/sector-human-residents.test.ts"
   ],
   "exclude": ["node_modules"]
 }
