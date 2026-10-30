@@ -377,6 +377,10 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
         <Pressable accessibilityRole="button" accessibilityLabel="Ricomincia Regno a territori"
           style={styles.resetButton} onPress={()=>setResetOpen(true)}><Text style={styles.light}>Ricomincia</Text></Pressable>
       </View>
+      {/* Keep a fixed bottom area for the compass. Its absolute positioning
+          ensures it never falls below the screen on compact phones, while the
+          reserved space prevents it from covering the game action buttons. */}
+      <View testID="territory-dpad-reserve" style={{height:tight?112:126}}/>
       <TerritoryDirectionPad compact={tight}
         status={dpadStatus}
         onDirection={navigateToAdjacentTerritory}
