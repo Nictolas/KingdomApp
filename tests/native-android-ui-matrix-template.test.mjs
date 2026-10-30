@@ -15,8 +15,15 @@ test("template generates all 12 scenarios and 72 unique, correctly paired filena
     "25/1", "25/2", "25/4", "50/1", "50/2", "50/4",
     "100/1", "100/2", "100/4", "200/1", "200/2", "200/4"
   ]);
+  assert.equal(template.schemaVersion, 2);
   assert.equal(template.refreshHz, null);
   assert.equal(template.samePhysicalDeviceConfirmed, false);
+  assert.equal(template.fixtureParityConfirmed, false);
+  assert.equal(template.sameDeviceConditionsConfirmed, false);
+  assert.deepEqual(template.builds, {
+    baseline: { pr: 298, commit: null, installedOnPhysicalDeviceConfirmed: false },
+    candidate: { pr: 297, commit: null, installedOnPhysicalDeviceConfirmed: false }
+  });
   assert.throws(() => analyzeAndroidUiMatrix(template, () => ""), /samePhysicalDeviceConfirmed/);
   assert.match(template.baselineBranch, /native-real-sprite-ab-baseline/);
   assert.match(template.candidateBranch, /native-resident-timer-batching/);
@@ -49,6 +56,11 @@ test("CLI emits JSON, and never fabricates refresh rate or same-device attestati
   assert.equal(output.scenarios[0].pairs.length, 4);
   assert.equal(output.refreshHz, null);
   assert.equal(output.samePhysicalDeviceConfirmed, false);
+  assert.equal(output.schemaVersion, 2);
+  assert.equal(output.builds.baseline.commit, null);
+  assert.equal(output.builds.candidate.commit, null);
+  assert.equal(output.builds.baseline.installedOnPhysicalDeviceConfirmed, false);
+  assert.equal(output.builds.candidate.installedOnPhysicalDeviceConfirmed, false);
   assert.equal(JSON.stringify(output).includes("measuredFPS"), false);
   const invalid = spawnSync(process.execPath, [script, "--pairs", "1"], {encoding:"utf8"});
   assert.equal(invalid.status, 1);
