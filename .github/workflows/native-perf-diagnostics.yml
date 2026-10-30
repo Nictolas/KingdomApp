@@ -17,6 +17,8 @@ on:
       - "tests/native-resident-dispatch-profiler.test.ts"
       - "tests/native-resident-responsiveness.test.ts"
       - "tests/native-resident-reentrant-lifecycle.test.ts"
+      - "tests/native-resident-overlay-lookup.test.ts"
+      - "tests/native-resident-overlay-lookup-benchmark.ts"
       - "tests/native-resident-stateful-soak.test.ts"
       - "tests/native-resident-full-stack-integration.test.ts"
       - "tests/native-resident-buffer-reuse.test.ts"
@@ -202,7 +204,7 @@ jobs:
       - name: Allocation-free 200-resident movement and route churn (Node only, not FPS)
         id: suite_08
         continue-on-error: true
-        run: npx tsx --test tests/native-resident-allocation-free-motion.test.ts tests/native-resident-reusable-progress.test.ts
+        run: npx tsx --test tests/native-resident-allocation-free-motion.test.ts tests/native-resident-reusable-progress.test.ts tests/native-resident-overlay-lookup.test.ts
       - name: Native touch gesture and lifecycle regression (200 simulated residents, not physical touch)
         id: suite_09
         continue-on-error: true
@@ -246,6 +248,7 @@ jobs:
         run: |
           npx tsx tests/native-resident-neighbor-sampler-benchmark.ts
           npx tsx tests/native-resident-spawn-sampler-benchmark.ts
+          npx tsx tests/native-resident-overlay-lookup-benchmark.ts
       # The additive TypeScript regression gate and all 16 test suites run
       # independently after npm ci, even if an earlier group fails.
       # Every outcome is required: failures AND skipped groups remain red.
