@@ -85,7 +85,7 @@ test("expansion can grow beyond five territories with no 5-sector whitelist",()=
 test("conquest requires supplies and enough military force, deterministic defense",()=>{
  let w=createTerritoryWorld(seed);
  const target=territoryPreview(w,0,-1);
- const noResources=claimTerritory({...w,gold:0},"0" as unknown as number,-1,"conquest");
+ const noResources=claimTerritory({...w,gold:0},0,-1,"conquest");
  assert.equal(Object.keys(noResources.territories).length,1);
  const startGold=w.gold,startWood=w.wood;
  // Barracks increase military strength, including those in offscreen claimed territories.
