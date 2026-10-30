@@ -5,6 +5,10 @@ on:
       - "src/game/territoryWorldModel.ts"
       - "src/game/territoryWorldPersistence.ts"
       - "src/ui/TerritoryWorldScreen.tsx"
+      - "src/components/SectorResidentHumanSprite.tsx"
+      - "src/components/SpriteCharacterRenderer.tsx"
+      - "src/game/sectorResidentAppearance.ts"
+      - "tests/sector-human-residents.test.ts"
       - "src/context/GameContext.tsx"
       - "src/ui/StartGameScreen.tsx"
       - "src/ui/GameModeSelectionScreen.tsx"
@@ -32,7 +36,7 @@ jobs:
       - name: Typecheck 32x32 world and screens (isolated from pre-existing errors)
         run: npx tsc --project tsconfig.territory-world.json --noEmit
       - name: Seeded world, expansion, economy and isolated save tests
-        run: npx tsx --test tests/territory-world.test.ts tests/territory-world-persistence.test.ts
+        run: npx tsx --test tests/territory-world.test.ts tests/territory-world-persistence.test.ts tests/sector-human-residents.test.ts
       - name: Export complete playable web game
         run: npm run build:web
 
