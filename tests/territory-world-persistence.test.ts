@@ -48,7 +48,7 @@ test("malformed territory save is preserved verbatim, and only reset by explicit
 });
 test("write queue serialization never lets a slow older save overwrite newer territory claims",async()=>{
  const m=new Map<string,string>();
- let release:(()=>void)|null=null;
+ let release!:()=>void;
  const wait=new Promise<void>(resolve=>{release=resolve;});
  let count=0;
  const storage={
@@ -62,7 +62,7 @@ test("write queue serialization never lets a slow older save overwrite newer ter
  const first=createTerritoryWorld(8);
  const second=claimTerritory(first,1,0,"purchase");
  const a=q.enqueue(first),b=q.enqueue(second);
- release?.();
+ release();
  await Promise.all([a,b,q.flush()]);
  assert.equal((await loadTerritoryWorld(storage)).world.active,"1,0");
  assert.equal(count,2);
