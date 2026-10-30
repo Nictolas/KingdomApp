@@ -6,7 +6,7 @@ import { sectorBuildingAccent, sectorGroundCoord } from "../game/sectorPlayableT
 import { createSectorSaveQueue, loadSectorKingdom } from "../game/sectorPlayablePersistence";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  advancePlayableDay, applySectorAction, COSTS, createPlayableKingdom,
+  advancePlayableDay, applySectorAction, buildAtAvailableSpot, COSTS, createPlayableKingdom,
   travelSector,
   type PlayableKingdom, type SectorActionMode, type SectorBuildKind
 } from "../game/sectorPlayableModel";
@@ -204,10 +204,16 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
         <Text style={styles.hint} numberOfLines={2}>
           {tool==="inspect"?"Tocca un abitante, un edificio o il terreno.":
             tool==="demolish"?"Tocca un edificio costruito da te per rimuoverlo.":
-            `${COSTS[tool as SectorBuildKind].name}: ${COSTS[tool as SectorBuildKind].wood} legni + ${COSTS[tool as SectorBuildKind].gold} monete. Tocca un'area libera 2×2.`}
+            `${COSTS[tool as SectorBuildKind].name}: ${COSTS[tool as SectorBuildKind].wood} legni + ${COSTS[tool as SectorBuildKind].gold} monete. Tocca una zona 2×2 o usa Posiziona.`}
         </Text>
         <Text testID="sector-game-notice" style={styles.notice} numberOfLines={2}>{game.notice}</Text>
         <View style={styles.actions}>
+          {(tool==="house"||tool==="farm"||tool==="shop")?
+            <Pressable testID="sector-game-place-building" style={styles.placeButton}
+              accessibilityRole="button" accessibilityLabel={"Posiziona "+COSTS[tool].name}
+              onPress={()=>setGame(g=>g?buildAtAvailableSpot(g,tool):g)}>
+              <Text style={styles.dayText}>Posiziona</Text>
+            </Pressable>:null}
           <Pressable testID="sector-game-next-day" style={styles.dayButton}
             accessibilityRole="button" onPress={()=>setGame(g=>g?advancePlayableDay(g):g)}>
             <Text style={styles.dayText}>☀ Giorno successivo</Text>
@@ -280,6 +286,7 @@ const styles=StyleSheet.create({
   notice:{fontSize:11,color:"#f5d399",fontWeight:"600",paddingTop:5,minHeight:24},
   actions:{flexDirection:"row",gap:7,paddingTop:5},
   dayButton:{flex:1,backgroundColor:"#39724d",paddingVertical:9,alignItems:"center",borderRadius:7},
+  placeButton:{flex:1,backgroundColor:"#6a5738",paddingVertical:9,alignItems:"center",borderRadius:7},
   dayText:{color:"#fff4d7",fontWeight:"800",fontSize:12},
   resetButton:{backgroundColor:"#3a4a41",paddingHorizontal:13,justifyContent:"center",borderRadius:7},
   resetText:{color:"#efdbbd",fontSize:11,fontWeight:"700"},
