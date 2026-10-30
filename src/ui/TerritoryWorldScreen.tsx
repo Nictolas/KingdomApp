@@ -228,7 +228,7 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
       <View style={styles.territoryHeading}>
         <View style={{flex:1}}>
           <Text testID="territory-world-label" style={styles.landTitle}>{territoryDisplayLabel(world,tx,ty)}</Text>
-          <Text style={styles.muted}>{BIOME_LABELS[territory.biome]} · {territory.residents.length} abitanti · {ownedCount} territori · ({tx},{ty})</Text>
+          <Text testID="territory-world-local-stats" style={styles.muted}>{BIOME_LABELS[territory.biome]} · {territory.residents.length} abitanti · {territory.buildings.length} edifici · {ownedCount} territori · ({tx},{ty})</Text>
         </View>
         <Pressable testID="territory-open-map" accessibilityRole="button"
           accessibilityLabel="Mappa del regno: compra o conquista territori" style={styles.mapButton} onPress={openMap}>
