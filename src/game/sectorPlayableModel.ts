@@ -123,6 +123,27 @@ export function applySectorAction(state: PlayableKingdom, action: SectorActionMo
     sectors:{...state.sectors,[state.sector]:{...sector,buildings:[...sector.buildings,building]}},
     notice:`${building.name} costruita in ${state.sector}. Produzione attiva dal prossimo giorno.`};
 }
+/**
+ * Accessible one-tap construction for small 16×24 phone layouts.
+ * Use exactly the existing cost and collision rules, with a deterministic
+ * search on the currently visible sector only. No navigation or save changes.
+ */
+export function buildAtAvailableSpot(state: PlayableKingdom, kind: SectorBuildKind): PlayableKingdom {
+  const cost = COSTS[kind];
+  if (state.wood < cost.wood || state.gold < cost.gold) {
+    return { ...state, notice: "Risorse insufficienti. Avanza un giorno per produrne altre." };
+  }
+  const sector = state.sectors[state.sector];
+  for (let y = 0; y <= PREVIEW_ROWS - cost.h; y++) {
+    for (let x = 0; x <= PREVIEW_COLS - cost.w; x++) {
+      if (freeForBuilding(sector, x, y, kind)) {
+        return applySectorAction(state, kind, x, y);
+      }
+    }
+  }
+  return { ...state, notice: "Non ci sono aree 2×2 libere in questo settore." };
+}
+
 const DIRECTION_STEPS = [[0,-1],[1,0],[0,1],[-1,0]] as const;
 function moveSectorResidents(sector: PlayableSector, day: number, idIndex: number): PlayableResident[] {
   const buildingCells=new Set<number>();
