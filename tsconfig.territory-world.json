@@ -2,6 +2,7 @@
   "extends":"./tsconfig.json",
   "include":[
     "src/game/territoryWorldModel.ts",
+    "src/game/territoryGeography.ts",
     "src/game/territoryWorldPersistence.ts",
     "src/ui/TerritoryWorldScreen.tsx",
     "src/ui/StartGameScreen.tsx",
