@@ -94,3 +94,48 @@ This command **rejects incomplete coverage** and reused file names across scenar
 **Continuity safeguard:** as well as detecting short rolling buffers, the analyzer now reports the largest interval between consecutive IntendedVsync timestamps and duplicated vsync timestamps. A ten-second min/max span does not establish ten seconds of continuous sampling if several seconds of frame data are absent. This triggers warnings for manual review; for accurate frame rendering and GPU attribution, use FrameTimeline/Perfetto/Macrobenchmark. For iPhone, obtain independent Xcode Instruments measurements: Android gfxinfo cannot measure iOS.
 
 The dedicated native CI includes parser tests, the 12-scenario/72-dump synthetic matrix audit and template generator tests. Every fixture uses fake Android timestamps. They prove parser behavior, **not physical device smoothness**. Android and iOS Expo JavaScript exports likewise are not installable or measured builds.
+
+
+## Provenienza obbligatoria nella matrice completa (schema v2, 30/10/2026)
+
+Il generatore della **matrice completa** (`generate-native-android-ui-matrix-template.mjs`)
+produce ora `schemaVersion: 2` e lascia intenzionalmente vuote tutte le
+attestazioni. Prima di usare i 12 scenari, l'operatore deve inserire:
+
+```json
+{
+  "schemaVersion": 2,
+  "builds": {
+    "baseline": {
+      "pr": 298,
+      "commit": "INSERIRE_SHA_GIT_COMPLETO_DI_40_CARATTERI",
+      "installedOnPhysicalDeviceConfirmed": false
+    },
+    "candidate": {
+      "pr": 297,
+      "commit": "INSERIRE_SHA_GIT_COMPLETO_DI_40_CARATTERI",
+      "installedOnPhysicalDeviceConfirmed": false
+    }
+  },
+  "fixtureParityConfirmed": false,
+  "sameDeviceConditionsConfirmed": false
+}
+```
+
+I campi sopra sono **un estratto** e non sostituiscono il manifesto generato,
+che include scena, `refreshHz`, attestazione stesso dispositivo e 12 scenari.
+I due commit devono essere **diversi**, completi e corrispondere alle build
+**effettivamente installate**, non al nome del ramo al momento del report.
+Impostare i tre flag a `true` solo dopo la verifica manuale del dispositivo,
+delle build e della identità dei quattro file della fixture.
+
+La versione 1 della matrice resta analizzabile per non perdere catture già
+ottenute, ma il risultato è sempre
+`preliminary_legacy_manifest_no_build_provenance`, anche con 72 dump.
+La versione 2 completa e senza warning produce
+`full_matrix_for_manual_review`, **mai** una certificazione hardware o un
+consenso al merge. Il CSV Android non contiene un'impronta della build:
+`operator_attested` segnala un'autodichiarazione, non una verifica
+crittografica. Il confronto con la matrice JS deve usare esattamente le
+**stesse due SHA**. Le prove iPhone restano indipendenti in Instruments.
+Non modificare la #298 solo per eseguire un controllo sulla #297.
