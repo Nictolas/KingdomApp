@@ -1,0 +1,189 @@
+import React, { useMemo, useState } from "react";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { SafeAreaView } from "react-native-safe-area-context";
+import {
+  generateSectorPreviewWorld, fitSquareGrid, isRoadCell, neighborSector, SECTOR_IDS,
+  type SectorBuilding, type SectorId
+} from "../src/game/sectorPreviewModel";
+
+// A read-only fixture, intentionally separate from the real GameContext and save pipeline.
+const CASTLE_ART = require("../assets/pixel-art/buildings/castle.png");
+const HOUSE_ART = require("../assets/tilesets/DEMO-vector-rpg-overworld-tileset/house_1.png");
+const HUT_ART = require("../assets/tilesets/DEMO-vector-rpg-overworld-tileset/house_2.png");
+const TREE_ART = require("../assets/tilesets/DEMO-vector-rpg-overworld-tileset/tree_1.png");
+const SHIRT_COLORS = ["#aa5749","#6086a3","#8f8c55","#86679d","#527d69"] as const;
+const MAP_ORDER: Array<SectorId | null> = [null,"nord",null,"ovest","centro","est",null,"sud",null];
+const LABELS: Record<SectorId, string> = {centro:"♛",nord:"N",sud:"S",est:"E",ovest:"O"};
+type Picked = { id: string; name: string; detail: string } | null;
+
+function buildingAsset(building: SectorBuilding) {
+  if (building.kind === "castle") return CASTLE_ART;
+  if (building.kind === "hut" || building.kind === "farm") return HUT_ART;
+  return HOUSE_ART;
+}
+
+export default function SettoriPreviewScreen() {
+  const [sector, setSector] = useState<SectorId>("centro");
+  const [compact, setCompact] = useState(false);
+  const [picked, setPicked] = useState<Picked>(null);
+  const [mapArea, setMapArea] = useState({width:0,height:0});
+  const [paused, setPaused] = useState(false);
+  const cols = compact ? 14 : 16;
+  const rows = compact ? 21 : 24;
+  const world = useMemo(() => generateSectorPreviewWorld(cols, rows), [cols,rows]);
+  const preview = world[sector];
+  const visibleCount = preview.residents.length;
+  const worldPopulation = SECTOR_IDS.reduce((sum,id)=>sum + world[id].residents.length,0);
+  const cell = fitSquareGrid(Math.max(0,mapArea.width-10),Math.max(0,mapArea.height-12),cols,rows);
+  const terrain = useMemo(() => Array.from({length:cols*rows},(_,i)=>{
+    const x=i%cols,y=Math.floor(i/cols);
+    const road=isRoadCell(x,y,cols,rows);
+    const grass=(x*17+y*23)%4;
+    return {x,y,road,color:road ? (grass===0?"#bab19a":"#b1a68f") : (["#65985b","#639356","#6b9b61","#5c8e55"][grass])};
+  }),[cols,rows]);
+  const trees = useMemo(()=>{
+    const occupiedResidents=new Set(preview.residents.map(p=>p.y*cols+p.x));
+    return terrain.filter(t=> !t.road && !preview.occupied.has(t.y*cols+t.x)
+      && !occupiedResidents.has(t.y*cols+t.x)
+      && ((t.x*31+t.y*47+(sector==="nord"?5:19))%(sector==="nord"?7:23)===0));
+  },[terrain,preview,cols,sector]);
+
+  const switchSector = (next: SectorId | null) => {
+    if (!next || next===sector) return;
+    setSector(next);setPicked(null);
+  };
+  const navigate = (dir: "n" | "s" | "e" | "w") => switchSector(neighborSector(sector,dir));
+
+  return (
+    <SafeAreaView style={styles.root} edges={["top","bottom"]}>
+      <View style={styles.header}>
+        <View><Text style={styles.appName}>♛ MyKingdom</Text><Text style={styles.subtitle}>CAMPIONE · MAPPA A SETTORI FISSI</Text></View>
+        <View style={styles.rightHeader}>
+          <Text style={styles.population}>{worldPopulation} abitanti</Text>
+          <Text style={styles.subtitle}>Regno dimostrativo</Text>
+        </View>
+      </View>
+      <View style={styles.zoneHeader}>
+        <Text style={styles.zoneTitle}>{preview.label.toLocaleUpperCase("it-IT")}</Text>
+        <Text style={styles.zoneSummary}>{cols}×{rows} · {preview.buildings.length} edifici · {visibleCount} abitanti</Text>
+      </View>
+      <View style={styles.mapArea} onLayout={event=>{
+        const {width,height}=event.nativeEvent.layout;
+        setMapArea(old=>old.width===width&&old.height===height?old:{width,height});
+      }}>
+        {cell>0 ? (
+          <View style={[styles.mapGrid,{width:cols*cell,height:rows*cell}]}>
+            {terrain.map((t,i)=>(
+              <View key={i} pointerEvents="none" style={{
+                position:"absolute",left:t.x*cell,top:t.y*cell,
+                width:cell,height:cell,backgroundColor:t.color,
+                borderWidth:StyleSheet.hairlineWidth,borderColor:"#2c523a22"
+              }}>
+                {t.road ? <View style={{position:"absolute",left:cell*.19,top:cell*.22,width:cell*.31,height:cell*.08,backgroundColor:"#a19780"}}/> : null}
+              </View>
+            ))}
+            {trees.map(t=>(
+              <Image key={"tree-"+t.x+"-"+t.y} pointerEvents="none" source={TREE_ART}
+                style={{position:"absolute",left:t.x*cell,top:t.y*cell,width:cell,height:cell}} resizeMode="contain"/>
+            ))}
+            {preview.buildings.map(b=>(
+              <Pressable key={b.id}
+                accessibilityRole="button" accessibilityLabel={"Seleziona "+b.name}
+                onPress={()=>setPicked({id:b.id,name:b.name,detail:"Edificio nel settore "+preview.label})}
+                style={[styles.entity,{left:b.x*cell,top:b.y*cell,width:b.w*cell,height:b.h*cell,zIndex:2},
+                  picked?.id===b.id&&styles.selected]}>
+                <Image source={buildingAsset(b)} resizeMode="contain" style={{width:"100%",height:"100%"}}/>
+              </Pressable>
+            ))}
+            {preview.residents.map((p,i)=>(
+              <Pressable key={p.id} accessibilityRole="button" accessibilityLabel={"Seleziona "+p.name}
+                onPress={()=>setPicked({id:p.id,name:p.name,detail:"Abitante presente nel settore "+preview.label})}
+                hitSlop={3}
+                style={[styles.resident,{left:p.x*cell,top:p.y*cell,width:cell,height:cell,zIndex:3},
+                  picked?.id===p.id&&styles.selected]}>
+                <View style={{width:Math.max(5,cell*.38),height:Math.max(5,cell*.35),backgroundColor:i%4===0?"#c38c61":"#e1b18c",borderTopLeftRadius:3,borderTopRightRadius:3,
+                  borderTopWidth:Math.max(2,cell*.09),borderTopColor:i%3===0?"#493b33":"#7d603f"}}/>
+                <View style={{width:Math.max(6,cell*.5),height:Math.max(6,cell*.34),backgroundColor:SHIRT_COLORS[i%SHIRT_COLORS.length],borderRadius:2}}/>
+              </Pressable>
+            ))}
+          </View>
+        ) : null}
+        <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Settore nord"
+            disabled={!neighborSector(sector,"n")} onPress={()=>navigate("n")}
+            style={[styles.arrow,styles.north,!neighborSector(sector,"n")&&styles.disabled]}>
+            <Text style={styles.arrowText}>↑</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Settore sud"
+            disabled={!neighborSector(sector,"s")} onPress={()=>navigate("s")}
+            style={[styles.arrow,styles.south,!neighborSector(sector,"s")&&styles.disabled]}>
+            <Text style={styles.arrowText}>↓</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Settore ovest"
+            disabled={!neighborSector(sector,"w")} onPress={()=>navigate("w")}
+            style={[styles.arrow,styles.west,!neighborSector(sector,"w")&&styles.disabled]}>
+            <Text style={styles.arrowText}>←</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Settore est"
+            disabled={!neighborSector(sector,"e")} onPress={()=>navigate("e")}
+            style={[styles.arrow,styles.east,!neighborSector(sector,"e")&&styles.disabled]}>
+            <Text style={styles.arrowText}>→</Text>
+          </Pressable>
+        </View>
+      </View>
+      <View style={styles.footer}>
+        <View style={styles.miniMap}>
+          {MAP_ORDER.map((id,index)=>id
+            ? <Pressable key={id} accessibilityRole="button" accessibilityLabel={"Vai a "+world[id].label}
+                onPress={()=>switchSector(id)}
+                style={[styles.miniCell,id===sector&&styles.miniCellActive]}>
+                <Text style={[styles.miniText,id===sector&&styles.miniTextActive]}>{LABELS[id]}</Text>
+              </Pressable>
+            : <View key={index} style={styles.miniPlaceholder}/>)}
+        </View>
+        <View style={styles.details}>
+          <Text numberOfLines={1} style={styles.detailName}>{picked?.name ?? preview.label}</Text>
+          <Text numberOfLines={2} style={styles.detailBody}>{picked?.detail ?? "Tocca un edificio o un abitante."}</Text>
+          <Text style={styles.detailCount}>Visibili {visibleCount} di {worldPopulation} abitanti</Text>
+        </View>
+        <View style={styles.controls}>
+          <Pressable accessibilityRole="button" onPress={()=>{setCompact(v=>!v);setPicked(null)}}
+            style={styles.control}><Text style={styles.controlLabel}>{cols}×{rows}</Text></Pressable>
+          <Pressable accessibilityRole="button" onPress={()=>setPaused(v=>!v)}
+            style={styles.control}><Text style={styles.controlLabel}>{paused?"▶ Riprendi":"❚❚ Pausa"}</Text></Pressable>
+        </View>
+      </View>
+      <Text style={styles.disclaimer}>Anteprima isolata: nessun salvataggio o abitante reale viene modificato.</Text>
+    </SafeAreaView>
+  );
+}
+
+const styles=StyleSheet.create({
+  root:{flex:1,backgroundColor:"#10211e"},
+  header:{minHeight:60,flexDirection:"row",alignItems:"center",justifyContent:"space-between",paddingHorizontal:13,backgroundColor:"#182831",borderBottomColor:"#7c5c37",borderBottomWidth:2},
+  appName:{color:"#f3d294",fontSize:21,fontWeight:"800"},subtitle:{color:"#bdc9c0",fontSize:9,marginTop:3},
+  rightHeader:{alignItems:"flex-end"},population:{color:"#efdaaa",fontSize:13,fontWeight:"700"},
+  zoneHeader:{minHeight:36,paddingHorizontal:12,backgroundColor:"#263d34",flexDirection:"row",justifyContent:"space-between",alignItems:"center"},
+  zoneTitle:{fontWeight:"800",fontSize:13,color:"#f3e6c3",flexShrink:1},
+  zoneSummary:{color:"#d4e1d5",fontSize:10,marginLeft:5},
+  mapArea:{flex:1,alignItems:"center",justifyContent:"center",position:"relative",backgroundColor:"#152820",overflow:"hidden"},
+  mapGrid:{borderWidth:2,borderColor:"#927b53",position:"relative",overflow:"hidden",backgroundColor:"#60945b"},
+  entity:{position:"absolute",alignItems:"center",justifyContent:"center"},
+  resident:{position:"absolute",alignItems:"center",justifyContent:"center"},
+  selected:{borderColor:"#ffec89",borderWidth:2},
+  arrow:{position:"absolute",width:39,height:39,backgroundColor:"#223c32ea",borderWidth:2,borderColor:"#f3d392",borderRadius:9,justifyContent:"center",alignItems:"center"},
+  arrowText:{fontSize:25,color:"#fee7ae",fontWeight:"800"},
+  north:{top:8,alignSelf:"center"},south:{bottom:8,alignSelf:"center"},
+  east:{right:7,top:"48%"},west:{left:7,top:"48%"},disabled:{opacity:.2},
+  footer:{flexDirection:"row",alignItems:"center",padding:9,minHeight:91,gap:8,backgroundColor:"#182831",borderTopWidth:2,borderTopColor:"#7c5c37"},
+  miniMap:{width:76,height:76,padding:3,backgroundColor:"#0e2323",borderWidth:1,borderColor:"#799585",borderRadius:6,flexDirection:"row",flexWrap:"wrap",justifyContent:"center"},
+  miniCell:{width:21,height:21,margin:1,backgroundColor:"#3a5a4e",borderRadius:3,justifyContent:"center",alignItems:"center"},
+  miniCellActive:{backgroundColor:"#e7bf75"},
+  miniPlaceholder:{width:21,height:21,margin:1},
+  miniText:{color:"#e0eecf",fontSize:10,fontWeight:"600"},miniTextActive:{color:"#19362d"},
+  details:{flex:1,minWidth:0},detailName:{fontSize:13,fontWeight:"800",color:"#f2cc8c"},
+  detailBody:{fontSize:11,color:"#d4dbd3"},detailCount:{fontSize:10,color:"#a7c4b7",marginTop:2},
+  controls:{gap:5},control:{paddingHorizontal:6,paddingVertical:8,minWidth:68,alignItems:"center",backgroundColor:"#354940",borderRadius:6,borderWidth:1,borderColor:"#9f7c51"},
+  controlLabel:{fontSize:11,color:"#f4debd"},
+  disclaimer:{textAlign:"center",fontSize:9,color:"#9fafa5",backgroundColor:"#182831",paddingBottom:3}
+});
