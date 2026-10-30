@@ -100,3 +100,41 @@ export function generateSectorPreviewWorld(cols = PREVIEW_COLS, rows = PREVIEW_R
     ovest: createSectorPreview("ovest",cols,rows)
   };
 }
+
+
+/**
+ * Resolve taps on small square tiles without adding pan or zoom.
+ * Exact occupied cells win; a nearby resident is selected only on empty cells.
+ * Coordinates are local to the grid, not to the full screen.
+ */
+export type SectorPreviewHit = { id: string; name: string; kind: "resident" | "building" };
+export function hitTestSectorPreview(
+  preview: SectorPreview,
+  px: number,
+  py: number,
+  cellSize: number,
+  neighborRadiusPx = 22
+): SectorPreviewHit | null {
+  if (![px, py, cellSize, neighborRadiusPx].every(Number.isFinite) ||
+      cellSize <= 0 || neighborRadiusPx < 0 || px < 0 || py < 0 ||
+      px >= preview.cols * cellSize || py >= preview.rows * cellSize) return null;
+  const x = Math.floor(px / cellSize), y = Math.floor(py / cellSize);
+  const resident = preview.residents.find(p => p.x === x && p.y === y);
+  if (resident) return { id: resident.id, name: resident.name, kind: "resident" };
+  const building = preview.buildings.find(b =>
+    x >= b.x && x < b.x + b.w && y >= b.y && y < b.y + b.h
+  );
+  if (building) return { id: building.id, name: building.name, kind: "building" };
+  let nearest: SectorResident | null = null;
+  let nearestSquared = neighborRadiusPx * neighborRadiusPx;
+  for (const person of preview.residents) {
+    const dx = px - (person.x + 0.5) * cellSize;
+    const dy = py - (person.y + 0.5) * cellSize;
+    const squared = dx * dx + dy * dy;
+    if (squared < nearestSquared) {
+      nearestSquared = squared;
+      nearest = person;
+    }
+  }
+  return nearest ? { id: nearest.id, name: nearest.name, kind: "resident" } : null;
+}
