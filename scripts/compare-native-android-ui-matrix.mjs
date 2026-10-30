@@ -14,6 +14,51 @@ const POPULATIONS = [25, 50, 100, 200];
 const SPEEDS = [1, 2, 4];
 const EXPECTED = POPULATIONS.flatMap(residents => SPEEDS.map(speed => residents + "/" + speed));
 const fail = reason => { throw new Error("Android UI A/B matrix: " + reason); };
+
+const COMMIT_SHA = /^[0-9a-f]{40}$/i;
+
+/**
+ * Parsed gfxinfo CSV has no Git SHA or installed-build identity. Version 2
+ * therefore requires explicit (UNVERIFIED) operator attestations to link its
+ * Android View-latency evidence to the same #298/#297 pair as the JS matrix.
+ * Version 1 is still readable but permanently marked preliminary.
+ */
+function auditAndroidUiBuildProvenance(manifest) {
+  if (manifest.schemaVersion === 1) {
+    return {
+      level: "legacy_unverified", baseline: null, candidate: null,
+      verification: "no_build_commit_attestation"
+    };
+  }
+  const builds = manifest.builds;
+  if (!builds || typeof builds !== "object" || Array.isArray(builds)) {
+    fail("schemaVersion 2 requires builds.baseline and builds.candidate");
+  }
+  for (const [side, pr] of [["baseline", 298], ["candidate", 297]]) {
+    const value = builds[side];
+    if (!value || typeof value !== "object" || Array.isArray(value) ||
+        value.pr !== pr || typeof value.commit !== "string" ||
+        !COMMIT_SHA.test(value.commit) ||
+        value.installedOnPhysicalDeviceConfirmed !== true) {
+      fail(side + " must attest PR #" + pr +
+        ", a full Git commit SHA and installation on the physical Android device");
+    }
+  }
+  if (builds.baseline.commit.toLowerCase() === builds.candidate.commit.toLowerCase()) {
+    fail("baseline and candidate cannot refer to the same Git commit");
+  }
+  if (manifest.fixtureParityConfirmed !== true ||
+      manifest.sameDeviceConditionsConfirmed !== true) {
+    fail("fixtureParityConfirmed and sameDeviceConditionsConfirmed must be true");
+  }
+  return {
+    level: "operator_attested",
+    baseline: builds.baseline.commit.toLowerCase(),
+    candidate: builds.candidate.commit.toLowerCase(),
+    verification: "human_attestation_only_not_device_or_binary_verified"
+  };
+}
+
 const validPath = path => typeof path === "string" && path.length > 0 &&
   path.length < 4096 && path === path.trim() && !path.startsWith("/") &&
   !/^[A-Za-z]:/.test(path) && !/[\\\r\n\0]/.test(path) &&
@@ -27,12 +72,13 @@ const validPath = path => typeof path === "string" && path.length > 0 &&
  */
 export function analyzeAndroidUiMatrix(manifest, load, { allowPartial = false } = {}) {
   if (!manifest || typeof manifest !== "object" || Array.isArray(manifest) ||
-      manifest.schemaVersion !== 1 || manifest.platform !== "android") {
-    fail("schemaVersion 1 and platform android required");
+      ![1, 2].includes(manifest.schemaVersion) || manifest.platform !== "android") {
+    fail("schemaVersion 1 or 2 and platform android required");
   }
   if (manifest.samePhysicalDeviceConfirmed !== true) {
     fail("samePhysicalDeviceConfirmed must be explicitly attested");
   }
+  const buildProvenance = auditAndroidUiBuildProvenance(manifest);
   if (![60, 90, 120, 144].includes(manifest.refreshHz)) {
     fail("refreshHz must be explicitly measured as 60, 90, 120 or 144");
   }
@@ -115,7 +161,9 @@ export function analyzeAndroidUiMatrix(manifest, load, { allowPartial = false } 
       missing, rawDumpFiles: captureFiles, minimumFullMatrixFiles: 72
     },
     status: missing.length ? "preliminary_incomplete" :
+      buildProvenance.level === "legacy_unverified" ? "preliminary_legacy_manifest_no_build_provenance" :
       warnings ? "full_matrix_with_capture_quality_warnings" : "full_matrix_for_manual_review",
+    buildProvenance,
     scenarios,
     conclusion: "no_automatic_performance_or_release_approval"
   };
@@ -152,6 +200,8 @@ function main(args) {
   const result = analyzeAndroidUiMatrix(manifest, load, { allowPartial });
   if (json) return console.log(JSON.stringify(result, null, 2));
   console.log("MyKingdom: Android View-frame A/B audit, NOT GPU/UI FPS");
+  console.log("Provenance: " + result.buildProvenance.level +
+    " (" + result.buildProvenance.verification + ")");
   console.log(result.coverage.completed + "/12 scenarios · " +
     result.coverage.rawDumpFiles + " local dumps · " + result.status);
   for (const scenario of result.scenarios) {
