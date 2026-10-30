@@ -2,7 +2,7 @@ import React, { useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  generateSectorPreviewWorld, measureSectorPreviewViewport, hitTestSectorPreview, isRoadCell, neighborSector, SECTOR_IDS,
+  generateSectorPreviewWorld, measureSectorPreviewNavigationLayout, SECTOR_PREVIEW_NAV_ROW_HEIGHT, hitTestSectorPreview, isRoadCell, neighborSector, SECTOR_IDS,
   cycleSectorPreviewEntity, sectorPreviewSelectionInfo, type SectorBuilding, type SectorId, type SectorPreviewHit, type SectorPreview
 } from "../src/game/sectorPreviewModel";
 
@@ -40,9 +40,10 @@ export default function SettoriPreviewScreen() {
   const preview = world[sector];
   const visibleCount = preview.residents.length;
   const worldPopulation = SECTOR_IDS.reduce((sum,id)=>sum + world[id].residents.length,0);
-  const viewport = measureSectorPreviewViewport(mapArea.width,mapArea.height);
+  const viewport = measureSectorPreviewNavigationLayout(mapArea.width,mapArea.height);
   const cell = viewport.cell;
-  const touchHint = viewport.legibility === "unavailable" ? "Spazio insufficiente per mostrare la mappa."
+  const touchHint = !viewport.arrowsFit ? "Schermo troppo stretto per quattro frecce."
+    : viewport.legibility === "unavailable" ? "Spazio insufficiente per mostrare la mappa."
     : viewport.legibility === "tiny" ? "Caselle minuscole: usa ‹ ›; meglio in verticale."
     : viewport.legibility === "compact" ? "Caselle piccole: usa ‹ › per selezionare."
     : "Tocca un edificio o un abitante.";
@@ -68,7 +69,7 @@ export default function SettoriPreviewScreen() {
     selectionDetail(cycleSectorPreviewEntity(preview,current?.id ?? null,step),preview));
 
   return (
-    <SafeAreaView style={styles.root} edges={["top","bottom"]}>
+    <SafeAreaView style={styles.root} edges={["top","bottom","left","right"]}>
       <View style={[styles.header,tight&&styles.headerTight,landscape&&styles.headerLandscape]}>
         <View style={{flexShrink:1}}><Text numberOfLines={1} style={[styles.appName,landscape&&styles.appNameLandscape]}>♛ MyKingdom</Text>{!landscape && <Text numberOfLines={1} style={styles.subtitle}>CAMPIONE · MAPPA A SETTORI FISSI</Text>}</View>
         {windowWidth >= 360 && !landscape && <View style={styles.rightHeader}>
@@ -95,7 +96,7 @@ export default function SettoriPreviewScreen() {
                 {t.road ? <View style={{position:"absolute",left:cell*.19,top:cell*.22,width:cell*.31,height:cell*.08,backgroundColor:"#a19780"}}/> : null}
               </View>
             ))}
-            <Pressable accessibilityRole="button" accessibilityLabel="Mappa a caselle: tocca per selezionare"
+            <Pressable accessibilityRole="button" accessibilityLabel={`Mappa 16 per 24, caselle da ${cell} punti: tocca per selezionare`}
               accessibilityHint="Con lettore schermo usa le azioni incrementa e decrementa per scorrere edifici e abitanti."
               accessibilityActions={[{name:"increment",label:"Elemento successivo"},{name:"decrement",label:"Elemento precedente"}]}
               onAccessibilityAction={event=>{
@@ -135,25 +136,25 @@ export default function SettoriPreviewScreen() {
             ))}
           </View>
         ) : null}
-        <View pointerEvents="box-none" style={StyleSheet.absoluteFill}>
+        <View style={styles.navBar}>
           <Pressable accessibilityRole="button" accessibilityLabel="Settore nord"
             disabled={!neighborSector(sector,"n")} onPress={()=>navigate("n")}
-            style={[styles.arrow,styles.north,!neighborSector(sector,"n")&&styles.disabled]}>
+            style={[styles.arrow,!neighborSector(sector,"n")&&styles.disabled]}>
             <Text style={styles.arrowText}>↑</Text>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Settore sud"
             disabled={!neighborSector(sector,"s")} onPress={()=>navigate("s")}
-            style={[styles.arrow,styles.south,!neighborSector(sector,"s")&&styles.disabled]}>
+            style={[styles.arrow,!neighborSector(sector,"s")&&styles.disabled]}>
             <Text style={styles.arrowText}>↓</Text>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Settore ovest"
             disabled={!neighborSector(sector,"w")} onPress={()=>navigate("w")}
-            style={[styles.arrow,styles.west,!neighborSector(sector,"w")&&styles.disabled]}>
+            style={[styles.arrow,!neighborSector(sector,"w")&&styles.disabled]}>
             <Text style={styles.arrowText}>←</Text>
           </Pressable>
           <Pressable accessibilityRole="button" accessibilityLabel="Settore est"
             disabled={!neighborSector(sector,"e")} onPress={()=>navigate("e")}
-            style={[styles.arrow,styles.east,!neighborSector(sector,"e")&&styles.disabled]}>
+            style={[styles.arrow,!neighborSector(sector,"e")&&styles.disabled]}>
             <Text style={styles.arrowText}>→</Text>
           </Pressable>
         </View>
@@ -172,7 +173,7 @@ export default function SettoriPreviewScreen() {
         <View style={styles.details} accessibilityLiveRegion="polite">
           <Text numberOfLines={1} style={styles.detailName}>{picked?.name ?? preview.label}</Text>
           <Text numberOfLines={landscape?1:2} style={styles.detailBody}>{picked?.detail ?? touchHint}</Text>
-          {!landscape && <Text style={styles.detailCount}>Visibili {visibleCount} di {worldPopulation} abitanti</Text>}
+          {!landscape && <Text style={styles.detailCount}>Visibili {visibleCount}/{worldPopulation} · casella {cell} pt</Text>}
         </View>
         <View style={styles.selectionButtons}>
           <Pressable accessibilityRole="button" accessibilityLabel="Elemento precedente" accessibilityHint="Seleziona l'edificio o abitante precedente nel settore" onPress={()=>cyclePicked(-1)} style={styles.selectButton}>
@@ -203,15 +204,15 @@ const styles=StyleSheet.create({
   zoneHeaderTight:{minHeight:30,paddingHorizontal:9},zoneHeaderLandscape:{minHeight:24},
   zoneTitle:{fontWeight:"800",fontSize:13,color:"#f3e6c3",flexShrink:1},
   zoneSummary:{color:"#d4e1d5",fontSize:10,marginLeft:5},
-  mapArea:{flex:1,alignItems:"center",justifyContent:"center",position:"relative",backgroundColor:"#152820",overflow:"hidden"},
+  mapArea:{flex:1,alignItems:"center",justifyContent:"center",paddingBottom:SECTOR_PREVIEW_NAV_ROW_HEIGHT,position:"relative",backgroundColor:"#152820",overflow:"hidden"},
   mapGrid:{borderWidth:2,borderColor:"#927b53",position:"relative",overflow:"hidden",backgroundColor:"#60945b"},
   entity:{position:"absolute",alignItems:"center",justifyContent:"center"},
   resident:{position:"absolute",alignItems:"center",justifyContent:"center"},
   selected:{borderColor:"#ffec89",borderWidth:2},
-  arrow:{position:"absolute",width:44,height:44,backgroundColor:"#223c32ea",borderWidth:2,borderColor:"#f3d392",borderRadius:9,justifyContent:"center",alignItems:"center"},
+  navBar:{position:"absolute",left:0,right:0,bottom:4,height:44,flexDirection:"row",justifyContent:"center",alignItems:"center",gap:8},
+  arrow:{width:44,height:44,backgroundColor:"#223c32ea",borderWidth:2,borderColor:"#f3d392",borderRadius:9,justifyContent:"center",alignItems:"center"},
   arrowText:{fontSize:25,color:"#fee7ae",fontWeight:"800"},
-  north:{top:8,alignSelf:"center"},south:{bottom:8,alignSelf:"center"},
-  east:{right:7,top:"50%",transform:[{translateY:-22}]},west:{left:7,top:"50%",transform:[{translateY:-22}]},disabled:{opacity:.2},
+  disabled:{opacity:.2},
   footer:{flexDirection:"row",alignItems:"center",padding:9,minHeight:91,gap:8,backgroundColor:"#182831",borderTopWidth:2,borderTopColor:"#7c5c37"},
   footerTight:{minHeight:78,padding:5,gap:5},
   footerLandscape:{minHeight:58,padding:3,gap:5},

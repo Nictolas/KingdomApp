@@ -51,6 +51,26 @@ export function measureSectorPreviewViewport(width: number, height: number): {
   };
 }
 
+/** The four 44-point direction buttons live in a separate 52-point row.
+ * Map measurements are made inside the already-inset SafeAreaView, and the
+ * grid is centered only in the area ABOVE that row. This prevents arrows
+ * from hiding residents/buildings even on compact screens. */
+export const SECTOR_PREVIEW_NAV_ROW_HEIGHT = 52;
+export function measureSectorPreviewNavigationLayout(width: number, height: number) {
+  const usableHeight = Number.isFinite(height) ? Math.max(0, height - SECTOR_PREVIEW_NAV_ROW_HEIGHT) : NaN;
+  const measured = measureSectorPreviewViewport(width, usableHeight);
+  const gridTop = Number.isFinite(usableHeight) ? (usableHeight - measured.gridHeight) / 2 : 0;
+  const navigationTop = Number.isFinite(height) ? height - SECTOR_PREVIEW_NAV_ROW_HEIGHT + 4 : 0;
+  return {
+    ...measured,
+    gridTop,
+    gridBottom: gridTop + measured.gridHeight,
+    navigationTop,
+    arrowsFit: Number.isFinite(width) && width >= 4 * 44 + 3 * 8 &&
+      Number.isFinite(height) && height >= SECTOR_PREVIEW_NAV_ROW_HEIGHT,
+  };
+}
+
 function mixHash(x: number, y: number, seed: number): number {
   let n = Math.imul(x + 17, 92837111) ^ Math.imul(y + 23, 689287499) ^ Math.imul(seed + 9, 283923481);
   n = Math.imul(n ^ (n >>> 13), 1274126177);

@@ -1,9 +1,10 @@
 import assert from "node:assert/strict";
 import test from "node:test";
+import { readFileSync } from "node:fs";
 import {
   SECTOR_IDS, SECTOR_SPECS, createSectorPreview, generateSectorPreviewWorld,
   neighborSector, isRoadCell, fitSquareGrid, hitTestSectorPreview, cycleSectorPreviewEntity,
-  measureSectorPreviewViewport, sectorPreviewSelectionInfo
+  measureSectorPreviewViewport, measureSectorPreviewNavigationLayout, SECTOR_PREVIEW_NAV_ROW_HEIGHT, sectorPreviewSelectionInfo
 } from "../src/game/sectorPreviewModel";
 
 test("fixed preview: five connected directions and no nonexistent neighbor",()=>{
@@ -205,4 +206,34 @@ test("neighbor tap recovery cannot jump multiple tiles on tiny landscape cells",
   assert.equal(hitTestSectorPreview(preview,3.5*cell+5,3.5*cell,cell)?.id,"one");
   assert.equal(hitTestSectorPreview(preview,3.5*cell+10,3.5*cell,cell),null);
   assert.equal(hitTestSectorPreview(preview,3.5*cell+5,3.5*cell,cell,0),null);
+});
+
+
+test("navigation row never overlays the fixed 16×24 map, even in compact landscape",()=>{
+  assert.equal(SECTOR_PREVIEW_NAV_ROW_HEIGHT,52);
+  for(const [width,height] of [[280,300],[320,430],[375,600],[430,750],[768,300],[1024,640]]){
+    const m=measureSectorPreviewNavigationLayout(width,height);
+    assert.ok(m.arrowsFit,`arrows must fit ${width}×${height}`);
+    assert.ok(m.cell>0,`grid must fit ${width}×${height}`);
+    assert.equal(m.gridWidth,16*m.cell);
+    assert.equal(m.gridHeight,24*m.cell);
+    assert.ok(m.gridBottom<m.navigationTop,`navigation overlaps grid at ${width}×${height}`);
+    assert.ok(m.gridTop>=0);
+    assert.ok(m.gridWidth<=width-10);
+    assert.ok(m.gridHeight<=height-SECTOR_PREVIEW_NAV_ROW_HEIGHT-12);
+  }
+  assert.equal(measureSectorPreviewNavigationLayout(190,400).arrowsFit,false);
+  assert.equal(measureSectorPreviewNavigationLayout(375,40).arrowsFit,false);
+  assert.equal(measureSectorPreviewNavigationLayout(Infinity,400).cell,0);
+  assert.equal(measureSectorPreviewNavigationLayout(375,NaN).cell,0);
+});
+
+test("preview UI statically respects all safe-area edges and keeps arrows outside the grid",()=>{
+  const screen=readFileSync(new URL("../app/settori-preview.tsx",import.meta.url),"utf8");
+  assert.match(screen,/edges=\{\["top","bottom","left","right"\]\}/);
+  assert.match(screen,/paddingBottom:SECTOR_PREVIEW_NAV_ROW_HEIGHT/);
+  assert.match(screen,/style=\{styles\.navBar\}/);
+  assert.match(screen,/measureSectorPreviewNavigationLayout\(mapArea\.width,mapArea\.height\)/);
+  assert.doesNotMatch(screen,/styles\.(north|south|east|west)\b/);
+  assert.doesNotMatch(screen,/react-zoom-pan-pinch|ScrollView|PinchGestureHandler/);
 });
