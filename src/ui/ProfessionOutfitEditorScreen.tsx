@@ -88,9 +88,9 @@ export function ProfessionOutfitEditorScreen({onExit}:Props){
           "Colori: "+u.outfitPrimaryColor+" / "+u.outfitSecondaryColor,
           "Cappello: "+u.headwear+"; mantello: "+u.cape+"; calzature: "+u.footwear,
           "Accessorio: "+u.accessory+"; rifiniture: "+u.fullOutfitTrim+" / "+u.capeTrim
-        ].join("\\n");
+        ].join("\n");
       })
-    ].join("\\n\\n");
+    ].join("\n\n");
   },[uniforms]);
   const shareChoices=async()=>{
     setError(null);
