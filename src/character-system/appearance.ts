@@ -198,9 +198,7 @@ export function enforceProfessionAccessoryRules(
       accessory: "none",
       headwear: MEDICO_HOOD_MAIL,
       headwearColor: "iron",
-      beardStyle: "none",
-      hairStyle: "none",
-      hairColor: "none",
+      // Uniforms must never erase a citizen’s individual beard or hair.
       ...professionTeenBodyPatch(value),
       fullOutfit: "kimono",
       fullOutfitTrim: "none",
@@ -222,10 +220,7 @@ export function enforceProfessionAccessoryRules(
       ...value,
       accessory: "none",
       ...professionTeenBodyPatch(value),
-      hairStyle: GIUDICE_HAIR_STYLE,
-      hairColor: GIUDICE_HAIR_COLOR,
-      beardStyle: "none",
-      beardColor: GIUDICE_HAIR_COLOR,
+      // The robe is shared; each judge keeps their personal hair and beard.
       fullOutfit: GIUDICE_KIMONO,
       fullOutfitTrim: "none",
       outfit: "none",
@@ -241,8 +236,7 @@ export function enforceProfessionAccessoryRules(
     const teenBase: Partial<CharacterAppearance> = {
       ...value,
       accessory: "none",
-      ...professionTeenBodyPatch(value),
-      beardStyle: "none"
+      ...professionTeenBodyPatch(value)
     };
     const normalizedTeen = normalizeCharacterAppearance(teenBase);
     const colori = compatibleColorsForField(normalizedTeen, "headwearColor", "headwear", MAGO_HAT);
@@ -258,10 +252,7 @@ export function enforceProfessionAccessoryRules(
       ...value,
       accessory: "none",
       ...professionTeenBodyPatch(value),
-      hairStyle: "none",
-      hairColor: "none",
-      beardStyle: "none",
-      beardColor: "none",
+      // Helmets may cover hair visually, but never mutate the saved identity.
       headwear: GUARDIA_HELMET,
       headwearColor: GUARDIA_HELMET_COLOR
     };

@@ -13,6 +13,7 @@ import {
   firstCompatibleHairColor
 } from "../character-system/registry";
 import type { CharacterAppearance, CharacterRaceId } from "../character-system/types";
+import { applyProfessionUniform } from "./professionOutfitTemplates";
 
 export type RazzaGiocatore = "Umano" | "Elfo" | "Nano" | "Orco";
 export type StileCapelli = "corti" | "spettinati" | "lunghi" | "trecce";
@@ -326,14 +327,18 @@ export function aspettoPerVisualizzazioneAbitante(
 
   return {
     ...aspetto,
-    characterAppearance: appearanceForPublicSpace(aspetto.characterAppearance, {
-      isKing: abitante.id === 1,
-      nudismoAttivo: rules.nudismoAttivo === true,
-      incinta: abitante.incinta === true,
-      lavoro: abitante.lavoro,
-      seed: abitante.id,
-      razza: abitante.razza,
-      sesso: abitante.sesso
-    })
+    characterAppearance: applyProfessionUniform(
+      appearanceForPublicSpace(aspetto.characterAppearance, {
+        isKing: abitante.id === 1,
+        nudismoAttivo: rules.nudismoAttivo === true,
+        incinta: abitante.incinta === true,
+        lavoro: abitante.lavoro,
+        seed: abitante.id,
+        razza: abitante.razza,
+        sesso: abitante.sesso
+      }),
+      abitante.lavoro,
+      {isKing:abitante.id===1,nudismoAttivo:rules.nudismoAttivo===true}
+    )
   };
 }

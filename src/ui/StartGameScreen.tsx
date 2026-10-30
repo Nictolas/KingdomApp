@@ -9,6 +9,7 @@ type Props = {
   onContinue: () => void;
   onNewGame: () => void;
   onTrySectors: () => void;
+  onEditOutfits: () => void;
 };
 
 export function StartGameScreen({
@@ -18,7 +19,8 @@ export function StartGameScreen({
   confirmNewGame,
   onContinue,
   onNewGame,
-  onTrySectors
+  onTrySectors,
+  onEditOutfits
 }: Props) {
   const [showNewGameConfirmation, setShowNewGameConfirmation] = useState(false);
 
@@ -49,6 +51,10 @@ export function StartGameScreen({
             )}
             <Pressable style={styles.secondary} onPress={handleNewGamePress}>
               <Text style={styles.buttonText}>Nuova partita</Text>
+            </Pressable>
+            <Pressable testID="start-outfit-editor" accessibilityRole="button" accessibilityLabel="Editor abiti professioni" style={styles.outfitButton} onPress={onEditOutfits}>
+              <Text style={styles.buttonText}>Editor abiti</Text>
+              <Text style={styles.sectorNote}>Decidi le divise di contadini e lavoratori.</Text>
             </Pressable>
             <Pressable testID="start-sector-mode" accessibilityRole="button" style={styles.sectorButton} onPress={onTrySectors}>
               <Text style={styles.buttonText}>🏘️ Gioca: Regno a settori</Text>
@@ -100,6 +106,7 @@ const styles = StyleSheet.create({
   primary: { backgroundColor: "#2563eb", padding: 14, borderRadius: 10 },
   secondary: { backgroundColor: "#334155", padding: 14, borderRadius: 10 },
   sectorButton: {backgroundColor:"#166534",padding:13,borderRadius:10,borderWidth:1,borderColor:"#86efac"},
+  outfitButton: {backgroundColor:"#6b4b31",padding:13,borderRadius:10,borderWidth:1,borderColor:"#d4a373"},
   sectorNote: {color:"#d1fae5",fontSize:11,textAlign:"center",marginTop:4},
   buttonText: { color: "#fff", fontWeight: "700", textAlign: "center" },
   error: { color: "#fca5a5", textAlign: "center", marginTop: 8 },

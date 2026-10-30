@@ -1,0 +1,65 @@
+name: Profession Outfit Editor
+on:
+  pull_request:
+    paths:
+      - "src/game/professionOutfitTemplates.ts"
+      - "src/game/personaggioAspetto.ts"
+      - "src/character-system/appearance.ts"
+      - "src/ui/ProfessionOutfitEditorScreen.tsx"
+      - "src/ui/CreazioneGiocatoreModal.tsx"
+      - "src/ui/StartGameScreen.tsx"
+      - "src/ui/GameModeSelectionScreen.tsx"
+      - "src/context/GameContext.tsx"
+      - "tests/profession-outfit-editor.test.ts"
+      - "tests/profession-outfit-editor-browser.mjs"
+      - "tsconfig.profession-outfits.json"
+      - ".github/workflows/profession-outfit-editor.yml"
+  workflow_dispatch:
+
+jobs:
+  model-and-export:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck new outfit model/editor separately from pre-existing baseline errors
+        run: npx tsc --project tsconfig.profession-outfits.json --noEmit
+      - name: Test isolated persisted uniforms and individual resident identity
+        run: npx tsx --test tests/profession-outfit-editor.test.ts
+      - name: Build complete MyKingdom web bundle
+        run: npm run build:web
+
+  browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:web
+      - run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Open and save clothes through the real mobile-sized UI
+        run: node tests/profession-outfit-editor-browser.mjs dist
+      - name: Preserve web screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: profession-outfit-editor-browser
+          path: profession-editor-screenshots/*.png
+          if-no-files-found: ignore

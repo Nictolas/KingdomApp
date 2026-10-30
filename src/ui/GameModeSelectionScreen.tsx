@@ -7,10 +7,11 @@ type Props = {
   canCancel: boolean;
   onSelect: (mode: GameMode) => void;
   onTrySectors: () => void;
+  onEditOutfits: () => void;
   onCancel: () => void;
 };
 
-export function GameModeSelectionScreen({ error, canCancel, onSelect, onCancel, onTrySectors }: Props) {
+export function GameModeSelectionScreen({ error, canCancel, onSelect, onCancel, onTrySectors, onEditOutfits }: Props) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.card}>
@@ -44,6 +45,13 @@ export function GameModeSelectionScreen({ error, canCancel, onSelect, onCancel, 
         >
           <Text style={styles.modeTitle}>🏘️ Regno a settori</Text>
           <Text style={styles.modeDescription}>Prova costruzioni, abitanti e 5 zone senza modificare la tua partita.</Text>
+        </Pressable>
+
+        <Pressable testID="choose-outfit-editor" accessibilityRole="button"
+          accessibilityLabel="Editor abiti professioni" style={[styles.modeButton,styles.outfitButton]}
+          onPress={onEditOutfits}>
+          <Text style={styles.modeTitle}>Editor abiti</Text>
+          <Text style={styles.modeDescription}>Scegli le divise. Facce e capelli restano diversi.</Text>
         </Pressable>
 
         {canCancel ? (
@@ -108,6 +116,7 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     marginTop: 5
   },
+  outfitButton: {backgroundColor:"rgba(146,88,42,0.24)",borderColor:"#d4a373"},
   creativeButton: {
     backgroundColor: "rgba(124,58,237,0.22)",
     borderColor: "rgba(167,139,250,0.7)"

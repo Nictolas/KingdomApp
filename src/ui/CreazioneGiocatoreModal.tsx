@@ -404,7 +404,7 @@ export function CreazioneGiocatoreModal({
   const isDesktop = width > DESKTOP_MODAL_BREAKPOINT;
   const mobilePreviewSize = height < 700 ? 92 : 112;
   const spriteAppearance = aspetto.characterAppearance ?? creaCharacterAppearance(RAZZA_RE, "teen");
-  const catalogOptions = compatibleCatalogOptions(spriteAppearance);
+  const catalogOptions = compatibleCatalogOptions(spriteAppearance, { allowRoyalHeadwear: mode === "outfit" && initial?.nome === "Re" });
   const torsoOutfitsAll = filterTorsoOutfitOptions(catalogOptions.upperOutfits, spriteAppearance.bodyType);
   const { manicheSleeves: manicheTorsoOutfits, rest: bustoTorsoOutfits } = partitionLongsleeveTorsoOptions(torsoOutfitsAll, spriteAppearance.bodyType);
   const bustoSections = groupCatalogOptionsByLpcSections(bustoTorsoOutfits, spriteAppearance.bodyType, "outfit", LPC_TORSO_SECTIONS);
@@ -559,7 +559,7 @@ export function CreazioneGiocatoreModal({
     });
   };
 
-  const tabButtons = CREATION_TABS.map((tab) => (
+  const tabButtons = CREATION_TABS.filter(tab => mode !== "outfit" || (tab.id !== "identity" && tab.id !== "hair")).map((tab) => (
     <Pressable
       key={tab.id}
       accessibilityRole="tab"
@@ -587,7 +587,7 @@ export function CreazioneGiocatoreModal({
           ]}
           onPress={(e) => e.stopPropagation()}
         >
-          {!isDesktop ? (
+          {!isDesktop && mode !== "outfit" ? (
             <View pointerEvents="none" style={styles.throneBackground}>
               <RoyalThroneBackground />
               <View style={styles.throneTint} />
@@ -612,8 +612,8 @@ export function CreazioneGiocatoreModal({
                   </View>
                 )}
                 <View style={[styles.previewMeta, !isDesktop && styles.previewMetaMobile]}>
-                  <Text style={styles.previewHint}>Umano · 10 anni</Text>
-                  <Pressable style={[styles.randomButton, !isDesktop && styles.randomButtonMobile]} onPress={() => {
+                  <Text style={styles.previewHint}>{mode === "outfit" ? "Divisa: volti e capelli restano personali" : "Umano · 10 anni"}</Text>
+                  {mode !== "outfit" ? <Pressable style={[styles.randomButton, !isDesktop && styles.randomButtonMobile]} onPress={() => {
                     const casualeTeen = generaAspettoCasuale(RAZZA_RE, Math.random, { eta: 15, sesso: sesso ?? undefined });
                     const next = forzaAspettoReTeen(casualeTeen);
                     if (next.characterAppearance && canRenderCharacter(next.characterAppearance, "idle")) {
@@ -621,7 +621,7 @@ export function CreazioneGiocatoreModal({
                     }
                   }}>
                     <Text style={styles.randomButtonText}>🎲 Sorprendimi</Text>
-                  </Pressable>
+                  </Pressable> : null}
                 </View>
               </View>
             </View>
