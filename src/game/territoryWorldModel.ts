@@ -85,6 +85,22 @@ export function neighborCoordinates(tx:number,ty:number,d:Direction):{tx:number;
   const next={tx:tx+dx,ty:ty+dy};
   return {...next,key:territoryKey(next.tx,next.ty)};
 }
+
+/** One authoritative lookup for all four D-pad directions. It never creates,
+ * claims, visits or changes territory resources: the UI decides what to do. */
+export type AdjacentTerritoryTarget=
+  | {status:"edge";direction:Direction}
+  | {status:"owned"|"frontier";direction:Direction;tx:number;ty:number;key:string};
+
+export function adjacentTerritoryTarget(world:TerritoryWorld,direction:Direction):AdjacentTerritoryTarget{
+  const origin=world.territories[world.active];
+  if(!origin)return {status:"edge",direction};
+  const [dx,dy]=DIR[direction];
+  const tx=origin.tx+dx,ty=origin.ty+dy;
+  if(Math.abs(tx)>4096||Math.abs(ty)>4096)return {status:"edge",direction};
+  const key=territoryKey(tx,ty);
+  return {status:world.territories[key]?"owned":"frontier",direction,tx,ty,key};
+}
 function hash(n:number):number{
   n=Math.imul(n^(n>>>16),0x7feb352d);
   n=Math.imul(n^(n>>>15),0x846ca68b);
