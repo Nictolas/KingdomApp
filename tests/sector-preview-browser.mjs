@@ -87,6 +87,22 @@ try {
         assert.ok(box && box.width >= 43 && box.height >= 43,
           "Selection tap target too small: " + name + " " + width + "x" + height);
       }
+      // The minimap must be a 3×3 cross, not a wrapped 2-column strip.
+      const mini = await page.evaluate(() => {
+        const root = document.querySelector('[data-testid="sector-preview-minimap"]');
+        if (!root) throw Error("Minimap missing");
+        return Array.from(root.children, el => {
+          const r = el.getBoundingClientRect();
+          return { x: r.x, y: r.y, width: r.width, height: r.height };
+        });
+      });
+      assert.equal(mini.length, 9, "Expected nine minimap slots");
+      for (let i = 0; i < 9; i++) {
+        assert.ok(Math.abs(mini[i].y - mini[Math.floor(i / 3) * 3].y) <= 1,
+          "Minimap wraps within row at " + width + "x" + height + " index " + i);
+        assert.ok(Math.abs(mini[i].x - mini[i % 3].x) <= 1,
+          "Minimap column misaligned at " + width + "x" + height + " index " + i);
+      }
       await page.screenshot({ path: join(screenshots, "sector-center-" + width + "x" + height + ".png") });
       await page.getByRole("button", { name: "Settore nord" }).click();
       await page.getByText("NORD · BOSCO", { exact: true }).waitFor({ state: "visible" });
