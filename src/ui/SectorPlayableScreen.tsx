@@ -32,10 +32,10 @@ function sectorTerrainCoord(x:number,y:number,road:boolean,variation:number) {
   return getStradaSheetCoord("generica");
 }
 
-const SectorResidentArt = React.memo(function SectorResidentArt({cell,index}:{cell:number;index:number}) {
+const SectorResidentArt = React.memo(function SectorResidentArt({cell,index,frame}:{cell:number;index:number;frame:number}) {
   // character.png is a 12-frame horizontal strip; frames are 64×64 in the original.
   // Match MapWandererCharacter's clipping and 1.22× height without launching wanderer AI.
-  const frameIndex=[0,3,6,9][index%4];
+  const frameIndex=(index%4)*3+(frame+index)%3;
   const height=cell*1.22;
   return <View pointerEvents="none" style={{width:cell,height:cell,alignItems:"center",justifyContent:"flex-end"}}>
     <View style={{width:cell,height,overflow:"hidden"}}>
@@ -57,6 +57,7 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
   const [game,setGame]=useState<PlayableKingdom|null>(null);
   const [loaded,setLoaded]=useState(false);
   const [paused,setPaused]=useState(false);
+  const [spriteFrame,setSpriteFrame]=useState(0);
   const [saveEnabled,setSaveEnabled]=useState(false);
   const [saveWarning,setSaveWarning]=useState<string|null>(null);
   const [confirmReset,setConfirmReset]=useState(false);
@@ -86,6 +87,12 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
   useEffect(()=>{
     if(!loaded||paused)return;
     const timer=setInterval(()=>setGame(g=>g?advancePlayableDay(g):g),7000);
+    return ()=>clearInterval(timer);
+  },[loaded,paused]);
+  // Animate only rendered residents with one shared clock. No timers for off-screen sectors.
+  useEffect(()=>{
+    if(!loaded||paused)return;
+    const timer=setInterval(()=>setSpriteFrame(f=>(f+1)%3),280);
     return ()=>clearInterval(timer);
   },[loaded,paused]);
   const sector=game?.sector??"centro";
@@ -168,7 +175,7 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
             resizeMode="contain" style={{position:"absolute",left:b.x*cell,top:b.y*cell,width:b.w*cell,height:b.h*cell}}/>)}
           {world.residents.map((p,i)=><View testID="sector-resident" pointerEvents="none" key={p.id}
             style={{position:"absolute",left:p.x*cell,top:p.y*cell,width:cell,height:cell}}>
-            <SectorResidentArt cell={cell} index={i}/>
+            <SectorResidentArt cell={cell} index={i} frame={spriteFrame}/>
           </View>)}
           <Pressable testID="sector-game-tap-grid" accessibilityRole="button" accessibilityLabel="Griglia di gioco, tocca una casella"
             style={[StyleSheet.absoluteFill,{zIndex:9}]} onPress={e=>{
