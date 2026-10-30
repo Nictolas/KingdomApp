@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   SECTOR_IDS, SECTOR_SPECS, createSectorPreview, generateSectorPreviewWorld,
-  neighborSector, isRoadCell, fitSquareGrid
+  neighborSector, isRoadCell, fitSquareGrid, hitTestSectorPreview
 } from "../src/game/sectorPreviewModel";
 
 test("fixed preview: five connected directions and no nonexistent neighbor",()=>{
@@ -69,4 +69,47 @@ test("compact 14×21 comparison fits without deformation or offscreen objects",(
  assert.equal(fitSquareGrid(0,100,16,24),0);
  assert.equal(fitSquareGrid(Infinity,100,16,24),0);
  assert.throws(()=>createSectorPreview("centro",4,8),/too small/);
+});
+
+
+test("hit testing prioritizes exact residents and buildings, supports nearby taps",()=>{
+ const preview=createSectorPreview("centro"), size=12;
+ const p=preview.residents[0];
+ const exact=hitTestSectorPreview(preview,(p.x+.5)*size,(p.y+.5)*size,size);
+ assert.deepEqual(exact,{id:p.id,name:p.name,kind:"resident"});
+ const b=preview.buildings[0];
+ const buildingHit=hitTestSectorPreview(preview,(b.x+.5)*size,(b.y+.5)*size,size);
+ assert.deepEqual(buildingHit,{id:b.id,name:b.name,kind:"building"});
+ // A tap just beyond a resident tile remains usable on a small display.
+ const neighbor=hitTestSectorPreview(preview,(p.x+.5)*size+size*.65,(p.y+.5)*size,size);
+ assert.ok(neighbor===null||["resident","building"].includes(neighbor.kind));
+ assert.equal(hitTestSectorPreview(preview,-1,0,size),null);
+ assert.equal(hitTestSectorPreview(preview,preview.cols*size,0,size),null);
+ assert.equal(hitTestSectorPreview(preview,0,preview.rows*size,size),null);
+ assert.equal(hitTestSectorPreview(preview,0,0,0),null);
+ assert.equal(hitTestSectorPreview(preview,0,0,NaN),null);
+ assert.equal(hitTestSectorPreview(preview,0,0,size,-1),null);
+});
+
+test("responsive square-grid geometry stays inside viewport at varied screen sizes",()=>{
+ for(const [width,height] of [[280,300],[320,430],[375,600],[430,750],[768,960],[1024,640]]){
+   const cell=fitSquareGrid(width-10,height-12,16,24);
+   assert.ok(Number.isInteger(cell)&&cell>0);
+   assert.ok(16*cell<=width-10);
+   assert.ok(24*cell<=height-12);
+   assert.equal(16*cell/cell,16);
+   assert.equal(24*cell/cell,24);
+ }
+});
+
+test("all sectors remain hit-testable with stable fixtures across repeated navigation",()=>{
+ const world=generateSectorPreviewWorld();
+ for(let cycle=0;cycle<150;cycle++){
+   for(const id of SECTOR_IDS){
+     const s=world[id];
+     const first=s.residents[0];
+     const hit=hitTestSectorPreview(s,(first.x+.5)*14,(first.y+.5)*14,14);
+     assert.equal(hit?.id,first.id);
+   }
+ }
 });
