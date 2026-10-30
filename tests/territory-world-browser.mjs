@@ -98,6 +98,8 @@ try{
    await page.getByTestId("territory-world-label").filter({hasText:/1,0/}).waitFor();
    await page.getByText(/2 territori/).first().waitFor();
    assert.equal(await page.getByTestId("territory-world-tile").count(),144);
+   assert.ok(await page.getByTestId("territory-tool-bridge").isVisible(),
+     "The bridge tool must be available for crossing a river");
    await page.getByTestId("territory-tool-house").click();
    await page.getByTestId("territory-world-auto-build").click();
    const message=await page.getByTestId("territory-world-notice").textContent();
