@@ -339,7 +339,7 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
                     entry.reachable?"Territorio espandibile "+entry.key:"Territorio inesplorato "+entry.key}
                   accessibilityState={{selected:selectedTile}}
                   disabled={!available} onPress={()=>setSelectedKey(entry.key)}
-                  style={[styles.mapCell,!available&&styles.fogCell,
+                  style={[styles.mapCell,tight&&styles.mapCellSmall,!available&&styles.fogCell,
                     entry.owned&&styles.ownedCell,selectedTile&&styles.selectedCell,
                     current&&styles.currentCell]}>
                   <Text style={[styles.mapCellText,!available&&styles.fogText]}>
@@ -434,6 +434,7 @@ const styles=StyleSheet.create({
   worldMap:{flexDirection:"row",flexWrap:"wrap",gap:4,alignSelf:"center",justifyContent:"center",maxWidth:330},
   mapCell:{width:53,height:48,borderRadius:6,backgroundColor:"#487355",borderWidth:1,
     borderColor:"#759b79",alignItems:"center",justifyContent:"center"},
+  mapCellSmall:{width:44,height:39},
   ownedCell:{backgroundColor:"#5b7d4a"},
   fogCell:{backgroundColor:"#2b3a31",borderColor:"#394c42"},
   currentCell:{borderColor:"#ffdfa2",borderWidth:2},
