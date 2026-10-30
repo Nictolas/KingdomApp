@@ -1,0 +1,65 @@
+name: Expandable Territory World
+on:
+  pull_request:
+    paths:
+      - "src/game/territoryWorldModel.ts"
+      - "src/game/territoryWorldPersistence.ts"
+      - "src/ui/TerritoryWorldScreen.tsx"
+      - "src/context/GameContext.tsx"
+      - "src/ui/StartGameScreen.tsx"
+      - "src/ui/GameModeSelectionScreen.tsx"
+      - "tests/territory-world.test.ts"
+      - "tests/territory-world-persistence.test.ts"
+      - "tests/territory-world-browser.mjs"
+      - "tsconfig.territory-world.json"
+      - ".github/workflows/expandable-territory-world.yml"
+  workflow_dispatch:
+
+jobs:
+  world-model:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck 32x32 world and screens (isolated from pre-existing errors)
+        run: npx tsc --project tsconfig.territory-world.json --noEmit
+      - name: Seeded world, expansion, economy and isolated save tests
+        run: npx tsx --test tests/territory-world.test.ts tests/territory-world-persistence.test.ts
+      - name: Export complete playable web game
+        run: npm run build:web
+
+  phone-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:web
+      - name: Install Chromium for phone-width gameplay test
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Play 32x32 world, buy territory, build, save and resume
+        run: node tests/territory-world-browser.mjs dist
+      - name: Preserve real gameplay screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: expandable-territory-world-32x32
+          path: territory-screenshots/*.png
+          if-no-files-found: ignore
