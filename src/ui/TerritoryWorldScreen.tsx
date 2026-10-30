@@ -450,7 +450,7 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
                 </Pressable>;
               })}
             </View>
-            <Text style={styles.landTitle}>{selected.owned?"Territorio del regno":"Da scoprire"}: {selected.label}</Text>
+            <Text testID="territory-map-selected-label" style={styles.landTitle}>{selected.owned?"Territorio del regno":"Da scoprire"}: {selected.label}</Text>
             <Text testID="territory-map-selected" style={styles.info}>
               {selected.owned?"Già acquisito · puoi visitarlo.":
                 selected.reachable?"Acquisto: "+selected.cost+" monete · Difesa: "+selected.defense+
