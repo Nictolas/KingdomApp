@@ -52,7 +52,38 @@ try{
        images.every(img=>img.complete&&img.naturalWidth>0);
    },undefined,{timeout:40000});
    await mkdir("territory-screenshots",{recursive:true});
+   // The central lower compass changes territories, not the camera.
+   const dpad=page.getByTestId("territory-dpad");
+   await dpad.waitFor({state:"visible"});
+   for(const dir of ["n","s","e","w"]){
+     assert.ok(await page.getByTestId("territory-dpad-"+dir).isVisible());
+   }
+   assert.ok(await page.getByTestId("territory-dpad-center").isVisible());
+   const dpadBounds=await dpad.boundingBox();
+   assert.ok(dpadBounds,"The territory D-pad must have dimensions");
+   assert.ok(Math.abs(dpadBounds.x+dpadBounds.width/2-width/2)<5,
+     "D-pad must be horizontally centered, not next to the camera arrows");
+   assert.ok(dpadBounds.y+dpadBounds.height<=height+2,
+     "D-pad must fit above the phone safe-area bottom");
+   assert.ok(dpadBounds.y>height-190,"D-pad must stay near the bottom");
    await page.screenshot({path:`territory-screenshots/new-capital-${width}x${height}.png`,fullPage:true});
+   await page.getByTestId("territory-dpad-center").click();
+   await page.getByTestId("territory-map-grid").waitFor();
+   await page.getByTestId("territory-map-close").click();
+   await page.getByTestId("territory-map-grid").waitFor({state:"hidden"});
+   const cameraBeforeFrontier=await page.getByTestId("territory-world-visible-range").textContent();
+   const resourcesBeforeFrontier=await page.getByTestId("territory-world-resources").textContent();
+   await page.getByTestId("territory-dpad-e").click();
+   await page.getByTestId("territory-map-selected").filter({hasText:/Acquisto:/}).waitFor();
+   assert.ok(await page.getByTestId("territory-map-cell-1,0")
+     .getAttribute("aria-selected")==="true",
+     "East from the capital must preselect the eastern frontier");
+   assert.equal(await page.getByTestId("territory-world-resources").textContent(),
+     resourcesBeforeFrontier,"Opening frontier via D-pad must not spend resources");
+   await page.getByTestId("territory-map-close").click();
+   await page.getByTestId("territory-map-grid").waitFor({state:"hidden"});
+   assert.equal(await page.getByTestId("territory-world-visible-range").textContent(),
+     cameraBeforeFrontier,"Direction pad must not pan the interior camera");
    const measure=await page.evaluate(()=>{
      const grid=document.querySelector('[data-testid="territory-world-grid"]').getBoundingClientRect();
      const w=innerWidth,h=innerHeight;
@@ -97,6 +128,16 @@ try{
    await page.getByTestId("territory-map-grid").waitFor({state:"hidden",timeout:6000});
    await page.getByTestId("territory-world-label").filter({hasText:/1,0/}).waitFor();
    await page.getByText(/2 territori/).first().waitFor();
+   // A claimed adjacent sector is visited immediately, with no purchase modal
+   // and no resource deduction. East and West act as territory switches.
+   const resourcesAfterPurchase=await page.getByTestId("territory-world-resources").textContent();
+   await page.getByTestId("territory-dpad-w").click();
+   await page.getByTestId("territory-world-label").filter({hasText:/Territorio iniziale/}).waitFor();
+   assert.equal(await page.getByTestId("territory-map-grid").isVisible(),false);
+   await page.getByTestId("territory-dpad-e").click();
+   await page.getByTestId("territory-world-label").filter({hasText:/1,0/}).waitFor();
+   assert.equal(await page.getByTestId("territory-world-resources").textContent(),
+     resourcesAfterPurchase,"Switching between owned sectors must cost nothing");
    assert.equal(await page.getByTestId("territory-world-tile").count(),144);
    assert.ok(await page.getByTestId("territory-tool-bridge").isVisible(),
      "The bridge tool must be available for crossing a river");
