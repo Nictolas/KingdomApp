@@ -6,6 +6,8 @@ on:
       - "src/game/sectorPreviewModel.ts"
       - "tests/sector-preview.test.ts"
       - "tests/sector-preview-browser.mjs"
+      - "tests/sector-preview-static-server.mjs"
+      - "tests/sector-preview-static-server.test.mjs"
       - "docs/FIXED_SECTOR_PREVIEW.md"
       - "tsconfig.sector-preview.json"
       - ".github/workflows/fixed-sector-preview.yml"
@@ -29,6 +31,8 @@ jobs:
         run: npx tsc --project tsconfig.sector-preview.json --noEmit
       - name: Validate sector model
         run: npx tsx --test tests/sector-preview.test.ts
+      - name: Validate Expo export route resolution
+        run: node --test tests/sector-preview-static-server.test.mjs
       - name: Export web bundle
         run: npx expo export --platform web --output-dir /tmp/fixed-sector-preview-web
       - name: Export Android JavaScript bundle
@@ -54,6 +58,10 @@ jobs:
         run: npm ci
       - name: Export web for rendered UI checks
         run: npx expo export --platform web --output-dir /tmp/fixed-sector-preview-browser-web
+      - name: Inspect exported HTML entry points
+        run: |
+          find /tmp/fixed-sector-preview-browser-web -maxdepth 3 -name '*.html' -print | head -40
+          node --input-type=module -e "import { findStaticPreviewFile } from './tests/sector-preview-static-server.mjs'; const file = await findStaticPreviewFile('/tmp/fixed-sector-preview-browser-web', '/settori-preview'); if (!file) process.exit(1); console.log('Resolved /settori-preview:', file)"
       - name: Install Chromium test tooling (CI only, not app dependencies)
         run: |
           npm install --no-save --no-package-lock playwright@1.55.0

@@ -1,9 +1,10 @@
 // Browser-rendered regression for the isolated preview. This is NOT an Android/iPhone device test.
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { mkdir, readFile, stat } from "node:fs/promises";
-import { extname, join, resolve, sep } from "node:path";
+import { mkdir, readFile } from "node:fs/promises";
+import { extname, join, resolve } from "node:path";
 import { chromium } from "playwright";
+import { findStaticPreviewFile } from "./sector-preview-static-server.mjs";
 
 const root = resolve(process.argv[2] || "/tmp/fixed-sector-preview-browser-web");
 const screenshots = resolve(process.env.PREVIEW_SCREENSHOT_DIR || "/tmp/fixed-sector-preview-screenshots");
@@ -15,14 +16,11 @@ await mkdir(screenshots, { recursive: true });
 const server = createServer(async (req, res) => {
   try {
     const pathname = decodeURIComponent(new URL(req.url || "/", "http://localhost").pathname);
-    const requested = resolve(root, "." + pathname);
-    if (requested !== root && !requested.startsWith(root + sep)) throw Error("Invalid path");
-    let file = requested;
-    try {
-      if ((await stat(file)).isDirectory()) file = join(file, "index.html");
-    } catch {
-      // Expo Router's web export may be SPA; fall back for /settori-preview.
-      file = join(root, "index.html");
+    const file = await findStaticPreviewFile(root, pathname);
+    if (!file) {
+      res.writeHead(404);
+      res.end("Not found");
+      return;
     }
     const data = await readFile(file);
     res.writeHead(200, { "Content-Type": types[extname(file)] || "application/octet-stream" });
@@ -37,17 +35,39 @@ await new Promise((ok, fail) => {
   server.listen(0, "127.0.0.1", ok);
 });
 const port = server.address().port;
+const routeEntry = await findStaticPreviewFile(root, "/settori-preview");
+console.log("Expo export route resolution:", routeEntry ?? "MISSING");
 let browser;
 const sizes = [[320,568],[375,667],[390,844],[430,932],[667,375],[844,390],[1024,768]];
 try {
   browser = await chromium.launch({ headless: true, args: ["--no-sandbox"] });
   for (const [width, height] of sizes) {
     const page = await browser.newPage({ viewport: { width, height }, deviceScaleFactor: 1 });
-    const pageErrors = [];
+    const pageErrors = [], httpErrors = [], requestFailures = [];
     page.on("pageerror", error => pageErrors.push(String(error)));
+    page.on("response", response => {
+      if (!response.ok()) httpErrors.push(response.status() + " " + response.url());
+    });
+    page.on("requestfailed", request => requestFailures.push(request.url() + ": " + request.failure()?.errorText));
     try {
-      await page.goto("http://127.0.0.1:" + port + "/settori-preview", { waitUntil: "domcontentloaded" });
-      await page.getByTestId("sector-preview-grid").waitFor({ state: "visible", timeout: 30000 });
+      const response = await page.goto("http://127.0.0.1:" + port + "/settori-preview", { waitUntil: "domcontentloaded" });
+      assert.ok(response?.ok(), "Preview HTTP status: " + response?.status());
+      try {
+        await page.getByTestId("sector-preview-grid").waitFor({ state: "visible", timeout: 30000 });
+      } catch (error) {
+        const diagnostics = await page.evaluate(() => ({
+          pathname: location.pathname,
+          title: document.title,
+          body: document.body?.innerText?.slice(0, 1600),
+          rootHTML: document.getElementById("root")?.outerHTML?.slice(0, 1800),
+          scripts: Array.from(document.scripts, script => script.src).slice(0, 12)
+        })).catch(e => ({ diagnosticError: String(e) }));
+        throw new Error("Sector preview did not render: " + JSON.stringify({
+          viewport: width + "x" + height, routeEntry, diagnostics,
+          pageErrors, httpErrors: httpErrors.slice(0, 12),
+          requestFailures: requestFailures.slice(0, 12)
+        }), { cause: error });
+      }
       await page.getByRole("button", { name: "Elemento successivo" }).click();
       await page.getByTestId("sector-preview-selection").getByText("Castello reale").waitFor();
       const rect = await page.evaluate(() => {
