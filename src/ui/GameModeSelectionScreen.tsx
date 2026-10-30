@@ -7,10 +7,11 @@ type Props = {
   canCancel: boolean;
   onSelect: (mode: GameMode) => void;
   onTrySectors: () => void;
+  onTryTerritories: () => void;
   onCancel: () => void;
 };
 
-export function GameModeSelectionScreen({ error, canCancel, onSelect, onCancel, onTrySectors }: Props) {
+export function GameModeSelectionScreen({ error, canCancel, onSelect, onCancel, onTrySectors, onTryTerritories }: Props) {
   return (
     <SafeAreaView style={styles.safe}>
       <View style={styles.card}>
@@ -44,6 +45,13 @@ export function GameModeSelectionScreen({ error, canCancel, onSelect, onCancel, 
         >
           <Text style={styles.modeTitle}>🏘️ Regno a settori</Text>
           <Text style={styles.modeDescription}>Prova costruzioni, abitanti e 5 zone senza modificare la tua partita.</Text>
+        </Pressable>
+
+        <Pressable testID="choose-territory-world" accessibilityRole="button"
+          accessibilityLabel="Regno a territori, nuova modalità espandibile 32 per 32"
+          style={[styles.modeButton,styles.territoryButton]} onPress={onTryTerritories}>
+          <Text style={styles.modeTitle}>Regno a territori · 32×32</Text>
+          <Text style={styles.modeDescription}>Mondo casuale espandibile: acquista, conquista, costruisci liberamente.</Text>
         </Pressable>
 
         {canCancel ? (
@@ -108,6 +116,7 @@ const styles = StyleSheet.create({
     lineHeight: 15,
     marginTop: 5
   },
+  territoryButton: {backgroundColor:"rgba(157,112,48,0.30)",borderColor:"rgba(235,201,126,0.8)"},
   creativeButton: {
     backgroundColor: "rgba(124,58,237,0.22)",
     borderColor: "rgba(167,139,250,0.7)"
