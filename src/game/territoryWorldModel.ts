@@ -163,8 +163,11 @@ export function territoryPreview(world:TerritoryWorld,tx:number,ty:number){
   return {
     key,tx,ty,biome,label:territoryDisplayLabel(world,tx,ty),
     owned:!!world.territories[key],
-    reachable:!world.territories[key]&&Object.values(DIR).some(([dx,dy])=>
-      !!world.territories[territoryKey(tx+dx,ty+dy)]),
+    reachable:!world.territories[key]&&Object.values(DIR).some(([dx,dy])=>{
+      const nx=tx+dx,ny=ty+dy;
+      return Math.abs(nx)<=4096&&Math.abs(ny)<=4096&&
+        !!world.territories[territoryKey(nx,ny)];
+    }),
     cost,defense
   };
 }
