@@ -1,0 +1,103 @@
+name: Native A/B Android debug lab (not a release)
+
+on:
+  pull_request:
+    paths:
+      - ".github/workflows/native-ab-android-debug-lab.yml"
+      - "src/components/MapWandererCharacter.native.tsx"
+      - "src/performance/**"
+      - "app/native-perf.tsx"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: native-ab-debug-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  android-debug-build:
+    if: ${{ github.event.pull_request.number == 297 }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - variant: baseline-298
+            source: 6dfcb12337992418f812049bf4bc1e1c144f843c
+          - variant: candidate-297
+            source: candidate
+    steps:
+      - name: Check out exact experimental revision
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.source == 'candidate' && github.event.pull_request.head.sha || matrix.source }}
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Install exact locked dependencies
+        env:
+          CI: '1'
+        run: npm ci --prefer-offline --no-audit --no-fund
+      - name: Temporary, non-production Android package identifier
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const config = JSON.parse(readFileSync('app.json', 'utf8'));
+          config.expo.android ??= {};
+          config.expo.android.package = 'com.nictolas.mykingdom.perflab';
+          writeFileSync('app.json', JSON.stringify(config, null, 2) + '\n');
+          NODE
+      - name: Generate temporary Android native project
+        env:
+          CI: '1'
+          EXPO_NO_TELEMETRY: '1'
+        run: npx expo prebuild --platform android --no-install --clean
+      - name: Embed JS into dev APK without a running Metro server
+        run: |
+          node --input-type=module <<'NODE'
+          import { readFileSync, writeFileSync } from 'node:fs';
+          const file = 'android/app/build.gradle';
+          let source = readFileSync(file, 'utf8');
+          if (!/react\s*\{/.test(source)) throw new Error('React Gradle block missing');
+          const active = /^\s*debuggableVariants\s*=.*$/gm;
+          if (active.test(source)) source = source.replace(active, '    debuggableVariants = []');
+          else source = source.replace(/react\s*\{/, 'react {\n    debuggableVariants = []');
+          if (!source.includes('debuggableVariants = []')) throw new Error('Offline debug bundle not enabled');
+          writeFileSync(file, source);
+          NODE
+      - name: Compile debug Android APK; no release signing or deployment
+        env:
+          CI: '1'
+          EXPO_NO_TELEMETRY: '1'
+        run: |
+          cd android
+          chmod +x gradlew
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace
+          test -s app/build/outputs/apk/debug/app-debug.apk
+      - name: Package ephemeral QA artifact and full Git commit provenance
+        env:
+          VARIANT: ${{ matrix.variant }}
+          SOURCE: ${{ matrix.source }}
+          CANDIDATE_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          mkdir -p /tmp/mykingdom-native-debug
+          if [ "$SOURCE" = "candidate" ]; then SHA="$CANDIDATE_SHA"; else SHA="$SOURCE"; fi
+          cp android/app/build/outputs/apk/debug/app-debug.apk /tmp/mykingdom-native-debug/mykingdom-$VARIANT-debug.apk
+          printf 'variant=%s\ncommit=%s\npackage=com.nictolas.mykingdom.perflab\nflavor=debug+bundledJS\nNOT_FOR_RELEASE_OR_FPS_BENCHMARKS=true\n' "$VARIANT" "$SHA" > /tmp/mykingdom-native-debug/BUILD-PROVENANCE.txt
+          cd /tmp/mykingdom-native-debug
+          sha256sum mykingdom-*.apk >> BUILD-PROVENANCE.txt
+      - name: Upload only temporary GitHub Actions QA artifact (7 days)
+        uses: actions/upload-artifact@v4
+        with:
+          name: mykingdom-${{ matrix.variant }}-debug-qa
+          path: /tmp/mykingdom-native-debug/
+          if-no-files-found: error
+          retention-days: 7
