@@ -4,6 +4,8 @@
  * territory is revisited. Only player changes and claimed territory state save.
  * Fixed landmarks can be registered here once game design is approved.
  */
+import {naturalGeographyAt,regionalBiome} from "./territoryGeography";
+
 export const TERRITORY_SIDE = 32;
 export const TERRITORY_CELLS = TERRITORY_SIDE * TERRITORY_SIDE;
 export const TERRITORY_SAVE_KEY = "mykingdom:territories:v1";
@@ -27,6 +29,8 @@ export type Territory = {
 };
 export type TerritoryWorld = {
   version:1;seed:number;day:number;active:string;
+  /** Existing saves without this field use the original v1 tiles forever. */
+  terrainVersion?:1|2;
   gold:number;wood:number;food:number;nextBuilding:number;nextResident:number;
   territories:Record<string,Territory>;notice:string;
 };
@@ -98,15 +102,16 @@ function smoothNoise(seed:number,x:number,y:number,salt:number):number{
   const c=unit(seed,gx,gy+1,salt),d=unit(seed,gx+1,gy+1,salt);
   return (a+(b-a)*sx)*(1-sy)+(c+(d-c)*sx)*sy;
 }
-export function biomeForTerritory(seed:number,tx:number,ty:number):TerritoryBiome{
+export function biomeForTerritory(seed:number,tx:number,ty:number,terrainVersion:1|2=1):TerritoryBiome{
   const fixed=FIXED_TERRITORIES[territoryKey(tx,ty)];
   if(fixed)return fixed.biome;
+  if(terrainVersion===2)return regionalBiome(seed,tx,ty);
   const n=unit(seed,tx,ty,0x12581);
   return BIOMES[Math.min(BIOMES.length-1,Math.floor(n*BIOMES.length))]!;
 }
-export function territoryLabel(seed:number,tx:number,ty:number):string{
+export function territoryLabel(seed:number,tx:number,ty:number,terrainVersion:1|2=1):string{
   const fixed=FIXED_TERRITORIES[territoryKey(tx,ty)];
-  return fixed?.name ?? BIOME_LABELS[biomeForTerritory(seed,tx,ty)]+" "+tx+","+ty;
+  return fixed?.name ?? BIOME_LABELS[biomeForTerritory(seed,tx,ty,terrainVersion)]+" "+tx+","+ty;
 }
 function isStartingFootprint(tx:number,ty:number,x:number,y:number):boolean{
   return tx===0&&ty===0&&START_BUILDINGS.some(b=>
@@ -115,14 +120,15 @@ function isStartingFootprint(tx:number,ty:number,x:number,y:number):boolean{
 export function basicRoad(x:number,y:number):boolean{
   return x===15||x===16||y===15||y===16;
 }
-export function groundAt(seed:number,tx:number,ty:number,x:number,y:number,biomeOverride?:TerritoryBiome):TerritoryTile{
+export function groundAt(seed:number,tx:number,ty:number,x:number,y:number,biomeOverride?:TerritoryBiome,terrainVersion:1|2=1):TerritoryTile{
   if(!Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0||x>=TERRITORY_SIDE||y>=TERRITORY_SIDE)
     throw new RangeError("Casella fuori dal territorio");
   // Four matching road exits make adjoining maps visually/geographically continuous.
   if(basicRoad(x,y))return "road";
   if(isStartingFootprint(tx,ty,x,y))return "grass";
-  const biome=biomeOverride??biomeForTerritory(seed,tx,ty);
+  const biome=biomeOverride??biomeForTerritory(seed,tx,ty,terrainVersion);
   const gx=tx*TERRITORY_SIDE+x,gy=ty*TERRITORY_SIDE+y;
+  if(terrainVersion===2)return naturalGeographyAt(seed,gx,gy,biome);
   const density=smoothNoise(seed,gx,gy,0x713a);
   const fleck=unit(seed,gx,gy,0x6d90);
   if(biome==="palude"&&density<0.38)return "water";
@@ -136,25 +142,25 @@ export function groundAt(seed:number,tx:number,ty:number,x:number,y:number,biome
 export function tileAt(world:TerritoryWorld,territory:Territory,x:number,y:number):TerritoryTile{
   const cell=y*TERRITORY_SIDE+x;
   if(territory.roads.includes(cell))return "road";
-  const base=groundAt(world.seed,territory.tx,territory.ty,x,y,territory.biome);
+  const base=groundAt(world.seed,territory.tx,territory.ty,x,y,territory.biome,world.terrainVersion??1);
   return territory.cleared.includes(cell)&&base==="woodland"?"grass":base;
 }
 export function territoryPreview(world:TerritoryWorld,tx:number,ty:number){
-  const key=territoryKey(tx,ty),biome=world.territories[key]?.biome??biomeForTerritory(world.seed,tx,ty);
+  const key=territoryKey(tx,ty),biome=world.territories[key]?.biome??biomeForTerritory(world.seed,tx,ty,world.terrainVersion??1);
   const distance=Math.abs(tx)+Math.abs(ty);
   const cost=PURCHASE_BASE_COST+Math.floor(distance/2)*6+(biome==="foresta"?6:0);
   const defense=2+cellHash(world.seed,tx,ty,0x91)%7;
   return {
-    key,tx,ty,biome,label:territoryLabel(world.seed,tx,ty),
+    key,tx,ty,biome,label:territoryLabel(world.seed,tx,ty,world.terrainVersion??1),
     owned:!!world.territories[key],
     reachable:!world.territories[key]&&Object.values(DIR).some(([dx,dy])=>
       !!world.territories[territoryKey(tx+dx,ty+dy)]),
     cost,defense
   };
 }
-function createTerritory(seed:number,tx:number,ty:number,claim:TerritoryClaim,day:number):Territory{
+function createTerritory(seed:number,tx:number,ty:number,claim:TerritoryClaim,day:number,terrainVersion:1|2):Territory{
   const territory:Territory={
-    tx,ty,claim,biome:biomeForTerritory(seed,tx,ty),acquiredDay:day,
+    tx,ty,claim,biome:biomeForTerritory(seed,tx,ty,terrainVersion),acquiredDay:day,
     buildings:[],residents:[],roads:[],cleared:[]
   };
   if(claim==="capital"){
@@ -172,9 +178,9 @@ function createTerritory(seed:number,tx:number,ty:number,claim:TerritoryClaim,da
 export function createTerritoryWorld(seed=Math.floor(Math.random()*0x100000000)):TerritoryWorld{
   const actualSeed=Number.isSafeInteger(seed)&&seed>=0&&seed<=0xffffffff?seed:0x4d594b;
   return {
-    version:1,seed:actualSeed,day:1,active:"0,0",
+    version:1,seed:actualSeed,day:1,active:"0,0",terrainVersion:2,
     gold:125,wood:85,food:85,nextBuilding:1,nextResident:7,
-    territories:{"0,0":createTerritory(actualSeed,0,0,"capital",1)},
+    territories:{"0,0":createTerritory(actualSeed,0,0,"capital",1,2)},
     notice:"Regno fondato. Esplora i confini per acquistare o conquistare nuovi territori."
   };
 }
@@ -192,7 +198,7 @@ export function worldMilitaryStrength(world:TerritoryWorld):number{
 function withNotice(world:TerritoryWorld,notice:string):TerritoryWorld{return {...world,notice};}
 export function visitTerritory(world:TerritoryWorld,key:string):TerritoryWorld{
   if(!world.territories[key])return withNotice(world,"Territorio non ancora acquisito.");
-  return {...world,active:key,notice:"Sei arrivato a "+territoryLabel(world.seed,world.territories[key].tx,world.territories[key].ty)+"."};
+  return {...world,active:key,notice:"Sei arrivato a "+territoryLabel(world.seed,world.territories[key].tx,world.territories[key].ty,world.terrainVersion??1)+"."};
 }
 export function claimTerritory(world:TerritoryWorld,tx:number,ty:number,method:"purchase"|"conquest"):TerritoryWorld{
   if(!Number.isSafeInteger(tx)||!Number.isSafeInteger(ty)||Math.abs(tx)>4096||Math.abs(ty)>4096)
@@ -210,7 +216,7 @@ export function claimTerritory(world:TerritoryWorld,tx:number,ty:number,method:"
     if(worldMilitaryStrength(world)<preview.defense)
       return withNotice(world,"Difesa nemica "+preview.defense+": costruisci caserme per aumentare la forza ("+worldMilitaryStrength(world)+").");
   }
-  const t=createTerritory(world.seed,tx,ty,method,world.day);
+  const t=createTerritory(world.seed,tx,ty,method,world.day,world.terrainVersion??1);
   return {
     ...world,
     gold:world.gold-(method==="purchase"?preview.cost:CONQUEST_GOLD_COST),
@@ -263,7 +269,7 @@ export function territoryAction(world:TerritoryWorld,tool:TerritoryTool,x:number
       territories:{...world.territories,[world.active]:next},notice:existing.name+" demolita. Recuperati 2 legni."};
   }
   if(tool==="clear"){
-    if(groundAt(world.seed,old.tx,old.ty,x,y,old.biome)!=="woodland"||old.cleared.includes(cell))
+    if(groundAt(world.seed,old.tx,old.ty,x,y,old.biome,world.terrainVersion??1)!=="woodland"||old.cleared.includes(cell))
       return withNotice(world,"Puoi disboscare soltanto una casella di bosco.");
     const next={...old,cleared:[...old.cleared,cell]};
     return {...world,wood:Math.min(MAX_RESOURCES,world.wood+2),
@@ -380,7 +386,8 @@ const CLAIMS=new Set<TerritoryClaim>(["capital","purchase","conquest"]);
 export function isTerritoryWorld(raw:unknown):raw is TerritoryWorld{
   if(!raw||typeof raw!=="object")return false;
   const w=raw as Partial<TerritoryWorld>;
-  if(w.version!==1||!isInt(w.seed,0,0xffffffff)||!isInt(w.day,1,100000000)||
+  if(w.version!==1||(w.terrainVersion!==undefined&&w.terrainVersion!==1&&w.terrainVersion!==2)||
+    !isInt(w.seed,0,0xffffffff)||!isInt(w.day,1,100000000)||
     !isInt(w.gold,0,MAX_RESOURCES)||!isInt(w.wood,0,MAX_RESOURCES)||
     !isInt(w.food,0,MAX_RESOURCES)||!isInt(w.nextBuilding,1,MAX_RESOURCES)||
     !isInt(w.nextResident,1,MAX_RESOURCES)||
@@ -407,13 +414,13 @@ export function isTerritoryWorld(raw:unknown):raw is TerritoryWorld{
       if(!isInt(i,0,TERRITORY_CELLS-1)||cleared.has(i))return false;
       cleared.add(i);
       const x=i%TERRITORY_SIDE,y=Math.floor(i/TERRITORY_SIDE);
-      if(groundAt(world.seed,t.tx,t.ty,x,y,t.biome)!=="woodland")return false;
+      if(groundAt(world.seed,t.tx,t.ty,x,y,t.biome,world.terrainVersion??1)!=="woodland")return false;
     }
     for(const i of t.roads){
       if(!isInt(i,0,TERRITORY_CELLS-1)||roads.has(i))return false;
       roads.add(i);
       const x=i%TERRITORY_SIDE,y=Math.floor(i/TERRITORY_SIDE);
-      const base=groundAt(world.seed,t.tx,t.ty,x,y,t.biome);
+      const base=groundAt(world.seed,t.tx,t.ty,x,y,t.biome,world.terrainVersion??1);
       if(base!=="grass"&&base!=="dry"&&!(cleared.has(i)&&base==="woodland"))return false;
     }
     const taken=new Set<number>();
