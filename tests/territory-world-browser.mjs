@@ -22,7 +22,7 @@ const port=server.address().port;
 let browserInstance;
 try{
  browserInstance=await chromium.launch({headless:true,args:["--no-sandbox"]});
- for(const [width,height] of [[390,844],[320,568]]){
+ for(const [width,height] of [[390,844],[320,568],[1366,768]]){
   const page=await browserInstance.newPage({viewport:{width,height}});
   const errors=[];
   page.on("pageerror",e=>errors.push(String(e)));
@@ -67,6 +67,12 @@ try{
    assert.ok(dpadBounds.y+dpadBounds.height<=height+2,
      "D-pad must fit above the phone safe-area bottom");
    assert.ok(dpadBounds.y>height-155,"D-pad must stay near the bottom");
+   if(width>=1000){
+     assert.ok(await page.getByTestId("territory-dpad-center").isVisible(),
+       "Desktop layout must keep the central map button in view");
+     assert.equal(await page.getByTestId("choose-sector-mode").count(),0,
+       "Desktop must not show a second sector prototype");
+   }
    const shape=await page.getByTestId("territory-dpad").evaluate(el=>{
      const css=getComputedStyle(el);
      return {radius:parseFloat(css.borderTopLeftRadius),width:el.getBoundingClientRect().width};
