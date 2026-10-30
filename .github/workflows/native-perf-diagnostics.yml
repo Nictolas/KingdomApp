@@ -52,6 +52,8 @@ on:
       - "scripts/generate-native-android-ui-matrix-template.mjs"
       - "tests/native-android-ui-matrix-template.test.mjs"
       - "tests/native-android-ui-matrix.test.mjs"
+      - "scripts/audit-native-device-evidence-readiness.mjs"
+      - "tests/native-device-evidence-readiness.test.mjs"
       - "tests/native-android-framestats.test.mjs"
       - "tests/native-ab-matrix.test.mjs"
       - "tests/native-resident-relay-cache-benchmark.ts"
@@ -173,6 +175,7 @@ jobs:
           node --test tests/native-android-framestats.test.mjs
           node --test tests/native-android-ui-matrix.test.mjs
           node --test tests/native-android-ui-matrix-template.test.mjs
+          node --test tests/native-device-evidence-readiness.test.mjs
       - name: Native commute/night priority, occupancy handoff and 200-resident route churn (Node only)
         id: suite_03
         continue-on-error: true
