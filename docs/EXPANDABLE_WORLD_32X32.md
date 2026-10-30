@@ -25,6 +25,13 @@ Il prototipo è isolato in tre moduli:
    navigazione**, non un confine geografico. La validazione attuale impone
    un massimo tecnico di 2.048 territori posseduti e coordinate ±4.096,
    da rivedere per regni estremamente grandi.
+La finestra 5×5 della mappa generale può essere spostata verso nord,
+sud, est e ovest **senza trasferire il giocatore** e senza consumare
+risorse. Il pulsante centrale riporta la mappa al territorio attivo.
+Sono visibili e selezionabili soltanto i territori già posseduti e
+quelli confinanti acquistabili/conquistabili: gli altri restano coperti.
+Lo spostamento della mappa è soltanto un'operazione visuale.
+
 4. Acquisto e conquista sono entrambe interazioni giocabili. Costi, difese e
    forza militare sono **provvisori**: non costituiscono il sistema bellico
    definitivo.
