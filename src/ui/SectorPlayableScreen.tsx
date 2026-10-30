@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { TerrainSheetSprite } from "../components/TerrainSheetSprite";
+import { getErbaSheetCoord, getStradaSheetCoord } from "../game/overworldSpritesheetLayout";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   advancePlayableDay, applySectorAction, COSTS, createPlayableKingdom,
@@ -13,7 +15,35 @@ const HOUSE=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/hou
 const HUT=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/house_2.png");
 const CASTLE=require("../../assets/pixel-art/buildings/castle.png");
 const TREE=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/tree_1.png");
-const COLORS=["#bb725a","#6489ab","#a39e5b","#896d9c","#5f967d"];
+// Reuse the exact terrain and citizen spritesheets shown on the main MyKingdom map.
+const CHARACTER_SHEET=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/character.png");
+
+function sectorTerrainCoord(x:number,y:number,road:boolean,variation:number) {
+  if (!road) return getErbaSheetCoord(variation===0?"campo_nord_est":"centro");
+  const n=y>0&&isRoadCell(x,y-1),s=y<PREVIEW_ROWS-1&&isRoadCell(x,y+1);
+  const w=x>0&&isRoadCell(x-1,y),e=x<PREVIEW_COLS-1&&isRoadCell(x+1,y);
+  if (n&&s&&w&&e) return getStradaSheetCoord("incrocio_centro");
+  if (n&&s) return getStradaSheetCoord("verticale");
+  if (w&&e) return getStradaSheetCoord("orizzontale");
+  if (n&&e) return getStradaSheetCoord("curva_nord_est");
+  if (n&&w) return getStradaSheetCoord("curva_nord_ovest");
+  if (s&&e) return getStradaSheetCoord("curva_sud_est");
+  if (s&&w) return getStradaSheetCoord("curva_sud_ovest");
+  return getStradaSheetCoord("generica");
+}
+
+function SectorResidentArt({cell,index}:{cell:number;index:number}) {
+  // character.png is a 12-frame horizontal strip; frames are 64×64 in the original.
+  // Match MapWandererCharacter's clipping and 1.22× height without launching wanderer AI.
+  const frameIndex=[0,3,6,9][index%4];
+  const height=cell*1.22;
+  return <View pointerEvents="none" style={{width:cell,height:cell,alignItems:"center",justifyContent:"flex-end"}}>
+    <View style={{width:cell,height,overflow:"hidden"}}>
+      <Image source={CHARACTER_SHEET} resizeMode="stretch"
+        style={{position:"absolute",width:cell*12,height,left:-frameIndex*cell,top:0}}/>
+    </View>
+  </View>;
+}
 const NAV: Array<{id:SectorId;label:string}>=[
   {id:"nord",label:"Nord"},{id:"ovest",label:"Ovest"},{id:"centro",label:"Centro"},
   {id:"est",label:"Est"},{id:"sud",label:"Sud"}
@@ -60,8 +90,7 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
     const x=i%PREVIEW_COLS,y=Math.floor(i/PREVIEW_COLS);
     const road=isRoadCell(x,y);
     const variation=(x*13+y*29)%4;
-    return {x,y,road,color: road?["#aca18c","#b8ae97","#b1a58f","#c0b499"][variation]:
-      ["#70a265","#66965b","#62915b","#75a66b"][variation]};
+    return {x,y,road,variation};
   }),[]);
   const totalPopulation=useMemo(()=>game?SECTOR_IDS.reduce((sum,id)=>sum+game.sectors[id].residents.length,0):0,[game]);
   const pressTile=useCallback((x:number,y:number)=>{
@@ -104,9 +133,10 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
       }}>
         {cell>0&&<View testID="sector-game-grid" style={[styles.grid,{width:PREVIEW_COLS*cell,height:PREVIEW_ROWS*cell}]}>
           {tiles.map((t,i)=><View pointerEvents="none" key={i} style={{
-            position:"absolute",left:t.x*cell,top:t.y*cell,width:cell,height:cell,
-            backgroundColor:t.color,borderColor:"#365a3444",borderWidth:StyleSheet.hairlineWidth
-          }}/>)}
+            position:"absolute",left:t.x*cell,top:t.y*cell,width:cell,height:cell,overflow:"hidden"
+          }}>
+            <TerrainSheetSprite cellSize={cell} coord={sectorTerrainCoord(t.x,t.y,t.road,t.variation)}/>
+          </View>)}
           {tiles.filter(t=>sector==="nord"&&!t.road&&
              ((t.x*17+t.y*31)%11===0)&&!world.buildings.some(b=>t.x>=b.x&&t.x<b.x+b.w&&t.y>=b.y&&t.y<b.y+b.h))
            .map(t=><Image key={"tree"+t.y+"-"+t.x} source={TREE}
@@ -114,11 +144,8 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
           {world.buildings.map(b=><Image key={b.id} source={getAsset(b.kind)}
             resizeMode="contain" style={{position:"absolute",left:b.x*cell,top:b.y*cell,width:b.w*cell,height:b.h*cell}}/>)}
           {world.residents.map((p,i)=><View pointerEvents="none" key={p.id}
-            style={{position:"absolute",left:p.x*cell,top:p.y*cell,width:cell,height:cell,justifyContent:"center",alignItems:"center"}}>
-            <View style={{width:Math.max(4,cell*.36),height:Math.max(4,cell*.32),backgroundColor:i%2?"#edc59c":"#c99472",
-              borderTopWidth:Math.max(2,cell*.08),borderTopColor:"#594332",borderRadius:3}}/>
-            <View style={{width:Math.max(5,cell*.5),height:Math.max(5,cell*.35),
-              backgroundColor:COLORS[i%COLORS.length],borderRadius:2}}/>
+            style={{position:"absolute",left:p.x*cell,top:p.y*cell,width:cell,height:cell}}>
+            <SectorResidentArt cell={cell} index={i}/>
           </View>)}
           <Pressable testID="sector-game-tap-grid" accessibilityRole="button" accessibilityLabel="Griglia di gioco, tocca una casella"
             style={[StyleSheet.absoluteFill,{zIndex:9}]} onPress={e=>{
