@@ -27,6 +27,9 @@ import { decideStartup, shouldAutosave, shouldConfirmNewGame } from "../persiste
 import { StartGameScreen } from "../ui/StartGameScreen";
 import { GameModeSelectionScreen } from "../ui/GameModeSelectionScreen";
 import { SectorPlayableScreen } from "../ui/SectorPlayableScreen";
+import { ProfessionOutfitEditorScreen } from "../ui/ProfessionOutfitEditorScreen";
+import { loadProfessionUniforms } from "../game/professionOutfitTemplates";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import { GameOverModal } from "../ui/GameOverModal";
 import { ID_GIOCATORE } from "../game/schiavituCommercio";
 import { setOrologioGiocoBloccatoDallaFase } from "../game/orologioGiocoSession";
@@ -390,7 +393,8 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const metadataRef = useRef<SaveEnvelopeV1["metadata"] | null>(null);
   const latestStateRef = useRef(gameState);
   latestStateRef.current = gameState;
-  const [startup, setStartup] = useState<"loading" | "choice" | "mode-choice" | "sector-play" | "active">("loading");
+  const [startup, setStartup] = useState<"loading" | "choice" | "mode-choice" | "sector-play" | "outfit-editor" | "active">("loading");
+  const editorReturnRef=useRef<"choice"|"mode-choice">("choice");
   const [startupError, setStartupError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const dirtyRef = useRef(false);
@@ -408,6 +412,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
         const result = await repository.loadBestAvailable();
         if (cancelled) return;
         pendingLoadRef.current = result;
+
+        // Le divise hanno una chiave separata dai salvataggi; un archivio danneggiato
+        // non deve impedire di aprire la partita e non va sovrascritto in automatico.
+        try { await loadProfessionUniforms(AsyncStorage); } catch { /* editor shows recovery UI */ }
 
         // Precarica gli sprite LPC del Re e del Consigliere prima della schermata iniziale.
         try {
@@ -475,6 +483,12 @@ export function GameProvider({ children }: { children: ReactNode }) {
       setStartup("active");
     })();
   }, [gameState]);
+
+  const apriEditorDivise=useCallback(()=>{
+    if(startup!=="choice" && startup!=="mode-choice")return;
+    editorReturnRef.current=startup;
+    setStartup("outfit-editor");
+  },[startup]);
 
   // Separate local demo: never clear or overwrite the main game's save.
   const provaSettori = useCallback(() => {
@@ -582,6 +596,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   }, [gameOverPerMorteRe]);
 
+  if (startup === "outfit-editor") {
+    return <ProfessionOutfitEditorScreen onExit={()=>setStartup(editorReturnRef.current)} />;
+  }
+
   if (startup === "sector-play") {
     return <SectorPlayableScreen onExit={() => setStartup("mode-choice")} />;
   }
@@ -593,6 +611,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         canCancel={pendingLoadRef.current != null && pendingLoadRef.current.source !== "none"}
         onSelect={avviaNuovaPartita}
         onTrySectors={provaSettori}
+        onEditOutfits={apriEditorDivise}
         onCancel={annullaSceltaModalita}
       />
     );
@@ -608,6 +627,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         onContinue={continua}
         onNewGame={nuovaPartita}
         onTrySectors={provaSettori}
+        onEditOutfits={apriEditorDivise}
       />
     );
   }
