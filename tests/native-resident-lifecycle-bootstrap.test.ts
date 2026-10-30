@@ -499,7 +499,7 @@ test("native population matrix: 25/50/100/200 residents at 1x/2x/4x preserve mot
         alarms.delete(id);
         alarm.callback();
       }
-      assert.ok(fired.every(n => n === 8), "each logical idle/collision wait runs once");
+      assert.deepEqual(fired, Array<number>(population).fill(8), "each logical idle/collision wait runs once");
       assert.equal(queue.snapshot().logicalCallbacks, population * 8);
       assert.equal(queue.snapshot().pending, 0);
       assert.equal(wakes, Math.ceil(population * 8 / 32));
