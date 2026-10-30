@@ -14,6 +14,11 @@ on:
   workflow_dispatch:
 jobs:
   preview-validation:
+    # The standalone mockup belongs to PR #299 only. The playable third mode in
+    # PR #300 supersedes its route: the game selection screen is intentionally shown
+    # by the global provider, so the old standalone browser contract cannot hold.
+    # The third mode has its own dedicated end-to-end Chromium workflow.
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feat/fixed-sector-preview-20261030'
     runs-on: ubuntu-latest
     timeout-minutes: 25
     env:
@@ -41,6 +46,7 @@ jobs:
         run: npx expo export --platform ios --output-dir /tmp/fixed-sector-preview-ios
 
   browser-rendered-preview:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feat/fixed-sector-preview-20261030'
     # Playwright 1.55 supports Ubuntu 24.04, not the ubuntu-26.04 runner image.
     runs-on: ubuntu-24.04
     timeout-minutes: 25
