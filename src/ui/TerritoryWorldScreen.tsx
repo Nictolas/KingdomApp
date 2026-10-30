@@ -66,6 +66,7 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
   const [camera,setCamera]=useState({x:5,y:5});
   const [mapArea,setMapArea]=useState({width:0,height:0});
   const [mapOpen,setMapOpen]=useState(false);
+  const [mapCenter,setMapCenter]=useState({tx:0,ty:0});
   const [selectedKey,setSelectedKey]=useState("0,0");
   const [resetOpen,setResetOpen]=useState(false);
   const [exiting,setExiting]=useState(false);
@@ -138,6 +139,8 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
   };
   const openMap=()=>{
     if(!world)return;
+    const {tx,ty}=world.territories[world.active];
+    setMapCenter({tx,ty});
     setSelectedKey(world.active);
     setMapOpen(true);
   };
@@ -183,9 +186,11 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
 
   const ownedCount=Object.keys(world.territories).length;
   const [tx,ty]=[territory.tx,territory.ty];
-  const center={tx,ty};
+  // A 5×5 map is a movable camera, not a world boundary. The view can
+  // travel indefinitely as the player expands, without loading or saving
+  // new regions just for previewing them.
   const nearby=Array.from({length:25},(_,i)=>{
-    const xx=tx+(i%5)-2,yy=ty+Math.floor(i/5)-2;
+    const xx=mapCenter.tx+(i%5)-2,yy=mapCenter.ty+Math.floor(i/5)-2;
     return territoryPreview(world,xx,yy);
   });
   const selectedCoords=selectedKey.split(",").map(Number);
@@ -322,7 +327,36 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
                 <Text style={styles.light}>Chiudi</Text>
               </Pressable>
             </View>
-            <Text style={styles.muted}>I territori sono 32×32 e continuano oltre questi 25 riquadri. Seleziona un confine.</Text>
+            <Text style={styles.muted}>I territori sono 32×32. Sposta la mappa per esplorare oltre questi 25 riquadri.</Text>
+            <View testID="territory-map-navigation" style={styles.mapNavigation}>
+              {([
+                {id:"west",label:"Ovest",dx:-3,dy:0,text:"◀"},
+                {id:"north",label:"Nord",dx:0,dy:-3,text:"▲"},
+                {id:"center",label:"Torna al territorio attuale",dx:0,dy:0,text:"◎"},
+                {id:"south",label:"Sud",dx:0,dy:3,text:"▼"},
+                {id:"east",label:"Est",dx:3,dy:0,text:"▶"}
+              ] as const).map(button=><Pressable
+                key={button.id} testID={"territory-map-pan-"+button.id}
+                accessibilityRole="button"
+                accessibilityLabel={button.id==="center"?"Centra mappa sul territorio attuale":"Sposta mappa verso "+button.label}
+                onPress={()=>{
+                  if(button.id==="center"){
+                    setMapCenter({tx,ty});
+                    setSelectedKey(world.active);
+                    return;
+                  }
+                  setMapCenter(current=>({
+                    tx:limit(current.tx+button.dx,-4094,4094),
+                    ty:limit(current.ty+button.dy,-4094,4094)
+                  }));
+                }}
+                style={styles.mapPanButton}>
+                <Text style={styles.light}>{button.text}</Text>
+              </Pressable>)}
+            </View>
+            <Text testID="territory-map-center-label" style={styles.mapCenterLabel}>
+              Centro mappa: {mapCenter.tx},{mapCenter.ty}
+            </Text>
             <View testID="territory-map-grid" style={styles.worldMap}>
               {nearby.map(entry=>{
                 const available=entry.owned||entry.reachable;
@@ -429,6 +463,11 @@ const styles=StyleSheet.create({
   info:{color:"#d2e3d1",fontSize:12,lineHeight:18},
   warningText:{color:"#d7bc87",fontSize:11,minHeight:30},
   warning:{color:"#fca5a5",fontSize:10,padding:7,backgroundColor:"#632f2f"},
+  mapNavigation:{flexDirection:"row",alignItems:"center",justifyContent:"center",gap:8},
+  mapPanButton:{minWidth:39,minHeight:30,paddingHorizontal:9,
+    backgroundColor:"#355843",borderWidth:1,borderColor:"#78917b",
+    borderRadius:6,alignItems:"center",justifyContent:"center"},
+  mapCenterLabel:{fontSize:10,color:"#e0edcf",textAlign:"center"},
   worldMap:{flexDirection:"row",flexWrap:"wrap",gap:4,alignSelf:"center",justifyContent:"center",maxWidth:330},
   mapCell:{width:53,height:48,borderRadius:6,backgroundColor:"#487355",borderWidth:1,
     borderColor:"#759b79",alignItems:"center",justifyContent:"center"},
