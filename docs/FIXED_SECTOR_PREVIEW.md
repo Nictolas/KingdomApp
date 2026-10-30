@@ -37,3 +37,20 @@ Il preview è uno **studio di layout e interazione**, non è ancora una migrazio
 5. testare con 25/50/100/200 residenti reali e dispositivi fisici.
 
 La regola di sicurezza è che l'esperimento resta **Draft** finché questo percorso non è validato.
+
+
+## Rafforzamento layout e interazione
+- Il campione operativo mantiene **solo 16×24**: il precedente pulsante 14×21 è stato tolto perché il requisito è una griglia fissa. La funzione di modello può ancora generare 14×21 per i test di confronto, ma non è esposta nella schermata.
+- Rimosso il comando «Pausa»: la fixture non simula il tempo, quindi quel pulsante era fuorviante.
+- Layout ridotto per schermi stretti o bassi (intestazione/footer); griglia con celle sempre quadrate, dimensionate allo spazio realmente disponibile dentro la safe area.
+- Frecce con area nominale 44×44 punti; la minimappa permette anche la navigazione diretta. Sono necessari test tattili fisici per confermare la fruibilità.
+- Selezione di edifici/abitanti tramite celle esatte e recupero del tocco vicino agli abitanti nelle caselle vuote, senza pan/zoom; i singoli elementi restano accessibili anche come pulsanti.
+- Test puri aggiunti per hit-test, geometria in sei viewport e 750 selezioni ripetute su cinque settori. Non equivalgono a test UI su device.
+
+## Risultato CI da tenere distinto
+La CI generale del repository segnala errori TypeScript in file preesistenti non appartenenti al prototipo (es. `app/castello.tsx`, `src/game/cuginoNobileAvventura.ts`, test legacy). Il controllo dedicato `Fixed Sector Preview` esegue test del modello ed export JavaScript web/Android/iOS, ma **non dimostra un typecheck globale pulito**. Non correggere file di produzione dentro questa PR sperimentale.
+
+## Matrice manuale da eseguire (non ancora verificata fisicamente)
+- Android piccolo ~320×568, Android grande ~412×915, iPhone con notch e iPhone compatto.
+- Per ogni device: tutti e cinque i settori, frecce e minimappa, 30 residenti al Centro, edifici selezionabili, assenza pan/zoom, rotazione se supportata, safe area e pulsanti non coperti.
+- Rilevare larghezza della casella e leggibilità effettiva degli sprite; se troppo piccoli, il requisito «tutto il settore visibile» va rivalutato con dati misurati.
