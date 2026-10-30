@@ -137,13 +137,13 @@ test("disboscamento changes local tile only and is saved as delta; blocked tiles
  const near=claimTerritory(w,1,0,"purchase");
  const t=near.territories["1,0"];
  const target=Array.from({length:1024},(_,i)=>({x:i%32,y:Math.floor(i/32)}))
-   .find(({x,y})=>groundAt(seed,1,0,x,y)==="woodland");
+   .find(({x,y})=>groundAt(seed,1,0,x,y,t.biome,near.terrainVersion??1)==="woodland");
  if(target){
    const before=tileAt(near,t,target.x,target.y);
    const after=territoryAction(near,"clear",target.x,target.y);
    assert.equal(before,"woodland");
    assert.equal(tileAt(after,after.territories["1,0"],target.x,target.y),"grass");
-   assert.equal(groundAt(seed,1,0,target.x,target.y),"woodland");
+   assert.equal(groundAt(seed,1,0,target.x,target.y,t.biome,near.terrainVersion??1),"woodland");
    assert.ok(isTerritoryWorld(after));
  }
  assert.equal(canBuildAt(near,t,15,15,"house"),false,"Roads are never building footprints");
