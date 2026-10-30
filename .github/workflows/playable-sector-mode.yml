@@ -9,6 +9,7 @@ on:
       - "src/ui/StartGameScreen.tsx"
       - "src/context/GameContext.tsx"
       - "tests/sector-playable.test.ts"
+      - "tests/sector-playable-browser.mjs"
       - "tsconfig.sector-playable.json"
       - ".github/workflows/playable-sector-mode.yml"
   workflow_dispatch:
@@ -32,3 +33,24 @@ jobs:
         run: npx tsx --test tests/sector-playable.test.ts
       - name: Export playable web game
         run: npm run build:web
+
+  playable-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:web
+      - name: Install Chromium test tooling (CI only)
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Play the third mode in Chromium at two phone sizes
+        run: node tests/sector-playable-browser.mjs dist
