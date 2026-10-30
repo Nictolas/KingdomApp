@@ -41,11 +41,14 @@ try{
    const terrain=grid.querySelectorAll('[data-testid="sector-terrain-tile"]');
    const residents=grid.querySelectorAll('[data-testid="sector-resident"]');
    const images=Array.from(grid.querySelectorAll('img'));
-   return terrain.length===384 && residents.length===30 &&
-     images.length>=414 && images.every(img=>img.complete&&img.naturalWidth>0);
+   const humans=grid.querySelectorAll('[data-testid="resident-human-lpc"]');
+   return terrain.length===384 && residents.length===30 && humans.length===30 &&
+     images.length>=414 && images.every(img=>img.complete&&img.naturalWidth>0) &&
+     Array.from(humans).every(h=>h.querySelectorAll("img").length>=2) &&
+     !grid.querySelector('[data-testid="sector-resident-atlas-image"]');
  },undefined,{timeout:30000});
  await mkdir("sector-screenshots",{recursive:true});
- await page.screenshot({path:`sector-screenshots/playable-original-sprites-${width}x${height}.png`});
+ await page.screenshot({path:`sector-screenshots/playable-human-lpc-${width}x${height}.png`});
  const rec=await page.evaluate(()=>{
   const rect=id=>{const r=document.querySelector('[data-testid="'+id+'"]')?.getBoundingClientRect();
      if(!r)throw Error(id+" missing");
@@ -58,14 +61,14 @@ try{
  assert.ok(await page.getByTestId("sector-game-resources").getByText("👤 110").isVisible());
  // React Native Web often places 'left' in a generated CSS class, not img.style.
  // Observe computed atlas crop coordinates while running, then ensure they remain fixed in pause.
- const firstSprite=page.getByTestId("sector-resident-atlas-image").first();
+ const firstSprite=page.getByTestId("resident-human-lpc").first().locator("img").first();
  const spriteOffset=()=>firstSprite.evaluate(el=>getComputedStyle(el).left);
  const before=await spriteOffset();
  await page.getByTestId("sector-game-pause").click(); // resume
  await page.getByRole("button",{name:"Metti in pausa il tempo"}).waitFor({state:"visible"});
  try {
    await page.waitForFunction(start=>{
-     const element=document.querySelector('[data-testid="sector-resident-atlas-image"]');
+     const element=document.querySelector('[data-testid="resident-human-lpc"] img');
      return !!element && getComputedStyle(element).left!==start;
    },before,{timeout:8000});
  } catch(error) {
@@ -74,18 +77,18 @@ try{
      className:el.className, cssText:el.getAttribute("style"),
      outerHTML:el.outerHTML.slice(0,400)
    }));
-   throw new Error("Sprite atlas frame did not change: "+JSON.stringify({before,diagnostic}),{cause:error});
+   throw new Error("Human LPC animation frame did not change: "+JSON.stringify({before,diagnostic}),{cause:error});
  }
  await page.getByTestId("sector-game-pause").click(); // pause again
  await page.getByRole("button",{name:"Riprendi il tempo"}).waitFor({state:"visible"});
  const stopped=await spriteOffset();
  await page.waitForTimeout(650);
- assert.equal(await spriteOffset(),stopped,"Resident sprite crop must freeze when paused");
+ assert.equal(await spriteOffset(),stopped,"Human LPC frame must freeze when paused");
  await page.getByTestId("sector-game-next-day").click();
  await page.getByText("PROTOTIPO GIOCABILE · Giorno 2").waitFor();
  await page.getByRole("button",{name:"Visita Sud"}).click();
  await page.getByText(/SUD · 22 abitanti/i).waitFor();
- await page.screenshot({path:`sector-screenshots/playable-south-original-sprites-${width}x${height}.png`});
+ await page.screenshot({path:`sector-screenshots/playable-south-human-lpc-${width}x${height}.png`});
  assert.equal(await page.getByTestId("sector-resident").count(),22,
    "Only the 22 visible south residents should render");
  assert.ok(await page.getByTestId("sector-building-accent").count()>=8,
@@ -123,7 +126,7 @@ try{
  assert.ok(await page.getByTestId("sector-building-accent").count()>8,
    "Auto-placed farm must remain after leaving and resuming");
  assert.equal(errors.length,0,"Runtime errors: "+errors.join("; "));
- console.log("PASS playable mode "+width+"x"+height+": real terrain/citizen images decoded, 384 tiles, visible-only sprites, clock, travel, build, isolated save");
+ console.log("PASS playable mode "+width+"x"+height+": real terrain and human LPC citizens decoded, 384 tiles, visible-only sprites, clock, travel, build, isolated save");
  }finally{await page.close();}
  }
 }finally{
