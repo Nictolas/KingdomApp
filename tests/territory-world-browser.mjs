@@ -85,8 +85,7 @@ try{
    const resourcesBeforeFrontier=await page.getByTestId("territory-world-resources").textContent();
    await page.getByTestId("territory-dpad-e").click();
    await page.getByTestId("territory-map-selected").filter({hasText:/Acquisto:/}).waitFor();
-   assert.ok(await page.getByTestId("territory-map-cell-1,0")
-     .getAttribute("aria-selected")==="true",
+   assert.match(await page.getByTestId("territory-map-selected-label").textContent()||"",/1,0/,
      "East from the capital must preselect the eastern frontier");
    assert.equal(await page.getByTestId("territory-world-resources").textContent(),
      resourcesBeforeFrontier,"Opening frontier via D-pad must not spend resources");
