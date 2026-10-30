@@ -1,0 +1,7 @@
+# MyKingdom — integrazione completa dei runner nativi con 200 residenti (28/10/2026)
+
+La PR Draft #297 include ora una suite **end-to-end in Node** che collega i componenti reali `NativeResidentSegmentRunner`, `NativeResidentFrameBus`, `NativeResidentTimerQueue`, `NativeResidentActivityGate` e `NativeResidentTapRecognizer`. Prima esistevano prove separate su runner, bus, timer e progressione, ma il soak combinato non istanziava 200 runner reali.
+
+`tests/native-resident-full-stack-integration.test.ts` simula 200 runner simultanei con un unico RAF e un unico timeout di piattaforma, progressione 1×/2×/4×, pausa e background prolungati, 40 unmount in pausa, 30 sostituzioni di percorso, 160 arrivi singoli, 160 retry a scadenza attiva in cinque batch, tap interrotti dalla pausa e consegna tardiva di callback OS cancellati. Un secondo scenario usa 200 runner per 240 frame con **600 sostituzioni di percorso** e verifica pulizia completa di RAF e sottoscrizioni.
+
+I test sono deterministici, con clock e API OS finti: non sono benchmark di FPS, GPU/UI, collisioni fisiche, batteria o touch hardware. L'obiettivo è la correttezza delle interazioni fra scheduler e runner; il workflow nativo continua a eseguire separatamente bundle JavaScript Android/iOS/web e gate TypeScript. Non vengono toccati renderer web, GameContext, salvataggi, regole, main o produzione. Nessun merge senza confronto A/B su Android e iPhone fisici.

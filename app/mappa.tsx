@@ -93,6 +93,7 @@ import {
   RpgFootprintSerra2x1,
 } from "../src/components/RpgFootprintBuilding";
 import { MapWandererCharacter } from "../src/components/MapWandererCharacter";
+import { NativeResidentOverlayLookup } from "../src/performance/nativeResidentOverlayLookup";
 import { abitanteSoggettoACoprifuoco } from "../src/game/coprifuoco";
 import {
   applicaRecuperoBar,
@@ -1611,6 +1612,16 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
   const [barArrivatiByEdificio, setBarArrivatiByEdificio] = useState<Record<number, number[]>>(
     () => runtimePersonaggiInizialeRef.current.barArrivatiByEdificio
   );
+  // Native map only: names and bar occupancy do not need 200 repeated array
+  // scans on every unrelated world-clock render. Web keeps its legacy path.
+  // Depend only on the two immutable sources, never on the game clock itself.
+  const nativeOverlayLookup = useMemo(
+    () => Platform.OS === "web" ? null : new NativeResidentOverlayLookup(
+      abitanti, barArrivatiByEdificio
+    ),
+    [abitanti, barArrivatiByEdificio]
+  );
+
   /** id edificio Luogo di Culto (globale) → fedeli considerati “dentro” quel tempio. */
   const [cultoArrivatiByEdificio, setCultoArrivatiByEdificio] = useState<Record<number, number[]>>(
     () => runtimePersonaggiInizialeRef.current.cultoArrivatiByEdificio
@@ -4087,7 +4098,9 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
 
                     const nascostoBar =
                       abitanteAlBarRoutineOra(abitante, orologioMinuti, statoCielo.buio, edifici) &&
-                      Object.values(barArrivatiByEdificio).some((ids) => ids.includes(abitante.id)) &&
+                      (nativeOverlayLookup != null
+                        ? nativeOverlayLookup.hasBarArrival(abitante.id)
+                        : Object.values(barArrivatiByEdificio).some((ids) => ids.includes(abitante.id))) &&
                       !inCommute;
 
                     const nascostoCulto =
@@ -4181,8 +4194,8 @@ function MappaScreenInner({ initialMappaState }: { initialMappaState: MappaRunti
                               )))
                         }
                         markerEmoji={abitante.razza === "Golem" ? getEmojiAbitante(abitante) : null}
-                        pressAccessibilityLabel={`Seleziona ${getAbitanteNome(abitante.id)}`}
-                        doubleTapAccessibilityLabel={`Apri scheda ${getAbitanteNome(abitante.id)}`}
+                        pressAccessibilityLabel={`Seleziona ${nativeOverlayLookup != null ? nativeOverlayLookup.nameFor(abitante.id) : getAbitanteNome(abitante.id)}`}
+                        doubleTapAccessibilityLabel={`Apri scheda ${nativeOverlayLookup != null ? nativeOverlayLookup.nameFor(abitante.id) : getAbitanteNome(abitante.id)}`}
                         isCellFreeForMe={(cell) => isCellFreeForAbitante(abitante.id, cell)}
                         tryClaimCell={(cell) => tryClaimCellAbitante(abitante.id, cell)}
                         releaseMyCell={() => releaseCellAbitante(abitante.id)}

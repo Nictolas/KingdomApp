@@ -1,0 +1,116 @@
+# MyKingdom — matrice A/B verificabile degli sprite nativi
+
+## Perimetro
+
+Questo controllo **offline** completa il confronto dei report diagnostici JavaScript fra la **PR Draft #298** (renderer nativo prima della timer queue) e la **PR Draft #297** (renderer ottimizzato). Entrambe devono usare la **stessa scena con sprite reali**, non i marker semplici della #295. Non modifica il gioco, i salvataggi, la mappa web, la simulazione o la fixture A/B. Non usa servizi di telemetria né raccoglie ID, coordinate o dati degli abitanti.
+
+La matrice prevista comprende **25/50/100/200 abitanti × velocità 1×/2×/4×**: 12 scenari, almeno tre catture da 10 secondi per ciascuna build e scenario, ossia **72 report** per una matrice completa. Per ogni scenario servono due file di testo contenenti tre report concatenati. Ripetere su Android e iPhone con manifest separati; non mescolare piattaforme.
+
+## Procedura sul dispositivo
+
+1. Installare due **build di sviluppo distinte** dei commit verificati di #298 e #297 sullo **stesso telefono fisico**. Non utilizzare Expo Go né il bundle JavaScript come se fosse una build installabile. Annotare localmente commit, modello, versione OS, stato batteria/temperatura e condizioni della prova. Il report diagnostico non certifica questi dati.
+2. Aprire la scena `Sprite abitanti reali in movimento`, impostare la popolazione e la velocità, attendere che si stabilizzi. Non cambiare scena, velocità, pausa o stato foreground durante la cattura.
+3. Usare `Misura 10 secondi` e `Condividi risultati` almeno tre volte per ogni build e scenario. Conservare i report completi in due file locali distinti. Le catture annullate non valgono.
+4. Ripetere per i 12 scenari. Le prove `Sprite abitanti reali fermi` richiedono un **manifest distinto**, perché non possono essere mescolate con quelle in movimento.
+5. Eseguire separatamente i test **visivi/fisici** di collisioni, ingressi condivisi, tap/doppio tap, hitbox, zoom/pan, pausa, background e cambio percorso. Misurare FPS UI/GPU, memoria/GC, batteria e latenza touch con strumenti nativi: **nessuno di questi dati viene dedotto dal tool JS**.
+
+## Manifest locale
+
+Creare un file `matrix-android.json` nella stessa cartella dei file di report. Esempio con **un solo scenario**:
+
+```json
+{
+  "schemaVersion": 1,
+  "platform": "android",
+  "scene": "Sprite abitanti reali in movimento",
+  "samePhysicalDeviceConfirmed": true,
+  "scenarios": [
+    {
+      "residents": 200,
+      "speed": 1,
+      "baseline": "prima-200-1x.txt",
+      "candidate": "dopo-200-1x.txt",
+      "baselineSpeedConfirmed": true
+    }
+  ]
+}
+```
+
+**Versione del manifest:** l'esempio v1 resta leggibile, ma anche con tutti i 72 report restituisce ora lo stato **preliminare**, perché non attesta quali build siano state installate. Per lo stato «pronto alla revisione manuale» usare **schemaVersion 2** con SHA Git distinti di #298/#297, attestazioni delle build installate, parità della fixture e condizioni dello stesso dispositivo, come descritto in [NATIVE_AB_BUILD_PROVENANCE_20261029.md](NATIVE_AB_BUILD_PROVENANCE_20261029.md). Le attestazioni non costituiscono una verifica tecnica dei binari e non autorizzano un merge.
+
+**Attenzione:** `samePhysicalDeviceConfirmed` è una dichiarazione manuale, non un controllo tecnico. Impostarla a `true` solo dopo aver realmente usato lo stesso telefono. La #298 storica può omettere `Velocità simulazione`: `baselineSpeedConfirmed: true` va aggiunto **solo dopo aver verificato manualmente** che tutte le catture baseline erano a 1× nell'esempio. Se anche la candidata non registra la velocità, usare `candidateSpeedConfirmed: true` con la stessa cautela. Il tool non può verificarlo da solo.
+
+Per una matrice completa, aggiungere gli altri undici oggetti `scenarios` con tutte le combinazioni di `residents: 25, 50, 100, 200` e `speed: 1, 2, 4`, ciascuno con due file univoci. La scena e la piattaforma devono essere identiche per tutti.
+
+## Comandi
+
+Da Node 22+ nella radice del repository:
+
+```bash
+# Primo controllo parziale, esplicitamente non conclusivo:
+node scripts/compare-native-ab-matrix.mjs --manifest matrix-android.json --allow-partial
+
+# Quando sono presenti tutti i 12 scenari:
+node scripts/compare-native-ab-matrix.mjs --manifest matrix-android.json --json
+```
+
+Senza `--allow-partial`, il comando **rifiuta** una matrice incompleta. Rifiuta anche popolazione, scena, piattaforma, dimensione terreno, durata, velocità o numero di catture incoerenti; report riutilizzati, meno di tre catture per build, meno di 100 campioni JS in una cattura e attestazioni manuali mancanti. Il campo `reviewMetrics` segnala regressioni JS potenziali: **non è un verdetto statistico o una certificazione FPS**. Il risultato finale è sempre `no_automatic_performance_or_release_approval`.
+
+I file rimangono locali; il comando legge soltanto i report e stampa risultati. Non caricare i report in produzione né associare nomi o dati personali agli abitanti. Le build non devono essere fuse né pubblicate prima delle prove fisiche e della revisione dei risultati.
+
+## Test automatici
+
+`node --test tests/native-ab-matrix.test.mjs` esercita la matrice completa con **72 report sintetici**, scenari parziali, metadati discordanti, velocità baseline non registrata, duplicati, numero insufficiente di campioni e CLI reale su file temporanei. È integrato nella pipeline `native-perf-diagnostics.yml`. Questi test dimostrano la correttezza dei controlli del **tool**, non un miglioramento delle prestazioni su Android/iOS.
+
+## Integrità delle catture e dei file (29 ottobre)
+
+La schermata diagnostica della #297 usa la modalità di continuità stretta:
+oltre a pause/background e gap RAF di almeno 2 secondi, invalida timestamp
+non crescenti, delta non validi e intervalli non osservati di almeno 2 secondi,
+anche se il chiamante dichiara un delta artificiosamente breve. La modalità
+compatibile delle vecchie API di test resta invariata.
+
+Il parser dei report rifiuta valori con suffissi non previsti, campi duplicati,
+conteggi non interi o incoerenti (frame >50 ms maggiori di quelli >33 ms), e
+FPS JS dichiarati incompatibili con il frame medio entro una tolleranza per
+gli arrotondamenti del display. Il confronto matriciale accetta soltanto nomi
+di file relativi canonici; la CLI risolve i link simbolici e impedisce letture
+fuori dalla cartella del manifest.
+
+Queste protezioni riducono il rischio di **falsi confronti A/B**, ma non
+certificano l'indipendenza delle tre catture, il commit delle build o
+l'identità del telefono. Validazione visiva, profiler nativo e misurazioni
+fisiche restano obbligatori. Nessun FPS fisico è stato misurato da questi test.
+
+
+## Gate di movimento reale nella scena ripetibile (29 ottobre)
+
+Nella scena **Tragitto ripetibile**, il laboratorio A/B non si limita più a
+contare le 25/50/100/200 prenotazioni iniziali. Prima di consentire la misura
+richiede anche che **ciascuno sprite reale abbia completato almeno una tratta**
+attraverso il callback nativo `onCommuteComplete`, seguito dai consueti due
+secondi di stabilizzazione. Una scena congelata, pur con 200 celle occupate,
+non può quindi produrre una cattura etichettata come carico in movimento.
+
+Il conteggio è locale alla fixture e registra soltanto la presenza di una prima
+tratta per ciascun ID di test; non viene condiviso, salvato o trasmesso.
+Notifica React solo al completamento dell'intera popolazione, non a ogni
+passo. La rimozione di una prenotazione revoca la prova di movimento di quel
+residente: dopo il recupero serve una nuova tratta. La modalità casuale e i
+marker sintetici mantengono il precedente gate di occupazione. Entrambe le
+PR #297 e #298 devono contenere **identici** sorgenti e test della fixture.
+
+I test sintetici coprono quattro popolazioni, duplicati, residenti non montati,
+240 tratte per residente, rilascio/riacquisizione e assenza di notifiche per
+ogni trasferimento. Non sono prove su dispositivi fisici, né dimostrano FPS
+UI/GPU, tempi di risposta touch o consumi. In particolare il gate non verifica
+la correttezza visiva dei singoli frame: serve ancora il controllo manuale.
+
+
+## Isolamento dei guasti del pannello diagnostico RAF (29 ottobre)
+
+Il pannello `NativePerformanceHud` e il suo `NativeHudFrameLoop` sono opzionali: un errore nel bridge `requestAnimationFrame` o nel callback diagnostico non deve bloccare il gioco. La sessione di monitoraggio viene chiusa, il campionamento disattivato e un messaggio richiede di chiudere/riaprire i dettagli. Non si riavvia automaticamente in un ciclo di tentativi. Un errore in `cancelAnimationFrame` non può impedire la chiusura: eventuali callback tardivi sono scartati dal token di generazione.
+
+La CI verifica l'invariante con guasti sintetici di richiesta/callback, errori falsy, 200 cicli di background/ripresa e 200 sessioni indipendenti con fault intermittenti. Il controllo di cablaggio del campionamento usa il gate di visibilità condiviso Android (AppState + blur/focus) e iOS (AppState), non una vecchia espressione `nextState === "active"` che ignorava il pannello notifiche Android. Non è una misura su telefono e non sostituisce i test di rendering, touch e GPU fisici.
+
+La chiusura per errore rimane valida anche se Android/iOS emette un nuovo evento `active`: il pannello guasto non riattiva la cattura e non produce un report incompleto. Il recupero richiede esplicitamente di chiudere e riaprire il pannello diagnostico, non l'applicazione né la simulazione.

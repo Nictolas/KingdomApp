@@ -1,8 +1,11 @@
-import React, { memo, useEffect, useMemo, useRef, useState } from "react";
+import React, { memo, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from "react";
 import { Redirect, useRouter } from "expo-router";
 import { Animated, Platform, Pressable, SafeAreaView, StyleSheet, Text, View } from "react-native";
 
 import { NativePerformanceHud } from "../src/performance/NativePerformanceHud";
+import { NativeRealResidentWorkload } from "../src/performance/NativeRealResidentWorkload";
+import { NATIVE_REAL_FIXTURE_COLS, NATIVE_REAL_FIXTURE_ROWS, getNativeRealFixtureCaptureBlockReason } from "../src/performance/nativeRealResidentFixture";
+import { getOrologioSimTimeScaleSnapshot, subscribeOrologioGiocoInPausa, subscribeOrologioGiocoVelocita } from "../src/game/orologioGiocoSession";
 import {
   NATIVE_TEST_POPULATIONS,
   createNativeSyntheticMarkers,
@@ -48,18 +51,54 @@ const ResidentDot = memo(function ResidentDot({
   );
 });
 
+function subscribeFixtureClock(listener: () => void): () => void {
+  const offPause = subscribeOrologioGiocoInPausa(listener);
+  const offSpeed = subscribeOrologioGiocoVelocita(listener);
+  return () => { offPause(); offSpeed(); };
+}
+
 const gridCells = Array.from({ length: 200 }, (_, index) => index);
+const realFixtureCells = Array.from({ length: NATIVE_REAL_FIXTURE_COLS * NATIVE_REAL_FIXTURE_ROWS }, (_, index) => index);
 
 function NativePerformanceScene() {
   const router = useRouter();
   const [population, setPopulation] = useState<NativeTestPopulation>(25);
   const [isMoving, setIsMoving] = useState(true);
+  const [workload, setWorkload] = useState<"markers" | "residents">("markers");
+  const [repeatable, setRepeatable] = useState(false);
   const [size, setSize] = useState({ width: 0, height: 0 });
   const phase = useRef(new Animated.Value(0)).current;
   const residents = useMemo(() => createNativeSyntheticMarkers(population), [population]);
+  const realRenderer = workload === "residents";
+  const fixtureKey = population + "-" + (isMoving ? "moving" : "still") + "-" + (repeatable ? "repeatable" : "random");
+  const [readiness, setReadiness] = useState({ key: "", epoch: 0, ready: false });
+  const [settled, setSettled] = useState({ key: "", epoch: -1 });
+  const timeScale = useSyncExternalStore(subscribeFixtureClock, getOrologioSimTimeScaleSnapshot, getOrologioSimTimeScaleSnapshot);
+  const onReadinessChange = useCallback((ready: boolean) => {
+    setReadiness(previous => previous.key === fixtureKey && previous.ready === ready
+      ? previous : { key: fixtureKey, epoch: previous.epoch + 1, ready });
+  }, [fixtureKey]);
+  useEffect(() => {
+    if (!realRenderer || readiness.key !== fixtureKey || !readiness.ready) return;
+    const epoch = readiness.epoch;
+    const timeout = setTimeout(() => setSettled({ key: fixtureKey, epoch }), 2000);
+    return () => clearTimeout(timeout);
+  }, [realRenderer, fixtureKey, readiness]);
+  const captureBlockReason = getNativeRealFixtureCaptureBlockReason({
+    realRenderer, width: size.width, height: size.height,
+    ready: readiness.key === fixtureKey && readiness.ready,
+    settled: settled.key === fixtureKey && settled.epoch === readiness.epoch,
+    moving: isMoving, timeScale
+  });
+  const captureContextKey = workload + ":" + fixtureKey + ":" + timeScale + ":" + size.width + "x" + size.height + ":" + readiness.epoch;
+  const cells = realRenderer ? realFixtureCells : gridCells;
+  const tileWidth = realRenderer ? Math.min(size.width / NATIVE_REAL_FIXTURE_COLS, size.height / NATIVE_REAL_FIXTURE_ROWS) : size.width / 20;
+  const tileHeight = realRenderer ? tileWidth : size.height / 10;
 
   useEffect(() => {
-    if (!isMoving) {
+    // Native-driver marker animation must not run behind the real-sprite test:
+    // otherwise it adds an unrelated animation workload to those measurements.
+    if (!isMoving || realRenderer) {
       phase.stopAnimation();
       phase.setValue(0);
       return;
@@ -72,7 +111,7 @@ function NativePerformanceScene() {
     );
     animation.start();
     return () => animation.stop();
-  }, [phase, isMoving]);
+  }, [phase, isMoving, realRenderer]);
 
   return (
     <SafeAreaView style={styles.root}>
@@ -95,6 +134,24 @@ function NativePerformanceScene() {
           <Text style={styles.whiteText}>{isMoving ? "Ferma" : "Muovi"}</Text>
         </Pressable>
       </View>
+      <View style={styles.controls}>
+        <Pressable accessibilityRole="button" accessibilityState={{ selected: !realRenderer }} style={[styles.option, !realRenderer && styles.selected]} onPress={() => setWorkload("markers")}>
+          <Text style={styles.whiteText}>Marker semplici</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" accessibilityState={{ selected: realRenderer }} style={[styles.option, realRenderer && styles.selected]} onPress={() => setWorkload("residents")}>
+          <Text style={styles.whiteText}>Sprite abitanti reali</Text>
+        </Pressable>
+      </View>
+      {realRenderer && (
+        <View style={styles.controls}>
+          <Pressable accessibilityRole="button" accessibilityState={{ selected: !repeatable }} style={[styles.option, !repeatable && styles.selected]} onPress={() => setRepeatable(false)}>
+            <Text style={styles.whiteText}>Girovago casuale</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityState={{ selected: repeatable }} style={[styles.option, repeatable && styles.selected]} onPress={() => setRepeatable(true)}>
+            <Text style={styles.whiteText}>Tragitto ripetibile</Text>
+          </Pressable>
+        </View>
+      )}
       <View
         style={styles.world}
         onLayout={(event) => {
@@ -103,17 +160,35 @@ function NativePerformanceScene() {
             ? prev : { width: next.width, height: next.height });
         }}
       >
-        {gridCells.map((index) => (
-          <View key={index} pointerEvents="none" style={[styles.tile, { left: (index % 20) * size.width / 20, top: Math.floor(index / 20) * size.height / 10, width: size.width / 20, height: size.height / 10 }]} />
+        {cells.map((index) => (
+          <View key={index} pointerEvents="none" style={[styles.tile, { left: (index % 20) * tileWidth, top: Math.floor(index / 20) * tileHeight, width: tileWidth, height: tileHeight }]} />
         ))}
-        {residents.map((marker) => (
+        {realRenderer ? (
+          <NativeRealResidentWorkload
+            key={fixtureKey}
+            population={population}
+            moving={isMoving}
+            deterministicCommute={repeatable}
+            width={size.width}
+            height={size.height}
+            onReadinessChange={onReadinessChange}
+          />
+        ) : residents.map((marker) => (
           <ResidentDot key={marker.id} marker={marker} progress={phase} animated={isMoving} width={size.width} height={size.height} />
         ))}
-        <NativePerformanceHud residents={residents.length} terrainCells={gridCells.length} label={isMoving ? "Marker animati" : "Marker fermi"} />
+        <NativePerformanceHud residents={residents.length} terrainCells={cells.length} captureBlockedReason={captureBlockReason} captureContextKey={captureContextKey} label={realRenderer
+          ? (isMoving ? (repeatable ? "Sprite abitanti reali in tragitto ripetibile" : "Sprite abitanti reali in movimento") : "Sprite abitanti reali fermi")
+          : (isMoving ? "Marker animati" : "Marker fermi")} />
       </View>
       <View style={styles.footer}>
-        <Text style={styles.footerText}>Carico sintetico React Native: {residents.length} marker semplici su 200 celle.</Text>
-        <Text style={styles.footerText}>Non misura IA, percorsi, collisioni, asset LPC o prestazioni GPU. Per GPU/UI thread usare il profiler di sistema sul dispositivo.</Text>
+        <Text style={styles.footerText}>{realRenderer
+          ? "Carico isolato: " + population + " sprite reali su 400 celle. " + (repeatable ? "Tragitti orizzontali ripetibili a due celle; niente collisioni intenzionali." : "Girovagare casuale con prenotazione locale e timer.")
+          : "Carico sintetico: " + residents.length + " marker semplici su 200 celle (Animated con driver nativo)."}
+        </Text>
+        <Text style={styles.footerText}>{realRenderer
+          ? "Usa gli stessi sprite, gestori touch, dispatcher RAF e collisioni di base della mappa; non simula IA, edifici, professioni o salvataggi."
+          : "Non misura i veri sprite, IA, collisioni o prestazioni GPU. Seleziona «Sprite abitanti reali» per provare il renderer nativo."}
+        </Text>
       </View>
     </SafeAreaView>
   );

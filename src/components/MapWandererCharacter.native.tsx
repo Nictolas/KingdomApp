@@ -1,24 +1,30 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
-import { Animated, Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Animated, Pressable, StyleSheet, Text, View } from "react-native";
 import { getOrologioGiocoInPausaSnapshot, getOrologioSimTimeScaleSnapshot } from "../game/orologioGiocoSession";
-import { NativeResidentSegmentProgress } from "../performance/nativeResidentSegmentProgress";
+import { NativeResidentSegmentRunner } from "../performance/nativeResidentSegmentRunner";
+import { beginNativeResidentDispatch, endNativeResidentDispatch } from "../performance/nativeResidentDispatchProfiler";
 import { PendingCommuteRetry } from "../game/pendingCommuteRetry";
-import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation } from "../performance/nativeResidentWorkCounters";
+import { NativeResidentCollisionRetry } from "../performance/nativeResidentCollisionRetry";
+import { NativeResidentRouteEpoch } from "../performance/nativeResidentRouteEpoch";
+import { NativeResidentOwnedTimer } from "../performance/nativeResidentOwnedTimer";
+import { nativeResidentRouteMode, nativeResidentHomeTransition, nativeResidentShouldRearmIdle, nativeResidentReconcileInterruptedClaim, nativeResidentReleaseMismatchedRouteOrigin, nativeResidentReleaseSharedHomeArrival, nativeResidentRunCleanup, nativeResidentRethrowAfterClaimedStartFault, nativeResidentRethrowAfterUnsettledArrivalFault } from "../performance/nativeResidentRouteTransitions";
+import { markNativeResidentFrameCallback, markNativeResidentRenderInvocation, markNativeResidentWrapperInvocation } from "../performance/nativeResidentWorkCounters";
+import { NativeResidentCallbackRelay } from "../performance/nativeResidentCallbackRelay";
+import { NativeResidentTapRecognizer } from "../performance/nativeResidentTapRecognizer";
+import { NativeResidentNeighborSampler } from "../performance/nativeResidentNeighborSampler";
+import { nativeResidentSpawnSampler } from "../performance/nativeResidentSpawnSampler";
+import { NativeResidentSpriteFrameDriver } from "../performance/nativeResidentSpriteFrameDriver";
+import { nativeResidentNeedsTouchRender } from "../performance/nativeResidentTouchRenderGate";
 import {
   requestResidentAnimationFrame,
+  subscribeResidentAnimationFrames,
   cancelResidentAnimationFrame,
   isNativeResidentFrameBusActive,
   subscribeNativeResidentFrameBusActivity
 } from "../performance/nativeResidentFrameBus";
 import { ensureNativeResidentFrameLifecycle } from "../performance/nativeResidentFrameLifecycle.native";
-import { useGiocoInPausa } from "../hooks/useGiocoInPausa";
-import {
-  frameGroupStart,
-  segmentMoveDurationMs,
-  walkFrameFromElapsedMs,
-  walkIndexInGroup,
-  type WanderDirection
-} from "../game/mapWandererMotion";
+import { scheduleNativeResidentTimer, cancelNativeResidentTimer } from "../performance/nativeResidentTimerQueue";
+import { segmentMoveDurationMs, type WanderDirection } from "../game/mapWandererMotion";
 
 /**
  * Keep the native hit target animated together with the sprite. Unlike React
@@ -31,7 +37,6 @@ ensureNativeResidentFrameLifecycle();
 
 const AnimatedPressable = Animated.createAnimatedComponent(Pressable);
 
-const DOPPIO_TAP_MS = 400;
 
 const CHARACTER_SHEET = require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/character.png");
 
@@ -45,17 +50,6 @@ const IDLE_BEFORE_NEXT_MS = 2200;
 const CLAIM_RETRY_MS = 900;
 /** Dopo N fallimenti di claim, chiede al genitore un nuovo percorso. */
 const MAX_CLAIM_FAILS_BEFORE_REPATH = 3;
-
-function orthogonalNeighbors(index: number, cols: number, rows: number): number[] {
-  const c = index % cols;
-  const r = Math.floor(index / cols);
-  const out: number[] = [];
-  if (c > 0) out.push(index - 1);
-  if (c < cols - 1) out.push(index + 1);
-  if (r > 0) out.push(index - cols);
-  if (r < rows - 1) out.push(index + cols);
-  return out;
-}
 
 function directionBetween(from: number, to: number, cols: number): WanderDirection {
   if (to === from + 1) return "e";
@@ -133,7 +127,7 @@ type MapWandererCharacterProps = {
  * Personaggio da `character.png`: spostamento fluido tra celle, camminata solo durante il movimento,
  * idle sul primo frame a riposo; sprite più alto della cella, piedi sulla casella.
  */
-export function MapWandererCharacter({
+function NativeResidentBody({
   cols,
   rows,
   cellSizePx,
@@ -164,27 +158,63 @@ export function MapWandererCharacter({
   const cellRef = useRef<number | null>(null);
   // Stable position observable: movement no longer causes React rerenders 60×/s.
   const [pixelPos] = useState(() => new Animated.ValueXY({ x: 0, y: 0 }));
-  const [direction, setDirection] = useState<WanderDirection>("s");
-  const [walkFrame, setWalkFrame] = useState(0);
-  const walkFrameRef = useRef(0);
-  // React only needs a new sprite frame every ~180ms, not at every RAF tick.
-  const updateWalkFrame = useCallback((next: number) => {
-    if (walkFrameRef.current === next) return;
-    walkFrameRef.current = next;
-    setWalkFrame(next);
-  }, []);
-  const [isMoving, setIsMoving] = useState(false);
-  const giocoInPausa = useGiocoInPausa();
+  // Sprite-sheet frames are written to Animated.Image without React renders.
+  // The independent native hit target still follows pixelPos as before.
+  const [spriteSheetOffset] = useState(() => new Animated.Value(0));
+  const [spriteMirrorScaleX] = useState(() => new Animated.Value(1));
+  const [spriteFrames] = useState(() =>
+    new NativeResidentSpriteFrameDriver(
+      cellSizePx,
+      (left) => spriteSheetOffset.setValue(left),
+      (scaleX) => spriteMirrorScaleX.setValue(scaleX)
+    )
+  );
+  const face = useCallback((next: WanderDirection) => {
+    // Facing changes do not reconcile 200 React sprite bodies; the image
+    // frame and horizontal mirror are updated by their Animated.Values.
+    spriteFrames.face(next);
+  }, [spriteFrames]);
+  React.useLayoutEffect(() => {
+    spriteFrames.setCellSize(cellSizePx);
+  }, [spriteFrames, cellSizePx]);
 
   const inited = useRef(false);
   const isMovingRef = useRef(false);
-  const prevGiocoInPausaRef = useRef(giocoInPausa);
   const prevFixedCellRef = useRef<number | null | undefined>(undefined);
-  const idleTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const routeMode = nativeResidentRouteMode(commutePath, fixedCell);
+  const previousIdleContextRef = useRef({ routeMode, disableIdleRoam });
+  // Shared timer queue manages deadlines; this per-resident slot protects
+  // against canceled callbacks that arrive late after a route/mode change.
+  const [wakeTimer] = useState(() =>
+    new NativeResidentOwnedTimer(scheduleNativeResidentTimer, cancelNativeResidentTimer)
+  );
   /** Collision retry can be suspended across pauses without repeated timers. */
   const [pendingCommuteRetry] = useState(() => new PendingCommuteRetry());
-  const rafRef = useRef<number | null>(null);
-  const lastTapTimeRef = useRef(0);
+  // A single mutable point per mounted native resident is read synchronously
+  // by Animated.ValueXY.setValue; no new point on each animation frame.
+  const [movementPoint] = useState(() => ({ x: 0, y: 0 }));
+  const [motion] = useState(() => new NativeResidentSegmentRunner({
+    requestFrame: requestResidentAnimationFrame,
+    subscribeFrame: subscribeResidentAnimationFrames,
+    cancelFrame: cancelResidentAnimationFrame,
+    readTimeScale: getOrologioSimTimeScaleSnapshot,
+    writePositionXY: (x, y) => {
+      movementPoint.x = x;
+      movementPoint.y = y;
+      pixelPos.setValue(movementPoint);
+    },
+    advanceSprite: (elapsedMs) => spriteFrames.advanceElapsed(elapsedMs),
+    setWalking: (moving) => {
+      isMovingRef.current = moving;
+      spriteFrames.setMoving(moving);
+    },
+    // No per-resident diagnostic closure or callback invocation in production.
+    // In development the counter itself is inert while the HUD is closed.
+    onFrame: __DEV__ ? markNativeResidentFrameCallback : undefined
+  }));
+  const [tapRecognizer] = useState(() => new NativeResidentTapRecognizer());
+  // One four-cell scratch buffer per resident; no neighbor/filter arrays on idle retries.
+  const [neighborSampler] = useState(() => new NativeResidentNeighborSampler());
   /** Evita di rieseguire effetti a ogni render (es. tick orologio sul genitore → callback nuove). */
   const onCommuteCompleteRef = useRef(onCommuteComplete);
   const onCommuteBlockedRef = useRef(onCommuteBlocked);
@@ -194,8 +224,17 @@ export function MapWandererCharacter({
   const tryClaimCellRef = useRef(tryClaimCell);
   const releaseMyCellRef = useRef(releaseMyCell);
   const commutePurposeRef = useRef(commutePurpose);
+  // A pause must not force all ~200 memoized sprite bodies through React.
+  // The module-wide native lifecycle already subscribes to the game clock;
+  // this committed-props ref keeps the one native activity listener current
+  // without unsubscribe/subscribe churn on each route or fixed-cell change.
+  const activityConfigRef = useRef({ fixedCell, commutePath, disableIdleRoam });
+  React.useLayoutEffect(() => {
+    activityConfigRef.current = { fixedCell, commutePath, disableIdleRoam };
+  }, [fixedCell, commutePath, disableIdleRoam]);
   /** Fallimenti consecutivi di claim sul segmento corrente. */
-  const claimFailCountRef = useRef(0);
+  const [claimRetry] = useState(() => new NativeResidentCollisionRetry(MAX_CLAIM_FAILS_BEFORE_REPATH));
+  const [routeEpoch] = useState(() => new NativeResidentRouteEpoch());
   onCommuteCompleteRef.current = onCommuteComplete;
   onCommuteBlockedRef.current = onCommuteBlocked;
   onCellSettledRef.current = onCellSettled;
@@ -205,31 +244,58 @@ export function MapWandererCharacter({
   commutePurposeRef.current = commutePurpose;
 
   const handlePress = useCallback(() => {
-    if (!onPress && !onDoublePress) return;
-    const now = Date.now();
-    if (onDoublePress && lastTapTimeRef.current > 0 && now - lastTapTimeRef.current < DOPPIO_TAP_MS) {
-      lastTapTimeRef.current = 0;
-      onDoublePress();
-      return;
+    // Opt-in diagnostic measures JS execution of the Pressable handler,
+    // NOT the delay between a physical touch and React Native delivery.
+    const timing = beginNativeResidentDispatch("touch");
+    try {
+      if (!onPress && !onDoublePress) return;
+      if (onDoublePress && tapRecognizer.press(performance.now()) === "double") {
+        onDoublePress();
+        return;
+      }
+      if (!onDoublePress) tapRecognizer.reset();
+      if (onPress) {
+        onPress();
+      } else if (onDoublePress) {
+        // Solo doppio tocco configurato: primo tap arma, secondo apre.
+      }
+    } finally {
+      endNativeResidentDispatch("touch", timing);
     }
-    lastTapTimeRef.current = now;
-    if (onPress) {
-      onPress();
-    } else if (onDoublePress) {
-      // Solo doppio tocco configurato: primo tap arma, secondo apre.
-    }
-  }, [onPress, onDoublePress]);
+  }, [onPress, onDoublePress, tapRecognizer]);
 
-  useEffect(() => {
-    cellRef.current = logicalCell;
-  }, [logicalCell]);
-
-  const clearIdle = useCallback(() => {
-    if (idleTimerRef.current != null) {
-      clearTimeout(idleTimerRef.current);
-      idleTimerRef.current = null;
+  // cellRef is the authoritative current cell. React state is published only
+  // when the hit target changes eligibility, not at every segment arrival.
+  const passTouchesRef = useRef(passTouchesToMapOnCell);
+  passTouchesRef.current = passTouchesToMapOnCell;
+  const publishCell = useCallback((nextCell: number) => {
+    const previousCell = cellRef.current;
+    cellRef.current = nextCell;
+    if (nativeResidentNeedsTouchRender(previousCell, nextCell, passTouchesRef.current)) {
+      setLogicalCell(nextCell);
     }
   }, []);
+
+  const clearIdle = useCallback(() => wakeTimer.cancel(), [wakeTimer]);
+
+  // A reserved destination belongs to a moving segment, not to the logical
+  // cell until arrival. On terminal interruption, atomically reclaim the
+  // settled cell; if another resident took it, release our stale destination.
+  // Seamless segment-to-segment transitions continue to use motion.cancel().
+  const stopAndReconcile = useCallback(() => {
+    const interrupted = isMovingRef.current;
+    // Keep the occupancy handoff even when the native cancel bridge throws.
+    nativeResidentRunCleanup(
+      () => motion.stop(),
+      () => {
+        if (interrupted) {
+          nativeResidentReconcileInterruptedClaim(
+            cellRef.current, tryClaimCellRef.current, releaseMyCellRef.current
+          );
+        }
+      }
+    );
+  }, [motion]);
 
   const pickNextMove = useCallback(() => {
     if (!isNativeResidentFrameBusActive() || getOrologioGiocoInPausaSnapshot()) return;
@@ -239,90 +305,82 @@ export function MapWandererCharacter({
     const prev = cellRef.current;
     if (prev === null) return;
 
-    const isFree = isCellFreeForMeRef.current;
-    const cand = orthogonalNeighbors(prev, cols, rows).filter(
-      (j) => isWalkable(j) && (isFree?.(j) ?? true)
-    );
-    if (cand.length === 0) {
-      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
-      return;
-    }
-
-    // Prova le celle candidate in ordine casuale finché una non viene prenotata.
-    for (let i = cand.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      const tmp = cand[i]!;
-      cand[i] = cand[j]!;
-      cand[j] = tmp;
-    }
-
-    let next: number | null = null;
+    // Same left/right/up/down filter, Fisher-Yates shuffle and atomic claim
+    // order as the previous implementation, but no transient neighbor arrays.
     const claim = tryClaimCellRef.current;
-    for (const c of cand) {
-      if (!claim || claim(c)) {
-        next = c;
-        break;
-      }
-    }
+    const next = neighborSampler.pick(
+      prev, cols, rows, isWalkable,
+      isCellFreeForMeRef.current, claim
+    );
     if (next == null) {
-      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+      wakeTimer.schedule(() => {
+        pickNextMoveRef.current();
+      }, IDLE_BEFORE_NEXT_MS);
       return;
     }
 
-    setDirection(directionBetween(prev, next, cols));
-
-    if (rafRef.current != null) {
-      cancelResidentAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-
-    const fromX = (prev % cols) * cellSizePx;
-    const fromY = Math.floor(prev / cols) * cellSizePx;
-    const toX = (next % cols) * cellSizePx;
-    const toY = Math.floor(next / cols) * cellSizePx;
-
-    isMovingRef.current = true;
-    setIsMoving(true);
-    const segment = new NativeResidentSegmentProgress(performance.now(), segmentMoveDurationMs(prev, next, isRoadCell));
-    const dest = next;
-
-    const step = (now: number, resumedAfterSuspension = false) => {
-      if (__DEV__) markNativeResidentFrameCallback();
-      const frame = segment.sample(now, getOrologioSimTimeScaleSnapshot(), resumedAfterSuspension);
-      if (!frame.advance) {
-        rafRef.current = requestResidentAnimationFrame(step);
-        return;
-      }
-      const { progress: t, elapsedMs } = frame;
-      pixelPos.setValue({
-        x: fromX + (toX - fromX) * t,
-        y: fromY + (toY - fromY) * t
+    // The destination is already claimed by neighborSampler.pick(). A
+    // failed native motion/sprite start must not reserve it indefinitely.
+    try {
+      face(directionBetween(prev, next, cols));
+  
+      const fromX = (prev % cols) * cellSizePx;
+      const fromY = Math.floor(prev / cols) * cellSizePx;
+      const toX = (next % cols) * cellSizePx;
+      const toY = Math.floor(next / cols) * cellSizePx;
+      const dest = next;
+  
+      motion.start({
+        from: { x: fromX, y: fromY },
+        to: { x: toX, y: toY },
+        startTimestamp: performance.now(),
+        durationMs: segmentMoveDurationMs(prev, next, isRoadCell),
+        onFrameFault: () => {
+          // A native frame can fail AFTER a successful destination claim.
+          // The runner has canceled this segment and confirmed that no
+          // replacement route took its place before calling this hook.
+          if (claim != null && cellRef.current === prev) {
+            nativeResidentReconcileInterruptedClaim(
+              prev, claim, releaseMyCellRef.current
+            );
+          }
+        },
+        onArrival: () => {
+          try {
+            publishCell(dest);
+            onCellSettledRef.current?.(dest);
+            wakeTimer.schedule(() => {
+              pickNextMoveRef.current();
+            }, IDLE_BEFORE_NEXT_MS);
+          } catch (error) {
+            // The native runner has completed, but a failure before the
+            // logical settlement must return the reserved destination.
+            // Once publishCell succeeded, the destination is the true cell
+            // and must not be reverted by a later parent callback error.
+            nativeResidentRethrowAfterUnsettledArrivalFault(
+              error, prev, claim, releaseMyCellRef.current,
+              claim != null && cellRef.current === prev
+            );
+          }
+        }
       });
-      if (t < 1) {
-        updateWalkFrame(walkFrameFromElapsedMs(elapsedMs));
-        rafRef.current = requestResidentAnimationFrame(step);
-      } else {
-        pixelPos.setValue({ x: toX, y: toY });
-        updateWalkFrame(0);
-        isMovingRef.current = false;
-        setIsMoving(false);
-        setLogicalCell(dest);
-        cellRef.current = dest;
-        onCellSettledRef.current?.(dest);
-        idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
-      }
-    };
-    rafRef.current = requestResidentAnimationFrame(step);
-  }, [cols, rows, cellSizePx, isWalkable, isRoadCell, fixedCell, commutePath, disableIdleRoam]);
+    } catch (error) {
+      nativeResidentRethrowAfterClaimedStartFault(
+        error, prev, claim, releaseMyCellRef.current,
+        claim != null && cellRef.current === prev
+      );
+    }
+  }, [cols, rows, cellSizePx, isWalkable, isRoadCell, fixedCell, commutePath, disableIdleRoam, face, motion, wakeTimer, neighborSampler, publishCell]);
 
   pickNextMoveRef.current = pickNextMove;
 
   const runOneSegment = useCallback(
-    (from: number, to: number, onDone: () => void, isLastSegment: boolean) => {
+    (from: number, to: number, onDone: () => void, isLastSegment: boolean, routeToken: number) => {
+      if (!routeEpoch.isCurrent(routeToken)) return;
       // Do not claim a cell or start movement while the game is paused.
       // The useGiocoInPausa effect resumes this precise segment on unpause.
       if (!isNativeResidentFrameBusActive() || getOrologioGiocoInPausaSnapshot()) {
-        pendingCommuteRetry.hold(() => runOneSegment(from, to, onDone, isLastSegment));
+        pendingCommuteRetry.hold(() => runOneSegment(from, to, onDone, isLastSegment, routeToken));
         return;
       }
       pendingCommuteRetry.clear();
@@ -330,21 +388,45 @@ export function MapWandererCharacter({
       const purpose = commutePurposeRef.current;
       /** Ultimo passo verso casa: più abitanti possono condividere l’ingresso. */
       const softHomeEntry = isLastSegment && purpose === "home";
+      // Claim is strict for commutes but optional at shared home entrances.
+      // Never release a settled street cell if the home claim was denied.
+      let destinationClaimed = claim != null && !softHomeEntry;
 
       if (claim && !softHomeEntry && !claim(to)) {
-        claimFailCountRef.current += 1;
-        if (
-          claimFailCountRef.current >= MAX_CLAIM_FAILS_BEFORE_REPATH &&
-          purpose != null &&
-          onCommuteBlockedRef.current
-        ) {
-          claimFailCountRef.current = 0;
-          onCommuteBlockedRef.current({ fromCell: from, blockedCell: to, purpose });
+        // A completed intermediate step may deliberately keep the walking
+        // sprite active. A blocked next cell has no active segment: stop that
+        // animation before scheduling a retry or notifying the parent.
+        // The settled cell retains its existing claim; only the destination
+        // failed, so do not release/reclaim occupancy here.
+        motion.stop();
+        const canRepath = purpose != null && onCommuteBlockedRef.current != null;
+        const decision = claimRetry.fail(canRepath);
+        if (decision === "request-repath") {
+          // A previously canceled fallback may arrive after a newer route
+          // starts waiting for repath. Capture this request generation so an
+          // old closure cannot resume the new route or claim its cells.
+          const repathGeneration = claimRetry.repathGeneration();
+          // The parent can legitimately find no alternate path (e.g. a
+          // blocked bar/market entrance). Do not strand this resident forever:
+          // give the parent a chance to replace/complete the route, then
+          // resume the original 900 ms collision retry if it did neither.
+          // A route change clears both this timer and the held callback.
+          pendingCommuteRetry.hold(() => {
+            if (routeEpoch.isCurrent(routeToken) && claimRetry.resumeWithoutRepath(repathGeneration)) {
+              runOneSegment(from, to, onDone, isLastSegment, routeToken);
+            }
+          });
+          wakeTimer.schedule(() => {
+            if (!routeEpoch.isCurrent(routeToken)) return;
+            pendingCommuteRetry.take()?.();
+          }, CLAIM_RETRY_MS);
+          if (purpose != null) onCommuteBlockedRef.current?.({ fromCell: from, blockedCell: to, purpose });
           return;
         }
-        pendingCommuteRetry.hold(() => runOneSegment(from, to, onDone, isLastSegment));
-        idleTimerRef.current = setTimeout(() => {
-          idleTimerRef.current = null;
+        if (decision === "awaiting-repath") return;
+        pendingCommuteRetry.hold(() => runOneSegment(from, to, onDone, isLastSegment, routeToken));
+        wakeTimer.schedule(() => {
+          if (!routeEpoch.isCurrent(routeToken)) return;
           pendingCommuteRetry.take()?.();
         }, CLAIM_RETRY_MS);
         return;
@@ -352,225 +434,249 @@ export function MapWandererCharacter({
 
       // Soft entry casa: prova claim, ma prosegui anche se fallisce.
       if (claim && softHomeEntry) {
-        claim(to);
+        destinationClaimed = claim(to);
       }
 
-      claimFailCountRef.current = 0;
-      setDirection(directionBetween(from, to, cols));
-      if (rafRef.current != null) {
-        cancelResidentAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-      const fromX = (from % cols) * cellSizePx;
-      const fromY = Math.floor(from / cols) * cellSizePx;
-      const toX = (to % cols) * cellSizePx;
-      const toY = Math.floor(to / cols) * cellSizePx;
-      isMovingRef.current = true;
-      setIsMoving(true);
-      const segment = new NativeResidentSegmentProgress(performance.now(), segmentMoveDurationMs(from, to, isRoadCell));
-      const step = (now: number, resumedAfterSuspension = false) => {
-        if (__DEV__) markNativeResidentFrameCallback();
-        const frame = segment.sample(now, getOrologioSimTimeScaleSnapshot(), resumedAfterSuspension);
-        if (!frame.advance) {
-          rafRef.current = requestResidentAnimationFrame(step);
-          return;
-        }
-        const { progress: t, elapsedMs } = frame;
-        pixelPos.setValue({
-          x: fromX + (toX - fromX) * t,
-          y: fromY + (toY - fromY) * t
-        });
-        if (t < 1) {
-          updateWalkFrame(walkFrameFromElapsedMs(elapsedMs));
-          rafRef.current = requestResidentAnimationFrame(step);
-        } else {
-          pixelPos.setValue({ x: toX, y: toY });
-          updateWalkFrame(0);
-          if (isLastSegment) {
-            isMovingRef.current = false;
-            setIsMoving(false);
+      claimRetry.reset();
+      // Both strict commute claims and best-effort shared-home entry must
+      // recover their settled origin if the native sprite/RAF start fails.
+      try {
+        face(directionBetween(from, to, cols));
+        const fromX = (from % cols) * cellSizePx;
+        const fromY = Math.floor(from / cols) * cellSizePx;
+        const toX = (to % cols) * cellSizePx;
+        const toY = Math.floor(to / cols) * cellSizePx;
+        motion.start({
+          from: { x: fromX, y: fromY },
+          to: { x: toX, y: toY },
+          startTimestamp: performance.now(),
+          durationMs: segmentMoveDurationMs(from, to, isRoadCell),
+          keepWalkingOnArrival: !isLastSegment,
+          onFrameFault: () => {
+            // This fault happened after claiming to, not during start().
+            // A newer route, already-published arrival, or denied shared
+            // home entry must retain its existing occupancy.
+            if (destinationClaimed && routeEpoch.isCurrent(routeToken) &&
+                cellRef.current === from) {
+              nativeResidentReconcileInterruptedClaim(
+                from, claim, releaseMyCellRef.current
+              );
+            }
+          },
+          onArrival: () => {
+            if (!routeEpoch.isCurrent(routeToken)) return;
+            try {
+              // Shared-home arrival may release a road claim before the
+              // logical cell is published. A bridge fault during this handoff
+              // must not leave an obsolete destination reserved.
+              nativeResidentReleaseSharedHomeArrival(
+                isLastSegment, purpose, releaseMyCellRef.current
+              );
+              publishCell(to);
+              // A reentrant parent callback may supersede this route.
+              if (!routeEpoch.runIfCurrent(routeToken, () => onCellSettledRef.current?.(to))) return;
+              onDone();
+            } catch (error) {
+              nativeResidentRethrowAfterUnsettledArrivalFault(
+                error, from, claim, releaseMyCellRef.current,
+                destinationClaimed && routeEpoch.isCurrent(routeToken) &&
+                  cellRef.current === from
+              );
+            }
           }
-          setLogicalCell(to);
-          cellRef.current = to;
-          onCellSettledRef.current?.(to);
-          onDone();
-        }
-      };
-      rafRef.current = requestResidentAnimationFrame(step);
+        });
+      } catch (error) {
+        nativeResidentRethrowAfterClaimedStartFault(
+          error, from, tryClaimCellRef.current, releaseMyCellRef.current,
+          destinationClaimed && routeEpoch.isCurrent(routeToken) && cellRef.current === from
+        );
+      }
     },
-    [cols, cellSizePx, isRoadCell, pendingCommuteRetry]
+    [cols, cellSizePx, isRoadCell, pendingCommuteRetry, face, motion, claimRetry, routeEpoch, wakeTimer, publishCell]
   );
 
   /** Percorso casa → lavoro / lavoro → casa / … */
   useEffect(() => {
-    if (!commutePath || commutePath.length < 2) return;
+    if (routeMode !== "commute" || !commutePath || commutePath.length < 2) return;
+    const routeToken = routeEpoch.begin();
     let alive = true;
-    clearIdle();
-    pendingCommuteRetry.clear();
-    if (rafRef.current != null) {
-      cancelResidentAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
+    // A route reset is terminal. Each cleanup must run even if one native
+    // cancellation fails, otherwise an obsolete cell claim can survive.
+    const previousCell = cellRef.current;
+    nativeResidentRunCleanup(clearIdle, () => pendingCommuteRetry.clear(), stopAndReconcile);
     inited.current = true;
-    claimFailCountRef.current = 0;
+    claimRetry.reset();
     const path = commutePath;
     const start = path[0]!;
+    // A parent-supplied reroute may begin at a different cell. Never retain
+    // the previous reservation or force an exclusive claim at a shared home.
+    nativeResidentReleaseMismatchedRouteOrigin(
+      previousCell, start, releaseMyCellRef.current
+    );
     const cx = (start % cols) * cellSizePx;
     const cy = Math.floor(start / cols) * cellSizePx;
-    setLogicalCell(start);
-    cellRef.current = start;
+    publishCell(start);
     pixelPos.setValue({ x: cx, y: cy });
-    isMovingRef.current = false;
-    setIsMoving(false);
-    updateWalkFrame(0);
     // Partenza spesso condivisa (casa): non claim esclusivo; claim al primo passo verso `to`.
+    // The notification may invalidate the route, but this effect must still
+    // return its cleanup. stepChain checks the route epoch before any work.
     onCellSettledRef.current?.(start);
 
     let seg = 0;
+    let completionEmitted = false;
     const stepChain = () => {
-      if (!alive) return;
+      if (!alive || !routeEpoch.isCurrent(routeToken)) return;
       if (seg >= path.length - 1) {
-        if (commutePurpose != null) onCommuteCompleteRef.current?.(commutePurpose);
-        idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+        if (completionEmitted) return;
+        completionEmitted = true;
+        // Completion can synchronously replace or end this route. Notify
+        // exactly once; do not schedule an idle timer while commute still
+        // owns the resident. The commute -> free effect arms its own 2200 ms
+        // idle delay if and when free roaming actually becomes eligible.
+        if (commutePurpose != null) {
+          routeEpoch.runIfCurrent(routeToken, () => onCommuteCompleteRef.current?.(commutePurpose));
+        }
         return;
       }
       const from = path[seg]!;
       const to = path[seg + 1]!;
       const isLastSegment = seg + 1 >= path.length - 1;
       seg++;
-      runOneSegment(from, to, stepChain, isLastSegment);
+      runOneSegment(from, to, stepChain, isLastSegment, routeToken);
     };
     stepChain();
     return () => {
       alive = false;
-      pendingCommuteRetry.clear();
-      if (rafRef.current != null) {
-        cancelResidentAnimationFrame(rafRef.current);
-        rafRef.current = null;
-      }
-      clearIdle();
+      routeEpoch.invalidate();
+      // A canceled mid-segment destination must not remain reserved.
+      // Continue with timer cleanup even when the bridge rejects a cancel.
+      nativeResidentRunCleanup(
+        () => pendingCommuteRetry.clear(),
+        stopAndReconcile,
+        clearIdle
+      );
     };
   }, [
     commutePath,
+    routeMode,
     commuteToken,
     commutePurpose,
     cols,
     cellSizePx,
     clearIdle,
     runOneSegment,
-    pendingCommuteRetry
+    pendingCommuteRetry,
+    claimRetry,
+    routeEpoch,
+    spriteFrames,
+    stopAndReconcile,
+    publishCell
   ]);
 
   /** Di notte sulla residenza: fermo, sotto il layer edifici. */
   useEffect(() => {
-    if (fixedCell == null) return;
-    clearIdle();
-    if (rafRef.current != null) {
-      cancelResidentAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
+    // Commute outranks the home anchor, including a simultaneous morning
+    // transition. Otherwise this effect cancels the newly started segment.
+    if (routeMode !== "fixed" || fixedCell == null) return;
+    // Fixed/home transitions release street occupancy even if native
+    // RAF/timer cancellation throws.
+    nativeResidentRunCleanup(clearIdle, () => motion.stop(), () => releaseMyCellRef.current?.());
     inited.current = true;
-    // In casa più abitanti possono condividere la stessa cella: libera la casella strada.
-    releaseMyCellRef.current?.();
     const cx = (fixedCell % cols) * cellSizePx;
     const cy = Math.floor(fixedCell / cols) * cellSizePx;
-    setLogicalCell(fixedCell);
-    cellRef.current = fixedCell;
+    publishCell(fixedCell);
     pixelPos.setValue({ x: cx, y: cy });
     isMovingRef.current = false;
-    setIsMoving(false);
-    updateWalkFrame(0);
-    setDirection("s");
+    spriteFrames.setMoving(false);
+    face("s");
     onCellSettledRef.current?.(fixedCell);
-  }, [fixedCell, cols, cellSizePx, clearIdle]);
+  }, [fixedCell, routeMode, cols, cellSizePx, clearIdle, face, spriteFrames, motion, publishCell]);
 
   /** Fine notte in casa → resta sulla stessa cella (casa), niente teletrasporto a caso sulla mappa. */
   useEffect(() => {
-    if (fixedCell != null) {
-      prevFixedCellRef.current = fixedCell;
-      return;
-    }
-    const prevHome = prevFixedCellRef.current;
-    prevFixedCellRef.current = fixedCell;
+    // A commute invalidates a remembered night exit. Clearing its path later
+    // must never snap an already-arrived resident back to the old home cell.
+    const transition = nativeResidentHomeTransition(prevFixedCellRef.current, routeMode, fixedCell);
+    prevFixedCellRef.current = transition.nextHome;
+    const prevHome = transition.wakeCell;
     if (prevHome == null) return;
 
-    clearIdle();
-    if (rafRef.current != null) {
-      cancelResidentAnimationFrame(rafRef.current);
-      rafRef.current = null;
-    }
-    const claim = tryClaimCellRef.current;
-    claim?.(prevHome);
+    // A shared home may belong to another resident. Reconcile it even
+    // when an earlier cancellation fails.
+    nativeResidentRunCleanup(
+      clearIdle,
+      () => motion.stop(),
+      () => nativeResidentReconcileInterruptedClaim(
+        prevHome, tryClaimCellRef.current, releaseMyCellRef.current
+      )
+    );
     const cx = (prevHome % cols) * cellSizePx;
     const cy = Math.floor(prevHome / cols) * cellSizePx;
     inited.current = true;
-    setLogicalCell(prevHome);
-    cellRef.current = prevHome;
+    publishCell(prevHome);
     pixelPos.setValue({ x: cx, y: cy });
     isMovingRef.current = false;
-    setIsMoving(false);
-    updateWalkFrame(0);
+    spriteFrames.setMoving(false);
     onCellSettledRef.current?.(prevHome);
     if (!disableIdleRoam) {
-      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+      wakeTimer.schedule(() => {
+        pickNextMoveRef.current();
+      }, IDLE_BEFORE_NEXT_MS);
     }
-  }, [fixedCell, clearIdle, cols, cellSizePx, disableIdleRoam]);
+  }, [fixedCell, routeMode, clearIdle, cols, cellSizePx, disableIdleRoam, spriteFrames, motion, publishCell]);
+
+  /** Disabling free roaming while an idle step is already underway must
+   * stop that step and reconcile its reserved destination immediately.
+   */
+  useEffect(() => {
+    if (routeMode !== "free" || !disableIdleRoam) return;
+    nativeResidentRunCleanup(clearIdle, stopAndReconcile);
+  }, [routeMode, disableIdleRoam, clearIdle, stopAndReconcile]);
+
+  /** Removing a completed commute cancels its old idle timeout in cleanup.
+   * Restore one idle countdown without waiting for an unrelated clock render.
+   * Never claim or animate during pause/background, or while still moving.
+   */
+  useEffect(() => {
+    const previous = previousIdleContextRef.current;
+    previousIdleContextRef.current = { routeMode, disableIdleRoam };
+    if (!nativeResidentShouldRearmIdle(
+      previous.routeMode, routeMode, previous.disableIdleRoam, disableIdleRoam
+    )) return;
+    if (!isNativeResidentFrameBusActive() || getOrologioGiocoInPausaSnapshot()) return;
+    if (cellRef.current == null || !inited.current) return;
+    if (wakeTimer.pending || isMovingRef.current) return;
+    wakeTimer.schedule(() => {
+      pickNextMoveRef.current();
+    }, IDLE_BEFORE_NEXT_MS);
+  }, [routeMode, disableIdleRoam]);
 
   useEffect(() => {
     if (commutePath != null && commutePath.length >= 2) return;
     if (fixedCell != null) return;
     if (inited.current) return;
-    const tot = cols * rows;
-    const isFree = isCellFreeForMeRef.current;
-    const claim = tryClaimCellRef.current;
-
-    const provaCella = (c: number): boolean => {
-      if (c < 0 || c >= tot) return false;
-      if (!isWalkable(c)) return false;
-      if (!(isFree?.(c) ?? true)) return false;
-      return !claim || claim(c);
-    };
-
-    let idx: number | null = null;
-    if (preferredSpawnCell != null && provaCella(preferredSpawnCell)) {
-      idx = preferredSpawnCell;
-    } else if (preferredSpawnCell != null && isWalkable(preferredSpawnCell)) {
-      // Preferita occupata: claim forzato se walkable (casa condivisa / uscita lavoro).
-      claim?.(preferredSpawnCell);
-      idx = preferredSpawnCell;
-    }
-
-    if (idx == null) {
-      const ok: number[] = [];
-      for (let i = 0; i < tot; i++) {
-        if (isWalkable(i) && (isFree?.(i) ?? true)) ok.push(i);
-      }
-      if (ok.length === 0) {
-        for (let i = 0; i < tot; i++) {
-          if (isWalkable(i)) ok.push(i);
-        }
-      }
-      if (ok.length === 0) return;
-      const preferred = (instanceId * 9973) % ok.length;
-      for (let offset = 0; offset < ok.length; offset++) {
-        const candidate = ok[(preferred + offset) % ok.length]!;
-        if (!claim || claim(candidate)) {
-          idx = candidate;
-          break;
-        }
-      }
-    }
+    // One shared native scratch buffer across all cold-mounted residents.
+    // Keep preferred shared-home and occupancy behavior byte-for-byte equivalent.
+    const idx = nativeResidentSpawnSampler.pick({
+      totalCells: cols * rows,
+      instanceId,
+      preferredSpawnCell,
+      isWalkable,
+      isCellFreeForMe: isCellFreeForMeRef.current,
+      tryClaimCell: tryClaimCellRef.current
+    });
     if (idx == null) return;
 
     inited.current = true;
     const cx = (idx % cols) * cellSizePx;
     const cy = Math.floor(idx / cols) * cellSizePx;
-    setLogicalCell(idx);
-    cellRef.current = idx;
+    publishCell(idx);
     pixelPos.setValue({ x: cx, y: cy });
     onCellSettledRef.current?.(idx);
     if (!disableIdleRoam) {
-      idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
+      wakeTimer.schedule(() => {
+        pickNextMoveRef.current();
+      }, IDLE_BEFORE_NEXT_MS);
     }
   }, [
     cols,
@@ -581,56 +687,71 @@ export function MapWandererCharacter({
     preferredSpawnCell,
     commutePath,
     disableIdleRoam,
-    cellSizePx
+    cellSizePx,
+    spriteFrames,
+    publishCell
   ]);
 
   /**
-   * Pause and app-background transitions also stop native idle/retry timers.
-   * The RAF bus already retains walking callbacks; a stopped idle timer or
-   * collision retry must instead be explicitly resumed exactly once.
+   * The shared timer queue freezes deadlines on pause/background. Keep each
+   * resident's pending timer rather than deleting and restarting it; only
+   * rearm if no timeout was pending when the game became active.
    */
   const onResidentActivityChanged = useCallback((active: boolean) => {
-    if (!active) {
-      clearIdle();
-      return;
-    }
+    // A tap while the game is paused must not pair with a tap after resume,
+    // just as a tap before background must not pair with one after foreground.
+    // Transitions are rare; this adds no per-frame or per-tap subscription.
+    tapRecognizer.reset();
+    if (!active) return;
+    const { fixedCell, commutePath, disableIdleRoam } = activityConfigRef.current;
     if (commutePath != null && commutePath.length >= 2) {
-      pendingCommuteRetry.take()?.();
+      // A collision retry already scheduled before pause resumes with its
+      // remaining delay. Untimed retries held when starting paused run now.
+      if (!wakeTimer.pending) pendingCommuteRetry.take()?.();
       return;
     }
     if (fixedCell != null || disableIdleRoam) return;
     if (cellRef.current == null || !inited.current || isMovingRef.current) return;
-    clearIdle();
-    idleTimerRef.current = setTimeout(() => pickNextMoveRef.current(), IDLE_BEFORE_NEXT_MS);
-  }, [fixedCell, commutePath, disableIdleRoam, clearIdle, pendingCommuteRetry]);
+    if (wakeTimer.pending) return;
+    wakeTimer.schedule(() => {
+      pickNextMoveRef.current();
+    }, IDLE_BEFORE_NEXT_MS);
+  }, [pendingCommuteRetry, tapRecognizer, wakeTimer]);
 
+  // One stable listener per mounted resident. Pauses and foreground changes
+  // are delivered synchronously by the shared bus, not React render effects.
   useEffect(() => {
     return subscribeNativeResidentFrameBusActivity(onResidentActivityChanged);
   }, [onResidentActivityChanged]);
 
-  // The hook keeps the pre-existing React pause semantics; the synchronous
-  // bus listener also handles foreground transitions without a React render.
-  useEffect(() => {
-    if (prevGiocoInPausaRef.current === giocoInPausa) return;
-    prevGiocoInPausaRef.current = giocoInPausa;
-    onResidentActivityChanged(isNativeResidentFrameBusActive());
-  }, [giocoInPausa, onResidentActivityChanged]);
-
   useEffect(
     () => () => {
-      clearIdle();
-      pendingCommuteRetry.clear();
-      if (rafRef.current != null) cancelResidentAnimationFrame(rafRef.current);
-      releaseMyCellRef.current?.();
+      // All cleanup actions run, even if a native timer/RAF callback fails.
+      nativeResidentRunCleanup(
+        clearIdle,
+        () => pendingCommuteRetry.clear(),
+        () => motion.cancel(),
+        () => tapRecognizer.reset(),
+        () => releaseMyCellRef.current?.()
+      );
     },
-    [clearIdle, pendingCommuteRetry]
+    [clearIdle, pendingCommuteRetry, motion, tapRecognizer]
   );
 
-  if (logicalCell === null) return null;
+  // The rendered cell can lag behind actual movement when the touch policy
+  // stays unchanged. A parent-prop render must evaluate the LIVE cell.
+  const passTouchesToGrid = logicalCell !== null &&
+    passTouchesToMapOnCell != null &&
+    passTouchesToMapOnCell(cellRef.current ?? logicalCell) === true;
+  const intercettaTocco = logicalCell !== null && (!!onPress || !!onDoublePress) && !passTouchesToGrid;
+  // Clear an unfinished pair whenever the committed resident hit target is
+  // removed or its double-tap handler becomes available/unavailable. This
+  // also covers home/footprint pass-through changes without extra timers.
+  React.useLayoutEffect(() => {
+    tapRecognizer.setEligibleForDoubleTap(intercettaTocco && !!onDoublePress);
+  }, [tapRecognizer, intercettaTocco, onDoublePress]);
 
-  const passTouchesToGrid =
-    passTouchesToMapOnCell != null && passTouchesToMapOnCell(logicalCell) === true;
-  const intercettaTocco = (!!onPress || !!onDoublePress) && !passTouchesToGrid;
+  if (logicalCell === null) return null;
 
   const shellStyle = [
     styles.anchor,
@@ -645,15 +766,10 @@ export function MapWandererCharacter({
 
   const usaEmojiMarker = markerEmoji != null && markerEmoji !== "";
 
-  const group = frameGroupStart(direction);
-  const frameInGroup = walkIndexInGroup(direction, walkFrame, isMoving);
-  const frameIndex = Math.min(group + frameInGroup, FRAMES - 1);
-  const flipW = direction === "w";
   const frameW = cellSizePx;
   const frameH = cellSizePx * 1.22;
   const sheetW = FRAMES * frameW;
   const sheetH = frameH;
-  const offsetX = -frameIndex * frameW;
 
   const sprite = usaEmojiMarker ? (
     <View style={[styles.spriteColumn, { height: cellSizePx, width: cellSizePx }]}>
@@ -661,28 +777,28 @@ export function MapWandererCharacter({
     </View>
   ) : (
     <View style={[styles.spriteColumn, { height: cellSizePx, width: cellSizePx }]}>
-      <View
+      <Animated.View
         style={[
           styles.clip,
           {
             width: frameW,
             height: frameH,
-            transform: flipW ? [{ scaleX: -1 }] : undefined
+            transform: [{ scaleX: spriteMirrorScaleX }]
           }
         ]}
       >
-        <Image
+        <Animated.Image
           source={CHARACTER_SHEET}
           resizeMode="stretch"
           style={{
             position: "absolute",
             width: sheetW,
             height: sheetH,
-            left: offsetX,
+            left: spriteSheetOffset,
             top: 0
           }}
         />
-      </View>
+      </Animated.View>
     </View>
   );
 
@@ -708,6 +824,26 @@ export function MapWandererCharacter({
       {sprite}
     </Animated.View>
   );
+}
+
+
+/**
+ * The parent map changes inline handlers at every world-clock render. Keep
+ * the simulation/sprite subtree memoized while the outer wrapper refreshes
+ * the live event targets after commit. Non-event props, including walkable
+ * predicates, road predicates, path, night cell, accessibility and hit-test
+ * passthrough, retain normal shallow comparison and trigger a real render.
+ */
+const MemoNativeResidentBody = React.memo(NativeResidentBody);
+
+export function MapWandererCharacter(props: MapWandererCharacterProps) {
+  if (__DEV__) markNativeResidentWrapperInvocation();
+  const relay = useRef<NativeResidentCallbackRelay | null>(null);
+  if (relay.current === null) relay.current = new NativeResidentCallbackRelay(props);
+  // Commit-phase update avoids exposing callbacks from an aborted React render.
+  React.useLayoutEffect(() => { relay.current?.update(props); });
+  // Optional handler presence must reflect this render, not the previous one.
+  return <MemoNativeResidentBody {...props} {...relay.current.bound(props)} />;
 }
 
 const styles = StyleSheet.create({

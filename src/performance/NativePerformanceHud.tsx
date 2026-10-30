@@ -1,9 +1,21 @@
 import React, { useCallback, useRef, useState } from "react";
+import { getOrologioSimTimeScaleSnapshot, subscribeOrologioGiocoInPausa, subscribeOrologioGiocoVelocita } from "../game/orologioGiocoSession";
+import { nativeCaptureContextChanged, type NativeCaptureContext } from "./nativeCaptureIntegrity";
+import { nativeCaptureHasRequiredProbes } from "./nativeCaptureEvidence";
+import { NativeHudFrameLoop } from "./nativeHudFrameLoop";
 import { useFocusEffect } from "expo-router";
 import { AppState, Platform, Pressable, Share, StyleSheet, Text, View } from "react-native";
 import { NativeFrameWindow, type NativeFrameSnapshot } from "./nativeFrameMetrics";
-import { takeNativeResidentFrameCallbacks, takeNativeResidentRenderInvocations, takeNativeResidentBusCycles } from "./nativeResidentWorkCounters";
+import { NativeResidentSamplingLifecycle } from "./nativeResidentSamplingLifecycle";
+import { NativeResidentAppVisibility, observeNativeResidentAppVisibility } from "./nativeResidentAppVisibility";
+import { beginNativeResidentWorkSampling, endNativeResidentWorkSampling, takeNativeResidentFrameCallbacks, takeNativeResidentRenderInvocations, takeNativeResidentWrapperInvocations, takeNativeResidentBusCycles, getNativeResidentRenderTotals, diffNativeResidentRenderTotals, type NativeResidentRenderTotals } from "./nativeResidentWorkCounters";
 import { NativeMeasurementSession, formatNativeMeasurement } from "./nativeMeasurementSession";
+import { getNativeResidentTimerSnapshot, type NativeResidentTimerSnapshot } from "./nativeResidentTimerQueue";
+import { diffNativeResidentTimerCounters } from "./nativeResidentTimerDiagnostics";
+import { getNativeResidentFrameBusSnapshot, type NativeResidentFrameBusSnapshot } from "./nativeResidentFrameBus";
+import { diffNativeResidentFrameBusSnapshots } from "./nativeResidentFrameBusDiagnostics";
+import { startNativeResidentDispatchCapture, cancelNativeResidentDispatchCapture, finishNativeResidentDispatchCapture } from "./nativeResidentDispatchProfiler";
+import { startNativeResidentEventLoopProbe, cancelNativeResidentEventLoopProbe, finishNativeResidentEventLoopProbe } from "./nativeResidentEventLoopProbe";
 
 const INITIAL_METRICS: NativeFrameSnapshot = {
   samples: 0, jsFps: 0, meanFrameMs: 0, p95FrameMs: 0, framesOver33Ms: 0, framesOver50Ms: 0
@@ -11,74 +23,248 @@ const INITIAL_METRICS: NativeFrameSnapshot = {
 
 /**
  * Device-local diagnostic only. Measures JS RAF pacing, NOT GPU/UI-thread FPS.
- * Runs only while mounted and stops on unmount; never saves/transmits data.
+ * Runs only when developer opens details on a focused screen, stops on
+ * collapse/background/blur/unmount; never saves/transmits data.
  */
 export function NativePerformanceHud({
   residents,
   terrainCells,
   label,
-  onOpenTest
+  onOpenTest,
+  captureBlockedReason = null,
+  captureContextKey = ""
 }: {
   residents: number;
   terrainCells?: number;
   label: string;
   onOpenTest?: () => void;
+  captureBlockedReason?: string | null;
+  captureContextKey?: string;
 }) {
   const [expanded, setExpanded] = useState(false);
   const [stats, setStats] = useState<NativeFrameSnapshot>(INITIAL_METRICS);
   const [residentCallbacks, setResidentCallbacks] = useState(0);
   const [residentRenders, setResidentRenders] = useState(0);
+  const [residentWrapperRenders, setResidentWrapperRenders] = useState(0);
   const [residentBusCycles, setResidentBusCycles] = useState(0);
+  const [timerMetrics, setTimerMetrics] = useState({
+    pending: 0, platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, readyBufferUsesPerSecond: 0, budgetYieldsPerSecond: 0, timeBudgetYieldsPerSecond: 0, callbackBudget: 32, timeBudgetMs: 6, backlogDue: false, scheduled: false
+  });
+  const lastTimerSample = useRef<{ timestamp: number; counters: NativeResidentTimerSnapshot } | null>(null);
+  const lastFrameBusSample = useRef<{ timestamp: number; counters: NativeResidentFrameBusSnapshot } | null>(null);
+  const [frameBusMetrics, setFrameBusMetrics] = useState({
+    continuousSubscribers: 0, persistentAddsPerSecond: 0, oneShotAddsPerSecond: 0, oneShotBufferSwapsPerSecond: 0
+  });
   const frameWindow = useRef(new NativeFrameWindow(120));
   const [measuring, setMeasuring] = useState(false);
   const [latestReport, setLatestReport] = useState<string | null>(null);
+  const [captureWarning, setCaptureWarning] = useState<string | null>(null);
+  const currentScene = useRef({ label, residents, terrainCells });
+  // Android can lose focus while AppState still reports active. Never start
+  // a JS A/B capture while its native resident schedulers are suspended.
+  const hudForeground = useRef(false);
   const capture = useRef<{
     session: NativeMeasurementSession;
-    environment: { platform: string; label: string; residents: number; terrainCells?: number };
+    dispatchToken: number;
+    lagToken: number;
+    timerStart: NativeResidentTimerSnapshot;
+    frameBusStart: NativeResidentFrameBusSnapshot;
+    renderStart: NativeResidentRenderTotals;
+    environment: NativeCaptureContext;
+    contextKey: string;
   } | null>(null);
 
+  /**
+   * A mixed population/speed capture cannot be compared with another run.
+   * Always close both optional probes before discarding its report.
+   */
+  const abortCapture = useCallback((reason?: string) => {
+    const active = capture.current;
+    if (!active) return;
+    cancelNativeResidentDispatchCapture(active.dispatchToken);
+    cancelNativeResidentEventLoopProbe(active.lagToken);
+    capture.current = null;
+    setMeasuring(false);
+    if (reason) setCaptureWarning(reason);
+  }, []);
+
+  const previousCaptureContextKey = useRef(captureContextKey);
+  React.useLayoutEffect(() => {
+    if (previousCaptureContextKey.current !== captureContextKey) {
+      previousCaptureContextKey.current = captureContextKey;
+      setLatestReport(null);
+    }
+    if (capture.current && (captureBlockedReason || capture.current.contextKey !== captureContextKey))
+      abortCapture("Misura interrotta: " + (captureBlockedReason ?? "contesto A/B cambiato."));
+  }, [captureBlockedReason, captureContextKey, abortCapture]);
+
+  React.useLayoutEffect(() => {
+    // Commit-time metadata: a concurrent/aborted render must never change
+    // the environment of an ongoing diagnostic measurement.
+    currentScene.current = { label, residents, terrainCells };
+    const active = capture.current;
+    if (active && nativeCaptureContextChanged(active.environment, {
+      platform: Platform.OS, label, residents, terrainCells,
+      timeScale: getOrologioSimTimeScaleSnapshot()
+    })) abortCapture("Misura interrotta: scena o numero di abitanti cambiati.");
+  }, [label, residents, terrainCells, abortCapture]);
+
   const startMeasurement = useCallback(() => {
+    if (!hudForeground.current) {
+      setCaptureWarning("Misura non disponibile: app non attiva o Android senza focus.");
+      return;
+    }
+    if (captureBlockedReason) { setCaptureWarning(captureBlockedReason); return; }
+    if (capture.current) {
+      cancelNativeResidentDispatchCapture(capture.current.dispatchToken);
+      cancelNativeResidentEventLoopProbe(capture.current.lagToken);
+    }
     setLatestReport(null);
+    setCaptureWarning(null);
     capture.current = {
-      session: new NativeMeasurementSession(performance.now()),
-      environment: { platform: Platform.OS, label, residents, terrainCells }
+      session: new NativeMeasurementSession(performance.now(), 10_000, true),
+      dispatchToken: startNativeResidentDispatchCapture(),
+      lagToken: startNativeResidentEventLoopProbe(),
+      timerStart: getNativeResidentTimerSnapshot(),
+      frameBusStart: getNativeResidentFrameBusSnapshot(),
+      renderStart: getNativeResidentRenderTotals(),
+      environment: { platform: Platform.OS, label, residents, terrainCells,
+        timeScale: getOrologioSimTimeScaleSnapshot() },
+      contextKey: captureContextKey
     };
     setMeasuring(true);
-  }, [label, residents, terrainCells]);
+  }, [label, residents, terrainCells, captureBlockedReason, captureContextKey]);
 
   useFocusEffect(useCallback(() => {
+    // Closed by default: absolutely no diagnostic RAF, AppState listener,
+    // clock subscription or once-per-second React state publication while
+    // the developer is simply playing the game.
+    if (!expanded) {
+      if (capture.current) abortCapture();
+      return;
+    }
+    const visibility = new NativeResidentAppVisibility(
+      AppState.currentState, Platform.OS === "android"
+    );
+    let wasForeground = visibility.foreground;
+    hudForeground.current = wasForeground;
+    const samplingLifecycle = new NativeResidentSamplingLifecycle(beginNativeResidentWorkSampling, endNativeResidentWorkSampling);
+    samplingLifecycle.setForeground(wasForeground);
     setStats(INITIAL_METRICS);
     setResidentCallbacks(0);
     setResidentRenders(0);
+    setResidentWrapperRenders(0);
     setResidentBusCycles(0);
+    setTimerMetrics({ pending: 0, platformWakeupsPerSecond: 0, logicalCallbacksPerSecond: 0, readyBufferUsesPerSecond: 0, budgetYieldsPerSecond: 0, timeBudgetYieldsPerSecond: 0, callbackBudget: 32, timeBudgetMs: 6, backlogDue: false, scheduled: false });
+    lastTimerSample.current = { timestamp: performance.now(), counters: getNativeResidentTimerSnapshot() };
+    lastFrameBusSample.current = { timestamp: performance.now(), counters: getNativeResidentFrameBusSnapshot() };
+    setFrameBusMetrics({ continuousSubscribers: 0, persistentAddsPerSecond: 0, oneShotAddsPerSecond: 0, oneShotBufferSwapsPerSecond: 0 });
     takeNativeResidentBusCycles();
     takeNativeResidentFrameCallbacks();
     takeNativeResidentRenderInvocations();
+    takeNativeResidentWrapperInvocations();
     frameWindow.current.reset();
+    if (capture.current) {
+      cancelNativeResidentDispatchCapture(capture.current.dispatchToken);
+      cancelNativeResidentEventLoopProbe(capture.current.lagToken);
+    }
     capture.current = null;
     setMeasuring(false);
-    let raf = 0;
+    let frameLoop: NativeHudFrameLoop | null = null;
+    // An OS foreground notification must not resurrect a faulted HUD capture.
+    // Only an explicit panel close/reopen creates a new diagnostic session.
+    let frameLoopFaulted = false;
     let previous: number | null = null;
     let lastPublished = 0;
-    const onStateChange = AppState.addEventListener("change", () => {
+    // Clock changes during an opt-in capture invalidate the window even if
+    // the simulation is paused and resumed between two animation frames.
+    const onClockChange = () => {
+      const active = capture.current;
+      if (active && nativeCaptureContextChanged(active.environment, {
+        ...active.environment, timeScale: getOrologioSimTimeScaleSnapshot()
+      })) abortCapture("Misura interrotta: velocità o pausa di gioco cambiate.");
+    };
+    const unsubscribePause = subscribeOrologioGiocoInPausa(onClockChange);
+    const unsubscribeSpeed = subscribeOrologioGiocoVelocita(onClockChange);
+    // The resident renderer already stops on Android notification-shade blur.
+    // A HUD that only watches AppState "change" would keep measuring the
+    // frozen sprites as if they were moving: invalidate that mixed window.
+    const onVisibilityChange = (foreground: boolean) => {
+      if (frameLoopFaulted) return;
+      hudForeground.current = foreground;
+      if (foreground === wasForeground) return; // duplicate OS event
+      wasForeground = foreground;
+      samplingLifecycle.setForeground(foreground);
+      frameLoop?.setForeground(foreground);
       previous = null;
       frameWindow.current.reset();
-      // Pausing/rotating the app invalidates a timed measurement.
-      capture.current = null;
-      setMeasuring(false);
-    });
+      lastTimerSample.current = null;
+      lastFrameBusSample.current = null;
+      if (!foreground) {
+        abortCapture("Misura interrotta: app in background o Android senza focus.");
+      }
+    };
+    // One set of observers only while the HUD is expanded and screen-focused.
+    // The shared native visibility policy also handles null initial AppState
+    // with bounded boot rechecks; no resident-specific listeners or polling.
+    const stopVisibility = observeNativeResidentAppVisibility(visibility, {
+      onChange: listener => {
+        const subscription = AppState.addEventListener("change", listener);
+        return () => subscription.remove();
+      },
+      onBlur: listener => {
+        const subscription = AppState.addEventListener("blur", listener);
+        return () => subscription.remove();
+      },
+      onFocus: listener => {
+        const subscription = AppState.addEventListener("focus", listener);
+        return () => subscription.remove();
+      },
+      bootProbe: {
+        read: () => AppState.currentState,
+        schedule: (callback, delay) => setTimeout(callback, delay) as unknown as number,
+        cancel: id => clearTimeout(id)
+      }
+    }, onVisibilityChange);
     const onFrame = (timestamp: number) => {
-      if (AppState.currentState === "active") {
+      if (visibility.foreground) {
         if (previous != null) {
           const delta = timestamp - previous;
           frameWindow.current.record(delta);
           const active = capture.current;
           if (active) {
+            const context: NativeCaptureContext = {
+              platform: Platform.OS, ...currentScene.current,
+              timeScale: getOrologioSimTimeScaleSnapshot()
+            };
+            if (nativeCaptureContextChanged(active.environment, context)) {
+              abortCapture("Misura interrotta: scena o velocità cambiate.");
+            } else {
             const complete = active.session.record(timestamp, delta);
-            if (complete) {
+            if (active.session.isInvalidated()) {
+              abortCapture("Misura interrotta: blocco JS o intervallo RAF di almeno 2 secondi.");
+            } else if (complete) {
               capture.current = null;
               setMeasuring(false);
-              setLatestReport(formatNativeMeasurement(complete, active.environment));
+              const dispatch = finishNativeResidentDispatchCapture(active.dispatchToken);
+              const lag = finishNativeResidentEventLoopProbe(active.lagToken);
+              const delta = diffNativeResidentTimerCounters(
+                active.timerStart, getNativeResidentTimerSnapshot(), complete.durationMs
+              );
+              const renders = diffNativeResidentRenderTotals(
+                active.renderStart, getNativeResidentRenderTotals(), complete.durationMs
+              );
+              const frameBus = diffNativeResidentFrameBusSnapshots(
+                active.frameBusStart, getNativeResidentFrameBusSnapshot(), complete.durationMs
+              );
+              // Fail closed rather than exporting a 10-second A/B report
+              // with no JS event-loop lag samples (e.g. a disabled probe).
+              if (!dispatch || !lag || !nativeCaptureHasRequiredProbes(dispatch, lag)) {
+                setCaptureWarning("Misura non valida: diagnostica JS incompleta. Ripetere la cattura.");
+              } else {
+                setLatestReport(formatNativeMeasurement(complete, active.environment, delta, renders, frameBus, dispatch, lag));
+              }
+            }
             }
           }
         }
@@ -87,26 +273,72 @@ export function NativePerformanceHud({
           setStats(frameWindow.current.snapshot());
           setResidentCallbacks(takeNativeResidentFrameCallbacks());
           setResidentRenders(takeNativeResidentRenderInvocations());
+          setResidentWrapperRenders(takeNativeResidentWrapperInvocations());
           setResidentBusCycles(takeNativeResidentBusCycles());
+          const next = getNativeResidentTimerSnapshot();
+          const prev = lastTimerSample.current;
+          const interval = prev ? timestamp - prev.timestamp : 0;
+          const rates = prev ? diffNativeResidentTimerCounters(prev.counters, next, interval) : null;
+          setTimerMetrics({
+            pending: next.pending,
+            scheduled: next.scheduled,
+            callbackBudget: next.callbackBudget,
+            timeBudgetMs: next.timeBudgetMs,
+            timeBudgetYieldsPerSecond: rates?.timeBudgetYieldsPerSecond ?? 0,
+            backlogDue: next.backlogDue,
+            budgetYieldsPerSecond: rates?.budgetYieldsPerSecond ?? 0,
+            platformWakeupsPerSecond: rates?.platformWakeupsPerSecond ?? 0,
+            logicalCallbacksPerSecond: rates?.logicalCallbacksPerSecond ?? 0,
+            readyBufferUsesPerSecond: rates?.readyBufferUsesPerSecond ?? 0
+          });
+          lastTimerSample.current = { timestamp, counters: next };
+          const nextBus = getNativeResidentFrameBusSnapshot();
+          const prevBus = lastFrameBusSample.current;
+          const busInterval = prevBus ? timestamp - prevBus.timestamp : 0;
+          const busRate = prevBus
+            ? diffNativeResidentFrameBusSnapshots(prevBus.counters, nextBus, busInterval) : null;
+          setFrameBusMetrics({
+            continuousSubscribers: nextBus.continuousSubscribers,
+            persistentAddsPerSecond: busRate?.persistentRegistrationsPerSecond ?? 0,
+            oneShotAddsPerSecond: busRate?.oneShotRegistrationsPerSecond ?? 0,
+            oneShotBufferSwapsPerSecond: busRate?.oneShotBufferSwapsPerSecond ?? 0
+          });
+          lastFrameBusSample.current = { timestamp, counters: nextBus };
           lastPublished = timestamp;
         }
       } else {
         previous = null;
       }
-      raf = requestAnimationFrame(onFrame);
     };
-    raf = requestAnimationFrame(onFrame);
+    frameLoop = new NativeHudFrameLoop(requestAnimationFrame, cancelAnimationFrame, onFrame, () => {
+      frameLoopFaulted = true;
+      // Fail closed: diagnostic RAF faults must never affect game RAF/timers.
+      // Keep the panel open to explain why no valid capture can be exported.
+      abortCapture();
+      samplingLifecycle.setForeground(false);
+      hudForeground.current = false;
+      setCaptureWarning("Diagnostica interrotta: errore nel monitoraggio RAF. Chiudere e riaprire i dettagli.");
+    });
+    frameLoop.start(visibility.foreground);
     return () => {
-      cancelAnimationFrame(raf);
+      frameLoop?.stop();
+      samplingLifecycle.dispose();
+      if (capture.current) {
+        cancelNativeResidentDispatchCapture(capture.current.dispatchToken);
+        cancelNativeResidentEventLoopProbe(capture.current.lagToken);
+      }
       capture.current = null;
-      onStateChange.remove();
+      unsubscribePause();
+      unsubscribeSpeed();
+      stopVisibility();
+      hudForeground.current = false;
     };
-  }, []));
+  }, [abortCapture, expanded]));
 
   return (
     <View style={styles.container}>
       <Pressable accessibilityRole="button" accessibilityLabel="Mostra o nascondi diagnostica prestazioni native" onPress={() => setExpanded((was) => !was)} style={styles.toggle}>
-        <Text style={styles.title}>JS {stats.samples ? stats.jsFps.toFixed(0) : "—"} FPS · {expanded ? "Chiudi" : "Dettagli"}</Text>
+        <Text style={styles.title}>{expanded ? `JS ${stats.samples ? stats.jsFps.toFixed(0) : "—"} FPS · Chiudi` : "Diagnostica JS · Dettagli"}</Text>
       </Pressable>
       {expanded && (
         <View style={styles.panel}>
@@ -116,20 +348,37 @@ export function NativePerformanceHud({
           <Text style={styles.text}>p95 frame JS: {stats.samples ? stats.p95FrameMs.toFixed(1) : "—"} ms</Text>
           <Text style={styles.text}>Frame oltre 33/50 ms: {stats.framesOver33Ms}/{stats.framesOver50Ms}</Text>
           <Text style={styles.text}>Callback animazione abitanti/s: {residentCallbacks}</Text>
-          <Text style={styles.text}>Render React abitanti/s: {residentRenders}</Text>
+          <Text style={styles.text}>Wrapper abitanti/s: {residentWrapperRenders}</Text>
+          <Text style={styles.text}>Render sprite React/s: {residentRenders}</Text>
           <Text style={styles.text}>Frame bus nativo/s: {residentBusCycles}</Text>
-          <Text style={styles.note}>Callback/s, invocazioni React/s e bus/s descrivono carico distinto: non sono FPS UI/GPU. Solo ritmo JS, non GPU; nessun dato salvato.</Text>
+          <Text style={styles.text}>Abitanti iscritti a RAF persistente: {frameBusMetrics.continuousSubscribers}</Text>
+          <Text style={styles.text}>Nuove iscrizioni RAF persistenti/s: {frameBusMetrics.persistentAddsPerSecond.toFixed(1)}</Text>
+          <Text style={styles.text}>Registrazioni RAF one-shot/s: {frameBusMetrics.oneShotAddsPerSecond.toFixed(1)}</Text>
+          <Text style={styles.text}>Buffer RAF one-shot riciclati/s: {frameBusMetrics.oneShotBufferSwapsPerSecond.toFixed(1)}</Text>
+          <Text style={styles.text}>Timer residenti in attesa: {timerMetrics.pending}</Text>
+          <Text style={styles.text}>Timeout nativi attivi: {timerMetrics.scheduled ? 1 : 0}</Text>
+          <Text style={styles.text}>Wakeup timer nativo/s: {timerMetrics.platformWakeupsPerSecond.toFixed(1)}</Text>
+          <Text style={styles.text}>Callback timer residenti/s: {timerMetrics.logicalCallbacksPerSecond.toFixed(1)}</Text>
+          <Text style={styles.text}>Buffer timeout riciclati/s: {timerMetrics.readyBufferUsesPerSecond.toFixed(1)}</Text>
+          <Text style={styles.text}>Max callback per wakeup: {timerMetrics.callbackBudget}</Text>
+          <Text style={styles.text}>Budget JS timer: {timerMetrics.timeBudgetMs.toFixed(1)} ms (soft)</Text>
+          <Text style={styles.text}>Yield per budget temporale/s: {timerMetrics.timeBudgetYieldsPerSecond.toFixed(1)}</Text>
+          <Text style={styles.text}>Backlog già scaduto: {timerMetrics.backlogDue ? "sì" : "no"}</Text>
+          <Text style={styles.text}>Yield backlog/s: {timerMetrics.budgetYieldsPerSecond.toFixed(1)}</Text>
+          <Text style={styles.note}>Wrapper e render sprite sono invocazioni di funzione React, non commit. RAF persistenti e one-shot misurano registrazioni JS. La misura di 10 s include i batch RAF/timer JS, i gestori dei tocchi e il ritardo del loop JS; non misura FPS UI/GPU né la latenza fisica del touch. Nessun dato salvato.</Text>
           <Pressable
-            style={[styles.testButton, measuring && styles.disabledButton]}
-            disabled={measuring}
+            style={[styles.testButton, (measuring || captureBlockedReason) && styles.disabledButton]}
+            disabled={measuring || !!captureBlockedReason}
             accessibilityRole="button"
             onPress={startMeasurement}
           >
             <Text style={styles.buttonText}>{measuring ? "Campionamento in corso (10 s)" : "Misura 10 secondi"}</Text>
           </Pressable>
+          {captureWarning && <Text style={styles.note}>{captureWarning}</Text>}
+          {captureBlockedReason && <Text style={styles.note}>{captureBlockedReason}</Text>}
           {latestReport && (
             <>
-              <Text style={styles.text}>{latestReport.split("\n").filter((line) => /FPS JS medio:|p95:|Campioni:/.test(line)).join(" · ")}</Text>
+              <Text style={styles.text}>{latestReport.split("\n").filter((line) => /FPS JS medio:|p95:|Campioni:|Batch RAF JS p95:|Batch timer JS p95:|Ritardo loop JS p95:|Gestore tocchi JS p95:/.test(line)).join(" · ")}</Text>
               <Pressable
                 style={styles.testButton}
                 accessibilityRole="button"

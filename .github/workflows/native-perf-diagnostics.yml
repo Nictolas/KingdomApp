@@ -9,27 +9,294 @@ on:
       - "src/components/MapWandererCharacter.tsx"
       - "src/components/MapWandererCharacter.native.tsx"
       - "src/performance/nativeResidentFrameBus.ts"
+      - "src/performance/nativeResidentFrameBusDiagnostics.ts"
+      - "src/performance/nativeResidentTimerQueue.ts"
+      - "tests/native-resident-timer-queue.test.ts"
+      - "tests/native-resident-timer-diagnostics.test.ts"
+      - "tests/native-resident-timer-model-comparison.test.ts"
+      - "tests/native-resident-dispatch-profiler.test.ts"
+      - "tests/native-resident-responsiveness.test.ts"
+      - "tests/native-resident-reentrant-lifecycle.test.ts"
+      - "tests/native-resident-overlay-lookup.test.ts"
+      - "tests/native-resident-overlay-lookup-benchmark.ts"
+      - "tests/native-resident-stateful-soak.test.ts"
+      - "tests/native-resident-full-stack-integration.test.ts"
+      - "tests/native-resident-buffer-reuse.test.ts"
+      - "tests/native-resident-allocation-free-motion.test.ts"
+      - "tests/native-resident-reusable-progress.test.ts"
+      - "tests/native-resident-progress-reuse-benchmark.ts"
+      - "tests/native-resident-motion-buffer-benchmark.ts"
+      - "tests/native-resident-timer-cooperative-batching.test.ts"
+      - "tests/native-resident-timer-time-budget.test.ts"
+      - "tests/native-resident-timer-falsy-errors.test.ts"
+      - "tests/native-resident-timer-burst-benchmark.ts"
+      - "tests/native-resident-timer-time-budget-benchmark.ts"
+      - "tests/native-resident-callback-relay.test.ts"
+      - "tests/native-resident-relay-caching.test.ts"
+      - "src/performance/nativeResidentTapRecognizer.ts"
+      - "src/performance/nativeResidentTouchRenderGate.ts"
+      - "tests/native-resident-touch-render-gate.test.ts"
+      - "tests/native-resident-work-sampling.test.ts"
+      - "tests/native-resident-touch-render-gate-benchmark.ts"
+      - "tests/native-resident-tap-recognizer.test.ts"
+      - "src/performance/nativeCaptureIntegrity.ts"
+      - "tests/native-capture-integrity.test.ts"
+      - "src/performance/nativeHudFrameLoop.ts"
+      - "tests/native-hud-frame-loop.test.ts"
+      - "scripts/compare-native-js-reports.mjs"
+      - "tests/native-js-report-comparison.test.mjs"
+      - "scripts/compare-native-ab-matrix.mjs"
+      - "scripts/audit-native-device-acceptance.mjs"
+      - "tests/native-device-acceptance.test.mjs"
+      - "docs/NATIVE_DEVICE_ACCEPTANCE_MATRIX.md"
+      - "scripts/analyze-native-android-framestats.mjs"
+      - "scripts/compare-native-android-ui-matrix.mjs"
+      - "scripts/generate-native-android-ui-matrix-template.mjs"
+      - "tests/native-android-ui-matrix-template.test.mjs"
+      - "tests/native-android-ui-matrix.test.mjs"
+      - "scripts/audit-native-device-evidence-readiness.mjs"
+      - "tests/native-device-evidence-readiness.test.mjs"
+      - "tests/native-ab-android-debug-lab.test.mjs"
+      - ".github/workflows/native-ab-android-debug-lab.yml"
+      - "tests/native-android-framestats.test.mjs"
+      - "tests/native-ab-matrix.test.mjs"
+      - "tests/native-resident-relay-cache-benchmark.ts"
+      - "tests/native-resident-sprite-frame-driver.test.ts"
+      - "tests/native-resident-facing-benchmark.ts"
+      - "tests/native-resident-sprite-scheduler-integration.test.ts"
+      - "src/performance/nativeResidentRouteTransitions.ts"
+      - "src/performance/nativeResidentSegmentRunner.ts"
+      - "tests/native-resident-segment-runner.test.ts"
+      - "tests/native-resident-4x-subscription-reuse.test.ts"
+      - "tests/native-resident-allocation-stable-segments.test.ts"
+      - "tests/native-resident-fault-isolation.test.ts"
+      - "tests/native-resident-bridge-fault-recovery.test.ts"
+      - "tests/native-resident-scheduler-bridge-recovery.test.ts"
+      - "tests/native-resident-raf-falsy-errors.test.ts"
+      - "tests/native-resident-raf-rearm-fault.test.ts"
       - "src/performance/nativeResidentFrameLifecycle.native.ts"
+      - "src/performance/nativeResidentAppVisibility.ts"
+      - "tests/native-resident-app-visibility.test.ts"
       - "src/performance/nativeResidentActivityGate.ts"
       - "tests/native-resident-activity-gate.test.ts"
       - "tests/native-resident-lifecycle-integration.test.ts"
+      - "tests/native-resident-lifecycle-bootstrap.test.ts"
+      - "tests/native-real-sprite-ab-comparison.test.ts"
+      - "tests/native-real-sprite-ab-replicates.test.ts"
+      - "tests/native-resident-route-transitions.test.ts"
+      - "tests/native-resident-collision-retry.test.ts"
+      - "tests/native-resident-route-epoch.test.ts"
+      - "tests/native-resident-owned-timer.test.ts"
+      - "tests/native-perf-workflow-isolation.test.mjs"
+      - "tests/native-resident-occupancy-handoff.test.ts"
+      - "tests/native-resident-interruption-cleanup.test.ts"
+      - "tests/native-resident-claimed-start-fault.test.ts"
+      - "tests/native-resident-arrival-fault.test.ts"
+      - "tests/native-resident-frame-fault-occupancy.test.ts"
       - "tests/native-resident-frame-bus.test.ts"
+      - "tests/native-resident-continuous-dispatch.test.ts"
+      - "tests/native-resident-continuous-dispatch-benchmark.ts"
+      - "tests/native-resident-segment-dispatch-benchmark.ts"
+      - "tests/native-resident-bridge-fault-benchmark.ts"
+      - "tests/native-resident-lifecycle-bootstrap-benchmark.ts"
+      - "tests/native-resident-frame-bus-benchmark.ts"
       - "tests/native-resident-platform-boundary.test.ts"
+      - "tests/native-resident-neighbor-sampler.test.ts"
+      - "tests/native-resident-spawn-sampler.test.ts"
+      - "tests/native-resident-spawn-sampler-benchmark.ts"
+      - "tests/native-resident-neighbor-sampler-benchmark.ts"
+      - "tests/native-typecheck-regression.test.mjs"
+      - "scripts/audit-native-ab-git-isolation.mjs"
+      - "tests/native-ab-git-isolation.test.mjs"
+      - "docs/NATIVE_AB_GIT_ISOLATION.md"
+      - "tests/fixtures/native-typecheck-baseline.json"
+      - "scripts/check-native-typecheck-regressions.mjs"
       - "tests/native-map-transform.test.ts"
       - "src/game/pauseAwareMotionClock.ts"
       - "tests/pause-aware-motion-clock.test.ts"
       - "src/game/pendingCommuteRetry.ts"
       - "tests/pending-commute-retry.test.ts"
       - "tests/native-performance-diagnostics.test.ts"
+      - "tests/native-measurement-window-integrity.test.ts"
+      - "tests/native-capture-evidence.test.ts"
       - "app/native-perf.tsx"
+      - "src/performance/nativeRealResidentFixture.ts"
+      - "src/performance/NativeRealResidentWorkload.tsx"
+      - "tests/native-real-resident-fixture.test.ts"
       - "app/mappa.tsx"
       - ".github/workflows/native-perf-diagnostics.yml"
   workflow_dispatch:
 
+# New commits supersede stale test/bundle runs for the same PR.
+concurrency:
+  group: native-performance-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
 jobs:
-  native-diagnostics:
+  native-tests:
     runs-on: ubuntu-latest
     timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Git ancestry is essential: a shallow clone cannot prove the
+          # #296 merge-base or detect an accidental #298 rebase onto #297.
+          fetch-depth: 0
+      - name: Fail-closed A/B Git ancestry, engine isolation and four-blob fixture parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          git fetch --no-tags origin \
+            +refs/heads/perf/native-resident-imperative-motion-20261028:refs/remotes/origin/perf/native-resident-imperative-motion-20261028 \
+            +refs/heads/perf/native-real-sprite-ab-baseline-20261028:refs/remotes/origin/perf/native-real-sprite-ab-baseline-20261028 \
+            +refs/heads/perf/native-resident-timer-batching-20261028:refs/remotes/origin/perf/native-resident-timer-batching-20261028
+          node --test tests/native-ab-git-isolation.test.mjs
+          node scripts/audit-native-ab-git-isolation.mjs --expected-candidate "${{ github.event.pull_request.head.sha || github.sha }}"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Baseline TypeScript regression gate (legacy errors still fail general CI)
+        id: typecheck_regression
+        continue-on-error: true
+        run: |
+          node --test tests/native-typecheck-regression.test.mjs tests/native-perf-workflow-isolation.test.mjs
+          node scripts/check-native-typecheck-regressions.mjs
+      - name: Pure fixture and frame metric tests
+        id: suite_01
+        continue-on-error: true
+        run: npx tsx --test tests/native-performance-diagnostics.test.ts tests/native-measurement-window-integrity.test.ts tests/native-capture-evidence.test.ts tests/native-map-transform.test.ts tests/pause-aware-motion-clock.test.ts tests/pending-commute-retry.test.ts tests/native-resident-platform-boundary.test.ts tests/native-resident-frame-bus.test.ts tests/native-resident-continuous-dispatch.test.ts tests/native-resident-activity-gate.test.ts tests/native-resident-app-visibility.test.ts tests/native-resident-lifecycle-integration.test.ts tests/native-resident-lifecycle-bootstrap.test.ts tests/native-real-sprite-ab-comparison.test.ts tests/native-real-sprite-ab-replicates.test.ts tests/native-resident-timer-queue.test.ts tests/native-resident-timer-diagnostics.test.ts tests/native-resident-timer-model-comparison.test.ts tests/native-resident-timer-cooperative-batching.test.ts tests/native-resident-timer-time-budget.test.ts tests/native-resident-timer-falsy-errors.test.ts tests/native-resident-callback-relay.test.ts tests/native-resident-sprite-frame-driver.test.ts tests/native-resident-sprite-scheduler-integration.test.ts tests/native-resident-segment-runner.test.ts tests/native-resident-4x-subscription-reuse.test.ts tests/native-resident-allocation-stable-segments.test.ts tests/native-resident-fault-isolation.test.ts tests/native-resident-bridge-fault-recovery.test.ts tests/native-resident-scheduler-bridge-recovery.test.ts tests/native-resident-raf-falsy-errors.test.ts tests/native-resident-raf-rearm-fault.test.ts tests/native-resident-dispatch-profiler.test.ts tests/native-resident-responsiveness.test.ts tests/native-resident-reentrant-lifecycle.test.ts
+      - name: Device capture validity (scene, population, speed, pause) and offline three-run A/B reports
+        id: suite_02
+        continue-on-error: true
+        run: |
+          npx tsx --test tests/native-capture-integrity.test.ts
+          node --test tests/native-js-report-comparison.test.mjs tests/native-ab-matrix.test.mjs tests/native-device-acceptance.test.mjs
+          node --test tests/native-android-framestats.test.mjs
+          node --test tests/native-android-ui-matrix.test.mjs
+          node --test tests/native-android-ui-matrix-template.test.mjs
+          node --test tests/native-device-evidence-readiness.test.mjs
+          node --test tests/native-ab-android-debug-lab.test.mjs
+      - name: Native commute/night priority, occupancy handoff and 200-resident route churn (Node only)
+        id: suite_03
+        continue-on-error: true
+        run: npx tsx --test tests/native-resident-route-transitions.test.ts tests/native-resident-occupancy-handoff.test.ts tests/native-resident-interruption-cleanup.test.ts tests/native-resident-claimed-start-fault.test.ts tests/native-resident-arrival-fault.test.ts tests/native-resident-frame-fault-occupancy.test.ts tests/native-resident-collision-retry.test.ts tests/native-resident-route-epoch.test.ts tests/native-resident-owned-timer.test.ts tests/native-resident-neighbor-sampler.test.ts tests/native-resident-spawn-sampler.test.ts
+      - name: 200 real native resident sprite fixture, occupancy and save-isolation regressions (Node only)
+        id: suite_04
+        continue-on-error: true
+        run: npx tsx --test tests/native-real-resident-fixture.test.ts
+      - name: Dev HUD opt-in RAF lifecycle and 200 collapse/background cycles (Node, not device FPS)
+        id: suite_05
+        continue-on-error: true
+        run: npx tsx --test tests/native-hud-frame-loop.test.ts
+      - name: Seeded 200-resident lifecycle/timer/RAF soak (Node fake OS, not FPS)
+        id: suite_06
+        continue-on-error: true
+        run: npx tsx --test tests/native-resident-stateful-soak.test.ts tests/native-resident-full-stack-integration.test.ts
+      - name: Allocation-free frame/timer buffer regression (Node only, not FPS)
+        id: suite_07
+        continue-on-error: true
+        run: npx tsx --test tests/native-resident-buffer-reuse.test.ts tests/native-resident-work-sampling.test.ts
+      - name: Allocation-free 200-resident movement and route churn (Node only, not FPS)
+        id: suite_08
+        continue-on-error: true
+        run: npx tsx --test tests/native-resident-allocation-free-motion.test.ts tests/native-resident-reusable-progress.test.ts tests/native-resident-overlay-lookup.test.ts
+      - name: Native touch gesture and lifecycle regression (200 simulated residents, not physical touch)
+        id: suite_09
+        continue-on-error: true
+        run: npx tsx --test tests/native-resident-tap-recognizer.test.ts tests/native-resident-touch-render-gate.test.ts
+      - name: Cached live resident event callbacks and presence masks (Node, not on-device)
+        id: suite_10
+        continue-on-error: true
+        run: npx tsx --test tests/native-resident-relay-caching.test.ts
+      - name: 200-resident event relay allocation benchmark (Node only, not device FPS)
+        id: suite_11
+        continue-on-error: true
+        run: npx tsx tests/native-resident-relay-cache-benchmark.ts
+      - name: Synthetic resident movement/facing allocation models (Node only, not device FPS)
+        id: suite_12
+        continue-on-error: true
+        run: |
+          npx tsx tests/native-resident-motion-buffer-benchmark.ts
+          npx tsx tests/native-resident-progress-reuse-benchmark.ts
+          npx tsx tests/native-resident-facing-benchmark.ts
+          npx tsx tests/native-resident-touch-render-gate-benchmark.ts
+      - name: Synthetic persistent RAF registration benchmark (Node only, not FPS)
+        id: suite_13
+        continue-on-error: true
+        run: |
+          npx tsx tests/native-resident-frame-bus-benchmark.ts
+          npx tsx tests/native-resident-continuous-dispatch-benchmark.ts
+          npx tsx tests/native-resident-segment-dispatch-benchmark.ts
+          npx tsx tests/native-resident-bridge-fault-benchmark.ts
+          npx tsx tests/native-resident-lifecycle-bootstrap-benchmark.ts
+      - name: Synthetic timer burst benchmark (Node only, not FPS)
+        id: suite_14
+        continue-on-error: true
+        run: npx tsx tests/native-resident-timer-burst-benchmark.ts
+      - name: Synthetic timer time-slice workload model (fake clock, not touch/FPS)
+        id: suite_15
+        continue-on-error: true
+        run: npx tsx tests/native-resident-timer-time-budget-benchmark.ts
+      - name: Synthetic 200-resident neighbor allocation comparison (Node only, not FPS)
+        id: suite_16
+        continue-on-error: true
+        run: |
+          npx tsx tests/native-resident-neighbor-sampler-benchmark.ts
+          npx tsx tests/native-resident-spawn-sampler-benchmark.ts
+          npx tsx tests/native-resident-overlay-lookup-benchmark.ts
+      # The additive TypeScript regression gate and all 16 test suites run
+      # independently after npm ci, even if an earlier group fails.
+      # Every outcome is required: failures AND skipped groups remain red.
+      # The repository's strict general CI typecheck is never weakened.
+      - name: Aggregate independent native suite outcomes (fail closed)
+        if: always()
+        shell: bash
+        run: |
+          set -euo pipefail
+          failed=0
+          for entry in \
+            "typecheck_regression:${{ steps.typecheck_regression.outcome }}" \
+            "suite_01:${{ steps.suite_01.outcome }}" \
+            "suite_02:${{ steps.suite_02.outcome }}" \
+            "suite_03:${{ steps.suite_03.outcome }}" \
+            "suite_04:${{ steps.suite_04.outcome }}" \
+            "suite_05:${{ steps.suite_05.outcome }}" \
+            "suite_06:${{ steps.suite_06.outcome }}" \
+            "suite_07:${{ steps.suite_07.outcome }}" \
+            "suite_08:${{ steps.suite_08.outcome }}" \
+            "suite_09:${{ steps.suite_09.outcome }}" \
+            "suite_10:${{ steps.suite_10.outcome }}" \
+            "suite_11:${{ steps.suite_11.outcome }}" \
+            "suite_12:${{ steps.suite_12.outcome }}" \
+            "suite_13:${{ steps.suite_13.outcome }}" \
+            "suite_14:${{ steps.suite_14.outcome }}" \
+            "suite_15:${{ steps.suite_15.outcome }}" \
+            "suite_16:${{ steps.suite_16.outcome }}"; do
+            label="${entry%%:*}"
+            outcome="${entry#*:}"
+            echo "${label}: ${outcome}"
+            if [[ "${outcome}" != "success" ]]; then
+              echo "::error::Native test ${label} ended ${outcome}"
+              failed=1
+            fi
+          done
+          exit "${failed}"
+  # Three independent workers: no longer block an iOS bundle behind Android
+  # export, or a web smoke test behind both mobile exports. All are JS bundles
+  # only; this workflow does NOT produce installable Android/iOS binaries.
+  native-bundles:
+    name: JS bundle ${{ matrix.platform }} (not device build)
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    strategy:
+      fail-fast: false
+      matrix:
+        platform: [android, ios, web]
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -37,20 +304,8 @@ jobs:
           node-version: 22
           cache: npm
       - run: npm ci
-      - name: Pure fixture and frame metric tests
-        run: npx tsx --test tests/native-performance-diagnostics.test.ts tests/native-map-transform.test.ts tests/pause-aware-motion-clock.test.ts tests/pending-commute-retry.test.ts tests/native-resident-platform-boundary.test.ts tests/native-resident-frame-bus.test.ts tests/native-resident-activity-gate.test.ts tests/native-resident-lifecycle-integration.test.ts
-      - name: Android JS bundle smoke test (not on-device)
+      - name: Expo JS bundle smoke test
         env:
           CI: "1"
           EXPO_NO_TELEMETRY: "1"
-        run: npx expo export --platform android --output-dir /tmp/mykingdom-native-android
-      - name: iOS JS bundle smoke test (not on-device)
-        env:
-          CI: "1"
-          EXPO_NO_TELEMETRY: "1"
-        run: npx expo export --platform ios --output-dir /tmp/mykingdom-native-ios
-      - name: Web JS bundle smoke test (unchanged baseline renderer)
-        env:
-          CI: "1"
-          EXPO_NO_TELEMETRY: "1"
-        run: npx expo export --platform web --output-dir /tmp/mykingdom-resident-web
+        run: npx expo export --platform ${{ matrix.platform }} --output-dir /tmp/mykingdom-native-${{ matrix.platform }}
