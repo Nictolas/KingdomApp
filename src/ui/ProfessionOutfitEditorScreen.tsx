@@ -71,8 +71,8 @@ export function ProfessionOutfitEditorScreen({onExit}:Props){
   const role=PROFESSION_ROLES.find(r=>r.id===roleId)!;
   const uniform=uniforms[roleId];
   const examples=useMemo(()=>[
-    previewAppearance(role,"M",101+variant*23,uniform),
-    previewAppearance(role,"F",202+variant*29,uniform)
+    previewAppearance(role,"M",101+variant*2,uniform),
+    previewAppearance(role,"M",102+variant*2,uniform)
   ],[role,uniform,variant]);
 
   const exportText=useMemo(()=>{
