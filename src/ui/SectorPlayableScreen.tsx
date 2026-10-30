@@ -1,10 +1,11 @@
-import React, { useCallback, useEffect, useMemo, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
+import React, { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { Image, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
+import { createSectorSaveQueue, loadSectorKingdom } from "../game/sectorPlayablePersistence";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   advancePlayableDay, applySectorAction, COSTS, createPlayableKingdom,
-  isPlayableKingdom, PLAYABLE_SAVE_KEY, travelSector,
+  travelSector,
   type PlayableKingdom, type SectorActionMode, type SectorBuildKind
 } from "../game/sectorPlayableModel";
 import { fitSquareGrid, isRoadCell, neighborSector, PREVIEW_COLS, PREVIEW_ROWS, SECTOR_IDS, type SectorId } from "../game/sectorPreviewModel";
@@ -27,27 +28,32 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
   const [game,setGame]=useState<PlayableKingdom|null>(null);
   const [loaded,setLoaded]=useState(false);
   const [paused,setPaused]=useState(false);
+  const [saveEnabled,setSaveEnabled]=useState(false);
+  const [saveWarning,setSaveWarning]=useState<string|null>(null);
+  const [confirmReset,setConfirmReset]=useState(false);
+  const [exiting,setExiting]=useState(false);
+  const saveQueue=useRef(createSectorSaveQueue(AsyncStorage)).current;
   const [tool,setTool]=useState<SectorActionMode>("inspect");
   const [mapArea,setMapArea]=useState({width:0,height:0});
   const {width:screenWidth,height:screenHeight}=useWindowDimensions();
   const tight=screenWidth<380||screenHeight<740;
   useEffect(()=>{
     let alive=true;
-    void AsyncStorage.getItem(PLAYABLE_SAVE_KEY).then(raw=>{
+    void loadSectorKingdom(AsyncStorage).then(({kingdom,invalid})=>{
       if(!alive)return;
-      let restored:PlayableKingdom|null=null;
-      try{const parsed=raw?JSON.parse(raw):null;if(isPlayableKingdom(parsed))restored=parsed;}catch{}
-      setGame(restored??createPlayableKingdom());setLoaded(true);
-    }).catch(()=>{
-      if(!alive)return;
-      setGame(createPlayableKingdom());setLoaded(true);
+      setGame(kingdom);
+      setSaveEnabled(!invalid);
+      if(invalid) setSaveWarning("Salvataggio settori illeggibile: la copia originale è preservata. Usa Ricomincia per iniziare un nuovo salvataggio.");
+      setLoaded(true);
     });
     return ()=>{alive=false;};
   },[]);
   useEffect(()=>{
-    if(!loaded||!game)return;
-    void AsyncStorage.setItem(PLAYABLE_SAVE_KEY,JSON.stringify(game)).catch(()=>{});
-  },[loaded,game]);
+    if(!loaded||!game||!saveEnabled)return;
+    void saveQueue.enqueue(game).then(()=>setSaveWarning(null)).catch(()=>{
+      setSaveWarning("Salvataggio non riuscito. Riprova prima di uscire.");
+    });
+  },[loaded,game,saveEnabled,saveQueue]);
   useEffect(()=>{
     if(!loaded||paused)return;
     const timer=setInterval(()=>setGame(g=>g?advancePlayableDay(g):g),7000);
@@ -72,9 +78,25 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
     setTool("inspect");
   },[]);
   const reset=()=>{
+    setConfirmReset(false);
     setPaused(true);
+    setSaveEnabled(true);
+    setSaveWarning(null);
     setGame(createPlayableKingdom());
     setTool("inspect");
+  };
+  const exit=async()=>{
+    if(exiting)return;
+    setExiting(true);
+    if(game && saveEnabled){
+      try { await saveQueue.enqueue(game); }
+      catch {
+        setSaveWarning("Impossibile salvare il regno. Riprova a uscire quando la memoria è disponibile.");
+        setExiting(false);
+        return;
+      }
+    }
+    onExit();
   };
   if(!loaded||!game||!world) return (
     <SafeAreaView style={styles.root}><View style={styles.loading}><Text style={styles.title}>Caricamento Regno a settori…</Text></View></SafeAreaView>
@@ -82,12 +104,13 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
   return (
     <SafeAreaView testID="sector-game-root" edges={["top","bottom","left","right"]} style={styles.root}>
       <View style={[styles.header,tight&&styles.headerTight]}>
-        <Pressable testID="sector-game-exit" accessibilityRole="button" accessibilityLabel="Torna alle modalità" onPress={onExit} style={styles.back}>
+        <Pressable testID="sector-game-exit" accessibilityRole="button" accessibilityLabel="Torna alle modalità" disabled={exiting} onPress={()=>{void exit();}} style={styles.back}>
           <Text style={styles.backText}>‹ Modalità</Text>
         </Pressable>
         <View style={styles.headerCenter}><Text style={styles.title}>REGNO A SETTORI</Text><Text style={styles.subTitle}>PROTOTIPO GIOCABILE · Giorno {game.day}</Text></View>
         <Pressable accessibilityRole="button" onPress={()=>setPaused(p=>!p)} style={styles.pause}><Text style={styles.backText}>{paused?"▶":"❚❚"}</Text></Pressable>
       </View>
+      {saveWarning ? <Text testID="sector-game-save-warning" style={styles.saveWarning}>{saveWarning}</Text> : null}
       <View style={styles.resources} testID="sector-game-resources">
         <Text style={styles.resource}>🪙 {game.gold}</Text>
         <Text style={styles.resource}>🪵 {game.wood}</Text>
@@ -161,7 +184,7 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
             accessibilityRole="button" onPress={()=>setGame(g=>g?advancePlayableDay(g):g)}>
             <Text style={styles.dayText}>☀ Giorno successivo</Text>
           </Pressable>
-          <Pressable style={styles.resetButton} accessibilityRole="button" onPress={reset}>
+          <Pressable style={styles.resetButton} accessibilityRole="button" onPress={()=>setConfirmReset(true)}>
             <Text style={styles.resetText}>Ricomincia</Text>
           </Pressable>
         </View>
@@ -173,11 +196,31 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
           </Pressable>)}
         </View>
       </View>
+      <Modal visible={confirmReset} transparent animationType="fade" onRequestClose={()=>setConfirmReset(false)}>
+        <View style={styles.modalBackdrop} testID="sector-game-reset-dialog">
+          <View style={styles.modalCard}>
+            <Text style={styles.title}>Ricominciare il Regno a settori?</Text>
+            <Text style={styles.modalText}>Questo sostituisce solo il salvataggio della modalità a settori. Avventura e Creativa non vengono modificate.</Text>
+            <View style={styles.actions}>
+              <Pressable testID="sector-game-reset-cancel" style={styles.resetButton} accessibilityRole="button" onPress={()=>setConfirmReset(false)}>
+                <Text style={styles.resetText}>Annulla</Text>
+              </Pressable>
+              <Pressable testID="sector-game-reset-confirm" style={styles.dayButton} accessibilityRole="button" onPress={reset}>
+                <Text style={styles.dayText}>Ricomincia</Text>
+              </Pressable>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
 const styles=StyleSheet.create({
   root:{flex:1,backgroundColor:"#13231c"},
+  saveWarning:{color:"#ffe1a0",backgroundColor:"#743b28",padding:5,fontSize:11},
+  modalBackdrop:{flex:1,backgroundColor:"rgba(0,0,0,.78)",justifyContent:"center",padding:24},
+  modalCard:{backgroundColor:"#22372f",padding:20,borderRadius:12,gap:12},
+  modalText:{color:"#f3e6c9",fontSize:13,lineHeight:19},
   loading:{flex:1,justifyContent:"center",alignItems:"center"},
   header:{flexDirection:"row",minHeight:53,alignItems:"center",paddingHorizontal:8,
     backgroundColor:"#22372f",borderBottomWidth:1,borderBottomColor:"#856c3a",gap:6},

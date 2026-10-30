@@ -80,3 +80,21 @@ test("building requires resources, rejects roads, and saved data rejects incompa
  const invalidCoords=JSON.parse(JSON.stringify(g));invalidCoords.sectors.centro.residents[0].x=1000;
  assert.equal(isPlayableKingdom(invalidCoords),false);
 });
+
+
+test("saved kingdom validation rejects overlapping buildings, duplicate residents and hostile resources",()=>{
+  const base=createPlayableKingdom();
+  const clone=()=>JSON.parse(JSON.stringify(base));
+  const negative=clone(); negative.gold=-1;
+  assert.equal(isPlayableKingdom(negative),false);
+  const impossible=clone(); impossible.sectors.centro.residents[0].energy=NaN;
+  assert.equal(isPlayableKingdom(impossible),false);
+  const duplicate=clone(); duplicate.sectors.centro.residents[1].x=duplicate.sectors.centro.residents[0].x;
+  duplicate.sectors.centro.residents[1].y=duplicate.sectors.centro.residents[0].y;
+  assert.equal(isPlayableKingdom(duplicate),false);
+  const overlap=clone(); overlap.sectors.centro.buildings.push({...overlap.sectors.centro.buildings[0],id:"fake"});
+  assert.equal(isPlayableKingdom(overlap),false);
+  const flood=clone(); flood.sectors.centro.residents=Array(10000).fill(flood.sectors.centro.residents[0]);
+  assert.equal(isPlayableKingdom(flood),false);
+  assert.equal(isPlayableKingdom(base),true);
+});

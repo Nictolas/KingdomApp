@@ -34,21 +34,52 @@ export function createPlayableKingdom(): PlayableKingdom {
   };
 }
 
+/** Reject malformed or hostile local saves before they enter the render/simulation loop.
+ * This validates the isolated sector save only; it never reads the main game save. */
 export function isPlayableKingdom(value: unknown): value is PlayableKingdom {
   if (!value || typeof value !== "object") return false;
   const v = value as Partial<PlayableKingdom>;
+  const integer = (n: unknown, min: number, max: number): n is number =>
+    Number.isSafeInteger(n) && (n as number) >= min && (n as number) <= max;
   if (v.version !== 1 || !SECTOR_IDS.includes(v.sector as SectorId) ||
-    !Number.isSafeInteger(v.day) || (v.day ?? 0) < 1 ||
-    !Number.isSafeInteger(v.gold) || !Number.isSafeInteger(v.wood) || !Number.isSafeInteger(v.food) ||
-    !Number.isSafeInteger(v.nextBuilding)) return false;
+      !integer(v.day, 1, 1_000_000_000) || !integer(v.nextBuilding, 1, 1_000_000_000) ||
+      !integer(v.gold, 0, 1_000_000_000_000) || !integer(v.wood, 0, 1_000_000_000_000) ||
+      !integer(v.food, 0, 1_000_000_000_000) ||
+      typeof v.notice !== "string" || v.notice.length > 500 ||
+      !v.sectors || typeof v.sectors !== "object") return false;
+  const kinds = new Set(["castle", "house", "farm", "shop", "hut"]);
   return SECTOR_IDS.every(id => {
-    const s = v.sectors?.[id];
-    return Array.isArray(s?.buildings) && Array.isArray(s?.residents)
-      && s.buildings.every(b => typeof b.id === "string" && Number.isInteger(b.x) && Number.isInteger(b.y) &&
-        Number.isInteger(b.w) && Number.isInteger(b.h) && b.w > 0 && b.h > 0 &&
-        b.x >= 0 && b.y >= 0 && b.x + b.w <= PREVIEW_COLS && b.y + b.h <= PREVIEW_ROWS)
-      && s.residents.every(p => typeof p.id === "string" && Number.isInteger(p.x) && Number.isInteger(p.y) &&
-        p.x >= 0 && p.x < PREVIEW_COLS && p.y >= 0 && p.y < PREVIEW_ROWS);
+    const sector = v.sectors?.[id];
+    if (!sector || !Array.isArray(sector.buildings) || !Array.isArray(sector.residents) ||
+        sector.buildings.length > PREVIEW_COLS * PREVIEW_ROWS ||
+        sector.residents.length > PREVIEW_COLS * PREVIEW_ROWS) return false;
+    const cells = new Set<number>();
+    const ids = new Set<string>();
+    for (const b of sector.buildings) {
+      if (!b || typeof b.id !== "string" || !b.id || b.id.length > 100 ||
+          ids.has(b.id) || typeof b.name !== "string" || b.name.length > 120 ||
+          !kinds.has(b.kind) || (b.builtByPlayer !== undefined && typeof b.builtByPlayer !== "boolean") ||
+          !integer(b.x, 0, PREVIEW_COLS - 1) || !integer(b.y, 0, PREVIEW_ROWS - 1) ||
+          !integer(b.w, 1, PREVIEW_COLS) || !integer(b.h, 1, PREVIEW_ROWS) ||
+          b.x + b.w > PREVIEW_COLS || b.y + b.h > PREVIEW_ROWS) return false;
+      ids.add(b.id);
+      for (let y = b.y; y < b.y + b.h; y++) for (let x = b.x; x < b.x + b.w; x++) {
+        const cell = y * PREVIEW_COLS + x;
+        if (isRoadCell(x, y) || cells.has(cell)) return false;
+        cells.add(cell);
+      }
+    }
+    for (const p of sector.residents) {
+      if (!p || typeof p.id !== "string" || !p.id || p.id.length > 100 ||
+          ids.has(p.id) || typeof p.name !== "string" || p.name.length > 120 ||
+          !integer(p.x, 0, PREVIEW_COLS - 1) || !integer(p.y, 0, PREVIEW_ROWS - 1) ||
+          !integer(p.energy, 0, 100)) return false;
+      ids.add(p.id);
+      const cell = p.y * PREVIEW_COLS + p.x;
+      if (cells.has(cell)) return false;
+      cells.add(cell);
+    }
+    return true;
   });
 }
 

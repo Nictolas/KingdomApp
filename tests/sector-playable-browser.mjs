@@ -53,6 +53,10 @@ try{
  await page.getByTestId("sector-game-tap-grid").click({position:{x:cell*.7,y:cell*20.7}});
  const buildMessage=await page.getByTestId("sector-game-notice").textContent();
  assert.match(buildMessage||"",/Casa .* costruita/i,"Construction failed: "+buildMessage);
+ await page.getByRole("button",{name:"Ricomincia"}).click();
+ await page.getByTestId("sector-game-reset-dialog").waitFor();
+ await page.getByTestId("sector-game-reset-cancel").click();
+ await page.getByText("PROTOTIPO GIOCABILE · Giorno 2").waitFor();
  await page.getByTestId("sector-game-exit").click();
  await page.getByTestId("choose-sector-mode").waitFor();
  await page.getByTestId("choose-sector-mode").click();

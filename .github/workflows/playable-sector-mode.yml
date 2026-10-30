@@ -9,6 +9,8 @@ on:
       - "src/ui/StartGameScreen.tsx"
       - "src/context/GameContext.tsx"
       - "tests/sector-playable.test.ts"
+      - "tests/sector-playable-persistence.test.ts"
+      - "src/game/sectorPlayablePersistence.ts"
       - "tests/sector-playable-browser.mjs"
       - "tsconfig.sector-playable.json"
       - ".github/workflows/playable-sector-mode.yml"
@@ -30,7 +32,7 @@ jobs:
       - name: Typecheck gameplay and screens (isolated from baseline)
         run: npx tsc --project tsconfig.sector-playable.json --noEmit
       - name: Simulate gameplay and persistence
-        run: npx tsx --test tests/sector-playable.test.ts
+        run: npx tsx --test tests/sector-playable.test.ts tests/sector-playable-persistence.test.ts
       - name: Export playable web game
         run: npm run build:web
 
