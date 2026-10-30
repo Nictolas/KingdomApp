@@ -123,7 +123,11 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
           <Pressable testID="sector-game-tap-grid" accessibilityRole="button" accessibilityLabel="Griglia di gioco, tocca una casella"
             style={[StyleSheet.absoluteFill,{zIndex:9}]} onPress={e=>{
               if(!cell)return;
-              const x=Math.floor(e.nativeEvent.locationX/cell),y=Math.floor(e.nativeEvent.locationY/cell);
+              const point=e.nativeEvent as typeof e.nativeEvent & {offsetX?:number;offsetY?:number};
+              const localX=Number.isFinite(point.locationX)?point.locationX:point.offsetX;
+              const localY=Number.isFinite(point.locationY)?point.locationY:point.offsetY;
+              if(!Number.isFinite(localX)||!Number.isFinite(localY))return;
+              const x=Math.floor((localX as number)/cell),y=Math.floor((localY as number)/cell);
               pressTile(x,y);
             }}/>
         </View>}
