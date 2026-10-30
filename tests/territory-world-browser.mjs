@@ -31,7 +31,8 @@ try{
    await page.getByTestId("choose-territory-world").waitFor({state:"visible",timeout:60000});
    assert.ok(await page.getByRole("button",{name:"Avventura"}).isVisible());
    assert.ok(await page.getByRole("button",{name:"Creativa"}).isVisible());
-   assert.ok(await page.getByTestId("choose-sector-mode").isVisible());
+   assert.equal(await page.getByTestId("choose-sector-mode").count(),0,
+     "The old 16x24 demo must not be a second territorial mode");
    await page.getByTestId("choose-territory-world").click();
    await page.getByTestId("territory-world-grid").waitFor({state:"visible",timeout:45000});
    await page.getByTestId("territory-world-pause").click();
@@ -65,7 +66,16 @@ try{
      "D-pad must be horizontally centered, not next to the camera arrows");
    assert.ok(dpadBounds.y+dpadBounds.height<=height+2,
      "D-pad must fit above the phone safe-area bottom");
-   assert.ok(dpadBounds.y>height-190,"D-pad must stay near the bottom");
+   assert.ok(dpadBounds.y>height-155,"D-pad must stay near the bottom");
+   const shape=await page.getByTestId("territory-dpad").evaluate(el=>{
+     const css=getComputedStyle(el);
+     return {radius:parseFloat(css.borderTopLeftRadius),width:el.getBoundingClientRect().width};
+   });
+   assert.ok(shape.radius>=shape.width/2-3,
+     "The D-pad must be one clearly defined circle, not separate directional buttons");
+   const actionsBox=await page.getByTestId("territory-world-auto-build").boundingBox();
+   assert.ok(actionsBox&&actionsBox.y+actionsBox.height<dpadBounds.y,
+     "The fixed D-pad must not cover the build controls on compact screens");
    await page.screenshot({path:`territory-screenshots/new-capital-${width}x${height}.png`,fullPage:true});
    await page.getByTestId("territory-dpad-center").click();
    await page.getByTestId("territory-map-grid").waitFor();
