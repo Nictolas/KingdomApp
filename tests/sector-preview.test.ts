@@ -81,8 +81,11 @@ test("hit testing prioritizes exact residents and buildings, supports nearby tap
  const buildingHit=hitTestSectorPreview(preview,(b.x+.5)*size,(b.y+.5)*size,size);
  assert.deepEqual(buildingHit,{id:b.id,name:b.name,kind:"building"});
  // A tap just beyond a resident tile remains usable on a small display.
- const neighbor=hitTestSectorPreview(preview,(p.x+.5)*size+size*.65,(p.y+.5)*size,size);
- assert.ok(neighbor===null||["resident","building"].includes(neighbor.kind));
+ const isolated={...preview,buildings:[],occupied:new Set<number>(),residents:[{id:"only",name:"Resident",x:3,y:3}]};
+ const neighbor=hitTestSectorPreview(isolated,4.6*size,3.5*size,size);
+ assert.deepEqual(neighbor,{id:"only",name:"Resident",kind:"resident"});
+ assert.equal(hitTestSectorPreview(isolated,7.5*size,7.5*size,size),null);
+ assert.equal(hitTestSectorPreview(isolated,4.6*size,3.5*size,size,0),null);
  assert.equal(hitTestSectorPreview(preview,-1,0,size),null);
  assert.equal(hitTestSectorPreview(preview,preview.cols*size,0,size),null);
  assert.equal(hitTestSectorPreview(preview,0,preview.rows*size,size),null);
