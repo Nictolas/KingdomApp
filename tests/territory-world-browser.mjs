@@ -78,6 +78,19 @@ try{
      path:`territory-screenshots/biome-frontier-map-${width}x${height}.png`,
      fullPage:true
    });
+   // The 5×5 overview is a scrollable window, never a five-sector limit.
+   // Moving the overview does not spend resources or move citizens.
+   const beforePan=await page.getByTestId("territory-world-resources").textContent();
+   await page.getByTestId("territory-map-pan-east").click();
+   await page.getByTestId("territory-map-cell-4,0").waitFor();
+   await page.getByTestId("territory-map-center-label").filter({hasText:"3,0"}).waitFor();
+   await page.getByTestId("territory-map-pan-north").click();
+   await page.getByTestId("territory-map-cell-4,-3").waitFor();
+   await page.getByTestId("territory-map-pan-center").click();
+   await page.getByTestId("territory-map-center-label").filter({hasText:"0,0"}).waitFor();
+   await page.getByTestId("territory-map-cell-1,0").waitFor();
+   assert.equal(await page.getByTestId("territory-world-resources").textContent(),beforePan,
+      "Panning the overview must not alter the game or spend resources");
    await page.getByTestId("territory-map-cell-1,0").click();
    await page.getByTestId("territory-map-selected").filter({hasText:/Acquisto:/}).waitFor();
    await page.getByTestId("territory-map-buy").click();
