@@ -1,7 +1,7 @@
 // End-to-end browser smoke for the playable sector mode (not native device verification).
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 import { chromium } from "playwright";
 import { findStaticPreviewFile } from "./sector-preview-static-server.mjs";
@@ -33,6 +33,14 @@ try{
  assert.ok(await page.getByRole("button",{name:"Creativa"}).isVisible());
  await page.getByTestId("choose-sector-mode").click();
  await page.getByTestId("sector-game-grid").waitFor({state:"visible",timeout:40000});
+ // Check actual loaded sprite images, not just the layout/colored fallback.
+ await page.waitForFunction(()=>{
+  const sprites=Array.from(document.querySelectorAll('[data-testid="sector-game-grid"] img'));
+  return sprites.length>=384 && sprites.every(img=>img.complete && img.naturalWidth>0);
+ },undefined,{timeout:25000});
+ await mkdir("sector-screenshots",{recursive:true});
+ await page.screenshot({path:`sector-screenshots/playable-textures-${width}x${height}.png`});
+
  const rec=await page.evaluate(()=>{
   const rect=id=>{const r=document.querySelector('[data-testid="'+id+'"]')?.getBoundingClientRect();
      if(!r)throw Error(id+" missing");
