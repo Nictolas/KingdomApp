@@ -57,7 +57,7 @@ export function defaultProfessionUniform(id: ProfessionRoleId): ProfessionUnifor
     ageGroup,bodyFamily:bodyFamilyFor("human",ageGroup),
     outfit:"commoner",upperOutfit:"commoner",lowerOutfit:"commoner",
     fullOutfit:"none",outfitPrimaryColor:"brown",outfitSecondaryColor:"charcoal",
-    headwear:"none",accessory:"none",cape:"none",footwear:"none"
+    headwear:id==="re"?"crown":"none",accessory:"none",cape:"none",footwear:"none"
   });
   const withRole=appearanceForPublicSpace(base,{
     isKing:id==="re",nudismoAttivo:false,lavoro:role.lavoro,
