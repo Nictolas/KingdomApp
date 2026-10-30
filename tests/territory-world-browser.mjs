@@ -66,6 +66,15 @@ try{
    await page.getByTestId("territory-open-map").click();
    await page.getByTestId("territory-map-grid").waitFor();
    assert.equal(await page.getByTestId("territory-map-grid").getByRole("button").count(),25);
+   // A geographical map must reveal the biome for an owned/frontier tile,
+   // while undiscovered distant cells remain fogged.
+   const coloredFrontier=page.getByTestId("territory-map-cell-1,0");
+   assert.ok(await coloredFrontier.getByText(/Bosco|Pianura|Colline|Palude|Terre aride/).isVisible(),
+     "The preview must show the real biome, not just a generic square");
+   await page.screenshot({
+     path:`territory-screenshots/biome-frontier-map-${width}x${height}.png`,
+     fullPage:true
+   });
    await page.getByTestId("territory-map-cell-1,0").click();
    await page.getByTestId("territory-map-selected").filter({hasText:/Acquisto:/}).waitFor();
    await page.getByTestId("territory-map-buy").click();
