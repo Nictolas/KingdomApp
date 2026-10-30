@@ -94,6 +94,25 @@ locali delle strade: non occorre migrare i salvataggi precedenti.
 I mondi storici conservano il vecchio terreno ma possono costruire
 ponti nelle caselle d'acqua.
 
+## Scelta tra i due prototipi: un solo mondo visibile
+
+Il vecchio **Regno a settori** (5 zone 16×24) era il primo prototipo,
+mentre **Regno a territori · 32×32** è quello espandibile con acquisto,
+conquista, geografia regionale e strade. Mostrare entrambi confondeva
+le modalità di gioco e nascondeva i progressi del secondo.
+
+Nei menu **Nuova partita** e **Scegli la modalità** ora compare soltanto
+**Regno a territori · 32×32** come modalità territoriale. Avventura e
+Creativa restano disponibili. Sono stati scollegati dalla navigazione
+i pulsanti e la schermata del vecchio Regno a settori, ma **non sono
+stati cancellati i file, i modelli o il vecchio salvataggio**
+`mykingdom:sectors:playable:v1`; nessuna migrazione forzata.
+
+La nuova manopola direzionale è **un solo cerchio** con quattro frecce
+al suo interno (non quattro pulsanti rotondi separati), in posizione
+assoluta al centro in basso, all'interno della safe area. Uno spazio
+riservato impedisce che copra i comandi delle costruzioni.
+
 ## Manopola direzionale: cambio territorio, non telecamera
 
 Nella nuova modalità 32×32, una **manopola tonda fissa al centro in basso**
