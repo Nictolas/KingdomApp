@@ -249,7 +249,7 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
               width:cell,height:cell,overflow:"hidden"}}>
             <TerrainSheetSprite cellSize={cell} coord={t.coord}/>
             {t.kind==="woodland"?<Image source={TREE} resizeMode="contain"
-              style={{width:cell,height:cell,position:"absolute",top:0}} pointerEvents="none"/>:null}
+              style={{width:cell,height:cell,position:"absolute",top:0}}/>:null}
             {t.kind==="rock"?<View pointerEvents="none" style={{position:"absolute",width:cell,height:cell,
               backgroundColor:"rgba(56,61,65,0.70)",borderRadius:cell/3}}/>:null}
             {t.kind==="dry"?<View pointerEvents="none" style={{position:"absolute",width:cell,height:cell,
