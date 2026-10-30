@@ -26,7 +26,7 @@ const SectorResidentArt = React.memo(function SectorResidentArt({cell,index,fram
   const height=cell*1.22;
   return <View pointerEvents="none" style={{width:cell,height:cell,alignItems:"center",justifyContent:"flex-end"}}>
     <View style={{width:cell,height,overflow:"hidden"}}>
-      <Image source={CHARACTER_SHEET} resizeMode="stretch"
+      <Image testID="sector-resident-atlas-image" source={CHARACTER_SHEET} resizeMode="stretch"
         style={{position:"absolute",width:cell*12,height,left:-frameIndex*cell,top:0}}/>
     </View>
   </View>;
