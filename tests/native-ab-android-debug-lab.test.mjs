@@ -49,5 +49,5 @@ test("A docs-only synchronize event cannot cancel a running expensive A/B APK bu
   assert.doesNotMatch(workflow, /cancel-in-progress: true/);
   assert.match(workflow, /determine-build:/);
   assert.match(workflow, /needs: determine-build/);
-  assert.match(workflow, /if: needs\\.determine-build\\.outputs\\.changed == 'true'/);
+  assert.match(workflow, /if: needs\.determine-build\.outputs\.changed == 'true'/);
 });
