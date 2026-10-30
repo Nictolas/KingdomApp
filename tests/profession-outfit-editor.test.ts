@@ -1,6 +1,7 @@
 import assert from "node:assert/strict";
 import test from "node:test";
-import { DEFAULT_CHARACTER_APPEARANCE, normalizeCharacterAppearance } from "../src/character-system/appearance";
+import { DEFAULT_CHARACTER_APPEARANCE, appearanceForPublicSpace, normalizeCharacterAppearance } from "../src/character-system/appearance";
+import { generaAspettoDaSeed } from "../src/game/personaggioAspetto";
 import {
   applyProfessionUniform, clearProfessionUniform, defaultProfessionUniform, extractProfessionUniform,
   getProfessionUniforms, loadProfessionUniforms, PROFESSION_OUTFITS_KEY,
@@ -101,23 +102,36 @@ test("invalid stored preferences are not silently overwritten, and nudism bypass
   assert.strictEqual(applyProfessionUniform(base,"Non esiste"),base);
 });
 
-test("starter profession outfit looks consistent on independent faces and hair",()=>{
+test("starter uniforms fit two real generated citizens while preserving independent faces",()=>{
   resetProfessionUniformCacheForTests();
-  const base=normalizeCharacterAppearance(DEFAULT_CHARACTER_APPEARANCE);
-  const personA=normalizeCharacterAppearance({...base,hairStyle:"messy",hairColor:"dark_brown",beardStyle:"none"});
-  const personB=normalizeCharacterAppearance({...base,hairStyle:"wavy",hairColor:"white",beardStyle:"winter",beardColor:"white",skinTone:"dark"});
+  const generatedA=generaAspettoDaSeed("Umano",101,{sesso:"M"}).characterAppearance!;
+  const generatedB=generaAspettoDaSeed("Umano",102,{sesso:"M"}).characterAppearance!;
+  assert.notDeepEqual(
+    [generatedA.hairStyle,generatedA.hairColor,generatedA.skinTone,generatedA.beardStyle],
+    [generatedB.hairStyle,generatedB.hairColor,generatedB.skinTone,generatedB.beardStyle]
+  );
   for(const id of ["agricoltore","taglialegna","minatore","fabbro","mercante","artigiano","edile","sacerdote","nobile"] as const){
     const role=PROFESSION_ROLES.find(x=>x.id===id)!;
     const uniform=defaultProfessionUniform(id);
-    const appearanceA=applyProfessionUniform(personA,role.lavoro,{override:uniform});
-    const appearanceB=applyProfessionUniform(personB,role.lavoro,{override:uniform});
-    assert.equal(appearanceA.hairStyle,personA.hairStyle);
-    assert.equal(appearanceB.hairStyle,personB.hairStyle);
-    assert.equal(appearanceA.skinTone,personA.skinTone);
-    assert.equal(appearanceB.skinTone,personB.skinTone);
-    assert.equal(appearanceA.beardStyle,personA.beardStyle);
-    assert.equal(appearanceB.beardStyle,personB.beardStyle);
-    assert.deepEqual(extractProfessionUniform(appearanceA),extractProfessionUniform(appearanceB),
-      "Profession "+id+" must not choose random clothes for each citizen");
+    const sourceA=appearanceForPublicSpace(generatedA,{
+      isKing:false,nudismoAttivo:false,lavoro:role.lavoro,seed:101,razza:"Umano",sesso:"M"
+    });
+    const sourceB=appearanceForPublicSpace(generatedB,{
+      isKing:false,nudismoAttivo:false,lavoro:role.lavoro,seed:102,razza:"Umano",sesso:"M"
+    });
+    const a=applyProfessionUniform(sourceA,role.lavoro,{override:uniform});
+    const b=applyProfessionUniform(sourceB,role.lavoro,{override:uniform});
+    assert.equal(a.hairStyle,sourceA.hairStyle);
+    assert.equal(b.hairStyle,sourceB.hairStyle);
+    assert.equal(a.hairColor,sourceA.hairColor);
+    assert.equal(b.hairColor,sourceB.hairColor);
+    assert.equal(a.skinTone,sourceA.skinTone);
+    assert.equal(b.skinTone,sourceB.skinTone);
+    assert.equal(a.beardStyle,sourceA.beardStyle);
+    assert.equal(b.beardStyle,sourceB.beardStyle);
+    const ua=extractProfessionUniform(a),ub=extractProfessionUniform(b);
+    for(const key of ["upperOutfit","lowerOutfit","fullOutfit","outfitPrimaryColor","outfitSecondaryColor","headwear","cape"] as const) {
+      assert.equal(ua[key],ub[key],"Profession "+id+": mismatch in "+key);
+    }
   }
 });
