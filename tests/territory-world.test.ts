@@ -252,8 +252,8 @@ test("new world v2 has rivers and mountain ranges continuous across 32×32 bound
     assert.equal(sampled.length,1024);
     assert.equal(world.terrainVersion,2);
     for(const [lx,ly] of [[15,0],[16,31],[0,15],[31,16]]){
-      assert.equal(groundAt(s,tx,ty,lx,ly,biome,2),"road",
-        "Roads must remain passable at every sector boundary");
+      assert.ok(["road","bridge"].includes(groundAt(s,tx,ty,lx,ly,biome,2)),
+        "Roads and their bridges must remain passable at every sector boundary");
     }
   }
 });
@@ -316,5 +316,55 @@ test("the overview remains safe at the world's supported coordinate edges",()=>{
     assert.equal(preview.reachable,false);
     assert.equal(preview.tx,tx);
     assert.equal(preview.ty,ty);
+  }
+});
+
+test("v2 bridges visually preserve natural waterways under the four main routes",()=>{
+  const s=987654321;
+  let bridges=0;
+  for(let tx=-4;tx<=4;tx++)for(let ty=-4;ty<=4;ty++){
+    const biome=biomeForTerritory(s,tx,ty,2);
+    for(let y=0;y<32;y++)for(const x of [15,16]){
+      const tile=groundAt(s,tx,ty,x,y,biome,2);
+      const natural=naturalGeographyAt(s,tx*32+x,ty*32+y,biome);
+      if(natural==="water"&&tile==="bridge")bridges++;
+      if(natural==="water")assert.equal(tile,"bridge",
+        "Rivers must remain visible as wooden bridges under the main north-south path");
+    }
+  }
+  assert.ok(bridges>=10,"Expected bridges across several naturally occurring rivers");
+});
+
+test("the bridge tool connects roads across water, costs wood and survives saving",()=>{
+  let found:{world:ReturnType<typeof createTerritoryWorld>;x:number;y:number}|null=null;
+  for(let seed=1;seed<120&&!found;seed++){
+    const world=createTerritoryWorld(seed);
+    const territory=world.territories["0,0"];
+    for(let y=1;y<31&&!found;y++)for(let x=1;x<31&&!found;x++){
+      if(tileAt(world,territory,x,y)!=="water")continue;
+      const neighbors=[[x-1,y],[x+1,y],[x,y-1],[x,y+1]];
+      if(neighbors.some(([xx,yy])=>["road","bridge"].includes(tileAt(world,territory,xx,yy)))){
+        found={world,x,y};
+      }
+    }
+  }
+  assert.ok(found,"The main roads must reach a river bank in some seeded worlds");
+  const {world,x,y}=found!;
+  const before=world.wood;
+  const after=territoryAction(world,"bridge",x,y);
+  assert.equal(after.wood,before-3,"A crossing costs three units of wood");
+  assert.equal(tileAt(after,after.territories["0,0"],x,y),"bridge");
+  assert.ok(isTerritoryWorld(after),"Player-built bridges must persist through validation");
+  assert.ok(isTerritoryWorld(JSON.parse(JSON.stringify(after))));
+  assert.equal(territoryAction(after,"bridge",x,y).wood,after.wood,
+    "Do not allow paying twice on an existing crossing");
+  assert.equal(canBuildAt(after,after.territories["0,0"],x,y,"house"),false,
+    "Buildings cannot occupy river bridges");
+  const oldWorld={...world,terrainVersion:undefined};
+  assert.ok(isTerritoryWorld(oldWorld),"Old saves do not require a terrain version");
+  const oldBridge=territoryAction(oldWorld,"bridge",x,y);
+  if(tileAt(oldWorld,oldWorld.territories["0,0"],x,y)==="water"){
+    assert.equal(tileAt(oldBridge,oldBridge.territories["0,0"],x,y),"bridge");
+    assert.ok(isTerritoryWorld(oldBridge),"Bridge construction must be safe on legacy maps");
   }
 });
