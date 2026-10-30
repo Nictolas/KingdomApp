@@ -63,7 +63,7 @@ try{
    await page.getByTestId("territory-map-selected").filter({hasText:/Acquisto:/}).waitFor();
    await page.getByTestId("territory-map-buy").click();
    await page.getByTestId("territory-world-label").filter({hasText:/1,0/}).waitFor();
-   await page.getByText(/2 territori/).waitFor();
+   await page.getByText(/2 territori/).first().waitFor();
    assert.equal(await page.getByTestId("territory-world-tile").count(),144);
    await page.getByTestId("territory-tool-house").click();
    await page.getByTestId("territory-world-auto-build").click();
@@ -71,7 +71,7 @@ try{
    assert.match(message||"",/Casa \d+ costruita/i,"House construction failed: "+message);
    await page.screenshot({path:`territory-screenshots/claimed-territory-${width}x${height}.png`,fullPage:true});
    await page.getByTestId("territory-world-next-day").click();
-   await page.getByText(/Giorno 2/).waitFor();
+   await page.getByText("32×32 · Giorno 2",{exact:true}).waitFor();
    await page.getByTestId("territory-open-map").click();
    await page.getByTestId("territory-map-cell-0,0").click();
    await page.getByTestId("territory-map-visit").click();
@@ -79,8 +79,8 @@ try{
    await page.getByTestId("territory-world-exit").click();
    await page.getByTestId("choose-territory-world").waitFor();
    await page.getByTestId("choose-territory-world").click();
-   await page.getByText(/2 territori/).waitFor();
-   await page.getByText(/Giorno 2/).waitFor();
+   await page.getByText(/2 territori/).first().waitFor();
+   await page.getByText("32×32 · Giorno 2",{exact:true}).waitFor();
    await page.getByTestId("territory-open-map").click();
    await page.getByTestId("territory-map-cell-1,0").click();
    await page.getByTestId("territory-map-visit").click();
