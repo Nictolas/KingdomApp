@@ -48,9 +48,11 @@ La regola di sicurezza è che l'esperimento resta **Draft** finché questo perco
 - Test puri aggiunti per hit-test, geometria in sei viewport e 750 selezioni ripetute su cinque settori. Non equivalgono a test UI su device.
 
 ## Risultato CI da tenere distinto
-La CI generale del repository segnala errori TypeScript in file preesistenti non appartenenti al prototipo (es. `app/castello.tsx`, `src/game/cuginoNobileAvventura.ts`, test legacy). Il controllo dedicato `Fixed Sector Preview` esegue test del modello ed export JavaScript web/Android/iOS, ma **non dimostra un typecheck globale pulito**. Non correggere file di produzione dentro questa PR sperimentale.
+La CI generale del repository segnala errori TypeScript in file preesistenti non appartenenti al prototipo (es. `app/castello.tsx`, `src/game/cuginoNobileAvventura.ts`, test legacy). Il controllo dedicato `Fixed Sector Preview` esegue un **typecheck TypeScript isolato** (solo route, modello e test del prototipo), test del modello ed export JavaScript web/Android/iOS. Non dimostra un typecheck globale pulito. Non correggere file di produzione dentro questa PR sperimentale.
 
 ## Matrice manuale da eseguire (non ancora verificata fisicamente)
 - Android piccolo ~320×568, Android grande ~412×915, iPhone con notch e iPhone compatto.
 - Per ogni device: tutti e cinque i settori, frecce e minimappa, 30 residenti al Centro, edifici selezionabili, assenza pan/zoom, rotazione se supportata, safe area e pulsanti non coperti.
 - Rilevare larghezza della casella e leggibilità effettiva degli sprite; se troppo piccoli, il requisito «tutto il settore visibile» va rivalutato con dati misurati.
+
+Il typecheck isolato si esegue con `npx tsc --project tsconfig.sector-preview.json --noEmit`; verifica anche gli import transitivi, senza includere i file legacy non collegati alla route.
