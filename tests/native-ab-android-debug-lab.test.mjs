@@ -13,6 +13,11 @@ test("Android lab builds only on Draft #297 PR and never on main or the #298 bas
   assert.match(workflow, /concurrency:\n  group: native-ab-debug-/);
   assert.match(workflow, /cancel-in-progress: true/);
   assert.match(workflow, /permissions:\n  contents: read/);
+  assert.match(workflow, /determine-build:/);
+  assert.match(workflow, /fetch-depth: 2/);
+  assert.match(workflow, /git diff --name-only HEAD\^ HEAD/);
+  assert.match(workflow, /needs: determine-build/);
+  assert.match(workflow, /needs\.determine-build\.outputs\.changed/);
   assert.doesNotMatch(workflow, /push:\s*\n|schedule:\s*\n|workflow_dispatch:\s*\n/);
 });
 
