@@ -5,6 +5,7 @@
     "src/game/territoryGeography.ts",
     "src/game/territoryWorldPersistence.ts",
     "src/ui/TerritoryWorldScreen.tsx",
+    "src/ui/TerritoryDirectionPad.tsx",
     "src/ui/StartGameScreen.tsx",
     "src/ui/GameModeSelectionScreen.tsx",
     "tests/territory-world.test.ts",
