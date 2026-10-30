@@ -48,6 +48,14 @@ try{
         "Clothing editor must not offer edits to hair");
       await page.getByText("Salva abiti",{exact:true}).click();
       await page.getByTestId("profession-editor-notice").getByText(/divisa Contadino salvata/i).waitFor();
+      await page.getByTestId("profession-editor-export").click();
+      const shared=await page.getByTestId("profession-editor-export-text").textContent();
+      assert.match(shared||"",/Contadino \[agricoltore\]/,
+        "Export must include saved profession for developer review");
+      assert.match(shared||"",/Busto:/);
+      assert.ok(!(shared||"").includes("skinTone") && !(shared||"").includes("hairStyle"),
+        "Export may include only uniform choices, never individual faces");
+
       const savesAfter=await page.evaluate(()=>Object.entries(localStorage)
         .filter(([k])=>k.includes("mykingdom.save")||k.includes("sectors:playable")));
       assert.deepEqual(savesAfter,savesBefore,"Editor must not touch saves");
