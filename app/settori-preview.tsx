@@ -1,8 +1,8 @@
 import React, { useMemo, useState } from "react";
-import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  generateSectorPreviewWorld, fitSquareGrid, isRoadCell, neighborSector, SECTOR_IDS,
+  generateSectorPreviewWorld, fitSquareGrid, hitTestSectorPreview, isRoadCell, neighborSector, SECTOR_IDS,
   type SectorBuilding, type SectorId
 } from "../src/game/sectorPreviewModel";
 
@@ -24,13 +24,12 @@ function buildingAsset(building: SectorBuilding) {
 
 export default function SettoriPreviewScreen() {
   const [sector, setSector] = useState<SectorId>("centro");
-  const [compact, setCompact] = useState(false);
   const [picked, setPicked] = useState<Picked>(null);
   const [mapArea, setMapArea] = useState({width:0,height:0});
-  const [paused, setPaused] = useState(false);
-  const cols = compact ? 14 : 16;
-  const rows = compact ? 21 : 24;
-  const world = useMemo(() => generateSectorPreviewWorld(cols, rows), [cols,rows]);
+  const {width: windowWidth, height: windowHeight} = useWindowDimensions();
+  const tight = windowWidth < 380 || windowHeight < 700;
+  const cols = 16, rows = 24;
+  const world = useMemo(() => generateSectorPreviewWorld(), []);
   const preview = world[sector];
   const visibleCount = preview.residents.length;
   const worldPopulation = SECTOR_IDS.reduce((sum,id)=>sum + world[id].residents.length,0);
@@ -56,16 +55,16 @@ export default function SettoriPreviewScreen() {
 
   return (
     <SafeAreaView style={styles.root} edges={["top","bottom"]}>
-      <View style={styles.header}>
+      <View style={[styles.header,tight&&styles.headerTight]}>
         <View><Text style={styles.appName}>♛ MyKingdom</Text><Text style={styles.subtitle}>CAMPIONE · MAPPA A SETTORI FISSI</Text></View>
-        <View style={styles.rightHeader}>
+        {windowWidth >= 360 && <View style={styles.rightHeader}>
           <Text style={styles.population}>{worldPopulation} abitanti</Text>
           <Text style={styles.subtitle}>Regno dimostrativo</Text>
-        </View>
+        </View>}
       </View>
-      <View style={styles.zoneHeader}>
+      <View style={[styles.zoneHeader,tight&&styles.zoneHeaderTight]}>
         <Text style={styles.zoneTitle}>{preview.label.toLocaleUpperCase("it-IT")}</Text>
-        <Text style={styles.zoneSummary}>{cols}×{rows} · {preview.buildings.length} edifici · {visibleCount} abitanti</Text>
+        <Text numberOfLines={1} style={styles.zoneSummary}>{cols}×{rows} · {preview.buildings.length} edifici · {visibleCount} abitanti</Text>
       </View>
       <View style={styles.mapArea} onLayout={event=>{
         const {width,height}=event.nativeEvent.layout;
@@ -82,8 +81,15 @@ export default function SettoriPreviewScreen() {
                 {t.road ? <View style={{position:"absolute",left:cell*.19,top:cell*.22,width:cell*.31,height:cell*.08,backgroundColor:"#a19780"}}/> : null}
               </View>
             ))}
+            <Pressable accessibilityRole="button" accessibilityLabel="Mappa a caselle: tocca per selezionare" 
+              onPress={event=>{
+                const hit=hitTestSectorPreview(preview,event.nativeEvent.locationX,event.nativeEvent.locationY,cell);
+                setPicked(hit ? {id:hit.id,name:hit.name,detail:hit.kind==="resident"
+                  ? "Abitante presente nel settore "+preview.label
+                  : "Edificio nel settore "+preview.label} : null);
+              }} style={[StyleSheet.absoluteFill,{zIndex:1}]} />
             {trees.map(t=>(
-              <Image key={"tree-"+t.x+"-"+t.y} source={TREE_ART}
+              <Image pointerEvents="none" key={"tree-"+t.x+"-"+t.y} source={TREE_ART}
                 style={{position:"absolute",left:t.x*cell,top:t.y*cell,width:cell,height:cell}} resizeMode="contain"/>
             ))}
             {preview.buildings.map(b=>(
@@ -131,7 +137,7 @@ export default function SettoriPreviewScreen() {
           </Pressable>
         </View>
       </View>
-      <View style={styles.footer}>
+      <View style={[styles.footer,tight&&styles.footerTight]}>
         <View style={styles.miniMap}>
           {MAP_ORDER.map((id,index)=>id
             ? <Pressable key={id} accessibilityRole="button" accessibilityLabel={"Vai a "+world[id].label}
@@ -146,14 +152,12 @@ export default function SettoriPreviewScreen() {
           <Text numberOfLines={2} style={styles.detailBody}>{picked?.detail ?? "Tocca un edificio o un abitante."}</Text>
           <Text style={styles.detailCount}>Visibili {visibleCount} di {worldPopulation} abitanti</Text>
         </View>
-        <View style={styles.controls}>
-          <Pressable accessibilityRole="button" onPress={()=>{setCompact(v=>!v);setPicked(null)}}
-            style={styles.control}><Text style={styles.controlLabel}>{cols}×{rows}</Text></Pressable>
-          <Pressable accessibilityRole="button" onPress={()=>setPaused(v=>!v)}
-            style={styles.control}><Text style={styles.controlLabel}>{paused?"▶ Riprendi":"❚❚ Pausa"}</Text></Pressable>
-        </View>
+        {!tight && <View style={styles.controls} accessible accessibilityLabel="Anteprima statica, griglia fissa 16 per 24">
+          <Text style={styles.controlLabel}>16×24 fisso</Text>
+          <Text style={styles.controlNote}>STATICO</Text>
+        </View>}
       </View>
-      <Text style={styles.disclaimer}>Anteprima isolata: nessun salvataggio o abitante reale viene modificato.</Text>
+      <Text style={styles.disclaimer}>Campione statico: nessuna simulazione o modifica ai salvataggi.</Text>
     </SafeAreaView>
   );
 }
@@ -161,9 +165,11 @@ export default function SettoriPreviewScreen() {
 const styles=StyleSheet.create({
   root:{flex:1,backgroundColor:"#10211e"},
   header:{minHeight:60,flexDirection:"row",alignItems:"center",justifyContent:"space-between",paddingHorizontal:13,backgroundColor:"#182831",borderBottomColor:"#7c5c37",borderBottomWidth:2},
+  headerTight:{minHeight:46,paddingHorizontal:9},
   appName:{color:"#f3d294",fontSize:21,fontWeight:"800"},subtitle:{color:"#bdc9c0",fontSize:9,marginTop:3},
   rightHeader:{alignItems:"flex-end"},population:{color:"#efdaaa",fontSize:13,fontWeight:"700"},
   zoneHeader:{minHeight:36,paddingHorizontal:12,backgroundColor:"#263d34",flexDirection:"row",justifyContent:"space-between",alignItems:"center"},
+  zoneHeaderTight:{minHeight:30,paddingHorizontal:9},
   zoneTitle:{fontWeight:"800",fontSize:13,color:"#f3e6c3",flexShrink:1},
   zoneSummary:{color:"#d4e1d5",fontSize:10,marginLeft:5},
   mapArea:{flex:1,alignItems:"center",justifyContent:"center",position:"relative",backgroundColor:"#152820",overflow:"hidden"},
@@ -171,11 +177,12 @@ const styles=StyleSheet.create({
   entity:{position:"absolute",alignItems:"center",justifyContent:"center"},
   resident:{position:"absolute",alignItems:"center",justifyContent:"center"},
   selected:{borderColor:"#ffec89",borderWidth:2},
-  arrow:{position:"absolute",width:39,height:39,backgroundColor:"#223c32ea",borderWidth:2,borderColor:"#f3d392",borderRadius:9,justifyContent:"center",alignItems:"center"},
+  arrow:{position:"absolute",width:44,height:44,backgroundColor:"#223c32ea",borderWidth:2,borderColor:"#f3d392",borderRadius:9,justifyContent:"center",alignItems:"center"},
   arrowText:{fontSize:25,color:"#fee7ae",fontWeight:"800"},
   north:{top:8,alignSelf:"center"},south:{bottom:8,alignSelf:"center"},
   east:{right:7,top:"48%"},west:{left:7,top:"48%"},disabled:{opacity:.2},
   footer:{flexDirection:"row",alignItems:"center",padding:9,minHeight:91,gap:8,backgroundColor:"#182831",borderTopWidth:2,borderTopColor:"#7c5c37"},
+  footerTight:{minHeight:78,padding:5,gap:5},
   miniMap:{width:76,height:76,padding:3,backgroundColor:"#0e2323",borderWidth:1,borderColor:"#799585",borderRadius:6,flexDirection:"row",flexWrap:"wrap",justifyContent:"center"},
   miniCell:{width:21,height:21,margin:1,backgroundColor:"#3a5a4e",borderRadius:3,justifyContent:"center",alignItems:"center"},
   miniCellActive:{backgroundColor:"#e7bf75"},
@@ -183,7 +190,8 @@ const styles=StyleSheet.create({
   miniText:{color:"#e0eecf",fontSize:10,fontWeight:"600"},miniTextActive:{color:"#19362d"},
   details:{flex:1,minWidth:0},detailName:{fontSize:13,fontWeight:"800",color:"#f2cc8c"},
   detailBody:{fontSize:11,color:"#d4dbd3"},detailCount:{fontSize:10,color:"#a7c4b7",marginTop:2},
-  controls:{gap:5},control:{paddingHorizontal:6,paddingVertical:8,minWidth:68,alignItems:"center",backgroundColor:"#354940",borderRadius:6,borderWidth:1,borderColor:"#9f7c51"},
-  controlLabel:{fontSize:11,color:"#f4debd"},
+  controls:{gap:5,paddingHorizontal:7,paddingVertical:10,alignItems:"center",backgroundColor:"#354940",borderRadius:6,borderWidth:1,borderColor:"#9f7c51"},
+  controlLabel:{fontSize:11,color:"#f4debd",fontWeight:"700"},
+  controlNote:{fontSize:9,color:"#bed2c7"},
   disclaimer:{textAlign:"center",fontSize:9,color:"#9fafa5",backgroundColor:"#182831",paddingBottom:3}
 });
