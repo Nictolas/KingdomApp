@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { appearanceForPublicSpace, bodyFamilyFor, normalizeCharacterAppearance } from "../character-system/appearance";
 import { compatibleCatalogOptions, firstCompatibleHairColor } from "../character-system/registry";
@@ -56,6 +56,7 @@ export function ProfessionOutfitEditorScreen({onExit}:Props){
   const [error,setError]=useState<string|null>(null);
   const [notice,setNotice]=useState<string|null>(null);
   const [variant,setVariant]=useState(0);
+  const [exportOpen,setExportOpen]=useState(false);
 
   useEffect(()=>{
     let live=true;
@@ -73,6 +74,32 @@ export function ProfessionOutfitEditorScreen({onExit}:Props){
     previewAppearance(role,"M",101+variant*23,uniform),
     previewAppearance(role,"F",202+variant*29,uniform)
   ],[role,uniform,variant]);
+
+  const exportText=useMemo(()=>{
+    const selected=PROFESSION_ROLES.filter(role=>uniforms[role.id]);
+    return [
+      "MYKINGDOM — DIVISE STANDARD PROPOSTE",
+      "Configurazione v1; viso, capelli, barba e pelle individuali.",
+      ...selected.map(role=>{
+        const u=uniforms[role.id]!;
+        return [
+          role.label+" ["+role.id+"]",
+          "Busto: "+u.upperOutfit+"; gambe: "+u.lowerOutfit+"; veste: "+u.fullOutfit,
+          "Colori: "+u.outfitPrimaryColor+" / "+u.outfitSecondaryColor,
+          "Cappello: "+u.headwear+"; mantello: "+u.cape+"; calzature: "+u.footwear,
+          "Accessorio: "+u.accessory+"; rifiniture: "+u.fullOutfitTrim+" / "+u.capeTrim
+        ].join("\\n");
+      })
+    ].join("\\n\\n");
+  },[uniforms]);
+  const shareChoices=async()=>{
+    setError(null);
+    try{
+      await Share.share({title:"Divise professioni MyKingdom",message:exportText});
+    }catch{
+      setError("La condivisione non è disponibile: seleziona e copia il testo qui sotto.");
+    }
+  };
 
   const modalInitial:DatiCreazioneGiocatore=useMemo(()=>({
     nome:role.label,cognome:"",sesso:"M",orientamento:"Etero",razza:"Umano",
@@ -178,7 +205,20 @@ export function ProfessionOutfitEditorScreen({onExit}:Props){
           disabled={busy||invalid} style={styles.secondary} onPress={()=>{void restore();}}>
           <Text style={styles.light}>Ripristina divisa originale</Text>
         </Pressable>:null}
-        <Text style={styles.footnote}>Le preferenze sono salvate sul dispositivo, separatamente dalle partite.</Text>
+        <Pressable testID="profession-editor-export" accessibilityRole="button"
+          accessibilityLabel="Mostra configurazione delle divise per inviarla allo sviluppatore"
+          style={styles.exportButton} onPress={()=>setExportOpen(v=>!v)}>
+          <Text style={styles.light}>{exportOpen?"Nascondi configurazione":"Condividi configurazione"}</Text>
+        </Pressable>
+        {exportOpen?<View testID="profession-editor-export-text" style={styles.exportPanel}>
+          <Text style={styles.caption}>Seleziona e copia queste scelte nella nostra chat: potranno diventare le divise predefinite per tutti i giocatori.</Text>
+          <Text selectable style={styles.exportText}>{exportText}</Text>
+          <Pressable accessibilityRole="button" accessibilityLabel="Condividi le divise selezionate"
+            style={styles.secondary} onPress={()=>{void shareChoices();}}>
+            <Text style={styles.light}>Condividi tramite dispositivo</Text>
+          </Pressable>
+        </View>:null}
+        <Text style={styles.footnote}>Le preferenze sono salvate sul dispositivo, separatamente dalle partite. Condividendole potremo inserirle come impostazione standard del gioco.</Text>
       </ScrollView>}
       <CreazioneGiocatoreModal
         visible={editing} mode="outfit" initial={modalInitial}
@@ -219,5 +259,8 @@ const styles=StyleSheet.create({
   error:{backgroundColor:"#65272c",color:"#ffe2e2",padding:12,borderRadius:9},
   notice:{backgroundColor:"#174f3b",color:"#e8fff1",padding:12,borderRadius:9},
   danger:{backgroundColor:"#9a3412",padding:12,borderRadius:10},
+  exportButton:{backgroundColor:"#254770",padding:13,borderRadius:10},
+  exportPanel:{borderWidth:1,borderColor:"#475569",padding:12,borderRadius:10,gap:12},
+  exportText:{fontSize:12,color:"#e2e8f0",lineHeight:19},
   footnote:{color:"#64748b",textAlign:"center",fontSize:11}
 });
