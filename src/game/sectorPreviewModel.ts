@@ -138,3 +138,27 @@ export function hitTestSectorPreview(
   }
   return nearest ? { id: nearest.id, name: nearest.name, kind: "resident" } : null;
 }
+
+/** Select every entity without requiring pixel-perfect taps on tiny phone tiles. */
+export function cycleSectorPreviewEntity(
+  preview: SectorPreview,
+  selectedId: string | null,
+  step: -1 | 1
+): SectorPreviewHit | null {
+  const buildingCount = preview.buildings.length;
+  const total = buildingCount + preview.residents.length;
+  if (total === 0) return null;
+  let selectedIndex = -1;
+  for (let i = 0; i < total; i++) {
+    const id = i < buildingCount ? preview.buildings[i].id : preview.residents[i - buildingCount].id;
+    if (id === selectedId) { selectedIndex = i; break; }
+  }
+  const nextIndex = selectedIndex < 0 ? (step === 1 ? 0 : total - 1)
+    : (selectedIndex + step + total) % total;
+  if (nextIndex < buildingCount) {
+    const b = preview.buildings[nextIndex];
+    return { id: b.id, name: b.name, kind: "building" };
+  }
+  const p = preview.residents[nextIndex - buildingCount];
+  return { id: p.id, name: p.name, kind: "resident" };
+}

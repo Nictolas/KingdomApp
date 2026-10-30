@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   SECTOR_IDS, SECTOR_SPECS, createSectorPreview, generateSectorPreviewWorld,
-  neighborSector, isRoadCell, fitSquareGrid, hitTestSectorPreview
+  neighborSector, isRoadCell, fitSquareGrid, hitTestSectorPreview, cycleSectorPreviewEntity
 } from "../src/game/sectorPreviewModel";
 
 test("fixed preview: five connected directions and no nonexistent neighbor",()=>{
@@ -115,4 +115,48 @@ test("all sectors remain hit-testable with stable fixtures across repeated navig
      assert.equal(hit?.id,first.id);
    }
  }
+});
+
+
+test("fallback selection cycles every building and resident in all five sectors, both directions",()=>{
+  const world=generateSectorPreviewWorld();
+  for(const id of SECTOR_IDS){
+    const sector=world[id], total=sector.buildings.length+sector.residents.length;
+    const seen=new Set<string>();
+    let selected:string|null=null;
+    for(let i=0;i<total;i++){
+      const next=cycleSectorPreviewEntity(sector,selected,1);
+      assert.ok(next);
+      assert.ok(!seen.has(next.id),`duplicate selection ${id}: ${next.id}`);
+      seen.add(next.id);
+      selected=next.id;
+    }
+    assert.equal(seen.size,total);
+    assert.equal(cycleSectorPreviewEntity(sector,selected,1)?.id,cycleSectorPreviewEntity(sector,null,1)?.id);
+    const last=cycleSectorPreviewEntity(sector,null,-1);
+    assert.equal(last?.id,selected);
+    assert.equal(cycleSectorPreviewEntity(sector,last!.id,1)?.id,cycleSectorPreviewEntity(sector,null,1)?.id);
+    assert.equal(cycleSectorPreviewEntity(sector,"stale-selection-from-other-sector",1)?.id,cycleSectorPreviewEntity(sector,null,1)?.id);
+    assert.equal(cycleSectorPreviewEntity(sector,"stale-selection-from-other-sector",-1)?.id,last?.id);
+    for(let i=0;i<total;i++){
+      const back=cycleSectorPreviewEntity(sector,selected,-1);
+      assert.ok(back);
+      selected=back.id;
+    }
+    assert.equal(selected,last?.id);
+  }
+});
+
+test("fallback selection handles empty sector and tiny square tiles without touching game state",()=>{
+  const center=createSectorPreview("centro");
+  assert.equal(cycleSectorPreviewEntity({...center,buildings:[],residents:[]},null,1),null);
+  const first=cycleSectorPreviewEntity(center,null,1);
+  assert.deepEqual(first,{id:center.buildings[0].id,name:center.buildings[0].name,kind:"building"});
+  const last=cycleSectorPreviewEntity(center,null,-1);
+  assert.deepEqual(last,{id:center.residents.at(-1)?.id,name:center.residents.at(-1)?.name,kind:"resident"});
+  for(const size of [1,3,7,10,12,18]){
+    const p=center.residents[0];
+    assert.equal(hitTestSectorPreview(center,(p.x+.5)*size,(p.y+.5)*size,size)?.id,p.id);
+    assert.equal(cycleSectorPreviewEntity(center,null,1)?.id,first?.id);
+  }
 });

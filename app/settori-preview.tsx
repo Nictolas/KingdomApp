@@ -3,7 +3,7 @@ import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from "r
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
   generateSectorPreviewWorld, fitSquareGrid, hitTestSectorPreview, isRoadCell, neighborSector, SECTOR_IDS,
-  type SectorBuilding, type SectorId
+  cycleSectorPreviewEntity, type SectorBuilding, type SectorId, type SectorPreviewHit
 } from "../src/game/sectorPreviewModel";
 
 // A read-only fixture, intentionally separate from the real GameContext and save pipeline.
@@ -15,6 +15,10 @@ const SHIRT_COLORS = ["#aa5749","#6086a3","#8f8c55","#86679d","#527d69"] as cons
 const MAP_ORDER: Array<SectorId | null> = [null,"nord",null,"ovest","centro","est",null,"sud",null];
 const LABELS: Record<SectorId, string> = {centro:"♛",nord:"N",sud:"S",est:"E",ovest:"O"};
 type Picked = { id: string; name: string; detail: string } | null;
+function selectionDetail(hit: SectorPreviewHit | null, sectorLabel: string): Picked {
+  if (!hit) return null;
+  return {id:hit.id,name:hit.name,detail:(hit.kind === "resident" ? "Abitante presente nel settore " : "Edificio nel settore ") + sectorLabel};
+}
 
 function buildingAsset(building: SectorBuilding) {
   if (building.kind === "castle") return CASTLE_ART;
@@ -27,6 +31,7 @@ export default function SettoriPreviewScreen() {
   const [picked, setPicked] = useState<Picked>(null);
   const [mapArea, setMapArea] = useState({width:0,height:0});
   const {width: windowWidth, height: windowHeight} = useWindowDimensions();
+  const landscape = windowWidth > windowHeight;
   const tight = windowWidth < 380 || windowHeight < 700;
   const cols = 16, rows = 24;
   const world = useMemo(() => generateSectorPreviewWorld(), []);
@@ -52,17 +57,19 @@ export default function SettoriPreviewScreen() {
     setSector(next);setPicked(null);
   };
   const navigate = (dir: "n" | "s" | "e" | "w") => switchSector(neighborSector(sector,dir));
+  const cyclePicked = (step: -1 | 1) => setPicked(current =>
+    selectionDetail(cycleSectorPreviewEntity(preview,current?.id ?? null,step),preview.label));
 
   return (
     <SafeAreaView style={styles.root} edges={["top","bottom"]}>
-      <View style={[styles.header,tight&&styles.headerTight]}>
-        <View><Text style={styles.appName}>♛ MyKingdom</Text><Text style={styles.subtitle}>CAMPIONE · MAPPA A SETTORI FISSI</Text></View>
-        {windowWidth >= 360 && <View style={styles.rightHeader}>
+      <View style={[styles.header,tight&&styles.headerTight,landscape&&styles.headerLandscape]}>
+        <View style={{flexShrink:1}}><Text numberOfLines={1} style={[styles.appName,landscape&&styles.appNameLandscape]}>♛ MyKingdom</Text>{!landscape && <Text numberOfLines={1} style={styles.subtitle}>CAMPIONE · MAPPA A SETTORI FISSI</Text>}</View>
+        {windowWidth >= 360 && !landscape && <View style={styles.rightHeader}>
           <Text style={styles.population}>{worldPopulation} abitanti</Text>
           <Text style={styles.subtitle}>Regno dimostrativo</Text>
         </View>}
       </View>
-      <View style={[styles.zoneHeader,tight&&styles.zoneHeaderTight]}>
+      <View style={[styles.zoneHeader,tight&&styles.zoneHeaderTight,landscape&&styles.zoneHeaderLandscape]}>
         <Text style={styles.zoneTitle}>{preview.label.toLocaleUpperCase("it-IT")}</Text>
         <Text numberOfLines={1} style={styles.zoneSummary}>{cols}×{rows} · {preview.buildings.length} edifici · {visibleCount} abitanti</Text>
       </View>
@@ -81,21 +88,25 @@ export default function SettoriPreviewScreen() {
                 {t.road ? <View style={{position:"absolute",left:cell*.19,top:cell*.22,width:cell*.31,height:cell*.08,backgroundColor:"#a19780"}}/> : null}
               </View>
             ))}
-            <Pressable accessibilityRole="button" accessibilityLabel="Mappa a caselle: tocca per selezionare" 
-              onPress={event=>{
-                const hit=hitTestSectorPreview(preview,event.nativeEvent.locationX,event.nativeEvent.locationY,cell);
-                setPicked(hit ? {id:hit.id,name:hit.name,detail:hit.kind==="resident"
-                  ? "Abitante presente nel settore "+preview.label
-                  : "Edificio nel settore "+preview.label} : null);
-              }} style={[StyleSheet.absoluteFill,{zIndex:1}]} />
+            <Pressable accessibilityRole="button" accessibilityLabel="Mappa a caselle: tocca per selezionare"
+              accessibilityHint="Con lettore schermo usa le azioni incrementa e decrementa per scorrere edifici e abitanti."
+              accessibilityActions={[{name:"increment",label:"Elemento successivo"},{name:"decrement",label:"Elemento precedente"}]}
+              onAccessibilityAction={event=>{
+                if(event.nativeEvent.actionName==="increment") cyclePicked(1);
+                if(event.nativeEvent.actionName==="decrement") cyclePicked(-1);
+              }}
+              onPress={event=>setPicked(selectionDetail(
+                hitTestSectorPreview(preview,event.nativeEvent.locationX,event.nativeEvent.locationY,cell),preview.label))}
+              style={[StyleSheet.absoluteFill,{zIndex:1}]} />
             {trees.map(t=>(
-              <Image key={"tree-"+t.x+"-"+t.y} source={TREE_ART}
+              <Image key={"tree-"+t.x+"-"+t.y} pointerEvents="none" source={TREE_ART}
                 style={{position:"absolute",left:t.x*cell,top:t.y*cell,width:cell,height:cell}} resizeMode="contain"/>
             ))}
             {preview.buildings.map(b=>(
               <Pressable key={b.id}
                 accessibilityRole="button" accessibilityLabel={"Seleziona "+b.name}
-                onPress={()=>setPicked({id:b.id,name:b.name,detail:"Edificio nel settore "+preview.label})}
+                onPress={()=>setPicked(selectionDetail({id:b.id,name:b.name,kind:"building"},preview.label))}
+                accessibilityState={{selected:picked?.id===b.id}}
                 style={[styles.entity,{left:b.x*cell,top:b.y*cell,width:b.w*cell,height:b.h*cell,zIndex:2},
                   picked?.id===b.id&&styles.selected]}>
                 <Image source={buildingAsset(b)} resizeMode="contain" style={{width:"100%",height:"100%"}}/>
@@ -103,7 +114,8 @@ export default function SettoriPreviewScreen() {
             ))}
             {preview.residents.map((p,i)=>(
               <Pressable key={p.id} accessibilityRole="button" accessibilityLabel={"Seleziona "+p.name}
-                onPress={()=>setPicked({id:p.id,name:p.name,detail:"Abitante presente nel settore "+preview.label})}
+                onPress={()=>setPicked(selectionDetail({id:p.id,name:p.name,kind:"resident"},preview.label))}
+                accessibilityState={{selected:picked?.id===p.id}}
                 hitSlop={3}
                 style={[styles.resident,{left:p.x*cell,top:p.y*cell,width:cell,height:cell,zIndex:3},
                   picked?.id===p.id&&styles.selected]}>
@@ -137,27 +149,36 @@ export default function SettoriPreviewScreen() {
           </Pressable>
         </View>
       </View>
-      <View style={[styles.footer,tight&&styles.footerTight]}>
-        <View style={styles.miniMap}>
+      <View style={[styles.footer,tight&&styles.footerTight,landscape&&styles.footerLandscape]}>
+        <View style={[styles.miniMap,landscape&&styles.miniMapLandscape]}>
           {MAP_ORDER.map((id,index)=>id
             ? <Pressable key={id} accessibilityRole="button" accessibilityLabel={"Vai a "+world[id].label}
                 onPress={()=>switchSector(id)}
-                style={[styles.miniCell,id===sector&&styles.miniCellActive]}>
-                <Text style={[styles.miniText,id===sector&&styles.miniTextActive]}>{LABELS[id]}</Text>
+                accessibilityState={{selected:id===sector}}
+                style={[styles.miniCell,landscape&&styles.miniCellLandscape,id===sector&&styles.miniCellActive]}>
+                <Text style={[styles.miniText,landscape&&styles.miniTextLandscape,id===sector&&styles.miniTextActive]}>{LABELS[id]}</Text>
               </Pressable>
-            : <View key={index} style={styles.miniPlaceholder}/>)}
+            : <View key={index} style={[styles.miniPlaceholder,landscape&&styles.miniCellLandscape]}/>)}
         </View>
         <View style={styles.details}>
           <Text numberOfLines={1} style={styles.detailName}>{picked?.name ?? preview.label}</Text>
-          <Text numberOfLines={2} style={styles.detailBody}>{picked?.detail ?? "Tocca un edificio o un abitante."}</Text>
-          <Text style={styles.detailCount}>Visibili {visibleCount} di {worldPopulation} abitanti</Text>
+          <Text numberOfLines={landscape?1:2} style={styles.detailBody}>{picked?.detail ?? (cell<12 ? "Caselle piccole: usa ‹ › per selezionare." : "Tocca un edificio o un abitante.")}</Text>
+          {!landscape && <Text style={styles.detailCount}>Visibili {visibleCount} di {worldPopulation} abitanti</Text>}
         </View>
-        {!tight && <View style={styles.controls} accessible accessibilityLabel="Anteprima statica, griglia fissa 16 per 24">
+        <View style={styles.selectionButtons}>
+          <Pressable accessibilityRole="button" accessibilityLabel="Elemento precedente" accessibilityHint="Seleziona l'edificio o abitante precedente nel settore" onPress={()=>cyclePicked(-1)} style={styles.selectButton}>
+            <Text style={styles.selectText}>‹</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel="Elemento successivo" accessibilityHint="Seleziona l'edificio o abitante successivo nel settore" onPress={()=>cyclePicked(1)} style={styles.selectButton}>
+            <Text style={styles.selectText}>›</Text>
+          </Pressable>
+        </View>
+        {!tight && windowWidth>=540 && <View style={styles.controls} accessible accessibilityLabel="Anteprima statica, griglia fissa 16 per 24">
           <Text style={styles.controlLabel}>16×24 fisso</Text>
           <Text style={styles.controlNote}>STATICO</Text>
         </View>}
       </View>
-      <Text style={styles.disclaimer}>Campione statico: nessuna simulazione o modifica ai salvataggi.</Text>
+      {!landscape && <Text style={styles.disclaimer}>Campione statico: nessuna simulazione o modifica ai salvataggi.</Text>}
     </SafeAreaView>
   );
 }
@@ -166,10 +187,11 @@ const styles=StyleSheet.create({
   root:{flex:1,backgroundColor:"#10211e"},
   header:{minHeight:60,flexDirection:"row",alignItems:"center",justifyContent:"space-between",paddingHorizontal:13,backgroundColor:"#182831",borderBottomColor:"#7c5c37",borderBottomWidth:2},
   headerTight:{minHeight:46,paddingHorizontal:9},
+  headerLandscape:{minHeight:34,paddingHorizontal:8},appNameLandscape:{fontSize:16},
   appName:{color:"#f3d294",fontSize:21,fontWeight:"800"},subtitle:{color:"#bdc9c0",fontSize:9,marginTop:3},
   rightHeader:{alignItems:"flex-end"},population:{color:"#efdaaa",fontSize:13,fontWeight:"700"},
   zoneHeader:{minHeight:36,paddingHorizontal:12,backgroundColor:"#263d34",flexDirection:"row",justifyContent:"space-between",alignItems:"center"},
-  zoneHeaderTight:{minHeight:30,paddingHorizontal:9},
+  zoneHeaderTight:{minHeight:30,paddingHorizontal:9},zoneHeaderLandscape:{minHeight:24},
   zoneTitle:{fontWeight:"800",fontSize:13,color:"#f3e6c3",flexShrink:1},
   zoneSummary:{color:"#d4e1d5",fontSize:10,marginLeft:5},
   mapArea:{flex:1,alignItems:"center",justifyContent:"center",position:"relative",backgroundColor:"#152820",overflow:"hidden"},
@@ -183,13 +205,19 @@ const styles=StyleSheet.create({
   east:{right:7,top:"48%"},west:{left:7,top:"48%"},disabled:{opacity:.2},
   footer:{flexDirection:"row",alignItems:"center",padding:9,minHeight:91,gap:8,backgroundColor:"#182831",borderTopWidth:2,borderTopColor:"#7c5c37"},
   footerTight:{minHeight:78,padding:5,gap:5},
+  footerLandscape:{minHeight:58,padding:3,gap:5},
   miniMap:{width:76,height:76,padding:3,backgroundColor:"#0e2323",borderWidth:1,borderColor:"#799585",borderRadius:6,flexDirection:"row",flexWrap:"wrap",justifyContent:"center"},
+  miniMapLandscape:{width:58,height:58,padding:2},
   miniCell:{width:21,height:21,margin:1,backgroundColor:"#3a5a4e",borderRadius:3,justifyContent:"center",alignItems:"center"},
+  miniCellLandscape:{width:15,height:15,margin:.5},miniTextLandscape:{fontSize:9},
   miniCellActive:{backgroundColor:"#e7bf75"},
   miniPlaceholder:{width:21,height:21,margin:1},
   miniText:{color:"#e0eecf",fontSize:10,fontWeight:"600"},miniTextActive:{color:"#19362d"},
   details:{flex:1,minWidth:0},detailName:{fontSize:13,fontWeight:"800",color:"#f2cc8c"},
   detailBody:{fontSize:11,color:"#d4dbd3"},detailCount:{fontSize:10,color:"#a7c4b7",marginTop:2},
+  selectionButtons:{flexDirection:"row",gap:2},
+  selectButton:{width:44,height:44,backgroundColor:"#354940",borderRadius:6,borderWidth:1,borderColor:"#9f7c51",alignItems:"center",justifyContent:"center"},
+  selectText:{fontSize:29,color:"#f4debd",fontWeight:"700",lineHeight:34},
   controls:{gap:5,paddingHorizontal:7,paddingVertical:10,alignItems:"center",backgroundColor:"#354940",borderRadius:6,borderWidth:1,borderColor:"#9f7c51"},
   controlLabel:{fontSize:11,color:"#f4debd",fontWeight:"700"},
   controlNote:{fontSize:9,color:"#bed2c7"},
