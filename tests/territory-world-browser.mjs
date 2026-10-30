@@ -102,6 +102,7 @@ try{
    await page.getByTestId("territory-world-auto-build").click();
    const message=await page.getByTestId("territory-world-notice").textContent();
    assert.match(message||"",/Casa \d+ costruita/i,"House construction failed: "+message);
+   await page.getByTestId("territory-world-local-stats").filter({hasText:"1 edifici"}).waitFor();
    await page.waitForTimeout(300); // Capture the map after the modal exit fade.
    await page.screenshot({path:`territory-screenshots/claimed-territory-${width}x${height}.png`,fullPage:true});
    await page.getByTestId("territory-world-next-day").click();
@@ -118,14 +119,38 @@ try{
    await page.getByTestId("territory-open-map").click();
    await page.getByTestId("territory-map-cell-1,0").click();
    await page.getByTestId("territory-map-visit").click();
-   // Camera may be looking at another 12×12 portion of this same 32×32 map.
-   // Pan over the four quadrants before declaring a saved building missing.
+   // Verify persistence directly from the local territory's model-backed UI.
+   // A saved building can be located outside the current viewport even when
+   // the camera shows 12×12 of this world's 32×32 grid.
+   await page.getByTestId("territory-world-local-stats")
+     .filter({hasText:"1 edifici"}).waitFor();
+   // Then verify the building actually renders when the camera reaches it.
+   // At zoom 16×16, four corners cover the ENTIRE 32×32 territory.
+   const clickCamera=async(name,count=1)=>{
+     for(let i=0;i<count;i++)await page.getByRole("button",{name}).click();
+   };
+   await clickCamera("Riduci ingrandimento",2);
+   await clickCamera("Scorri mappa verso sinistra");
+   await clickCamera("Scorri mappa verso l'alto");
    let builtVisible=await page.getByTestId("territory-world-building").count()>0;
-   for(let step=0;step<4&&!builtVisible;step++){
-     await page.getByRole("button",{name:step%2?"Scorri mappa verso il basso":"Scorri mappa verso l'alto"}).click();
+   if(!builtVisible){
+     await clickCamera("Scorri mappa verso destra",4);
      builtVisible=await page.getByTestId("territory-world-building").count()>0;
    }
-   assert.ok(builtVisible,"Buildings must persist when visiting a claimed territory");
+   if(!builtVisible){
+     await clickCamera("Scorri mappa verso il basso",4);
+     builtVisible=await page.getByTestId("territory-world-building").count()>0;
+   }
+   if(!builtVisible){
+     await clickCamera("Scorri mappa verso sinistra",4);
+     builtVisible=await page.getByTestId("territory-world-building").count()>0;
+   }
+   assert.ok(builtVisible,
+     "The saved building exists but did not render when scanning all 32×32 tiles");
+   await page.screenshot({
+     path:`territory-screenshots/reopened-saved-building-${width}x${height}.png`,
+     fullPage:true
+   });
    await page.getByTestId("territory-world-reset-dialog").count().then(n=>assert.equal(n,0));
    assert.equal(errors.length,0,"Runtime errors: "+errors.join(" | "));
    console.log("PASS expandable 32x32 "+width+"x"+height+
