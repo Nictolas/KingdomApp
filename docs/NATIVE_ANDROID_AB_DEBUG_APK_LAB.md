@@ -66,3 +66,14 @@ timer, RAF o collisioni; il suo stato è una **verifica aggiuntiva**.
 Non è autorizzato alcun merge, deploy o rilascio sulla base di questo
 workflow. La stima di avanzamento della sola fase nativa resta 80%
 finché le verifiche dispositivi non sono state completate realmente.
+
+
+### Contenimento dei costi CI
+
+La PR #297 può ricevere aggiornamenti a documentazione e test di frequente.
+La compilazione dei due APK va eseguita **solo** quando l'ultimo commit
+modifica il renderer nativo, un modulo prestazionale nativo, la scena di
+laboratorio oppure questo workflow. Un controllo preliminare con checkout
+HEAD esatto e diff con il suo commit genitore evita due build Gradle su
+semplici cambiamenti documentali o audit di manifesti. Eventuali run
+`skipped` per soli documenti non sono compilazioni riuscite né fallite.
