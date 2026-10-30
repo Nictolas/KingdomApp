@@ -2,8 +2,8 @@ import React, { useMemo, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
-  generateSectorPreviewWorld, fitSquareGrid, hitTestSectorPreview, isRoadCell, neighborSector, SECTOR_IDS,
-  cycleSectorPreviewEntity, type SectorBuilding, type SectorId, type SectorPreviewHit
+  generateSectorPreviewWorld, measureSectorPreviewViewport, hitTestSectorPreview, isRoadCell, neighborSector, SECTOR_IDS,
+  cycleSectorPreviewEntity, sectorPreviewSelectionInfo, type SectorBuilding, type SectorId, type SectorPreviewHit, type SectorPreview
 } from "../src/game/sectorPreviewModel";
 
 // A read-only fixture, intentionally separate from the real GameContext and save pipeline.
@@ -15,9 +15,11 @@ const SHIRT_COLORS = ["#aa5749","#6086a3","#8f8c55","#86679d","#527d69"] as cons
 const MAP_ORDER: Array<SectorId | null> = [null,"nord",null,"ovest","centro","est",null,"sud",null];
 const LABELS: Record<SectorId, string> = {centro:"♛",nord:"N",sud:"S",est:"E",ovest:"O"};
 type Picked = { id: string; name: string; detail: string } | null;
-function selectionDetail(hit: SectorPreviewHit | null, sectorLabel: string): Picked {
+function selectionDetail(hit: SectorPreviewHit | null, preview: SectorPreview): Picked {
   if (!hit) return null;
-  return {id:hit.id,name:hit.name,detail:(hit.kind === "resident" ? "Abitante presente nel settore " : "Edificio nel settore ") + sectorLabel};
+  const info = sectorPreviewSelectionInfo(preview, hit.id);
+  const position = info ? ` · casella ${info.x + 1},${info.y + 1} · ${info.index}/${info.total}` : "";
+  return {id:hit.id,name:hit.name,detail:(hit.kind === "resident" ? "Abitante" : "Edificio") + " · " + preview.label + position};
 }
 
 function buildingAsset(building: SectorBuilding) {
@@ -38,7 +40,12 @@ export default function SettoriPreviewScreen() {
   const preview = world[sector];
   const visibleCount = preview.residents.length;
   const worldPopulation = SECTOR_IDS.reduce((sum,id)=>sum + world[id].residents.length,0);
-  const cell = fitSquareGrid(Math.max(0,mapArea.width-10),Math.max(0,mapArea.height-12),cols,rows);
+  const viewport = measureSectorPreviewViewport(mapArea.width,mapArea.height);
+  const cell = viewport.cell;
+  const touchHint = viewport.legibility === "unavailable" ? "Spazio insufficiente per mostrare la mappa."
+    : viewport.legibility === "tiny" ? "Caselle minuscole: usa ‹ ›; meglio in verticale."
+    : viewport.legibility === "compact" ? "Caselle piccole: usa ‹ › per selezionare."
+    : "Tocca un edificio o un abitante.";
   const terrain = useMemo(() => Array.from({length:cols*rows},(_,i)=>{
     const x=i%cols,y=Math.floor(i/cols);
     const road=isRoadCell(x,y,cols,rows);
@@ -58,7 +65,7 @@ export default function SettoriPreviewScreen() {
   };
   const navigate = (dir: "n" | "s" | "e" | "w") => switchSector(neighborSector(sector,dir));
   const cyclePicked = (step: -1 | 1) => setPicked(current =>
-    selectionDetail(cycleSectorPreviewEntity(preview,current?.id ?? null,step),preview.label));
+    selectionDetail(cycleSectorPreviewEntity(preview,current?.id ?? null,step),preview));
 
   return (
     <SafeAreaView style={styles.root} edges={["top","bottom"]}>
@@ -96,7 +103,7 @@ export default function SettoriPreviewScreen() {
                 if(event.nativeEvent.actionName==="decrement") cyclePicked(-1);
               }}
               onPress={event=>setPicked(selectionDetail(
-                hitTestSectorPreview(preview,event.nativeEvent.locationX,event.nativeEvent.locationY,cell),preview.label))}
+                hitTestSectorPreview(preview,event.nativeEvent.locationX,event.nativeEvent.locationY,cell),preview))}
               style={[StyleSheet.absoluteFill,{zIndex:1}]} />
             {trees.map(t=>(
               <View key={"tree-"+t.x+"-"+t.y} pointerEvents="none"
@@ -107,7 +114,7 @@ export default function SettoriPreviewScreen() {
             {preview.buildings.map(b=>(
               <Pressable key={b.id}
                 accessibilityRole="button" accessibilityLabel={"Seleziona "+b.name}
-                onPress={()=>setPicked(selectionDetail({id:b.id,name:b.name,kind:"building"},preview.label))}
+                onPress={()=>setPicked(selectionDetail({id:b.id,name:b.name,kind:"building"},preview))}
                 accessibilityState={{selected:picked?.id===b.id}}
                 style={[styles.entity,{left:b.x*cell,top:b.y*cell,width:b.w*cell,height:b.h*cell,zIndex:2},
                   picked?.id===b.id&&styles.selected]}>
@@ -116,7 +123,7 @@ export default function SettoriPreviewScreen() {
             ))}
             {preview.residents.map((p,i)=>(
               <Pressable key={p.id} accessibilityRole="button" accessibilityLabel={"Seleziona "+p.name}
-                onPress={()=>setPicked(selectionDetail({id:p.id,name:p.name,kind:"resident"},preview.label))}
+                onPress={()=>setPicked(selectionDetail({id:p.id,name:p.name,kind:"resident"},preview))}
                 accessibilityState={{selected:picked?.id===p.id}}
                 hitSlop={3}
                 style={[styles.resident,{left:p.x*cell,top:p.y*cell,width:cell,height:cell,zIndex:3},
@@ -162,9 +169,9 @@ export default function SettoriPreviewScreen() {
               </Pressable>
             : <View key={index} style={[styles.miniPlaceholder,landscape&&styles.miniCellLandscape]}/>)}
         </View>
-        <View style={styles.details}>
+        <View style={styles.details} accessibilityLiveRegion="polite">
           <Text numberOfLines={1} style={styles.detailName}>{picked?.name ?? preview.label}</Text>
-          <Text numberOfLines={landscape?1:2} style={styles.detailBody}>{picked?.detail ?? (cell<12 ? "Caselle piccole: usa ‹ › per selezionare." : "Tocca un edificio o un abitante.")}</Text>
+          <Text numberOfLines={landscape?1:2} style={styles.detailBody}>{picked?.detail ?? touchHint}</Text>
           {!landscape && <Text style={styles.detailCount}>Visibili {visibleCount} di {worldPopulation} abitanti</Text>}
         </View>
         <View style={styles.selectionButtons}>
@@ -204,7 +211,7 @@ const styles=StyleSheet.create({
   arrow:{position:"absolute",width:44,height:44,backgroundColor:"#223c32ea",borderWidth:2,borderColor:"#f3d392",borderRadius:9,justifyContent:"center",alignItems:"center"},
   arrowText:{fontSize:25,color:"#fee7ae",fontWeight:"800"},
   north:{top:8,alignSelf:"center"},south:{bottom:8,alignSelf:"center"},
-  east:{right:7,top:"48%"},west:{left:7,top:"48%"},disabled:{opacity:.2},
+  east:{right:7,top:"50%",transform:[{translateY:-22}]},west:{left:7,top:"50%",transform:[{translateY:-22}]},disabled:{opacity:.2},
   footer:{flexDirection:"row",alignItems:"center",padding:9,minHeight:91,gap:8,backgroundColor:"#182831",borderTopWidth:2,borderTopColor:"#7c5c37"},
   footerTight:{minHeight:78,padding:5,gap:5},
   footerLandscape:{minHeight:58,padding:3,gap:5},

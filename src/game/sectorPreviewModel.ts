@@ -38,6 +38,19 @@ export function fitSquareGrid(width: number, height: number, cols = PREVIEW_COLS
   if (!(Number.isFinite(width) && Number.isFinite(height)) || width <= 0 || height <= 0) return 0;
   return Math.max(0, Math.floor(Math.min(width / cols, height / rows)));
 }
+/** Pure measurement of the *actual* map container (already inside the device safe area).
+ * Classifications are guidance for manual verification, not proof of legibility. */
+export function measureSectorPreviewViewport(width: number, height: number): {
+  cell: number; gridWidth: number; gridHeight: number;
+  legibility: "unavailable" | "tiny" | "compact" | "readable";
+} {
+  const cell = fitSquareGrid(width - 10, height - 12);
+  return {
+    cell, gridWidth: PREVIEW_COLS * cell, gridHeight: PREVIEW_ROWS * cell,
+    legibility: cell === 0 ? "unavailable" : cell < 10 ? "tiny" : cell < 14 ? "compact" : "readable"
+  };
+}
+
 function mixHash(x: number, y: number, seed: number): number {
   let n = Math.imul(x + 17, 92837111) ^ Math.imul(y + 23, 689287499) ^ Math.imul(seed + 9, 283923481);
   n = Math.imul(n ^ (n >>> 13), 1274126177);
@@ -126,7 +139,10 @@ export function hitTestSectorPreview(
   );
   if (building) return { id: building.id, name: building.name, kind: "building" };
   let nearest: SectorResident | null = null;
-  let nearestSquared = neighborRadiusPx * neighborRadiusPx;
+  // A fixed 22-point radius would cover several unrelated cells in landscape.
+  // Keep the recovery radius within 1.5 tiles on tiny displays.
+  const effectiveRadius = Math.min(neighborRadiusPx, cellSize * 1.5);
+  let nearestSquared = effectiveRadius * effectiveRadius;
   for (const person of preview.residents) {
     const dx = px - (person.x + 0.5) * cellSize;
     const dy = py - (person.y + 0.5) * cellSize;
@@ -161,4 +177,21 @@ export function cycleSectorPreviewEntity(
   }
   const p = preview.residents[nextIndex - buildingCount];
   return { id: p.id, name: p.name, kind: "resident" };
+}
+
+/** 1-based position in the accessible building-then-resident selection sequence. */
+export function sectorPreviewSelectionInfo(
+  preview: SectorPreview, selectedId: string | null
+): { index: number; total: number; x: number; y: number; kind: SectorPreviewHit["kind"] } | null {
+  if (!selectedId) return null;
+  const total = preview.buildings.length + preview.residents.length;
+  const buildingIndex = preview.buildings.findIndex(b => b.id === selectedId);
+  if (buildingIndex !== -1) {
+    const b = preview.buildings[buildingIndex];
+    return { index: buildingIndex + 1, total, x: b.x, y: b.y, kind: "building" };
+  }
+  const residentIndex = preview.residents.findIndex(p => p.id === selectedId);
+  if (residentIndex === -1) return null;
+  const p = preview.residents[residentIndex];
+  return { index: preview.buildings.length + residentIndex + 1, total, x: p.x, y: p.y, kind: "resident" };
 }

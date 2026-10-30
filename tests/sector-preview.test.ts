@@ -2,7 +2,8 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import {
   SECTOR_IDS, SECTOR_SPECS, createSectorPreview, generateSectorPreviewWorld,
-  neighborSector, isRoadCell, fitSquareGrid, hitTestSectorPreview, cycleSectorPreviewEntity
+  neighborSector, isRoadCell, fitSquareGrid, hitTestSectorPreview, cycleSectorPreviewEntity,
+  measureSectorPreviewViewport, sectorPreviewSelectionInfo
 } from "../src/game/sectorPreviewModel";
 
 test("fixed preview: five connected directions and no nonexistent neighbor",()=>{
@@ -159,4 +160,49 @@ test("fallback selection handles empty sector and tiny square tiles without touc
     assert.equal(hitTestSectorPreview(center,(p.x+.5)*size,(p.y+.5)*size,size)?.id,p.id);
     assert.equal(cycleSectorPreviewEntity(center,null,1)?.id,first?.id);
   }
+});
+
+
+test("actual safe-area map container: viewport classification preserves 16×24 squares",()=>{
+  for(const [width,height,expected] of [
+    [375,600,"readable"],[280,300,"compact"],[568,180,"tiny"],[0,200,"unavailable"]
+  ] as const){
+    const fit=measureSectorPreviewViewport(width,height);
+    assert.equal(fit.legibility,expected);
+    assert.equal(fit.gridWidth,fit.cell*16);
+    assert.equal(fit.gridHeight,fit.cell*24);
+    assert.ok(fit.gridWidth<=Math.max(0,width-10));
+    assert.ok(fit.gridHeight<=Math.max(0,height-12));
+  }
+  assert.equal(measureSectorPreviewViewport(NaN,300).legibility,"unavailable");
+  assert.equal(measureSectorPreviewViewport(320,Infinity).legibility,"unavailable");
+});
+
+test("selection metadata covers every entity and rejects stale IDs across all sectors",()=>{
+  const world=generateSectorPreviewWorld();
+  for(const id of SECTOR_IDS){
+    const preview=world[id], total=preview.buildings.length+preview.residents.length;
+    let selected:string|null=null;
+    for(let index=1;index<=total;index++){
+      const hit=cycleSectorPreviewEntity(preview,selected,1);
+      assert.ok(hit);
+      const info=sectorPreviewSelectionInfo(preview,hit.id);
+      assert.equal(info?.index,index);
+      assert.equal(info?.total,total);
+      assert.equal(info?.kind,hit.kind);
+      assert.ok(info!.x>=0&&info!.x<16&&info!.y>=0&&info!.y<24);
+      selected=hit.id;
+    }
+    assert.equal(sectorPreviewSelectionInfo(preview,null),null);
+    assert.equal(sectorPreviewSelectionInfo(preview,"other-sector-p-1"),null);
+  }
+});
+
+test("neighbor tap recovery cannot jump multiple tiles on tiny landscape cells",()=>{
+  const original=createSectorPreview("centro");
+  const preview={...original,buildings:[],occupied:new Set<number>(),residents:[{id:"one",name:"One",x:3,y:3}]};
+  const cell=4;
+  assert.equal(hitTestSectorPreview(preview,3.5*cell+5,3.5*cell,cell)?.id,"one");
+  assert.equal(hitTestSectorPreview(preview,3.5*cell+10,3.5*cell,cell),null);
+  assert.equal(hitTestSectorPreview(preview,3.5*cell+5,3.5*cell,cell,0),null);
 });

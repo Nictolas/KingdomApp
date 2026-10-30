@@ -69,3 +69,13 @@ Per Android e iPhone reali, in verticale e orizzontale: selezionare il primo/ult
 
 ### CI verificata prima di questo intervento
 Sul commit `01808ed95e74ce2506331f9e9ef754015d08bd32` il workflow [Fixed Sector Preview #40985127968](https://github.com/Nictolas/KingdomApp/actions/runs/40985127968) è **verde**: typecheck isolato, test del modello, export JS web/Android/iOS. Il workflow generale [CI #40985127834](https://github.com/Nictolas/KingdomApp/actions/runs/40985127834) fallisce al typecheck globale, senza eseguire i passi successivi. Questi risultati **non** si applicano automaticamente al commit nuovo; verificare nuovamente il workflow dedicato. Gli export sono bundle JavaScript, non build native installate su telefono.
+
+## Verifica CI e audit adattivo del 30 ottobre (iterazione successiva)
+- Il commit `9cc38ab584ea8b584b1c6c885c999c10504ae90a` ha completato con successo il workflow dedicato [#40990327462](https://github.com/Nictolas/KingdomApp/actions/runs/40990327462): TypeScript isolato, test modello ed export JavaScript web/Android/iOS. **Non sono build native installabili né test su telefono.**
+- La CI generale [#40990327434](https://github.com/Nictolas/KingdomApp/actions/runs/40990327434) è fallita al typecheck globale; test e build globali non sono partiti. Non attribuire automaticamente il fallimento al preview senza confronto con main.
+- Questa iterazione misura il **contenitore mappa effettivo dopo la safe area**, senza assumere dimensioni schermo ideali, e classifica la dimensione della casella: meno di 10 punti = troppo piccola; 10–13 = compatta; almeno 14 = leggibilità da verificare fisicamente. Le soglie sono indicazioni, non standard certificati.
+- In orientamento orizzontale con caselle minuscole l'interfaccia consiglia i comandi di selezione e l'orientamento verticale. Non modifica la griglia 16×24, non attiva pan/zoom e non nasconde oggetti.
+- Il recupero del tocco vicino a un abitante è ora limitato a **1,5 caselle**, oltre al massimo precedente di 22 punti, per evitare di selezionare un personaggio distante quando le caselle diventano molto piccole.
+- Il footer mostra settore, coordinate della casella e indice dell'elemento selezionato nell'elenco accessibile; il cambio settore azzera la selezione. Le frecce laterali sono centrate verticalmente.
+- Test aggiunti per dimensioni del contenitore, selezione completa in tutti i settori, ID non più validi e tocchi a caselle di 4 punti. **Sono test del modello e delle regole di layout, non screenshot renderizzati, test di accessibilità reale o prove fisiche.**
+- Dopo il nuovo commit verificare di nuovo la CI dedicata; la riuscita precedente non è trasferibile automaticamente.
