@@ -403,19 +403,18 @@ export function isTerritoryWorld(raw:unknown):raw is TerritoryWorld{
       !Array.isArray(t.roads)||t.roads.length>TERRITORY_CELLS||
       !Array.isArray(t.cleared)||t.cleared.length>TERRITORY_CELLS)return false;
     const roads=new Set<number>(),cleared=new Set<number>();
-    for(const i of t.roads){
-      if(!isInt(i,0,TERRITORY_CELLS-1)||roads.has(i))return false;
-      roads.add(i);
-      const x=i%TERRITORY_SIDE,y=Math.floor(i/TERRITORY_SIDE);
-      if(groundAt(world.seed,t.tx,t.ty,x,y)!=="grass"&&
-        groundAt(world.seed,t.tx,t.ty,x,y)!=="dry"&&
-        !(cleared.has(i)&&groundAt(world.seed,t.tx,t.ty,x,y)==="woodland"))return false;
-    }
     for(const i of t.cleared){
       if(!isInt(i,0,TERRITORY_CELLS-1)||cleared.has(i))return false;
       cleared.add(i);
       const x=i%TERRITORY_SIDE,y=Math.floor(i/TERRITORY_SIDE);
       if(groundAt(world.seed,t.tx,t.ty,x,y)!=="woodland")return false;
+    }
+    for(const i of t.roads){
+      if(!isInt(i,0,TERRITORY_CELLS-1)||roads.has(i))return false;
+      roads.add(i);
+      const x=i%TERRITORY_SIDE,y=Math.floor(i/TERRITORY_SIDE);
+      const base=groundAt(world.seed,t.tx,t.ty,x,y);
+      if(base!=="grass"&&base!=="dry"&&!(cleared.has(i)&&base==="woodland"))return false;
     }
     const taken=new Set<number>();
     for(const b of t.buildings){
