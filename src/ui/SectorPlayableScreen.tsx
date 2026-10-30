@@ -2,7 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Image, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { TerrainSheetSprite } from "../components/TerrainSheetSprite";
-import { getErbaSheetCoord, getStradaSheetCoord } from "../game/overworldSpritesheetLayout";
+import { sectorBuildingAccent, sectorGroundCoord } from "../game/sectorPlayableTerrain";
 import { createSectorSaveQueue, loadSectorKingdom } from "../game/sectorPlayablePersistence";
 import { SafeAreaView } from "react-native-safe-area-context";
 import {
@@ -16,22 +16,9 @@ const HOUSE=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/hou
 const HUT=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/house_2.png");
 const CASTLE=require("../../assets/pixel-art/buildings/castle.png");
 const TREE=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/tree_1.png");
+const TREE_2=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/tree_2.png");
 // The sector renderer reuses MyKingdom’s original terrain and citizen spritesheets.
 const CHARACTER_SHEET=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/character.png");
-function sectorTerrainCoord(x:number,y:number,road:boolean,variation:number) {
-  if (!road) return getErbaSheetCoord(variation===0?"campo_nord_est":"centro");
-  const n=y>0&&isRoadCell(x,y-1),s=y<PREVIEW_ROWS-1&&isRoadCell(x,y+1);
-  const w=x>0&&isRoadCell(x-1,y),e=x<PREVIEW_COLS-1&&isRoadCell(x+1,y);
-  if (n&&s&&w&&e) return getStradaSheetCoord("incrocio_centro");
-  if (n&&s) return getStradaSheetCoord("verticale");
-  if (w&&e) return getStradaSheetCoord("orizzontale");
-  if (n&&e) return getStradaSheetCoord("curva_nord_est");
-  if (n&&w) return getStradaSheetCoord("curva_nord_ovest");
-  if (s&&e) return getStradaSheetCoord("curva_sud_est");
-  if (s&&w) return getStradaSheetCoord("curva_sud_ovest");
-  return getStradaSheetCoord("generica");
-}
-
 const SectorResidentArt = React.memo(function SectorResidentArt({cell,index,frame}:{cell:number;index:number;frame:number}) {
   // character.png is a 12-frame horizontal strip; frames are 64×64 in the original.
   // Match MapWandererCharacter's clipping and 1.22× height without launching wanderer AI.
@@ -102,8 +89,8 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
   // not 384 texture coordinates or the static ground elements.
   const tiles=useMemo(()=>Array.from({length:PREVIEW_COLS*PREVIEW_ROWS},(_,i)=>{
     const x=i%PREVIEW_COLS,y=Math.floor(i/PREVIEW_COLS);
-    const road=isRoadCell(x,y),variation=(x*13+y*29)%4;
-    return {x,y,coord:sectorTerrainCoord(x,y,road,variation),road};
+    const road=isRoadCell(x,y);
+    return {x,y,coord:sectorGroundCoord(x,y),road};
   }),[]);
   const terrainLayer=useMemo(()=>tiles.map((t,i)=><View testID="sector-terrain-tile"
     pointerEvents="none" key={i} style={{
@@ -169,10 +156,17 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
           {terrainLayer}
           {tiles.filter(t=>sector==="nord"&&!t.road&&
              ((t.x*17+t.y*31)%11===0)&&!world.buildings.some(b=>t.x>=b.x&&t.x<b.x+b.w&&t.y>=b.y&&t.y<b.y+b.h))
-           .map(t=><Image key={"tree"+t.y+"-"+t.x} source={TREE}
+           .map(t=><Image key={"tree"+t.y+"-"+t.x} source={(t.x+t.y)%2===0?TREE:TREE_2}
              style={{position:"absolute",left:t.x*cell,top:t.y*cell,width:cell,height:cell}} resizeMode="contain"/>)}
           {world.buildings.map(b=><Image key={b.id} source={getAsset(b.kind)}
             resizeMode="contain" style={{position:"absolute",left:b.x*cell,top:b.y*cell,width:b.w*cell,height:b.h*cell}}/>)}
+          {world.buildings.map(b=>{
+            const accent=sectorBuildingAccent(b.kind);
+            return accent?<View testID="sector-building-accent" pointerEvents="none" key={"accent-"+b.id}
+              style={{position:"absolute",left:(b.x+b.w-1)*cell,top:(b.y+b.h-1)*cell,width:cell,height:cell}}>
+              <TerrainSheetSprite cellSize={cell} coord={accent}/>
+            </View>:null;
+          })}
           {world.residents.map((p,i)=><View testID="sector-resident" pointerEvents="none" key={p.id}
             style={{position:"absolute",left:p.x*cell,top:p.y*cell,width:cell,height:cell}}>
             <SectorResidentArt cell={cell} index={i} frame={spriteFrame}/>
