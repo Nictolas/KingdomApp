@@ -137,6 +137,23 @@ le precedenti frecce di scorrimento e zoom).
 La manopola è distinta dalla navigazione interna alla mappa 32×32 e
 dalla panoramica geografica 5×5, che mantengono le proprie funzioni.
 
+## Navigazione consolidata su tutti i confini
+
+Le quattro direzioni della manopola condividono ora una sola funzione di
+navigazione (\`adjacentTerritoryTarget\`) nel modello del mondo: usa
+l'identificativo del territorio attivo e restituisce uno fra
+**posseduto**, **confinante da acquisire** e **limite geografico**.
+Questo impedisce discrepanze di logica fra Nord, Sud, Est e Ovest.
+
+La ricerca della destinazione non modifica risorse né salvataggi.
+L'acquisto o la conquista richiede sempre la successiva conferma
+all'interno della mappa generale. I test verificano ciascuna direzione
+a partire dal territorio iniziale, il passaggio allo stato posseduto
+e i confini positivi/negativi delle coordinate.
+
+Le prove di interfaccia coprono 320×568, 390×844 e 1366×768,
+inclusa la selezione di tutti e quattro i territori confinanti.
+
 ## Territori fissi: scelta ancora aperta
 
 Il mondo contiene un registro `FIXED_TERRITORIES`, attualmente con il solo
