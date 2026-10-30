@@ -1,0 +1,13 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/game/professionOutfitTemplates.ts",
+    "src/ui/ProfessionOutfitEditorScreen.tsx",
+    "src/ui/StartGameScreen.tsx",
+    "src/ui/GameModeSelectionScreen.tsx",
+    "src/game/personaggioAspetto.ts",
+    "src/character-system/appearance.ts",
+    "tests/profession-outfit-editor.test.ts"
+  ],
+  "exclude": ["node_modules"]
+}
