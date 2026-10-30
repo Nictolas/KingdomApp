@@ -237,3 +237,12 @@ test("preview UI statically respects all safe-area edges and keeps arrows outsid
   assert.doesNotMatch(screen,/styles\.(north|south|east|west)\b/);
   assert.doesNotMatch(screen,/react-zoom-pan-pinch|ScrollView|PinchGestureHandler/);
 });
+
+test("preview direct resident taps cannot spill across adjacent occupied cells",()=>{
+  const screen=readFileSync(new URL("../app/settori-preview.tsx",import.meta.url),"utf8");
+  assert.doesNotMatch(screen,/hitSlop=/,"overlapping resident hitSlop would bypass exact-cell priority");
+  for(const id of ["sector-preview-root","sector-preview-grid","sector-preview-navigation",
+    "sector-preview-footer","sector-preview-minimap","sector-preview-selection"]){
+    assert.match(screen,new RegExp('testID="'+id+'"'));
+  }
+});

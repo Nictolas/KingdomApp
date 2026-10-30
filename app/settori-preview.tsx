@@ -69,7 +69,7 @@ export default function SettoriPreviewScreen() {
     selectionDetail(cycleSectorPreviewEntity(preview,current?.id ?? null,step),preview));
 
   return (
-    <SafeAreaView style={styles.root} edges={["top","bottom","left","right"]}>
+    <SafeAreaView testID="sector-preview-root" style={styles.root} edges={["top","bottom","left","right"]}>
       <View style={[styles.header,tight&&styles.headerTight,landscape&&styles.headerLandscape]}>
         <View style={{flexShrink:1}}><Text numberOfLines={1} style={[styles.appName,landscape&&styles.appNameLandscape]}>♛ MyKingdom</Text>{!landscape && <Text numberOfLines={1} style={styles.subtitle}>CAMPIONE · MAPPA A SETTORI FISSI</Text>}</View>
         {windowWidth >= 360 && !landscape && <View style={styles.rightHeader}>
@@ -86,7 +86,7 @@ export default function SettoriPreviewScreen() {
         setMapArea(old=>old.width===width&&old.height===height?old:{width,height});
       }}>
         {cell>0 ? (
-          <View style={[styles.mapGrid,{width:cols*cell,height:rows*cell}]}>
+          <View testID="sector-preview-grid" style={[styles.mapGrid,{width:cols*cell,height:rows*cell}]}>
             {terrain.map((t,i)=>(
               <View key={i} pointerEvents="none" style={{
                 position:"absolute",left:t.x*cell,top:t.y*cell,
@@ -126,7 +126,6 @@ export default function SettoriPreviewScreen() {
               <Pressable key={p.id} accessibilityRole="button" accessibilityLabel={"Seleziona "+p.name}
                 onPress={()=>setPicked(selectionDetail({id:p.id,name:p.name,kind:"resident"},preview))}
                 accessibilityState={{selected:picked?.id===p.id}}
-                hitSlop={3}
                 style={[styles.resident,{left:p.x*cell,top:p.y*cell,width:cell,height:cell,zIndex:3},
                   picked?.id===p.id&&styles.selected]}>
                 <View style={{width:Math.max(5,cell*.38),height:Math.max(5,cell*.35),backgroundColor:i%4===0?"#c38c61":"#e1b18c",borderTopLeftRadius:3,borderTopRightRadius:3,
@@ -136,7 +135,7 @@ export default function SettoriPreviewScreen() {
             ))}
           </View>
         ) : null}
-        <View style={styles.navBar}>
+        <View testID="sector-preview-navigation" style={styles.navBar}>
           <Pressable accessibilityRole="button" accessibilityLabel="Settore nord"
             disabled={!neighborSector(sector,"n")} onPress={()=>navigate("n")}
             style={[styles.arrow,!neighborSector(sector,"n")&&styles.disabled]}>
@@ -159,8 +158,8 @@ export default function SettoriPreviewScreen() {
           </Pressable>
         </View>
       </View>
-      <View style={[styles.footer,tight&&styles.footerTight,landscape&&styles.footerLandscape]}>
-        <View style={[styles.miniMap,landscape&&styles.miniMapLandscape]}>
+      <View testID="sector-preview-footer" style={[styles.footer,tight&&styles.footerTight,landscape&&styles.footerLandscape]}>
+        <View testID="sector-preview-minimap" style={[styles.miniMap,landscape&&styles.miniMapLandscape]}>
           {MAP_ORDER.map((id,index)=>id
             ? <Pressable key={id} accessibilityRole="button" accessibilityLabel={"Vai a "+world[id].label}
                 onPress={()=>switchSector(id)}
@@ -170,7 +169,7 @@ export default function SettoriPreviewScreen() {
               </Pressable>
             : <View key={index} style={[styles.miniPlaceholder,landscape&&styles.miniCellLandscape]}/>)}
         </View>
-        <View style={styles.details} accessibilityLiveRegion="polite">
+        <View testID="sector-preview-selection" style={styles.details} accessibilityLiveRegion="polite">
           <Text numberOfLines={1} style={styles.detailName}>{picked?.name ?? preview.label}</Text>
           <Text numberOfLines={landscape?1:2} style={styles.detailBody}>{picked?.detail ?? touchHint}</Text>
           {!landscape && <Text style={styles.detailCount}>Visibili {visibleCount}/{worldPopulation} · casella {cell} pt</Text>}
