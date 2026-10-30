@@ -1,0 +1,34 @@
+name: Playable Sector Mode
+on:
+  pull_request:
+    paths:
+      - "src/game/sectorPlayableModel.ts"
+      - "src/game/sectorPreviewModel.ts"
+      - "src/ui/SectorPlayableScreen.tsx"
+      - "src/ui/GameModeSelectionScreen.tsx"
+      - "src/ui/StartGameScreen.tsx"
+      - "src/context/GameContext.tsx"
+      - "tests/sector-playable.test.ts"
+      - "tsconfig.sector-playable.json"
+      - ".github/workflows/playable-sector-mode.yml"
+  workflow_dispatch:
+jobs:
+  playable:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck gameplay and screens (isolated from baseline)
+        run: npx tsc --project tsconfig.sector-playable.json --noEmit
+      - name: Simulate gameplay and persistence
+        run: npx tsx --test tests/sector-playable.test.ts
+      - name: Export playable web game
+        run: npm run build:web
