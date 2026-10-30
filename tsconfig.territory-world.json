@@ -1,0 +1,13 @@
+{
+  "extends":"./tsconfig.json",
+  "include":[
+    "src/game/territoryWorldModel.ts",
+    "src/game/territoryWorldPersistence.ts",
+    "src/ui/TerritoryWorldScreen.tsx",
+    "src/ui/StartGameScreen.tsx",
+    "src/ui/GameModeSelectionScreen.tsx",
+    "tests/territory-world.test.ts",
+    "tests/territory-world-persistence.test.ts"
+  ],
+  "exclude":["node_modules"]
+}
