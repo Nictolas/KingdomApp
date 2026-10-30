@@ -14,7 +14,7 @@ import {
   TERRITORY_SIDE,TERRITORY_BUILDINGS,BIOME_LABELS,CONQUEST_GOLD_COST,CONQUEST_WOOD_COST,
   advanceTerritoryDay,buildAtFirstAvailable,claimTerritory,createTerritoryWorld,
   groundAt,neighborCoordinates,territoryAction,territoryKey,territoryDisplayLabel,
-  territoryPreview,tileAt,visitTerritory,worldMilitaryStrength,worldPopulation,
+  territoryPreview,tileAt,isTravelRoad,visitTerritory,worldMilitaryStrength,worldPopulation,
   type Direction,type TerritoryBiome,type TerritoryBuildingKind,type TerritoryTile,type TerritoryTool,
   type TerritoryWorld
 } from "../game/territoryWorldModel";
@@ -29,7 +29,7 @@ const MAP_BIOME_COLORS:Record<TerritoryBiome,string>={
   palude:"#406d6e",arido:"#a68c52"
 };
 const tools:readonly {id:TerritoryTool;label:string}[]=[
-  {id:"inspect",label:"Esplora"},{id:"road",label:"Strada"},
+  {id:"inspect",label:"Esplora"},{id:"road",label:"Strada"},{id:"bridge",label:"Ponte"},
   {id:"clear",label:"Disbosca"},{id:"house",label:"Casa"},
   {id:"farm",label:"Fattoria"},{id:"shop",label:"Bottega"},
   {id:"lumber",label:"Segheria"},{id:"guard",label:"Caserma"},
@@ -44,7 +44,7 @@ const isConstructible=(tool:TerritoryTool):tool is Exclude<TerritoryBuildingKind
   tool==="house"||tool==="farm"||tool==="shop"||tool==="lumber"||tool==="guard";
 
 function terrainArt(tile:TerritoryTile,x:number,y:number,isRoad:(x:number,y:number)=>boolean):SheetCoord{
-  if(tile==="water")return getWaterSheetCoord(0);
+  if(tile==="water"||tile==="bridge")return getWaterSheetCoord(0);
   if(tile==="road"){
     const west=x===0||!isRoad(x-1,y),east=x===31||!isRoad(x+1,y);
     const north=y===0||!isRoad(x,y-1),south=y===31||!isRoad(x,y+1);
@@ -112,11 +112,11 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
   const tiles=useMemo(()=>{
     if(!world||!territory)return [];
     const isRoad=(x:number,y:number)=>
-      x>=0&&y>=0&&x<TERRITORY_SIDE&&y<TERRITORY_SIDE&&tileAt(world,territory,x,y)==="road";
+      x>=0&&y>=0&&x<TERRITORY_SIDE&&y<TERRITORY_SIDE&&isTravelRoad(tileAt(world,territory,x,y));
     return Array.from({length:viewport*viewport},(_,i)=>{
       const x=camera.x+i%viewport,y=camera.y+Math.floor(i/viewport);
       const kind=tileAt(world,territory,x,y);
-      return {x,y,kind,coord:terrainArt(kind,x,y,isRoad)};
+      return {x,y,kind,coord:terrainArt(kind,x,y,isRoad),bridgeVertical:isRoad(x,y-1)||isRoad(x,y+1)};
     });
   },[world?.seed,activeKey,territory?.roads,territory?.cleared,camera.x,camera.y,viewport]);
 
@@ -267,6 +267,21 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
             <TerrainSheetSprite cellSize={cell} coord={t.coord}/>
             {t.kind==="woodland"?<Image source={TREE} resizeMode="contain"
               style={{width:cell,height:cell,position:"absolute",top:0}}/>:null}
+            {t.kind==="bridge"?<View testID="territory-world-bridge" pointerEvents="none"
+              style={{
+                position:"absolute",
+                left:t.bridgeVertical?cell*0.12:0,top:t.bridgeVertical?0:cell*0.12,
+                width:t.bridgeVertical?cell*0.76:cell,height:t.bridgeVertical?cell:cell*0.76,
+                borderColor:"#ead1a2",borderWidth:Math.max(1,cell*0.05),
+                backgroundColor:"#936334",justifyContent:"space-around",
+                flexDirection:t.bridgeVertical?"column":"row"
+              }}>
+              {[0,1,2,3].map(n=><View key={n} style={{
+                backgroundColor:"#6c431e",
+                width:t.bridgeVertical?"100%":Math.max(1,cell*0.05),
+                height:t.bridgeVertical?Math.max(1,cell*0.05):"100%"
+              }}/>)}
+            </View>:null}
             {t.kind==="rock"?<View pointerEvents="none" style={{position:"absolute",width:cell,height:cell,
               backgroundColor:"rgba(56,61,65,0.70)",borderRadius:cell/3}}/>:null}
             {t.kind==="dry"?<View pointerEvents="none" style={{position:"absolute",width:cell,height:cell,
