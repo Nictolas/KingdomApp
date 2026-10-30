@@ -78,6 +78,22 @@ agli edifici e al bosco non vengono rigenerate.
 
 Il catalogo dei territori speciali/fissi **non è ancora definito**.
 
+## Ponti sui fiumi e percorsi continui
+
+Dove la rete stradale principale incontra un corso d'acqua del generatore
+geografico, il terreno viene rappresentato come **ponte** invece di
+nascondere il fiume sotto una strada. Il collegamento resta percorribile
+agli abitanti e continua ai bordi tra territori adiacenti.
+
+Lo strumento **Ponte** consente di costruire un attraversamento in una
+casella d'acqua collegata a una strada o a un altro ponte. Richiede 3
+unità di legno; acqua non collegata e caselle occupate non sono
+utilizzabili. Gli edifici non si possono costruire sui ponti.
+Le nuove caselle vengono registrate nello stesso elenco di modifiche
+locali delle strade: non occorre migrare i salvataggi precedenti.
+I mondi storici conservano il vecchio terreno ma possono costruire
+ponti nelle caselle d'acqua.
+
 ## Territori fissi: scelta ancora aperta
 
 Il mondo contiene un registro `FIXED_TERRITORIES`, attualmente con il solo
