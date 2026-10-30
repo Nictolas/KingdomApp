@@ -60,9 +60,9 @@ try{
    await page.getByTestId("territory-map-grid").waitFor();
    assert.equal(await page.getByTestId("territory-map-grid").getByRole("button").count(),25);
    await page.getByTestId("territory-map-cell-1,0").click();
-   await page.getByTestId("territory-map-selected").getByText(/Acquisto:/).waitFor();
+   await page.getByTestId("territory-map-selected").filter({hasText:/Acquisto:/}).waitFor();
    await page.getByTestId("territory-map-buy").click();
-   await page.getByTestId("territory-world-label").getByText(/1,0/).waitFor();
+   await page.getByTestId("territory-world-label").filter({hasText:/1,0/}).waitFor();
    await page.getByText(/2 territori/).waitFor();
    assert.equal(await page.getByTestId("territory-world-tile").count(),144);
    await page.getByTestId("territory-tool-house").click();
@@ -75,7 +75,7 @@ try{
    await page.getByTestId("territory-open-map").click();
    await page.getByTestId("territory-map-cell-0,0").click();
    await page.getByTestId("territory-map-visit").click();
-   await page.getByTestId("territory-world-label").getByText(/Territorio iniziale/).waitFor();
+   await page.getByTestId("territory-world-label").filter({hasText:/Territorio iniziale/}).waitFor();
    await page.getByTestId("territory-world-exit").click();
    await page.getByTestId("choose-territory-world").waitFor();
    await page.getByTestId("choose-territory-world").click();
@@ -84,8 +84,14 @@ try{
    await page.getByTestId("territory-open-map").click();
    await page.getByTestId("territory-map-cell-1,0").click();
    await page.getByTestId("territory-map-visit").click();
-   assert.ok(await page.getByTestId("territory-world-building").count()>=1,
-     "House persisted and is visible after reopening");
+   // Camera may be looking at another 12×12 portion of this same 32×32 map.
+   // Pan over the four quadrants before declaring a saved building missing.
+   let builtVisible=await page.getByTestId("territory-world-building").count()>0;
+   for(let step=0;step<4&&!builtVisible;step++){
+     await page.getByRole("button",{name:step%2?"Scorri mappa verso il basso":"Scorri mappa verso l'alto"}).click();
+     builtVisible=await page.getByTestId("territory-world-building").count()>0;
+   }
+   assert.ok(builtVisible,"Buildings must persist when visiting a claimed territory");
    await page.getByTestId("territory-world-reset-dialog").count().then(n=>assert.equal(n,0));
    assert.equal(errors.length,0,"Runtime errors: "+errors.join(" | "));
    console.log("PASS expandable 32x32 "+width+"x"+height+
