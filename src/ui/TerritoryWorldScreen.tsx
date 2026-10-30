@@ -14,7 +14,7 @@ import { createTerritoryWriteQueue,loadTerritoryWorld } from "../game/territoryW
 import {
   TERRITORY_SIDE,TERRITORY_BUILDINGS,BIOME_LABELS,CONQUEST_GOLD_COST,CONQUEST_WOOD_COST,
   advanceTerritoryDay,buildAtFirstAvailable,claimTerritory,createTerritoryWorld,
-  groundAt,neighborCoordinates,territoryAction,territoryKey,territoryDisplayLabel,
+  groundAt,adjacentTerritoryTarget,territoryAction,territoryKey,territoryDisplayLabel,
   territoryPreview,tileAt,isTravelRoad,visitTerritory,worldMilitaryStrength,worldPopulation,
   type Direction,type TerritoryBiome,type TerritoryBuildingKind,type TerritoryTile,type TerritoryTool,
   type TerritoryWorld
@@ -178,20 +178,15 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
   };
   const navigateToAdjacentTerritory=(direction:Direction)=>{
     if(!world||!territory)return;
-    const delta:Record<Direction,readonly [number,number]>={
-      n:[0,-1],e:[1,0],s:[0,1],w:[-1,0]
-    };
-    const [dx,dy]=delta[direction];
-    const x=territory.tx+dx,y=territory.ty+dy;
-    if(Math.abs(x)>4096||Math.abs(y)>4096)return;
-    const key=territoryKey(x,y);
-    if(world.territories[key]){
-      visit(key);
+    const target=adjacentTerritoryTarget(world,direction);
+    if(target.status==="edge")return;
+    if(target.status==="owned"){
+      visit(target.key);
     }else{
-      // Adjacent but not yet acquired: present existing purchase/conquest UI,
-      // preselecting this specific frontier tile. No resources are spent here.
+      // A frontier direction opens the existing confirmation UI. It must
+      // never charge money or claim land until the player chooses an action.
       setMapCenter({tx:territory.tx,ty:territory.ty});
-      setSelectedKey(key);
+      setSelectedKey(target.key);
       setMapOpen(true);
     }
   };
@@ -223,14 +218,8 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
 
   const ownedCount=Object.keys(world.territories).length;
   const [tx,ty]=[territory.tx,territory.ty];
-  const adjacentStatus=(direction:Direction):AdjacentTerritoryStatus=>{
-    const delta:Record<Direction,readonly [number,number]>={
-      n:[0,-1],e:[1,0],s:[0,1],w:[-1,0]
-    };
-    const [dx,dy]=delta[direction],x=tx+dx,y=ty+dy;
-    if(Math.abs(x)>4096||Math.abs(y)>4096)return "edge";
-    return world.territories[territoryKey(x,y)]?"owned":"frontier";
-  };
+  const adjacentStatus=(direction:Direction):AdjacentTerritoryStatus=>
+    adjacentTerritoryTarget(world,direction).status;
   const dpadStatus:Record<Direction,AdjacentTerritoryStatus>={
     n:adjacentStatus("n"),e:adjacentStatus("e"),
     s:adjacentStatus("s"),w:adjacentStatus("w")
