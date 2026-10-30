@@ -1,6 +1,6 @@
 import type { CharacterAppearance } from "../character-system/types";
 import { canRenderCharacter, compatibleCatalogOptions, compatibleColorsForField, firstCompatibleColorForField } from "../character-system/registry";
-import { normalizeCharacterAppearance } from "../character-system/appearance";
+import { DEFAULT_CHARACTER_APPEARANCE, appearanceForPublicSpace, bodyFamilyFor, normalizeCharacterAppearance } from "../character-system/appearance";
 
 /**
  * A profession is identified by a stable ID; residents keep their own faces,
@@ -43,6 +43,28 @@ export type ProfessionUniformStorage = {
 let activeUniforms: ProfessionUniforms = {};
 const record = (x: unknown): x is Record<string,unknown> =>
   typeof x === "object" && x !== null && !Array.isArray(x);
+
+/**
+ * One stable LPC starter outfit for each occupation, irrespective of the
+ * randomly generated resident's face, hair, skin, or beard. Used by the editor
+ * as an illustration; no user save is changed unless the uniform is saved.
+ */
+export function defaultProfessionUniform(id: ProfessionRoleId): ProfessionUniform {
+  const role=PROFESSION_ROLES.find(item=>item.id===id)!;
+  const ageGroup=role.bodyType==="teen"?"teen":"adult";
+  const base=normalizeCharacterAppearance({
+    ...DEFAULT_CHARACTER_APPEARANCE, race:"human", bodyType:role.bodyType,
+    ageGroup,bodyFamily:bodyFamilyFor("human",ageGroup),
+    outfit:"commoner",upperOutfit:"commoner",lowerOutfit:"commoner",
+    fullOutfit:"none",outfitPrimaryColor:"brown",outfitSecondaryColor:"charcoal",
+    headwear:"none",accessory:"none",cape:"none",footwear:"none"
+  });
+  const withRole=appearanceForPublicSpace(base,{
+    isKing:id==="re",nudismoAttivo:false,lavoro:role.lavoro,
+    seed:1,razza:"Umano",sesso:"M"
+  });
+  return extractProfessionUniform(withRole);
+}
 
 export function extractProfessionUniform(appearance: CharacterAppearance): ProfessionUniform {
   return Object.fromEntries(GARMENT_FIELDS.map(field=>[field,appearance[field]])) as ProfessionUniform;
