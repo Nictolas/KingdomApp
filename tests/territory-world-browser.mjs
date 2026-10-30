@@ -36,6 +36,13 @@ try{
    await page.getByTestId("territory-world-grid").waitFor({state:"visible",timeout:45000});
    await page.getByTestId("territory-world-pause").click();
    await page.waitForFunction(()=>{
+     const residents=Array.from(document.querySelectorAll('[data-testid="territory-world-resident"]'));
+     const lpc=Array.from(document.querySelectorAll('[data-testid="resident-human-lpc"]'));
+     return residents.length>0 && lpc.length===residents.length &&
+       lpc.every(h=>Array.from(h.querySelectorAll("img")).filter(img=>img.complete&&img.naturalWidth>0).length>=2) &&
+       !document.querySelector('[data-testid="territory-resident-image"]');
+   },undefined,{timeout:45000});
+   await page.waitForFunction(()=>{
      const grid=document.querySelector('[data-testid="territory-world-grid"]');
      if(!grid)return false;
      const cells=grid.querySelectorAll('[data-testid="territory-world-tile"]');
