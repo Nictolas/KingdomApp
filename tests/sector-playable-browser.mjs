@@ -51,7 +51,8 @@ try{
  const box=await page.getByTestId("sector-game-grid").boundingBox();
  const cell=box.width/16;
  await page.getByTestId("sector-game-tap-grid").click({position:{x:cell*.7,y:cell*20.7}});
- await page.getByTestId("sector-game-notice").getByText(/Casa .* costruita/i).waitFor({timeout:5000});
+ const buildMessage=await page.getByTestId("sector-game-notice").textContent();
+ assert.match(buildMessage||"",/Casa .* costruita/i,"Construction failed: "+buildMessage);
  await page.getByTestId("sector-game-exit").click();
  await page.getByTestId("choose-sector-mode").waitFor();
  await page.getByTestId("choose-sector-mode").click();
