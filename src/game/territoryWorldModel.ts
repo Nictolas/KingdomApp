@@ -113,6 +113,16 @@ export function territoryLabel(seed:number,tx:number,ty:number,terrainVersion:1|
   const fixed=FIXED_TERRITORIES[territoryKey(tx,ty)];
   return fixed?.name ?? BIOME_LABELS[biomeForTerritory(seed,tx,ty,terrainVersion)]+" "+tx+","+ty;
 }
+
+/** Use the saved biome when naming an already-discovered territory. */
+export function territoryDisplayLabel(world:TerritoryWorld,tx:number,ty:number):string{
+  const key=territoryKey(tx,ty);
+  const fixed=FIXED_TERRITORIES[key];
+  const saved=world.territories[key];
+  if(fixed?.name)return fixed.name;
+  const biome=saved?.biome??biomeForTerritory(world.seed,tx,ty,world.terrainVersion??1);
+  return BIOME_LABELS[biome]+" "+tx+","+ty;
+}
 function isStartingFootprint(tx:number,ty:number,x:number,y:number):boolean{
   return tx===0&&ty===0&&START_BUILDINGS.some(b=>
     x>=b.x&&x<b.x+b.w&&y>=b.y&&y<b.y+b.h);
@@ -151,7 +161,7 @@ export function territoryPreview(world:TerritoryWorld,tx:number,ty:number){
   const cost=PURCHASE_BASE_COST+Math.floor(distance/2)*6+(biome==="foresta"?6:0);
   const defense=2+cellHash(world.seed,tx,ty,0x91)%7;
   return {
-    key,tx,ty,biome,label:territoryLabel(world.seed,tx,ty,world.terrainVersion??1),
+    key,tx,ty,biome,label:territoryDisplayLabel(world,tx,ty),
     owned:!!world.territories[key],
     reachable:!world.territories[key]&&Object.values(DIR).some(([dx,dy])=>
       !!world.territories[territoryKey(tx+dx,ty+dy)]),
@@ -198,7 +208,7 @@ export function worldMilitaryStrength(world:TerritoryWorld):number{
 function withNotice(world:TerritoryWorld,notice:string):TerritoryWorld{return {...world,notice};}
 export function visitTerritory(world:TerritoryWorld,key:string):TerritoryWorld{
   if(!world.territories[key])return withNotice(world,"Territorio non ancora acquisito.");
-  return {...world,active:key,notice:"Sei arrivato a "+territoryLabel(world.seed,world.territories[key].tx,world.territories[key].ty,world.terrainVersion??1)+"."};
+  return {...world,active:key,notice:"Sei arrivato a "+territoryDisplayLabel(world,world.territories[key].tx,world.territories[key].ty)+"."};
 }
 export function claimTerritory(world:TerritoryWorld,tx:number,ty:number,method:"purchase"|"conquest"):TerritoryWorld{
   if(!Number.isSafeInteger(tx)||!Number.isSafeInteger(ty)||Math.abs(tx)>4096||Math.abs(ty)>4096)
