@@ -3,7 +3,7 @@ import {naturalGeographyAt,regionalBiome,ridgeAt,riverAt} from "../src/game/terr
 import test from "node:test";
 import {
  TERRITORY_SIDE,TERRITORY_CELLS,TERRITORY_BUILDINGS,CONQUEST_GOLD_COST,CONQUEST_WOOD_COST,
- advanceTerritoryDay,basicRoad,biomeForTerritory,buildAtFirstAvailable,canBuildAt,
+ advanceTerritoryDay,adjacentTerritoryTarget,basicRoad,biomeForTerritory,buildAtFirstAvailable,canBuildAt,
  claimTerritory,createTerritoryWorld,groundAt,isTerritoryWorld,
  neighborCoordinates,territoryAction,territoryHousing,territoryKey,territoryPreview,
  tileAt,visitTerritory,worldMilitaryStrength,worldPopulation
@@ -367,4 +367,35 @@ test("the bridge tool connects roads across water, costs wood and survives savin
     assert.equal(tileAt(oldBridge,oldBridge.territories["0,0"],x,y),"bridge");
     assert.ok(isTerritoryWorld(oldBridge),"Bridge construction must be safe on legacy maps");
   }
+});
+
+test("all four D-pad directions select the same frontier, with no automatic charges",()=>{
+ let world=createTerritoryWorld(445522);
+ const points=[["n",0,-1,"0,-1"],["s",0,1,"0,1"],["e",1,0,"1,0"],["w",-1,0,"-1,0"]] as const;
+ const resources=[world.gold,world.wood,world.food];
+ for(const [direction,tx,ty,key] of points){
+  assert.deepEqual(adjacentTerritoryTarget(world,direction),{status:"frontier",direction,tx,ty,key});
+  assert.deepEqual([world.gold,world.wood,world.food],resources);
+ }
+ for(const [direction,tx,ty,key] of points){
+  world=claimTerritory({...world,gold:1000},tx,ty,"purchase");
+  assert.equal(world.active,key);
+  assert.ok(isTerritoryWorld(world));
+  world=visitTerritory(world,"0,0");
+  assert.deepEqual(adjacentTerritoryTarget(world,direction),{status:"owned",direction,tx,ty,key});
+ }
+ assert.equal(Object.keys(world.territories).length,5);
+});
+
+test("direction pad respects both positive and negative coordinate limits",()=>{
+ const initial=createTerritoryWorld(85221);
+ const distant={...initial.territories["0,0"],tx:4096,ty:-4096,
+  claim:"purchase" as const,biome:biomeForTerritory(initial.seed,4096,-4096,2),
+  buildings:[],residents:[],roads:[],cleared:[]};
+ const world={...initial,active:"4096,-4096",territories:{...initial.territories,"4096,-4096":distant}};
+ assert.ok(isTerritoryWorld(world));
+ assert.deepEqual(adjacentTerritoryTarget(world,"e"),{status:"edge",direction:"e"});
+ assert.deepEqual(adjacentTerritoryTarget(world,"n"),{status:"edge",direction:"n"});
+ assert.deepEqual(adjacentTerritoryTarget(world,"s"),{status:"frontier",direction:"s",tx:4096,ty:-4095,key:"4096,-4095"});
+ assert.deepEqual(adjacentTerritoryTarget(world,"w"),{status:"frontier",direction:"w",tx:4095,ty:-4096,key:"4095,-4096"});
 });
