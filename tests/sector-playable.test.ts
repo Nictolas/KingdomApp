@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import test from "node:test";
 import { SECTOR_IDS, PREVIEW_COLS, PREVIEW_ROWS } from "../src/game/sectorPreviewModel";
 import {
-  advancePlayableDay, applySectorAction, COSTS, createPlayableKingdom,
+  advancePlayableDay, applySectorAction, buildAtAvailableSpot, COSTS, createPlayableKingdom,
   freeForBuilding, isPlayableKingdom, sectorAtCell, travelSector
 } from "../src/game/sectorPlayableModel";
 
@@ -97,4 +97,40 @@ test("saved kingdom validation rejects overlapping buildings, duplicate resident
   const flood=clone(); flood.sectors.centro.residents=Array(10000).fill(flood.sectors.centro.residents[0]);
   assert.equal(isPlayableKingdom(flood),false);
   assert.equal(isPlayableKingdom(base),true);
+});
+
+test("one-tap placement finds a legal 2×2 spot without touching other sectors",()=>{
+  const base=travelSector(createPlayableKingdom(),"sud");
+  let target:null|{x:number;y:number}=null;
+  for(let y=0;y<PREVIEW_ROWS-1&&!target;y++)
+    for(let x=0;x<PREVIEW_COLS-1;x++)
+      if(freeForBuilding(base.sectors.sud,x,y,"farm")){target={x,y};break;}
+  assert.ok(target);
+  const after=buildAtAvailableSpot(base,"farm");
+  const built=after.sectors.sud.buildings.find(b=>b.id==="new-1");
+  assert.ok(built);
+  assert.deepEqual({x:built.x,y:built.y},target);
+  assert.equal(built.kind,"farm");
+  assert.equal(after.gold,base.gold-COSTS.farm.gold);
+  assert.equal(after.wood,base.wood-COSTS.farm.wood);
+  assert.deepEqual(after.sectors.centro,base.sectors.centro);
+  assert.ok(isPlayableKingdom(after));
+});
+
+test("one-tap placement does not charge resources when unavailable",()=>{
+  const base=createPlayableKingdom();
+  const poor={...base,gold:0};
+  const rejected=buildAtAvailableSpot(poor,"shop");
+  assert.equal(rejected.gold,0);
+  assert.deepEqual(rejected.sectors,poor.sectors);
+  assert.match(rejected.notice,/Risorse insufficienti/);
+  // A fully occupied synthetic sector cannot accept a 2×2 building.
+  const residents=Array.from({length:PREVIEW_COLS*PREVIEW_ROWS},(_,i)=>({
+    id:"blocked-"+i,name:"Test",x:i%PREVIEW_COLS,y:Math.floor(i/PREVIEW_COLS),energy:100
+  }));
+  const filled={...base,sectors:{...base.sectors,centro:{...base.sectors.centro,residents}}};
+  const noSpace=buildAtAvailableSpot(filled,"house");
+  assert.match(noSpace.notice,/Non ci sono aree/);
+  assert.equal(noSpace.gold,base.gold);
+  assert.equal(noSpace.wood,base.wood);
 });
