@@ -65,3 +65,55 @@ node --test tests/native-device-acceptance.test.mjs
 ```
 
 La CI della #297 esegue i test del gate, compresi i controlli contro provenienze omesse, marcature `pass` basate sulla scena sbagliata e fonti rimaste dopo `not_run`, insieme agli altri test offline. Questi test verificano completezza, rifiuto di prove inventate o incomplete, differenza dei commit, unicità degli scenari, gestione dei fallimenti e assenza di un'approvazione automatica. Non installano applicazioni e non simulano un touchscreen fisico.
+
+
+## Audit finale incrociato delle evidenze (30 ottobre 2026)
+
+Dopo aver raccolto risultati **reali** da due build di sviluppo installate su
+Android e iPhone, eseguire separatamente i tre strumenti offline esistenti,
+con `--json`, e conservare solo i loro riepiloghi, non gli identificativi dei
+dispositivi:
+
+1. `audit-native-device-acceptance.mjs`: matrice di correttezza 12 scenari +
+   10 prove funzionali per piattaforma (almeno sei su **mappa reale**).
+2. `compare-native-ab-matrix.mjs`: una matrice diagnostica JS completa,
+   schema v2, **per ciascuna piattaforma**; almeno 3 acquisizioni per build
+   in ognuna delle 12 combinazioni.
+3. `compare-native-android-ui-matrix.mjs`: matrice Android View-framestats
+   completa, **schema v2**, almeno 3 coppie per combinazione.
+
+Un comando di **audit incrociato**, soltanto read-only, controlla che i quattro
+riepiloghi siano attribuiti alle **stesse due SHA di 40 caratteri** e che
+nessuna velocità, popolazione, prova funzionale o piattaforma sia stata
+saltata:
+
+```sh
+node scripts/audit-native-device-evidence-readiness.mjs \
+  --correctness correctness.json \
+  --js-android js-android.json \
+  --js-ios js-ios.json \
+  --android-ui android-view.json \
+  --json
+```
+
+Eseguendo lo stesso comando **senza file** si ottiene, correttamente, lo
+stato `incomplete_device_evidence` e i quattro riepiloghi mancanti. Nessuna
+cattura è inventata o recuperata automaticamente. Se cambiano i commit
+delle build tra una raccolta e l'altra, l'audit **rifiuta** il confronto.
+Rifiuta anche matrici legacy senza provenienza, copertura inferiore a 12,
+meno di tre acquisizioni per scenario e scene Android JS/View diverse.
+
+- `incomplete_device_evidence` (exit 2): mancano prove valide.
+- `complete_human_evidence_requires_investigation` (exit 3): sono presenti
+  regressioni JS segnalate, fallimenti osservati o warning di qualità Android.
+- `complete_human_evidence_for_manual_review` (exit 0): le **attestazioni
+  umane** e i riepiloghi hanno copertura coerente, **NON** significa che il
+  gioco sia abbastanza fluido né che il miglioramento sia confermato.
+
+L'ultimo stato non certifica né build installate, né identità dei dispositivi,
+né FPS GPU/UI, né precisione dei tempi dichiarati. Su iPhone servono comunque
+tracce Instruments/Core Animation; su Android, idealmente Perfetto/FrameTimeline
+in aggiunta al rolling buffer `gfxinfo`. Conservare per revisione manuale
+temperatura, dispositivo, build esatta e risultati negativi. L'audit non
+approva automaticamente merge, deploy o release. La baseline sprite reale
+è sempre la #298, non la #295.
