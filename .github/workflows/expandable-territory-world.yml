@@ -3,6 +3,7 @@ on:
   pull_request:
     paths:
       - "src/game/territoryWorldModel.ts"
+      - "src/game/territoryGeography.ts"
       - "src/game/territoryWorldPersistence.ts"
       - "src/ui/TerritoryWorldScreen.tsx"
       - "src/components/SectorResidentHumanSprite.tsx"
