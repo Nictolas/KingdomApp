@@ -103,6 +103,10 @@ try{
    const message=await page.getByTestId("territory-world-notice").textContent();
    assert.match(message||"",/Casa \d+ costruita/i,"House construction failed: "+message);
    await page.getByTestId("territory-world-local-stats").filter({hasText:"1 edifici"}).waitFor();
+   // Auto-placement must focus the newly created home, rather than building
+   // invisibly at the far end of a 32×32 territory.
+   await page.getByTestId("territory-world-building").first().waitFor({state:"visible"});
+
    await page.waitForTimeout(300); // Capture the map after the modal exit fade.
    await page.screenshot({path:`territory-screenshots/claimed-territory-${width}x${height}.png`,fullPage:true});
    await page.getByTestId("territory-world-next-day").click();
