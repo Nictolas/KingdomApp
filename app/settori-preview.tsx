@@ -99,8 +99,10 @@ export default function SettoriPreviewScreen() {
                 hitTestSectorPreview(preview,event.nativeEvent.locationX,event.nativeEvent.locationY,cell),preview.label))}
               style={[StyleSheet.absoluteFill,{zIndex:1}]} />
             {trees.map(t=>(
-              <Image key={"tree-"+t.x+"-"+t.y} pointerEvents="none" source={TREE_ART}
-                style={{position:"absolute",left:t.x*cell,top:t.y*cell,width:cell,height:cell}} resizeMode="contain"/>
+              <View key={"tree-"+t.x+"-"+t.y} pointerEvents="none"
+                style={{position:"absolute",left:t.x*cell,top:t.y*cell,width:cell,height:cell}}>
+                <Image source={TREE_ART} style={{width:"100%",height:"100%"}} resizeMode="contain"/>
+              </View>
             ))}
             {preview.buildings.map(b=>(
               <Pressable key={b.id}
