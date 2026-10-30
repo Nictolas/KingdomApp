@@ -5,6 +5,7 @@ PR Draft #300, branch `feat/playable-sector-mode-20261030`. Il prototipo a setto
 ## Funzioni e confini
 - Cinque settori 16×24, 110 residenti complessivi (30 nel Centro), movimento e produzione in tutti i settori; rendering solo del settore attivo.
 - Casa, Fattoria e Bottega costruibili su impronte libere 2×2, demolizione solo degli edifici creati dal giocatore; produzione, consumo e orologio a giorni.
+- Su schermi piccoli il comando **Posiziona** trova automaticamente la prima area 2×2 libera nel settore attivo; usa le stesse verifiche di risorse/occupazione del tocco e non modifica altre zone. Se non c’è spazio, non scala il costo né cancella nulla.
 - Salvataggio AsyncStorage **esclusivamente** nella chiave `mykingdom:sectors:playable:v1`. La modalità non cancella né legge la partita principale.
 - Scritture serializzate: l'ultima versione non può essere sovrascritta da una scrittura precedente lenta. Uscita attende la scrittura corrente e riprova in caso di errore.
 - Salvataggi illeggibili o non validi non vengono sovrascritti automaticamente: l'utente deve scegliere esplicitamente Ricomincia. Il reset ha conferma e riguarda solo questa modalità.
@@ -24,6 +25,11 @@ PR Draft #300, branch `feat/playable-sector-mode-20261030`. Il prototipo a setto
 - Le fattorie espongono un crop originale dell'atlante e le botteghe una cassa originale come dettagli sulle immagini delle case. A Nord si alternano `tree_1.png` e `tree_2.png`, entrambi già presenti nel repository.
 - Nuova suite `sector-playable-terrain.test.ts`: tutte le 384 celle dentro la texture, coordinate a multipli di 64, bordi e incrocio della strada, icone di fattoria/bottega e input invalidi.
 - Chromium verifica anche le immagini di fattorie e botteghe nei rispettivi settori, l'animazione tramite `getComputedStyle` (React Native Web può codificare `left` in classi CSS) e la pausa. **Nuova CI da verificare sul commit conclusivo** prima di dire che il bug è risolto nell'esportazione.
+
+## Interazione accessibile con caselle piccole
+- Il vecchio flusso richiedeva un tocco quasi pixel-perfect su caselle da pochi punti. `buildAtAvailableSpot` fornisce un'alternativa deterministica, controllata con test per assenza di fondi, settore totalmente occupato, immodificabilità degli altri settori e salvataggio valido.
+- E2E smartphone: seleziona una Fattoria, usa **Posiziona**, verifica che l'icona vegetale compaia, esci dalla modalità e controlla che la costruzione rimanga dopo il rientro.
+- Non aggiunge scorrimento, zoom o un nuovo formato di salvataggio.
 
 ## Verifiche automatizzate
 Il workflow `Playable Sector Mode` esegue typecheck isolato, test del modello e della persistenza, esportazione web e Chromium su due viewport smartphone. Controlla selezione dal menu, avanzamento giorno, viaggio, costruzione, conferma reset e ripresa del salvataggio. I risultati si riferiscono al commit e alla pipeline specifici: **non** equivalgono a test fisici.
