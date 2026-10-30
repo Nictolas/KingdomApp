@@ -18,6 +18,13 @@ PR Draft #300, branch `feat/playable-sector-mode-20261030`. Il prototipo a setto
 - Un solo timer condiviso (280 ms) anima i tre fotogrammi originali per gruppo direzionale degli abitanti **solo nel settore visibile**; durante la pausa si ferma. La simulazione degli altri settori e la persistenza non usano questo timer grafico.
 - Il test Chromium verifica **immagini scaricate e decodificate**, 384 celle con immagini originali, 30 residenti visibili al Centro, 22 al Sud, costruzione, viaggio, giorno e persistenza. Produce screenshot a due dimensioni smartphone, caricati come artifact del workflow.
 
+## Correzione asset e topologia delle strade — revisione su screenshot CI
+- Uno screenshot del browser 390×844 del precedente commit ha mostrato un errore effettivo: la selezione `verticale` dell'atlante rimandava al tile metallico [64,768], creando una griglia grigia sulle strade. La mappa non era graficamente definitiva anche se le immagini risultavano caricate.
+- Ora `sectorPlayableTerrain.ts` usa i 9 pezzi del blocco in terra [512,128]–[704,320] con bordi/corner corretti, basati sui vicini strada/erba; preserva le 16×24 caselle e la topologia originale. Meno ripetizioni dell'ornamento grande sull'erba.
+- Le fattorie espongono un crop originale dell'atlante e le botteghe una cassa originale come dettagli sulle immagini delle case. A Nord si alternano `tree_1.png` e `tree_2.png`, entrambi già presenti nel repository.
+- Nuova suite `sector-playable-terrain.test.ts`: tutte le 384 celle dentro la texture, coordinate a multipli di 64, bordi e incrocio della strada, icone di fattoria/bottega e input invalidi.
+- Chromium verifica anche le immagini di fattorie e botteghe nei rispettivi settori, l'animazione tramite `getComputedStyle` (React Native Web può codificare `left` in classi CSS) e la pausa. **Nuova CI da verificare sul commit conclusivo** prima di dire che il bug è risolto nell'esportazione.
+
 ## Verifiche automatizzate
 Il workflow `Playable Sector Mode` esegue typecheck isolato, test del modello e della persistenza, esportazione web e Chromium su due viewport smartphone. Controlla selezione dal menu, avanzamento giorno, viaggio, costruzione, conferma reset e ripresa del salvataggio. I risultati si riferiscono al commit e alla pipeline specifici: **non** equivalgono a test fisici.
 
