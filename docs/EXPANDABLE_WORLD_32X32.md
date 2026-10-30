@@ -44,6 +44,33 @@ Il prototipo è isolato in tre moduli:
    Creativa, del vecchio Regno a settori o dell'Editor abiti. Un file
    illeggibile resta intatto fino a un reset **esplicito**.
 
+## Nuova geografia naturale (versione 2)
+
+Per i mondi creati da questo aggiornamento è attivo il generatore
+`src/game/territoryGeography.ts`:
+
+- **Biomi regionali:** zone di pianura, bosco, collina, palude e terreno arido
+  distribuite con campi climatici continui, non attraverso una scelta casuale
+  indipendente per ogni riquadro.
+- **Fiumi:** corsi d'acqua sinuosi calcolati su coordinate globali, che possono
+  attraversare più territori senza interrompersi artificialmente al confine.
+- **Catene montuose:** zone rocciose allungate, anch'esse continue fra territori.
+- **Strade principali:** i quattro collegamenti ai bordi rimangono transitabili
+  anche dove il fiume incontra la strada; per ora sono rappresentati come
+  attraversamenti, mentre ponti e decorazioni specifiche saranno progettati
+  dopo.
+- **Mappa espansione:** colori distinti per il tipo di territorio, senza
+  alterare i criteri di acquisto/conquista.
+
+**Garanzia sui salvataggi:** lo schema di salvataggio resta
+`mykingdom:territories:v1` per non sovrascrivere il vecchio archivio.
+La nuova proprietà `terrainVersion: 2` è salvata soltanto nei nuovi mondi.
+I salvataggi già esistenti senza questa proprietà continuano ad usare
+il generatore originale (`terrainVersion: 1`); le modifiche alle strade,
+agli edifici e al bosco non vengono rigenerate.
+
+Il catalogo dei territori speciali/fissi **non è ancora definito**.
+
 ## Territori fissi: scelta ancora aperta
 
 Il mondo contiene un registro `FIXED_TERRITORIES`, attualmente con il solo
