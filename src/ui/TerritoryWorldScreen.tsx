@@ -137,6 +137,23 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
   const placeTile=(x:number,y:number)=>{
     setWorld(prev=>prev?territoryAction(prev,tool,x,y):prev);
   };
+  const autoBuildAndFocus=()=>{
+    if(!world||!isConstructible(tool))return;
+    const next=buildAtFirstAvailable(world,tool);
+    setWorld(next);
+    if(next.nextBuilding===world.nextBuilding)return;
+    const newId="built-"+world.nextBuilding;
+    const built=next.territories[next.active]?.buildings.find(b=>b.id===newId);
+    if(built){
+      // The selected type is built on the first legal road-linked location.
+      // Show the result immediately instead of leaving a house invisible in
+      // another part of this 32×32 map.
+      setCamera({
+        x:limit(Math.floor(built.x+built.w/2-viewport/2),0,TERRITORY_SIDE-viewport),
+        y:limit(Math.floor(built.y+built.h/2-viewport/2),0,TERRITORY_SIDE-viewport)
+      });
+    }
+  };
   const openMap=()=>{
     if(!world)return;
     const {tx,ty}=world.territories[world.active];
@@ -307,10 +324,7 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
         </Pressable>
         <Pressable testID="territory-world-auto-build" accessibilityRole="button"
           accessibilityLabel="Posiziona il tipo di edificio selezionato"
-          style={[styles.primary,{backgroundColor:"#755b38"}]} onPress={()=>{
-            if(!isConstructible(tool))return;
-            setWorld(w=>w?buildAtFirstAvailable(w,tool):w);
-          }}>
+          style={[styles.primary,{backgroundColor:"#755b38"}]} onPress={autoBuildAndFocus}>
           <Text style={styles.light}>Posiziona</Text>
         </Pressable>
         <Pressable accessibilityRole="button" accessibilityLabel="Ricomincia Regno a territori"
