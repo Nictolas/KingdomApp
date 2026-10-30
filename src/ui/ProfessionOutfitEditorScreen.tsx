@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ActivityIndicator, Pressable, SafeAreaView, ScrollView, Share, StyleSheet, Text, View } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { appearanceForPublicSpace, bodyFamilyFor, normalizeCharacterAppearance } from "../character-system/appearance";
-import { compatibleCatalogOptions, firstCompatibleHairColor } from "../character-system/registry";
+import { canRenderCharacter, compatibleCatalogOptions, firstCompatibleHairColor } from "../character-system/registry";
 import type { CharacterAppearance } from "../character-system/types";
 import { generaAspettoDaSeed, type AspettoPersonaggio } from "../game/personaggioAspetto";
 import {
@@ -184,7 +184,9 @@ export function ProfessionOutfitEditorScreen({onExit}:Props){
               <Text style={styles.muted}>Abitante A</Text>
             </View>
             <View style={styles.preview}>
-              <CircularSpriteFrame appearance={examples[1]!.appearance} size={108} animate={false}/>
+              <CircularSpriteFrame appearance={examples[1]!.appearance} size={108}
+                animation={canRenderCharacter(examples[1]!.appearance,"walk")?"walk":"idle"}
+                animate={false}/>
               <Text style={styles.muted}>Abitante B</Text>
             </View>
           </View>
