@@ -10,6 +10,11 @@ const SCENE = "Sprite abitanti reali in tragitto ripetibile";
 const POPULATIONS = [25, 50, 100, 200];
 const SPEEDS = [1, 2, 4];
 
+// Synthetic declarations only: tests never inspect or install a real binary.
+const BASELINE_SHA = "6dfcb12337992418f812049bf4bc1e1c144f843c";
+const CANDIDATE_SHA = "46be16eaf314097f203cdbe03d5c114b2461e751";
+
+
 function dump({ duration = 20, frames = 600, gapAt = -1 } = {}) {
   const rows = ["Flags,IntendedVsync,FrameCompleted"];
   let offset = 0n;
@@ -39,8 +44,14 @@ function fixture({ full = true, short = false, pairsCount = 3 } = {}) {
   }
   return {
     manifest: {
-      schemaVersion: 1, platform: "android", scene: SCENE, refreshHz: 60,
-      samePhysicalDeviceConfirmed: true, scenarios
+      schemaVersion: 2, platform: "android", scene: SCENE, refreshHz: 60,
+      samePhysicalDeviceConfirmed: true,
+      fixtureParityConfirmed: true, sameDeviceConditionsConfirmed: true,
+      builds: {
+        baseline: { pr: 298, commit: BASELINE_SHA, installedOnPhysicalDeviceConfirmed: true },
+        candidate: { pr: 297, commit: CANDIDATE_SHA, installedOnPhysicalDeviceConfirmed: true }
+      },
+      scenarios
     },
     files,
     load(name) {
@@ -58,6 +69,12 @@ test("12 scenarios × three A/B pairs = 72 synthetic dumps, separated by populat
     minimumFullMatrixFiles: 72
   });
   assert.equal(result.status, "full_matrix_for_manual_review");
+  assert.deepEqual(result.buildProvenance, {
+    level: "operator_attested",
+    baseline: BASELINE_SHA,
+    candidate: CANDIDATE_SHA,
+    verification: "human_attestation_only_not_device_or_binary_verified"
+  });
   assert.equal(result.scenarios.length, 12);
   assert.ok(result.scenarios.every(s => s.pairedCaptures === 3 && s.rawDumpFiles === 6));
   assert.ok(result.scenarios.every(s => s.summary.medianPairedP95DeltaMs === -3));
@@ -198,4 +215,51 @@ test("CLI rejects symlink escapes and canonical aliases of the same raw dump", (
   } finally {
     rmSync(root, {recursive:true, force:true});
   }
+});
+
+
+test("legacy Android UI manifests stay readable but can never be evidence-ready without build SHAs", () => {
+  const f = fixture();
+  f.manifest.schemaVersion = 1;
+  delete f.manifest.builds;
+  delete f.manifest.fixtureParityConfirmed;
+  delete f.manifest.sameDeviceConditionsConfirmed;
+  const result = analyzeAndroidUiMatrix(f.manifest, f.load);
+  assert.equal(result.coverage.completed, 12);
+  assert.equal(result.status, "preliminary_legacy_manifest_no_build_provenance");
+  assert.equal(result.buildProvenance.level, "legacy_unverified");
+  assert.equal(result.buildProvenance.baseline, null);
+  assert.equal(result.buildProvenance.candidate, null);
+});
+
+test("Android UI provenance rejects false branch, missing or identical commits and unverified installs", () => {
+  const corruptions = [
+    m => { delete m.builds; },
+    m => { m.builds = []; },
+    m => { m.builds.baseline.pr = 295; },
+    m => { m.builds.candidate.pr = 296; },
+    m => { m.builds.baseline.commit = "short"; },
+    m => { m.builds.candidate.commit = "z".repeat(40); },
+    m => { m.builds.candidate.commit = BASELINE_SHA.toUpperCase(); },
+    m => { m.builds.baseline.installedOnPhysicalDeviceConfirmed = false; },
+    m => { m.builds.candidate.installedOnPhysicalDeviceConfirmed = undefined; },
+    m => { m.fixtureParityConfirmed = false; },
+    m => { m.sameDeviceConditionsConfirmed = false; }
+  ];
+  for (const corrupt of corruptions) {
+    const f = fixture({ full: false });
+    corrupt(f.manifest);
+    assert.throws(() => analyzeAndroidUiMatrix(f.manifest, f.load, { allowPartial: true }),
+      /requires builds|must attest|same Git commit|fixtureParityConfirmed/,
+      "invalid build identity or scene attestations must fail closed");
+  }
+});
+
+test("incomplete Android UI matrix is never accepted by build provenance alone", () => {
+  const f = fixture({ full: false });
+  const result = analyzeAndroidUiMatrix(f.manifest, f.load, { allowPartial: true });
+  assert.equal(result.status, "preliminary_incomplete");
+  assert.equal(result.buildProvenance.level, "operator_attested");
+  assert.equal(result.coverage.completed, 1);
+  assert.equal(result.coverage.missing.length, 11);
 });
