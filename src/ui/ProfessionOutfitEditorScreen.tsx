@@ -6,7 +6,7 @@ import { canRenderCharacter, compatibleCatalogOptions, firstCompatibleHairColor 
 import type { CharacterAppearance } from "../character-system/types";
 import { generaAspettoDaSeed, type AspettoPersonaggio } from "../game/personaggioAspetto";
 import {
-  applyProfessionUniform, clearProfessionUniform, extractProfessionUniform,
+  applyProfessionUniform, clearProfessionUniform, defaultProfessionUniform, extractProfessionUniform,
   getProfessionUniforms, loadProfessionUniforms, PROFESSION_ROLES,
   saveProfessionUniform, saveProfessionUniforms,
   type ProfessionRoleId, type ProfessionUniforms
@@ -40,7 +40,7 @@ function previewAppearance(
     seed:serial,razza:"Umano",sesso:sex
   });
   const result=applyProfessionUniform(publicAppearance,role.lavoro,{
-    isKing:role.id==="re",override:uniform??null
+    isKing:role.id==="re",override:uniform??defaultProfessionUniform(role.id)
   });
   return {appearance:result,aspetto:{...base,characterAppearance:result}};
 }
@@ -177,7 +177,7 @@ export function ProfessionOutfitEditorScreen({onExit}:Props){
           </Pressable>)}
         </View>
         <View style={styles.previewPanel}>
-          <Text style={styles.section}>{role.label} {uniform?"· divisa personalizzata":"· divisa originale"}</Text>
+          <Text style={styles.section}>{role.label} {uniform?"· divisa personalizzata":"· esempio iniziale"}</Text>
           <View style={styles.previews} testID="profession-editor-previews">
             <View style={styles.preview}>
               <CharacterCreationPreview appearance={examples[0]!.appearance} size={100} compact />
@@ -195,7 +195,7 @@ export function ProfessionOutfitEditorScreen({onExit}:Props){
             <Text style={styles.light}>Mostra altri volti</Text>
           </Pressable>
           <Text style={styles.caption}>
-            Due persone diverse con la stessa uniforme. Cambia i volti per controllare che capelli e barba non siano fissati.
+            Due persone con la stessa divisa e capelli diversi. Puoi cambiare i volti senza modificare gli abiti.
           </Text>
         </View>
         <Pressable testID="profession-editor-edit" accessibilityRole="button" accessibilityLabel={"Modifica divisa "+role.label}
@@ -220,7 +220,7 @@ export function ProfessionOutfitEditorScreen({onExit}:Props){
             <Text style={styles.light}>Condividi tramite dispositivo</Text>
           </Pressable>
         </View>:null}
-        <Text style={styles.footnote}>Le preferenze sono salvate sul dispositivo, separatamente dalle partite. Condividendole potremo inserirle come impostazione standard del gioco.</Text>
+        <Text style={styles.footnote}>Le divise che salvi vengono applicate ai ritratti LPC del gioco tradizionale, senza toccare i salvataggi. Nella modalità a settori verranno usate quando sarà disponibile il sistema di mestieri e lo sprite LPC. Condividi le scelte per trasformarle in standard per tutti.</Text>
       </ScrollView>}
       <CreazioneGiocatoreModal
         visible={editing} mode="outfit" initial={modalInitial}
