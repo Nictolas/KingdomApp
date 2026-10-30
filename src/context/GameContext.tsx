@@ -27,6 +27,7 @@ import { decideStartup, shouldAutosave, shouldConfirmNewGame } from "../persiste
 import { StartGameScreen } from "../ui/StartGameScreen";
 import { GameModeSelectionScreen } from "../ui/GameModeSelectionScreen";
 import { SectorPlayableScreen } from "../ui/SectorPlayableScreen";
+import { TerritoryWorldScreen } from "../ui/TerritoryWorldScreen";
 import { GameOverModal } from "../ui/GameOverModal";
 import { ID_GIOCATORE } from "../game/schiavituCommercio";
 import { setOrologioGiocoBloccatoDallaFase } from "../game/orologioGiocoSession";
@@ -390,7 +391,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
   const metadataRef = useRef<SaveEnvelopeV1["metadata"] | null>(null);
   const latestStateRef = useRef(gameState);
   latestStateRef.current = gameState;
-  const [startup, setStartup] = useState<"loading" | "choice" | "mode-choice" | "sector-play" | "active">("loading");
+  const [startup, setStartup] = useState<"loading" | "choice" | "mode-choice" | "sector-play" | "territory-play" | "active">("loading");
   const [startupError, setStartupError] = useState<string | null>(null);
   const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error">("idle");
   const dirtyRef = useRef(false);
@@ -477,6 +478,11 @@ export function GameProvider({ children }: { children: ReactNode }) {
   }, [gameState]);
 
   // Separate local demo: never clear or overwrite the main game's save.
+  const provaTerritori = useCallback(() => {
+    setStartupError(null);
+    setStartup("territory-play");
+  }, []);
+
   const provaSettori = useCallback(() => {
     setStartupError(null);
     setStartup("sector-play");
@@ -582,6 +588,10 @@ export function GameProvider({ children }: { children: ReactNode }) {
     }
   }, [gameOverPerMorteRe]);
 
+  if (startup === "territory-play") {
+    return <TerritoryWorldScreen onExit={() => setStartup("mode-choice")} />;
+  }
+
   if (startup === "sector-play") {
     return <SectorPlayableScreen onExit={() => setStartup("mode-choice")} />;
   }
@@ -593,6 +603,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         canCancel={pendingLoadRef.current != null && pendingLoadRef.current.source !== "none"}
         onSelect={avviaNuovaPartita}
         onTrySectors={provaSettori}
+        onTryTerritories={provaTerritori}
         onCancel={annullaSceltaModalita}
       />
     );
@@ -608,6 +619,7 @@ export function GameProvider({ children }: { children: ReactNode }) {
         onContinue={continua}
         onNewGame={nuovaPartita}
         onTrySectors={provaSettori}
+        onTryTerritories={provaTerritori}
       />
     );
   }
