@@ -20,11 +20,22 @@ export function makeAndroidUiMatrixTemplate({ pairs = 3, scene = SCENES[0] } = {
   }
   if (!SCENES.includes(scene)) throw new Error("Real native-sprite scene required");
   return {
-    schemaVersion: 1,
+    schemaVersion: 2,
     platform: "android",
     scene,
     refreshHz: null,
     samePhysicalDeviceConfirmed: false,
+    // No physical build is inferred from a Git ref or a JS export.
+    fixtureParityConfirmed: false,
+    sameDeviceConditionsConfirmed: false,
+    builds: {
+      baseline: {
+        pr: 298, commit: null, installedOnPhysicalDeviceConfirmed: false
+      },
+      candidate: {
+        pr: 297, commit: null, installedOnPhysicalDeviceConfirmed: false
+      }
+    },
     baselineBranch: "perf/native-real-sprite-ab-baseline-20261028",
     candidateBranch: "perf/native-resident-timer-batching-20261028",
     scenarios: POPULATIONS.flatMap(residents => SPEEDS.map(speed => ({
