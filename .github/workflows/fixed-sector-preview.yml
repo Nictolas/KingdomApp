@@ -37,7 +37,8 @@ jobs:
         run: npx expo export --platform ios --output-dir /tmp/fixed-sector-preview-ios
 
   browser-rendered-preview:
-    runs-on: ubuntu-latest
+    # Playwright 1.55 supports Ubuntu 24.04, not the ubuntu-26.04 runner image.
+    runs-on: ubuntu-24.04
     timeout-minutes: 25
     env:
       CI: true
