@@ -89,7 +89,7 @@ export default function SettoriPreviewScreen() {
                   : "Edificio nel settore "+preview.label} : null);
               }} style={[StyleSheet.absoluteFill,{zIndex:1}]} />
             {trees.map(t=>(
-              <Image pointerEvents="none" key={"tree-"+t.x+"-"+t.y} source={TREE_ART}
+              <Image key={"tree-"+t.x+"-"+t.y} source={TREE_ART}
                 style={{position:"absolute",left:t.x*cell,top:t.y*cell,width:cell,height:cell}} resizeMode="contain"/>
             ))}
             {preview.buildings.map(b=>(
