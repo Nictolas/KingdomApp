@@ -1,0 +1,16 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "src/game/sectorPlayableModel.ts",
+    "src/game/sectorPlayablePersistence.ts",
+    "src/game/sectorPreviewModel.ts",
+    "src/game/sectorPlayableTerrain.ts",
+    "src/ui/SectorPlayableScreen.tsx",
+    "src/ui/GameModeSelectionScreen.tsx",
+    "src/ui/StartGameScreen.tsx",
+    "tests/sector-playable.test.ts",
+    "tests/sector-playable-persistence.test.ts",
+    "tests/sector-playable-terrain.test.ts"
+  ],
+  "exclude": ["node_modules"]
+}

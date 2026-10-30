@@ -1,0 +1,9 @@
+{
+  "extends": "./tsconfig.json",
+  "include": [
+    "app/settori-preview.tsx",
+    "src/game/sectorPreviewModel.ts",
+    "tests/sector-preview.test.ts"
+  ],
+  "exclude": ["node_modules"]
+}

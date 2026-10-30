@@ -1,0 +1,67 @@
+name: Playable Sector Mode
+on:
+  pull_request:
+    paths:
+      - "src/game/sectorPlayableModel.ts"
+      - "src/game/sectorPreviewModel.ts"
+      - "src/game/sectorPlayableTerrain.ts"
+      - "src/ui/SectorPlayableScreen.tsx"
+      - "src/ui/GameModeSelectionScreen.tsx"
+      - "src/ui/StartGameScreen.tsx"
+      - "src/context/GameContext.tsx"
+      - "tests/sector-playable.test.ts"
+      - "tests/sector-playable-persistence.test.ts"
+      - "tests/sector-playable-terrain.test.ts"
+      - "src/game/sectorPlayablePersistence.ts"
+      - "tests/sector-playable-browser.mjs"
+      - "tsconfig.sector-playable.json"
+      - ".github/workflows/playable-sector-mode.yml"
+  workflow_dispatch:
+jobs:
+  playable:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Typecheck gameplay and screens (isolated from baseline)
+        run: npx tsc --project tsconfig.sector-playable.json --noEmit
+      - name: Simulate gameplay and persistence
+        run: npx tsx --test tests/sector-playable.test.ts tests/sector-playable-persistence.test.ts tests/sector-playable-terrain.test.ts
+      - name: Export playable web game
+        run: npm run build:web
+
+  playable-browser:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npm run build:web
+      - name: Install Chromium test tooling (CI only)
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Play the third mode in Chromium at two phone sizes
+        run: node tests/sector-playable-browser.mjs dist
+      - name: Archive real-texture browser screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playable-sector-original-sprites
+          path: sector-screenshots/*.png
+          if-no-files-found: ignore

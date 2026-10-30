@@ -1,0 +1,83 @@
+name: Fixed Sector Preview
+on:
+  pull_request:
+    paths:
+      - "app/settori-preview.tsx"
+      - "src/game/sectorPreviewModel.ts"
+      - "tests/sector-preview.test.ts"
+      - "tests/sector-preview-browser.mjs"
+      - "tests/sector-preview-static-server.mjs"
+      - "tests/sector-preview-static-server.test.mjs"
+      - "docs/FIXED_SECTOR_PREVIEW.md"
+      - "tsconfig.sector-preview.json"
+      - ".github/workflows/fixed-sector-preview.yml"
+  workflow_dispatch:
+jobs:
+  preview-validation:
+    # The standalone mockup belongs to PR #299 only. The playable third mode in
+    # PR #300 supersedes its route: the game selection screen is intentionally shown
+    # by the global provider, so the old standalone browser contract cannot hold.
+    # The third mode has its own dedicated end-to-end Chromium workflow.
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feat/fixed-sector-preview-20261030'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: 1
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Typecheck isolated preview
+        run: npx tsc --project tsconfig.sector-preview.json --noEmit
+      - name: Validate sector model
+        run: npx tsx --test tests/sector-preview.test.ts
+      - name: Validate Expo export route resolution
+        run: node --test tests/sector-preview-static-server.test.mjs
+      - name: Export web bundle
+        run: npx expo export --platform web --output-dir /tmp/fixed-sector-preview-web
+      - name: Export Android JavaScript bundle
+        run: npx expo export --platform android --output-dir /tmp/fixed-sector-preview-android
+      - name: Export iOS JavaScript bundle
+        run: npx expo export --platform ios --output-dir /tmp/fixed-sector-preview-ios
+
+  browser-rendered-preview:
+    if: github.event_name == 'workflow_dispatch' || github.head_ref == 'feat/fixed-sector-preview-20261030'
+    # Playwright 1.55 supports Ubuntu 24.04, not the ubuntu-26.04 runner image.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 25
+    env:
+      CI: true
+      EXPO_NO_TELEMETRY: 1
+      PREVIEW_SCREENSHOT_DIR: /tmp/fixed-sector-preview-screenshots
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - name: Install dependencies
+        run: npm ci
+      - name: Export web for rendered UI checks
+        run: npx expo export --platform web --output-dir /tmp/fixed-sector-preview-browser-web
+      - name: Inspect exported HTML entry points
+        run: |
+          find /tmp/fixed-sector-preview-browser-web -maxdepth 3 -name '*.html' -print | head -40
+          node --input-type=module -e "import { findStaticPreviewFile } from './tests/sector-preview-static-server.mjs'; const file = await findStaticPreviewFile('/tmp/fixed-sector-preview-browser-web', '/settori-preview'); if (!file) process.exit(1); console.log('Resolved /settori-preview:', file)"
+      - name: Install Chromium test tooling (CI only, not app dependencies)
+        run: |
+          npm install --no-save --no-package-lock playwright@1.55.0
+          npx playwright install --with-deps chromium
+      - name: Validate real DOM layout, navigation and capture responsive screenshots
+        run: node tests/sector-preview-browser.mjs /tmp/fixed-sector-preview-browser-web
+      - name: Preserve browser screenshots (not physical-device evidence)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: fixed-sector-preview-browser-screenshots
+          path: /tmp/fixed-sector-preview-screenshots
+          if-no-files-found: ignore
