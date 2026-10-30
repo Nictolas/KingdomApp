@@ -62,6 +62,7 @@ try{
    await page.getByTestId("territory-map-cell-1,0").click();
    await page.getByTestId("territory-map-selected").filter({hasText:/Acquisto:/}).waitFor();
    await page.getByTestId("territory-map-buy").click();
+   await page.getByTestId("territory-map-grid").waitFor({state:"hidden",timeout:6000});
    await page.getByTestId("territory-world-label").filter({hasText:/1,0/}).waitFor();
    await page.getByText(/2 territori/).first().waitFor();
    assert.equal(await page.getByTestId("territory-world-tile").count(),144);
@@ -69,6 +70,7 @@ try{
    await page.getByTestId("territory-world-auto-build").click();
    const message=await page.getByTestId("territory-world-notice").textContent();
    assert.match(message||"",/Casa \d+ costruita/i,"House construction failed: "+message);
+   await page.waitForTimeout(300); // Capture the map after the modal exit fade.
    await page.screenshot({path:`territory-screenshots/claimed-territory-${width}x${height}.png`,fullPage:true});
    await page.getByTestId("territory-world-next-day").click();
    await page.getByText("32×32 · Giorno 2",{exact:true}).waitFor();
