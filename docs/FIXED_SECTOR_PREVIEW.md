@@ -102,3 +102,9 @@ Sul commit `01808ed95e74ce2506331f9e9ef754015d08bd32` il workflow [Fixed Sector 
 - **Correzione mirata:** solo il job browser usa il runner esplicito `ubuntu-24.04`, compatibile con Playwright 1.55.0. Non cambiano dipendenze di produzione, route o fixture.
 - **Copertura estesa:** oltre a sette viewport, controlli su assenza di scroll della pagina, separazione mappa/frecce/footer, target di navigazione e selezione da almeno 44 punti nominali, comportamento delle frecce Nord/Sud al confine, navigazione minimappa in tutti e cinque i settori e screenshot di ogni settore per ogni viewport. I controlli possono individuare difetti reali di layout; **non vanno dichiarati superati finché il nuovo workflow non è verde**.
 - La prova rimane web Chromium in CI, **non** un test su Android/iPhone fisici, safe area/notch reale, VoiceOver/TalkBack, tocchi o FPS nativi. Nessun merge/deploy.
+
+
+### Audit della minimappa 3×3 (30 ottobre)
+- Individuato un difetto geometrico nel layout precedente in verticale: minimappa larga 76 punti, padding laterale 3+3 e bordi 1+1 lasciano **68 punti interni**, mentre tre caselle da 21 punti con margini da 1 punto per lato richiedevano **69 punti**. Con `flexWrap` la disposizione poteva quindi diventare una striscia a due colonne anziché la croce 3×3.
+- Le caselle e i segnaposto ora misurano 20×20 punti con margini da 1: tre elementi occupano **66 punti**, compatibili con i 68 disponibili. Il layout orizzontale mantiene le dimensioni compatte già esistenti.
+- Aggiunto un controllo browser che verifica tutte le nove posizioni della minimappa, righe e colonne, su ciascuno dei sette viewport. È un controllo da **confermare nel workflow successivo**, non una verifica fisica dello smartphone.
