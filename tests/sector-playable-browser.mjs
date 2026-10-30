@@ -56,10 +56,24 @@ try{
  assert.ok(rec.grid.x>=-1 && rec.grid.right<=width+1 && rec.grid.bottom<=height+1,"Map offscreen");
  assert.ok(rec.navigation.y>=rec.grid.bottom-1,"Navigation overlaps grid");
  assert.ok(await page.getByTestId("sector-game-resources").getByText("👤 110").isVisible());
+ // The sprites must advance frames while playing and stop changing when paused.
+ const firstSprite=page.getByTestId("sector-resident").first().locator("img").first();
+ const before=await firstSprite.evaluate(img=>img.style.left);
+ await page.getByTestId("sector-game-pause").click(); // resume animation
+ await page.waitForFunction(start=>{
+   const img=document.querySelector('[data-testid="sector-resident"] img');
+   return img && img.style.left!==start;
+ },before,{timeout:5000});
+ await page.getByTestId("sector-game-pause").click(); // pause again
+ const stopped=await firstSprite.evaluate(img=>img.style.left);
+ await page.waitForTimeout(400);
+ assert.equal(await firstSprite.evaluate(img=>img.style.left),stopped,
+   "Resident sprites must stop animating when paused");
  await page.getByTestId("sector-game-next-day").click();
  await page.getByText("PROTOTIPO GIOCABILE · Giorno 2").waitFor();
  await page.getByRole("button",{name:"Visita Sud"}).click();
  await page.getByText(/SUD · 22 abitanti/i).waitFor();
+ await page.screenshot({path:`sector-screenshots/playable-south-original-sprites-${width}x${height}.png`});
  assert.equal(await page.getByTestId("sector-resident").count(),22,
    "Only the 22 visible south residents should render");
  await page.getByRole("button",{name:"Casa",exact:true}).click();
