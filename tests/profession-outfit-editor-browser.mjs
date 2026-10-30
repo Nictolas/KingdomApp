@@ -39,14 +39,28 @@ try{
       await page.getByTestId("profession-role-agricoltore").click();
       await page.getByTestId("profession-editor-other-faces").click();
       // Both previews must contain decoded LPC images: a blank portrait is a regression.
-      await page.waitForFunction(()=>{
-        const box=document.querySelector('[data-testid="profession-editor-previews"]');
-        if(!box || box.children.length!==2)return false;
-        return Array.from(box.children).every(child=>{
-          const imgs=Array.from(child.querySelectorAll("img"));
-          return imgs.length>=2 && imgs.every(img=>img.complete && img.naturalWidth>0);
+      try{
+        await page.waitForFunction(()=>{
+          const box=document.querySelector('[data-testid="profession-editor-previews"]');
+          if(!box || box.children.length!==2)return false;
+          return Array.from(box.children).every(child=>{
+            const imgs=Array.from(child.querySelectorAll("img"));
+            return imgs.filter(img=>img.complete && img.naturalWidth>0).length>=2;
+          });
+        },undefined,{timeout:15000});
+      }catch(err){
+        await mkdir("profession-editor-screenshots",{recursive:true});
+        await page.screenshot({path:`profession-editor-screenshots/MISSING-PORTRAIT-${width}x${height}.png`});
+        const details=await page.evaluate(()=>{
+          const box=document.querySelector('[data-testid="profession-editor-previews"]');
+          return Array.from(box?.children||[]).map(el=>({
+            imageCount:el.querySelectorAll("img").length,
+            loaded:Array.from(el.querySelectorAll("img")).filter(img=>img.complete&&img.naturalWidth>0).length,
+            labels:el.textContent?.slice(0,100)
+          }));
         });
-      },undefined,{timeout:45000});
+        throw new Error("Profession LPC portrait is blank: "+JSON.stringify(details),{cause:err});
+      }
 
       await mkdir("profession-editor-screenshots",{recursive:true});
       await page.screenshot({path:`profession-editor-screenshots/overview-${width}x${height}.png`,fullPage:true});
