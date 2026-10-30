@@ -5,6 +5,7 @@ import {
 import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { TerrainSheetSprite } from "../components/TerrainSheetSprite";
+import { SectorResidentHumanSprite } from "../components/SectorResidentHumanSprite";
 import { getErbaSheetCoord,getWaterSheetCoord,type SheetCoord } from "../game/overworldSpritesheetLayout";
 import { sectorBuildingAccent } from "../game/sectorPlayableTerrain";
 import { fitSquareGrid } from "../game/sectorPreviewModel";
@@ -22,7 +23,6 @@ const HOUSE=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/hou
 const HUT=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/house_2.png");
 const CASTLE=require("../../assets/pixel-art/buildings/castle.png");
 const TREE=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/tree_1.png");
-const CHARACTER=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/character.png");
 const ROAD_X=512,ROAD_Y=128;
 const tools:readonly {id:TerritoryTool;label:string}[]=[
   {id:"inspect",label:"Esplora"},{id:"road",label:"Strada"},
@@ -39,15 +39,6 @@ const getBuildingAsset=(kind:TerritoryBuildingKind)=>
 const isConstructible=(tool:TerritoryTool):tool is Exclude<TerritoryBuildingKind,"castle"> =>
   tool==="house"||tool==="farm"||tool==="shop"||tool==="lumber"||tool==="guard";
 
-function WorldResidentSprite({cell,index,frame}:{cell:number;index:number;frame:number}){
-  const sourceIndex=(index%4)*3+(frame+index)%3;
-  return <View pointerEvents="none" style={{width:cell,height:cell,justifyContent:"flex-end"}}>
-    <View style={{width:cell,height:cell*1.22,overflow:"hidden"}}>
-      <Image source={CHARACTER} testID="territory-resident-image"
-        resizeMode="stretch" style={{position:"absolute",width:cell*12,height:cell*1.22,left:-sourceIndex*cell,top:0}}/>
-    </View>
-  </View>;
-}
 function terrainArt(tile:TerritoryTile,x:number,y:number,isRoad:(x:number,y:number)=>boolean):SheetCoord{
   if(tile==="water")return getWaterSheetCoord(0);
   if(tile==="road"){
@@ -271,7 +262,7 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
           {displayedResidents.map((p,i)=><View pointerEvents="none" testID="territory-world-resident"
             key={p.id} style={{position:"absolute",left:(p.x-camera.x)*cell,top:(p.y-camera.y)*cell,
               width:cell,height:cell}}>
-            <WorldResidentSprite cell={cell} index={i} frame={frame}/>
+            <SectorResidentHumanSprite cell={cell} residentId={p.id} frame={frame}/>
           </View>)}
         </View>:<Text style={styles.muted}>Preparazione visualizzazione…</Text>}
       </View>
