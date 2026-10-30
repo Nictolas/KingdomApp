@@ -69,7 +69,31 @@ try {
         rect.grid.y >= -1 && rect.grid.bottom <= height + 1, "Map clipped at " + width + "x" + height);
       assert.ok(rect.grid.bottom <= rect.nav.top + 1, "Arrows overlap map at " + width + "x" + height);
       assert.ok(rect.footer.bottom <= height + 1, "Footer clipped at " + width + "x" + height);
+      assert.ok(rect.nav.bottom <= rect.footer.top + 1, "Navigation overlaps footer at " + width + "x" + height);
+      const scroll = await page.evaluate(() => ({
+        width: document.documentElement.scrollWidth, height: document.documentElement.scrollHeight,
+        viewportWidth: innerWidth, viewportHeight: innerHeight
+      }));
+      assert.ok(scroll.width <= width + 1 && scroll.height <= height + 1,
+        "Unexpected document scroll at " + width + "x" + height + ": " + JSON.stringify(scroll));
+      for (const direction of ["nord", "sud", "est", "ovest"]) {
+        const button = page.getByRole("button", { name: "Settore " + direction });
+        const box = await button.boundingBox();
+        assert.ok(box && box.width >= 43 && box.height >= 43,
+          "Direction tap target too small: " + direction + " " + width + "x" + height);
+      }
+      for (const name of ["Elemento precedente", "Elemento successivo"]) {
+        const box = await page.getByRole("button", { name }).boundingBox();
+        assert.ok(box && box.width >= 43 && box.height >= 43,
+          "Selection tap target too small: " + name + " " + width + "x" + height);
+      }
       await page.screenshot({ path: join(screenshots, "sector-center-" + width + "x" + height + ".png") });
+      await page.getByRole("button", { name: "Settore nord" }).click();
+      await page.getByText("NORD · BOSCO", { exact: true }).waitFor({ state: "visible" });
+      assert.ok(await page.getByRole("button", { name: "Settore nord" }).isDisabled(),
+        "North arrow should be disabled at the northern boundary");
+      await page.getByRole("button", { name: "Settore sud" }).click();
+      await page.getByText("CENTRO CITTÀ", { exact: true }).waitFor({ state: "visible" });
       for (const [label, title] of [
         ["Nord · Bosco","NORD · BOSCO"], ["Sud · Fattorie","SUD · FATTORIE"],
         ["Est · Mercato","EST · MERCATO"], ["Ovest · Quartiere","OVEST · QUARTIERE"],
@@ -80,6 +104,12 @@ try {
         const newGrid = await page.getByTestId("sector-preview-grid").boundingBox();
         assert.ok(newGrid && Math.abs(newGrid.width / 16 - newGrid.height / 24) < 0.1,
           "Sector grid distorted after navigation at " + width + "x" + height);
+        assert.ok(newGrid.x >= -1 && newGrid.y >= -1 &&
+          newGrid.x + newGrid.width <= width + 1 &&
+          newGrid.y + newGrid.height <= height + 1,
+          "Sector grid clipped after navigation: " + label + " " + width + "x" + height);
+        await page.screenshot({ path: join(screenshots,
+          "sector-" + label.split(" ")[0].toLowerCase() + "-" + width + "x" + height + ".png") });
       }
       assert.equal(pageErrors.length, 0, "Runtime errors: " + pageErrors.join("; "));
       console.log("PASS web Chromium " + width + "x" + height + ": grid, arrows, footer, selection, five sectors");
