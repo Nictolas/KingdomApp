@@ -41,6 +41,7 @@ export function SpriteCharacterRenderer({
   visibleLayers,
   visibleSemanticIds,
   animate = true,
+  frameOverride,
   offsetY = 0,
   debug = false
 }: {
@@ -53,6 +54,8 @@ export function SpriteCharacterRenderer({
   visibleSemanticIds?: Partial<Record<CharacterLayer, string>>;
   /** When false, keeps the first idle/walk frame (no bobbing). */
   animate?: boolean;
+  /** Shared animation frame from a map clock; prevents one timer per citizen. */
+  frameOverride?: number;
   /** Shifts the sheet vertically inside the clip; keep within one direction row. */
   offsetY?: number;
   debug?: boolean;
@@ -76,20 +79,21 @@ export function SpriteCharacterRenderer({
 
   useEffect(() => {
     setFrame(0);
-    if (!animate || !definition || !definition.loop || definition.frames < 2) return;
+    if (frameOverride !== undefined || !animate || !definition || !definition.loop || definition.frames < 2) return;
     const timer = setInterval(() => setFrame((value) => (value + 1) % definition.frames), definition.frameDurationMs);
     return () => clearInterval(timer);
-  }, [animate, animation, direction, definition]);
+  }, [animate, animation, direction, definition, frameOverride !== undefined]);
 
   if (!definition || layers.length === 0) return null;
   const frameWidth = layers[0]!.sheet.frameWidth;
   const scale = size / frameWidth;
-  const animatedColumn = definition.columns?.[frame] ?? frame;
+  const currentFrame = frameOverride === undefined ? frame : ((Math.trunc(frameOverride) % definition.frames) + definition.frames) % definition.frames;
+  const animatedColumn = definition.columns?.[currentFrame] ?? currentFrame;
   const row = definition.directionRows[direction];
   const useTransformIdleBob = animation === "idle" && definition.frames >= 2;
   const idleDownColumn = definition.columns?.[1] ?? definition.columns?.[0] ?? 0;
   const sheetColumn = useTransformIdleBob ? idleDownColumn : animatedColumn;
-  const bobOffsetY = useTransformIdleBob && animate && frame === 0
+  const bobOffsetY = useTransformIdleBob && animate && currentFrame === 0
     ? -lpcIdleBobPx(size, frameWidth)
     : 0;
 

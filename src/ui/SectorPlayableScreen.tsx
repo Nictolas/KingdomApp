@@ -2,6 +2,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { Image, Modal, Pressable, StyleSheet, Text, View, useWindowDimensions } from "react-native";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { TerrainSheetSprite } from "../components/TerrainSheetSprite";
+import { SectorResidentHumanSprite } from "../components/SectorResidentHumanSprite";
 import { sectorBuildingAccent, sectorGroundCoord } from "../game/sectorPlayableTerrain";
 import { createSectorSaveQueue, loadSectorKingdom } from "../game/sectorPlayablePersistence";
 import { SafeAreaView } from "react-native-safe-area-context";
@@ -17,20 +18,6 @@ const HUT=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/house
 const CASTLE=require("../../assets/pixel-art/buildings/castle.png");
 const TREE=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/tree_1.png");
 const TREE_2=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/tree_2.png");
-// The sector renderer reuses MyKingdom’s original terrain and citizen spritesheets.
-const CHARACTER_SHEET=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/character.png");
-const SectorResidentArt = React.memo(function SectorResidentArt({cell,index,frame}:{cell:number;index:number;frame:number}) {
-  // character.png is a 12-frame horizontal strip; frames are 64×64 in the original.
-  // Match MapWandererCharacter's clipping and 1.22× height without launching wanderer AI.
-  const frameIndex=(index%4)*3+(frame+index)%3;
-  const height=cell*1.22;
-  return <View pointerEvents="none" style={{width:cell,height:cell,alignItems:"center",justifyContent:"flex-end"}}>
-    <View style={{width:cell,height,overflow:"hidden"}}>
-      <Image testID="sector-resident-atlas-image" source={CHARACTER_SHEET} resizeMode="stretch"
-        style={{position:"absolute",width:cell*12,height,left:-frameIndex*cell,top:0}}/>
-    </View>
-  </View>;
-});
 const NAV: Array<{id:SectorId;label:string}>=[
   {id:"nord",label:"Nord"},{id:"ovest",label:"Ovest"},{id:"centro",label:"Centro"},
   {id:"est",label:"Est"},{id:"sud",label:"Sud"}
@@ -169,7 +156,7 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
           })}
           {world.residents.map((p,i)=><View testID="sector-resident" pointerEvents="none" key={p.id}
             style={{position:"absolute",left:p.x*cell,top:p.y*cell,width:cell,height:cell}}>
-            <SectorResidentArt cell={cell} index={i} frame={spriteFrame}/>
+            <SectorResidentHumanSprite cell={cell} residentId={p.id} frame={spriteFrame}/>
           </View>)}
           <Pressable testID="sector-game-tap-grid" accessibilityRole="button" accessibilityLabel="Griglia di gioco, tocca una casella"
             style={[StyleSheet.absoluteFill,{zIndex:9}]} onPress={e=>{

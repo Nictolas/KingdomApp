@@ -1,0 +1,16 @@
+{
+  "extends":"./tsconfig.json",
+  "include":[
+    "src/game/territoryWorldModel.ts",
+    "src/game/territoryGeography.ts",
+    "src/game/territoryWorldPersistence.ts",
+    "src/ui/TerritoryWorldScreen.tsx",
+    "src/ui/TerritoryDirectionPad.tsx",
+    "src/ui/StartGameScreen.tsx",
+    "src/ui/GameModeSelectionScreen.tsx",
+    "tests/territory-world.test.ts",
+    "tests/territory-world-persistence.test.ts",
+    "tests/sector-human-residents.test.ts"
+  ],
+  "exclude":["node_modules"]
+}

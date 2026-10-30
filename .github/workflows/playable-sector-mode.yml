@@ -6,6 +6,10 @@ on:
       - "src/game/sectorPreviewModel.ts"
       - "src/game/sectorPlayableTerrain.ts"
       - "src/ui/SectorPlayableScreen.tsx"
+      - "src/components/SectorResidentHumanSprite.tsx"
+      - "src/components/SpriteCharacterRenderer.tsx"
+      - "src/game/sectorResidentAppearance.ts"
+      - "tests/sector-human-residents.test.ts"
       - "src/ui/GameModeSelectionScreen.tsx"
       - "src/ui/StartGameScreen.tsx"
       - "src/context/GameContext.tsx"
@@ -34,7 +38,7 @@ jobs:
       - name: Typecheck gameplay and screens (isolated from baseline)
         run: npx tsc --project tsconfig.sector-playable.json --noEmit
       - name: Simulate gameplay and persistence
-        run: npx tsx --test tests/sector-playable.test.ts tests/sector-playable-persistence.test.ts tests/sector-playable-terrain.test.ts
+        run: npx tsx --test tests/sector-playable.test.ts tests/sector-playable-persistence.test.ts tests/sector-playable-terrain.test.ts tests/sector-human-residents.test.ts
       - name: Export playable web game
         run: npm run build:web
 

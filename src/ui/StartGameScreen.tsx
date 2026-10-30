@@ -8,7 +8,7 @@ type Props = {
   confirmNewGame: boolean;
   onContinue: () => void;
   onNewGame: () => void;
-  onTrySectors: () => void;
+  onTryTerritories: () => void;
 };
 
 export function StartGameScreen({
@@ -18,7 +18,7 @@ export function StartGameScreen({
   confirmNewGame,
   onContinue,
   onNewGame,
-  onTrySectors
+  onTryTerritories
 }: Props) {
   const [showNewGameConfirmation, setShowNewGameConfirmation] = useState(false);
 
@@ -50,9 +50,10 @@ export function StartGameScreen({
             <Pressable style={styles.secondary} onPress={handleNewGamePress}>
               <Text style={styles.buttonText}>Nuova partita</Text>
             </Pressable>
-            <Pressable testID="start-sector-mode" accessibilityRole="button" style={styles.sectorButton} onPress={onTrySectors}>
-              <Text style={styles.buttonText}>🏘️ Gioca: Regno a settori</Text>
-              <Text style={styles.sectorNote}>Prototipo separato: non cancella la partita principale.</Text>
+            <Pressable testID="start-territory-world" accessibilityRole="button"
+              style={styles.territoryButton} onPress={onTryTerritories}>
+              <Text style={styles.buttonText}>Regno a territori · 32×32</Text>
+              <Text style={styles.sectorNote}>Esplora, acquista e conquista nuovi territori. Salvataggio indipendente.</Text>
             </Pressable>
           </>
         )}
@@ -99,7 +100,7 @@ const styles = StyleSheet.create({
   subtitle: { color: "#94a3b8", fontSize: 15, textAlign: "center", marginBottom: 16 },
   primary: { backgroundColor: "#2563eb", padding: 14, borderRadius: 10 },
   secondary: { backgroundColor: "#334155", padding: 14, borderRadius: 10 },
-  sectorButton: {backgroundColor:"#166534",padding:13,borderRadius:10,borderWidth:1,borderColor:"#86efac"},
+  territoryButton:{backgroundColor:"#80623b",padding:13,borderRadius:10,borderWidth:1,borderColor:"#d4b078"},
   sectorNote: {color:"#d1fae5",fontSize:11,textAlign:"center",marginTop:4},
   buttonText: { color: "#fff", fontWeight: "700", textAlign: "center" },
   error: { color: "#fca5a5", textAlign: "center", marginTop: 8 },
