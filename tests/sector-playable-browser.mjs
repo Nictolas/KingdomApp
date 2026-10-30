@@ -1,7 +1,7 @@
 // End-to-end browser smoke for the playable sector mode (not native device verification).
 import assert from "node:assert/strict";
 import { createServer } from "node:http";
-import { readFile } from "node:fs/promises";
+import { mkdir, readFile } from "node:fs/promises";
 import { extname, resolve } from "node:path";
 import { chromium } from "playwright";
 import { findStaticPreviewFile } from "./sector-preview-static-server.mjs";
@@ -33,6 +33,19 @@ try{
  assert.ok(await page.getByRole("button",{name:"Creativa"}).isVisible());
  await page.getByTestId("choose-sector-mode").click();
  await page.getByTestId("sector-game-grid").waitFor({state:"visible",timeout:40000});
+ // Pause the autonomous clock while we verify image decoding on slower CI runners.
+ await page.getByTestId("sector-game-pause").click();
+ await page.waitForFunction(()=>{
+   const grid=document.querySelector('[data-testid="sector-game-grid"]');
+   if(!grid)return false;
+   const terrain=grid.querySelectorAll('[data-testid="sector-terrain-tile"]');
+   const residents=grid.querySelectorAll('[data-testid="sector-resident"]');
+   const images=Array.from(grid.querySelectorAll('img'));
+   return terrain.length===384 && residents.length===30 &&
+     images.length>=414 && images.every(img=>img.complete&&img.naturalWidth>0);
+ },undefined,{timeout:30000});
+ await mkdir("sector-screenshots",{recursive:true});
+ await page.screenshot({path:`sector-screenshots/playable-original-sprites-${width}x${height}.png`});
  const rec=await page.evaluate(()=>{
   const rect=id=>{const r=document.querySelector('[data-testid="'+id+'"]')?.getBoundingClientRect();
      if(!r)throw Error(id+" missing");
@@ -47,6 +60,8 @@ try{
  await page.getByText("PROTOTIPO GIOCABILE · Giorno 2").waitFor();
  await page.getByRole("button",{name:"Visita Sud"}).click();
  await page.getByText(/SUD · 22 abitanti/i).waitFor();
+ assert.equal(await page.getByTestId("sector-resident").count(),22,
+   "Only the 22 visible south residents should render");
  await page.getByRole("button",{name:"Casa",exact:true}).click();
  const box=await page.getByTestId("sector-game-grid").boundingBox();
  const cell=box.width/16;
@@ -63,7 +78,7 @@ try{
  await page.getByTestId("sector-game-grid").waitFor();
  await page.getByText(/SUD · 22 abitanti/i).waitFor();
  assert.equal(errors.length,0,"Runtime errors: "+errors.join("; "));
- console.log("PASS playable mode "+width+"x"+height+": selection, grid, clock, travel, build, isolated resume");
+ console.log("PASS playable mode "+width+"x"+height+": real terrain/citizen images decoded, 384 tiles, visible-only sprites, clock, travel, build, isolated save");
  }finally{await page.close();}
  }
 }finally{
