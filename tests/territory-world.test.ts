@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import {naturalGeographyAt,regionalBiome,ridgeAt,riverAt} from "../src/game/territoryGeography";
 import test from "node:test";
 import {
  TERRITORY_SIDE,TERRITORY_CELLS,TERRITORY_BUILDINGS,CONQUEST_GOLD_COST,CONQUEST_WOOD_COST,
@@ -12,6 +13,7 @@ const seed=123456789;
 test("new world starts with exactly one 32×32 territory, not five; save is valid",()=>{
  const w=createTerritoryWorld(seed);
  assert.equal(w.seed,seed);
+ assert.equal(w.terrainVersion,2,"All newly created worlds use the improved generation, existing saves keep v1");
  assert.deepEqual(Object.keys(w.territories),["0,0"]);
  assert.equal(w.active,"0,0");
  assert.equal(TERRITORY_SIDE,32);assert.equal(TERRITORY_CELLS,1024);
@@ -208,4 +210,100 @@ test("discovered territory uses the biome saved with it even if future fixed-lan
   assert.equal(tileAt(oldBiomeWorld,oldBiomeWorld.territories["0,0"],cell!.x,cell!.y),
     groundAt(seed,0,0,cell!.x,cell!.y,"foresta"));
   assert.equal(base.territories["0,0"].biome,"pianura");
+});
+
+test("new world v2 has rivers and mountain ranges continuous across 32×32 boundaries",()=>{
+  const s=987654321;
+  let riverCrossings=0,ridgeCrossings=0;
+  // Sample distinct borders across the landscape. Both sides use absolute
+  // world coordinates, so no terrain feature can be arbitrarily reset at
+  // the edge of a territory or depend on exploration order.
+  for(let tx=-12;tx<=12;tx++){
+    const left=(tx+1)*32-1,right=(tx+1)*32;
+    let riverOnEdge=false,ridgeOnEdge=false;
+    for(let y=-160;y<=160;y++){
+      if(riverAt(s,left,y)&&riverAt(s,right,y))riverOnEdge=true;
+      if(ridgeAt(s,left,y)&&ridgeAt(s,right,y))ridgeOnEdge=true;
+    }
+    if(riverOnEdge)riverCrossings++;
+    if(ridgeOnEdge)ridgeCrossings++;
+  }
+  assert.ok(riverCrossings>=20,"Meandering rivers must cross many world sectors");
+  assert.ok(ridgeCrossings>=5,"Mountains must form chains extending across sectors");
+
+  for(let tx=-3;tx<=3;tx++)for(let ty=-3;ty<=3;ty++){
+    const world=createTerritoryWorld(s);
+    const biome=regionalBiome(s,tx,ty);
+    const y=ty*32+7,x=(tx+1)*32-1;
+    assert.equal(
+      naturalGeographyAt(s,x,y,biome),
+      naturalGeographyAt(s,x,y,biome),
+      "New geography must be deterministic"
+    );
+    const sampled=Array.from({length:1024},(_,i)=>{
+      const lx=i%32,ly=Math.floor(i/32);
+      return groundAt(s,tx,ty,lx,ly,biome,2);
+    });
+    const again=Array.from({length:1024},(_,i)=>{
+      const lx=i%32,ly=Math.floor(i/32);
+      return groundAt(s,tx,ty,lx,ly,biome,2);
+    });
+    assert.deepEqual(sampled,again);
+    assert.equal(sampled.length,1024);
+    assert.equal(world.terrainVersion,2);
+    for(const [lx,ly] of [[15,0],[16,31],[0,15],[31,16]]){
+      assert.equal(groundAt(s,tx,ty,lx,ly,biome,2),"road",
+        "Roads must remain passable at every sector boundary");
+    }
+  }
+});
+
+test("legacy saves with no terrainVersion preserve their old biomes and all 1024 tile types",()=>{
+  const seed=99123;
+  const newWorld=createTerritoryWorld(seed);
+  const legacy={...newWorld,terrainVersion:undefined};
+  assert.ok(isTerritoryWorld(legacy),"Previously saved world without version field remains readable");
+  assert.equal(isTerritoryWorld({...newWorld,terrainVersion:3}),false);
+  for(const [tx,ty] of [[0,0],[1,0],[-2,-3],[4,1]]){
+    const oldBiome=biomeForTerritory(seed,tx,ty);
+    for(let y=0;y<32;y++)for(let x=0;x<32;x++){
+      const prior=groundAt(seed,tx,ty,x,y,oldBiome);
+      const loaded=groundAt(seed,tx,ty,x,y,oldBiome,legacy.terrainVersion??1);
+      assert.equal(loaded,prior,"An existing legacy world tile must never reroll");
+    }
+  }
+  const t=legacy.territories["0,0"];
+  for(let y=0;y<32;y++)for(let x=0;x<32;x++){
+    assert.equal(tileAt(legacy,t,x,y),groundAt(seed,0,0,x,y,t.biome),
+      "The loaded original capital retains every prior terrain cell");
+  }
+});
+
+test("new worlds stay valid after exploring forests, rivers, and extending roads",()=>{
+  let world=createTerritoryWorld(987654321);
+  world={...world,gold:500,wood:500};
+  const destinations:[[number,number],[number,number],[number,number]]=[
+    [1,0],[2,0],[2,1]
+  ];
+  for(const [x,y] of destinations){
+    const before=territoryPreview(world,x,y);
+    assert.ok(before.reachable);
+    world=claimTerritory(world,x,y,"purchase");
+    assert.equal(world.active,territoryKey(x,y));
+    assert.ok(isTerritoryWorld(world));
+    const previous=world.territories[world.active];
+    const forest=Array.from({length:1024},(_,i)=>({x:i%32,y:Math.floor(i/32)}))
+      .find(p=>tileAt(world,previous,p.x,p.y)==="woodland");
+    if(forest){
+      const next=territoryAction(world,"clear",forest.x,forest.y);
+      assert.equal(tileAt(next,next.territories[next.active],forest.x,forest.y),"grass");
+      assert.ok(isTerritoryWorld(next));
+      world=next;
+    }
+  }
+  assert.equal(world.terrainVersion,2);
+  assert.equal(Object.keys(world.territories).length,4);
+  const saved=JSON.parse(JSON.stringify(world));
+  assert.ok(isTerritoryWorld(saved));
+  assert.deepEqual(saved.territories,world.territories);
 });
