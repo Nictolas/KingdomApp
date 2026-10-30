@@ -330,7 +330,7 @@ function moveResidents(world:TerritoryWorld,t:Territory,day:number):TerritoryRes
 function spawnNewResident(world:TerritoryWorld,t:Territory):TerritoryResident|null{
   const occupied=new Set(t.residents.map(r=>r.y*TERRITORY_SIDE+r.x));
   for(let k=0;k<TERRITORY_CELLS;k++){
-    const cell=(Math.imul(world.nextResident,31)+k*37)%TERRITORY_CELLS;
+    const cell=((Math.imul(world.nextResident,31)+k*37)%TERRITORY_CELLS+TERRITORY_CELLS)%TERRITORY_CELLS;
     const x=cell%TERRITORY_SIDE,y=Math.floor(cell/TERRITORY_SIDE);
     if(!occupied.has(cell)&&isFreeCell(world,t,x,y)){
       const id=world.nextResident;
