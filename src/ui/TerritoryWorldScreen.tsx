@@ -6,6 +6,7 @@ import { SafeAreaView } from "react-native-safe-area-context";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { TerrainSheetSprite } from "../components/TerrainSheetSprite";
 import { SectorResidentHumanSprite } from "../components/SectorResidentHumanSprite";
+import { TerritoryDirectionPad, type AdjacentTerritoryStatus } from "./TerritoryDirectionPad";
 import { getErbaSheetCoord,getWaterSheetCoord,type SheetCoord } from "../game/overworldSpritesheetLayout";
 import { sectorBuildingAccent } from "../game/sectorPlayableTerrain";
 import { fitSquareGrid } from "../game/sectorPreviewModel";
@@ -175,6 +176,25 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
     setWorld(prev=>prev?visitTerritory(prev,key):prev);
     setMapOpen(false);setTool("inspect");setCamera({x:5,y:5});
   };
+  const navigateToAdjacentTerritory=(direction:Direction)=>{
+    if(!world||!territory)return;
+    const delta:Record<Direction,readonly [number,number]>={
+      n:[0,-1],e:[1,0],s:[0,1],w:[-1,0]
+    };
+    const [dx,dy]=delta[direction];
+    const x=territory.tx+dx,y=territory.ty+dy;
+    if(Math.abs(x)>4096||Math.abs(y)>4096)return;
+    const key=territoryKey(x,y);
+    if(world.territories[key]){
+      visit(key);
+    }else{
+      // Adjacent but not yet acquired: present existing purchase/conquest UI,
+      // preselecting this specific frontier tile. No resources are spent here.
+      setMapCenter({tx:territory.tx,ty:territory.ty});
+      setSelectedKey(key);
+      setMapOpen(true);
+    }
+  };
   const reset=()=>{
     setResetOpen(false);
     setMapOpen(false);
@@ -203,6 +223,18 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
 
   const ownedCount=Object.keys(world.territories).length;
   const [tx,ty]=[territory.tx,territory.ty];
+  const adjacentStatus=(direction:Direction):AdjacentTerritoryStatus=>{
+    const delta:Record<Direction,readonly [number,number]>={
+      n:[0,-1],e:[1,0],s:[0,1],w:[-1,0]
+    };
+    const [dx,dy]=delta[direction],x=tx+dx,y=ty+dy;
+    if(Math.abs(x)>4096||Math.abs(y)>4096)return "edge";
+    return world.territories[territoryKey(x,y)]?"owned":"frontier";
+  };
+  const dpadStatus:Record<Direction,AdjacentTerritoryStatus>={
+    n:adjacentStatus("n"),e:adjacentStatus("e"),
+    s:adjacentStatus("s"),w:adjacentStatus("w")
+  };
   // A 5×5 map is a movable camera, not a world boundary. The view can
   // travel indefinitely as the player expands, without loading or saving
   // new regions just for previewing them.
@@ -345,6 +377,10 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
         <Pressable accessibilityRole="button" accessibilityLabel="Ricomincia Regno a territori"
           style={styles.resetButton} onPress={()=>setResetOpen(true)}><Text style={styles.light}>Ricomincia</Text></Pressable>
       </View>
+      <TerritoryDirectionPad compact={tight}
+        status={dpadStatus}
+        onDirection={navigateToAdjacentTerritory}
+        onOpenMap={openMap}/>
 
       <Modal visible={mapOpen} transparent animationType="fade" onRequestClose={()=>setMapOpen(false)}>
         <SafeAreaView style={styles.overlay}>
