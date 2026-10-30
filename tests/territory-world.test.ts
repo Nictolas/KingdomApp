@@ -190,3 +190,22 @@ test("hostile or malformed saves cannot enter simulation",()=>{
  }
  assert.equal(isTerritoryWorld(base),true);
 });
+
+test("discovered territory uses the biome saved with it even if future fixed-landmark rules change",()=>{
+  const base=createTerritoryWorld(seed);
+  const oldBiomeWorld={
+    ...base,
+    territories:{
+      ...base.territories,
+      "0,0":{...base.territories["0,0"],biome:"foresta" as const}
+    }
+  };
+  assert.ok(isTerritoryWorld(oldBiomeWorld));
+  const cell=Array.from({length:1024},(_,i)=>({x:i%32,y:Math.floor(i/32)}))
+    .find(({x,y})=>
+      groundAt(seed,0,0,x,y,"foresta")!==groundAt(seed,0,0,x,y,"pianura"));
+  assert.ok(cell);
+  assert.equal(tileAt(oldBiomeWorld,oldBiomeWorld.territories["0,0"],cell!.x,cell!.y),
+    groundAt(seed,0,0,cell!.x,cell!.y,"foresta"));
+  assert.equal(base.territories["0,0"].biome,"pianura");
+});
