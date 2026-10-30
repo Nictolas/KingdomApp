@@ -109,9 +109,9 @@ export function SectorPlayableScreen({onExit}:{onExit:()=>void}) {
           }}/>)}
           {tiles.filter(t=>sector==="nord"&&!t.road&&
              ((t.x*17+t.y*31)%11===0)&&!world.buildings.some(b=>t.x>=b.x&&t.x<b.x+b.w&&t.y>=b.y&&t.y<b.y+b.h))
-           .map(t=><Image key={"tree"+t.y+"-"+t.x} pointerEvents="none" source={TREE}
+           .map(t=><Image key={"tree"+t.y+"-"+t.x} source={TREE}
              style={{position:"absolute",left:t.x*cell,top:t.y*cell,width:cell,height:cell}} resizeMode="contain"/>)}
-          {world.buildings.map(b=><Image key={b.id} pointerEvents="none" source={getAsset(b.kind)}
+          {world.buildings.map(b=><Image key={b.id} source={getAsset(b.kind)}
             resizeMode="contain" style={{position:"absolute",left:b.x*cell,top:b.y*cell,width:b.w*cell,height:b.h*cell}}/>)}
           {world.residents.map((p,i)=><View pointerEvents="none" key={p.id}
             style={{position:"absolute",left:p.x*cell,top:p.y*cell,width:cell,height:cell,justifyContent:"center",alignItems:"center"}}>
