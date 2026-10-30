@@ -307,3 +307,14 @@ test("new worlds stay valid after exploring forests, rivers, and extending roads
   assert.ok(isTerritoryWorld(saved));
   assert.deepEqual(saved.territories,world.territories);
 });
+
+test("the overview remains safe at the world's supported coordinate edges",()=>{
+  const world=createTerritoryWorld(23232);
+  for(const [tx,ty] of [[4096,4096],[-4096,-4096],[4096,-4096],[-4096,4096]]){
+    const preview=territoryPreview(world,tx,ty);
+    assert.equal(preview.owned,false);
+    assert.equal(preview.reachable,false);
+    assert.equal(preview.tx,tx);
+    assert.equal(preview.ty,ty);
+  }
+});
