@@ -1,42 +1,21 @@
-// Browser-rendered regression for the isolated preview. This is NOT an Android/iPhone device test.
+// Browser-rendered regression against the Expo Router development server.
+// This is NOT an Android/iPhone device test, nor proof of exported SPA deep links.
 import assert from "node:assert/strict";
-import { createServer } from "node:http";
-import { mkdir, readFile } from "node:fs/promises";
-import { extname, join, resolve } from "node:path";
-import { chromium } from "playwright";
-import { findStaticPreviewFile } from "./sector-preview-static-server.mjs";
+import { mkdir } from "node:fs/promises";
+import { join, resolve } from "node:path";
+import { createRequire } from "node:module";
 
-const root = resolve(process.argv[2] || "/tmp/fixed-sector-preview-browser-web");
+// Keep Playwright outside app node_modules to avoid mutating Expo dependencies.
+const require = createRequire(import.meta.url);
+const { chromium } = require(process.env.PREVIEW_PLAYWRIGHT_MODULE || "playwright");
+const baseUrl = (process.argv[2] || "http://127.0.0.1:8081").replace(/\/$/, "");
+if (!/^http:\/\/127\.0\.0\.1:\d+$/.test(baseUrl)) {
+  throw new Error("Browser preview requires a local Expo Router development server");
+}
+const routeEntry = baseUrl + "/settori-preview";
 const screenshots = resolve(process.env.PREVIEW_SCREENSHOT_DIR || "/tmp/fixed-sector-preview-screenshots");
-const types = { ".html": "text/html", ".js": "text/javascript", ".css": "text/css",
-  ".json": "application/json", ".png": "image/png", ".jpg": "image/jpeg",
-  ".jpeg": "image/jpeg", ".svg": "image/svg+xml", ".woff2": "font/woff2" };
 await mkdir(screenshots, { recursive: true });
-
-const server = createServer(async (req, res) => {
-  try {
-    const pathname = decodeURIComponent(new URL(req.url || "/", "http://localhost").pathname);
-    const file = await findStaticPreviewFile(root, pathname);
-    if (!file) {
-      res.writeHead(404);
-      res.end("Not found");
-      return;
-    }
-    const data = await readFile(file);
-    res.writeHead(200, { "Content-Type": types[extname(file)] || "application/octet-stream" });
-    res.end(data);
-  } catch {
-    res.writeHead(404);
-    res.end("Not found");
-  }
-});
-await new Promise((ok, fail) => {
-  server.once("error", fail);
-  server.listen(0, "127.0.0.1", ok);
-});
-const port = server.address().port;
-const routeEntry = await findStaticPreviewFile(root, "/settori-preview");
-console.log("Expo export route resolution:", routeEntry ?? "MISSING");
+console.log("Testing live Expo Router route:", routeEntry);
 let browser;
 const sizes = [[320,568],[375,667],[390,844],[430,932],[667,375],[844,390],[1024,768]];
 try {
@@ -50,10 +29,10 @@ try {
     });
     page.on("requestfailed", request => requestFailures.push(request.url() + ": " + request.failure()?.errorText));
     try {
-      const response = await page.goto("http://127.0.0.1:" + port + "/settori-preview", { waitUntil: "domcontentloaded" });
+      const response = await page.goto(routeEntry, { waitUntil: "domcontentloaded" });
       assert.ok(response?.ok(), "Preview HTTP status: " + response?.status());
       try {
-        await page.getByTestId("sector-preview-grid").waitFor({ state: "visible", timeout: 30000 });
+        await page.getByTestId("sector-preview-grid").waitFor({ state: "visible", timeout: 45000 });
       } catch (error) {
         const diagnostics = await page.evaluate(() => ({
           pathname: location.pathname,
@@ -158,5 +137,4 @@ try {
   }
 } finally {
   if (browser) await browser.close();
-  await new Promise(ok => server.close(ok));
 }

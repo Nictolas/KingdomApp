@@ -22,6 +22,8 @@ test("nested static route is supported, then SPA fallback", async () => fixture(
   await writeFile(join(root, "settori-preview", "index.html"), "sector");
   assert.equal(await findStaticPreviewFile(root, "/settori-preview"), join(root, "settori-preview", "index.html"));
   assert.equal(await findStaticPreviewFile(root, "/other-screen"), join(root, "index.html"));
+  assert.equal(await findStaticPreviewFile(root, "/other-screen", { allowSpaFallback: false }), null);
+  assert.equal(await findStaticPreviewFile(root, "/settori-preview", { allowSpaFallback: false }), join(root, "settori-preview", "index.html"));
 }));
 test("missing scripts must be 404 rather than serving index HTML", async () => fixture(async root => {
   await writeFile(join(root, "index.html"), "home");
@@ -34,4 +36,10 @@ test("missing scripts must be 404 rather than serving index HTML", async () => f
 test("path traversal and relative paths are rejected", async () => fixture(async root => {
   await assert.rejects(findStaticPreviewFile(root, "/%2e%2e/%2e%2e/secrets.txt"), /escapes/);
   await assert.rejects(findStaticPreviewFile(root, "settori-preview"), /absolute/);
+}));
+
+test("SPA index.html does not prove a deep-link route renders", async () => fixture(async root => {
+  await writeFile(join(root, "index.html"), "home screen");
+  assert.equal(await findStaticPreviewFile(root, "/settori-preview"), join(root, "index.html"));
+  assert.equal(await findStaticPreviewFile(root, "/settori-preview", { allowSpaFallback: false }), null);
 }));

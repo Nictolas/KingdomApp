@@ -61,13 +61,35 @@ jobs:
       - name: Inspect exported HTML entry points
         run: |
           find /tmp/fixed-sector-preview-browser-web -maxdepth 3 -name '*.html' -print | head -40
-          node --input-type=module -e "import { findStaticPreviewFile } from './tests/sector-preview-static-server.mjs'; const file = await findStaticPreviewFile('/tmp/fixed-sector-preview-browser-web', '/settori-preview'); if (!file) process.exit(1); console.log('Resolved /settori-preview:', file)"
-      - name: Install Chromium test tooling (CI only, not app dependencies)
+          node --input-type=module -e "import { findStaticPreviewFile } from './tests/sector-preview-static-server.mjs'; const file = await findStaticPreviewFile('/tmp/fixed-sector-preview-browser-web', '/settori-preview', { allowSpaFallback: false }); console.log(file ? 'Dedicated exported preview HTML: ' + file : 'SPA-only export: no route-specific HTML; browser UI will be tested using Expo Router dev server')"
+      - name: Install isolated Chromium tooling (CI only)
         run: |
-          npm install --no-save --no-package-lock playwright@1.55.0
-          npx playwright install --with-deps chromium
+          npm install --prefix /tmp/fixed-sector-browser-tools --no-save --no-package-lock playwright@1.55.0
+          /tmp/fixed-sector-browser-tools/node_modules/.bin/playwright install --with-deps chromium
+      - name: Start Expo Router dev server for route-aware browser tests
+        run: |
+          nohup npx expo start --web --port 8081 --host localhost > /tmp/fixed-sector-expo.log 2>&1 &
+          echo $! > /tmp/fixed-sector-expo.pid
+          for attempt in $(seq 1 90); do
+            if curl -fsS http://127.0.0.1:8081/settori-preview -o /tmp/fixed-sector-route.html; then
+              echo "Expo Router server is accepting preview requests"
+              exit 0
+            fi
+            if ! kill -0 "$(cat /tmp/fixed-sector-expo.pid)" 2>/dev/null; then
+              tail -n 100 /tmp/fixed-sector-expo.log
+              exit 1
+            fi
+            sleep 2
+          done
+          tail -n 100 /tmp/fixed-sector-expo.log
+          exit 1
       - name: Validate real DOM layout, navigation and capture responsive screenshots
-        run: node tests/sector-preview-browser.mjs /tmp/fixed-sector-preview-browser-web
+        env:
+          PREVIEW_PLAYWRIGHT_MODULE: /tmp/fixed-sector-browser-tools/node_modules/playwright
+        run: node tests/sector-preview-browser.mjs http://127.0.0.1:8081
+      - name: Print Expo Router server diagnostics on failure
+        if: failure()
+        run: tail -n 150 /tmp/fixed-sector-expo.log || true
       - name: Preserve browser screenshots (not physical-device evidence)
         if: always()
         uses: actions/upload-artifact@v4
