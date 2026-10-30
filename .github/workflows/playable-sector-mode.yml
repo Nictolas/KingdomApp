@@ -54,3 +54,10 @@ jobs:
           npx playwright install --with-deps chromium
       - name: Play the third mode in Chromium at two phone sizes
         run: node tests/sector-playable-browser.mjs dist
+      - name: Save playable texture screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sector-playable-textures
+          path: sector-screenshots/*.png
+          if-no-files-found: ignore
