@@ -6,6 +6,7 @@ on:
       - "src/game/territoryGeography.ts"
       - "src/game/territoryWorldPersistence.ts"
       - "src/ui/TerritoryWorldScreen.tsx"
+      - "src/ui/TerritoryDirectionPad.tsx"
       - "src/components/SectorResidentHumanSprite.tsx"
       - "src/components/SpriteCharacterRenderer.tsx"
       - "src/game/sectorResidentAppearance.ts"
