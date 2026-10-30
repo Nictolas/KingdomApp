@@ -12,9 +12,9 @@ export const TERRITORY_SAVE_KEY = "mykingdom:territories:v1";
 const MAX_CLAIMED_TERRITORIES = 2048; // save-validation ceiling, not a five-sector gameplay limit
 const MAX_RESOURCES = 1_000_000_000;
 export type TerritoryBiome = "pianura"|"foresta"|"collina"|"palude"|"arido";
-export type TerritoryTile = "grass"|"woodland"|"rock"|"water"|"road"|"dry";
+export type TerritoryTile = "grass"|"woodland"|"rock"|"water"|"road"|"bridge"|"dry";
 export type TerritoryBuildingKind = "castle"|"house"|"farm"|"shop"|"lumber"|"guard";
-export type TerritoryTool = "inspect"|"road"|"clear"|"demolish"|Exclude<TerritoryBuildingKind,"castle">;
+export type TerritoryTool = "inspect"|"road"|"bridge"|"clear"|"demolish"|Exclude<TerritoryBuildingKind,"castle">;
 export type TerritoryClaim = "capital"|"purchase"|"conquest";
 export type Direction = "n"|"s"|"e"|"w";
 export type TerritoryBuilding = {
@@ -60,6 +60,7 @@ const RESIDENT_NAMES=["Mira","Leofric","Elara","Borin","Nora","Alaric","Iris","F
 export const PURCHASE_BASE_COST=36;
 export const CONQUEST_GOLD_COST=12;
 export const CONQUEST_WOOD_COST=9;
+export const BRIDGE_WOOD_COST=3;
 const DIR:Record<Direction,readonly [number,number]>={n:[0,-1],e:[1,0],s:[0,1],w:[-1,0]};
 const START_BUILDINGS:readonly {kind:TerritoryBuildingKind;x:number;y:number;w:number;h:number}[]=[
   {kind:"castle",x:6,y:6,w:4,h:4},
@@ -133,12 +134,17 @@ export function basicRoad(x:number,y:number):boolean{
 export function groundAt(seed:number,tx:number,ty:number,x:number,y:number,biomeOverride?:TerritoryBiome,terrainVersion:1|2=1):TerritoryTile{
   if(!Number.isInteger(x)||!Number.isInteger(y)||x<0||y<0||x>=TERRITORY_SIDE||y>=TERRITORY_SIDE)
     throw new RangeError("Casella fuori dal territorio");
-  // Four matching road exits make adjoining maps visually/geographically continuous.
-  if(basicRoad(x,y))return "road";
+  // The four main roads continue across territory boundaries. Where the
+  // generated river meets a road, retain the crossing as a visible bridge,
+  // instead of silently painting dirt on top of the water. V1 stays intact.
+  if(terrainVersion===1&&basicRoad(x,y))return "road";
   if(isStartingFootprint(tx,ty,x,y))return "grass";
   const biome=biomeOverride??biomeForTerritory(seed,tx,ty,terrainVersion);
   const gx=tx*TERRITORY_SIDE+x,gy=ty*TERRITORY_SIDE+y;
-  if(terrainVersion===2)return naturalGeographyAt(seed,gx,gy,biome);
+  if(terrainVersion===2){
+    const natural=naturalGeographyAt(seed,gx,gy,biome);
+    return basicRoad(x,y)?(natural==="water"?"bridge":"road"):natural;
+  }
   const density=smoothNoise(seed,gx,gy,0x713a);
   const fleck=unit(seed,gx,gy,0x6d90);
   if(biome==="palude"&&density<0.38)return "water";
@@ -151,8 +157,8 @@ export function groundAt(seed:number,tx:number,ty:number,x:number,y:number,biome
 }
 export function tileAt(world:TerritoryWorld,territory:Territory,x:number,y:number):TerritoryTile{
   const cell=y*TERRITORY_SIDE+x;
-  if(territory.roads.includes(cell))return "road";
   const base=groundAt(world.seed,territory.tx,territory.ty,x,y,territory.biome,world.terrainVersion??1);
+  if(territory.roads.includes(cell))return base==="water"?"bridge":"road";
   return territory.cleared.includes(cell)&&base==="woodland"?"grass":base;
 }
 export function territoryPreview(world:TerritoryWorld,tx:number,ty:number){
@@ -246,6 +252,9 @@ export function isFreeCell(world:TerritoryWorld,t:Territory,x:number,y:number):b
   const kind=tileAt(world,t,x,y);
   return (kind==="grass"||kind==="dry")&&!buildingAt(t,x,y)&&!t.residents.some(r=>r.x===x&&r.y===y);
 }
+export function isTravelRoad(tile:TerritoryTile):boolean{
+  return tile==="road"||tile==="bridge";
+}
 export function canBuildAt(world:TerritoryWorld,t:Territory,x:number,y:number,
   kind:Exclude<TerritoryBuildingKind,"castle">):boolean{
   const spec=TERRITORY_BUILDINGS[kind];
@@ -257,7 +266,7 @@ export function canBuildAt(world:TerritoryWorld,t:Territory,x:number,y:number,
   for(let dy=-1;dy<=spec.h;dy++)for(let dx=-1;dx<=spec.w;dx++){
     const edge=(dy===-1||dy===spec.h)?dx>=0&&dx<spec.w:(dx===-1||dx===spec.w)?dy>=0&&dy<spec.h:false;
     const nx=x+dx,ny=y+dy;
-    if(edge&&nx>=0&&ny>=0&&nx<TERRITORY_SIDE&&ny<TERRITORY_SIDE&&tileAt(world,t,nx,ny)==="road")return true;
+    if(edge&&nx>=0&&ny>=0&&nx<TERRITORY_SIDE&&ny<TERRITORY_SIDE&&isTravelRoad(tileAt(world,t,nx,ny)))return true;
   }
   return false;
 }
@@ -288,18 +297,23 @@ export function territoryAction(world:TerritoryWorld,tool:TerritoryTool,x:number
     return {...world,wood:Math.min(MAX_RESOURCES,world.wood+2),
       territories:{...world.territories,[world.active]:next},notice:"Bosco disboscato, ottenuti 2 legni."};
   }
-  if(tool==="road"){
-    if(world.wood<1)return withNotice(world,"Serve 1 legno per costruire una strada.");
-    if(terrain!=="grass"&&terrain!=="dry")return withNotice(world,"Prima libera il terreno: le strade richiedono terra pianeggiante.");
-    if(!isFreeCell(world,old,x,y))return withNotice(world,"Casella occupata: impossibile costruire la strada.");
+  if(tool==="road"||tool==="bridge"){
+    const bridge=tool==="bridge";
+    const price=bridge?BRIDGE_WOOD_COST:1;
+    if(world.wood<price)return withNotice(world,"Servono "+price+" legni per costruire "+(bridge?"un ponte.":"una strada."));
+    if(bridge?terrain!=="water":terrain!=="grass"&&terrain!=="dry")
+      return withNotice(world,bridge?"Puoi costruire un ponte solo sull'acqua libera.":"Le strade richiedono terra pianeggiante.");
+    if(existing||person)return withNotice(world,"Casella occupata: impossibile costruire.");
+    if(!bridge&&!isFreeCell(world,old,x,y))
+      return withNotice(world,"Casella occupata: impossibile costruire la strada.");
     const links=Object.values(DIR).some(([dx,dy])=>{
       const xx=x+dx,yy=y+dy;
-      return xx>=0&&yy>=0&&xx<TERRITORY_SIDE&&yy<TERRITORY_SIDE&&tileAt(world,old,xx,yy)==="road";
+      return xx>=0&&yy>=0&&xx<TERRITORY_SIDE&&yy<TERRITORY_SIDE&&isTravelRoad(tileAt(world,old,xx,yy));
     });
-    if(!links)return withNotice(world,"La nuova strada deve collegarsi a una strada esistente.");
+    if(!links)return withNotice(world,"Il nuovo percorso deve collegarsi a una strada o a un ponte esistente.");
     const next={...old,roads:[...old.roads,cell]};
-    return {...world,wood:world.wood-1,territories:{...world.territories,[world.active]:next},
-      notice:"Strada costruita alla casella "+(x+1)+","+(y+1)+"."};
+    return {...world,wood:world.wood-price,territories:{...world.territories,[world.active]:next},
+      notice:(bridge?"Ponte":"Strada")+" costruito alla casella "+(x+1)+","+(y+1)+"."};
   }
   const spec=TERRITORY_BUILDINGS[tool];
   if(world.wood<spec.wood||world.gold<spec.gold)
@@ -355,7 +369,7 @@ function spawnNewResident(world:TerritoryWorld,t:Territory):TerritoryResident|nu
       const id=world.nextResident;
       return {id:"person-"+id,name:RESIDENT_NAMES[id%RESIDENT_NAMES.length]+" "+id,x,y,energy:90};
     }
-    if(!occupied.has(cell)&&tileAt(world,t,x,y)==="road")return {
+    if(!occupied.has(cell)&&isTravelRoad(tileAt(world,t,x,y)))return {
       id:"person-"+world.nextResident,
       name:RESIDENT_NAMES[world.nextResident%RESIDENT_NAMES.length]+" "+world.nextResident,
       x,y,energy:90
@@ -434,7 +448,7 @@ export function isTerritoryWorld(raw:unknown):raw is TerritoryWorld{
       roads.add(i);
       const x=i%TERRITORY_SIDE,y=Math.floor(i/TERRITORY_SIDE);
       const base=groundAt(world.seed,t.tx,t.ty,x,y,t.biome,world.terrainVersion??1);
-      if(base!=="grass"&&base!=="dry"&&!(cleared.has(i)&&base==="woodland"))return false;
+      if(base!=="grass"&&base!=="dry"&&base!=="water"&&!(cleared.has(i)&&base==="woodland"))return false;
     }
     const taken=new Set<number>();
     for(const b of t.buildings){
@@ -449,7 +463,7 @@ export function isTerritoryWorld(raw:unknown):raw is TerritoryWorld{
         const i=yy*TERRITORY_SIDE+xx;
         if(taken.has(i)||tileAt(world,t,xx,yy)==="water"||
           tileAt(world,t,xx,yy)==="rock"||tileAt(world,t,xx,yy)==="woodland"||
-          tileAt(world,t,xx,yy)==="road")return false;
+          isTravelRoad(tileAt(world,t,xx,yy)))return false;
         taken.add(i);
       }
     }
