@@ -77,3 +77,21 @@ laboratorio oppure questo workflow. Un controllo preliminare con checkout
 HEAD esatto e diff con il suo commit genitore evita due build Gradle su
 semplici cambiamenti documentali o audit di manifesti. Eventuali run
 `skipped` per soli documenti non sono compilazioni riuscite né fallite.
+
+## Correzione di cancellazione prematura della matrice Gradle (30 ottobre 2026)
+
+Il controllo `determine-build` sul diff dell'ultimo commit impedisce di
+**avviare** nuovi APK quando cambiano soltanto documenti o test. Tuttavia
+la vecchia opzione `cancel-in-progress: true` operava a livello di
+**intero workflow**, prima di quel controllo: un push di documentazione
+poteva quindi interrompere una compilazione Gradle già avviata, anche se
+il nuovo run avrebbe saltato la matrice.
+
+Il workflow ora usa `cancel-in-progress: false`: le compilazioni già
+iniziate proseguono sul proprio SHA Git originale. I run successivi sono
+serializzati dalla concurrency group; quelli senza modifiche native
+saltano la matrice costosa dopo il gate. Un test statico dedicato protegge
+l'ordine `determine-build → android-debug-build` e vieta il ripristino
+della cancellazione globale. Questo **non** certifica la compilazione:
+occorre attendere l'esito `success` per entrambe le varianti e controllare
+i due artefatti effettivamente prodotti.

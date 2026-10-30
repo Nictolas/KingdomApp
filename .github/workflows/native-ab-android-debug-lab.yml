@@ -13,7 +13,7 @@ permissions:
 
 concurrency:
   group: native-ab-debug-${{ github.event.pull_request.number }}
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   determine-build:

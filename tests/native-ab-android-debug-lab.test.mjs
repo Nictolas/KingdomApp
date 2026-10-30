@@ -11,7 +11,7 @@ test("Android lab builds only on Draft #297 PR and never on main or the #298 bas
   assert.match(workflow, /^on:\n  pull_request:/m);
   assert.match(workflow, /if: \$\{\{ github\.event\.pull_request\.number == 297 \}\}/);
   assert.match(workflow, /concurrency:\n  group: native-ab-debug-/);
-  assert.match(workflow, /cancel-in-progress: true/);
+  assert.match(workflow, /cancel-in-progress: false/);
   assert.match(workflow, /permissions:\n  contents: read/);
   assert.match(workflow, /determine-build:/);
   assert.match(workflow, /fetch-depth: 2/);
@@ -39,4 +39,15 @@ test("DEBUG artifacts must be ephemeral and explicitly excluded from release or 
   assert.match(workflow, /actions\/upload-artifact@v4/);
   assert.match(workflow, /retention-days: 7/);
   assert.doesNotMatch(workflow, /:app:assembleRelease|eas build|gradlew publish|google-play|fastlane|deploy:|force: true/);
+});
+
+test("A docs-only synchronize event cannot cancel a running expensive A/B APK build", () => {
+  // Workflow-level concurrency applies BEFORE the determine-build job runs.
+  // Keeping cancel-in-progress=true would abort a live Gradle build even when
+  // the new HEAD is documentation-only and the expensive job would be skipped.
+  assert.match(workflow, /cancel-in-progress: false/);
+  assert.doesNotMatch(workflow, /cancel-in-progress: true/);
+  assert.match(workflow, /determine-build:/);
+  assert.match(workflow, /needs: determine-build/);
+  assert.match(workflow, /if: needs\\.determine-build\\.outputs\\.changed == 'true'/);
 });
