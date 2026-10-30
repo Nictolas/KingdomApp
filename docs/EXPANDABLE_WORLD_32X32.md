@@ -94,6 +94,30 @@ locali delle strade: non occorre migrare i salvataggi precedenti.
 I mondi storici conservano il vecchio terreno ma possono costruire
 ponti nelle caselle d'acqua.
 
+## Manopola direzionale: cambio territorio, non telecamera
+
+Nella nuova modalità 32×32, una **manopola tonda fissa al centro in basso**
+contiene quattro direzioni e un pulsante centrale. Non muove il personaggio
+e **non sposta la telecamera all'interno del riquadro** (per quello rimangono
+le precedenti frecce di scorrimento e zoom).
+
+- **Nord / Sud / Est / Ovest:** se il territorio confinante è già posseduto,
+  il gioco lo apre immediatamente e lo centra nella sua area 32×32.
+- **Confine non ancora acquisito:** apre la mappa generale con **quel
+  territorio già selezionato**, pronta per l'acquisto o la conquista.
+  Il semplice tocco sulla manopola non spende monete o legno.
+- **Centro ("Mappa"):** apre la mappa generale senza cambiare territorio.
+- Le direzioni possedute sono evidenziate in verde; quelle acquisibili sono
+  color oro. Le direzioni oltre il confine tecnico delle coordinate sono
+  disattivate, con un'indicazione di accessibilità.
+- La manopola rimane sotto strumenti e pulsanti principali, all'interno della
+  safe area dello smartphone, con dimensioni ridotte sui display più piccoli.
+- La navigazione tra territori già posseduti non modifica risorse, terreno,
+  edifici o popolazione. Cambia soltanto quale territorio viene mostrato.
+
+La manopola è distinta dalla navigazione interna alla mappa 32×32 e
+dalla panoramica geografica 5×5, che mantengono le proprie funzioni.
+
 ## Territori fissi: scelta ancora aperta
 
 Il mondo contiene un registro `FIXED_TERRITORIES`, attualmente con il solo
