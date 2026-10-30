@@ -89,6 +89,17 @@ try{
    await page.getByTestId("territory-map-grid").waitFor({state:"hidden"});
    const cameraBeforeFrontier=await page.getByTestId("territory-world-visible-range").textContent();
    const resourcesBeforeFrontier=await page.getByTestId("territory-world-resources").textContent();
+   // Check all cardinal directions. A tap only SELECTS the frontier; it does
+   // not move the internal camera or buy land before confirmation.
+   for(const [direction,key] of [["n","0,-1"],["s","0,1"],["w","-1,0"]]){
+     await page.getByTestId("territory-dpad-"+direction).click();
+     await page.getByTestId("territory-map-selected-label")
+       .filter({hasText:key}).waitFor();
+     assert.equal(await page.getByTestId("territory-world-resources").textContent(),
+       resourcesBeforeFrontier,"Unowned territory "+direction+" must not charge the player");
+     await page.getByTestId("territory-map-close").click();
+     await page.getByTestId("territory-map-grid").waitFor({state:"hidden"});
+   }
    await page.getByTestId("territory-dpad-e").click();
    await page.getByTestId("territory-map-selected").filter({hasText:/Acquisto:/}).waitFor();
    assert.match(await page.getByTestId("territory-map-selected-label").textContent()||"",/1,0/,
