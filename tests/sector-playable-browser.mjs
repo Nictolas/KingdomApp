@@ -58,20 +58,21 @@ try{
  assert.ok(await page.getByTestId("sector-game-resources").getByText("👤 110").isVisible());
  // React Native Web often places 'left' in a generated CSS class, not img.style.
  // Observe computed atlas crop coordinates while running, then ensure they remain fixed in pause.
- const firstSprite=page.getByTestId("sector-resident").first().locator("img").first();
- const spriteOffset=()=>firstSprite.evaluate(img=>getComputedStyle(img).left);
+ const firstSprite=page.getByTestId("sector-resident-atlas-image").first();
+ const spriteOffset=()=>firstSprite.evaluate(el=>getComputedStyle(el).left);
  const before=await spriteOffset();
  await page.getByTestId("sector-game-pause").click(); // resume
  await page.getByRole("button",{name:"Metti in pausa il tempo"}).waitFor({state:"visible"});
  try {
    await page.waitForFunction(start=>{
-     const img=document.querySelector('[data-testid="sector-resident"] img');
-     return !!img && getComputedStyle(img).left!==start;
+     const element=document.querySelector('[data-testid="sector-resident-atlas-image"]');
+     return !!element && getComputedStyle(element).left!==start;
    },before,{timeout:8000});
  } catch(error) {
-   const diagnostic=await firstSprite.evaluate(img=>({
-     inlineLeft:img.style.left, computedLeft:getComputedStyle(img).left,
-     className:img.className, cssText:img.getAttribute("style")
+   const diagnostic=await firstSprite.evaluate(el=>({
+     inlineLeft:el.style.left, computedLeft:getComputedStyle(el).left,
+     className:el.className, cssText:el.getAttribute("style"),
+     outerHTML:el.outerHTML.slice(0,400)
    }));
    throw new Error("Sprite atlas frame did not change: "+JSON.stringify({before,diagnostic}),{cause:error});
  }
