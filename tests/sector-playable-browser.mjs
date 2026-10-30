@@ -102,6 +102,15 @@ try{
  await page.getByTestId("sector-game-tap-grid").click({position:{x:cell*.7,y:cell*20.7}});
  const buildMessage=await page.getByTestId("sector-game-notice").textContent();
  assert.match(buildMessage||"",/Casa .* costruita/i,"Construction failed: "+buildMessage);
+ // One-tap placement is essential when a 16×24 grid is tiny on a phone.
+ await page.getByRole("button",{name:"Fattoria",exact:true}).click();
+ const accentsBefore=await page.getByTestId("sector-building-accent").count();
+ await page.getByTestId("sector-game-place-building").click();
+ const automaticBuild=await page.getByTestId("sector-game-notice").textContent();
+ assert.match(automaticBuild||"",/Fattoria .* costruita/i,"One-tap placement failed: "+automaticBuild);
+ assert.equal(await page.getByTestId("sector-building-accent").count(),accentsBefore+1,
+   "New farm must have a crop sprite");
+
  await page.getByRole("button",{name:"Ricomincia"}).click();
  await page.getByTestId("sector-game-reset-dialog").waitFor();
  await page.getByTestId("sector-game-reset-cancel").click();
@@ -111,6 +120,8 @@ try{
  await page.getByTestId("choose-sector-mode").click();
  await page.getByTestId("sector-game-grid").waitFor();
  await page.getByText(/SUD · 22 abitanti/i).waitFor();
+ assert.ok(await page.getByTestId("sector-building-accent").count()>8,
+   "Auto-placed farm must remain after leaving and resuming");
  assert.equal(errors.length,0,"Runtime errors: "+errors.join("; "));
  console.log("PASS playable mode "+width+"x"+height+": real terrain/citizen images decoded, 384 tiles, visible-only sprites, clock, travel, build, isolated save");
  }finally{await page.close();}
