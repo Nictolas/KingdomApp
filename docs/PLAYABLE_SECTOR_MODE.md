@@ -15,6 +15,7 @@ PR Draft #300, branch `feat/playable-sector-mode-20261030`. Il prototipo a setto
 - Abitanti: ritagli dal file originale `character.png`, non sagome geometriche. I 30 abitanti del Centro sono visibili quando il Centro è attivo; i restanti settori sono simulati ma non montati nell'interfaccia.
 - Castello, case e alberi usano gli asset esistenti. In questa fase Fattoria e Bottega condividono le varianti di case/capanne già presenti: le loro illustrazioni specifiche richiedono successiva scelta di asset verificati.
 - Le 384 coordinate del terreno sono pre-calcolate e il livello statico è memoizzato: lo scorrere dei giorni aggiorna gli sprite degli abitanti senza ricostruire l'intera mappa di base. Nessuna variazione al formato dei salvataggi.
+- Un solo timer condiviso (280 ms) anima i tre fotogrammi originali per gruppo direzionale degli abitanti **solo nel settore visibile**; durante la pausa si ferma. La simulazione degli altri settori e la persistenza non usano questo timer grafico.
 - Il test Chromium verifica **immagini scaricate e decodificate**, 384 celle con immagini originali, 30 residenti visibili al Centro, 22 al Sud, costruzione, viaggio, giorno e persistenza. Produce screenshot a due dimensioni smartphone, caricati come artifact del workflow.
 
 ## Verifiche automatizzate
@@ -22,7 +23,7 @@ Il workflow `Playable Sector Mode` esegue typecheck isolato, test del modello e 
 
 ## Rischi e prove mancanti
 - Verificare l'esito finale della CI **sull'ultimo commit** e ispezionare gli artifact screenshot; test verdi su commit precedenti non bastano a certificare questa integrazione.
-- Le immagini di persone sono sprite statici ritagliati dal foglio originale, **non ancora la pipeline LPC completa con animazione direzionale** della mappa principale.
+- Gli abitanti animano i fotogrammi originali, ma non hanno ancora la pipeline LPC completa della partita principale (abiti/personalizzazione, direzione dedotta dagli spostamenti e movimento continuo).
 - Controllo della leggibilità del livello 16×24 su schermi fisici piccoli, contrasto e selezione delle celle; la prova browser emula la viewport e non sostituisce il touchscreen.
 
 - Prova reale su Android/iPhone (touch, safe area, leggibilità 16×24, orientamento, persistenza tra chiusure forzate).
