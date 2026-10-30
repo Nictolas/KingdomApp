@@ -13,9 +13,9 @@ import { createTerritoryWriteQueue,loadTerritoryWorld } from "../game/territoryW
 import {
   TERRITORY_SIDE,TERRITORY_BUILDINGS,BIOME_LABELS,CONQUEST_GOLD_COST,CONQUEST_WOOD_COST,
   advanceTerritoryDay,buildAtFirstAvailable,claimTerritory,createTerritoryWorld,
-  groundAt,neighborCoordinates,territoryAction,territoryKey,territoryLabel,
+  groundAt,neighborCoordinates,territoryAction,territoryKey,territoryDisplayLabel,
   territoryPreview,tileAt,visitTerritory,worldMilitaryStrength,worldPopulation,
-  type Direction,type TerritoryBuildingKind,type TerritoryTile,type TerritoryTool,
+  type Direction,type TerritoryBiome,type TerritoryBuildingKind,type TerritoryTile,type TerritoryTool,
   type TerritoryWorld
 } from "../game/territoryWorldModel";
 
@@ -24,6 +24,10 @@ const HUT=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/house
 const CASTLE=require("../../assets/pixel-art/buildings/castle.png");
 const TREE=require("../../assets/tilesets/DEMO-vector-rpg-overworld-tileset/tree_1.png");
 const ROAD_X=512,ROAD_Y=128;
+const MAP_BIOME_COLORS:Record<TerritoryBiome,string>={
+  pianura:"#5a8854",foresta:"#315d3c",collina:"#777c61",
+  palude:"#406d6e",arido:"#a68c52"
+};
 const tools:readonly {id:TerritoryTool;label:string}[]=[
   {id:"inspect",label:"Esplora"},{id:"road",label:"Strada"},
   {id:"clear",label:"Disbosca"},{id:"house",label:"Casa"},
@@ -218,7 +222,7 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
       </View>
       <View style={styles.territoryHeading}>
         <View style={{flex:1}}>
-          <Text testID="territory-world-label" style={styles.landTitle}>{territoryLabel(world.seed,tx,ty)}</Text>
+          <Text testID="territory-world-label" style={styles.landTitle}>{territoryDisplayLabel(world,tx,ty)}</Text>
           <Text style={styles.muted}>{BIOME_LABELS[territory.biome]} · {territory.residents.length} abitanti · {ownedCount} territori · ({tx},{ty})</Text>
         </View>
         <Pressable testID="territory-open-map" accessibilityRole="button"
@@ -331,12 +335,15 @@ export function TerritoryWorldScreen({onExit}:{onExit:()=>void}){
                   accessibilityState={{selected:selectedTile}}
                   disabled={!available} onPress={()=>setSelectedKey(entry.key)}
                   style={[styles.mapCell,tight&&styles.mapCellSmall,!available&&styles.fogCell,
-                    entry.owned&&styles.ownedCell,selectedTile&&styles.selectedCell,
+                    entry.owned&&styles.ownedCell,
+                    available&&{backgroundColor:MAP_BIOME_COLORS[entry.biome]},
+                    selectedTile&&styles.selectedCell,
                     current&&styles.currentCell]}>
                   <Text style={[styles.mapCellText,!available&&styles.fogText]}>
                     {current?"♜":entry.owned?"●":entry.reachable?"＋":"?"}
                   </Text>
                   <Text numberOfLines={1} style={styles.mapCoordinates}>{entry.tx},{entry.ty}</Text>
+                  {available?<Text numberOfLines={1} style={styles.mapBiomeLabel}>{BIOME_LABELS[entry.biome]}</Text>:null}
                 </Pressable>;
               })}
             </View>
@@ -433,6 +440,7 @@ const styles=StyleSheet.create({
   mapCellText:{fontSize:18,fontWeight:"800",color:"#f5df9d"},
   fogText:{color:"#64746b"},
   mapCoordinates:{fontSize:9,color:"#e0edcf"},
+  mapBiomeLabel:{fontSize:7,color:"#f2efda",fontWeight:"700",textAlign:"center"},
   mapActions:{flexDirection:"row",gap:8,minHeight:39},
   conquer:{backgroundColor:"#8a5039"}
 });
