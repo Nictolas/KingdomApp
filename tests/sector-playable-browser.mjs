@@ -87,6 +87,14 @@ try{
  await page.screenshot({path:`sector-screenshots/playable-south-original-sprites-${width}x${height}.png`});
  assert.equal(await page.getByTestId("sector-resident").count(),22,
    "Only the 22 visible south residents should render");
+ assert.ok(await page.getByTestId("sector-building-accent").count()>=8,
+   "Southern farms should use recognisable crop sprites");
+ await page.getByRole("button",{name:"Visita Est"}).click();
+ await page.getByText(/EST · 21 abitanti/i).waitFor();
+ assert.ok(await page.getByTestId("sector-building-accent").count()>=12,
+   "Eastern market buildings should use original crate sprites");
+ await page.getByRole("button",{name:"Visita Sud"}).click();
+ await page.getByText(/SUD · 22 abitanti/i).waitFor();
  await page.getByRole("button",{name:"Casa",exact:true}).click();
  const box=await page.getByTestId("sector-game-grid").boundingBox();
  const cell=box.width/16;
